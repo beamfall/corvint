@@ -13,7 +13,11 @@ import (
 // AFP-V0-401: a Go test whose literal filepath.Glob matches an added file is
 // selected with a witness naming the glob (the V1-1803 shape: a workflow added
 // under .github/workflows); a non-literal glob records nothing, so the path
-// stays an UNOWNED_DIRTY_PATH unknown.
+// stays an UNOWNED_DIRTY_PATH unknown. Since AFP-V0-2241 round 8 the lone
+// ".github" and "workflows" of the V1-1803 Join name those directories at any
+// depth themselves (the root is supplied at run time), so that unit is
+// selected by its literal first; the glob witness is shown by the specs unit,
+// whose climbing pattern names the path only as a glob.
 func TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -28,23 +32,32 @@ func TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cases := []struct{ dirty, unit, glob string }{
-		{".github/workflows/spec-toolchain-conformance.yml", "go:example.test/m/cmd/tool", ".github/workflows/*.y*ml"},
-		{"docs/specs/README.md", "go:example.test/m/specs", "/docs/sp*cs/*.md"},
+	cases := []struct{ dirty, unit, kind, glob string }{
+		{".github/workflows/spec-toolchain-conformance.yml", "go:example.test/m/cmd/tool", affected.WitnessPathLiteralReader, ""},
+		{"docs/specs/README.md", "go:example.test/m/specs", affected.WitnessPathGlobReader, "/docs/sp*cs/*.md"},
 	}
 	for _, c := range cases {
 		plan := affected.Select(graph, []string{c.dirty})
 		if len(plan.Selected) != 1 {
 			t.Fatalf("%s selected %+v", c.dirty, plan.Selected)
 		}
-		want := affected.Witness{Kind: affected.WitnessPathGlobReader, DirtyPath: c.dirty, Via: []string{c.unit}, Glob: c.glob}
+		want := affected.Witness{Kind: c.kind, DirtyPath: c.dirty, Via: []string{c.unit}, Glob: c.glob}
 		if got := plan.Selected[0]; got.UnitID != c.unit || fmt.Sprint(got.Witness) != fmt.Sprint(want) {
 			t.Fatalf("%s selected %s witness %+v, want %+v", c.dirty, got.UnitID, got.Witness, want)
 		}
 	}
-	// An anchored glob matches from the repository root only, and a pattern
-	// that matches no component run selects nothing.
-	for _, dirty := range []string{"x/docs/specs/README.md", ".github/workflows/README.md", "src/retired.py"} {
+	// A pattern that matches no component run, and a non-literal glob,
+	// witness nothing as globs; the lone literals ".github" and "src/" still
+	// name their directories.
+	for _, dirty := range []string{".github/workflows/README.md", "src/retired.py"} {
+		for _, selection := range affected.Select(graph, []string{dirty}).Selected {
+			if selection.Witness.Kind == affected.WitnessPathGlobReader {
+				t.Errorf("%s: %s selected by glob %+v", dirty, selection.UnitID, selection.Witness)
+			}
+		}
+	}
+	// An anchored glob matches from the repository root only.
+	for _, dirty := range []string{"x/docs/specs/README.md"} {
 		plan := affected.Select(graph, []string{dirty})
 		if len(plan.Selected) != 0 {
 			t.Fatalf("%s selected %+v", dirty, plan.Selected)
@@ -58,13 +71,15 @@ func TestLiteralGlobSelectsTheReaderOfAnAddedFile_AFPV0401(t *testing.T) {
 }
 
 // AFP-V0-401: the call is found however it is spaced or commented, not only as
-// the text `Glob(`.
+// the text `Glob(`. Each class has two members, so no lone literal token
+// names the directory (a Go unit's lone token names any component since
+// AFP-V0-2241 round 8) and only the glob witnesses it.
 func TestLiteralGlobIsFoundThroughSpacingAndComments_AFPV0401(t *testing.T) {
 	calls := map[string]string{
-		"space":   "filepath.Glob (\"../d[o]cs/[w]/*.md\")",
-		"newline": "filepath.\n\t\tGlob(\n\t\t\t\"../d[o]cs/[x]/*.md\")",
-		"block":   "filepath.Glob/* pattern */(\"../d[o]cs/[y]/*.md\")",
-		"line":    "filepath.Glob( // pattern\n\t\t\"../d[o]cs/[z]/*.md\")",
+		"space":   "filepath.Glob (\"../d[o]cs/[bw]/*.md\")",
+		"newline": "filepath.\n\t\tGlob(\n\t\t\t\"../d[o]cs/[cx]/*.md\")",
+		"block":   "filepath.Glob/* pattern */(\"../d[o]cs/[dy]/*.md\")",
+		"line":    "filepath.Glob( // pattern\n\t\t\"../d[o]cs/[ez]/*.md\")",
 	}
 	files := map[string]string{"go.mod": "module example.test/m\n"}
 	for name, call := range calls {

@@ -226,8 +226,9 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 
 // AFP-V0-021: a dirty path no plugin owns selects the package whose own files
 // name it by literal, witnessed as PATH_LITERAL_READER, and stays unknown. An
-// import path is an edge, never a token; a dependent of the reader and a path
-// no literal names select nothing.
+// import path is an edge, never a token; a literal under the module keeps its
+// written spelling beside its anchored one (AFP-V0-2242); a dependent of the
+// reader and a path no literal names select nothing.
 func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -251,7 +252,7 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 			continue
 		}
 		found = true
-		if fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/ assets/logo.svg tables/rows.txt]" {
+		if fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/ assets/logo.svg example.test/m/data/ tables/rows.txt]" {
 			t.Fatalf("pkg path tokens=%q", unit.PathTokens)
 		}
 	}
@@ -383,10 +384,13 @@ func TestTestOnlyImportSelectsTheTestUserButNotItsImporters(t *testing.T) {
 	t.Errorf("excluded = %+v, want top excluded with no dependency path", plan.Excluded)
 }
 
-// V1-0290: an unanchored one-component token names a file, never a directory,
-// so the `internal/` of `"internal/%03d.go"` does not make its package a reader
-// of every path under an `internal` directory. Two-component and file-name
-// tokens still select their real readers.
+// V1-0290, amended by AFP-V0-2241 round 8: for a Go unit a one-component
+// token names a same-named component at any depth, file or directory,
+// because the literal may be joined to a root supplied at run time (an
+// environment variable, a flag, a walked directory), so the `internal/` of
+// `"internal/%03d.go"` keeps noise a reader of internal/store/rows.txt. The
+// file-name-only rule still holds for non-Go units without certified
+// placement. Two-component and file-name tokens select their real readers.
 func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -409,7 +413,7 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 	for _, selection := range plan.Selected {
 		selected = append(selected, selection.UnitID+"<-"+selection.Witness.DirtyPath)
 	}
-	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]" //corvint:fixture-path
+	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile go:example.test/m/noise<-internal/store/rows.txt]" //corvint:fixture-path
 	if got := fmt.Sprint(selected); got != want {
 		t.Fatalf("selected = %s, want %s", got, want)
 	}
@@ -508,17 +512,20 @@ func TestUnboundedReaderIsSelectedOnAnyChange_V1_0230(t *testing.T) {
 }
 
 // AFP-V0-505, AFP-V0-506 (V1-2553): a `/` directly after `<` closes a markup
-// tag and anchors nothing, so `</script>` is the lone name `script` and never
-// reaches `script/` from the root; a backslash after `..` separates a climbing
-// path, so `..\x` is `../x` and not the bare `..` that reaches the root. A
-// `..` inside a comment is no literal. The dropped units cannot observe the
-// change: a tag name is no file name, and `../fixtures` resolves inside the
-// repository, below the package's parent.
+// tag, so `</script>` also yields the lone name `script`; a backslash after
+// `..` separates a climbing path, so `..\x` also yields `../x`. Since
+// AFP-V0-2242 round 9 both rewrites only add: the written `/script` stays,
+// and so do the written `..` and `x`, because the literal may be split at the
+// backslash, so slash's bare `..` reaches the root and slash is an unbounded
+// reader beside parent. A `..` inside a comment is no literal. Since
+// AFP-V0-2241 round 8 a Go unit's lone name names any same-named component,
+// so tag's `script` and `x` keep it a reader of script/heavy.sh and
+// fixtures/x: a lone literal may be joined to a root supplied at run time.
 func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 	t.Parallel()
 	body := "package p\n\n// a \"..\" in a comment is not a literal\nvar _ = []string{\"<script>x</script>\", \"a</b/c>\", \"..\\\\x\", \"x\\\\..\\\\y\"}\n"
 	tokens, err := golang.FilePathTokens("p.go", []byte(body), "example.test/m")
-	if want := "[script x script a ./b/c/ ../x x ../y]"; err != nil || fmt.Sprint(tokens) != want {
+	if want := "[script x /script script a /b/c/ ./b/c/ .. x ../x x .. y ../y]"; err != nil || fmt.Sprint(tokens) != want {
 		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
 	}
 	root := t.TempDir()
@@ -537,15 +544,15 @@ func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := fmt.Sprint(graph.UnboundedReaders()), "[go:example.test/m/parent]"; got != want {
+	if got, want := fmt.Sprint(graph.UnboundedReaders()), "[go:example.test/m/parent go:example.test/m/slash]"; got != want {
 		t.Errorf("unbounded readers = %s, want %s", got, want)
 	}
 	plan := affected.Select(graph, []string{"script/heavy.sh"})
-	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go script/script_test.go]"; got != want {
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go script/script_test.go slash/slash_test.go tag/tag_test.go]"; got != want {
 		t.Errorf("script/heavy.sh selected %s, want %s", got, want)
 	}
 	plan = affected.Select(graph, []string{"fixtures/x"})
-	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go slash/slash_test.go]"; got != want {
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[parent/parent_test.go slash/slash_test.go tag/tag_test.go]"; got != want {
 		t.Errorf("fixtures/x selected %s, want %s", got, want)
 	}
 }
@@ -553,13 +560,15 @@ func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 // AFP-V0-840 (V1-3207): a path literal selects a reader only when it names
 // the changed path or a directory holding it. A bare or prefixed file name
 // (`source.sh`, `foo-source.sh`) is not `core-n1-source.sh`, and the
-// HTML-escaped closing tag `&lt;/script&gt;` is the lone name `script`, not
-// the directory `script/`; the full path and a `../script/` directory prefix
-// still select.
+// HTML-escaped closing tag `&lt;/script&gt;` also yields the lone name
+// `script` beside the written `/script` (AFP-V0-2242 round 9); the full path
+// and a `../script/` directory prefix still select. Since AFP-V0-2241 round 8
+// the lone `script` names any script/ component of a Go unit's path, so
+// escaped stays a reader.
 func TestPathLiteralBoundary_AFPV0840(t *testing.T) {
 	t.Parallel()
 	tokens, err := golang.FilePathTokens("p.go", []byte("package p\n\nvar _ = []string{\"&lt;/script&gt;\", \"&LT;/b&gt;\"}\n"), "example.test/m")
-	if want := "[lt script gt LT b gt]"; err != nil || fmt.Sprint(tokens) != want {
+	if want := "[lt /script script gt LT /b b gt]"; err != nil || fmt.Sprint(tokens) != want {
 		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
 	}
 	root := t.TempDir()
@@ -582,7 +591,7 @@ func TestPathLiteralBoundary_AFPV0840(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"script/core-n1-source.sh"})
-	if got, want := fmt.Sprint(plan.SelectedTests()), "[dir/dir_test.go full/full_test.go]"; got != want {
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[dir/dir_test.go escaped/escaped_test.go full/full_test.go]"; got != want {
 		t.Errorf("script/core-n1-source.sh selected %s, want %s", got, want)
 	}
 	for _, selection := range plan.Selected {
@@ -695,12 +704,15 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 	}
 	cases := []struct{ dirty, want string }{
 		{".corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go partial/partial_test.go split/split_test.go]"},
-		// V1-0290 keeps the lone `.corvint` of fixture from naming a directory.
-		{".corvint/other.json", "[deep/dir/dir_test.go]"},
+		// Any other path keeps rule (c): fixture's lone `.corvint` names the
+		// directory, since its root may be supplied at run time (AFP-V0-2241
+		// round 8).
+		{".corvint/other.json", "[deep/dir/dir_test.go fixture/fixture_test.go]"},
 		// A path of the same shape that is not the sidecar is not narrowed by
-		// the sidecar rule; the anchored token, joined to a root no literal
-		// of its unit can place under docs/, is not a reader (AFP-V0-2203).
-		{"docs/.corvint/change.cem.json", "[deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
+		// the sidecar rule; the anchored two-component token keeps the
+		// component-run relation, since its root may lie under docs/ at run
+		// time (AFP-V0-2203).
+		{"docs/.corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})
@@ -743,13 +755,12 @@ func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
 	}
 }
 
-// AFP-V0-072 (V1-1806): a Go unit that names a dirty path only by an
-// unanchored lone file name, such as a fixture's README.md under t.TempDir(),
-// is a reader only when the path is in its own subtree or every directory
-// component of the path is a whole component of one of its tokens. A token
-// that places a directory (a multi-component run) keeps the component-run
-// relation; an anchored token is placed from its module's possible
-// directories the same way (AFP-V0-2203).
+// AFP-V0-072 (V1-1806), amended by AFP-V0-2203 round 8: placement no longer
+// narrows a Go unit. A lone file name such as tempfixture's README.md under
+// t.TempDir() cannot be told syntactically from one joined to a runtime root
+// (`filepath.Join(os.Getenv("ROOT"), name)`), so every Go unit naming a
+// path's file name, anchored or not, stays a reader of it. Placement still
+// narrows a non-Go unit whose plugin certifies it (AFP-V0-400).
 func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -766,14 +777,14 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ dirty, want string }{
-		// The PR #1134 shape: a spec index edit no longer selects the fixture.
-		{"docs/specs/README.md", "[joined/joined_test.go multi/multi_test.go]"},
-		// The unit's own subtree, where its tests run, keeps the fixture.
-		{"tempfixture/testdata/README.md", "[tempfixture/fixture_test.go]"},
-		// A root-level file has no directory to place.
+		// The PR #1134 shape selects the fixture again: its README.md may lie
+		// below any root.
+		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go tempfixture/fixture_test.go]"},
+		{"tempfixture/testdata/README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
 		{"README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
-		// Every directory component is in the vocabulary of joined only.
-		{"docs/README.md", "[joined/joined_test.go]"},
+		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
+		// Control: a file none of the tokens names selects nothing.
+		{"other/INDEX.json", "[]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})
@@ -783,9 +794,11 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	}
 }
 
-// AFP-V0-072: a climbing token reaches the unit's ancestors, a directory
-// component the lexicon splits cannot be witnessed, and a narrowed unit's
-// frontier still bears on the plan (Codex round 1 on #1138).
+// AFP-V0-072: a climbing token reaches the unit's ancestors and a narrowed
+// unit's frontier still bears on the plan. Since AFP-V0-2203 round 8 a Go
+// unit is not placed, so guides' `filepath.Join(os.Getenv("REPO_ROOT"),
+// "docs", "user guides", "README.md")`, whose root is supplied at run time,
+// reads every README.md, and variant's lone "core.go" reads core/core.go.
 func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -811,15 +824,16 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 	cases := []struct{ dirty, want string }{
 		// ".." puts the parent directory's model.go in reach.
 		{"pkg/model.go", "BOUNDED [pkg/check/read_test.go pkg/model_test.go]"},
-		// No ancestor of pkg/check holds other/, and no token names it.
-		{"other/model.go", "UNKNOWN []"},
-		// "user guides" lexes as two tokens; the space is never witnessed.
+		// read.go's lone "model.go" names any model.go.
+		{"other/model.go", "UNKNOWN [pkg/check/read_test.go]"},
 		{"docs/user guides/README.md", "UNKNOWN [guides/guides_test.go]"},
-		// A lexable component outside the vocabulary still narrows.
-		{"docs/user-guides/README.md", "UNKNOWN []"},
-		// variant is narrowed away; its build-constraint frontier bears only
-		// on a dirty path in variant/ (TSP-V0-001).
-		{"core/core.go", "BOUNDED [core/core_test.go]"},
+		{"docs/user-guides/README.md", "UNKNOWN [guides/guides_test.go]"},
+		// Control: no token names this file.
+		{"other/INDEX.md", "UNKNOWN []"},
+		// variant reads core/core.go by its lone "core.go"; its
+		// build-constraint frontier still bears only on a dirty path in
+		// variant/ (TSP-V0-001).
+		{"core/core.go", "BOUNDED [core/core_test.go variant/variant_test.go]"},
 		{"variant/linux.go", "UNKNOWN [variant/variant_test.go]"},
 	}
 	for _, tc := range cases {

@@ -1086,8 +1086,11 @@ func tempRoots(r *resolver, parsed script, text string) map[string]bool {
 var populates = regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_-])(cp[ \t]+[^\n;|&]*(-[A-Za-z]*[rRa][A-Za-z]*|--recursive|--archive|--parents)|rsync|tar|cpio|pax|unzip|ditto|ln|mv|xargs)([ \t]|$)|git[^\n;|&]*[ \t](clone|worktree|archive|checkout-index|--work-tree)([ \t=]|$)`)
 
 // unconditionalAssignment reports that name's one assignment is a command of
-// its own at the file's top level, not after `&&` or `||` and not in a
-// pipeline or the background, and that no expansion of the name precedes it.
+// its own at the file's top level, not after `&&` or `||` (also after a
+// compound command, `{ :; } || tmp=...`) and not in a pipeline or the
+// background, and that no expansion of the name precedes it. An `&&` or `||`
+// after it also keeps the name's tokens: whether the list it leads ends in
+// the background is not proven (AFP-V0-2243, disabled for 1.0).
 func unconditionalAssignment(r *resolver, parsed script, text, name string) bool {
 	at, plain := r.plainAt[name]
 	if !plain || at >= len(parsed.commands) {
@@ -1095,6 +1098,12 @@ func unconditionalAssignment(r *resolver, parsed script, text, name string) bool
 	}
 	command := parsed.commands[at]
 	if command.substituted || command.inFunction || command.block != 0 {
+		return false
+	}
+	// A redirection on the assignment (`tmp=$(mktemp -d) 3>&9`) can fail,
+	// and a shell such as dash then performs no assignment, leaving an
+	// inherited value in place; nothing here proves it succeeds.
+	if len(command.words) != 1 {
 		return false
 	}
 	switch command.lead {

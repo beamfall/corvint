@@ -220,7 +220,7 @@ var manifests = []Manifest{
 	{
 		Name: "typescript",
 		Paths: []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/browsercov",
-			"internal/jslinecov", "internal/jstestprovider", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve"},
+			"internal/jslinecov", "internal/jstestprovider", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve", "internal/webdialect"},
 		Provider:  func() affected.Language { return typescript.New() },
 		Analyzers: []SubPlugin{sub("corvint-analyzer-js", "internal/analyzerjs")},
 		Runners: []string{"ava", "bun-test", "cypress", "deno-test", "detox", "jasmine", "jest", "mocha", "nightwatch", "node-test",

@@ -10,32 +10,55 @@ import (
 	"testing"
 )
 
-// AFP-V0-021: compare the allocation-reduced lexer against the original
-// regexp lexicon, including all byte values and short outer components.
+// AFP-V0-021: compare the allocation-reduced lexer against the regexp
+// lexicon, including all byte values and short outer components. Each run
+// keeps its written spelling beside the closing-tag, root-anchored and
+// parent-backslash spellings (AFP-V0-505, AFP-V0-506, AFP-V0-2242).
 func TestLiteralTokensMatchRegexpLexicon(t *testing.T) {
 	pattern := regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
-	legacy := func(value, module string) []string {
-		value = parentBackslash.Replace(printfVerb.ReplaceAllString(value, verbMark))
+	whole := func(name, value string, start, end int) string {
+		parts := strings.Split(name, "/")
+		if last := len(parts) - 1; last > 0 {
+			if short(parts[0]) && runComponent(parts[1]) && delimited(value, start-1) {
+				name = "./" + name
+			}
+			if short(parts[last]) && runComponent(parts[last-1]) && delimited(value, end) {
+				name += "/"
+			}
+		}
+		return name
+	}
+	spellings := func(result []string, value string, start, end int, module string) []string {
+		name := value[start:end]
+		result = append(result, whole(name, value, start, end))
+		if anchored := rootAnchored(name, module); anchored != name {
+			result = append(result, whole(anchored, value, start, end))
+		}
+		return result
+	}
+	spelled := func(value, module string) []string {
 		var result []string
 		for _, span := range pattern.FindAllStringIndex(value, -1) {
 			start, end := span[0], span[1]
-			if value[start] == '/' && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
-				start++
-				if start == end {
-					continue
-				}
+			result = spellings(result, value, start, end, module)
+			if value[start] == '/' && end > start+1 && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
+				result = spellings(result, value, start+1, end, module)
 			}
-			name := rootAnchored(value[start:end], module)
-			parts := strings.Split(name, "/")
-			if last := len(parts) - 1; last > 0 {
-				if short(parts[0]) && runComponent(parts[1]) && delimited(value, start-1) {
-					name = "./" + name
-				}
-				if short(parts[last]) && runComponent(parts[last-1]) && delimited(value, end) {
-					name += "/"
-				}
+		}
+		return result
+	}
+	legacy := func(value, module string) []string {
+		value = printfVerb.ReplaceAllString(value, verbMark)
+		result := spelled(value, module)
+		seen := map[string]bool{}
+		for _, name := range result {
+			seen[name] = true
+		}
+		for _, name := range spelled(parentBackslash.Replace(value), module) {
+			if !seen[name] {
+				seen[name] = true
+				result = append(result, name)
 			}
-			result = append(result, name)
 		}
 		return result
 	}

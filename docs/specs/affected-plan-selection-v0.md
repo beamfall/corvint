@@ -5,6 +5,14 @@ Date: 2026-11-01
 Requirement prefix: `AFP-V0`
 Intent status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)
 Delivery status: experimental
+
+## Agent digest
+- Claim: Affected plans name timeouts and deletions, narrow fixture and go-list reads, retain runtime-rooted Go readers, match CI, and honour owners and must-run tests.
+- Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
+- Exists: `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `resolves` and `namesAny` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `parentBackslash` in `internal/gateselect/readers.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`.
+- Blocked on: the parent spec's gates.
+- Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
+
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
 failure codes and acceptance gates), `docs/specs/affected-plan-python-playwright-v0.md` (the
 Python adapter), `docs/specs/corvint-self-development-v0.md` (ASD-V0-895, the
@@ -13,7 +21,24 @@ and 8. The parent's Requirements section is at the 256-obligation OCM limit, so 
 requirements live here under the parent's `AFP-V0` prefix; see build-log entry
 `2026-11-01-aff-w26`. Lane selprec (2026-11-03; native tickets V1-4409, V1-4362, V1-4173,
 V1-4278, V1-3864) adds AFP-V0-2200 to AFP-V0-2206 here for the same reason; see build-log entry
-`2026-11-03-selprec-selection-precision`. Lane selmark (2026-11-03; native tickets V1-2662,
+`2026-11-03-selprec-selection-precision`. Lane selprec2 (2026-11-03; native tickets V1-4437,
+V1-4173, V1-4284) adds AFP-V0-2240 to AFP-V0-2244, and its third round (V1-4173, V1-3282)
+AFP-V0-2245 to AFP-V0-2247, of which its fourth round withdrew AFP-V0-2245 and its fifth round
+withdrew AFP-V0-2246; see build-log
+entries `2026-11-03-selprec2-ci-selector-parity`, `2026-11-03-selprec2-round3-typescript-anchors`
+and `2026-11-03-selprec2-round4-withdraw-typescript-anchors`, with round 5 recorded in
+`2026-11-03-selprec2-round5-withdraw-shell-canonicalization` and round 6, which amends
+AFP-V0-2203, AFP-V0-2240, AFP-V0-2242 and AFP-V0-2243 in place, in
+`2026-11-04-selprec2-round6-runtime-roots`. Round 7 amends AFP-V0-2203, AFP-V0-2204, AFP-V0-2240
+and AFP-V0-2243 in place; see `2026-11-04-selprec2-round7-file-names-and-redirections`. Round 8
+amends AFP-V0-2203 and AFP-V0-2240 to AFP-V0-2242 in place: no Go path literal is narrowed by
+placement any more, in the planner or the CI selector; see
+`2026-11-04-selprec2-round8-runtime-roots-retained`. Round 9 amends AFP-V0-2241 and AFP-V0-2242 in
+place, so a lexicon rewrite only adds tokens beside the written ones, and disables AFP-V0-2243 and
+AFP-V0-2244 for 1.0 under the owner-approved last-round cap; see
+`2026-11-04-selprec2-round9-additive-lexicon`.
+
+Lane selmark (2026-11-03; native tickets V1-2662,
 V1-1184, V1-1189, V1-2277) adds AFP-V0-2480 to AFP-V0-2489 here for the same reason; see
 build-log entry `2026-11-03-selmark-owned-selection`. V1-1184 and V1-1189 name the e2e-safe
 profile's AFU-V1-019 to AFU-V1-023; their must-run and order rules apply to the unit plan every
@@ -23,13 +48,6 @@ V1-4281) adds AFP-V0-2400 to AFP-V0-2406 here for the same reason; see build-log
 `2026-11-03-selbugs-selection-correctness`.
 Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
-
-## Agent digest
-- Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
-- Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`.
-- Blocked on: the parent spec's gates.
-- Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
 ## User and current state
 
@@ -233,22 +251,23 @@ measure. None of them drops a unit the change can reach.
   on the change) and selects it now, 58 units.
 
 - **AFP-V0-2203:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-4173; amending `AFP-V0-072` (2)) For a Go unit, an anchored path token (one that starts with
-  `/`: a module-path literal anchored at its module's directory, a fake absolute root such as
-  `"/repo/.git"`, or a fragment joined to a root variable such as `root + "/testdata/"`) SHALL
-  name a dirty path only when, joined to the repository root, the unit's own directory or one of
-  its ancestors (where the unit's module directory lies), it is the path or an ancestor of it, the
-  last of two or more components being allowed to be a fragment; or when a run of it matches the
-  path after leading components that, below one of those bases, are each a whole component of one
-  of the unit's tokens or one the Go lexicon cannot keep whole, the AFP-V0-072 placement test. A
-  token that climbs out of the repository from every base, and a token with no component run
-  (`"/"`, `"/."`), names nothing. The unit's own subtree, climbing unanchored tokens, runs of two
-  or more components, non-Go units, the CEM sidecar rule and declared read scopes are unchanged.
-  Measured on the PR 86 tree with `affected --by-path --path
-  internal/jslinecov/testdata/repo/lib.js`: the Go path-literal readers named through `"/repo"`,
-  `"///repo"`, `"/testdata/"` and a bare `"/"` (`internal/capcatalog`, `internal/gitstatus`,
-  `cmd/corvint` and 15 others: 24 Go readers become 6) are no longer readers; the six that name
-  `internal/` by `"../../internal"` or `internal/jslinecov` stay.
+  V1-4173; amending `AFP-V0-072` (1) and (2) and V1-0290 for Go units; round 8) A Go unit's path
+  literal SHALL NOT be narrowed by placement: outside the CEM sidecar and sealed-CEM paths, every
+  token of a Go unit, anchored, climbing, lone or multi-component, SHALL name a dirty path by the
+  component-run relation at any depth, so a lone token also names a directory component, not only
+  the file name, and a unit that a token names this way is a `PATH_LITERAL_READER`. Placement may
+  drop a reader only when every root a token can be joined to is a literal or proven-bounded
+  repository-relative root, and no such proof is sound for Go source: a root can come from
+  `os.Getenv`, a flag, a variable, a helper in another package, a changed working directory or a
+  walked directory (`filepath.WalkDir(os.Getenv("FIXTURES") + "/repo", ...)` with `FIXTURES` set
+  to `app/x` reads every file below `app/x/repo`), and no literal of the unit spells it. A Go unit
+  therefore keeps every reader its tokens name; only a non-Go unit whose plugin certifies its
+  roots (`Unit.PlacesFileNames`, AFP-V0-400) keeps the AFP-V0-072 placement test, the CEM rules
+  (V1-0230, AFP-V0-931) are unchanged, and a declared read scope still bounds a unit. Rounds 6
+  and 7 retained multi-component and file-name runs of a runtime-rooted token; round 8 closes the
+  class by retaining every run. The PR 86 measurement of the withdrawn placement (24 Go readers of
+  `internal/jslinecov/testdata/repo/lib.js` became 6) no longer holds: those 24 readers are
+  selected again, as before this lane.
 
 - **AFP-V0-2204:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-4173) The shell plugin SHALL add no path token for a literal path that follows the
@@ -256,8 +275,10 @@ measure. None of them drops a unit the change can reach.
   occurrence is an expansion that cannot assign or text joined to a `/`, `.` or `-`, and whose
   value is one `$(mktemp -d ...)` substitution or another temp root followed only by a literal
   path without `..` (`repo="$tmp/repo"`). The assignment is a command of its own at the file's
-  top level, not after `&&` or `||` and not in a pipeline or the background, and no expansion of
-  the name precedes it, so no value from the environment stands in. A file that defines or aliases
+  top level, not after `&&` or `||` and not in a pipeline or the background, carries no
+  redirection (round 7: a redirection that fails, `3>&9` in dash, skips the assignment and leaves
+  an inherited value in place), and no expansion of the name precedes it, so no value from the
+  environment stands in. A file that defines or aliases
   `mktemp` has no temp root, nor does one that can fill a directory with repository files no token
   names: a recursive (`r`, `R` or `a` anywhere in a short option group, as in `cp -rf`), archive
   or `--parents` `cp`, `rsync`, `tar`, `cpio`, `pax`, `unzip`,
@@ -549,6 +570,137 @@ measure. None of them drops a unit the change can reach.
   removing or changing a plugin the change does not involve SHALL leave every other byte of the
   plan unchanged but the graph digest and the exclusion universe that names it.
 
+- **AFP-V0-2240:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4437; round 8) `internal/gateselect`'s rule (c), in `Select`, `SelectStructural` and the
+  `-bounds` attribution, SHALL NOT narrow an anchored token by placement: as in the planner
+  (AFP-V0-2203), any token of a package names a dirty path by the component-run relation at any
+  depth, whatever root it may be joined to at run time. This is the base rule (c) of AFP-V0-012;
+  the round 1 to 7 placement filter (`keepsReader`) is removed. AFP-V0-2204 has no counterpart:
+  this index holds only Go packages. The CEM sidecar and sealed-CEM rule (`resolvingReaders`) is
+  unchanged.
+
+- **AFP-V0-2241:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4437; round 8) The same rule (c) SHALL NOT apply the lone-token file-name restriction
+  (V1-0290) or the AFP-V0-072 (1) placement test to any other token: a single-component run of an
+  unanchored token names any matching component of the path, so a reader that joins `"lib.js"`
+  or `"repo"` to a runtime root stays selected. After the printf-verb blanking this index SHALL
+  keep every token of the literal as written and add the tokens of its `..\` to `../` rewrite,
+  exactly as the planner does (AFP-V0-506; round 9, replacing round 8's substitution):
+  `os.Getenv("PREFIX") + strings.ReplaceAll("foo..\\notes", "\\", "/")` keeps `foo..` and `notes`
+  and adds `foo../notes`, so it names `app/prefoo../notes`, and
+  `os.Getenv("FIXTURES") + strings.Split("foo..\\notes", "\\")[1]` keeps `notes`, so it names the
+  root file `notes`, in the verdict and in `-bounds` alike. Round 8 kept only `foo../notes`, so a
+  change to `notes` skipped the Split reader with no fallback. A `..\x` literal keeps a bare `..`,
+  which rule (d) reads as reaching the repository root from a test file deep enough. The
+  narrowing measured on PR 86's range in rounds 1 to 7 (`reader` lines 79 to 28, the run 257 to
+  209 packages; AFP-V0-2240 alone 79 to 78) is withdrawn with it, and rule (c) selects as base.
+
+- **AFP-V0-2242:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4437) The CI selector's rule (c) SHALL stay a superset of the planner's Go path-literal
+  readers. On a shared fixture of anchored, runtime-rooted, directory-walking, climbing, lone,
+  multi-component, `..\x`, prefixed `foo..\notes` and closing-tag (`"</repo/page.html>"`,
+  `"&lt;/repo/page.html&gt;"`) tokens, a test SHALL build both the planner's graph and the CI
+  selector's index and fail when, for any probed dirty path, the planner's `PATH_LITERAL_READER`
+  Go units differ from rule (c)'s readers, and, since round 9, from the packages rule (c) or
+  rule (d) selects counted together with the planner's `UNBOUNDED_READER` units. Since round 9 a
+  lexicon rewrite only ever adds a token, in both lexicons: the `..\` to `../` rewrite, the
+  `/`-anchored spelling of an import path under the module and the closing-tag spelling without
+  its `/` are each kept beside the token as written, never in its place, so every token either
+  lexicon read before a rewrite was added is still read. The fixture holds the `strings.Split`
+  reader of `foo..\notes` and a walker of a runtime root joined to the module's own import path
+  (`filepath.Join(os.Getenv("SRC"), "example.com/fixture")`), each with a control that names
+  another path. Wherever the two lexicons differ (AFP-V0-765), this index keeps a token the planner
+  drops or a broader one; `..\x` is no difference. A token whose `/` directly follows `<` or an
+  HTML-escaped `&lt;` in any letter case is kept in both lexicons as written and without the `/`
+  (round 6 here and round 9 in the planner; amending AFP-V0-505, AFP-V0-840 and AFP-V0-765
+  difference (4)), so its first component may end a longer name.
+
+- **AFP-V0-2243:** (disabled for 1.0 in round 9, 2026-11-04: an orchestrator-made, owner-delegated
+  decision under the owner-approved last-round cap; the ID is kept and not reused, and the rest of
+  this entry is the round 6 to 8 text, historical. Since round 9 a `&&`, `||`, `|` or `&` after
+  a temp root's assignment refuses it, as at base AFP-V0-2204, because no test this round proves
+  where such a list ends: an `&` after a compound command, a continued line or an empty compound
+  can background the assignment. The kept refusals (a multi-word assignment command, a refusing
+  operator before a compound closer) only widen selection. Repro:
+  `tmp=$(mktemp -d) || exit 1` then `cat "$tmp/repo/internal/x/y.json"` keeps the token.)
+  (Formerly experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4173; amending `AFP-V0-2204`) A temp root's assignment MAY be followed by `&&` or `||`: it is
+  still the list's first command and always runs in the file's own shell, so
+  `tmp=$(mktemp -d ...) || exit 1` makes a temp root as a line of its own does. An assignment
+  after `&&` or `||`, in a pipeline or in the background still makes none, and a second
+  assignment on the right side refuses as any second assignment does. A list the assignment leads
+  that ends in `&` runs in the background, assignment included, and makes none. An assignment
+  after a compound command joined by `&&` or `||` (`{ :; } || tmp=...`, `esac && tmp=...`) is
+  after `&&` or `||`. A list the assignment leads that continues into a compound command (a brace
+  group, subshell, `if`, `while`, `until`, `for`, `case`, `select`, `time`, `coproc` or a function
+  definition) makes none (round 6): whether such a list ends in `&` is not visible to the command
+  scan (`tmp=$(mktemp -d) && { :; } &`). A list member whose lead operator is not the previous
+  member's trail also makes none (round 7): an empty compound (`case x in esac`) leaves no command
+  of its own, so `tmp=$(mktemp -d) && case x in esac & wait` shows only the `&` that backgrounds
+  it. The lexer reads `&&` and `||` whole, so the next command's lead
+  is `&&` or `||`, not a second `&` or `|`. If mktemp fails and the
+  right side does not exit, the value is empty and a path below it is absolute below `/`, which is
+  no repository path. Measured with the by-path probe below: the shell path-literal readers of
+  `internal/jslinecov/testdata/repo/lib.js` fall from 23 to 16; the rest copy trees
+  (`cp -R`, `ln`, `mv`, `tar`, `git clone`, `git worktree`) or assign the name twice. None of the
+  23 is kept only because it assigns the name in a function.
+
+- **AFP-V0-2244:** (disabled for 1.0 in round 9, 2026-11-04: an orchestrator-made, owner-delegated
+  decision under the owner-approved last-round cap; the ID is kept and not reused, and the rest of
+  this entry is historical. `.corvint/shell-foreign-callers.json` is the base declaration again, so
+  `internal/dogfoodflow` stays a caller of `script/batch-regen.sh`: whether every test that
+  imports it, transitively (`cmd/corvint`, `internal/localcompletion`,
+  `tools/capabilities-check`), reads only the committed copy is not proven by a test. Repro: a
+  `script/heavy.sh` edit over the lane base selects the `BINARY_EXEC` units the measurement below
+  removed again (inferred: 52 units back to 71, not re-measured).)
+  (Formerly experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
+  V1-4284; amending the use of `TSP-V0-005`) A file that names a declared shell script only to run
+  a committed copy of it read from Git history (a parent commit's blob checked out in a private
+  clone), or a fixture's own copy, SHALL be listed among the script's `mentions`, not its
+  `callers`, with the declaration's reason naming it a history input: its tests never read the
+  worktree file, so a worktree edit of the script reaches them only once committed and replayed
+  as history. `internal/dogfoodflow` (`batch.go`, `regenerated.go`, `regenerated_test.go`), which
+  replays `script/batch-regen.sh` from a parent commit (DCW-V0-401), is the first such entry in
+  `.corvint/shell-foreign-callers.json`. The declaration's shape is unchanged, so a planner built
+  from the CI pin reads it (AFP-V0-710). Measured on a `script/heavy.sh` edit over the lane base
+  with the declaration committed: 71 units to 52, `BINARY_EXEC` 25 to 0.
+
+- **AFP-V0-2245:** (withdrawn 2026-11-03, rejected by the orchestrator under owner delegation:
+  unsound: data- and filesystem-derived directories escape the certificate (re-review
+  2026-11-03). The ID is not reused and no code implements it; the text is historical.) The
+  TypeScript plugin was to record each module's runner directories and certify modules whose
+  anchored tokens could then resolve as a Go unit's did under AFP-V0-2203 before round 8. A re-review found
+  counterexamples that the certificate cannot see (listed under Failure modes), and TypeScript keeps
+  the component-run relation of AFP-V0-072 (3). The counterexamples are regression tests that a
+  future attempt must keep passing (`TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245`).
+
+- **AFP-V0-2246:** (withdrawn and superseded by the pre-canonicalization `AFP-V0-2204` rule:
+  orchestrator-made, owner-delegated decision, 2026-11-03; V1-4173; ID retained, never reused)
+  The canonicalization-through-`pwd` narrowing is withdrawn entirely. Independent review found
+  that compound-keyword prefixes hide refused commands, expansion can remove a command word's
+  slash, scripts can signal their own traps, and line continuations can hide function names.
+  These bypasses invalidate the shell allowlist; extending it is not an accepted repair.
+  A temp-root token SHALL be dropped only by the earlier `AFP-V0-2204` rule: a literal path
+  suffix written directly after a proven temp-root expansion in the script text. A path derived
+  through `pwd`, `cd`, a command substitution other than the original `mktemp -d` root creation,
+  or a variable assigned from those operations MUST keep its path tokens. In particular,
+  `NAME=$(cd "$NAME" && pwd)` (also `pwd -P`) remains an assignment, so the name is assigned
+  twice and no longer qualifies as a temp root. The old allowlist and canonicalization helpers
+  MUST be removed. The counterexamples remain regression tests for any future proposal.
+
+- **AFP-V0-2247:** (experimental: an orchestrator-made, owner-delegated decision, 2026-11-03;
+  V1-3282; amending `LGP-V0-027`) The TypeScript plugin's impact profile (its probes, its dynamic
+  load pattern and its static-load rule) SHALL live in `internal/webdialect`, a TypeScript plugin
+  package with no package-level variable whose initializer calls a function (its patterns are
+  compiled when `webdialect.Impact` builds the profile, so ADN-V0-004's initializer rule holds), and
+  core SHALL register `webdialect.Impact(flowWebCodeLines)` for each declared `module-imports`
+  impact dialect, its web mask staying in `internal/contextindex`. Behavior is unchanged. Measured
+  on a `flowWordBefore` body edit: the `contextindex` record no longer reaches the profile's var
+  initializer, but still falls back on the registering `init`
+  (`CHANGE_REACHES_PACKAGE_INITIALIZATION`), 151 units as before. The fallback is the real reach:
+  `Build` reaches `nonGoImpactUnknowns`, whose `dialect.LookupImpact` runs the registered code
+  lines, which run `flowWordBefore`; a registration rule could at most select 147.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -559,9 +711,19 @@ adapter. AFP-V0-2200 does not narrow a declared read scope or an unbounded read:
 `go list` guards whose scopes declare `internal/` (`internal/liveverify/provider/interlock`,
 `internal/analyzerstructured`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`) stay
 selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be a new owner
-declaration. AFP-V0-2203 and AFP-V0-2204 are not ported to the CI selector's rule (c)
-(`internal/gateselect`), which stays broader than the planner as before. AFP-V0-2205 does not
-sniff extensionless files elsewhere in the tree. AFP-V0-2480 to AFP-V0-2484 add no annotation or
+declaration. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
+and AFP-V0-2241 port no non-Go reader to the CI selector, and change neither its rules (a), (b)
+and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). No TypeScript token is narrowed: AFP-V0-2245
+is withdrawn, and TypeScript keeps the component-run relation (AFP-V0-072 (3)). AFP-V0-2246 is
+withdrawn; shell tokens derived through canonicalization stay selected. AFP-V0-2243 and
+AFP-V0-2244 are disabled for 1.0: no temp root is accepted before a list operator, and
+`batch-regen.sh` keeps its base callers. Round 9 does not change the planner's V1-1818
+short-component rule (`wholeShortEnds`), which the CI selector does not apply. AFP-V0-2247 does not move the web mask out of
+`internal/contextindex`, and the symbol rule for a registering `init` (V1-3282) is not changed:
+measured, a sound rule would select 147 of 151 units for a contextindex body edit, because
+contextindex's own registry lookups reach the registered profile (build-log entries
+`2026-11-03-selprec2-ci-selector-parity` and `2026-11-03-selprec2-round3-typescript-anchors`).
+AFP-V0-2480 to AFP-V0-2484 add no annotation or
 tag inside test source: the declaration is one reviewed file, and a must-run or owner entry names a
 test file or directory, so a Go entry selects the whole package that holds it. A pattern that
 matches no file is not refused, because an owner may be declared before the files it owns exist.
@@ -591,7 +753,41 @@ import-graph reader, as before. A test that sets `cmd.Dir` to another directory 
 directory's packages while its targets are resolved against its module, as AFP-V0-402 resolves
 command literals. A shell test that reads a repository file through a temp-root path it did not
 create (a variable the AFP-V0-2204 rule accepts but a later redirection rebinds) is an author
-error the confined CI shard surfaces. An owner mapping that names the wrong tests for a path it
+error the confined CI shard surfaces. Since round 8 no Go reader is narrowed by placement, so a
+reader whose root is supplied at run time stays selected in the planner, the CI selector and the
+`-bounds` attribution of `tools/gate-ledger` (GL-V0-009) alike. Two placement rules remain and
+are suspected gaps of the same class, recorded for their own tickets: the V1-0230 and AFP-V0-931
+narrowing of CEM paths, and the V1-0290 file-name prefilter for a non-Go unit whose plugin does
+not certify its roots. Since round 9 a literal that spells `..\x` keeps its bare `..`, so a test
+package deep enough that `..` climbs to the repository root is an unbounded reader in the planner
+and unresolved in the CI selector (fail closed); measured on this repository's lane tree, the CI
+selector's unresolved packages are the same 39 as round 8's, each already unresolved by another
+literal or a root-locating call. The
+withdrawn AFP-V0-2245 dropped these TypeScript tests for `app/x/repo/lib.js`, each of which joins
+an anchored `"/repo"` (or a glob) to a directory taken from data, the filesystem or a launcher its
+literals do not spell, so it can read that path (cases 2, 6 and 12 show the shape; their fixtures
+resolve the directory elsewhere), and each of which the component-run relation selects (the
+re-review's list has no case 10): (1) `globSync('**/repo/*')`; (2)
+`readdirSync(process.cwd())[0] + '/repo/lib.js'`; (3) an environment variable other than `PWD`,
+`OLDPWD` and `INIT_CWD` (`FIXTURES=app/x node --test`); (4) a directory parsed from JSON
+(`JSON.parse(readFileSync(...dirs.json)).app`); (5) a launcher outside the manifest's script text
+(a shell script, a Makefile, a CI `working-directory`, an nx target's `cwd`); (6) a
+`.mocharc.yml` whose `spec` climbs out of its directory (YAML, which the config check lexed as
+script); (7) a Vitest `setupFiles` or `globalSetup` module or a Mocha `--require` module that
+calls `process.chdir`; (8) a dynamic `import()` of a template literal, or a package `"imports"`
+alias (`#dirs`), which the import closure did not follow; (9) identifiers turned into components
+(`Object.keys({ app: 1, x: 2 }).join('/')`); (11) a case transform (`'APP/X'.toLowerCase()`); and
+(12) a directory taken from `module.parent.filename` or an `Error().stack`. The withdrawn
+AFP-V0-2246 allowlist missed (1) `if`, `!`, `while`, `for` and `time` prefixes before `eval`,
+source, `enable`, `set -T`, DEBUG traps or dash aliases; (2) backticks and nested parameter
+expansions whose slash vanishes; (3) an INT trap fired by `kill -INT $$`; (4) function names or
+the `function` keyword split by a backslash-newline; and (5) a missing standalone `set -T`
+regression. All these cases, and plain canonicalization without any override, MUST keep the
+`internal/x/y.json` token. The CI PR
+and merge-queue selector runs the pinned `CORVINT_PR_TOOL_SOURCE` build, so AFP-V0-2240 and
+AFP-V0-2241, including round 8's removal of their placement filter, reach CI only with the next
+re-pin; until then a pin from rounds 1 to 7 can drop a runtime-rooted reader.
+An owner mapping that names the wrong tests for a path it
 owns is an author error: the path's real readers are still selected by the reader rules, and only
 the unowned-path unknown is lifted, as for a documentation declaration (AFP-V0-160). A mapping
 whose tests no longer exist refuses the build (AFP-V0-2483). A must-run entry makes every plan
@@ -625,10 +821,18 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2200 | `goListScanFile`, `goListArguments`, `importGraphTemplate`, `isolatedList`, `literalEnvironment`, `goListUnits` in `internal/liveverify/affected/golang/importgraph.go`; the `listed` skip in `usedCommandLiterals` (`binaryexecs.go`); `Unit.ImportGraphReads` and `ImportGraphReadsAll` in `unit.go`, `graph.go` and `graphcache.go` | `TestGoListReadersAreImportGraphReaders_AFPV02200` in `internal/liveverify/affected/golang/importgraph_test.go`; `TestRepositoryImportGraphReaders_V14409_V14362` in `internal/liveverify/affected/importgraph_repo_test.go` |
 | AFP-V0-2201 | `importGraphReadersOf`, `importClosure`, `WitnessImportGraphReader` in `internal/liveverify/affected/importgraph.go`; `terminalWitness` in `select.go` | `TestImportGraphReadersFollowImportSetChanges_AFPV02201` (body-only narrowing; import-added, out-of-closure, `go.mod` and no-comparison controls); `importGraphWitnessResolves` in `measure_test.go`; the fault-injection runs in build-log entry `2026-11-03-selprec-selection-precision` |
 | AFP-V0-2202 | `ImportSetChangesAt`, `ImportSetRecords`, `packageHeader` in `internal/liveverify/affected/golang/importsets.go`; `unknownImportSets`, `ModuleFile`, `GoIgnoredPath` in `importgraph.go`; `planAffectedGraph` and `affectedMeasuredCommit` in `cmd/corvint/affected.go` | `TestImportSetRecordsCompareHeaders_AFPV02202` in `internal/liveverify/affected/golang/importgraph_test.go` |
-| AFP-V0-2203 | `anchoredWithin`, `runOffsets` and the anchored branch of `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestAnchoredTokensResolveFromModuleBases_AFPV02203` in `internal/liveverify/affected/golang/anchored_test.go`; the amended cases of `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` and `TestChangeEvidenceReadersAreNarrowed_V1_0230` |
-| AFP-V0-2204 | `tempRoots`, `unconditionalAssignment`, `populates`, `assignedOnce`, `firstAssignment`, `underTempRoot`, `tempExpansion` and the temp step of `pathTokens` in `internal/liveverify/affected/shell/shell.go` | `TestTempRootPathsAreNoTokens_AFPV02204` (plain root dropped; recursive copy, tree copy, archive, worktree, link, conditional and used-first controls keep the token); `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` |
+| AFP-V0-2203 | the `goUnit && !resolvedEvidence` any-depth argument of `namesAny` in `readers` and the Go branch of `resolves` in `internal/liveverify/affected/readers.go`; `namesAt`; `namesFileOnlyWithin` only for certified non-Go units | `TestAnchoredTokensResolveFromModuleBases_AFPV02203`, `TestRuntimeRootedRunsKeepComponentRuns_AFPV02203`, `TestRuntimeRootedFileNamesStaySelected_AFPV02203` and `TestRuntimeRootedDirectoryWalkStaysSelected_AFPV02203` (round 8: an `os.Getenv("FIXTURES")+"/repo"` walker and a `filepath.Join` walker stay selected; `/elsewhere` control) in `internal/liveverify/affected/golang/anchored_test.go`; the amended cases of `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`, `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072` and `TestChangeEvidenceReadersAreNarrowed_V1_0230`; `TestReadersMatchesDirtyMajorScan` (certified-unit narrowing) |
+| AFP-V0-2204 | `tempRoots`, `unconditionalAssignment`, `populates`, `assignedOnce`, `firstAssignment`, `underTempRoot`, `tempExpansion` and the temp step of `pathTokens` in `internal/liveverify/affected/shell/shell.go` | `TestTempRootPathsAreNoTokens_AFPV02204` (plain root dropped; recursive copy, tree copy, archive, worktree, link, conditional and used-first controls keep the token); the redirection cases of `TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243` (round 7: `3>&9`, `2>/dev/null` and leading redirections keep the token, run under dash); `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` |
 | AFP-V0-2205 | `ExtensionlessRoots`, `ExtensionlessScript`, `shellShebang`, `shellExecutables` and `Owns` in `internal/liveverify/affected/shell/shell.go` | `TestOwnsOnlyShellSuffixes_NSAV0006`; `TestExtensionlessShellExecutablesAreUnits_AFPV02205` in `internal/liveverify/affected/shell/shell_test.go` |
 | AFP-V0-2206 | `Plan.Deleted` in `internal/liveverify/affected/select.go`; `affectedDeletedPaths` and its call in `planAffectedGraph` (`cmd/corvint/affected.go`); `cmd/corvint/affected_compact.go` | `TestAffectedPlanMarksDeletedPaths_AFPV02206` in `cmd/corvint/affected_deleted_test.go` |
+| AFP-V0-2240 | `readers` and `pathReaders` in `internal/gateselect/readers.go` (plain `namesPath`, no placement filter); `packageBounds` in `select.go` | `TestRuleCAnchoredTokens_AFPV02240`, `TestRuleCRuntimeRootedRuns_AFPV02240`, `TestRuleCRuntimeRootedFileNames_AFPV02240` and `TestRuleCRuntimeRootedDirectoryWalk_AFPV02240` (round 8: walker and joined walker in readers, verdict and `-bounds`; `/elsewhere` control) in `internal/gateselect/naming_test.go` |
+| AFP-V0-2241 | `parentBackslash` and its additive use in `pathTokens` in `internal/gateselect/readers.go` | `TestRuleCLoneTokens_AFPV02241` (lone, directory-shaped, climbing, prefixed `foo..\notes` and round 9 `split` tokens; `-bounds` keeps `app/prefoo../notes` and `notes`); `TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242` (round 9: the `strings.Split` reader of `foo..\notes` is selected for `notes` in readers, the verdict and `-bounds`, with a `foo..\other` control); the `..\x` cases of `TestFastTierLiteralLexiconDiffers_AFPV0765`; the fail-before runs in build-log entry `2026-11-04-selprec2-round9-additive-lexicon` |
+| AFP-V0-2242 | the test itself; `pathTokens`, `spelledTokens`, `appendSpellings`, `parentBackslash`, `moduleAnchored` and `closesTag` in `internal/gateselect/readers.go`; `literalTokens`, `spelledTokens` and `appendSpellings` in `internal/liveverify/affected/golang/golang.go` | `TestRuleCMatchesThePlanner_AFPV02242` in `internal/gateselect/naming_test.go` (round 6 adds the closing-tag packages; round 8 the walker, joined walker and `prefix` packages; round 9 the `split` and `srcwalk` packages and the unbounded and unresolved sets, with no intended difference); `TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242` and `TestParentBackslashKeepsWrittenTokens_AFPV0506` (round 9, in `internal/liveverify/affected/golang/anchored_test.go`); the fault-injection runs in build-log entries `2026-11-03-selprec2-ci-selector-parity`, `2026-11-04-selprec2-round6-runtime-roots`, `2026-11-04-selprec2-round8-runtime-roots-retained` and `2026-11-04-selprec2-round9-additive-lexicon` |
+| AFP-V0-2243 | disabled for 1.0 (round 9): the base trail refusal of `&&`, `\|\|`, `\|` and `&` in `unconditionalAssignment` in `internal/liveverify/affected/shell/shell.go`; kept, only widening: the one-word assignment refusal there, the refusing-operator lead after a compound closer in `endCommand` and the whole-operator advance (`lex.go`) | the `or exit` and `and cd` cases (kept since round 9) and the `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204`; `TestBackgroundedCompoundListsKeepTokens_AFPV02243` (round 6: brace group, subshell, `if`, `while`, `for`, `case`, `time` and after-compound cases; round 9: every list after the assignment is kept, with lone-assignment controls); `TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243` (round 7: empty `case` lists in the background under bash and dash; round 9: own-line, newline-list and right-redirection lists kept, with a lone-assignment control); the fault-injection runs in build-log entry `2026-11-04-selprec2-round7-file-names-and-redirections` |
+| AFP-V0-2244 | disabled for 1.0 (round 9): `.corvint/shell-foreign-callers.json` is the base declaration | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
+| AFP-V0-2245 | withdrawn; no implementation | `TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245` in `internal/liveverify/affected/typescript/anchored_counterexamples_test.go` (the 17 counterexample cases stay selected; each fails against the withdrawn implementation at `7f7458dc9`) |
+| AFP-V0-2246 | Withdrawn: canonicalization helpers removed; `tempRoots` and `pathTokens` in `internal/liveverify/affected/shell/shell.go` retain the pre-canonicalization rule | `TestTempRootPathsAreNoTokens_AFPV02204` (all canonical cases kept; literal temp-root controls unchanged); `TestCanonicalizationCounterexamplesStaySelected_AFPV02246` (all five review classes and sub-cases, standalone `set -T`, direct and assigned derived paths, shell variants) |
+| AFP-V0-2247 | `Impact` and `StaticLoad` in `internal/webdialect/webdialect.go`; `flowWebCodeLines` in `internal/contextindex/flowlexical.go` and the registration in `dialect_hooks.go`; the TypeScript plugin's paths in `internal/langplugin` and `internal/langplugin/decl`; the Tasks export prefix in `internal/companionrelease/export.go` | `TestImpactProfileIsUnchanged_AFPV02247` in `internal/webdialect/webdialect_test.go`; the unchanged `internal/contextindex` and `internal/langplugin` suites; the contextindex replay in the build log |
 | AFP-V0-2480 | `DeclaredSelectionPath`, `readTestSelection`, `validTestSelectionReason` in `internal/liveverify/affected/testselection.go`; the `testSelection` member of `declarations`, `digestBody` and `Canonical` (`graph.go`) and of `cacheEntry` (`graphcache.go`); the declaration list of `declarationPath` (`documentation.go`) | `TestTestSelectionDeclarationGrammar_AFPV02480` in `internal/liveverify/affected/testselection_test.go` |
 | AFP-V0-2481 | `validOwnerPattern`, `ownerPatternMatches` in `internal/liveverify/affected/testselection.go` | `TestOwnerPatternGrammar_AFPV02481` |
 | AFP-V0-2482 | `ownersOf` (called at the end of `reach`), `ownedPaths` (called in `selectPlan`), `WitnessDeclaredTestOwner`, `ClassDeclaredTestOwner`; `terminalWitness` in `select.go` | `TestDeclaredOwnerSelectsItsTests_AFPV02482` (the `docs/contracts/**/*.json` example; negative controls: an unmatched path, an `UNINDEXED_SOURCE_PATH`); `TestDeclaredTestOwnersWithoutDeclaration_AFPV02482` |
@@ -660,9 +864,19 @@ AFP-V0-830, drop the integrations listing from `script/gen-documentation-paths.s
 `make documentation-paths`. For AFP-V0-2200 to AFP-V0-2202, delete
 `internal/liveverify/affected/importgraph.go`, `golang/importgraph.go` and `golang/importsets.go`,
 the two `Unit` fields and the `WithImportSetChanges` call: every `go list` literal is a command
-edge again. For AFP-V0-2203, restore the `namesPath` branch of `namesFileOnlyWithin`; for
-AFP-V0-2204, call `pathTokens` without temp roots; for AFP-V0-2205, drop `ExtensionlessScript`
-from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`. For AFP-V0-2440, make `fixtureOnlyClaim` return false; such paths are
+edge again. AFP-V0-2203 and AFP-V0-2240 to AFP-V0-2242 need no rollback of round 8, which only
+widens selection: reverting its commit restores round 7's Go placement in `readers.go` and
+`internal/gateselect/naming.go`, which drops runtime-rooted readers. For AFP-V0-2204, call `pathTokens` without temp roots; for AFP-V0-2205, drop `ExtensionlessScript`
+from `Owns` and the file walk; for AFP-V0-2206, drop `Plan.Deleted`; for AFP-V0-2243, restore `&&` and `||` to the trail
+refusal (round 9 did so). Rounds 6 to 9 only widen selection, so reverting a round's commit
+restores the previous round's relation (round 7's lexer change alters only command leads, which
+every consumer refuses alike); for AFP-V0-2244, move the three `internal/dogfoodflow` files back to
+`callers` (round 9 did so). Reverting round 9's code commit restores round 8's substituting
+lexicon, which skips the `strings.Split` reader of `foo..\notes`. AFP-V0-2245
+and AFP-V0-2246 are withdrawn and need none; for AFP-V0-2247, move `Impact` back into
+`internal/contextindex` as the `webImpact` variable and delete `internal/webdialect`. Run
+`make spec-requirements` after deleting this file.
+For AFP-V0-2440, make `fixtureOnlyClaim` return false; such paths are
 `UNINDEXED_SOURCE_PATH` again and the CI selector falls back to FULL for them. Run
 `make spec-requirements` after deleting this file. For AFP-V0-2480 to AFP-V0-2486, AFP-V0-2488 and AFP-V0-2489, delete
 `internal/liveverify/affected/testselection.go`, the `testSelection` declaration member, the two

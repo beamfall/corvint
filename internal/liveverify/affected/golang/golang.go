@@ -745,16 +745,46 @@ func fixtureTokens(literals []scannedLiteral, markers map[int]bool) map[string]b
 	return marked
 }
 
-// literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.
+// literalTokens is the AFP-V0-021 lexicon over one unquoted string literal. A
+// rewrite only ever adds a token beside the written one (AFP-V0-506,
+// AFP-V0-2242): a literal with a backslash after a parent component (`..\x`)
+// also yields the tokens of its parentBackslash rewrite, so `foo..\notes`
+// holds the written `foo..` and `notes` and the climbing `foo../notes`.
 func literalTokens(value, modulePath string) []string {
 	return appendLiteralTokens(nil, value, modulePath)
 }
 
+// appendLiteralTokens appends literalTokens(value, modulePath) to tokens, so
+// a file's literals can share one backing array.
 func appendLiteralTokens(tokens []string, value, modulePath string) []string {
 	if strings.Contains(value, "%") {
 		value = printfVerb.ReplaceAllString(value, verbMark)
 	}
-	value = parentBackslash.Replace(value)
+	start := len(tokens)
+	tokens = spelledTokens(tokens, value, modulePath)
+	rewritten := parentBackslash.Replace(value)
+	if rewritten == value {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens)-start)
+	for _, name := range tokens[start:] {
+		seen[name] = true
+	}
+	for _, name := range spelledTokens(nil, rewritten, modulePath) {
+		if !seen[name] {
+			seen[name] = true
+			tokens = append(tokens, name)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling literalTokens keeps for each
+// path-shaped run of value. A `/` directly after `<` closes a markup tag
+// (`</script>`), so the tag name is also a lone name token (AFP-V0-505); the
+// HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840). The anchored
+// spelling stays beside it, as in gateselect's lexicon (AFP-V0-2242).
+func spelledTokens(tokens []string, value, modulePath string) []string {
 	for offset := 0; offset < len(value); {
 		if !pathCharacter(value[offset]) {
 			offset++
@@ -765,17 +795,21 @@ func appendLiteralTokens(tokens []string, value, modulePath string) []string {
 			offset++
 		}
 		end := offset
-		// A `/` directly after `<` closes a markup tag (`</script>`), so it
-		// anchors nothing: the tag name is a lone name token (AFP-V0-505).
-		// The HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840).
-		if value[start] == '/' && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
-			start++
-			if start == end {
-				continue
-			}
+		tokens = appendSpellings(tokens, value, start, end, modulePath)
+		if value[start] == '/' && end > start+1 && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
+			tokens = appendSpellings(tokens, value, start+1, end, modulePath)
 		}
-		name := rootAnchored(value[start:end], modulePath)
-		tokens = append(tokens, wholeShortEnds(name, value, start, end))
+	}
+	return tokens
+}
+
+// appendSpellings appends the run value[start:end] as written and, for an
+// import path under modulePath, its "/"-anchored path too (AFP-V0-2242).
+func appendSpellings(tokens []string, value string, start, end int, modulePath string) []string {
+	name := value[start:end]
+	tokens = append(tokens, wholeShortEnds(name, value, start, end))
+	if anchored := rootAnchored(name, modulePath); anchored != name {
+		tokens = append(tokens, wholeShortEnds(anchored, value, start, end))
 	}
 	return tokens
 }
@@ -795,8 +829,9 @@ func closesEscapedTag(value string, index int) bool {
 }
 
 // parentBackslash rewrites a backslash after a parent component (`..\x`) to
-// the slash the lexicon reads, so the token is the whole climbing path and
-// not a bare `..` that rule (d) reads as the repository root (AFP-V0-506).
+// the slash a Windows-style path means, so the whole climbing path is a token
+// too; literalTokens keeps the written tokens beside it, a bare `..` among
+// them, because the literal may be split at the backslash (AFP-V0-506).
 var parentBackslash = strings.NewReplacer(`..\`, `../`)
 
 // verbMark stands in for a removed printf verb: like the literal's own ends, a

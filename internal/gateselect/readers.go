@@ -44,7 +44,12 @@ var rootLocatorFuncs = map[string]string{"os": "Getwd"}
 // package's own source does not carry it.
 var rootLocatorToken = "--show-" + "toplevel"
 
-var printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+var (
+	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+	// parentBackslash is the planner's (golang.parentBackslash,
+	// AFP-V0-506, AFP-V0-2242).
+	parentBackslash = strings.NewReplacer(`..\`, `../`)
+)
 
 type goPackage struct {
 	embeds         bool
@@ -434,15 +439,48 @@ func importState(state int, kind token.Token) int {
 }
 
 // pathTokens splits a literal into path-shaped tokens with printf verbs
-// removed; an import path under the module becomes a root-anchored path.
+// removed. A rewrite only ever adds a token beside the written one
+// (AFP-V0-2242): an import path under the module also yields its
+// root-anchored path; a token whose `/` directly follows `<` or an
+// HTML-escaped `&lt;` (a closing tag, `</repo/lib.js>`) also yields the token
+// without that `/`, the one the planner reads first (AFP-V0-505, AFP-V0-840);
+// and a literal with a backslash after a parent component (`..\x`) also
+// yields the tokens of its rewrite to the slash the planner reads
+// (golang.parentBackslash, AFP-V0-506), after the printf verbs as there. So
+// `foo..\notes` holds the written `foo..` and `notes` and the climbing
+// `foo../notes` in both lexicons, and `..\x` holds a bare `..`.
 func pathTokens(literal, module string) []string {
 	return appendPathTokens(nil, literal, module)
 }
 
+// appendPathTokens appends pathTokens(literal, module) to tokens, so a file's
+// literals can share one backing array.
 func appendPathTokens(tokens []string, literal, module string) []string {
 	if strings.Contains(literal, "%") {
 		literal = printfVerb.ReplaceAllString(literal, " ")
 	}
+	start := len(tokens)
+	tokens = spelledTokens(tokens, literal, module)
+	rewritten := parentBackslash.Replace(literal)
+	if rewritten == literal {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens)-start)
+	for _, value := range tokens[start:] {
+		seen[value] = true
+	}
+	for _, value := range spelledTokens(nil, rewritten, module) {
+		if !seen[value] {
+			seen[value] = true
+			tokens = append(tokens, value)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling pathTokens keeps for each path-shaped
+// run of literal.
+func spelledTokens(tokens []string, literal, module string) []string {
 	for offset := 0; offset < len(literal); {
 		if !pathCharacter(literal[offset]) {
 			offset++
@@ -452,22 +490,48 @@ func appendPathTokens(tokens []string, literal, module string) []string {
 		for offset < len(literal) && pathCharacter(literal[offset]) {
 			offset++
 		}
-		value := literal[start:offset]
-		if value == module {
-			value = "/"
-		} else if rest, ok := strings.CutPrefix(value, module+"/"); ok {
-			value = "/" + rest
+		tokens = appendSpellings(tokens, literal[start:offset], module)
+		if literal[start] == '/' && offset > start+1 && closesTag(literal, start) {
+			tokens = appendSpellings(tokens, literal[start+1:offset], module)
 		}
-		tokens = append(tokens, value)
 	}
 	return tokens
 }
 
-// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-]. Keep
-// this attribution lexicon independent of the planner's narrower token rules.
+// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-].
 func pathCharacter(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
 		c == '.' || c == '_' || c == '~' || c == '@' || c == '+' || c == '/' || c == '-'
+}
+
+// appendSpellings appends value as written and, for an import path under the
+// module, its root-anchored path too.
+func appendSpellings(tokens []string, value, module string) []string {
+	tokens = append(tokens, value)
+	if anchored := moduleAnchored(value, module); anchored != value {
+		tokens = append(tokens, anchored)
+	}
+	return tokens
+}
+
+// moduleAnchored turns an import path under the module into a root-anchored
+// path.
+func moduleAnchored(value, module string) string {
+	if value == module {
+		return "/"
+	}
+	if rest, ok := strings.CutPrefix(value, module+"/"); ok {
+		return "/" + rest
+	}
+	return value
+}
+
+// closesTag reports a `/` at index directly after `<` or, in any letter case,
+// the HTML entity `&lt;`: the planner's closing-tag test (AFP-V0-505,
+// AFP-V0-840).
+func closesTag(literal string, index int) bool {
+	return index > 0 && literal[index-1] == '<' ||
+		index >= len("&lt;") && strings.EqualFold(literal[index-len("&lt;"):index], "&lt;")
 }
 
 // escapesPackage names why a token read from directory's files cannot be
@@ -698,6 +762,11 @@ func (index *repositoryIndex) reach(withNamers bool, directories []string) []str
 // readers are the packages whose own files carry a path token naming
 // dirtyPath. A dependency's literal is resolved against a root or directory its
 // caller hands it; a dependency that finds the root itself is `locatesRoot`.
+// Any run of the token, a lone component included, names the path at any
+// depth: no literal index proves the root a literal is joined to, which may
+// come from the environment, a flag, a walked directory or any other
+// non-constant prefix, so no placement or file-name-only rule narrows it
+// (AFP-V0-2240, AFP-V0-2241).
 func (index *repositoryIndex) readers(dirtyPath string) []string {
 	readers := map[string]bool{}
 	for value, directories := range index.holders {
