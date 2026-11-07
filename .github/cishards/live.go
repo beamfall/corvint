@@ -80,7 +80,11 @@ func rootModuleSource(name string, modules []string) bool {
 			return false
 		}
 	}
-	for _, part := range strings.Split(path.Dir(name), "/") {
+	dir := path.Dir(name)
+	if dir == "." {
+		return true // a module-root file: path.Dir yields ".", which is not a hidden directory
+	}
+	for _, part := range strings.Split(dir, "/") {
 		if part == "testdata" || part == "vendor" || strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
 			return false
 		}
