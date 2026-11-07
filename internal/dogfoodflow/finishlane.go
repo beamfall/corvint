@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -423,6 +426,11 @@ func (l *finishLane) requireIntentsInput() {
 		return
 	}
 	_, paths, reason, issue := readIntentManifest(source)
+	// DWC-V0-7600 (V1-4788): an ordering or duplicate fault is mechanical, so
+	// the run canonicalizes the lane's own manifest and checks it again.
+	if strings.Contains(issue, "does not sort after") && l.canonicalizeIntents(source) {
+		_, paths, reason, issue = readIntentManifest(source)
+	}
 	if reason == "" && len(paths) > maxAggregateScopes {
 		reason = "intent-scope-limit"
 	}
@@ -447,6 +455,168 @@ func (l *finishLane) requireIntentsInput() {
 	}
 	l.say("  fix: %s, then rerun corvint dogfood finish-lane --base %s\n", intentScopeHint, l.options.Change.Base)
 	l.exit(2)
+}
+
+// canonicalizeIntents rewrites, in place, an --intents manifest whose only
+// fault is line order or duplicates into its LC_ALL=C sort -u form, prints the
+// rewrite, and reports whether it rewrote the file (DWC-V0-7600, V1-4788). It runs before snapshotInputs, so the run binds the sorted bytes. A
+// manifest the repository tracks is left alone, since rewriting it would dirty
+// the change; so is one with any line that is not a canonical path, whose
+// grammar refusal stands.
+func (l *finishLane) canonicalizeIntents(source string) bool {
+	data, err := readPrefix(source, maxIntentManifestBytes+1)
+	if err != nil || len(data) > maxIntentManifestBytes {
+		return false
+	}
+	sorted, ok := canonicalIntentManifest(data)
+	if !ok {
+		return false
+	}
+	if !l.intentsUntracked(source) {
+		return false
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return false
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(source), "."+filepath.Base(source)+".sort-*")
+	if err != nil {
+		return false
+	}
+	_, err = temporary.Write(sorted)
+	err = errors.Join(err, temporary.Chmod(info.Mode().Perm()), temporary.Close())
+	if err == nil {
+		err = os.Rename(temporary.Name(), source)
+	}
+	if err != nil {
+		_ = os.Remove(temporary.Name())
+		return false
+	}
+	l.say("%s: intents canonicalized: LC_ALL=C sort -u rewrote --intents %s from %d to %d lines; the run goes on with the sorted manifest (DWC-V0-7600)\n",
+		l.prefix, source, len(readLines(data)), len(readLines(sorted)))
+	return true
+}
+
+// intentsUntracked reports whether the repository certainly does not track
+// the directory entry the rewrite of source replaces: the entry lies outside
+// the worktree, or no tracked path is that entry. Git matches its pathspec
+// case-exactly even where the filesystem folds case, so the tracked paths that
+// equal the entry's path ignoring case are listed and each is compared with
+// the entry by identity (os.SameFile): INTENTS.txt opened on a case-folding
+// filesystem is the tracked intents.txt, while on a case-sensitive one a
+// distinct INTENTS.txt beside it is untracked. Any other outcome, such as a
+// corrupt or unreadable index or an unmatched non-ASCII path, leaves
+// membership unknown; it prints why and keeps the file, so a tracked manifest
+// is never rewritten (DWC-V0-7600).
+func (l *finishLane) intentsUntracked(source string) bool {
+	relative, inside, err := worktreeEntry(l.root, source)
+	if err == nil && !inside {
+		return true
+	}
+	if err == nil {
+		var tracked bool
+		if tracked, err = l.trackedAlias(source, relative); err == nil {
+			return !tracked
+		}
+	}
+	l.say("%s: intents not canonicalized: whether the repository tracks --intents %s is unknown (%v); a tracked manifest is never rewritten (DWC-V0-7600)\n", l.prefix, source, err)
+	return false
+}
+
+// trackedAlias reports whether a tracked path is the worktree entry relative
+// that names source: the path itself, or a case alias of it that is the same
+// file (DWC-V0-7600). An error leaves the answer unknown.
+func (l *finishLane) trackedAlias(source, relative string) (bool, error) {
+	listed, status, bounded := l.boundedGit("ls-files", "-z", "--error-unmatch", "--", ":(literal,icase)"+relative)
+	// Exit 1 is Git's no-match status: nothing is listed.
+	switch {
+	case !bounded:
+		return false, errors.New(gitOutputOverBound)
+	case status != 0 && status != 1:
+		return false, fmt.Errorf("git ls-files --error-unmatch exited %d", status)
+	}
+	var entry os.FileInfo
+	depth := strings.Count(relative, "/")
+	for _, path := range nonEmpty(strings.Split(listed, "\x00")) {
+		if path == relative {
+			return true, nil
+		}
+		// A pathspec also matches the files below a directory of that name,
+		// which are never this entry.
+		if strings.Count(path, "/") != depth {
+			continue
+		}
+		alias, err := os.Lstat(filepath.Join(l.root, filepath.FromSlash(path)))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err == nil && entry == nil {
+			entry, err = os.Lstat(source)
+		}
+		if err != nil {
+			return false, err
+		}
+		if os.SameFile(alias, entry) {
+			return true, nil
+		}
+	}
+	// Git folds the case of ASCII letters only, so a tracked alias that
+	// differs in a non-ASCII letter is not listed and cannot be ruled out.
+	for _, b := range []byte(relative) {
+		if b >= utf8.RuneSelf {
+			return false, errors.New("git matches case aliases of ASCII letters only, and the path is not ASCII")
+		}
+	}
+	return false, nil
+}
+
+// worktreeEntry is the slash path, below root, of the directory entry that
+// names source, with inside false when root is not an ancestor of source's
+// resolved directory. Ancestors are matched with os.SameFile, so a symlinked
+// or case-folded spelling of either path still finds the worktree.
+func worktreeEntry(root, source string) (string, bool, error) {
+	top, err := os.Stat(root)
+	if err != nil {
+		return "", false, err
+	}
+	absolute, err := filepath.Abs(source)
+	if err != nil {
+		return "", false, err
+	}
+	directory, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if err != nil {
+		return "", false, err
+	}
+	entry := filepath.Join(directory, filepath.Base(absolute))
+	for {
+		if info, err := os.Stat(directory); err == nil && os.SameFile(info, top) {
+			relative, err := filepath.Rel(directory, entry)
+			return filepath.ToSlash(relative), err == nil, err
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return "", false, nil
+		}
+		directory = parent
+	}
+}
+
+// canonicalIntentManifest is the LC_ALL=C sort -u form of a manifest whose
+// every line is a canonical repository-relative path, or false when any line
+// is not, or when the manifest is the no-intent declaration.
+func canonicalIntentManifest(data []byte) ([]byte, bool) {
+	lines := readLines(data)
+	if len(lines) == 0 || len(data) == 0 || data[len(data)-1] != '\n' {
+		return nil, false
+	}
+	for _, line := range lines {
+		if !canonicalIntentPath(line) {
+			return nil, false
+		}
+	}
+	slices.Sort(lines)
+	lines = slices.Compact(lines)
+	return []byte(strings.Join(lines, "\n") + "\n"), true
 }
 
 // requireOutcomeInputs refuses, before prepare and before any bind or commit,
