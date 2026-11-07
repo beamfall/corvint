@@ -228,3 +228,61 @@ func TestTCQV0062SpentBudgetKeepsNoCandidateReason(t *testing.T) {
 		t.Fatalf("spent before naming: ran=%v rows=%+v", ran, rows)
 	}
 }
+
+// TCQ-V0-7408: a foreign package selector cannot reference a declaration
+// of this package; the package-under-test import in an external test can.
+func TestTCQV07408ImportedSelectorsDoNotCarryClosure(t *testing.T) {
+	code := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc Read() {}\nfunc wrapper() { foreign.Read() }\n")
+	tests := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc TestLocal(t *testing.T) { Read() }\nfunc TestForeign(t *testing.T) { foreign.Read() }\nfunc TestWrapper(t *testing.T) { wrapper() }\n")
+	external := []byte("package p_test\nimport subject \"example/p\"\nfunc TestExternal(t *testing.T) { subject.Read() }\n")
+	p := &goPackage{}
+	p.decls = append(p.decls, parseDecls("p.go", code, false)...)
+	p.decls = append(p.decls, parseDecls("p_test.go", tests, true)...)
+	p.decls = append(p.decls, parseDecls("external_test.go", external, true)...)
+	got := p.testsMentioning(p.grow(map[string]bool{"Read": true}))
+	if strings.Join(got, " ") != "TestExternal TestLocal" {
+		t.Fatalf("candidates=%v", got)
+	}
+}
+
+// TCQ-V0-7408: importer closure must not conflate two packages' exported
+// selectors just because their identifiers have the same spelling.
+func TestTCQV07408ImporterNamespace(t *testing.T) {
+	source := []byte(`package q
+import changed "example.test/m/p"
+import other "example.test/m/r"
+import "testing"
+func actual() int { return changed.Double(1) }
+func foreign() int { return other.Double(1) }
+func TestActual(t *testing.T) { actual() }
+func TestForeign(t *testing.T) { foreign() }
+`)
+	p := &goPackage{decls: parseDecls("q/q_test.go", source, true)}
+	got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Double": true}))
+	if !reflect.DeepEqual(got, []string{"TestActual"}) {
+		t.Fatalf("candidates=%v, want only the changed import", got)
+	}
+}
+
+// TCQ-V0-7408: a field selector is not a reference to a same-spelled package
+// declaration; an actual method selector must still carry method closure.
+func TestTCQV07408FieldsAndMethodsHaveSeparateNamespaces(t *testing.T) {
+	data := []byte(`package p
+import "testing"
+func generation() int { return 1 }
+type record struct { generation int }
+func unrelated(r record) int { return r.generation }
+type machine struct {}
+func (machine) Check() int { return 1 }
+func TestActual(t *testing.T) { generation() }
+func TestField(t *testing.T) { unrelated(record{}) }
+func TestMethod(t *testing.T) { machine{}.Check() }
+`)
+	p := &goPackage{decls: parseDecls("p/p_test.go", data, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"generation": true})); !reflect.DeepEqual(got, []string{"TestActual"}) {
+		t.Fatalf("field carried package closure: %v", got)
+	}
+	if got := p.testsMentioning(p.grow(map[string]bool{"Check": true})); !reflect.DeepEqual(got, []string{"TestMethod"}) {
+		t.Fatalf("method closure lost: %v", got)
+	}
+}

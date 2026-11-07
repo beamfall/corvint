@@ -228,6 +228,7 @@ func (p *proposal) run() int {
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.say("  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE %s, not at HEAD or in the working tree (DCW-V0-845)\n", p.base)
 	p.printDraft(hunks, rows, notes)
+	p.draftVerify()
 	return 0
 }
 
@@ -342,6 +343,7 @@ func (p *proposal) template(mapState string) int {
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.say("  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE %s, not at HEAD or in the working tree (DCW-V0-845)\n", p.base)
 	p.printDraft(hunks, rows, notes)
+	p.draftVerify()
 	return 0
 }
 
@@ -1416,4 +1418,30 @@ func spanOccurrences(data, needle []byte) int {
 		offset += index + 1
 	}
 	return count
+}
+
+// draftVerify keeps admissible supplied run commands separate from citation TSV.
+func (p *proposal) draftVerify() {
+	options := ChangeOptions{VerifyFile: os.Getenv("DOGFOOD_VERIFY_FILE"), Verify: os.Getenv("DOGFOOD_VERIFY")}
+	data := []byte(options.Verify)
+	_, reason := verifyInput(options)
+	if options.VerifyFile != "" && reason == "" {
+		data, _ = readPrefix(options.VerifyFile, maxVerifyFileBytes)
+	}
+	if reason != "" {
+		p.say("  VERIFY NOT_PRODUCED %s\n", reason)
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if suggestion := quotedRunSuggestion(line); suggestion != "" {
+			line = suggestion
+		}
+		if validateVerify(verifyLineArguments(line)) == nil {
+			p.say("  VERIFY: %s\n", line)
+		}
+	}
 }

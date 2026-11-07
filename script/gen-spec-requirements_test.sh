@@ -1238,4 +1238,18 @@ test "$(printf '%s\n' "$ord" | grep '^ORD-V0-' | cut -f1 | tr '\n' ' ')" = 'ORD-
   fail "--lines did not print id order: $(printf '%s\n' "$ord" | grep '^ORD-V0-')"
 git -C "$test_root" rm -q --cached -- docs/specs/order.md
 
+# DCW-V0-7401: authoring guidance is available before the generator, and
+# changing help without refreshing the trees produces a doc-gate hint.
+grep -q '^### Authoring template$' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "template absent from authoring route"
+grep -q 'Claim: One sentence of at most 160 characters' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "Claim limit absent from template"
+grep -q 'git add -- docs/specs/NAME.md' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "staging command absent from template"
+grep -q 'internal/tasks/wire/facets.go' "$source_root/docs/AGENT-ROUTES.md" || fail "facets decoder absent from route"
+mkdir -p "$test_root/cmd/tool"
+printf 'package main\n// Usage: before\n' > "$test_root/cmd/tool/main.go"
+git -C "$test_root" add -- cmd/tool/main.go
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm 'help baseline'
+printf 'package main\n// Usage: after\n' > "$test_root/cmd/tool/main.go"
+hint=$(cd "$test_root" && bash "$source_root/script/doc-gates-summary.sh" true 2>&1)
+case $hint in *'HINT help text changed'*'make capability-catalog'*) ;; *) fail "no stale tree hint: $hint" ;; esac
+
 printf 'ok\n'

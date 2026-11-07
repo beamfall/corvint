@@ -212,7 +212,7 @@ func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []G
 					importers = indexImporters(tree)
 				}
 				for _, importer := range importers.of(dir) {
-					if names := load(importer).testsMentioning(load(importer).grow(exported)); len(names) > 0 {
+					if names := load(importer).testsMentioning(load(importer).growImported(importers.packagePath(dir), exported)); len(names) > 0 {
 						candidate.units = append(candidate.units, testUnit{dir: importer, names: names})
 					}
 				}
@@ -288,11 +288,15 @@ func changedLines(hunk *patch.Hunk) map[int64]bool {
 // goDecl is one top-level declaration: the names it declares, the identifiers
 // it mentions, and its target line range.
 type goDecl struct {
-	file       string
-	names      []string
-	refs       map[string]bool
-	start, end int64
-	test       bool // a func TestX(t *testing.T) declared in a _test.go file and at the base
+	file         string
+	names        []string
+	refs         map[string]bool
+	importRefs   map[string]bool // qualified names retained for direct-importer search
+	selectorRefs map[string]bool // receiver fields/methods live outside the package namespace
+	method       bool
+	external     bool
+	start, end   int64
+	test         bool // a func TestX(t *testing.T) declared in a _test.go file and at the base
 }
 
 // goPackage is one directory of the copy: its declarations and, per test
@@ -348,10 +352,27 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 	if err != nil {
 		return nil
 	}
+	// Imported selectors live in another package's namespace. The explicit
+	// package-under-test import of an external test is the one exception.
+	foreign := map[string]string{}
+	for _, imp := range parsed.Imports {
+		importPath, e := strconv.Unquote(imp.Path.Value)
+		if e != nil {
+			continue
+		}
+		name := path.Base(importPath)
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		own := strings.HasSuffix(parsed.Name.Name, "_test")
+		if !own && name != "." && name != "_" {
+			foreign[name] = importPath
+		}
+	}
 	var decls []goDecl
 	for _, decl := range parsed.Decls {
 		d := goDecl{
-			file: file, refs: map[string]bool{},
+			file: file, refs: map[string]bool{}, importRefs: map[string]bool{}, selectorRefs: map[string]bool{}, external: strings.HasSuffix(parsed.Name.Name, "_test"),
 			// Physical lines: a //line directive must not move a declaration
 			// away from the patch lines that edit it.
 			start: int64(fileSet.PositionFor(decl.Pos(), false).Line), end: int64(fileSet.PositionFor(decl.End(), false).Line),
@@ -359,6 +380,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			d.names = []string{decl.Name.Name}
+			d.method = decl.Recv != nil
 			d.test = isTest && goTestDecl(decl)
 		case *ast.GenDecl:
 			if decl.Tok == token.IMPORT {
@@ -378,8 +400,25 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 				}
 			}
 		}
+		declarations := map[*ast.Ident]bool{}
 		ast.Inspect(decl, func(node ast.Node) bool {
-			if ident, ok := node.(*ast.Ident); ok && !declaredWithin(ident, decl) {
+			if field, ok := node.(*ast.Field); ok {
+				for _, name := range field.Names {
+					declarations[name] = true
+				}
+			}
+			return true
+		})
+		ast.Inspect(decl, func(node ast.Node) bool {
+			if selector, ok := node.(*ast.SelectorExpr); ok {
+				if qualifier, ok := selector.X.(*ast.Ident); ok && qualifier.Obj == nil && foreign[qualifier.Name] != "" {
+					d.importRefs[foreign[qualifier.Name]+"\x00"+selector.Sel.Name] = true
+					return false
+				}
+				d.selectorRefs[selector.Sel.Name] = true
+				declarations[selector.Sel] = true
+			}
+			if ident, ok := node.(*ast.Ident); ok && !declarations[ident] && !declaredWithin(ident, decl) {
 				d.refs[ident.Name] = true
 			}
 			return true
@@ -421,6 +460,7 @@ func (p *goPackage) closure(file string, changed map[int64]bool) map[string]bool
 // grow adds to a copy of seed the names of every package declaration that
 // transitively mentions one of its names.
 func (p *goPackage) grow(seed map[string]bool) map[string]bool {
+	methods := p.methodNames()
 	reached := make(map[string]bool, len(seed))
 	for name := range seed {
 		reached[name] = true
@@ -428,7 +468,7 @@ func (p *goPackage) grow(seed map[string]bool) map[string]bool {
 	for grew := len(reached) > 0; grew; {
 		grew = false
 		for _, d := range p.decls {
-			if !mentions(d.refs, reached) {
+			if !d.mentions(reached, methods) {
 				continue
 			}
 			for _, name := range d.names {
@@ -444,10 +484,11 @@ func (p *goPackage) grow(seed map[string]bool) map[string]bool {
 // testsMentioning names, sorted, the base tests of the package that mention
 // one of reached.
 func (p *goPackage) testsMentioning(reached map[string]bool) []string {
+	methods := p.methodNames()
 	seen := map[string]bool{}
 	var names []string
 	for _, d := range p.decls {
-		if d.test && !seen[d.names[0]] && mentions(d.refs, reached) {
+		if d.test && !seen[d.names[0]] && d.mentions(reached, methods) {
 			seen[d.names[0]] = true
 			names = append(names, d.names[0])
 		}
@@ -555,4 +596,53 @@ func baseHeaderLines(base []byte, name string) (int64, int64, bool) {
 		}
 	}
 	return 0, 0, false
+}
+
+// growImported first connects foreign exported names to declarations in an
+// importing package, then follows only that package's ordinary closure.
+// Keeping these edges separate prevents unrelated imports polluting the
+// changed package's closure while preserving TCQ-V0-761 importer guards.
+func (p *goPackage) growImported(importPath string, exported map[string]bool) map[string]bool {
+	seed := map[string]bool{}
+	for name := range exported {
+		seed[name] = true
+	}
+	qualified := map[string]bool{}
+	for name := range exported {
+		qualified[importPath+"\x00"+name] = true
+	}
+	for _, decl := range p.decls {
+		if mentions(decl.importRefs, qualified) || mentions(decl.selectorRefs, exported) {
+			for _, name := range decl.names {
+				seed[name] = true
+			}
+		}
+	}
+	return p.grow(seed)
+}
+
+// methodNames keeps receiver selectors conservative when a package method has
+// that spelling. A field with no such method cannot name a package declaration.
+func (p *goPackage) methodNames() map[string]bool {
+	methods := map[string]bool{}
+	for _, d := range p.decls {
+		if d.method {
+			for _, name := range d.names {
+				methods[name] = true
+			}
+		}
+	}
+	return methods
+}
+
+func (d goDecl) mentions(reached, methods map[string]bool) bool {
+	if mentions(d.refs, reached) {
+		return true
+	}
+	for name := range d.selectorRefs {
+		if reached[name] && (d.external || methods[name]) {
+			return true
+		}
+	}
+	return false
 }
