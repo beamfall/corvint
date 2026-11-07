@@ -2118,7 +2118,7 @@ if group 17; then
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
 for target in dogfood-closeout dogfood-closeout-precheck; do
   grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
-  grep -A4 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
+  grep -A8 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
 done
 baseline_deferred() {
   grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
