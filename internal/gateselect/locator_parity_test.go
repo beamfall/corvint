@@ -59,13 +59,16 @@ func agree(t *testing.T, root string, want []string) *repositoryIndex {
 
 // TestBoundedJoinLocatorParity_AFPV02950 holds this index's rule (d) and the
 // planner's equal over os.Getwd results (V1-4283): a result joined with
-// literal plain components (`joiner`, an aliased `=` form `aliased`, a
-// rebinding `rebound`, a directory listing `lister`) is no unbounded read and
-// contributes the joined path as a root-anchored token; a result that
-// escapes (`returner`, `copier`, `passer`), climbs (`climber`, `parent`), is
-// joined with a computed, second-position, `.` or glob argument (`computed`,
-// `second`, `dotted`, `globbed`) or lands in a package-level variable
-// (`global`) stays one. A warm scan memo keeps the same set and tokens.
+// literal plain components into a path only a read at or below it consumes
+// (`joiner`, an aliased `=` form `aliased`, a rebinding `rebound`, a
+// directory listing `lister`, a bound joined path `bound`) is no unbounded
+// read and contributes the joined path as a root-anchored token; a result
+// that escapes (`returner`, `copier`, `passer`), climbs (`climber`,
+// `parent`), is joined with a computed, second-position, `.` or glob argument
+// (`computed`, `second`, `dotted`, `globbed`) or lands in a package-level
+// variable (`global`) stays one, and so does a joined path that a consumer
+// could widen (`widened`, `joinreturn`, `opener`, `rejoined`, `handed`). A
+// warm scan memo keeps the same set and tokens.
 func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 	src := func(name, body string) string {
 		return "package " + name + "\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\n" + body + "\n"
@@ -74,9 +77,21 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
 		"joiner/joiner.go":      src("joiner", "func F() []byte { root, err := os.Getwd(); if err != nil { return nil }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
 		"joiner/joiner_test.go": "package joiner\n",
-		"aliased/aliased.go":    "package aliased\n\nimport (\n\tsystem \"os\"\n\tfp \"path/filepath\"\n)\n\nfunc F() string { var cwd string; var err error; cwd, err = system.Getwd(); if err != nil { return \"\" }; return fp.Join(cwd, \"docs/guide.md\") }\n",
+		"aliased/aliased.go":    "package aliased\n\nimport (\n\tsystem \"os\"\n\tfp \"path/filepath\"\n)\n\nfunc F() bool { var cwd string; var err error; cwd, err = system.Getwd(); if err != nil { return false }; _, err = system.Stat(fp.Join(cwd, \"docs/guide.md\")); return err == nil }\n",
 		"aliased/a_test.go":     "package aliased\n",
-		"rebound/rebound.go":    src("rebound", "func F(given string) string { root := given; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return \"\" } }; return filepath.Join(root, \"docs\", \"guide.md\") }"),
+		"rebound/rebound.go":    src("rebound", "func F(given string) []byte { root := given; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
+		"bound/bound.go":        src("bound", "func F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); if docs == \"/\" { return 0 }; var guide = filepath.Join(cwd, \"docs\", \"guide.md\"); os.Stat(guide); entries, _ := os.ReadDir(docs); return len(entries) }"),
+		"bound/b_test.go":       "package bound\n",
+		"widened/widened.go":    src("widened", "func F() []byte { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); b, _ := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(docs)), \"config.go\")); return b }"),
+		"widened/w_test.go":     "package widened\n",
+		"joinreturn/j.go":       src("joinreturn", "func F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \"docs\") }"),
+		"joinreturn/j_test.go":  "package joinreturn\n",
+		"opener/opener.go":      src("opener", "func F() string { cwd, _ := os.Getwd(); f, _ := os.Open(filepath.Join(cwd, \"docs\")); return filepath.Dir(f.Name()) }"),
+		"opener/o_test.go":      "package opener\n",
+		"rejoined/rejoined.go":  src("rejoined", "func F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); docs = filepath.Dir(docs); entries, _ := os.ReadDir(docs); return len(entries) }"),
+		"rejoined/r_test.go":    "package rejoined\n",
+		"handed/handed.go":      src("handed", "func G(string) {}\nfunc F() { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); G(docs) }"),
+		"handed/h_test.go":      "package handed\n",
 		"rebound/r_test.go":     "package rebound\n",
 		"lister/lister.go":      src("lister", "func F() int { root, err := os.Getwd(); if err != nil { return 0 }; entries, _ := os.ReadDir(filepath.Join(root, \"docs\")); return len(entries) }"),
 		"lister/l_test.go":      "package lister\n",
@@ -101,9 +116,12 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 		"global/global.go":      src("global", "var root string\n\nfunc F() string { var err error; root, err = os.Getwd(); if err != nil { return \"\" }; return filepath.Join(root, \"docs\") }"),
 		"global/g_test.go":      "package global\n",
 	})
-	want := []string{"climber", "computed", "copier", "dotted", "global", "globbed", "parent", "passer", "returner", "second"}
+	// widened is the review's case (a bounded join climbed with
+	// filepath.Dir); joinreturn, opener, rejoined and handed hand the joined
+	// path to a consumer that could widen it.
+	want := []string{"climber", "computed", "copier", "dotted", "global", "globbed", "handed", "joinreturn", "opener", "parent", "passer", "rejoined", "returner", "second", "widened"}
 	index := agree(t, root, want)
-	for directory, token := range map[string]string{"joiner": "/docs/guide.md", "aliased": "/docs/guide.md", "rebound": "/docs/guide.md", "lister": "/docs"} {
+	for directory, token := range map[string]string{"joiner": "/docs/guide.md", "aliased": "/docs/guide.md", "rebound": "/docs/guide.md", "lister": "/docs", "bound": "/docs"} {
 		if holders := index.holders[token]; !containsString(holders, directory) {
 			t.Errorf("%s: the joined path %q is not a token of the package: holders %v", directory, token, holders)
 		}
