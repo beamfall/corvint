@@ -39,6 +39,23 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
 
+- `CIN-V0-7620`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4355)
+  `tools/ci-test-slices replay` SHALL accept `--parallel N` (1..64, default 1) and
+  `--compile-link DURATION` (nonnegative, default 0). It SHALL use the existing
+  `AFP-V0-2181` parallel placement for both whole and sliced plans, and predict each shard as
+  `max(longest unit, summed unit time / N) + compile-link`, rounding upward to milliseconds.
+  The allowance is an explicit common per-shard estimate, never inferred from package elapsed
+  times. Default replay output and `N=1` placement MUST remain byte-identical. Invalid inputs
+  retain the existing usage refusal; generation MUST refuse nondefault replay-only options.
+  The replay MUST retain existing complete, passing-stream admission, cost-table validation,
+  median unknown costs and slice isolation. Non-goals: changing production cost files, workflow
+  settings, selection authority, or claiming this lower-bound model measures real scheduling.
+  Acceptance: `TestCINV07620ReplayParallelPlacement`, `TestCINV07620ReplayOptions` and
+  `TestCINV07620SerialGoldenAndDeterminism` in `tools/ci-test-slices/parallel_test.go`, using
+  the labelled passing-package sample from run `42106672783`; the failed source run MUST NOT
+  qualify a cost-table refresh. Rollback: remove these replay options; existing production
+  placement and merge-queue execution remain unchanged. Hosted qualification is NOT_OBSERVED.
+
 - `CIN-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier plan MUST retain every distinct FULL-forcing path reason rather than capping the list at twenty; the per-reason display limit MAY remain 300 characters.
 - `CIN-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shared PR documentation gates MUST run the exact per-job permission/exception check before merge; each nondefault grant MUST name its exact permissions and purpose in the exception table.
 - `CIN-V0-7502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
