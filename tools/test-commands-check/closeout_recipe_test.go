@@ -59,7 +59,9 @@ func TestASDV0946CloseoutRecipeMatchesShellPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	step := "\t@$(MAKE) --no-print-directory dogfood-finish\n"
+	// The closeout runs each step through closeout_step (ASD-V0-567), so the
+	// anchor is its last step's line.
+	step := "\t@$(call closeout_step,5,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)\n"
 	if !strings.Contains(string(makefile), step) {
 		t.Fatalf("the Makefile no longer has the recipe step %q", step)
 	}

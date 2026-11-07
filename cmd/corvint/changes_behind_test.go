@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -19,8 +18,8 @@ func TestSPCV0012ChangesBehindCLI(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		c := exec.Command("git", append([]string{"-C", root}, args...)...)
-		c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid",
+		c := fixtureGitCommand(append([]string{"-C", root}, args...)...)
+		c.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid",
 			"GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
 		b, e := c.CombinedOutput()
 		if e != nil {

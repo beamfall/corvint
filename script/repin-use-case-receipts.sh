@@ -39,6 +39,12 @@ set -eu
 # paths `git diff --name-only HEAD` names, or the `--changed` paths. "All receipts current" says
 # nothing about such a path, for example help text no receipt covers. The listing never changes
 # the exit status.
+#
+# UCV0-217 is not a receipt and is outside this script (V1-3157): its Go test
+# (TestUCV0217DigestStatusMatchesLedger) checks the spec's Agent digest against each ledger row's
+# status and claim, which this script never edits. A status or claim change therefore passes
+# --check ("all receipts current") and fails in `go test ./conformance/use-cases-v0`; fix it by
+# editing the digest's Exists line in docs/specs/use-case-conformance-v0.md, not by a repin.
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"

@@ -186,6 +186,11 @@ unmeasured when the owner has cancelled measurement; it is not an inferred PASS.
 | GOC-V0-081 | `DOC_GATE_TARGETS` in `Makefile` | the script's self-test fails unless `DOC_GATE_TARGETS` lists `no-python-runtime-dependency-test`; it allows a single-quoted JSON language list and a quoted JSON `detail` naming `python`, and still reports a call after a JSON literal, a braced `sh -c` or `bash -lc` group, a JSON-shaped argument to `sh -c`, `bash -c --`, `/bin/sh` or `eval`, a JSON-shaped continuation line and a non-JSON braced assignment; dropping the command guard or the command-position guard fails a self-test; `script/batch-precheck_test.sh` passes with the extended list |
 | GOC-V0-062 | `mask_language_names` stage in `scan()` of `script/no-python-runtime-dependency_test.sh` | the script's self-test passes a copy of the `FRONTIER_OTHER_LANGS` list line of `script/batch-precheck.sh`, a `"detail":"python:dynamic-import"` plan fixture and a `"languages"` list, and checks that each is flagged without the stage. It still flags a `["python3", ...]` argv, `["python","build.py"]`, `["python","-c","go"]`, a `"python3 hook.py"` command, a language list followed by `python3 -c` on the same line, `"python:3"` and an `"image": "python:alpine"` tag, and the argv `["python","go"]` as a JSON `"command"`, as a shell argument and after a `"languages"` list on the same line, which the first stage masked by adjacency alone. At `6c33df33` the scan failed on a JSON language list in `script/batch-precheck.sh` and one in `script/batch-precheck_test.sh`, and it passes after the change |
 
+The GOC-V0-008 integration target enumeration prunes installed `node_modules` directories at
+every depth. Its self-test retains adjacent maintained `.mjs` and `.json` files and a directory
+whose name merely starts with `node_modules`, and requires interpreter detection in each.
+This applies the maintained-adapter boundary without changing the interpreter assertions.
+
 At `573bd72b`, the cutover OCM scope links eight of nine requirements only after decision 0234's
 committed link plan is replayed onto a freshly prepared local map. Each row names the
 requirement-labelled test case and the supported CEM hunk whose target lines contain it. Prepare alone links none.

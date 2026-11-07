@@ -1,0 +1,25 @@
+# Tracked files with a line over 4096 bytes that agents must still search (ASD-V0-573, V1-3461).
+# One exact repository path per line; script/long-lines-check.sh fails on any other such file
+# outside .corvint/agent-grep-exclude.
+conformance/cli-parity-v0/manifest.json
+conformance/lrf-v0/manifest.json
+conformance/postmerge-runtime-v2/semantic-example-preimages.json
+conformance/pulse-snapshot-v0/cases.json
+docs/specs/README.md
+docs/specs/affected-plan-v0.md
+docs/specs/application-map-v0.md
+docs/specs/cem-stable-v1.md
+docs/specs/change-compiled-e2e-v0.md
+docs/specs/corvint-self-development-v0.md
+docs/specs/corvint-tasks-agent-leases-v0.md
+docs/specs/corvint-tasks-attempt-runner-v0.md
+docs/specs/daily-change-evidence-workflow-v0.md
+docs/specs/documentation-corpus-v1.md
+docs/specs/falsifiable-packet-v0.md
+docs/worklist.json
+internal/analyzergo/analyzer_test.go
+internal/analyzershader/corpus_test.go
+internal/analyzershell/pinned_corpus_test.go
+internal/analyzerstructured/dogfood_literals_test.go
+internal/tasks/cli/command_help.go
+protocol/cem-1.0/stable/citation-vectors/stable.json

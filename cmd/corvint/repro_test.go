@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,7 +14,7 @@ func reproTestRepository(t *testing.T) string {
 	root := t.TempDir()
 	git := func(args ...string) {
 		t.Helper()
-		command := exec.Command("git", append([]string{"-C", root, "-c", "user.email=fixture@example.test", "-c", "user.name=Fixture"}, args...)...)
+		command := fixtureGitCommand(append([]string{"-C", root, "-c", "user.email=fixture@example.test", "-c", "user.name=Fixture"}, args...)...)
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, output)
 		}
@@ -124,7 +123,7 @@ func TestRPBV0003UnpinnableInputsRefuse(t *testing.T) {
 	if code, _, stderr := reproInvoke(t, "--root", root, "repro", "record", "--output", filepath.Join(scratch, "dirty.json"), "--", "--version"); code != 2 || !strings.Contains(stderr, "repro-inputs-unpinned") {
 		t.Fatalf("dirty record: exit %d, %s", code, stderr)
 	}
-	command := exec.Command("git", "-C", root, "-c", "user.email=f@example.test", "-c", "user.name=F", "commit", "-qam", "next")
+	command := fixtureGitCommand("-C", root, "-c", "user.email=f@example.test", "-c", "user.name=F", "commit", "-qam", "next")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("commit: %v %s", err, output)
 	}

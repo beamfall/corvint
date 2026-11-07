@@ -127,12 +127,13 @@ type UnboundedCause struct {
 
 // Selection is one unit whose tests the plan requires.
 type Selection struct {
+	Kind    string   `json:"kind,omitempty"`
+	Run     []string `json:"run,omitempty"`
 	UnitID  string   `json:"unitId"`
 	Tests   []string `json:"tests"`
 	Witness Witness  `json:"witness"`
 	// Kind is SelectionKindDriverTarget or SelectionKindCIJob for a driver
 	// unit (AZU-V0-001), empty for a unit whose Tests the runner runs.
-	Kind string `json:"kind,omitempty"`
 	// Argv runs a selected make target from the repository root.
 	Argv []string `json:"argv,omitempty"`
 	// Workflow and Job name a selected workflow job, left to CI.
@@ -174,6 +175,8 @@ type Plan struct {
 	Selected []Selection `json:"selected"`
 	Excluded []Exclusion `json:"excluded"`
 	Unknown  []Unknown   `json:"unknown"`
+	// Uncovered states proven coverage gaps without widening selection (AZU-V0-006).
+	Uncovered []Unknown `json:"uncovered,omitempty"`
 	// NonSource names the dirty paths classified as task state (AFP-V0-088),
 	// declared documentation (AFP-V0-160) or declared runtime-readers data
 	// (AFP-V0-602), not source: the TASK_STORE_PROJECTION group first, then
@@ -276,8 +279,9 @@ const FrontierExclusionReason = "no dirty path is this plugin's or unowned, and 
 //
 // A unit is traversed whether or not it declares tests; it is selected only if
 // it declares at least one, because a unit with no tests contributes no check.
-// A changed unit that no selectable test checks is named as unknown scope
-// instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
+// A changed unit that no selectable test checks is named in Uncovered after
+// caller inspection (AZU-V0-006), or Unknown when inbound callers are unresolved;
+// untestedRules holds each plugin's initial rule (AFP-V0-020).
 // Every dirty path also selects the units whose path literals name it
 // (AFP-V0-021); an unowned path stays unknown all the same, except a Tasks
 // store projection path no unit names, which is classified as task state in
@@ -343,10 +347,30 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.DeclaredOwners = graph.declaredOwnersOf(normalized)
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
 	graph.selectOwnershipAudit(&plan, reached, normalized)
+	coverageReaders := make(map[string]map[string]Witness)
+	// AZU-V0-006: the coverage proof counts a caller only when this plan runs
+	// its tests (a reached non-driver unit is selected below, and one reached
+	// only by the ownership audit runs that audit alone) or its declared
+	// consumers (selectDeclaredConsumers runs those of a rebuilt command).
+	runs := func(id string) bool {
+		witness, hit := reached[id]
+		_, built := rebuilt[id]
+		return hit && witness.Kind != WitnessOwnershipAudit && len(graph.units[id].Tests) != 0 || built && strings.HasPrefix(id, "go:") && len(graph.units[id].ExecConsumerRuns) != 0
+	}
+	narrowedOut := func(id string) bool {
+		_, hit := reached[id]
+		_, additiveOnly := through[id]
+		return !hit && additiveOnly
+	}
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
-			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders, runs, narrowedOut)
+			if uncertain {
+				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			} else if gap {
+				plan.Uncovered = append(plan.Uncovered, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
+			}
 		}
 		if strings.HasPrefix(id, DriverNamespace+":") {
 			// A reached make target or workflow job is selected whatever
@@ -393,6 +417,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			selection.Argv = []string{"go", "test", "-run", "^(" + OwnershipAuditTest + ")$", strings.TrimPrefix(selection.UnitID, "go:")}
 		}
 	}
+	plan.Selected = graph.selectDeclaredConsumers(rebuilt, plan.Selected)
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.ownershipHints(plan.Unknown)
@@ -410,8 +435,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // the delta unit denominator cannot drift from the selected plan. followed
 // holds the units whose dependents the plan walks: every unit a reverse
 // dependency traversal expands, from the dirty paths' owners, from a
-// test-less reader of an unowned path (AFP-V0-495), and on any dirty path from
-// a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
+// test-less reader of an unowned or untested path (AFP-V0-495, AZU-V0-006),
+// and on any dirty path from a root locator (AFP-V0-012 rule (d)). A test user, exec user, path reader,
 // own-reason unbounded reader or scoped reader is selected without its
 // dependents (AFP-V0-581). carried holds the units testlessReaderUsers
 // traversed (AFP-V0-560).
@@ -424,11 +449,11 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 //
 // additive holds the ADN-V0-001 records with their final states.
 //
-// rebuilt holds the units whose build the change reaches: those the
+// rebuilt holds the witnesses whose build the change reaches: those the
 // dependency traversal walks to and those an enclosed path reaches, before a
 // later step replaces a unit's witness with its own test change
 // (AFP-V0-762).
-func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]bool) {
+func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]Witness) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -450,14 +475,12 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
-	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
-	for id := range reached {
+	rebuilt = make(map[string]Witness, len(reached)+len(enclosing))
+	for id, witness := range reached {
 		followed[id] = true
-		rebuilt[id] = true
+		rebuilt[id] = witness
 	}
-	for id := range enclosing {
-		rebuilt[id] = true
-	}
+	mergeWitnesses(rebuilt, enclosing)
 	unbounded := graph.unboundedDirty(normalized)
 	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {
@@ -584,9 +607,12 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			if graph.deletedGoTest(path, packages) || graph.deletedGoPackage(path, packages) {
-				// Rule (a) selects its base package (AFP-V0-620), or the
-				// importers of its deleted package (AFP-V0-821). A path
+			if graph.admittedDeletion(path, packages) {
+				// Rule (a) selects its base package and that package's
+				// importers (AFP-V0-620, AFP-V0-2610), or the importers of
+				// its deleted package (AFP-V0-821); a deleted fixture's
+				// readers and hosting package are selected by rules (b)
+				// and (c) (AFP-V0-2740). A path
 				// inside a runnable unobserved directory still names that
 				// directory's test root, as the read-data branch does.
 				if inModule {
@@ -939,6 +965,9 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // soundness argument needs an unowned path to make every reached plugin take
 // part. AZU-V0-9901 permits terminal status for tracked fixture membership
 // changes with selected Go hosts, while preserving each unowned-path proof.
+// An admitted deletion (admittedDeletion: AFP-V0-2610, AFP-V0-821,
+// AFP-V0-2740, AFP-V0-2749) is listed among the unowned paths although
+// claimantsOf names its claimant, which still takes part.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -949,7 +978,13 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		name, _, _ := strings.Cut(id, ":")
 		// An unbounded reader keeps its plugin whatever its witness: the
 		// AFP-V0-560 argument covers only readers whose reads are bounded.
-		if _, unbounded := graph.causes[id]; !unbounded && !carried[id] && !followed[id] && terminalWitness(witness) {
+		// One whose tests alone run a root-locating command reads nothing
+		// unbounded with its own code: it is terminal as a BINARY_EXEC
+		// runner is (AFP-V0-2991).
+		_, unbounded := graph.causes[id]
+		runner := graph.runnerOnly[id]
+		terminalSelection := terminalWitness(witness) || runner && witness.Kind == WitnessUnboundedReader
+		if (!unbounded || runner) && !carried[id] && !followed[id] && terminalSelection {
 			terminal[name] = append(terminal[name], id)
 			continue
 		}
@@ -967,6 +1002,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		}
 	}
 	paths := make(map[string]bool)
+	var packages map[string]string
 	for _, path := range dirty {
 		if taskState[path] {
 			continue
@@ -974,6 +1010,19 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		claimed := graph.claimantsOf(path)
 		if len(claimed) == 0 {
 			paths[path] = true
+		} else if _, owned := graph.owner[path]; !owned {
+			// An admitted deletion (a deleted Go source, Go package or
+			// fixture: AFP-V0-2610, AFP-V0-821, AFP-V0-2740, AFP-V0-2749)
+			// raises no UNINDEXED_SOURCE_PATH although a plugin's Owns claims
+			// it, so it stays unowned here: every other plugin's unowned-path
+			// checks still see it. The claimant takes part as the owner of a
+			// dirty path.
+			if packages == nil {
+				packages = graph.goPackageDirectories()
+			}
+			if graph.admittedDeletion(path, packages) {
+				paths[path] = true
+			}
 		}
 		for _, name := range claimed {
 			names[name] = true
@@ -1135,8 +1184,16 @@ func terminalWitness(witness Witness) bool {
 // claimantsOf lists the plugins that own path: the namespace of the unit that
 // declares it, and every plugin whose Owns claims it. A file a Go package
 // embeds or other attributed read data (goReadData, AFP-V0-600, AFP-V0-601)
-// is claimed by none: it stays an unowned path for every frontier rule.
+// is claimed by none: it stays an unowned path for every frontier rule. An
+// admitted deletion (admittedDeletion, AFP-V0-2749) keeps its claimant here;
+// participants lists it as unowned as well.
 func (graph *Graph) claimantsOf(path string) []string {
+	// Project-declared output with no indexed owner is data even when its
+	// filename looks like source (AZU-V0-9921). Keep it unowned for frontier
+	// rules, so path-open frontiers and actual readers still bear.
+	if graph.declaredUnindexedOutput(path) {
+		return nil
+	}
 	claimed := make([]string, 0, 1)
 	if id, owned := graph.owner[path]; owned {
 		name, _, _ := strings.Cut(id, ":")
@@ -1248,6 +1305,9 @@ func (graph *Graph) confinedReaders(path string, packages map[string]string) boo
 // with no other claimant the path stays UNOWNED_DIRTY_PATH, and its hint
 // names the plugins whose claim was set aside.
 func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo map[string]bool) Unknown {
+	if graph.declaredUnindexedOutput(path) {
+		return Unknown{Reason: UnknownUnownedDirtyPath, Detail: path}
+	}
 	reason := UnknownUnownedDirtyPath
 	var fixtureOnly []string
 	for _, name := range graph.languages {
@@ -1389,6 +1449,47 @@ func (graph *Graph) untested(id string) bool {
 // change whose import edges lead only to the importers its set holds
 // (ADN-V0-003); nil follows every edge.
 func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[string]bool) map[string]Witness {
+	return graph.traverseWhere(seeds, allowed, nil)
+}
+
+// The edge classes a dependency walk follows, in the order traverseWhere
+// takes them at each depth. traversalEdges is the one list of them: every
+// walk that follows code takes its classes from it, and so does additive
+// narrowing's check that a narrowed package is reached through another
+// changed unit (reachedThrough), so a class one of them follows cannot be
+// missing from the other (AFP-V0-3142).
+const (
+	classImport = iota
+	classAdvisory
+	classRouteDispatch
+	classCodeRun
+)
+
+// traversalEdges returns the reverse edge maps of the walk's classes, indexed
+// by class: a unit's importers, advisory importers, route-dispatch importers,
+// and the units whose code may run its built binary (codeRunners).
+func (graph *Graph) traversalEdges() []map[string][]string {
+	return []map[string][]string{
+		classImport:        graph.dependents,
+		classAdvisory:      graph.advisory,
+		classRouteDispatch: graph.routed,
+		classCodeRun:       graph.codeRunners,
+	}
+}
+
+// traverseWhere is traverse with follow deciding, for each edge from a
+// reached unit to one of its dependents, whether the walk takes it; nil
+// follows every edge.
+//
+// After the three import classes at each depth the walk takes a fourth: the
+// edge from a reached command to each unit whose code may run its built
+// binary (codeRunners), with a BINARY_EXEC witness. Such a unit runs the
+// command's code as an importer runs an import's, so its own importers and
+// runners run it too, and the walk continues from it (AFP-V0-2991,
+// AFP-V0-2993). A unit whose tests alone run the binary is no dependent: the
+// caller adds it one edge past the walk (execUsersOf, testRunnersOf).
+func (graph *Graph) traverseWhere(seeds map[string]Witness, allowed map[string]map[string]bool, follow func(id, dependent string) bool) map[string]Witness {
+	classes := graph.traversalEdges()
 	reached := make(map[string]Witness, len(seeds))
 	frontier := make([]string, 0, len(seeds))
 	for id := range seeds {
@@ -1405,18 +1506,20 @@ func (graph *Graph) traverse(seeds map[string]Witness, allowed map[string]map[st
 		// several ways keeps the most specific witness. A chain with a
 		// route-dispatch edge is ROUTE_DISPATCH_BOOT, else one with an
 		// advisory edge is ADVISORY_CONSTANT_REFERENCE (RUBY-AFFECTED-V0-049).
-		for class, edges := range []map[string][]string{graph.dependents, graph.advisory, graph.routed} {
+		for class, edges := range classes {
 			for _, id := range frontier {
 				for _, dependent := range edges[id] {
-					if _, seen := reached[dependent]; seen || (allowed != nil && !graph.follows(allowed, class, id, dependent)) {
+					if _, seen := reached[dependent]; seen || (allowed != nil && !graph.follows(allowed, class, id, dependent)) || (follow != nil && !follow(id, dependent)) {
 						continue
 					}
 					parent := reached[id]
 					kind := WitnessDependency
 					switch {
-					case class == 2 || parent.Kind == WitnessRouteDispatch:
+					case class == classCodeRun:
+						kind = WitnessBinaryExec
+					case class == classRouteDispatch || parent.Kind == WitnessRouteDispatch:
 						kind = WitnessRouteDispatch
-					case class == 1 || parent.Kind == WitnessAdvisoryConstant:
+					case class == classAdvisory || parent.Kind == WitnessAdvisoryConstant:
 						kind = WitnessAdvisoryConstant
 					}
 					reached[dependent] = Witness{
@@ -1460,6 +1563,41 @@ func (graph *Graph) testUsersOf(reached map[string]Witness, allowed map[string]m
 			}
 			reached[user] = Witness{
 				Kind:      WitnessDependency,
+				DirtyPath: parent.DirtyPath,
+				link:      parent.extended(user),
+			}
+		}
+	}
+}
+
+// testRunnersOf adds, one edge past each unit in from, every unit whose tests
+// alone run that unit's built binary (testRunners), with a BINARY_EXEC
+// witness, and never expands it: its code and its importers run nothing of
+// the command (AFP-V0-2991). Units are visited by witness length, then id,
+// so each runner takes the shortest chain; a unit already reached keeps its
+// witness.
+func (graph *Graph) testRunnersOf(reached map[string]Witness, from map[string]bool) {
+	ids := make([]string, 0, len(from))
+	for id := range from {
+		if _, hit := reached[id]; hit && len(graph.testRunners[id]) != 0 {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left, right := reached[ids[i]].ViaLength(), reached[ids[j]].ViaLength()
+		if left != right {
+			return left < right
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		parent := reached[id]
+		for _, user := range graph.testRunners[id] {
+			if _, seen := reached[user]; seen {
+				continue
+			}
+			reached[user] = Witness{
+				Kind:      WitnessBinaryExec,
 				DirtyPath: parent.DirtyPath,
 				link:      parent.extended(user),
 			}

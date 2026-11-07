@@ -8049,7 +8049,7 @@ and removes the new configuration members.
 | CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker`, `TestCALV0227_StandaloneReaderRebootEmitsEvent`, `TestCALV0227_StandaloneReaderKeepsQuarantineUntilEventLands` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
 | CAL-V0-228 | `TestCALV0228_DispatchHelpNamesRecovery` (`internal/tasks/cli`); diagnostic text asserted in `TestCALV0227_RebootProofLiftsQuarantine` and `TestCALV0226_LiveEvidenceKeepsQuarantine` |
 | CAL-V0-229 | `TestCALV0229_RecoverRefusesNewerVersions` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
-| CAL-V0-236 | `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`); `TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`) |
+| CAL-V0-236 | `TestCALV0236_SupersededReplayCarriesAdvisoryWarning`, `TestCALV0236_SupersededReplayAdvisoryOnEachRoute` (`internal/tasks/store`); `TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`) |
 | CAL-V0-230 | `TestCALV0230_SupersededGenerationRenewIsFencedAfterReclaim` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
 | CAL-V0-231 | `TestCALV0231_RenewRecordsLastHeartbeat` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
 | CAL-V0-232 | `TestCALV0232_LivenessWritesNeverReadHistory` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-1403-liveness-guard.md` |

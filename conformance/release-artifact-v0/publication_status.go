@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -63,11 +64,12 @@ func runPublicationStatusCLI(arguments []string, stdout, stderr *os.File) int {
 	witnessPath := flags.String("witness", "", "private archive witness path")
 	revision := flags.String("revision", "", "full HEAD revision the checklist evaluates")
 	tag := flags.String("tag", "", "exact release tag name")
+	rootFlag := flags.String("root", ".", "checkout root whose Git state the status reads")
 	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 || *witnessPath == "" || *revision == "" || *tag == "" {
 		fmt.Fprintln(stderr, "release-artifact-v0 publication-status: invalid invocation")
 		return 2
 	}
-	root, err := os.Getwd()
+	root, err := filepath.Abs(*rootFlag)
 	if err != nil {
 		fmt.Fprintln(stderr, "release-artifact-v0 publication-status:", err)
 		return 2

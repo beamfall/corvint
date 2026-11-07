@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -372,7 +373,7 @@ func TestCAPV0006CheckIsReadOnly(t *testing.T) {
 
 // syntheticRepository is the smallest repository the whole check passes over.
 func syntheticRepository() map[string]string {
-	return map[string]string{
+	files := map[string]string{
 		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
 			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
 		"cmd/corvint/main.go": "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
@@ -384,11 +385,22 @@ func syntheticRepository() map[string]string {
 			"<!-- capability-gate:binaries -->\n| Binary | Maturity |\n|---|---|\n| `corvint` | core |\n| `corvint-mcp` | experimental |\n<!-- /capability-gate:binaries -->\n" +
 			"<!-- capability-gate:mcp-tools -->\n| Tool | Maturity |\n|---|---|\n| `corvint.query` | experimental |\n<!-- /capability-gate:mcp-tools -->\n",
 		"README.md":                "<!-- capability-gate:readme -->\n| Capability | Try it | Maturity |\n|---|---|---|\n| Init | `corvint init` | core |\n<!-- /capability-gate:readme -->\n",
-		ratchetPath:                "binary\treason\ncorvint-mcp\tsynthetic\n",
+		ratchetPath:                "binary\treason\n",
 		treesDir + "/corvint.json": syntheticCorvintTree(),
 		llmsPath: "- docs/CAPABILITIES.md\n- corvint help --json\n- corvint help guide\n" +
 			"- corvint help --tree (" + treesDir + "/corvint.json)\n",
 	}
+	builder := clitree.NewBuilder("corvint-mcp")
+	builder.AddText("corvint-mcp help [--json]", "Show help")
+	mcp := builder.Tree("corvint-mcp help --json", "synthetic", []string{"cmd/corvint-mcp"}, nil, nil)
+	encoded, _ := clitree.Encode(mcp)
+	files[treesDir+"/corvint-mcp.json"] = string(encoded)
+	var core clitree.Tree
+	_ = json.Unmarshal([]byte(files[treesDir+"/corvint.json"]), &core)
+	files["docs/CAPABILITIES.md"] += "<!-- capability-gate:cli-nodes -->\n" + clitree.CatalogMarkdown([]clitree.Tree{core, mcp}) + "<!-- /capability-gate:cli-nodes -->\n"
+	files[llmsPath] += "- corvint-mcp help --json (" + treesDir + "/corvint-mcp.json)\n"
+	return files
+
 }
 
 // syntheticCorvintTree is the command-tree snapshot of the synthetic repository's corvint.

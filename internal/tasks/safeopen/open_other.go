@@ -20,3 +20,7 @@ func PinDir(*os.Root) (*os.File, error)                                 { return
 func InDir(*os.File, string, int, os.FileMode) (*os.File, error)        { return nil, unsupported }
 func PinSubDir(*os.Root, string) (*os.File, error)                      { return nil, unsupported }
 func RootOf(*os.File) (*os.Root, error)                                 { return nil, unsupported }
+func PinTraversalRoot() (*os.File, error)                               { return nil, unsupported }
+func StepDir(*os.File, string) (*os.File, error)                        { return nil, unsupported }
+func LstatIn(*os.File, string) (os.FileInfo, error)                     { return nil, unsupported }
+func ReadlinkIn(*os.File, string) (string, error)                       { return "", unsupported }

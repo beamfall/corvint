@@ -53,6 +53,9 @@ type ocmIntent struct {
 	end        int64
 	spanSHA256 string
 	form       string
+	// subset is the requirements-subset form's listed IDs joined by commas
+	// (OIF-V0-671); "" for every other form.
+	subset string
 }
 
 type ocmClaim struct {
@@ -182,11 +185,20 @@ func parseIntent(value wire.Value) (ocmIntent, error) {
 	if value.Kind == wire.KindObject && declaresIntentForm(value.Obj) {
 		fields = append(fields, "form")
 	}
+	if value.Kind == wire.KindObject {
+		if _, listed := value.Obj.Get("requirements"); listed {
+			fields = append(fields, "requirements")
+		}
+	}
 	object, err := exactObject(value, fields, "intentScope")
 	if err != nil {
 		return ocmIntent{}, err
 	}
 	form, err := parseIntentForm(object)
+	if err != nil {
+		return ocmIntent{}, err
+	}
+	subset, err := parseIntentSubset(object, form)
 	if err != nil {
 		return ocmIntent{}, err
 	}
@@ -207,7 +219,7 @@ func parseIntent(value wire.Value) (ocmIntent, error) {
 	if digestErr != nil || !wire.IsSha256(digest) {
 		return ocmIntent{}, fail("invalid-span-digest", "intent span digest is invalid")
 	}
-	return ocmIntent{path: path, blobOID: blob, start: span.start, end: span.end, spanSHA256: digest, form: form}, nil
+	return ocmIntent{path: path, blobOID: blob, start: span.start, end: span.end, spanSHA256: digest, form: form, subset: subset}, nil
 }
 
 func parseClaims(value wire.Value) ([]ocmClaim, error) {
@@ -419,7 +431,7 @@ func verifyOCMIntent(ctx context.Context, repository *gitauth.Repository, cem *w
 	if err != nil {
 		return nil, err
 	}
-	derived, err := deriveIntent(document.intent.form, document.intent.path, document.intent.blobOID, intentBlob)
+	derived, err := deriveRecordedIntent(document.intent.form, intentSubset(document.intent), document.intent.path, document.intent.blobOID, intentBlob)
 	if err != nil {
 		return nil, err
 	}

@@ -35,9 +35,11 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 			t.Fatalf("omitted tool %q error = %#v", omitted, callErr)
 		}
 	}
-	registry, err = newTaskReview(root)
-	if err != nil {
-		t.Fatal(err)
+	// A fresh variable: err holds New's error interface, and a nil *Error
+	// stored in it would not compare equal to nil (V1-3916).
+	registry, reviewErr := newTaskReview(root)
+	if reviewErr != nil {
+		t.Fatal(reviewErr)
 	}
 	tools := registry.Tools()
 	if got := toolNames(t, tools); !reflect.DeepEqual(got, []string{ToolCEMReport, ToolContext, ToolHelp, ToolImpact, ToolQuery, ToolStatus}) {
@@ -539,7 +541,7 @@ func TestSub384KiBWorstCaseHTMLEscapingStillAbstains(t *testing.T) {
 }
 
 func TestNewRequiresCanonicalRepositoryRoot(t *testing.T) {
-	if _, err := New(t.TempDir()); err == nil || err.Code != "invalid-root" {
+	if _, err := New(t.TempDir()); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("non-repository root error = %#v", err)
 	}
 	root := t.TempDir()
@@ -547,7 +549,7 @@ func TestNewRequiresCanonicalRepositoryRoot(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(root, ".git")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("symlink Git marker error = %#v", err)
 	}
 }
@@ -558,13 +560,13 @@ func TestNewRejectsRewritableGitControlFile(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("gitdir: /first/target\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("regular Git control file construction error = %#v", err)
 	}
 	if err := os.WriteFile(marker, []byte("gitdir: /replacement/target\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("in-place retargeted Git control file error = %#v", err)
 	}
 }

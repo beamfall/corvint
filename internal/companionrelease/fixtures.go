@@ -62,7 +62,7 @@ func generateQueuePolicy(ctx context.Context, taskmanExport Export, scratch stri
 	}
 	genBin := filepath.Join(scratch, "companiongen")
 	if _, stderr, err := runCaptured(ctx, srcDir, closedGoEnv(home, ""), buildTimeout,
-		goPath, "build", "-o", genBin, "./cmd/companiongen"); err != nil {
+		goPath, "build", "-buildvcs=false", "-o", genBin, "./cmd/companiongen"); err != nil {
 		return queuePolicyFiles{}, fmt.Errorf("build smoke fixture generator: %w (stderr=%s)", err, trimForError(stderr))
 	}
 

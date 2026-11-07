@@ -367,3 +367,70 @@ func TestInstrumentation(t *testing.T) {
 		})
 	}
 }
+
+// LPCV-V0-9400: native invocations need their authoritative inventory even
+// before execution. No runner report can safely substitute a missing identity.
+func TestCollectorInventories(t *testing.T) {
+	t.Run("LPCV-V0-9400 inventories", func(t *testing.T) {
+		for _, runner := range []string{"cmocka-xml", "boost-test-junit"} {
+			t.Run(runner, func(t *testing.T) {
+				o := options(t, runner)
+				o.Request.Project = ""
+				o.Request.Reporter = ""
+				o.Request.ReporterSha256 = ""
+				o.Request.Config = ""
+				o.Request.ConfigSha256 = ""
+				o.Request.Target = "probe"
+				original := []string{"probe::alpha", "probe::beta"}
+				o.Request.ExpectedTests = append([]string(nil), original...)
+				calls := 0
+				o.Run = func(_ context.Context, r tr.Request, _ tr.Invocation) (Capture, error) {
+					calls++
+					want := original
+					if runner == "cmocka-xml" && len(r.Selectors) > 0 {
+						want = r.Selectors
+					}
+					if !reflect.DeepEqual(r.ExpectedTests, want) {
+						t.Fatalf("expected inventory %v want %v", r.ExpectedTests, want)
+					}
+					return Capture{Input: tr.Input{Runner: runner}}, nil
+				}
+				out, err := Collect(context.Background(), o)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if calls != 1 || len(out) != 1 || out[0].Record != nil {
+					t.Fatalf("calls=%d out=%+v", calls, out)
+				}
+				if _, _, err := o.run(context.Background(), t.TempDir(), 1, "probe::alpha", "probe::alpha"); err != nil {
+					t.Fatal(err)
+				}
+				if calls != 2 {
+					t.Fatal("isolated invocation did not reach adapter")
+				}
+				if !reflect.DeepEqual(o.Request.ExpectedTests, original) {
+					t.Fatal("caller inventory mutated")
+				}
+			})
+		}
+	})
+}
+
+func TestJUnitMethodSelectors(t *testing.T) {
+	t.Run("LPCV-V0-9402 exact JVM methods", func(t *testing.T) {
+		for _, tc := range []struct{ id, want string }{
+			{"[engine:junit-jupiter]/[class:p.Probe]/[method:alpha()]", "p.Probe#alpha"},
+			{"[engine:junit-vintage]/[class:p.Probe]/[method:beta()]", "p.Probe#beta"},
+			{"[engine:junit-jupiter]/[class:p.Probe]/[method:alpha(java.lang.String)]", ""},
+			{"[engine:junit-jupiter]/[class:p.Probe]/[method:alpha()]/[test-template-invocation:#1]", ""},
+			{"[engine:junit-jupiter]/[class:p.Probe]/[nested-class:Nested]/[method:alpha()]", ""},
+			{"[engine:junit-jupiter]/[class:p.Probe%2FNested]/[method:alpha()]", ""},
+			{"[engine:junit-jupiter]/[class:]/[method:alpha()]", ""},
+		} {
+			got, ok := junitMethodSelector(tc.id)
+			if got != tc.want || ok != (tc.want != "") {
+				t.Fatalf("%q = %q %t want %q", tc.id, got, ok, tc.want)
+			}
+		}
+	})
+}

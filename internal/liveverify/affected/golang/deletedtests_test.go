@@ -60,11 +60,70 @@ func TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620(t *testing.T) {
 	if want := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "gone/gone_test.go"}}; !reflect.DeepEqual(plan.Unknown, want) {
 		t.Fatalf("packageless deleted test unknown=%v, want %v", plan.Unknown, want)
 	}
-	// A deleted non-test Go file keeps the entry: only a test file is confined
-	// to its own package's test binary.
-	plan = affected.Select(graph, []string{"provider/removed.go"})
-	if want := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "provider/removed.go"}}; !reflect.DeepEqual(plan.Unknown, want) {
-		t.Fatalf("deleted source unknown=%v, want %v", plan.Unknown, want)
+	// A deleted non-test Go file of a surviving package is AFP-V0-2610's:
+	// TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610.
+}
+
+// AFP-V0-2610: a non-test Go file deleted or moved away from a package that
+// still exists raises no UNINDEXED_SOURCE_PATH. Rule (a) selects the package
+// as a traversal root, so its importers and test importers are selected as for
+// an edit to one of its files, and an unrelated package is not. A present
+// unindexed source, and a deleted source whose directory holds no observed
+// package, keep the entry. Before AFP-V0-2610 the deleted source was an
+// UNINDEXED_SOURCE_PATH, so `corvint test` fell back to FULL where
+// gate-affected-select narrowed (CIN-V0-860 (4)).
+func TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"provider/provider.go":      "package provider\n\nfunc Value() int { return 1 }\n",
+		"provider/provider_test.go": "package provider\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+		"user/user.go":              "package user\n\nimport \"example.test/m/provider\"\n\nfunc Use() int { return provider.Value() }\n",
+		"user/user_test.go":         "package user\n\nimport \"testing\"\n\nfunc TestUse(t *testing.T) { _ = Use() }\n",
+		"probe/probe.go":            "package probe\n",
+		"probe/probe_test.go":       "package probe_test\n\nimport (\n\t\"testing\"\n\n\t_ \"example.test/m/provider\"\n)\n\nfunc TestProbe(t *testing.T) {}\n",
+		"other/other.go":            "package other\n",
+		"other/other_test.go":       "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {}\n",
+		"moved/moved.go":            "package moved\n\nfunc Extra() int { return 2 }\n",
+		"moved/moved_test.go":       "package moved\n\nimport \"testing\"\n\nfunc TestExtra(t *testing.T) { _ = Extra() }\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// provider/extra.go was deleted.
+	plan := affected.Select(graph, []string{"provider/extra.go"})
+	if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("deleted source: scope=%s unknown=%v, want BOUNDED with none", plan.Scope, plan.Unknown)
+	}
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[probe/probe_test.go provider/provider_test.go user/user_test.go]"; got != want {
+		t.Fatalf("selected tests = %s, want %s (the package, its importer and its test importer)", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.UnitID == "go:example.test/m/provider" && (selection.Witness.Kind != affected.WitnessDirectSource || selection.Witness.DirtyPath != "provider/extra.go") {
+			t.Fatalf("base package witness = %+v, want DIRECT_SOURCE_CHANGE naming provider/extra.go", selection.Witness)
+		}
+	}
+	// provider/extra.go moved to moved/moved.go: both sides are selected.
+	plan = affected.Select(graph, []string{"moved/moved.go", "provider/extra.go"})
+	if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("renamed-away source: scope=%s unknown=%v, want BOUNDED with none", plan.Scope, plan.Unknown)
+	}
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[moved/moved_test.go probe/probe_test.go provider/provider_test.go user/user_test.go]"; got != want {
+		t.Fatalf("selected tests = %s, want %s", got, want)
+	}
+	// A source on disk that the graph does not index is new or excluded.
+	writeFiles(t, root, map[string]string{"provider/new.go": "package provider\n"})
+	plan = affected.Select(graph, []string{"provider/new.go"})
+	if want := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "provider/new.go"}}; !reflect.DeepEqual(plan.Unknown, want) {
+		t.Fatalf("present unindexed source unknown=%v, want %v", plan.Unknown, want)
+	}
+	// A deleted source whose directory is on disk but holds no observed
+	// package names no base package.
+	writeFiles(t, root, map[string]string{"gone/README.md": "kept\n"})
+	plan = affected.Select(graph, []string{"gone/gone.go"})
+	if want := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "gone/gone.go"}}; !reflect.DeepEqual(plan.Unknown, want) {
+		t.Fatalf("packageless deleted source unknown=%v, want %v", plan.Unknown, want)
 	}
 }
 
