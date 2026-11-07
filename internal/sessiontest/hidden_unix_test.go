@@ -52,7 +52,7 @@ func TestHiddenHelperUniverse_AZU_V0_9920(t *testing.T) {
 			if mode == "root" {
 				runner.Universe = append(runner.Universe, "example.test/m/.github")
 			}
-			_, _, err := runner.discover(context.Background(), Planned{Adapter: AdapterGo, Argv: []string{"go"}}, time.Now().Add(time.Minute))
+			_, _, _, err := runner.discover(context.Background(), Planned{Adapter: AdapterGo, Argv: []string{"go"}}, time.Now().Add(time.Minute))
 			if mode == "exact" || mode == "root" {
 				if err != nil {
 					t.Fatal(err)
@@ -111,7 +111,7 @@ func TestHiddenHelperModuleBoundary_AZU_V0_9920(t *testing.T) {
 		t.Fatalf("graph crossed a boundary: %v", universe)
 	}
 	runner := Runner{Root: root, Environ: append(os.Environ(), "GOWORK=off", "GOTOOLCHAIN=local"), Universe: universe}
-	if _, _, err := runner.discover(context.Background(), Planned{Adapter: AdapterGo, Argv: []string{"go"}}, time.Now().Add(time.Minute)); err != nil {
+	if _, _, _, err := runner.discover(context.Background(), Planned{Adapter: AdapterGo, Argv: []string{"go"}}, time.Now().Add(time.Minute)); err != nil {
 		t.Fatalf("unrelated ordinary package discovery failed: %v", err)
 	}
 }

@@ -12,11 +12,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 // Terminal outcomes of one execution unit (STR-V0-010).
@@ -278,7 +280,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			planned = withoutRunner(planned, key)
 			continue
 		}
-		runner, version, err := r.discover(discoverCtx, invocation, deadline)
+		runner, version, hidden, err := r.discover(discoverCtx, invocation, deadline)
 		if err != nil && (errors.Is(err, errDiscoveryBudget) || (ctx.Err() == nil && discoverCtx.Err() != nil)) {
 			// The budget ended this runner's discovery: no later probe or
 			// adapter starts (V1-1311).
@@ -292,6 +294,13 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			continue
 		}
 		versions[key] = [2]string{runner, version}
+		// AZU-V0-9923: the declared Go suite adds the hidden packages its
+		// discovery listed, which ./... alone skips.
+		for index := range planned {
+			if len(hidden) != 0 && declaredGoSuite(planned[index]) {
+				planned[index].Argv = append(append([]string{}, planned[index].Argv...), hidden...)
+			}
+		}
 	}
 	launched, drifted := false, false
 	for _, invocation := range planned {
@@ -407,10 +416,16 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 }
 
 // runnerKey names the runner one invocation needs: the Go adapter, or the
-// declared adapter's command name. Each is discovered once per shard.
+// declared adapter's command name. Each is discovered once per shard. The
+// declared Go suite is its own key, so its universe confirmation never
+// depends on, or withdraws, another declared command that runs `go`
+// (AZU-V0-9923).
 func runnerKey(invocation Planned) string {
 	if invocation.Dir != "" {
 		return invocation.Adapter + " ./" + invocation.Dir
+	}
+	if declaredGoSuite(invocation) {
+		return invocation.Units[0].Unit
 	}
 	if invocation.Adapter == AdapterGo || len(invocation.Argv) == 0 {
 		return invocation.Adapter
@@ -443,13 +458,15 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 
 // discover captures the runner and its exact version before execution, and
 // for the Go adapter checks that `go list ./...` plus explicit hidden
-// packages is the planned universe (STR-V0-004). A declared command is
-// probed by its own name: `go` answers
+// packages is the planned universe (STR-V0-004). The declared Go suite
+// confirms the same universe, or, with no plan, that no hidden Go source
+// exists (AZU-V0-9923); it returns the hidden patterns its argv adds. A
+// declared command is probed by its own name: `go` answers
 // `go env GOVERSION`, anything else `--version`. A declared argv[0] with a
 // path separator is a repository-relative path (STR-V0-003: commands run
 // from the repository root), so it is resolved against Root, never against
 // the caller's working directory; a bare name is looked up on PATH.
-func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time.Time) (string, string, error) {
+func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time.Time) (string, string, []string, error) {
 	// The probes run with the launch's cache (STR-V0-174), so a declared
 	// cache the caller replaced cannot fail discovery first.
 	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, GoCacheOverride(invocation.Env, r.Environ)
@@ -460,95 +477,141 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 	if strings.Contains(name, "/") && !filepath.IsAbs(name) {
 		root, err := filepath.Abs(r.Root)
 		if err != nil {
-			return "", "", fmt.Errorf("runner %s not found: %v", name, err)
+			return "", "", nil, fmt.Errorf("runner %s not found: %v", name, err)
 		}
 		lookup = filepath.Join(root, name)
 	}
 	runner, err := exec.LookPath(lookup)
 	if err != nil {
-		return "", "", fmt.Errorf("runner %s not found", name)
+		return "", "", nil, fmt.Errorf("runner %s not found", name)
 	}
 	output, err := r.probe(ctx, deadline, runner, invocation.Dir, env, versionArgs...)
 	version, _, _ := strings.Cut(strings.TrimSpace(string(output)), "\n")
 	if errors.Is(err, errDiscoveryBudget) {
-		return "", "", err
+		return "", "", nil, err
 	}
 	if err != nil || version == "" {
-		return "", "", errors.New("runner version cannot be read")
+		return "", "", nil, errors.New("runner version cannot be read")
 	}
-	if invocation.Adapter == AdapterGo {
-		args := []string{"list", "./..."}
-		if invocation.Dir == "" {
-			// ./... skips dot directories. The graph explicitly indexes CI
-			// helpers (AZU-V0-9920). Even ./.github/... skips its dot-named
-			// root, so list the child directories explicitly. Enumerate them
-			// independently of the plan to detect unplanned helpers too.
-			for _, pkg := range r.Universe {
-				if strings.Contains(pkg, "/.github/") || strings.HasSuffix(pkg, "/.github") {
-					// An absent directory adds no pattern; the explicit
-					// listing below still refuses its planned packages.
-					children, err := os.ReadDir(filepath.Join(r.Root, ".github"))
-					if err != nil && !errors.Is(err, os.ErrNotExist) {
-						return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
-					}
-					for _, child := range children {
-						name := child.Name()
-						if !child.IsDir() || strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] || name == "testdata" {
-							continue
-						}
-						// FilesUnder skips these directories, and the graph gives
-						// a nested go.mod its own module boundary. A recursive
-						// pattern rooted at that boundary is outside the root module.
-						if _, err := os.Lstat(filepath.Join(r.Root, ".github", name, "go.mod")); err == nil {
-							continue
-						} else if !errors.Is(err, os.ErrNotExist) {
-							return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
-						}
-						args = append(args, "./.github/"+name+"/...")
-					}
-					for _, candidate := range r.Universe {
-						if strings.HasSuffix(candidate, "/.github") {
-							args = append(args, "./.github")
-							break
-						}
-					}
-					break
-				}
+	var hidden []string
+	switch {
+	case invocation.Adapter == AdapterGo && invocation.Dir != "":
+		// A nested module's packages are not indexed (STR-V0-064): the
+		// listing must succeed, and the root universe is not its own.
+		_, err = r.probe(ctx, deadline, runner, invocation.Dir, env, "list", "./...")
+		if err != nil && !errors.Is(err, errDiscoveryBudget) {
+			err = errors.New("go list ./... failed in " + invocation.Dir + "; the nested module cannot be confirmed")
+		}
+	case invocation.Adapter == AdapterGo:
+		_, err = r.confirmUniverse(ctx, deadline, runner, env)
+	case declaredGoSuite(invocation):
+		hidden, err = r.confirmDeclaredGo(ctx, deadline, runner, env)
+	}
+	if err != nil {
+		return "", "", nil, err
+	}
+	return runner, version, hidden, nil
+}
+
+// declaredGoSuite reports the declaration's typed `go test ./...` full suite,
+// the `declared:go` unit (STR-V0-006).
+func declaredGoSuite(invocation Planned) bool {
+	return invocation.Adapter == AdapterDeclared && len(invocation.Units) == 1 && invocation.Units[0].Unit == "declared:go"
+}
+
+// hiddenGoPatterns is what `go list` and `go test` need beside ./..., which
+// skips dot and underscore directories. Once the universe indexes a CI helper
+// (AZU-V0-9920), each child directory of .github is one ./.github/<child>/...
+// pattern, enumerated independently of the plan so an unplanned helper is
+// listed too, within the graph's skipped-directory, testdata and
+// nested-module boundaries; even ./.github/... skips its dot-named root, so an
+// indexed .github package is ./.github itself. Every indexed dot or
+// underscore package is named explicitly (AZU-V0-005). The root Go adapter's
+// discovery and the declared Go suite share it (AZU-V0-9923).
+func hiddenGoPatterns(root string, universe []string) ([]string, error) {
+	var patterns []string
+	if slices.ContainsFunc(universe, func(pkg string) bool { return strings.Contains(pkg, "/.github/") || strings.HasSuffix(pkg, "/.github") }) {
+		// An absent directory adds no pattern; the explicit listing below
+		// still refuses its planned packages.
+		children, err := os.ReadDir(filepath.Join(root, ".github"))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		for _, child := range children {
+			name := child.Name()
+			if !child.IsDir() || strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] || name == "testdata" {
+				continue
 			}
-		}
-		if invocation.Dir == "" {
-			// ./... also skips other dot and underscore directories. Explicitly
-			// list those indexed packages too (AZU-V0-005), then validate the
-			// complete universe; go list reports a package matched twice once.
-			for _, pkg := range r.Universe {
-				for _, part := range strings.Split(pkg, "/") {
-					if strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
-						args = append(args, pkg)
-						break
-					}
-				}
+			// FilesUnder skips these directories, and the graph gives a nested
+			// go.mod its own module boundary. A recursive pattern rooted at
+			// that boundary is outside the root module.
+			if _, err := os.Lstat(filepath.Join(root, ".github", name, "go.mod")); err == nil {
+				continue
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return nil, err
 			}
+			patterns = append(patterns, "./.github/"+name+"/...")
 		}
-		listed, err := r.probe(ctx, deadline, runner, invocation.Dir, env, args...)
-		if errors.Is(err, errDiscoveryBudget) {
-			return "", "", err
-		}
-		if err != nil && invocation.Dir != "" {
-			return "", "", errors.New("go list ./... failed in " + invocation.Dir + "; the nested module cannot be confirmed")
-		}
-		if err != nil {
-			return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
-		}
-		if invocation.Dir != "" {
-			// A nested module's packages are not indexed (STR-V0-064): the
-			// listing must succeed, and the root universe is not its own.
-			return runner, version, nil
-		}
-		if difference := universeDifference(strings.Fields(string(listed)), r.Universe); difference != "" {
-			return "", "", errors.New("go list ./... differs from the planned Go universe: " + difference)
+		if slices.ContainsFunc(universe, func(pkg string) bool { return strings.HasSuffix(pkg, "/.github") }) {
+			patterns = append(patterns, "./.github")
 		}
 	}
-	return runner, version, nil
+	for _, pkg := range universe {
+		for _, part := range strings.Split(pkg, "/") {
+			if strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+				patterns = append(patterns, pkg)
+				break
+			}
+		}
+	}
+	return patterns, nil
+}
+
+// confirmUniverse lists ./... plus the hidden patterns at the repository root
+// and validates the complete planned Go universe; go list reports a package
+// matched twice once. It returns the hidden patterns it listed.
+func (r *Runner) confirmUniverse(ctx context.Context, deadline time.Time, runner string, env []string) ([]string, error) {
+	hidden, err := hiddenGoPatterns(r.Root, r.Universe)
+	if err != nil {
+		return nil, errors.New("go list ./... failed; the Go universe cannot be confirmed")
+	}
+	listed, err := r.probe(ctx, deadline, runner, "", env, append([]string{"list", "./..."}, hidden...)...)
+	if errors.Is(err, errDiscoveryBudget) {
+		return nil, err
+	}
+	if err != nil {
+		return nil, errors.New("go list ./... failed; the Go universe cannot be confirmed")
+	}
+	if difference := universeDifference(strings.Fields(string(listed)), r.Universe); difference != "" {
+		return nil, errors.New("go list ./... differs from the planned Go universe: " + difference)
+	}
+	return hidden, nil
+}
+
+// confirmDeclaredGo confirms what the declared Go suite's `go test ./...`
+// runs (AZU-V0-9923). With a planned universe it is the root Go adapter's
+// listing and validation, and the suite adds the same hidden patterns. With
+// no plan there is no universe (Runner.Universe is nil), so the Go plugin's
+// own hidden-source walk must find no Go source below a dot or underscore
+// directory; otherwise the hidden tests cannot be confirmed and nothing runs
+// for the suite, never a PASS that skipped them.
+func (r *Runner) confirmDeclaredGo(ctx context.Context, deadline time.Time, runner string, env []string) ([]string, error) {
+	if r.Universe != nil {
+		return r.confirmUniverse(ctx, deadline, runner, env)
+	}
+	root, err := filepath.Abs(r.Root)
+	var hidden []string
+	if err == nil {
+		hidden, err = golang.HiddenSourcePaths(affected.DiskSourceContext(ctx, root))
+	}
+	const unconfirmed = "no plan gave a Go universe, and go test ./... skips dot and underscore directories"
+	if err != nil {
+		return nil, fmt.Errorf("%s: the Go source below them cannot be confirmed (%v)", unconfirmed, err)
+	}
+	if len(hidden) != 0 {
+		return nil, fmt.Errorf("%s: the Go source below them cannot be confirmed without the graph (%d files, first %s)", unconfirmed, len(hidden), hidden[0])
+	}
+	return nil, nil
 }
 
 // workDir is the directory an invocation runs from: the repository root, or

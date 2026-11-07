@@ -161,6 +161,38 @@ func hiddenSourcePath(relative string) bool {
 	return false
 }
 
+// HiddenSourcePaths is the Go source below a `.` or `_` directory that this
+// plugin indexes and `./...` skips (AZU-V0-005): the same bounded walk and
+// declared non-source filter as UnitsSource, outside testdata, sorted. A
+// session runner with no graph universe uses it to confirm that `go test
+// ./...` skips no Go source (AZU-V0-9923). A bounded walk is an error,
+// because it cannot show that the set is complete.
+func HiddenSourcePaths(root *affected.Source) ([]string, error) {
+	observed, bounded, err := root.FilesIncluding(affected.ByName(func(name string) bool {
+		return strings.HasSuffix(name, ".go")
+	}), includedDirectories...)
+	if err != nil {
+		return nil, err
+	}
+	if bounded {
+		return nil, errors.New(FrontierIncludedDirectoryWalkBounded)
+	}
+	hidden := []string{}
+	var declared func(string) bool
+	for _, relative := range observed {
+		if !hiddenSourcePath(relative) || ignoredByGo(path.Dir(relative)) {
+			continue
+		}
+		if declared == nil {
+			declared = affected.DeclaredNonSourceHolds(root)
+		}
+		if !declared(relative) {
+			hidden = append(hidden, relative)
+		}
+	}
+	return hidden, nil
+}
+
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
