@@ -6,8 +6,8 @@
         ".github/workflows/ci.yml",
         "tools/ci-forward-row/pinlag_test.go"
       ],
-      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. The normalized-join test fixtures construct isolated example.test graphs and never execute repository scripts. The citation checker and merge driver join text and do not invoke this script. Intermediate-join mentions do not execute this script.",
-      "mentions": ["cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "tools/cem-citation-baseline/main.go", "tools/test-read-scopes-check/temp_root_test.go"]
+      "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. The normalized-join test fixtures construct isolated example.test graphs and never execute repository scripts. The citation checker and merge driver join text and do not invoke this script. Intermediate-join mentions do not execute this script. github-guard.sh (AFP-V0-2720) names it in the comment listing the trusted narrowing inputs and never runs it.",
+      "mentions": [".github/forward-rows/github-guard.sh", "cmd/corvint/work_production_fixture_test.go", "internal/appmap/fixture_seed_test.go", "internal/extevidence/selection_test.go", "internal/liveverify/affected/shell/callers_constructed_test.go", "internal/releasecandidate/version_test.go", "script/check-ci-least-privilege.sh", "script/check-line-citations.sh", "script/gen-spec-requirements.sh", "script/merge-use-case-pins.sh", "tools/cem-citation-baseline/main.go", "tools/test-read-scopes-check/temp_root_test.go"]
     },
     "script/affected-zero-unknown-replay.sh": {
       "callers": [
