@@ -28,10 +28,14 @@ type driverMakeFile struct {
 	// events are the assignments and conditional lines in file order, from
 	// which a variable's alternative values are derived (AFP-V0-3121).
 	events       []driverMakeEvent
-	alternatives map[string][]string
+	alternatives map[driverAlternativesKey]driverAlternatives
 	// statements are the lines that are a bare reference, whose expansion
-	// make reads again as make file text.
-	statements []string
+	// make reads again as make file text. statementAt and includeAt hold,
+	// for each statement and include, the number of events before it: make
+	// expands them at once, against the values assigned so far.
+	statements  []string
+	statementAt []int
+	includeAt   []int
 }
 
 // driverMakeEvent is one assignment or conditional line of a make file.
@@ -42,9 +46,15 @@ type driverMakeEvent struct {
 	// chain exhaustive.
 	bare bool
 	// scoped marks a target-specific assignment, in force for some targets
-	// only, so it is an alternative beside the value it replaces.
-	scoped          bool
+	// only, so it is an alternative beside every global value.
+	scoped bool
+	// immediate marks `:=`, `::=` and `:::=`, which expand their value where
+	// make reads them (AFP-V0-3125).
+	immediate       bool
 	name, op, value string
+	// text is a conditional's own line and command a `!=` assignment's shell
+	// command: make expands and runs both while it reads the file.
+	text, command string
 }
 
 const (
@@ -58,8 +68,11 @@ type driverMakeRule struct {
 	name    string
 	pattern bool
 	prereqs []string
-	recipe  []string
-	block   []string
+	// prereqAt is, for each prerequisite line, the number of events before
+	// it: make expands prerequisites where it reads them.
+	prereqAt []int
+	recipe   []string
+	block    []string
 }
 
 // driverMakeName reports a base name GNU make reads as a make file.
@@ -181,6 +194,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 	conditional := 0
 	defineName := ""
 	defineOp := "="
+	defineImmediate := false
 	defineDepth := 0
 	var defineBody []string
 	endRule := func() { current, inRemainderRule = nil, false }
@@ -194,7 +208,12 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 				defineDepth--
 				if defineDepth == 0 {
 					parsed.vars[defineName] = append(parsed.vars[defineName], strings.Join(defineBody, "\n"))
-					parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventAssign, name: defineName, op: defineOp, value: strings.Join(defineBody, "\n")})
+					event := driverMakeEvent{kind: driverEventAssign, name: defineName, op: defineOp, immediate: defineImmediate, value: strings.Join(defineBody, "\n")}
+					if defineOp == "!=" {
+						event.command, event.value = event.value, driverComputed
+					}
+					parsed.vars[defineName][len(parsed.vars[defineName])-1] = event.value
+					parsed.events = append(parsed.events, event)
 					continue
 				}
 			case "define":
@@ -240,7 +259,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 		case driverMakeConditionals[first]:
 			conditional++
 			parsed.remainder = append(parsed.remainder, trimmed)
-			parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventIf})
+			parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventIf, text: rest})
 			continue
 		case first == "else":
 			if conditional == 0 {
@@ -248,7 +267,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 				return parsed
 			}
 			parsed.remainder = append(parsed.remainder, trimmed)
-			parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventElse, bare: rest == ""})
+			parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventElse, bare: rest == "", text: rest})
 			continue
 		case first == "endif":
 			conditional--
@@ -263,7 +282,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			endRule()
 			parsed.remainder = append(parsed.remainder, trimmed)
 			defineName = strings.TrimSpace(strings.TrimRight(strings.TrimSpace(rest), ":!?+="))
-			defineOp = driverMakeDefineOperator(rest)
+			defineOp, defineImmediate = driverMakeDefineOperator(rest)
 			defineDepth = 1
 			defineBody = nil
 			continue
@@ -274,6 +293,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			endRule()
 			parsed.remainder = append(parsed.remainder, trimmed)
 			parsed.includes = append(parsed.includes, rest)
+			parsed.includeAt = append(parsed.includeAt, len(parsed.events))
 			continue
 		case first == "vpath" || first == "export" || first == "unexport" || first == "override" || first == "private":
 			parsed.remainder = append(parsed.remainder, trimmed)
@@ -288,6 +308,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			if strings.HasPrefix(statement, "$(") || strings.HasPrefix(statement, "${") {
 				parsed.remainder = append(parsed.remainder, trimmed)
 				parsed.statements = append(parsed.statements, trimmed)
+				parsed.statementAt = append(parsed.statementAt, len(parsed.events))
 				continue
 			}
 			parsed.unparsable = true
@@ -298,7 +319,7 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			parsed.remainder = append(parsed.remainder, trimmed)
 			if name != "" {
 				parsed.vars[name] = append(parsed.vars[name], value)
-				parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventAssign, name: name, op: driverMakeAssignmentOperator(statement, operator), value: value})
+				parsed.events = append(parsed.events, driverMakeAssignmentEvent(statement, operator, name, value, false))
 			}
 			continue
 		}
@@ -349,24 +370,38 @@ func driverMakeAssignment(statement string, index int) (bool, string, string) {
 	return true, name, value
 }
 
-// driverMakeAssignmentOperator is the kind of the assignment whose first
-// operator is at index: "?=", "+=", "!=" or "=" for every plain or immediate
-// form.
-func driverMakeAssignmentOperator(statement string, index int) string {
-	name := strings.TrimRight(statement[:index], " \t")
-	if name != "" && strings.IndexByte("?+!", name[len(name)-1]) >= 0 {
-		return name[len(name)-1:] + "="
+// driverMakeAssignmentEvent is the event of the assignment whose first
+// operator is at index. Its op is "?=", "+=", "!=" or "=" for every plain or
+// immediate form, and immediate marks `:=`, `::=` and `:::=` (AFP-V0-3125).
+// A `!=` event keeps its shell command, which make runs where it reads it.
+func driverMakeAssignmentEvent(statement string, index int, name, value string, scoped bool) driverMakeEvent {
+	event := driverMakeEvent{kind: driverEventAssign, scoped: scoped, name: name, op: "=", value: value}
+	head := strings.TrimRight(statement[:index], " \t")
+	switch {
+	case head != "" && strings.IndexByte("?+!", head[len(head)-1]) >= 0:
+		event.op = head[len(head)-1:] + "="
+	case statement[index] == ':':
+		event.immediate = true
 	}
-	return "="
+	if event.op == "!=" {
+		event.command = strings.TrimSpace(statement[index+1:])
+	}
+	return event
 }
 
-// driverMakeDefineOperator is the kind of a `define NAME [op]` line.
-func driverMakeDefineOperator(rest string) string {
-	trimmed := strings.TrimRight(strings.TrimSpace(rest), ":=")
-	if trimmed != "" && strings.IndexByte("?+!", trimmed[len(trimmed)-1]) >= 0 && strings.HasSuffix(strings.TrimSpace(rest), "=") {
-		return trimmed[len(trimmed)-1:] + "="
+// driverMakeDefineOperator is the kind of a `define NAME [op]` line and
+// whether it expands its body at once.
+func driverMakeDefineOperator(rest string) (string, bool) {
+	body, assigns := strings.CutSuffix(strings.TrimSpace(rest), "=")
+	switch {
+	case !assigns:
+		return "=", false
+	case strings.HasSuffix(body, ":"):
+		return "=", true
+	case body != "" && strings.IndexByte("?+!", body[len(body)-1]) >= 0:
+		return body[len(body)-1:] + "=", false
 	}
-	return "="
+	return "=", false
 }
 
 // driverMaxAlternatives bounds the distinct values one variable can take; a
@@ -377,27 +412,65 @@ const driverMaxAlternatives = 16
 // environment or command line may supply.
 const driverUndefined = "\x03"
 
-// variableAlternatives is every value the file can leave in name once make
-// has read it, each as unexpanded text, or driverUndefined where no
-// assignment need run (AFP-V0-3121). Every branch of a conditional is taken,
-// a branch chain without a bare `else` may also take none, and a
-// target-specific assignment stands beside the value it replaces. ok is false
-// past driverMaxAlternatives.
-func (parsed *driverMakeFile) variableAlternatives(name string) ([]string, bool) {
+// driverAlternativesKey names the values of one variable after the first
+// limit events of its file.
+type driverAlternativesKey struct {
+	name  string
+	limit int
+}
+
+// driverMakeValue is one value a variable can hold: unexpanded text for a
+// recursive variable, or for a simple one the text make captured when it
+// read the assignment, its `$` escaped so a later expansion returns it.
+type driverMakeValue struct {
+	text   string
+	simple bool
+}
+
+// driverAlternatives is every value a variable can hold at one point of its
+// file. ok is false past driverMaxAlternatives or where an immediate value
+// cannot be represented, and evaluated marks an immediate value whose
+// expansion used what the claimant before AFP-V0-3121 retained as ambiguous.
+type driverAlternatives struct {
+	values    []driverMakeValue
+	ok        bool
+	evaluated bool
+}
+
+// variableAlternatives is every value the file can leave in name after its
+// first limit events (every event when limit is negative), each as text to
+// expand, or driverUndefined where no assignment need run (AFP-V0-3121).
+// Every branch of a conditional is taken, a branch chain without a bare
+// `else` may also take none. The values are those of the default
+// invocation: a variable the file sets is not taken from the environment or
+// the command line. An immediate assignment captures the expansion of its
+// value against the values assigned before it, and `+=` appends to a simple
+// value the same way (AFP-V0-3125). A target-specific value is in force for
+// its target whatever global assignment follows it, so it stands beside
+// every global value (AFP-V0-3126).
+func (parsed *driverMakeFile) variableAlternatives(name string, limit int) driverAlternatives {
+	if limit < 0 || limit > len(parsed.events) {
+		limit = len(parsed.events)
+	}
 	if parsed.alternatives == nil {
-		parsed.alternatives = map[string][]string{}
+		parsed.alternatives = map[driverAlternativesKey]driverAlternatives{}
 	}
-	if values, cached := parsed.alternatives[name]; cached {
-		return values, values != nil
+	key := driverAlternativesKey{name: name, limit: limit}
+	if cached, present := parsed.alternatives[key]; present {
+		return cached
 	}
-	type frame struct {
-		entry, done []string
-		bare        bool
-	}
-	current := []string{driverUndefined}
-	var stack []frame
-	union := func(sets ...[]string) []string {
-		var out []string
+	// An immediate value expands against strictly earlier events, so this
+	// guard is never read; it only keeps a malformed walk from recursing.
+	parsed.alternatives[key] = driverAlternatives{}
+	result := parsed.walkAlternatives(name, limit)
+	parsed.alternatives[key] = result
+	return result
+}
+
+func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlternatives {
+	evaluated := false
+	union := func(sets ...[]driverMakeValue) []driverMakeValue {
+		var out []driverMakeValue
 		for _, set := range sets {
 			for _, value := range set {
 				if !slices.Contains(out, value) {
@@ -407,7 +480,61 @@ func (parsed *driverMakeFile) variableAlternatives(name string) ([]string, bool)
 		}
 		return out
 	}
-	for _, event := range parsed.events {
+	// captured is text expanded where event at is read, each complete
+	// expansion one simple value.
+	captured := func(text string, at int) ([]string, bool) {
+		expander := parsed.expanderAt(at)
+		variants := expander.expandAll(text)
+		evaluated = evaluated || expander.evaluated
+		if expander.ambiguous {
+			return nil, false
+		}
+		for index, variant := range variants {
+			variants[index] = strings.ReplaceAll(variant, "$", "$$")
+		}
+		return variants, true
+	}
+	assign := func(current []driverMakeValue, event driverMakeEvent, at int) ([]driverMakeValue, bool) {
+		var next []driverMakeValue
+		for _, value := range current {
+			defined := value.text != driverUndefined
+			switch {
+			case event.op == "!=":
+				next = append(next, driverMakeValue{text: driverComputed, simple: true})
+			case event.op == "?=" && defined:
+				next = append(next, value)
+			case event.op == "+=" && defined && value.simple:
+				variants, ok := captured(event.value, at)
+				if !ok {
+					return nil, false
+				}
+				for _, variant := range variants {
+					next = append(next, driverMakeValue{text: value.text + " " + variant, simple: true})
+				}
+			case event.op == "+=" && defined:
+				next = append(next, driverMakeValue{text: value.text + " " + event.value})
+			case event.immediate:
+				variants, ok := captured(event.value, at)
+				if !ok {
+					return nil, false
+				}
+				for _, variant := range variants {
+					next = append(next, driverMakeValue{text: variant, simple: true})
+				}
+			default:
+				next = append(next, driverMakeValue{text: event.value})
+			}
+		}
+		return union(next), true
+	}
+	type frame struct {
+		entry, done []driverMakeValue
+		bare        bool
+	}
+	current := []driverMakeValue{{text: driverUndefined}}
+	var stack []frame
+	var scoped []int
+	for at, event := range parsed.events[:limit] {
 		switch event.kind {
 		case driverEventIf:
 			stack = append(stack, frame{entry: current})
@@ -433,29 +560,131 @@ func (parsed *driverMakeFile) variableAlternatives(name string) ([]string, bool)
 			if event.name != name {
 				continue
 			}
-			next := make([]string, 0, len(current))
-			for _, value := range current {
-				switch {
-				case event.op == "?=" && value != driverUndefined:
-					next = append(next, value)
-				case event.op == "+=" && value != driverUndefined:
-					next = append(next, value+" "+event.value)
-				default:
-					next = append(next, event.value)
-				}
-			}
 			if event.scoped {
-				next = union(current, next)
+				scoped = append(scoped, at)
+				continue
 			}
-			current = union(next)
+			next, ok := assign(current, event, at)
+			if !ok {
+				return driverAlternatives{evaluated: evaluated}
+			}
+			current = next
 		}
 		if len(current) > driverMaxAlternatives {
-			parsed.alternatives[name] = nil
-			return nil, false
+			return driverAlternatives{evaluated: evaluated}
 		}
 	}
-	parsed.alternatives[name] = current
-	return current, true
+	// AFP-V0-3126: a target-specific value applies over the global value
+	// make leaves at the end of the file, or over an earlier target-specific
+	// value of the same target; each is one more alternative.
+	all := current
+	for _, at := range scoped {
+		next, ok := assign(all, parsed.events[at], at)
+		if !ok {
+			return driverAlternatives{evaluated: evaluated}
+		}
+		all = union(all, next)
+		if len(all) > driverMaxAlternatives {
+			return driverAlternatives{evaluated: evaluated}
+		}
+	}
+	return driverAlternatives{values: all, ok: true, evaluated: evaluated}
+}
+
+// driverParseTime is what make expands and runs while it reads a file,
+// whatever target it then builds (AFP-V0-3127): the commands of every
+// `$(shell ...)` and `!=` assignment it reaches there, whether one of them
+// cannot be represented, and whether an expansion there was evaluated.
+type driverParseTime struct {
+	shells         []string
+	shellAmbiguous bool
+	evaluated      bool
+}
+
+// parseTime expands every text make expands while it reads the file, each
+// against the values assigned before it: conditional lines, immediate
+// values, `+=` onto a simple value, `!=` commands, bare statements, includes
+// and every rule's prerequisites.
+func (parsed *driverMakeFile) parseTime() driverParseTime {
+	var result driverParseTime
+	expand := func(text string, at int) ([]string, bool) {
+		if !strings.Contains(text, "$") {
+			return []string{text}, false
+		}
+		expander := parsed.expanderAt(at)
+		variants := expander.expandAll(text)
+		for _, script := range expander.shells {
+			if !slices.Contains(result.shells, script) {
+				result.shells = append(result.shells, script)
+			}
+		}
+		result.shellAmbiguous = result.shellAmbiguous || expander.shellAmbiguous
+		result.evaluated = result.evaluated || expander.evaluated
+		return variants, expander.ambiguous
+	}
+	for at, event := range parsed.events {
+		switch {
+		case event.kind == driverEventIf || event.kind == driverEventElse:
+			expand(event.text, at)
+		case event.kind != driverEventAssign:
+		case event.op == "!=":
+			variants, ambiguous := expand(event.command, at)
+			result.shellAmbiguous = result.shellAmbiguous || ambiguous
+			for _, script := range variants {
+				if !slices.Contains(result.shells, script) {
+					result.shells = append(result.shells, script)
+				}
+			}
+		case event.immediate:
+			expand(event.value, at)
+		case event.op == "+=":
+			alternatives := parsed.variableAlternatives(event.name, at)
+			if !alternatives.ok || slices.ContainsFunc(alternatives.values, func(value driverMakeValue) bool { return value.simple }) {
+				expand(event.value, at)
+			}
+		}
+	}
+	for index, statement := range parsed.statements {
+		expand(statement, parsed.statementAt[index])
+	}
+	for index, include := range parsed.includes {
+		expand(include, parsed.includeAt[index])
+	}
+	for _, target := range parsed.order {
+		rule := parsed.rules[target]
+		for index, prerequisites := range rule.prereqs {
+			expand(prerequisites, rule.prereqAt[index])
+		}
+	}
+	return result
+}
+
+// recipeShellCertified reports that make hands every recipe line to a plain
+// shell with a `-c` flag: a SHELL or .SHELLFLAGS assignment that names any
+// other program, or adds an operand, runs that program for every target
+// (AFP-V0-3127). Make never takes SHELL from the environment.
+func (parsed *driverMakeFile) recipeShellCertified() bool {
+	expander := parsed.expander(map[string]string{})
+	for _, variant := range expander.expandAll("$(SHELL)") {
+		fields := strings.Fields(variant)
+		if len(fields) != 1 || driverDynamic(variant) || !driverShells[path.Base(fields[0])] {
+			return false
+		}
+	}
+	if _, set := parsed.vars[".SHELLFLAGS"]; set {
+		for _, variant := range expander.expandAll("$(.SHELLFLAGS)") {
+			fields := strings.Fields(variant)
+			if driverDynamic(variant) || len(fields) == 0 || !strings.HasPrefix(fields[len(fields)-1], "-") || !strings.HasSuffix(fields[len(fields)-1], "c") {
+				return false
+			}
+			for _, field := range fields {
+				if !strings.HasPrefix(field, "-") && field != "pipefail" && field != "errexit" && field != "nounset" {
+					return false
+				}
+			}
+		}
+	}
+	return !expander.ambiguous
 }
 
 var driverMakeSpecials = map[string]bool{
@@ -528,10 +757,11 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 			operator := driverMakeOperator(statement)
 			if assignment, name, value := driverMakeAssignment(statement, operator); assignment && name != "" {
 				parsed.vars[name] = append(parsed.vars[name], value)
-				parsed.events = append(parsed.events, driverMakeEvent{kind: driverEventAssign, scoped: true, name: name, op: driverMakeAssignmentOperator(statement, operator), value: value})
+				parsed.events = append(parsed.events, driverMakeAssignmentEvent(statement, operator, name, value, true))
 			}
 		} else {
 			rule.prereqs = append(rule.prereqs, after)
+			rule.prereqAt = append(rule.prereqAt, len(parsed.events))
 		}
 		if strings.TrimSpace(recipe) != "" {
 			rule.recipe = append(rule.recipe, recipe)
@@ -573,7 +803,11 @@ func driverMakeUnitID(file, target string) string {
 // represent exactly sets ambiguous, which retains the computed invocation;
 // a value only the environment can supply becomes driverComputed.
 type driverExpander struct {
-	file      *driverMakeFile
+	file *driverMakeFile
+	// limit is how many of the file's events have been read where the text
+	// is expanded: every event (-1) for a recipe, which make expands after
+	// reading the whole file, fewer for text make expands at once.
+	limit     int
 	auto      map[string]string
 	locals    map[string]string
 	visiting  map[string]bool
@@ -612,7 +846,17 @@ const driverExpandLimit = 1 << 16
 const driverMaxVariants = 256
 
 func (parsed *driverMakeFile) expander(auto map[string]string) *driverExpander {
-	return &driverExpander{file: parsed, auto: auto, locals: map[string]string{}, visiting: map[string]bool{}, picked: map[string]int{}}
+	return &driverExpander{file: parsed, limit: -1, auto: auto, locals: map[string]string{}, visiting: map[string]bool{}, picked: map[string]int{}}
+}
+
+// expanderAt expands text make expands as it reads the file, after its first
+// at events: an immediate value, a prerequisite, an include, a conditional or
+// a bare statement (AFP-V0-3125). An automatic variable, empty there, is
+// taken as unknown.
+func (parsed *driverMakeFile) expanderAt(at int) *driverExpander {
+	expander := parsed.expander(map[string]string{})
+	expander.limit = at
+	return expander
 }
 
 // expandAll returns every distinct complete expansion of text, in the order
@@ -837,17 +1081,17 @@ func (e *driverExpander) lookup(name string) string {
 	case "MAKEFLAGS", "MFLAGS":
 		return ""
 	}
-	if len(e.file.vars[name]) > 1 {
+	alternatives := e.file.variableAlternatives(name, e.limit)
+	if len(e.file.vars[name]) > 1 || alternatives.evaluated {
 		e.evaluated = true
 	}
-	values, bounded := e.file.variableAlternatives(name)
-	if !bounded {
+	if !alternatives.ok {
 		e.ambiguous = true
 		return driverComputed
 	}
 	// Each alternative is one complete value: the expansion in progress
 	// takes one of them for every reference to name (AFP-V0-3121).
-	value := values[e.pick(name, len(values))]
+	value := alternatives.values[e.pick(name, len(alternatives.values))].text
 	if value == driverUndefined {
 		if name == "SHELL" {
 			return "sh"

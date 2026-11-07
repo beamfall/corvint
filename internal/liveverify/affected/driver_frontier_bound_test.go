@@ -267,3 +267,167 @@ func TestFrontierSiteShellTestParity_AFP_V0_3122(t *testing.T) {
 		})
 	}
 }
+
+// TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125 holds an
+// immediate assignment to the value make captures where it reads it: with
+// `PKG = ci`, `RUN := go test ./tools/$(PKG)` and a later `PKG = local`, make
+// runs the ci package, so a ci change selects check by its edge, and a local
+// change, which no run of check reads, does not. A prerequisite, which make
+// also expands where it reads it, keeps the same captured edge.
+func TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125(t *testing.T) {
+	for _, tc := range []struct{ name, makefile, dirty, unread string }{
+		{"immediate", "PKG = ci\nRUN := go test ./tools/$(PKG)\nPKG = local\ncheck:\n\t$(RUN)\n", "tools/ci/main.go", "tools/local/main.go"},
+		{"double-colon", "PKG = ci\nRUN ::= go test ./tools/$(PKG)\nPKG = local\ncheck:\n\t$(RUN)\n", "tools/ci/main.go", "tools/local/main.go"},
+		{"append-to-simple", "PKG = local\nRUN := go test\nRUN += ./tools/$(PKG)\nPKG = ci\ncheck:\n\t$(RUN)\n", "tools/local/main.go", "tools/ci/main.go"},
+		{"recursive-control", "PKG = ci\nRUN = go test ./tools/$(PKG)\nPKG = local\ncheck:\n\t$(RUN)\n", "tools/local/main.go", "tools/ci/main.go"},
+		{"define-immediate", "PKG = ci\ndefine RUN :=\ngo test ./tools/$(PKG)\nendef\nPKG = local\ncheck:\n\t$(RUN)\n", "tools/ci/main.go", "tools/local/main.go"},
+		{"prerequisite", "PKG = ci\ncheck: tools/$(PKG)/main.go\n\tgo vet ./tools/...\nPKG = local\n", "tools/ci/main.go", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatalf("every value make captures is a literal go command, but check stays a computed site")
+			}
+			selected := driverSelections(affected.Select(graph, []string{tc.dirty}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if tc.unread != "" {
+				selected = driverSelections(affected.Select(graph, []string{tc.unread}))
+				wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check"})
+			}
+			selected = driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check"})
+		})
+	}
+}
+
+// TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126 keeps a
+// target-specific value after a later global assignment: with `check: PKG =
+// ci` and then `PKG = local`, make builds check with ci, so a ci change
+// selects it; the global value stays an alternative for other targets.
+func TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126(t *testing.T) {
+	for _, tc := range []struct{ name, makefile, dirty string }{
+		{"scoped-then-global", "check: PKG = ci\nPKG = local\ncheck:\n\tgo test ./tools/$(PKG)\n", "tools/ci/main.go"},
+		{"scoped-then-global-other", "check: PKG = ci\nPKG = local\ncheck:\n\tgo test ./tools/$(PKG)\n", "tools/local/main.go"},
+		{"scoped-append-after-global", "check: PKG += ./tools/ci\nPKG = ./tools/local\ncheck:\n\tgo test $(PKG)\n", "tools/ci/main.go"},
+		{"scoped-chain", "check: PKG = ./tools/ci\ncheck: PKG += ./tools/local\nPKG = ./tools/x\ncheck:\n\tgo test $(PKG)\n", "tools/local/main.go"},
+		{"scoped-immediate", "TOOL = ci\ncheck: PKG := ./tools/$(TOOL)\nTOOL = local\nPKG = ./tools/x\ncheck:\n\tgo test $(PKG)\n", "tools/ci/main.go"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			selected := driverSelections(affected.Select(graph, []string{tc.dirty}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+		})
+	}
+}
+
+// TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127 keeps every target
+// a computed site when make runs a command it cannot certify while reading
+// the file, before it builds any target: an immediate `$(shell ...)` whose
+// value no recipe uses, a `!=` assignment, a conditional line, an include and
+// a prerequisite, and a SHELL or .SHELLFLAGS that runs a program other than
+// a plain shell. A `$(shell ...)` in a recursive value no recipe expands
+// never runs, so it alone keeps no claim, and neither does a bash SHELL.
+func TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127(t *testing.T) {
+	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)/cache\n"
+	const recipe = "check:\n\tGOCACHE=$(CACHE) go test ./tools/local\n"
+	for _, tc := range []struct {
+		name, makefile string
+		claimed        bool
+	}{
+		{"unused-immediate-shell", "AUDIT := $(shell $(if $(CI),script/lsfiles.sh,script/lsfiles.sh))\n" + recipe, true},
+		{"unused-immediate-literal-shell", evaluated + "AUDIT := $(shell script/lsfiles.sh)\n" + recipe, true},
+		{"bang-assignment", evaluated + "FILES != script/lsfiles.sh\n" + recipe, true},
+		{"conditional-line", evaluated + "ifeq ($(shell script/lsfiles.sh),)\nX = 1\nendif\n" + recipe, true},
+		{"include-line", evaluated + "-include $(shell script/lsfiles.sh)\n" + recipe, true},
+		{"prerequisite-of-other-target", evaluated + "other: $(shell script/lsfiles.sh)\n" + recipe, true},
+		{"immediate-through-recursive", evaluated + "LIST = $(shell script/lsfiles.sh)\nAUDIT := $(LIST)\n" + recipe, true},
+		{"unused-recursive-shell", evaluated + "LIST = $(shell script/lsfiles.sh)\n" + recipe, false},
+		{"recipe-shell-program", evaluated + "SHELL = script/lsfiles.sh\n" + recipe, true},
+		{"recipe-shell-flags-operand", evaluated + ".SHELLFLAGS = script/lsfiles.sh -c\n" + recipe, true},
+		{"recipe-shell-bash", evaluated + "SHELL := /bin/bash\n.SHELLFLAGS := -eu -o pipefail -c\n" + recipe, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			if got := computedSite(t, graph, "driver:make:Makefile#check"); got != tc.claimed {
+				t.Fatalf("check computed site = %v, want %v", got, tc.claimed)
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			if tc.claimed {
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite {
+					t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
+				}
+			} else {
+				wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
+			}
+			selected = driverSelections(affected.Select(graph, []string{"tools/local/main.go"}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+		})
+	}
+}
+
+// TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128 keeps an evaluated
+// target a computed site when a command it runs reads more than its literal
+// operands: an operand, redirection or test path the environment supplies,
+// operands xargs reads from input, a relative operand after a change to an
+// unknown directory, a checksum manifest's listed files, a list of file
+// names, a jq module, an awk or sed program, a go operand that can split
+// into flags, and a make call that overrides a variable.
+func TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128(t *testing.T) {
+	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"
+	for _, tc := range []struct{ name, makefile string }{
+		{"environment-operand", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\tcat $(INPUT)\n"},
+		{"environment-redirection", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\twc -l < $(INPUT)\n"},
+		{"environment-test-path", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\ttest -f $(INPUT)\n"},
+		{"shell-variable-operand", evaluated + "check:\n\tfor f in a b; do cat \"$$f\"; done\n"},
+		{"xargs", evaluated + "check:\n\txargs cat < known.txt\n"},
+		{"unknown-directory", evaluated + "check:\n\tcd $(CACHE) && cat known.txt\n"},
+		{"checksum-manifest", evaluated + "check:\n\tsha256sum -c checksums.txt\n"},
+		{"checksum-manifest-long", evaluated + "check:\n\tshasum --check --quiet checksums.txt\n"},
+		{"checksum-manifest-cluster", evaluated + "check:\n\tmd5sum -sc checksums.txt\n"},
+		{"files0-from", evaluated + "check:\n\twc -l --files0-from=list.txt\n"},
+		{"jq-module", evaluated + "check:\n\tjq -n 'import \"lib\" as lib; lib::x'\n"},
+		{"jq-library-path", evaluated + "check:\n\tjq -L lib -n '1'\n"},
+		{"awk", evaluated + "check:\n\tawk '{ while ((getline line < $$1) > 0) print line }' known.txt\n"},
+		{"sed", evaluated + "check:\n\tsed -n '1r other.txt' known.txt\n"},
+		{"go-environment-operand", "PKG = $(or $(PKGS),./tools/local)\ncheck:\n\tgo test $(PKG)\n"},
+		{"go-environment-flags", evaluated + "check:\n\tgo test $(GOFLAGS_EXTRA) ./tools/local\n"},
+		{"make-override", evaluated + "check:\n\t$(MAKE) other PKG=ci\nother:\n\tgo test ./tools/local\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatalf("check reads more than its literal operands, but it is not a computed site")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite || witness.DirtyPath != sealedCEM {
+				t.Errorf("check witness %+v; want FRONTIER_SITE on %s", witness, sealedCEM)
+			}
+		})
+	}
+}
+
+// TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128 is the control: the
+// same commands in modes that read only their literal operands, an unknown
+// value only where it names an output, leave the evaluated target no site.
+func TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128(t *testing.T) {
+	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"
+	for _, tc := range []struct{ name, makefile string }{
+		{"checksum-compute", evaluated + "check:\n\tsha256sum known.txt > $(CACHE)/sums\n"},
+		{"literal-redirection", evaluated + "check:\n\twc -l < known.txt\n"},
+		{"literal-test", evaluated + "check:\n\ttest -f known.txt && test -n \"$(CACHE)\"\n"},
+		{"jq-literal", evaluated + "check:\n\tjq -r .name known.json\n"},
+		{"go-output", evaluated + "check:\n\tgo build -o $(CACHE)/bin ./tools/local\n"},
+		{"make-literal", evaluated + "check:\n\t$(MAKE) other\nother:\n\tgo test ./tools/local\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatalf("check reads only literal operands, but it is a computed site")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check"})
+		})
+	}
+}
