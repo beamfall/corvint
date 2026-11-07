@@ -38,6 +38,21 @@ review=$1
 [[ -f $review && -r $review ]] || refuse "unreadable-review $review; fix: pass the file the review output was saved to"
 git rev-parse --git-dir > /dev/null 2>&1 || refuse "not-a-git-checkout $PWD; fix: run from the lane checkout"
 
+# DWC-V0-046: external reports carry a verdict and require the exact head.
+if grep -q 'dogfood-review:' "$review"; then
+  [[ -z $pinned && $(wc -c < "$review") -le 1048576 && $(grep -c 'dogfood-review:' "$review") == 1 ]] || refuse 'invalid-external-review'
+  perl -MEncode=decode,FB_CROAK -e 'local $/; eval { decode("UTF-8", <>, FB_CROAK); 1 } or exit 2' -- "$review" || refuse 'invalid-external-review encoding'
+  pin=$(grep -E '^dogfood-review: reviewed-head=[0-9a-f]{40} verdict=PASS$' "$review")
+  [[ -n $pin ]] || refuse 'invalid-external-review; fix: use dogfood-review: reviewed-head=FULL_SHA verdict=PASS'
+  pinned=${pin#dogfood-review: reviewed-head=}
+  pinned=${pinned%% *}
+  head=$(git rev-parse --verify -q "${2:-HEAD}^{commit}") || refuse 'unknown-head'
+  [[ $pinned == "$head" ]] || refuse "external-review-head-mismatch reviewed=$pinned head=$head; fix: review the exact pre-seal HEAD"
+  printf 'review-head-check: CURRENT reviewed=%s head=%s verdict=PASS\n' "$pinned" "$head"
+  exit 0
+fi
+
+[[ $(grep -c -E '^codex-review: reviewed-head=' "$review") -le 1 ]] || refuse 'invalid-legacy-review duplicate pins'
 pin=$(grep -m 1 -E '^codex-review: reviewed-head=' "$review")
 if [[ -z $pinned ]]; then
   [[ -n $pin ]] || refuse "unpinned-review $review (no codex-review: reviewed-head= line); fix: run the review through script/codex-review.sh, which pins the head, or pass --reviewed-head with the commit the reviewer read"
