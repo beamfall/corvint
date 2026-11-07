@@ -256,7 +256,7 @@ func TestPairedAuthorSourceConformance(t *testing.T) {
 		t.Fatal(err)
 	}
 	author := filepath.Join(temp, testplatform.Executable("author"))
-	pass(repo, "go", "build", "-o", author, "./internal/postmergehost/testdata/paired-author/author")
+	pass(repo, "go", "build", "-buildvcs=false", "-o", author, "./internal/postmergehost/testdata/paired-author/author")
 	verifyActualAuthor := hostTestNativeControlBinding(t, ctx, product, base, head, pass(product, "git", "rev-parse", "HEAD^{tree}"))
 	pass(product, author, input, product)
 	verifyActualAuthor()
@@ -660,6 +660,17 @@ func hostTestNativeControlBinding(t *testing.T, ctx context.Context, root, base,
 	gitBytes, err := os.ReadFile(binary)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// V1-4896: name why the step verifier cannot pin this host's Git instead
+	// of surfacing only GIT_PIN_UNAVAILABLE from the snapshot.
+	if _, pinErr := stepverify.ReadInput(ctx, binary, &d); pinErr != nil {
+		_, bareErr := stepverify.ReadInput(ctx, binary, nil)
+		info, statErr := os.Lstat(binary)
+		var sys any
+		if statErr == nil {
+			sys = info.Sys()
+		}
+		t.Fatalf("step verifier cannot pin git %s: declared=%v bare=%v lstat=%v sys=%+v", binary, pinErr, bareErr, statErr, sys)
 	}
 	h := stepverify.Host{Profile: "corvint-step-host/0", ObserverID: "observer_" + run, SessionID: d.SessionID, CapabilityID: d.CapabilityID, DeclarationDigest: stepverify.DeclarationDigest(d), MetadataProtected: true, FilesystemConfined: true, GitBinary: binary, GitBinaryDigest: hostDigest(gitBytes), Environment: &d.Environment}
 	output, err := filepath.EvalSymlinks(t.TempDir())

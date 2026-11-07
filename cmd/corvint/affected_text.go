@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // renderAffectedText is the `--format text` form of an affected-plan/1
@@ -11,7 +13,8 @@ import (
 // the reason it was selected, one `unknown` line per plan unknown, one
 // `bears` line per frontier source (TSP-V0-942), and the
 // advice checks with their runnable command. It restates the receipt and
-// never changes the selection; one line is one decision (textWord).
+// never changes the selection. Unowned lines also offer declaration guidance
+// independently of JSON hints (AZU-V0-9901); one line is one decision (textWord).
 func renderAffectedText(receipt affectedCompactReceipt) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "affected %s worktree=%d revision=%s", receipt.Summary.Line, receipt.Summary.Worktree, receipt.Revision)
@@ -48,8 +51,15 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 	}
 	for _, unknown := range receipt.Plan.Unknown {
 		fmt.Fprintf(&out, "unknown %s %s", textWord(unknown.Reason), textWord(unknown.Detail))
-		if unknown.Hint != "" {
-			fmt.Fprintf(&out, " hint %s", textWord(unknown.Hint))
+		hint := unknown.Hint
+		// Text diagnostics provide unconditional declaration guidance without
+		// changing frozen JSON receipts or content-only dry-run digests.
+		if unknown.Reason == affected.UnknownUnownedDirtyPath && !strings.Contains(hint, "AZU-V0-9901") {
+			guidance := "declare runtime/test inputs in " + affected.RuntimeReadersPath + ", documentation in " + affected.DocumentationPathsPath + ", or evidence/output in " + affected.NonSourcePathsPath + " (AZU-V0-9901)"
+			hint = strings.TrimPrefix(hint+"; "+guidance, "; ")
+		}
+		if hint != "" {
+			fmt.Fprintf(&out, " hint %s", textWord(hint))
 		}
 		out.WriteString("\n")
 	}
