@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestSelectionBaselineGateFailsOnFloorOrMiss_V12892 covers the V1-2892 gate:
@@ -369,7 +371,7 @@ func TestSelectionBaselineReadsAnIncompleteDryRun_AFPV2750(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			corvint := filepath.Join(dir, "corvint")
-			if err := os.WriteFile(corvint, []byte("#!/bin/sh\n"+tc.script+"\n"), 0o700); err != nil {
+			if err := execfile.WriteFile(corvint, []byte("#!/bin/sh\n"+tc.script+"\n"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			manifestPath := filepath.Join(dir, "m.json")
