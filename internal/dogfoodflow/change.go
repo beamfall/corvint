@@ -2271,7 +2271,14 @@ func (c *change) renderReport() {
 	report.WriteString("  ,\"dogfoodCheck\": null\n}\n")
 	_ = os.WriteFile(c.path(".corvint/dogfood-report.json"), report.Bytes(), 0o666)
 	for _, row := range c.rows {
-		c.options.Steps.Run(c.ctx, c.root, []string{"dogfood-observe", "--step", row.name, "--status", row.status, "--reason", row.reason}, io.Discard, io.Discard)
+		var refusal bytes.Buffer
+		if status := c.options.Steps.Run(c.ctx, c.root, []string{"dogfood-observe", "--step", row.name, "--status", row.status, "--reason", row.reason}, io.Discard, &refusal); status != 0 {
+			// The ledger refuses every row alike (for example an unignored ledger),
+			// so name the first refusal and stop instead of dropping rows silently.
+			fmt.Fprintf(c.stderr, "%s: NOTE self-observation rows not recorded: dogfood-observe exited %d: %s\n", c.prefix, status, strings.TrimSpace(refusal.String()))
+			c.checkpoint()
+			return
+		}
 		c.checkpoint()
 	}
 }
