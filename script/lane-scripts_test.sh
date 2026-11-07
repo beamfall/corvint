@@ -1841,7 +1841,8 @@ ok
 fi
 if selected admission 29; then
 # ASD-V0-930: the Makefile admits build, tasks-build, doc-gates, batch-precheck and dogfood-finish
-# through HEAVY_ADMIT, script/heavy.sh by default and empty under CI.
+# through HEAVY_ADMIT, script/heavy.sh by default and empty under CI. Both doc-gates lines carry it: the
+# script/doc-gates-summary.sh make and the conformance/use-cases-v0 run.
 # The probe rule is read from stdin, not --eval, which GNU Make 3.81 (macOS) lacks.
 adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HEAVY_ADMIT)"\n' |
   env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory -f Makefile -f - heavy-admit-show); }
@@ -1850,7 +1851,8 @@ adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HE
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -Eq '^(BATCH_PRECHECK_LANE_CLOSEOUT=0 )?WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
   [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] &&
-  grep -Eq '^echo script/doc-gates\.sh .* conformance/use-cases-v0$' "$tmp/admit.out" ||
+  grep -Eq '^script/doc-gates-summary\.sh echo ([^ ]*/)?make --no-print-directory --keep-going -j[1-9][0-9]* doc-gate/' "$tmp/admit.out" &&
+  grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
 ok
 fi
