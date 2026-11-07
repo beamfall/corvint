@@ -410,7 +410,7 @@ AZU-V0-9930	docs/specs/affected-zero-unknown-v0.md	Comparison-only working direc
 AZU-V0-9931	docs/specs/affected-zero-unknown-v0.md	Bounded test consumers.** (experimental, owner lane charter, 2026-11-05)	unrecorded	-
 AFP-V0-3120	docs/specs/affected-zero-unknown-v0.md	**File-scope make ambiguity.** (experimental, owner lane selfloor charter	unrecorded	-
 AFP-V0-3121	docs/specs/affected-zero-unknown-v0.md	**Evaluated make alternatives.** (experimental, owner lane selfloor charter	unrecorded	-
-AFP-V0-3122	docs/specs/affected-zero-unknown-v0.md	**Claims only within the bound.** (experimental, owner lane selfloor charter	unrecorded	-
+AFP-V0-3122	docs/specs/affected-zero-unknown-v0.md	**Claims only within a certified read set.** (experimental, owner lane selfloor	unrecorded	-
 AFP-V0-3123	docs/specs/affected-zero-unknown-v0.md	**Unbounded sites keep claiming.** (experimental, owner lane selfloor charter	unrecorded	-
 AFP-V0-3124	docs/specs/affected-zero-unknown-v0.md	**Selector parity.** (experimental, owner lane selfloor charter 2026-11-07,	unrecorded	-
 AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-

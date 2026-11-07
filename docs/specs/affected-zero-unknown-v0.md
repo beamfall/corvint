@@ -72,8 +72,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   outside every recipe or job (a variable, an `include`, `on:`, top-level `env:` or `defaults:`)
   SHALL select every target or job of that file. A recipe or step that invokes a computed name
   carries a `driver:computed-invocation` frontier entry at that target or job; AZU-V0-003 closes it.
-  A make computed name whose alternatives are all literal is evaluated into their edges instead,
-  and only a site whose alternatives cannot be bounded keeps the entry (AFP-V0-3120 to AFP-V0-3123).
+  A make computed name is evaluated into the edges of its alternatives. It keeps the entry only
+  when its alternatives or the reads of what it runs cannot be bounded (AFP-V0-3120 to
+  AFP-V0-3123).
   Selections carry kind `DRIVER_TARGET` and the argv `make <target>`, or `CI_JOB` and the workflow
   and job IDs. A consumer that cannot run a `CI_JOB` reports it as left to CI, never as unknown.
   Readers of a driver file by path literal, declared read scope or unbounded read stay selected as
@@ -211,6 +212,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   rule SHALL mark every target of the file. An ambiguous expansion the target's own text reaches
   SHALL mark that target. Fault injection: one unreferenced `$(or ...)`, `$(if ...)` or
   `$(join ...)` line SHALL NOT turn a literal recipe into a site that claims a new sealed CEM.
+  A bare reference line that can expand to text, which make reads as more make file, SHALL keep
+  every target of its file a site.
 - **AFP-V0-3121:** **Evaluated make alternatives.** (experimental, owner lane selfloor charter
   2026-11-07, V1-5000) The driver claimant SHALL expand each make recipe line, prerequisite list
   and include into every complete alternative value, walking at most 256 expansions per text. A
@@ -221,16 +224,30 @@ participation, and inbound shell callers. The remaining classes are small and lo
   decides SHALL take both outcomes. `filter`, `filter-out`, `findstring`, `firstword`, `lastword`,
   `word`, `wordlist` and `join` SHALL be evaluated exactly over values with no environment-supplied
   part. A word selected from a wholly environment-supplied value is that value or nothing. Each
-  alternative SHALL be scanned as its own shell text, so a computed name whose alternatives are
-  all literal resolves into each alternative's edges and is no frontier site. A change that any
-  alternative can run or name SHALL still select the target and its callers. This evaluates
-  exactly where AZU-V0-9702 and AZU-V0-9850 allowed a retained site.
-- **AFP-V0-3122:** **Claims only within the bound.** (experimental, owner lane selfloor charter
-  2026-11-07, V1-5000) A target whose alternatives are all bounded SHALL be selected for a dirty
-  path only through their edges, with a dependency, path-literal or other reader witness. A dirty
-  path that no alternative can run or name SHALL NOT select it or its dependents by
-  `FRONTIER_SITE`. A new `.corvint/changes/<sha>.cem.json` or `docs/build-log/` entry is such a
-  path unless an alternative names it.
+  alternative SHALL be scanned as its own shell text, so its paths, make calls and Go package
+  patterns are the target's edges. A change that any alternative can run or name SHALL still
+  select the target and its callers. This evaluates exactly where AZU-V0-9702 and AZU-V0-9850
+  allowed a retained site; AFP-V0-3122 decides whether the evaluated target stays a site.
+- **AFP-V0-3122:** **Claims only within a certified read set.** (experimental, owner lane selfloor
+  charter 2026-11-07, V1-5000) An evaluated target is one whose own text, or its file's variables,
+  resolved what the claimant before AFP-V0-3121 retained as ambiguous: a reassigned variable, or
+  an `if`, `or`, `and`, `filter`, `filter-out`, `findstring`, `firstword`, `lastword`, `word`,
+  `wordlist` or `join`. Such a target SHALL drop its `driver:computed-invocation` entry only when
+  every command its alternatives run is certified, because then the graph already bounds what it
+  reads. A command is certified when it is one of:
+  - a command that reads nothing or only its operands, with no recursive option;
+  - a go package command other than `go run`, `go generate` or `go tool`, with no `-exec`,
+    `-toolexec` or `-vettool`;
+  - a make invocation, whose targets are units of their own;
+  - a shell test script by the shell plugin's naming rule, which that plugin selects for itself.
+
+  An evaluated target that runs any other repository program, an interpreter, `git` or an
+  unlisted command SHALL keep claiming every dirty path, since its read set can include every
+  tracked file. A certified target SHALL be selected for a dirty path only through its edges, with
+  a dependency, path-literal or other reader witness. A dirty path that no alternative can run,
+  name or read SHALL NOT select it or its dependents by `FRONTIER_SITE`. A new
+  `.corvint/changes/<sha>.cem.json` or `docs/build-log/` entry is such a path unless an alternative
+  names it. A make target that was never evaluated keeps the AZU-V0-001 literal edges unchanged.
 - **AFP-V0-3123:** **Unbounded sites keep claiming.** (experimental, owner lane selfloor charter
   2026-11-07, V1-5000) A target or job whose alternatives cannot be bounded SHALL keep its
   `driver:computed-invocation` entry. As AZU-V0-001 and AZU-V0-003 require, it SHALL be selected
@@ -241,6 +258,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   - `eval`, or an unsupported interpreter option;
   - a word function over a mix of literal and environment-supplied values;
   - alternatives past the walk bound;
+  - an evaluated target that runs an uncertified command (AFP-V0-3122);
   - every other existing computed-invocation case, including every workflow and action site.
 
   A missed alternative is worse than over-selection.
@@ -388,6 +406,11 @@ lanes and external full-suite/mutation observations at every historical revision
   recipe or step, interpreter options such as `node --test` or `python3 -B`, and binaries that a
   workflow builds or downloads at run time keep their computed sites. As before, make
   command-line and environment overrides of an assigned variable stay outside the model.
+- AFP-V0-3122 certifies commands; it does not model what a repository script or Go program reads.
+  Those read sets belong to the reader rules, such as unbounded and broad-scope readers. Until a
+  reader rule bounds them, an evaluated target that runs them keeps its claim. A literal target
+  that was never evaluated is unchanged, including one that runs a script listing every tracked
+  file.
 
 ## Failure modes
 
@@ -408,6 +431,15 @@ lanes and external full-suite/mutation observations at every historical revision
   - a condition the walk cannot represent takes both branches;
   - the walk is bounded, and text past the bound retains the site;
   - the fixtures pin selection for every evaluated form.
+- AFP-V0-3122 certifies a command that reads more than its operands, or a script the shell plugin
+  does not index as a test. Mitigations:
+  - the certified list is closed and small, and recursive options are refused;
+  - `go run`, interpreters, `git` and every repository program other than a shell test are never
+    certified;
+  - `TestFrontierSiteShellTestParity_AFP_V0_3122` holds every certified script to the shell
+    plugin's test units;
+  - a `$(shell ...)` that make runs while it reads the file feeds a recipe only through a
+    variable the recipe's own expansion reads, which certifies it there.
 
 ## Acceptance evidence
 
@@ -487,17 +519,22 @@ Lane selfloor witnesses its five rows with fixtures:
 - `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121` includes a recipe that names
   `.corvint/changes`, which stays selected.
 - `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122` and
-  `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` cover the dropped and kept claims.
+  `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` cover the dropped and kept claims, including
+  evaluated targets that run a repository script, `go run`, `git ls-files`, an interpreter or a
+  recursive `grep`. `TestFrontierSiteShellTestParity_AFP_V0_3122` holds the shell-test rule.
 - `TestDriverFrontierBoundParity_AFP_V0_3124` in `internal/gateselect` holds the selector parity.
 
 `TestDriverAlternativeMakeValues_AZU_V0_9702` and `TestDriverMakeFunctionsComputed_AZU_V0_9850`
 now assert the exact edge and an unrelated path's exclusion where the value is definite, and the
 retained site where it is not. The 20-merge selmeasure replay at `538e823f4` is in
 `docs/build-log/2026-11-07-selfloor.md`:
-- `FRONTIER_SITE` units fell from 1,573 to 81, and selected units from 6,876 to 5,405;
+- `FRONTIER_SITE` units fell from 1,573 to 834, and selected units from 6,876 to 6,160;
 - test files are unchanged, because driver units carry none;
-- every dropped unit is a driver unit that only the frontier claim reached;
-- no unit was added, and no unknown entry or scope changed.
+- all 716 dropped units are make targets that only the frontier claim reached. Each runs only
+  shell test scripts or certified commands;
+- no unit was added, and no unknown entry or scope changed;
+- every check over repository files, such as `eol-policy-check` or `binary-blobs-check`, keeps
+  its claim.
 
 Rollback reverts the lane's code commit. That restores collapsing every unrepresentable or
 alternative make value into a computed site, with no wire or receipt change.
@@ -547,9 +584,9 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9851 | PR #99 finding C | `TestDriverEnvChdirComputed_AZU_V0_9851` |
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
-| AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120` |
+| AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120`, `TestFrontierSiteFileStatementKeepsClaim_AFP_V0_3120` |
 | AFP-V0-3121 | V1-5000 | `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
-| AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
+| AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 
