@@ -2,6 +2,11 @@
   "profile": "corvint-runtime-edges/0",
   "edges": [
     {
+      "tests": ".github/macos/select_test.py",
+      "runs": "python:.github.macos.darwin_select",
+      "reason": "select_test.py dynamically loads darwin_select.py with importlib.util.spec_from_file_location; the native Darwin inventory and narrowing tests exercise this helper (AZU-V0-9920)."
+    },
+    {
       "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
       "runs": "go:github.com/Beamfall/corvint/cmd/corvint-console",
       "reason": "The installed interactive-alpha proof (internal/companionrelease, roadmap-proof.mjs) runs this Playwright spec against the console corvint-console serves (V1-3571)."

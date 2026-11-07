@@ -8,12 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // Terminal outcomes of one execution unit (STR-V0-010).
@@ -462,7 +465,44 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 		return "", "", errors.New("runner version cannot be read")
 	}
 	if invocation.Adapter == AdapterGo {
-		listed, err := r.probe(ctx, deadline, runner, invocation.Dir, env, "list", "./...")
+		args := []string{"list", "./..."}
+		if invocation.Dir == "" {
+			// ./... skips dot directories. The graph explicitly indexes CI
+			// helpers (AZU-V0-9920). Even ./.github/... skips its dot-named
+			// root, so list the child directories explicitly. Enumerate them
+			// independently of the plan to detect unplanned helpers too.
+			for _, pkg := range r.Universe {
+				if strings.Contains(pkg, "/.github/") || strings.HasSuffix(pkg, "/.github") {
+					children, err := os.ReadDir(filepath.Join(r.Root, ".github"))
+					if err != nil {
+						return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
+					}
+					for _, child := range children {
+						name := child.Name()
+						if !child.IsDir() || strings.HasPrefix(name, ".") || affected.SkippedDirectories[name] || name == "testdata" {
+							continue
+						}
+						// FilesUnder skips these directories, and the graph gives
+						// a nested go.mod its own module boundary. A recursive
+						// pattern rooted at that boundary is outside the root module.
+						if _, err := os.Lstat(filepath.Join(r.Root, ".github", name, "go.mod")); err == nil {
+							continue
+						} else if !errors.Is(err, os.ErrNotExist) {
+							return "", "", errors.New("go list ./... failed; the Go universe cannot be confirmed")
+						}
+						args = append(args, "./.github/"+name+"/...")
+					}
+					for _, candidate := range r.Universe {
+						if strings.HasSuffix(candidate, "/.github") {
+							args = append(args, "./.github")
+							break
+						}
+					}
+					break
+				}
+			}
+		}
+		listed, err := r.probe(ctx, deadline, runner, invocation.Dir, env, args...)
 		if errors.Is(err, errDiscoveryBudget) {
 			return "", "", err
 		}

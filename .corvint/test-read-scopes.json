@@ -1,6 +1,8 @@
 {
   "profile": "corvint-test-read-scopes/0",
   "packages": {
+    ".github/cishards": [],
+    ".github/testconfine/cmd": [],
     "benchmarks": [
       "docs/specs/lsp-qualification-evaluation-policy-v0.json",
       "go.mod",

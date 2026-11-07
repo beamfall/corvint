@@ -417,6 +417,9 @@ AZU-V0-8905	docs/specs/affected-zero-unknown-v0.md	**Absent driver identity pari
 AZU-V0-9900	docs/specs/affected-zero-unknown-v0.md	Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**	unrecorded	-
 AZU-V0-9901	docs/specs/affected-zero-unknown-v0.md	Committed ownership guidance and fixture closure.** A committed	unrecorded	-
 AZU-V0-9902	docs/specs/affected-zero-unknown-v0.md	One audit classifier.** The CLI and maintained ratchet SHALL use the same	unrecorded	-
+AZU-V0-9920	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); fullplan charter	standing	2026-10-11; 2026-11-05
+AZU-V0-9921	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); fullplan charter	standing	2026-10-11; 2026-11-05
+AZU-V0-9922	docs/specs/affected-zero-unknown-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); fullplan charter	standing	2026-10-11; 2026-11-05
 AHI-7500	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4142) One Clau	standing	2026-10-11; V1-4142
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
@@ -7073,7 +7076,7 @@ STR-V0-060	docs/specs/session-test-runner-v0.md	(accepted under the owner's stan
 STR-V0-061	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708)	standing	2026-10-11; V1-2708
 STR-V0-062	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2808) An	standing	2026-10-11; V1-2808
 STR-V0-063	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2806) A	standing	2026-10-11; V1-2806
-STR-V0-069	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2988) The	standing	2026-10-11; V1-2988
+STR-V0-069	docs/specs/session-test-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2988; ame	standing	2026-10-11; V1-2988; 2026-11-05
 STR-V0-064	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2980)	standing	2026-10-11; V1-2980
 STR-V0-750	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4008;	standing	2026-10-11; V1-4008
 STR-V0-070	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-2998), amendin	standing	2026-10-28; V1-2998

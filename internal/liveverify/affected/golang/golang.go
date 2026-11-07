@@ -158,6 +158,17 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if includedDirectoryBounded {
 		frontier[FrontierIncludedDirectoryWalkBounded] = true
 	}
+	// CI helpers are first-party packages even though the shared walk skips
+	// dot directories. FilesUnder retains the same cache stamps and bounds
+	// for disk and immutable sources (AZU-V0-9920).
+	helpers, err := root.FilesUnder(".github", func(name string) bool {
+		return strings.HasSuffix(name, ".go") || name == "go.mod"
+	})
+	if err != nil {
+		return affected.Result{}, err
+	}
+	observed = append(observed, helpers...)
+	slices.Sort(observed)
 	files := make([]string, 0, len(observed))
 	manifests := make([]string, 0, len(observed))
 	for _, relative := range observed {

@@ -55,7 +55,7 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	if code := run(root, "Makefile", declaration, &stdout, &stderr); code != 0 {
 		t.Fatalf("repository declaration: code %d\n%s", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); ledger/go-test runs the declared go.env and go.flags through gate-ledger; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 2 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin python ruby rust swift]") {
+	if !strings.Contains(stdout.String(), "Makefile go-test is exactly `go run ./tools/test-commands-run`, which runs .github/cishards/test-commands.json (GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go test -p 1 -timeout 30m -count=1 ./... in the repository root); ledger/go-test runs the declared go.env and go.flags through gate-ledger; no SHELL, .SHELLFLAGS, MAKEFLAGS or go-test variable in the Makefile; 2 declared make targets dry-run; no make gate step recipe runs a suite of [dotnet kotlin ruby rust swift]") {
 		t.Fatalf("stdout %q", stdout.String())
 	}
 	// Every mutation is a readable declaration (the reader is not what fails)

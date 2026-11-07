@@ -100,13 +100,21 @@ func (graph *Graph) nonSourceEntry(path string) int {
 	return -1
 }
 
+// declaredUnindexedOutput gives project-owned output declarations precedence
+// over suffix-only language claims. Indexed units, driver inputs and task
+// projections retain their source/ownership treatment (AZU-V0-9921).
+func (graph *Graph) declaredUnindexedOutput(path string) bool {
+	return graph.owner[path] == "" && !DriverInput(path) && !IsTaskStoreProjectionPath(path) && graph.nonSourceEntry(path) >= 0
+}
+
 // nonSourcePaths removes, from the unknown entries left after
 // runtimeReaderPaths, each UNOWNED_DIRTY_PATH entry whose path a declared entry
 // holds, and returns those paths as one ClassDeclaredNonSource group per entry,
 // in declaration order (AZU-V0-002). The reader rules ran before this step, so
-// every unit they name stays selected. A path a plugin claims as source, a
-// frontier entry, a task store projection and a driver input are never
-// reclassified. The class is kept out of the frontier rules' non-source set,
+// every unit they name stays selected. Project declarations outrank a suffix-only
+// claim on unindexed output (AZU-V0-9921). An indexed source, frontier entry,
+// task store projection and driver input are never reclassified. The class is
+// kept out of the frontier rules' non-source set,
 // so a declared path still bears the AFP-V0-511 cascade like an unowned one.
 func (graph *Graph) nonSourcePaths(unknown []Unknown) ([]NonSource, []Unknown) {
 	if len(graph.nonSource) == 0 {
