@@ -413,6 +413,10 @@ AFP-V0-3121	docs/specs/affected-zero-unknown-v0.md	**Evaluated make alternatives
 AFP-V0-3122	docs/specs/affected-zero-unknown-v0.md	**Claims only within a certified read set.** (experimental, owner lane selfloor	unrecorded	-
 AFP-V0-3123	docs/specs/affected-zero-unknown-v0.md	**Unbounded sites keep claiming.** (experimental, owner lane selfloor charter	unrecorded	-
 AFP-V0-3124	docs/specs/affected-zero-unknown-v0.md	**Selector parity.** (experimental, owner lane selfloor charter 2026-11-07,	unrecorded	-
+AFP-V0-3125	docs/specs/affected-zero-unknown-v0.md	**Values where make reads them.** (experimental, owner lane selfloor review	unrecorded	-
+AFP-V0-3126	docs/specs/affected-zero-unknown-v0.md	**Target-specific values survive global assignments.** (experimental, owner	unrecorded	-
+AFP-V0-3127	docs/specs/affected-zero-unknown-v0.md	**Make-reading commands run for every target.** (experimental, owner lane	unrecorded	-
+AFP-V0-3128	docs/specs/affected-zero-unknown-v0.md	**Operand-bounded commands.** (experimental, owner lane selfloor review round 1	unrecorded	-
 AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
 AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	**Constructed foreign callers.** The shell caller completeness guard SHALL rejec	unrecorded	-
 AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
