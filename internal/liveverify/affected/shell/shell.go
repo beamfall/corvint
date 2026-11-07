@@ -266,10 +266,6 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
-	// environment holds each source command no literal or fresh directory
-	// resolved; it is a dynamic source unless AFP-V0-2953 admits every one
-	// of them as an environment-named source (environmentSources).
-	var environment []int
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	// computed links a run target or expands it as a computed name
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
@@ -288,8 +284,11 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		word, args := commandWord(plainWords(commands[index].words))
 		switch {
 		case word == "source" || word == ".":
+			// A source no literal or fresh directory resolves is dynamic,
+			// an environment-named one (`. "$ENVFILE"`) included: nothing in
+			// the file bounds what the caller's value names (AFP-V0-2953).
 			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) {
-				environment = append(environment, index)
+				dynamic = true
 			}
 		case word == "load" && loads:
 			if len(args) == 0 || !resolve.link(unquote(args[0]), []string{"", ".bash"}, known, edges) {
@@ -314,9 +313,6 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
 		}
-	}
-	if len(environment) != 0 && !environmentSources(resolve, parsed, text, environment, commands) {
-		dynamic = true
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)

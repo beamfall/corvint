@@ -19,12 +19,12 @@ import (
 func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 	base := map[string]string{
 		"t/build_test.sh":     "go build ./tool\n",
-		"t/dynamic_test.sh":   "go build ./tool\n. \"$ENVDIR/env.sh\"\n",
+		"t/dynamic_test.sh":   "go build ./tool\n. \"$ENVFILE\"\n",
 		"t/plain_test.sh":     "echo plain\n",
 		"t/helped_test.sh":    "go build ./tool\n. lib/dynamic.sh\n",
 		"t/twohop_test.sh":    "go build ./tool\n. lib/outer.sh\n",
 		"lib/outer.sh":        ". lib/dynamic.sh\n",
-		"lib/dynamic.sh":      ". \"$DYNAMIC/x.sh\"\n",
+		"lib/dynamic.sh":      ". \"$DYNAMIC\"\n",
 		"t/notes.txt":         "beside the test\n",
 		"script/helper.sh":    "echo helper\n",
 		"tool/main.txt":       "what the toolchain reads\n",
@@ -142,7 +142,7 @@ func TestShellReadScopeEntryInvalidAlone_TSP_V0_831(t *testing.T) {
 		"t/build_test.sh":  "go build ./tool\n",
 		"t/helped_test.sh": "go build ./tool\n. lib/dynamic.sh\n",
 		"t/plain_test.sh":  "echo plain\n",
-		"lib/dynamic.sh":   ". \"$DYNAMIC/x.sh\"\n",
+		"lib/dynamic.sh":   ". \"$DYNAMIC\"\n",
 		"tool/main.txt":    "what the toolchain reads\n",
 	}
 	for _, tc := range []struct {

@@ -45,12 +45,6 @@
       ],
       "reason": "Outside script/, it runs go build ./cmd/corvint and ./tools/dogfood-guard-hunks, whose only non-standard packages are under internal/; the wrapper runs on a copy in a temporary repository (V1-3616)."
     },
-    "script/dogfood-cache_test.sh": {
-      "reads": [
-        "Makefile"
-      ],
-      "reason": "Outside script/, it copies the Makefile into a temporary repository, runs make there with stub tools and parses two Makefile recipes with awk; the dogfood wrappers it names are its own directory's scripts (AFP-V0-2955, V1-4283)."
-    },
     "script/dogfood-change_test.sh": {
       "reads": [
         ".github/cishards/",
