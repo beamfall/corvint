@@ -1,0 +1,39 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=a4bc2823c7771c04b21c817666e98e2c70936a5c dirty=36
+heavy.sh: slot 2/8 after 0s
+=== RUN   TestTCLV0869_WorktreeSnapshotRefusesAMovingTree
+=== RUN   TestTCLV0869_WorktreeSnapshotRefusesAMovingTree/moving
+=== RUN   TestTCLV0869_WorktreeSnapshotRefusesAMovingTree/settles
+--- PASS: TestTCLV0869_WorktreeSnapshotRefusesAMovingTree (0.02s)
+    --- PASS: TestTCLV0869_WorktreeSnapshotRefusesAMovingTree/moving (0.01s)
+    --- PASS: TestTCLV0869_WorktreeSnapshotRefusesAMovingTree/settles (0.01s)
+=== RUN   TestCAPV0042EveryTreeNodeAnswersHelp
+--- PASS: TestCAPV0042EveryTreeNodeAnswersHelp (0.19s)
+=== RUN   TestCAPV0046HelpJSONIsTheTree
+--- PASS: TestCAPV0046HelpJSONIsTheTree (0.01s)
+=== RUN   TestTEAV07100_EvidenceRetentionGuidance
+=== RUN   TestTEAV07100_EvidenceRetentionGuidance/complete-manual
+=== RUN   TestTEAV07100_EvidenceRetentionGuidance/attach-evidence
+--- PASS: TestTEAV07100_EvidenceRetentionGuidance (0.41s)
+    --- PASS: TestTEAV07100_EvidenceRetentionGuidance/complete-manual (0.00s)
+    --- PASS: TestTEAV07100_EvidenceRetentionGuidance/attach-evidence (0.00s)
+=== RUN   TestTCLV07100_ReceiptPutResolvesEnvCwd
+--- PASS: TestTCLV07100_ReceiptPutResolvesEnvCwd (0.36s)
+=== RUN   TestTCLV07101_GateArgumentNamesLimit
+--- PASS: TestTCLV07101_GateArgumentNamesLimit (0.00s)
+=== RUN   TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt
+--- PASS: TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt (0.78s)
+=== RUN   TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt
+--- PASS: TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt (0.62s)
+=== RUN   TestTCLV0820_BoundedAuditRestoresElidedReceipts
+--- PASS: TestTCLV0820_BoundedAuditRestoresElidedReceipts (0.63s)
+=== RUN   TestTCLV0869_SnapshotValidatesAWorktreeStore
+--- PASS: TestTCLV0869_SnapshotValidatesAWorktreeStore (0.48s)
+=== RUN   TestTCLV07102_AuditExplicitWorktreeProjection
+--- PASS: TestTCLV07102_AuditExplicitWorktreeProjection (0.30s)
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/cli	3.835s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=12.7s rc=0

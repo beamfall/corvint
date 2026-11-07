@@ -1,0 +1,121 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=686c279a84c21a0839b1fc033f0683a1f434fee8 dirty=10
+heavy.sh: slot 2/8 after 0s
+=== RUN   TestCALV0018_SequenceCapacityPrefixes
+=== RUN   TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes
+=== RUN   TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes/false
+=== RUN   TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes/true
+--- PASS: TestCALV0018_SequenceCapacityPrefixes (0.76s)
+    --- PASS: TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes (0.76s)
+        --- PASS: TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes/false (0.24s)
+        --- PASS: TestCALV0018_SequenceCapacityPrefixes/CAL-V0-018_exact_capacity_prefixes/true (0.52s)
+=== RUN   TestCALV0018_ReserveProbeOwnership
+=== RUN   TestCALV0018_ReserveProbeOwnership/CAL-V0-018_reserve_probe_ownership
+--- PASS: TestCALV0018_ReserveProbeOwnership (0.03s)
+    --- PASS: TestCALV0018_ReserveProbeOwnership/CAL-V0-018_reserve_probe_ownership (0.03s)
+=== RUN   TestCALV0018_SequenceMixedBatches
+=== RUN   TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes
+=== RUN   TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes/false
+=== RUN   TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes/true
+--- PASS: TestCALV0018_SequenceMixedBatches (0.10s)
+    --- PASS: TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes (0.10s)
+        --- PASS: TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes/false (0.04s)
+        --- PASS: TestCALV0018_SequenceMixedBatches/CAL-V0-018_mixed_batch_prefixes/true (0.06s)
+=== RUN   TestCALV0018_SequenceParityAndOwnership
+=== RUN   TestCALV0018_SequenceParityAndOwnership/CAL-V0-018_sequence_parity
+--- PASS: TestCALV0018_SequenceParityAndOwnership (0.01s)
+    --- PASS: TestCALV0018_SequenceParityAndOwnership/CAL-V0-018_sequence_parity (0.01s)
+=== RUN   TestCALV0018_SequenceRefusalParity
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/native-holder
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/revision
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/actor
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/branch
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/replay
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/queue
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/clock
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/fold-store
+=== RUN   TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/fold-batch
+--- PASS: TestCALV0018_SequenceRefusalParity (0.02s)
+    --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity (0.02s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/native-holder (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/revision (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/actor (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/branch (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/replay (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/queue (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/clock (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/fold-store (0.00s)
+        --- PASS: TestCALV0018_SequenceRefusalParity/CAL-V0-018_refusal_parity/fold-batch (0.00s)
+=== RUN   TestCALV0018_SequenceInvalidation
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/head
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/receipt
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/queue
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/policy
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/barrier
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/reservations
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/pending
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/foreign-token
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/close
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/actor
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-head
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-queue
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-ticket
+=== RUN   TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-inventory
+--- PASS: TestCALV0018_SequenceInvalidation (0.03s)
+    --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation (0.03s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/head (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/receipt (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/queue (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/policy (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/barrier (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/reservations (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/pending (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/foreign-token (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/close (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/actor (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-head (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-queue (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-ticket (0.00s)
+        --- PASS: TestCALV0018_SequenceInvalidation/CAL-V0-018_cursor_invalidation/seed-inventory (0.00s)
+=== RUN   TestCALV0018_SequenceBatchGrowth
+=== RUN   TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts
+=== RUN   TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/1
+=== RUN   TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/16
+=== RUN   TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/64
+--- PASS: TestCALV0018_SequenceBatchGrowth (0.09s)
+    --- PASS: TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts (0.09s)
+        --- PASS: TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/1 (0.00s)
+        --- PASS: TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/16 (0.02s)
+        --- PASS: TestCALV0018_SequenceBatchGrowth/CAL-V0-018_growing_batch_counts/64 (0.07s)
+=== RUN   TestCALV0018_SequenceInventoryBoundaries
+=== RUN   TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries
+=== RUN   TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries/fold-cross-batch
+=== RUN   TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries/ticket-limit
+--- PASS: TestCALV0018_SequenceInventoryBoundaries (4.43s)
+    --- PASS: TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries (4.43s)
+        --- PASS: TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries/fold-cross-batch (0.00s)
+        --- PASS: TestCALV0018_SequenceInventoryBoundaries/CAL-V0-018_incremental_inventory_boundaries/ticket-limit (4.42s)
+goos: linux
+goarch: amd64
+pkg: github.com/Beamfall/corvint/internal/tasks/transaction
+cpu: AMD Ryzen 9 5950X 16-Core Processor
+BenchmarkCALV0018_ImportBatchModel
+BenchmarkCALV0018_ImportBatchModel/full/tickets=500
+BenchmarkCALV0018_ImportBatchModel/full/tickets=500-32         	      20	  63164698 ns/op
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=500
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=500-32     	      20	   3037961 ns/op
+BenchmarkCALV0018_ImportBatchModel/full/tickets=1500
+BenchmarkCALV0018_ImportBatchModel/full/tickets=1500-32        	      20	 194976911 ns/op
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=1500
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=1500-32    	      20	   1900742 ns/op
+BenchmarkCALV0018_ImportBatchModel/full/tickets=3000
+BenchmarkCALV0018_ImportBatchModel/full/tickets=3000-32        	      20	 417974571 ns/op
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=3000
+BenchmarkCALV0018_ImportBatchModel/sequence/tickets=3000-32    	      20	   1621624 ns/op
+PASS
+ok  	github.com/Beamfall/corvint/internal/tasks/transaction	21.387s
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=23.6s rc=0

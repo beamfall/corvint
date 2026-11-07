@@ -18,7 +18,7 @@ import (
 // repository. Caller cancellation stays `cancelled` and every other Git failure keeps
 // `repository-unavailable`. The CEM read is injected through the cemReport operation seam.
 func TestMCPV0038CEMGitTimeoutHasDistinctCode(t *testing.T) {
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}
