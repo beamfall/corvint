@@ -54,7 +54,11 @@ needs, and each keeps a negative control that still refuses or runs everything.
   command arguments and GOFLAGS, from one explicit table assigning each flag boolean or
   one-value arity. Boolean flags consume no separate operand; value flags accept both -f=v
   and -f v (GOFLAGS requires inline values). Only recognized selection positions contribute
-  to last-wins -run resolution. Unknown forms, including future debug flags and unlisted
+  to last-wins -run resolution. Package collectors MUST consume operands using that same
+  table for both spellings. The understood command grammar permits flags before and after
+  one contiguous package list. A positional word after a flag following that list starts
+  an uncertified test-binary tail; neither selection scanner may use it or later flags
+  to certify whole or narrow admission. Unknown forms, including future debug flags and unlisted
   build or test-binary flags, MUST NOT prove whole or narrow selection: an explicit whole
   reason is required or the run is refused. Valid repeated narrow selections remain admitted.
   The value-taking debug-actiongraph, debug-runtime-trace and debug-trace flags MUST consume their
