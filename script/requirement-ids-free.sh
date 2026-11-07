@@ -2,12 +2,15 @@
 # usage: script/requirement-ids-free.sh PREFIX LO HI [REF]
 #        script/requirement-ids-free.sh PREFIX [REF]
 #
-# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI (three- or four-digit numbers) are free in REF's
-# tree (default origin/main), so a lane charter never names a block already in use (ASD-V0-960,
-# V1-3472). Each ID some tracked file at REF names prints as `used ID PATH:LINE` (its first
+# Reports whether the requirement IDs PREFIX-LO..PREFIX-HI are free in REF's tree (default
+# origin/main), so a lane charter never names a block already in use (ASD-V0-960, V1-3472). LO and
+# HI are 0..9999 (LVT-V0-001, V1-4046): an ID is spelled canonically, zero-padded to three digits
+# below 1000 and unpadded from 1000, so PREFIX-0480 is not PREFIX-480 and PREFIX-2480 is not
+# PREFIX-248. Each ID some tracked file at REF names prints as `used ID PATH:LINE` (its first
 # occurrence) and the exit is 1; otherwise one `free PREFIX-LO..PREFIX-HI at REF (SHA)` line and
 # exit 0. A malformed input or a REF that is not a commit exits 2 naming it. It reads only Git
-# objects: the worktree, the index and unpushed branches other than REF are not consulted.
+# objects: the worktree, the index and unpushed branches other than REF are not consulted;
+# `make requirement-ids-free` adds the open-ref and reservation checks (LVT-V0-002, LVT-V0-004).
 #
 # With no range, PREFIX is a new family a charter wants to claim (ASD-V0-962, V1-3472): any row of
 # REF's docs/specs/REQUIREMENTS.tsv in that family refuses it with `used-prefix PREFIX` and exit 1,
@@ -17,6 +20,12 @@ set -uo pipefail
 export LC_ALL=C
 
 usage='usage: script/requirement-ids-free.sh PREFIX LO HI [REF] (for example DCW-V0 960 979 origin/main), or PREFIX [REF] for a new prefix'
+if [[ ${1:-} == --help ]]; then
+  printf '%s\n' "$usage" \
+    'PREFIX is required; optional LO HI select canonical IDs in 0..9999.' \
+    'Example: make requirement-ids-free PREFIX=AFP-V0 RANGE=2600..2619 OWNER=lane-a'
+  exit 0
+fi
 if (($# < 1 || $# > 4)); then
   printf 'requirement-ids-free: REFUSE bad-arguments\n%s\n' "$usage" >&2
   exit 2
@@ -39,6 +48,13 @@ if (($# <= 2)); then
   }
   rows=$(git show "$sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null) || {
     printf 'requirement-ids-free: REFUSE requirements-index-unavailable: %s has no docs/specs/REQUIREMENTS.tsv\n' "$ref" >&2
+    exit 2
+  }
+  awk -F'\t' '
+    NR == 1 && $1 == "id" && $2 == "file" && $3 == "title" { next }
+    NF < 3 || $1 !~ /^[A-Z][A-Z0-9-]*-[0-9]+$/ || $2 !~ /^docs\/specs\/.+[.]md$/ { bad = 1 }
+    END { exit bad || NR == 0 }' <<< "$rows" || {
+    printf 'requirement-ids-free: REFUSE requirements-index-unavailable: %s has a malformed docs/specs/REQUIREMENTS.tsv; run make spec-requirements before allocating a prefix\n' "$ref" >&2
     exit 2
   }
   # family is the prefix up to a trailing -V<n> version; a new prefix must not reuse any version of it.
@@ -76,11 +92,26 @@ sha=$(git rev-parse --verify -q --end-of-options "$ref^{commit}") || {
 }
 lo=$((10#$lo)) hi=$((10#$hi))
 # git grep prints SHA:PATH:LINE:MATCH; a path may hold ':' and MATCH may start with one, so the
-# parse anchors on LINE:, the one leading byte and the ID at the end. The leading byte keeps XDCW-V0-960 from counting as DCW-V0-960; four digits never match.
+# parse anchors on LINE:, the one leading byte and the ID at the end. The leading byte keeps
+# XDCW-V0-960 from counting as DCW-V0-960; only the canonical spelling of a number counts
+# (LVT-V0-001), so DCW-V0-0960 and DCW-V0-9600 are not DCW-V0-960.
 # git grep exits 1 when nothing matches, which is a free range, not a failure.
 matches=$(mktemp "${TMPDIR:-/tmp}/requirement-ids-free.XXXXXX") || exit 2
 trap '/bin/rm -f "$matches"' EXIT
-git grep -I -n -o -E "(^|[^A-Za-z0-9])$prefix-[0-9]+" "$sha" -- . > "$matches"
+# NUL-delimited path/line fields preserve colons in paths; Perl lookarounds compare full
+# tokens without consuming the separator needed by an adjacent ID.
+git grep -I -n -z -E "(^|[^A-Za-z0-9_-])$prefix-[0-9]+" "$sha" -- . |
+  PREFIX="$prefix" perl -e '
+    my $prefix = quotemeta $ENV{PREFIX};
+    while (defined(my $path = do { local $/ = "\0"; <STDIN> })) {
+      $path =~ s/\0$//;
+      my $line = do { local $/ = "\0"; <STDIN> };
+      defined $line or exit 2; $line =~ s/\0$//;
+      my $text = <STDIN>; defined $text or exit 2;
+      while ($text =~ /(?<![A-Za-z0-9_-])($prefix-[0-9]+)(?![A-Za-z0-9_-])/g) {
+        print "$path:$line:$1\n";
+      }
+    }' > "$matches"
 status=$?
 if ((status > 1)); then
   printf 'requirement-ids-free: REFUSE search-failed git-grep-status=%d\n' "$status" >&2
@@ -97,7 +128,7 @@ used=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v sha="$sha:" '
       id = substr(rest, index(rest, ":") + 1)
       id = substr(id, index(id, prefix))
       number = substr(id, length(prefix) + 1)
-      if ((length(number) != 3 && length(number) != 4) || number + 0 < lo || number + 0 > hi || seen[id]++) next
+      if (number != sprintf("%03d", number + 0) || number + 0 < lo || number + 0 > hi || seen[id]++) next
       print "used " id " " path ":" line
     }' "$matches" | sort) || exit 2
 range=$(printf '%s-%03d..%s-%03d' "$prefix" "$lo" "$prefix" "$hi")
@@ -107,10 +138,10 @@ if [[ -n $used ]]; then
     "$(printf '%s\n' "$used" | wc -l | tr -d ' ')" $((hi - lo + 1)) "$range" "$ref" "${sha:0:12}" >&2
   # ASD-V0-660 (V1-3876): name the first block of the same width that no tracked file at REF uses,
   # above HI and then below LO, so a collided charter block has a checked alternative.
-  next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v ceiling="$((hi > 999 ? 10000 : 1000))" '
+  next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
       match($0, prefix "[0-9]+$") {
         number = substr($0, RSTART + length(prefix))
-        if (length(number) == 3 || length(number) == 4) taken[number + 0] = 1
+        if (number == sprintf("%03d", number + 0)) taken[number + 0] = 1
       }
       function free(start,   n) {
         for (n = start; n < start + width; n++) if (n in taken) return 0
@@ -118,7 +149,7 @@ if [[ -n $used ]]; then
       }
       END {
         width = hi - lo + 1
-        for (s = hi + 1; s + width <= ceiling; s++) if (free(s)) { print s, s + width - 1; exit }
+        for (s = hi + 1; s + width <= 10000; s++) if (free(s)) { print s, s + width - 1; exit }
         for (s = 0; s + width <= lo; s++) if (free(s)) { print s, s + width - 1; exit }
       }' "$matches") || exit 2
   if [[ -n $next ]]; then

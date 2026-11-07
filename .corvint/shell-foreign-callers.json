@@ -148,6 +148,7 @@
         "internal/liveverify/affected/golang/golang_test.go",
         "internal/liveverify/affected/shell/shell_test.go",
         "script/batch-precheck_test.sh",
+        "script/check-fixed-tmp-paths_test.sh",
         "script/dogfood-cache_test.sh",
         "script/no-python-runtime-dependency_test.sh",
         "script/repin-use-case-receipts_test.sh",
