@@ -4700,11 +4700,12 @@ selected package unrun. The full fallback is unchanged.
   path. The entry stays, and the plan stays `UNKNOWN`, for a graph with no disk root (an `fs.FS`
   graph), a path present on disk (a new or build-excluded file whose imports the graph cannot
   see), a deleted path whose directory holds no observed package, and a deleted non-test Go file,
-  whose loss can change what other packages compile against beyond the graph's view of it.
+  whose loss can change what other packages compile against beyond the graph's view of it (the
+  last case is amended by AFP-V0-2610 in `affected-plan-selection-v0.md`).
   Failure mode: a graph observed from a checkout other than the one the dirty paths describe would
   read absence from the wrong tree; every caller builds the graph from the checkout it diffs.
   Falsifier: a moved or deleted `_test.go` path whose test outcome changes in a package the plan
-  excludes. Rollback: drop the `deletedGoTest` check in `seed`; the path raises
+  excludes. Rollback: drop the `deletedGoSource` check in `seed`; the path raises
   `UNINDEXED_SOURCE_PATH` again.
 
 - **AFP-V0-820:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
