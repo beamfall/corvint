@@ -15,7 +15,8 @@ import (
 // comparisonOnlyLocators proves the small non-reading cases of AZU-V0-9930 and
 // AFP-V0-2950: an `os.Getwd` result bound to a local variable whose every
 // other use compares it with a string literal or joins it, as the first
-// argument of `filepath.Join` or `path.Join`, with literal plain components.
+// argument of `filepath.Join` or `path.Join`, with literal plain components,
+// into a path only a read at or below it consumes (boundedJoinConsumed).
 // Each bounded join contributes the root-anchored token of its literal
 // components (`/docs/guide.md`), returned sorted and unique in joined, so a
 // change at or below the joined path selects the package as a rule (c) reader
@@ -42,6 +43,21 @@ func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe
 	}
 	safe = map[int]bool{}
 	anchored := map[string]bool{}
+	// parents maps every node to its enclosing node, so a bounded join's
+	// consumers can be followed (boundedJoinConsumed).
+	parents := map[ast.Node]ast.Node{}
+	var stack []ast.Node
+	ast.Inspect(file, func(node ast.Node) bool {
+		if node == nil {
+			stack = stack[:len(stack)-1]
+			return false
+		}
+		if len(stack) != 0 {
+			parents[node] = stack[len(stack)-1]
+		}
+		stack = append(stack, node)
+		return true
+	})
 	packageLevel := map[*ast.ValueSpec]bool{}
 	for _, declaration := range file.Decls {
 		if general, ok := declaration.(*ast.GenDecl); ok && general.Tok == token.VAR {
@@ -102,8 +118,11 @@ func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe
 					}
 				case *ast.CallExpr:
 					// AFP-V0-2950: the root is the first argument of a join
-					// whose other arguments are literal plain components.
-					if joinedPath, ok := boundedJoin(expression, use, joins); ok {
+					// whose other arguments are literal plain components,
+					// and only a read at or below the joined path consumes
+					// the result: a `filepath.Dir`, a further join, a return
+					// or any other consumer could widen it.
+					if joinedPath, ok := boundedJoin(expression, use, joins); ok && boundedJoinConsumed(file, expression, parents, aliases, packageLevel) {
 						paths = append(paths, joinedPath)
 					} else {
 						bounded = false
@@ -159,6 +178,86 @@ func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe
 var pathJoinFuncs = map[string]map[string]bool{
 	"path/filepath": {"Join": true},
 	"path":          {"Join": true},
+}
+
+// boundedReadFuncs names the `os` calls whose one path argument they read at
+// or below and whose results carry no path that could climb above it: file
+// contents, a FileInfo (its Name is a base name) and DirEntry base names.
+// `os.Open` is not one (the File's Name returns the path), nor is a walk,
+// whose callback receives the path.
+var boundedReadFuncs = map[string]bool{"ReadFile": true, "Stat": true, "Lstat": true, "ReadDir": true}
+
+// boundedJoinConsumed reports a bounded join whose result only a read at or
+// below the joined path consumes (AFP-V0-2950): it is the one argument of a
+// boundedReadFuncs call (under the local name the file's import gives `os`),
+// or the value of a `:=` or `var` binding of one local variable, never rebound
+// or addressed, whose every use is such an argument or an operand of `==` or
+// `!=` against a string literal. Any other consumer may widen the path
+// (`filepath.Dir(p)`, `filepath.Join(p, "..")`, a return, a call, a field), so
+// the proof refuses it and the package stays a root locator.
+func boundedJoinConsumed(file *ast.File, call *ast.CallExpr, parents map[ast.Node]ast.Node, aliases map[string]string, packageLevel map[*ast.ValueSpec]bool) bool {
+	consumer := parents[call]
+	if boundedRead(consumer, call, aliases) {
+		return true
+	}
+	var variable *ast.Ident
+	switch binding := consumer.(type) {
+	case *ast.AssignStmt:
+		if binding.Tok != token.DEFINE || len(binding.Lhs) != 1 || len(binding.Rhs) != 1 || binding.Rhs[0] != call {
+			return false
+		}
+		variable, _ = binding.Lhs[0].(*ast.Ident)
+	case *ast.ValueSpec:
+		if packageLevel[binding] || len(binding.Names) != 1 || len(binding.Values) != 1 || binding.Values[0] != call {
+			return false
+		}
+		variable = binding.Names[0]
+	default:
+		return false
+	}
+	if variable == nil || variable.Name == "_" || variable.Obj == nil || variable.Obj.Decl != consumer {
+		return false
+	}
+	consumed := true
+	ast.Inspect(file, func(node ast.Node) bool {
+		use, ok := node.(*ast.Ident)
+		if !consumed || !ok || use == variable || use.Obj != variable.Obj {
+			return consumed
+		}
+		consumed = boundedRead(parents[use], use, aliases) || literalComparison(parents[use], use)
+		return consumed
+	})
+	return consumed
+}
+
+// boundedRead reports a call of a boundedReadFuncs function whose only
+// argument is argument.
+func boundedRead(consumer ast.Node, argument ast.Expr, aliases map[string]string) bool {
+	call, ok := consumer.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 || call.Args[0] != argument || call.Ellipsis.IsValid() {
+		return false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	qualifier, ok := selector.X.(*ast.Ident)
+	return ok && qualifier.Obj == nil && aliases[qualifier.Name] == "os" && boundedReadFuncs[selector.Sel.Name]
+}
+
+// literalComparison reports an `==` or `!=` comparison of use with a string
+// literal.
+func literalComparison(consumer ast.Node, use ast.Expr) bool {
+	expression, ok := consumer.(*ast.BinaryExpr)
+	if !ok || expression.Op != token.EQL && expression.Op != token.NEQ {
+		return false
+	}
+	other := expression.X
+	if other == use {
+		other = expression.Y
+	}
+	literal, ok := other.(*ast.BasicLit)
+	return ok && literal.Kind == token.STRING
 }
 
 // localDeclaration reports a variable declared by a short variable
