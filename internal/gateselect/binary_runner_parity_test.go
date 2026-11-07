@@ -93,7 +93,7 @@ func TestExecutionEdgeParity_AFPV02992(t *testing.T) {
 		"deep/sub/climber_test.go":        "package sub\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestBuild(t *testing.T) { _ = exec.Command(\"go\", \"build\", \"../../tool\").Run() }\n",
 		"declared/d.go":                   "package declared\n",
 		"declared/d_test.go":              "package declared\n\nimport (\n\t\"flag\"\n\t\"os/exec\"\n\t\"testing\"\n)\n\nvar binary = flag.String(\"binary\", \"\", \"\")\n\nfunc TestRuns(t *testing.T) { _ = exec.Command(*binary).Run() }\n",
-		".corvint/test-binary-execs.json": "{\"profile\":\"corvint-test-binary-execs/0\",\"packages\":{\"declared\":[\"tool\"]}}\n",
+		".corvint/test-binary-execs.json": "{\"profile\":\"corvint-test-binary-execs/0\",\"packages\":{\"declared\":[\"tool\"]}}\n", //corvint:fixture-path
 		"quiet/main.go":                   "package main\n\nfunc main() {}\n",
 		"quiet/main_test.go":              "package main\n",
 		"quietrunner/q_test.go":           runnerTest("quietrunner", fixtureModule+"/quiet"),
@@ -129,7 +129,7 @@ func TestBinaryExecsDeclarationWidens_AFPV02994(t *testing.T) {
 			"lib/lib_test.go":                 "package lib\n",
 			"runner/runner.go":                "package runner\n",
 			"runner/runner_test.go":           "package runner\n",
-			".corvint/test-binary-execs.json": body,
+			".corvint/test-binary-execs.json": body, //corvint:fixture-path
 		})
 		index, err := indexRepository(root, fixtureModule)
 		if err != nil {
