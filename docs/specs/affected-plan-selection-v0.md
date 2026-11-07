@@ -903,24 +903,30 @@ one list, so a later class cannot reopen it.
   a cut (AFP-V0-3146).
 - **AFP-V0-3149:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   review fix 7, 2026-11-07; refines TSP-V0-960 and AFP-V0-3147) A value of a name that refers to that
-  name SHALL be expanded once, with no cut, when no unrolling of it can be a literal path. Two cases
-  qualify:
-  - an unknown part precedes the first reference at the top level of the value
-    (`corvint_bin="$PWD/$corvint_bin"`), so every unrolled value holds it;
-  - the value is the reference alone (`dir=${dir:-script}`), whose unrollings are the name's values
-    themselves.
+  name SHALL be expanded once, with no cut, only when every self-referential assignment
+  belongs to this closed allowlist:
+  - the plain identity `$name` or `${name}`;
+  - a standalone `-`, `:-`, `=` or `:=` default with a literal operand containing no `$` or
+    backquote (`dir=${dir:-script}`);
+  - a plain reference with a top-level prefix whose complete bounded expansion always contains
+    an unknown part (`corvint_bin="$PWD/$corvint_bin"`), followed only by literal text containing
+    no `$` or backquote.
 
-  Each such reference takes the name's values that do not refer to it, and the unknown part for any
-  earlier value. The unrolled value expands at its name's depth, because it adds no link to a chain
-  and its reference cannot recur on itself. So `static_bin` reaching `override="$PWD/$override"`
-  and then `corvint_bin="$PWD/$corvint_bin"` stays within depth 4. A deeper unrolling links nothing and has a file name that the single unrolling's
-  pattern, or the unknown part's, already matches. So the depth bound drops nothing and the unit
-  stays bounded, with the single unrolling's edges and constructed names. Three forms SHALL still
-  reach the depth bound and be cuts (AFP-V0-3147), because their unrollings may each be a literal
-  path that links:
-  - a literal wrapper (`x="../$x"`, `x="$x/bin"`);
-  - a reference nested in another expansion (`${y:-abc$x}`);
-  - a cycle through another name.
+  Each reference takes all non-self-referential values, every allowed default's literal operand,
+  and the unknown part for earlier values. Thus one default cannot discard another default's
+  reachable target. The unrolled value expands at its name's depth, because its reference cannot
+  recur on itself. References inside opaque command substitutions or backquotes do not recurse
+  through the value expander and SHALL NOT be classified as self-reference cycles; they retain
+  TSP-V0-960's existing opaque-result treatment. Existing unknown-prefix chains stay within depth 4 and retain their edges and
+  constructed names. Any self-reference outside this allowlist SHALL retain the dynamic-source
+  protection of AFP-V0-3147, whether or not expansion reaches a numerical bound. This includes
+  composed alternatives (`x=${x:-script}; x=${x:+$x/check}`), unknown transformations
+  (`x=${x%/unused}`), literal wrappers, nested self-references and cycles through other names.
+  Failure mode: discarding a default or certifying an arbitrary braced reference can omit a
+  reachable extensionless script and its dynamic sources. Acceptance: the reported default/alternative
+  composition and an unknown transformation both select the wrapper for configuration and target
+  changes; composed defaults preserve the literal execution edge. Rollback: disable this shortcut
+  and retain dynamic-source protection for every self-reference; never restore unchecked unrolling.
 
 ### Live test tier (V1-4815)
 
@@ -1265,7 +1271,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-3146 | `named` and `truncated` in `internal/liveverify/affected/shell/computed.go`; the `computed` closure of `observe` (`internal/liveverify/affected/shell/shell.go`) | `TestPerVariableBoundKeepsTheCallerSelected_AFPV03146` in `internal/liveverify/affected/shell/computed_bounds_test.go` (the review's reproducer: a 17-word loop running `"$dir/check"` beside a `script/check` that sources `"$ENVFILE"` is `shell:dynamic-source`, and edits of `config/settings.env` and of `script/check` select the wrapper test; it fails at `aa16cbf1a`); the 16-value control in `TestEveryExpansionBoundIsACut_AFPV03147` |
 | AFP-V0-3147 | `truncated` at the depth bounds of `braced` and `named` in `computed.go`; `commandStrings` and its use in `observe` (`shell.go`) | `TestEveryExpansionBoundIsACut_AFPV03147` in `computed_bounds_test.go` (17 plain and braced assignments, a five-name chain, a five-deep default, a five-deep `:+` alternative and a 17-valued `sh -c "$cmd"` each make the test `shell:dynamic-source`, and each fails at `aa16cbf1a`; an environment-input directory stays bounded, and a 16-value loop links `script/check` with no unbounded witness); build log `2026-11-07-unbrd-fix7` |
 | AFP-V0-3148 | the distinct-value `add` of `variableValues` in `computed.go` | `TestRepeatedValuesCountOnce_AFPV03148` in `computed_bounds_test.go` (six loops over the same three words link `script/check` with no unbounded witness; it fails when `add` keeps duplicates); `script/gen-spec-requirements_test.sh`, whose `mode` repeats 6 distinct flags across 7 loops, stays bounded in build log `2026-11-07-unbrd-fix7` |
-| AFP-V0-3149 | `unrolled`, `selfReference`, `topLevel` and their use in `named` (`computed.go`) | `TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149` in `computed_bounds_test.go` (`b="$PWD/$b"`, `dir=${dir:-script}` and two unrolled names in one chain stay bounded, the second linking `script/check`; a single unrolling keeps the `script/run.sh` edge and the constructed name's frontier; `x="../$x"`, `${y:-abc$x}` and a two-name cycle are `shell:dynamic-source`; the bounded cases fail without `unrolled`); `TestRepositoryScriptsAreBoundedSources_V14283`, `TestRepositoryInboundCallers_AZU_V0_8901` and `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` (unchanged) keep the dogfood wrappers bounded |
+| AFP-V0-3149 | `unrolled`, `unrollSeed`, `selfReference`, `topLevel` and their use in `named` (`computed.go`) | `TestComposedSelfReferencesKeepSelection_AFPV03149` in `computed_bounds_test.go` (default/alternative and unknown-transform selection, composed-default execution edges); `TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149` in `computed_bounds_test.go` (`b="$PWD/$b"`, `dir=${dir:-script}` and two unrolled names in one chain stay bounded, the second linking `script/check`; a single unrolling keeps the `script/run.sh` edge and the constructed name's frontier; `x="../$x"`, `${y:-abc$x}` and a two-name cycle are `shell:dynamic-source`; the bounded cases fail without `unrolled`); `TestRepositoryScriptsAreBoundedSources_V14283`, `TestRepositoryInboundCallers_AZU_V0_8901` and `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` (unchanged) keep the dogfood wrappers bounded |
 | AFP-V0-3145 | `openTest` and `testLeaders` in `internal/liveverify/affected/shell/lex.go` | `TestConditionalOpensOnlyInCommandPosition_AFPV03145` in `internal/liveverify/affected/shell/conditional_position_test.go` (an argument `[[` before `&&`, `||` or `\|` keeps the next source; the test after every leader keeps its operators, and fails without the leaders); `TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009` (unchanged) |
 
 | AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |

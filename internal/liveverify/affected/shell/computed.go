@@ -279,6 +279,10 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 		expanded, next := values, depth+1
 		if others, ok := unrolled(name, value, values, depth); ok {
 			expanded, next = others, depth
+		} else if at, _ := selfReference(name, value); at >= 0 {
+			// An uncertified self-reference may transform values the file
+			// supplies even if braced cannot follow it to a depth bound.
+			*cut = true
 		}
 		out = append(out, expand(value, expanded, next, cut)...)
 	}
@@ -288,35 +292,22 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 	return out
 }
 
-// unrolled returns the values to expand value, one of name's, with, and
-// whether it unrolled a reference to name. When
-// value refers to name and no unrolling of it can be a literal path, the
-// reference takes name's other values once and wildcard for any earlier value
-// (AFP-V0-3149): an unknown part precedes the first reference, so every
-// unrolled value holds it, links nothing and has a file name the single
-// unrolling's or the wildcard's pattern already matches; or value is the
-// reference alone (`dir=${dir:-script}`), whose unrollings are the values
-// themselves. Otherwise it unrolls nothing, so a literal wrapper
-// (`x="../$x"`) recurses to the depth bound and is a cut (AFP-V0-3147).
+// unrolled substitutes a closed set of seeds only when every assignment to
+// name is certified. Defaults contribute their literal operands; dropping them
+// would lose composed targets. Other self-reference forms retain the cut in
+// named, even when an unsupported operator does not recurse (AFP-V0-3149).
 func unrolled(name, value string, values map[string][]string, depth int) (map[string][]string, bool) {
-	at, end := selfReference(name, value)
-	if at < 0 {
+	if at, _ := selfReference(name, value); at < 0 {
 		return nil, false
-	}
-	if at > 0 || end != len(value) {
-		if at == 0 || !topLevel(value[:at]) {
-			return nil, false
-		}
-		var cut bool
-		prefixes := expand(value[:at], values, depth+1, &cut)
-		if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
-			return nil, false
-		}
 	}
 	others := []string{wildcard}
 	for _, other := range values[name] {
-		if at, _ := selfReference(name, other); at < 0 {
-			others = append(others, other)
+		seed, ok := unrollSeed(name, other, values, depth)
+		if !ok {
+			return nil, false
+		}
+		if !slices.Contains(others, seed) {
+			others = append(others, seed)
 		}
 	}
 	copied := make(map[string][]string, len(values))
@@ -327,12 +318,67 @@ func unrolled(name, value string, values map[string][]string, depth int) (map[st
 	return copied, true
 }
 
-// selfReference returns where the first `$name` or `${name...}` in value
-// starts and ends, or -1 when value does not refer to name.
+// unrollSeed admits non-self values, plain identities, standalone defaults
+// with literal operands, and plain references behind a proven unknown prefix
+// with a literal suffix. Everything else fails closed; a braced expression's
+// enclosing span alone never proves it is an identity.
+func unrollSeed(name, value string, values map[string][]string, depth int) (string, bool) {
+	at, end := selfReference(name, value)
+	if at < 0 {
+		return value, true
+	}
+	ref := value[at:end]
+	plain := ref == "$"+name || ref == "${"+name+"}"
+	if at == 0 && end == len(value) {
+		if plain {
+			return wildcard, true
+		}
+		for _, operator := range []string{":-", ":=", "-", "="} {
+			prefix := "${" + name + operator
+			if strings.HasPrefix(value, prefix) && strings.HasSuffix(value, "}") {
+				operand := value[len(prefix) : len(value)-1]
+				if !strings.ContainsAny(operand, "$`") {
+					return unquote(operand), true
+				}
+			}
+		}
+		return "", false
+	}
+	if !plain || at == 0 || !topLevel(value[:at]) || strings.ContainsAny(value[end:], "$`") {
+		return "", false
+	}
+	var cut bool
+	prefixes := expand(value[:at], values, depth+1, &cut)
+	if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
+		return "", false
+	}
+	return wildcard, true
+}
+
+// selfReference locates a reference the value expander follows. Command
+// substitutions and backquotes produce opaque results: their argument references
+// do not recursively expand values and must not create a false cycle.
 func selfReference(name, value string) (int, int) {
-	for at := strings.IndexByte(value, '$'); at >= 0 && at < len(value); {
+	for at := 0; at < len(value); at++ {
+		if value[at] == '`' {
+			end := strings.IndexByte(value[at+1:], '`')
+			if end < 0 {
+				break
+			}
+			at += end + 1
+			continue
+		}
+		if value[at] != '$' {
+			continue
+		}
 		rest := value[at+1:]
 		switch {
+		case strings.HasPrefix(rest, "("):
+			end := closing(value, at+1)
+			if end < 0 {
+				return -1, -1
+			}
+			at = end
 		case strings.HasPrefix(rest, "{"+name) && !identifierByte(rest, len(name)+1):
 			if end := closing(value, at+1); end >= 0 {
 				return at, end + 1
@@ -341,11 +387,6 @@ func selfReference(name, value string) (int, int) {
 		case strings.HasPrefix(rest, name) && !identifierByte(rest, len(name)):
 			return at, at + 1 + len(name)
 		}
-		next := strings.IndexByte(rest, '$')
-		if next < 0 {
-			break
-		}
-		at += 1 + next
 	}
 	return -1, -1
 }
@@ -387,7 +428,8 @@ func identifierByte(text string, index int) bool {
 // protection instead of reading the wildcard as an environment input that
 // names no owned script (AFP-V0-3147). A wildcard for a part no text fixes
 // (an unset name, `$1`, a command substitution, an operator the model does
-// not follow) is no cut: nothing the file gives was dropped.
+// not follow) is no cut unless it discards a self-referential assignment
+// rejected by the closed allowlist in unrolled (AFP-V0-3149).
 func truncated(cut *bool) []string {
 	*cut = true
 	return []string{wildcard}
