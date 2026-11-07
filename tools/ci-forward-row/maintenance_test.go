@@ -152,9 +152,22 @@ func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 		{"success", "true", "success", true}, {"success", "true", "failure", false}, {"success", "true", "skipped", false}, {"success", "false", "skipped", true}, {"failure", "false", "skipped", false},
 	} {
 		cmd := exec.Command("sh", "-ec", guard[1])
-		cmd.Env = append(os.Environ(), "HOST_RESULT="+tc.host, "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME=pull_request", "LIVE_RESULT=skipped", "HOST_RESULT="+tc.host, "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
 		if err := cmd.Run(); (err == nil) != tc.pass {
 			t.Fatalf("required result %+v: %v", tc, err)
+		}
+	}
+	// AFP-V0-2702: go-live runs only in the merge queue; there it must pass, elsewhere it must skip.
+	for _, tc := range []struct {
+		event, live string
+		pass        bool
+	}{
+		{"merge_group", "success", true}, {"merge_group", "failure", false}, {"merge_group", "skipped", false}, {"pull_request", "success", false},
+	} {
+		cmd := exec.Command("sh", "-ec", guard[1])
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+tc.event, "LIVE_RESULT="+tc.live, "HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped")
+		if err := cmd.Run(); (err == nil) != tc.pass {
+			t.Fatalf("go-live result %+v: %v", tc, err)
 		}
 	}
 

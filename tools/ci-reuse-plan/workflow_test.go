@@ -41,13 +41,15 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 		}
 		return m[0][1]
 	}
-	matrix := strings.Split(one("matrix", ci, `(?m)^        shard: \[([0-9, ]+)\]$`), ", ")
+	// AFP-V0-2724: the matrix is the shard-plan job's sized list, defaulting to the full list the
+	// other counts must equal; a sized run carries its own count into every consumer.
+	matrix := strings.Split(one("matrix", ci, `(?m)^        shard: \$\{\{ fromJSON\(needs\.shard-plan\.outputs\.matrix \|\| '\[([0-9, ]+)\]'\) \}\}$`), ", ")
 	for i, s := range matrix {
 		if s != strconv.Itoa(i) {
 			t.Fatalf("matrix = %v, want 0..N-1", matrix)
 		}
 	}
-	// AFP-V0-2180: owner decision 2026-11-02 fixes the active matrix at sixteen.
+	// AFP-V0-2180: owner decision 2026-11-02 fixes the full matrix at sixteen.
 	if len(matrix) != 16 {
 		t.Fatalf("matrix has %d shards, want 16", len(matrix))
 	}
@@ -66,11 +68,15 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 	}
 	want := strconv.Itoa(len(matrix))
 	for name, got := range map[string]string{
-		"REUSE_SHARDS":            one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
-		"ci-shard-cost-drift":     one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
-		"ci-narrowed-tree-record": one("SHARDS", jobBlock(t, ci, "ci-narrowed-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		"REUSE_SHARDS":        one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
+		"ci-shard-cost-drift": one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		// AFP-V0-2724: the narrowed record and the coverage guard read the sized count, whose
+		// default is the full matrix.
+		"ci-narrowed-tree-record": one("SHARDS", jobBlock(t, ci, "ci-narrowed-tree-record"), `(?m)^      SHARDS: \$\{\{ needs\.shard-plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
 		"ci-tested-tree-record":   one("SHARDS", jobBlock(t, ci, "ci-tested-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
-		"go-product coverage":     one("SHARDS", jobBlock(t, ci, "go-product"), `(?m)^          SHARDS: "([0-9]+)"$`),
+		"go-product coverage":     one("SHARDS", jobBlock(t, ci, "go-product"), `(?m)^          SHARDS: \$\{\{ needs\.shard-plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
+		"shard-plan count":        one("count", jobBlock(t, ci, "shard-plan"), `(?m)^      count: \$\{\{ steps\.plan\.outputs\.count \|\| '([0-9]+)' \}\}$`),
+		"shard-plan FULL_SHARDS":  one("FULL_SHARDS", jobBlock(t, ci, "shard-plan"), `(?m)^          FULL_SHARDS: "([0-9]+)"$`),
 		"qualification default":   one("qualification", qualification, `(?m)^      shards:\n(?:        .*\n)*?        default: "([0-9]+)"$`),
 		"qualification CI remark": one("qualification", qualification, `CI uses ([0-9]+);`),
 		"ci-test-slices default":  one("ci-test-slices", slices, `fs\.Int\("shards", ([0-9]+),`),
@@ -400,7 +406,8 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		wantLine(t, job, b, jobCond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
+	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
+	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi`)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
 	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
@@ -412,9 +419,16 @@ func staticReuseScript(t *testing.T) string {
 	return runScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse"))
 }
 
-// goProductUpstreamOK is the passing host-adapter and web-flows environment the go-product
-// check reads before its shard, static and docs decisions (host-adapters, CIN-V0-7504).
-var goProductUpstreamOK = []string{"HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
+// goProductUpstream is the passing host-adapter, web-flows and go-live environment the go-product
+// check reads before its shard, static and docs decisions (host-adapters, CIN-V0-7504). go-live runs
+// only in the merge queue (AFP-V0-2702), so it succeeds there and is skipped for every other event.
+func goProductUpstream(event string) []string {
+	live := "LIVE_RESULT=skipped"
+	if event == "merge_group" {
+		live = "LIVE_RESULT=success"
+	}
+	return []string{"HOST_RESULT=success", live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
+}
 
 // runScript extracts the run script of the single run step of job block B.
 func runScript(t *testing.T, b string) string {
@@ -603,7 +617,7 @@ func TestAFPV0027BatchedSkipPassesGoProductWithANotice(t *testing.T) {
 			}
 		}
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
+		cmd.Env = append(append(os.Environ(), goProductUpstream("pull_request")...), "SHELL_RESULT=success", "BATCHED="+batched, "SHARDS_RESULT="+shards, "STATIC_RESULT="+static,
 			"STATIC_REUSE=", "DOCS_RESULT="+docs, "DOCS_MODE=FULL", "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7",
 			"GITHUB_RUN_ATTEMPT=1", "GITHUB_EVENT_NAME=pull_request", "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1130,7 +1144,7 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-		cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+		cmd.Env = append(append(os.Environ(), goProductUpstream(event)...), "SHELL_RESULT=success", "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
 			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
 			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
 		out, err := cmd.CombinedOutput()
@@ -1207,7 +1221,7 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
-	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]")
+	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
 	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
 	script := runScript(t, job)
 	for _, event := range []string{"pull_request", "merge_group", "push"} {
@@ -1219,7 +1233,7 @@ func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 						static = "skipped"
 					}
 					cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
-					cmd.Env = append(append(os.Environ(), goProductUpstreamOK...), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
+					cmd.Env = append(append(os.Environ(), goProductUpstream(event)...), "GITHUB_EVENT_NAME="+event, "SHELL_RESULT="+result,
 						"BATCHED="+batched, "SHARDS_RESULT=skipped", "STATIC_RESULT="+static,
 						"STATIC_REUSE=", "DOCS_RESULT=success", "DOCS_MODE=DOCS",
 						"GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary"))

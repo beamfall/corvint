@@ -508,6 +508,8 @@
     "internal/modelgateway": [],
     "internal/nativelinecov": [],
     "internal/observations": [
+      ".corvint/.gitignore",
+      ".gitignore",
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],

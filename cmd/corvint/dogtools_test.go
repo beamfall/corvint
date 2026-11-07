@@ -38,10 +38,11 @@ func TestDTLV0004FinishStopsAfterCheck(t *testing.T) {
 		run := portableDogfoodRunner(t)
 		root, base := portableDogfoodRepo(t)
 		// inputs-check takes --seal no, so a stop-before-seal pre-flight's retry keeps SEAL=0; an
-		// unsorted intent manifest is refused before any step.
-		_, unsorted := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "b.md\na.md\n")
+		// unsorted intent manifest that no sort repairs (the ./x line, DWC-V0-7600) is refused
+		// before any step.
+		_, unsorted := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "b.md\na.md\n./x\n")
 		preflight := append([]string{"dogfood", "inputs-check", "--base", base, "--seal", "no", "--entry", "dogfood-finish"}, unsorted...)
-		if code, _, stderr := run.exec(t, root, nil, preflight...); code != 2 || !strings.Contains(stderr, "rerun make dogfood-finish BASE="+base+" SEAL=0 CITATIONS=") {
+		if code, _, stderr := run.exec(t, root, nil, preflight...); code != 2 || !strings.Contains(stderr, "REFUSE intent-manifest-unsorted\n") || !strings.Contains(stderr, "rerun make dogfood-finish BASE="+base+" SEAL=0 CITATIONS=") {
 			t.Fatalf("code=%d err=%s", code, stderr)
 		}
 		if code, _, stderr := run.exec(t, root, nil, "dogfood", "inputs-check", "--base", base, "--seal", "invalid"); code != 2 || !strings.Contains(stderr, "invalid-dogfood-seal-value") {

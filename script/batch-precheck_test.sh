@@ -178,7 +178,7 @@ grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-
 fi
 if group 1d; then
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
-grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(BASE)"' || fail "closeout lost its static checks or lane BASE"
+grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"' || fail "closeout lost its static checks or lane BASE"
 static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
@@ -549,6 +549,8 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
+# AFP-V0-2702 (V1-4923): batch-precheck runs the live tier that PR shards skip.
+grep -q '^make -s live-test GOPROXY=unset$' "$tmp/calls" || fail "live-test not run: $(cat "$tmp/calls")"
 # ASD-V0-640 (V1-3744): with no base the lane shell tests run on the merged tree.
 grep -q '^make -s lane-scripts-test GOPROXY=unset$' "$tmp/calls" || fail "lane-scripts-test not run without a base: $(cat "$tmp/calls")"
 grep -q '^batch-precheck: lane-scripts-test runs (no --base)$' "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"

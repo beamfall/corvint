@@ -37,10 +37,13 @@ func dropGuardingNote(stderr string) string {
 		// DCW-V0-112 tier warnings and the DCW-V0-165 and DCW-V0-388 notes are asserted
 		// where they are the subject.
 		// The DCW-V0-342 closing PASS line is asserted in
-		// TestDogfoodDailyPathRunsFromBinaryInForeignRepository.
+		// TestDogfoodDailyPathRunsFromBinaryInForeignRepository. A fixture repository
+		// does not gitignore the SOL-V0-001 ledger, so its refusal note is asserted in
+		// TestChangeSOLV0001ReportsObserveRefusal instead.
 		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") && !strings.HasPrefix(line, "dogfood-check: WARN tier-below-anchored ") &&
 			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-unanchorable ") &&
-			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-same-path ") && !strings.HasPrefix(line, "dogfood-change: PASS complete ") {
+			!strings.HasPrefix(line, "dogfood-check: NOTE tier-below-anchored-same-path ") && !strings.HasPrefix(line, "dogfood-change: PASS complete ") &&
+			!strings.HasPrefix(line, "dogfood-change: NOTE self-observation rows not recorded: ") {
 			kept.WriteString(line)
 		}
 	}
@@ -707,7 +710,7 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 			if produced {
 				note, row = "", `{"name": "coordination-time-impact", "status": "PRODUCED", "reason": "none"}`
 			}
-			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "coordination-time-impact") != !produced {
+			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(dropGuardingNote(stderr), note) || strings.Contains(dropGuardingNote(stderr), "coordination-time-impact") != !produced {
 				t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 			}
 			cemGit(t, root, "add", ".corvint/change.cem.json")
