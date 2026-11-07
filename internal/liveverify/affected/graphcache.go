@@ -187,6 +187,7 @@ type cachedUnit struct {
 	AdvisoryImports      []string `json:"advisoryImports"`
 	RouteDispatchImports []string `json:"routeDispatchImports"`
 	PathImports          []string `json:"pathImports"`
+	BuildPathImports     []string `json:"buildPathImports"`
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
@@ -195,7 +196,6 @@ type cachedUnit struct {
 	EmbedFiles           []string `json:"embedFiles"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
-	Command              bool     `json:"command"`
 	ReadScoped           bool     `json:"readScoped"`
 	ReadScope            []string `json:"readScope"`
 	Frontier             []string `json:"frontier"`

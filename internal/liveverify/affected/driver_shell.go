@@ -16,12 +16,15 @@ const (
 
 // driverScan is what the shell scanner found in recipe or step text: the
 // literal path tokens, the paths whose owners the text runs (PathImports),
-// the make invocations, and whether a command word is computed.
+// the paths whose owners only `go vet` or `go list` reads and nothing runs
+// (BuildPathImports, AFP-V0-2951), the make invocations, and whether a
+// command word is computed.
 type driverScan struct {
-	computed bool
-	tokens   map[string]bool
-	paths    map[string]bool
-	makes    []driverMakeCall
+	computed   bool
+	tokens     map[string]bool
+	paths      map[string]bool
+	buildPaths map[string]bool
+	makes      []driverMakeCall
 }
 
 // driverMakeCall is one `make` invocation. Dir is the repository-relative
@@ -37,7 +40,7 @@ type driverMakeCall struct {
 }
 
 func newDriverScan() *driverScan {
-	return &driverScan{tokens: map[string]bool{}, paths: map[string]bool{}}
+	return &driverScan{tokens: map[string]bool{}, paths: map[string]bool{}, buildPaths: map[string]bool{}}
 }
 
 // driverWord is one shell word: its text with quotes removed and each
@@ -432,18 +435,23 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 }
 
 // embedded finds a go or make invocation anywhere in a command, such as one
-// a wrapper script runs, and records every path-like argument.
+// a wrapper script runs, and records every path-like argument, except a
+// package pattern a build-only go command already recorded as a build path
+// import (AFP-V0-2951).
 func (s *driverShellScanner) embedded(words []driverWord, cwd string) {
+	built := map[int]bool{}
 	for index, word := range words {
 		switch path.Base(word.text) {
 		case "go":
 			if index+1 < len(words) && !driverDynamic(word.text) {
-				s.goInvocation(words[index+1:], cwd)
+				for pattern := range s.goInvocation(words[index+1:], cwd) {
+					built[index+1+pattern] = true
+				}
 			}
 		case "make", "gmake":
 			s.makeInvocation(words[index+1:], cwd)
 		}
-		if index > 0 {
+		if index > 0 && !built[index] {
 			s.pathWord(word.text, cwd)
 		}
 	}
@@ -501,22 +509,35 @@ var driverGoBoolFlags = map[string]bool{
 	"-test": true, "-find": true, "-compiled": true, "-export": true, "-buildvcs": true, "-fullpath": true,
 }
 
+// driverGoBuildOnlyCommands are the package commands that read the packages
+// they name without running any of their code or leaving a binary another
+// step could run (AFP-V0-2951). `go build` and `go install` are not among
+// them: a later step, or a target that depends on this one, may run what they
+// build.
+var driverGoBuildOnlyCommands = map[string]bool{"vet": true, "list": true}
+
 // goInvocation records the package patterns of `go <command> ...` as path
-// imports. A computed pattern, or a relative one under an unknown working
-// directory, imports every owner.
-func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
+// imports, and those of a build-only command as build path imports. A
+// computed pattern, or a relative one under an unknown working directory,
+// imports every owner. It returns the indexes, into words, of the patterns a
+// build-only command recorded, so the caller does not also record them as
+// paths the command runs; every other word stays the caller's.
+func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) map[int]bool {
+	offset := 0
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
 		var directory string
 		switch {
 		case words[0].text == "-C" && len(words) >= 2:
 			directory = words[1].text
 			words = words[2:]
+			offset += 2
 		case strings.HasPrefix(words[0].text, "-C="):
 			directory = strings.TrimPrefix(words[0].text, "-C=")
 			words = words[1:]
+			offset++
 		default:
 			s.scan.computed = true
-			return
+			return nil
 		}
 		if driverDynamic(directory) || cwd == "" {
 			cwd = ""
@@ -525,10 +546,17 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 		}
 	}
 	if len(words) == 0 || !driverGoPackageCommands[words[0].text] {
-		return
+		return nil
 	}
 	command := words[0].text
 	words = words[1:]
+	offset++
+	into := s.scan.paths
+	buildOnly := driverGoBuildOnlyCommands[command]
+	if buildOnly {
+		into = s.scan.buildPaths
+	}
+	built := map[int]bool{}
 	hasPackage := false
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
@@ -541,7 +569,7 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 				if arg == "-C" {
 					if index+1 == len(words) {
 						s.scan.computed = true
-						return
+						return built
 					}
 					index++
 					directory = words[index].text
@@ -559,62 +587,69 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 			continue
 		}
 		hasPackage = true
-		s.goPattern(arg, cwd)
+		if s.goPattern(arg, cwd, into) && buildOnly {
+			built[offset+index] = true
+		}
 		if command == "run" && !strings.HasSuffix(arg, ".go") {
-			return
+			return built
 		}
 	}
 	if !hasPackage && command != "run" {
 		// Package commands other than run default to the current package.
 		// goPattern keeps every owner when cd or -C left cwd unresolved.
-		s.goPattern(".", cwd)
+		s.goPattern(".", cwd, into)
 	}
+	return built
 }
 
-func (s *driverShellScanner) goPattern(pattern, cwd string) {
+// goPattern records one package pattern in into: the scan's paths, or its
+// build paths for a build-only command. It reports whether it recorded one; a
+// glob, a standard-library or external pattern records none.
+func (s *driverShellScanner) goPattern(pattern, cwd string, into map[string]bool) bool {
 	switch {
 	case strings.ContainsAny(pattern, "*?["):
 		// Shell globs are not literal package paths. Retain the caller
 		// rather than silently importing a path that has no owner.
 		s.scan.computed = true
-		return
+		return false
 	case driverDynamic(pattern):
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case pattern == "all":
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case pattern == "std" || pattern == "cmd":
-		return
+		return false
 	}
 	pattern, _, _ = strings.Cut(pattern, "@")
 	relative := ""
 	switch {
 	case pattern == "." || pattern == ".." || strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../"):
 		if cwd == "" {
-			s.scan.paths["..."] = true
-			return
+			into["..."] = true
+			return true
 		}
 		relative = driverGoRelative(cwd, pattern)
 	case s.module != "" && (pattern == s.module || pattern == s.module+"/..."):
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case s.module != "" && strings.HasPrefix(pattern, s.module+"/"):
 		relative = strings.TrimPrefix(pattern, s.module+"/")
 	case strings.HasSuffix(pattern, ".go"):
 		if cwd == "" {
-			s.scan.paths["..."] = true
-			return
+			into["..."] = true
+			return true
 		}
 		relative = driverJoin(cwd, pattern)
 	default:
-		return
+		return false
 	}
 	if relative == "" {
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	}
-	s.scan.paths[relative] = true
+	into[relative] = true
+	return true
 }
 
 // driverGoRelative resolves a relative package pattern against cwd, keeping a
