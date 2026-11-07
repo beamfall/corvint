@@ -1262,4 +1262,69 @@ printf 'package main\n// Usage: after\n' > "$test_root/cmd/tool/main.go"
 hint=$(cd "$test_root" && bash "$source_root/script/doc-gates-summary.sh" true 2>&1)
 case $hint in *'HINT help text changed'*'make capability-catalog'*) ;; *) fail "no stale tree hint: $hint" ;; esac
 
+# SRG-V0-970 / V1-4539: exact Intent parenthetical refusal is staged and fast.
+run_root=$test_root/status
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+cat > "$run_root/docs/specs/status.md" <<'SPEC'
+# Status fixture
+Intent status: accepted direction (companion of X)
+Delivery status: experimental
+
+## Agent digest
+- Claim: Status fixture tests exact agreement.
+- Status: accepted direction/experimental
+
+## Requirements
+- `STATUS-V0-001`: (proposed) Fixture.
+SPEC
+git -C "$run_root" add .
+status_started=$(date +%s)
+status_out=$(run --status-check 2>&1) && fail "omitted parenthetical passed"
+case $status_out in *"status.md:7: Agent digest Status 'accepted direction/experimental'"*"expected \"- Status: accepted direction (companion of X) / experimental\""*) ;; *) fail "status mismatch lacked precise repair: $status_out" ;; esac
+test $(($(date +%s) - status_started)) -lt 60 || fail "status preflight was not fast"
+sed 's@- Status: accepted direction/experimental@- Status: accepted direction (companion of X) / experimental@' "$run_root/docs/specs/status.md" > "$run_root/fixed"
+cp "$run_root/fixed" "$run_root/docs/specs/status.md"
+run --status-check > /dev/null 2>&1 && fail "status check read unstaged repair"
+git -C "$run_root" add docs/specs/status.md
+run --status-check > /dev/null || fail "matching parenthetical refused"
+
+# SRG-V0-745 / V1-4538: two individually admitted immutable lanes overflow before merging.
+run_root=$test_root/batch-capacity
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+{ printf '# Batch\n\n## Requirements\n\n'; i=1
+  while test "$i" -le 254; do printf -- '- `BATCH-V0-%03d`: (proposed) Base.\n' "$i"; i=$((i+1)); done
+} > "$run_root/docs/specs/batch.md"
+git -C "$run_root" add .
+git -C "$run_root" -c user.name=t -c user.email=t@t commit -qm base
+batch_base=$(git -C "$run_root" rev-parse HEAD)
+for lane in a b; do
+  git -C "$run_root" checkout -qb "lane-$lane" "$batch_base"
+  if test "$lane" = a; then ids='255 256'; else ids='257 258'; fi
+  for i in $ids; do printf -- '- `BATCH-V0-%s`: (proposed) Lane.\n' "$i"; done >> "$run_root/docs/specs/batch.md"
+  git -C "$run_root" commit -qam "lane $lane"
+  run > /dev/null 2>&1 || fail "individual lane $lane not admitted"
+done
+before=$(git -C "$run_root" status --porcelain; git -C "$run_root" rev-parse HEAD; git -C "$run_root" write-tree)
+batch_out=$(run --batch-capacity "$batch_base" lane-a lane-b 2>&1) && fail "combined lane overflow admitted"
+case $batch_out in *'batch.md base=254 added=4 count=258 limit=256 lanes=lane-a('*'lane-b('*'exceed 256'*) ;; *) fail "missing batch counts/lanes: $batch_out" ;; esac
+test "$(git -C "$run_root" status --porcelain; git -C "$run_root" rev-parse HEAD; git -C "$run_root" write-tree)" = "$before" || fail "preflight mutated repository"
+run --batch-capacity "$batch_base" lane-a lane-a > "$test_root/batch-out" || fail "shared additions counted twice"
+grep -q 'base=254 added=2 count=256 limit=256' "$test_root/batch-out" || fail "shared union wrong"
+run --batch-capacity "$batch_base" lane-a missing-ref > /dev/null 2>&1 && fail "missing lane admitted"
+run --batch-capacity missing-base lane-a > /dev/null 2>&1 && fail "missing base admitted"
+# A lane forked at the fixed batch base remains countable after BASE advances on another lane.
+batch_out=$(run --batch-capacity lane-a lane-b 2>&1) && fail "older lane overflow admitted"
+case $batch_out in *'batch.md base=256 added=2 count=258 limit=256 lanes=lane-b('*'exceed 256'*) ;; *) fail "advanced BASE lost lane additions: $batch_out" ;; esac
+# Conservative base retention refuses even when one lane deletes base obligations.
+git -C "$run_root" checkout -q lane-b
+sed '/BATCH-V0-001/d' "$run_root/docs/specs/batch.md" > "$run_root/reduced"
+cp "$run_root/reduced" "$run_root/docs/specs/batch.md"
+git -C "$run_root" commit -qam deletion
+run --batch-capacity "$batch_base" lane-a lane-b > /dev/null 2>&1 && fail "deletion hid overflow"
+run_root=
+
 printf 'ok\n'

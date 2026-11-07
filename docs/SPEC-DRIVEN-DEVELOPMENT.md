@@ -218,6 +218,17 @@ or worktree define differently (`ASD-V0-950`); an orchestrator runs the same che
 checkout before it integrates each lane. A collision found at merge is refused by the generator
 (`SRG-V0-547`) and costs a renumber of spec rows, tests and build logs.
 
+Before integrating a batch, run `make spec-batch-capacity-check BASE=origin/main
+LANES="claude/lane-a claude/lane-b"` with every intended lane ref (SRG-V0-745). The read-only
+preflight reports each spec's base obligations plus the union of lane additions and refuses a
+combined count above 256, naming the contributing lanes. It conservatively retains base IDs,
+including deleted ones; merge conflicts, duplicate definitions and final merged-tree capacity
+still need their existing checks.
+
+`make spec-status-check` checks staged digest/header agreement and sorted doc-gate targets before
+`doc-gates` starts its workload. A trailing Intent parenthetical must appear in the digest; an
+omission reports the actual fields and exact replacement line (SRG-V0-970).
+
 Before lane closeout, stage the spec edits and run `make spec-capacity-check BASE=<rev>`
 (`SRG-V0-744/745`, `ASD-V0-2010`). It warns for every spec within 8 obligations of 256;
 `SPEC_CAPACITY_MARGIN=12` changes that margin. Above 256 fails this proactive gate. Exactly 256

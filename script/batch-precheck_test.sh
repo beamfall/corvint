@@ -111,6 +111,10 @@ if [[ ${BATCH_PRECHECK_TEST_SEED-} == 1 ]]; then
   (false || fail "seeded failure two"$'\n'"with a second line")
   finish
 fi
+# SRG-V0-982 (V1-4542): DOC_GATE_TARGETS is a continuation list, one target per line.
+doc_targets() {
+  awk '/^DOC_GATE_TARGETS :=/ { on=1; next } on { line=$0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' "$script/../Makefile"
+}
 # 0c. ASD-V0-780: a failing case does not stop the run; the summary names every failed case.
 BATCH_PRECHECK_TEST_SEED=1 "$script/batch-precheck_test.sh" > "$tmp/out" 2>&1
 seed_rc=$?
@@ -167,7 +171,7 @@ if group 1; then
 grep -qx 'make line-citations-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" ||
   fail "derived doc-gates not expanded into their targets: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && fail "doc-gates still runs as one step: $(cat "$tmp/out")"
-for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
+for t in $(doc_targets); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
@@ -183,8 +187,10 @@ static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
 git -C "$static_repo" init -q
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 printf '[{"path":"docs/specs/one.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
-printf '# One\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
+printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
 static_row='| One | [`one.md`](one.md) ONE-V0-001 | proposed | experimental | One claim. |'
 printf '# Specs\n%s\n%s\n' "$static_row" "$static_row" > "$static_repo/docs/specs/README.md"
 git -C "$static_repo" add docs/specs
@@ -215,6 +221,13 @@ rc=$?
 grep -qF 'fix: docs/specs/README.md: lines 2, 3: duplicate row' "$tmp/out" || fail "duplicate fix did not name both lines: $(cat "$tmp/out")"
 grep -qF "$static_row" "$tmp/out" || fail "duplicate fix did not name the row: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
+# SRG-V0-982: the static path catches staged target-shape drift before any slow gate.
+printf 'DOC_GATE_TARGETS := alpha-check beta-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "static checks missed malformed doc targets"
+grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "static target-shape diagnostic missing: $(cat "$tmp/out")"
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 || fail "one unanchored row refused: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "${static_row//](one.md)/](one.md#requirements)}" > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "anchored-only row passed"
@@ -223,7 +236,7 @@ printf '# Specs\n' > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "missing row passed"
 grep -qF 'lines (missing)' "$tmp/out" || fail "missing row lacked repair: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
-{ printf '# Untouched\n\n## Requirements\n\n'
+{ printf '# Untouched\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `UNTOUCHED-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/untouched.md"
 printf '[{"path":"docs/specs/one.md"},{"path":"docs/specs/untouched.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
@@ -236,7 +249,7 @@ for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
   grep -qF 'docs/specs/untouched.md: warning:' "$tmp/out" || fail "untouched full spec lacked warning: $(cat "$tmp/out")"
   grep -qF "requirement IDs added since BASE=$static_base ($static_base): (none)" "$tmp/out" || fail "untouched spec lost $static_base_env attribution: $(cat "$tmp/out")"
 done
-{ printf '# One\n\n## Requirements\n\n'
+{ printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `ONE-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/one.md"
 git -C "$static_repo" add docs/specs
@@ -1531,6 +1544,10 @@ printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gat
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the doc-gates target with a ## help comment was not expanded: $(cat "$tmp/out")"
+# SRG-V0-982 / V1-4542: continuation expansion allows multiple doc-gates prerequisites.
+printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check extra-check | order-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "continuation expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "continuation targets were not expanded"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
@@ -1628,7 +1645,7 @@ grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || 
 (cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
 # ASD-V0-584 (V1-3374): the same refusal runs in make doc-gates, before bind and seal: the
 # legal-file-pins-check target is a doc gate, and on the fixture it refuses an edited LICENSING.md.
-grep -qE '^DOC_GATE_TARGETS := (.* )?legal-file-pins-check( |$)' "$script/../Makefile" || fail "legal-file-pins-check is not a doc gate"
+doc_targets | grep -qxF legal-file-pins-check || fail "legal-file-pins-check is not a doc gate"
 printf 'Apache\n' > "$lrepo/LICENSE"
 mkdir -p "$lrepo/script" && /bin/cp -f "$script/check-legal-file-pins.sh" "$lrepo/script/"
 (cd "$lrepo" && make -s -f "$script/../Makefile" legal-file-pins-check) > "$tmp/out" 2>&1 &&
@@ -1704,12 +1721,12 @@ git -C "$brepo" add -f NOTICE
 
 # ASD-V0-846 (V1-2432): the capability catalog drift check is a doc gate, so the local doc gates catch
 # a new command, binary or MCP tool that has no docs/CAPABILITIES.md row.
-grep -qE '^DOC_GATE_TARGETS := (.* )?capabilities-check( |$)' "$script/../Makefile" || fail "capabilities-check is not a doc gate"
+doc_targets | grep -qxF capabilities-check || fail "capabilities-check is not a doc gate"
 
 # ASD-V0-720 (V1-3847): fixed-tmp-paths-check is a doc gate; it refuses a test that writes under
 # the fixed /tmp or exports TMPDIR=/tmp, and passes t.TempDir() and a `// fixed-tmp:` line or the
 # line after one, for a quoted or raw literal and for a call whose argument is on the next line.
-grep -qE '^DOC_GATE_TARGETS := (.* )?fixed-tmp-paths-check( |$)' "$script/../Makefile" || fail "fixed-tmp-paths-check is not a doc gate"
+doc_targets | grep -qxF fixed-tmp-paths-check || fail "fixed-tmp-paths-check is not a doc gate"
 trepo=$tmp/tmprepo
 mkdir -p "$trepo/pkg"
 git -C "$trepo" init -q -b main
@@ -1737,7 +1754,7 @@ if group 14; then
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
 # suffix pass. V1-3842: no-python-runtime-dependency-test is a doc gate too, so PRs run it.
 for t in license-headers-check mkfifo-build-tags-check no-python-runtime-dependency-test; do
-  grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
+  doc_targets | grep -qxF "$t" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo
 mkdir -p "$frepo/pkg"
@@ -2167,4 +2184,84 @@ strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base witho
 
 fi
 
+if group 19; then
+# 19. SRG-V0-982 / ASD-V0-925 (V1-4542): the fixed fast prefix precedes a bytewise sorted unique
+# suffix, and doc-gates keeps its fast status prerequisite; ASD-V0-640 (V1-4540): the lane
+# script-test wrapper selects committed, staged, unstaged and untracked lane script changes.
+[[ $(doc_targets | head -n 2) == $'line-citations-check\nspec-requirements-check' ]] || fail "doc gate fast prefix changed"
+[[ $(doc_targets | tail -n +3 | LC_ALL=C sort -u) == $(doc_targets | tail -n +3) ]] || fail "doc gate suffix unsorted or repeated"
+# Exercise staged shape, prefix, suffix and duplicate checks independently.
+order_repo=$tmp/target-order
+mkdir -p "$order_repo"
+git -C "$order_repo" init -q
+order_targets() {
+  printf 'DOC_GATE_TARGETS := \\\n'
+  while (($# > 1)); do printf '  %s \\\n' "$1"; shift; done
+  printf '  %s\n' "$1"
+}
+order_targets line-citations-check spec-requirements-check a-check z-check > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "fast prefix and sorted suffix refused: $(cat "$tmp/out")"
+for bad_order in \
+  'line-citations-check spec-requirements-check z-check a-check' \
+  'spec-requirements-check line-citations-check a-check' \
+  'a-check line-citations-check spec-requirements-check' \
+  'line-citations-check spec-requirements-check a-check a-check' \
+  'line-citations-check spec-requirements-check line-citations-check'; do
+  order_targets $bad_order > "$order_repo/Makefile"
+  git -C "$order_repo" add Makefile
+  (cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "malformed doc target order accepted: $bad_order"
+  grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "order refusal missing: $bad_order"
+done
+printf 'DOC_GATE_TARGETS := line-citations-check spec-requirements-check\n' > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "inline doc targets accepted"
+# An unstaged repair cannot hide malformed published content.
+order_targets line-citations-check spec-requirements-check a-check > "$order_repo/Makefile"
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "target checker read unstaged repair"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "staged target repair refused: $(cat "$tmp/out")"
+
+grep -q '^doc-gates: spec-status-check' "$script/../Makefile" || fail "doc-gates lost its fast status prerequisite"
+
+# ASD-V0-640 / V1-4540: wrapper checks committed lane script changes, with no selector leak.
+lane_repo=$tmp/lane-test-selection
+mkdir -p "$lane_repo/script" "$lane_repo/bin"
+git -C "$lane_repo" init -q
+printf '# lane binary check\n' > "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" add script
+git -C "$lane_repo" commit -qm base
+lane_base=$(git -C "$lane_repo" rev-parse HEAD)
+cat > "$lane_repo/bin/make" <<'STUB'
+#!/bin/sh
+[ -z "${LANE_SCRIPTS_GROUPS+x}" ] || exit 9
+printf '%s\n' "$*" >> "$LANE_CALLS"
+exit "${LANE_TEST_RC:-0}"
+STUB
+chmod +x "$lane_repo/bin/make"
+lane_check() { (cd "$lane_repo" && PATH="$lane_repo/bin:$PATH" LANE_CALLS="$tmp/lane-calls" LANE_SCRIPTS_GROUPS=tools "$script/check-lane-script-tests.sh" "$lane_base") > "$tmp/out" 2>&1; }
+printf 'unrelated\n' > "$lane_repo/note.txt"
+lane_check || fail "unrelated diff refused"
+[[ ! -e $tmp/lane-calls ]] || fail "unrelated path selected lane scripts"
+printf '# changed\n' >> "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" commit -qam 'lane binary fix'
+lane_check || fail "committed lane binary change refused: $(cat "$tmp/out")"
+grep -qx -- '--no-print-directory lane-scripts-test LANE_SCRIPTS_GROUPS=all' "$tmp/lane-calls" || fail "lane binary diff did not select lane-scripts-test"
+LANE_TEST_RC=1 lane_check && fail "failed lane scripts admitted"
+grep -q 'REFUSE lane-scripts-test failed' "$tmp/out" || fail "lane test failure missing"
+# Staged/unstaged/untracked lane tests and invalid bases fail or select conservatively.
+git -C "$lane_repo" reset -q --hard "$lane_base"
+printf '# new test\n' > "$lane_repo/script/lane-new_test.sh"
+lane_check || fail "untracked lane test refused"
+/bin/rm -f "$lane_repo/script/lane-new_test.sh"
+: > "$tmp/lane-calls"
+printf '# unstaged\n' >> "$lane_repo/script/lane-binary-check.sh"
+lane_check || fail "unstaged lane diff refused"
+[[ -s $tmp/lane-calls ]] || fail "unstaged lane diff skipped"
+git -C "$lane_repo" add script
+lane_check || fail "staged lane diff refused"
+(cd "$lane_repo" && "$script/check-lane-script-tests.sh" missing-base) > "$tmp/out" 2>&1 && fail "invalid base admitted"
+grep -q 'check-lane-script-tests.sh' "$script/dogfood-check.sh" || fail "dogfood-check lost lane script preflight"
+grep -q 'script/dogfood-check.sh' "$script/dogfood-seal.sh" || fail "seal lost required check wrapper"
+fi
 finish
