@@ -339,3 +339,58 @@ func TestAFPV02374ScanReadsFiles(t *testing.T) {
 		})
 	}
 }
+
+// TestAFPV02376BaseEffectsSeeHeldCallbacks is the fault-injection regression
+// for a write removed from code a changed package variable holds: at head the
+// callback Hook no longer writes State, so head-only reach keeps the test
+// calling Hook and drops the test reading State, which then fails after it at
+// head. The base check must see the held write, in a function literal or
+// through a stored function or method value, and keep the package whole; a
+// pure base callback stays narrowable. A held literal that calls is already an
+// initialization change.
+func TestAFPV02376BaseEffectsSeeHeldCallbacks(t *testing.T) {
+	const head = "package lib\nvar State int\nfunc set() { State = 1 }\ntype counter struct{}\nfunc (counter) bump() { State = 1 }\nvar Hook = func() {}\n"
+	const tests = "package p\nimport (\"testing\"; \"example.com/review/lib\")\nfunc TestAHook(t *testing.T) { lib.Hook() }\nfunc TestBState(t *testing.T) { if lib.State != 1 { t.Fatal(lib.State) } }\nfunc TestControl(t *testing.T) {}\n"
+	for _, tc := range []struct {
+		name, base             string
+		writes, initialization bool
+	}{
+		{"function literal", strings.Replace(head, "Hook = func() {}", "Hook = func() { State = 1 }", 1), true, false},
+		{"function value", strings.Replace(head, "Hook = func() {}", "Hook = set", 1), true, false},
+		{"method value", strings.Replace(head, "Hook = func() {}", "Hook = counter{}.bump", 1), true, false},
+		{"pure callback", strings.Replace(head, "Hook = func() {}", "Hook = func() { _ = State }", 1), false, false},
+		{"literal calling a writer", strings.Replace(head, "Hook = func() {}", "Hook = func() { set() }", 1), true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			change := DiffFile("lib/lib.go", []byte(tc.base), []byte(head))
+			if tc.initialization {
+				if change.AlwaysRun == "" {
+					t.Fatalf("a held literal that calls is not an initialization change: %+v", change)
+				}
+				return
+			}
+			if change.AlwaysRun != "" || !slices.Equal(change.Names, []string{"Hook"}) {
+				t.Fatalf("changed declarations: %+v", change)
+			}
+			declarations := change.Declarations("example.com/review/lib")
+			root := reviewFixture(t, map[string]string{"lib/lib.go": head, "p/p_test.go": tests})
+			program, err := Load(root, "example.com/review", "p")
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Head-only reach cannot see the removed write: the reader is dropped.
+			result := Analyze(program, declarations, nil)
+			if result.Whole != "" || keptCodes(result)["TestAHook"] != KeptReachesChange || !slices.Contains(result.Dropped, "TestBState") {
+				t.Fatalf("head reach: %+v", result)
+			}
+			before, err := LoadBase(root, "example.com/review", "p", map[string][]byte{"lib/lib.go": []byte(tc.base)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			why := BaseEffects(before, declarations)
+			if (why != "") != tc.writes || why != "" && (!strings.HasPrefix(why, WholeBaseWrites+": ") || !strings.Contains(why, "Hook")) {
+				t.Fatalf("base effects %q, want writes=%v", why, tc.writes)
+			}
+		})
+	}
+}

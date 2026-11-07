@@ -54,7 +54,11 @@ type change struct {
 
 // BaseEffects refuses narrowing when a changed declaration could write
 // shared state before the edit (AFP-V0-2376). Head-only effects cannot prove
-// independence from a write, callback or process start the edit removed.
+// independence from a write, callback or process start the edit removed. The
+// roots are the changed functions and methods, the methods of changed types,
+// and the code changed package variables hold (a function literal, function
+// or method value their initializer stores), which a test reading the
+// variable runs.
 func BaseEffects(program *Program, changed []Declaration) string {
 	var existing []Declaration
 	for _, declaration := range changed {
@@ -86,6 +90,13 @@ func BaseEffects(program *Program, changed []Declaration) string {
 			}
 		}
 		if a.changedFunc(f) || changedType {
+			roots = append(roots, n)
+		}
+	}
+	held := map[*node]bool{}
+	for v, n := range g.held {
+		if !held[n] && (c.objects[v] || (v.Pkg() != nil && c.packages[v.Pkg().Path()])) {
+			held[n] = true
 			roots = append(roots, n)
 		}
 	}
