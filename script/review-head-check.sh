@@ -39,8 +39,9 @@ review=$1
 git rev-parse --git-dir > /dev/null 2>&1 || refuse "not-a-git-checkout $PWD; fix: run from the lane checkout"
 
 # DWC-V0-046: external reports carry a verdict and require the exact head.
-if grep -q 'dogfood-review:' "$review"; then
-  [[ -z $pinned && $(wc -c < "$review") -le 1048576 && $(grep -c 'dogfood-review:' "$review") == 1 ]] || refuse 'invalid-external-review'
+# Only a line that starts with the key declares a header; a prose mention is ordinary text.
+if grep -q '^dogfood-review:' "$review"; then
+  [[ -z $pinned && $(wc -c < "$review") -le 1048576 && $(grep -c '^dogfood-review:' "$review") == 1 ]] || refuse 'invalid-external-review'
   perl -MEncode=decode,FB_CROAK -e 'local $/; eval { decode("UTF-8", <>, FB_CROAK); 1 } or exit 2' -- "$review" || refuse 'invalid-external-review encoding'
   pin=$(grep -E '^dogfood-review: reviewed-head=[0-9a-f]{40} verdict=PASS$' "$review")
   [[ -n $pin ]] || refuse 'invalid-external-review; fix: use dogfood-review: reviewed-head=FULL_SHA verdict=PASS'

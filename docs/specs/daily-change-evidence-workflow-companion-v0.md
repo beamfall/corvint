@@ -134,7 +134,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   It MUST NOT copy another hunk's citation merely because both edit the same file.
 - `DWC-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4548)
   `DOGFOOD_REVIEW=FILE` MAY attach an external UTF-8 report with exactly one header
-  `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`. The regular report is at most 1 MiB
+  `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`. Only a line starting `dogfood-review:`
+  declares a header or selects this format; a prose mention elsewhere is ordinary text. The regular report is at most 1 MiB
   and MUST name the exact pre-seal HEAD; a missing, malformed, nonpassing or differently headed
   supplied report MUST refuse before check or mutation. A successful seal MUST record OBSERVED,
   the report path, SHA-256, verdict and reviewed head in its output and commit message, retaining
