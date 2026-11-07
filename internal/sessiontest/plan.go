@@ -122,6 +122,15 @@ func BinaryConsumerCheck(file string) string {
 	return file + " (UNSELECTED_BINARY_CONSUMER: it runs the built binary of a Go command this change reaches; run it by its own driver, since no Go test run covers it)"
 }
 
+// ModuleCheck is the still-required check that names a nested module's own
+// suite on the ci profile (AFP-V0-2742): CI runs that module's tests in a job
+// of their own (go-static; formatting and the Windows build in go-interop),
+// never in a Go shard, so `corvint test --profile ci` neither runs it nor
+// widens to FULL for it.
+func ModuleCheck(directory string) string {
+	return "go -C " + directory + " test ./... (go:unobserved-module: a nested Go module the root does not build; CI runs its own suite in a job outside the Go shards, so corvint test --profile ci does not run it)"
+}
+
 // ModuleCovered reports whether every dirty path is named by a well-formed
 // AFP-V0-650 unobserved-module frontier (STR-V0-064). `corvint test` then
 // reads an empty root selection as NOTHING for the root rather than the
@@ -255,11 +264,17 @@ func Build(input Input) (Manifest, error) {
 		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
-		if directory, ok := moduleDirectory(entry); ok && input.RunnerProfile != ProfileCI {
+		if directory, ok := moduleDirectory(entry); ok {
 			// The nested module's own go test ./... covers the path
-			// (STR-V0-064); the ci profile's confined runner is not
-			// qualified for it, so there it stays outside the allowlist.
-			modules[directory] = true
+			// (STR-V0-064). The ci profile's confined runner is not
+			// qualified for it, so there it names the module's suite as a
+			// check still required, which CI runs outside the Go shards,
+			// as the deciding driver admits the entry (AFP-V0-2742).
+			if input.RunnerProfile != ProfileCI {
+				modules[directory] = true
+			} else if check := ModuleCheck(directory); !slices.Contains(manifest.Checks, check) {
+				manifest.Checks = append(manifest.Checks, check)
+			}
 			continue
 		}
 		if file, ok := binaryConsumer(entry); ok {
