@@ -607,9 +607,12 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			if graph.deletedGoTest(path, packages) || graph.deletedGoPackage(path, packages) {
-				// Rule (a) selects its base package (AFP-V0-620), or the
-				// importers of its deleted package (AFP-V0-821). A path
+			if graph.admittedDeletion(path, packages) {
+				// Rule (a) selects its base package and that package's
+				// importers (AFP-V0-620, AFP-V0-2610), or the importers of
+				// its deleted package (AFP-V0-821); a deleted fixture's
+				// readers and hosting package are selected by rules (b)
+				// and (c) (AFP-V0-2740). A path
 				// inside a runnable unobserved directory still names that
 				// directory's test root, as the read-data branch does.
 				if inModule {
@@ -962,6 +965,9 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // soundness argument needs an unowned path to make every reached plugin take
 // part. AZU-V0-9901 permits terminal status for tracked fixture membership
 // changes with selected Go hosts, while preserving each unowned-path proof.
+// An admitted deletion (admittedDeletion: AFP-V0-2610, AFP-V0-821,
+// AFP-V0-2740, AFP-V0-2749) is listed among the unowned paths although
+// claimantsOf names its claimant, which still takes part.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -990,6 +996,7 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		}
 	}
 	paths := make(map[string]bool)
+	var packages map[string]string
 	for _, path := range dirty {
 		if taskState[path] {
 			continue
@@ -997,6 +1004,19 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		claimed := graph.claimantsOf(path)
 		if len(claimed) == 0 {
 			paths[path] = true
+		} else if _, owned := graph.owner[path]; !owned {
+			// An admitted deletion (a deleted Go source, Go package or
+			// fixture: AFP-V0-2610, AFP-V0-821, AFP-V0-2740, AFP-V0-2749)
+			// raises no UNINDEXED_SOURCE_PATH although a plugin's Owns claims
+			// it, so it stays unowned here: every other plugin's unowned-path
+			// checks still see it. The claimant takes part as the owner of a
+			// dirty path.
+			if packages == nil {
+				packages = graph.goPackageDirectories()
+			}
+			if graph.admittedDeletion(path, packages) {
+				paths[path] = true
+			}
 		}
 		for _, name := range claimed {
 			names[name] = true
@@ -1158,7 +1178,9 @@ func terminalWitness(witness Witness) bool {
 // claimantsOf lists the plugins that own path: the namespace of the unit that
 // declares it, and every plugin whose Owns claims it. A file a Go package
 // embeds or other attributed read data (goReadData, AFP-V0-600, AFP-V0-601)
-// is claimed by none: it stays an unowned path for every frontier rule.
+// is claimed by none: it stays an unowned path for every frontier rule. An
+// admitted deletion (admittedDeletion, AFP-V0-2749) keeps its claimant here;
+// participants lists it as unowned as well.
 func (graph *Graph) claimantsOf(path string) []string {
 	// Project-declared output with no indexed owner is data even when its
 	// filename looks like source (AZU-V0-9921). Keep it unowned for frontier
