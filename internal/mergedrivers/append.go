@@ -36,9 +36,32 @@ func Append(ctx context.Context, parent string, base, ours, theirs []byte, size 
 	command.Dir = dir
 	command.Env = gokernel.SanitizedGitEnvironment()
 	merged, err := command.Output()
+	if err == nil {
+		// A clean merge may contain literal conflict markers; it needs no parsing.
+		return merged, true, nil
+	}
 	if err != nil {
 		if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() < 1 || exit.ExitCode() > 127 {
 			return nil, false, err
+		}
+	}
+	// Literal start/base/end markers can be mistaken for generated delimiters.
+	// An equals line in the real base can likewise hide nonblank base content.
+	// Retain Git's conflict verbatim whenever those delimiters are ambiguous.
+	markers := [][]byte{bytes.Repeat([]byte{'<'}, size), bytes.Repeat([]byte{'|'}, size), bytes.Repeat([]byte{'>'}, size)}
+	for _, data := range [][]byte{base, ours, theirs} {
+		for _, line := range bytes.Split(data, []byte("\n")) {
+			for _, marker := range markers {
+				if bytes.HasPrefix(line, marker) {
+					return merged, false, nil
+				}
+			}
+		}
+	}
+	separator := bytes.Repeat([]byte{'='}, size)
+	for _, line := range bytes.Split(base, []byte("\n")) {
+		if bytes.Equal(bytes.TrimRight(line, "\r"), separator) {
+			return merged, false, nil
 		}
 	}
 	result, clean := resolveAppend(merged, size)

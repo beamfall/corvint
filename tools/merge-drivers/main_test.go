@@ -56,6 +56,9 @@ func TestGitDriversDWCV07703(t *testing.T) {
 	}{
 		{"append", "docs/specs/fixture.md", "anchor\n", "anchor\n## Ours\nA\n", "anchor\n## Theirs\nB\n", false},
 		{"edit", "docs/specs/fixture.md", "old\n", "ours\n", "theirs\n", true},
+		{"literal-base-edit", "docs/specs/fixture.md", "old\n", "||||||| example\n=======\nOurs\n", "Theirs\n", true},
+		{"literal-end-edit", "docs/specs/fixture.md", "old\n", "Ours\n", "Theirs\n>>>>>>> example\n", true},
+		{"literal-delimiters-clean", "docs/specs/fixture.md", "before\n<<<<<<< ours\n||||||| base\n=======\n>>>>>>> theirs\nafter\n", "Ours\n<<<<<<< ours\n||||||| base\n=======\n>>>>>>> theirs\nafter\n", "before\n<<<<<<< ours\n||||||| base\n=======\n>>>>>>> theirs\nTheirs\n", false},
 		{"json-add-add", ".corvint/test-read-scopes.json", ``, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                                      //corvint:fixture-path
 		{"json", ".corvint/test-read-scopes.json", `{"packages":{}}`, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                               //corvint:fixture-path
 		{"json-divergence", ".corvint/test-read-scopes.json", `{"packages":{"a":[]}}`, `{"packages":{"a":["ours"]}}`, `{"packages":{"a":["theirs"]}}`, true}, //corvint:fixture-path
@@ -128,9 +131,13 @@ func TestGitDriversDWCV07703(t *testing.T) {
 				if string(result) != tc.ours {
 					t.Fatalf("ours changed: %q", result)
 				}
-			case "edit":
+			case "edit", "literal-base-edit", "literal-end-edit":
 				if !bytes.Contains(result, []byte("||||||| base\nold\n")) {
 					t.Fatalf("edit conflict lost: %q", result)
+				}
+			case "literal-delimiters-clean":
+				if string(result) != "Ours\n<<<<<<< ours\n||||||| base\n=======\n>>>>>>> theirs\nTheirs\n" {
+					t.Fatalf("literal delimiters changed: %q", result)
 				}
 			}
 		})

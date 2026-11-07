@@ -71,6 +71,45 @@ func TestAppendDWCV07700MalformedDefaultMarkers(t *testing.T) {
 	}
 }
 
+func TestAppendDWCV07700LiteralDelimiters(t *testing.T) {
+	for _, size := range []int{7, 11} {
+		lt, bar, eq, gt := strings.Repeat("<", size), strings.Repeat("|", size), strings.Repeat("=", size), strings.Repeat(">", size)
+		for _, literal := range []string{lt + " ours", bar + " example", bar + " base", gt + " example", gt + " theirs", eq} {
+			for _, side := range []string{"base", "ours", "theirs"} {
+				t.Run(literal+"/"+side, func(t *testing.T) {
+					base, ours, theirs := "old\n", "Ours\n", "Theirs\n"
+					switch side {
+					case "base":
+						base = literal + "\nold\n"
+					case "ours":
+						ours = literal + "\n" + eq + "\nOurs\n"
+					case "theirs":
+						theirs = "Theirs\n" + literal + "\n"
+					}
+					want := lt + " ours\n" + ours + bar + " base\n" + base + eq + "\n" + theirs + gt + " theirs\n"
+					got, clean, err := Append(context.Background(), t.TempDir(), []byte(base), []byte(ours), []byte(theirs), size)
+					if err != nil || clean || string(got) != want {
+						t.Fatalf("got %q clean=%v err=%v, want verbatim conflict %q", got, clean, err, want)
+					}
+				})
+			}
+		}
+		literal := lt + " ours\n" + bar + " base\n" + eq + "\n" + gt + " theirs\n"
+		for _, tc := range []struct{ name, base, ours, theirs, want string }{
+			{"identical", literal, literal, literal, literal},
+			{"one-sided", "old\n", literal, "old\n", literal},
+			{"disjoint", "before\n" + literal + "after\n", "Ours\n" + literal + "after\n", "before\n" + literal + "Theirs\n", "Ours\n" + literal + "Theirs\n"},
+		} {
+			t.Run(tc.name+"/"+lt, func(t *testing.T) {
+				got, clean, err := Append(context.Background(), t.TempDir(), []byte(tc.base), []byte(tc.ours), []byte(tc.theirs), size)
+				if err != nil || !clean || string(got) != tc.want {
+					t.Fatalf("got %q clean=%v err=%v, want clean text %q", got, clean, err, tc.want)
+				}
+			})
+		}
+	}
+}
+
 func TestJSONDWCV07702(t *testing.T) {
 	for _, tc := range []struct{ name, base, ours, theirs, want string }{
 		{"root-union", `{}`, `{"a":1}`, `{"b":2}`, "{\n  \"a\": 1,\n  \"b\": 2\n}\n"},
