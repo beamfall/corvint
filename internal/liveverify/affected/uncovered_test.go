@@ -284,7 +284,10 @@ func TestAZUV0006CoverageCountsOnlyRunCallers(t *testing.T) {
 				{ID: "go:cmd/tool", Sources: []string{"cmd/tool/main.go"}, PathTokens: []string{"data/data.go"}},
 				{ID: "go:runner", Sources: []string{"runner/runner.go"}, Tests: []string{"runner/runner_test.go"}, Execs: []string{"go:cmd/tool"}},
 			},
-			dirty: "data/data.go", selected: []string{}, unknown: gap, scope: ScopeUnknown,
+			// AFP-V0-2992 walks a test-less reader's code runners like its
+			// importers, so the plan runs runner's test, which then counts as
+			// an observer under AZU-V0-006 and leaves no gap (batch-1107x).
+			dirty: "data/data.go", selected: []string{"runner/runner_test.go"}, scope: ScopeBounded,
 		},
 		{
 			name: "reader with its own tests",

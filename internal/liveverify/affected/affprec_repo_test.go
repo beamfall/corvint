@@ -234,7 +234,7 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 	}
 	for name, paths := range sets {
 		p := affected.Select(g, paths)
-		languageUnits, makeTargets, ciJobs := 0, 0, 0
+		languageUnits, floorUnits, makeTargets, ciJobs := 0, 0, 0, 0
 		for _, s := range p.Selected {
 			switch s.Kind {
 			case affected.SelectionKindDriverTarget:
@@ -243,23 +243,35 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 				ciJobs++
 			default:
 				languageUnits++
+				if s.Witness.Kind == affected.WitnessUnboundedReader {
+					floorUnits++
+				}
 			}
-			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" {
+			// The boundary test reads none of these paths (AFP-V0-9001). Its
+			// tests run the corvint binary, whose code locates the root, so
+			// rule (d) or a run of a reached command may still select it
+			// (AFP-V0-2991, AFP-V0-2992); a reader witness may not.
+			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" &&
+				s.Witness.Kind != affected.WitnessUnboundedReader && s.Witness.Kind != affected.WitnessBinaryExec {
 				t.Errorf("%s selects the boundary test via %s", name, s.Witness.Kind)
 			}
 		}
 		t.Logf("%s selected=%d language=%d make=%d ci=%d scope=%s unknown=%+v", name, len(p.Selected), languageUnits, makeTargets, ciJobs, p.Scope, p.Unknown)
 		if name == "heavy-only" {
 			// The historical 86-unit report predates the driver claimant.
-			// Keep a language-unit bound on the full integrated graph;
-			// AZU-V0-001's required drivers are additional selections.
-			// The selbatch merge (2026-11-06) measured 80 before and 95
-			// after: AFP-V0-2203 round 8 retains 14 Go path-literal readers
-			// whose lone tokens placement used to drop (`"script"` names
-			// the script/ directory at any depth), and AZU-V0-9920 indexes
+			// Keep its language-unit bound on the full integrated graph;
+			// AZU-V0-001's required drivers are additional selections. The
+			// bound counts the units beyond the rule (d) floor, which every
+			// change selects and the AFP-V0-025 ratchet
+			// (.corvint/unbounded-readers.json) holds unit by unit: AFP-V0-2991
+			// raised that floor when rule (d) began to follow execution edges.
+			// The selbatch merge (2026-11-06) measured 80 before and 95 after
+			// in total: AFP-V0-2203 round 8 retains 14 Go path-literal readers
+			// whose lone tokens placement used to drop (`"script"` names the
+			// script/ directory at any depth), and AZU-V0-9920 indexes
 			// .github/cishards, which executes the built binary.
-			if languageUnits >= 100 {
-				t.Errorf("heavy-only selected %d language units, want below 100 (95 measured at the selbatch merge)", languageUnits)
+			if beyond := languageUnits - floorUnits; beyond >= 86 {
+				t.Errorf("heavy-only selected %d language units beyond the %d-unit rule (d) floor, want below reported 86", beyond, floorUnits)
 			}
 			selected := affprecIDs(p)
 			reached := g.ReachedUnitIDs(paths)

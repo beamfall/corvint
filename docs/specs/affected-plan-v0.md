@@ -1892,7 +1892,8 @@ and container qualification; full fallback remains available.
   as a test user, or a change that reaches no command, selects no consumer. Limits: a literal that
   names a command directory as data over-selects, except in the data-only positions of
   AFP-V0-402; a command at the module root (`.`) is never a
-  literal target; an exec consumer's importers are not selected through it; a dirty
+  literal target; an exec consumer's importers are not selected through it (AFP-V0-2993 lifts
+  this for a consumer whose code runs the binary); a dirty
   `.corvint/test-binary-execs.json` is an unowned path and widens the plan to `UNKNOWN`; a
   `_test.go`-only change to a command still counts as reaching its build. Intent: `corvint affected`
   missed `conformance/host-lifecycle-v1` on a `cmd/corvint/help.go` change, with no import edge and
@@ -3712,7 +3713,8 @@ traceability rows there.
   the non-test edges are imports and path tokens whose component run names a package directory,
   and the root-module literal held by a non-test file; a root-module literal held only by test
   files is a test-only edge. For rule (d) the closure from each root-locating package SHALL follow
-  import edges only, as `Graph.unboundedReaders` does: a path token naming the locator's directory
+  import edges only, as `Graph.unboundedReaders` does (AFP-V0-2990 and AFP-V0-2994 add execution
+  edges): a path token naming the locator's directory
   links none of its code into the naming package. Rules (c) and the AFP-V0-023 declarations are
   unchanged, and a package whose test files name a dirty path is still a rule (c) reader.
   Failure modes: a package that reaches a root locator only through code a test runs as a
