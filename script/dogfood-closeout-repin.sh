@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # usage: script/dogfood-closeout-repin.sh BASE CITATIONS
 #
-# The repin step of make dogfood-closeout (ASD-V0-568, V1-4101). It runs the mechanical repin
-# command in DOGFOOD_CLOSEOUT_REGEN (make dogfood-closeout passes the batch-regen mechanical step:
-# host package versions, moved line citations, use-case receipts) before batch-precheck, so a citation that only moved because main moved does not fail
-# the seal. When the repin changes tracked files on a clean tracked tree, it commits exactly those
-# files and refreshes the citation plan with `corvint dogfood propose-citations --refresh`, so the
-# bind sees rows for the repin's hunks; the plan it replaced stays beside it as CITATIONS.pre-repin.
-# A failed repin exits 1 with the repin's output and the recovery, restores the tree and commits
-# nothing. A tree with uncommitted tracked changes skips the step (batch-precheck names them), and a
-# repin that changes nothing exits 0 and changes nothing. An unset or empty DOGFOOD_CLOSEOUT_REGEN
-# skips the step. A failed repin may have staged what it rewrote (check-line-citations.sh --repin
-# does) or committed it, so the restore resets HEAD and the index to the starting commit before it
-# checks the tracked tree out of that index, and a restore that fails exits 1 naming the commit.
-# Untracked files stay.
+# The repin step of make dogfood-closeout (ASD-V0-568, V1-4101). It runs the mechanical repinner
+# that DOGFOOD_CLOSEOUT_REGEN chooses from a fixed set, each run by its literal path, so the step never
+# runs a name it builds (TSP-V0-960): `script/batch-regen.sh --mechanical` (make's default: host
+# package versions, moved line citations, use-case receipts) or `script/check-line-citations.sh
+# --repin`. An unset or empty value skips the step; any other value exits 2 before anything runs.
+# The repin runs before batch-precheck, so a citation that only moved because main moved does not
+# fail the seal. When the repin changes tracked files on a clean tracked tree, it commits exactly
+# those files and refreshes the citation plan with `corvint dogfood propose-citations --refresh`, so
+# the bind sees rows for the repin's hunks; the plan it replaced stays beside it as
+# CITATIONS.pre-repin. A failed repin exits 1 with the repin's output and the recovery, restores the
+# tree and commits nothing. A tree with uncommitted tracked changes skips the step (batch-precheck
+# names them), and a repin that changes nothing exits 0 and changes nothing. A failed repin may have
+# staged what it rewrote (check-line-citations.sh --repin does) or committed it, so the restore resets
+# HEAD and the index to the starting commit before it checks the tracked tree out of that index, and
+# a restore that fails exits 1 naming the commit. Untracked files stay.
 set -uo pipefail
 base=${1-} citations=${2-}
 [[ -n $base ]] || { printf 'usage: script/dogfood-closeout-repin.sh BASE CITATIONS\n' >&2; exit 2; }
@@ -22,6 +24,22 @@ if [[ -z $regen ]]; then
   printf 'dogfood-closeout-repin: skipped (DOGFOOD_CLOSEOUT_REGEN is empty)\n' >&2
   exit 0
 fi
+case $regen in
+  'script/batch-regen.sh --mechanical' | 'script/check-line-citations.sh --repin') ;;
+  *)
+    printf 'dogfood-closeout-repin: REFUSE DOGFOOD_CLOSEOUT_REGEN=%s is not an allowed repinner; nothing ran\n' "$regen" >&2
+    printf "fix: set DOGFOOD_CLOSEOUT_REGEN to 'script/batch-regen.sh --mechanical' (the default) or 'script/check-line-citations.sh --repin', or to empty to skip the step (ASD-V0-568)\n" >&2
+    exit 2
+    ;;
+esac
+# repin runs the chosen repinner by its literal path.
+repin() {
+  case $regen in
+    'script/batch-regen.sh --mechanical') script/batch-regen.sh --mechanical ;;
+    'script/check-line-citations.sh --repin') script/check-line-citations.sh --repin ;;
+    *) return 2 ;;
+  esac
+}
 tracked_clean() { git diff --quiet HEAD -- && git diff --cached --quiet HEAD --; }
 if ! tracked_clean; then
   printf 'dogfood-closeout-repin: skipped: tracked changes are uncommitted; batch-precheck runs the repin and names them\n' >&2
@@ -39,8 +57,7 @@ restore() {
 }
 log=$(mktemp "${TMPDIR:-/tmp}/closeout-repin.XXXXXX") || exit 2
 trap '/bin/rm -f "$log"' EXIT
-# shellcheck disable=SC2086 # the override is a command line
-if ! $regen > "$log" 2>&1 < /dev/null; then
+if ! repin > "$log" 2>&1 < /dev/null; then
   printf 'dogfood-closeout-repin: FAIL the mechanical repin failed; nothing committed:\n' >&2
   tail -n 40 "$log" | sed 's/^/  | /' >&2
   printf 'fix: run %s, fix what it names, commit, then rerun make dogfood-closeout with the same inputs\n' "$regen" >&2

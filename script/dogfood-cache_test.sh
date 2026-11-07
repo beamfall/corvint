@@ -522,7 +522,7 @@ make -s dogfood-closeout CLOSEOUT_FROM=6 LANE=1 BASE=feedfacefeedfacefeedfacefee
 git clone -q "$root/repo" "$root/ordering"
 (
   cd "$root/ordering" || exit 1
-  unset CORVINT_BIN TEST_FAIL_SOURCE TEST_SIGNAL_SOURCE
+  unset CORVINT_BIN TEST_FAIL_SOURCE TEST_SIGNAL_SOURCE DOGFOOD_CLOSEOUT_REGEN
   export DOGFOOD_STATIC_PRECHECK=0 HEAVY_ADMIT= TEST_FAKE_CORVINT="$root/orderingbin/corvint" PATH="$root/orderingbin:$PATH"
   export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@e.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@e.invalid
   mkdir -p "$root/orderingbin" conformance/use-cases-v0
@@ -543,8 +543,9 @@ EOF
   printf '#!/bin/sh\n[ "$(cat pins.txt)" = current ] || { echo "pins.txt: a cited span moved" >&2; exit 1; }\n' > script/check-line-citations.sh
   printf '#!/bin/sh\n[ "${1-}" != --check ] || [ "$(cat receipts.txt)" = current ] || { echo "receipts.txt: stale use-case receipt" >&2; exit 1; }\n' > script/repin-use-case-receipts.sh
   printf '#!/bin/sh\nexit "${TEST_PRECHECK_RC:-0}"\n' > script/batch-precheck.sh
-  printf '#!/bin/sh\nprintf "current\\n" > pins.txt && printf "current\\n" > receipts.txt\n' > "$root/ordering-regen.sh"
-  chmod +x "$root/orderingbin/corvint" "$root/ordering-regen.sh" script/check-line-citations.sh script/repin-use-case-receipts.sh script/batch-precheck.sh
+  # The repin step runs make's default repinner by its literal path (ASD-V0-568).
+  printf '#!/bin/sh\n[ "$*" = --mechanical ] || exit 9\nprintf "current\\n" > pins.txt && printf "current\\n" > receipts.txt\n' > script/batch-regen.sh
+  chmod +x "$root/orderingbin/corvint" script/batch-regen.sh script/check-line-citations.sh script/repin-use-case-receipts.sh script/batch-precheck.sh
   printf '{}\n' > conformance/use-cases-v0/ledger.json
   printf 'current\n' > pins.txt && printf 'current\n' > receipts.txt
   git add -A && git -c user.name=t -c user.email=t@e.invalid commit -qm setup || exit 1
@@ -554,7 +555,7 @@ EOF
   printf '1\tsource-marker\t1:1\timplementation\n' > "$root/ordering-cites.tsv"
   : > "$TEST_FLOW_LOG"
   status=0
-  TEST_PRECHECK_RC=3 make -s dogfood-closeout CLOSEOUT_FROM=2 SEAL=0 BASE="$obase" DOGFOOD_CLOSEOUT_REGEN="$root/ordering-regen.sh" \
+  TEST_PRECHECK_RC=3 make -s dogfood-closeout CLOSEOUT_FROM=2 SEAL=0 BASE="$obase" \
     CITATIONS="$root/ordering-cites.tsv" INTENTS="$root/stop-intents.txt" VERIFY="$root/stop-verify.txt" OUTCOME=passed > "$root/output" 2>&1 || status=$?
   [[ $status != 0 ]] || { cat "$root/output" >&2; exit 1; }
   for line in 'step 2/5 repin ok after' 'step 3/5 dogfood-inputs-check ok after' 'FAILED step 4/5 batch-precheck rc=3 after'; do
