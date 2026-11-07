@@ -5,3 +5,11 @@ docs/decisions/README.md merge=union
 # use-case-receipts step recomputes (ASD-V0-985); install: see script/merge-use-case-pins.sh.
 conformance/use-cases-v0/ledger.json merge=use-case-pins
 conformance/use-cases-v0/receipts/** merge=use-case-pins
+# DWC-V0-7700..7703: install these repository-local drivers with make merge-drivers.
+docs/specs/*.md merge=specappend
+docs/specs/README.md merge=specgenerated
+docs/specs/INDEX.json merge=specgenerated
+docs/specs/REQUIREMENTS.tsv merge=specgenerated
+.corvint/shell-foreign-callers.json merge=registryunion
+.corvint/test-read-scopes.json merge=registryunion
+.corvint/shell-read-scopes.json merge=registryunion
