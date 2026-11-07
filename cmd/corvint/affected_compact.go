@@ -131,6 +131,7 @@ type affectedCompactWitness struct {
 	Via          []string                 `json:"via,omitempty"`
 	Cause        *affected.UnboundedCause `json:"cause,omitempty"`
 	Glob         string                   `json:"glob,omitempty"`
+	ReadScope    *affected.ReadScopeCause `json:"readScope,omitempty"`
 }
 
 // affectedExcludedSummary counts the exclusions and binds them by digest to
@@ -363,5 +364,5 @@ func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []st
 
 // compactWitness is the object shape shared by compact and by-path plans (TSP-V0-7311).
 func compactWitness(witness affected.Witness) affectedCompactWitness {
-	return affectedCompactWitness{AnyDirtyPath: witness.Kind == affected.WitnessUnboundedReader, Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob}
+	return affectedCompactWitness{AnyDirtyPath: witness.Kind == affected.WitnessUnboundedReader, Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob, ReadScope: witness.ReadScope}
 }

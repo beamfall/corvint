@@ -371,11 +371,39 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
 			}
 			if bears {
-				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}}
+				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: readScopeCause(id, directory, unit.ReadScope, dirtyPath)}
 				break
 			}
 		}
 	}
+}
+
+// readScopeCause records the exact declaration that justifies fan-out rather
+// than treating a declared subtree as a Go import (TSP-V0-1062).
+func readScopeCause(id, directory string, scope []string, dirtyPath string) *ReadScopeCause {
+	if dirtyPath == ReadScopesPath {
+		// The Go declaration itself changed; InReadScope selects shell units on it too.
+		return &ReadScopeCause{Declaration: ReadScopesPath, Entry: ReadScopesPath}
+	}
+	if dirtyPath == ShellReadScopesPath {
+		return &ReadScopeCause{Declaration: ShellReadScopesPath, Entry: ShellReadScopesPath}
+	}
+	declaration := ReadScopesPath
+	if strings.HasPrefix(id, "shell:") {
+		declaration = ShellReadScopesPath
+	}
+	entry := directory + "/"
+	if directory == "." {
+		entry = "./"
+	}
+	for _, candidate := range scope {
+		target := strings.TrimSuffix(candidate, "/")
+		if dirtyPath == target || strings.HasPrefix(target, dirtyPath+"/") || (target != candidate && strings.HasPrefix(dirtyPath, candidate)) {
+			entry = candidate
+			break
+		}
+	}
+	return &ReadScopeCause{Declaration: declaration, Entry: entry}
 }
 
 // declarationChanged reports whether a Go unit's read-scope declaration in
