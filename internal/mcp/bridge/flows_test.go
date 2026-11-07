@@ -149,9 +149,9 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 		if callErr != nil {
 			t.Fatal(callErr)
 		}
-		review, callErr := NewTaskReview(clone)
-		if callErr != nil {
-			t.Fatal(callErr)
+		review, reviewErr := newTaskReview(clone)
+		if reviewErr != nil {
+			t.Fatal(reviewErr)
 		}
 		task := `{"task":"orient contributor roadmap ticket workflow"}`
 		for _, call := range []struct {
@@ -226,9 +226,9 @@ func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing
 			name, root string
 			refused    bool
 		}{{"full", full, false}, {"sparse", sparse, true}} {
-			registry, callErr := NewFlows(test.root)
-			if callErr != nil {
-				t.Fatal(callErr)
+			registry, newErr := NewFlows(test.root)
+			if newErr != nil {
+				t.Fatal(newErr)
 			}
 			result, callErr := registry.Call(liftedProbeContext(), ToolFlowsCoverage, arguments)
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
@@ -317,7 +317,7 @@ func TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching(t *tes
 			name, root string
 			refused    bool
 		}{{"complete", complete, false}, {"partial", partial, true}} {
-			registry, err := NewTaskReview(test.root)
+			registry, err := newTaskReview(test.root)
 			if err != nil {
 				t.Fatal(err)
 			}

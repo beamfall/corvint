@@ -1,7 +1,11 @@
 package golang_test
 
 import (
+	"bytes"
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"testing/fstest"
@@ -276,4 +280,158 @@ func TestImportSetRecordsCompareHeaders_AFPV02202(t *testing.T) {
 			}
 		})
 	}
+}
+
+// hiddenImportFiles is a module whose command cmd/tool imports the hidden
+// package .github/lib, which `./...` skips but the Go plugin indexes
+// (AZU-V0-005). observer's test lists cmd/tool's dependencies with an
+// all-literal `go list -deps`, so an import added to .github/lib changes its
+// result; .github/lib has a test of its own; a hidden testdata fixture and a
+// declared non-source dump are no package files.
+func hiddenImportFiles() map[string]string {
+	return map[string]string{
+		"go.mod": "module example.test/h\n\ngo 1.27\n",
+		".corvint/non-source-paths.json": `{"profile": "corvint-non-source-paths/0", "entries": [` +
+			`{"path": ".agent-evidence/", "reason": "retained evidence output, never built"}]}` + "\n",
+		".github/lib/lib.go":              "package lib\n\nfunc Help() string { return \"help\" }\n",
+		".github/lib/lib_test.go":         "package lib\n\nimport \"testing\"\n\nfunc TestHelp(t *testing.T) {\n\tif Help() != \"help\" {\n\t\tt.Fatal(Help())\n\t}\n}\n",
+		".github/lib/testdata/fixture.go": "package fixture\n",
+		".agent-evidence/run/dump.go":     "package dump\n",
+		"cmd/tool/main.go":                "package main\n\nimport \"example.test/h/.github/lib\"\n\nfunc main() { println(lib.Help()) }\n",
+		"observer/observer.go":            "package observer\n",
+		"observer/observer_test.go": "package observer\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\n" +
+			"func TestToolDeps(t *testing.T) {\n\tout, err := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}} {{join .Imports \\\" \\\"}}\", \"example.test/h/cmd/tool\").Output()\n" +
+			"\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\tfor _, line := range strings.Split(string(out), \"\\n\") {\n\t\tif strings.HasPrefix(line, \"strings \") {\n\t\t\tt.Fatalf(\"cmd/tool depends on strings: %s\", line)\n\t\t}\n\t}\n}\n",
+		"unrelated/unrelated.go":      "package unrelated\n",
+		"unrelated/unrelated_test.go": "package unrelated\n\nimport \"testing\"\n\nfunc TestNothing(t *testing.T) {}\n",
+	}
+}
+
+// AFP-V0-2202 with AZU-V0-005 (selbatch fix round 1): an import added to the
+// indexed hidden package .github/lib changes the dependency listing of
+// cmd/tool, its ordinary importer, that observer's test checks; both the
+// measured comparison and the assumed one select observer, with the witness
+// chain .github/lib -> cmd/tool -> observer. A body-only edit keeps the
+// narrowing; a hidden testdata fixture and declared non-source output change
+// no import set; a removed hidden package changes the module's.
+func TestHiddenPackageImportSetSelectsObserver_AFPV02202(t *testing.T) {
+	files := hiddenImportFiles()
+	root := t.TempDir()
+	writeFiles(t, root, files)
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	const module = "go:example.test/h/"
+	lib, tool, observer, unrelated := module+".github/lib", module+"cmd/tool", module+"observer", module+"unrelated"
+	if _, known := graph.Unit(lib); !known {
+		t.Fatalf("hidden package %s is not a unit", lib)
+	}
+	if unit, _ := graph.Unit(observer); unit.ImportGraphReadsAll || !reflect.DeepEqual(unit.ImportGraphReads, []string{tool}) {
+		t.Fatalf("observer reads all=%v %v, want only %s", unit.ImportGraphReadsAll, unit.ImportGraphReads, tool)
+	}
+	base := fstest.MapFS{".github/gone/gone.go": {Data: []byte("package gone\n")}}
+	for name, body := range files {
+		base[name] = &fstest.MapFile{Data: []byte(body)}
+	}
+	head := func(changed map[string]string) fstest.MapFS {
+		tree := fstest.MapFS{}
+		for name, body := range files {
+			tree[name] = &fstest.MapFile{Data: []byte(body)}
+		}
+		for name, body := range changed {
+			tree[name] = &fstest.MapFile{Data: []byte(body)}
+		}
+		return tree
+	}
+	const libFile = ".github/lib/lib.go"
+	importAdded := "package lib\n\nimport \"strings\"\n\nfunc Help() string { return strings.ToLower(\"help\") }\n"
+	bodyOnly := "package lib\n\nfunc Help() string { return \"other\" }\n"
+	cases := []struct {
+		name  string
+		head  fstest.MapFS
+		dirty string
+		want  affected.ImportSetChanges
+	}{
+		{"hidden import", head(map[string]string{libFile: importAdded}), libFile, affected.ImportSetChanges{Changed: map[string]string{lib: libFile}}},
+		{"hidden file added", head(map[string]string{".github/lib/extra.go": "package lib\n\nimport \"os\"\n\nvar _ = os.Args\n"}), ".github/lib/extra.go", affected.ImportSetChanges{Changed: map[string]string{lib: ".github/lib/extra.go"}}},
+		{"hidden body", head(map[string]string{libFile: bodyOnly}), libFile, affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"hidden package removed", head(nil), ".github/gone/gone.go", affected.ImportSetChanges{Changed: map[string]string{}, Module: ".github/gone/gone.go"}},
+		{"hidden testdata", head(map[string]string{".github/lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), ".github/lib/testdata/fixture.go", affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"declared output", head(map[string]string{".agent-evidence/run/dump.go": "package dump\n\nimport \"os\"\n"}), ".agent-evidence/run/dump.go", affected.ImportSetChanges{Changed: map[string]string{}}},
+	}
+	for _, test := range cases {
+		t.Run("measured "+test.name, func(t *testing.T) {
+			if got := golang.ImportSetRecords(base, test.head, graph, []string{test.dirty}); !reflect.DeepEqual(*got, test.want) {
+				t.Fatalf("changes = %+v, want %+v", *got, test.want)
+			}
+		})
+	}
+	selected := func(changes *affected.ImportSetChanges, dirty string) map[string]affected.Witness {
+		plan := affected.Select(graph.WithImportSetChanges(changes), []string{dirty})
+		witnesses := map[string]affected.Witness{}
+		for _, selection := range plan.Selected {
+			witnesses[selection.UnitID] = selection.Witness
+		}
+		return witnesses
+	}
+	// The fault: an import added to the hidden dependency. Measured and
+	// assumed comparisons alike must select the observer.
+	measured := golang.ImportSetRecords(base, head(map[string]string{libFile: importAdded}), graph, []string{libFile})
+	for name, changes := range map[string]*affected.ImportSetChanges{"measured": measured, "assumed": nil} {
+		witnesses := selected(changes, libFile)
+		if witnesses[observer].Kind != affected.WitnessImportGraphReader {
+			t.Errorf("%s: observer witness = %+v, want %s", name, witnesses[observer], affected.WitnessImportGraphReader)
+		}
+		if _, hit := witnesses[lib]; !hit {
+			t.Errorf("%s: hidden package %s not selected", name, lib)
+		}
+		if witness, hit := witnesses[unrelated]; hit {
+			t.Errorf("%s: unrelated selected by %+v", name, witness)
+		}
+		if name == "measured" {
+			if want := []string{lib, tool, observer}; !reflect.DeepEqual(witnesses[observer].Via, want) {
+				t.Errorf("observer via = %v, want %v", witnesses[observer].Via, want)
+			}
+		}
+	}
+	// A body-only edit changes no import set, and neither declared output
+	// nor a testdata fixture is a package file, measured or assumed.
+	for _, control := range []struct {
+		dirty   string
+		changes *affected.ImportSetChanges
+	}{
+		{libFile, golang.ImportSetRecords(base, head(map[string]string{libFile: bodyOnly}), graph, []string{libFile})},
+		{".agent-evidence/run/dump.go", nil},
+		{".github/lib/testdata/fixture.go", nil},
+	} {
+		if witness, hit := selected(control.changes, control.dirty)[observer]; hit {
+			t.Errorf("%s (measured=%v) selected observer by %+v", control.dirty, control.changes != nil, witness)
+		}
+	}
+	// The toolchain agrees that the observer's listing changes.
+	t.Run("go list observes the change", func(t *testing.T) {
+		if _, err := exec.LookPath("go"); err != nil {
+			t.Skip("go toolchain is unavailable")
+		}
+		module := t.TempDir()
+		writeFiles(t, module, map[string]string{"go.mod": files["go.mod"], libFile: files[libFile], "cmd/tool/main.go": files["cmd/tool/main.go"]})
+		list := func() []byte {
+			command := exec.Command("go", "list", "-deps", "./cmd/tool")
+			command.Dir = module
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOWORK=off", "GOFLAGS=-buildvcs=false", "GO111MODULE=on")
+			out, err := command.Output()
+			if err != nil {
+				t.Skipf("go list failed: %v", err)
+			}
+			return out
+		}
+		before := list()
+		if err := os.WriteFile(filepath.Join(module, filepath.FromSlash(libFile)), []byte(importAdded), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if after := list(); bytes.Equal(before, after) {
+			t.Fatalf("go list -deps ./cmd/tool unchanged by the hidden import:\n%s", after)
+		}
+	})
 }

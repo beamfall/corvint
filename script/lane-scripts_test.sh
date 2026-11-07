@@ -5,7 +5,7 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), lane-binary-check.sh (ASD-V0-755..757),
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831, ASD-V0-571), lane-binary-check.sh (ASD-V0-755..757),
 # requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
@@ -410,7 +410,7 @@ if [[ \$1 == build ]]; then
   exit 0
 fi
 [[ \$1 == test || \$1 == vet || \$1 == windows-vet ]] || exit 0
-case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
+case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; printf '%s\n' "\${GIT_CONFIG_GLOBAL-unset}" > "$off/gcg.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
 printf '%s %s\n' "\$where" "\$*" >> "$off/go-args.log"
@@ -713,6 +713,18 @@ HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... > /dev/null 2> "$
   fail "heavy.sh lost the caller's exported GOMAXPROCS=1: $(cat "$off/gmp.last")"
 HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $(cat "$off/gmp.last") == 1 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS beat the caller's GOMAXPROCS: $(cat "$off/gmp.last")"
+# ASD-V0-909: an offloaded command sees the caller's GIT_CONFIG_GLOBAL over a value the remote
+# environment file sets (the ssh stub, like ssh, drops the local environment), and runs without one
+# when the caller has it unset.
+/bin/cp -f "$off/rhome/go.env" "$off/go.env.keep"
+printf 'export GIT_CONFIG_GLOBAL=/remote/env/gitconfig\n' >> "$off/rhome/go.env"
+out=$(GIT_CONFIG_GLOBAL=$off/gcg HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... 2> "$off/err")
+[[ $out == where=remote* && $(cat "$off/gcg.last") == "$off/gcg" ]] ||
+  fail "heavy.sh offload lost GIT_CONFIG_GLOBAL: $out $(cat "$off/gcg.last" "$off/err")"
+out=$(unset GIT_CONFIG_GLOBAL; HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... 2> "$off/err")
+/bin/mv -f "$off/go.env.keep" "$off/rhome/go.env"
+[[ $out == where=remote* && $(cat "$off/gcg.last") == unset ]] ||
+  fail "heavy.sh offload set GIT_CONFIG_GLOBAL the caller had unset: $out $(cat "$off/gcg.last" "$off/err")"
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=x hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $? == 2 ]] && grep -q 'invalid-remote-gomaxprocs' "$off/err" ||
   fail "heavy.sh did not refuse HEAVY_REMOTE_GOMAXPROCS=x: $(cat "$off/err")"
@@ -1643,7 +1655,9 @@ grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go t
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
 cp "$pol/bin/go" "$pol/go.keep"
 cp "$pol/sel.log" "$pol/sel.keep"
-printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "$STUB_GO_ARGS"\nexit "${STUB_GO_RC:-0}"\n' > "$pol/bin/go"
+# heavy.sh reads `go env GOFLAGS` when GOFLAGS is unset (outside an enclosing heavy.sh run); that
+# query is not the selected test run, so the stub does not record it.
+printf '#!/bin/sh\n[ "$1" = env ] && exit 0\nprintf "%%s\\n" "$*" >> "$STUB_GO_ARGS"\nexit "${STUB_GO_RC:-0}"\n' > "$pol/bin/go"
 : > "$pol/go.args"
 STUB_GO_ARGS=$pol/go.args HEAVY_WHOLE_REASON= pv go test -count=1 -run TestA ./x ./y > /dev/null 2> "$pol/err" ||
   fail "heavy.sh refused a selected go test of two packages: $(cat "$pol/err")"
@@ -1691,6 +1705,57 @@ $q -skip '^(TestB)\$' ./w
 # skipped go:other.org/z: outside example.com/m"
 [[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
   fail "heavy.sh --plan output: $(cat "$sel/plan" "$sel/err")"
+# AFP-V0-2326: HEAVY_REUSE, a reuse decision of the manifest's head, replaces each unit of a REUSE
+# package with a `# reused` line; a decision of another head or an unreadable one is not applied.
+decision() { # decision HEAD > FILE
+  printf '{"profile":"corvint-test-reuse-decision/0","head":"%s","identity":{"harness":[]},"records":[{"name":"r/main.json","verdict":"ADMITTED","source":{"kind":"main"}}],"units":[%s]}\n' "$1" \
+    '{"package":"example.com/m/w","decision":"REUSE","reason":"RECORD_DIGEST_EQUAL","digest":"sha256:d","witness":{"record":"r/main.json","kind":"main","commit":"c0"}},{"package":"example.com/m/x","decision":"RUN","reason":"DIGEST_CHANGED"},{"package":"example.com/m/y","decision":"REUSE","reason":"NO_RECORD"}'
+}
+decision "$selhead" > "$sel/d.json" && decision 0000000000000000000000000000000000000000 > "$sel/dold.json"
+# A stub for the current decider records the invocation and returns its freshly computed document.
+cat > "$sel/recheck" <<'SH'
+#!/bin/sh
+printf '%s\n' "$@" > "$RECHECK_ARGS"
+[ "${RECHECK_RC:-0}" = 0 ] || exit 3
+cat "$RECHECK_JSON"
+SH
+chmod +x "$sel/recheck"
+export CORVINT_BIN=$sel/recheck RECHECK_ARGS=$sel/recheck.args RECHECK_JSON=$sel/fresh.json
+cp "$sel/d.json" "$sel/fresh.json"
+HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with HEAVY_REUSE failed: $(cat "$sel/err")"
+want="$q ./x
+$q -run '^(TestA)\$' ./y
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# skipped go:example.com/m/v: slice 0/2 has no -run/-skip pattern
+# skipped go:other.org/z: outside example.com/m"
+[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 2 units from $sel/m.json (planDigest 0123456789ab), 2 reused from $sel/d.json" "$sel/err" ||
+  fail "heavy.sh --plan with HEAVY_REUSE output: $(cat "$sel/plan" "$sel/err")"
+for c in "dold.json|decision head 0000000000000000000000000000000000000000 is not the manifest source.head $selhead" "gone.json|decision unreadable" "m.json|not a corvint-test-reuse-decision/0"; do
+  HEAVY_REUSE="$sel/${c%%|*}" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with an unusable HEAVY_REUSE failed: $(cat "$sel/err")"
+  grep -qF "heavy.sh: HEAVY_REUSE=$sel/${c%%|*} not applied: ${c#*|}" "$sel/err" && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
+    fail "heavy.sh --plan applied an unusable HEAVY_REUSE ${c%%|*}: $(cat "$sel/plan" "$sel/err")"
+done
+[[ $(cat "$sel/recheck.args") == $'test\nreuse\ndecide\n--argv\n-count=1 -timeout 30m\n--records\nr/main.json\n--trust\nlocal,main' ]] ||
+  fail "heavy.sh did not recompute the current plan invocation: $(cat "$sel/recheck.args")"
+# A stale saved REUSE cannot suppress work after re-evaluation selects it (dirty input or identity).
+perl -pe 's/"decision":"REUSE"/"decision":"RUN"/g' "$sel/d.json" > "$sel/fresh.json"
+HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err"
+grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" && ! grep -q '^# reused' "$sel/plan" ||
+  fail "heavy.sh applied saved reuse after current inputs invalidated it: $(cat "$sel/plan" "$sel/err")"
+for failure in command malformed moved; do
+  cp "$sel/d.json" "$sel/fresh.json"
+  rc=0
+  case $failure in
+    command) rc=3 ;;
+    malformed) printf '{}' > "$sel/fresh.json" ;;
+    moved) decision 0000000000000000000000000000000000000000 > "$sel/fresh.json" ;;
+  esac
+  RECHECK_RC=$rc HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err"
+  grep -q 'not applied: reuse re-evaluation failed' "$sel/err" && ! grep -q '^# reused' "$sel/plan" ||
+    fail "heavy.sh applied reuse after $failure re-evaluation: $(cat "$sel/plan" "$sel/err")"
+done
+unset CORVINT_BIN RECHECK_ARGS RECHECK_JSON
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
@@ -1829,7 +1894,8 @@ ok
 fi
 if selected admission 29; then
 # ASD-V0-930: the Makefile admits build, tasks-build, doc-gates, batch-precheck and dogfood-finish
-# through HEAVY_ADMIT, script/heavy.sh by default and empty under CI.
+# through HEAVY_ADMIT, script/heavy.sh by default and empty under CI. Both doc-gates lines carry it: the
+# script/doc-gates-summary.sh make and the conformance/use-cases-v0 run.
 # The probe rule is read from stdin, not --eval, which GNU Make 3.81 (macOS) lacks.
 adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HEAVY_ADMIT)"\n' |
   env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory -f Makefile -f - heavy-admit-show); }
@@ -1837,7 +1903,8 @@ adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HE
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -Eq '^(BATCH_PRECHECK_LANE_CLOSEOUT=0 )?WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
-  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -Eq '^([^ ]*/)?make --no-print-directory --keep-going ' "$tmp/admit.out" &&
+  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] &&
+  grep -Eq '^script/doc-gates-summary\.sh echo ([^ ]*/)?make --no-print-directory --keep-going -j[1-9][0-9]* doc-gate/' "$tmp/admit.out" &&
   grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
 ok
@@ -2391,6 +2458,38 @@ static_make CORVINT_BIN=no-such-corvint-bin
 rc=$?
 ((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary .*CORVINT_BIN=no-such-corvint-bin' "$to/static/err" ||
   fail "an unresolvable CORVINT_BIN did not SKIP (rc=$rc): $(cat "$to/static/err")"
+# DCW-V0-2140 (V1-4406): a set CORVINT_BIN runs the static pre-check instead of the corvint on PATH,
+# and its refusal carries no installed-binary hint.
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/cbin-args"\necho "dogfood-inputs-check: REFUSE citation-plan-uniform" >&2\nexit 2\n' "$to" > "$to/static/cbin" &&
+  chmod +x "$to/static/cbin" || fail "static CORVINT_BIN stub"
+/bin/rm -f "$to/static/args"
+static_make CORVINT_BIN="$to/static/cbin"
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted && ! -e $to/static/args ]] && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" &&
+  ! grep -q 'ran the installed' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "the static pre-check did not prefer CORVINT_BIN (rc=$rc): $(cat "$to/static/err")"
+# Review fix: a relative CORVINT_BIN keeps naming the caller's file after the check moves to the root.
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=./cbin \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a relative CORVINT_BIN did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
+# Review fix: so does a PATH-only name found through a relative PATH entry.
+mkdir -p "$to/static/rel" && cp "$to/static/cbin" "$to/static/rel/cbin-rel" || fail "relative PATH fixture"
+/bin/rm -f "$to/static/cbin-args"
+(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK PATH="rel:$PATH" DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=cbin-rel \
+  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
+  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
+rc=$?
+((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
+  fail "a PATH-only CORVINT_BIN on a relative PATH entry did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/cbin"
+static_make CORVINT_BIN="$to/static/cbin"
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q "static pre-check SKIP no-static-binary (neither a cached tree build nor CORVINT_BIN=$to/static/cbin lists --static" "$to/static/err" ||
+  fail "a CORVINT_BIN without --static fell back to PATH or was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
 static_make
 rc=$?
@@ -2708,8 +2807,10 @@ if selected tools 41; then
 # runs the lane's own script/check-ai-coauthor-trailers.sh, so the source commits it.
 ls_src=$tmp/lane-setup-src
 git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
-  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$ls_src/script/" &&
-  git -C "$ls_src" add script && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
+  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$script/merge-drivers.sh" "$ls_src/script/" &&
+  printf "#!/bin/sh\n" > "$ls_src/script/merge-pins.sh" && chmod +x "$ls_src/script/merge-pins.sh" &&
+  printf "pins.json merge=pins\n" > "$ls_src/.gitattributes" &&
+  git -C "$ls_src" add script .gitattributes && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
 git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
 rc=$?
@@ -2722,6 +2823,9 @@ out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" 
 # checkout keeps its own setting.
 [[ $(git -C "$tmp/lane-a" config --get rerere.enabled) == false && $(git -C "$tmp/lane-setup-full" config --get rerere.enabled) == true ]] ||
   fail "lane rerere not disabled per worktree: lane=$(git -C "$tmp/lane-a" config --get rerere.enabled) shared=$(git -C "$tmp/lane-setup-full" config --get rerere.enabled)"
+# ASD-V0-571 (V1-4167): the lane checkout gets the .gitattributes merge driver.
+[[ $(git -C "$tmp/lane-a" config --get merge.pins.driver) == "script/merge-pins.sh %O %A %B %L" ]] ||
+  fail "lane setup configured no merge driver: $out"
 [[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
   fail "lane worktree not on claude/a at origin/main: $out"
 printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"
@@ -2880,14 +2984,24 @@ out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tm
 # below LO, or NONE; stdout and the exit code stay as before.
 [[ $(cat "$tmp/ids.err") == *'next free block ABC-V0-106..ABC-V0-111 at HEAD ('*'); check open refs with make requirement-ids-free PREFIX=ABC-V0 RANGE=106..111'* ]] ||
   fail "used block names no next free block: $(cat "$tmp/ids.err")"
-printf 'ABC-V0-998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
+printf 'ABC-V0-9998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
   git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm top || fail "top fixture"
-out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 996 999 HEAD 2> "$tmp/ids.err")
-[[ $? == 1 && $out == 'used ABC-V0-998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 9996 9999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-9998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
   fail "full upper range does not wrap below LO: $out $(cat "$tmp/ids.err")"
-out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 999 HEAD 2> "$tmp/ids.err")
-[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 1000 IDs is free at HEAD ('* ]] ||
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 9999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 10000 IDs is free at HEAD ('* ]] ||
   fail "full namespace does not print NONE: $(cat "$tmp/ids.err")"
+# LVT-V0-001 (V1-4046): a four-digit block is checked like a three-digit one, a three-digit block
+# above 996 now finds its next free block among the four-digit IDs, and only the canonical spelling
+# counts: ABC-V0-1030 is not ABC-V0-103, and ABC-V0-0102 is not ABC-V0-102.
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1028 1031 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-1030 spec.md:3' && $(cat "$tmp/ids.err") == *'1 of 4 IDs in ABC-V0-1028..ABC-V0-1031 are used at HEAD'*'next free block ABC-V0-1032..ABC-V0-1035 at HEAD'*'RANGE=1032..1035'* ]] ||
+  fail "four-digit block: $out $(cat "$tmp/ids.err")"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1032 1035 HEAD 2>&1)
+[[ $? == 0 && $out == "free ABC-V0-1032..ABC-V0-1035 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free four-digit block: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 990 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 0 ]] || fail "a three-digit block below the four-digit IDs was refused: $out $(cat "$tmp/ids.err")"
 git -C "$ids" rm -q top.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untop || fail "top fixture removal"
 # Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
 # byte is a colon (`:ABC-V0-103`) keeps its path and line.
@@ -2896,10 +3010,20 @@ mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" &
 out=$(cd "$ids/sub/deeper" && "$script/requirement-ids-free.sh" ABC-V0 101 103 HEAD 2> /dev/null)
 [[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-103 sub/colon.txt:1' ]] || fail "subdirectory or colon-prefixed match: $out"
 git -C "$ids" rm -q sub/colon.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm uncolon || fail "colon fixture removal"
+printf 'ABC-V0-0102 and ABC-V0-01030 are not canonical; ABC-V0-102tail XABC-V0-103 ABC-V0-104_extra X-ABC-V0-104 are not complete tokens\n' > "$ids/padded.txt" && git -C "$ids" add padded.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm padded || fail "padded fixture"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
 [[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1030 1030 HEAD 2>&1)
+[[ $? == 1 && $out == *'used ABC-V0-1030 spec.md:3'* && $out != *padded.txt* ]] || fail "a zero-padded spelling counted as ABC-V0-1030: $out"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
 [[ $? == 0 && $out == 'free ZZZ-V1-001..ZZZ-V1-009 at HEAD ('* ]] || fail "unknown prefix: $out"
+# Complete adjacent tokens both count; separators are not consumed by the first match.
+printf 'ABC-V0-9001,ABC-V0-9002\n' > "$ids/tokens.txt" && git -C "$ids" add tokens.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm tokens || fail "token fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 9001 9002 HEAD 2> /dev/null)
+[[ $? == 1 && $out == $'used ABC-V0-9001 tokens.txt:1\nused ABC-V0-9002 tokens.txt:1' ]] || fail "adjacent complete tokens: $out"
+git -C "$ids" rm -q tokens.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untokens || fail "token fixture removal"
 # ASD-V0-962 (V1-3472): with no range the prefix is a new family; one REQUIREMENTS.tsv names refuses
 # it and names the next free prefix, skipping a family REQUIREMENTS.tsv or any tracked file uses.
 mkdir -p "$ids/docs/specs" && printf 'ABC-V0-101\tdocs/specs/abc.md\tone\nABD-V0-001\tdocs/specs/abd.md\ttwo\n' > "$ids/docs/specs/REQUIREMENTS.tsv" &&
@@ -2915,7 +3039,24 @@ for range in ..979 1..2..3 960.. abc; do
   out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
   [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
 done
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+# DCW-V0-2146 (V1-4291): a range of any digit width is admitted and matches the canonical (%03d)
+# spelling only; a bare run, through the script or make, prints the usage instead of bad-prefix ''.
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1000 1039 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-1030 spec.md:3' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-1040..ABC-V0-1079 at HEAD'* ]] ||
+  fail "four-digit range: $out $(cat "$tmp/ids.err")"
+printf 'ABC-V0-0101 is not canonical\n' > "$ids/pad.txt" && git -C "$ids" add pad.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm pad || fail "pad fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 101 101 HEAD 2> /dev/null)
+[[ $? == 1 && $out == 'used ABC-V0-101 b.txt:1' ]] || fail "zero-padded ID counted: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 1 1000 HEAD 2> /dev/null)
+[[ $? == 1 && $out == *'used ABC-V0-101 '* && $out != *'1030'* ]] || fail "range across widths: $out"
+for argv0 in none empty; do
+  if [[ $argv0 == none ]]; then out=$(cd "$ids" && "$script/requirement-ids-free.sh" 2>&1); else out=$(cd "$ids" && "$script/requirement-ids-free.sh" '' 2>&1); fi
+  [[ $? == 2 && $out == *'REFUSE bad-arguments'*'usage: '*'make requirement-ids-free PREFIX='* && $out != *"bad-prefix ''"* ]] || fail "bare run ($argv0): $out"
+done
+out=$(make -s -C "$script/.." requirement-ids-free 2>&1)
+[[ $? == 2 && $out == *'usage: '* && $out != *"bad-prefix ''"* ]] || fail "bare make run: $out"
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 10000 HEAD:bad-range' 'ABC-V0 1 1234567890 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" ${argv[@]+"${argv[@]}"} 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
@@ -3140,6 +3281,13 @@ grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=int
 ok
 fi
 if selected tools 49; then
+
+# DWC-V0-3725 (V1-4163): dogfood-inputs-check runs the use-case receipt check before the pre-flight,
+# so a stale receipt is named there rather than first at the seal. The check's own refusal of a
+# stale receipt is pinned by script/repin-use-case-receipts_test.sh.
+[[ $mk == *'script/repin-use-case-receipts.sh --check'*'stale use-case receipt'*'script/dogfood-finish.sh'* ]] ||
+  fail "Makefile dogfood-inputs-check does not refuse a stale use-case receipt before the pre-flight"
+ok
 
 # ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
 # ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN
@@ -3438,7 +3586,9 @@ if selected tools 55; then
 # exit 2, naming the volume, before the command runs; a reason given as an `env` NAME=VALUE word is
 # honoured, and `go test -c` (compile only) needs no reason.
 hid=$tmp/identity
-mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n: > "%s/ran"\nexit 0\n' "$hid" > "$hid/bin/go" && chmod +x "$hid/bin/go" &&
+# The stub ignores heavy.sh's own `go env GOFLAGS` query (made when GOFLAGS is unset), which is
+# not the command whose run these cases forbid.
+mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n[ "$1" = env ] && exit 0\n: > "%s/ran"\nexit 0\n' "$hid" > "$hid/bin/go" && chmod +x "$hid/bin/go" &&
   printf 'module example.com/m\n\ngo 1.27\n' > "$hid/repo/go.mod" && git -C "$hid/repo" init -q && git -C "$hid/repo" add -A &&
   git -C "$hid/repo" -c user.name=t -c user.email=t@t commit -qm i || fail "identity fixture setup failed"
 hv_id() { /bin/rm -f "$hid/ran"; (cd "$hid/repo" && env PATH="$hid/bin:$PATH" HEAVY_SELECTION_LOG="$hid/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
@@ -3484,6 +3634,9 @@ done
 hv_id go test -c=false ./x > "$hid/out" 2> "$hid/err"
 [[ $? == 2 && ! -e $hid/ran ]] && grep -Fq "as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...)" "$hid/err" ||
   fail "heavy.sh whole-package refusal under -c=false: $(cat "$hid/out" "$hid/err")"
+# An env option, and the operand of -u, is skipped, not read as the command.
+hv_id env -u GOFLAGS HEAVY_WHOLE_REASON=x go test ./x > /dev/null 2> "$hid/err" && [[ -e $hid/ran ]] ||
+  fail "heavy.sh stopped reading env words at -u's operand: $(cat "$hid/err")"
 hv_id env FOO=1 go test -run . ./x > /dev/null 2>&1
 [[ $? == 2 && ! -e $hid/ran ]] || fail "heavy.sh admitted an env-wrapped match-all -run with no reason"
 ok
@@ -3838,6 +3991,55 @@ for manifest_tmp in "$linked_git" "$common_git" "$np/git-link" "$np/common-link"
   m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
   [[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested an unusable manifest for TMPDIR=$manifest_tmp: $m"
 done
+# DCW-V0-2142 (V1-4442): dogfood-retire-traces applies a stranded-only migrate-traces plan with its
+# own dry-run digest, refuses a plan that also rekeys legacy traces, and reports nothing stranded.
+rt=$tmp/retire-traces
+mkdir -p "$rt" || fail "retire fixture"
+digest=$(printf '%064d' 7)
+cat > "$rt/corvint" << STUB
+#!/bin/sh
+printf '%s\n' "\$*" >> "$rt/calls"
+case "\$1 \$2" in
+  'migrate-traces --dry-run') cat "$rt/plan.json" ;;
+  'migrate-traces --apply') [ -e "$rt/apply-fails" ] && exit 1; echo '{"ok":true}' ;;
+  *) exit 9 ;;
+esac
+STUB
+chmod +x "$rt/corvint" || fail "retire stub"
+retire() { /bin/rm -f "$rt/calls"; out=$(CORVINT_BIN=$rt/corvint "$script/dogfood-retire-traces.sh" "$@" 2>&1); rc=$?; }
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
+retire
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "nothing stranded: rc=$rc $out"
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":["%040d","%040d"]}\n' "$digest" 1 2 > "$rt/plan.json"
+retire
+((rc == 0)) && [[ $(grep -c '^dogfood-retire-traces: RETIRE stale trace ' <<< "$out") == 2 && $out == *"--plan-digest $digest (DCW-V0-2142"* &&
+  $(sed -n 2p "$rt/calls") == "migrate-traces --apply --plan-digest $digest" && $out == *'rerun the dogfood command you ran'* ]] || fail "stranded only: rc=$rc $out"
+touch "$rt/apply-fails"
+retire
+((rc == 2)) && [[ $out == *'REFUSE apply-failed'*'fix: rerun make dogfood-retire-traces'* && $out != *'RETIRE'* ]] || fail "failed apply: rc=$rc $out"
+/bin/rm -f "$rt/apply-fails"
+printf '{"entries":[{"x":1}],"plan_digest":"%s","stranded_revisions":["%040d"]}\n' "$digest" 1 > "$rt/plan.json"
+retire
+((rc == 2)) && [[ $out == *'REFUSE plan-rekeys-legacy-traces stranded=1 legacy=1'*"fix: inspect corvint migrate-traces --dry-run, then corvint migrate-traces --apply --plan-digest $digest"* &&
+  $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "legacy plan applied or not refused: rc=$rc $out"
+printf 'not json\n' > "$rt/plan.json"
+retire
+((rc == 2)) && [[ $out == *'REFUSE dry-run-unreadable'*'fix: '* ]] || fail "unreadable plan: rc=$rc $out"
+retire extra
+((rc == 2)) && [[ $out == *'REFUSE bad-arguments'*'usage: '* && ! -e $rt/calls ]] || fail "argument refusal: rc=$rc $out"
+# Review fix: a relative CORVINT_BIN, or a PATH-only name found through a relative PATH entry,
+# names the caller's file even though both invocations run from the repository root.
+printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
+mkdir -p "$rt/rel" && cp "$rt/corvint" "$rt/rel/corvint-rel" || fail "relative retire fixture"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && CORVINT_BIN=./corvint "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "relative CORVINT_BIN: rc=$rc $out"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && PATH="rel:$PATH" CORVINT_BIN=corvint-rel "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "PATH-only CORVINT_BIN on a relative PATH entry: rc=$rc $out"
+/bin/rm -f "$rt/calls"
+out=$(cd "$rt" && CORVINT_BIN=no-such-corvint-bin "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
+((rc == 2)) && [[ $out == *'REFUSE corvint-bin-not-found'*'fix: '* && ! -e $rt/calls ]] || fail "unresolvable CORVINT_BIN: rc=$rc $out"
 ok
 fi
 

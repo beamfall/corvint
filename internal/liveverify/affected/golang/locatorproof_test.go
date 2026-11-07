@@ -29,7 +29,7 @@ func TestComparisonOnlyLocators_AZU_V0_9930(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, prefix := range []string{"", "// header\npackage p\nimport system \"os\"\n"} {
 				body := []byte(prefix + tc.body)
-				got, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, nil)
+				got, _, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, nil)
 				if len(got) != tc.safe {
 					t.Fatalf("proof count = %d, want %d (prefix %q)", len(got), tc.safe, prefix)
 				}
@@ -68,7 +68,7 @@ if root == "" { root, err = system.Getwd() }; _ = err
 ` + tc.write + `
 system.ReadFile(fp.Join(root, "config.go"))
 }`)
-			safe, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, map[string]string{"fp": "path/filepath"})
+			safe, _, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, map[string]string{"fp": "path/filepath"})
 			if len(safe) != tc.safe {
 				t.Fatalf("exempted %d locators, want %d", len(safe), tc.safe)
 			}

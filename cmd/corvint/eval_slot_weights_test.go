@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -45,7 +44,7 @@ func ignoreSlotLedgers(t *testing.T, root string) {
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", ".gitignore"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "ignore"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

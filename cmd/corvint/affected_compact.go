@@ -57,6 +57,7 @@ type affectedCompactPlan struct {
 	Selected    []affectedCompactSelection `json:"selected"`
 	Excluded    affectedExcludedSummary    `json:"excluded"`
 	Unknown     []affected.Unknown         `json:"unknown"`
+	Uncovered   []affected.Unknown         `json:"uncovered,omitempty"`
 	NonSource   []affected.NonSource       `json:"nonSource,omitempty"`
 	// FrontierSites is the plan's repository frontier site count (AFP-V0-381).
 	FrontierSites map[string]int `json:"frontierSites,omitempty"`
@@ -108,11 +109,12 @@ type affectedCompactCheck struct {
 }
 
 type affectedCompactSelection struct {
+	Kind      string                 `json:"kind,omitempty"`
+	Run       []string               `json:"run,omitempty"`
 	UnitID    string                 `json:"unitId"`
 	TestCount int                    `json:"testCount"`
 	Witness   affectedCompactWitness `json:"witness"`
-	// Kind, Argv, Workflow and Job carry a driver selection (AZU-V0-001).
-	Kind     string   `json:"kind,omitempty"`
+	// Argv, Workflow and Job carry a driver selection (AZU-V0-001).
 	Argv     []string `json:"argv,omitempty"`
 	Workflow string   `json:"workflow,omitempty"`
 	Job      string   `json:"job,omitempty"`
@@ -131,6 +133,7 @@ type affectedCompactWitness struct {
 	Via          []string                 `json:"via,omitempty"`
 	Cause        *affected.UnboundedCause `json:"cause,omitempty"`
 	Glob         string                   `json:"glob,omitempty"`
+	ReadScope    *affected.ReadScopeCause `json:"readScope,omitempty"`
 }
 
 // affectedExcludedSummary counts the exclusions and binds them by digest to
@@ -181,6 +184,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			Selected:           selected,
 			Excluded:           excluded,
 			Unknown:            full.Plan.Unknown,
+			Uncovered:          full.Plan.Uncovered,
 			NonSource:          full.Plan.NonSource,
 			FrontierSites:      full.Plan.FrontierSites,
 			FrontierExcluded:   full.Plan.FrontierExcluded,
@@ -223,7 +227,7 @@ func compactAffectedSelections(selections []affected.Selection) ([]affectedCompa
 		if !linkAffectedChain(selection.UnitID, witness, links, prefixes) {
 			compact.Via = witness.Chain()
 		}
-		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job})
+		selected = append(selected, affectedCompactSelection{UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compact, Kind: selection.Kind, Run: selection.Run, Argv: selection.Argv, Workflow: selection.Workflow, Job: selection.Job})
 	}
 	if len(links) == 0 {
 		links = nil
@@ -363,5 +367,5 @@ func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []st
 
 // compactWitness is the object shape shared by compact and by-path plans (TSP-V0-7311).
 func compactWitness(witness affected.Witness) affectedCompactWitness {
-	return affectedCompactWitness{AnyDirtyPath: witness.Kind == affected.WitnessUnboundedReader, Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob}
+	return affectedCompactWitness{AnyDirtyPath: witness.Kind == affected.WitnessUnboundedReader, Kind: witness.Kind, DirtyPath: witness.DirtyPath, ViaLength: witness.ViaLength(), Cause: witness.Cause, Glob: witness.Glob, ReadScope: witness.ReadScope}
 }

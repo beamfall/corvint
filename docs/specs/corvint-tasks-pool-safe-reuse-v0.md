@@ -1681,7 +1681,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-019 | `TestPSRV0019_SharedAttachRefused`, `TestPSRV0019_ShareExcludesLaneUntouched` |
 | PSR-V0-020 | `TestPSRV0016_ShareBindsAndReads`, `TestPSRV0018_ShareReleaseOrders` |
 | PSR-V0-021 | `TestPSRV0021_SharedCodec` |
-| PSR-V0-022 | `TestPSRV0022_UnprovedProbeCleanupRecordsUnknown`, `TestPSRSweepSourceBoundClass` |
+| PSR-V0-022 | `TestPSRV0022_UnprovedProbeCleanupRecordsUnknown`, `TestPSRV0022_UnprovedCleanupAfterRetryableExitLaunchesNoRetry`, `TestPSRSweepSourceBoundClass` |
 | PSR-V0-023 | `TestPSRV0023SweepBoundsScaleWithBudget`, `TestPSRV0023ScaledProbeBoundEnforced`, `TestPSRForegroundSignals`, `TestPSRDispatchNativeAdapter` |
 | PSR-V0-024 | `TestPSRV0024PrepareConfig`, `TestPSRV0025PrepareRunsOwnedBeforeConfirm` |
 | PSR-V0-025 | `TestPSRV0025PrepareRunsOwnedBeforeConfirm`, `TestPSRV0025PrepareNeverLaunchesUnderAll`, `TestPSRV0026PrepareFailureStaysQuarantined` |

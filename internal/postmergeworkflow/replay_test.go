@@ -15,6 +15,7 @@ import (
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 
 	"github.com/Beamfall/corvint/internal/testplatform"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // This helper is a synthetic protocol adapter, never positive workflow evidence.
@@ -47,8 +48,11 @@ func TestAdapterHelper(t *testing.T) {
 		if child.Start() != nil {
 			os.Exit(12)
 		}
-		if os.WriteFile(args[index+2], []byte(strconv.Itoa(child.Process.Pid)), 0600) != nil {
+		if os.WriteFile(args[index+2]+".tmp", []byte(strconv.Itoa(child.Process.Pid)), 0600) != nil {
 			os.Exit(13)
+		}
+		if os.Rename(args[index+2]+".tmp", args[index+2]) != nil {
+			os.Exit(14)
 		}
 		time.Sleep(30 * time.Second)
 		os.Exit(0)
@@ -118,7 +122,7 @@ func TestAdapterHelper(t *testing.T) {
 func git(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+	cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)

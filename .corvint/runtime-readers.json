@@ -2,6 +2,10 @@
   "profile": "corvint-runtime-readers/0",
   "entries": [
     {
+      "path": ".corvint/agent-grep-exclude",
+      "reason": "agent search exclusion globs (ASD-V0-573), read through its declared path by script/agent-grep.sh and script/long-lines-check.sh; never executed or imported."
+    },
+    {
       "path": ".corvint/cem-lineage.tsv",
       "reason": "CEM lineage declaration, read through its declared path by the CEM workflow and existing repository readers; never executed or imported."
     },
@@ -12,6 +16,10 @@
     {
       "path": ".corvint/changes/",
       "reason": "sealed change-evidence maps (V1-1820, AFP-V0-152); read by the CEM and dogfood tools through path literals and declared read scopes, never by an unbounded reader alone (AFP-V0-772, measured for V1-3571: none of the 37 unbounded readers reads them) and never loaded by a computed name or a build or CI driver"
+    },
+    {
+      "path": ".corvint/ci-job-inputs.json",
+      "reason": "CI job input declaration (AFP-V0-2340, AFP-V0-2341), read through the path-literal constant internal/jobinputs.DeclarationPath by `corvint affected jobs`, its tests and tools/declaration-compat-check; the CI job-plan step runs every declared job when it changes; never executed, imported or loaded by a computed name"
     },
     {
       "path": ".corvint/deferred-intents/",
@@ -28,6 +36,14 @@
     {
       "path": ".corvint/gated-root-locators.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
+      "path": ".corvint/long-line-allow",
+      "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
+    },
+    {
+      "path": ".corvint/record-readers.json",
+      "reason": "record-directory reader ratchet record (AFP-V0-2745); read through path literals by tools/unbounded-readers and tools/declaration-compat-check and by the root-locating repository tests the unbounded-reader rule selects; never a selection input or loaded by a computed name or a build or CI driver"
     },
     {
       "path": ".corvint/runtime-edges.json",

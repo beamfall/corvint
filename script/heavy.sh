@@ -55,6 +55,10 @@
 #                        A relative .git/REL resolves to Git's path (linked worktrees); when M
 #                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
 #                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
+#   HEAVY_REUSE          a `corvint test reuse decide --out D` decision of HEAD; `--plan M` then prints
+#                        `# reused go:P: ...` instead of a command for each package D decides REUSE
+#                        (AFP-V0-2326). A decision of another head or an unreadable one is not applied,
+#                        named on one stderr line, and the full plan prints.
 #   HEAVY_GO_TEST_TIMEOUT  a go test naming no -timeout (argument, -test.timeout or GOFLAGS) gets
 #                        `-timeout VALUE` after `test`, before any offload; default 30m, off adds none
 #                        (ASD-V0-938, V1-3630).
@@ -232,7 +236,9 @@
 # not retried. A TERM, INT or HUP to this wrapper during an offload stops the local ssh and exits
 # 143, 130 or 129; the remote command keeps running until it ends or HEAVY_REMOTE_TIMEOUT stops it.
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
-# appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
+# appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv, the
+# caller's exported GOMAXPROCS (ASD-V0-835) and GIT_CONFIG_GLOBAL (ASD-V0-909: the same value, a path
+# read on the remote, or unset when the caller has it unset) travel:
 # set test environment with `env K=V` inside the command, or as leading K=V words, which become
 # `env K=V ...` (ASD-V0-830). GOCACHE/CORVINT_GOCACHE/GOMODCACHE and TMPDIR/GOTMPDIR assignments are
 # dropped remotely in every Make form (=, :=, ::=, :::=, +=, ?=, !=, blanks allowed), and a command
@@ -291,7 +297,8 @@ set -uo pipefail
 
 # git ARG...: ASD-V0-909 (V1-3684). heavy.sh's own Git calls ignore a caller's GIT_CONFIG_GLOBAL
 # (a lane that points it at a directory or a scratch file made every rev-parse fail, so the run lost
-# its tested-tree line and its offload); the wrapped command still inherits it unchanged.
+# its tested-tree line and its offload); the wrapped command still inherits it unchanged, on the
+# remote too (offload carries it in the payload).
 git() { env -u GIT_CONFIG_GLOBAL git "$@"; }
 
 refuse() {
@@ -730,6 +737,7 @@ offload() {
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
     printf 'BUSY=%q\nGMP=%q\nMINFREE=%q\nCALLER_GMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}" "$heavy_min_free" "${GOMAXPROCS-}"
+    printf 'CALLER_GCG_SET=%q\nCALLER_GCG=%q\n' "${GIT_CONFIG_GLOBAL+1}" "${GIT_CONFIG_GLOBAL-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -1001,6 +1009,9 @@ serve() {
     [[ $a =~ $drop_re ]] || cmd+=("$a")
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
+  # ASD-V0-909: the command sees the caller's GIT_CONFIG_GLOBAL, set or unset, as a local run would,
+  # over any value the environment file sets; heavy.sh's own Git calls (the git function) never do.
+  if [[ -n ${CALLER_GCG_SET-} ]]; then export GIT_CONFIG_GLOBAL=$CALLER_GCG; else unset GIT_CONFIG_GLOBAL; fi
   : > "$w/marker" || infra "marker unwritable"
   t3=$(heavy_now)
   HEAVY_RUN_TEST_PARENT=${HEAVY_REMOTE_TMPDIR:-$root/tmp} perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" ${cmd[@]+"${cmd[@]}"} < /dev/null
@@ -1444,7 +1455,11 @@ run_selects_all() {
 # or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern. It
 # fails with one `heavy.sh: HEAVY_SELECTION=PATH not admitted: REASON` stderr line (ASD-V0-722).
 # Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
-# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line.
+# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line. A
+# non-empty ARGV[3] in plan mode is HEAVY_REUSE, a corvint-test-reuse-decision/0 of the manifest's
+# source.head, re-evaluated for current inputs with the plan argv -count=1 -timeout 30m: each
+# unit of a package still decided REUSE prints a `# reused` line. A failed re-evaluation or
+# unusable decision prints one reason line and the full plan (AFP-V0-2326).
 manifest_perl='
 use strict; use warnings; use JSON::PP;
 my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
@@ -1464,13 +1479,39 @@ if ($mode eq "admit") {
   print "$digest\n"; exit 0;
 }
 sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
-my $n = 0;
+my ($n, $r, %reused) = (0, 0);
+if ($skip ne "") {
+  my $why;
+  my $mhead = ref $m->{source} eq "HASH" ? $m->{source}{head} // "" : "";
+  if (!open(my $rh, "<", $skip)) { $why = "decision unreadable" }
+  else {
+    my $d = eval { local $/; JSON::PP->new->decode(<$rh>) };
+    if (!(ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" && ref $d->{units} eq "ARRAY")) { $why = "not a corvint-test-reuse-decision/0" }
+    elsif (($d->{head} // "") ne $mhead || $mhead eq "") { $why = "decision head " . ($d->{head} // "") . " is not the manifest source.head $mhead (rerun corvint test reuse decide at this commit)" }
+    elsif (($pkgs[0] // "") eq "") { $why = "reuse re-evaluation failed" }
+    else {
+      $d = eval { JSON::PP->new->decode($pkgs[0]) };
+      if (!(ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" && ($d->{head} // "") eq $mhead && ref $d->{units} eq "ARRAY")) { $why = "reuse re-evaluation failed" }
+    }
+    if (!defined $why) {
+      for my $u (@{ $d->{units} }) {
+        next unless ref $u eq "HASH" && ($u->{decision} // "") eq "REUSE" && ($u->{reason} // "") eq "RECORD_DIGEST_EQUAL" && ref $u->{witness} eq "HASH";
+        $reused{$u->{package} // ""} = $u;
+      }
+    }
+  }
+  print STDERR "heavy.sh: HEAVY_REUSE=$skip not applied: $why; the full plan follows\n" if defined $why;
+}
 for my $u (@{ $m->{units} }) {
   my $unit = $u->{unit} // "";
   next unless $unit =~ /^go:(.+)$/;
   my $ip = $1;
   my $rel = $ip eq $key ? "." : index($ip, "$key/") == 0 ? "./" . substr($ip, length($key) + 1) : undef;
   if (!defined $rel) { print "# skipped $unit: outside $key\n"; next }
+  if (my $w = $reused{$ip}) {
+    printf "# reused %s: passed at %s (%s record %s), digest %s (AFP-V0-2326)\n", $unit, $w->{witness}{commit} // "", $w->{witness}{kind} // "", $w->{witness}{record} // "", $w->{digest} // "";
+    $r++; next;
+  }
   my ($slice, $flag, $pattern, $sel) = ($u->{slice} // "", $u->{flag} // "", $u->{pattern} // "", "");
   if ($slice ne "whole") {
     if (($flag ne "-run" && $flag ne "-skip") || $pattern eq "") { print "# skipped $unit: slice $slice has no -run/-skip pattern\n"; next }
@@ -1478,7 +1519,7 @@ for my $u (@{ $m->{units} }) {
   }
   print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
 }
-print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)\n";
+print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)" . ($r ? ", $r reused from $skip" : "") . "\n";
 '
 
 # module_path: the module path in ./go.mod, or nothing.
@@ -1626,7 +1667,48 @@ manifest_admits() {
 print_plan() {
   local mod
   mod=$(module_path) && [[ -n $mod ]] || refuse "no-module ./go.mod names no module; run --plan from the module root"
-  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod"
+  local fresh="" arg last
+  local reuse_args=()
+  if [[ -n ${HEAVY_REUSE-} ]]; then
+    # Reopen the original records and recompute both eligibility and digests.
+    # A saved status listing cannot prove that input bytes or identity still match.
+    # NUL-delimited arguments preserve paths literally; only a complete parse ends in READY.
+    while IFS= read -r -d '' arg; do reuse_args+=("$arg"); done < <(
+      perl -MJSON::PP -e '
+        use strict; use warnings;
+        open(my $f, "<", $ARGV[0]) or exit 1;
+        my $d = eval { local $/; JSON::PP->new->decode(<$f>) };
+        ref $d eq "HASH" && ($d->{profile} // "") eq "corvint-test-reuse-decision/0" &&
+          ref $d->{records} eq "ARRAY" && ref $d->{identity} eq "HASH" &&
+          ref $d->{identity}{harness} eq "ARRAY" or exit 1;
+        my (@args, %prs);
+        for my $r (@{ $d->{records} }) {
+          ref $r eq "HASH" or exit 1;
+          next unless ($r->{verdict} // "") eq "ADMITTED";
+          defined $r->{name} && !ref $r->{name} && $r->{name} ne "" or exit 1;
+          push @args, "--records", $r->{name};
+          if (($r->{source}{kind} // "") eq "pull_request") {
+            my $pr = $r->{source}{pullRequest} // "";
+            $pr =~ /^[1-9][0-9]*$/ or exit 1; $prs{$pr} = 1;
+          }
+        }
+        keys(%prs) <= 1 or exit 1;
+        push @args, "--trust", keys(%prs) ? "local,main,pull_request" : "local,main";
+        push @args, "--pull-request", keys %prs if keys %prs;
+        for my $h (@{ $d->{identity}{harness} }) {
+          ref $h eq "HASH" && defined $h->{path} && !ref $h->{path} && $h->{path} ne "" or exit 1;
+          push @args, "--harness", $h->{path};
+        }
+        print "$_\0" for (@args, "READY");
+      ' "$HEAVY_REUSE" 2> /dev/null
+    )
+    last=$((${#reuse_args[@]} - 1))
+    if ((last >= 0)) && [[ ${reuse_args[$last]} == READY ]]; then
+      unset 'reuse_args[last]'
+      fresh=$("${CORVINT_BIN:-corvint}" test reuse decide --argv "-count=1 -timeout 30m" ${reuse_args[@]+"${reuse_args[@]}"} 2> /dev/null) || fresh=""
+    fi
+  fi
+  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod" "${HEAVY_REUSE-}" "$fresh"
 }
 
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
@@ -1681,12 +1763,22 @@ selection_policy() {
 
 # env_reasons COMMAND...: ASD-V0-910 (V1-3739). The lane reasons given as leading NAME=VALUE words
 # of an `env` command (`script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...`, also the form a
-# leading NAME=VALUE word becomes) count as set in heavy.sh's environment.
+# leading NAME=VALUE word becomes) count as set in heavy.sh's environment. An env option is skipped,
+# and so is the operand of one that takes it (-u/--unset NAME, -C/--chdir DIR, -P PATH), not read as
+# the command.
 env_reasons() {
-  local a
+  local a skip=
   [[ ${1-} == env ]] || return 0
   shift
   for a; do
+    if [[ -n $skip ]]; then
+      skip=
+      continue
+    fi
+    case $a in
+      -u | --unset | -C | --chdir | -P) skip=1 && continue ;;
+      -*) continue ;;
+    esac
     [[ $a =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || return 0
     case $a in
       HEAVY_WHOLE_REASON=*) HEAVY_WHOLE_REASON=${a#*=} ;;

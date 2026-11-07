@@ -1,0 +1,27 @@
+{
+  "milliseconds": {
+    "github.com/Beamfall/corvint/internal/analyzerkotlinandroid": 89422,
+    "github.com/Beamfall/corvint/internal/appmap": 202377,
+    "github.com/Beamfall/corvint/internal/behaviorfalsify": 114530,
+    "github.com/Beamfall/corvint/internal/cemchain": 130319,
+    "github.com/Beamfall/corvint/internal/companionrelease": 349955,
+    "github.com/Beamfall/corvint/internal/contextindex": 254442,
+    "github.com/Beamfall/corvint/internal/criterionexperiment": 157954,
+    "github.com/Beamfall/corvint/internal/doccorpus": 352322,
+    "github.com/Beamfall/corvint/internal/extevidence": 196452,
+    "github.com/Beamfall/corvint/internal/lrfrepo": 204708,
+    "github.com/Beamfall/corvint/internal/perfbudget": 143590,
+    "github.com/Beamfall/corvint/internal/postmergeworkflow": 92247,
+    "github.com/Beamfall/corvint/internal/procgroup": 104952,
+    "github.com/Beamfall/corvint/internal/taskman": 110351,
+    "github.com/Beamfall/corvint/internal/tasks/dispatch": 141569,
+    "github.com/Beamfall/corvint/internal/tasks/scale": 126129,
+    "github.com/Beamfall/corvint/tools/corvint-pr-tests": 99608
+  },
+  "profile": "corvint-ci-package-costs/0",
+  "source": {
+    "goVersion": "go1.27.3",
+    "revision": "e468668f2d2ea198271ce26717f8f8dd6e998203",
+    "runURL": "https://github.com/beamfall/corvint/actions/runs/42106672783"
+  }
+}

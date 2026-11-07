@@ -41,10 +41,19 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		if via := affectedTextVia(receipt.Plan.ViaLinks, selection); len(via) > 1 {
 			fmt.Fprintf(&out, " via %s", textWord(strings.Join(via, " > ")))
 		}
+		if scope := selection.Witness.ReadScope; scope != nil {
+			fmt.Fprintf(&out, " declaration %s entry %s", textWord(scope.Declaration), textWord(scope.Entry))
+		}
 		if selection.Witness.Glob != "" {
 			fmt.Fprintf(&out, " glob %s", textWord(selection.Witness.Glob))
 		}
+		if len(selection.Run) != 0 {
+			fmt.Fprintf(&out, " run %s", textWord(shellQuoteJoin(selection.Run)))
+		}
 		out.WriteString("\n")
+	}
+	for _, gap := range receipt.Plan.Uncovered {
+		fmt.Fprintf(&out, "uncovered %s %s\n", textWord(gap.Reason), textWord(gap.Detail))
 	}
 	for _, exclusion := range receipt.Plan.GoAdditiveExcluded {
 		fmt.Fprintf(&out, "narrowed %s through %s\n", textWord(exclusion.UnitID), textWord(exclusion.Through))

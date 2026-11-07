@@ -149,21 +149,28 @@ func mutateChunk(ctx context.Context, repo *intent.Repository, envs []*mutation.
 			refreshWriterCheckpoint(ctx, repo)
 		}
 	}()
+	phase := time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
+	mutationStage(ctx, "batch.lockWait="+time.Since(phase).String())
 	if err != nil {
 		return opened(err)
 	}
 	defer lock.Close()
+	phase = time.Now()
 	session, err := authority.NewSession(repo, lock)
 	if err != nil {
 		return opened(err)
 	}
 	defer session.Close()
+	defer func() { mutationStage(ctx, "batch.fsync="+session.SyncDuration().String()) }()
 	headState, err := writerGuards(repo, transaction.Mutate)
 	if err != nil {
 		return opened(err)
 	}
+	mutationStage(ctx, "batch.guards="+time.Since(phase).String())
+	phase = time.Now()
 	redone, err := redoPending(repo, session)
+	mutationStage(ctx, "batch.redo="+time.Since(phase).String())
 	if err != nil {
 		return opened(err)
 	}

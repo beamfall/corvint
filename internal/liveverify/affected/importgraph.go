@@ -67,23 +67,35 @@ func ModuleFile(relative string) bool {
 	return false
 }
 
-// GoIgnoredPath reports a path the go tool never builds as a package file:
-// one under a testdata directory or a directory whose name starts with "_"
-// or ".".
-func GoIgnoredPath(relative string) bool {
+// GoPackageFile reports a dirty `.go` path that can be a file of a Go package
+// of the graph (AFP-V0-2202). A path under a testdata directory is fixture
+// data the go tool never builds. A path below a directory whose name starts
+// with "_" or "." is skipped by `./...` but still built when imported, and
+// the Go plugin indexes it (AZU-V0-005), so it is a package file too unless
+// no unit owns it and the repository declares it non-source output
+// (AZU-V0-9921), or it lies below version-control metadata the source walk
+// never descends.
+func (graph *Graph) GoPackageFile(relative string) bool {
+	if !strings.HasSuffix(relative, ".go") {
+		return false
+	}
+	hidden := false
 	for _, component := range strings.Split(path.Dir(relative), "/") {
-		if component == "testdata" || strings.HasPrefix(component, "_") || strings.HasPrefix(component, ".") && component != "." {
-			return true
+		switch {
+		case component == "testdata", component == ".git", component == ".hg", component == ".svn":
+			return false
+		case strings.HasPrefix(component, "_"), strings.HasPrefix(component, ".") && component != ".":
+			hidden = true
 		}
 	}
-	return false
+	return !hidden || !graph.declaredUnindexedOutput(relative)
 }
 
 // unknownImportSets is the ImportSetChanges the selector assumes without a
 // comparison: every dirty .go file a Go unit owns changes its unit's import
 // set, every other dirty file below an embedding Go unit changes that unit's,
-// and a module file or an unowned .go file the go tool may build changes the
-// module's.
+// and a module file or an unowned .go file the go tool may build, an indexed
+// hidden package's included (GoPackageFile), changes the module's.
 func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
 	changes := &ImportSetChanges{Changed: map[string]string{}}
 	for _, dirty := range normalized {
@@ -92,7 +104,7 @@ func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
 			if changes.Module == "" {
 				changes.Module = dirty
 			}
-		case strings.HasSuffix(dirty, ".go") && !GoIgnoredPath(dirty):
+		case graph.GoPackageFile(dirty):
 			owner, owned := graph.owner[dirty]
 			switch {
 			case owned && strings.HasPrefix(owner, "go:"):

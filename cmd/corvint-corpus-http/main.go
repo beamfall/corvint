@@ -5,6 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/corpusserve"
 	"io"
@@ -20,10 +22,20 @@ import (
 // through it to prove its retirement independently of the port number.
 var listen = net.Listen
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-corpus-http --index FILE --sha256 SHA256 [--listen HOST:PORT] [--allow-remote]`
+
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-corpus-http", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-corpus-http", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	os.Exit(run(ctx, os.Args[1:], os.Stderr))
+	os.Exit(streams.Status(run(ctx, os.Args[1:], streams.Stderr())))
 }
 func run(ctx context.Context, args []string, errout io.Writer) int {
 	f := flag.NewFlagSet("corvint-corpus-http", flag.ContinueOnError)

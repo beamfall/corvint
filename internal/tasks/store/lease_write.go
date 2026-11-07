@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,7 +187,11 @@ func leaseKey(repo *intent.Repository, guard *authority.ChangeGuard, inv *transa
 	for _, file := range inv.Files() {
 		fmt.Fprintf(h, "%s\x00%s\x00%s\n", file.Path, file.Sha256, file.Bytes)
 		if strings.HasPrefix(file.Path, "intent/") {
-			intents = append(intents, intent.File{Path: strings.TrimPrefix(file.Path, "intent/"), Sha256: file.Sha256, Bytes: int(file.Bytes.Uint64())})
+			n, err := sizeInt(file.Path, file.Bytes)
+			if err != nil {
+				return leaseAuditKey{}, err
+			}
+			intents = append(intents, intent.File{Path: strings.TrimPrefix(file.Path, "intent/"), Sha256: file.Sha256, Bytes: n})
 		}
 	}
 	return leaseAuditKey{repo.StateDir, wire.Sum(headRaw), *head.LastReceiptSha256, intent.DigestOfFiles(intents), wire.Digest(fmt.Sprintf("%x", h.Sum(nil))), guard.Membership()}, nil
@@ -981,7 +986,11 @@ func leaseDecisionContent(repo *intent.Repository, inv *transaction.Inventory, h
 				continue
 			}
 		}
-		binding[file.Path] = journal.PhysicalFile{Sha256: file.Sha256, Bytes: int(file.Bytes.Uint64())}
+		n, err := sizeInt(file.Path, file.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		binding[file.Path] = journal.PhysicalFile{Sha256: file.Sha256, Bytes: n}
 	}
 	return binding, nil
 }
@@ -1047,7 +1056,14 @@ func verifyLeaseContent(repo *intent.Repository, binding *transaction.Inventory,
 	defer func() { err = errors.Join(err, native.Close()) }()
 	logical := journal.Logical(native)
 	for _, file := range binding.Files() {
-		raw, e := logical.Read(file.Path, int(file.Bytes.Uint64())+1)
+		n, e := sizeInt(file.Path, file.Bytes)
+		if e != nil {
+			return e
+		}
+		if n == math.MaxInt {
+			return wire.Errorf(wire.CodeLimitExceeded, file.Path, "size %s leaves no room for the overread probe", file.Bytes)
+		}
+		raw, e := logical.Read(file.Path, n+1)
 		if e != nil {
 			return e
 		}
@@ -1075,7 +1091,11 @@ func verifyLeaseContent(repo *intent.Repository, binding *transaction.Inventory,
 func leaseAuditContent(repo *intent.Repository, inv *transaction.Inventory, observed map[string]journal.PhysicalFile) (map[string]journal.PhysicalFile, error) {
 	fresh := map[string]journal.PhysicalFile{}
 	for _, f := range inv.Files() {
-		fresh[f.Path] = journal.PhysicalFile{Sha256: f.Sha256, Bytes: int(f.Bytes.Uint64())}
+		n, err := sizeInt(f.Path, f.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		fresh[f.Path] = journal.PhysicalFile{Sha256: f.Sha256, Bytes: n}
 	}
 	extras := map[string]journal.PhysicalFile{}
 	native := (journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Session()
@@ -1100,4 +1120,15 @@ func leaseAuditContent(repo *intent.Repository, inv *transaction.Inventory, obse
 		}
 	}
 	return extras, errors.Join(result, native.Close())
+}
+
+// sizeInt converts a validated inventory Size to an int, refusing a size the
+// platform int cannot hold instead of wrapping it into a negative or short
+// length (CodeQL go/incorrect-integer-conversion).
+func sizeInt(where string, size wire.Size) (int, error) {
+	n := size.Uint64()
+	if n > math.MaxInt {
+		return 0, wire.Errorf(wire.CodeLimitExceeded, where, "size %s exceeds the platform int", size)
+	}
+	return int(n), nil
 }

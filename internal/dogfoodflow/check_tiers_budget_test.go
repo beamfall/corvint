@@ -179,3 +179,16 @@ func TestDCWV0818AnchorCandidateLoopHonoursDeadline(t *testing.T) {
 	row, _, _ := search.anchoredProposal(hunks[0], "", editedRanges(hunks), map[string]bool{})
 	t.Fatalf("candidate loop past its deadline returned %q", row)
 }
+
+// DWC-V0-927 review fix: a Markdown heading that names a hunk's path is not
+// drafted, but the check still counts it as an anchor CEM-V1-081 admits, so
+// the hunk is not reported as one no citation can anchor.
+func TestDWCV0927CheckKeepsHeadingAnchorability(t *testing.T) {
+	root, base, target, line, count := anchorBudgetFixture(t, map[string]string{"docs/notes.md": "# Notes\n\n# internal/x/p01.go\n\nOther prose.\n"})
+	var stderr bytes.Buffer
+	run := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", root: root, stderr: &stderr, base: base, target: target}}
+	got, classified := run.unanchorableHunks(line)
+	if !classified || len(got) != count-1 {
+		t.Fatalf("%d of %d hunks unanchorable (want %d), stderr %q", len(got), count, count-1, stderr.String())
+	}
+}

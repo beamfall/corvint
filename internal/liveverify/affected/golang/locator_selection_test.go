@@ -3,6 +3,8 @@ package golang_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -282,5 +284,42 @@ func TestBufferedListingProgramSelection_AFPV02956(t *testing.T) {
 			}
 			t.Fatal("buffered program's runner was omitted for a runtime input change")
 		})
+	}
+}
+
+// TestBoundedJoinThroughDirectorySymlinkSelectsReader_AFPV02950: a bounded
+// join through a directory symlink reads the link target, so the join keeps
+// its last component as a literal and a change to the target still selects
+// the reader, while a sibling of the joined file still does not.
+func TestBoundedJoinThroughDirectorySymlinkSelectsReader_AFPV02950(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":           "module example.test/m\n",
+		"shared/config.go": "package shared\n",
+		"shared/other.go":  "package shared\n",
+		"shared/x_test.go": "package shared\n",
+		"reader/r.go":      "package reader\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() []byte { root, err := os.Getwd(); if err != nil { return nil }; b, _ := os.ReadFile(filepath.Join(root, \"alias\", \"config.go\")); return b }\n",
+		"reader/x_test.go": "package reader\n",
+	})
+	if err := os.Symlink("../shared", filepath.Join(root, "reader", "alias")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selects := func(dirty string) bool {
+		for _, item := range affected.Select(graph, []string{dirty}).Selected {
+			if item.UnitID == "go:example.test/m/reader" {
+				return true
+			}
+		}
+		return false
+	}
+	if !selects("shared/config.go") {
+		t.Error("a change to the symlink target did not select the joined path's reader")
+	}
+	if selects("shared/other.go") {
+		t.Error("a sibling of the joined file selected its reader")
 	}
 }

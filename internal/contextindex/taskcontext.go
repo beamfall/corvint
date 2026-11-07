@@ -438,8 +438,8 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		return nil
 	}
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
-	if compiler.rrfOrder {
-		// TCP-V0-2222: freeze corroboration's membership before changing order.
+	if compiler.rrfOrder || compiler.additiveOrder {
+		// TCP-V0-2222 / CRK-V0-7900: freeze membership before changing order.
 		rows = compiler.corroborate(rows)
 	} else {
 		rows = compiler.orderRows(rows)
@@ -458,6 +458,8 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	}
 	if compiler.rrfOrder {
 		rows = compiler.fuseSelectedRows(rows)
+	} else if compiler.additiveOrder {
+		rows = compiler.addSelectedSlotBonuses(rows)
 	}
 	// Reorder only final lookup membership; preserve frozen scores and reasons
 	// (TCP-V0-8200).

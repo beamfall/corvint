@@ -16,12 +16,13 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitprobe"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func testRun(ctx context.Context, root string, _ int, args ...string) ([]byte, error) {
 	prefix := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "core.excludesFile=", "-c", "submodule.recurse=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}
 	cmd := exec.CommandContext(ctx, "git", append(prefix, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
+	cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
 	return cmd.Output()
 }
 
@@ -300,7 +301,7 @@ func TestStatusNeverExecutesRepositoryConfiguredFSMonitor(t *testing.T) {
 	gitTest(t, root, "config", "core.fsmonitor", hook)
 	run := func(ctx context.Context, dir string, _ int, args ...string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull)
+		cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull)
 		return cmd.Output()
 	}
 	_, _ = Status(context.Background(), root, metadataLimit, run, "status", "--porcelain=v1", "-z")

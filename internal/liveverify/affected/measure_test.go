@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ import (
 // Graph construction is a cold cost paid once and is deliberately outside it.
 const IncrementalBudget = 100 * time.Millisecond
 
-func repositoryRoot(t *testing.T) string {
+func repositoryRoot(t testing.TB) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
@@ -35,7 +36,7 @@ func repositoryRoot(t *testing.T) string {
 	return root
 }
 
-func buildRepositoryGraph(t *testing.T) (*affected.Graph, time.Duration) {
+func buildRepositoryGraph(t testing.TB) (*affected.Graph, time.Duration) {
 	t.Helper()
 	root := repositoryRoot(t)
 	start := time.Now()
@@ -282,8 +283,14 @@ func sortDurations(values []time.Duration) {
 
 // representativeEdits picks units spanning the fan-out range, so the measured
 // worst case is a real hub edit rather than a leaf edit that reaches nothing.
-func representativeEdits(t *testing.T, graph *affected.Graph) []string {
+func representativeEdits(t testing.TB, graph *affected.Graph) []string {
 	t.Helper()
+	return representativeEditsMode(graph, true)
+}
+
+// LVT-V0-008: only untimed discovery is concurrent. Each original candidate
+// still runs full Select; writing its own preallocated slot keeps tie order.
+func representativeEditsMode(graph *affected.Graph, parallel bool) []string {
 	type candidate struct {
 		path  string
 		reach int
@@ -296,9 +303,24 @@ func representativeEdits(t *testing.T, graph *affected.Graph) []string {
 		}
 		candidates = append(candidates, candidate{
 			path:  unit.Sources[0],
-			reach: len(affected.Select(graph, []string{unit.Sources[0]}).Selected),
+			reach: 0,
 		})
 	}
+	workers := 1
+	if parallel {
+		workers = min(4, len(candidates))
+	}
+	var done sync.WaitGroup
+	for worker := range workers {
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			for index := worker; index < len(candidates); index += workers {
+				candidates[index].reach = len(affected.Select(graph, []string{candidates[index].path}).Selected)
+			}
+		}()
+	}
+	done.Wait()
 	sort.Slice(candidates, func(left, right int) bool { return candidates[left].reach > candidates[right].reach })
 	edits := make([]string, 0, 8)
 	for _, index := range []int{0, 1, 2, len(candidates) / 2, len(candidates) - 1} {
@@ -307,6 +329,26 @@ func representativeEdits(t *testing.T, graph *affected.Graph) []string {
 		}
 	}
 	return edits
+}
+
+// LVT-V0-008: same build, complete serial and parallel discovery over the
+// real graph, with exact representative-path parity (including tie order).
+func BenchmarkRepresentativeEditsSerialParity(b *testing.B) {
+	graph, _ := buildRepositoryGraph(b)
+	var serial []string
+	b.Run("serial", func(b *testing.B) {
+		for range b.N {
+			serial = representativeEditsMode(graph, false)
+		}
+	})
+	b.Run("parallel", func(b *testing.B) {
+		for range b.N {
+			got := representativeEditsMode(graph, true)
+			if !slices.Equal(got, serial) {
+				b.Fatalf("LVT-V0-008 parallel representatives %v differ from serial %v", got, serial)
+			}
+		}
+	})
 }
 
 // TestSelectionOnTheLiveDirtyWorktree is the end-to-end path the product needs:
@@ -483,6 +525,26 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 			return false
 		}
 		return globMatchesPath(witness.Glob, witness.DirtyPath)
+	case "DECLARED_CONSUMER":
+		// AZU-V0-007: the new final hop is a pinned consumer declaration,
+		// not an import. Verify its exact argv and the preceding build chain.
+		if selection.Kind != "DECLARED_CONSUMER" || len(selection.Tests) != 1 || len(witness.Via) < 2 || selection.UnitID != "declared-consumer:"+selection.Tests[0] || witness.Via[len(witness.Via)-1] != selection.UnitID {
+			return false
+		}
+		commandID := witness.Via[len(witness.Via)-2]
+		command, found := graph.Unit(commandID)
+		if !found || !slices.Equal(command.ExecConsumerRuns[selection.Tests[0]], selection.Run) || len(selection.Run) == 0 {
+			return false
+		}
+		chain := witness.Via[:len(witness.Via)-1]
+		kind := affected.WitnessDependency
+		if len(chain) == 1 {
+			kind = affected.WitnessDirectSource
+			if !golang.New().Owns(witness.DirtyPath) {
+				kind = affected.WitnessEnclosingPackage
+			}
+		}
+		return witnessResolves(graph, affected.Selection{UnitID: commandID, Witness: affected.Witness{Kind: kind, DirtyPath: witness.DirtyPath, Via: chain}})
 	case affected.WitnessPathLiteralReader:
 		return slices.Contains(graph.Namers(witness.DirtyPath), selection.UnitID)
 	case affected.WitnessUnboundedReader:

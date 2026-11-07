@@ -111,6 +111,10 @@ if [[ ${BATCH_PRECHECK_TEST_SEED-} == 1 ]]; then
   (false || fail "seeded failure two"$'\n'"with a second line")
   finish
 fi
+# SRG-V0-982 (V1-4542): DOC_GATE_TARGETS is a continuation list, one target per line.
+doc_targets() {
+  awk '/^DOC_GATE_TARGETS :=/ { on=1; next } on { line=$0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' "$script/../Makefile"
+}
 # 0c. ASD-V0-780: a failing case does not stop the run; the summary names every failed case.
 BATCH_PRECHECK_TEST_SEED=1 "$script/batch-precheck_test.sh" > "$tmp/out" 2>&1
 seed_rc=$?
@@ -167,13 +171,19 @@ if group 1; then
 grep -qx 'make line-citations-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" ||
   fail "derived doc-gates not expanded into their targets: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && fail "doc-gates still runs as one step: $(cat "$tmp/out")"
-for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
+for t in $(doc_targets); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
+# DWC-V0-747 (V1-3334): the pre-bind run of dogfood-closeout still runs the sync-check, so a lane
+# whose CI and precheck lists disagree learns it before the bind rather than after the seal.
+(cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
+grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
+  fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+grep -qx 'batch-cem-check' "$tmp/out" && fail "CI-only batch CEM step was derived locally: $(cat "$tmp/out")"
 
 fi
 if group 1d; then
@@ -183,8 +193,10 @@ static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
 git -C "$static_repo" init -q
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 printf '[{"path":"docs/specs/one.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
-printf '# One\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
+printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n- `ONE-V0-001`: (proposed) Clause.\n' > "$static_repo/docs/specs/one.md"
 static_row='| One | [`one.md`](one.md) ONE-V0-001 | proposed | experimental | One claim. |'
 printf '# Specs\n%s\n%s\n' "$static_row" "$static_row" > "$static_repo/docs/specs/README.md"
 git -C "$static_repo" add docs/specs
@@ -215,6 +227,13 @@ rc=$?
 grep -qF 'fix: docs/specs/README.md: lines 2, 3: duplicate row' "$tmp/out" || fail "duplicate fix did not name both lines: $(cat "$tmp/out")"
 grep -qF "$static_row" "$tmp/out" || fail "duplicate fix did not name the row: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
+# SRG-V0-982: the static path catches staged target-shape drift before any slow gate.
+printf 'DOC_GATE_TARGETS := alpha-check beta-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
+(cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "static checks missed malformed doc targets"
+grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "static target-shape diagnostic missing: $(cat "$tmp/out")"
+printf 'DOC_GATE_TARGETS := \\\n  line-citations-check \\\n  spec-requirements-check\n' > "$static_repo/Makefile"
+git -C "$static_repo" add Makefile
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 || fail "one unanchored row refused: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "${static_row//](one.md)/](one.md#requirements)}" > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "anchored-only row passed"
@@ -223,7 +242,7 @@ printf '# Specs\n' > "$static_repo/docs/specs/README.md"
 (cd "$static_repo" && BATCH_PRECHECK_ROOT=$static_repo "$pre" --static-check) > "$tmp/out" 2>&1 && fail "missing row passed"
 grep -qF 'lines (missing)' "$tmp/out" || fail "missing row lacked repair: $(cat "$tmp/out")"
 printf '# Specs\n%s\n' "$static_row" > "$static_repo/docs/specs/README.md"
-{ printf '# Untouched\n\n## Requirements\n\n'
+{ printf '# Untouched\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `UNTOUCHED-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/untouched.md"
 printf '[{"path":"docs/specs/one.md"},{"path":"docs/specs/untouched.md"}]\n' > "$static_repo/docs/specs/INDEX.json"
@@ -236,7 +255,7 @@ for static_base_env in BATCH_PRECHECK_BASE DOGFOOD_BASE; do
   grep -qF 'docs/specs/untouched.md: warning:' "$tmp/out" || fail "untouched full spec lacked warning: $(cat "$tmp/out")"
   grep -qF "requirement IDs added since BASE=$static_base ($static_base): (none)" "$tmp/out" || fail "untouched spec lost $static_base_env attribution: $(cat "$tmp/out")"
 done
-{ printf '# One\n\n## Requirements\n\n'
+{ printf '# One\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Status: proposed / experimental\n- Claim: Fixture.\n\n## Requirements\n\n'
   for ((i=1; i<=256; i++)); do printf -- '- `ONE-V0-%03d`: (proposed) Clause.\n' "$i"; done
 } > "$static_repo/docs/specs/one.md"
 git -C "$static_repo" add docs/specs
@@ -405,6 +424,21 @@ fixture --list
 grep -qxF 'make new-drift-check' "$tmp/out" || fail "new make target not derived: $(cat "$tmp/out")"
 grep -qxF 'go run ./tools/new-gen' "$tmp/out" || fail "new go run not derived: $(cat "$tmp/out")"
 # A doc-gates command that is neither fails the sync check.
+# CIN-V0-2304 / ASD-V0-036: only the exact reviewed inline checker has a
+# mirror. A change to its trusted build or appended syntax remains unknown.
+batch_check_body=$(sed -n '/^          set -eu$/,/^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/p; /^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/q' "$script/../.github/workflows/ci.yml")
+[[ -n $batch_check_body ]] || fail "no inline batch CEM body"
+write_ci "" "" "" "$(printf '      - run: |\n%s\n      - run: make after-batch-cem' "$batch_check_body")"
+fixture --sync-check || fail "protected batch CEM command refused: $(cat "$tmp/out")"
+fixture --list || fail "protected batch CEM list refused: $(cat "$tmp/out")"
+grep -qxF 'batch-cem-check' "$tmp/out" || fail "protected batch CEM command not derived"
+grep -qxF 'make after-batch-cem' "$tmp/out" || fail "command after batch CEM swallowed"
+write_ci "" "" "" "$(printf '      - run: |\n%s' "${batch_check_body/-buildvcs=false/-buildvcs=true}")"
+fixture --sync-check && fail "changed batch CEM trusted build accepted"
+write_ci "" "" "" "$(printf '      - run: |\n%s;true' "$batch_check_body")"
+fixture --sync-check && fail "batch CEM command with appended shell syntax accepted"
+write_ci "" "" "" "      - run: bash .github/other-gate.sh"
+fixture --sync-check && fail "unlisted protected script command accepted"
 write_ci "" "" "" "      - run: script/new-gate.sh --check"
 fixture --sync-check && fail "unknown doc-gates command accepted"
 grep -q 'doc-gates runs `script/new-gate.sh --check`, which batch-precheck cannot mirror' "$tmp/out" || fail "unknown: $(cat "$tmp/out")"
@@ -491,11 +525,26 @@ cat > "$bin/make" <<EOF
 echo "make \$* GOPROXY=\${GOPROXY-unset}" >> $tmp/calls
 mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
-  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
+  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; }
+    if [ -n "\${STUB_RETRY_MUTATE:-}" ]; then
+      [ -f $tmp/retry-marker ] || { : > $tmp/retry-marker; rm -f $tmp/running/\$2; echo first attempt fails; exit 1; }
+      echo retried >> $repo/mutated.txt
+    fi ;;
   spec-requirements-check) [ -n "\${STUB_RESTAGE:-}" ] && { printf restaged >> derived.txt; git add derived.txt; } ;;
   slow-*) sleep 3 ;;
+  go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
-      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
+      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi
+    # GL-V0-786: after every parallel step, count the passes in the ledger and in the run's stage;
+    # STUB_HOLD then waits (at most 60 s) for the test to interrupt the run.
+    if [ -n "\${STUB_LEDGER_PROBE:-}" ]; then
+      ls "\$STUB_LEDGER_PROBE" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-ledger
+      ls "\$GATE_LEDGER_SHARED_DIGEST.stage" 2> /dev/null | grep -c '\.json\$' > $tmp/probe-stage
+    fi
+    if [ -n "\${STUB_HOLD:-}" ]; then
+      : > $tmp/hold-ready; i=0
+      while [ ! -f $tmp/hold-release ] && [ \$i -lt 600 ]; do sleep 0.1; i=\$((i + 1)); done
+    fi ;;
 esac
 rm -f $tmp/running/\$2
 exit 0
@@ -678,15 +727,20 @@ git -C "$repo" commit -q --allow-empty -m moved
 grep -q "refused: the precheck receipt names $head, not " "$tmp/out" || fail "mismatch: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt no-such-rev) > /dev/null 2>&1
 [[ $? == 2 ]] || fail "unknown REV did not exit 2"
+# names_head: the receipt exists and names the fixture's current HEAD.
+names_head() { [[ -f $receipt && $(awk '$1 == "head" { print $2 }' "$receipt") == "$(git -C "$repo" rev-parse HEAD)" ]]; }
 printf 'dirty\n' >> "$repo/pkg/a_test.go"
 run || fail "dirty run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "dirty run: $(cat "$tmp/out")"
-[[ -f $receipt ]] && fail "a dirty run wrote a receipt"
+names_head && fail "a dirty run wrote a receipt"
+# ASC-V0-775 (V1-4239): the receipt for the ancestor HEAD moved from stays.
+grep -q "^batch-precheck: kept the passing receipt for ancestor $(git -C "$repo" rev-parse --short "$head")" "$tmp/out" || fail "the ancestor receipt was not kept: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$receipt") == "$head" ]] || fail "the kept receipt does not name $head: $(cat "$receipt")"
 git -C "$repo" checkout -q -- pkg/a_test.go
 printf 'package pkg\n' > "$repo/pkg/untracked.go"
 run || fail "untracked run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "untracked run: $(cat "$tmp/out")"
-[[ -f $receipt ]] && fail "a run with an untracked file wrote a receipt"
+names_head && fail "a run with an untracked file wrote a receipt"
 /bin/rm -f "$repo/pkg/untracked.go"
 # An ignored file a go test can read (a _test.go with init, a fixture in a package directory, a
 # dot or underscore fixture there or under testdata) means the checked tree is not HEAD, so no
@@ -700,7 +754,7 @@ for f in pkg/local_test.go pkg/fixture.local pkg/testdata/_cases/input.json pkg/
   run || fail "ignored $f run failed: $(cat "$tmp/out")"
   grep -q '^batch-precheck: no receipt' "$tmp/out" || fail "ignored $f: $(cat "$tmp/out")"
   grep -q "^  $f\$" "$tmp/out" || fail "ignored $f not named: $(cat "$tmp/out")"
-  [[ -f $receipt ]] && fail "a run with ignored $f wrote a receipt"
+  names_head && fail "a run with ignored $f wrote a receipt"
   /bin/rm -f "$repo/$f"
 done
 /bin/rm -rf "$repo/pkg/testdata/_cases"
@@ -769,6 +823,16 @@ grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" |
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
 # Only the repin row and the print-only rows run; every other listed step reuses.
 [[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+# ASC-V0-776 (V1-4242): every non-make record carries its step name as a label; a record written
+# before labels (the label stripped) still reuses, since the label is never part of the key.
+for rec in "$tmp"/ledger/*.json; do
+  jq -e 'if (.step | startswith("batch-precheck+")) then (.label | type) == "string" and .label != "" else true end' "$rec" > /dev/null ||
+    fail "a batch-precheck record has no label: $(cat "$rec")"
+done
+jq -r 'select(.step | startswith("batch-precheck+")) | .label' "$tmp"/ledger/*.json | grep -qx 'sync-check' || fail "no sync-check label: $(jq -c . "$tmp"/ledger/*.json)"
+for rec in "$tmp"/ledger/*.json; do jq -c 'del(.label)' "$rec" > "$rec.new" && /bin/mv -f "$rec.new" "$rec" || fail "strip label"; done
+lrun || fail "unlabelled-ledger run failed: $(cat "$tmp/out")"
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a pass recorded without a label did not reuse: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $((nsteps - nprint)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
@@ -798,6 +862,64 @@ printf 'other\n' > "$repo/notes.txt"
 STUB_FAIL=1 lrun && fail "a failing ledger run passed"
 STUB_FAIL=1 lrun && fail "a failure was reused"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "failure rerun: $(cat "$tmp/out")"
+# GL-V0-786: an always-run step (go-archive-gate, scope never) that edits the tree while the other
+# steps reuse passes keyed on the run's shared digest fails the run, names why, writes no receipt for
+# HEAD and leaves no record written under the moved tree.
+write_ci "test-commands-check go-archive-gate"
+git -C "$repo" add .github/workflows/ci.yml && git -C "$repo" commit -qm 'mutating step' || fail "mutating-step fixture commit"
+lrun || fail "mutating-step first run failed: $(cat "$tmp/out")"
+STUB_MUTATE=1 lrun && fail "a run whose tree moved during the steps passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "the cached step did not reuse its pass: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST changed during the run' "$tmp/out" && grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" ||
+  fail "a moved tree was not reported as a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose tree moved wrote a receipt"
+/bin/rm -f "$repo/mutated.txt"
+# A step that fails, edits the tree on its retry and then passes (FLAKY) fails the run too: the
+# digest is checked again after every retry attempt. A fresh CORVINT_ salt makes every step run.
+/bin/rm -f "$tmp/retry-marker"
+STUB_RETRY_MUTATE=1 CORVINT_STUB_ROUND=retry lrun && fail "a run whose retry moved the tree passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FLAKY make test-commands-check' "$tmp/out" || fail "the retry did not pass as FLAKY: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" || fail "a retry that moved the tree was not a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose retry moved the tree wrote a receipt"
+/bin/rm -f "$repo/mutated.txt" "$tmp/retry-marker"
+# GL-V0-786 (review of V1-4194): a pass recorded on the shared digest is staged in the run's private
+# directory, so a concurrent consumer of the ledger sees no unverified pass while the run is still
+# going (here the serial step, after every parallel step passed); verify_shared promotes the staged
+# passes once the tree verifies unchanged, and a rerun reuses them.
+srun() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-stage BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run; }
+/bin/rm -f "$tmp/probe-ledger" "$tmp/probe-stage"
+STUB_LEDGER_PROBE=$tmp/ledger-stage srun || fail "staged-pass run failed: $(cat "$tmp/out")"
+[[ $(cat "$tmp/probe-ledger" 2> /dev/null) == 0 ]] || fail "a concurrent consumer saw $(cat "$tmp/probe-ledger" 2> /dev/null) unverified passes in the ledger"
+(($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before verify_shared: $(cat "$tmp/out")"
+grep -q '^batch-precheck: ledger DIGEST unchanged tree [0-9a-f]*; promoted [1-9][0-9]* staged records$' "$tmp/out" || fail "verify_shared promoted nothing: $(cat "$tmp/out")"
+srun || fail "promoted-pass rerun failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "a promoted pass did not reuse: $(cat "$tmp/out")"
+# An interrupted run (TERM while its serial step runs, after the parallel steps staged their
+# passes) exits 143 and leaves no pass in the ledger: cleanup removed the stage with the run's
+# directory, so the next run reuses nothing. The 60 s polls only bound a deadlock.
+/bin/rm -rf "$tmp/ledger-int" "$tmp/hold-ready" "$tmp/hold-release" "$tmp/probe-ledger" "$tmp/probe-stage"
+(unset GOPROXY; export PATH=$bin:$PATH BATCH_PRECHECK_HEAVY='' BATCH_PRECHECK_ROOT=$repo BATCH_PRECHECK_REGEN=$tmp/regen-stub \
+  BATCH_PRECHECK_DRIFT="./pkg TestDriftOne
+./internal/g TestGoldenWriter" CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger \
+  STUB_LEDGER_PROBE=$tmp/ledger-int STUB_HOLD=1; exec "$pre" > "$tmp/out" 2>&1 < /dev/null) & held=$!
+for ((i = 0; i < 600; i++)); do [[ -f $tmp/hold-ready ]] && break; sleep 0.1; done
+if [[ -f $tmp/hold-ready ]]; then
+  kill -TERM "$held"
+  : > "$tmp/hold-release"
+  wait "$held" && rc=0 || rc=$?
+  [[ $rc == 143 ]] || fail "the interrupted run exited $rc, want 143: $(cat "$tmp/out")"
+  (($(cat "$tmp/probe-stage" 2> /dev/null || echo 0) > 0)) || fail "no pass was staged before the interruption: $(cat "$tmp/out")"
+  compgen -G "$tmp/ledger-int/*.json" > /dev/null && fail "an interrupted run left passes in the ledger: $(/bin/ls "$tmp/ledger-int")"
+  CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger-int BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run || fail "run after the interruption failed: $(cat "$tmp/out")"
+  grep -q 'REUSE' "$tmp/out" && fail "a pass of the interrupted run was reused: $(cat "$tmp/out")"
+else
+  kill -KILL "$held" 2> /dev/null
+  : > "$tmp/hold-release"
+  wait "$held" 2> /dev/null
+  fail "the held serial step never started within 60 s: $(cat "$tmp/out")"
+fi
+/bin/rm -f "$tmp/hold-ready" "$tmp/hold-release"
+git -C "$repo" reset -q --hard HEAD~1
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
 # ASD-V0-922 (V1-3342): the full batch-regen run regenerates the documentation-paths declaration
@@ -939,7 +1061,8 @@ crun --base "$basesha" || fail "base-present only failed the run: $(cat "$tmp/ou
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "second warn: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARNING 2 base-present' "$tmp/out" || fail "two warnings: $(cat "$tmp/out")"
 # On this clean checkout a base-present WARN still writes no receipt: not every step passed.
-grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
+# DWC-V0-745 (V1-3837): the line says the run continues, since it exits 0.
+grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present; exit 0, continuing$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
 [[ -f $crepo/.git/batch-precheck-receipt ]] && fail "a run with base-present failures wrote a receipt"
 # A new finding that differs from a base one only by digits is introduced, not a timing.
 printf 'cmd/v2schema.go\n' >> "$crepo/fail-test-read-scopes-check"
@@ -1302,6 +1425,66 @@ STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(ca
 grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
 /bin/rm -rf "$srepo/notes"
 git -C "$srepo" checkout -q -- docs/specs/freeze.md
+# DWC-V0-751 (V1-3854): two lanes that each pass alone collide once merged, as in PR #41: lane A
+# adds a dispatch name and updates its generated tree, lane B adds another generated tree from the
+# old dispatch. The merge is clean, and the precheck of the merged batch, selected by the union diff
+# since the shared base, runs the drift test and fails before any push.
+(
+  home=$(git -C "$srepo" symbolic-ref -q --short HEAD) || exit 1
+  commit() { git -C "$srepo" add -A && git -C "$srepo" -c user.name=t -c user.email=t@e.invalid commit -qm "$1"; }
+  mkdir -p "$srepo/tree/testdata"
+  printf 'package tree\n\nconst dispatch = "a"\n' > "$srepo/tree/dispatch.go"
+  cat > "$srepo/tree/tree_test.go" <<'EOF2'
+package tree
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestTreeMatchesDispatch(t *testing.T) {
+	trees, _ := filepath.Glob("testdata/*.txt")
+	for _, tree := range trees {
+		b, err := os.ReadFile(tree)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.TrimSpace(string(b)); got != dispatch {
+			t.Errorf("command tree drift: %s has %q, dispatch is %q", tree, got, dispatch)
+		}
+	}
+}
+EOF2
+  printf 'a\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'tree base' || exit 1
+  tbase=$(git -C "$srepo" rev-parse HEAD)
+  git -C "$srepo" switch -q -c lane-a || exit 1
+  printf 'package tree\n\nconst dispatch = "a x"\n' > "$srepo/tree/dispatch.go"
+  printf 'a x\n' > "$srepo/tree/testdata/commands.txt"
+  commit 'lane a: dispatch x' || exit 1
+  git -C "$srepo" switch -q -c lane-b "$tbase" || exit 1
+  printf 'a\n' > "$srepo/tree/testdata/help.txt"
+  commit 'lane b: regenerate help tree' || exit 1
+  pbase=$tbase plan "$frontier" tree
+  # Plain variable assignments are visible to srun, which runs in this subshell.
+  sdrift='./tree TestTreeMatchesDispatch @go'
+  for lane in lane-a lane-b; do
+    git -C "$srepo" switch -q "$lane" || exit 1
+    srun --base "$tbase" || { printf 'lane %s alone failed: %s\n' "$lane" "$(cat "$tmp/out")" >&2; exit 1; }
+  done
+  git -C "$srepo" switch -q -c batch lane-a || exit 1
+  git -C "$srepo" -c user.name=t -c user.email=t@e.invalid merge -q --no-edit lane-b || exit 1
+  status=0
+  srun --base "$tbase" || status=$?
+  [[ $status != 0 ]] || { printf 'the merged collision passed: %s\n' "$(cat "$tmp/out")" >&2; exit 1; }
+  grep -q "^batch-precheck: batch-drift runs 1 of 1 drift tests for the diff since $tbase " "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  row_is FAIL 'batch-drift (1 packages)'
+  grep -qF 'command tree drift: testdata/help.txt has "a", dispatch is "a x"' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  grep -q '^batch-precheck: FAIL batch-drift .* introduced' "$tmp/out" || { cat "$tmp/out" >&2; exit 1; }
+  git -C "$srepo" switch -q "$home" || exit 1
+) || fail "DWC-V0-751 two-lane drift collision"
 
 fi
 if group 8; then
@@ -1533,6 +1716,27 @@ printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gat
 elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the doc-gates target with a ## help comment was not expanded: $(cat "$tmp/out")"
+# SRG-V0-982 / V1-4542: continuation expansion allows multiple doc-gates prerequisites.
+printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check extra-check | order-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "continuation expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "continuation targets were not expanded"
+# Review fix: every prerequisite, ordinary and order-only, is its own step, listed before the
+# targets in Makefile order, so the expansion never drops a gate make doc-gates would run.
+[[ $(grep -xE 'make (spec-status-check|extra-check|order-check|alpha-check|beta-test)' "$tmp/out" | tr '\n' ' ') == 'make spec-status-check make extra-check make order-check make alpha-check make beta-test ' ]] ||
+  fail "doc-gates prerequisites were dropped or reordered: $(cat "$tmp/out")"
+# Fault injection: failing prerequisites run and fail the precheck, naming each.
+pbin=$tmp/prereq-bin
+mkdir -p "$pbin"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s/prereq-calls"\ncase "$2" in extra-check|order-check) echo "prerequisite $2 failed"; exit 1 ;; esac\nexit 0\n' "$tmp" > "$pbin/make"
+printf '#!/bin/sh\nexit 0\n' > "$pbin/gofmt"
+printf '#!/bin/sh\necho ok\n' > "$pbin/go"
+chmod +x "$pbin"/*
+git -C "$erepo" add -A && git -C "$erepo" commit -qm prereqs || fail "prerequisite fixture commit"
+: > "$tmp/prereq-calls"
+(PATH=$pbin:$PATH BATCH_PRECHECK_ROOT=$erepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_DRIFT="./pkg TestDrift" "$pre") > "$tmp/out" 2>&1
+rc=$?
+[[ $rc == 1 ]] && grep -q 'FAIL make extra-check' "$tmp/out" && grep -q 'FAIL make order-check' "$tmp/out" &&
+  grep -q 'spec-status-check' "$tmp/prereq-calls" || fail "failing doc-gates prerequisites did not run and fail (exit $rc): $(cat "$tmp/out") calls: $(cat "$tmp/prereq-calls")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
@@ -1630,7 +1834,7 @@ grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || 
 (cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
 # ASD-V0-584 (V1-3374): the same refusal runs in make doc-gates, before bind and seal: the
 # legal-file-pins-check target is a doc gate, and on the fixture it refuses an edited LICENSING.md.
-grep -qE '^DOC_GATE_TARGETS := (.* )?legal-file-pins-check( |$)' "$script/../Makefile" || fail "legal-file-pins-check is not a doc gate"
+doc_targets | grep -qxF legal-file-pins-check || fail "legal-file-pins-check is not a doc gate"
 printf 'Apache\n' > "$lrepo/LICENSE"
 mkdir -p "$lrepo/script" && /bin/cp -f "$script/check-legal-file-pins.sh" "$lrepo/script/"
 (cd "$lrepo" && make -s -f "$script/../Makefile" legal-file-pins-check) > "$tmp/out" 2>&1 &&
@@ -1706,12 +1910,12 @@ git -C "$brepo" add -f NOTICE
 
 # ASD-V0-846 (V1-2432): the capability catalog drift check is a doc gate, so the local doc gates catch
 # a new command, binary or MCP tool that has no docs/CAPABILITIES.md row.
-grep -qE '^DOC_GATE_TARGETS := (.* )?capabilities-check( |$)' "$script/../Makefile" || fail "capabilities-check is not a doc gate"
+doc_targets | grep -qxF capabilities-check || fail "capabilities-check is not a doc gate"
 
 # ASD-V0-720 (V1-3847): fixed-tmp-paths-check is a doc gate; it refuses a test that writes under
 # the fixed /tmp or exports TMPDIR=/tmp, and passes t.TempDir() and a `// fixed-tmp:` line or the
 # line after one, for a quoted or raw literal and for a call whose argument is on the next line.
-grep -qE '^DOC_GATE_TARGETS := (.* )?fixed-tmp-paths-check( |$)' "$script/../Makefile" || fail "fixed-tmp-paths-check is not a doc gate"
+doc_targets | grep -qxF fixed-tmp-paths-check || fail "fixed-tmp-paths-check is not a doc gate"
 trepo=$tmp/tmprepo
 mkdir -p "$trepo/pkg"
 git -C "$trepo" init -q -b main
@@ -1739,7 +1943,7 @@ if group 14; then
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
 # suffix pass. V1-3842: no-python-runtime-dependency-test is a doc gate too, so PRs run it.
 for t in license-headers-check mkfifo-build-tags-check no-python-runtime-dependency-test; do
-  grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
+  doc_targets | grep -qxF "$t" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo
 mkdir -p "$frepo/pkg"
@@ -1765,8 +1969,9 @@ if group 15; then
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\')' ||
-  fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
+# DWC-V0-746 (V1-4072): the sealed-head run is followed by the unwind on a refusal.
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\') || { script/dogfood-closeout-unwind.sh ' ||
+  fail "dogfood-closeout-precheck does not select since the receipt or unwind a refusal (DCW-V0-923, DWC-V0-746)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"
@@ -1833,6 +2038,61 @@ git -C "$rrepo" checkout -q -- notes/a.txt
 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
+# ASC-V0-775 (V1-4239): a reseal. The pre-bind run of a new lane commit on the sealed head keeps that
+# head's receipt, so the next sealed head's run selects against it, not against the base; a receipt
+# naming no ancestor of HEAD is removed.
+rreceipt=$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+rrun --base "$rbase" || fail "sealed head rerun failed: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$rreceipt") == "$sealed" ]] || fail "no receipt for the sealed head: $(cat "$tmp/out")"
+printf 'fix\n' >> "$rrepo/notes/a.txt" && git -C "$rrepo" commit -qam 'fix after review'
+pbase=$rbase plan "$frontier"
+BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "reseal pre-bind run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: kept the passing receipt for ancestor $(git -C "$rrepo" rev-parse --short "$sealed")" "$tmp/out" || fail "the pre-bind run removed the sealed head's receipt: $(cat "$tmp/out")"
+[[ $(awk '$1 == "head" { print $2 }' "$rreceipt") == "$sealed" ]] || fail "the kept receipt changed: $(cat "$rreceipt")"
+git -C "$rrepo" rev-parse HEAD > /dev/null && printf '{}\n' > "$rrepo/.corvint/changes/$(git -C "$rrepo" rev-parse HEAD).cem.json"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal change evidence'
+resealed=$(git -C "$rrepo" rev-parse HEAD)
+pbase=$sealed plan "$frontier"
+: > "$tmp/scalls"
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "resealed head run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: since-receipt base $sealed: " "$tmp/out" || fail "the resealed head did not select since the old sealed head: $(cat "$tmp/out")"
+grep -qx "planner affected --base $sealed" "$tmp/scalls" || fail "planner not asked since the old sealed head: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: receipt for $resealed written" "$tmp/out" || fail "the resealed head got no receipt: $(cat "$tmp/out")"
+git -C "$rrepo" checkout -q --detach "$rbase"
+pbase=$rbase plan "$frontier" golden
+BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "non-descendant run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: kept the passing receipt' "$tmp/out" && fail "a receipt naming no ancestor of HEAD was kept: $(cat "$tmp/out")"
+[[ -f $rreceipt ]] && fail "a receipt naming no ancestor of HEAD survived: $(cat "$rreceipt")"
+
+# ASD-V0-944: the current recipe owns the shared bounded preflight. The
+# legacy sb_skip list must never bypass it, even without a usable plan.
+legacy_rrepo=$rrepo
+rrepo=$tmp/shared-recipe
+git clone -q "$legacy_rrepo" "$rrepo" || fail "shared-preflight fixture clone"
+mkdir -p "$rrepo/interop/cem01-go"
+printf '\t@SELECTION_BASELINE_INPUTS_BASE=x ./tools/selection-baseline\n' >> "$rrepo/Makefile"
+git -C "$rrepo" add Makefile && git -C "$rrepo" commit -qm 'shared baseline preflight'
+sharedbase=$(git -C "$rrepo" rev-parse HEAD)
+mkdir -p "$rrepo/.corvint"
+for declaration in '{"profile":"corvint-test-read-scopes/0","packages":{}}' invalid; do
+  printf '%s\n' "$declaration" > "$rrepo/.corvint/test-read-scopes.json"
+  pbase=$sharedbase plan "$frontier" tools/selection-baseline
+  for planrc in 0 3; do
+    : > "$tmp/scalls"
+    STUB_PLAN_RC=$planrc rrun --base "$sharedbase" || fail "declaration-only shared preflight failed: $(cat "$tmp/out")"
+    grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "declaration-only edit bypassed shared preflight (plan rc=$planrc): $(cat "$tmp/out")"
+    grep -q '^batch-precheck: selection-baseline-check skipped:' "$tmp/out" && fail "shared preflight was skipped: $(cat "$tmp/out")"
+  done
+done
+# Even a doc-only change cannot prove that unchanged declarations are valid.
+git -C "$rrepo" add .corvint/test-read-scopes.json && git -C "$rrepo" commit -qm 'invalid declaration fixture'
+sharedbase=$(git -C "$rrepo" rev-parse HEAD)
+printf 'another doc edit\n' >> "$rrepo/notes/a.txt"
+pbase=$sharedbase plan "$frontier"
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 rrun --base "$sharedbase" || fail "invalid-declaration no-plan preflight failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "invalid declaration bypassed shared preflight: $(cat "$tmp/out")"
+rrepo=$legacy_rrepo
 
 fi
 if group 16; then
@@ -1940,7 +2200,7 @@ if group 17; then
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
 for target in dogfood-closeout dogfood-closeout-precheck; do
   grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
-  grep -A4 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
+  grep -A8 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
 done
 baseline_deferred() {
   grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
@@ -2169,4 +2429,85 @@ strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base witho
 
 fi
 
+if group 19; then
+# 19. SRG-V0-982 / ASD-V0-925 (V1-4542): the fixed fast prefix precedes a bytewise sorted unique
+# suffix, and doc-gates keeps its fast status prerequisite; ASD-V0-640 (V1-4540): the lane
+# script-test wrapper selects committed, staged, unstaged and untracked lane script changes.
+[[ $(doc_targets | head -n 2) == $'line-citations-check\nspec-requirements-check' ]] || fail "doc gate fast prefix changed"
+[[ $(doc_targets | tail -n +3 | LC_ALL=C sort -u) == $(doc_targets | tail -n +3) ]] || fail "doc gate suffix unsorted or repeated"
+# Exercise staged shape, prefix, suffix and duplicate checks independently.
+order_repo=$tmp/target-order
+mkdir -p "$order_repo"
+git -C "$order_repo" init -q
+order_targets() {
+  printf 'DOC_GATE_TARGETS := \\\n'
+  while (($# > 1)); do printf '  %s \\\n' "$1"; shift; done
+  printf '  %s\n' "$1"
+}
+order_targets line-citations-check spec-requirements-check a-check z-check > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "fast prefix and sorted suffix refused: $(cat "$tmp/out")"
+for bad_order in \
+  'line-citations-check spec-requirements-check z-check a-check' \
+  'spec-requirements-check line-citations-check a-check' \
+  'a-check line-citations-check spec-requirements-check' \
+  'line-citations-check spec-requirements-check a-check a-check' \
+  'line-citations-check spec-requirements-check line-citations-check'; do
+  order_targets $bad_order > "$order_repo/Makefile"
+  git -C "$order_repo" add Makefile
+  (cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "malformed doc target order accepted: $bad_order"
+  grep -q 'doc-gate-targets: FAIL' "$tmp/out" || fail "order refusal missing: $bad_order"
+done
+printf 'DOC_GATE_TARGETS := line-citations-check spec-requirements-check\n' > "$order_repo/Makefile"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "inline doc targets accepted"
+# An unstaged repair cannot hide malformed published content.
+order_targets line-citations-check spec-requirements-check a-check > "$order_repo/Makefile"
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 && fail "target checker read unstaged repair"
+git -C "$order_repo" add Makefile
+(cd "$order_repo" && "$script/check-doc-gate-targets.sh") > "$tmp/out" 2>&1 || fail "staged target repair refused: $(cat "$tmp/out")"
+
+grep -q '^doc-gates: spec-status-check' "$script/../Makefile" || fail "doc-gates lost its fast status prerequisite"
+
+# ASD-V0-640 / V1-4540: wrapper checks committed lane script changes, with no selector leak.
+lane_repo=$tmp/lane-test-selection
+mkdir -p "$lane_repo/script" "$lane_repo/bin"
+git -C "$lane_repo" init -q
+printf '# lane binary check\n' > "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" add script
+git -C "$lane_repo" commit -qm base
+lane_base=$(git -C "$lane_repo" rev-parse HEAD)
+cat > "$lane_repo/bin/make" <<'STUB'
+#!/bin/sh
+[ -z "${LANE_SCRIPTS_GROUPS+x}" ] || exit 9
+printf '%s\n' "$*" >> "$LANE_CALLS"
+exit "${LANE_TEST_RC:-0}"
+STUB
+chmod +x "$lane_repo/bin/make"
+lane_check() { (cd "$lane_repo" && PATH="$lane_repo/bin:$PATH" LANE_CALLS="$tmp/lane-calls" LANE_SCRIPTS_GROUPS=tools "$script/check-lane-script-tests.sh" "$lane_base") > "$tmp/out" 2>&1; }
+printf 'unrelated\n' > "$lane_repo/note.txt"
+lane_check || fail "unrelated diff refused"
+[[ ! -e $tmp/lane-calls ]] || fail "unrelated path selected lane scripts"
+[[ ! -s $tmp/out ]] || fail "an unselected lane-scripts-test printed output: $(cat "$tmp/out")"
+printf '# changed\n' >> "$lane_repo/script/lane-binary-check.sh"
+git -C "$lane_repo" commit -qam 'lane binary fix'
+lane_check || fail "committed lane binary change refused: $(cat "$tmp/out")"
+grep -qx -- '--no-print-directory lane-scripts-test LANE_SCRIPTS_GROUPS=all' "$tmp/lane-calls" || fail "lane binary diff did not select lane-scripts-test"
+LANE_TEST_RC=1 lane_check && fail "failed lane scripts admitted"
+grep -q 'REFUSE lane-scripts-test failed' "$tmp/out" || fail "lane test failure missing"
+# Staged/unstaged/untracked lane tests and invalid bases fail or select conservatively.
+git -C "$lane_repo" reset -q --hard "$lane_base"
+printf '# new test\n' > "$lane_repo/script/lane-new_test.sh"
+lane_check || fail "untracked lane test refused"
+/bin/rm -f "$lane_repo/script/lane-new_test.sh"
+: > "$tmp/lane-calls"
+printf '# unstaged\n' >> "$lane_repo/script/lane-binary-check.sh"
+lane_check || fail "unstaged lane diff refused"
+[[ -s $tmp/lane-calls ]] || fail "unstaged lane diff skipped"
+git -C "$lane_repo" add script
+lane_check || fail "staged lane diff refused"
+(cd "$lane_repo" && "$script/check-lane-script-tests.sh" missing-base) > "$tmp/out" 2>&1 && fail "invalid base admitted"
+grep -q 'check-lane-script-tests.sh' "$script/dogfood-check.sh" || fail "dogfood-check lost lane script preflight"
+grep -q 'script/dogfood-check.sh' "$script/dogfood-seal.sh" || fail "seal lost required check wrapper"
+fi
 finish

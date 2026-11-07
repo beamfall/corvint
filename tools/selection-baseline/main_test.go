@@ -2,11 +2,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestSelectionBaselineGateFailsOnFloorOrMiss_V12892 covers the V1-2892 gate:
@@ -317,4 +322,75 @@ func testOmittedJSON(t *testing.T, r Result) string {
 		t.Fatal(err)
 	}
 	return string(doc["testOmitted"])
+}
+
+// TestReplayJobsScaleToTheHost_ASCV0777 pins the worker default: a third of the CPUs, at least
+// one, at most 8 and at most the change count, with a positive SELECTION_BASELINE_JOBS winning.
+func TestReplayJobsScaleToTheHost_ASCV0777(t *testing.T) {
+	for _, tc := range []struct {
+		n, cpus  int
+		override string
+		want     int
+	}{
+		{26, 1, "", 1},
+		{26, 4, "", 4},
+		{26, 12, "", 4},
+		{26, 32, "", 8},
+		{26, 64, "", 8},
+		{3, 32, "", 3},
+		{26, 32, "2", 2},
+		{26, 4, "16", 16},
+		{26, 32, "0", 8},
+		{26, 32, "x", 8},
+	} {
+		if got := defaultReplayJobs(tc.n, tc.cpus, tc.override); got != tc.want {
+			t.Errorf("defaultReplayJobs(%d, %d, %q) = %d, want %d", tc.n, tc.cpus, tc.override, got, tc.want)
+		}
+	}
+}
+
+// AFP-V0-2750: a replayed historic head can lack a declaration the current
+// binary needs (cfamily), so `corvint test --dry-run` gives the INCOMPLETE
+// verdict, exit 3, with its manifest written. The replay reads that manifest
+// and records why; exit 3 with no manifest, or any other failing exit, is
+// still a failed replay.
+func TestSelectionBaselineReadsAnIncompleteDryRun_AFPV2750(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake corvint is a POSIX shell script")
+	}
+	for _, tc := range []struct {
+		name   string
+		script string
+		ok     bool
+	}{
+		{"INCOMPLETE with a manifest", `printf '{"scope":"NARROWED","incomplete":["cfamily: none declared"]}' > "$6"; exit 3`, true},
+		{"INCOMPLETE with no manifest", `exit 3`, false},
+		{"FAIL with a manifest", `printf '{}' > "$6"; exit 1`, false},
+		{"PASS", `printf '{}' > "$6"`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			corvint := filepath.Join(dir, "corvint")
+			if err := execfile.WriteFile(corvint, []byte("#!/bin/sh\n"+tc.script+"\n"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			manifestPath := filepath.Join(dir, "m.json")
+			err := dryRunManifest(context.Background(), dir, corvint, "base", manifestPath)
+			if (err == nil) != tc.ok {
+				t.Fatalf("err %v, want ok=%v", err, tc.ok)
+			}
+			if tc.name == "INCOMPLETE with a manifest" {
+				var m manifest
+				data, _ := os.ReadFile(manifestPath)
+				if err := json.Unmarshal(data, &m); err != nil {
+					t.Fatal(err)
+				}
+				var res Result
+				fillManifest(&res, m)
+				if !reflect.DeepEqual(res.TestIncomplete, []string{"cfamily: none declared"}) {
+					t.Fatalf("testIncomplete %q", res.TestIncomplete)
+				}
+			}
+		})
+	}
 }
