@@ -437,12 +437,16 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 // that changes to no literal directory and reads nothing recursively) places
 // a lone file name as a Go unit does (namesFileOnlyWithin, AFP-V0-400): it runs
 // from the repository root or below its own directory. Any other non-Go unit
-// keeps the component-run relation: its tests' working directory is unknown. For the CEM sidecar and a sealed CEM
-// (resolvedEvidence), a Go unit's token must resolve against the unit's
+// keeps the component-run relation: its tests' working directory is unknown. For the CEM sidecar, a sealed CEM
+// (resolvedEvidence) and a build-log entry (recordDirectory), a Go unit's token must resolve against the unit's
 // directory, or against the repository root when a parent-only or anchored
 // token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
 // its module's directory, which this graph does not record, so narrowing it
-// could drop a real reader. For any other path see namesFileOnlyWithin.
+// could drop a real reader. For a record entry (recordDirectory, AFP-V0-2743)
+// the resolved path must lie at or below the record directory
+// (resolvesRecord), a `/`-anchored token is resolved from the root, and a unit
+// that locates the root at run time resolves every token from it too. For any
+// other path see namesFileOnlyWithin.
 // A unit with a declared read scope (AFP-V0-023) reads no dirty path outside
 // that scope, whatever its tokens name (AFP-V0-161): the declaration states
 // it, and full CI confines the package's tests to it.
@@ -461,13 +465,32 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		return true
 	}
 	directory := relativeDirectory(files[0])
-	if !resolvedEvidence(dirtyPath) {
+	record, isRecord := recordDirectory(dirtyPath)
+	if !resolvedEvidence(dirtyPath) && !isRecord {
 		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath, true)
 	}
 	anchored := rootAnchored(unit.PathTokens)
+	if isRecord {
+		// A unit that locates the root at run time (an unbounded reader)
+		// can join any of its tokens to it (AFP-V0-2743).
+		_, locates := graph.causes[id]
+		anchored = anchored || locates
+	}
 	parts := strings.Split(dirtyPath, "/")
 	for _, value := range unit.PathTokens {
 		if !namesPath(value, parts) {
+			continue
+		}
+		if isRecord {
+			if rest, rooted := strings.CutPrefix(value, "/"); rooted {
+				if resolvesRecord("", rest, dirtyPath, record) {
+					return true
+				}
+				continue
+			}
+			if resolvesRecord(directory, value, dirtyPath, record) || (anchored && resolvesRecord("", value, dirtyPath, record)) {
+				return true
+			}
 			continue
 		}
 		if strings.HasPrefix(value, "/") || resolvesWithin(directory, value, dirtyPath) || (anchored && resolvesWithin("", value, dirtyPath)) {
@@ -475,6 +498,46 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		}
 	}
 	return false
+}
+
+// BuildLogDirectory holds the build log, one `docs/build-log/<date>-<slug>.md`
+// entry per recorded decision or result (decision 0423); nearly every change
+// adds one.
+const BuildLogDirectory = "docs/build-log/"
+
+// recordDirectory returns the record directory of a record entry
+// (AFP-V0-2743): a sealed CEM directly under SealedChangesDirectory, or a
+// Markdown entry directly under BuildLogDirectory. Nearly every change adds
+// one of each, so a reader of either must read that entry or list that
+// directory; a token that resolves only to an ancestor of the directory (the
+// repository root, `.corvint`, `docs`) reaches the entry only through a name
+// computed or walked at run time, which the reader rules never bound and the
+// unbounded-reader rule (AFP-V0-012 rule (d)) and declared read scopes
+// (AFP-V0-023) select instead.
+func recordDirectory(dirtyPath string) (string, bool) {
+	if name, ok := strings.CutPrefix(dirtyPath, SealedChangesDirectory); ok && !strings.Contains(name, "/") && len(name) > len(".cem.json") && strings.HasSuffix(name, ".cem.json") {
+		return SealedChangesDirectory, true
+	}
+	if name, ok := strings.CutPrefix(dirtyPath, BuildLogDirectory); ok && !strings.Contains(name, "/") && len(name) > len(".md") && strings.HasSuffix(name, ".md") {
+		return BuildLogDirectory, true
+	}
+	return "", false
+}
+
+// resolvesRecord reports whether value, joined to directory, names the
+// record entry dirtyPath as resolvesWithin does, at or below its record
+// directory: the entry itself, the record directory, or a fragment completed
+// at the entry's position. A token that resolves to the repository root or
+// to a proper ancestor of record does not (AFP-V0-2743).
+func resolvesRecord(directory, value, dirtyPath, record string) bool {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return false
+	}
+	resolved := path.Join(directory, value)
+	if resolved == "." || resolved == "" {
+		return false
+	}
+	return !strings.HasPrefix(record, resolved+"/") || resolved+"/" == record
 }
 
 // namesFileOnlyWithin reports whether a Go unit in directory whose tokens name
@@ -863,4 +926,73 @@ func (candidate run) matchesAt(parts []string) bool {
 		}
 	}
 	return true
+}
+
+// RecordReaders returns, in graph order, the Go units with tests and no
+// declared read scope that the reader rules select, by a path literal or a
+// glob, for probe, a record entry (recordDirectory) that no literal names by
+// its file name: the readers every new entry of that record directory selects
+// (AFP-V0-2745). It also returns each such unit whose token resolves to an
+// ancestor of the record directory other than the repository root, which
+// AFP-V0-2743 does not select but whose walk could reach the entry. It
+// returns nil for any other path. tools/unbounded-readers ratchets this set,
+// so a package that starts to name a record directory or its parent declares
+// its read scope (AFP-V0-023) instead.
+func (graph *Graph) RecordReaders(probe string) []string {
+	record, ok := recordDirectory(probe)
+	if !ok {
+		return nil
+	}
+	parts := strings.Split(probe, "/")
+	tokens := graph.pathTokens()
+	var ids []string
+	for i, id := range graph.order {
+		unit := graph.units[id]
+		if !strings.HasPrefix(id, "go:") || len(unit.Tests) == 0 || unit.ReadScoped {
+			continue
+		}
+		if namesAny(tokens[i], parts) && (graph.resolves(id, probe) || graph.namesRecordAncestor(id, probe, record)) {
+			ids = append(ids, id)
+			continue
+		}
+		if _, _, ok := graph.globRead(id, []string{probe}); ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// namesRecordAncestor reports whether a token of Go unit id, resolved from
+// its directory, or from the root when the unit is anchored or locates the
+// root (resolves), names probe through a proper ancestor of its record
+// directory other than the root (AFP-V0-2745).
+func (graph *Graph) namesRecordAncestor(id, probe, record string) bool {
+	unit := graph.units[id]
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if len(files) == 0 {
+		return false
+	}
+	directory := relativeDirectory(files[0])
+	_, locates := graph.causes[id]
+	anchored := rootAnchored(unit.PathTokens) || locates
+	parts := strings.Split(probe, "/")
+	ancestor := func(base, value string) bool {
+		resolved := path.Join(base, value)
+		return resolved != "." && resolved != "" && strings.HasPrefix(record, resolved+"/") && resolved+"/" != record && resolvesWithin(base, value, probe)
+	}
+	for _, value := range unit.PathTokens {
+		if !namesPath(value, parts) {
+			continue
+		}
+		if rest, rooted := strings.CutPrefix(value, "/"); rooted {
+			if ancestor("", rest) {
+				return true
+			}
+			continue
+		}
+		if ancestor(directory, value) || (anchored && ancestor("", value)) {
+			return true
+		}
+	}
+	return false
 }

@@ -129,7 +129,9 @@ func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 	})
 	sealed := ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
 	cases := []struct{ name, dirty, verdict string }{
-		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
+		// AFP-V0-2744: deep/dir's `../../.corvint` resolves to `.corvint`,
+		// an ancestor of the record directory, so it reads no sealed CEM.
+		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/exact"},
 		{name: "AFP-V0-931 sidecar ignores a lone component beside a module anchor", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/deep/dir"},
 		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture example.com/fixture/modroot"},
 	}

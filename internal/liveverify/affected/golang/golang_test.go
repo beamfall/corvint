@@ -715,9 +715,11 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 
 // AFP-V0-152 (V1-1820): a sealed CEM directly under .corvint/changes/ narrows
 // its Go readers as the sidecar does. A fixture-root token naming the same
-// components is dropped; a reader whose token resolves to the sealed CEM or an
-// ancestor, from its own directory or from the root, is still selected; any
-// other path under .corvint/changes/ keeps the component-run readers.
+// components is dropped; a reader whose token resolves to the sealed CEM or its
+// record directory, from its own directory or from the root, is still
+// selected; since AFP-V0-2743 (V1-4933) one that resolves only to `.corvint`,
+// an ancestor of the record directory (deep/dir), is not; any other path under
+// .corvint/changes/ keeps the component-run readers.
 func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -733,7 +735,7 @@ func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ dirty, want string }{
-		{".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go]"},
+		{".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json", "[anchored/anchored_test.go exact/exact_test.go]"},
 		// Not a sealed CEM: a nested path and another file name keep rule (c).
 		{".corvint/changes/x/y.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},
 		{".corvint/changes/README.md", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go]"},

@@ -746,6 +746,15 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 	readers := map[string]bool{}
 	anchors := index.rootAnchors(dirtyPath)
 	climbs := index.climbingAnchors()
+	record, isRecord := recordDirectory(dirtyPath)
+	within := resolvesWithin
+	if isRecord {
+		// A record entry's reader resolves at or below its record
+		// directory, never to an ancestor of it (AFP-V0-2744).
+		within = func(directory, value, dirtyPath string) bool {
+			return resolvesRecord(directory, value, dirtyPath, record)
+		}
+	}
 	for value, directories := range index.holders {
 		if !namesPath(value, dirtyPath) {
 			continue
@@ -756,13 +765,32 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 		// (AFP-V0-931).
 		named := namesResolvedPath(value, dirtyPath)
 		for _, directory := range directories {
-			if resolvesWithin(directory, value, dirtyPath) ||
-				(anchors[directory] && resolvesWithin("", value, dirtyPath) && (named || climbs[directory])) {
+			if within(directory, value, dirtyPath) ||
+				(anchors[directory] && within("", value, dirtyPath) && (named || climbs[directory])) {
 				readers[directory] = true
 			}
 		}
 	}
 	return sortedKeys(readers)
+}
+
+// resolvesRecord is resolvesWithin for the record entry dirtyPath of the
+// record directory record (AFP-V0-2744, the planner's AFP-V0-2743): the token
+// must also resolve at or below record, so one that resolves to the
+// repository root or to a proper ancestor of record (`.corvint`, `docs`) does
+// not name the entry.
+func resolvesRecord(directory, value, dirtyPath, record string) bool {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return false
+	}
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	if resolved == "." || resolved == "" {
+		return false
+	}
+	return !strings.HasPrefix(record, resolved+"/") || resolved+"/" == record
 }
 
 // holderReaders are the packages holding a literal that, resolved against
