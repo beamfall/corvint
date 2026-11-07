@@ -604,16 +604,23 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   and no unit of the claimant survives in that fixture to have held it. The path stays unowned:
   rule (b) selects the hosting package, rule (c) selects every unit, in any language, whose import
   or path literal names it (AFP-V0-021), and `frontierUnknowns` treats it as any other unowned path
-  (AFP-V0-511). A path present on disk, a graph with no disk root, a sparse checkout, a Go claim, a
-  path no plugin claims, a `testdata` directory no Go unit hosts, and a fixture subtree the claimant
-  still lists keep the entry. Failure mode: a plugin unit in a sibling fixture that loaded the file
+  (AFP-V0-511) although the claimant's `Owns` still claims it. The claimant takes part as the owner
+  of a dirty path, and every other plugin's unowned-path checks see the path, so a path-open entry
+  of a third plugin, such as a test that reads files by a computed name, still bears. A path
+  present on disk, a graph with no disk root, a sparse checkout, a Go claim, a path no plugin
+  claims, a `testdata` directory no Go unit hosts, and a fixture subtree the claimant still lists
+  keep the entry. Failure mode: a plugin unit in a sibling fixture that loaded the file
   by a name no literal states is not selected. Falsifier: a deleted fixture file whose removal
   changes a test outcome in a unit the plan excludes. Acceptance:
-  `TestDeletedFixtureIsFixtureData_AFPV2740`. Rollback: drop `deletedFixture` from `seed`.
+  `TestDeletedFixtureIsFixtureData_AFPV2740`, and
+  `TestDeletedFixtureStaysUnownedForOtherPlugins_AFPV2740` for the third plugin's entry (review fix
+  round 3). Rollback: drop `deletedFixture` from `seed`
+  and from `participants`.
 - **AFP-V0-2741:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;
   CI selector, CIN-V0-860) `gate-affected-select` and `corvint test` SHALL give the same decision
   for a deleted fixture of AFP-V0-2740 because both read the one plan: the plan carries no unknown
-  for it, `corvint test` narrows, and the CI selector's rules (b) and (c) select the hosting
+  for the path itself (a frontier entry the path bears under AFP-V0-511 is the same unknown in
+  both), `corvint test` narrows, and the CI selector's rules (b) and (c) select the hosting
   package and every Go package whose literal names the path, a superset of the plan's Go selection
   as for every dirty path. The CI selector admits no new unknown for it: a plan that still carries
   the entry (an AFP-V0-2740 exclusion) is FULL in both. Acceptance: the beamfall/corvint#114
@@ -1041,7 +1048,7 @@ dependency.
 | AFP-V0-2404 | `.corvint/runtime-readers.json` | the per-path plan summaries in the build-log entry |
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
-| AFP-V0-2740 | `deletedFixture`, `fixtureSubtree` in `internal/liveverify/affected/deletedfixtures.go` and the call in `seed` (`select.go`) | `TestDeletedFixtureIsFixtureData_AFPV2740` in `internal/liveverify/affected/deletedfixtures_test.go` (no unknown, hosting package and literal reader selected; seven kept cases; fails with the call removed); the PR #114 replay in build-log entry `2026-11-06-selgo` |
+| AFP-V0-2740 | `deletedFixture`, `fixtureSubtree` in `internal/liveverify/affected/deletedfixtures.go`, the call in `seed` and the unowned-path listing in `participants` (`select.go`) | `TestDeletedFixtureIsFixtureData_AFPV2740` in `internal/liveverify/affected/deletedfixtures_test.go` (no unknown, hosting package and literal reader selected; seven kept cases; fails with the call removed); `TestDeletedFixtureStaysUnownedForOtherPlugins_AFPV2740` there (a deleted Python fixture still bears a third plugin's path-open entry; fails with `participants` reading `claimantsOf` alone); the PR #114 replay in build-log entry `2026-11-06-selgo` |
 | AFP-V0-2741 | the shared plan; rules (b) and (c) of `internal/gateselect` unchanged | the PR #114 replay in build-log entry `2026-11-06-selgo` (driver and shadow narrow, shadow a subset of the driver) |
 | AFP-V0-2742 | the module branch of `Build` and `ModuleCheck` in `internal/sessiontest/plan.go`; the `UnobservedModule` comment in `internal/gateselect/allowlist.go` | `TestCIProfileNamesTheNestedModuleSuite_AFPV2742` in `internal/sessiontest/module_ci_afpv2742_test.go` (fails with the profile condition restored); the amended ci case of `TestSTRV0064NestedModuleUnit`; `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`; the PR #105 replay |
 | AFP-V0-2743 | `recordDirectory`, `resolvesRecord`, `BuildLogDirectory` and the record branch of `resolves` in `internal/liveverify/affected/readers.go` | `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743` in `internal/liveverify/affected/records_test.go` (both fault injections fail it); the PR #106 replay |
