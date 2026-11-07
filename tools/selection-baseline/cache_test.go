@@ -34,7 +34,7 @@ func cacheFixture(t *testing.T) (root, corvint, selector, count string, set chan
 	testplatform.SkipPOSIXShell(t, "the fake planner and selector are sh scripts")
 	root = t.TempDir()
 	gitIn := func(args ...string) string {
-		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = root
 		out, err := cmd.CombinedOutput()
 		if err != nil {
