@@ -102,6 +102,29 @@ out=$(DOGFOOD_CLOSEOUT_REGEN='script/check-line-citations.sh --repin' CORVINT_BI
 [[ $(git rev-list --count "$head..HEAD") == 1 && $(git show HEAD:doc.md) == 'see spec.md:5' ]] || fail "line-citation repin: $out"
 head=$(git rev-parse HEAD)
 
+# 5d. ASD-V0-3731 (review): the plan refresh fails once after the repin commit. The rerun has nothing
+# left to repin, yet still runs the pending refresh and reports success only after it; a third run is
+# a plain no-op.
+# The flaky refresh fails on its first call only.
+printf '#!/bin/sh\n[ "$1 $2 $3" = "dogfood propose-citations --refresh" ] || exit 9\necho call >> "%s/refresh.calls"\n[ "$(wc -l < "%s/refresh.calls")" -ne 1 ] || { echo "refresh: boom" >&2; exit 1; }\ncat "$4"; printf "3\\tdoc.md\\t1:1\\tretried\\n"\n' "$tmp" "$tmp" > "$tmp/corvint-flaky" && chmod +x "$tmp/corvint-flaky"
+printf '1\tdoc.md\t1:1\timplementation\n' > "$tmp/plan-retry.tsv"
+fake script/batch-regen.sh --mechanical 'printf "see spec.md:6\n" > doc.md'
+out=$(DOGFOOD_CLOSEOUT_REGEN=$mechanical CORVINT_BIN=$tmp/corvint-flaky "$script" "$base" "$tmp/plan-retry.tsv" 2>&1)
+rc=$?
+[[ $rc == 1 && $(git rev-list --count "$head..HEAD") == 1 ]] || fail "failed refresh: rc=$rc $out"
+grep -qF 'dogfood-closeout-repin: FAIL the plan refresh failed; the repin is committed' <<< "$out" || fail "failed refresh output: $out"
+[[ $(cat "$tmp/plan-retry.tsv") == $'1\tdoc.md\t1:1\timplementation' ]] || fail "the failed refresh changed the plan"
+head=$(git rev-parse HEAD)
+out=$(DOGFOOD_CLOSEOUT_REGEN=$mechanical CORVINT_BIN=$tmp/corvint-flaky "$script" "$base" "$tmp/plan-retry.tsv" 2>&1)
+rc=$?
+[[ $rc == 0 && $(git rev-parse HEAD) == "$head" ]] || fail "refresh retry: rc=$rc $out"
+[[ $(wc -l < "$tmp/refresh.calls") == 2 ]] || fail "the rerun did not retry the refresh: $out"
+grep -q 'retried$' "$tmp/plan-retry.tsv" && [[ $(cat "$tmp/plan-retry.tsv.pre-repin") == $'1\tdoc.md\t1:1\timplementation' ]] || fail "the retried refresh did not install the plan: $out"
+grep -qF "dogfood-closeout-repin: nothing to repin; retrying the plan refresh the repin commit $head left pending" <<< "$out" &&
+  [[ $(tail -n 1 <<< "$out") == "dogfood-closeout-repin: refreshed $tmp/plan-retry.tsv for the repin hunks (previous plan: $tmp/plan-retry.tsv.pre-repin)" ]] || fail "refresh retry output: $out"
+out=$(DOGFOOD_CLOSEOUT_REGEN=$mechanical CORVINT_BIN=$tmp/corvint-flaky "$script" "$base" "$tmp/plan-retry.tsv" 2>&1) || fail "after the retry: rc=$?"
+[[ $out == 'dogfood-closeout-repin: nothing to repin' && $(wc -l < "$tmp/refresh.calls") == 2 ]] || fail "the retried refresh stayed pending: $out"
+
 # 6. Usage.
 "$script" > /dev/null 2>&1
 [[ $? == 2 ]] || fail "no BASE is not a usage error"

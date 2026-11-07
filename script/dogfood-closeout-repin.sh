@@ -16,6 +16,11 @@
 # staged what it rewrote (check-line-citations.sh --repin does) or committed it, so the restore resets
 # HEAD and the index to the starting commit before it checks the tracked tree out of that index, and
 # a restore that fails exits 1 naming the commit. Untracked files stay.
+# ASD-V0-3731: the refresh a repin commit needs stays pending until it succeeds. The commit's SHA is
+# recorded at $(git rev-parse --git-path dogfood-closeout-repin-pending) right after the commit and
+# the record is cleared only after the refreshed plan is installed, so a rerun after a failed refresh
+# that finds nothing left to repin still runs the refresh and reports success only after it. A record
+# whose commit is no longer an ancestor of HEAD (the repin was dropped) is cleared and nothing runs.
 set -uo pipefail
 base=${1-} citations=${2-}
 [[ -n $base ]] || { printf 'usage: script/dogfood-closeout-repin.sh BASE CITATIONS\n' >&2; exit 2; }
@@ -64,27 +69,39 @@ if ! repin > "$log" 2>&1 < /dev/null; then
   restore
   exit 1
 fi
+pending=$(git rev-parse --git-path dogfood-closeout-repin-pending) || exit 2
 changed=$(git diff --name-only HEAD --)
 if [[ -z $changed ]]; then
-  printf 'dogfood-closeout-repin: nothing to repin\n' >&2
-  exit 0
+  repin_commit=
+  [[ -s $pending ]] && IFS= read -r repin_commit < "$pending"
+  if [[ -n $repin_commit ]] && git merge-base --is-ancestor "$repin_commit" HEAD 2> /dev/null; then
+    printf 'dogfood-closeout-repin: nothing to repin; retrying the plan refresh the repin commit %s left pending\n' "$repin_commit" >&2
+  else
+    [[ -z $repin_commit ]] || : > "$pending" || exit 1
+    printf 'dogfood-closeout-repin: nothing to repin\n' >&2
+    exit 0
+  fi
+else
+  printf '%s\n' "$changed" | sed 's/^/dogfood-closeout-repin: repinned /' >&2
+  printf '%s\n' "$changed" | git add --pathspec-from-file=- || exit 1
+  git commit -q -m 'chore(repin): mechanical repin before the closeout (V1-4101)' || {
+    printf 'dogfood-closeout-repin: FAIL could not commit the repin; it is staged\n' >&2
+    exit 1
+  }
+  git rev-parse HEAD > "$pending" || exit 1
+  printf 'dogfood-closeout-repin: committed %s\n' "$(git rev-parse --short HEAD)" >&2
 fi
-printf '%s\n' "$changed" | sed 's/^/dogfood-closeout-repin: repinned /' >&2
-printf '%s\n' "$changed" | git add --pathspec-from-file=- || exit 1
-git commit -q -m 'chore(repin): mechanical repin before the closeout (V1-4101)' || {
-  printf 'dogfood-closeout-repin: FAIL could not commit the repin; it is staged\n' >&2
-  exit 1
-}
-printf 'dogfood-closeout-repin: committed %s\n' "$(git rev-parse --short HEAD)" >&2
 if [[ -z $citations || ! -s $citations ]]; then
+  printf 'dogfood-closeout-repin: no CITATIONS plan given; the plan refresh stays pending\n' >&2
   exit 0
 fi
 bin=${CORVINT_BIN:-$(git rev-parse --absolute-git-dir)/corvint/corvint}
 [[ -x $bin ]] || bin=corvint
 if ! "$bin" dogfood propose-citations --refresh "$citations" "$base" > "$log"; then
-  printf 'dogfood-closeout-repin: FAIL the plan refresh failed; the repin is committed\n' >&2
-  printf 'fix: corvint dogfood propose-citations --refresh %s %s > plan.new, review it, install it as CITATIONS and rerun make dogfood-closeout\n' "$citations" "$base" >&2
+  printf 'dogfood-closeout-repin: FAIL the plan refresh failed; the repin is committed and its refresh stays pending\n' >&2
+  printf 'fix: rerun make dogfood-closeout with the same inputs, which retries the refresh; or run corvint dogfood propose-citations --refresh %s %s > plan.new, review it and install it as CITATIONS first\n' "$citations" "$base" >&2
   exit 1
 fi
 /bin/cp -f "$citations" "$citations.pre-repin" && /bin/cp -f "$log" "$citations" || exit 1
+: > "$pending" || exit 1
 printf 'dogfood-closeout-repin: refreshed %s for the repin hunks (previous plan: %s.pre-repin)\n' "$citations" "$citations" >&2
