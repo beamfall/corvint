@@ -56,6 +56,7 @@ func TestGitDriversDWCV07703(t *testing.T) {
 	}{
 		{"append", "docs/specs/fixture.md", "anchor\n", "anchor\n## Ours\nA\n", "anchor\n## Theirs\nB\n", false},
 		{"edit", "docs/specs/fixture.md", "old\n", "ours\n", "theirs\n", true},
+		{"json-add-add", ".corvint/test-read-scopes.json", ``, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                                      //corvint:fixture-path
 		{"json", ".corvint/test-read-scopes.json", `{"packages":{}}`, `{"packages":{"a":[]}}`, `{"packages":{"b":[]}}`, false},                               //corvint:fixture-path
 		{"json-divergence", ".corvint/test-read-scopes.json", `{"packages":{"a":[]}}`, `{"packages":{"a":["ours"]}}`, `{"packages":{"a":["theirs"]}}`, true}, //corvint:fixture-path
 		{"projection", "docs/specs/README.md", "base\n", "ours\n", "theirs\n", false},                                                                        //corvint:fixture-path
@@ -92,14 +93,18 @@ func TestGitDriversDWCV07703(t *testing.T) {
 				driver := "'" + strings.ReplaceAll(executable, "'", "'\\''") + "' -test.run=^TestDriverHelper$ -- " + mode + ` "%O" "%A" "%B" %L`
 				git(t, root, "config", "--local", "merge."+name+".driver", driver)
 			}
-			write(t, root, tc.path, tc.base)
+			if tc.name != "json-add-add" {
+				write(t, root, tc.path, tc.base)
+			}
 			git(t, root, "add", "-A")
 			git(t, root, "commit", "-qm", "base")
 			git(t, root, "checkout", "-qb", "other")
 			write(t, root, tc.path, tc.theirs)
+			git(t, root, "add", "--", tc.path)
 			git(t, root, "commit", "-qam", "theirs")
 			git(t, root, "checkout", "-q", "main")
 			write(t, root, tc.path, tc.ours)
+			git(t, root, "add", "--", tc.path)
 			git(t, root, "commit", "-qam", "ours")
 			cmd := exec.Command("git", "-C", root, "merge", "--no-commit", "other")
 			out, err := cmd.CombinedOutput()
@@ -115,7 +120,7 @@ func TestGitDriversDWCV07703(t *testing.T) {
 				if string(result) != "anchor\n## Ours\nA\n\n## Theirs\nB\n" || git(t, root, "diff", "--name-only", "--diff-filter=U") != "" {
 					t.Fatalf("append merge: %q", result)
 				}
-			case "json":
+			case "json", "json-add-add":
 				if !bytes.Contains(result, []byte(`"a": []`)) || !bytes.Contains(result, []byte(`"b": []`)) {
 					t.Fatalf("lost key: %s", result)
 				}

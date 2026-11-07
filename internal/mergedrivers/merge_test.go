@@ -43,6 +43,8 @@ func TestAppendDWCV07700(t *testing.T) {
 func TestJSONDWCV07702(t *testing.T) {
 	for _, tc := range []struct{ name, base, ours, theirs, want string }{
 		{"root-union", `{}`, `{"a":1}`, `{"b":2}`, "{\n  \"a\": 1,\n  \"b\": 2\n}\n"},
+		{"add-add-empty-base", ``, `{"a":1}`, `{"b":2}`, "{\n  \"a\": 1,\n  \"b\": 2\n}\n"},
+		{"empty-ours", `{}`, ``, `{}`, ""},
 		{"registry-union", `{"profile":"p","packages":{}}`, `{"profile":"p","packages":{"a":["<a>"]}}`, `{"profile":"p","packages":{"b":[]}}`, "{\n  \"packages\": {\n    \"a\": [\n      \"<a>\"\n    ],\n    \"b\": []\n  },\n  \"profile\": \"p\"\n}\n"},
 		{"divergence", `{"a":0}`, `{"a":1}`, `{"a":2}`, ""},
 		{"entry-atomic", `{"scripts":{"a":{"x":0,"y":0}}}`, `{"scripts":{"a":{"x":1,"y":0}}}`, `{"scripts":{"a":{"x":0,"y":1}}}`, ""},

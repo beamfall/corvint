@@ -69,11 +69,13 @@ func installBatchDrivers(t *testing.T, repo *batchRepo) {
 }
 
 func TestBatchCheckDWCV07704Drivers(t *testing.T) {
-	for _, mode := range []string{"append-union", "json-union", "regenerated-specs", "append-union+regenerated-specs", "append-union+json-union+regenerated-specs"} {
+	for _, mode := range []string{"append-union", "json-union", "json-union-add-add", "regenerated-specs", "append-union+regenerated-specs", "append-union+json-union+regenerated-specs"} {
 		t.Run(mode, func(t *testing.T) {
 			repo := specFixtureRepo(t)
 			installBatchDrivers(t, repo)
-			repo.write(".corvint/test-read-scopes.json", "{\"packages\":{}}\n")
+			if mode != "json-union-add-add" {
+				repo.write(".corvint/test-read-scopes.json", "{\"packages\":{}}\n")
+			}
 			repo.base = repo.commit("driver fixture")
 			lane := func(name string) string {
 				testGit(t, repo.root, "checkout", "-q", "-b", name, repo.base)
@@ -123,7 +125,8 @@ func TestBatchCheckDWCV07704Drivers(t *testing.T) {
 			}
 			before := testGit(t, repo.root, "status", "--porcelain")
 			code, stdout, stderr := repo.check()
-			if code != 0 || !strings.Contains(stdout, "MERGE "+merge+" derivation="+mode+"\n") {
+			derivation := strings.TrimSuffix(mode, "-add-add")
+			if code != 0 || !strings.Contains(stdout, "MERGE "+merge+" derivation="+derivation+"\n") {
 				t.Fatalf("driver batch exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 			}
 			if _, err := os.Stat(filepath.Join(repo.root, "driver-executed")); !os.IsNotExist(err) || testGit(t, repo.root, "status", "--porcelain") != before {
