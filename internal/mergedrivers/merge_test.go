@@ -45,8 +45,8 @@ func TestAppendDWCV07700DefaultMarkerMarkdown(t *testing.T) {
 		name, base, ours, theirs, want string
 		clean                          bool
 	}{
-		{"ours-heading-edit", "old\n", "Ours\n=======\n", "Theirs\n", "<<<<<<< ours\nOurs\n=======\n||||||| base\nold\n=======\nTheirs\n>>>>>>> theirs\n", false},
-		{"theirs-heading-edit", "old\n", "Ours\n", "Theirs\n=======\n", "<<<<<<< ours\nOurs\n||||||| base\nold\n=======\nTheirs\n=======\n>>>>>>> theirs\n", false},
+		{"ours-heading-edit", "old\n", "Ours\n=======\n", "Theirs\n", "<<<<<<<< ours\nOurs\n=======\n|||||||| base\nold\n========\nTheirs\n>>>>>>>> theirs\n", false},
+		{"theirs-heading-edit", "old\n", "Ours\n", "Theirs\n=======\n", "<<<<<<<< ours\nOurs\n|||||||| base\nold\n========\nTheirs\n=======\n>>>>>>>> theirs\n", false},
 		{"ours-heading-addition", "", "Ours\n=======\n", "Theirs\n", "Ours\n=======\nTheirs\n", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestAppendDWCV07700LiteralDelimiters(t *testing.T) {
 					case "theirs":
 						theirs = "Theirs\n" + literal + "\n"
 					}
-					want := lt + " ours\n" + ours + bar + " base\n" + base + eq + "\n" + theirs + gt + " theirs\n"
+					want := lt + "< ours\n" + ours + bar + "| base\n" + base + eq + "=\n" + theirs + gt + "> theirs\n"
 					got, clean, err := Append(context.Background(), t.TempDir(), []byte(base), []byte(ours), []byte(theirs), size)
 					if err != nil || clean || string(got) != want {
 						t.Fatalf("got %q clean=%v err=%v, want verbatim conflict %q", got, clean, err, want)

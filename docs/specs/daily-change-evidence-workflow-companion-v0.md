@@ -240,9 +240,12 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   It MUST add a newline if ours lacks a final newline and insert one blank line only when ours'
   last line is nonblank and theirs' first line, after leading whitespace, starts with `#`.
   A hunk containing nonblank base text MUST remain verbatim conflicted, with exit 1. An execution
-  failure exits 2. Marker size defaults to 7 and accepts Git's `%L`; malformed hunks stay conflicted.
-  Ambiguous literal delimiter lines MUST retain Git's conflict verbatim; clean merged text
-  containing literal delimiters MUST remain unchanged.
+  failure exits 2. The requested marker size defaults to 7 and accepts Git's `%L`. Before invoking
+  Git, choose a size at least 7 and at least the requested size, strictly greater than every run
+  of `<`, `|`, `=` or `>` starting any input line; pass it as `--marker-size=N`. The parser MUST
+  accept only exact generated widths, labels and diff3 ordering. Unexpected delimiters, width
+  mismatches or malformed hunks MUST retain Git's conflict verbatim with nonzero exit. Literal
+  marker lines below the chosen width are content; clean merged text MUST remain unchanged.
   This reproduces the owner's host reference without a Python runtime dependency.
 - `DWC-V0-7701`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
   The three generated spec projections MUST use a keep-ours driver. The documented merge-forward
@@ -302,7 +305,7 @@ independent review; local replay does not establish server-side conflict prevent
 
 | Requirement | Implementation and acceptance witness |
 |---|---|
-| DWC-V0-7700 | internal/mergedrivers/append.go; TestAppendDWCV07700; TestAppendDWCV07700LiteralDelimiters; TestGitDriversDWCV07703 |
+| DWC-V0-7700 | internal/mergedrivers/append.go; TestAppendDWCV07700; TestAppendDWCV07700LiteralDelimiters; TestAppendDWCV07700CollisionFreeMarkers; TestAppendDWCV07700DefaultMarkerProperty; TestResolveAppendDWCV07700UnexpectedDelimiters; TestGitDriversDWCV07703 |
 | DWC-V0-7701 | documented merge-forward recipe; TestProjectionDWCV07701StaleCheck |
 | DWC-V0-7702 | internal/mergedrivers/json.go; TestJSONDWCV07702 |
 | DWC-V0-7703 | .gitattributes, Makefile merge-drivers; TestGitDriversDWCV07703 |
