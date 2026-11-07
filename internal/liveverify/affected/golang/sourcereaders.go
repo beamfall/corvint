@@ -55,27 +55,29 @@ const testdataMember = 2
 // as a call that reads below the package's own testdata directory, and any
 // other member makes its file observing. os/exec is listed with no members:
 // its only allowed references are the `go list` calls goListScanFile proves,
-// passed to observesSource by offset.
+// passed to observesSource by offset. Filesystem mutators are not allowed:
+// even their errors can observe source existence or metadata. No mutation path
+// confinement is proven here, including fixture and temporary-output paths.
 var classifiedImports = map[string]map[string]int{
 	"os": {
 		"ReadFile": testdataMember, "Open": testdataMember, "ReadDir": testdataMember,
 		"Stat": testdataMember, "Lstat": testdataMember,
-		"Args": 1, "Chmod": 1, "Chtimes": 1, "CopyFS": 1, "Create": 1, "CreateTemp": 1, "DevNull": 1,
+		"Args": 1, "DevNull": 1,
 		"DirEntry": 1, "Environ": 1, "ErrClosed": 1, "ErrDeadlineExceeded": 1, "ErrExist": 1,
 		"ErrNotExist": 1, "ErrPermission": 1, "Executable": 1, "Exit": 1, "Expand": 1, "ExpandEnv": 1,
 		"File": 1, "FileInfo": 1, "FileMode": 1, "Getegid": 1, "Getenv": 1, "Geteuid": 1, "Getgid": 1,
 		"Getpid": 1, "Getppid": 1, "Getuid": 1, "Getwd": 1, "Hostname": 1, "Interrupt": 1,
 		"IsExist": 1, "IsNotExist": 1, "IsPermission": 1, "IsTimeout": 1, "Kill": 1, "LinkError": 1,
-		"LookupEnv": 1, "Mkdir": 1, "MkdirAll": 1, "MkdirTemp": 1, "ModeDir": 1, "ModePerm": 1,
+		"LookupEnv": 1, "ModeDir": 1, "ModePerm": 1,
 		"ModeSymlink": 1, "O_APPEND": 1, "O_CREATE": 1, "O_EXCL": 1, "O_RDONLY": 1, "O_RDWR": 1,
 		"O_TRUNC": 1, "O_WRONLY": 1, "PathError": 1, "PathListSeparator": 1, "PathSeparator": 1,
-		"Pipe": 1, "Remove": 1, "RemoveAll": 1, "SameFile": 1, "Signal": 1,
+		"Pipe": 1, "SameFile": 1, "Signal": 1,
 		"Stderr": 1, "Stdin": 1, "Stdout": 1, "SyscallError": 1, "TempDir": 1,
-		"Truncate": 1, "UserCacheDir": 1, "UserConfigDir": 1, "UserHomeDir": 1, "WriteFile": 1,
+		"UserCacheDir": 1, "UserConfigDir": 1, "UserHomeDir": 1,
 	},
 	"io/ioutil": {
 		"ReadFile": testdataMember, "ReadDir": testdataMember,
-		"Discard": 1, "NopCloser": 1, "ReadAll": 1, "TempDir": 1, "TempFile": 1, "WriteFile": 1,
+		"Discard": 1, "NopCloser": 1, "ReadAll": 1,
 	},
 	"path/filepath": {
 		"Abs": 1, "Base": 1, "Clean": 1, "Dir": 1, "ErrBadPattern": 1, "Ext": 1, "FromSlash": 1,
