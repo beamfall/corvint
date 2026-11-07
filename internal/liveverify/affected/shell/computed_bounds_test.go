@@ -108,3 +108,49 @@ func TestRepeatedValuesCountOnce_AFPV03148(t *testing.T) {
 			use.UnboundedReads, use.Imports)
 	}
 }
+
+// AFP-V0-3149: a value that refers to its own name is unrolled once, with no
+// cut, when no unrolled value can be literal: an unknown part precedes the
+// reference (`b="$PWD/$b"`), or the value is the reference alone
+// (`dir=${dir:-script}`). Each deeper unrolling then names nothing the single
+// unrolling and the wildcard for the earlier value do not, so the depth
+// bound drops nothing. A literal wrapper (`x="../$x"`), whose unrollings may
+// each be a literal path, and a cycle through another name still reach the
+// depth bound and are cuts (AFP-V0-3147).
+func TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149(t *testing.T) {
+	const check = "#!/bin/sh\necho check\n"
+	for _, tc := range []struct {
+		name, body string
+		dynamic    bool
+		imports    []string
+	}{
+		{name: "an unknown prefix before the reference", body: "b=${B-}\n[[ $b == /* ]] || b=\"$PWD/$b\"\n\"$b\" --version\n"},
+		{name: "the reference alone with a default", body: "dir=${dir:-script}\n\"$dir/check\"\n", imports: []string{"shell:script/check"}},
+		{name: "a literal wrapper is a cut", body: "x=script\nx=\"../$x\"\n\"$x/check\"\n", dynamic: true},
+		{name: "a reference nested in a default is a cut", body: "x=script\nx=\"${y:-abc$x}\"\n\"$x/check\"\n", dynamic: true},
+		{name: "a cycle through another name is a cut", body: "a=\"$PWD/$b\"\nb=\"$a\"\n\"$a/check\"\n", dynamic: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "script/check", check)
+			write(t, root, "use/use_test.sh", tc.body)
+			use := unitOf(t, units(t, root), "use/use_test.sh")
+			if got := use.UnboundedReads == UnboundedDynamicSource; got != tc.dynamic {
+				t.Errorf("unbounded reads %q, want dynamic %v", use.UnboundedReads, tc.dynamic)
+			}
+			if !tc.dynamic && !slices.Equal(use.Imports, tc.imports) {
+				t.Errorf("imports %v, want %v", use.Imports, tc.imports)
+			}
+		})
+	}
+	t.Run("the single unrolling keeps a built name", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "script/run.sh", "echo run\n")
+		write(t, root, "use/use.sh", "x=script/run.sh\nx=\"$PWD/$x\"\n\"$x\"\n")
+		use := unitOf(t, units(t, root), "use/use.sh")
+		if use.UnboundedReads != "" || !slices.Equal(use.Imports, []string{"shell:script/run.sh"}) || !slices.Contains(use.Frontier, FrontierForeignInvocation) {
+			t.Errorf("unbounded reads %q imports %v frontier %v, want the script/run.sh edge and the constructed name's %s",
+				use.UnboundedReads, use.Imports, use.Frontier, FrontierForeignInvocation)
+		}
+	})
+}

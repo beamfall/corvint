@@ -273,12 +273,105 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 	}
 	var out []string
 	for _, value := range given {
-		out = append(out, expand(value, values, depth+1, cut)...)
+		out = append(out, expand(value, unrolled(name, value, values, depth), depth+1, cut)...)
 	}
 	if len(out) > maxValueCount {
 		out, *cut = out[:maxValueCount], true
 	}
 	return out
+}
+
+// unrolled returns the values to expand value, one of name's, with. When
+// value refers to name and no unrolling of it can be a literal path, the
+// reference takes name's other values once and wildcard for any earlier value
+// (AFP-V0-3149): an unknown part precedes the first reference, so every
+// unrolled value holds it, links nothing and has a file name the single
+// unrolling's or the wildcard's pattern already matches; or value is the
+// reference alone (`dir=${dir:-script}`), whose unrollings are the values
+// themselves. Otherwise values is returned unchanged, so a literal wrapper
+// (`x="../$x"`) recurses to the depth bound and is a cut (AFP-V0-3147).
+func unrolled(name, value string, values map[string][]string, depth int) map[string][]string {
+	at, end := selfReference(name, value)
+	if at < 0 {
+		return values
+	}
+	if at > 0 || end != len(value) {
+		if at == 0 || !topLevel(value[:at]) {
+			return values
+		}
+		var cut bool
+		prefixes := expand(value[:at], values, depth+1, &cut)
+		if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
+			return values
+		}
+	}
+	others := []string{wildcard}
+	for _, other := range values[name] {
+		if at, _ := selfReference(name, other); at < 0 {
+			others = append(others, other)
+		}
+	}
+	copied := make(map[string][]string, len(values))
+	for key, list := range values {
+		copied[key] = list
+	}
+	copied[name] = others
+	return copied
+}
+
+// selfReference returns where the first `$name` or `${name...}` in value
+// starts and ends, or -1 when value does not refer to name.
+func selfReference(name, value string) (int, int) {
+	for at := strings.IndexByte(value, '$'); at >= 0 && at < len(value); {
+		rest := value[at+1:]
+		switch {
+		case strings.HasPrefix(rest, "{"+name) && !identifierByte(rest, len(name)+1):
+			if end := closing(value, at+1); end >= 0 {
+				return at, end + 1
+			}
+			return at, len(value)
+		case strings.HasPrefix(rest, name) && !identifierByte(rest, len(name)):
+			return at, at + 1 + len(name)
+		}
+		next := strings.IndexByte(rest, '$')
+		if next < 0 {
+			break
+		}
+		at += 1 + next
+	}
+	return -1, -1
+}
+
+// topLevel reports whether prefix closes every `${`, `$(` and backquote it
+// opens, so a reference right after it is not nested in another expansion
+// (`${y:-abc$x}`), whose unrollings could be literal.
+func topLevel(prefix string) bool {
+	for index := 0; index < len(prefix); index++ {
+		switch {
+		case prefix[index] == '`':
+			end := strings.IndexByte(prefix[index+1:], '`')
+			if end < 0 {
+				return false
+			}
+			index += end + 1
+		case prefix[index] == '$' && index+1 < len(prefix) && (prefix[index+1] == '{' || prefix[index+1] == '('):
+			end := closing(prefix, index+1)
+			if end < 0 {
+				return false
+			}
+			index = end
+		}
+	}
+	return true
+}
+
+// identifierByte reports whether text has a name character at index.
+func identifierByte(text string, index int) bool {
+	if index >= len(text) {
+		return false
+	}
+	c := text[index]
+	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
 // truncated is the wildcard a value bound stands in for values the file
