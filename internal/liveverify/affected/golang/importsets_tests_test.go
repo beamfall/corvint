@@ -328,6 +328,7 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 		{"cgo", "package probe\n\n// #include <stdio.h>\nimport \"C\"\n", true},
 		{"linkname", "package probe\n\nimport _ \"unsafe\"\n\n//go:linkname read os.ReadFile\nfunc read(string) ([]byte, error)\n", true},
 		{"command path swapped", "package probe\n\nimport \"os/exec\"\n\nfunc list() error {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\tc.Path = \"/usr/bin/git\"\n\treturn c.Run()\n}\n", true},
+		{"assembly function", "package probe\n\nfunc read(name string) []byte\n", true},
 		{"zip reader", "package probe\n\nimport \"archive/zip\"\n\nvar _, _ = zip.OpenReader(\"../lib.zip\")\n", true},
 		{"own testdata", "package probe\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _ = os.ReadFile(filepath.Join(\"testdata\", \"fixture.txt\"))\nvar _, _ = os.ReadDir(\"testdata\")\n", false},
 		{"environment", "package probe\n\nimport \"os\"\n\nvar _ = os.Getenv(\"HOME\")\n", false},
