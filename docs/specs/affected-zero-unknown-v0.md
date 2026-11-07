@@ -231,7 +231,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `$()`, `${}`, `$VAR` and percent formats, including paths after a command prefix.
 - **AZU-V0-8902:** **Located runtime caller closure.** A located TypeScript end-to-end runtime site
   covered by an existing runtime edge SHALL select its declared test unit and traverse its
-  dependents on every nonempty code-bearing change, including changes within TypeScript. Only after selection
+  dependents on every nonempty code-bearing change, including changes within TypeScript. A site's
+  file drops its backquoted token and then its line, so a line-less site is located too
+  (AFP-V0-9009). Only after selection
   SHALL that site's inbound unknown close. Unlocated, truncated, stale or undeclared sites SHALL
   remain unknown. A declared-data-only change SHALL not introduce runtime code selections. Computed shell
   outbound targets retain uncertainty until modelled; the literal repository-root query of a
