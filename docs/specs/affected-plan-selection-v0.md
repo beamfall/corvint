@@ -758,21 +758,27 @@ measure. None of them drops a unit the change can reach.
   file that cannot be read or parsed; any import outside the standard library (a module or
   third-party helper whose code is not inspected); an import of `go/build`, `go/doc`,
   `go/importer`, `go/parser`, `go/scanner`, `runtime/debug`, `debug/buildinfo` or another
-  executable reader, `embed`, `plugin` or `syscall`; a `//go:embed` line; a dot or shadowed
-  import of `os`, `io/ioutil`, `path/filepath`, `os/exec`, `net/http`, `text/template` or
-  `html/template`; any reference to one of their file readers (`os.ReadFile`, `Open`,
-  `OpenFile`, `ReadDir`, `DirFS`, `OpenRoot`, `OpenInRoot`, `Stat`, `Lstat`, `Readlink`,
-  `StartProcess`, `ioutil.ReadFile` and `ReadDir`, `filepath.Walk`, `WalkDir`, `Glob` and
-  `EvalSymlinks`, the `net/http` file servers, `exec.Cmd`, and any `ParseFiles` or `ParseGlob`)
+  executable reader, `embed`, `plugin`, `syscall` or `"C"`; a `//go:embed` or `//go:linkname`
+  line; a dot or shadowed import of `os`, `io/ioutil`, `path/filepath`, `os/exec`, `net/http`,
+  `archive/zip`, `text/template` or `html/template`; any reference to one of their file readers
+  (`os.ReadFile`, `Open`, `OpenFile`, `ReadDir`, `DirFS`, `OpenRoot`, `OpenInRoot`, `Stat`,
+  `Lstat`, `Readlink`, `StartProcess`, `NewFile`, `ioutil.ReadFile` and `ReadDir`,
+  `filepath.Walk`, `WalkDir`, `Glob` and `EvalSymlinks`, `zip.OpenReader`, the `net/http` file
+  servers, `exec.Cmd`, and any `ParseFiles` or `ParseGlob`)
   except a call of `ReadFile`, `Open`, `ReadDir`, `Stat` or `Lstat` whose path is a literal, or a
   `path` or `path/filepath` `Join` of literals, naming the package's own `testdata` directory or
   a path below it; and an `os/exec` `Command` or `CommandContext` call that is not a `go list`
-  call (any other command, `go build` and `git` included, or a computed one). The comparison
-  SHALL record `ImportSetChanges.Source`, the least dirty `.go` path whatever its header (paths
-  the go tool ignores included), and every `ImportGraphReadsFiles` reader is selected through it
-  when no import set changed, with the witness chain owning unit (when a Go unit owns the path),
-  reader. So a package comment, a body edit or a kept-set test file selects every unproven
-  reader and no proven one. With no comparison (nil), `Source` is computed from the dirty paths
+  call (any other command, `go build` and `git` included, or a computed one); and, in a file
+  that imports `os/exec`, an assignment to a `Path` or `Args` field. The comparison SHALL record
+  `ImportSetChanges.Source` (`Graph.SourcePath`), whatever the headers: the least dirty path
+  that the go command or a source parser may observe. That is a `.go` file (paths the go tool
+  ignores included), a file the go command lists by another suffix (`.c`, `.h`, `.s`, `.syso`
+  and the rest), or any file below an embedding Go unit's directory, whose content its build
+  reads. Every `ImportGraphReadsFiles` reader is selected through it when no import set changed, with the witness chain owning unit (when a Go unit owns the path),
+  reader. So a package comment, a body edit, a kept-set test file, an assembly file or an
+  embedded file's content selects every unproven reader and no proven one; a path of none of
+  these kinds (a README) selects none through this edge. A reader's file reads of other paths
+  stay governed by its read scopes. With no comparison (nil), `Source` is computed from the dirty paths
   the same way.
 
 - **AFP-V0-9011:** (experimental under the owner's standing lane auto-accept (2026-10-11);
@@ -926,7 +932,7 @@ dependency.
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
 | AFP-V0-9009 | `inboundRuntimeSiteFile`, `ownedTest` and their calls in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) `TestInboundRuntimeSiteFile_AFP_V0_9009` and `TestInboundRuntimeSiteAmbiguity_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
-| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven`, the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and `observesSource`, `goListCall` and `ownTestdata` (`golang/sourcereaders.go`); `ImportSetChanges.Source`, `SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (16 channels each make a proven reader unproven and selected by a body-only edit; an own-testdata read and an environment read stay proven and unselected); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
+| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven`, the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and `observesSource`, `goListCall` and `ownTestdata` (`golang/sourcereaders.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (20 channels each make a proven reader unproven and selected by a body-only edit; an own-testdata read and an environment read stay proven and unselected); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
 
 ## Rollback
