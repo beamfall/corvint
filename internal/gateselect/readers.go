@@ -684,10 +684,10 @@ func (index *repositoryIndex) directoryOf(importPath string) (string, bool) {
 	return strings.CutPrefix(importPath, index.module+"/")
 }
 
-// dependents is the reverse closure of directories over importers and
-// namers, then one level of testImporters of every directory reached, seeds
-// included, excluding a seed unless an edge returns to it. It is the reach of
-// rules (a) and (b).
+// dependents is the reverse closure of directories over importers, namers
+// and code runners, then one level of testImporters of every directory
+// reached, seeds included, excluding a seed unless an edge returns to it. It
+// is the reach of rules (a) and (b).
 func (index *repositoryIndex) dependents(directories ...string) []string {
 	return index.reach(true, directories)
 }
@@ -696,14 +696,20 @@ func (index *repositoryIndex) dependents(directories ...string) []string {
 // affected, Graph.traverse and Graph.testUsersOf) over this index's edges:
 // the closure over non-test edges, namers too when withNamers, and then the
 // packages whose tests alone import or name a reached package, never expanded
-// further because their importers do not compile their tests (V1-2727).
+// further because their importers do not compile their tests (V1-2727). The
+// non-test edges include code runners: a package whose code runs a reached
+// command's binary runs its code, as the planner's code-run class does
+// (AFP-V0-2993). A run the namers relation cannot see, one declared in
+// .corvint/test-binary-execs.json, is walked too, so a changed command
+// reaches its runner's importers whatever the runner's own additive record
+// narrows (AFP-V0-3143).
 func (index *repositoryIndex) reach(withNamers bool, directories []string) []string {
 	seen := map[string]bool{}
 	queue := append([]string(nil), directories...)
 	for len(queue) > 0 {
 		next := queue[0]
 		queue = queue[1:]
-		edges := index.importers[next]
+		edges := slices.Concat(index.importers[next], index.codeRunners[next])
 		if withNamers {
 			edges = slices.Concat(edges, index.namers[next])
 		}
