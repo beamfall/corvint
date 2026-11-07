@@ -148,7 +148,9 @@ g('remote','remove','fixture-host'); remove_tree("$repo/rel-host.git");
 
 # Full dispatch path uses only a fixture ticket reader, never the real Tasks runtime.
 my $reader="$tmp/tasks";
-write_file($reader,"#!/bin/sh\nprintf '%s\\n' '{\"outcome\":\"OK\",\"items\":[{\"ticketId\":\"V1-9998\",\"record\":{\"body\":\"new work\"}}]}'\n"); chmod 0755,$reader;
+# `queue snapshot --out FILE` must leave a nonempty snapshot, as lane-dispatch.sh checks.
+my $snapshot_stub="[ \"\$1 \$2 \$3\" = 'queue snapshot --out' ] && printf '{}\\n' > \"\$4\"\n";
+write_file($reader,"#!/bin/sh\n${snapshot_stub}printf '%s\\n' '{\"outcome\":\"OK\",\"items\":[{\"ticketId\":\"V1-9998\",\"record\":{\"body\":\"new work\"}}]}'\n"); chmod 0755,$reader;
 local $ENV{LANE_DISPATCH_TASKS}=$reader;
 sub inputs { run('bash',"$script/lane-dispatch.sh",'inputs','--lane','fixture','--repo',$repo,'--base',$base,'--date','2026-11-03','--out',$_[0],'--charter',$charter,@_[1..$#_],'V1-9998') }
 json($other,{tickets=>['V1-9998']});
@@ -160,7 +162,7 @@ my ($drop,$drop_out)=run('git','--git-dir',$hosts[0],'update-ref','-d','refs/hea
 ok(!-e "$tmp/missing-ref/lane.env",'missing host ref prevents dispatch receipt');
 ($rc,$out)=inputs("$tmp/publish-dispatch",'--publish-refs'); is($rc,0,'dispatch publishes missing refs and completes');
 like($out,qr/HOST_REF_OK/,'dispatch retains host ref verification');
-write_file($reader,"#!/bin/sh\nprintf '%s\\n' '{\"outcome\":\"OK\",\"items\":[{\"ticketId\":\"V1-9998\",\"record\":{\"body\":\"Duplicate of V1-2511 (f33bb4971)\"}}]}'\n");
+write_file($reader,"#!/bin/sh\n${snapshot_stub}printf '%s\\n' '{\"outcome\":\"OK\",\"items\":[{\"ticketId\":\"V1-9998\",\"record\":{\"body\":\"Duplicate of V1-2511 (f33bb4971)\"}}]}'\n");
 ($rc,$out)=inputs("$tmp/body-blocked"); is($rc,2,'dispatch screens fixture ticket bodies'); like($out,qr/DUPLICATE ticket=V1-9998/,'runtime body finding retained');
 
 # ASD-V0-2203: even a pinned-old lane must refuse a host tool stale against origin/main.

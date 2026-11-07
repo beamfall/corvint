@@ -264,3 +264,23 @@ func TestDCWV0925MidLaneMergeNamesTheReceiptRecovery(t *testing.T) {
 		t.Fatalf("mid-lane merge notes:\n%s", out)
 	}
 }
+
+// LVT-V0-010: retain the original path diagnostic when an impact read fails.
+func TestPrechangeLVT0010MissingPathDiagnostic(t *testing.T) {
+	root, base, tree, _ := prechangeRepo(t)
+	var commands [][]string
+	reads := prechangeReads(tree, &commands)
+	original := reads.Run
+	reads.Run = func(ctx context.Context, root string, args []string, out, diag io.Writer) int {
+		if args[0] == "impact" {
+			io.WriteString(diag, "impact: path does not exist: missing/source.go\n")
+			return 2
+		}
+		return original(ctx, root, args, out, diag)
+	}
+	var out, diag bytes.Buffer
+	code, err := Prechange(context.Background(), PrechangeOptions{Root: root, Base: base, Task: "Inspect missing path", Paths: []string{"missing/source.go"}, Steps: reads}, &out, &diag)
+	if err != nil || code != 1 || !strings.Contains(diag.String(), "impact: path does not exist: missing/source.go") {
+		t.Fatalf("prechange = %d, %v: %s", code, err, diag.String())
+	}
+}

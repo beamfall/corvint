@@ -33,11 +33,17 @@ set -eu
 # (or SPEC_REQUIREMENTS_BASE). Other full specs warn. BASE names the revision whose
 # obligation IDs are subtracted in capacity and over-cap diagnostics.
 # Example: BASE=origin/main SPEC_CAPACITY_MARGIN=12 script/gen-spec-requirements.sh --capacity
+# --batch-capacity BASE REF... reports base obligations plus the union of each lane's additions.
+# Each lane adds IDs relative to its merge-base with BASE, even when BASE has advanced.
+# No checkout, index, ref or repository state is written. Deletions never reduce the estimate.
+# --status-check checks staged digest/header agreement without projection or Go work.
 usage() {
-  printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check | --capacity]\n' "$0" >&2
+  printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check | --capacity | --status-check | --batch-capacity BASE REF...]\n' "$0" >&2
   printf '  --write regenerates docs/specs/REQUIREMENTS.tsv, INDEX.json and README.md (make spec-requirements);\n' >&2
   printf '  --check compares them with a fresh generation (make spec-requirements-check)\n' >&2
   printf '  --capacity checks staged spec headroom (SPEC_CAPACITY_MARGIN=8, optional BASE=REV)\n' >&2
+  printf '  --status-check fails fast on staged digest/header status drift\n' >&2
+  printf '  --batch-capacity BASE REF... checks combined lane additions before merge\n' >&2
   exit 2
 }
 out_dir=
@@ -47,6 +53,8 @@ case ${1:-} in
   --readme) mode=readme ;;
   --lines) mode=lines ;;
   --capacity) test $# = 1 || usage; mode=capacity ;;
+  --status-check) test $# = 1 || usage; mode=status-check ;;
+  --batch-capacity) test $# -ge 3 || usage; mode=batch-capacity; shift ;;
   --write | --check) test $# = 1 || usage; mode=${1#--} ;;
   --all)
     test $# = 2 && test -n "$2" || usage
@@ -55,7 +63,8 @@ case ${1:-} in
     ;;
   *) usage ;;
 esac
-test "$mode" = all || test $# -le 1 || usage
+test "$mode" = all || test "$mode" = batch-capacity || test $# -le 1 || usage
+if test "$mode" != batch-capacity; then set --; fi
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -102,14 +111,14 @@ case $mode in
     ;;
 esac
 
-perl - "$perl_mode" "$out_dir" <<'PERL' || exit $?
+perl - "$perl_mode" "$out_dir" "$@" <<'PERL' || exit $?
 use strict;
 use warnings;
 use IPC::Open2 qw(open2);
 use POSIX ();
 use JSON::PP ();
 
-my ($mode, $out_dir) = @ARGV;
+my ($mode, $out_dir, @batch_refs) = @ARGV;
 
 # SRG-V0-018: every index read of one invocation goes through one `git cat-file --batch --buffer`
 # co-process, pipelined: a forked writer sends every request while this process reads the replies,
@@ -117,16 +126,16 @@ my ($mode, $out_dir) = @ARGV;
 # cannot serve (a newline breaks its request framing; a missing or non-blob entry) is read by a
 # one-shot `git cat-file blob`, which reports and exits exactly as the per-file read always did.
 sub index_blob_once {
-    my ($path) = @_;
-    open my $fh, '-|', 'git', 'cat-file', 'blob', ":$path" or die "$path: $!\n";
+    my ($prefix, $path) = @_;
+    open my $fh, '-|', 'git', 'cat-file', 'blob', "$prefix$path" or die "$path: $!\n";
     my $blob = do { local $/; <$fh> } // '';
     close $fh
-        or die $! ? "git cat-file :$path: $!\n" : "git cat-file :$path failed: exit " . ($? >> 8) . "\n";
+        or die $! ? "git cat-file $prefix$path: $!\n" : "git cat-file $prefix$path failed: exit " . ($? >> 8) . "\n";
     return $blob;
 }
 
-sub index_blobs {
-    my @paths = @_;
+sub git_blobs {
+    my ($prefix, @paths) = @_;
     my %blob;
     my @batch = grep { !/\n/ } @paths;
     my %fallback = map { $_ => 1 } grep { /\n/ } @paths;
@@ -137,7 +146,7 @@ sub index_blobs {
         my $writer = fork // die "fork: $!\n";
         if ($writer == 0) {
             close $out;
-            print {$in} map { ":$_\n" } @batch;
+            print {$in} map { "$prefix$_\n" } @batch;
             POSIX::_exit(close $in ? 0 : 1);
         }
         close $in;
@@ -159,8 +168,93 @@ sub index_blobs {
         die 'git cat-file --batch failed: exit ' . ($? >> 8) . "\n" if $?;
         die "git cat-file --batch failed: short read\n" if $short;
     }
-    $blob{$_} = index_blob_once($_) for grep { $fallback{$_} } @paths;
+    $blob{$_} = index_blob_once($prefix, $_) for grep { $fallback{$_} } @paths;
     return \%blob;
+}
+
+sub index_blobs { return git_blobs(':', @_); }
+
+sub section_obligation_ids {
+    my ($blob) = @_;
+    my $ocm = $mode eq 'capacity' || $mode eq 'batch-capacity';
+    my ($inside, $fence) = (0, '');
+    my %ids;
+    for my $line (split /^/, $blob) {
+        $line =~ s/\n\z//;
+        $line =~ s/\r\z//;
+        my $fenced = $fence ne '';
+        my ($run, $rest) = $line =~ /\A {0,3}(`{3,}|~{3,})(.*)\z/ ? ($1, $2) : ('', '');
+        if ($fence ne '') {
+            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
+                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
+        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
+            $fence = $run;
+            $fenced = 1;
+        }
+        if (!$fenced) {
+            if ($line eq '## Requirements') { $inside = 1; next; }
+            last if $inside && $line =~ /^##(?: |\z)/;
+        }
+        next unless $inside && ($ocm || !$fenced);
+        my $id = $line =~ /^- (?:`([^`]+)`: |\*\*(.+?)[:.]\*\* )/ ? ($1 // $2) : '';
+        next unless $ocm ? $id =~ /\A[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}\z/
+                        : $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3,}\z/;
+        $ids{$id} = 1;
+    }
+    return \%ids;
+}
+# SRG-V0-745: inspect immutable lane trees before any integration, with no merge side effects.
+sub revision_specs {
+    my ($ref) = @_;
+    open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', '--end-of-options', "$ref^{commit}"
+        or die "batch capacity: cannot resolve $ref: $!\n";
+    my $sha = <$rev>;
+    close $rev && defined $sha or die "batch capacity: $ref is not an available commit\n";
+    chomp $sha;
+    open my $ls, '-|', 'git', 'ls-tree', '-rz', '--name-only', $sha, '--', 'docs/specs'
+        or die "batch capacity: cannot list $ref: $!\n";
+    my @paths;
+    { local $/ = "\0"; while (my $path = <$ls>) {
+        chomp $path;
+        push @paths, $path if $path =~ m{\Adocs/specs/[^/]+\.md\z} && $path ne 'docs/specs/README.md';
+    } }
+    close $ls or die "batch capacity: cannot list $ref\n";
+    my $blobs = git_blobs("$sha:", @paths);
+    return ($sha, { map { $_ => section_obligation_ids($blobs->{$_}) } @paths });
+}
+if ($mode eq 'batch-capacity') {
+    $| = 1; # keep counts ahead of a refusal when stdout/stderr share a log
+    my $base_ref = shift @batch_refs;
+    my ($base_sha, $base_ids) = revision_specs($base_ref);
+    my %combined = map { $_ => { %{$base_ids->{$_}} } } keys %$base_ids;
+    my %contributors;
+    for my $ref (@batch_refs) {
+        my ($sha, $ids) = revision_specs($ref);
+        open my $mb, '-|', 'git', 'merge-base', $sha, $base_sha
+            or die "batch capacity: cannot find merge-base for lane $ref and BASE=$base_ref: $!\n";
+        my $ancestor = <$mb>;
+        close $mb && defined $ancestor
+            or die "batch capacity: lane $ref and BASE=$base_ref have no available merge-base\n";
+        chomp $ancestor;
+        my (undef, $ancestor_ids) = revision_specs($ancestor);
+        for my $path (sort keys %$ids) {
+            $combined{$path} //= {};
+            my @added = sort grep { !exists $ancestor_ids->{$path}{$_} } keys %{$ids->{$path}};
+            $combined{$path}{$_} = 1 for @added;
+            push @{$contributors{$path}}, "$ref($sha):+" . scalar(@added) . "[" . join(',', @added) . "]" if @added;
+        }
+    }
+    my $over = 0;
+    for my $path (sort keys %combined) {
+        my $count = scalar keys %{$combined{$path}};
+        my $base_count = scalar keys %{$base_ids->{$path} // {}};
+        print "spec-batch-capacity: $path base=$base_count added=" . ($count - $base_count)
+            . " count=$count limit=256 lanes=" . join(' ', @{$contributors{$path} // []}) . "\n";
+        $over++ if $count > 256;
+    }
+    die "spec-batch-capacity: FAIL $over spec(s) exceed 256; move additions to a companion spec before merging\n" if $over;
+    print "spec-batch-capacity: PASS BASE=$base_ref ($base_sha); conservative union (deletions not subtracted)\n";
+    exit 0;
 }
 
 my @specs;
@@ -345,35 +439,7 @@ my @noted_definitions;
 # Capacity mirrors scanRequirements in internal/lrfrepo/ocm.go: fences hide headings, but
 # not definition lines; IDs have three or more digits (OCM-V0-952) and a bounded prefix. Generation
 # retains its pre-capacity rule (any prefix, unfenced definitions only).
-sub section_obligation_ids {
-    my ($blob) = @_;
-    my $ocm = $mode eq 'capacity';
-    my ($inside, $fence) = (0, '');
-    my %ids;
-    for my $line (split /^/, $blob) {
-        $line =~ s/\n\z//;
-        $line =~ s/\r\z//;
-        my $fenced = $fence ne '';
-        my ($run, $rest) = $line =~ /\A {0,3}(`{3,}|~{3,})(.*)\z/ ? ($1, $2) : ('', '');
-        if ($fence ne '') {
-            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
-                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
-        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
-            $fence = $run;
-            $fenced = 1;
-        }
-        if (!$fenced) {
-            if ($line eq '## Requirements') { $inside = 1; next; }
-            last if $inside && $line =~ /^##(?: |\z)/;
-        }
-        next unless $inside && ($ocm || !$fenced);
-        my $id = $line =~ /^- (?:`([^`]+)`: |\*\*(.+?)[:.]\*\* )/ ? ($1 // $2) : '';
-        next unless $ocm ? $id =~ /\A[A-Z][A-Z0-9-]{2,31}-[0-9]{3,}\z/
-                        : $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3,}\z/;
-        $ids{$id} = 1;
-    }
-    return \%ids;
-}
+
 my (%best, %header, %definitions, %section, @outside_section, @continuation_notes, @malformed, %obligations);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
@@ -752,25 +818,62 @@ sub status_ids {
     my $route = 'define new requirements in a companion spec with its own requirement prefix '
         . '(a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json '
         . 'per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md';
-    my @over;
+    # added_since REV FILE LABEL: the staged section IDs of FILE absent from it at commit REV.
+    my $added_since = sub {
+        my ($rev, $file, $label) = @_;
+        # ls-tree distinguishes a new spec from an unreadable existing base blob.
+        open my $ls, '-|', 'git', 'ls-tree', $rev, '--', $file or die "git ls-tree: $!\n";
+        my $exists = do { local $/; <$ls> };
+        close $ls or die "cannot list $file at $label\n";
+        my $old = {};
+        if (length $exists) {
+            open my $fh, '-|', 'git', 'cat-file', 'blob', "$rev:$file" or die "$file at $label: $!\n";
+            my $blob = do { local $/; <$fh> };
+            close $fh or die "cannot read $file at $label\n";
+            $old = section_obligation_ids($blob);
+        }
+        return sort grep { !$old->{$_} } keys %{$obligations{$file}};
+    };
+    # DCW-V0-2145 (V1-4401): generation names a near-cap spec only when the staged change adds a
+    # section ID to it, against BASE when given and available, else HEAD; the others are counted
+    # on one summary line. Capacity mode still reports every near-cap spec (SRG-V0-744).
+    my ($quiet_reference, $quiet_label);
+    if ($mode ne 'capacity') {
+        if (defined $revision) {
+            ($quiet_reference, $quiet_label) = ($revision, "BASE=$base");
+        } elsif (length $base) {
+            open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', '--end-of-options', "$base^{commit}"
+                or die "base $base: $!\n";
+            my $resolved = <$rev>;
+            if (close $rev) {
+                chomp $resolved;
+                ($quiet_reference, $quiet_label) = ($resolved, "BASE=$base");
+            }
+        }
+        if (!defined $quiet_reference) {
+            open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', 'HEAD^{commit}' or die "HEAD: $!\n";
+            my $resolved = <$rev>;
+            if (close $rev) {
+                chomp $resolved;
+                ($quiet_reference, $quiet_label) = ($resolved, 'HEAD');
+            }
+        }
+    }
+    my (@over, @quiet);
     for my $file (sort keys %obligations) {
         my $count = scalar keys %{$obligations{$file}};
         next if $count < 256 - $margin;
         my @added;
         my $attribute = $mode eq 'capacity' || $count > 256;
         if ($attribute && defined $revision) {
-            # ls-tree distinguishes a new spec from an unreadable existing base blob.
-            open my $ls, '-|', 'git', 'ls-tree', $revision, '--', $file or die "git ls-tree: $!\n";
-            my $exists = do { local $/; <$ls> };
-            close $ls or die "cannot list $file at BASE=$base\n";
-            my $old = {};
-            if (length $exists) {
-                open my $fh, '-|', 'git', 'cat-file', 'blob', "$revision:$file" or die "$file at BASE=$base: $!\n";
-                my $blob = do { local $/; <$fh> };
-                close $fh or die "cannot read $file at BASE=$base\n";
-                $old = section_obligation_ids($blob);
+            @added = $added_since->($revision, $file, "BASE=$base");
+        }
+        if (!$attribute && defined $quiet_reference) {
+            my @gained = $added_since->($quiet_reference, $file, $quiet_label);
+            if (!@gained) {
+                push @quiet, $file;
+                next;
             }
-            @added = sort grep { !$old->{$_} } keys %{$obligations{$file}};
         }
         my $fail = $count > 256
             || ($mode eq 'capacity' && $count == 256 && defined $revision && @added);
@@ -788,6 +891,10 @@ sub status_ids {
         } elsif ($fail) {
             print STDERR "$file: requirement IDs added since base: NOT_OBSERVED; rerun with BASE=<rev>\n";
         }
+    }
+    if (@quiet) {
+        printf STDERR "spec-requirements: NOTE %d spec(s) within margin=%d of the 256-obligation limit gain no requirement since %s, so they are not listed; make spec-capacity-check lists every one (SRG-V0-740, DCW-V0-2145)\n",
+            scalar @quiet, $margin, $quiet_label;
     }
     if (@over) {
         die "$route, then rerun make spec-" . ($mode eq 'capacity' ? 'capacity-check' : 'requirements')
@@ -822,6 +929,28 @@ refuse("a note between the id and its colon is no definition: write `- `ID`: (no
     . "rerun make spec-requirements; see docs/SPEC-DRIVEN-DEVELOPMENT.md \"Accepted forms\" (SRG-V0-760)",
     map { "$_->[0]:$_->[2]: $_->[1]: the note sits before the colon, so this line defines nothing" }
     grep { !$definitions{$_->[1]} } @noted_definitions);
+# SRG-V0-970: retain the exact header rule, but refuse before projection and slow Go tests.
+sub normalized_status {
+    my ($value) = @_;
+    $value = lc($value // '');
+    $value =~ s/[^a-z0-9.]+/ /g;
+    $value =~ s/^ | $//g;
+    return $value;
+}
+if ($mode eq 'status-check') {
+    for my $file (sort @specs) {
+        my $h = $header{$file};
+        next if ($h->{delivery} // '') eq 'superseded'
+            || ($h->{intent} // '') =~ /^superseded/;
+        my $status = normalized_status($h->{status});
+        next if defined $h->{intent} && defined $h->{delivery} && defined $h->{status}
+            && index($status, normalized_status($h->{intent})) >= 0
+            && index($status, normalized_status($h->{delivery})) >= 0;
+        my ($intent, $delivery, $actual) = map { $_ // '(missing)' } @{$h}{qw(intent delivery status)};
+        refuse("edit the header and digest together; acceptance/amendment belongs on its requirement line (SRG-V0-970)",
+            "$file:$h->{status_line}: Agent digest Status '$actual' disagrees with Intent status '$intent' / Delivery status '$delivery'; expected \"- Status: $intent / $delivery\"");
+    }
+}
 if ($mode ne 'tsv' && $mode ne 'lines' && $mode ne 'capacity') {
     # SRG-V0-012: INDEX.json and the README.md spec table are projections. A spec header owns its
     # intent and delivery status and its Agent digest owns the claim; INDEX.json owns every other
@@ -847,6 +976,10 @@ if ($mode ne 'tsv' && $mode ne 'lines' && $mode ne 'capacity') {
 if (@refusals) {
     print STDERR "$_\n" for @refusals, @repairs;
     exit 1;
+}
+if ($mode eq 'status-check') {
+    print "spec-status-check: PASS\n";
+    exit 0;
 }
 if ($mode eq 'capacity') {
     my $margin = $ENV{SPEC_CAPACITY_MARGIN} // 8;

@@ -74,7 +74,7 @@ func TestMCPV0111ContextSummaryBytesIsCLISummary(t *testing.T) {
 	if runtimeUnsupported() {
 		t.Skip("native context is qualified only on Darwin and Linux")
 	}
-	registry, err := NewTaskReview(makeRepository(t))
+	registry, err := newTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}

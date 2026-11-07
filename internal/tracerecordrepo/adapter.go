@@ -85,41 +85,12 @@ func Record(ctx context.Context, root string, input Input) (Result, error) {
 // RecordDogfood classifies and records one base-to-target change under a single
 // pinned authority. It returns no-source-paths without opening the trace store.
 func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input Input) (DogfoodResult, error) {
-	index, tracked, err := recordIndex(ctx, root)
+	index, tracked, result, err := dogfoodPathInput(ctx, root, baseArg, targetArg, recordIndex)
 	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("record-index-failed", err)
+		return DogfoodResult{}, err
 	}
-	base, err := resolveCommit(ctx, root, index.ObjectFormat, baseArg)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("invalid-base-revision", err)
-	}
-	target, err := resolveCommit(ctx, root, index.ObjectFormat, targetArg)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("invalid-target-revision", err)
-	}
-	if target != index.CommitRevision {
-		return DogfoodResult{}, dogfoodFailure("repository-identity-changed", &repositoryChangedError{})
-	}
-	candidates, err := changedPaths(ctx, root, base, target)
-	if err != nil {
-		return DogfoodResult{}, dogfoodFailure("changed-path-acquisition-failed", err)
-	}
-	admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
-	if err != nil {
-		reason := trace.AdmissionFailureReason(err)
-		if reason == "" {
-			reason = "changed-path-admission-failed"
-		}
-		return DogfoodResult{}, dogfoodFailure(reason, err)
-	}
-	authority := &dogfoodAuthority{
-		base: base, target: target, candidates: digestPaths(candidates), admitted: digestPaths(admitted),
-	}
-	result := DogfoodResult{
-		Base: base, Target: target, Tree: index.Revision,
-		CandidateSHA256: authority.candidates, AdmittedSHA256: authority.admitted,
-		Candidates: candidates, Admitted: admitted,
-	}
+	base, target, candidates, admitted := result.Base, result.Target, result.Candidates, result.Admitted
+	authority := &dogfoodAuthority{base: base, target: target, candidates: digestPaths(candidates), admitted: digestPaths(admitted)}
 	stable := stabilityCheck(ctx, root, index, authority)
 	if len(admitted) == 0 {
 		if err := stable(); err != nil {
@@ -137,6 +108,63 @@ func RecordDogfood(ctx context.Context, root, baseArg, targetArg string, input I
 	result.State = "recorded"
 	result.Recorded = &recorded
 	return result, nil
+}
+
+// dogfoodPathInput acquires the recorder's pinned path admission without opening
+// the trace store or entering its append/recovery path. acquire is recordIndex
+// for a recording and admissionIndex for a count that must not require a
+// recorder-ready worktree.
+func dogfoodPathInput(ctx context.Context, root, baseArg, targetArg string, acquire func(context.Context, string) (*contextindex.Index, []string, error)) (*contextindex.Index, []string, DogfoodResult, error) {
+	index, tracked, err := acquire(ctx, root)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("record-index-failed", err)
+	}
+	base, err := resolveCommit(ctx, root, index.ObjectFormat, baseArg)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("invalid-base-revision", err)
+	}
+	target, err := resolveCommit(ctx, root, index.ObjectFormat, targetArg)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("invalid-target-revision", err)
+	}
+	if target != index.CommitRevision {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("repository-identity-changed", &repositoryChangedError{})
+	}
+	candidates, err := changedPaths(ctx, root, base, target)
+	if err != nil {
+		return nil, nil, DogfoodResult{}, dogfoodFailure("changed-path-acquisition-failed", err)
+	}
+	admitted, err := trace.AdmissibleCurrentPaths(candidates, tracked)
+	if err != nil {
+		reason := trace.AdmissionFailureReason(err)
+		if reason == "" {
+			reason = "changed-path-admission-failed"
+		}
+		return nil, nil, DogfoodResult{}, dogfoodFailure(reason, err)
+	}
+	result := DogfoodResult{
+		Base: base, Target: target, Tree: index.Revision,
+		CandidateSHA256: digestPaths(candidates), AdmittedSHA256: digestPaths(admitted),
+		Candidates: candidates, Admitted: admitted,
+	}
+	return index, tracked, result, nil
+}
+
+// DogfoodNeedsAggregate checks the exact recorder path limit without recording.
+// A small raw change cannot exceed the admitted limit and needs no index build.
+// The count reads only the committed tree, so it does not require the clean
+// worktree a recording does: a finish-lane restart over an unfinished sidecar
+// is counted, not refused (DCW-V0-7403).
+func DogfoodNeedsAggregate(ctx context.Context, root, base, target string) (bool, error) {
+	candidates, err := changedPaths(ctx, root, base, target)
+	if err != nil || len(candidates) <= trace.MaxTracePaths {
+		return false, err
+	}
+	_, _, _, err = dogfoodPathInput(ctx, root, base, target, admissionIndex)
+	if DogfoodFailureReason(err) == "admitted-path-limit" {
+		return true, nil
+	}
+	return false, err
 }
 
 type dogfoodError struct {
@@ -173,6 +201,19 @@ func DogfoodFailureReason(err error) string {
 }
 
 func recordIndex(ctx context.Context, root string) (*contextindex.Index, []string, error) {
+	index, tracked, err := admissionIndex(ctx, root)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := recordSourceStatus(ctx, root, index.StatusSHA256, index.DirtyPaths, len(index.CommitRevision), ""); err != nil {
+		return nil, nil, fmt.Errorf("trace recording requires a clean Git tree: %w", err)
+	}
+	return index, tracked, nil
+}
+
+// admissionIndex builds the recorder's path authority from the committed tree
+// without requiring a clean worktree; recordIndex adds that requirement.
+func admissionIndex(ctx context.Context, root string) (*contextindex.Index, []string, error) {
 	index, err := buildRecordIndex(ctx, root)
 	if err != nil {
 		return nil, nil, recordIndexError(root, err)
@@ -182,11 +223,7 @@ func recordIndex(ctx context.Context, root string) (*contextindex.Index, []strin
 			return nil, nil, fmt.Errorf("trace recording refuses tracked private artifact: %s", path)
 		}
 	}
-	if err := recordSourceStatus(ctx, root, index.StatusSHA256, index.DirtyPaths, len(index.CommitRevision), ""); err != nil {
-		return nil, nil, fmt.Errorf("trace recording requires a clean Git tree: %w", err)
-	}
-	tracked := tracerepopaths.Paths(index)
-	return index, tracked, nil
+	return index, tracerepopaths.Paths(index), nil
 }
 
 func recordWithIndex(ctx context.Context, root string, index *contextindex.Index, tracked []string, stable func() error, stagedStable func(string) error, input Input) (Result, error) {

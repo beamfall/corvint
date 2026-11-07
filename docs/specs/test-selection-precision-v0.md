@@ -550,6 +550,24 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   `tools/gate-ledger` hashes never name a path that cannot select the package. Non-goals: bounding rule (a), (b) or (d), or declaring more packages.
   Failure mode: a declared test reads outside its scope; testconfine fails it in CI rather than
   the change being missed silently. Rollback: make `boundedReaders` return its input.
+- **TSP-V0-1061:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-4544)
+  This repository SHALL retain the root-locator floor for `docs/build-log/`; it SHALL NOT
+  exclude that directory through `.corvint/runtime-readers.json` or
+  `.corvint/unbounded-reader-exclusions.json`. New dated records select literal, glob,
+  enclosing and declared-scope readers as well as unbounded readers, including
+  `internal/contextindex`: its self-corpus regression reads every tracked regular file
+  within its source-size bound. The former exclusion was unsound and is withdrawn after
+  independent review (2026-11-04). Other paths retain the existing conservative rules;
+  no declaration grammar, confinement permission or generic documentation rule changes.
+- **TSP-V0-1062:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-4544)
+  A new indexed Go test file SHALL select its package without traversing its importers.
+  Explicit declared consumers remain selected: a broad source-reading scope is real evidence,
+  not an import edge. Each `DECLARED_READ_SCOPE` witness SHALL include optional `readScope`
+  with `declaration` naming the Go or shell declaration and `entry` naming the matching scope
+  entry, the implicit own-directory subtree, or the changed read-scope declaration itself.
+  Full JSON, compact JSON and text SHALL retain that explanation. This additive witness
+  changes no selection rule, including the conservative unindexed/deleted-file fallback.
+
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -742,6 +760,8 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-831 | `applyShellReadScopes` and `invalidEntry` in `internal/liveverify/affected/shell/readscopes.go`; the read-scope frontier refusal in `tools/unbounded-readers/main.go` | `TestShellReadScopeEntryInvalidAlone_TSP_V0_831` in `internal/liveverify/affected/shell/readscopes_test.go`; `TestInvalidShellReadScopeEntryRefused_TSP_V0_831` in `tools/unbounded-readers/main_test.go` |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 | TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
+| TSP-V0-1061 | `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; existing `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go` | `TestNewBuildLogKeepsDeclaredReaders_TSPV01061` in `internal/liveverify/affected/new_file_precision_test.go` requires `internal/contextindex` and its root-locator witness; `TestReferenceScannersMatchTheirRegexes` in `internal/contextindex/reference_scan_test.go` reads the tracked self corpus; rebuilt CLI replay recorded in `docs/build-log/2026-11-04-cx-affected-final-review-fixes.md` |
+| TSP-V0-1062 | `scopedReadersOf`, `readScopeCause` in `internal/liveverify/affected/readers.go`; `compactAffectedSelections` and `renderAffectedText` in `cmd/corvint` | `TestNewTestKeepsNamedDeclaredConsumers_TSPV01062`; `TestReadScopeCausePairsDeclarationAndEntry_TSPV01062` in `internal/liveverify/affected/readscope_cause_test.go`; `TestDeclaredScopeExplanation_TSPV01062` in `cmd/corvint/affected_readscope_test.go` |
 
 ## Rollback
 
@@ -787,3 +807,7 @@ These refinements change diagnostics, ordering advice, output projection and tes
 They grant no new narrowing authority. Missing or invalid evidence keeps the existing uncertainty.
 Revert the corresponding implementation and requirement together to restore the prior behavior.
 Qualification limits and explicit exclusions are retained in `docs/build-log/2026-11-04-pk-affected.md`.
+
+V1-4544 rollback: keep the restored `docs/build-log/` root-locator floor; reinstating its
+withdrawn exclusion would miss the self-corpus reader. Remove `Witness.ReadScope` and its
+projections to restore unexplained scope fan-out; this affects no persisted repository or trace state.

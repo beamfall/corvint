@@ -343,7 +343,7 @@ func New(root string) (*Registry, *Error) {
 
 // NewTaskReview binds the opt-in task-review descendant profile, which adds
 // the context and CEM report tools to the V0 three (MCPV0-026).
-func NewTaskReview(root string) (*Registry, *Error) {
+func newTaskReview(root string) (*Registry, *Error) {
 	registry, err := New(root)
 	if err != nil {
 		return nil, err
@@ -354,8 +354,8 @@ func NewTaskReview(root string) (*Registry, *Error) {
 
 // NewTaskReviewLSP authorizes the optional executable at startup. Individual
 // calls must still request lsp:gopls; legacy environment knobs have no effect.
-func NewTaskReviewLSP(root string) (*Registry, *Error) {
-	registry, err := NewTaskReview(root)
+func newTaskReviewLSP(root string) (*Registry, *Error) {
+	registry, err := newTaskReview(root)
 	if err != nil {
 		return nil, err
 	}
@@ -1336,3 +1336,21 @@ func (registry *Registry) Root() string { return registry.root }
 // SameRoot reports whether the bound root, its Git marker and its Git
 // directories still have the identities observed at binding.
 func (registry *Registry) SameRoot() bool { return registry.sameRoot() }
+
+// NewTaskReview returns an ordinary error interface with a plain nil on success.
+func NewTaskReview(root string) (*Registry, error) {
+	registry, err := newTaskReview(root)
+	if err != nil {
+		return nil, err
+	}
+	return registry, nil
+}
+
+// NewTaskReviewLSP returns an ordinary error interface with a plain nil on success.
+func NewTaskReviewLSP(root string) (*Registry, error) {
+	registry, err := newTaskReviewLSP(root)
+	if err != nil {
+		return nil, err
+	}
+	return registry, nil
+}

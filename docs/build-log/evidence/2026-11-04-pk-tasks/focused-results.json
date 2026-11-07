@@ -1,0 +1,274 @@
+{
+  "flakes-base": {
+    "logSha256": "6532d4ad70a36a3714ff985c1838102ed92bc37b1a4675deb8951cceb8f6d7e4",
+    "passedTests": 38,
+    "failedTests": 2,
+    "result": [
+      "FAIL\tgithub.com/Beamfall/corvint/internal/tasks/cli\t49.246s",
+      "FAIL",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=59.3s rc=1",
+      "heavy.sh: exit rc=1 cause=command cmd=env"
+    ]
+  },
+  "flakes-final": {
+    "logSha256": "fca20cea38bf8c27ea2a7899884332ff7a435cb1d4196d94714d7add4c510580",
+    "passedTests": 40,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestERGV0017_ReviewPacketAcrossRounds (1.90s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t86.779s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=99.6s rc=0"
+    ]
+  },
+  "corpus-repeat": {
+    "logSha256": "f0556018d9847ad6a9a3d2eff893277853f79525b787d772529abe5a1369d895",
+    "passedTests": 40,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestDCPV17100_WarmP95KeepsRegressionPower (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/mcp/corpusbridge\t293.122s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=298.4s rc=0"
+    ]
+  },
+  "corpus-final-name": {
+    "logSha256": "efbcb4cabf81a87b268727296ba47c5f6df1890a1ef4cb463565b7138a6fcef2",
+    "passedTests": 2,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestDCRV17100_WarmP95KeepsRegressionPower (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/mcp/corpusbridge\t16.955s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=18.3s rc=0"
+    ]
+  },
+  "dispatch": {
+    "logSha256": "c6ccbe2ca3c5e9c4250ddfa7e83354a1908d7a81c1384efe7c26b7e03dcb145a",
+    "passedTests": 6,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0157_UsageAfterRotationIsPartial (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/dispatch\t0.414s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=3.7s rc=0"
+    ]
+  },
+  "supervisor": {
+    "logSha256": "06e032ac160c963704f63f305ecfa19be063d8697ab5f73a7f938fef5111488e",
+    "passedTests": 1,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0077_OpenCodeUsageObservedOrUnknown (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/supervisor\t0.008s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=0.7s rc=0"
+    ]
+  },
+  "wire": {
+    "logSha256": "09bd1d376add65906ad311cb0b7c826e956d34429138e86e1bdafdd0870c7060",
+    "passedTests": 1,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestTCDV0965_HasCode (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/wire\t0.003s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=0.6s rc=0"
+    ]
+  },
+  "workflow-id": {
+    "logSha256": "3bf7a0779ce5792fe2ca8562bdfd87e5b9ac54f1710dffe3ccfbf97c36561791",
+    "passedTests": 1,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestPMRV0960EncodeIDRoundTrip (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/postmergeworkflow\t0.021s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=1.0s rc=0"
+    ]
+  },
+  "show-concurrent": {
+    "logSha256": "5f94c1cf45b452386e6d0838dbb238ed445217b8d2825bbf31ad369c11630085",
+    "passedTests": 1,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestTCLV0859_ShowConcurrentWritesNeverEmpty (6.90s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t6.924s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=17.1s rc=0"
+    ]
+  },
+  "store-batch": {
+    "logSha256": "7d4d1b2df08fae2f99a45e60f190dab29c385686e6b02658f6da732d101586d8",
+    "passedTests": 6,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0106_ClaimCommitsBetweenChunks (2.87s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/store\t7.231s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=16.1s rc=0"
+    ]
+  },
+  "store-resume-import": {
+    "logSha256": "a996a4a86eb32da96c5c783229d7c9e589c4482b65703ae5c97aeb03b1d57eb4",
+    "passedTests": 6,
+    "failedTests": 0,
+    "result": [
+      "    --- PASS: TestLGLV0012_WidenAndReapResumeFromSealedBase/reap-all (21.02s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/store\t24.222s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=25.2s rc=0"
+    ]
+  },
+  "cli-focused": {
+    "logSha256": "abc5b42d638157f80efea3f60fc9562b6889c1f1fe5fbd3eadb5fe44d25f11a7",
+    "passedTests": 17,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0106_BatchRefineReplayIsIdempotent (7.24s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t17.021s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=28.1s rc=0"
+    ]
+  },
+  "cli-final": {
+    "logSha256": "aceeaa30d60162b64f9074dbd2ceb51c4dfccb880767f5415c07115dc1f00862",
+    "passedTests": 18,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0106_BatchRefineReplayIsIdempotent (6.44s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t16.559s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=21.8s rc=0"
+    ]
+  },
+  "cli-final-delta": {
+    "logSha256": "ac7e3a01835fde1facfac7ec4051093f03949d00d1ab0dda81c49bb43e014082",
+    "passedTests": 11,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestTCLV07102_AuditExplicitWorktreeProjection (0.30s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t3.835s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=12.7s rc=0"
+    ]
+  },
+  "cli-last-delta": {
+    "logSha256": "ddd542435762ea8882ee023651ba0eaf772dc4c59b70cfb3c9b866bd53a487e3",
+    "passedTests": 3,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestTCLV07102_AuditExplicitWorktreeProjection (0.60s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t1.255s",
+      "heavy.sh: done queue=120.0s (load=120s slot=0.0s) run=26.6s rc=0"
+    ]
+  },
+  "store-race": {
+    "logSha256": "496739eb3866abf70db81af8ed6006b40a9ac865c35cf076f1a9cd2cbd952e79",
+    "passedTests": 6,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestCALV0106_ClaimCommitsBetweenChunks (4.80s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/store\t12.793s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=53.1s rc=0"
+    ]
+  },
+  "specindex": {
+    "logSha256": "745fa918aef3726228c872f86b1d5819590cbfb6e4041d16499da0f4a4d3ce27",
+    "passedTests": 3,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestIndexImplementationPathsExist (0.01s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/specindex\t0.167s",
+      "heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=1.0s rc=0"
+    ]
+  },
+  "worktree-audit": {
+    "logSha256": "e6edf00805051f2e339e65f0ea0c8c7d7e9164fd71357d30146659866ed3141a",
+    "passedTests": 1,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestTCLV07102_AuditExplicitWorktreeProjection (1.02s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/tasks/cli\t1.063s",
+      "heavy.sh: done queue=71.0s (load=71s slot=0.0s) run=16.6s rc=0"
+    ]
+  },
+  "doc-checks": {
+    "logSha256": "32efb0ebb9114be410ef4fab77eb674a6e49a06e24cd2f1560e5678987256b9e",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check",
+      "line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it",
+      "line citations: note: skipped 180 citation(s) whose basename is not tracked at repository root (--verbose lists them)",
+      "make: *** [Makefile:524: line-citations-check] Error 1"
+    ]
+  },
+  "line-check": {
+    "logSha256": "855a4551b199f407e4e7cec705511746022a39aa0f70383fc13aac9acc748bba",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "line citations: note: skipped 180 citation(s) whose basename is not tracked at repository root (--verbose lists them)"
+    ]
+  },
+  "spec-requirements": {
+    "logSha256": "3b90da1ae60997681cec8d036d18a138389bbb042aec8242681f64739258c8c0",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "docs/specs/daily-change-evidence-workflow-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)",
+      "docs/specs/documentation-corpus-v1.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)",
+      "spec-requirements: updated REQUIREMENTS.tsv README.md",
+      "spec-requirements: staged docs/specs/REQUIREMENTS.tsv docs/specs/README.md"
+    ]
+  },
+  "spec-enumeration": {
+    "logSha256": "56151724741b9d9a3da50d945e407454cb91d42a18c558b1339b573d807e2781",
+    "passedTests": 12,
+    "failedTests": 0,
+    "result": [
+      "--- PASS: TestIntentWorktreeSpecEnumeratesRehomedCALV0073And106 (0.00s)",
+      "PASS",
+      "ok  \tgithub.com/Beamfall/corvint/internal/lrfrepo\t0.182s",
+      "heavy.sh: done queue=106.0s (load=106s slot=0.0s) run=2.5s rc=0"
+    ]
+  },
+  "cli-vet": {
+    "logSha256": "31746cb854135e715d9b0b46dcf2998f765c01ff15e2163dc1abad2d37dd3a8e",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/tasks/cli/doctor_probe_darwin.go; this run is no darwin evidence (run it on a darwin host)",
+      "heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=51127bbcc471bfc5fa794345f2d7a91199685e8c dirty=38",
+      "heavy.sh: slot 2/8 after 0s",
+      "heavy.sh: done queue=105.0s (load=105s slot=0.0s) run=14.7s rc=0"
+    ]
+  },
+  "store-vet": {
+    "logSha256": "52142d8a696bb6312c01bf01e0b0cd67701a1a1670b45c9e70b01e236a178602",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)",
+      "heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=51127bbcc471bfc5fa794345f2d7a91199685e8c dirty=38",
+      "heavy.sh: slot 6/8 after 0s",
+      "heavy.sh: done queue=105.0s (load=105s slot=0.0s) run=13.8s rc=0"
+    ]
+  },
+  "spec-check": {
+    "logSha256": "100d7ffe4f648fbc50e4ba46c0ae8cdc9a1652417f63c86bd294a24170e3ebdd",
+    "passedTests": 0,
+    "failedTests": 0,
+    "result": [
+      "docs/specs/corvint-self-development-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)",
+      "docs/specs/corvint-tasks-agent-leases-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)",
+      "docs/specs/daily-change-evidence-workflow-v0.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)",
+      "docs/specs/documentation-corpus-v1.md: warning: its ## Requirements section holds 256 of the 256 obligations; margin=8; define new requirements in a companion spec with its own requirement prefix (a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-740)"
+    ]
+  }
+}

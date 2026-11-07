@@ -228,3 +228,171 @@ func TestTCQV0062SpentBudgetKeepsNoCandidateReason(t *testing.T) {
 		t.Fatalf("spent before naming: ran=%v rows=%+v", ran, rows)
 	}
 }
+
+// TCQ-V0-7408: a foreign package selector cannot reference a declaration
+// of this package; the package-under-test import in an external test can.
+func TestTCQV07408ImportedSelectorsDoNotCarryClosure(t *testing.T) {
+	code := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc Read() {}\nfunc wrapper() { foreign.Read() }\n")
+	tests := []byte("package p\nimport foreign \"elsewhere/q\"\nfunc TestLocal(t *testing.T) { Read() }\nfunc TestForeign(t *testing.T) { foreign.Read() }\nfunc TestWrapper(t *testing.T) { wrapper() }\n")
+	external := []byte("package p_test\nimport subject \"example/p\"\nfunc TestExternal(t *testing.T) { subject.Read() }\n")
+	p := &goPackage{}
+	p.decls = append(p.decls, parseDecls("p.go", code, false)...)
+	p.decls = append(p.decls, parseDecls("p_test.go", tests, true)...)
+	p.decls = append(p.decls, parseDecls("external_test.go", external, true)...)
+	got := p.testsMentioning(p.grow(map[string]bool{"Read": true}))
+	if strings.Join(got, " ") != "TestExternal TestLocal" {
+		t.Fatalf("candidates=%v", got)
+	}
+}
+
+// TCQ-V0-7408: importer closure must not conflate two packages' exported
+// selectors just because their identifiers have the same spelling.
+// TCQ-V0-7420: a test that calls the changed import directly, not through a
+// helper, stays a candidate; a direct call of the other import does not.
+func TestTCQV07408ImporterNamespace(t *testing.T) {
+	source := []byte(`package q
+import changed "example.test/m/p"
+import other "example.test/m/r"
+import "testing"
+func actual() int { return changed.Double(1) }
+func foreign() int { return other.Double(1) }
+func TestActual(t *testing.T) { actual() }
+func TestDirect(t *testing.T) { changed.Double(1) }
+func TestForeign(t *testing.T) { foreign() }
+func TestForeignDirect(t *testing.T) { other.Double(1) }
+`)
+	p := &goPackage{decls: parseDecls("q/q_test.go", source, true)}
+	got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Double": true}))
+	if !reflect.DeepEqual(got, []string{"TestActual", "TestDirect"}) {
+		t.Fatalf("candidates=%v, want the helper and direct callers of the changed import only", got)
+	}
+}
+
+// TCQ-V0-7420: a base test whose own name is reached stays a candidate by that
+// name alone, not through a parser detail that happens to list a declaration's
+// own name among its references. The declarations below are built by hand with
+// no self-reference: TestSeeded is reached only by name, TestCaller only by
+// what it mentions, and TestUnreached by neither. The parsed own-package path
+// (closure) keeps a direct caller of the changed declaration too.
+func TestTCQV07420ReachedTestNamesStayCandidates(t *testing.T) {
+	p := &goPackage{decls: []goDecl{
+		{file: "q/q_test.go", names: []string{"TestSeeded"}, refs: map[string]bool{"t": true}, test: true},
+		{file: "q/q_test.go", names: []string{"TestCaller"}, refs: map[string]bool{"helper": true}, test: true},
+		{file: "q/q_test.go", names: []string{"TestUnreached"}, refs: map[string]bool{"unrelated": true}, test: true},
+	}}
+	if got := p.testsMentioning(map[string]bool{"TestSeeded": true, "helper": true}); !reflect.DeepEqual(got, []string{"TestCaller", "TestSeeded"}) {
+		t.Fatalf("reached test name dropped: %v", got)
+	}
+	code := []byte("package p\nfunc Double(n int) int { return 2 * n }\nfunc other() {}\n")
+	tests := []byte("package p\nimport \"testing\"\nfunc TestDirect(t *testing.T) { Double(1) }\nfunc TestOther(t *testing.T) { other() }\n")
+	pkg := &goPackage{}
+	pkg.decls = append(pkg.decls, parseDecls("p/p.go", code, false)...)
+	pkg.decls = append(pkg.decls, parseDecls("p/p_test.go", tests, true)...)
+	if got := pkg.candidates("p/p.go", map[int64]bool{2: true}); !reflect.DeepEqual(got, []string{"TestDirect"}) {
+		t.Fatalf("own-package direct caller: %v", got)
+	}
+}
+
+// TCQ-V0-7408: a field selector is not a reference to a same-spelled package
+// declaration; an actual method selector must still carry method closure.
+func TestTCQV07408FieldsAndMethodsHaveSeparateNamespaces(t *testing.T) {
+	data := []byte(`package p
+import "testing"
+func generation() int { return 1 }
+type record struct { generation int }
+func unrelated(r record) int { return r.generation }
+type machine struct {}
+func (machine) Check() int { return 1 }
+func TestActual(t *testing.T) { generation() }
+func TestField(t *testing.T) { unrelated(record{}) }
+func TestMethod(t *testing.T) { machine{}.Check() }
+`)
+	p := &goPackage{decls: parseDecls("p/p_test.go", data, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"generation": true})); !reflect.DeepEqual(got, []string{"TestActual"}) {
+		t.Fatalf("field carried package closure: %v", got)
+	}
+	if got := p.testsMentioning(p.grow(map[string]bool{"Check": true})); !reflect.DeepEqual(got, []string{"TestMethod"}) {
+		t.Fatalf("method closure lost: %v", got)
+	}
+}
+
+// TCQ-V0-7408: a changed declaration that package initialization registers
+// behind a foreign selector keeps every base test a candidate, since a test
+// reaching it through that selector names no package declaration.
+func TestTCQV07408InitializationKeepsCallbackTests(t *testing.T) {
+	data := []byte(`package p
+import "flag"
+import "testing"
+func Usage() {}
+func init() { flag.Usage = Usage }
+func other() {}
+func TestCallback(t *testing.T) { flag.Usage() }
+func TestOther(t *testing.T) { other() }
+`)
+	p := &goPackage{decls: parseDecls("p/p_test.go", data, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"Usage": true})); !reflect.DeepEqual(got, []string{"TestCallback", "TestOther"}) {
+		t.Fatalf("init-registered callback dropped its test: %v", got)
+	}
+	// Negative control: a change initialization never reaches stays narrow.
+	if got := p.testsMentioning(p.grow(map[string]bool{"other": true})); !reflect.DeepEqual(got, []string{"TestOther"}) {
+		t.Fatalf("unreached initialization widened candidates: %v", got)
+	}
+	registered := []byte(`package p
+import "testing"
+func handler() {}
+var _ = register(handler)
+var plain = 3
+func register(func()) int { return 0 }
+func TestRegistry(t *testing.T) { lookup() }
+func lookup() {}
+func TestPlain(t *testing.T) { _ = plain }
+`)
+	p = &goPackage{decls: parseDecls("p/p_test.go", registered, true)}
+	if got := p.testsMentioning(p.grow(map[string]bool{"handler": true})); !reflect.DeepEqual(got, []string{"TestPlain", "TestRegistry"}) {
+		t.Fatalf("blank var registration dropped tests: %v", got)
+	}
+}
+
+// TCQ-V0-7408: a changed declaration that a test file's TestMain registers
+// behind a foreign selector keeps every base test a candidate, whether TestMain
+// names it directly, through a helper, from an external test package, or from
+// an importing package; a change TestMain never reaches stays narrow.
+func TestTCQV07408TestMainKeepsCallbackTests(t *testing.T) {
+	code := []byte("package p\nfunc Usage() {}\nfunc other() {}\n")
+	callback := []byte("package p\nimport \"flag\"\nimport \"testing\"\nfunc TestCallback(t *testing.T) { flag.Usage() }\nfunc TestOther(t *testing.T) { other() }\n")
+	for name, main := range map[string]struct{ file, source string }{
+		"direct":   {"p/main_test.go", "package p\nimport \"flag\"\nimport \"os\"\nimport \"testing\"\nfunc TestMain(m *testing.M) { flag.Usage = Usage; os.Exit(m.Run()) }\n"},
+		"helper":   {"p/main_test.go", "package p\nimport \"flag\"\nimport \"os\"\nimport \"testing\"\nfunc TestMain(m *testing.M) { setup(); os.Exit(m.Run()) }\nfunc setup() { flag.Usage = Usage }\n"},
+		"external": {"p/external_test.go", "package p_test\nimport \"flag\"\nimport \"os\"\nimport \"testing\"\nimport subject \"example.test/m/p\"\nfunc TestMain(m *testing.M) { flag.Usage = subject.Usage; os.Exit(m.Run()) }\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := &goPackage{}
+			p.decls = append(p.decls, parseDecls("p/p.go", code, false)...)
+			p.decls = append(p.decls, parseDecls("p/p_test.go", callback, true)...)
+			p.decls = append(p.decls, parseDecls(main.file, []byte(main.source), true)...)
+			if got := p.testsMentioning(p.grow(map[string]bool{"Usage": true})); !reflect.DeepEqual(got, []string{"TestCallback", "TestOther"}) {
+				t.Fatalf("TestMain-registered callback dropped its test: %v", got)
+			}
+			// Negative control: a change TestMain never reaches stays narrow.
+			if got := p.testsMentioning(p.grow(map[string]bool{"other": true})); !reflect.DeepEqual(got, []string{"TestOther"}) {
+				t.Fatalf("unreached TestMain widened candidates: %v", got)
+			}
+		})
+	}
+	importer := []byte(`package q
+import "flag"
+import "os"
+import "testing"
+import changed "example.test/m/p"
+func TestMain(m *testing.M) { flag.Usage = changed.Usage; os.Exit(m.Run()) }
+func TestCallback(t *testing.T) { flag.Usage() }
+func TestUnrelated(t *testing.T) {}
+`)
+	p := &goPackage{decls: parseDecls("q/q_test.go", importer, true)}
+	if got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Usage": true})); !reflect.DeepEqual(got, []string{"TestCallback", "TestUnrelated"}) {
+		t.Fatalf("importer TestMain dropped its callback test: %v", got)
+	}
+	if got := p.testsMentioning(p.growImported("example.test/m/p", map[string]bool{"Other": true})); len(got) != 0 {
+		t.Fatalf("unreached importer TestMain widened candidates: %v", got)
+	}
+}
