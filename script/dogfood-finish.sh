@@ -222,12 +222,20 @@ fi
 # clean worktree has the same key (the dogfood-finish after its dogfood-inputs-check) skips them,
 # saying so; a dirty worktree, an unreadable key or any other key runs them.
 static_input_key() {
-  local tree toolchain status
+  local tree toolchain status flagged ignored
   # The bind sidecar .corvint/change.cem.json, which dogfood change leaves untracked, is read by none
   # of the checks (test-read-scopes-check skips it by name), so it does not dirty the key. A status
   # Git cannot read gives no key, never a clean one.
   status=$(git -C "$repo" status --porcelain=v1 --untracked-files=all -- . ':(exclude).corvint/change.cem.json' 2> /dev/null) || return 1
   [[ -z $status ]] || return 1
+  # Review (DWC-V0-757): git status cannot see a tracked file edited under skip-worktree or
+  # assume-unchanged, nor an ignored .go file that go run compiles, so either gives no key, as
+  # script/gate-receipt and tools/gate-ledger (GL-V0-005) refuse them: `ls-files -v` tags such an
+  # entry S or lower case, and go ./... skips only `.`- and `_`-prefixed and testdata directories.
+  flagged=$(git -C "$repo" ls-files -v 2> /dev/null) || return 1
+  ! grep -q '^[a-zS]' <<< "$flagged" || return 1
+  ignored=$(git -C "$repo" ls-files --others --ignored --exclude-standard -- '*.go' 2> /dev/null) || return 1
+  [[ -z $(grep -v -E '(^|/)([._][^/]*|testdata)/' <<< "$ignored") ]] || return 1
   tree=$(git -C "$repo" rev-parse --verify -q 'HEAD^{tree}') || return 1
   toolchain=$(cd "$repo" && GOTOOLCHAIN=local go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED 2> /dev/null) || return 1
   printf 'dogfood-static-pass/1\ntree %s\nbase %s\n%s\n' "$tree" "$base" "$toolchain" | git -C "$repo" hash-object --stdin
