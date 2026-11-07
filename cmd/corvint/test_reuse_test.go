@@ -1,0 +1,305 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"bytes"
+	json "encoding/json/v2"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
+)
+
+func reuseFixtureWrite(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for name, body := range files {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// skipUnprovenReusePlatform skips a test that expects reuse where the
+// digest refuses every package (unproven-platform, AFP-V0-2320).
+func skipUnprovenReusePlatform(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("test reuse refuses every package off linux")
+	}
+}
+
+func reuseFixtureCommit(t *testing.T, root, message string) string {
+	t.Helper()
+	materializationGit(t, root, "add", "-A")
+	materializationGit(t, root, "commit", "-qm", message)
+	return strings.TrimSpace(materializationGit(t, root, "rev-parse", "HEAD"))
+}
+
+// TestTestReuseCLI is AFP-V0-2323 to AFP-V0-2325 end to end: a record from a
+// go test -json stream, a decision that reuses the declared package after an
+// unrelated commit and runs it after a change to its scope, and the usage
+// refusals.
+func TestTestReuseCLI(t *testing.T) {
+	skipUnprovenReusePlatform(t)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
+	root := materializationFixture(t)
+	reuseFixtureWrite(t, root, map[string]string{
+		"go.mod":                         "module example.com/m\n\ngo 1.27\n",
+		"a/a.go":                         "package a\n",
+		"a/a_test.go":                    "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n",
+		"data/a.txt":                     "ok\n",
+		"docs/readme.md":                 "# r\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"a":["data/a.txt"]}}` + "\n",
+	})
+	reuseFixtureCommit(t, root, "base")
+	scratch := t.TempDir()
+	stream := filepath.Join(scratch, "run.json")
+	if err := os.WriteFile(stream, []byte(`{"Action":"pass","Package":"example.com/m/a"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(wantCode int, arguments ...string) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		code := run(append([]string{"--root", root, "test", "reuse"}, arguments...), nil, &stdout, &stderr)
+		if code != wantCode {
+			t.Fatalf("test reuse %v: exit %d, want %d\n%s%s", arguments, code, wantCode, stdout.String(), stderr.String())
+		}
+		return stdout.String() + stderr.String()
+	}
+	// AFP-V0-2320: the run is bound to its confinement wrapper by content.
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	record := filepath.Join(scratch, "record.json")
+	invoke(0, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	decide := func(extra ...string) map[string]string {
+		t.Helper()
+		out := filepath.Join(scratch, "decision.json")
+		invoke(0, append([]string{"decide", "--argv", "-count=1", "--records", record, "--out", out, "--run-list", filepath.Join(scratch, "run.txt")}, extra...)...)
+		body, err := os.ReadFile(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var decision struct {
+			Units []struct {
+				Package  string `json:"package"`
+				Decision string `json:"decision"`
+				Reason   string `json:"reason"`
+			} `json:"units"`
+		}
+		if err := json.Unmarshal(body, &decision, json.RejectUnknownMembers(false)); err != nil {
+			t.Fatal(err)
+		}
+		units := map[string]string{}
+		for _, unit := range decision.Units {
+			units[strings.TrimPrefix(unit.Package, "example.com/m/")] = unit.Decision + " " + unit.Reason
+		}
+		return units
+	}
+	reuseFixtureWrite(t, root, map[string]string{"docs/readme.md": "# changed\n"})
+	reuseFixtureCommit(t, root, "docs")
+	if got := decide("--confine", confine); got["a"] != "REUSE RECORD_DIGEST_EQUAL" {
+		t.Fatalf("unrelated commit: %v", got)
+	}
+	if got := decide(); got["a"] != "RUN UNCONFINED_EXECUTION" {
+		t.Fatalf("unconfined decision: %v", got)
+	}
+	// AFP-V0-2326: re-deciding for a local plan checks current worktree inputs,
+	// even when the dirty status code and path stay unchanged across edits.
+	for _, contents := range []string{"dirty one\n", "dirty two\n"} {
+		reuseFixtureWrite(t, root, map[string]string{"data/a.txt": contents})
+		if got := decide("--confine", confine); got["a"] != "RUN DIGEST_ERROR" {
+			t.Fatalf("dirty input: %v", got)
+		}
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	t.Setenv("GOAMD64", "v2")
+	if got := decide("--confine", confine); got["a"] != "RUN IDENTITY_CHANGED" {
+		t.Fatalf("current environment: %v", got)
+	}
+	t.Setenv("GOAMD64", "v1")
+
+	reuseFixtureWrite(t, root, map[string]string{"data/a.txt": "changed\n"})
+	reuseFixtureCommit(t, root, "scope")
+	if got := decide("--confine", confine); got["a"] != "RUN DIGEST_CHANGED" {
+		t.Fatalf("scope change: %v", got)
+	}
+	if body, _ := os.ReadFile(filepath.Join(scratch, "run.txt")); strings.TrimSpace(string(body)) != "example.com/m/a" {
+		t.Fatalf("run list %q", body)
+	}
+	invoke(2, "record", "--go-test-json", stream, "--argv", "-count=1 -run TestA", "--out", record)
+	invoke(2, "decide", "--argv", "-count=1", "--trust", "pull_request")
+	invoke(2, "record", "--argv", "-count=1", "--out", record)
+	invoke(2, "explain")
+	invoke(testReuseExitIncomplete, "decide", "--argv", "-count=1", "--confine", scratch)
+}
+
+// TestTestReuseExistenceReaderRuns is AFP-V0-2320 (5) with a fault injection:
+// a declared existence reader stats a path outside its read scope, which the
+// confinement does not deny and no digest binds. Deleting that path leaves
+// its digest unchanged, so the package must run (EXISTENCE_READER), and the
+// rerun fails; an undeclared sibling with unchanged inputs is still reused.
+func TestTestReuseExistenceReaderRuns(t *testing.T) {
+	skipUnprovenReusePlatform(t)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
+	root := materializationFixture(t)
+	reuseFixtureWrite(t, root, map[string]string{
+		"go.mod":                          "module example.com/m\n\ngo 1.27\n",
+		"a/a.go":                          "package a\n",
+		"a/a_test.go":                     "package a\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestA(t *testing.T) {\n\tif _, err := os.Stat(\"../script/gate.sh\"); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n",
+		"b/b.go":                          "package b\n",
+		"b/b_test.go":                     "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) {}\n",
+		"script/gate.sh":                  "#!/bin/sh\n",
+		".corvint/test-read-scopes.json":  `{"profile":"corvint-test-read-scopes/0","packages":{"a":[],"b":[]}}` + "\n",
+		".corvint/existence-readers.json": `{"profile":"corvint-existence-readers/0","entries":[{"package":"a","manifests":["a/a.go"],"reason":"TestA stats script/gate.sh"}]}` + "\n",
+	})
+	reuseFixtureCommit(t, root, "base")
+	goTest := func(wantPass bool) []byte {
+		t.Helper()
+		command := exec.Command("go", "test", "-count=1", "-json", "./a", "./b")
+		command.Dir = root
+		out, err := command.Output()
+		if (err == nil) != wantPass {
+			t.Fatalf("go test: err %v, want pass %v\n%s", err, wantPass, out)
+		}
+		return out
+	}
+	scratch := t.TempDir()
+	stream := filepath.Join(scratch, "run.json")
+	if err := os.WriteFile(stream, goTest(true), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(arguments ...string) {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		if code := run(append([]string{"--root", root, "test", "reuse"}, arguments...), nil, &stdout, &stderr); code != 0 {
+			t.Fatalf("test reuse %v: exit %d\n%s%s", arguments, code, stdout.String(), stderr.String())
+		}
+	}
+	record := filepath.Join(scratch, "record.json")
+	invoke("record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	if err := os.Remove(filepath.Join(root, "script/gate.sh")); err != nil {
+		t.Fatal(err)
+	}
+	reuseFixtureCommit(t, root, "delete the stat target")
+	out := filepath.Join(scratch, "decision.json")
+	invoke("decide", "--argv", "-count=1", "--confine", confine, "--records", record, "--out", out)
+	body, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decision struct {
+		Units []struct {
+			Package  string `json:"package"`
+			Decision string `json:"decision"`
+			Reason   string `json:"reason"`
+		} `json:"units"`
+	}
+	if err := json.Unmarshal(body, &decision, json.RejectUnknownMembers(false)); err != nil {
+		t.Fatal(err)
+	}
+	units := map[string]string{}
+	for _, unit := range decision.Units {
+		units[strings.TrimPrefix(unit.Package, "example.com/m/")] = unit.Decision + " " + unit.Reason
+	}
+	if units["a"] != "RUN EXISTENCE_READER" || units["b"] != "REUSE RECORD_DIGEST_EQUAL" {
+		t.Fatalf("after deleting the stat target: %v", units)
+	}
+	goTest(false)
+}
+
+// TestTestReuseLateEditIsDrift covers AFP-V0-2321: a controlled edit to a
+// scoped input after the decision or record is built and before it is
+// published must refuse it as snapshot-drift, exit 3, and write no output, and
+// so must a rewritten confinement wrapper; the same decision without an edit
+// is the negative control.
+func TestTestReuseLateEditIsDrift(t *testing.T) {
+	skipUnprovenReusePlatform(t)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+	t.Setenv("GOAMD64", "v1")
+	root := materializationFixture(t)
+	reuseFixtureWrite(t, root, map[string]string{
+		"go.mod":                         "module example.com/m\n\ngo 1.27\n",
+		"a/a.go":                         "package a\n",
+		"a/a_test.go":                    "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n",
+		"data/a.txt":                     "ok\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"a":["data/a.txt"]}}` + "\n",
+	})
+	reuseFixtureCommit(t, root, "base")
+	scratch := t.TempDir()
+	stream := filepath.Join(scratch, "run.json")
+	if err := os.WriteFile(stream, []byte(`{"Action":"pass","Package":"example.com/m/a"}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	confine := filepath.Join(scratch, "test-confine")
+	if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	invoke := func(wantCode int, arguments ...string) string {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		code := run(append([]string{"--root", root, "test", "reuse"}, arguments...), nil, &stdout, &stderr)
+		if code != wantCode {
+			t.Fatalf("test reuse %v: exit %d, want %d\n%s%s", arguments, code, wantCode, stdout.String(), stderr.String())
+		}
+		return stdout.String() + stderr.String()
+	}
+	record := filepath.Join(scratch, "record.json")
+	invoke(0, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", record)
+	out := filepath.Join(scratch, "decision.json")
+	decide := []string{"decide", "--argv", "-count=1", "--confine", confine, "--records", record, "--out", out}
+	if got := invoke(0, decide...); !strings.Contains(got, "DECIDE reuse 1,") {
+		t.Fatalf("negative control: %s", got)
+	}
+	if err := os.Remove(out); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { testReuseBeforePublish = func() {} })
+	testReuseBeforePublish = func() {
+		reuseFixtureWrite(t, root, map[string]string{"data/a.txt": "late\n"})
+	}
+	if got := invoke(testReuseExitIncomplete, decide...); !strings.Contains(got, "snapshot-drift") {
+		t.Fatalf("late edit: %s", got)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("a drifted decision was published: %v", err)
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	if got := invoke(testReuseExitIncomplete, "record", "--go-test-json", stream, "--argv", "-count=1", "--confine", confine, "--out", filepath.Join(scratch, "late-record.json")); !strings.Contains(got, "snapshot-drift") {
+		t.Fatalf("late edit during record: %s", got)
+	}
+	if _, err := os.Stat(filepath.Join(scratch, "late-record.json")); !os.IsNotExist(err) {
+		t.Fatalf("a drifted record was published: %v", err)
+	}
+	materializationGit(t, root, "checkout", "--", "data/a.txt")
+	testReuseBeforePublish = func() {
+		if err := execfile.WriteFile(confine, []byte("#!/bin/sh\nexec env \"$@\"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := invoke(testReuseExitIncomplete, decide...); !strings.Contains(got, "confinement wrapper changed") {
+		t.Fatalf("late confinement edit: %s", got)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("a decision under a changed wrapper was published: %v", err)
+	}
+}

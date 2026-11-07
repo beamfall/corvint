@@ -1691,6 +1691,57 @@ $q -skip '^(TestB)\$' ./w
 # skipped go:other.org/z: outside example.com/m"
 [[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
   fail "heavy.sh --plan output: $(cat "$sel/plan" "$sel/err")"
+# AFP-V0-2326: HEAVY_REUSE, a reuse decision of the manifest's head, replaces each unit of a REUSE
+# package with a `# reused` line; a decision of another head or an unreadable one is not applied.
+decision() { # decision HEAD > FILE
+  printf '{"profile":"corvint-test-reuse-decision/0","head":"%s","identity":{"harness":[]},"records":[{"name":"r/main.json","verdict":"ADMITTED","source":{"kind":"main"}}],"units":[%s]}\n' "$1" \
+    '{"package":"example.com/m/w","decision":"REUSE","reason":"RECORD_DIGEST_EQUAL","digest":"sha256:d","witness":{"record":"r/main.json","kind":"main","commit":"c0"}},{"package":"example.com/m/x","decision":"RUN","reason":"DIGEST_CHANGED"},{"package":"example.com/m/y","decision":"REUSE","reason":"NO_RECORD"}'
+}
+decision "$selhead" > "$sel/d.json" && decision 0000000000000000000000000000000000000000 > "$sel/dold.json"
+# A stub for the current decider records the invocation and returns its freshly computed document.
+cat > "$sel/recheck" <<'SH'
+#!/bin/sh
+printf '%s\n' "$@" > "$RECHECK_ARGS"
+[ "${RECHECK_RC:-0}" = 0 ] || exit 3
+cat "$RECHECK_JSON"
+SH
+chmod +x "$sel/recheck"
+export CORVINT_BIN=$sel/recheck RECHECK_ARGS=$sel/recheck.args RECHECK_JSON=$sel/fresh.json
+cp "$sel/d.json" "$sel/fresh.json"
+HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with HEAVY_REUSE failed: $(cat "$sel/err")"
+want="$q ./x
+$q -run '^(TestA)\$' ./y
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# reused go:example.com/m/w: passed at c0 (main record r/main.json), digest sha256:d (AFP-V0-2326)
+# skipped go:example.com/m/v: slice 0/2 has no -run/-skip pattern
+# skipped go:other.org/z: outside example.com/m"
+[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 2 units from $sel/m.json (planDigest 0123456789ab), 2 reused from $sel/d.json" "$sel/err" ||
+  fail "heavy.sh --plan with HEAVY_REUSE output: $(cat "$sel/plan" "$sel/err")"
+for c in "dold.json|decision head 0000000000000000000000000000000000000000 is not the manifest source.head $selhead" "gone.json|decision unreadable" "m.json|not a corvint-test-reuse-decision/0"; do
+  HEAVY_REUSE="$sel/${c%%|*}" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan with an unusable HEAVY_REUSE failed: $(cat "$sel/err")"
+  grep -qF "heavy.sh: HEAVY_REUSE=$sel/${c%%|*} not applied: ${c#*|}" "$sel/err" && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
+    fail "heavy.sh --plan applied an unusable HEAVY_REUSE ${c%%|*}: $(cat "$sel/plan" "$sel/err")"
+done
+[[ $(cat "$sel/recheck.args") == $'test\nreuse\ndecide\n--argv\n-count=1 -timeout 30m\n--records\nr/main.json\n--trust\nlocal,main' ]] ||
+  fail "heavy.sh did not recompute the current plan invocation: $(cat "$sel/recheck.args")"
+# A stale saved REUSE cannot suppress work after re-evaluation selects it (dirty input or identity).
+perl -pe 's/"decision":"REUSE"/"decision":"RUN"/g' "$sel/d.json" > "$sel/fresh.json"
+HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err"
+grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" && ! grep -q '^# reused' "$sel/plan" ||
+  fail "heavy.sh applied saved reuse after current inputs invalidated it: $(cat "$sel/plan" "$sel/err")"
+for failure in command malformed moved; do
+  cp "$sel/d.json" "$sel/fresh.json"
+  rc=0
+  case $failure in
+    command) rc=3 ;;
+    malformed) printf '{}' > "$sel/fresh.json" ;;
+    moved) decision 0000000000000000000000000000000000000000 > "$sel/fresh.json" ;;
+  esac
+  RECHECK_RC=$rc HEAVY_REUSE="$sel/d.json" sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err"
+  grep -q 'not applied: reuse re-evaluation failed' "$sel/err" && ! grep -q '^# reused' "$sel/plan" ||
+    fail "heavy.sh applied reuse after $failure re-evaluation: $(cat "$sel/plan" "$sel/err")"
+done
+unset CORVINT_BIN RECHECK_ARGS RECHECK_JSON
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"

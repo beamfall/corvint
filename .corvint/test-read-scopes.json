@@ -534,6 +534,10 @@
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
+    "internal/jobinputs": [
+      ".corvint/ci-job-inputs.json",
+      ".github/workflows/ci.yml"
+    ],
     "internal/jslinecov": [],
     "internal/jstestprovider": [
       "go.mod",
