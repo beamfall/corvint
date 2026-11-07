@@ -5,7 +5,9 @@
 // SystemExit or KeyboardInterrupt and kill their process groups (V1-0610). For each tracked *.py
 // file, a handler is a function named as the second argument of signal.signal(...), or a lambda
 // written there; each call is read as one logical call through its closing parenthesis, so a
-// registration split across lines counts. Exit 1 with one line per finding, 2 when the file list
+// registration split across lines counts. String literals (triple-quoted docstrings among them)
+// and comments are blanked before any of this is read, so a handler that only names
+// InterruptedError in a string passes. Exit 1 with one line per finding, 2 when the file list
 // cannot be read.
 //
 // usage: go run ./tools/py-signal-lint
@@ -72,12 +74,10 @@ func run(files map[string][]byte, stdout, stderr io.Writer) int {
 }
 
 func lint(path string, data []byte) []string {
-	lines := strings.Split(string(bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))), "\n")
-	code := make([]string, len(lines))
-	for i, line := range lines {
-		code[i] = stripComment(line)
-	}
-	text := strings.Join(code, "\n")
+	// The registrations, handler definitions and raise statements are read from code only: string
+	// contents and comments are blanked, with every newline kept, so offsets and line numbers hold.
+	text := blankCode(string(bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))))
+	lines := strings.Split(text, "\n")
 	handlers := map[string]bool{}
 	var findings []string
 	for _, loc := range signalCall.FindAllStringIndex(text, -1) {
@@ -103,7 +103,7 @@ func lint(path string, data []byte) []string {
 			if len(body)-len(strings.TrimLeft(body, " \t")) <= indent {
 				break
 			}
-			if raiseIE.MatchString(stripComment(body)) {
+			if raiseIE.MatchString(body) {
 				findings = append(findings, fmt.Sprintf("%s:%d: signal handler %s raises InterruptedError; raise SystemExit or KeyboardInterrupt instead (ASD-V0-574)", path, j+1, m[2]))
 			}
 		}
@@ -113,50 +113,74 @@ func lint(path string, data []byte) []string {
 
 // logicalCall returns the call that starts at text[start] and whose argument list opens at
 // text[open], through its matching closing parenthesis, with newlines flattened to spaces, so a
-// registration split across lines matches like one written on a single line. A parenthesis inside
-// a string literal does not count; an unclosed call runs to the end of the file, so it is still
-// read.
+// registration split across lines matches like one written on a single line. text comes from
+// blankCode, so a parenthesis in a string or comment is already gone; an unclosed call runs to the
+// end of the file, so it is still read.
 func logicalCall(text string, start, open int) string {
 	depth, end := 1, len(text)
-	var quote byte
-scan:
-	for i := open; i < len(text); i++ {
-		c := text[i]
-		switch {
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0 && c == quote:
-			quote = 0
-		case quote != 0:
-		case c == '\'' || c == '"':
-			quote = c
-		case c == '(':
+	for i := open; i < len(text) && end == len(text); i++ {
+		switch text[i] {
+		case '(':
 			depth++
-		case c == ')':
+		case ')':
 			if depth--; depth == 0 {
 				end = i + 1
-				break scan
 			}
 		}
 	}
 	return strings.ReplaceAll(text[start:end], "\n", " ")
 }
 
-// stripComment drops a trailing # comment outside a string literal.
-func stripComment(line string) string {
-	var quote byte
-	for i := 0; i < len(line); i++ {
-		c := line[i]
-		switch {
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0 && c == quote:
-			quote = 0
-		case quote == 0 && (c == '\'' || c == '"'):
-			quote = c
-		case quote == 0 && c == '#':
-			return line[:i]
+// blankCode returns src with every string literal, its quotes included, and every comment replaced
+// by spaces, keeping each newline, so the result has src's length, offsets and line numbers. A
+// literal opens at ' or " outside a comment (a prefix such as r, b or f stays as code) and is
+// triple-quoted when the quote is tripled; a backslash keeps the next byte inside the literal, as
+// Python's tokenizer reads raw literals too. A single-quoted literal left open ends at its line.
+func blankCode(src string) string {
+	out := []byte(src)
+	blank := func(from, to int) {
+		for k := from; k < to; k++ {
+			if out[k] != '\n' {
+				out[k] = ' '
+			}
 		}
 	}
-	return line
+	for i := 0; i < len(src); {
+		c := src[i]
+		switch {
+		case c == '#':
+			end := strings.IndexByte(src[i:], '\n')
+			if end < 0 {
+				end = len(src) - i
+			}
+			blank(i, i+end)
+			i += end
+		case c == '\'' || c == '"':
+			delimiter := src[i : i+1]
+			if strings.HasPrefix(src[i:], strings.Repeat(delimiter, 3)) {
+				delimiter = strings.Repeat(delimiter, 3)
+			}
+			j := i + len(delimiter)
+			for j < len(src) {
+				if src[j] == '\\' {
+					j += 2
+					continue
+				}
+				if strings.HasPrefix(src[j:], delimiter) {
+					j += len(delimiter)
+					break
+				}
+				if src[j] == '\n' && len(delimiter) == 1 {
+					break
+				}
+				j++
+			}
+			j = min(j, len(src))
+			blank(i, j)
+			i = j
+		default:
+			i++
+		}
+	}
+	return string(out)
 }
