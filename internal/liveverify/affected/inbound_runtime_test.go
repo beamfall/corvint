@@ -107,3 +107,40 @@ func TestInboundRuntimeSiteFile_AFP_V0_9009(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-9009: a test whose own name is the whole site text is that site, and
+// a site whose whole text and parsed file are both tests stays unknown, so a
+// strip can never move a site onto another declared test.
+func TestInboundRuntimeSiteAmbiguity_AFP_V0_9009(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, RuntimeEdgesPath), []byte(`{"profile":"corvint-runtime-edges/0","edges":[{"tests":"declared/","runs":"g:server","reason":"declared caller"}]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ts := fake{name: "typescript", units: []Unit{
+		{ID: "typescript:plain", Tests: []string{"declared/a.spec.cjs"}},
+		{ID: "typescript:named", Tests: []string{"declared/a.spec.cjs `x`"}},
+		{ID: "typescript:other", Tests: []string{"elsewhere/b.spec.cjs `x`"}},
+		{ID: "typescript:target", Tests: []string{"declared/b.spec.cjs"}},
+		{ID: "typescript:whole", Tests: []string{"declared/c.spec.cjs `y`"}},
+	}}
+	g := fake{name: "g", units: []Unit{{ID: "g:server", Sources: []string{"server.g"}}}}
+	graph, err := Build(context.Background(), root, g, ts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const prefix = "typescript:e2e-runtime-dependency:"
+	for site, want := range map[string]string{
+		prefix + "declared/a.spec.cjs `x`":  "",                  // both readings are tests
+		prefix + "declared/a.spec.cjs `pw`": "typescript:plain",  // only the parsed file is
+		prefix + "elsewhere/b.spec.cjs `x`": "",                  // the whole site is the test, undeclared
+		prefix + "declared/c.spec.cjs `y`":  "typescript:whole",  // the whole site is the declared test
+		prefix + "declared/b.spec.cjs:7":    "typescript:target", // a located site
+	} {
+		if got := graph.inboundRuntimeSite(site); got != want {
+			t.Errorf("inboundRuntimeSite(%q) = %q, want %q", site, got, want)
+		}
+	}
+}
