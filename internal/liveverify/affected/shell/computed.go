@@ -278,11 +278,13 @@ func constructed(target string, resolve *resolver, values map[string][]string, k
 	if !strings.ContainsAny(target, "$`") {
 		return false, false
 	}
-	// A target whose file name is literal and carries no shell suffix
-	// (`"$sdk/go"`, a binary in a computed directory) names no script this
-	// plugin owns under any expansion, so no dropped value could be one: it
-	// stays outside the model without expanding (TSP-V0-960, V1-4283).
-	if base := path.Base(target); !strings.ContainsAny(base, "$`{}") && !hasAnySuffix(base, Suffixes) {
+	// A target whose file name is literal, carries no shell suffix and is the
+	// name of no owned extensionless script (`"$sdk/go"`, a binary in a
+	// computed directory) names no script this plugin owns under any
+	// expansion, so no dropped value could be one: it stays outside the model
+	// without expanding (TSP-V0-960, AFP-V0-3144). A name such a script has
+	// (`"$dir/check"` beside script/check) is expanded, so its values link.
+	if base := path.Base(target); !strings.ContainsAny(base, "$`{}") && !hasAnySuffix(base, Suffixes) && !ownedExtensionless(known, base) {
 		return false, false
 	}
 	for _, value := range expand(target, values, 0, &cut) {
@@ -302,4 +304,17 @@ func constructed(target string, resolve *resolver, values map[string][]string, k
 		}
 	}
 	return unresolved, cut
+}
+
+// ownedExtensionless reports whether an owned file in known has the file name
+// base, which carries no shell suffix: an ExtensionlessScript (AFP-V0-2205,
+// AFP-V0-3144). A target value links only a known path, and that path's file
+// name is the target's literal one, so a name no known file has links nothing.
+func ownedExtensionless(known map[string]bool, base string) bool {
+	for relative := range known {
+		if path.Base(relative) == base {
+			return true
+		}
+	}
+	return false
 }
