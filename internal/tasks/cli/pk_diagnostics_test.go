@@ -40,7 +40,7 @@ func TestTCLV07405UnboundedActualCoverage(t *testing.T) {
 	for _, coverage := range []string{"UNKNOWN", "INCOMPLETE"} {
 		_, x := effectsTicket(t, root, strings.ToLower(coverage), "P1", `{"coverage":"`+coverage+`","externalUnbounded":false,"resources":[],"touchPaths":[]}`)
 		warnings := effectsUnbounded(x)
-		if len(warnings) != 1 || !strings.Contains(warnings[0], "under coverage "+coverage) || strings.Contains(warnings[0], "QUALIFIED") {
+		if len(warnings) != 1 || !strings.Contains(warnings[0], "(coverage "+coverage+", 0 touchPaths, 0 resources)") || strings.Contains(warnings[0], "QUALIFIED") {
 			t.Fatalf("%s: %v", coverage, warnings)
 		}
 	}

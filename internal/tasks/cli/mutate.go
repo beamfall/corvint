@@ -736,7 +736,7 @@ func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Va
 	if !transaction.UnboundedEffects(e) {
 		return ""
 	}
-	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage %s ( %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
+	return fmt.Sprintf("%s: ticket %s declares no PATH scope (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
 		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
 }
 
