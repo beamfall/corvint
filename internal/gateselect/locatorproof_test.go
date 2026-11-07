@@ -48,10 +48,10 @@ func TestLocatorComparisonScanner_AZU_V0_9930(t *testing.T) {
 	aliases := map[string]string{"system": "os"}
 	guard := []byte("package p\nfunc f() { cwd, _ := system.Getwd(); if cwd != \"/product\" { return } }\n")
 	reader := []byte("package p\nfunc f() { cwd, _ := system.Getwd(); if cwd != \"/product\" { return }; consume(cwd) }\n")
-	if got := scanSource(guard, aliases, nil, nil, nil).calls; len(got) != 0 {
+	if got := scanSource(guard, aliases, nil, nil).calls; len(got) != 0 {
 		t.Fatalf("guard calls %v", got)
 	}
-	if got := scanSource(reader, aliases, nil, nil, nil).calls; len(got) != 1 {
+	if got := scanSource(reader, aliases, nil, nil).calls; len(got) != 1 {
 		t.Fatalf("reader calls %v", got)
 	}
 }

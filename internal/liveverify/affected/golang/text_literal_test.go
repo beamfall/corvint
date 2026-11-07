@@ -10,15 +10,13 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
-// AFP-V0-2952 (V1-4283): a climbing token a non-test file holds only inside
-// line-broken literals that reach only a standard output or error stream is
-// text the program prints, not a path it opens. A line break alone proves
-// nothing: formatted, buffered or stored text keeps rule (d), and the review's
-// formatted reader (`strings.TrimSpace(fmt.Sprintf("../config%s\n", suffix))`)
-// is selected by the file it reads. AFP-V0-2959: only a `package main` file's
-// text is exempt; a library's printed text (`printedlib`) keeps rule (d),
-// since an importer in the same process may capture the stream.
-func TestLineBrokenClimbIsText_AFPV02952(t *testing.T) {
+// AFP-V0-2962 (V1-4283, review fix 3): a climbing token keeps rule (d) in
+// every literal, printed text included. The commands `printed`, `streamed`
+// and `raw`, which the withdrawn AFP-V0-2952 exemption spared, keep rule (d)
+// with the library copy and the formatted, buffered and stored forms; the
+// review's formatted reader (`strings.TrimSpace(fmt.Sprintf("../config%s\n",
+// suffix))`) is selected by the file it reads, and so is `printed`.
+func TestPrintedClimbKeepsRuleD_AFPV02962(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
 		"go.mod":           "module example.test/m\n",
@@ -38,12 +36,12 @@ func TestLineBrokenClimbIsText_AFPV02952(t *testing.T) {
 		"tested/t_test.go": "package tested\nimport \"fmt\"\nfunc init() { fmt.Print(\"See ../../manifest.json\\n\") }\n",
 		"config.go":        "package config\n",
 	})
-	exempt := []string{"printed", "streamed", "raw"}
-	kept := []string{"printedlib", "prose", "template", "formatted", "buffered", "oneline", "path", "script", "both", "tested"}
-	for _, name := range exempt {
+	commands := []string{"printed", "streamed", "raw"}
+	kept := []string{"printed", "streamed", "raw", "printedlib", "prose", "template", "formatted", "buffered", "oneline", "path", "script", "both", "tested"}
+	for _, name := range commands {
 		writeFiles(t, root, map[string]string{name + "/x_test.go": "package main\n"})
 	}
-	for _, name := range kept[:len(kept)-1] {
+	for _, name := range kept[len(commands) : len(kept)-1] {
 		writeFiles(t, root, map[string]string{name + "/x_test.go": "package " + name + "\n"})
 	}
 	result, err := golang.New().Units(context.Background(), root)
@@ -54,18 +52,18 @@ func TestLineBrokenClimbIsText_AFPV02952(t *testing.T) {
 	for _, unit := range result.Units {
 		units[unit.ID] = unit
 	}
-	for _, name := range exempt {
-		if unit := units["go:example.test/m/"+name]; unit.UnboundedReads != "" || unit.LocatesRoot {
-			t.Errorf("%s: a printed line-broken text literal made the package an unbounded reader: %+v", name, unit)
-		}
-	}
 	for _, name := range kept {
 		if unit := units["go:example.test/m/"+name]; unit.UnboundedReads == "" {
-			t.Errorf("%s: a climbing literal with no output-only evidence lost rule (d): %+v", name, unit)
+			t.Errorf("%s: a climbing literal lost rule (d): %+v", name, unit)
 		}
 	}
-	// The exempt token stays a rule (c) path token, and the formatted
-	// reader is selected by the file it reads.
+	for _, name := range commands {
+		if unit := units["go:example.test/m/"+name]; !unit.LocatesRoot {
+			t.Errorf("%s: a command's printed climbing literal no longer locates the root: %+v", name, unit)
+		}
+	}
+	// The printing command and the formatted reader are selected by the
+	// files their text names.
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
@@ -75,8 +73,8 @@ func TestLineBrokenClimbIsText_AFPV02952(t *testing.T) {
 	for _, item := range affected.Select(graph, []string{"manifest.json"}).Selected {
 		found[item.UnitID] = item.Witness.Kind
 	}
-	if found["go:example.test/m/printed"] != affected.WitnessPathLiteralReader {
-		t.Errorf("printed: the text token no longer names its file: %v", found)
+	if found["go:example.test/m/printed"] == "" {
+		t.Errorf("printed: an edit of the file its printed text names did not select it: %v", found)
 	}
 	reads := map[string]bool{}
 	for _, item := range affected.Select(graph, []string{"config.go"}).Selected {
@@ -112,15 +110,16 @@ func Read(suffix string) []byte {
 }
 `
 
-// printedConfig is a command that prints the same literal and reads nothing.
+// printedConfig is a command that prints the same literal and opens nothing
+// itself.
 const printedConfig = "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n"
 
-// capturedStreamFixture is the shared fixture of the AFP-V0-2960 tests: the
-// review's pipe reader as a library (`piped`) and as a command
-// (`pipedmain`), and commands whose own tests capture the stream through
-// os.Pipe (`testcaptured`), an external test package (`xtestcaptured`), a
-// re-run whose output is read back (`reexec`) or a descriptor duplicated
-// onto standard output (`dupped`). `quiet` is the same command whose tests
+// capturedStreamFixture is the second review's fixture (V1-4283, review fix
+// 2): the pipe reader as a library (`piped`) and as a command (`pipedmain`),
+// and commands whose own tests capture the stream through os.Pipe
+// (`testcaptured`), an external test package (`xtestcaptured`), a re-run
+// whose output is read back (`reexec`) or a descriptor duplicated onto
+// standard output (`dupped`). `quiet` is the same command whose tests
 // capture nothing.
 func capturedStreamFixture() map[string]string {
 	captureTest := func(pkg string) string {
@@ -161,14 +160,13 @@ func TestReads(t *testing.T) {
 	}
 }
 
-// AFP-V0-2960 (V1-4283, review fix 2): an output proof exempts a printed
-// literal only when nothing in its directory, test files included, can
-// capture the stream. The review's pipe reader keeps rule (d) and is selected
-// by an edit of the file it reads, as a library and as a command; a command
-// whose tests capture its output through a pipe, an external test package, a
-// re-run or a duplicated descriptor keeps rule (d) too. The same command
-// whose tests capture nothing stays exempt.
-func TestCapturedStreamKeepsClimb_AFPV02960(t *testing.T) {
+// AFP-V0-2962 (V1-4283, review fixes 2 and 3): the second review's pipe
+// readers keep rule (d) and are selected by an edit of the file they read, as
+// a library and as a command, as do commands whose tests capture their output
+// through a pipe, an external test package, a re-run or a duplicated
+// descriptor. `quiet`, whose tests capture nothing, keeps rule (d) too: a
+// process outside its directory can read its output back.
+func TestCapturedStreamKeepsClimb_AFPV02962(t *testing.T) {
 	root := t.TempDir()
 	files := capturedStreamFixture()
 	files["go.mod"] = "module example.test/m\n"
@@ -181,13 +179,10 @@ func TestCapturedStreamKeepsClimb_AFPV02960(t *testing.T) {
 	for _, unit := range result.Units {
 		units[unit.ID] = unit
 	}
-	for _, name := range []string{"piped", "pipedmain", "testcaptured", "xtestcaptured", "reexec", "dupped"} {
+	for _, name := range []string{"piped", "pipedmain", "testcaptured", "xtestcaptured", "reexec", "dupped", "quiet"} {
 		if unit := units["go:example.test/m/"+name]; unit.UnboundedReads == "" {
-			t.Errorf("%s: a printed climbing literal whose stream the package can capture lost rule (d): %+v", name, unit)
+			t.Errorf("%s: a printed climbing literal lost rule (d): %+v", name, unit)
 		}
-	}
-	if unit := units["go:example.test/m/quiet"]; unit.UnboundedReads != "" {
-		t.Errorf("quiet: a command whose package captures no stream lost its text exemption: %+v", unit)
 	}
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
@@ -197,9 +192,115 @@ func TestCapturedStreamKeepsClimb_AFPV02960(t *testing.T) {
 	for _, item := range affected.Select(graph, []string{"config.go"}).Selected {
 		reads[item.UnitID] = true
 	}
-	for _, name := range []string{"piped", "pipedmain", "testcaptured"} {
+	for _, name := range []string{"piped", "pipedmain", "testcaptured", "quiet"} {
 		if !reads["go:example.test/m/"+name] {
 			t.Errorf("%s: an edit of the file the captured text names did not select its reader: %v", name, reads)
+		}
+	}
+}
+
+// importedCapture is the third review's case (V1-4283, review fix 3): a
+// helper package that redirects os.Stdout to a pipe, runs a callback, trims
+// what the callback printed and opens it. It has capture evidence and no
+// climbing literal.
+const importedCapture = `package capture
+
+import (
+	"io"
+	"os"
+	"strings"
+)
+
+// Read runs f with os.Stdout redirected and opens the path f printed.
+func Read(f func()) []byte {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	f()
+	os.Stdout = stdout
+	w.Close()
+	printed, _ := io.ReadAll(r)
+	b, _ := os.ReadFile(strings.TrimSpace(string(printed)))
+	return b
+}
+`
+
+// importedCaptureFixture is the review's exact example: the command `tool`
+// prints "../config%s\n" and its test calls capture.Read(main), so the test
+// process opens ../config.go, the repository's config.go.
+func importedCaptureFixture(module string) map[string]string {
+	return map[string]string{
+		"config.go":               "package config\n",
+		"capture/capture.go":      importedCapture,
+		"capture/capture_test.go": "package capture\n",
+		"tool/main.go":            printedConfig,
+		"tool/main_test.go":       "package main\n\nimport (\n\t\"testing\"\n\n\t\"" + module + "/capture\"\n)\n\nfunc TestReads(t *testing.T) { capture.Read(main) }\n",
+	}
+}
+
+// AFP-V0-2962 (V1-4283, review fix 3): a climbing token in printed text keeps
+// rule (d). The review's imported helper captures the command's stream in the
+// command's own test process; the command keeps rule (d) and an edit of
+// config.go selects it.
+func TestImportedCaptureKeepsClimb_AFPV02962(t *testing.T) {
+	root := t.TempDir()
+	files := importedCaptureFixture("example.test/m")
+	files["go.mod"] = "module example.test/m\n"
+	writeFiles(t, root, files)
+	result, err := golang.New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	units := map[string]affected.Unit{}
+	for _, unit := range result.Units {
+		units[unit.ID] = unit
+	}
+	if unit := units["go:example.test/m/tool"]; unit.UnboundedReads == "" || !unit.LocatesRoot {
+		t.Errorf("tool: a printed climbing literal an imported helper reads back lost rule (d): %+v", unit)
+	}
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads := map[string]bool{}
+	for _, item := range affected.Select(graph, []string{"config.go"}).Selected {
+		reads[item.UnitID] = true
+	}
+	if !reads["go:example.test/m/tool"] {
+		t.Errorf("tool: an edit of the file its captured text names did not select it: %v", reads)
+	}
+}
+
+// AFP-V0-2962 (V1-4283, review fix 3): printed text also leaves the process.
+// A make target that runs a command and opens the path it printed reads that
+// file, though no package of the command's process captures the stream and
+// no Go package imports the target. The command keeps rule (d), so the target
+// is selected on an unrelated change, as every runner of a root locator is
+// (AFP-V0-2951). A proof over the command's import closure cannot see this
+// consumer, which is why the exemption is withdrawn, not narrowed.
+func TestPrintedTextReachesItsRunner_AFPV02962(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":             "module example.test/m\n",
+		"config.go":          "package config\n",
+		"elsewhere/data.txt": "x\n",
+		"quiet/main.go":      printedConfig,
+		"quiet/main_test.go": "package main\n",
+		"Makefile":           "read-printed:\n\tcd quiet && cat \"$$(go run .)\"\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{"config.go", "elsewhere/data.txt"} {
+		found := map[string]string{}
+		for _, item := range affected.Select(graph, []string{dirty}).Selected {
+			found[item.UnitID] = item.Witness.Kind
+		}
+		for _, id := range []string{"go:example.test/m/quiet", "driver:make:Makefile#read-printed"} {
+			if found[id] != affected.WitnessUnboundedReader {
+				t.Errorf("%s: %s: a runner of a command whose printed text it opens was not selected as an unbounded reader: %v", dirty, id, found)
+			}
 		}
 	}
 }

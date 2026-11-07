@@ -140,17 +140,16 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 	}
 }
 
-// TestLineBrokenClimbParity_AFPV02952 holds this index's rule (d) and the
-// planner's equal over climbing literals (V1-4283): a `package main` file's
-// `..` token held only by line-broken literals without a directory-changing
-// word, each reaching only a standard stream, is text (`printed`,
-// `streamed`, `raw`); a library's printed text (`printedlib`, AFP-V0-2959),
-// a literal with no output-only evidence (`prose`, `template`, the
-// review's formatted reader `formatted`, `buffered`), a single-line path
-// (`oneline`, `path`), a printed script with `cd` (`script`), a token both
-// forms hold (`both`) and a test file (`tested`) keep rule (d). A warm scan
-// memo keeps the same set.
-func TestLineBrokenClimbParity_AFPV02952(t *testing.T) {
+// TestPrintedClimbParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal over climbing literals (V1-4283, review fix 3): the
+// commands whose line-broken printed text the withdrawn AFP-V0-2952
+// exemption spared (`printed`, `streamed`, `raw`) keep rule (d), as do a
+// library's printed text (`printedlib`), formatted, buffered and stored text
+// (`prose`, `template`, the review's formatted reader `formatted`,
+// `buffered`), a single-line path (`oneline`, `path`), a printed script with
+// `cd` (`script`), a token both forms hold (`both`) and a test file
+// (`tested`). A warm scan memo keeps the same set.
+func TestPrintedClimbParity_AFPV02962(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"go.mod":                 "module example.com/fixture\n\ngo 1.22\n",
 		"printed/printed.go":     "package main\n\nimport \"fmt\"\n\nfunc main() { F(\"x\") }\n\nfunc F(d string) { fmt.Printf(\"| manifest.json | %s | See ../manifest.json for the digest. |\\n\\nMore text.\\n\", d) }\n",
@@ -180,7 +179,7 @@ func TestLineBrokenClimbParity_AFPV02952(t *testing.T) {
 		"tested/tested.go":       "package tested\n",
 		"tested/tested_test.go":  "package tested\n\nimport \"fmt\"\n\nfunc init() { fmt.Print(\"See ../../manifest.json\\n\") }\n",
 	})
-	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "printedlib", "prose", "script", "template", "tested"})
+	agree(t, root, []string{"both", "buffered", "formatted", "oneline", "path", "printed", "printedlib", "prose", "raw", "script", "streamed", "template", "tested"})
 }
 
 // pipeReader is the review's case (V1-4283, review fix 2), as the planner's
@@ -208,15 +207,15 @@ func Read(suffix string) []byte {
 }
 `
 
-// TestCapturedStreamParity_AFPV02960 holds this index's rule (d) and the
-// planner's equal when a package can capture its standard stream (V1-4283,
-// review fix 2): the review's pipe reader as a library (`piped`) and as a
-// command (`pipedmain`), and commands whose tests capture the stream through
-// os.Pipe (`testcaptured`), an external test package (`xtestcaptured`), a
-// re-run read back (`reexec`) or a duplicated descriptor (`dupped`) keep
-// rule (d); the same command whose tests capture nothing (`quiet`) stays
-// exempt. A warm scan memo keeps the same set.
-func TestCapturedStreamParity_AFPV02960(t *testing.T) {
+// TestCapturedStreamParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal on the second review's fixture (V1-4283, review fixes 2
+// and 3): the pipe reader as a library (`piped`) and as a command
+// (`pipedmain`), commands whose tests capture the stream through os.Pipe
+// (`testcaptured`), an external test package (`xtestcaptured`), a re-run read
+// back (`reexec`) or a duplicated descriptor (`dupped`), and the same command
+// whose tests capture nothing (`quiet`) all keep rule (d). A warm scan memo
+// keeps the same set.
+func TestCapturedStreamParity_AFPV02962(t *testing.T) {
 	printed := "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n"
 	captureTest := "\nimport (\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestReads(t *testing.T) {\n\tr, w, _ := os.Pipe()\n\tos.Stdout = w\n\tw.Close()\n\tprinted, _ := io.ReadAll(r)\n\tos.ReadFile(strings.TrimSpace(string(printed)))\n}\n"
 	root := writeFixture(t, map[string]string{
@@ -237,7 +236,57 @@ func TestCapturedStreamParity_AFPV02960(t *testing.T) {
 		"quiet/main.go":                printed,
 		"quiet/main_test.go":           "package main\n",
 	})
-	agree(t, root, []string{"dupped", "piped", "pipedmain", "reexec", "testcaptured", "xtestcaptured"})
+	agree(t, root, []string{"dupped", "piped", "pipedmain", "quiet", "reexec", "testcaptured", "xtestcaptured"})
+}
+
+// importedCapture is the third review's helper (V1-4283, review fix 3), as
+// the planner's test has it: it redirects os.Stdout to a pipe, runs a
+// callback, trims what the callback printed and opens it. It has capture
+// evidence and no climbing literal.
+const importedCapture = `package capture
+
+import (
+	"io"
+	"os"
+	"strings"
+)
+
+// Read runs f with os.Stdout redirected and opens the path f printed.
+func Read(f func()) []byte {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	f()
+	os.Stdout = stdout
+	w.Close()
+	printed, _ := io.ReadAll(r)
+	b, _ := os.ReadFile(strings.TrimSpace(string(printed)))
+	return b
+}
+`
+
+// TestImportedCaptureParity_AFPV02962 holds this index's rule (d) and the
+// planner's equal on the review's exact example (V1-4283, review fix 3): the
+// command `tool` prints "../config%s\n" and its test calls
+// capture.Read(main), whose imported helper reads the text back and opens
+// ../config.go. The command keeps rule (d), cold and warm, and an edit of
+// config.go selects it.
+func TestImportedCaptureParity_AFPV02962(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":                  "module example.com/fixture\n\ngo 1.22\n",
+		"config.go":               "package config\n",
+		"capture/capture.go":      importedCapture,
+		"capture/capture_test.go": "package capture\n",
+		"tool/main.go":            "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Printf(\"../config%s\\n\", \".go\") }\n",
+		"tool/main_test.go":       "package main\n\nimport (\n\t\"testing\"\n\n\t\"example.com/fixture/capture\"\n)\n\nfunc TestReads(t *testing.T) { capture.Read(main) }\n",
+	})
+	agree(t, root, []string{"tool"})
+	var plan Receipt
+	plan.Provider.Go.State = "RUNNABLE"
+	plan.Plan.Dirty = []string{"config.go"}
+	if got := verdict(plan, root); !strings.Contains(got+" ", " example.com/fixture/tool ") {
+		t.Errorf("an edit of config.go, which tool's captured text names, did not select tool: %q", got)
+	}
 }
 
 func containsString(values []string, value string) bool {

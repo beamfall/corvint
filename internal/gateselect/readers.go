@@ -52,20 +52,6 @@ type goPackage struct {
 	locatesRoot    bool     // a non-test file is unresolved, so every dependent is too
 	movesDirectory bool     // a file moves the working directory (directoryMove)
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
-	// printed holds the climbing tokens a command's printed text alone holds
-	// (AFP-V0-2952, AFP-V0-2959); captures is any evidence, in any file of
-	// the directory, that the process can read a standard stream back
-	// (AFP-V0-2960), which returns them to rule (d).
-	printed  []printedText
-	captures bool
-}
-
-// printedText is a climbing token's rule (d) reason and whether it is a leaf
-// pattern, held back while its command's directory captures no stream (the
-// planner's printedText).
-type printedText struct {
-	reason string
-	leaf   bool
 }
 
 type repositoryIndex struct {
@@ -149,20 +135,6 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	if walkErr != nil {
 		return nil, walkErr
 	}
-	// A command's printed text is text only while nothing in its directory
-	// can capture the stream (AFP-V0-2960).
-	for _, pkg := range index.packages {
-		if !pkg.captures {
-			continue
-		}
-		for _, text := range pkg.printed {
-			if text.leaf {
-				pkg.leafReads = append(pkg.leafReads, text.reason)
-			} else {
-				pkg.markUnresolved(text.reason, false)
-			}
-		}
-	}
 	// A leaf pattern reaches only the package directory while the package's
 	// commands run there: a package that moves the working directory keeps
 	// rule (d) for it (AFP-V0-2542).
@@ -194,9 +166,6 @@ type scannedFile struct {
 	imports             []string
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
-	textOnly            []string   // tokens only line-broken literals hold, sorted (AFP-V0-2952)
-	main                bool       // the file declares package main (AFP-V0-2959)
-	captures            bool       // capturesStream: the file can capture a standard stream (AFP-V0-2960)
 	stamp               string     // the memo stamp, "" when it has none
 	recalled            bool       // taken from the memo, not read
 	err                 error
@@ -257,8 +226,6 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		scanned.err = fmt.Errorf("%s: imports do not parse", relative)
 		return scanned
 	}
-	scanned.main = file.Name.Name == "main"
-	scanned.captures = capturesStream(body)
 	for _, spec := range file.Imports {
 		value, _ := strconv.Unquote(spec.Path.Value)
 		scanned.imports = append(scanned.imports, value)
@@ -268,34 +235,16 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		_, join := pathJoinFuncs[importPath]
 		return join
 	})
-	streams, _ := qualifiedImports(file.Imports, func(importPath string) bool { return outputSinkPackages[importPath] })
-	scanned.scan = scanSource(body, aliases, dotImported, joins, streams)
+	scanned.scan = scanSource(body, aliases, dotImported, joins)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
-	marked, blocked := map[string]bool{}, map[string]bool{}
 	for offset, literal := range scanned.scan.literals {
 		start := len(tokens)
 		tokens = appendPathTokens(tokens, literal, module)
 		if len(tokens) != start {
 			scanned.tokens[offset] = tokens[start:]
 		}
-		// AFP-V0-2952: a token only line-broken literals without a
-		// directory-changing word, each reaching only a standard stream,
-		// hold is text, not a path (the planner's textLiterals).
-		set := blocked
-		if scanned.scan.text[offset] {
-			set = marked
-		}
-		for _, value := range tokens[start:] {
-			set[value] = true
-		}
 	}
-	for value := range marked {
-		if !blocked[value] {
-			scanned.textOnly = append(scanned.textOnly, value)
-		}
-	}
-	sort.Strings(scanned.textOnly)
 	if len(scanned.scan.joined) != 0 {
 		// A bounded join's root-anchored token names what the join reads
 		// (AFP-V0-2950): one more token entry past the literals.
@@ -325,7 +274,6 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
 	pkg.movesDirectory = pkg.movesDirectory || scan.movesDirectory
-	pkg.captures = pkg.captures || scanned.captures
 	for _, values := range scanned.tokens {
 		for _, value := range values {
 			index.holders[value] = appendOnce(index.holders[value], directory)
@@ -335,12 +283,6 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			reason := escapesPackage(directory, value, test)
 			switch {
 			case reason == "":
-			case !test && scanned.main && slices.Contains(scanned.textOnly, value):
-				// Text a command prints, not a path it opens (AFP-V0-2952),
-				// while nothing in its directory can capture the stream
-				// (AFP-V0-2960); a library's printed text keeps rule (d)
-				// (AFP-V0-2959).
-				pkg.printed = append(pkg.printed, printedText{reason: relative + " " + reason, leaf: leafPattern(directory, value, test, index.goDirectories)})
 			case leafPattern(directory, value, test, index.goDirectories):
 				pkg.leafReads = append(pkg.leafReads, relative+" "+reason)
 			default:
@@ -384,7 +326,6 @@ func readBounded(name string, expected fs.FileInfo) ([]byte, error) {
 
 type sourceScan struct {
 	literals       []string
-	text           []bool   // per literal: it holds a line break and no directory-changing word and reaches only a standard stream (AFP-V0-2952)
 	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
 	embeds         bool
@@ -434,10 +375,9 @@ func qualifiedImports(specs []*ast.ImportSpec, wanted func(string) bool) (aliase
 // declarations, its root-locating calls (`os.Getwd`, under
 // whatever local name the file's own imports gave them — a plain import, an
 // alias, or a dot import), and any //go:embed directive.
-func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins, streams map[string]string) sourceScan {
+func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins map[string]string) sourceScan {
 	var scan sourceScan
 	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
-	output := outputOnlyLiterals(body, streams)
 	scan.joined = joined
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
@@ -484,7 +424,6 @@ func scanSource(body []byte, aliases map[string]string, dotImported map[string]b
 		}
 		if value, err := strconv.Unquote(text); err == nil {
 			scan.literals = append(scan.literals, value)
-			scan.text = append(scan.text, output[source.Offset(position)] && strings.Contains(value, "\n") && !changesDirectory(text))
 		}
 	}
 }
