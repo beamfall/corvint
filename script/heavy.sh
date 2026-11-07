@@ -1508,9 +1508,36 @@ whole_run_pattern() {
 # like -run. FLAG has no leading dashes or test. prefix and no inline value (ASD-V0-2478).
 go_test_value_flag() {
   case $1 in
-    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo) return 0 ;;
+    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo | debug-actiongraph | debug-runtime-trace | debug-trace) return 0 ;;
   esac
   return 1
+}
+
+# go_test_known_flag ARG: closed syntax/arity allowlist for automatic admission (ASD-V0-2478).
+# New Go flags and custom test flags must acquire an explicit proof before they are admitted.
+go_test_known_flag() {
+  local flag=${1#-} name value
+  [[ $1 == -* ]] || return 1
+  flag=${flag#-}
+  if [[ $flag == test.* ]]; then
+    # Only cmd/go's forwarded test flags have a test. alias; build flags do not.
+    name=${flag%%=*}; name=${name#test.}
+    case $name in
+      artifacts | bench | benchmem | benchtime | blockprofile | blockprofilerate | count | coverprofile | cpu | cpuprofile | failfast | fullpath | fuzz | fuzzminimizetime | fuzztime | list | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | outputdir | parallel | run | short | shuffle | skip | timeout | trace | v) ;;
+      *) return 1 ;;
+    esac
+    flag=${flag#test.}
+  fi
+  name=${flag%%=*}
+  go_test_value_flag "$name" && return 0
+  case $name in
+    a | asan | artifacts | benchmem | buildvcs | c | cover | failfast | fullpath | json | linkshared | modcacherw | msan | n | race | short | trimpath | v | work | x) ;;
+    *) return 1 ;;
+  esac
+  [[ $flag == *=* ]] || return 0
+  value=${flag#*=}
+  case $value in 0 | 1 | true | false | TRUE | FALSE | True | False | t | f | T | F) return 0 ;; esac
+  [[ $name == buildvcs && $value == auto || $name == v && $value == test2json ]]
 }
 
 # source_tests_unfiltered MODE COMMAND...: ASD-V0-2478. Source edits justify running every
@@ -1550,6 +1577,8 @@ source_tests_unfiltered() {
       continue
     fi
     if ((value_next)); then value_next=0; continue; fi
+    [[ $arg == -* ]] || continue
+    go_test_known_flag "$arg" || return 1
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
     case $flag in
       skip | skip=*)
@@ -1577,7 +1606,10 @@ source_tests_unfiltered() {
   flags=${flags//$'\n'/ }; flags=${flags//$'\r'/ }
   read -ra words <<< "$flags"
   for arg in ${words[@]+"${words[@]}"}; do
+    go_test_known_flag "$arg" || return 1
     flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+    # GOFLAGS uses one word per flag, so value-taking flags need an inline operand.
+    if [[ $flag != *=* ]] && go_test_value_flag "$flag"; then return 1; fi
     case $flag in
       run=*)
         [[ -z $quoted && $arg != *test.run=* ]] || return 1
@@ -1593,7 +1625,7 @@ source_tests_unfiltered() {
 # run_selects_all COMMAND...: whether the final effective -run matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
-  local arg flag value= next=0 skip=0 seen=0 prev_go=0 run_set=0
+  local arg flag value= next=0 skip=0 seen=0 prev_go=0 run_set=0 narrow_unproven=0
   for arg in "$@"; do
     if ((!seen)); then
       [[ $arg == test && $prev_go == 1 ]] && seen=1
@@ -1602,16 +1634,24 @@ run_selects_all() {
     fi
     if ((skip)); then skip=0; continue; fi
     if ((next)); then value=$arg run_set=1 next=0; continue; fi
+    # -args ends Go's flags; the existing alias/terminator guards check the binary tail.
+    [[ $arg != -args ]] || break
+    # Unknown syntax cannot certify a narrow selection: retain the whole-package claim.
+    if [[ $arg == -* ]]; then go_test_known_flag "$arg" || return 0; fi
     case $arg in
       -run | --run) next=1 ;;
       -run=* | --run=*) value=${arg#*=} run_set=1 ;;
       -args | --) break ;;
       -*)
         flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        # Go labels these debugging flags unstable. Their operands are understood, but
+        # narrow admission with instrumentation is outside the certified allowlist.
+        case ${flag%%=*} in debug-actiongraph | debug-runtime-trace | debug-trace) narrow_unproven=1 ;; esac
         if go_test_value_flag "$flag"; then skip=1; fi
         ;;
     esac
   done
+  ((seen && !next && !skip && !narrow_unproven)) || return 0
   ((run_set)) || return 0 # No effective -run leaves the default whole-package selection.
   value=${value%%/*}
   value=${value#^}
