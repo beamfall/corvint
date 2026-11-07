@@ -15,11 +15,22 @@ func (graph *Graph) inboundRuntimeSite(entry string) string {
 	if !strings.HasPrefix(entry, prefix) {
 		return ""
 	}
-	file := inboundRuntimeSiteFile(strings.TrimPrefix(entry, prefix))
-	owner := graph.owner[file]
-	if owner == "" || !slices.Contains(graph.units[owner].Tests, file) {
+	site := strings.TrimPrefix(entry, prefix)
+	file := inboundRuntimeSiteFile(site)
+	// A test whose own name is the whole site text (one that ends in a
+	// backquoted word or a `:digits` suffix) is that site; when the parsed
+	// file is a test too, the site is ambiguous and stays unknown
+	// (AFP-V0-9009).
+	if file != site && graph.ownedTest(site) {
+		if graph.ownedTest(file) {
+			return ""
+		}
+		file = site
+	}
+	if !graph.ownedTest(file) {
 		return ""
 	}
+	owner := graph.owner[file]
 	for _, edge := range graph.runtimeEdges {
 		if runtimeEdgeHolds(edge.Tests, file) {
 			if _, exists := graph.units[edge.Runs]; exists {
@@ -28,6 +39,12 @@ func (graph *Graph) inboundRuntimeSite(entry string) string {
 		}
 	}
 	return ""
+}
+
+// ownedTest reports a path a unit of the graph owns as a test.
+func (graph *Graph) ownedTest(file string) bool {
+	owner := graph.owner[file]
+	return owner != "" && slices.Contains(graph.units[owner].Tests, file)
 }
 
 // inboundRuntimeSiteFile returns the file of one located site the
