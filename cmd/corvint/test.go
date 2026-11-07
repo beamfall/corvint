@@ -35,6 +35,13 @@ Usage:
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
+  corvint test reuse record (--outcomes PATH... | --go-test-json PATH)
+      --argv WORDS [--confine PATH] [--harness PATH]...
+      [--source-kind main|pull_request|local]
+      [--pull-request N] [--run-id ID] [--run-attempt N] --out PATH
+  corvint test reuse decide --argv WORDS [--confine PATH] [--records PATH]...
+      [--harness PATH]... [--trust KIND[,KIND]] [--pull-request N]
+      [--packages PATH] [--out PATH] [--run-list PATH]
 
 --format json explicitly selects JSON, including for a local dry run; it cannot
 combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --format json.
@@ -83,6 +90,26 @@ partition digest. Missing or invalid history prints corvint-test: shards FALLBAC
 <reason> and plans the complete round-robin. With --test-slices and
 --split-allow (both or neither) a package those AFP-V0-041 files split is
 placed as its slices, each on a different shard. It writes only stdout.
+
+reuse (experimental, AFP-V0-2320 to AFP-V0-2327) reuses a verified pass of
+a Go package whose inputs are unchanged. record digests each package a run
+passed (first-run outcomes of corvint-ci-outcomes/0 documents of HEAD, or a
+go test -json stream) and writes a corvint-test-reuse-record/0 file to
+--out. decide digests the packages of HEAD (--packages, default go list
+./...) and prints a corvint-test-reuse-decision/0: REUSE only when an
+admitted record (--trust, default local,main; pull_request needs
+--pull-request N) passed the package under the same identity with the same
+digest; --run-list writes the packages still to run. A digest binds the
+package's directory, its declared read scope (.corvint/test-read-scopes.json),
+the files compiled into its test binary, go.mod and go.sum to their Git
+blobs, plus go env, --argv (which must carry -count=1 and no -run or
+-skip), each --harness path and the content digest of the --confine
+wrapper the tests ran under as go test -exec. An undeclared, UNBOUNDED_READER
+or split package, a run without --confine, or a dirty or untracked input,
+always runs. It writes only the
+named files; exit 3 when no record or decision can be produced.
+Example: corvint test reuse decide --argv "-count=1 -timeout 30m"
+--confine "$RUNNER_TEMP/test-confine" --records /tmp/main-record.json --run-list /tmp/run.txt
 
 --go-parallel N (local profile only, 1 to 64) runs the Go invocations with
 -p N in place of the declared -p, so a focused selection fits a bounded
@@ -284,6 +311,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	}
 	if len(args) > 0 && args[0] == "shards" {
 		return runTestShards(args[1:], stdout, stderr)
+	}
+	if len(args) > 0 && args[0] == "reuse" {
+		return runTestReuse(ctx, root, args[1:], stdout, stderr)
 	}
 	options, err := parseTestOptions(args)
 	if err != nil {
@@ -519,7 +549,14 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Costs:  testReadOptional(filepath.Join(root, testPartitionDirectory, "package-costs.json")),
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
+		// The declaration is read independently of the plan, so a planning
+		// failure still finds every declared full command (STR-V0-003); the
+		// typed-reach model reads its build configuration from it (AFP-V0-2372).
+		Declared: sessiontest.ReadDeclared(root),
 	}
+	// Read the full scope independently of planning so a failure still finds
+	// every declared full command. Selected consumer argv augment this scope.
+	input.Declared = sessiontest.ReadDeclared(root)
 	var pins testPinsResult
 	// The graph comes from the default affected graph cache when one can be
 	// placed, as `corvint affected` reads it, so an unchanged tree is not
@@ -557,9 +594,6 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		}
 		input.PlanError = message
 	}
-	// The declaration is read independently of the plan, so a planning
-	// failure still finds every declared full command (STR-V0-003).
-	input.Declared = sessiontest.ReadDeclared(root)
 	return input, pins
 }
 
@@ -592,8 +626,22 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	}
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
+		if selection.Kind == "DECLARED_CONSUMER" && strings.HasPrefix(selection.UnitID, "declared-consumer:") && affected.ValidConsumerRun(selection.Run) {
+			// AZU-V0-007: CI cannot execute the consumer. Keep the legacy
+			// check that the trusted workflow uses to require its browser job,
+			// alongside the exact argv retained as a declared command below.
+			if input.RunnerProfile == sessiontest.ProfileCI {
+				input.Checks = append(input.Checks, sessiontest.BinaryConsumerCheck(strings.TrimPrefix(selection.UnitID, "declared-consumer:")))
+			}
+			// Reuse the declared-command adapter without extending the
+			// manifest wire. Its digest binds the exact per-consumer argv.
+			input.Declared.Languages = append(input.Declared.Languages, sessiontest.LanguageCommand{
+				Language: selection.UnitID, Argv: append([]string(nil), selection.Run...),
+			})
+		}
 	}
-	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base)
+	slices.SortFunc(input.Declared.Languages, func(a, b sessiontest.LanguageCommand) int { return strings.Compare(a.Language, b.Language) })
+	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
 	}
@@ -649,11 +697,10 @@ func testPlanRunSet(verdict string, planned []string) string {
 	return "run " + strings.Join(packages, " ")
 }
 
-// testGoUniverse is the root Go universe: every graph Go unit the root
-// module's `go list ./...` lists. A dependent nested module's synthetic unit
-// (AFP-V0-582) is a module, not a root package, so it is excluded with its
-// reason rather than left for the runner's listing to report unlisted
-// (STR-V0-069).
+// testGoUniverse is every graph Go package the root runner can list, using
+// ./... plus explicit hidden packages. A dependent nested module's synthetic
+// unit (AFP-V0-582) is not a root package and is excluded with its reason
+// instead of left for discovery to report unlisted (STR-V0-069).
 func testGoUniverse(graph *affected.Graph) (universe, excluded []string) {
 	universe = []string{}
 	for _, id := range graph.UnitIDs() {

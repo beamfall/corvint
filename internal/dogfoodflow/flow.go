@@ -39,6 +39,10 @@ type Command func(ctx context.Context, root string, args []string, stdout, stder
 type Runner struct {
 	Path string
 	Run  Command
+	// Concurrent marks a Run safe to call from two goroutines at once, as
+	// Exec's is; only then does a change start impact beside its query
+	// (DWC-V0-756).
+	Concurrent bool
 }
 
 // Exec runs every command as the executable at path. On cancellation the child
@@ -55,7 +59,7 @@ func Exec(path string) Runner {
 			return nil
 		}
 		return exitStatus(command.Run())
-	}}
+	}, Concurrent: true}
 }
 
 // stableReuseKey carries the private run directory whose path Exec passes to

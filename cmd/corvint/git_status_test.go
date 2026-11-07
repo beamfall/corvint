@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,7 +21,7 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 				root := taskContextRepository(t)
 				marker := filepath.Join(root, "filter-executed")
 				filter := ": > '" + strings.ReplaceAll(marker, "'", "'\"'\"'") + "'; cat"
-				command := exec.Command("git", "-C", root, "config", "filter.hostile."+driver, filter)
+				command := fixtureGitCommand("-C", root, "config", "filter.hostile."+driver, filter)
 				if data, err := command.CombinedOutput(); err != nil {
 					t.Fatalf("configure filter: %v %s", err, data)
 				}
@@ -129,13 +128,13 @@ func TestStandaloneReadNamesUnsupportedRepositoryFeature(t *testing.T) {
 				secret := filepath.Join(t.TempDir(), "credential-value")
 				arguments := []string{"config", "include.path", secret}
 				if test.name == "gitlink" {
-					oid, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+					oid, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").Output()
 					if err != nil {
 						t.Fatal(err)
 					}
 					arguments = []string{"update-index", "--add", "--cacheinfo", "160000," + strings.TrimSpace(string(oid)) + ",child"}
 				}
-				if data, err := exec.Command("git", append([]string{"-C", root}, arguments...)...).CombinedOutput(); err != nil {
+				if data, err := fixtureGitCommand(append([]string{"-C", root}, arguments...)...).CombinedOutput(); err != nil {
 					t.Fatalf("configure %s: %v %s", test.name, err, data)
 				}
 				var stdout, stderr bytes.Buffer

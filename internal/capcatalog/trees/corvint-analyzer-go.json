@@ -1,0 +1,45 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-go",
+  "helpJson": "corvint-cli --binary corvint-analyzer-go help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-go"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-go",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-go < REQUEST.json"
+      ],
+      "flags": [],
+      "required": [
+        "stdin: protocol request JSON"
+      ],
+      "example": "corvint-analyzer-go < REQUEST.json",
+      "help": "corvint-cli --binary corvint-analyzer-go --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-go help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-go help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-analyzer-go help --json",
+      "help": "corvint-cli --binary corvint-analyzer-go help --help"
+    }
+  ]
+}

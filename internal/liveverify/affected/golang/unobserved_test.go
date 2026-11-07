@@ -30,6 +30,9 @@ func TestNestedModuleChangeIsANestedModuleUnknown_AFPV0191(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A new file is on disk; an absent one beside an observed package is a
+	// deletion that rule (a) attributes (AFP-V0-2610).
+	writeFiles(t, root, map[string]string{"a/new.go": "package a\n"})
 	for dirty, want := range map[string]affected.Unknown{
 		"nested/n.go":       {Reason: affected.UnknownLanguageFrontier, Detail: "go:unobserved-module:nested:nested/n.go"},
 		"nested/new.go":     {Reason: affected.UnknownLanguageFrontier, Detail: "go:unobserved-module:nested:nested/new.go"},
@@ -70,6 +73,9 @@ func TestUnobservedLeavesOutDirectoriesHoldingObservedModules_AFPV0191(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A new file is on disk; an absent one beside an observed package is a
+	// deletion that rule (a) attributes (AFP-V0-2610).
+	writeFiles(t, root, map[string]string{"outer/inner/new.go": "package inner\n"})
 	plan := affected.Select(graph, []string{"outer/inner/new.go"})
 	if want := []affected.Unknown{{Reason: affected.UnknownUnindexedSourcePath, Detail: "outer/inner/new.go"}}; !reflect.DeepEqual(plan.Unknown, want) {
 		t.Fatalf("unknown = %+v, want %+v", plan.Unknown, want)

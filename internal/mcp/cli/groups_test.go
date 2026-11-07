@@ -134,10 +134,7 @@ func TestMMRV0012GroupsToolsListGolden(t *testing.T) {
 	if exit := run(context.Background(), arguments, strings.NewReader(list), &stdout, &stderr); exit != 0 || !strings.Contains(stderr.String(), "corvint-mcp: note: --corpus-artifact unavailable (") {
 		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
 	}
-	want, err := os.ReadFile(filepath.Join("testdata", "tools-list-groups.golden.jsonl"))
-	if err != nil || !bytes.Equal(stdout.Bytes(), want) {
-		t.Fatalf("tools-list-groups.golden.jsonl mismatch (%v):\n%s", err, stdout.Bytes())
-	}
+	checkToolsListGolden(t, "tools-list-groups.golden.jsonl", stdout.Bytes())
 }
 
 // MMR-V0-013 (GitHub #2011 acceptance): one server takes the workspace once

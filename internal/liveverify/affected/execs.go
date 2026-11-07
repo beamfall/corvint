@@ -3,6 +3,7 @@ package affected
 import (
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // BinaryExecsPath is the repository's declaration of the commands each
@@ -36,8 +37,13 @@ func (graph *Graph) builtCommands(reached, enclosing map[string]Witness) map[str
 
 // execUsersOf selects each unit not already reached that runs the built
 // binary of a command in built, one edge past it with a BINARY_EXEC witness
-// (AFP-V0-037). Like a reader the runner is not traversed. Commands are
-// visited by witness length, then id, so each runner takes the shortest chain.
+// (AFP-V0-037). The runner is not traversed from here: a unit whose code may
+// run a command the dependency traversal reaches is already reached and
+// walked on by it (AFP-V0-2993), so what this adds is a unit whose tests
+// alone run the binary, whose importers compile none of those tests, and a
+// runner of a command only an enclosed path reaches, whose own importers the
+// plan does not walk either. Commands are visited by witness length, then id,
+// so each runner takes the shortest chain.
 func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 	commands := make([]string, 0, len(built))
 	for command := range built {
@@ -72,7 +78,7 @@ func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 // no unit's test, so the plan states it rather than leaving the run out
 // silently. A command reached only for its own test files, or as a reader,
 // was not rebuilt and names no consumer. The hint names the nearest command.
-func (graph *Graph) unselectedConsumers(reached map[string]Witness, rebuilt map[string]bool, selected []Selection) []Unknown {
+func (graph *Graph) unselectedConsumers(reached, rebuilt map[string]Witness, selected []Selection) []Unknown {
 	tests := map[string]bool{}
 	for _, selection := range selected {
 		for _, test := range selection.Tests {
@@ -82,7 +88,8 @@ func (graph *Graph) unselectedConsumers(reached map[string]Witness, rebuilt map[
 	commands := map[string]string{}
 	for _, id := range graph.order {
 		witness, hit := reached[id]
-		if !hit || !strings.HasPrefix(id, "go:") || !rebuilt[id] && !rebuilds(witness.Kind) {
+		_, built := rebuilt[id]
+		if !hit || !strings.HasPrefix(id, "go:") || !built && !rebuilds(witness.Kind) {
 			continue
 		}
 		for _, file := range graph.units[id].ExecConsumers {
@@ -114,4 +121,45 @@ func sortedKeysOf(set map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// ValidConsumerRun bounds project-owned argv without interpreting it as shell text.
+func ValidConsumerRun(run []string) bool {
+	if len(run) == 0 || len(run) > 256 || run[0] == "" {
+		return false
+	}
+	bytes := 0
+	for _, arg := range run {
+		bytes += len(arg)
+		if !utf8.ValidString(arg) || strings.ContainsAny(arg, "\x00\r\n") {
+			return false
+		}
+	}
+	return bytes <= 65536
+}
+
+// selectDeclaredConsumers adds one runnable selection per declared consumer,
+// even if another plugin has already selected that file. The declaration's
+// runner is the authority for executing the consumed binary (AZU-V0-007).
+func (graph *Graph) selectDeclaredConsumers(rebuilt map[string]Witness, selected []Selection) []Selection {
+	commands := map[string]string{}
+	for _, id := range graph.order {
+		witness, hit := rebuilt[id]
+		if !hit || !strings.HasPrefix(id, "go:") {
+			continue
+		}
+		for file := range graph.units[id].ExecConsumerRuns {
+			previous := commands[file]
+			if previous == "" || witness.ViaLength() < rebuilt[previous].ViaLength() {
+				commands[file] = id
+			}
+		}
+	}
+	for _, file := range sortedKeysOf(commands) {
+		id := commands[file]
+		parent := rebuilt[id]
+		consumer := "declared-consumer:" + file
+		selected = append(selected, Selection{UnitID: consumer, Tests: []string{file}, Kind: "DECLARED_CONSUMER", Run: append([]string(nil), graph.units[id].ExecConsumerRuns[file]...), Witness: Witness{Kind: "DECLARED_CONSUMER", DirtyPath: parent.DirtyPath, link: parent.extended(consumer)}})
+	}
+	return selected
 }

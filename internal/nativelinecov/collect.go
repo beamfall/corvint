@@ -112,6 +112,15 @@ func Collect(ctx context.Context, o Options) ([]linecov.Outcome, error) {
 			continue
 		}
 		selector := test.ID
+		// ConsoleLauncher does not admit --select-unique-id on the pinned
+		// native console. Standard method IDs have an exact native method
+		// selector; dynamic/nested IDs still need the caller's explicit map.
+		switch o.Request.Runner {
+		case "junit-platform", "junit4", "kotlin-test", "robolectric":
+			if method, ok := junitMethodSelector(test.ID); ok {
+				selector = method
+			}
+		}
 		if strings.HasPrefix(o.Request.Runner, "dotnet-mtp-") {
 			selector, _, _ = strings.Cut(test.ID, "::")
 		}
@@ -136,6 +145,29 @@ func Collect(ctx context.Context, o Options) ([]linecov.Outcome, error) {
 	return out, nil
 }
 
+// junitMethodSelector translates only the simple, unambiguous discovery ID.
+// Extra segments, escapes and dynamic invocations retain the old refusal path.
+func junitMethodSelector(id string) (string, bool) {
+	parts := strings.Split(id, "/")
+	if len(parts) != 3 || !strings.HasPrefix(parts[0], "[engine:") || !strings.HasSuffix(parts[0], "]") {
+		return "", false
+	}
+	class, ok := strings.CutPrefix(parts[1], "[class:")
+	if !ok || !strings.HasSuffix(class, "]") {
+		return "", false
+	}
+	class = strings.TrimSuffix(class, "]")
+	method, ok := strings.CutPrefix(parts[2], "[method:")
+	if !ok || !strings.HasSuffix(method, "()]") {
+		return "", false
+	}
+	method = strings.TrimSuffix(method, "()]")
+	if class == "" || method == "" || strings.ContainsAny(class+method, "[]\\%#") {
+		return "", false
+	}
+	return class + "#" + method, true
+}
+
 func (o Options) run(ctx context.Context, work string, seq int, name, selector string) (linecov.Outcome, tr.Observation, error) {
 	out := linecov.Outcome{Package: o.Package, Name: name}
 	var obs tr.Observation
@@ -145,7 +177,17 @@ func (o Options) run(ctx context.Context, work string, seq int, name, selector s
 	r := o.Request
 	r.ReportDir = filepath.Join(work, fmt.Sprintf("%d", seq))
 	r.Selectors = nil
-	r.ExpectedTests = nil
+	// Inventory-based native protocols cannot discover disabled or missing
+	// identities from terminal reports alone. Keep the caller's inventory;
+	// cmocka admits exactly the one expected identity for an isolated run.
+	if r.Runner == "cmocka-xml" || r.Runner == "boost-test-junit" {
+		r.ExpectedTests = append([]string(nil), o.Request.ExpectedTests...)
+		if r.Runner == "cmocka-xml" && selector != "" {
+			r.ExpectedTests = []string{name}
+		}
+	} else {
+		r.ExpectedTests = nil
+	}
 	r.ExpectedSelection = nil
 	if selector != "" {
 		r.Selectors = []string{selector}

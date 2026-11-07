@@ -1,0 +1,19 @@
+{
+  "directories": {
+    ".corvint/changes/": {
+      "cmd/corvint": "its dogfood, cem and context command tests write sealed CEMs into .corvint/changes/ of fixture repositories; an unbounded reader (.corvint/unbounded-readers.json), so no read scope is declared (V1-4933 baseline)",
+      "internal/cem/corpusbinding": "binding_test.go reads every committed sealed CEM through the literal ../../../.corvint/changes, a real reader of each new entry; its read scope is not yet declared (V1-4933 baseline)",
+      "internal/cemchain": "chain_test.go moves a bound CEM into .corvint/changes/ of a fixture repository; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/console": "chain.go lists .corvint/changes of the repository the console serves, and its tests serve fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/contextindex": "the indexer recognises sealed CEMs under .corvint/changes/ of the repository it indexes, and its tests index fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/liveverify/affected": "readers.go names the directory as SealedChangesDirectory, the planner's own record-directory constant, and its tests plan fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/liveverify/affected/golang": "additive_consumer_test.go writes sealed CEMs into a fixture repository; an unbounded reader, so no read scope is declared (V1-4933 baseline)"
+    },
+    "docs/build-log/": {
+      "cmd/corvint": "its affected and dogfood record-class tests name build-log entries of fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/liveverify/affected": "readers.go names the directory as BuildLogDirectory, the planner's own record-directory constant, and its documentation and replay tests plan build-log entries; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
+      "internal/tasks/cli": "closeout_debt.go reads build-log entries of the repository it closes out, and its tests use fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)"
+    }
+  },
+  "profile": "corvint-record-readers/0"
+}

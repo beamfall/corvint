@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -230,6 +231,10 @@ func (l *finishLane) run() int {
 			l.removePreflight()
 			l.recordPreflight(l.prepare())
 		}
+		l.noteUnknownRows()
+		l.noteRunSubsetPackages()
+		l.noteOmittedOverBoundSpecs()
+		l.recordPlanHead()
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}
@@ -354,9 +359,17 @@ func (l *finishLane) requireVerifyInput() {
 		// line with the absolute home directory.
 		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
 	}
+	// DWC-V0-3722: the named line and the quoted detail are the same line. The
+	// whole-input check reports the first refused command in sorted order,
+	// which can be a later line than the first refused line in file order.
 	line, text := refusedVerifyLineOf(l.options.Change)
-	if reason == "aggregate-verify-argv-unsupported" || reason == "aggregate-admission-unavailable" {
+	aggregate := reason == "aggregate-verify-argv-unsupported" || reason == "aggregate-admission-unavailable"
+	if aggregate {
 		line, text = typedVerifyLineOf(l.options.Change)
+	} else if line > 0 {
+		if err := validateVerify(verifyLineArguments(text)); err != nil && detail != "" {
+			detail = err.Error()
+		}
 	}
 	if detail != "" && line > 0 {
 		if l.options.Change.VerifyFile == "" {
@@ -369,17 +382,23 @@ func (l *finishLane) requireVerifyInput() {
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
-	if reason == "aggregate-verify-argv-unsupported" || reason == "aggregate-admission-unavailable" {
-		fix := "write separate plain test-name commands or a committed verification script"
+	if aggregate {
+		// DCW-V0-7403 and DWC-V0-3726 specify the same refusal (V1-4169); this
+		// check answers both, so it names both requirements' recovery.
+		fix := "write separate plain test-name commands or a committed verification script, then rerun corvint dogfood finish-lane --base %s (DWC-V0-3726)\n"
 		if reason == "aggregate-admission-unavailable" {
-			fix = "resolve the repository admission failure above"
+			fix = "resolve the repository admission failure above, then rerun corvint dogfood finish-lane --base %s\n"
 		}
-		l.say("  fix: %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+		l.say("  fix: "+fix, l.options.Change.Base)
+		l.say("  nothing was prepared, bound or committed\n")
 		l.exit(2)
 		return
 	}
-	if _, text := refusedVerifyLineOf(l.options.Change); text != "" {
+	if text != "" {
 		if why := quotedRunRefusal(text); why != "" {
+			l.say("  refused: %s\n", why)
+		}
+		if why := caretRunRefusal(text); why != "" {
 			l.say("  refused: %s\n", why)
 		}
 	}
@@ -654,20 +673,38 @@ func (l *finishLane) requireOutcomeInputs() {
 	l.exit(2)
 }
 
-// verifyRefusalLine is the 1-based line of the verify file whose command
-// alone the same validator refuses, or 0 when no single line is refused, as
-// for a file over the command bound (DCW-V0-379).
-func verifyRefusalLine(path string) int {
-	data, err := readPrefix(path, maxVerifyFileBytes)
-	if path == "" || err != nil {
-		return 0
+// noteUnknownRows names, on a passing inputs-check, the plan rows that keep a
+// hunk unknown with a recorded reason (DWC-V0-3721). They are admitted by
+// design: an honest unknown is never refused (DCW-V0-046), the bound map
+// keeps each one unknown with its reason, and dogfood-check counts them in
+// unknownShare and reasonedUnknown. The NOTE changes no exit status.
+func (l *finishLane) noteUnknownRows() {
+	// The staged route's plans are slices of this plan, so it alone is read.
+	data, err := readPrefix(l.options.Change.Citations, maxPlanBytes)
+	if l.options.Change.Citations == "" || err != nil {
+		return
 	}
-	line, _ := refusedVerifyLine(data)
-	return line
+	reasons := map[string]int{}
+	total := 0
+	for _, line := range textLines(data) {
+		if fields := strings.SplitN(line, "\t", 4); unknownRow(fields) {
+			reasons[fields[2]]++
+			total++
+		}
+	}
+	if total == 0 {
+		return
+	}
+	counts := []string{}
+	for _, reason := range slices.Sorted(maps.Keys(reasons)) {
+		counts = append(counts, fmt.Sprintf("%s:%d", reason, reasons[reason]))
+	}
+	l.line("inputs-check NOTE unknown-rows=%d reasons=%s: admitted by design; each hunk stays unknown with its reason in the bound map and dogfood-check counts it in unknownShare and reasonedUnknown; cite a hunk instead when BASE holds its evidence (DCW-V0-046, DWC-V0-3721)", total, strings.Join(counts, ","))
 }
 
 // refusedVerifyLine returns the 1-based number and text of the first line of
-// data that the recorder refuses, or 0 and "" when every line is admitted.
+// data that the recorder refuses, or 0 and "" when every line is admitted, as
+// for a file over the command bound (DCW-V0-379).
 func refusedVerifyLine(data []byte) (int, string) {
 	for index, line := range strings.Split(string(data), "\n") {
 		if strings.TrimLeft(line, " \t\n\v\f\r") != "" && validateVerify(verifyLineArguments(line)) != nil {

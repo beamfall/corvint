@@ -24,8 +24,9 @@ type publicationFixture struct {
 
 func newPublicationFixture(t *testing.T) publicationFixture {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), "repository")
-	runGitTest(t, ".", "init", "-q", root)
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repository")
+	runGitTest(t, parent, "init", "-q", root)
 	mustWrite(t, filepath.Join(root, "tracked.txt"), "candidate\n")
 	commitAllPublicationTest(t, root, "candidate")
 	runGitTest(t, root, "tag", publicationTestTag)

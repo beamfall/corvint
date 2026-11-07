@@ -10,7 +10,7 @@ Authoritative inputs: `AGENTS.md` invariants 3 and 6, `docs/specs/ocm-v0-dogfood
 ## Agent digest
 - Claim: `ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.
 - Status: accepted (owner, 2026-10-18, decision 0541); delivery experimental, and the capability must not be advertised as delivered until the promotion evidence passes.
-- Exists: `internal/lrfrepo/ocm_forms.go`, the `--intent-form` flag, an optional `intentScope.form` wire member, focused tests, and one live Beamfall sweep.
+- Exists: `internal/lrfrepo/ocm_forms.go`, the `--intent-form` flag, an optional `intentScope.form` wire member, focused tests, and one live Beamfall sweep. The experimental `requirements-subset` form (`OIF-V0-670` to `OIF-V0-672`, V1-2275) lets an intent cite part of a spec over the 256-obligation bound.
 - Blocked on: one real change dogfooded with a declared form and an independent review; open decisions 1, 2, 4 and 5 stay recorded limits, and LRF and the change universe refuse declared forms.
 - Read next: Declaration mechanism; Requirements; Acceptance evidence.
 
@@ -61,6 +61,9 @@ The form is a `corvint ocm prepare --intent-form FORM` argument, recorded in the
 - `OIF-V0-008`: A ticket's body is the contiguous following lines that start with a space. Its Acceptance block is each unfenced body line that is `  - **Acceptance:**` or starts with `  - **Acceptance:** `, plus the body lines indented at least four spaces that directly follow it. A ticket with a non-empty block becomes a requirement whose ID is the ticket ID and whose statement is the block. A ticket without one is not an obligation and is listed in document order in the prepare envelope member `excludedTickets`, which only this form emits.
 - `OIF-V0-009`: A declared form that yields no requirement fails `missing-requirements`, more than 256 requirements fail `too-many-obligations`, and a non-UTF-8 blob fails `invalid-intent`. The `OCM-V0` bootstrap rule for an intent absent at base applies unchanged.
 - `OIF-V0-010`: The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a map that declares a form with `unsupported-intent-form` before re-derivation; LRF keeps reading only `OCM-V0-001` requirement lines.
+- `OIF-V0-670`: (experimental under the owner's standing lane auto-accept, 2026-11-01; V1-2275 AC1) The form `requirements-subset` reads the intent's `OCM-V0-001` `## Requirements` section with every `OCM-V0-001` rule and refusal except its 256-requirement limit on the section, then keeps only the listed requirement IDs, in document order, as the obligations. The list holds 1 to 256 IDs, each matching the `OCM-V0-001` ID grammar, so the subset is checked against the same bound: more than 256 fail `too-many-obligations`, none fail `missing-requirements`, and a listed ID that the section does not carry fails `unknown-subset-requirement`. The span and its digest are the whole section's, and each obligation statement is its `OCM-V0-001` requirement line. The per-map and aggregate 256-obligation bounds are unchanged.
+- `OIF-V0-671`: (experimental, as `OIF-V0-670`) The list is recorded as the array member `intentScope.requirements` after `form`. It is present exactly when `form` is `requirements-subset`, and its strings are unique and in ascending byte order, so each subset has one encoding; a missing, extra, non-array, non-string, invalid, unsorted or repeated member fails `invalid-intent-scope`, more than 256 entries fail `too-many-obligations`, and an empty array fails `missing-requirements`. Every OCM action re-derives with the recorded list (`OIF-V0-003`), and the `ocm prepare` envelope's `intentScope` echoes it. The `OIF-V0-010` refusal of declared forms by LRF and the change universe applies to this form unchanged.
+- `OIF-V0-672`: (experimental, as `OIF-V0-670`) `corvint ocm prepare` accepts `--intent-requirements ID[,ID...]` with, and only with, `--intent-form requirements-subset`; either one without the other is an argument error. The command sorts the list before deriving, and the library refuses a repeated ID. A changed list is a binding change that `--replace` must acknowledge. The dogfood intents file does not yet pass a form or list (open decision 5).
 - `OIF-V0-011`: The capability is experimental: help labels the flag experimental, and no release note, README, or product claim may advertise it as delivered until the owner accepts this spec and the promotion evidence passes.
 
 ## Non-goals
@@ -68,7 +71,8 @@ The form is a `corvint ocm prepare --intent-form FORM` argument, recorded in the
 - Guessing a form from a path, name, or content, or falling back from one form to another.
 - Other ADR shapes (headings outside the `OIF-V0-005` set, `### D1 —`, `### 8A.`, `### 2.1`), `*` or `+`
   task bullets, indented top-level tickets, and nested sub-tickets as separate requirements.
-- Selecting one ticket or decision from a file; treating `**Verify:**` as acceptance.
+- Selecting one ticket or decision from an ADR or roadmap file (the `requirements-subset` form selects
+  only `## Requirements` IDs); treating `**Verify:**` as acceptance.
 - LRF evaluation of declared forms, or a change to the dogfood wrapper (`internal/dogfoodflow/`).
 - Any new configuration file or spec language.
 
@@ -92,6 +96,10 @@ A changed form for an existing map is a binding change and returns `map-outdated
   of the `OIF-V0-005` set, and `TestOIFV0005ADRDecisionsHeadingRefusals` covers near misses and two
   different members in one ADR.
 - `cmd/corvint/ocm_test.go`: `TestOIFV0PrepareIntentFormFlag` covers `OIF-V0-001`.
+- `internal/lrfrepo/ocm_requirements_subset_test.go`: `TestOIFV0670RequirementsSubsetDerivesFromAnOverBoundSpec`,
+  `TestOIFV0671IntentScopeRequirementsWireMember` and `TestOIFV0672PrepareRecordsAndRederivesTheSubset`
+  cover `OIF-V0-670` to `OIF-V0-672` on a 300-requirement spec, and
+  `cmd/corvint/ocm_test.go` `TestOIFV0672PrepareIntentRequirementsFlag` covers the flag.
 - Existing OCM tests (`./internal/lrfrepo/`, `conformance/ocm-v0`, `cmd/corvint -run 'OCM|Help|Prepare'`)
   pass unchanged, which is the default-form byte-identity evidence.
 - Live run (2026-09-25) with the branch binary on a scratch clone of Beamfall `2a8e06b28` plus one
@@ -123,18 +131,22 @@ dogfooded change, and independent review.
 | `OIF-V0-009` | `finishDerivation` | refusal tables above |
 | `OIF-V0-010` | `refuseDeclaredIntentForm` | `TestOIFV0LRFRefusesDeclaredForms` |
 | `OIF-V0-011` | `cmd/corvint/help.go` | this spec's status |
+| `OIF-V0-670` | `requirementsSubsetDerivation`, `validRequirementSubset`, `deriveRecordedIntent` | `TestOIFV0670RequirementsSubsetDerivesFromAnOverBoundSpec` |
+| `OIF-V0-671` | `parseIntentSubset`, `intentScopeValue`, `decodeIntentScope`, `verifyOCMIntent` | `TestOIFV0671IntentScopeRequirementsWireMember`, `TestOIFV0672PrepareRecordsAndRederivesTheSubset` |
+| `OIF-V0-672` | `cmd/corvint/ocm.go` `parseOCMPrepareFlags`, `PrepareOptions.IntentRequirements` | `TestOIFV0672PrepareIntentRequirementsFlag`, `TestOIFV0672PrepareRecordsAndRederivesTheSubset` |
 
 ## Rollback
 
 Revert the change. Default-form maps are untouched. Maps that carry `intentScope.form` then fail
 `unknown-field` on every OCM action, a fail-closed refusal; remove them and run `ocm prepare` again
-against a `## Requirements` intent.
+against a `## Requirements` intent. Maps that carry `intentScope.requirements` fail the same way.
 
 ## Open decisions
 
 1. Should tickets without Acceptance stay excluded, or become obligations whose statement is the
    ticket line or its `**Verify:**` block?
-2. Should a caller be able to select one ticket or decision (for example `PATH#TICKET-ID`)?
+2. Should a caller be able to select one ticket or decision (for example `PATH#TICKET-ID`)? Answered
+   for `## Requirements` intents only by `OIF-V0-670` (V1-2275); ADR and roadmap forms stay whole-file.
 3. Resolved: should `adr-decisions` accept `## Decision` and `## 2. Decisions` as declared variants?
    Answered yes 2026-09-25 by owner delegation; closed variant list in `OIF-V0-005`.
 4. Should LRF evaluate declared forms, which needs an `internal/lrf` statement grammar per form?

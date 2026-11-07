@@ -12,6 +12,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -20,8 +22,18 @@ import (
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME [--target GOOS/GOARCH] [--tasks-only] [--npm-cache DIR]`
+
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	streams := &clierror.Streams{Binary: "corvint-companion-release", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-companion-release", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
+	os.Exit(streams.Status(run(os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func run(args []string, stdout, stderr io.Writer) int {

@@ -13,6 +13,9 @@
 
 ## Start here
 
+- `corvint-cli --binary BINARY [COMMAND...] --help` supplies uniform offline discovery for
+  every shipped binary, including native protocol analyzers; `help --json` exposes its tree,
+  `--version --json` its common release version. Native invocation retains its original wire.
 - [Capability catalog](docs/CAPABILITIES.md): every `corvint` command, every binary built from
   `cmd/` and every MCP tool, with the smallest call, maturity and refusals
 - `corvint help guide`: the task-indexed guide with runnable examples and the tracked
@@ -73,3 +76,61 @@
 - [Agent routes](docs/AGENT-ROUTES.md): bounded routes from a question to original evidence
 - [Specs index](docs/specs/INDEX.json) and [requirements](docs/specs/REQUIREMENTS.tsv)
 - [Capability catalog spec](docs/specs/capability-catalog-v0.md)
+
+<!-- cli-tree-links -->
+- `corvint-cli --binary corvint-analyzer-c-jni help --json`: [corvint-analyzer-c-jni](internal/capcatalog/trees/corvint-analyzer-c-jni.json)
+- `corvint-cli --binary corvint-analyzer-dotnet help --json`: [corvint-analyzer-dotnet](internal/capcatalog/trees/corvint-analyzer-dotnet.json)
+- `corvint-cli --binary corvint-analyzer-go help --json`: [corvint-analyzer-go](internal/capcatalog/trees/corvint-analyzer-go.json)
+- `corvint-cli --binary corvint-analyzer-html-css help --json`: [corvint-analyzer-html-css](internal/capcatalog/trees/corvint-analyzer-html-css.json)
+- `corvint-cli --binary corvint-analyzer-java help --json`: [corvint-analyzer-java](internal/capcatalog/trees/corvint-analyzer-java.json)
+- `corvint-cli --binary corvint-analyzer-js help --json`: [corvint-analyzer-js](internal/capcatalog/trees/corvint-analyzer-js.json)
+- `corvint-cli --binary corvint-analyzer-kotlin-android help --json`: [corvint-analyzer-kotlin-android](internal/capcatalog/trees/corvint-analyzer-kotlin-android.json)
+- `corvint-cli --binary corvint-analyzer-objective-c help --json`: [corvint-analyzer-objective-c](internal/capcatalog/trees/corvint-analyzer-objective-c.json)
+- `corvint-cli --binary corvint-analyzer-python help --json`: [corvint-analyzer-python](internal/capcatalog/trees/corvint-analyzer-python.json)
+- `corvint-cli --binary corvint-analyzer-ruby help --json`: [corvint-analyzer-ruby](internal/capcatalog/trees/corvint-analyzer-ruby.json)
+- `corvint-cli --binary corvint-analyzer-rust help --json`: [corvint-analyzer-rust](internal/capcatalog/trees/corvint-analyzer-rust.json)
+- `corvint-cli --binary corvint-analyzer-shader help --json`: [corvint-analyzer-shader](internal/capcatalog/trees/corvint-analyzer-shader.json)
+- `corvint-cli --binary corvint-analyzer-shell help --json`: [corvint-analyzer-shell](internal/capcatalog/trees/corvint-analyzer-shell.json)
+- `corvint-cli --binary corvint-analyzer-sql-native help --json`: [corvint-analyzer-sql-native](internal/capcatalog/trees/corvint-analyzer-sql-native.json)
+- `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
+- `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
+- `corvint-cli --binary corvint-behavior-falsify help --json`: [corvint-behavior-falsify](internal/capcatalog/trees/corvint-behavior-falsify.json)
+- `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
+- `corvint-cem-experiments help --json`: [corvint-cem-experiments](internal/capcatalog/trees/corvint-cem-experiments.json)
+- `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
+- `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
+- `corvint-console help --json`: [corvint-console](internal/capcatalog/trees/corvint-console.json)
+- `corvint-corpus-http help --json`: [corvint-corpus-http](internal/capcatalog/trees/corvint-corpus-http.json)
+- `corvint-corpus-mcp help --json`: [corvint-corpus-mcp](internal/capcatalog/trees/corvint-corpus-mcp.json)
+- `corvint-corpus-parity help --json`: [corvint-corpus-parity](internal/capcatalog/trees/corvint-corpus-parity.json)
+- `corvint-corpus-republish help --json`: [corvint-corpus-republish](internal/capcatalog/trees/corvint-corpus-republish.json)
+- `corvint-dashboard-snapshot help --json`: [corvint-dashboard-snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json)
+- `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
+- `corvint-gateway help --json`: [corvint-gateway](internal/capcatalog/trees/corvint-gateway.json)
+- `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
+- `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)
+- `corvint-intake help --json`: [corvint-intake](internal/capcatalog/trees/corvint-intake.json)
+- `corvint-js-test-provider help --json`: [corvint-js-test-provider](internal/capcatalog/trees/corvint-js-test-provider.json)
+- `corvint-lsp help --json`: [corvint-lsp](internal/capcatalog/trees/corvint-lsp.json)
+- `corvint-mcp help --json`: [corvint-mcp](internal/capcatalog/trees/corvint-mcp.json)
+- `corvint-cli --binary corvint-playwright-minimize help --json`: [corvint-playwright-minimize](internal/capcatalog/trees/corvint-playwright-minimize.json)
+- `corvint-postmerge-connect help --json`: [corvint-postmerge-connect](internal/capcatalog/trees/corvint-postmerge-connect.json)
+- `corvint-postmerge-host-launcher help --json`: [corvint-postmerge-host-launcher](internal/capcatalog/trees/corvint-postmerge-host-launcher.json)
+- `corvint-postmerge-metrics help --json`: [corvint-postmerge-metrics](internal/capcatalog/trees/corvint-postmerge-metrics.json)
+- `corvint-postmerge-workflow help --json`: [corvint-postmerge-workflow](internal/capcatalog/trees/corvint-postmerge-workflow.json)
+- `corvint-public-release-check help --json`: [corvint-public-release-check](internal/capcatalog/trees/corvint-public-release-check.json)
+- `corvint-readiness-record help --json`: [corvint-readiness-record](internal/capcatalog/trees/corvint-readiness-record.json)
+- `corvint-release-candidate help --json`: [corvint-release-candidate](internal/capcatalog/trees/corvint-release-candidate.json)
+- `corvint-release-install help --json`: [corvint-release-install](internal/capcatalog/trees/corvint-release-install.json)
+- `corvint-remote-provider help --json`: [corvint-remote-provider](internal/capcatalog/trees/corvint-remote-provider.json)
+- `corvint-ruby-test-provider help --json`: [corvint-ruby-test-provider](internal/capcatalog/trees/corvint-ruby-test-provider.json)
+- `corvint-tasks help --json`: [corvint-tasks](internal/capcatalog/trees/corvint-tasks.json)
+- `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
+- `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
+- `corvint-test help --json`: [corvint-test](internal/capcatalog/trees/corvint-test.json)
+- `corvint-cli --binary corvint-tests-accept help --json`: [corvint-tests-accept](internal/capcatalog/trees/corvint-tests-accept.json)
+- `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
+- `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
+- `corvint-work-queue help --json`: [corvint-work-queue](internal/capcatalog/trees/corvint-work-queue.json)
+- `corvint help --tree`: [corvint](internal/capcatalog/trees/corvint.json)
+<!-- /cli-tree-links -->

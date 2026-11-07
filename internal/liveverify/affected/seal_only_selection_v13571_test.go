@@ -2,6 +2,7 @@ package affected_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,8 +15,9 @@ import (
 // leaves on a batch branch: archived CEMs under .corvint/changes/ and
 // nothing else. Every non-test shell script that reads that directory is
 // declared in .corvint/shell-foreign-callers.json (TSP-V0-005), so the plan
-// stays BOUNDED with no unknown, selects only the readers and their
-// dependents, and excludes the rest of the graph (V1-3571). Before the seal,
+// stays BOUNDED with no unknown, selects only the readers, their dependents
+// and the runners of a command among them (AFP-V0-2992), and excludes the rest
+// of the graph (V1-3571). Before the seal,
 // bind-coverage and install-lifecycle scripts were declared it carried
 // shell:foreign-invocation-unmodelled. This file must not spell those scripts'
 // file names: any candidate file naming one would have to be declared too.
@@ -51,6 +53,16 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 		for _, selection := range plan.Selected {
 			switch selection.Witness.Kind {
 			case affected.WitnessPathLiteralReader, affected.WitnessDeclaredReadScope, affected.WitnessDependency:
+			case affected.WitnessBinaryExec:
+				// A unit whose tests or code run the built binary of a
+				// command a CEM reader's chain reaches runs that reader's
+				// code (AFP-V0-2992): the chain's last hop is a command the
+				// unit runs.
+				unit, _ := graph.Unit(selection.UnitID)
+				via := selection.Witness.Via
+				if len(via) < 2 || !slices.Contains(unit.Execs, via[len(via)-2]) {
+					t.Errorf("%s selected by %s through %v; want a runner of a command a CEM reader reaches", selection.UnitID, selection.Witness.Kind, via)
+				}
 			case affected.WitnessFrontierSite:
 				// A make target or job that invokes a computed name is
 				// selected on every plan (AZU-V0-001).

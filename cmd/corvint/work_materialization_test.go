@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/parser"
@@ -30,8 +31,8 @@ func materializationGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, "git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
-	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.invalid")
+	command := fixtureGitCommandContext(ctx, append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
+	command.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.invalid", "GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.invalid")
 	command.WaitDelay = 10 * time.Second
 	workContain(command)
 	defer workKillGroup(command)
@@ -299,6 +300,43 @@ func buildWorkProductionSeed(t *testing.T, caller string) {
 				continue
 			}
 			raw, err := os.ReadFile(filepath.Join(repo, directory, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(caller, directory, name)
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(target, raw, 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// CAP-V0-7700 adds embedded offline catalogs to the Work CLI's import
+	// closure. Seed the actual compiler inputs, including nested embed assets,
+	// so the isolated adapter still builds from its pinned source alone.
+	list := exec.Command("go", "list", "-deps", "-json", "./cmd/corvint-work-queue")
+	list.Dir = repo
+	raw, err := list.Output()
+	if err != nil {
+		t.Fatalf("list Work embed inputs: %v", err)
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	for decoder.More() {
+		var pkg struct {
+			ImportPath string
+			Dir        string
+			EmbedFiles []string
+		}
+		if err := decoder.Decode(&pkg); err != nil {
+			t.Fatal(err)
+		}
+		directory, local := strings.CutPrefix(pkg.ImportPath, "github.com/Beamfall/corvint/")
+		if !local {
+			continue
+		}
+		for _, name := range pkg.EmbedFiles {
+			raw, err := os.ReadFile(filepath.Join(pkg.Dir, name))
 			if err != nil {
 				t.Fatal(err)
 			}
