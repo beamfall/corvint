@@ -143,7 +143,12 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `uncovered REASON UNIT_ID` line. Declared callers with no owning unit remain unknown. Literal, scoped, glob and
   unbounded reader tests count as observers and remain selected. Before proving a coverage
   gap, testless literal/glob readers of an untested owner SHALL select their caller closures,
-  including readers of owned, nonhidden source paths. Readers and their caller closures SHALL
+  including readers of owned, nonhidden source paths. (selbatch fix round 2, 2026-11-07) A
+  testless unit whose declared read scope (AFP-V0-023) holds such a path SHALL select its caller
+  closure the same way; a dirty read-scope declaration alone does not. A caller's tests or
+  declared consumers count as observers only when the plan runs them. When no test the plan runs
+  observes the unit, a caller the plan leaves out keeps `NO_SELECTABLE_TEST` unknown, unless
+  additive narrowing alone left it out (ADN-V0-005). Readers and their caller closures SHALL
   retain uncertainty from unresolved declared callers before a coverage gap can be proved.
   This inspection SHALL cover every changed path owned by the unit, independently of the
   representative seed or reader witness. Reader frontier inspection SHALL preserve existing
@@ -179,7 +184,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   Session planning SHALL retain each selected consumer's exact argv using the existing declared
   command adapter and digest, without adding manifest or receipt fields. The local profile runs
   each consumer from the repository root; profiles that cannot execute it retain its command as
-  an explicit required check. CI SHALL also retain the legacy consumer check shape recognized by
+  an explicit required check. (selbatch fix round 2, 2026-11-07) Declared commands on one shard
+  with identical argv SHALL run as one invocation that records a terminal outcome for each of
+  their units, so consumers sharing one runner, such as the browser gate, run it once. CI SHALL also retain the legacy consumer check shape recognized by
   its browser-job selector until that selector supports runnable consumer commands.
   Mixed dependency and command-test changes SHALL extend the binary's
   build witness, including its original dirty path and complete dependency chain, independently
