@@ -281,9 +281,9 @@ func newRecordFixtureAt(t *testing.T, root string) string {
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
 		{"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
-		command.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+		command.Env = append(fixtureGitEnvironment(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}
@@ -297,7 +297,7 @@ func newRecordFixtureAt(t *testing.T, root string) string {
 
 func recordRevision(t *testing.T, root string) string {
 	t.Helper()
-	command := exec.Command("git", "rev-parse", "HEAD")
+	command := fixtureGitCommand("rev-parse", "HEAD")
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {

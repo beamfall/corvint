@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,7 +22,7 @@ func TestFlowDocsCLIInventory(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		out, e := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput()
+		out, e := fixtureGitCommand(append([]string{"-C", root}, args...)...).CombinedOutput()
 		if e != nil {
 			t.Fatalf("git: %v %s", e, out)
 		}

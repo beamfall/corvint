@@ -140,7 +140,7 @@ func TestProveMutationWitnessReplaysKillOnSecondCheckout(t *testing.T) {
 	}
 
 	replay := filepath.Join(t.TempDir(), "replay")
-	clone := exec.Command("git", "clone", "-q", "--no-hardlinks", root, replay)
+	clone := fixtureGitCommand("clone", "-q", "--no-hardlinks", root, replay)
 	if output, err := clone.CombinedOutput(); err != nil {
 		t.Fatalf("clone second checkout: %v\n%s", err, output)
 	}

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -52,7 +51,7 @@ func taskContextRepository(t *testing.T) string {
 		}
 	}
 	for _, arguments := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "fixture"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -89,7 +88,7 @@ func TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut(t *testing.T) {
 
 func repositoryListing(t *testing.T, root string) string {
 	t.Helper()
-	command := exec.Command("git", "status", "--porcelain", "--ignored")
+	command := fixtureGitCommand("status", "--porcelain", "--ignored")
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {
@@ -116,7 +115,7 @@ func TestRunTaskContextSubjectlessCounterparts(t *testing.T) {
 			}
 		}
 		for _, args := range [][]string{{"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "counterparts"}} {
-			cmd := exec.Command("git", args...)
+			cmd := fixtureGitCommand(args...)
 			cmd.Dir = root
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%v: %s", err, out)
@@ -178,7 +177,7 @@ func TestRunTaskContextReservesAncestorInstructions(t *testing.T) {
 			}
 		}
 		for _, args := range [][]string{{"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "instructions"}} {
-			cmd := exec.Command("git", args...)
+			cmd := fixtureGitCommand(args...)
 			cmd.Dir = root
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%v: %s", err, out)

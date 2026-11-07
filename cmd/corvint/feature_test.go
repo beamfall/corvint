@@ -107,7 +107,7 @@ func TestFeatureOutputIsIndependentOfRepositoryLocation(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(secondRoot), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	clone := exec.Command("git", "clone", "-q", firstRoot, secondRoot)
+	clone := fixtureGitCommand("clone", "-q", firstRoot, secondRoot)
 	if output, err := clone.CombinedOutput(); err != nil {
 		t.Fatalf("git clone: %v\n%s", err, output)
 	}
@@ -129,7 +129,7 @@ func TestFeatureRefusesKnownNonGoCandidateRanking(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"add", "pkg/candidate.py"}, {"commit", "-qm", "add Python candidate"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,15 +19,15 @@ func TestWSDV0146SingleRootVerbsRefuseWorkspace(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "fixture"}} {
-			cmd := exec.Command("git", args...)
-			cmd.Dir, cmd.Env = dir, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+			cmd := fixtureGitCommand(args...)
+			cmd.Dir, cmd.Env = dir, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 			if b, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("git %v: %v %s", args, err, b)
 			}
 		}
 	}
 	head := func(dir string) string {
-		b, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+		b, err := fixtureGitCommand("-C", dir, "rev-parse", "HEAD").Output()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -15,6 +15,7 @@ import (
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 
 	"github.com/Beamfall/corvint/internal/testplatform"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // This helper is a synthetic protocol adapter, never positive workflow evidence.
@@ -118,7 +119,7 @@ func TestAdapterHelper(t *testing.T) {
 func git(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", root}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+	cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)

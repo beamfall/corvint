@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -24,10 +23,10 @@ type shopFixture struct {
 
 func shopGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "init.defaultBranch=main", "-c", "commit.gpgsign=false"}, args...)...)
+	c := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "init.defaultBranch=main", "-c", "commit.gpgsign=false"}, args...)...)
 	c.Dir = root
 	date := "2026-01-01T00:00:00Z"
-	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
+	c.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
 		"GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid", "GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date)
 	out, err := c.CombinedOutput()
 	if err != nil {

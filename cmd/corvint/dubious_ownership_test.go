@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -32,14 +31,14 @@ func TestGPKV0071DubiousOwnershipIsOneCodedRefusal(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, arguments := range [][]string{{"init", "-q"}, {"add", "a.go"}, {"-c", "user.name=Corvint Test", "-c", "user.email=corvint@example.test", "commit", "-q", "-m", "init"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
-		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+		command.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v: %s", arguments, err, output)
 		}
 	}
-	head, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	head, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

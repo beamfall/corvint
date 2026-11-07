@@ -3,7 +3,6 @@ package flows
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -79,7 +78,7 @@ func TestANLV0004EdgesCLI(t *testing.T) {
 	if code != 2 {
 		t.Fatal("invalid sidecar", code)
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	status, err := cmd.Output()
 	if err != nil || len(status) != 0 {
@@ -163,7 +162,7 @@ func TestANLV0023EdgesObservationCLI(t *testing.T) {
 	if code, _, diag = runFlowsCLI(root, many...); code != 2 || !strings.Contains(diag, "at most 16 --observation") {
 		t.Fatal("observation count bound", code, diag)
 	}
-	cmd := exec.Command("git", "status", "--porcelain", "--ignored")
+	cmd := fixtureGitCommand("status", "--porcelain", "--ignored")
 	cmd.Dir = root
 	if status, err := cmd.Output(); err != nil || len(status) != 0 {
 		t.Fatalf("read mutated root %s %v", status, err)

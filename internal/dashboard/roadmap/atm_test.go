@@ -2,6 +2,7 @@ package roadmap
 
 import (
 	"context"
+	"github.com/Beamfall/corvint/internal/testsupport"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,7 +32,7 @@ func initScratchRepo(t *testing.T) string {
 		t.Helper()
 		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(testsupport.WithoutGitIdentity(os.Environ()),
 			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.com",
 			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.com",
 		)

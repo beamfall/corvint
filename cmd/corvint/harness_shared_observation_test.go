@@ -66,7 +66,7 @@ func dirtyFixture(t *testing.T, root string) {
 
 func fixtureGit(t *testing.T, root string, arguments ...string) {
 	t.Helper()
-	command := exec.Command("git", arguments...)
+	command := fixtureGitCommand(arguments...)
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)

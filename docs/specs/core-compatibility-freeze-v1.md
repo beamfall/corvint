@@ -410,6 +410,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   Non-goals: making a newly varying value a placeholder on one pair of runs. Rollback: drop
   `keepCoreVaries`.
 
+- `CCF-V1-9800`: (accepted, owner's V1-4719 fixtureident charter, 2026-11-05) Every direct Git fixture command in `cmd/corvint` tests MUST remove inherited `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_AUTHOR_DATE`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL` and `GIT_COMMITTER_DATE` before applying fixture overrides. Existing fixture identities, pinned dates, configuration isolation and frozen golden bytes MUST remain unchanged. A shared filter MUST preserve unrelated environment entries. The existing package-level `testsupport.IsolateGit` helper MUST also discard inherited author/committer dates while retaining its existing fixture identity and config isolation. Regression tests MUST compare the fixture SHA and existing context/LSP/core-profile goldens with a foreign identity and dates set using `t.Setenv`; a source guard MUST reject direct Git commands bypassing the shared helper or assigning an unfiltered inherited environment. The three frozen-profile tests MUST also pass with identity exported by the caller. A repository-wide search MUST retain other inherited Git environments and their disposition; cheap Go fixture fixes in this module MAY reuse the shared filter.
+
 ## Non-goals
 
 - No runtime or wire change to any verb other than the CCF-V1-004 refusal classification of
@@ -485,6 +487,7 @@ no N-1, and each later release's N-1 is the previous release published in it; se
 | CCF-V1-650 | `TestEveryVerbHelpFollowsTheHouseFormat`, `TestFeatureHelpGivesAValidFeatureIDExample` |
 | CCF-V1-620 | `TestCCFV1620GoldenRegenKeepsAPreviousVariesLeaf`; the V1-3342 rerun in `docs/build-log/2026-11-01-dgs-u28.md` |
 | CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
+| `CCF-V1-9800` | `internal/testsupport/gitidentity.go`, `cmd/corvint/git_fixture_test.go`, migrated direct Git fixture calls and `internal/testsource/repo_test.go`; `TestWithoutGitIdentity_CCFV19800`, `TestIsolateGitRemovesCallerDates_CCFV19800`, `TestFixtureGitIdentityIsHermetic`, `TestFixtureGitIdentityIsHermeticWithN1Replay` (nested replay with `CORVINT_CORE_N1_BINARY`, preserving CCF-V1-007 exceptions), `TestFixtureGitCommandsUseHermeticEnvironment`; unchanged `TestContextDefaultWireIsTheGolden`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestCoreVerbsEmitTheFrozenProfiles`. |
 
 ## Rollback
 
@@ -510,6 +513,10 @@ Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tes
 stdout text only, so no stored state changes. Reverting only the CCF-V1-008 amendment restores
 `commandMaturityHelp`, the flat `Commands:` list and the previous test parsers; no stored state
 changes.
+
+For CCF-V1-9800, revert the fixture filter, migrated test calls and guard together. No product
+wire, frozen golden, stored state or release profile changes. The repository-wide audit retains
+unfixed candidates without claiming that every test in the repository is hermetic.
 
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -105,7 +104,7 @@ func TestAHI630OptInAbstentionReachesTheLedger(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if output, err := exec.Command("git", "init", "-q", root).CombinedOutput(); err != nil {
+	if output, err := fixtureGitCommand("init", "-q", root).CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v %s", err, output)
 	}
 	live := map[string]any{

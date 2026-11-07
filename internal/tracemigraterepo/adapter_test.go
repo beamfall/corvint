@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/testsupport"
+
 	"github.com/Beamfall/corvint/internal/trace"
 )
 
@@ -184,7 +186,7 @@ func git(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
 	command := exec.Command("git", arguments...)
 	command.Dir = root
-	command.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
+	command.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_AUTHOR_DATE=2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2000-01-01T00:00:00Z")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)
