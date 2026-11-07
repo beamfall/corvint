@@ -162,6 +162,13 @@ func TestResultCacheEqualsReplay_ASCV0778(t *testing.T) {
 		}
 	})
 	replays("environment", func() { t.Setenv("GOFLAGS", "-mod=mod") })
+	// CI sets GOPROXY=off, and go env shows that variable over the file's
+	// value, so only the file's bytes can key the edit below. Record the
+	// cache under it first, whatever the caller's environment.
+	t.Setenv("GOPROXY", "off")
+	if _, err := replay(ctx, root, set, "changes.json", corvint, selector); err != nil {
+		t.Fatal(err)
+	}
 	replays("go env -w", func() {
 		if err := os.WriteFile(goenv, []byte("GOPROXY=off\n"), 0o600); err != nil {
 			t.Fatal(err)

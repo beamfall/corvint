@@ -89,10 +89,41 @@ func openCache(ctx context.Context, root, corvint, selector string, costs []byte
 		}
 		fmt.Fprintf(h, "%s %q\n", strings.Join(tool, " "), strings.TrimSpace(out))
 	}
+	goEnvFile, err := goEnvFileStamp(ctx, root)
+	if err != nil {
+		return nil, err.Error()
+	}
+	fmt.Fprintf(h, "%s\n", goEnvFile)
 	for _, kv := range cacheEnvironment(os.Environ()) {
 		fmt.Fprintf(h, "env %s\n", kv)
 	}
 	return &resultCache{dir: dir, stamp: h.Sum(nil)}, ""
+}
+
+// goEnvFileStamp names the go env -w file's bytes (ASC-V0-778). go env shows
+// a variable's value over the file's, so with GOPROXY=off in the environment
+// (as CI sets it) an edit to the file's GOPROXY leaves go env unchanged; the
+// file's digest still changes, so the edit replays.
+func goEnvFileStamp(ctx context.Context, root string) (string, error) {
+	out, err := run(ctx, root, "go", "env", "GOENV")
+	if err != nil {
+		return "", err
+	}
+	name := strings.TrimSpace(out)
+	if name == "" || name == "off" {
+		return "goenv off", nil
+	}
+	if !filepath.IsAbs(name) {
+		name = filepath.Join(root, name)
+	}
+	data, err := os.ReadFile(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Sprintf("goenv %q absent", name), nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("go env file: %w", err)
+	}
+	return fmt.Sprintf("goenv %q %x", name, sha256.Sum256(data)), nil
 }
 
 // goEnvKeys are the go env settings that can change the go tool's or a
