@@ -207,8 +207,8 @@ func observesSource(relative string, body []byte, proven map[int]bool) bool {
 
 // commandMethods are the exec.Cmd methods a proven command may be called
 // with; commandSetFields the fields it may be assigned (Env only to a
-// literalEnvironment, Dir making the call list the whole module); and
-// commandReadFields the fields it may be read through.
+// literalEnvironment; a Dir target is resolved by AFP-V0-2200's module-root
+// rule, as before); and commandReadFields the fields it may be read through.
 var (
 	commandMethods = map[string]bool{
 		"CombinedOutput": true, "Environ": true, "Output": true, "Run": true, "Start": true,
@@ -225,9 +225,8 @@ var (
 // commandMethods call, a commandSetFields assignment, a commandReadFields read
 // or another such definition by an os/exec call. Any other use, such as an
 // argument, a stored or returned value, an address, a Path or Args field or
-// an assignment of name, is not confined. directory reports a Dir
-// assignment, whose target directory the scan cannot resolve.
-func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) (confined, directory bool) {
+// an assignment of name, is not confined.
+func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) bool {
 	parents := map[ast.Node]ast.Node{}
 	var stack []ast.Node
 	ast.Inspect(outer, func(node ast.Node) bool {
@@ -246,7 +245,7 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) (confined,
 		return ok && parent.Fun == selector && commandMethods[selector.Sel.Name]
 	}
 	if selector, ok := parents[call].(*ast.SelectorExpr); ok && selector.X == call {
-		return method(selector), false
+		return method(selector)
 	}
 	execCall := func(expression ast.Expr) bool {
 		call, ok := expression.(*ast.CallExpr)
@@ -282,9 +281,9 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) (confined,
 		}
 	}
 	if name == "" || name == "_" {
-		return false, false
+		return false
 	}
-	confined = true
+	confined := true
 	ast.Inspect(outer, func(node ast.Node) bool {
 		ident, ok := node.(*ast.Ident)
 		if !confined || !ok || ident.Name != name || definition(ident) {
@@ -307,7 +306,6 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) (confined,
 			if field == "Env" {
 				confined = literalEnvironment(assignment.Rhs[slices.Index(assignment.Lhs, ast.Expr(selector))])
 			}
-			directory = directory || field == "Dir"
 		case !target && commandReadFields[field]:
 			if address, ok := parents[selector].(*ast.UnaryExpr); ok && address.Op == token.AND {
 				confined = false
@@ -320,7 +318,7 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) (confined,
 		}
 		return confined
 	})
-	return confined, directory
+	return confined
 }
 
 // ownTestdata reports a path argument that is a literal, or a path/filepath
