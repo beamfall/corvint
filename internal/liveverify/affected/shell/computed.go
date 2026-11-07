@@ -273,7 +273,14 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 	}
 	var out []string
 	for _, value := range given {
-		out = append(out, expand(value, unrolled(name, value, values, depth), depth+1, cut)...)
+		// An unrolled value expands at this depth: its reference takes values
+		// that no longer refer to name, so it adds no level to a chain and
+		// cannot recur on itself (AFP-V0-3149).
+		expanded, next := values, depth+1
+		if others, ok := unrolled(name, value, values, depth); ok {
+			expanded, next = others, depth
+		}
+		out = append(out, expand(value, expanded, next, cut)...)
 	}
 	if len(out) > maxValueCount {
 		out, *cut = out[:maxValueCount], true
@@ -281,28 +288,29 @@ func named(name string, values map[string][]string, depth int, cut *bool) []stri
 	return out
 }
 
-// unrolled returns the values to expand value, one of name's, with. When
+// unrolled returns the values to expand value, one of name's, with, and
+// whether it unrolled a reference to name. When
 // value refers to name and no unrolling of it can be a literal path, the
 // reference takes name's other values once and wildcard for any earlier value
 // (AFP-V0-3149): an unknown part precedes the first reference, so every
 // unrolled value holds it, links nothing and has a file name the single
 // unrolling's or the wildcard's pattern already matches; or value is the
 // reference alone (`dir=${dir:-script}`), whose unrollings are the values
-// themselves. Otherwise values is returned unchanged, so a literal wrapper
+// themselves. Otherwise it unrolls nothing, so a literal wrapper
 // (`x="../$x"`) recurses to the depth bound and is a cut (AFP-V0-3147).
-func unrolled(name, value string, values map[string][]string, depth int) map[string][]string {
+func unrolled(name, value string, values map[string][]string, depth int) (map[string][]string, bool) {
 	at, end := selfReference(name, value)
 	if at < 0 {
-		return values
+		return nil, false
 	}
 	if at > 0 || end != len(value) {
 		if at == 0 || !topLevel(value[:at]) {
-			return values
+			return nil, false
 		}
 		var cut bool
 		prefixes := expand(value[:at], values, depth+1, &cut)
 		if cut || slices.ContainsFunc(prefixes, func(prefix string) bool { return !strings.Contains(prefix, wildcard) }) {
-			return values
+			return nil, false
 		}
 	}
 	others := []string{wildcard}
@@ -316,7 +324,7 @@ func unrolled(name, value string, values map[string][]string, depth int) map[str
 		copied[key] = list
 	}
 	copied[name] = others
-	return copied
+	return copied, true
 }
 
 // selfReference returns where the first `$name` or `${name...}` in value
