@@ -51,9 +51,9 @@ func TestRecordEntryJoinedReadersSelectedByBothSelectors_AFPV2746(t *testing.T) 
 				read(`os.ReadFile(filepath.Join("../.corvint", "config.json"))`)), //corvint:fixture-path
 		entry:                  "# entry\n",
 		sealed:                 "{}\n",
-		"docs/README.md":       "# docs\n",
-		"docs/build/x.md":      "# x\n",
-		".corvint/config.json": "{}\n",
+		"docs/README.md":       "# docs\n", //corvint:fixture-path
+		"docs/build/x.md":      "# x\n",    //corvint:fixture-path
+		".corvint/config.json": "{}\n",     //corvint:fixture-path
 	})
 	// The joined literals of reader name the entries that exist on disk.
 	for _, joined := range []string{
