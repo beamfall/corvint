@@ -754,7 +754,7 @@ No requirement below diverges from the implementation.
   refs/commits; missing revisions or unreadable Git data MUST fail closed. The read-only
   `--batch-capacity BASE REF...` generator mode MUST use the same OCM section reader as
   `--capacity`, deduplicate shared IDs, and conservatively keep base IDs even if a lane deletes
-  them. Lane ancestry must contain BASE. This is a capacity estimate, not a merge or collision
+  them. Each lane MUST share an available common ancestor with BASE (its merge-base); a lane need not contain BASE. This is a capacity estimate, not a merge or collision
   proof. Rollback: remove the mode and target; retain single-tree capacity checks. Regression:
   `script/gen-spec-requirements_test.sh` creates two admitted lanes whose union exceeds 256.
 

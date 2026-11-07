@@ -1548,6 +1548,23 @@ grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" &
 printf 'DOC_GATE_TARGETS := \\\n  alpha-check \\\n  beta-test\ndoc-gates: spec-status-check extra-check | order-check ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "continuation expansion --list: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "continuation targets were not expanded"
+# Review fix: every prerequisite, ordinary and order-only, is its own step, listed before the
+# targets in Makefile order, so the expansion never drops a gate make doc-gates would run.
+[[ $(grep -xE 'make (spec-status-check|extra-check|order-check|alpha-check|beta-test)' "$tmp/out" | tr '\n' ' ') == 'make spec-status-check make extra-check make order-check make alpha-check make beta-test ' ]] ||
+  fail "doc-gates prerequisites were dropped or reordered: $(cat "$tmp/out")"
+# Fault injection: failing prerequisites run and fail the precheck, naming each.
+pbin=$tmp/prereq-bin
+mkdir -p "$pbin"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s/prereq-calls"\ncase "$2" in extra-check|order-check) echo "prerequisite $2 failed"; exit 1 ;; esac\nexit 0\n' "$tmp" > "$pbin/make"
+printf '#!/bin/sh\nexit 0\n' > "$pbin/gofmt"
+printf '#!/bin/sh\necho ok\n' > "$pbin/go"
+chmod +x "$pbin"/*
+git -C "$erepo" add -A && git -C "$erepo" commit -qm prereqs || fail "prerequisite fixture commit"
+: > "$tmp/prereq-calls"
+(PATH=$pbin:$PATH BATCH_PRECHECK_ROOT=$erepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_DRIFT="./pkg TestDrift" "$pre") > "$tmp/out" 2>&1
+rc=$?
+[[ $rc == 1 ]] && grep -q 'FAIL make extra-check' "$tmp/out" && grep -q 'FAIL make order-check' "$tmp/out" &&
+  grep -q 'spec-status-check' "$tmp/prereq-calls" || fail "failing doc-gates prerequisites did not run and fail (exit $rc): $(cat "$tmp/out") calls: $(cat "$tmp/prereq-calls")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
@@ -2243,6 +2260,7 @@ lane_check() { (cd "$lane_repo" && PATH="$lane_repo/bin:$PATH" LANE_CALLS="$tmp/
 printf 'unrelated\n' > "$lane_repo/note.txt"
 lane_check || fail "unrelated diff refused"
 [[ ! -e $tmp/lane-calls ]] || fail "unrelated path selected lane scripts"
+[[ ! -s $tmp/out ]] || fail "an unselected lane-scripts-test printed output: $(cat "$tmp/out")"
 printf '# changed\n' >> "$lane_repo/script/lane-binary-check.sh"
 git -C "$lane_repo" commit -qam 'lane binary fix'
 lane_check || fail "committed lane binary change refused: $(cat "$tmp/out")"

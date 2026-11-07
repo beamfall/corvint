@@ -794,7 +794,8 @@ drift_step() {
 # (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930), the first also by `script/doc-gates-summary.sh `
 # (ASD-V0-782) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
-# step (V1-3232: as one step its targets ran one after another). ASD-V0-911 (V1-3789): a doc-gates
+# step (V1-3232: as one step its targets ran one after another). Its prerequisites print first, one
+# make step each (SRG-V0-982). ASD-V0-911 (V1-3789): a doc-gates
 # recipe that exists but matches neither form prints one `drift` line, so the caller names this
 # function instead of silently running the gates serially.
 doc_gate_expansion() {
@@ -803,7 +804,14 @@ doc_gate_expansion() {
       line = $0; continuation = (line ~ /\\$/); sub(/[[:space:]]*\\$/, "", line)
       sub(/^[[:space:]]+/, "", line); targets = targets " " line; next
     }
-    /^doc-gates:([[:space:]]|$)/ { on = 1; next }
+    /^doc-gates:([[:space:]]|$)/ {
+      # SRG-V0-982: prerequisites, ordinary then order-only, run as their own steps first so the
+      # expansion never drops one make doc-gates would run.
+      on = 1; line = $0; sub(/^doc-gates:/, "", line); sub(/##.*$/, "", line); gsub(/\|/, " ", line)
+      np = split(line, pre, /[[:space:]]+/)
+      for (i = 1; i <= np; i++) if (pre[i] != "") prereq[++nprereq] = pre[i]
+      next
+    }
     on && /^\t/ { recipe[++n] = $0; next }
     on { on = 0 }
     END {
@@ -819,7 +827,9 @@ doc_gate_expansion() {
       sub(/^[[:space:]]+/, "", targets)
       m = split(targets, t, /[[:space:]]+/)
       for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
-      for (i = 1; i <= m; i++) if (t[i] != "") printf "make\t%s\n", t[i]
+      for (i = 1; i <= nprereq; i++) if (prereq[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
+      for (i = 1; i <= nprereq; i++) if (!(prereq[i] in seen)) { seen[prereq[i]] = 1; printf "make\t%s\n", prereq[i] }
+      for (i = 1; i <= m; i++) if (t[i] != "" && !(t[i] in seen)) { seen[t[i]] = 1; printf "make\t%s\n", t[i] }
       print "gorun\t./conformance/use-cases-v0"
     }' Makefile 2> /dev/null
 }

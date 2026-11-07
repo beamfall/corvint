@@ -12,6 +12,6 @@ if [[ -n $changed$untracked ]]; then
     printf 'dogfood-check: REFUSE lane-scripts-test failed; fix: repair the failing lane-script tests and rerun\n' >&2
     exit 1
   }
-else
-  printf 'dogfood-check: lane-scripts-test skipped (no script/lane-* diff from %s)\n' "$base"
 fi
+# With no script/lane-* change it prints nothing: dogfood check's own output, which callers and
+# tests match exactly, stays unchanged (ASD-V0-640).
