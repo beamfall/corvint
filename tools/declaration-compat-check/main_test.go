@@ -117,3 +117,38 @@ func TestDogfoodMapsAreNoPlannerInput_V13600(t *testing.T) {
 		t.Fatalf("a look-alike name was exempted: code %d\n%s", code, stderr.String())
 	}
 }
+
+// AFP-V0-710: the test-owner declaration closes its top-level and both
+// entry shapes. Known additional entries pass; added members at any of the
+// three positions must still be checked against the pinned planner.
+func TestTestSelectionClosedPositions_AFPV0710(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	const original = `{"profile":"corvint-test-selection/0","owners":[{"paths":"docs/**","tests":["a/a_test.go"]}],"mustRun":[{"tests":"b/b_test.go","reason":"gate"}]}`
+	writeFile(t, root, ".corvint/test-selection.json", original)
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "pin")
+	pinned := git(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+pinned+"\"\n")
+	for _, tc := range []struct {
+		name, body, position string
+	}{
+		{"known entries", strings.Replace(original, `"owners":[`, `"owners":[{"paths":"assets/**","tests":["c/c_test.go"]},`, 1), ""},
+		{"top-level member", strings.Replace(original, `"profile":`, `"extra":true,"profile":`, 1), "the top level"},
+		{"owner member", strings.Replace(original, `"paths":`, `"extra":true,"paths":`, 1), "/owners/*"},
+		{"mustRun member", strings.Replace(original, `"reason":`, `"extra":true,"reason":`, 1), "/mustRun/*"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writeFile(t, root, ".corvint/test-selection.json", tc.body)
+			var stdout, stderr bytes.Buffer
+			code := run(root, ".github/workflows/ci.yml", &stdout, &stderr)
+			if tc.position == "" {
+				if code != 0 {
+					t.Fatalf("known entry refused: %s", stderr.String())
+				}
+			} else if code != 1 || !strings.Contains(stderr.String(), `.corvint/test-selection.json at `+tc.position+`: member "extra" is absent at pin `+pinned) {
+				t.Fatalf("closed member not checked: code=%d stderr=%s", code, stderr.String())
+			}
+		})
+	}
+}

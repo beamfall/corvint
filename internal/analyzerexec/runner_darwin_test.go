@@ -120,7 +120,7 @@ func TestContainedStreamLimitsAreIndependent(t *testing.T) {
 			plan := testPlan(t, test.request)
 			plan.StagingParent = staging
 			plan.MaxStdoutBytes, plan.MaxStderrBytes = test.stdout, test.stderr
-			result, err := Run(context.Background(), plan)
+			result, err := runPastTimeout(t, plan)
 			if test.want == "" {
 				if err != nil || !result.ValidCleanupObservation() {
 					t.Fatalf("result=%#v err=%v", result, err)
@@ -158,17 +158,27 @@ func requireContainedBackend(t *testing.T) string {
 		t.Fatalf("production sandbox profile did not run the helper outside the plan cap: %v stderr=%q", err, stderr.Bytes())
 	}
 	plan := testPlan(t, "contained-probe")
+	if result, err := runPastTimeout(t, plan); err != nil || !result.ValidCleanupObservation() {
+		t.Fatalf("contained backend probe result=%#v err=%v", result, err)
+	}
+	return plan.StagingParent
+}
+
+// runPastTimeout repeats a contained run until it ends in something other
+// than Timeout. Even with a warm staged entry, sandbox-exec launch on a loaded
+// host (a hosted macOS CI runner) can outlast the 100 ms plan cap before the
+// payload writes anything, so one Timeout says only that this attempt did not
+// finish in time (decision 0148). The wall is a hang detector (decision 0082).
+func runPastTimeout(t *testing.T, plan Plan) (Result, error) {
+	t.Helper()
 	end := time.Now().Add(60 * time.Second)
 	for attempt := 1; ; attempt++ {
 		result, err := Run(context.Background(), plan)
 		if !Is(err, Timeout) {
-			if err != nil || !result.ValidCleanupObservation() {
-				t.Fatalf("contained backend probe result=%#v err=%v", result, err)
-			}
-			return plan.StagingParent
+			return result, err
 		}
 		if time.Now().After(end) {
-			t.Fatalf("no contained probe completed within the contract deadline in %d attempts over 60s: last=%#v", attempt, result)
+			t.Fatalf("no contained run completed within the contract deadline in %d attempts over 60s: last=%#v", attempt, result)
 		}
 	}
 }

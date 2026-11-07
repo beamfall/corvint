@@ -42,10 +42,20 @@ func (graph *Graph) driverSites(reached map[string]Witness, followed map[string]
 		return
 	}
 	var queue []string
+	unbounded := graph.unboundedDirty(dirty)
 	for _, id := range graph.order {
-		if slices.Contains(graph.units[id].Frontier, FrontierDriverComputedInvocation) {
+		frontier := graph.units[id].Frontier
+		// An unparsable file can hide any execution edge. Reach its fallback
+		// on every change not covered by the project's no-unbounded-reader
+		// proof, so its uncertainty cannot disappear with that edge.
+		computed := slices.Contains(frontier, FrontierDriverComputedInvocation)
+		if computed || len(unbounded) > 0 && slices.Contains(frontier, FrontierDriverUnparsableFile) {
 			if _, hit := reached[id]; !hit {
-				reached[id] = Witness{Kind: WitnessFrontierSite, DirtyPath: dirty[0], Via: []string{id}}
+				changed := dirty[0]
+				if !computed {
+					changed = unbounded[0]
+				}
+				reached[id] = Witness{Kind: WitnessFrontierSite, DirtyPath: changed, Via: []string{id}}
 			}
 			queue = append(queue, id)
 		}
@@ -81,6 +91,11 @@ func DriverInput(path string) bool {
 
 // Driver is the built-in driver claimant (AZU-V0-001).
 type Driver struct{}
+
+// RegisteredDriver is the registered provider set's driver. Its namespace is
+// already part of frozen graph identities, including trees without driver
+// files (AZU-V0-8905). Driver remains optional for explicit provider sets.
+type RegisteredDriver struct{ Driver }
 
 // Name is the claimant's namespace.
 func (Driver) Name() string { return DriverNamespace }
