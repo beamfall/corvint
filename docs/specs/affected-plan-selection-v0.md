@@ -25,7 +25,7 @@ Lane
 fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here for the same reason.
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
-to AFP-V0-2725 here for the same reason; see build-log entry `2026-11-06-selgh`.
+to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -648,8 +648,11 @@ measure. None of them drops a unit the change can reach.
 - **AFP-V0-2724:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;
   amends AFP-V0-590 (4) and AFP-V0-591) The `shard-plan` job of `.github/workflows/ci.yml` SHALL
   size the `go-product-shard` matrix of a pull request before any shard starts. It runs only for a
-  same-repository `pull_request` with `CORVINT_PR_NARROWING` on, a MET verdict and a docs-plan mode
-  other than DOCS or REUSE. It resolves and builds the trusted tools as a shard does (`pin-main`,
+  same-repository `pull_request` with `CORVINT_PR_NARROWING` on and a MET verdict, and it needs only
+  `narrowing-verdict`, never `docs-plan`, so its checkout, builds and narrowing run beside docs-plan
+  rather than after it. It reads no docs-plan output: on a DOCS or REUSE decision no consumer reads
+  its outputs (`go-product-shard` does not start, `go-product`'s AFP-V0-591 guard requires no
+  marker and `ci-narrowed-tree-record` does not run), so its count is unused there. It resolves and builds the trusted tools as a shard does (`pin-main`,
   the pinned planner, selector, driver and shadow, `ci-shards` and `test-confine` from the tested
   checkout) and, after `pin-lag.sh`, runs the trusted `shard-plan.sh` from the
   `CORVINT_PR_TOOL_SOURCE` checkout. `shard-plan.sh` runs `narrow.sh` beside it once, as shard 0 of
@@ -672,8 +675,13 @@ measure. None of them drops a unit the change can reach.
   `CORVINT_PR_SAMPLE_SEED`) move to the workflow `env`, which both jobs read unchanged. Wall-clock
   budget: a sized shard is planned within 400 s of predicted test wall time (or its longest unsplit
   unit), the bound a full shard's slices run under, plus the shard's fixed setup (about 110 s
-  measured on run 42212454082); the plan job's own setup (about 80 s) runs beside docs-plan before
-  the shards start.
+  measured on run 42212454082). The plan job (about 80 s: the median of the same steps in the
+  sixteen shards of that run, 56 s to 89 s) starts when `narrowing-verdict` ends (17 s into that
+  run) and runs beside docs-plan (which ended at 72 s), so the first shard starts at the later of
+  docs-plan and narrowing-verdict plus the plan job: about 100 s into the run, at most about 110 s,
+  instead of 72 s unsized. A sized run with the same predicted longest shard therefore finishes
+  about 30 s later than the unsized run (650 s on that run), in exchange for its fewer jobs; a plan
+  job that waited for docs-plan would start the first shard at about 154 s.
 - **AFP-V0-2725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;
   amends AFP-V0-099 and AFP-V0-734) Consumers SHALL accept the selection run's own shard count.
   `row.jq` admits one count `$m`, named by every readable selection document and narrowing record
@@ -687,6 +695,20 @@ measure. None of them drops a unit the change can reach.
   shard; a full record still needs the asked count. The docs-plan REUSE step accepts a decision
   whose `records` length equals its `shards`, and whose `shards` equals `REUSE_SHARDS` unless the
   scope is NARROWED.
+- **AFP-V0-2726:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934)
+  Every isolated helper build in `.github/workflows/*.yml` (a run step that sets a variable to a
+  `$RUNNER_TEMP/...` module directory, copies `.github/cishards/` or `.github/testconfine/` files
+  into it with `cp ... "$VAR/"` and `cp ... "$VAR/cmd/"`, and writes its `go.mod` with `printf`)
+  SHALL copy every file its packages and their `//go:embed` directives need. A Go test in
+  `.github/cishards` reads every workflow, attributes every `cp .github/cishards/` and
+  `cp .github/testconfine/` line to such a module (an unattributed one fails), replays each
+  distinct module from the checkout into a temporary directory, checks that every `//go:embed`
+  pattern of every copied Go file names a copied file, and runs `go vet ./...` there and
+  `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build ./...`, with the same `GOENV=off`,
+  `GOWORK=off`, `GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off` and empty `GOFLAGS` the
+  workflows set. Because `./...` skips `.github` and the isolated modules do not copy this test,
+  the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
+  every pull request, merge-queue entry and main push that runs go-static.
 
 ## Non-goals
 
@@ -763,7 +785,12 @@ suite over the sized matrix: slower, never smaller. A sized run leaves fewer `ci
 artifacts than `ci-shard-cost-drift` expects, so that advisory report abstains, as it does for
 every selected run; `ci-tested-tree-record` runs only when all sixteen `full<index>` outputs say
 FULL, so a sized run never records a full tree. A selection run of another count that did not
-narrow leaves its queue row INCOMPLETE, as before AFP-V0-2725.
+narrow leaves its queue row INCOMPLETE, as before AFP-V0-2725. A pull request with narrowing on and
+a MET verdict whose docs-plan decides DOCS or REUSE still runs the plan job (about 80 runner
+seconds), because the job cannot read docs-plan's mode without waiting for it; nothing reads its
+count. A file that an isolated helper build needs but does not copy fails that workflow's helper
+build; AFP-V0-2726 catches it before merge, on the pull request that adds the file or the
+dependency.
 
 ## Acceptance evidence and traceability
 
@@ -815,8 +842,9 @@ narrow leaves its queue row INCOMPLETE, as before AFP-V0-2725.
 | AFP-V0-2721 | `section` and the `jobs` list in `.github/forward-rows/github-guard.sh` | `TestAFPV02721GuardComparesTheNarrowingJobsOfCIYML_AFPV02721` (every narrowing job, the top-level text, a moved key, a deleted file, an anchor; another job's edit, a new job and a deleted job narrow) |
 | AFP-V0-2722 | the real-git harness `guardRepo` in `tools/ci-forward-row/github_guard_test.go` | `TestAFPV02720NarrowShFaultInjection_AFPV02720` in `tools/ci-forward-row/narrowing_sized_test.go` (narrow.sh, the confine wrapper and the selection step each FULL; an unrelated workflow, ci-cadence data, another job and code-only each NARROWED) |
 | AFP-V0-2723 | `Size`, `SizeFrom`, `PredictedWallMs`, `MinNarrowedShards`, `DefaultWallBudgetMs` in `.github/cishards/size.go`; `--size-budget-ms` and `--min-shards` in `.github/cishards/cmd/main.go`; `size.go` in `profileNames` | `TestAFPV02723SizeIsTheFewestShardsWithinTheBudget_AFPV02723`, `TestAFPV02723UnitsAboveTheBudgetWidenTheBound_AFPV02723`, `TestAFPV02723SizeRefusesOrKeepsTheMaximumWhenItCannotPrice_AFPV02723` in `.github/cishards/size_test.go`; `TestAFPIsolatedBuildIgnoresModuleRedirection` (the isolated build carries `size.go`); the PR #106, #111 and #120 sizings in build-log entry `2026-11-06-selgh` |
-| AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
+| AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
+| AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
 
 ## Rollback
 
@@ -826,7 +854,9 @@ AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh`
 `shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and
 `SHARDS: "16"` in `go-product` and `ci-narrowed-tree-record`, and restore the `== $n` shard-count
 checks in `row.jq` and the `shards` equality in `narrowedRecordOf`; the pins may stay at the
-workflow level. Either half reverts alone. For AFP-V0-551, removing
+workflow level. Either half reverts alone. For AFP-V0-2726, delete
+`.github/cishards/isolated_copies_test.go` and its alternative in the go-static `-run` pattern; the
+`size.go` copy in `linecov-index.yml` stays while `partition.go` embeds it. For AFP-V0-551, removing
 `fixtureTokens` makes marked literals read paths again; the markers are inert comments. For
 AFP-V0-830, drop the integrations listing from `script/gen-documentation-paths.sh` and run
 `make documentation-paths`. For AFP-V0-2200 to AFP-V0-2202, delete
