@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,7 +39,7 @@ func TestAHI043ClaudeContextPacketsAreByteStableAcrossTime(t *testing.T) {
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"}, {"add", "."}, {"commit", "-qm", "initial"},
 	} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

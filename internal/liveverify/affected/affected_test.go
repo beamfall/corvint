@@ -192,9 +192,8 @@ func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
 	}
 }
 
-// AFP-V0-020: a changed Go package with no tests is named as unknown scope,
-// never omitted; an untested dependent of the change and an unreached package
-// raise nothing.
+// AZU-V0-006 amends AFP-V0-020: caller tests observe a changed testless
+// package; an untested dependent and an unreached package raise nothing.
 func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 	language := fake{name: "go", units: []Unit{
 		{ID: "go:changed", Sources: []string{"changed/changed.go"}},
@@ -207,9 +206,9 @@ func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := Select(graph, []string{"changed/changed.go"})
-	want := Unknown{Reason: UnknownNoSelectableTest, Detail: "go:changed"}
-	if plan.Scope != ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
-		t.Fatalf("scope=%s unknown=%v want %v", plan.Scope, plan.Unknown, want)
+	// AZU-V0-006: the modelled caller tests observe this package.
+	if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 || len(plan.Uncovered) != 0 {
+		t.Fatalf("scope=%s unknown=%v uncovered=%v", plan.Scope, plan.Unknown, plan.Uncovered)
 	}
 	if got := plan.SelectedTests(); len(got) != 1 || got[0] != "core/core_test.go" {
 		t.Fatalf("selected=%v", got)

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // LTA-V0-018: the learning report names its three stages, pins the ledgers
@@ -95,7 +96,7 @@ func TestLTAV0018DefaultContextIsByteIdenticalWhenLearningIsAbsentOrReset(t *tes
 	} {
 		command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
-		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		command.Env = append(testsupport.WithoutGitIdentity(os.Environ()), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Skipf("git %v: %v %s", arguments, err, output)
 		}

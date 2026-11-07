@@ -39,7 +39,7 @@ test('PWV-V0-8100 admitted ordinary fallback passes the real envelope validator'
  assert.equal(validEnvelope(envelope,'user-prompt'),true);
  assert.equal(validEnvelope({...envelope,hostVersion:PROTECTED_PI_VERSION},'user-prompt'),PROTECTED_PI_VERSION===PI_HOST_VERSION);
  let spawned=0;const notices=[],handlers=new Map();
- const ordinary=createRunner({binary:process.execPath,spawnImpl:(_binary,_args,options)=>{spawned++;return spawn(process.execPath,['-e',`process.stdin.resume();process.stdin.on('end',()=>process.stdout.write(${JSON.stringify(JSON.stringify(envelope))}));`],options)}});
+ const ordinary=createRunner({binary:process.execPath,spawnImpl:(_binary,_args,options)=>{spawned++;return spawn(process.execPath,['-e',"process.stdin.resume();process.stdin.on('end',()=>process.stdout.write(process.argv[1]));",JSON.stringify(envelope)],options)}});
  const pi={on:(name,f)=>handlers.set(name,[...(handlers.get(name)??[]),f]),registerCommand(){},registerTool(){}};
  register(pi,{ordinary,qualified:{close:async()=>{},run:async()=>({fault:'invalid-qualified-response'})},installed:true,version:PI_HOST_VERSION});
  const ctx={cwd:process.cwd(),isProjectTrusted:()=>true,hasUI:true,ui:{notify:text=>notices.push(text)},sessionManager:{getSessionId:()=> 'admitted-fallback'}};

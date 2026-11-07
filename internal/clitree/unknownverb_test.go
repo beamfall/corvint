@@ -6,6 +6,17 @@ import (
 	"testing"
 )
 
+func TestCAPV07700RootPositionalInput(t *testing.T) {
+	tree := Tree{Binary: "receipt", Source: "companion root contract", Nodes: []Node{{Required: []string{"GOROOT"}}, {Path: []string{"help"}}}}
+	if _, unknown := UnknownVerb(tree, []string{"relative-goroot"}); unknown {
+		t.Fatal("a required positional input is not a command name")
+	}
+	tree.Nodes[0].Required = []string{"stdin: protocol request JSON"}
+	if _, unknown := UnknownVerb(tree, []string{"zz-no-such-command"}); !unknown {
+		t.Fatal("protocol roots must still refuse unknown command words")
+	}
+}
+
 // ACX-V0-904: an operation word that names no node or internal entry point is refused with the
 // one shared envelope on stderr and exit 2; a known verb, an internal word or an option is not.
 func TestACXV0904UnknownVerbRefusal(t *testing.T) {

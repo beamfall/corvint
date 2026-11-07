@@ -1,0 +1,19 @@
+heavy.sh: script sha256=d0ed000a37737dd812db808683eb746c6a67c2763d611932336ca9c6494017fa script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: this Linux host neither builds nor runs 2 darwin-only file(s), first ./internal/liveverify/affected/graphcache_dir_darwin.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 36f97cc2b7d57871dc2aa2a271bcc618384b20f9 tree=c1423ef8df2f2b84f209b28a38785f7d470e4b51 dirty=32
+heavy.sh: slot 1/8 after 0s
+goos: linux
+goarch: amd64
+pkg: github.com/Beamfall/corvint/internal/liveverify/affected
+cpu: AMD Ryzen 9 5950X 16-Core Processor
+BenchmarkRepresentativeEditsSerialParity/serial-32         	       1	24511511128 ns/op
+--- FAIL: BenchmarkRepresentativeEditsSerialParity/parallel
+    measure_test.go:333: LVT-V0-008 parallel representatives [benchmarks/dogfood-measure/main.go benchmarks/dogfood-workers/main.go benchmarks/runner/main.go internal/obscorpus/corpus.go tools/lsp-editors/wire-proxy.py] differ from serial [internal/groupreap/argv.go internal/cem/cemcode/cemcode.go internal/secretscreen/argv.go internal/analyzerjs/analyze.go examples/documentation-corpus/flow-provider.py]
+--- FAIL: BenchmarkRepresentativeEditsSerialParity
+FAIL
+exit status 1
+FAIL	github.com/Beamfall/corvint/internal/liveverify/affected	33.780s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=34.3s rc=1
+heavy.sh: exit rc=1 cause=command cmd=env

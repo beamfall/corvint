@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+cmake_minimum_required(VERSION 3.20)
+project(covlive C)
+add_executable(probe probe.c)
+add_executable(child child.c)
+target_include_directories(probe PRIVATE "${CMOCKA_ROOT}/usr/include")
+target_link_libraries(probe PRIVATE "${CMOCKA_ROOT}/usr/lib/x86_64-linux-gnu/libcmocka.so")
+foreach(t probe child)
+ target_compile_options(${t} PRIVATE --coverage -O0 -g)
+ target_link_options(${t} PRIVATE --coverage)
+endforeach()
+enable_testing()
+add_test(NAME suite COMMAND probe)

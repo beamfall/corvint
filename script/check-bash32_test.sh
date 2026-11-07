@@ -74,6 +74,14 @@ expect "FAIL map""file script/tool:2:" "$tmp/out"
 absent 'tool.py' "$tmp/out"
 /bin/rm -f "$repo/script/tool" "$repo/script/tool.py"
 
+# 4b. A binary file whose first line is not UTF-8 (a PNG signature) is read as bytes and not
+# listed, under a UTF-8 locale where BSD awk refuses an invalid multibyte record (V1-4553).
+utf8=$(locale -a 2>/dev/null | grep -i -m 1 -E '^(c|en_us)\.utf-?8$' || true)
+printf '\211PNG\r\n\032\n' > "$repo/image.png"
+LC_ALL=${utf8:-C} run_gate || { cat "$tmp/out" >&2; fail "a binary first line stopped the script finder (locale ${utf8:-C})"; }
+expect 'check-bash32: ok, 0 scripts' "$tmp/out"
+/bin/rm -f "$repo/image.png"
+
 # 5. Comment lines, quoted operators and the allow marker pass; Bash 3.2 forms pass.
 {
   echo '#!/usr/bin/env bash'
@@ -169,7 +177,9 @@ absent '(reused:' "$tmp/out"
 /bin/rm -f "$repo/ok.sh"
 
 # 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
-grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
+# SRG-V0-982: DOC_GATE_TARGETS is a continuation list with one target per line.
+awk '/^DOC_GATE_TARGETS :=/ { on = 1; next } on { line = $0; sub(/ \\$/, "", line); sub(/^  /, "", line); print line; if ($0 !~ /\\$/) exit }' "$root/Makefile" |
+  grep -qx bash32-check || fail "bash32-check is not in DOC_GATE_TARGETS"
 # GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
 awk '/^GATE_STEPS = /,/end of GATE_STEPS/' "$root/Makefile" | grep -qE '(^|[[:space:]])bash32-check([[:space:]]|$)' || fail "bash32-check is not in GATE_STEPS"
 

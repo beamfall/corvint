@@ -37,6 +37,19 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Requirements
 
+- `TCL-V0-7703`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3738)
+  Every ticket mutation's terse and verbose help MUST list its closed payload keys and each
+  key's type, enum and nullability; every mutation MUST have a read-only `--template` with a
+  decodable payload and typed field table. This retains TCL-V0-610/611 delivery.
+  Tests: `TestTCLV0610_HelpNamesPayloadKeyTypes`, `TestTCLV0611_EveryMutationTemplateRuns`.
+- `TCL-V0-7704`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3976)
+  `attempt show --fields` MUST accept actual top-level attempt keys or list the valid keys,
+  including a route to the nested lease when `leaseExpiresAt` is not top-level. A positional
+  `ticket search` query MUST either act as `--text` or refuse with an explicit `--text T` remedy.
+  `gate history` MUST accept the same queue-local ticket token as `ticket show`. Terse
+  `ticket progress --help` MUST identify all required payload keys, their nullability and the
+  closed phase enum; invalid phases MUST name the enum. Test: `TestTCLV07704ReadPapercuts`.
+
 ### Tasks store and read-path repairs (2026-11-04)
 
 - `TCL-V0-7205`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3903) A valid journaled fixture with at least 420 tickets MUST remain readable by ticket show at both ends of the inventory. Fixture receipts MUST respect the existing inline post count cap by splitting posts into bounded receipts; no valid post is silently truncated and no cursor is needed when the complete show result fits. An oversized invalid receipt remains a named refusal.
@@ -53,7 +66,44 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07211_CreateTemplateMapsFixesAndTestsToChore`.
 - `TCL-V0-7213`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4301) Single-target expected-revision current and single/multi-target implicit-revision hold MUST settle a REDO_PENDING receipt once on their write path and retry the revision/index read. Reusing the original request MUST replay without another receipt. Other request-index errors MUST refuse and name the request entry; no failed observation falls back to a live revision. Ordinary read commands never settle.
   Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07213_RetriesReplayOverPendingReceipt; TestTCLV07213_CurrentNamesRequestIndexError`.
+- `TCL-V0-7102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3173)
+  `receipt audit --worktree DIR` MUST run the complete owning-journal audit against `DIR/.taskman`
+  as the projection, preserving the command repository's journal, lock and primary identity.
+  It MUST name the selected absolute `worktree` in its result, independently bind the selected
+  tree through the ordinary read snapshot protocol, and report its divergence rather than read
+  the primary projection in its place. It writes nothing and MUST refuse `--through` combined
+  with `--worktree`, because a prefix audit cannot establish current projection agreement.
+  A divergence repair MUST name the explicitly selected projection and `--worktree DIR`,
+  without presenting it as the resolved linked intent worktree or advising commit/carry there.
+  A symlinked `DIR` leaf MUST refuse `UNSUPPORTED_FILESYSTEM` before leaf resolution; ancestor
+  aliases such as macOS `/tmp` and `/var` may be resolved before that check.
+  Help MUST explain that `queue snapshot --worktree DIR` and snapshot `ticket blockers` validate
+  dependency closure separately, and include a literal example. A snapshot contains no journal
+  and still refuses receipt audit under TCL-V0-012. Acceptance:
+  `TestTCLV07102_AuditExplicitWorktreeProjection`, `TestTCLV07102_RefusesSymlinkedWorktree`,
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
 
+
+- `TCL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4061)
+  `receipt put FILE` MUST resolve relative file arguments against `Env.Cwd` through `commandPath`,
+  as other CLI file readers do, without changing the process working directory. The stored digest
+  MUST identify those exact bytes. Acceptance: `TestTCLV07100_ReceiptPutResolvesEnvCwd`.
+- `TCL-V0-7101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4164)
+  A gate argv entry longer than the 4,096-byte PathText bound (`MaxGateArgBytes`, raised from the
+  128-byte Identifier bound by TRM-V0-532) MUST refuse `LIMIT_EXCEEDED`, identifying its argv
+  element and the byte bound before execution.
+  Acceptance: `TestTCLV07101_GateArgumentNamesLimit` (`internal/tasks/cli`).
+
+- `TCL-V0-7404`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4288; V1-4289) Gated batch-close MUST derive a lane ticket candidate from its delivering PR headRefOid unless an explicit seal overrides it. Its precheck MUST admit only scope paths a retry claim can restore from the last matching ended generation and that cover a changed path of the candidate's diff no declared key covers, so historical widen keys never refuse a narrower retry, exclude already declared paths from the restored request without imposing the request limit on the full declaration, pass the restored keys to the claim, and bind each step request ID to candidate, base, scope source and scope keys. Missing or non-ancestral lane heads remain explicit refusals. Tests: `TestTCLV07404MultiLaneHeads`, `TestTCLV07404RestoredScopeAndRequestBinding`, `TestTCLV07404NarrowRetryAfterLargeWiden`, `TestTCLV07404BatchRestoresSubmittedWiden` in `internal/tasks/cli`.
+- `TCL-V0-7405`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3536; V1-3539; V1-3598) Help MUST provide usable inline guidance without referring to unshipped documentation files. Complete-manual help MUST mark target and expected revision required and include an invocation; omitting either MUST name the missing flag and print that invocation. EFFECTS_UNBOUNDED MUST report the actual effective coverage state. Tests: `TestTCLV07405ManualHelpAndMissingFlags`, `TestTCLV07405UnboundedActualCoverage` in `internal/tasks/cli`.
+- `TCL-V0-926`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4626; amended 2026-11-04 fix round 1)
+  `ticket show ID --root DIR` and `ticket show --root=DIR ID` MUST resolve the read from DIR,
+  relative to the caller's directory, just as the leading global `--root` form does. The flag
+  MUST work with JSON, field selection, summary and text output. An empty or missing directory
+  MUST refuse `MALFORMED` before reading a store. Repeated roots resolve against the original
+  caller directory; conflicting roots MUST refuse `MALFORMED` with an actionable message.
+  This changes no records or write authority.
+  Evidence: `TestTCLV0926TicketShowRootAfterVerb`, `TestTCLV0926TicketShowConflictingRoots`. Rollback: remove the show-local root parsing.
 
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
   `corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]...
@@ -527,6 +577,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 ## Acceptance evidence
 
+- `TCL-V0-926` — `internal/tasks/cli/ticket_show_text.go`; `TestTCLV0926TicketShowRootAfterVerb`.
+
 - `internal/tasks/similar/similar_test.go`: `TestTCLV0002_RankIsDeterministicWithEvidence`,
   `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`;
   `internal/tasks/similar/anchor_test.go`: `TestTCLV0990_OneRareTermIsNotDuplicate`;
@@ -626,3 +678,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 Revert the change. The new verbs, the guard and the snapshot environment variable disappear;
 recurrence lines already written stay as ordinary body text. No stored state, receipt or wire
 contract depends on these requirements.
+
+
+## Clicontract acceptance evidence and rollback
+
+`TestTCLV07704ReadPapercuts` covers all four reported read/help cases; the positional-search
+remedy is the only newly repaired read behavior. Existing template/type tests retain the
+already implemented mutation contract. No mutation or queue lifecycle semantics change.
+A failure is an unhelpful refusal or a template that cannot decode. Rollback restores the
+previous CLI hint and common version reference; retained native ticket records are unchanged.
+CAP-V0-7702 and ACX-V0-7707 own installation, common version metadata and executable framing.
+The enumerated boundary exceptions admit standard-library-only presentation helpers, with no
+Core query, ranking, network or authority edge.

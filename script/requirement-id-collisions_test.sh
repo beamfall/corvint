@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Covers ASD-V0-950..952 (V1-2909, V1-1009, V1-3614) and ASD-V0-805 (V1-4093): the 2026-10-27 ASD-V0-032 and ASD-V0-036
+# Covers ASD-V0-950..952 (V1-2909, V1-1009, V1-3614), ASD-V0-805 (V1-4093) and LVT-V0-001/002
+# (V1-4046): the 2026-10-27 ASD-V0-032 and ASD-V0-036
 # collisions and the batch C CAL-V0 collision replayed on a synthetic repository, each found from
 # local branches and worktrees before either side merges, and a lane block check that sees an
 # unmerged branch.
@@ -92,6 +93,11 @@ g checkout -q -b claude/lane-free main
 define self ASD-V0-040 'a free clause.'
 output=$(check) || fail "a lane with free IDs was refused: $output"
 case $output in *'no-collision 1 new IDs here'*) ;; *) fail "the clean summary was not printed: $output" ;; esac
+# Allocation also includes this checkout's committed definitions, even when no other
+# open ref contains them. Collision mode still excludes the checkout from its peers.
+output=$(check --block ASD-V0 40 40) && fail "the current branch's committed ID was declared free: $output"
+case $output in *'used ASD-V0-040 claude/lane-free ('*) ;; *) fail "the current branch was not named: $output" ;; esac
+output=$(check --block ASD-V0 41 41) || fail "a free adjacent ID was refused: $output"
 
 # A branch with no history shared with the base is skipped, not compared.
 g checkout -q --orphan claude/unrelated
@@ -164,9 +170,75 @@ tree=$(GIT_INDEX_FILE="$test_root/noindex.index" sh -c '
 g branch claude/no-index "$(g commit-tree -p main -m 'no index' "$tree")"
 output=$(check) || fail "a ref without an index was refused: $output"
 case $output in *'claude/no-index ('*') has no docs/specs/REQUIREMENTS.tsv; skipped'*) ;; *) fail "the skipped ref was not noted: $output" ;; esac
+status=0
+output=$(check --block ASD-V0 200 219) || status=$?
+[[ $status == 2 && $output == *requirements-index-unavailable* ]] || fail "an absent open index declared a block free: $output"
 g branch -D -q claude/no-index
+# LVT-V0-002: malformed committed rows cannot declare an allocation free.
+g checkout -q -b lane/malformed main
+printf 'not a requirement index\n' > "$repo/docs/specs/REQUIREMENTS.tsv"
+g add docs/specs/REQUIREMENTS.tsv && g commit -q -m malformed
+g checkout -q claude/lane-free
+status=0
+output=$(check --family FRESH-V0) || status=$?
+[[ $status == 2 ]] || fail "a malformed open index declared a family free: $output"
+g branch -D -q lane/malformed
 
-for bad in '--block ASD-V0 9 1' '--block asd 1 2' '--base no-such-ref' '--bogus'; do
+# LVT-V0-002 (V1-4046): a lane pushed from another host exists here only as a remote-tracking
+# branch; its definitions are seen in block, family and collision modes, and a remote-tracking ref
+# of a commit already in the base is not an open ref. LVT-V0-001: a four-digit block is checked.
+g checkout -q -b claude/remote-lane main
+define self ASD-V0-2480 'a four-digit remote clause.'
+define lvx LVX-V0-001 'a new-prefix remote clause.'
+remote_sha=$(g rev-parse HEAD)
+g checkout -q claude/lane-free
+g branch -D -q claude/remote-lane
+g update-ref refs/remotes/origin/claude/remote-lane "$remote_sha"
+g update-ref refs/remotes/origin/main "$(g rev-parse main)"
+output=$(check --block ASD-V0 2480 2519) && fail "a four-digit block a remote-tracking lane defines passed: $output"
+case $output in *'used ASD-V0-2480 origin/claude/remote-lane ('*) ;; *) fail "the remote-tracking lane was not named: $output" ;; esac
+output=$(check --block ASD-V0 248 251) || fail "ASD-V0-2480 was counted in the three-digit block 248..251: $output"
+output=$(check --block ASD-V0 2520 2539) || fail "a free four-digit block was refused: $output"
+case $output in *'free ASD-V0-2520..ASD-V0-2539 on'*) ;; *) fail "the free four-digit block line is missing: $output" ;; esac
+output=$(check --family LVX-V0) && fail "a prefix a remote-tracking lane defines passed: $output"
+case $output in *'used LVX-V0-001 origin/claude/remote-lane ('*) ;; *) fail "the family check did not name the remote lane: $output" ;; esac
+output=$(check --family LVX-V1) && fail "another version of a used family passed: $output"
+output=$(check --family LVY-V0) || fail "a free prefix was refused: $output"
+case $output in *'free prefix LVY-V0 on'*) ;; *) fail "the free prefix line is missing: $output" ;; esac
+g checkout -q -b claude/local-2480 main
+define self ASD-V0-2480 'a different local clause.'
+output=$(check) && fail "a collision with a remote-tracking lane passed: $output"
+case $output in *'collision ASD-V0-2480 here docs/specs/self.md "a different local clause." vs origin/claude/remote-lane ('*) ;; *) fail "the remote collision was not named: $output" ;; esac
+g checkout -q claude/lane-free
+g branch -D -q claude/local-2480
+g update-ref -d refs/remotes/origin/claude/remote-lane
+g update-ref -d refs/remotes/origin/main
+
+# LVT-V0-002: failed enumeration and empty/truncated successful batch output
+# are missing evidence, never a free block. The controls above still find free IDs.
+real_git=$(command -v git)
+mkdir "$test_root/shim"
+cat > "$test_root/shim/git" <<'SH'
+#!/usr/bin/env bash
+case "$BROKEN_READ:$1 ${2:-}" in
+  'worktrees:worktree list'|'roots:rev-list --max-parents=0') exit 1 ;;
+  'empty:cat-file --batch')
+    while IFS= read -r request; do printf '%040d blob 0\n\n' 0; done
+    exit 0 ;;
+  'truncated:cat-file --batch')
+    while IFS= read -r request; do printf '%040d blob 1000000\nid\tfile\ttitle\n' 0; done
+    exit 0 ;;
+esac
+exec "$REAL_GIT" "$@"
+SH
+chmod +x "$test_root/shim/git"
+for fault in worktrees roots empty truncated; do
+  status=0
+  output=$(PATH="$test_root/shim:$PATH" REAL_GIT="$real_git" BROKEN_READ="$fault" check --family FRESH-V0) || status=$?
+  [[ $status == 2 && $output == *'REFUSE '* ]] || fail "$fault evidence declared a family free: $output"
+done
+
+for bad in '--block ASD-V0 9 1' '--block asd 1 2' '--block ASD-V0 1 10000' '--family' '--family asd' '--base no-such-ref' '--bogus'; do
   # shellcheck disable=SC2086
   status=0
   (cd "$repo" && script/requirement-id-collisions.sh $bad) > /dev/null 2>&1 || status=$?

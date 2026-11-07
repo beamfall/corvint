@@ -10,7 +10,8 @@
 // readers SelectStructural takes from the plan likewise, ADN-V0-011;
 // `reader <pkg> <- <path>` for a package that encloses or names a dirty path;
 // `unresolved <pkg>: <reason>` for a package whose reads no literal bounds,
-// selected whenever any path is dirty; `declared <pkg> <- <path>` for a package
+// selected whenever any path is dirty; `suite <language> <- <frontier>` for a
+// non-Go language whose declared suite a bearing frontier adds, AFP-V0-2750; `declared <pkg> <- <path>` for a package
 // whose declared read scope holds a dirty path, AFP-V0-023, where an edit of the
 // declaration itself is measured against the plan's base, AFP-V0-050), then one verdict
 // as the last line:
@@ -117,6 +118,32 @@ func resolvedEvidence(p string) bool {
 	}
 	name, sealed := strings.CutPrefix(p, sealedChanges)
 	return sealed && strings.HasSuffix(name, ".cem.json") && len(name) > len(".cem.json") && !strings.Contains(name, "/")
+}
+
+// buildLog holds the build log, one Markdown entry per recorded decision or
+// result (decision 0423), which nearly every change adds.
+const buildLog = "docs/build-log/"
+
+// recordDirectory returns the record directory of a record entry, a sealed
+// CEM directly under sealedChanges or a Markdown entry directly under
+// buildLog, the planner's recordDirectory (AFP-V0-2743, AFP-V0-2744): its
+// rule (c) readers are resolvingReaders, and a token that resolves only to an
+// ancestor of the record directory reads nothing of it.
+func recordDirectory(p string) (string, bool) {
+	if name, ok := strings.CutPrefix(p, sealedChanges); ok && !strings.Contains(name, "/") && len(name) > len(".cem.json") && strings.HasSuffix(name, ".cem.json") {
+		return sealedChanges, true
+	}
+	if name, ok := strings.CutPrefix(p, buildLog); ok && !strings.Contains(name, "/") && len(name) > len(".md") && strings.HasSuffix(name, ".md") {
+		return buildLog, true
+	}
+	return "", false
+}
+
+// resolvedReaders reports whether rule (c) for p is resolvingReaders: the CEM
+// sidecar and a sealed CEM (AFP-V0-152), and a build-log entry (AFP-V0-2744).
+func resolvedReaders(p string) bool {
+	_, record := recordDirectory(p)
+	return record || resolvedEvidence(p)
 }
 
 var plainImportPath = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
@@ -259,9 +286,11 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
 	}
 	if withUnresolved {
-		if reason := unknownNarrowing(plan, index, root); reason != "" {
+		reason, suites := unknownNarrowing(plan, index, root)
+		if reason != "" {
 			return fallback(reason)
 		}
+		lines = append(lines, suites...)
 	}
 	packages := map[string]bool{}
 	for _, pkg := range sortedUnique(plan.Provider.Go.Packages) {
@@ -381,21 +410,27 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // well-formed unobserved-module frontier (UnobservedModule: the nested module
 // is no root package, and CI runs its own suite outside the shards), a
 // well-formed binary consumer (BinaryConsumer: no Go shard runs it, narrowed or
-// FULL, and the shadow names it as a check), or an
-// UNINDEXED_SOURCE_PATH that deletedGoSource admits. CI narrows only the Go shards; rules (b) and (c)
+// FULL, and the shadow names it as a check), a non-Go frontier FrontierSuite
+// reads, or an UNINDEXED_SOURCE_PATH that deletedGoSource admits. A frontier
+// FrontierSuite reads adds its language's declared suite, which the returned
+// `suite <language> <- <detail>` lines name, one per language for its first
+// entry, as the shadow runs it (AFP-V0-2750); it never widens the Go selection. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
 // package whose reads no literal bounds, so every Go reader of an unowned path
 // is selected; a frontier names what a language model cannot see inside units
 // the dirty paths already reach; and a unit with no selectable test gets no
 // test from a FULL run either. Any other unknown, a malformed reason, and an
 // UNKNOWN plan that names no unknown return the fallback reason.
-func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) string {
+func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string, []string) {
 	if plan.Plan.Scope == "UNKNOWN" && len(plan.Plan.Unknown) == 0 {
-		return "the plan is UNKNOWN but names no unknown"
+		return "the plan is UNKNOWN but names no unknown", nil
 	}
+	suites := map[string]string{}
 	for _, entry := range plan.Plan.Unknown {
 		switch {
 		case AllowedUnknown(entry.Reason, entry.Detail):
+			continue
+		case frontierSuite(entry.Reason, entry.Detail, suites):
 			continue
 		case entry.Reason == "LANGUAGE_FRONTIER" && unobservedModule(entry.Detail):
 			continue
@@ -408,9 +443,25 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) string 
 		if !unknownReason.MatchString(reason) {
 			reason = "a malformed reason"
 		}
-		return "the plan names the unknown " + reason + ", which the selector cannot attribute"
+		return "the plan names the unknown " + reason + ", which the selector cannot attribute", nil
 	}
-	return ""
+	lines := make([]string, 0, len(suites))
+	for _, language := range sortedKeys(suites) {
+		lines = append(lines, "suite "+language+" <- "+suites[language])
+	}
+	return "", lines
+}
+
+// frontierSuite records in suites the first frontier of each language
+// FrontierSuite reads (AFP-V0-2750).
+func frontierSuite(reason, detail string, suites map[string]string) bool {
+	language, ok := FrontierSuite(reason, detail)
+	if ok {
+		if _, seen := suites[language]; !seen || detail < suites[language] {
+			suites[language] = detail
+		}
+	}
+	return ok
 }
 
 // deletedGoSource reports an unindexed Go source that this change deleted from
@@ -482,7 +533,7 @@ type attribution struct {
 // it, given as readers (index.readers(dirty), or pathReaders for many paths).
 // Rule (d), the unresolved packages, is index.unresolved().
 func (index *repositoryIndex) attribute(dirty string, readers []string) []attribution {
-	if resolvedEvidence(dirty) {
+	if resolvedReaders(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	return append(index.attributeStructure(dirty), attribution{"reader", readers})
@@ -654,7 +705,7 @@ func additiveNarrowing(plan Receipt, module string) map[string]map[string]bool {
 // rule (c) is unchanged. A narrowed record prunes import edges only, as the
 // planner's follows does (AFP-V0-3143).
 func (index *repositoryIndex) attributeNarrowed(dirty string, readers []string, unreferenced map[string]bool) []attribution {
-	if resolvedEvidence(dirty) {
+	if resolvedReaders(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	directory := parentDirectory(dirty)
@@ -749,7 +800,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		for _, rule := range index.attributeStructure(p) {
 			bind(rule.directories, rule.kind, p)
 		}
-		if resolvedEvidence(p) {
+		if resolvedReaders(p) {
 			bind(boundedReaders(index.resolvingReaders(p), scopes, nil, p), "reader", p)
 		}
 	}
@@ -769,7 +820,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 	matcher := newPathMatcher(paths)
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
-			if !resolvedEvidence(paths[i]) {
+			if !resolvedReaders(paths[i]) {
 				bind(boundedReaders(directories, scopes, nil, paths[i]), "reader", paths[i])
 			}
 		}
@@ -842,7 +893,7 @@ func hiddenDirectory(directory string) bool {
 		return false
 	}
 	for _, part := range strings.Split(directory, "/") {
-		if part == "testdata" || strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+		if part == "testdata" || part == ".git" || part == ".hg" || part == ".svn" {
 			return true
 		}
 	}

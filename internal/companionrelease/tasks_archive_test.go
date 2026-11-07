@@ -84,7 +84,7 @@ func TestTasksArchiveRefusesOtherTargets(t *testing.T) {
 
 func TestTasksArchiveRequiresSetupResources(t *testing.T) {
 	t.Parallel()
-	paths := []string{"docs/TASKS-EXTERNAL-AGENTS.md", "internal/tasks/cli/testdata/external-agents/policy.json", "internal/tasks/cli/testdata/external-agents/queue.json", "internal/tasks/cli/testdata/external-agents/ticket-create.json"}
+	paths := []string{"docs/TASKS-EXTERNAL-AGENTS.md", "internal/tasks/cli/testdata/external-agents/policy.json", "internal/tasks/cli/testdata/external-agents/queue.json", "internal/tasks/cli/testdata/external-agents/ticket-create.json"} //corvint:fixture-path
 	for missing := -1; missing < len(paths); missing++ {
 		source := Export{}
 		for i, path := range paths {

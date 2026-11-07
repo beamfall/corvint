@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 
@@ -64,4 +66,12 @@ func run(args []string, in io.Reader, out, stderr io.Writer) int {
 	}
 	return 0
 }
-func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-intake", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-intake", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr())))
+}

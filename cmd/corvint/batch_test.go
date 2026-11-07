@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -72,7 +71,7 @@ func batchRepositoryWithModule(t *testing.T, module string) string {
 		}
 	}
 	for _, arguments := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "batch fixture"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

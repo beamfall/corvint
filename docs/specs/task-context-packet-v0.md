@@ -56,6 +56,7 @@ it must read, each with the relation that admitted it, without naming the task's
   Tests: `TestTaskContextSelectedSlotScores`,
   `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. Measure all four frozen
   retrieval subsets; retain rank changes and failures. Rollback: remove the final ranking call.
+- `TCP-V0-7406`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3546) An explicitly named tracked symlink in local prompt task_evidence MUST reuse the pinned governance one-hop admission. An admitted row MUST identify the target path and blob hash with link_path and link_blob_hash; out-of-tree, dangling, chained and cyclic links MUST retain the same typed refusal in unavailable_selectors. A dirty link MUST keep resolution uncertain just as a dirty target does. Line and symbol selectors on such a link MUST be resolved to the pinned one-hop target before they are validated or searched, keeping both identities. Every candidate sharing one target (two links, or a link and the target named directly) MUST stay a separate candidate: a selector reaching more than one is ambiguous, and each row keeps its own link identity whatever order the candidates sort in. A selector on a refused link MUST record the link's typed refusal in unavailable_selectors before any line or symbol matching, so the anchor is unavailable evidence rather than not-found, and MUST NOT be checked against the link blob. No working-tree link is followed. Tests: `TestTCPV07406ExplicitSymlink`, `TestTCPV07406SymlinkSelectorsUseTheTarget`, `TestTCPV07406SymlinkAliasesKeepEveryIdentity`, `TestTCPV07406RefusedSymlinkSelectorsKeepTheirRefusal` in `internal/contextindex`.
 
 - `TCP-V0-001`: `context` MUST be read-only. It builds one index over the committed tree and
   writes no repository, trace, or ledger state on any path, including every error path; its wire
@@ -1668,6 +1669,10 @@ outside TCP-V0-008.
   self-modification signal covers only uncommitted edits.
 
 ## Acceptance evidence
+
+TCP-V0-024 verifier repair 1: `TestContextDefaultWireIsTheGolden` also exports a different
+operator identity; `evidenceSummaryRepository` pins both fixture identities and dates, preserving the existing
+commit hash and exact golden bytes. No packet or golden changes are admitted.
 
 `internal/contextindex/taskcontext_test.go` (subject kept out, pair first, reverse importer and
 mentioned path admitted, retrieval shape, `NO_CANDIDATES`, untracked subject refused; TCP-V0-016's

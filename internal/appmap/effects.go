@@ -349,8 +349,9 @@ func instances(toks []token, classes map[string]string) map[string]string {
 }
 
 // span classifies every call between token indexes from and to (exclusive). self is the file whose
-// class `this` names, inst the spec's page-object instances.
-func (r *effectReader) span(path string, toks []token, from, to int, inst map[string]string, classes map[string]string, self string, depth int) stepEffect {
+// class `this` names, inst the spec's page-object instances; construction is true only for the
+// tokens a construction runs, the one place a page object may set its own fields (ANL-V0-920).
+func (r *effectReader) span(path string, toks []token, from, to int, inst map[string]string, classes map[string]string, self string, construction bool, depth int) stepEffect {
 	out := stepEffect{kind: EffectNavigation}
 	if len(toks) > 0 && toks[0].unsure {
 		return effectAt(EffectUnknown, path, 1, "unbounded-source")
@@ -375,9 +376,10 @@ func (r *effectReader) span(path string, toks []token, from, to int, inst map[st
 			continue
 		}
 		if k, ok := assignmentAt(toks, i); ok && memberTarget(toks, k) {
-			// A page object may set its own fields (`this.page = page`); a field named like one of
-			// its methods could replace that method, and `this.page` is checked by pageBound.
-			if self != "" && r.opaque(self) == "" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], ".")) && !r.hasMember(self, toks[k].text) {
+			// A page object may set its own fields (`this.page = page`) while it is constructed; a
+			// field named like one of its methods could replace that method, `this.page` is checked
+			// by pageBound, and a method that reassigns a field stays unknown (ANL-V0-920).
+			if construction && self != "" && r.opaque(self) == "" && k > 1 && isPunct(toks[k-1], ".") && toks[k-2].text == "this" && !(k > 2 && isPunct(toks[k-3], ".")) && !r.hasMember(self, toks[k].text) {
 				continue
 			}
 			out.join(effectAt(EffectUnknown, path, t.line, "member-assignment"))
@@ -671,7 +673,7 @@ func (r *effectReader) construct(path string, depth int, callPath string, callLi
 		for z < len(toks) && !inMethod(toks[z].line) {
 			z++
 		}
-		e.join(r.span(path, toks, a-1, z, nil, nil, path, depth))
+		e.join(r.span(path, toks, a-1, z, nil, nil, path, true, depth))
 		a = z
 	}
 	if len(toks) > 0 && toks[0].unsure {
@@ -727,7 +729,7 @@ func (r *effectReader) method(path, name string, depth int, callPath string, cal
 		r.memo[key] = &e
 		return e
 	}
-	e := r.span(path, toks, from, to, nil, nil, path, depth)
+	e := r.span(path, toks, from, to, nil, nil, path, false, depth)
 	e.join(stepEffect{kind: EffectNavigation, from: []Anchor{r.whole(path)}})
 	r.memo[key] = &e
 	return e

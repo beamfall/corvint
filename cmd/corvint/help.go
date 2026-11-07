@@ -918,6 +918,7 @@ Usage:
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected audit --changes FILE
   corvint [--root PATH] affected --ownership-audit
+  corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -1105,6 +1106,20 @@ claimant or a project declaration claims: the paths a plan reports as
 UNOWNED_DIRTY_PATH. It refuses a dirty worktree, builds the graph without the
 cache, writes nothing, and exits 0 when no path is unowned, 1 when some path
 is, and 2 on an error.
+
+affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the
+project-owned input declaration of non-test CI jobs (--declaration, default
+.corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range
+--base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0:
+per job RUN or SKIP with its reason and witnesses. A job runs when its
+workflow file, the declaration, a declared path or directory/, go.mod, go.sum
+or the directory of a package its goPackages build on any declared platform
+changed, when the affected plan selects one of its goTests or is UNKNOWN, or,
+for an exportedTree job, when a changed entry is not a regular blob within the
+export bounds. SKIP means no declared input changed (NO_DECLARED_INPUT_CHANGED);
+it is not a pass of the job. Exit 0 with a plan; 3, with every job absent, when
+the declaration cannot be read (DECLARATION_INVALID), so a caller runs every
+job. Example: corvint affected jobs --base "$(git merge-base HEAD origin/main)"
 
 affected audit (experimental) reads a corvint-affected-audit-input/0 FILE
 listing changes: id, full base commit id, and kind replay (full head), revert
@@ -1764,12 +1779,14 @@ Verification options:
                        you trust. status and report refuse it.
 
 Map paths:
-  status, verify and report read --map MAP repository-relative, or as an
+  status and report read --map MAP repository-relative, or as an
   absolute path outside the repository and its Git directories (for example an
   assembled or exported bundle's map); an absolute path inside them is refused,
   so name it repository-relative. The map binds the repository by object IDs;
   the read is bounded, a symlinked map is refused, and only report writes (its
-  review file, never over the map). verify-stable reads its --map at any path;
+  review file, never over the map). verify also accepts an absolute in-repository
+  map. verify-stable accepts either form, resolving a relative --map against
+  --repository (CEM-V1-7400);
   prove --cem and --verify-cem-attestation --cem read MAP the same way, naming
   an out-of-tree map external:<sha256 of its bytes> in both statements, never
   its host path (CEM-V1-641). cite, mark, cover and discriminate read an
@@ -1827,7 +1844,11 @@ Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
   --intent-form FORM  Experimental prepare intent form: requirements (default),
                       adr-decisions, roadmap-acceptance, openspec-spec,
-                      openspec-delta, or speckit-spec.
+                      openspec-delta, speckit-spec, or requirements-subset.
+  --intent-requirements IDS
+                      Experimental prepare only, required with
+                      requirements-subset: comma-separated requirement IDs
+                      (1 to 256) of the intent's Requirements section.
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for the cem/1.0 map.
   --target REV        Independent target; required for the cem/1.0 map.
@@ -2183,6 +2204,12 @@ verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
 DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
+For seal, DOGFOOD_REVIEW=FILE attaches an external report (at most 1 MiB) with
+one header: dogfood-review: reviewed-head=FULL_SHA verdict=PASS. It must name
+exact pre-seal HEAD; a malformed, nonpassing or different-head report refuses.
+The seal records its path, digest, verdict and head; absent review stays
+NOT_OBSERVED. Example: DOGFOOD_REVIEW=/tmp/review.txt corvint dogfood seal BASE.
+Existing pinned reviewer output also works with metadata-only descendants.
 DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
 citations of each named, already cited hunk, and only those; the digest is the one
 the citation-plan-recites-cited-hunk fix line prints, so a stale one cites
@@ -2220,14 +2247,16 @@ batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
-propose-citations is read-only. It prints, on stdout, a draft citation plan with
-one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
-file the change leaves untouched that names the hunk's path, or an unknown row; it
-never cites a file the change adds or modifies (DCW-V0-393), and an unknown row for
-a hunk of a modified file names its nearest stable line as a review hint only
-(DCW-V0-439). JSON, .agent-evidence/ and one-line files are never drafted, and a
-hunk naming a requirement the same change adds stays unknown with that ID, since
-same-change intent is not BASE evidence (DCW-V0-440). With no usable map
+propose-citations is read-only. It prints, on stdout, one draft citation row per
+owed hunk: a stable BASE span naming the hunk path, its basename of at least 6
+bytes, or defining an ID the hunk adds or names (DWC-V0-926). Same-file nearest
+stable lines remain marked proposals; seal and repin rows cite their contracts.
+Bare Markdown headings and unsupported cross-file guesses are never drafted (DWC-V0-927).
+For spec amendments, prefer the stable governing BASE definition, including a
+continuation without its ID. Unanchored same-file proposals are marked; rewritten
+definitions remain governing-ID review notes (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
+Same-change intent is not BASE evidence (DCW-V0-440); a refined BASE requirement
+can be proposed only when its span also anchors this hunk. With no usable map
 (missing, unreadable or for another BASE) it drafts one row per hunk of the
 canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
 (DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write

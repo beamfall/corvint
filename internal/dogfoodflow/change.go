@@ -210,14 +210,17 @@ func (c *change) run() int {
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	if c.scope == passFull {
+		// The impact command runs beside the query: both only read the
+		// committed range, and each writes its own files (DWC-V0-756).
+		impact := c.startImpact()
 		c.coordinationQuery(task)
-		c.prechangeImpact()
+		c.prechangeImpact(impact)
 		if c.noDiffYet() {
 			return c.reportNoDiffYet()
 		}
 	}
 	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
-		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
+		return status == 2 && outdatedCEMRefusal(stderr)
 	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	c.markStableChoreMap()
 	if c.scope == passPrepare {
@@ -282,8 +285,9 @@ func (c *change) noDiffYet() bool {
 
 // reportNoDiffYet writes the report with the pre-change rows and every later
 // step NOT_PRODUCED no-diff-yet, so the report is never complete and
-// dogfood-check still refuses it, and exits 0 naming the inputs still owed. A
-// failing pre-change row still fails the run.
+// dogfood-check still refuses it. It succeeds only with both required agent
+// receipts present; absent receipts have a named refusal. A failing pre-change
+// row still fails the run.
 func (c *change) reportNoDiffYet() int {
 	failed := false
 	for _, row := range c.rows {
@@ -300,6 +304,10 @@ func (c *change) reportNoDiffYet() int {
 	c.say("  pre-change context recorded; %s NOT_PRODUCED %s until a commit differs from BASE\n", strings.Join(noDiffYetSteps, ", "), noDiffYetReason)
 	c.say("  inputs still to supply after the last commit: CITATIONS (corvint dogfood propose-citations %s > plan.tsv), INTENTS, VERIFY, OUTCOME; check them with make dogfood-inputs-check BASE=%s\n", c.base, c.base)
 	c.absentReceiptHints()
+	if !isRegular(c.evidence+"/prechange-query.json") || !isRegular(c.evidence+"/prechange-impact.json") {
+		c.say("dogfood-change: REFUSE prechange-receipts-missing: record both receipts before editing, using TASK and PATHS with make dogfood-change\n")
+		return 2
+	}
 	return 0
 }
 
@@ -502,6 +510,32 @@ var outdatedCEMMaps = map[string]bool{
 	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different spec; pass --replace to regenerate", "ok": false}`:          true,
 }
 
+// outdatedCEMRefusal matches the exact admitted reason, independent of CLI
+// framing metadata (ACX-V0-7707). Other reasons never authorize replacement.
+func outdatedCEMRefusal(stderr []byte) bool {
+	if outdatedCEMMaps[chomp(string(stderr))] {
+		return true
+	}
+	var got struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+		OK    *bool  `json:"ok"`
+	}
+	if json.Unmarshal(stderr, &got) != nil || got.OK == nil || *got.OK {
+		return false
+	}
+	for literal := range outdatedCEMMaps {
+		var known struct {
+			Code  string `json:"code"`
+			Error string `json:"error"`
+		}
+		if json.Unmarshal([]byte(literal), &known) == nil && got.Code == known.Code && got.Error == known.Error {
+			return true
+		}
+	}
+	return false
+}
+
 // prepare derives a CEM or OCM map and regenerates it with --replace only after
 // the exact outdated-map refusal: every rebind after a sidecar commit finds an
 // outdated map at the frozen path, and any other failure must never rewrite a
@@ -522,20 +556,69 @@ func (c *change) prepare(name, output string, outdated func(int, []byte, string)
 	return c.runStep(name, output, append(args, "--replace")...)
 }
 
+// impactArgv is the coordination-time impact command.
+func (c *change) impactArgv() []string {
+	return []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
+}
+
+// impactRun is the first impact command, started beside the coordination
+// query (DWC-V0-756); done delivers its exit status.
+type impactRun struct{ done chan int }
+
+// startImpact writes the impact argv record and starts the first impact run
+// in the background, or returns nil when the step runner is not safe to call
+// concurrently or the record cannot be written, so prechangeImpact runs it
+// (and reports a failure) in its own place. The
+// background run never stops the flow itself: prechangeImpact checks the
+// context once it has its status.
+func (c *change) startImpact() *impactRun {
+	if !c.options.Steps.Concurrent || c.options.Steps.Run == nil {
+		return nil
+	}
+	argv := c.impactArgv()
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
+	if removeFile(artifact) != nil || writePrivate(c.evidence+"/coordination-time-impact.argv", []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
+		return nil
+	}
+	stdout, err := os.Create(c.evidence + "/coordination-time-impact.json")
+	if err != nil {
+		return nil
+	}
+	stderr, err := os.Create(c.evidence + "/coordination-time-impact.stderr")
+	if err != nil {
+		_ = stdout.Close()
+		return nil
+	}
+	run := &impactRun{done: make(chan int, 1)}
+	go func() {
+		defer stdout.Close()
+		defer stderr.Close()
+		run.done <- c.options.Steps.Run(c.ctx, c.root, argv[3:], stdout, stderr)
+	}()
+	return run
+}
+
 // prechangeImpact runs impact and keeps a typed, digest-bound abstention when
-// it refuses with exactly one envelope whose code is an impact abstention.
-func (c *change) prechangeImpact() {
+// it refuses with exactly one envelope whose code is an impact abstention. A
+// started run supplies the first attempt's status.
+func (c *change) prechangeImpact(started *impactRun) {
 	output := c.evidence + "/coordination-time-impact.json"
 	errorFile := c.evidence + "/coordination-time-impact.stderr"
 	argvFile := c.evidence + "/coordination-time-impact.argv"
 	artifact := c.evidence + "/coordination-time-impact-abstention.json"
-	argv := []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
+	argv := c.impactArgv()
 	failed := func() { c.addStep("coordination-time-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
-	if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
-		failed()
-		return
+	var status int
+	if started != nil {
+		status = <-started.done
+		c.checkpoint()
+	} else {
+		if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
+			failed()
+			return
+		}
+		status = c.exec(argv[3:], output, errorFile)
 	}
-	status := c.exec(argv[3:], output, errorFile)
 	// DCW-V0-075: a Git deadline overrun under host load gets one bounded
 	// retry; a second overrun is a visible, non-blocking abstention.
 	if impactDeadlineOverrun(status, output, errorFile) {
@@ -1043,8 +1126,13 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 	for _, evidence := range m.Evidence {
 		spans[evidence.ID] = evidence.Path + ":" + strconv.FormatInt(evidence.Span.Start, 10) + ":" + strconv.FormatInt(evidence.Span.End, 10)
 	}
-	carried := 0
+	carried, counted := 0, 0
 	for index, hunk := range m.Hunks {
+		// DWC-V0-3720: a record hunk is neither counted nor carried.
+		if RecordPath(hunk.Path) {
+			continue
+		}
+		counted++
 		if named[strconv.Itoa(index+1)] || named[hunk.ID] {
 			continue
 		}
@@ -1058,10 +1146,10 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 		}
 		carried++
 	}
-	if carried == 0 {
+	if carried == 0 || counted < 2 {
 		return 0, "", false
 	}
-	return len(m.Hunks), span, true
+	return counted, span, true
 }
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
@@ -2399,6 +2487,22 @@ const uncommittedHint = "the worktree has uncommitted changes (often the prepare
 // hide a path a personal excludes file covers.
 const untrackedHint = "the recorder requires a clean tree and counts these untracked paths as dirty: {paths}; it ignores core.excludesFile, so git status may not show them; move them out of the worktree or list them in the repository .gitignore, then rerun corvint dogfood change {base} (DCW-V0-091)"
 
+// metadataDriftMarker is the gitstatus refusal text for repository metadata
+// (index, HEAD or refs) that changed while the recorder observed it.
+const metadataDriftMarker = "repository metadata changed during observation"
+
+// metadataDriftHint replaces the uncommitted-worktree advice when the
+// recorder's own stderr names metadata drift: the tree may be clean, and the
+// refusal stays fail-closed (DWC-V0-3729).
+const metadataDriftHint = "the recorder refused because repository metadata (index, HEAD or refs) changed while it observed git status, which is often concurrent Git activity such as another worktree's command or an index refresh sharing this .git, not an uncommitted change; nothing was recorded; wait until no other Git command runs against this repository, then rerun corvint dogfood change {base} (DWC-V0-3729)"
+
+// metadataDrifted reports whether the local-outcome stderr kept in evidence
+// names metadata drift (DWC-V0-3729).
+func metadataDrifted(evidence string) bool {
+	data, err := readPrefix(evidence+"/local-outcome.stderr", 64*1024)
+	return err == nil && strings.Contains(string(data), metadataDriftMarker)
+}
+
 // maxNamedUntracked bounds how many untracked paths untrackedHint names.
 const maxNamedUntracked = 8
 
@@ -2593,6 +2697,13 @@ func (c *change) rowValues() string {
 
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding == "" {
+		// DWC-V0-3724: a plan that passed inputs-check at an earlier HEAD was
+		// built for that HEAD's map; name both and the refresh.
+		if passed := planPassedAt(c.evidence, c.options.Citations); passed != "" && passed != c.target {
+			return fmt.Sprintf("the plan passed inputs-check at HEAD %s, but HEAD is now %s and a later commit changed the map: run ", passed, c.target) + staleHunkIDHint(c.base, c.options.Citations) + " (DWC-V0-3724)"
+		}
+	}
 	if value == "cem-cite:citation-plan-map-mismatch" && strings.Contains(c.mismatchDetail, staleHunkIDMarker) {
 		return staleHunkIDHint(c.base, c.options.Citations)
 	}
@@ -2600,6 +2711,9 @@ func (c *change) fixHint(row step) string {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
 	}
 	if value == "local-outcome:record-index-failed" {
+		if metadataDrifted(c.evidence) {
+			return strings.ReplaceAll(metadataDriftHint, "{base}", c.base)
+		}
 		if paths := c.untrackedPaths(); len(paths) > 0 {
 			named := strings.Join(paths[:min(len(paths), maxNamedUntracked)], ", ")
 			if len(paths) > maxNamedUntracked {
@@ -2816,7 +2930,13 @@ func (c *change) reportFailures() int {
 		c.say("dogfood-change: PASS complete base=%s target=%s report=%s\n", c.base, c.target, c.path(".corvint/dogfood-report.json"))
 		return 0
 	}
-	c.say("dogfood-change: FAIL not-complete\n")
+	pending := c.pendingSidecarCommit()
+	if pending {
+		c.say("dogfood-change: PENDING commit-sidecar base=%s target=%s: this pass prepared and cited .corvint/change.cem.json, and the recorder, which needs a clean tree, runs once it is committed (DCW-V0-2143)\n", c.base, c.target)
+		c.say("  fix: commit .corvint/change.cem.json, then rerun: git add .corvint/change.cem.json && git commit -m 'chore: bind change evidence' && make dogfood-change BASE=%s\n", c.base)
+	} else {
+		c.say("dogfood-change: FAIL not-complete\n")
+	}
 	for _, row := range c.rows {
 		if !c.rowFailing(row) {
 			continue
@@ -2862,7 +2982,73 @@ func (c *change) reportFailures() int {
 		c.say("  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor, or retire the trace with corvint migrate-traces --dry-run then --apply --plan-digest DIGEST (LTPM-V0-012); add new commits instead of amending or rebasing (docs/DOGFOOD.md \"Daily adopter path\"); the store belongs to this worktree, so run each lane in its own worktree (git worktree add) or clone rather than switching branches here (DCW-V0-044)\n")
 	}
 	c.say("  full report: %s\n", c.path(".corvint/dogfood-report.json"))
+	if pending {
+		return PendingExit
+	}
 	return 1
+}
+
+// PendingExit is the exit status of a standalone dogfood change pass whose
+// only failing rows are the ones its own uncommitted sidecar causes: the
+// expected first pass of DOGFOOD section 4, not a failure (DCW-V0-2143).
+const PendingExit = 3
+
+// pendingSidecarCommit reports a standalone pass whose report is incomplete
+// only because the sidecar it prepared and cited is not committed yet: every
+// failing row is one the bind commit clears (bindAdmits, DCW-V0-015,
+// DCW-V0-816), at least one is the recorder's record-index-failed, and the
+// worktree's only change against HEAD is that sidecar, untracked or modified.
+// finish-lane's nested passes keep their own handling (DCW-V0-2143).
+func (c *change) pendingSidecarCommit() bool {
+	if c.nested {
+		return false
+	}
+	recorder := false
+	for _, row := range c.rows {
+		if row == (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
+			recorder = true
+		}
+	}
+	tracked := c.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar)
+	// A link row whose intent map did not prepare because the replaced sidecar
+	// refused it follows from that refusal, as the OCM status rows do.
+	replaced, rows := false, []step{}
+	for _, row := range c.rows {
+		if tracked && strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "excluded-artifact-mismatch" {
+			replaced = true
+		}
+	}
+	for _, row := range c.rows {
+		// DWC-V0-044: range impact refuses the worktree the uncommitted
+		// sidecar dirties; the same commit clears it, so it is pending too.
+		if row == (step{"coordination-time-impact", "NOT_PRODUCED", "unsupported-impact-worktree"}) {
+			continue
+		}
+		if !(replaced && strings.HasPrefix(row.name, "ocm-link-") && row.reason == "ocm-map-not-prepared") {
+			rows = append(rows, row)
+		}
+	}
+	if !recorder || !bindAdmits(rows, c.rowFailing, tracked) || len(c.untrackedPaths()) > 0 {
+		return false
+	}
+	// Tracked changes against HEAD, staged or not, and untracked files in
+	// .corvint/ that are not ignored.
+	modified, status, bounded := c.boundedGit("diff", "--name-only", "-z", "--no-renames", "HEAD", "--")
+	if status != 0 || !bounded {
+		return false
+	}
+	// The recorder ignores core.excludesFile, so this read does too.
+	untracked, status, bounded := c.boundedGit("-c", "core.excludesFile=", "ls-files", "--others", "--exclude-standard", "-z", "--", ".corvint/")
+	if status != 0 || !bounded {
+		return false
+	}
+	changed := []string{}
+	for _, path := range append(strings.Split(modified, "\x00"), strings.Split(untracked, "\x00")...) {
+		if path != "" {
+			changed = append(changed, path)
+		}
+	}
+	return len(changed) == 1 && changed[0] == finishLaneSidecar
 }
 
 const AggregateReportProfile = "corvint-dogfood-change/1"

@@ -122,6 +122,11 @@ func envAssignments(line string) (words []string, rest string, quoted bool) {
 // other line stays a v1 command under the unchanged grammar.
 func verifyLineArguments(line string) []string {
 	assignments, rest, quoted := envAssignments(strings.TrimSpace(line))
+	// A caret and dollar are literal in an unquoted POSIX shell word.
+	// Normalize a single anchored name through the quoted argv grammar too.
+	if match := regexp.MustCompile(`^` + runPrefix + ` -run(=| )(\^` + runName + `\$?)` + runSuffix + `$`).FindStringSubmatch(rest); match != nil {
+		rest = match[1] + " -run" + match[2] + "'" + match[3] + "'" + match[4]
+	}
 	match := quotedRunAlternation.FindStringSubmatch(rest)
 	if match == nil {
 		if !quoted || trace.ValidateVerificationCommands([]string{rest}) != nil {
@@ -247,6 +252,22 @@ func subtestRunForm(line, word string) string {
 		return ""
 	}
 	return form
+}
+
+// unquotedCaretRun is a verify line's unquoted -run word that holds one test
+// name with a ^ or $ anchor, such as -run ^TestA or -run ^TestA$ (DWC-V0-3722).
+var unquotedCaretRun = regexp.MustCompile(` -run(?:=| )(\^?)(` + runName + `)(\$?)(?: |$)`)
+
+// caretRunRefusal names the quoting a refused verify line's unquoted
+// anchored -run name needs: ^ and $ are shell-safe only inside quotes, and
+// a quoted name is admitted anchored at both ends or bare (DWC-V0-3722). It
+// is "" for a line with no unquoted anchored -run name.
+func caretRunRefusal(line string) string {
+	match := unquotedCaretRun.FindStringSubmatch(line)
+	if match == nil || match[1] == "" && match[3] == "" {
+		return ""
+	}
+	return fmt.Sprintf("the -run word %s is unquoted, and ^ and $ are admitted only inside quotes: write -run '^%s$' for the one exact name, or -run %s for every test whose name contains %s (DWC-V0-3722)", match[1]+match[2]+match[3], match[2], match[2], match[2])
 }
 
 // ValidateVerifyLine reports whether one verify-file line is a command the

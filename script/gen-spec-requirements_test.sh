@@ -1036,6 +1036,16 @@ case $big_err in *'256 obligations; the limit is 256'*'requirement IDs added sin
 capacity_full=$(capacity_base)
 big_err=$(BASE=$capacity_full run --capacity 2>&1) || fail "unchanged full spec refused: $big_err"
 case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*'requirement IDs added since BASE='*'(none)'*) ;; *) fail "unchanged full spec lacked warning/attribution: $big_err" ;; esac
+# DCW-V0-2145 (V1-4401): generation names a near-cap spec only when the change adds a section ID to
+# it since BASE (else HEAD); an untouched one is counted on one NOTE line, which capacity never uses.
+big_err=$(BASE=$capacity_full run 2>&1 > /dev/null) || fail "generation refused an unchanged full spec: $big_err"
+case $big_err in *'warning: its ## Requirements'*) fail "generation listed a spec the change does not touch: $big_err" ;; esac
+case $big_err in *'spec-requirements: NOTE 1 spec(s) within margin=8 of the 256-obligation limit gain no requirement since BASE='"$capacity_full"*'make spec-capacity-check lists every one'*) ;;
+  *) fail "generation lost the untouched-spec summary: $big_err" ;; esac
+big_err=$(BASE=$capacity_before run 2>&1 > /dev/null) || fail "generation refused a newly filled spec: $big_err"
+case $big_err in *'docs/specs/big.md: warning: its ## Requirements section holds 256 of the 256 obligations'*) ;;
+  *) fail "generation hid the spec the change fills: $big_err" ;; esac
+case $big_err in *'NOTE 1 spec(s)'*) fail "generation counted a touched spec as untouched: $big_err" ;; esac
 for base_name in BASE SPEC_REQUIREMENTS_BASE; do
   big_err=$(env "$base_name=$missing_base" "$test_root/script/gen-spec-requirements.sh" --capacity 2>&1) &&
     fail "capacity ignored unavailable $base_name"
@@ -1237,5 +1247,84 @@ ord=$( (cd "$test_root" && script/gen-spec-requirements.sh --lines) ) || fail "-
 test "$(printf '%s\n' "$ord" | grep '^ORD-V0-' | cut -f1 | tr '\n' ' ')" = 'ORD-V0-001 ORD-V0-002 ORD-V0-003 ' ||
   fail "--lines did not print id order: $(printf '%s\n' "$ord" | grep '^ORD-V0-')"
 git -C "$test_root" rm -q --cached -- docs/specs/order.md
+
+# DCW-V0-7401: authoring guidance is available before the generator, and
+# changing help without refreshing the trees produces a doc-gate hint.
+grep -q '^### Authoring template$' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "template absent from authoring route"
+grep -q 'Claim: One sentence of at most 160 characters' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "Claim limit absent from template"
+grep -q 'git add -- docs/specs/NAME.md' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "staging command absent from template"
+grep -q 'internal/tasks/wire/facets.go' "$source_root/docs/AGENT-ROUTES.md" || fail "facets decoder absent from route"
+mkdir -p "$test_root/cmd/tool"
+printf 'package main\n// Usage: before\n' > "$test_root/cmd/tool/main.go"
+git -C "$test_root" add -- cmd/tool/main.go
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm 'help baseline'
+printf 'package main\n// Usage: after\n' > "$test_root/cmd/tool/main.go"
+hint=$(cd "$test_root" && bash "$source_root/script/doc-gates-summary.sh" true 2>&1)
+case $hint in *'HINT help text changed'*'make capability-catalog'*) ;; *) fail "no stale tree hint: $hint" ;; esac
+
+# SRG-V0-970 / V1-4539: exact Intent parenthetical refusal is staged and fast.
+run_root=$test_root/status
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+cat > "$run_root/docs/specs/status.md" <<'SPEC'
+# Status fixture
+Intent status: accepted direction (companion of X)
+Delivery status: experimental
+
+## Agent digest
+- Claim: Status fixture tests exact agreement.
+- Status: accepted direction/experimental
+
+## Requirements
+- `STATUS-V0-001`: (proposed) Fixture.
+SPEC
+git -C "$run_root" add .
+status_started=$(date +%s)
+status_out=$(run --status-check 2>&1) && fail "omitted parenthetical passed"
+case $status_out in *"status.md:7: Agent digest Status 'accepted direction/experimental'"*"expected \"- Status: accepted direction (companion of X) / experimental\""*) ;; *) fail "status mismatch lacked precise repair: $status_out" ;; esac
+test $(($(date +%s) - status_started)) -lt 60 || fail "status preflight was not fast"
+sed 's@- Status: accepted direction/experimental@- Status: accepted direction (companion of X) / experimental@' "$run_root/docs/specs/status.md" > "$run_root/fixed"
+cp "$run_root/fixed" "$run_root/docs/specs/status.md"
+run --status-check > /dev/null 2>&1 && fail "status check read unstaged repair"
+git -C "$run_root" add docs/specs/status.md
+run --status-check > /dev/null || fail "matching parenthetical refused"
+
+# SRG-V0-745 / V1-4538: two individually admitted immutable lanes overflow before merging.
+run_root=$test_root/batch-capacity
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+{ printf '# Batch\n\n## Requirements\n\n'; i=1
+  while test "$i" -le 254; do printf -- '- `BATCH-V0-%03d`: (proposed) Base.\n' "$i"; i=$((i+1)); done
+} > "$run_root/docs/specs/batch.md"
+git -C "$run_root" add .
+git -C "$run_root" -c user.name=t -c user.email=t@t commit -qm base
+batch_base=$(git -C "$run_root" rev-parse HEAD)
+for lane in a b; do
+  git -C "$run_root" checkout -qb "lane-$lane" "$batch_base"
+  if test "$lane" = a; then ids='255 256'; else ids='257 258'; fi
+  for i in $ids; do printf -- '- `BATCH-V0-%s`: (proposed) Lane.\n' "$i"; done >> "$run_root/docs/specs/batch.md"
+  git -C "$run_root" -c user.name=t -c user.email=t@t commit -qam "lane $lane"
+  run > /dev/null 2>&1 || fail "individual lane $lane not admitted"
+done
+before=$(git -C "$run_root" status --porcelain; git -C "$run_root" rev-parse HEAD; git -C "$run_root" write-tree)
+batch_out=$(run --batch-capacity "$batch_base" lane-a lane-b 2>&1) && fail "combined lane overflow admitted"
+case $batch_out in *'batch.md base=254 added=4 count=258 limit=256 lanes=lane-a('*'lane-b('*'exceed 256'*) ;; *) fail "missing batch counts/lanes: $batch_out" ;; esac
+test "$(git -C "$run_root" status --porcelain; git -C "$run_root" rev-parse HEAD; git -C "$run_root" write-tree)" = "$before" || fail "preflight mutated repository"
+run --batch-capacity "$batch_base" lane-a lane-a > "$test_root/batch-out" || fail "shared additions counted twice"
+grep -q 'base=254 added=2 count=256 limit=256' "$test_root/batch-out" || fail "shared union wrong"
+run --batch-capacity "$batch_base" lane-a missing-ref > /dev/null 2>&1 && fail "missing lane admitted"
+run --batch-capacity missing-base lane-a > /dev/null 2>&1 && fail "missing base admitted"
+# A lane forked at the fixed batch base remains countable after BASE advances on another lane.
+batch_out=$(run --batch-capacity lane-a lane-b 2>&1) && fail "older lane overflow admitted"
+case $batch_out in *'batch.md base=256 added=2 count=258 limit=256 lanes=lane-b('*'exceed 256'*) ;; *) fail "advanced BASE lost lane additions: $batch_out" ;; esac
+# Conservative base retention refuses even when one lane deletes base obligations.
+git -C "$run_root" checkout -q lane-b
+sed '/BATCH-V0-001/d' "$run_root/docs/specs/batch.md" > "$run_root/reduced"
+cp "$run_root/reduced" "$run_root/docs/specs/batch.md"
+git -C "$run_root" -c user.name=t -c user.email=t@t commit -qam deletion
+run --batch-capacity "$batch_base" lane-a lane-b > /dev/null 2>&1 && fail "deletion hid overflow"
+run_root=
 
 printf 'ok\n'

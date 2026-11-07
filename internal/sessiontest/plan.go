@@ -122,6 +122,14 @@ func BinaryConsumerCheck(file string) string {
 	return file + " (UNSELECTED_BINARY_CONSUMER: it runs the built binary of a Go command this change reaches; run it by its own driver, since no Go test run covers it)"
 }
 
+// ModuleCheck is the still-required check that names a nested module's own
+// suite on the ci profile (AFP-V0-2742): CI runs each nested module's tests
+// and vet in go-static (CIN-V0-008), never in a Go shard, so
+// `corvint test --profile ci` neither runs it nor widens to FULL for it.
+func ModuleCheck(directory string) string {
+	return "go -C " + directory + " test ./... (go:unobserved-module: a nested Go module the root does not build; CI runs its own suite in a job outside the Go shards, so corvint test --profile ci does not run it)"
+}
+
 // ModuleCovered reports whether every dirty path is named by a well-formed
 // AFP-V0-650 unobserved-module frontier (STR-V0-064). `corvint test` then
 // reads an empty root selection as NOTHING for the root rather than the
@@ -148,6 +156,12 @@ func ModuleCovered(dirty []string, unknown []Unknown) bool {
 // plan.unknown entry forces FULL (STR-V0-003).
 func allowedUnknown(entry Unknown) bool {
 	return gateselect.AllowedUnknown(entry.Reason, entry.Detail)
+}
+
+// frontierSuite is gateselect.FrontierSuite, the language whose declared suite
+// a bearing non-Go frontier adds for both selectors (AFP-V0-2750).
+func frontierSuite(entry Unknown) (string, bool) {
+	return gateselect.FrontierSuite(entry.Reason, entry.Detail)
 }
 
 // PartitionDigest binds the cishards profile and the three repository
@@ -242,7 +256,11 @@ func Build(input Input) (Manifest, error) {
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
 		// a language adapter; the affected plan reports it.
-		if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
+		if strings.HasPrefix(id, "declared-consumer:") {
+			// Each consumer has its own project-owned argv, rather than a
+			// language-wide full command. The caller pins it in Declared.
+			languages[id] = true
+		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
 	}
@@ -255,11 +273,17 @@ func Build(input Input) (Manifest, error) {
 		if language, _, ok := strings.Cut(entry.Detail, ":"); ok && entry.Reason == "NO_SELECTABLE_TEST" && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
-		if directory, ok := moduleDirectory(entry); ok && input.RunnerProfile != ProfileCI {
+		if directory, ok := moduleDirectory(entry); ok {
 			// The nested module's own go test ./... covers the path
-			// (STR-V0-064); the ci profile's confined runner is not
-			// qualified for it, so there it stays outside the allowlist.
-			modules[directory] = true
+			// (STR-V0-064). The ci profile's confined runner is not
+			// qualified for it, so there it names the module's suite as a
+			// check still required, which CI runs outside the Go shards,
+			// as the deciding driver admits the entry (AFP-V0-2742).
+			if input.RunnerProfile != ProfileCI {
+				modules[directory] = true
+			} else if check := ModuleCheck(directory); !slices.Contains(manifest.Checks, check) {
+				manifest.Checks = append(manifest.Checks, check)
+			}
 			continue
 		}
 		if file, ok := binaryConsumer(entry); ok {
@@ -271,7 +295,14 @@ func Build(input Input) (Manifest, error) {
 			continue
 		}
 		if allowedUnknown(entry) {
-			continue // an allowlisted frontier names a category, not a unit (AFP-V0-028)
+			continue // an allowlisted entry hides no reader a narrowed run omits (AFP-V0-028)
+		}
+		if language, ok := frontierSuite(entry); ok {
+			// A bearing non-Go frontier may hide a reader of a changed or
+			// deleted path, so its language's declared suite runs, as the
+			// deciding driver names it; Go selection is unchanged (AFP-V0-2750).
+			languages[language] = true
+			continue
 		}
 		if fullReason == "" {
 			fullReason = fmt.Sprintf("plan.unknown entry outside the AFP-V0-028 allowlist: %s %s", entry.Reason, entry.Detail)

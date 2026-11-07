@@ -28,6 +28,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -121,6 +122,8 @@ type manifest struct {
 	// Go universe, as "<unit>: <reason>" (STR-V0-069): a dependent nested
 	// module's synthetic unit (AFP-V0-582), which is no root package.
 	Excluded []string `json:"excluded"`
+	// Incomplete names why the run cannot be complete (STR-V0-004).
+	Incomplete []string `json:"incomplete"`
 	// nested holds the Excluded units that name a nested module directory of
 	// the replayed head (nestedModuleUnits); only those are not compared.
 	nested map[string]bool
@@ -173,6 +176,10 @@ type Result struct {
 	TestExtra   []string `json:"testExtra,omitempty"`
 	TestOmitted []string `json:"testOmitted,omitempty"`
 	TestMisses  []string `json:"testMisses,omitempty"`
+	// TestIncomplete is the manifest's incomplete list when `corvint test`
+	// gave the INCOMPLETE verdict (exit 3), such as a historic tree whose
+	// declaration names no language a bearing frontier adds (AFP-V0-2750).
+	TestIncomplete []string `json:"testIncomplete,omitempty"`
 }
 
 // Summary restates the results; narrow rates are only reported with misses.
@@ -207,6 +214,17 @@ type results struct {
 }
 
 func main() {
+	// Internal Make preflight: no replay binaries are needed to decide the diff.
+	// An empty value uses the CI event base; missing/unknown evidence runs fully.
+	if base, ok := os.LookupEnv("SELECTION_BASELINE_INPUTS_BASE"); ok {
+		run, reason := inputDecision(context.Background(), ".", base)
+		if run {
+			fmt.Println("run " + reason)
+		} else {
+			fmt.Println("skip " + reason)
+		}
+		return
+	}
 	root := flag.String("root", ".", "repository whose history holds every change")
 	changesFile := flag.String("changes", "benchmarks/selection-baseline/changes.json", "fixed change set")
 	corvint := flag.String("corvint", "", "corvint binary under measure")
@@ -321,7 +339,12 @@ func fullOID(s string) bool {
 
 func replay(ctx context.Context, root string, set changeSet, changesFile, corvint, selector string) (results, error) {
 	r := results{Profile: resultsProfile, Changes: filepath.ToSlash(changesFile), Floor: set.Floor}
-	costs, err := readCosts(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	// The cost table is read once: the same bytes are parsed and hashed into the cache key.
+	costsData, err := os.ReadFile(filepath.Join(root, ".github", "cishards", "package-costs.json"))
+	if err != nil {
+		return r, err
+	}
+	costs, err := parseCosts(costsData)
 	if err != nil {
 		return r, err
 	}
@@ -334,35 +357,65 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	if err != nil {
 		return r, err
 	}
-	tmp, err := os.MkdirTemp("", "selection-baseline-")
-	if err != nil {
-		return r, err
-	}
-	defer os.RemoveAll(tmp)
-	// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
-	// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
-	jobs := replayJobs(len(set.Changes))
-	clones := make(chan string, jobs)
-	for i := range jobs {
-		clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
-		if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
-			return r, err
-		}
-		clones <- clone
-	}
 	measured := make([]Result, len(set.Changes))
 	errs := make([]error, len(set.Changes))
-	var wg sync.WaitGroup
+	// ASC-V0-778: a change whose record matches its exact inputs is read, not replayed.
+	cache, off := openCache(ctx, root, corvint, selector, costsData)
+	keys := make([]string, len(set.Changes))
+	var pending []int
 	for i, c := range set.Changes {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			clone := <-clones
-			defer func() { clones <- clone }()
-			measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
-		}()
+		if cache != nil {
+			keys[i] = cache.key(c)
+			if res, ok := cache.load(keys[i]); ok {
+				measured[i] = res
+				continue
+			}
+		}
+		pending = append(pending, i)
 	}
-	wg.Wait()
+	if cache == nil {
+		fmt.Fprintf(os.Stderr, "selection-baseline: result cache off (%s); every change replays\n", off)
+	} else if reused := len(set.Changes) - len(pending); reused > 0 {
+		fmt.Fprintf(os.Stderr, "selection-baseline: REUSE %d of %d change results recorded for byte-identical planner, selector, tool, change, costs, go, git and environment, key %s, in %s (SELECTION_BASELINE_CACHE=off replays every change)\n", reused, len(set.Changes), hex.EncodeToString(cache.stamp), cache.dir)
+	}
+	if len(pending) > 0 {
+		tmp, err := os.MkdirTemp("", "selection-baseline-")
+		if err != nil {
+			return r, err
+		}
+		defer os.RemoveAll(tmp)
+		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
+		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
+		jobs := replayJobs(len(pending))
+		clones := make(chan string, jobs)
+		for i := range jobs {
+			clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
+			if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
+				return r, err
+			}
+			clones <- clone
+		}
+		var wg sync.WaitGroup
+		for _, i := range pending {
+			c := set.Changes[i]
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				clone := <-clones
+				defer func() { clones <- clone }()
+				measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
+				if errs[i] == nil && cache != nil {
+					if err := cache.store(keys[i], measured[i]); err != nil {
+						fmt.Fprintf(os.Stderr, "selection-baseline: result cache record for %s not written: %v\n", c.ID, err)
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		if cache != nil {
+			cache.prune()
+		}
+	}
 	for i, res := range measured {
 		if errs[i] != nil {
 			return r, fmt.Errorf("%s: %w", set.Changes[i].ID, errs[i])
@@ -376,15 +429,23 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the CPU count, at
-// most 8 and at most n (DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the
-// doc-gates job bound (ASD-V0-925).
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the larger of the CPU
+// count at most 4 and a third of the CPUs at most 8, memory bounded, and at most n (at most eight,
+// DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound
+// (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
 func replayJobs(n int) int {
-	jobs := max(1, runtime.NumCPU())
-	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
+	override := os.Getenv("SELECTION_BASELINE_JOBS")
+	jobs := defaultReplayJobs(n, runtime.NumCPU(), override)
+	if v, err := strconv.Atoi(override); err != nil || v <= 0 {
+		jobs = max(1, min(jobs, memoryJobs()))
+	}
+	return jobs
+}
+
+func defaultReplayJobs(n, cpus int, override string) int {
+	jobs := max(1, min(cpus, 4), min(cpus/3, 8))
+	if v, err := strconv.Atoi(override); err == nil && v > 0 {
 		jobs = v
-	} else {
-		jobs = min(jobs, 8)
 	}
 	return max(1, min(jobs, n))
 }
@@ -414,7 +475,7 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 		return res, err
 	}
 	manifestPath := filepath.Join(tmp, c.ID+".manifest.json")
-	if _, err := run(ctx, clone, corvint, "test", "--base", c.Base, "--dry-run", "--manifest", manifestPath); err != nil {
+	if err := dryRunManifest(ctx, clone, corvint, c.Base, manifestPath); err != nil {
 		return res, err
 	}
 	var m manifest
@@ -531,6 +592,9 @@ func round(f float64) float64 { return float64(int64(f*1000+0.5)) / 1000 }
 // and the whole ones kept because their source and test files both changed.
 func fillManifest(res *Result, m manifest) {
 	res.TestScope = m.Scope
+	if len(m.Incomplete) != 0 {
+		res.TestIncomplete = append([]string{}, m.Incomplete...)
+	}
 	for _, u := range m.Units {
 		if u.Adapter != "go" {
 			continue
@@ -759,16 +823,12 @@ func verdictLines(s Summary, f floor) []string {
 	return lines
 }
 
-func readCosts(name string) (map[string]float64, error) {
+func parseCosts(data []byte) (map[string]float64, error) {
 	var doc struct {
 		Milliseconds map[string]float64 `json:"milliseconds"`
 	}
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, err
-	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return nil, fmt.Errorf("package-costs.json: %w", err)
 	}
 	return doc.Milliseconds, nil
 }
@@ -787,6 +847,22 @@ func moduleOf(name string) (string, error) {
 }
 
 // run runs one command in dir and returns its stdout; stderr joins the error.
+// dryRunManifest runs `CORVINT test --base BASE --dry-run --manifest M` in dir.
+// Exit 3 is the INCOMPLETE verdict, not a failed replay, once the manifest is
+// written: it names why the run cannot be complete (STR-V0-004), and the replay
+// records that. A historic head can lack a declaration the current binary
+// needs, such as the cfamily one a bearing frontier adds (AFP-V0-2750).
+func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
+	_, err := run(ctx, dir, corvint, "test", "--base", base, "--dry-run", "--manifest", manifestPath)
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 3 {
+		if info, statErr := os.Stat(manifestPath); statErr == nil && info.Mode().IsRegular() {
+			return nil
+		}
+	}
+	return err
+}
+
 func run(ctx context.Context, dir, name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
