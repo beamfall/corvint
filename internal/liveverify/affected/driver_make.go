@@ -26,6 +26,8 @@ type driverMakeFile struct {
 	defaultGoal      string
 	computedTargets  bool
 	unparsable       bool
+	unmodeledExports bool
+	exportedNames    []string
 	// events are the assignments and conditional lines in file order, from
 	// which a variable's alternative values are derived (AFP-V0-3121).
 	events       []driverMakeEvent
@@ -247,13 +249,16 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 			parsed.unparsable = true
 			return parsed
 		}
-		first, rest, _ := strings.Cut(trimmed, " ")
+		first, rest := driverMakeFirst(trimmed)
 		rest = strings.TrimSpace(rest)
 		for first == "export" || first == "override" || first == "private" || first == "unexport" {
+			if first == "export" && !parsed.exportCertified(rest) {
+				parsed.unmodeledExports = true
+			}
 			if rest == "" || driverMakeOperator(rest) < 0 && !strings.HasPrefix(rest, "define") {
 				break
 			}
-			first, rest, _ = strings.Cut(rest, " ")
+			first, rest = driverMakeFirst(rest)
 			rest = strings.TrimSpace(rest)
 		}
 		switch {
@@ -348,6 +353,39 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 	}
 	parsed.remainder = append(parsed.remainder, "default-goal="+parsed.defaultGoal)
 	return parsed
+}
+
+func driverMakeFirst(text string) (string, string) {
+	if split := strings.IndexAny(text, " \t"); split >= 0 {
+		return text[:split], strings.TrimSpace(text[split+1:])
+	}
+	return text, ""
+}
+
+// exportCertified admits only project controls that none of the
+// certified built-in commands interpret. Unknown names, computed names,
+// export-all, and toolchain settings retain the environment's read boundary.
+func (parsed *driverMakeFile) exportCertified(text string) bool {
+	if index := driverMakeOperator(text); index >= 0 {
+		assignment, name, _ := driverMakeAssignment(text, index)
+		if !assignment {
+			return false
+		}
+		text = name
+	}
+	names := strings.Fields(text)
+	if len(names) == 0 {
+		return false
+	}
+	for _, name := range names {
+		switch name {
+		case "CORVINT_REQUIRE_NODE", "HELP_BASE", "LANE", "DOGFOOD_FINISH_ENTRY":
+			parsed.exportedNames = append(parsed.exportedNames, name)
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // driverMakeAssignment classifies a statement whose first operator is at
@@ -641,7 +679,7 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 				result.shells = append(result.shells, script)
 			}
 		}
-		result.shellAmbiguous = result.shellAmbiguous || expander.shellAmbiguous
+		result.shellAmbiguous = result.shellAmbiguous || expander.shellAmbiguous || expander.unmodeledEffects
 		result.evaluated = result.evaluated || expander.evaluated
 		return variants, expander.ambiguous
 	}
@@ -687,7 +725,16 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 // other program, or adds an operand, runs that program for every target
 // (AFP-V0-3127). Make never takes SHELL from the environment.
 func (parsed *driverMakeFile) recipeShellCertified() bool {
+	if parsed.unmodeledExports {
+		return false
+	}
 	expander := parsed.expander(map[string]string{})
+	for _, name := range parsed.exportedNames {
+		expander.expandAll("$(" + name + ")")
+	}
+	if expander.ambiguous || len(expander.shells) != 0 {
+		return false
+	}
 	for _, variant := range expander.expandAll("$(SHELL)") {
 		fields := strings.Fields(variant)
 		if len(fields) != 1 || driverDynamic(variant) || !driverShells[path.Base(fields[0])] {
@@ -743,6 +790,9 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 	targets := strings.Fields(targetText)
 	special := false
 	for _, target := range targets {
+		if target == ".EXPORT_ALL_VARIABLES" {
+			parsed.unmodeledExports = true
+		}
 		if driverMakeSpecials[target] {
 			special = true
 		}
@@ -782,7 +832,17 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 		}
 		rule.block = append(rule.block, line)
 		if targetSpecific {
-			statement := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(after), "export "))
+			statement := strings.TrimSpace(after)
+			for {
+				modifier, rest := driverMakeFirst(statement)
+				if modifier != "export" && modifier != "override" && modifier != "private" && modifier != "unexport" {
+					break
+				}
+				if modifier == "export" && !parsed.exportCertified(rest) {
+					parsed.unmodeledExports = true
+				}
+				statement = rest
+			}
 			operator := driverMakeOperator(statement)
 			if assignment, name, value := driverMakeAssignment(statement, operator); assignment {
 				event := driverMakeAssignmentEvent(statement, operator, name, value, true)
@@ -847,6 +907,8 @@ type driverExpander struct {
 	visiting  map[string]bool
 	depth     int
 	ambiguous bool
+	// Effects survive enumeration of a condition: evaluation may read files.
+	unmodeledEffects bool
 	// shellAmbiguous marks an ambiguous expansion inside a `$(shell ...)`
 	// command, which make runs whatever target is built.
 	shellAmbiguous bool
@@ -924,6 +986,7 @@ func (e *driverExpander) expandAll(text string) []string {
 	}
 	e.trail, e.cursor = e.trail[:0], 0
 	clear(e.picked)
+	e.ambiguous = e.ambiguous || e.unmodeledEffects
 	return variants
 }
 
@@ -1011,6 +1074,7 @@ func (e *driverExpander) expand(text string) string {
 		return text
 	}
 	if e.depth > 10 {
+		e.unmodeledEffects = true
 		return driverComputed
 	}
 	e.depth++
@@ -1030,6 +1094,7 @@ func (e *driverExpander) expand(text string) string {
 		case next == '(' || next == '{':
 			end := driverMakeClose(text, index+1)
 			if end < 0 {
+				e.unmodeledEffects = true
 				out.WriteString(driverComputed)
 				index = len(text)
 				continue
@@ -1041,6 +1106,7 @@ func (e *driverExpander) expand(text string) string {
 			index++
 		}
 		if out.Len() > driverExpandLimit {
+			e.unmodeledEffects = true
 			return driverComputed
 		}
 	}
@@ -1069,7 +1135,11 @@ func (e *driverExpander) reference(inner string) string {
 	if !spaced {
 		name, args, spaced = strings.Cut(inner, "\t")
 	}
-	if spaced && !strings.Contains(name, "$") {
+	if spaced && strings.Contains(name, "$") {
+		e.unmodeledEffects = true
+		return driverComputed
+	}
+	if spaced {
 		if value, known := e.function(name, args); known {
 			return value
 		}
@@ -1118,6 +1188,7 @@ func (e *driverExpander) lookup(name string) string {
 		e.evaluated = true
 	}
 	if !alternatives.ok {
+		e.unmodeledEffects = true
 		e.ambiguous = true
 		return driverComputed
 	}
@@ -1131,6 +1202,7 @@ func (e *driverExpander) lookup(name string) string {
 		return driverComputed
 	}
 	if e.visiting[name] {
+		e.unmodeledEffects = true
 		return driverComputed
 	}
 	e.visiting[name] = true
@@ -1205,6 +1277,7 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "realpath", "abspath":
 		// Filesystem results and absolute paths are not their arguments.
 		// Keep an unknown value so conditions consider both outcomes.
+		e.expand(args)
 		return retain()
 	case "if":
 		parts := split(3)
@@ -1329,6 +1402,10 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		}
 		return strings.Join(out, " "), true
 	case "error", "warning", "info":
+		// Discard the diagnostic value, but preserve argument evaluation effects.
+		savedAmbiguous, savedEvaluated := e.ambiguous, e.evaluated
+		e.expand(args)
+		e.ambiguous, e.evaluated = savedAmbiguous, savedEvaluated
 		return "", true
 	case "addprefix":
 		parts := split(2)
@@ -1362,11 +1439,15 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "suffix":
 		return mapWords(args, path.Ext), true
 	case "value":
+		e.unmodeledEffects = true
 		return e.lookup(strings.TrimSpace(e.expand(args))), true
 	case "call":
+		// Built-in dispatch and computed macro bodies are not bounded here.
+		e.unmodeledEffects = true
 		parts := driverMakeSplitTop(args, ',', 0)
 		macro := strings.TrimSpace(e.expand(parts[0]))
 		if driverDynamic(macro) {
+			e.unmodeledEffects = true
 			return driverComputed, true
 		}
 		saved := e.locals
@@ -1387,6 +1468,7 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		variable := strings.TrimSpace(e.expand(parts[0]))
 		list := e.expand(parts[1])
 		if driverDynamic(variable) || driverDynamic(list) {
+			e.unmodeledEffects = true
 			return driverComputed, true
 		}
 		items := strings.Fields(list)
@@ -1418,10 +1500,14 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 			e.shells = append(e.shells, script)
 		}
 		return driverComputed, true
-	case "origin", "flavor", "file", "guile", "let", "intcmp", "words", "eval":
+	case "origin", "flavor", "words":
+		e.expand(args)
 		return driverComputed, true
 	}
-	return "", false
+	// Only the cases above have modeled evaluation effects. Future functions
+	// retain uncertainty even when a condition discards their returned value.
+	e.unmodeledEffects = true
+	return driverComputed, true
 }
 
 // driverPatsubst applies one make pattern substitution to word.
