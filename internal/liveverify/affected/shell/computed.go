@@ -63,12 +63,14 @@ func matchesPattern(pattern, base string) bool {
 
 func (names computedNames) empty() bool { return len(names) == 0 }
 
-// variableValues returns every value the file gives each name: each
-// assignment's value, as written, and each word of a `for NAME in` list.
+// variableValues returns every distinct value the file gives each name: each
+// assignment's value, as written, and each word of a `for NAME in` list. A
+// value repeated verbatim (the same word list in several loops) expands to
+// the same values, so it counts once toward maxNameValues (AFP-V0-3148).
 func variableValues(commands []command) map[string][]string {
 	values := map[string][]string{}
 	add := func(name, value string) {
-		if len(values[name]) < maxNameValues+1 {
+		if len(values[name]) < maxNameValues+1 && !slices.Contains(values[name], value) {
 			values[name] = append(values[name], value)
 		}
 	}
