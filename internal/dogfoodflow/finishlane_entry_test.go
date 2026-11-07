@@ -35,7 +35,7 @@ func entryRun(t *testing.T, options FinishLaneOptions) (int, string, string, int
 func TestDCWV0730RerunHintNamesTheEntry(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
-	unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n")
+	unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n./x\n")
 	sorted := writeInput(t, "#no-intent-declared\n")
 	verify := writeInput(t, "go version\n")
 	alternation := writeInput(t, "go test -count=1 -run TestA|TestB ./pre\n")
@@ -73,7 +73,7 @@ func TestDCWV0731StaticPreCheck(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
 	verify := writeInput(t, "go version\n")
-	unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n")
+	unsorted := writeInput(t, "docs/b.md\ndocs/a.md\n./x\n")
 	sorted := writeInput(t, "#no-intent-declared\n")
 	options := func(intents string) FinishLaneOptions {
 		return FinishLaneOptions{Preflight: true, Static: true, Entry: "dogfood-inputs-check", Change: ChangeOptions{

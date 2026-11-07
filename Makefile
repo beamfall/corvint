@@ -91,6 +91,7 @@ GATE_STEPS = \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-merge-base-test \
   eol-policy-check \
   eol-policy-test \
   error-code-ownership-check \
@@ -1117,7 +1118,18 @@ core-n1-replay:
 # Dogfood targets never use the file default `BASE ?= origin/main` (a moving ref, not a pinned sha):
 # BASE must come from the command line or the environment, or the target refuses before any work
 # (ASD-V0-019, V1-1755). dogfood-finish passes the empty value on so its one-line refusal names it.
-DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(BASE))
+# DWC-V0-7601 (V1-4721): BASE=merge-forward is the merged mainline commit of the lane's newest
+# merge-forward (script/dogfood-merge-base.sh), derived once. A refused lookup stops make before any
+# target runs: an empty DOGFOOD_BASE reads as an omitted BASE, so dogfood-check would check the
+# bound base and the batch prechecks would run with no base. The helper prints only a SHA, so the
+# empty output is the refusal (make 3.81 has no .SHELLSTATUS).
+DOGFOOD_MERGE_FORWARD_BASE := $(if $(filter merge-forward,$(BASE)),$(shell script/dogfood-merge-base.sh))
+ifneq ($(filter merge-forward,$(BASE)),)
+ifeq ($(DOGFOOD_MERGE_FORWARD_BASE),)
+$(error BASE=merge-forward refused: script/dogfood-merge-base.sh derived no BASE and printed its REFUSE and fix lines above; no target runs, so fix that or pass BASE=<full origin/main sha> (DWC-V0-7601))
+endif
+endif
+DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(if $(filter merge-forward,$(BASE)),$(DOGFOOD_MERGE_FORWARD_BASE),$(BASE)))
 DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (origin/main) is not used by dogfood targets
 
 .PHONY: dogfood-change
@@ -1300,7 +1312,7 @@ doc-gates: spec-status-check ## Run the documentation gates
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
-	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)"
+	@$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 	@$(MAKE) --no-print-directory dogfood-finish
@@ -1337,6 +1349,10 @@ dogfood-cache-test:
 .PHONY: dogfood-bin-reuse-test
 dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
+
+.PHONY: dogfood-merge-base-test
+dogfood-merge-base-test:
+	@script/dogfood-merge-base_test.sh
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
 # for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
@@ -1544,6 +1560,7 @@ shell-test: \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-merge-base-test \
   eol-policy-test \
   error-code-ownership-test \
   fixed-tmp-paths-test \
