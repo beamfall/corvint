@@ -7,6 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestForwardRowsChangeSelectsCIForwardRow_V13382: an edit to a
@@ -17,6 +18,7 @@ import (
 // allowlist); the shell plugin now indexes .github (NSA-V0-800). bar.jq,
 // which no plugin owns, is pinned beside it. Fails on BASE for verdict.sh.
 func TestForwardRowsChangeSelectsCIForwardRow_V13382(t *testing.T) {
+	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
 	graph, err := affected.Build(context.Background(), root, languages.All()...)
 	if err != nil {
