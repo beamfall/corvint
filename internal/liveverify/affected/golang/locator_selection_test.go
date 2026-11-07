@@ -195,3 +195,39 @@ func TestCommandLocatorReachesItsRunners_AFPV02951(t *testing.T) {
 		t.Errorf("vet-tool: an edit of the package it vets did not select it")
 	}
 }
+
+// AFP-V0-2956 and AFP-V0-2957 (V1-4283, review fix 2): the review's case on a
+// real Makefile. `go list ./lib | xargs -I PKG go test PKG` runs the listed
+// package's tests, so lib's non-test root locator reaches the target on an
+// unrelated change, as it does through a substitution and through a vet run
+// whose output a shell executes. A `go list` whose output feeds no command
+// keeps its build-only edge.
+func TestListingOutputReachesItsRunner_AFPV02956(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":             "module example.test/m\n",
+		"elsewhere/data.txt": "x\n",
+		"lib/lib.go":         "package lib\nimport \"os\"\nfunc Root() string { cwd, _ := os.Getwd(); return cwd }\n",
+		"lib/x_test.go":      "package lib\n",
+		"Makefile": "list-run:\n\tgo list ./lib | xargs -I PKG go test PKG\n" +
+			"list-subst:\n\tgo test `go list ./lib`\n" +
+			"list-loop:\n\tgo list ./lib | while read -r p; do go test \"$$p\"; done\n" +
+			"list-only:\n\tgo list ./lib > pkgs.txt\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]string{}
+	for _, item := range affected.Select(graph, []string{"elsewhere/data.txt"}).Selected {
+		found[item.UnitID] = item.Witness.Kind
+	}
+	for _, id := range []string{"driver:make:Makefile#list-run", "driver:make:Makefile#list-subst", "driver:make:Makefile#list-loop"} {
+		if found[id] != affected.WitnessUnboundedReader {
+			t.Errorf("%s: a target that runs what go list printed was not selected through lib's root locator: %v", id, found)
+		}
+	}
+	if kind, ok := found["driver:make:Makefile#list-only"]; ok {
+		t.Errorf("list-only: a go list whose output feeds no command was selected as %s on an unrelated change", kind)
+	}
+}

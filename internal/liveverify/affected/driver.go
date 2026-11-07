@@ -307,6 +307,17 @@ func (registry *driverRegistry) scanBoth(text, cwd string) *driverScan {
 	return scan
 }
 
+// scanBothOutput is scanBoth for a make `$(shell ...)` script, whose standard
+// output make substitutes into the makefile's text (AFP-V0-2956).
+func (registry *driverRegistry) scanBothOutput(text, cwd string) *driverScan {
+	scan := newDriverScan()
+	scan.scanShellOutput(text, cwd, registry.module)
+	if cwd != "." {
+		scan.scanShellOutput(text, ".", registry.module)
+	}
+	return scan
+}
+
 // resolveMake names the units one make invocation can run. A computed
 // directory or file reaches every make unit; a computed or unknown goal every
 // unit of the file it names.
@@ -381,7 +392,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		fileExpander.expand(line)
 	}
 	for _, script := range fileExpander.shells {
-		shared.merge(registry, registry.scanBoth(script, parsed.dir))
+		shared.merge(registry, registry.scanBothOutput(script, parsed.dir))
 	}
 	for _, recipe := range parsed.remainderRecipes {
 		line := fileExpander.expand(driverRecipeLine(recipe))
@@ -450,7 +461,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			builder.merge(registry, registry.scanBoth(line, parsed.dir))
 		}
 		for _, script := range expander.shells {
-			builder.merge(registry, registry.scanBoth(script, parsed.dir))
+			builder.merge(registry, registry.scanBothOutput(script, parsed.dir))
 		}
 		builder.computed = builder.computed || expander.ambiguous
 		units = append(units, builder.unit())
