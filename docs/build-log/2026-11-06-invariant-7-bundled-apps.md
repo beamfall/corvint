@@ -33,3 +33,7 @@ spot-checked against the source before the draft was revised:
 
 Not yet measured: every baseline (`CMS-V0-005`, `-006`, `-008`, `-010`, `-011`) is `NOT_OBSERVED`
 until the first measurement ticket runs. No code has moved.
+
+Merge of `origin/main` at `b75053a5`: one conflicted path,
+`docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md`. The resolution keeps main's `help.go:1827` pin and
+this change's one-line README shift (`README.md:155-159`).
