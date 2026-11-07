@@ -201,13 +201,17 @@ func globMatches(glob string, parts []string) bool {
 // testlessReaderUsers carries each path-literal or path-glob reader that has
 // no test of its own, and that names an unowned dirty path or one whose owner
 // is untested, to the units that can exercise it (AFP-V0-495, AZU-V0-006): its
-// reverse dependents, and their test-only users, witnessed by the chain from the reader through the
-// smallest such path. Hidden Go paths also retain their callers (AZU-V0-005).
-// A testless unit whose declared read scope holds such a path, other than
-// through the declaration itself, is carried the same way (AZU-V0-006).
-// A reader with its own tests stays untraversed (AFP-V0-021). An untested
-// owner's importers need not include a reader's callers: walk those callers
-// before claiming a coverage gap. A test-less reader would otherwise drop it
+// reverse dependents, the units whose code runs a reached command's binary and
+// theirs (AFP-V0-2992), and their test-only users and test-only runners, less a
+// unit whose declared read scope excludes the path, witnessed by the chain from
+// the reader through the smallest such path. Hidden Go paths also retain their
+// callers (AZU-V0-005). A testless unit whose declared read scope holds such a
+// path, other than through the declaration itself, is carried the same way
+// (AZU-V0-006). A reader with its own tests stays untraversed (AFP-V0-021), as
+// does one that names only owned paths, whose change already reaches its
+// importers through their edges (a runner config's test-match literal, say). An
+// untested owner's importers need not include a reader's callers: walk those
+// callers before claiming a coverage gap. A test-less reader would otherwise drop it
 // with no selection and no unknown, so this only adds; witnesses already in
 // reached are kept. It returns every unit it traversed, which therefore is no
 // terminal selection whatever witness it keeps (AFP-V0-560), and every unit the
@@ -256,17 +260,39 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 	if len(start) == 0 {
 		return nil
 	}
+	// A runner of a test-less command is followed like an importer of a
+	// test-less library: its tests are the only check of the read
+	// (AFP-V0-2992).
 	users := graph.traverse(start, nil)
+	walked := make(map[string]bool, len(users))
 	for id := range users {
 		followed[id] = true
+		walked[id] = true
 	}
 	graph.testUsersOf(users, nil)
+	graph.testRunnersOf(users, walked)
 	carried := make(map[string]bool, len(users))
-	for id := range users {
+	for id, witness := range users {
 		carried[id] = true
+		// Each user is here for the read of an unowned path, not for a
+		// build change: a unit whose declared read scope excludes that path
+		// reads none of it, through code or a binary it runs (AFP-V0-161,
+		// AFP-V0-2992). It is still walked through.
+		if graph.scopeExcludes(id, witness.DirtyPath) {
+			delete(users, id)
+		}
 	}
 	mergeWitnesses(reached, users)
 	return carried
+}
+
+// scopeExcludes reports whether unit id declares a read scope (AFP-V0-023)
+// that excludes dirtyPath: its tests read nothing there, whatever code or
+// binary they run, and full CI confines them to the scope (AFP-V0-161).
+func (graph *Graph) scopeExcludes(id, dirtyPath string) bool {
+	unit := graph.units[id]
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	return unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath)
 }
 
 // unboundedReadersOf selects, on any dirty path, each unit not already reached

@@ -591,6 +591,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
 		frontierBears = ""
 	}
+	// A command's root locator reaches every unit that runs the command; a
+	// rule (d) chain skips only the build-only edges of `go vet` and `go
+	// list` (AFP-V0-2951).
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
@@ -722,8 +725,15 @@ func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
 // (AFP-V0-012 rule (d)).
 func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileScan {
 	aliases, dotImported := rootLocatorImports(imports)
-	comparisonOnly := comparisonOnlyLocators(body, aliases)
+	joins, _ := qualifiedImports(imports, func(importPath string) bool {
+		_, join := pathJoinFuncs[importPath]
+		return join
+	})
+	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
 	var scan fileScan
+	// A bounded join's root-anchored token names what the join reads
+	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
+	scan.tokens = append(scan.tokens, joined...)
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
