@@ -347,7 +347,8 @@ deliver OPEN tickets no batch branch or the integration ref contains ([TCL-V0-74
 digest that `ticket similar --digest FILE` matches without a store; `ticket recur` records a
 recurrence on the existing ticket. `queue snapshot` exports a verified intent snapshot that
 `CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every
-other verb; `queue snapshot --worktree DIR` exports a linked or pruned worktree's own store so its
+other verb; `receipt audit --worktree DIR` validates that projection against the owning journal
+(and reports divergence for pruned or edited copies); `queue snapshot --worktree DIR` exports a linked or pruned worktree's own store so its
 blockers and dependency closure are validated instead of the primary checkout's; `queue parity
 --against FILE` names the tickets a lane host's store lacks or holds stale against an authoritative
 snapshot and refuses `STALE_TICKET` when it is behind (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).

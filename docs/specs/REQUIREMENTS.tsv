@@ -3136,6 +3136,7 @@ ESC-V0-008	docs/specs/corvint-tasks-escalations-v0.md	Session classification MUS
 ESC-V0-009	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalation list`, show and history MUST be bounded, non-mutating native	unrecorded	-
 ESC-V0-010	docs/specs/corvint-tasks-escalations-v0.md	Escalation writes MUST use the existing writer, receipt and request-index pipeli	unrecorded	-
 ESC-V0-011	docs/specs/corvint-tasks-escalations-v0.md	The pure foundation and the integrated capability MUST keep distinct evidence an	unrecorded	-
+TEA-V0-7100	docs/specs/corvint-tasks-evidence-attachments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3460)	standing	2026-10-11; V1-3460
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 ERG-V0-001	docs/specs/corvint-tasks-external-reviews-v0.md	A review record MUST distinguish the reviewed subject from the recording actor.	unrecorded	-
 ERG-V0-002	docs/specs/corvint-tasks-external-reviews-v0.md	The reviewed candidate MUST be a closed tagged union bound to the subject.	unrecorded	-
@@ -3159,6 +3160,7 @@ ERG-V0-026	docs/specs/corvint-tasks-external-reviews-v0.md	A hand-off note that 
 ERG-V0-027	docs/specs/corvint-tasks-external-reviews-v0.md	When a gate's review history is longer than the packet reads, the packet MUST na	unrecorded	-
 ERG-V0-028	docs/specs/corvint-tasks-external-reviews-v0.md	The dispatcher's ATR-V0-104 note and the ATR-V0-126 `dispatch salvage` note MUST	unrecorded	-
 ERG-V0-870	docs/specs/corvint-tasks-external-reviews-v0.md	The external review binding fold a read runs MUST walk only the receipts after t	unrecorded	-
+CTW-V0-7100	docs/specs/corvint-tasks-intent-worktree-v0.md	(proposed; experimental measurement only; V1-4260)	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-

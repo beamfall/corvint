@@ -38,6 +38,19 @@ other clause are unchanged. The owner accepted this amendment on 2026-10-04; the
 
 ## Requirements
 
+- `CTW-V0-7100`: (proposed; experimental measurement only; V1-4260)
+  An opt-in 369-entry labels-only native batch profile MUST retain per-chunk wall, lock,
+  observe, model, bind, publication and checkpoint costs with host load. Instrumentation MUST
+  preserve CTW-V0-013's existing per-entry publication and audit path; it does not enable shared
+  planning captures, lease publication, concurrent artifact preparation or sync overlap for
+  batch entries. Failed experiments and raw samples remain retained, labelled by revision and
+  configuration. No speedup is shipped: the 61.013 s base, 79.520 s capture-only and 69.462 s
+  overlap samples under different contention do not establish improvement, and no Linux result
+  qualifies the ticket's <=20 s Mac target. Evidence: `TestCTWV07100_BatchRefineProfile`,
+  `TestCTWV07100_BatchEntryKeepsBasePublication`, `TestCTWV07100_BatchPublicationFailureCleansStages`,
+  the CTW-V0-013 CAS/replay/redo tests and `TestTCXV0977_PreEffectTamperRefused`.
+
+
 - `CTW-V0-001`: The intent root is the checkout whose `.taskman/` is the intent projection. Every
   read audit, intent-file write, `TM-V0-007` branch check, intent tree digest and publication
   observation that TCP-00 assigns to the primary worktree uses the intent root. The intent root is

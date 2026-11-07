@@ -53,6 +53,33 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07211_CreateTemplateMapsFixesAndTestsToChore`.
 - `TCL-V0-7213`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4301) Single-target expected-revision current and single/multi-target implicit-revision hold MUST settle a REDO_PENDING receipt once on their write path and retry the revision/index read. Reusing the original request MUST replay without another receipt. Other request-index errors MUST refuse and name the request entry; no failed observation falls back to a live revision. Ordinary read commands never settle.
   Evidence: `internal/tasks/cli/pk_tstore_regression_test.go` — `TestTCLV07213_RetriesReplayOverPendingReceipt; TestTCLV07213_CurrentNamesRequestIndexError`.
+- `TCL-V0-7102`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3173)
+  `receipt audit --worktree DIR` MUST run the complete owning-journal audit against `DIR/.taskman`
+  as the projection, preserving the command repository's journal, lock and primary identity.
+  It MUST name the selected absolute `worktree` in its result, independently bind the selected
+  tree through the ordinary read snapshot protocol, and report its divergence rather than read
+  the primary projection in its place. It writes nothing and MUST refuse `--through` combined
+  with `--worktree`, because a prefix audit cannot establish current projection agreement.
+  A divergence repair MUST name the explicitly selected projection and `--worktree DIR`,
+  without presenting it as the resolved linked intent worktree or advising commit/carry there.
+  A symlinked `DIR` leaf MUST refuse `UNSUPPORTED_FILESYSTEM` before leaf resolution; ancestor
+  aliases such as macOS `/tmp` and `/var` may be resolved before that check.
+  Help MUST explain that `queue snapshot --worktree DIR` and snapshot `ticket blockers` validate
+  dependency closure separately, and include a literal example. A snapshot contains no journal
+  and still refuses receipt audit under TCL-V0-012. Acceptance:
+  `TestTCLV07102_AuditExplicitWorktreeProjection`, `TestTCLV07102_RefusesSymlinkedWorktree`,
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
+
+
+- `TCL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4061)
+  `receipt put FILE` MUST resolve relative file arguments against `Env.Cwd` through `commandPath`,
+  as other CLI file readers do, without changing the process working directory. The stored digest
+  MUST identify those exact bytes. Acceptance: `TestTCLV07100_ReceiptPutResolvesEnvCwd`.
+- `TCL-V0-7101`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4164)
+  A gate argv entry longer than the existing 128-byte Identifier bound MUST refuse
+  `LIMIT_EXCEEDED`, identifying its argv element and the byte bound before execution. This retains
+  the existing wire grammar; long fixture paths must use a shorter path or relative argument.
+  Acceptance: `TestTCLV07101_GateArgumentNamesLimit` (`internal/tasks/cli`).
 
 
 - `TCL-V0-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3237)
