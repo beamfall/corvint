@@ -1,0 +1,6 @@
+/index/
+/self-observations.jsonl
+/.self-observations.*
+/unplanned-reads.jsonl
+/unplanned-reads.enabled
+/.unplanned-reads.*
