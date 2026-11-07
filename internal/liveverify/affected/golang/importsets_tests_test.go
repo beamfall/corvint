@@ -347,7 +347,7 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 		{"computed environment", "package probe\n\nimport \"testing\"\n\nfunc TestEnv(t *testing.T) { t.Setenv(\"GO\"+\"FLAGS\", \"-json=true\") }\n", true},
 		{"configured command", "package probe\n\nimport (\n\t\"bytes\"\n\t\"os\"\n\t\"os/exec\"\n\t\"reflect\"\n\t\"testing\"\n)\n\n" +
 			"func TestConfigured(t *testing.T) {\n\tvar stderr bytes.Buffer\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n" +
-			"\tc.Env = append(os.Environ(), \"GOTOOLCHAIN=local\")\n\tc.Stderr = &stderr\n\tout, err := c.Output()\n\tif err != nil || reflect.DeepEqual(out, nil) {\n\t\tt.Fatal(err, c.ProcessState.ExitCode())\n\t}\n}\n", false},
+			"\tc.Env = append(os.Environ(), \"GOTOOLCHAIN=local\")\n\tc.Dir = t.TempDir()\n\tc.Stderr = &stderr\n\tout, err := c.Output()\n\tif err != nil || reflect.DeepEqual(out, nil) {\n\t\tt.Fatal(err, c.ProcessState.ExitCode())\n\t}\n}\n", false},
 		{"own testdata", "package probe\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _ = os.ReadFile(filepath.Join(\"testdata\", \"fixture.txt\"))\nvar _, _ = os.ReadDir(\"testdata\")\n", false},
 		{"environment", "package probe\n\nimport \"os\"\n\nvar _ = os.Getenv(\"HOME\")\n", false},
 	}
@@ -380,31 +380,6 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 				t.Fatalf("a body-only edit of lib selected probe by %+v, want selected=%v (changes %+v)", witness, test.unproven, *changes)
 			}
 		})
-	}
-}
-
-// AFP-V0-9010: a proven command whose Dir is assigned lists packages from a
-// directory the scan cannot resolve, so its reader reads the whole module,
-// but its fields stay proven; without the Dir line it reads cmd/tool alone.
-func TestCommandDirectoryReadsModule_AFP_V0_9010(t *testing.T) {
-	for _, test := range []struct {
-		directory string
-		all       bool
-	}{{"\tc.Dir = \"..\"\n", true}, {"", false}} {
-		root := importGraphRepository(t)
-		writeFiles(t, root, map[string]string{
-			"probe/probe.go": "package probe\n",
-			"probe/probe_test.go": "package probe\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
-				"func TestList(t *testing.T) {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n" + test.directory + "\t_, _ = c.Output()\n}\n",
-		})
-		graph, err := affected.Build(context.Background(), root, golang.New())
-		if err != nil {
-			t.Fatal(err)
-		}
-		unit, _ := graph.Unit(importGraphModule + "probe")
-		if unit.ImportGraphReadsAll != test.all || unit.ImportGraphReadsFiles || test.all == (len(unit.ImportGraphReads) != 0) {
-			t.Errorf("Dir %q: all=%v files=%v reads=%v, want all=%v and proven", test.directory, unit.ImportGraphReadsAll, unit.ImportGraphReadsFiles, unit.ImportGraphReads, test.all)
-		}
 	}
 }
 

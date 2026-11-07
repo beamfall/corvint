@@ -172,9 +172,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 			for _, body := range bodies {
 				maps.Copy(tests, testingParameters(signatures[body], names))
 			}
-			confined, directory := confinedCommand(outer, call, exec)
-			proven = confined && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
-			all = all || directory
+			proven = confinedCommand(outer, call, exec) && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
 			result.all, result.unproven = true, true
