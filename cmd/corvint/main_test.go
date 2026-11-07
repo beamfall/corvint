@@ -35,7 +35,7 @@ func cliRepository(t *testing.T) string {
 	}
 	commands = append(commands, []string{"add", "."}, []string{"commit", "-qm", "initial"})
 	for _, arguments := range commands {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -530,7 +530,7 @@ func cliGoModuleRepository(t *testing.T) string {
 	}
 	writeFixtureFile(t, root, "pkg/sample.go", "package sample\n")
 	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "module"}} {
-		command := exec.Command("git", arguments...)
+		command := fixtureGitCommand(arguments...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

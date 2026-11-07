@@ -1,4 +1,4 @@
-// Package clierrors holds the CLI error-contract test (ACX-V0-859): it builds
-// every binary that has a command tree in internal/capcatalog/trees and pins
-// how each one refuses an unknown verb.
+// SPDX-License-Identifier: Apache-2.0
+// Package clierrors holds the compiled all-binary CLI conformance suite
+// (CAP-V0-7700, ACX-V0-7707), sharing the public failure oracle with Tasks tests.
 package clierrors

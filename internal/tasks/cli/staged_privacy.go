@@ -44,8 +44,11 @@ func openStagedPath(name string) (*os.File, error) {
 	}
 	// Pin each parent before inspecting its child. A renamed or replaced
 	// ancestor must not redirect even a metadata probe into a media folder.
+	// Parents are traversal-only handles, so no directory above the staged
+	// path is read: a read scope granting no read on / or the checkout's
+	// ancestors (test-confine, AFP-V0-023) still sees the hint.
 	resolve := func(path string) (*os.File, string, error) {
-		dir, err := safeopen.Root(string(filepath.Separator))
+		dir, err := safeopen.PinTraversalRoot()
 		if err != nil {
 			return nil, "", err
 		}
@@ -57,12 +60,12 @@ func openStagedPath(name string) (*os.File, error) {
 			if protected(current) {
 				return nil, "", fmt.Errorf("protected home folder")
 			}
-			fi, err := dir.Lstat(part)
+			fi, err := safeopen.LstatIn(dir, part)
 			if err != nil {
 				return nil, "", err
 			}
 			if fi.Mode()&os.ModeSymlink != 0 {
-				target, err := dir.Readlink(part)
+				target, err := safeopen.ReadlinkIn(dir, part)
 				if err != nil {
 					return nil, "", err
 				}
@@ -72,10 +75,10 @@ func openStagedPath(name string) (*os.File, error) {
 				return nil, filepath.Join(append([]string{target}, parts[i+1:]...)...), nil
 			}
 			if i == len(parts)-1 {
-				f, err := safeopen.InRoot(dir, part, os.O_RDONLY, 0, false)
+				f, err := safeopen.InDir(dir, part, os.O_RDONLY, 0)
 				return f, "", err
 			}
-			next, err := safeopen.SubRoot(dir, part)
+			next, err := safeopen.StepDir(dir, part)
 			if err != nil {
 				return nil, "", err
 			}

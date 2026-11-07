@@ -1,0 +1,48 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-analyzer-shader",
+  "helpJson": "corvint-cli --binary corvint-analyzer-shader help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-analyzer-shader"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-analyzer-shader",
+      "summary": "Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout.",
+      "usage": [
+        "corvint-analyzer-shader < REQUEST.json",
+        "corvint-analyzer-shader --version"
+      ],
+      "flags": [
+        "--version"
+      ],
+      "required": [
+        "stdin: protocol request JSON"
+      ],
+      "example": "corvint-analyzer-shader < REQUEST.json",
+      "help": "corvint-cli --binary corvint-analyzer-shader --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-analyzer-shader help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-analyzer-shader help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-analyzer-shader help --json",
+      "help": "corvint-cli --binary corvint-analyzer-shader help --help"
+    }
+  ]
+}

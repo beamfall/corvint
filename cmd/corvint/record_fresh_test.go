@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // Exercise the compiled public CLI without the historical fixture's trace ignore rule.
@@ -16,6 +18,18 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build CLI: %v\n%s", err, output)
+	}
+	// CCF-V1-9800: cover Git invoked through the generic runner below, which
+	// the direct-command source guard cannot recognize. Invalid dates must not
+	// reach Git, and caller names/emails must not override the fixture config.
+	for _, name := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"} {
+		t.Setenv(name, "Foreign Fixture Caller")
+	}
+	for _, name := range []string{"GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"} {
+		t.Setenv(name, "foreign@example.invalid")
+	}
+	for _, name := range []string{"GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"} {
+		t.Setenv(name, "invalid-fixture-date")
 	}
 	for _, linked := range []bool{false, true} {
 		name := "main"
@@ -29,6 +43,9 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 				t.Helper()
 				command := exec.Command(program, args...)
 				command.Dir, command.Env = root, env
+				if program == "git" {
+					command.Env = testsupport.WithoutGitIdentity(env)
+				}
 				output, err := command.CombinedOutput()
 				if err != nil {
 					t.Fatalf("%s %v: %v\n%s", program, args, err, output)
@@ -47,6 +64,10 @@ func TestRecordFreshRepositoryWithoutIgnore(t *testing.T) {
 			write("package main\n\nfunc main() {}\n")
 			run("git", "add", "main.go")
 			run("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", "initial")
+			identity := strings.TrimSpace(string(run("git", "log", "-1", "--format=%an%n%ae%n%cn%n%ce")))
+			if want := "Corvint Test\ncorvint@example.test\nCorvint Test\ncorvint@example.test"; identity != want {
+				t.Fatalf("caller identity reached fixture commit: got %q, want %q", identity, want)
+			}
 			if linked {
 				worktree := filepath.Join(t.TempDir(), "linked")
 				run("git", "worktree", "add", "-q", "-b", "linked", worktree)

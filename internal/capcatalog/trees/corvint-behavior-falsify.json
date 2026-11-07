@@ -1,0 +1,145 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-behavior-falsify",
+  "helpJson": "corvint-cli --binary corvint-behavior-falsify help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-behavior-falsify",
+    "internal/behaviorfalsify/cli"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [
+    {
+      "word": "worker",
+      "reason": "accept worker the accept group re-enters this executable as (CTF-V0-006)"
+    },
+    {
+      "word": "-help",
+      "reason": "single-dash help spelling the runner group accepts"
+    },
+    {
+      "word": "--gradle-user-home",
+      "reason": "argument of the pinned Gradle invocation the runner group compares, not a corvint-test option"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-behavior-falsify",
+      "summary": "Folded corvint-behavior-falsify: plan and execute behavior falsification (CTF-V0)",
+      "usage": [
+        "corvint-behavior-falsify execute --experimental --approve-plan DIGEST",
+        "corvint-behavior-falsify execute-receipt --experimental --approve-plan DIGEST",
+        "corvint-behavior-falsify plan --experimental",
+        "corvint-behavior-falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--expected-plan",
+        "--expected-tool",
+        "--experimental"
+      ],
+      "required": [],
+      "example": "corvint-behavior-falsify execute --experimental --approve-plan DIGEST",
+      "help": "corvint-cli --binary corvint-behavior-falsify --help"
+    },
+    {
+      "path": [
+        "execute"
+      ],
+      "command": "corvint-behavior-falsify execute",
+      "summary": "Execute exactly the approved falsification plan read on stdin",
+      "usage": [
+        "corvint-behavior-falsify execute --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-behavior-falsify execute --experimental --approve-plan DIGEST",
+      "help": "corvint-cli --binary corvint-behavior-falsify execute --help"
+    },
+    {
+      "path": [
+        "execute-receipt"
+      ],
+      "command": "corvint-behavior-falsify execute-receipt",
+      "summary": "Execute the approved plan read on stdin and write its receipt",
+      "usage": [
+        "corvint-behavior-falsify execute-receipt --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-behavior-falsify execute-receipt --experimental --approve-plan DIGEST",
+      "help": "corvint-cli --binary corvint-behavior-falsify execute-receipt --help"
+    },
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-behavior-falsify plan",
+      "summary": "Plan a falsification from the request JSON on stdin",
+      "usage": [
+        "corvint-behavior-falsify plan --experimental"
+      ],
+      "flags": [
+        "--experimental"
+      ],
+      "required": [
+        "--experimental"
+      ],
+      "example": "corvint-behavior-falsify plan --experimental",
+      "help": "corvint-cli --binary corvint-behavior-falsify plan --help"
+    },
+    {
+      "path": [
+        "verify-receipt"
+      ],
+      "command": "corvint-behavior-falsify verify-receipt",
+      "summary": "Verify the falsification receipt on stdin offline",
+      "usage": [
+        "corvint-behavior-falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256"
+      ],
+      "flags": [
+        "--expected-plan",
+        "--expected-tool",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--expected-plan DIGEST",
+        "--expected-tool SHA256"
+      ],
+      "example": "corvint-behavior-falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256",
+      "help": "corvint-cli --binary corvint-behavior-falsify verify-receipt --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-behavior-falsify help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-behavior-falsify help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli --binary corvint-behavior-falsify help --json",
+      "help": "corvint-cli --binary corvint-behavior-falsify help --help"
+    }
+  ]
+}

@@ -3,6 +3,8 @@ package nativelinecov
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -128,7 +130,10 @@ func TestSelectionFaults(t *testing.T) {
 					{"new file", "missing", "", 3, 3, nil, true},
 				} {
 					t.Run(c.name, func(t *testing.T) {
-						e := Analyze(ix, []linecov.FileDiff{{Path: c.file, OldOID: c.oid, NewOID: "new", Hunks: []linecov.Hunk{{Start: c.lo, End: c.hi}}}}, bodies)
+						diff := linecov.FileDiff{Path: c.file, OldOID: c.oid, NewOID: "new", Hunks: []linecov.Hunk{{Start: c.lo, End: c.hi}}}
+						// Explicit fixture classification, independent of body boundaries.
+						eligible := map[string]EligibleChange{c.file: {OldOID: c.oid, NewOID: "new", Hunks: diff.Hunks}}
+						e := Analyze(ix, []linecov.FileDiff{diff}, bodies, eligible)
 						if (e.Fallback != "") != c.fallback {
 							t.Fatalf("fallback %s", e.Fallback)
 						}
@@ -143,10 +148,66 @@ func TestSelectionFaults(t *testing.T) {
 						}
 					})
 				}
-				if e := Analyze(ix, []linecov.FileDiff{{Path: "src", OldOID: "blob", NewOID: "new", Hunks: []linecov.Hunk{{Start: 3, End: 3}}}}, nil); !strings.Contains(e.Fallback, "boundaries") {
+				if e := Analyze(ix, []linecov.FileDiff{{Path: "src", OldOID: "blob", NewOID: "new", Hunks: []linecov.Hunk{{Start: 3, End: 3}}}}, nil, nil); !strings.Contains(e.Fallback, "boundaries") {
 					t.Fatal("missing parser result narrowed")
 				}
 			})
 		}
 	})
+}
+
+// LPCV-V0-8207: a directive inside one function can change another function.
+// Body boundaries alone must never authorize narrowing, even on covered lines.
+func TestNativeEditClassification(t *testing.T) {
+	base := "int producer(void) {\n#define VALUE 1\n return 0;\n}\nint consumer(void) {\n return VALUE;\n}\n"
+	target := strings.Replace(base, "VALUE 1", "VALUE 2", 1)
+	constant := strings.Replace(base, "return 0;", "return 1;", 1)
+	oid := func(s string) string {
+		return fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprintf("blob %d%c%s", len(s), 0, s))))
+	}
+	oldOID, newOID := oid(base), oid(target)
+	ix, err := linecov.Build("m", "commit", "fixture", map[string]string{"macro.c": oldOID}, []linecov.Record{
+		{Package: "tests", Name: "producer", Profile: []byte("mode: set\nm/macro.c:3.1,3.2 1 1\nm/macro.c:6.1,6.2 1 0\n")},
+		{Package: "tests", Name: "consumer", Profile: []byte("mode: set\nm/macro.c:3.1,3.2 1 0\nm/macro.c:6.1,6.2 1 1\n")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodies := map[string]Bodies{"macro.c": {OID: oldOID, Spans: []Body{{1, 4}, {5, 7}}}}
+	hunks := []linecov.Hunk{{Start: 3, End: 3}}
+	classified := EligibleChange{OldOID: oldOID, NewOID: oid(constant), Hunks: hunks}
+	for _, tc := range []struct {
+		name     string
+		diff     linecov.FileDiff
+		eligible map[string]EligibleChange
+		fallback bool
+	}{
+		// There is no qualified provider for this macro edit; producer's body
+		// boundary cannot substitute for classification of its consumer effects.
+		{"cross-function macro", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: newOID, Hunks: []linecov.Hunk{{Start: 2, End: 2}}}, nil, true},
+		{"structural change", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: oid(strings.Replace(base, "return 0;", "if (VALUE) { return 0; }", 1)), Hunks: hunks}, nil, true},
+		{"missing classification", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: oid(constant), Hunks: hunks}, nil, true},
+		{"classified constant", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: oid(constant), Hunks: hunks}, map[string]EligibleChange{"macro.c": classified}, false},
+		{"different target", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: newOID, Hunks: hunks}, map[string]EligibleChange{"macro.c": classified}, true},
+		{"different hunks", linecov.FileDiff{Path: "macro.c", OldOID: oldOID, NewOID: oid(constant), Hunks: []linecov.Hunk{{Start: 2, End: 3}}}, map[string]EligibleChange{"macro.c": classified}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := Analyze(ix, []linecov.FileDiff{tc.diff}, bodies, tc.eligible)
+			if (e.Fallback != "") != tc.fallback {
+				t.Fatalf("effect %+v", e)
+			}
+			if tc.fallback {
+				if len(e.Tests) != 0 {
+					t.Fatal("unsafe partial selection escaped fallback")
+				}
+			} else if len(e.Tests) != 1 {
+				t.Fatalf("classified body-local edit lost selection: %+v", e)
+			}
+		})
+	}
+	stale := classified
+	stale.OldOID = "stale"
+	if e := Analyze(ix, []linecov.FileDiff{{Path: "macro.c", OldOID: oldOID, NewOID: oid(constant), Hunks: hunks}}, bodies, map[string]EligibleChange{"macro.c": stale}); e.Fallback == "" {
+		t.Fatal("classification from another base accepted")
+	}
 }

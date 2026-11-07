@@ -3,7 +3,6 @@ package flows
 import (
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -16,7 +15,7 @@ import (
 func TestAFUV1112FlowsIngestCoverageCLI(t *testing.T) {
 	root := flowIntentRepo(t)
 	rev := func(arg string) string {
-		c := exec.Command("git", "rev-parse", arg)
+		c := fixtureGitCommand("rev-parse", arg)
 		c.Dir = root
 		out, err := c.Output()
 		if err != nil {

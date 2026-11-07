@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,7 +16,16 @@ import (
 	"github.com/Beamfall/corvint/internal/postmergeworkflow"
 )
 
-func main() { os.Exit(run()) }
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-postmerge-workflow", Out: os.Stdout, Err: os.Stderr}
+	processStdout, processStderr = streams.Stdout(), streams.Stderr()
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-postmerge-workflow", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run()))
+}
 
 // encodeIDUsage is the encode-id help (PMR-V0-960).
 const encodeIDUsage = `usage: corvint-postmerge-workflow encode-id VALUE
@@ -30,25 +42,25 @@ func run() int {
 			return 0
 		}
 		if len(os.Args) != 3 {
-			fmt.Fprintln(os.Stderr, encodeIDUsage)
+			fmt.Fprintln(processStderr, encodeIDUsage)
 			return 2
 		}
 		id, err := postmergeworkflow.EncodeID(os.Args[2])
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "encode-id: "+err.Error())
+			fmt.Fprintln(processStderr, "encode-id: "+err.Error())
 			return 2
 		}
 		fmt.Println(id)
 		return 0
 	}
-	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
+	if code, handled := serveHelp(os.Args[1:], processStdout, processStderr); handled {
 		return code
 	}
 	if len(os.Args) < 2 || os.Args[1] != "replay" {
 		if len(os.Args) >= 2 {
-			fmt.Fprintf(os.Stderr, "UNKNOWN_COMMAND: unknown command %q\n", os.Args[1])
+			fmt.Fprintf(processStderr, "UNKNOWN_COMMAND: unknown command %q\n", os.Args[1])
 		}
-		fmt.Fprintln(os.Stderr, "usage: corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO\n       corvint-postmerge-workflow encode-id VALUE")
+		fmt.Fprintln(processStderr, "usage: corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO\n       corvint-postmerge-workflow encode-id VALUE")
 		return 2
 	}
 	f := flag.NewFlagSet("replay", flag.ContinueOnError)
@@ -64,13 +76,13 @@ func run() int {
 	defer stop()
 	if postmergeworkflow.FixtureProfile(*fixture) == postmergeworkflow.NativeProfile {
 		report, _ := postmergeworkflow.ReplayNative(ctx, *root, *fixture, *policy, *change)
-		if e := json.NewEncoder(os.Stdout).Encode(report); e != nil {
+		if e := json.NewEncoder(processStdout).Encode(report); e != nil {
 			return 2
 		}
 		return 2 // Every /1 outcome in this bounded slice is BLOCKED.
 	}
 	report, err := postmergeworkflow.Replay(ctx, *root, *fixture, *policy, *change)
-	if e := json.NewEncoder(os.Stdout).Encode(report); e != nil {
+	if e := json.NewEncoder(processStdout).Encode(report); e != nil {
 		return 2
 	}
 	if err != nil {
@@ -81,3 +93,6 @@ func run() int {
 	}
 	return 0
 }
+
+var processStdout io.Writer = os.Stdout
+var processStderr io.Writer = os.Stderr

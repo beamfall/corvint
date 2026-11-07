@@ -12,6 +12,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"io/fs"
 	"os"
@@ -55,38 +57,45 @@ const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prov
 var acceptWorker = []string{"accept", "worker"}
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-test", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-test", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	// The BBF control hook re-enters this executable with no arguments (CCE-V0-009).
 	if role := os.Getenv("CORVINT_BEHAVIOR_COMMAND_ROLE"); role != "" && len(os.Args) == 1 {
-		if err := changee2e.RunHook(ctx, role, os.Stdin, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, "corvint-test e2e hook:", err)
-			os.Exit(1)
+		if err := changee2e.RunHook(ctx, role, os.Stdin, streams.Stdout()); err != nil {
+			fmt.Fprintln(streams.Stderr(), "corvint-test e2e hook:", err)
+			os.Exit(streams.Status(1))
 		}
 		return
 	}
 	// Every node answers --help and -h with its own help before any group parses it (CAP-V0-042).
-	if handled, err := helpRequest(os.Args[1:], os.Stdout); handled {
+	if handled, err := helpRequest(os.Args[1:], streams.Stdout()); handled {
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "corvint-test help:", err)
-			os.Exit(2)
+			fmt.Fprintln(streams.Stderr(), "corvint-test help:", err)
+			os.Exit(streams.Status(2))
 		}
 		return
 	}
-	if exit, refused := clitree.RefuseIfUnknownVerb(commandTree(), os.Args[1:], os.Stderr); refused {
-		os.Exit(exit)
+	if exit, refused := clitree.RefuseIfUnknownVerb(commandTree(), os.Args[1:], streams.Stderr()); refused {
+		os.Exit(streams.Status(exit))
 	}
 	// The runner group shares the old companion's entry, so its output is byte-identical
 	// apart from the invocation name in diagnostics (CTF-V0-002, CTF-V0-004).
 	if len(os.Args) > 1 && os.Args[1] == "runner" {
-		os.Exit(cli.Command(ctx, "corvint-test runner", os.Args[2:], os.Stdout, os.Stderr))
+		os.Exit(streams.Status(cli.Command(ctx, "corvint-test runner", os.Args[2:], streams.Stdout(), streams.Stderr())))
 	}
 	// The accept group exits 2 like the old companion, and its worker re-enters this
 	// executable as `corvint-test accept worker` (CTF-V0-006).
 	if len(os.Args) > 1 && os.Args[1] == "accept" {
-		if err := acceptcli.Run(ctx, "corvint-test accept", acceptWorker, os.Args[2:], os.Stdin, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
+		if err := acceptcli.Run(ctx, "corvint-test accept", acceptWorker, os.Args[2:], os.Stdin, streams.Stdout()); err != nil {
+			fmt.Fprintln(streams.Stderr(), err)
+			os.Exit(streams.Status(2))
 		}
 		return
 	}
@@ -95,15 +104,15 @@ func main() {
 		"minimize": minimizecli.Run,
 	}
 	if len(os.Args) > 1 && folded[os.Args[1]] != nil {
-		if err := folded[os.Args[1]](ctx, "corvint-test "+os.Args[1], os.Args[2:], os.Stdin, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if err := folded[os.Args[1]](ctx, "corvint-test "+os.Args[1], os.Args[2:], os.Stdin, streams.Stdout()); err != nil {
+			fmt.Fprintln(streams.Stderr(), err)
+			os.Exit(streams.Status(1))
 		}
 		return
 	}
-	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "corvint-test e2e:", err)
-		os.Exit(1)
+	if err := run(ctx, os.Args[1:], streams.Stdout()); err != nil {
+		fmt.Fprintln(streams.Stderr(), "corvint-test e2e:", err)
+		os.Exit(streams.Status(1))
 	}
 }
 
