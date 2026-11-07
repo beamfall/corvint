@@ -58,6 +58,25 @@ External evidence SHA-256:
 - prefix-affected.json: `c2ef941d87ec7162c2b72d60453be0982596a34569392915c364df627c60b166`
 - prefix-affected.stderr: `0ee4ade61bddb0b8c027b78fa8737c82aace500a40af0cd6dfa11e8abed5f83e`
 - prefix-package-initial.log: `eda27b8b8899c00718921e136a68efad7b1e363029ede0f5641dd44552007c6b`
-- prefix-package.log: `d47a237cb9a2657cc871214a1eec68a31d1eb2bbc7684cf17145ceed6d1d6690`
+- prefix-package-before-annotation.log: `d47a237cb9a2657cc871214a1eec68a31d1eb2bbc7684cf17145ceed6d1d6690`
 - prefix-repin.log: `85be64c6dde7c05243069a8a876a4dc6953564d59a161d92a23e6f348d8c9133`
 - prefix-spec-lines.log: `57fc7c07b86df6ee2f91c6f7da8f4d49a048f12ef89920ee1664adbe3c032dc7`
+
+
+The first finish attempt stopped in read-scope preflight before any bind: the new
+literal exec.Command argv made the checker interpret fixture ./p as a repository
+package. Its suggested fixture marker applies to token reads, not that command
+scanner. Use the same argv-slice construction as the adjacent offload fixture cases,
+with the fixture annotation retained, without changing arguments or assertions.
+This is a fixture representation repair under ASD-V0-895; no checker or read-scope
+policy is loosened. Rerun the whole package and the read-scope check before binding.
+The final handback retains those results and the exact preflight refusal.
+
+The final whole-package run and direct read-scope check both pass. Final citation
+check passes and repin again finds no moved citations. Final external evidence:
+
+- prefix-package.log: `7155e0dff4a0906715e888674a75384f476b81be59c5a0abe16224be94493f13`
+- prefix-read-scopes.log: `7dfc917b6e1cefd9eb16ca481b1b2794056e1083d417bc1f0b700f9e9de89d1b`
+- prefix-bind-preflight-refusal.log: `4e481c3169cee1eec1e2884f1c7e9fa478f24e50206e910b7bd6096982c050a8`
+- prefix-final-repin.log: `85be64c6dde7c05243069a8a876a4dc6953564d59a161d92a23e6f348d8c9133`
+- prefix-final-lines.log: `855a4551b199f407e4e7cec705511746022a39aa0f70383fc13aac9acc748bba`
