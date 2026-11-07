@@ -38,10 +38,13 @@ func recordEntrySuffix(record string) (string, bool) {
 // record is one too: the unbounded-reader rule selects it on every change.
 //
 // A walker names a proper ancestor of record other than the root
-// (`../docs`) and no literal that joins the rest of the way, so a walk or a
-// name computed at run time could reach every new entry while no selector
-// selects it for one (AFP-V0-2747). It returns nil, nil for any other
-// directory.
+// (`../docs`), so a walk or a name computed at run time could reach every
+// new entry, while the reader rules do not select it for every one
+// (AFP-V0-2747): no literal joins the rest of the way, and it does not
+// locate the root. A narrower reader match, a fragment, an entry name or a
+// glob constrained in the name (`../docs/*/2026-*.md`), selects it for some
+// entries only and leaves it a walker (AFP-V0-2748, coversRecord). It
+// returns nil, nil for any other directory.
 func (graph *Graph) RecordReaders(record string) (readers, walkers []string) {
 	suffix, ok := recordEntrySuffix(record)
 	if !ok {
@@ -53,30 +56,163 @@ func (graph *Graph) RecordReaders(record string) (readers, walkers []string) {
 		if !strings.HasPrefix(id, "go:") || len(unit.Tests) == 0 || unit.ReadScoped {
 			continue
 		}
+		// Every probe is tried: a read through one probe must not hide
+		// the ancestor another names.
 		reads, walks := false, false
 		for _, probe := range recordProbes(record, suffix, unit) {
-			parts := strings.Split(probe, "/")
-			if namesAny(tokens[i], parts) {
-				if graph.resolves(id, probe) {
-					reads = true
-					break
-				}
+			if namesAny(tokens[i], strings.Split(probe, "/")) {
+				reads = reads || graph.resolves(id, probe)
 				walks = walks || graph.namesRecordAncestor(id, probe, record)
 			}
-			if _, _, ok := graph.globRead(id, []string{probe}); ok {
-				reads = true
-				break
+			if !reads {
+				_, _, reads = graph.globRead(id, []string{probe})
 			}
 		}
 		_, locates := graph.causes[id]
 		switch {
-		case reads || (walks && locates):
-			readers = append(readers, id)
-		case walks:
+		case walks && !locates && !graph.coversRecord(id, record, suffix):
 			walkers = append(walkers, id)
+		case reads || walks:
+			readers = append(readers, id)
 		}
 	}
 	return readers, walkers
+}
+
+// coversRecord reports whether the reader rules select Go unit id for every
+// entry of record, whatever its name (AFP-V0-2748). One of its tokens must
+// resolve, as resolves resolves it, to record itself or to the root or a
+// proper ancestor of record from which its literals join the rest of the way
+// (AFP-V0-2746). Alternatively one of its globs must cover record
+// (globCoversRecord). A fragment, an entry name or a glob constrained in the
+// name selects the unit for some entries only, so it covers nothing. The
+// token must name two entries that share no leading or trailing rune before
+// the suffix, so a run matching the name alone does not count.
+func (graph *Graph) coversRecord(id, record, suffix string) bool {
+	unit := graph.units[id]
+	for _, glob := range unit.PathGlobs {
+		if globCoversRecord(glob, record, suffix) {
+			return true
+		}
+	}
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if len(files) == 0 {
+		return false
+	}
+	directory := relativeDirectory(files[0])
+	_, locates := graph.causes[id]
+	anchored := rootAnchored(unit.PathTokens) || locates
+	first := strings.Split(record+strings.Repeat("f", 40)+suffix, "/")
+	second := strings.Split(record+"0"+suffix, "/")
+	whole := func(base, value string) bool {
+		below := record
+		if resolved := path.Join(base, value); resolved != "." {
+			var ok bool
+			if below, ok = strings.CutPrefix(record, resolved+"/"); !ok {
+				return false
+			}
+		}
+		return below == "" || joinsComponents(unit.PathTokens, strings.Split(strings.TrimSuffix(below, "/"), "/"))
+	}
+	for _, value := range unit.PathTokens {
+		if !namesPath(value, first) || !namesPath(value, second) {
+			continue
+		}
+		if rest, rooted := strings.CutPrefix(value, "/"); rooted {
+			if whole("", rest) {
+				return true
+			}
+			continue
+		}
+		if whole(directory, value) || (anchored && whole("", value)) {
+			return true
+		}
+	}
+	return false
+}
+
+// globCoversRecord reports whether glob selects every entry of record
+// whatever its name (AFP-V0-2748), as globMatches matches it: it matches
+// record or one of its ancestors, or its leading components match record and
+// its last component admits every name of the entry namespace (globCovers).
+func globCoversRecord(glob, record, suffix string) bool {
+	directory := strings.Split(strings.TrimSuffix(record, "/"), "/")
+	if globMatches(glob, directory) {
+		return true
+	}
+	components := strings.Split(strings.TrimPrefix(glob, "/"), "/")
+	head, last := components[:len(components)-1], components[len(components)-1]
+	offset := len(directory) - len(head)
+	if offset < 0 || (strings.HasPrefix(glob, "/") && offset != 0) {
+		return false
+	}
+	for index, component := range head {
+		if matched, err := path.Match(component, directory[offset+index]); err != nil || !matched {
+			return false
+		}
+	}
+	return globCovers(last, suffix)
+}
+
+// globCovers reports whether the glob component pattern matches every name
+// of the entry namespace of suffix: every name with at least one byte before
+// suffix and no `/` (AFP-V0-2748). It searches the product of the set of
+// items the name read so far can have reached and globEntry's suffix and
+// length state for a name of the namespace that the pattern does not match,
+// over globAlphabet. It reports true when no such name exists. A malformed
+// or empty pattern covers nothing.
+func globCovers(pattern, suffix string) bool {
+	items, _ := globItems(pattern)
+	if len(items) == 0 {
+		return false
+	}
+	runes := globAlphabet(pattern, suffix, items)
+	// reached is a set of item positions, len(items) meaning the whole
+	// pattern; a `*` may match nothing, so it also reaches the next one.
+	closure := func(reached []byte) string {
+		for position, item := range items {
+			if reached[position] == 1 && item.star {
+				reached[position+1] = 1
+			}
+		}
+		return string(reached)
+	}
+	type state struct {
+		reached         string
+		matched, length int
+	}
+	full := len(suffix) + 1
+	start := make([]byte, len(items)+1)
+	start[0] = 1
+	seen := map[state]bool{}
+	queue := []state{{closure(start), 0, 0}}
+	seen[queue[0]] = true
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current.matched == len(suffix) && current.length == full && current.reached[len(items)] == 0 {
+			return false
+		}
+		for _, char := range runes {
+			next := make([]byte, len(items)+1)
+			for position, item := range items {
+				if current.reached[position] == 0 || !item.admits(char) {
+					continue
+				}
+				if item.star {
+					next[position] = 1
+				} else {
+					next[position+1] = 1
+				}
+			}
+			following := state{closure(next), suffixPrefix(suffix, current.matched, char), min(current.length+1, full)}
+			if !seen[following] {
+				seen[following] = true
+				queue = append(queue, following)
+			}
+		}
+	}
+	return true
 }
 
 // recordProbes returns the entries of record through which unit could read a
@@ -177,24 +313,7 @@ func globEntry(pattern, suffix string) (string, bool) {
 	if !wild {
 		return "", false
 	}
-	alphabet := map[rune]bool{}
-	for char := rune(' '); char <= '~'; char++ {
-		alphabet[char] = true
-	}
-	for _, char := range suffix + pattern + "é世" {
-		alphabet[char] = true
-	}
-	delete(alphabet, '/')
-	// Letters and digits first, so a witness reads as a file name.
-	runes := slices.SortedFunc(maps.Keys(alphabet), func(a, b rune) int {
-		if alnum(a) != alnum(b) {
-			if alnum(a) {
-				return -1
-			}
-			return 1
-		}
-		return int(a - b)
-	})
+	runes := globAlphabet(pattern, suffix, items)
 	// A state is the next item, how much of suffix the name ends with, and
 	// its length in runes up to one more than suffix.
 	type state struct{ item, matched, length int }
@@ -247,6 +366,70 @@ func globEntry(pattern, suffix string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// globAlphabet returns the runes globEntry and globCovers search: the
+// printable ASCII, the runes of suffix and pattern, two non-ASCII letters,
+// and each bound of a class of items with the runes just outside it, so every
+// run of runes that the items and suffix tell apart has a member; never `/`.
+// Letters and digits come first, so a witness reads as a file name.
+func globAlphabet(pattern, suffix string, items []globItem) []rune {
+	alphabet := map[rune]bool{}
+	for char := rune(' '); char <= '~'; char++ {
+		alphabet[char] = true
+	}
+	for _, char := range suffix + pattern + "é世" {
+		alphabet[char] = true
+	}
+	for _, item := range items {
+		for _, char := range classBounds(item.class) {
+			switch {
+			case 0xD800 <= char && char <= 0xDFFF:
+				// No rune is a surrogate: the runes beside the block
+				// stand for it.
+				alphabet[0xD7FF], alphabet[0xE000] = true, true
+			case utf8.ValidRune(char):
+				alphabet[char] = true
+			}
+		}
+	}
+	delete(alphabet, '/')
+	return slices.SortedFunc(maps.Keys(alphabet), func(a, b rune) int {
+		if alnum(a) != alnum(b) {
+			if alnum(a) {
+				return -1
+			}
+			return 1
+		}
+		return int(a - b)
+	})
+}
+
+// classBounds returns, for each range or rune of the character class class
+// (`[a-z]`, `[^.]`, as globItems keeps it), its bounds and the runes just
+// outside them; it returns nil for "", which is no class.
+func classBounds(class string) []rune {
+	body := strings.TrimPrefix(strings.TrimPrefix(class, "["), "^")
+	body = strings.TrimSuffix(body, "]")
+	read := func() rune {
+		if body[0] == '\\' && len(body) > 1 {
+			body = body[1:]
+		}
+		char, size := utf8.DecodeRuneInString(body)
+		body = body[size:]
+		return char
+	}
+	var bounds []rune
+	for body != "" {
+		low := read()
+		high := low
+		if len(body) > 1 && body[0] == '-' {
+			body = body[1:]
+			high = read()
+		}
+		bounds = append(bounds, low-1, low, high, high+1)
+	}
+	return bounds
 }
 
 // globItems splits a glob component into its items and reports whether one

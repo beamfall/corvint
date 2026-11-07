@@ -229,3 +229,126 @@ func TestRecordEntryReadersJoinSeparateLiterals_AFPV2746(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-2748 (V1-4933, review fix round 2, finding P1): a unit that names an
+// ancestor of a record directory (`../docs`, `../.corvint`) stays a walker
+// whatever narrower reader match it also has. A glob constrained in the name
+// (`/docs/*/2026-*.md`, `0*.cem.json`) or one whose class admits the fixed
+// probe's name (`[a-f]*.md`) selects it for some entries only: a new entry
+// outside the glob (`2027-entry.md`, a CEM starting with `1`) does not select
+// it, while a walk of `../docs` reads that entry. A unit stays a reader only
+// when the reader rules select it for every entry: a literal naming the
+// directory, a glob matching the directory or admitting every name, or a
+// root-locating call. Every reader is selected for both out-of-glob entries.
+// With the walker case decided by reads alone (coversRecord dropped), the
+// globbing walkers are readers again and the test fails.
+func TestRecordWalkerNotMaskedByNarrowerReads_AFPV2748(t *testing.T) {
+	const outside = "docs/build-log/2027-entry.md"
+	const outsideSealed = ".corvint/changes/1123456789abcdef0123456789abcdef01234567.cem.json"
+	const inside = "docs/build-log/2026-11-07-selgo.md"
+	unit := func(id string, globs ...string) Unit {
+		slices.Sort(globs)
+		return Unit{ID: "go:" + id, Sources: []string{id + "/a.go"}, Tests: []string{id + "/a_test.go"}, PathTokens: []string{"../.corvint", "../docs"}, PathGlobs: globs}
+	}
+	lister := unit("lister")
+	lister.PathTokens = []string{"../.corvint", "../.corvint/changes", "../docs", "../docs/build-log"}
+	locator := unit("locator", "/docs/*/2026-*.md", "/.corvint/*/0*.cem.json")
+	locator.UnboundedReads = "calls os.Getwd"
+	graph, err := Build(context.Background(), "", fake{name: "go", units: []Unit{
+		unit("globwalker", "/docs/*/2026-*.md", "/.corvint/*/0*.cem.json"),
+		unit("hexwalker", "/docs/build-log/[a-f]*.md", "/.corvint/changes/[0-9a-f]*.cem.json"),
+		unit("plainwalker"),
+		unit("starglob", "/docs/build-log/*.md", "/.corvint/changes/*.json"),
+		unit("dirglob", "/docs/*", "/.corvint/*"),
+		unit("unanchored", "build-log/?*", "changes/*"),
+		lister, locator,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for directory, dirty := range map[string]string{SealedChangesDirectory: outsideSealed, BuildLogDirectory: outside} {
+		readers, walkers := graph.RecordReaders(directory)
+		if want := []string{"go:dirglob", "go:lister", "go:locator", "go:starglob", "go:unanchored"}; !slices.Equal(readers, want) {
+			t.Errorf("RecordReaders(%s) readers = %v, want %v", directory, readers, want)
+		}
+		if want := []string{"go:globwalker", "go:hexwalker", "go:plainwalker"}; !slices.Equal(walkers, want) {
+			t.Errorf("RecordReaders(%s) walkers = %v, want %v: a narrower read must not mask a walker", directory, walkers, want)
+		}
+		selected := func(dirty string) map[string]bool {
+			out := map[string]bool{}
+			for _, selection := range Select(graph, []string{dirty}).Selected {
+				out[selection.UnitID] = true
+			}
+			return out
+		}
+		got := selected(dirty)
+		for _, id := range readers {
+			if !got[id] {
+				t.Errorf("reader %s of %s is not selected for %s", id, directory, dirty)
+			}
+		}
+		if got["go:globwalker"] {
+			t.Errorf("go:globwalker is selected for %s, outside its globs", dirty)
+		}
+	}
+	if witness := Select(graph, []string{inside}).Selected; !slices.ContainsFunc(witness, func(selection Selection) bool {
+		return selection.UnitID == "go:globwalker" && selection.Witness.Kind == WitnessPathGlobReader
+	}) {
+		t.Errorf("go:globwalker is not a glob reader of %s, inside its glob", inside)
+	}
+	for _, c := range []struct {
+		glob string
+		want bool
+	}{
+		{"/docs/build-log/*.md", true},
+		{"docs/build-log/*", true},
+		{"build-log/?*", true},
+		{"/docs/*", true},
+		{"*/*", true},
+		{"/docs/*/2026-*.md", false},
+		{"/build-log/*.md", false},
+		{"/docs/build-log/[a-f]*.md", false},
+		{"/docs/build-log/*.md/x", false},
+	} {
+		if got := globCoversRecord(c.glob, BuildLogDirectory, ".md"); got != c.want {
+			t.Errorf("globCoversRecord(%q, %s) = %v, want %v", c.glob, BuildLogDirectory, got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		pattern, suffix string
+		want            bool
+	}{
+		{"*", ".md", true},
+		{"*.md", ".md", true},
+		{"*d", ".md", true},
+		{"*.*", ".md", true},
+		{"?*", ".md", true},
+		{"??*", ".md", true},
+		{"*?.md", ".md", true},
+		{"*[^x]*", ".md", true},
+		{"[^/]*", ".md", true},
+		{"*.json", ".cem.json", true},
+		{"*.cem.json", ".cem.json", true},
+		{"[\x00-\U0010FFFF]*", ".md", true},
+		{"2026-*.md", ".md", false},
+		{"[a-f]*.md", ".md", false},
+		{"[0-9a-f]*.cem.json", ".cem.json", false},
+		{"*[^x].md", ".md", false},
+		{"*?*?.md", ".md", false},
+		{"?.md", ".md", false},
+		{"*.md", ".cem.json", false},
+		{"README.md", ".md", false},
+		// Only \x06 is outside the class, and it is no rune of the
+		// pattern: the class bounds put it in the search.
+		{"[\x00-\x05\x07-\U0010FFFF]*", ".md", false},
+		// The rune after the class bound is a surrogate: U+E000 stands
+		// for the runes above it.
+		{"[\x00-\uD7FF]*", ".md", false},
+		{"[", ".md", false},
+		{"", ".md", false},
+	} {
+		if got := globCovers(c.pattern, c.suffix); got != c.want {
+			t.Errorf("globCovers(%q, %q) = %v, want %v", c.pattern, c.suffix, got, c.want)
+		}
+	}
+}
