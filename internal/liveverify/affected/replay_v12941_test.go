@@ -89,9 +89,10 @@ func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {
 // that kept every CI shard FULL against this repository's graph with every
 // plugin (AFP-V0-602; V1-2941, V1-2726), and a documentation-only change.
 // Each declared path is DECLARED_RUNTIME_READERS (or DECLARED_DOCUMENTATION)
-// and raises no UNOWNED_DIRTY_PATH. No plugin with no selected unit
-// contributes a LANGUAGE_FRONTIER entry, so none takes part only because a
-// path was unowned; the 1028c and documentation sets add no entry beyond the
+// and raises no UNOWNED_DIRTY_PATH. No plugin with no selected test or
+// reached testless source contributes a LANGUAGE_FRONTIER entry, so none takes
+// part only because a path was unowned (AFP-V0-560). CI helpers discovered by
+// AZU-V0-9920 can be testless readers. The 1028c and documentation sets add no entry beyond the
 // floor every Go source edit carries. The undeclared remainder of batch 1028a
 // stays UNOWNED_DIRTY_PATH, path by path.
 func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
@@ -121,6 +122,14 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 			plugin, _, _ := strings.Cut(selection.UnitID, ":")
 			selected[plugin] = true
 		}
+		// Select omits testless readers, whose plugin frontier must still bear
+		// when the traversal reaches them (AFP-V0-560).
+		for _, id := range graph.ReachedUnitIDs(dirty) {
+			if unit, ok := graph.Unit(id); ok && len(unit.Tests) == 0 && len(unit.Sources) > 0 {
+				plugin, _, _ := strings.Cut(id, ":")
+				selected[plugin] = true
+			}
+		}
 		for _, entry := range plan.Unknown {
 			switch entry.Reason {
 			case affected.UnknownUnownedDirtyPath:
@@ -128,7 +137,7 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 			case affected.UnknownLanguageFrontier:
 				plugin, _, _ := strings.Cut(entry.Detail, ":")
 				if !selected[plugin] {
-					t.Errorf("%s: LANGUAGE_FRONTIER %s from %s, which has no selected unit", name, entry.Detail, plugin)
+					t.Errorf("%s: LANGUAGE_FRONTIER %s from %s, which has no selected test or reached testless source", name, entry.Detail, plugin)
 				}
 				if name != "1028a" && !floor[entry.Detail] && entry.Detail != shell.FrontierForeignInvocation {
 					t.Errorf("%s: LANGUAGE_FRONTIER %s beyond a Go source edit's floor", name, entry.Detail)

@@ -249,10 +249,15 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 		t.Logf("%s selected=%d language=%d make=%d ci=%d scope=%s unknown=%+v", name, len(p.Selected), languageUnits, makeTargets, ciJobs, p.Scope, p.Unknown)
 		if name == "heavy-only" {
 			// The historical 86-unit report predates the driver claimant.
-			// Keep its language-unit bound on the full integrated graph;
+			// Keep a language-unit bound on the full integrated graph;
 			// AZU-V0-001's required drivers are additional selections.
-			if languageUnits >= 86 {
-				t.Errorf("heavy-only selected %d language units, want below reported 86", languageUnits)
+			// The selbatch merge (2026-11-06) measured 80 before and 95
+			// after: AFP-V0-2203 round 8 retains 14 Go path-literal readers
+			// whose lone tokens placement used to drop (`"script"` names
+			// the script/ directory at any depth), and AZU-V0-9920 indexes
+			// .github/cishards, which executes the built binary.
+			if languageUnits >= 100 {
+				t.Errorf("heavy-only selected %d language units, want below 100 (95 measured at the selbatch merge)", languageUnits)
 			}
 			selected := affprecIDs(p)
 			reached := g.ReachedUnitIDs(paths)

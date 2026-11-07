@@ -67,6 +67,16 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	// CI helper tests live below the hidden .github root. Use the explicit
+	// cache-stamped reader rather than widening the shared walk (AZU-V0-9920).
+	helpers, err := root.FilesUnder(".github", func(name string) bool {
+		return strings.HasSuffix(name, ".py")
+	})
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files = append(files, helpers...)
+	slices.Sort(files)
 	frontier := map[string]bool{}
 	// moduleNames maps each dotted name a file is importable under to its unit
 	// identities. One file can be importable under several names because a

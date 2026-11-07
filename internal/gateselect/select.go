@@ -840,7 +840,7 @@ func hiddenDirectory(directory string) bool {
 		return false
 	}
 	for _, part := range strings.Split(directory, "/") {
-		if part == "testdata" || strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+		if part == "testdata" || part == ".git" || part == ".hg" || part == ".svn" {
 			return true
 		}
 	}

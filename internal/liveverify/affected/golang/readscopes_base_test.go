@@ -173,7 +173,7 @@ func TestCommittedReadScopesFollowModuleOwnership_AFPV0050(t *testing.T) {
 		"an unlisted root in a workspace": {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[]}}`, workspace: "go 1.27\n\nuse ./nested\n"},
 		"a directory named go.mod":        {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"kept":[]}}`, extra: map[string]string{"kept/go.mod/data": "x\n"}, known: true},
 		"in a vendor directory":           {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"vendor/v":[]}}`, extra: map[string]string{"vendor/v/v.go": "package v\n"}},
-		"in a hidden directory":           {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{".hidden/h":[]}}`, extra: map[string]string{".hidden/h/h.go": "package h\n"}},
+		"in a hidden directory":           {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{".hidden/h":[]}}`, extra: map[string]string{".hidden/h/h.go": "package h\n"}, known: true},
 		"in an admitted build directory":  {declaration: `{"profile":"corvint-test-read-scopes/0","packages":{"build/b":[]}}`, extra: map[string]string{"build/b/b.go": "package b\n"}, known: true},
 	} {
 		t.Run(name, func(t *testing.T) {

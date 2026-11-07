@@ -101,7 +101,14 @@ func FlowImpact(ctx context.Context, root string, set IntentSet, base string, gr
 	}
 	report := ImpactReport{Schema: ImpactSchema, Base: base, Revision: at.commit, ChangedPaths: plan.Dirty,
 		Graph: ImpactGraph{Digest: plan.GraphDigest, Scope: plan.Scope, Unknown: []string{}}, Flows: []ImpactFlow{}}
-	for _, u := range plan.Unknown {
+	// AZU-V0-006 adds coverage gaps to affected plans, but the frozen
+	// application-flow-impact/1 wire has no uncovered member. Preserve its
+	// explicit coverage uncertainty rather than changing its scope or goldens.
+	legacyUnknown := append(append([]affected.Unknown(nil), plan.Unknown...), plan.Uncovered...)
+	if len(legacyUnknown) != 0 {
+		report.Graph.Scope = affected.ScopeUnknown
+	}
+	for _, u := range legacyUnknown {
 		report.Graph.Unknown = append(report.Graph.Unknown, u.Reason+": "+u.Detail)
 	}
 	changedBy := changedUnits(graph, plan.Dirty)
