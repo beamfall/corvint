@@ -48,7 +48,7 @@ type driverMakeEvent struct {
 	// scoped marks a target-specific assignment, in force for some targets
 	// only, so it is an alternative beside every global value.
 	scoped bool
-	// immediate marks `:=`, `::=` and `:::=`, which expand their value where
+	// immediate marks `:=` and `::=`, which expand their value where
 	// make reads them (AFP-V0-3125).
 	immediate       bool
 	name, op, value string
@@ -317,9 +317,12 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 		if assignment, name, value := driverMakeAssignment(statement, operator); assignment {
 			endRule()
 			parsed.remainder = append(parsed.remainder, trimmed)
+			event := driverMakeAssignmentEvent(statement, operator, name, value, false)
 			if name != "" {
 				parsed.vars[name] = append(parsed.vars[name], value)
-				parsed.events = append(parsed.events, driverMakeAssignmentEvent(statement, operator, name, value, false))
+			}
+			if name != "" || !driverMakeSupportedAssignment(event) {
+				parsed.events = append(parsed.events, event)
 			}
 			continue
 		}
@@ -347,14 +350,15 @@ func parseDriverMake(file string, body []byte) *driverMakeFile {
 }
 
 // driverMakeAssignment classifies a statement whose first operator is at
-// index: `=`, `:=`, `::=`, `:::=`, `?=`, `+=` and `!=` assign.
+// index. Colon-assignment forms are recognized syntactically, but only
+// `=`, `:=`, `::=`, `?=`, `+=` and `!=` have supported semantics.
 func driverMakeAssignment(statement string, index int) (bool, string, string) {
 	name := statement[:index]
 	op := statement[index:]
 	switch {
 	case op[0] == '=':
 		op = "="
-	case strings.HasPrefix(op, ":=") || strings.HasPrefix(op, "::=") || strings.HasPrefix(op, ":::="):
+	case strings.HasPrefix(strings.TrimLeft(op, ":"), "="):
 		op = op[:strings.IndexByte(op, '=')+1]
 	default:
 		return false, "", ""
@@ -372,7 +376,7 @@ func driverMakeAssignment(statement string, index int) (bool, string, string) {
 
 // driverMakeAssignmentEvent is the event of the assignment whose first
 // operator is at index. Its op is "?=", "+=", "!=" or "=" for every plain or
-// immediate form, and immediate marks `:=`, `::=` and `:::=` (AFP-V0-3125).
+// supported immediate form. Other operators remain unsupported (AFP-V0-3125).
 // A `!=` event keeps its shell command, which make runs where it reads it.
 func driverMakeAssignmentEvent(statement string, index int, name, value string, scoped bool) driverMakeEvent {
 	event := driverMakeEvent{kind: driverEventAssign, scoped: scoped, name: name, op: "=", value: value}
@@ -381,12 +385,21 @@ func driverMakeAssignmentEvent(statement string, index int, name, value string, 
 	case head != "" && strings.IndexByte("?+!", head[len(head)-1]) >= 0:
 		event.op = head[len(head)-1:] + "="
 	case statement[index] == ':':
-		event.immediate = true
+		op := statement[index : index+strings.IndexByte(statement[index:], '=')+1]
+		if op == ":=" || op == "::=" {
+			event.immediate = true
+		} else {
+			event.op = "unsupported"
+		}
 	}
 	if event.op == "!=" {
 		event.command = strings.TrimSpace(statement[index+1:])
 	}
 	return event
+}
+
+func driverMakeSupportedAssignment(event driverMakeEvent) bool {
+	return event.op == "=" || event.op == "?=" || event.op == "+=" || event.op == "!="
 }
 
 // driverMakeDefineOperator is the kind of a `define NAME [op]` line and
@@ -397,7 +410,14 @@ func driverMakeDefineOperator(rest string) (string, bool) {
 	case !assigns:
 		return "=", false
 	case strings.HasSuffix(body, ":"):
-		return "=", true
+		operator := driverMakeOperator(strings.TrimSpace(rest))
+		if operator >= 0 {
+			op := strings.TrimSpace(rest)[operator:]
+			if op == ":=" || op == "::=" {
+				return "=", true
+			}
+		}
+		return "unsupported", false
 	case body != "" && strings.IndexByte("?+!", body[len(body)-1]) >= 0:
 		return body[len(body)-1:] + "=", false
 	}
@@ -499,6 +519,8 @@ func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlt
 		for _, value := range current {
 			defined := value.text != driverUndefined
 			switch {
+			case !driverMakeSupportedAssignment(event):
+				return nil, false
 			case event.op == "!=":
 				next = append(next, driverMakeValue{text: driverComputed, simple: true})
 			case event.op == "?=" && defined:
@@ -706,7 +728,7 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 	}
 	targetSpecific := false
 	if operator := driverMakeOperator(after); operator >= 0 {
-		if after[operator] == ':' && (operator+1 >= len(after) || after[operator+1] != '=') {
+		if assignment, _, _ := driverMakeAssignment(after, operator); !assignment {
 			return false
 		}
 		targetSpecific = true
@@ -755,9 +777,14 @@ func (parsed *driverMakeFile) rule(statement string, colon int, line string, cur
 		if targetSpecific {
 			statement := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(after), "export "))
 			operator := driverMakeOperator(statement)
-			if assignment, name, value := driverMakeAssignment(statement, operator); assignment && name != "" {
-				parsed.vars[name] = append(parsed.vars[name], value)
-				parsed.events = append(parsed.events, driverMakeAssignmentEvent(statement, operator, name, value, true))
+			if assignment, name, value := driverMakeAssignment(statement, operator); assignment {
+				event := driverMakeAssignmentEvent(statement, operator, name, value, true)
+				if name != "" {
+					parsed.vars[name] = append(parsed.vars[name], value)
+				}
+				if name != "" || !driverMakeSupportedAssignment(event) {
+					parsed.events = append(parsed.events, event)
+				}
 			}
 		} else {
 			rule.prereqs = append(rule.prereqs, after)
