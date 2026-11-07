@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -106,7 +107,10 @@ type declText struct {
 
 // fileDecls keys every top-level declaration of a file: a function by its
 // name, a method as Type.Method, a general declaration per name it declares
-// (a group's members compared by their own spec). An absent file has none.
+// (a group's members compared by their own spec). Names Go lets repeat keep
+// one key per occurrence: each init function, and each blank declaration by
+// its ordinal among the file's blanks, so no blank initializer hides another
+// and each keeps its own initialization status. An absent file has none.
 func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 	out := map[string]declText{}
 	if source == nil {
@@ -140,7 +144,12 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 		})
 		return out.String()
 	}
-	inits := 0
+	inits, blanks := 0, 0
+	// blank keys one occurrence of a blank name.
+	blank := func(key string) string {
+		blanks++
+		return key + "#" + strconv.Itoa(blanks)
+	}
 	var imports []string
 	initializing := false
 	for _, spec := range file.Imports {
@@ -165,6 +174,9 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 				inits++
 				key += "#" + strings.Repeat("+", inits)
 			}
+			if decl.Name.Name == "_" {
+				key = blank(key)
+			}
 			out[key] = declText{name: strings.SplitN(key, "#", 2)[0], text: print(decl), positions: positions(decl), alwaysRun: alwaysRun}
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
@@ -172,7 +184,11 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 				case *ast.ImportSpec:
 					// Imports change nothing a declaration does not show.
 				case *ast.TypeSpec:
-					out[spec.Name.Name] = declText{name: spec.Name.Name, text: decl.Tok.String() + " " + print(spec), positions: positions(spec)}
+					key := spec.Name.Name
+					if key == "_" {
+						key = blank(key)
+					}
+					out[key] = declText{name: spec.Name.Name, text: decl.Tok.String() + " " + print(spec), positions: positions(spec)}
 				case *ast.ValueSpec:
 					// A const spec without values repeats the previous one's
 					// (iota), so the whole group is its text.
@@ -190,12 +206,13 @@ func fileDecls(name string, source []byte) (map[string]declText, string, bool) {
 						})
 					}
 					for _, ident := range spec.Names {
-						if ident.Name == "_" {
+						key, initializes := ident.Name, calls
+						if key == "_" {
 							// A blank variable exists only for its
 							// initializer's effect.
-							calls = calls || decl.Tok == token.VAR
+							key, initializes = blank(key), calls || decl.Tok == token.VAR
 						}
-						out[ident.Name] = declText{name: ident.Name, text: text, positions: positions(spec), alwaysRun: decl.Tok == token.VAR && calls}
+						out[key] = declText{name: ident.Name, text: text, positions: positions(spec), alwaysRun: decl.Tok == token.VAR && initializes}
 					}
 				}
 			}

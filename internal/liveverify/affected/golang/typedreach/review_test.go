@@ -394,3 +394,51 @@ func TestAFPV02376BaseEffectsSeeHeldCallbacks(t *testing.T) {
 		})
 	}
 }
+
+// TestAFPV02376BlankInitializersKeepOwnKeys is the regression for blank
+// declarations sharing one key: an edit of an earlier `var _ = setup(...)`
+// that moves no position was hidden behind the last blank declaration, so an
+// ordinary edit in the same change narrowed the package and dropped the test
+// reading the state the initializers set. Each blank declaration is its own
+// occurrence with its own initialization status, so a blank constant after it
+// cannot hide it either; the ordinary edit alone still narrows.
+func TestAFPV02376BlankInitializersKeepOwnKeys(t *testing.T) {
+	const base = "package lib\nvar State int\nfunc setup(v int) int { State += v; return 0 }\nvar _ = setup(1)\nvar _ = setup(2)\nvar _ = setup(4)\nconst _ = 0\nfunc Pure() int { return 1 }\n"
+	const tests = "package p\nimport (\"testing\"; \"example.com/review/lib\")\nfunc TestPure(t *testing.T) { if lib.Pure() != 2 { t.Fatal(lib.Pure()) } }\nfunc TestState(t *testing.T) { if lib.State != 7 { t.Fatal(lib.State) } }\nfunc TestControl(t *testing.T) {}\n"
+	pure := strings.Replace(base, "return 1 }", "return 2 }", 1)
+	load := func(t *testing.T, head string) *Program {
+		t.Helper()
+		program, err := Load(reviewFixture(t, map[string]string{"lib/lib.go": head, "p/p_test.go": tests}), "example.com/review", "p")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return program
+	}
+	for _, tc := range []struct{ name, from, to string }{
+		{"first", "setup(1)", "setup(8)"},
+		{"middle", "setup(2)", "setup(9)"},
+		{"last before a blank constant", "setup(4)", "setup(5)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			head := strings.Replace(pure, tc.from, tc.to, 1)
+			change := DiffFile("lib/lib.go", []byte(base), []byte(head))
+			if change.AlwaysRun == "" {
+				t.Fatalf("blank initializer edit hidden: %+v", change)
+			}
+			result := Analyze(load(t, head), change.Declarations("example.com/review/lib"), nil)
+			if !strings.HasPrefix(result.Whole, WholeAlwaysRunReaches+": ") {
+				t.Fatalf("changed blank initializer must keep the package whole: %+v", result)
+			}
+		})
+	}
+	t.Run("ordinary edit alone", func(t *testing.T) {
+		change := DiffFile("lib/lib.go", []byte(base), []byte(pure))
+		if change.AlwaysRun != "" || !slices.Equal(change.Names, []string{"Pure"}) {
+			t.Fatalf("unchanged blank declarations reported: %+v", change)
+		}
+		result := Analyze(load(t, pure), change.Declarations("example.com/review/lib"), nil)
+		if result.Whole != "" || keptCodes(result)["TestPure"] != KeptReachesChange || !slices.Equal(result.Dropped, []string{"TestControl", "TestState"}) {
+			t.Fatalf("negative control: %+v", result)
+		}
+	})
+}
