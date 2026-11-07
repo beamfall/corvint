@@ -765,7 +765,9 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			continue
 		}
 		text := lines[candidate.line-1]
-		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 || p.headingLine(candidate.path, candidate.line) {
+		// DWC-V0-927 rejects Markdown headings when drafting only; the check's
+		// anchorability (basenames) keeps the verifier's CEM-V1-081 rule.
+		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 || !p.basenames && p.headingLine(candidate.path, candidate.line) {
 			continue
 		}
 		// A mention inside a test or data file is not an anchor (DCW-V0-847).

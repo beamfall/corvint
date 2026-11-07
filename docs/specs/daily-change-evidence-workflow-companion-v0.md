@@ -38,8 +38,11 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   amended 2026-11-04 fix round 1; amends `DCW-V0-439` and `DCW-V0-962`) A newly drafted
   span MUST NOT consist only of a bare Markdown heading. Track fenced code so its content
   is not a heading. A setext underline requires a preceding paragraph, not a list item or YAML
-  key. Try substantive evidence instead or keep `unknown`. Evidence:
-  `TestProposeCitationsDWCV0927NoHeadings`, `TestProposeCitationsDWCV0927MarkdownContexts`.
+  key. Every line of a multiline setext heading's paragraph is a heading line. Try substantive
+  evidence instead or keep `unknown`. The rejection applies to drafting only: `dogfood check`'s
+  anchorability search keeps the verifier's `CEM-V1-081` admission, headings included. Evidence:
+  `TestProposeCitationsDWCV0927NoHeadings`, `TestProposeCitationsDWCV0927MarkdownContexts`,
+  `TestDWCV0927CheckKeepsHeadingAnchorability`.
   Rollback: restore heading candidates.
 - `DWC-V0-928`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4628;
   amended 2026-11-04 fix round 1; refines `DCW-V0-967` and amends `DCW-V0-805`) For a
