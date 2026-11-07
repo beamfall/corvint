@@ -20,8 +20,8 @@ import (
 // can write to its log.
 func TestAFPV0170RecordJobRunsNoRepositoryCode(t *testing.T) {
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), "ci-tested-tree-record")
-	wantLine(t, "ci-tested-tree-record", b, "    needs: [docs-plan, narrowing-verdict, go-product-shard]")
-	if !strings.Contains(b, "needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (") {
+	wantLine(t, "ci-tested-tree-record", b, "    needs: [docs-plan, narrowing-verdict, go-product-shard, test-reuse-plan]")
+	if !strings.Contains(b, "needs.go-product-shard.result == 'success' && needs.test-reuse-plan.outputs.mode != 'REUSE' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (") {
 		t.Error("the record job must need every shard to succeed with no narrowing verdict or every shard FULL")
 	}
 	runsNoRepositoryCode(t, "ci-tested-tree-record", b)
@@ -34,8 +34,8 @@ func TestAFPV0170RecordJobRunsNoRepositoryCode(t *testing.T) {
 func TestAFPV0734NarrowedRecordJob(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the record script runs under sh against a real Git repository")
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), NarrowedRecordJob)
-	wantLine(t, NarrowedRecordJob, b, "    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]")
-	for _, want := range []string{"github.event_name == 'pull_request'", "needs.go-product.result == 'success'",
+	wantLine(t, NarrowedRecordJob, b, "    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product, test-reuse-plan]")
+	for _, want := range []string{"github.event_name == 'pull_request'", "needs.go-product.result == 'success'", "needs.test-reuse-plan.outputs.mode != 'REUSE'",
 		"needs.go-product-shard.result == 'success'", "needs.narrowing-verdict.outputs.verdict == 'MET'",
 		"!(needs.go-product-shard.outputs.full0 == 'FULL' &&", "needs.docs-plan.outputs.mode != 'REUSE'"} {
 		if !strings.Contains(b, want) {
@@ -149,7 +149,7 @@ func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 	}
 	var all []string
 	for i, o := range outs {
-		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}", i)
+		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && needs.test-reuse-plan.outputs.mode != 'REUSE' && 'FULL' || '' }}", i)
 		if o[1] != fmt.Sprintf("full%d", i) || o[2] != want {
 			t.Errorf("output %s: %s, want full%d: %s", o[1], o[2], i, want)
 		}

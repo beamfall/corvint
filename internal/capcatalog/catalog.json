@@ -1378,7 +1378,8 @@
       "operations": [
         "audit",
         "cache",
-        "discovery"
+        "discovery",
+        "jobs"
       ],
       "nestedOperations": {},
       "requiredFlags": {
@@ -1388,6 +1389,9 @@
         "affected discovery": [
           "--playwright-config",
           "--playwright-list"
+        ],
+        "affected jobs": [
+          "--base"
         ]
       },
       "flags": [
@@ -1396,6 +1400,7 @@
         "--by-path",
         "--cache",
         "--changes",
+        "--declaration",
         "--fail-fast-order",
         "--format",
         "--full",
@@ -1434,6 +1439,8 @@
         "application-map-impact/0",
         "corvint-affected-audit-input/0",
         "corvint-affected-audit/1",
+        "corvint-ci-job-inputs/0",
+        "corvint-ci-job-plan/0",
         "corvint-planning-snapshot/0",
         "corvint-playwright-unreached-paths/0",
         "e2e-safe-selection/1",
@@ -1464,6 +1471,7 @@
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
         "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
         "It refuses a dirty worktree, builds the graph without the cache, writes nothing, and exits 0 when no path is unowned, 1 when some path is, and 2 on an error.",
+        "affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the project-owned input declaration of non-test CI jobs (--declaration, default .corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range --base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0: per job RUN or SKIP with its reason and witnesses.",
         "In a private shared clone it runs affected on every change, appmap-impact and e2e-compile (the corvint-test companion) where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
@@ -3622,6 +3630,7 @@
       "owningSpec": "STR-V0",
       "freezeContract": null,
       "operations": [
+        "reuse",
         "shards",
         "verify-shards"
       ],
@@ -3629,6 +3638,9 @@
       "requiredFlags": {
         "test": [
           "--base"
+        ],
+        "test reuse": [
+          "--argv"
         ],
         "test shards": [
           "--count",
@@ -3639,6 +3651,7 @@
         ]
       },
       "flags": [
+        "--argv",
         "--base",
         "--confine",
         "--count",
@@ -3648,33 +3661,52 @@
         "--format",
         "--full",
         "--go-parallel",
+        "--go-test-json",
+        "--harness",
         "--manifest",
+        "--out",
+        "--outcomes",
+        "--packages",
         "--pins",
         "--placement",
         "--profile",
+        "--pull-request",
         "--receipt",
+        "--records",
+        "--run-attempt",
+        "--run-id",
+        "--run-list",
         "--runs",
         "--shard",
         "--shard-plan",
+        "--source-kind",
         "--split-allow",
         "--summary",
-        "--test-slices"
+        "--test-slices",
+        "--trust"
       ],
       "schemaIds": [
+        "corvint-ci-outcomes/0",
         "corvint-ci-package-costs/0",
         "corvint-test-manifest/0",
+        "corvint-test-reuse-decision/0",
+        "corvint-test-reuse-record/0",
         "corvint-test-run/0",
         "corvint-test-shards/0"
       ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
-        0
+        0,
+        3
       ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "It writes only stdout.",
+        "record digests each package a run passed (first-run outcomes of corvint-ci-outcomes/0 documents of HEAD, or a go test -json stream) and writes a corvint-test-reuse-record/0 file to --out.",
+        "decide digests the packages of HEAD (--packages, default go list ./...) and prints a corvint-test-reuse-decision/0: REUSE only when an admitted record (--trust, default local,main; pull_request needs --pull-request N) passed the package under the same identity with the same digest; --run-list writes the packages still to run.",
+        "It writes only the named files; exit 3 when no record or decision can be produced.",
         "--manifest PATH writes the same corvint-test-manifest/0 in every form.",
         "Each shard writes one corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json)."
       ],
@@ -4663,9 +4695,89 @@
   },
   "commandTrees": [
     {
-      "binary": "corvint",
-      "command": "corvint help --tree",
-      "snapshot": "internal/capcatalog/trees/corvint.json"
+      "binary": "corvint-analyzer-c-jni",
+      "command": "corvint-cli --binary corvint-analyzer-c-jni help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-c-jni.json"
+    },
+    {
+      "binary": "corvint-analyzer-dotnet",
+      "command": "corvint-cli --binary corvint-analyzer-dotnet help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-dotnet.json"
+    },
+    {
+      "binary": "corvint-analyzer-go",
+      "command": "corvint-cli --binary corvint-analyzer-go help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-go.json"
+    },
+    {
+      "binary": "corvint-analyzer-html-css",
+      "command": "corvint-cli --binary corvint-analyzer-html-css help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-html-css.json"
+    },
+    {
+      "binary": "corvint-analyzer-java",
+      "command": "corvint-cli --binary corvint-analyzer-java help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-java.json"
+    },
+    {
+      "binary": "corvint-analyzer-js",
+      "command": "corvint-cli --binary corvint-analyzer-js help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-js.json"
+    },
+    {
+      "binary": "corvint-analyzer-kotlin-android",
+      "command": "corvint-cli --binary corvint-analyzer-kotlin-android help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-kotlin-android.json"
+    },
+    {
+      "binary": "corvint-analyzer-objective-c",
+      "command": "corvint-cli --binary corvint-analyzer-objective-c help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-objective-c.json"
+    },
+    {
+      "binary": "corvint-analyzer-python",
+      "command": "corvint-cli --binary corvint-analyzer-python help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-python.json"
+    },
+    {
+      "binary": "corvint-analyzer-ruby",
+      "command": "corvint-cli --binary corvint-analyzer-ruby help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-ruby.json"
+    },
+    {
+      "binary": "corvint-analyzer-rust",
+      "command": "corvint-cli --binary corvint-analyzer-rust help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-rust.json"
+    },
+    {
+      "binary": "corvint-analyzer-shader",
+      "command": "corvint-cli --binary corvint-analyzer-shader help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-shader.json"
+    },
+    {
+      "binary": "corvint-analyzer-shell",
+      "command": "corvint-cli --binary corvint-analyzer-shell help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-shell.json"
+    },
+    {
+      "binary": "corvint-analyzer-sql-native",
+      "command": "corvint-cli --binary corvint-analyzer-sql-native help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-sql-native.json"
+    },
+    {
+      "binary": "corvint-analyzer-structured-data",
+      "command": "corvint-cli --binary corvint-analyzer-structured-data help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-structured-data.json"
+    },
+    {
+      "binary": "corvint-analyzer-swift",
+      "command": "corvint-cli --binary corvint-analyzer-swift help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-analyzer-swift.json"
+    },
+    {
+      "binary": "corvint-behavior-falsify",
+      "command": "corvint-cli --binary corvint-behavior-falsify help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-behavior-falsify.json"
     },
     {
       "binary": "corvint-cem-candidate",
@@ -4678,6 +4790,36 @@
       "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
     },
     {
+      "binary": "corvint-cli",
+      "command": "corvint-cli help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-cli.json"
+    },
+    {
+      "binary": "corvint-companion-release",
+      "command": "corvint-companion-release help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-companion-release.json"
+    },
+    {
+      "binary": "corvint-console",
+      "command": "corvint-console help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-console.json"
+    },
+    {
+      "binary": "corvint-corpus-http",
+      "command": "corvint-corpus-http help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-http.json"
+    },
+    {
+      "binary": "corvint-corpus-mcp",
+      "command": "corvint-corpus-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-mcp.json"
+    },
+    {
+      "binary": "corvint-corpus-parity",
+      "command": "corvint-corpus-parity help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-parity.json"
+    },
+    {
       "binary": "corvint-corpus-republish",
       "command": "corvint-corpus-republish help --json",
       "snapshot": "internal/capcatalog/trees/corvint-corpus-republish.json"
@@ -4686,6 +4828,11 @@
       "binary": "corvint-dashboard-snapshot",
       "command": "corvint-dashboard-snapshot help --json",
       "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
+    },
+    {
+      "binary": "corvint-docs-mcp",
+      "command": "corvint-docs-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-docs-mcp.json"
     },
     {
       "binary": "corvint-gateway",
@@ -4698,6 +4845,11 @@
       "snapshot": "internal/capcatalog/trees/corvint-go-test-provider.json"
     },
     {
+      "binary": "corvint-go-toolchain-receipt",
+      "command": "corvint-go-toolchain-receipt help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-go-toolchain-receipt.json"
+    },
+    {
       "binary": "corvint-intake",
       "command": "corvint-intake help --json",
       "snapshot": "internal/capcatalog/trees/corvint-intake.json"
@@ -4708,9 +4860,29 @@
       "snapshot": "internal/capcatalog/trees/corvint-js-test-provider.json"
     },
     {
+      "binary": "corvint-lsp",
+      "command": "corvint-lsp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-lsp.json"
+    },
+    {
+      "binary": "corvint-mcp",
+      "command": "corvint-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-mcp.json"
+    },
+    {
+      "binary": "corvint-playwright-minimize",
+      "command": "corvint-cli --binary corvint-playwright-minimize help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-playwright-minimize.json"
+    },
+    {
       "binary": "corvint-postmerge-connect",
       "command": "corvint-postmerge-connect help --json",
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
+    },
+    {
+      "binary": "corvint-postmerge-host-launcher",
+      "command": "corvint-postmerge-host-launcher help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-host-launcher.json"
     },
     {
       "binary": "corvint-postmerge-metrics",
@@ -4723,6 +4895,31 @@
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
     },
     {
+      "binary": "corvint-public-release-check",
+      "command": "corvint-public-release-check help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-public-release-check.json"
+    },
+    {
+      "binary": "corvint-readiness-record",
+      "command": "corvint-readiness-record help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-readiness-record.json"
+    },
+    {
+      "binary": "corvint-release-candidate",
+      "command": "corvint-release-candidate help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-release-candidate.json"
+    },
+    {
+      "binary": "corvint-release-install",
+      "command": "corvint-release-install help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-release-install.json"
+    },
+    {
+      "binary": "corvint-remote-provider",
+      "command": "corvint-remote-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-remote-provider.json"
+    },
+    {
       "binary": "corvint-ruby-test-provider",
       "command": "corvint-ruby-test-provider help --json",
       "snapshot": "internal/capcatalog/trees/corvint-ruby-test-provider.json"
@@ -4733,9 +4930,24 @@
       "snapshot": "internal/capcatalog/trees/corvint-tasks.json"
     },
     {
+      "binary": "corvint-test-runner",
+      "command": "corvint-cli --binary corvint-test-runner help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-test-runner.json"
+    },
+    {
+      "binary": "corvint-test-validity-mcp",
+      "command": "corvint-test-validity-mcp help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-test-validity-mcp.json"
+    },
+    {
       "binary": "corvint-test",
       "command": "corvint-test help --json",
       "snapshot": "internal/capcatalog/trees/corvint-test.json"
+    },
+    {
+      "binary": "corvint-tests-accept",
+      "command": "corvint-cli --binary corvint-tests-accept help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-tests-accept.json"
     },
     {
       "binary": "corvint-update",
@@ -4743,9 +4955,19 @@
       "snapshot": "internal/capcatalog/trees/corvint-update.json"
     },
     {
+      "binary": "corvint-web-flows",
+      "command": "corvint-web-flows help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-web-flows.json"
+    },
+    {
       "binary": "corvint-work-queue",
       "command": "corvint-work-queue help --json",
       "snapshot": "internal/capcatalog/trees/corvint-work-queue.json"
+    },
+    {
+      "binary": "corvint",
+      "command": "corvint help --tree",
+      "snapshot": "internal/capcatalog/trees/corvint.json"
     }
   ]
 }

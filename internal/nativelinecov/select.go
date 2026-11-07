@@ -4,11 +4,13 @@ package nativelinecov
 import (
 	"fmt"
 	"path"
+	"slices"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 )
 
-// Body is a source provider's executable-body boundary (brace lines excluded).
+// Body is a source provider's executable-body boundary. Changed lines must be
+// inside the braces; coverage on brace lines may still belong to the body.
 // Boundaries must come from parsing the exact base blob, never coverage hits:
 // coverage alone cannot distinguish executable bodies from declarations.
 type Body struct{ Open, Close int }
@@ -17,11 +19,23 @@ type Bodies struct {
 	Spans []Body
 }
 
+// EligibleChange is a source provider's classification of an exact edit as
+// body-local in both revisions. The provider must rule out macros (including
+// expansion effects), declarations and structural changes using both source
+// blobs; textual containment or coverage hits alone cannot establish this.
+// Hunks is the complete classified diff, not a subset of its eligible lines.
+// This is an in-process input, not a persisted coverage or wire format.
+type EligibleChange struct {
+	OldOID, NewOID string
+	Hunks          []linecov.Hunk
+}
+
 // Analyze is experimental line-selection analysis given base-bound executable
-// bodies. A missing source-provider boundary is a static fallback. This helper
+// bodies and source-provider classifications bound to both revisions and hunks.
+// A missing boundary or classification is a static fallback. This helper
 // does not authorize exclusion: Build leaves all native packages unordered.
 // LPCV-V0-8207.
-func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, bodies map[string]Bodies) linecov.Effect {
+func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, bodies map[string]Bodies, eligible map[string]EligibleChange) linecov.Effect {
 	e := linecov.Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}, Blocks: map[linecov.BlockRef]bool{}, Direct: map[int32]bool{}}
 	fail := func(s string) linecov.Effect { return linecov.Effect{Fallback: s} }
 	for _, d := range diffs {
@@ -48,6 +62,10 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, bodies map[string]Bodi
 			if b.Open < 1 || b.Close <= b.Open {
 				return fail("invalid executable body boundaries")
 			}
+		}
+		change, ok := eligible[d.Path]
+		if !ok || change.OldOID != d.OldOID || change.NewOID != d.NewOID || !slices.Equal(change.Hunks, d.Hunks) {
+			return fail("missing or stale native edit classification")
 		}
 		e.Touched[path.Dir(d.Path)] = true
 		if len(d.Hunks) == 0 {
@@ -95,7 +113,13 @@ func Analyze(ix *linecov.Index, diffs []linecov.FileDiff, bodies map[string]Bodi
 			}
 			if gap {
 				for bi, b := range f.Blocks {
-					if int(b.Start) > body.Open && int(b.Start) < body.Close {
+					end := int(b.End)
+					if b.EndCol == 1 {
+						end--
+					}
+					// Line-only boundaries cannot disown executable coverage
+					// sharing a brace line, including a block starting before it.
+					if int(b.Start) <= body.Close && end >= body.Open {
 						e.Blocks[linecov.BlockRef{File: int32(fi), Block: int32(bi)}] = true
 						for _, id := range b.Tests {
 							e.Tests[id] = true

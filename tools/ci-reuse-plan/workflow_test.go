@@ -391,10 +391,14 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		switch job {
 		case "go-static":
 			needs = "    needs: [static-reuse, local-authority-deps]" // CIN-V0-7503 module cache
+		case "go-interop":
+			// AFP-V0-2344: go-interop and artifact-integrity also skip on their job plan's SKIP.
+			needs = "    needs: [static-reuse, job-plan]"
+			jobCond = strings.Replace(cond, " }}", " && needs.job-plan.outputs.go-interop != 'SKIP' }}", 1)
 		case "artifact-integrity":
 			// CIN-V0-4753: a verified pull-request DEFER leaves the archive gate to the queue and nightly gates.
-			needs = "    needs: [static-reuse, cadence-plan]"
-			jobCond = strings.Replace(cond, " }}", " && !(github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER') }}", 1)
+			needs = "    needs: [static-reuse, cadence-plan, job-plan]"
+			jobCond = strings.Replace(cond, " }}", " && needs.job-plan.outputs.artifact-integrity != 'SKIP' && !(github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER') }}", 1)
 		}
 		wantLine(t, job, b, needs)
 		wantLine(t, job, b, jobCond)

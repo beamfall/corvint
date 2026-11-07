@@ -3,7 +3,6 @@ package flows
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -36,9 +35,9 @@ func TestAMAPV0048DialectCLI(t *testing.T) {
 		}
 	}
 	for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "dialects"}} {
-		cmd := exec.Command("git", args...)
+		cmd := fixtureGitCommand(args...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+		cmd.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("%v %s", err, out)
 		}

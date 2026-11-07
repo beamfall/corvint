@@ -32,7 +32,7 @@ func docsRepository(t *testing.T) string {
 func docsCommit(t *testing.T, root string) {
 	t.Helper()
 	for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "docs fixture"}} {
-		command := exec.Command("git", args...)
+		command := fixtureGitCommand(args...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git: %v %s", err, output)
@@ -142,7 +142,7 @@ func TestDocsCLIRejectsExecutableGitFiltersWithoutMutation(t *testing.T) {
 			}
 			marker := filepath.Join(root, "unexpected-filter-execution")
 			filter := ": > '" + strings.ReplaceAll(marker, "'", "'\"'\"'") + "'; cat"
-			command := exec.Command("git", "-C", root, "config", "filter.docs_audit.clean", filter)
+			command := fixtureGitCommand("-C", root, "config", "filter.docs_audit.clean", filter)
 			if output, err := command.CombinedOutput(); err != nil {
 				t.Fatalf("configure fixture: %v %s", err, output)
 			}
@@ -324,13 +324,13 @@ func TestDocsCLIHostileTrackedPathsAndOriginalRoutes(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, entry.Path), []byte("dirty replacement\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		git := exec.Command("git", "hash-object", "-w", "--stdin")
+		git := fixtureGitCommand("hash-object", "-w", "--stdin")
 		git.Dir, git.Stdin = root, strings.NewReader("replacement object\n")
 		replacement, err := git.Output()
 		if err != nil {
 			t.Fatal(err)
 		}
-		git = exec.Command("git", "replace", entry.Blob, strings.TrimSpace(string(replacement)))
+		git = fixtureGitCommand("replace", entry.Blob, strings.TrimSpace(string(replacement)))
 		git.Dir = root
 		if output, err := git.CombinedOutput(); err != nil {
 			t.Fatalf("replace blob: %v %s", err, output)

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,37 +16,20 @@ import (
 	"syscall"
 )
 
-const watchMask = syscall.IN_CLOSE_WRITE | syscall.IN_MOVED_TO | syscall.IN_MOVED_FROM | syscall.IN_DELETE | syscall.IN_CREATE
-
 // saveNotifications blocks on native close-write/rename events, with bounded
 // coalescing while tests run. Atomic editor replacement is watched at directory
-// level; no permanent daemon or polling process is started. Directories created
-// or moved in after start are watched as they appear, tracked directories that
-// no longer exist are skipped, and events only for Git-ignored paths (such as
-// test output rewritten on every run) never schedule a run.
+// level; no permanent daemon or polling process is started. Git-ignored non-Go
+// output does not schedule a run; ignored Go source still compiles and is relevant.
 func saveNotifications(ctx context.Context, root string) (<-chan struct{}, error) {
 	fd, err := syscall.InotifyInit1(syscall.IN_CLOEXEC | syscall.IN_NONBLOCK)
 	if err != nil {
 		return nil, err
 	}
 	file := os.NewFile(uintptr(fd), "linecov-inotify")
-	tracked, err := output(root, "git", "ls-files")
-	if err != nil {
+	watches := &directoryWatches{fd: fd, root: root, paths: map[string]int{}}
+	if err := watches.refresh(); err != nil {
 		file.Close()
 		return nil, err
-	}
-	dirs := map[string]bool{root: true}
-	for _, p := range strings.Split(tracked, "\n") {
-		if p != "" {
-			dirs[filepath.Join(root, filepath.Dir(p))] = true
-		}
-	}
-	w := &watcher{fd: fd, root: root, dirs: map[int32]string{}}
-	for d := range dirs {
-		if err := w.add(d); err != nil {
-			file.Close()
-			return nil, err
-		}
 	}
 	ch := make(chan struct{}, 1)
 	go func() { <-ctx.Done(); file.Close() }()
@@ -58,10 +42,19 @@ func saveNotifications(ctx context.Context, root string) (<-chan struct{}, error
 			if err != nil {
 				return
 			}
-			if w.relevant(ctx, b[:n]) {
-				select {
-				case ch <- struct{}{}:
-				default:
+			if n > 0 {
+				relevant := watches.relevant(ctx, b[:n])
+				// Install new watches before publishing the save. Overflow means
+				// directory changes may have been lost: rescan before replanning.
+				if err := watches.events(b[:n]); err != nil {
+					// Stop automatic watching rather than continue with gaps.
+					return
+				}
+				if relevant {
+					select {
+					case ch <- struct{}{}:
+					default:
+					}
 				}
 			}
 		}
@@ -69,68 +62,131 @@ func saveNotifications(ctx context.Context, root string) (<-chan struct{}, error
 	return ch, nil
 }
 
-type watcher struct {
-	fd   int
-	root string
-	dirs map[int32]string
+type directoryWatches struct {
+	fd    int
+	root  string
+	paths map[string]int
 }
 
-// add watches dir; a directory that no longer exists (deleted before start, or
-// removed again before its creation event was read) is skipped, not fatal.
-func (w *watcher) add(dir string) error {
-	wd, err := syscall.InotifyAddWatch(w.fd, dir, watchMask)
-	if err != nil {
-		if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ENOTDIR) {
+// Watch before descending, so a concurrent mkdir is either discovered by the
+// walk or queued on its already watched parent. Git metadata is not a save.
+func (w *directoryWatches) refresh() error {
+	if info, err := os.Stat(w.root); err != nil {
+		return err
+	} else if !info.IsDir() {
+		return fs.ErrInvalid
+	}
+	previous := w.paths
+	paths := map[string]int{}
+	descriptors := map[int]bool{}
+	err := filepath.WalkDir(w.root, func(p string, d fs.DirEntry, err error) error {
+		if os.IsNotExist(err) {
+			return nil // concurrently removed; its parent event remains queued
+		}
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
 			return nil
 		}
+		if d.Name() == ".git" && p != w.root {
+			return filepath.SkipDir
+		}
+		// Always re-add: an overflow may have hidden deletion and recreation
+		// at the same path, leaving a descriptor for a different inode.
+		wd, err := syscall.InotifyAddWatch(w.fd, p, syscall.IN_CLOSE_WRITE|syscall.IN_MOVED_TO|syscall.IN_MOVED_FROM|syscall.IN_DELETE|syscall.IN_CREATE|syscall.IN_DELETE_SELF|syscall.IN_MOVE_SELF)
+		if os.IsNotExist(err) {
+			return filepath.SkipDir
+		}
+		if err != nil {
+			return err
+		}
+		paths[p] = wd
+		descriptors[wd] = true
+		return nil
+	})
+	if err != nil {
 		return err
 	}
-	w.dirs[int32(wd)] = dir
+	w.paths = paths
+	for _, wd := range previous {
+		// A rename can reuse the descriptor under the new path.
+		if !descriptors[wd] {
+			_, _ = syscall.InotifyRmWatch(w.fd, uint32(wd))
+		}
+	}
 	return nil
 }
 
-// relevant decodes one read of inotify events, starts watching new directories
-// (and those below them, which may already exist after a move or mkdir -p),
-// forgets removed ones, and reports whether any event names Go source or a path
-// Git does not ignore. Ignored Go source still compiles into go test (and
+func (w *directoryWatches) events(data []byte) error {
+	refresh := false
+	for len(data) >= syscall.SizeofInotifyEvent {
+		wd := int(int32(binary.NativeEndian.Uint32(data)))
+		mask := binary.NativeEndian.Uint32(data[4:])
+		n := syscall.SizeofInotifyEvent + int(binary.NativeEndian.Uint32(data[12:]))
+		if n > len(data) {
+			return fs.ErrInvalid
+		}
+		if mask&syscall.IN_IGNORED != 0 {
+			for p, descriptor := range w.paths {
+				if descriptor == wd {
+					delete(w.paths, p)
+				}
+			}
+			refresh = true
+		}
+		if mask&syscall.IN_Q_OVERFLOW != 0 || mask&(syscall.IN_DELETE_SELF|syscall.IN_MOVE_SELF|syscall.IN_UNMOUNT) != 0 || mask&syscall.IN_ISDIR != 0 {
+			refresh = true
+		}
+		data = data[n:]
+	}
+	if len(data) != 0 {
+		return fs.ErrInvalid
+	}
+	if refresh {
+		return w.refresh()
+	}
+	return nil
+}
+
+// relevant decodes one read of inotify events and reports whether any event names
+// Go source or a path Git does not ignore. Ignored Go source still compiles into go test (and
 // WorkingDiff selects it), so only ignored non-Go paths such as test output are
 // suppressed. When Git cannot answer, it reports true rather than miss a save.
-func (w *watcher) relevant(ctx context.Context, b []byte) bool {
+func (w *directoryWatches) relevant(ctx context.Context, b []byte) bool {
 	gitDir := filepath.Join(w.root, ".git")
+	dirs := make(map[int32]string, len(w.paths))
+	for path, wd := range w.paths {
+		dirs[int32(wd)] = path
+	}
 	var paths []string
 	for len(b) >= syscall.SizeofInotifyEvent {
 		wd := int32(binary.NativeEndian.Uint32(b[0:4]))
 		mask := binary.NativeEndian.Uint32(b[4:8])
 		end := syscall.SizeofInotifyEvent + int(binary.NativeEndian.Uint32(b[12:16]))
 		if end > len(b) {
-			break
+			return true
 		}
 		name := string(bytes.TrimRight(b[syscall.SizeofInotifyEvent:end], "\x00"))
 		b = b[end:]
-		if mask&syscall.IN_IGNORED != 0 {
-			delete(w.dirs, wd)
-			continue
+		if mask&(syscall.IN_Q_OVERFLOW|syscall.IN_IGNORED|syscall.IN_DELETE_SELF|syscall.IN_MOVE_SELF|syscall.IN_UNMOUNT) != 0 {
+			return true // lost ownership requires a conservative replan after rescan
 		}
-		dir, ok := w.dirs[wd]
+		dir, ok := dirs[wd]
 		if !ok || name == "" {
-			continue
+			return true
 		}
 		path := filepath.Join(dir, name)
 		if path == gitDir || strings.HasPrefix(path, gitDir+string(filepath.Separator)) {
 			continue
 		}
-		if mask&syscall.IN_ISDIR != 0 && mask&(syscall.IN_CREATE|syscall.IN_MOVED_TO) != 0 {
-			filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
-				if err == nil && d.IsDir() {
-					w.add(p)
-				}
-				return nil
-			})
-		}
 		if strings.HasSuffix(name, ".go") {
 			return true
 		}
 		paths = append(paths, path)
+	}
+	if len(b) != 0 {
+		return true
 	}
 	if len(paths) == 0 {
 		return false

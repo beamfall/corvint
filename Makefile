@@ -619,8 +619,8 @@ capabilities-check:
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
 capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
+	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
-	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
 	$(call capcatalog_write,./cmd/corvint-cem-experiments help --json,internal/capcatalog/trees/corvint-cem-experiments.json)
@@ -635,9 +635,11 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./cmd/corvint-postmerge-workflow help --json,internal/capcatalog/trees/corvint-postmerge-workflow.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-tasks help --json,internal/capcatalog/trees/corvint-tasks.json)
-	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
 	$(call capcatalog_write,./cmd/corvint-work-queue help --json,internal/capcatalog/trees/corvint-work-queue.json)
+	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
+	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
+	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen --docs
 
 .PHONY: capability-catalog-test
 capability-catalog-test:
@@ -953,11 +955,17 @@ ai-coauthor-trailers-check:
 # merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
 # recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
 # SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+# Explicit BASE (or SELECTION_BASELINE_BASE), else the immutable CI event base,
+# admits a skip only for a diff disjoint from compilation and reader inputs.
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@if [ "$${CORVINT_CI_CADENCE-}" = DEFER ]; then echo 'selection-baseline-check: NOT_RUN under CI cadence DEFER (CIN-V0-4753); the nightly release gates run it.'; exit 0; fi; \
 	d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/selection-baseline" ./tools/selection-baseline && \
+	decision=$$(GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local SELECTION_BASELINE_INPUTS_BASE='$(if $(SELECTION_BASELINE_BASE),$(SELECTION_BASELINE_BASE),$(if $(filter command line environment,$(origin BASE)),$(BASE)))' "$$d/selection-baseline") && \
+	case "$$decision" in 'skip '*) echo "selection-baseline-check skipped: $${decision#skip }"; exit 0 ;; \
+	*) echo "selection-baseline-check runs: $${decision#run }" ;; esac && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
@@ -1541,3 +1549,12 @@ cce-live:
 .PHONY: conflict-markers-check
 conflict-markers-check:
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./tools/conflict-markers-check
+
+# TCL-V0-7703: install every shipped native companion from one source/build set.
+LOCAL_BIN_DIR ?= $(HOME)/.local/bin
+.PHONY: install-local
+install-local: ## Build and install all native binaries; add LOCAL_BIN_DIR to PATH
+	@work=$$(mktemp -d "$${TMPDIR:-/tmp}/corvint-install.XXXXXX") && \
+	trap 'rm -rf "$$work"' EXIT && \
+	$(HEAVY_ADMIT) env GOTOOLCHAIN=local go build -o "$$work/" ./cmd/... && \
+	bash script/install-local-bin.sh --all "$$work" "$(LOCAL_BIN_DIR)"

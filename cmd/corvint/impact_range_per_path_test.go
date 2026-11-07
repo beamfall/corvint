@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,7 +16,7 @@ func TestImpactBaseRefusesDeletionAndUnsafePathPerPath(t *testing.T) {
 	root := t.TempDir()
 	run := func(args ...string) string {
 		t.Helper()
-		command := exec.Command("git", args...)
+		command := fixtureGitCommand(args...)
 		command.Dir = root
 		output, err := command.CombinedOutput()
 		if err != nil {

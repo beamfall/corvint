@@ -13,6 +13,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"net"
 	"net/http"
@@ -50,9 +52,16 @@ var companionHelp = sync.OnceValue(func() clitree.Help {
 })
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-gateway", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-gateway", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	os.Exit(runContext(ctx, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(runContext(ctx, os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func run(args []string, stdout, stderr io.Writer) int {

@@ -17,10 +17,7 @@ func TestCurrentExportedTasksAndVSIX(t *testing.T) {
 	t.Run("CRB-V0-017 exported-current-tasks-and-vsix", func(t *testing.T) {
 		ctx := context.Background()
 		scratch := t.TempDir()
-		root, err := filepath.Abs("../..")
-		if err != nil {
-			t.Fatal(err)
-		}
+		root := currentSourceFixture(t)
 		source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
 		if err != nil {
 			t.Fatal(err)
@@ -67,10 +64,7 @@ func TestCurrentExportedTasksAndVSIX(t *testing.T) {
 func TestCurrentExportedTasksSmokeGenerator(t *testing.T) {
 	ctx := context.Background()
 	scratch := t.TempDir()
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := currentSourceFixture(t)
 	source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
 	if err != nil {
 		t.Fatal(err)
@@ -91,15 +85,15 @@ func TestCurrentTasksSourceArchiveBuildsOffline(t *testing.T) {
 	t.Run("PUB-V0-012 PUB-V0-013 actual Tasks archive dependency closure", func(t *testing.T) {
 		ctx := context.Background()
 		scratch := t.TempDir()
-		root, err := filepath.Abs("../..")
-		if err != nil {
-			t.Fatal(err)
-		}
+		root := currentSourceFixture(t)
 		source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
 		if err != nil {
 			t.Fatal(err)
 		}
 		subset := tasksExport(source)
+		if len(subset.Files) == len(source.Files) {
+			t.Fatal("fixture invalid: no path outside the Tasks subset for tasksExport to drop")
+		}
 		for _, name := range []string{"LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"} {
 			original, ok := findExportFile(source, name)
 			if !ok {

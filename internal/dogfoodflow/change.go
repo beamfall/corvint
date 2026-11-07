@@ -217,7 +217,7 @@ func (c *change) run() int {
 		}
 	}
 	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
-		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
+		return status == 2 && outdatedCEMRefusal(stderr)
 	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	c.markStableChoreMap()
 	if c.scope == passPrepare {
@@ -500,6 +500,32 @@ var outdatedCEMMaps = map[string]bool{
 	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`: true,
 	`{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`:                            true,
 	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different spec; pass --replace to regenerate", "ok": false}`:          true,
+}
+
+// outdatedCEMRefusal matches the exact admitted reason, independent of CLI
+// framing metadata (ACX-V0-7707). Other reasons never authorize replacement.
+func outdatedCEMRefusal(stderr []byte) bool {
+	if outdatedCEMMaps[chomp(string(stderr))] {
+		return true
+	}
+	var got struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+		OK    *bool  `json:"ok"`
+	}
+	if json.Unmarshal(stderr, &got) != nil || got.OK == nil || *got.OK {
+		return false
+	}
+	for literal := range outdatedCEMMaps {
+		var known struct {
+			Code  string `json:"code"`
+			Error string `json:"error"`
+		}
+		if json.Unmarshal([]byte(literal), &known) == nil && got.Code == known.Code && got.Error == known.Error {
+			return true
+		}
+	}
+	return false
 }
 
 // prepare derives a CEM or OCM map and regenerates it with --replace only after

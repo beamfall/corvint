@@ -10,7 +10,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -32,7 +31,7 @@ func flowRepo(t *testing.T) string {
 		}
 	}
 	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"}} {
-		c := exec.Command("git", args...)
+		c := fixtureGitCommand(args...)
 		c.Dir = root
 		if b, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v %s", err, b)
@@ -119,7 +118,7 @@ func flowIntentRepo(t *testing.T) string {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "intent"}} {
-		c := exec.Command("git", args...)
+		c := fixtureGitCommand(args...)
 		c.Dir = root
 		if b, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v %s", err, b)
@@ -209,7 +208,7 @@ func TestAFUV1FlowsCLIImportNeverOverwrites(t *testing.T) {
 func commitFlows(t *testing.T, root string) {
 	t.Helper()
 	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "flows"}} {
-		c := exec.Command("git", args...)
+		c := fixtureGitCommand(args...)
 		c.Dir = root
 		if b, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v %s", err, b)

@@ -174,6 +174,7 @@ grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/ou
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+grep -qx 'batch-cem-check' "$tmp/out" && fail "CI-only batch CEM step was derived locally: $(cat "$tmp/out")"
 
 fi
 if group 1d; then
@@ -405,6 +406,21 @@ fixture --list
 grep -qxF 'make new-drift-check' "$tmp/out" || fail "new make target not derived: $(cat "$tmp/out")"
 grep -qxF 'go run ./tools/new-gen' "$tmp/out" || fail "new go run not derived: $(cat "$tmp/out")"
 # A doc-gates command that is neither fails the sync check.
+# CIN-V0-2304 / ASD-V0-036: only the exact reviewed inline checker has a
+# mirror. A change to its trusted build or appended syntax remains unknown.
+batch_check_body=$(sed -n '/^          set -eu$/,/^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/p; /^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/q' "$script/../.github/workflows/ci.yml")
+[[ -n $batch_check_body ]] || fail "no inline batch CEM body"
+write_ci "" "" "" "$(printf '      - run: |\n%s\n      - run: make after-batch-cem' "$batch_check_body")"
+fixture --sync-check || fail "protected batch CEM command refused: $(cat "$tmp/out")"
+fixture --list || fail "protected batch CEM list refused: $(cat "$tmp/out")"
+grep -qxF 'batch-cem-check' "$tmp/out" || fail "protected batch CEM command not derived"
+grep -qxF 'make after-batch-cem' "$tmp/out" || fail "command after batch CEM swallowed"
+write_ci "" "" "" "$(printf '      - run: |\n%s' "${batch_check_body/-buildvcs=false/-buildvcs=true}")"
+fixture --sync-check && fail "changed batch CEM trusted build accepted"
+write_ci "" "" "" "$(printf '      - run: |\n%s;true' "$batch_check_body")"
+fixture --sync-check && fail "batch CEM command with appended shell syntax accepted"
+write_ci "" "" "" "      - run: bash .github/other-gate.sh"
+fixture --sync-check && fail "unlisted protected script command accepted"
 write_ci "" "" "" "      - run: script/new-gate.sh --check"
 fixture --sync-check && fail "unknown doc-gates command accepted"
 grep -q 'doc-gates runs `script/new-gate.sh --check`, which batch-precheck cannot mirror' "$tmp/out" || fail "unknown: $(cat "$tmp/out")"
@@ -1831,6 +1847,36 @@ git -C "$rrepo" checkout -q -- notes/a.txt
 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
+
+# ASD-V0-944: the current recipe owns the shared bounded preflight. The
+# legacy sb_skip list must never bypass it, even without a usable plan.
+legacy_rrepo=$rrepo
+rrepo=$tmp/shared-recipe
+git clone -q "$legacy_rrepo" "$rrepo" || fail "shared-preflight fixture clone"
+mkdir -p "$rrepo/interop/cem01-go"
+printf '\t@SELECTION_BASELINE_INPUTS_BASE=x ./tools/selection-baseline\n' >> "$rrepo/Makefile"
+git -C "$rrepo" add Makefile && git -C "$rrepo" commit -qm 'shared baseline preflight'
+sharedbase=$(git -C "$rrepo" rev-parse HEAD)
+mkdir -p "$rrepo/.corvint"
+for declaration in '{"profile":"corvint-test-read-scopes/0","packages":{}}' invalid; do
+  printf '%s\n' "$declaration" > "$rrepo/.corvint/test-read-scopes.json"
+  pbase=$sharedbase plan "$frontier" tools/selection-baseline
+  for planrc in 0 3; do
+    : > "$tmp/scalls"
+    STUB_PLAN_RC=$planrc rrun --base "$sharedbase" || fail "declaration-only shared preflight failed: $(cat "$tmp/out")"
+    grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "declaration-only edit bypassed shared preflight (plan rc=$planrc): $(cat "$tmp/out")"
+    grep -q '^batch-precheck: selection-baseline-check skipped:' "$tmp/out" && fail "shared preflight was skipped: $(cat "$tmp/out")"
+  done
+done
+# Even a doc-only change cannot prove that unchanged declarations are valid.
+git -C "$rrepo" add .corvint/test-read-scopes.json && git -C "$rrepo" commit -qm 'invalid declaration fixture'
+sharedbase=$(git -C "$rrepo" rev-parse HEAD)
+printf 'another doc edit\n' >> "$rrepo/notes/a.txt"
+pbase=$sharedbase plan "$frontier"
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 rrun --base "$sharedbase" || fail "invalid-declaration no-plan preflight failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "invalid declaration bypassed shared preflight: $(cat "$tmp/out")"
+rrepo=$legacy_rrepo
 
 fi
 if group 16; then

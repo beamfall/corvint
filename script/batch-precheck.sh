@@ -276,7 +276,7 @@ doc_gate_commands() {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
       if (s ~ /\\$/) { pending = substr(s, 1, length(s) - 1); return }
-      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : "") s
+      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : (step == "named" && s == "set -eu" ? "\t" : "")) s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
     block {
@@ -294,7 +294,7 @@ doc_gate_commands() {
     }
     /^[[:space:]]*#/ { next }
     /^[[:space:]]*- / { step = "" }
-    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : ""; next }
+    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : "named"; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; block = 1; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[^[:space:]]/ {
       s = $0; match(s, /run:/); cont = RSTART - 1
@@ -306,16 +306,50 @@ doc_gate_commands() {
       /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
 }
 
-# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
+# CIN-V0-2304: retain the exact-body local mirror for an anonymous inline step.
+# Named CI-only steps use ASD-V0-2472 and are never derived as local commands;
+# the same body under another name fails closed.
+batch_cem_body() {
+  cat <<'EOF'
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
+}
+
+# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE", "batchcem<TAB>"
+# or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
 # ci.yml ever reaches a step. The CI-only step prints one "cionly<TAB>CIN-V0-2304" row while its body
 # matches CI_ONLY_BATCH_CHECK and one "cionly-drift<TAB>CIN-V0-2304" row otherwise (ASD-V0-2472).
 doc_gates() {
-  local cmd words w targets ok ci_only=
+  local cmd words w targets ok body next i ci_only=
   while IFS= read -r cmd; do
     if [[ $cmd == $'\034'* ]]; then
       ci_only+="${cmd#$'\034'}"$'\n'
+      continue
+    fi
+    if [[ $cmd == 'set -eu' ]]; then
+      body=$cmd
+      for ((i=1; i<12; i++)); do
+        IFS= read -r next || break
+        body=$body$'\n'$next
+      done
+      if [[ $body == "$(batch_cem_body)" ]]; then
+        printf 'batchcem\t\n'
+      else
+        while IFS= read -r next; do printf 'unknown\t%s\n' "$next"; done <<< "$body"
+      fi
       continue
     fi
     if [[ $cmd == $'\t'* ]]; then
@@ -730,10 +764,10 @@ lane_own_skip() {
   done
 }
 
-# select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
-# diff read but no usable plan, only when no Go input and no declared input changed at all.
+# select_baseline retains selection for legacy recipes. Recipes with the shared
+# ASD-V0-944 preflight must reach it, including declaration-only edits and unknowns.
 select_baseline() {
-  local pkgs tok p expanded
+  local pkgs tok p expanded recipe
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
@@ -751,6 +785,10 @@ select_baseline() {
     printf 'batch-precheck: %s\n' "$sb_deferred"
     return 0
   fi
+  recipe=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null)
+  # The shared recipe bounds compilation and validates reader declarations.
+  # The old outer input list cannot prove either, even with a usable plan.
+  [[ $recipe != *SELECTION_BASELINE_INPUTS_BASE=* ]] || return 0
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
@@ -910,9 +948,13 @@ doc_gate_rows() {
         elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
         else
+          # The target makes the shared ASD-V0-944 reader-bound decision too,
+          # even when this conservative outer plan cannot narrow a Go edit.
+          [[ $value != selection-baseline-check || -z $sel_sha ]] || envs+=("SELECTION_BASELINE_BASE=$sel_sha")
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
+      batchcem) printf 'batch-cem-check\tenv %s EVENT_NAME=%q HEAD_REF=%q bash -c %q\n' "${envs[*]-}" "${EVENT_NAME-}" "${HEAD_REF-}" "$(batch_cem_body)" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi

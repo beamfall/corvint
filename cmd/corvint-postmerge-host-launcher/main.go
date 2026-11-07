@@ -5,6 +5,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -14,6 +16,12 @@ import (
 )
 
 type launcherOptions struct{ profile, profileSHA, request, requestSHA, out string }
+
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-postmerge-host-launcher --profile FILE --profile-sha256 SHA256 --request FILE --request-sha256 SHA256 --out DIR
+       corvint-postmerge-host-launcher --internal-envelope FILE
+       corvint-postmerge-host-launcher --internal-process-observer ARGS...
+The internal forms are private paired-process protocols, not standalone host invocations.`
 
 func parseOptions(args []string) (launcherOptions, error) {
 	var out launcherOptions
@@ -66,8 +74,15 @@ func run(ctx context.Context, args []string, in io.ReadCloser, out, stderr io.Wr
 	return 0
 }
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-postmerge-host-launcher", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-postmerge-host-launcher", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	code := run(ctx, os.Args[1:], os.Stdin, streams.Stdout(), streams.Stderr())
 	stop()
-	os.Exit(code)
+	os.Exit(streams.Status(code))
 }

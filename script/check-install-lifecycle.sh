@@ -194,14 +194,20 @@ fi
 
 # 3b. MCP handshake on a non-repository root (MCPV0-950), run by B, which is this build in both
 #     release runs: `corvint mcp` answers initialize and tools/list, refuses a repository call as
-#     invalid-root, and names the reason on stderr instead of exiting before the handshake.
+#     invalid-root, and names the reason on stderr instead of exiting before the handshake. It is
+#     launched from inside that root, outside every Git worktree: launched from a checkout, the
+#     MCPV0-861 launch-worktree substitution would serve the checkout instead (V1-4552).
 mkdir -p "$work/not-a-repository"
+if git -C "$work/not-a-repository" rev-parse --git-dir > /dev/null 2>&1; then
+  fail mcp-unavailable-root "the non-repository root sits inside a Git worktree; set TMPDIR outside every checkout"
+fi
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"lifecycle","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"corvint.status","arguments":{}}}' |
-  "$store/b/corvint" mcp --root "$work/not-a-repository" --protocol-version 2025-11-25 > "$work/mcp.jsonl" 2> "$work/mcp.err" ||
+  (cd "$work/not-a-repository" &&
+    "$store/b/corvint" mcp --root "$work/not-a-repository" --protocol-version 2025-11-25) > "$work/mcp.jsonl" 2> "$work/mcp.err" ||
   fail mcp-unavailable-root "corvint mcp exited before serving a non-repository root"
 grep '"id":1,' "$work/mcp.jsonl" | grep -q '"serverInfo"' || fail mcp-unavailable-root "initialize was not answered"
 grep '"id":2,' "$work/mcp.jsonl" | grep -q '"tools":\[{' || fail mcp-unavailable-root "tools/list listed no tools"
