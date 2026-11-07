@@ -132,7 +132,9 @@ type Planned struct {
 // go test over the shard's whole packages, one per test slice, and one
 // invocation per declared unit: `declared:go` is the declaration's Go
 // environment and flags over ./... (ci: the CI branch's), any other the
-// declared language argv. A nested-module unit is its own go test ./...
+// declared language argv. Declared units whose argv is identical and
+// nonempty share one invocation, which records each unit's outcome
+// (AZU-V0-007). A nested-module unit is its own go test ./...
 // from the module directory with GOWORK=off (STR-V0-064). Only the target
 // set differs between a narrowed and a FULL run.
 func Invocations(m Manifest, declared Declared, shard int, root, confine string) []Planned {
@@ -157,6 +159,7 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 		}
 		planned = append(planned, Planned{Adapter: AdapterGo, Argv: argv, Env: goEnv, Units: whole})
 	}
+	shared := map[string]int{}
 	for _, unit := range m.Units {
 		if unit.Shard != shard {
 			continue
@@ -179,6 +182,14 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 			if entry, ok := declared.Command(name); ok {
 				argv = append(argv, entry.Argv...)
 			}
+			// AZU-V0-007: consumers declaring one runner, such as the
+			// browser gate, run it once; each keeps its own unit outcome.
+			key := fmt.Sprintf("%q", argv)
+			if index, seen := shared[key]; seen && len(argv) != 0 {
+				planned[index].Units = append(planned[index].Units, unit)
+				continue
+			}
+			shared[key] = len(planned)
 			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
