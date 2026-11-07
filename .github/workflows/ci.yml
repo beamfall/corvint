@@ -1735,6 +1735,54 @@ jobs:
       - name: Declared TypeScript family
         run: make host-adapter-test
 
+  go-live:
+    # AFP-V0-2702 (V1-4815): the live test tier skips in PR shards; each merge-queue entry runs it
+    # here with make live-test (AFP-V0-2701), without the race detector. Nightly release gates run
+    # it through make gate.
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the host tools the product's fixed PATH resolves, as the shards do
+        # The same fixed-PATH Go, pinned ripgrep release (V1-1095) and fixture Git identity as
+        # go-product-shard, because these tests ran there before the tier split.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          test "$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)" = /usr/local/bin/rg
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Live test tier
+        run: make live-test
+
   local-authority-deps:
     # CIN-V0-7503: the only networked module preparation; the compiler job stays offline.
     needs: static-reuse
@@ -1948,7 +1996,7 @@ jobs:
     # The required check. A needed job that fails, is cancelled or is skipped is not success,
     # except the AFP-V0-027 skip of a ci:batched pull request, which the merge queue tests.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -1964,6 +2012,7 @@ jobs:
       - name: Every go-product shard and the static job succeeded
         env:
           HOST_RESULT: ${{ needs.host-adapters.result }}
+          LIVE_RESULT: ${{ needs.go-live.result }}
           WEB_PLAN_RESULT: ${{ needs.web-flows-plan.result }}
           WEB_REQUIRED: ${{ needs.web-flows-plan.outputs.required }}
           WEB_RESULT: ${{ needs.web-flows.result }}
@@ -1986,6 +2035,8 @@ jobs:
             test "$SHELL_RESULT" = success
           fi
           test "$HOST_RESULT" = success
+          # AFP-V0-2702: the live tier runs on merge-queue entries only.
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi
           test "$WEB_PLAN_RESULT" = success
           if [ "$WEB_REQUIRED" = true ]; then test "$WEB_RESULT" = success; else test "$WEB_RESULT" = skipped; fi
           # AFP-V0-027 (V1-2265): a ci:batched pull request's shards and go-static never start, and
