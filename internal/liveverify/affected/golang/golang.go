@@ -674,6 +674,7 @@ func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
 // (AFP-V0-012 rule (d)).
 func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileScan {
 	aliases, dotImported := rootLocatorImports(imports)
+	comparisonOnly := comparisonOnlyLocators(body, aliases)
 	var scan fileScan
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
@@ -704,7 +705,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 			continue
 		}
 		move.observe(kind, text)
-		if kind == token.IDENT {
+		if kind == token.IDENT && !comparisonOnly[source.Offset(position)] {
 			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
 		}
 		previous = [2]lexicalToken{previous[1], {kind: kind, text: text}}

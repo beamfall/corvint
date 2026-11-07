@@ -2,12 +2,20 @@
   "profile": "corvint-runtime-readers/0",
   "entries": [
     {
+      "path": ".corvint/cem-lineage.tsv",
+      "reason": "CEM lineage declaration, read through its declared path by the CEM workflow and existing repository readers; never executed or imported."
+    },
+    {
       "path": ".corvint/change.cem.json",
       "reason": "the shared bind path of the change-evidence map (DOGFOOD.md section 4; V1-3571, AFP-V0-772); written, read and moved into .corvint/changes/ by the CEM and dogfood tools through path literals, never loaded by a computed name or a build or CI driver"
     },
     {
       "path": ".corvint/changes/",
       "reason": "sealed change-evidence maps (V1-1820, AFP-V0-152); read by the CEM and dogfood tools through path literals and declared read scopes, never by an unbounded reader alone (AFP-V0-772, measured for V1-3571: none of the 37 unbounded readers reads them) and never loaded by a computed name or a build or CI driver"
+    },
+    {
+      "path": ".corvint/deferred-intents/",
+      "reason": "Deferred CEM intent declarations, read by the CEM workflow through the directory path and existing repository readers; never executed or imported."
     },
     {
       "path": ".corvint/evidence-reach.json",
@@ -124,6 +132,10 @@
     {
       "path": "tools/import-ratchet/baseline.json",
       "reason": "the import-ratchet wrong-way edge baseline (V1-4800, IRT-V0-002), read only by the tools/import-ratchet tests through the baselinePath literal; never loaded by a computed name or a build or CI driver (AZU-V0-002)"
+    },
+    {
+      "path": "tools/linecov/command-tree.json",
+      "reason": "generated linecov command-tree snapshot (make capability-catalog); tools/linecov/languages_test.go reads command-tree.json by a path literal within its package, so the existing reader and enclosing-package rules retain that test selection; never executed or imported"
     }
   ]
 }

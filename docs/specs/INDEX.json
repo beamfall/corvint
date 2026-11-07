@@ -4522,7 +4522,7 @@
     "reqPrefix": "AZU-V0",
     "intent": "experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation)",
     "delivery": "experimental",
-    "claim": "every `corvint affected` plan reaches `unknown: []` through sound selections or stated proofs, never by dropping a reached unit.",
+    "claim": "every `corvint affected` plan closes unknowns with sound selections or stated proofs, including bounded readers, never by dropping reached units.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
