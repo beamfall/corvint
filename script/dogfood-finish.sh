@@ -232,9 +232,12 @@ static_input_key() {
   # assume-unchanged, nor an ignored .go file that go run compiles, so either gives no key, as
   # script/gate-receipt and tools/gate-ledger (GL-V0-005) refuse them: `ls-files -v` tags such an
   # entry S or lower case, and go ./... skips only `.`- and `_`-prefixed and testdata directories.
+  # An ignored module file (go.mod, go.sum, go.work, go.work.sum), which gate-ledger also counts as
+  # a Go build input (GL-V0-600), gives no key the same way. A display-quoted path keeps its leading
+  # quote, so its first directory never reads as hidden and it gives no key (fail closed).
   flagged=$(git -C "$repo" ls-files -v 2> /dev/null) || return 1
   ! grep -q '^[a-zS]' <<< "$flagged" || return 1
-  ignored=$(git -C "$repo" ls-files --others --ignored --exclude-standard -- '*.go' 2> /dev/null) || return 1
+  ignored=$(git -C "$repo" ls-files --others --ignored --exclude-standard -- '*.go' '*go.mod' '*go.sum' '*go.work' '*go.work.sum' 2> /dev/null) || return 1
   [[ -z $(grep -v -E '(^|/)([._][^/]*|testdata)/' <<< "$ignored") ]] || return 1
   tree=$(git -C "$repo" rev-parse --verify -q 'HEAD^{tree}') || return 1
   toolchain=$(cd "$repo" && GOTOOLCHAIN=local go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED 2> /dev/null) || return 1
