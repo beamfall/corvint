@@ -615,8 +615,9 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   a change to a vetted or listed unit selects the driver as before. The first version of this
   requirement stopped every chain at a command; a target that runs a repository-walking command
   over the live checkout was then selected only when its recipe or the command's code changed,
-  which the review rejected. The CI selector is unchanged: its rule (d) closure follows Go import
-  edges only (AFP-V0-464).
+  which the review rejected. The CI selector was unchanged here: its rule (d) closure followed Go
+  import edges only (AFP-V0-464) until AFP-V0-2994 added execution edges, and this requirement's
+  Go-side claim held only for driver edges until AFP-V0-2990.
 - **AFP-V0-2952:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends AFP-V0-012 rule (d); review fix 2026-11-07; superseded by AFP-V0-2962, review fix 3,
   2026-11-07) Superseded by AFP-V0-2962. This requirement exempted a `..`-climbing token that a
@@ -720,6 +721,86 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   SHALL carry no per-file exemption state (`textOnly`, `main`, `captures`), so a warm scan agrees
   with a cold one.
 
+### Rule (d) and runtime traversals follow execution edges (V1-4983)
+
+The fix-only review of 2026-11-07 found that rule (d) skipped Go binary consumers (V1-4983):
+`Graph.unboundedReaders` followed import edges and the drivers' path imports, but no `execs` edge,
+and the binary-consumer step ran before the unbounded readers were added. A command that prints
+`"../config%s\n"` keeps rule (d) (AFP-V0-2962), yet a test in another package that ran it with
+`exec.Command("go", "run", ".../tool")`, trimmed the output and opened that path was not selected
+by an edit of `config.go`; round 3 found the same gap with an `os.Getwd` command and an unrelated
+edit. AFP-V0-464 assumed that such a runner is its own unbounded reader because it runs `go`; no
+scan marks that. The requirements below follow execution edges wherever a traversal follows code,
+keep a test-only run one level past what it runs, as a test-only import is, and measure the cost
+in `docs/build-log/2026-11-07-binary-runners.md`.
+
+- **AFP-V0-2990:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  Amending AFP-V0-012 rule (d), AFP-V0-464 and AFP-V0-2951, a Go unit that runs the built binary of
+  a unit the rule (d) closure walks SHALL be an unbounded reader whose cause is the closure's root
+  locator, selected on any dirty path with an `UNBOUNDED_READER` witness, unless its own declared
+  read scope bounds it (AFP-V0-023). The run may come through an `execs` edge from a path literal
+  (`go run`, `go build`, a binary path), from `.corvint/test-binary-execs.json` or from a declared
+  runtime edge (AFP-V0-819). In the review's case, where `tool` prints `"../config%s\n"` and a
+  separate package's test runs it with `go run`, trims the output and opens that path, an edit of
+  `config.go` SHALL select the test's package as well as `tool`. In round 3's case, where `tool`
+  calls `os.Getwd` and hands the root on and another package's test runs it, an unrelated edit
+  SHALL select that package.
+- **AFP-V0-2991:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  The Go plugin SHALL record a unit's `testOnlyExecs`: the members of `execs` that only its
+  `_test.go` files use. The sources are searched first, so a command a non-test file uses is never
+  test-only, and an unparsed source uses every candidate. A `.corvint/test-binary-execs.json` edge
+  is never test-only. A declared runtime edge that the unit's code does not already run is
+  test-only, because a test file holds it. A unit whose `testOnlyExecs` is not a subset of `execs`
+  is invalid; the member is part of the AFP-V0-005 projection when non-empty. The rule (d) closure
+  SHALL follow a code-run edge (an `execs` member not in `testOnlyExecs`) as it follows an import,
+  so the runner's importers and code runners follow transitively. It SHALL add a unit whose tests
+  alone run a walked unit's binary one level past that unit, as it adds a test user, and never
+  walk past it. A unit that rule (d) reaches only that way reads nothing unbounded with its own
+  code. For AFP-V0-560 plugin participation it is a terminal selection, as a `BINARY_EXEC` runner
+  is, so a Playwright spec that runs a root-locating Go command through a declared runtime edge
+  brings no TypeScript frontier into an unrelated plan.
+- **AFP-V0-2992:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  Amending AFP-V0-495, the traversal from a test-less reader of an unowned path SHALL follow the
+  same edges: it walks code runners like importers and adds test-only runners one level past every
+  walked unit. A test-less command's runners are the only checks of its read, as a test-less
+  library's importers are. That traversal SHALL NOT select a unit whose declared read scope
+  excludes the path (AFP-V0-161): its tests read nothing there, whatever code or binary they run.
+  The walk still passes through the unit.
+- **AFP-V0-2993:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  Amending AFP-V0-037, the dependency traversal of rules (a) and (b) SHALL walk a code-run edge as
+  it walks an import edge. A unit whose code may run the binary of a command the traversal reaches
+  is reached with a `BINARY_EXEC` witness, and its importers and code runners are reached from it,
+  so its declared binary consumers (AFP-V0-762) and its frontier (AFP-V0-581) bear as they do for
+  any traversed unit. A unit whose tests alone run the binary stays selected one edge past the
+  command and is not expanded. The CI selector's rules (a) and (b) already follow transitively a
+  non-test literal that names a package directory (`namers`, AFP-V0-464). Before this requirement,
+  `corvint affected` and `corvint test` stopped one edge past a rebuilt command and could select
+  fewer packages than CI.
+- **AFP-V0-2994:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  The CI selector (`internal/gateselect`) SHALL apply the rule (d) closure of AFP-V0-2990 and
+  AFP-V0-2991 over the execution edges its literal index can see. A directory is a command when a
+  non-test file declares `package main`. A package that holds a path token able to name a command
+  directory runs that command: from its code when a non-test file holds the token, from its tests
+  alone otherwise. The token names the directory as the plugin's `commandDirectory` resolves it,
+  or through any of its component runs. Each `.corvint/test-binary-execs.json` entry is a code run.
+  A declaration the selector cannot apply (unreadable, oversized, malformed, or with a member that
+  names no package or no command) makes every package a rule (d) unit. The selector cannot follow
+  a literal to its use as the plugin does, so its set may exceed the planner's. It SHALL hold every
+  planner rule (d) unit on every fixture case, and the parity tests SHALL hold the two sets equal
+  where the plugin's position rule changes nothing. The scan memo SHALL carry each file's
+  `package main` flag (`command`). Like the file's imports, the flag is a function of its bytes, not
+  exemption state, so AFP-V0-2962's memo clause holds and a warm scan agrees with a cold one.
+- **AFP-V0-2995:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4983)
+  `.corvint/unbounded-readers.json` SHALL list the 24 units that AFP-V0-2990 to AFP-V0-2992 add to
+  the floor, each with its chain and cause. Nineteen of them reach the floor through
+  `cmd/corvint-go-test-provider`, whose import of `internal/liveverify/parentverify` locates the
+  root, and a directory literal of the language manifests in `internal/langplugin` and
+  `internal/langplugin/decl`. Neither analyzer can prove that literal never reaches a process. That
+  one edge class accounts for nearly all of the measured widening (`docs/build-log/2026-11-07-binary-runners.md`).
+  Removing it needs a precision change or an owner declaration, not a weaker rule.
+  `TestPrecisionReplay_AFPV09003` keeps its bound of 86 on the heavy.sh-only plan's units beyond
+  the rule (d) floor, because this record holds the floor unit by unit (AFP-V0-025).
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -748,6 +829,12 @@ import-path or climbing pattern, and the nested-module reader path (`nested.go`)
 every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
 another package that changes the directory, or a directory built by `filepath.Join` or string
 concatenation into a command argument other than `Dir`, `-C` or a `cd` word, is not seen.
+AFP-V0-2990 to AFP-V0-2995 do not narrow AFP-V0-402's rule for which literal positions reach a
+process, and they keep the language manifests' directory literals as code runs. They do not make a
+path-literal, glob, declared-scope, existence or import-graph reader that has its own tests select
+its runners, just as AFP-V0-021 does not select such a reader's importers. The runners of a command
+that only an enclosed path reaches stay one edge past it (AFP-V0-037), as its importers stay
+unwalked.
 
 ## Failure modes
 
@@ -779,6 +866,12 @@ below a leaf package makes the leaf's pattern an unbounded read again, so `unbou
 fails on the unrecorded unit until the record or the test changes (AFP-V0-2542). A package whose
 tests set `Dir` for an unrelated command loses the exemption for its leaf patterns too; that is
 conservative, and the read is recorded or the pattern rewritten as `"."`.
+A literal that names a command directory but is only data, such as a language manifest, still
+makes its holder a code runner whose importers rule (d) and the dependency traversal walk
+(AFP-V0-2991, AFP-V0-2993). That over-selection is measured, not removed. A runner whose declared
+read scope omits a read is an author error that the confined CI shard surfaces. On an unusable
+binary-execs declaration the CI selector's rule (d) widens to every package, and the planner's
+module-level `go:test-binary-execs-invalid` frontier sends the CI tier to its full run.
 
 ## Acceptance evidence and traceability
 
@@ -834,6 +927,12 @@ conservative, and the read is recorded or the pattern rewritten as `"."`.
 | AFP-V0-2959 | Superseded by AFP-V0-2962; the implementation was removed in review fix 3, and its history is in build log `2026-11-07-unbounded-readers-review-fix-2` | `TestPrintedClimbKeepsRuleD_AFPV02962` (the commands `printed`, `streamed`, `raw` keep rule (d)) pins the replacement |
 | AFP-V0-2960 | Superseded by AFP-V0-2962; the implementation was removed in review fix 3, and its history is in build log `2026-11-07-unbounded-readers-review-fix-2` | `TestImportedCaptureKeepsClimb_AFPV02962` and `TestCapturedStreamKeepsClimb_AFPV02962` pin the replacement |
 | AFP-V0-2962 | rule (d) marks of `observeDirectory` and the literal loop of `pathTokens` (`internal/liveverify/affected/golang/golang.go`) and of `record`, `scanFile` and `scanSource` (`internal/gateselect/readers.go`), which hold no printed-text branch; `scanMemoEntry` (`internal/gateselect/scanmemo.go`), which carries no exemption state; both `outputproof.go` files removed | `TestImportedCaptureKeepsClimb_AFPV02962` in `internal/liveverify/affected/golang/text_literal_test.go` (the review's exact example: `tool` prints `"../config%s\n"`, its test calls the imported `capture.Read(main)`; `tool` keeps rule (d) with `locatesRoot` and an edit of `config.go` selects it); `TestPrintedTextReachesItsRunner_AFPV02962` (a make target that runs a printing command and opens what it printed is an unbounded reader on an edit of `config.go` and on an unrelated edit); `TestPrintedClimbKeepsRuleD_AFPV02962` and `TestCapturedStreamKeepsClimb_AFPV02962` (every earlier fixture keeps rule (d), the formerly exempt commands and `quiet` included); `TestImportedCaptureParity_AFPV02962`, `TestPrintedClimbParity_AFPV02962` and `TestCapturedStreamParity_AFPV02962` in `internal/gateselect/locator_parity_test.go` (both analyzers agree, cold and warm memo agree, and the selector's verdict for an edit of `config.go` runs `tool`); each new regression fails at `c083f6927`; counts in build log `2026-11-07-unbounded-readers-review-fix-3` |
+| AFP-V0-2990 | the `codeRunners` class of `traverseWhere` and `testRunnersOf` (`internal/liveverify/affected/select.go`); their use in `unboundedReaders` (`graph.go`) | `TestRuleDReachesGoRunRunner_AFPV02990` (the review's exact `go run` example: an edit of `config.go` selects `runner` as `UNBOUNDED_READER` caused by `tool`) and `TestRuleDReachesGetwdRunner_AFPV02990` (round 3's `os.Getwd` example) in `internal/liveverify/affected/golang/binary_runner_selection_test.go`; both fail at `c80f5059c`; counts in build log `2026-11-07-binary-runners` |
+| AFP-V0-2991 | `Unit.TestOnlyExecs` (`unit.go`, `graph.go`, `graphcache.go`); the source-first split of `literalExecs` and `applyBinaryExecs` (`golang/binaryexecs.go`); the test-only runtime edge of `applyRuntimeEdges` (`runtime_edges.go`); `codeRunners`, `testRunners` and `runnerOnly` (`graph.go`); the `runnerOnly` branch of `participants` (`select.go`) | `TestRuntimeUncertaintyFollowsExecutionEdges_AFPV02991` (a wrapper command, a code-running library and its importer and a test-only runner are reached; the test-only runner's importer and a non-locating command's runner are not); `TestExecsSplitCodeFromTestRuns_AFPV02991`; `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819` (unchanged); `TestBatchReplayDeclaredRuntimeReaders_V12941` (a documentation plan gains no TypeScript frontier); `viaEdges` in `measure_test.go` accepts a code-run hop |
+| AFP-V0-2992 | `testlessReaderUsers` and `scopeExcludes` (`internal/liveverify/affected/readers.go`) | `TestRuntimeUncertaintyFollowsExecutionEdges_AFPV02991` (the runner of the test-less `reporter` is selected by an edit of `data/report.txt`); `TestTestlessReaderRunnersKeepReadScopes_AFPV02992` (a runner whose read scope excludes the path is not selected; one whose scope holds it is); `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` (unchanged); `TestSealOnlyCEMDeltaStaysBounded_V13571` (a seal selects the runners of a CEM reader's dependent command) |
+| AFP-V0-2993 | the `codeRunners` class of `traverseWhere`, which `traverse` and so `additiveTraverse` take; `execUsersOf` (`execs.go`) | `TestBuildReachWalksCodeRunners_AFPV02993` (a library change that rebuilds `tool` selects a code runner's importer and the runner of a command whose code runs `tool`; a test-only runner's importer is not selected); `TestSelectionOnTheLiveDirtyWorktree` and `TestAppmapOnlyChangeSelectsOnlyJustifiedUnboundedReaders_V1_0999` resolve every chain |
+| AFP-V0-2994 | `internal/gateselect/runners.go` (`linkRunners`, `commandTargets`, `applyBinaryExecs`, `readBinaryExecs`, `runReach`); `command` in `scanFile`, `record` and `goPackage` (`readers.go`); the `execsErr` branch and `runReach` call of `unresolved`; the memo's `command` entry (`scanmemo.go`) | `TestGoRunRunnerParity_AFPV02990`, `TestGetwdRunnerParity_AFPV02990`, `TestExecutionEdgeParity_AFPV02992` (both analyzers agree, cold and warm memo agree, the verdict runs each runner), `TestBinaryExecsDeclarationWidens_AFPV02994` and `TestRunnerEdgesNeverNarrowerThanThePlanner_AFPV02994` in `internal/gateselect/binary_runner_parity_test.go`; `TestReachMatchesThePlannerGraph_V12727` (unchanged) |
+| AFP-V0-2995 | `.corvint/unbounded-readers.json` | `make unbounded-readers-check`; `TestPrecisionReplay_AFPV09003`; the before and after plans in build log `2026-11-07-binary-runners` |
 
 ## Rollback
 
@@ -865,3 +964,8 @@ then name only the unbounded-readers record again. For AFP-V0-2542, delete both 
 and `directoryMove` functions, `packageDirectories`, `goDirectories`, the `leafReads` and
 `movesDirectory` fields and the memo's `movesDirectory` entry; such patterns are unbounded reads
 again.
+For AFP-V0-2990 to AFP-V0-2995, drop the `codeRunners` class of `traverseWhere`, `testRunnersOf`,
+`runnerOnly` and the scope bound of `testlessReaderUsers`; drop `TestOnlyExecs` and the
+source-first split of `literalExecs`; delete `internal/gateselect/runners.go`, its two calls, the
+`command` flag and the memo's `command` entry, and restore `reach(false, …)` in `unresolved`; then
+remove the 24 record entries. Rule (d) then stops at a command again and misses its runners.
