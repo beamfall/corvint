@@ -43,3 +43,19 @@ Fixtures do not require native toolchains. They exercise native report parsing,
 exact isolation, subprocess-only coverage, instrumented zero-hit lines, static
 declaration fallback, and refusal paths. They are not the pinned-repository
 mutation qualification required by LPCV-V0-963.
+
+The Linux live harness is opt-in. Set `CORVINT_NATIVE_LIVE_TOOLS` to the
+operator-installed toolchain directory and `CORVINT_NATIVE_LIVE_EVIDENCE` to an
+absolute directory outside the repository, then run the whole package through
+`script/heavy.sh`. `CORVINT_NATIVE_LIVE_SOURCE_COMMIT` pins the commit containing
+the fixture sources for the final operator run. The retained toolchain manifest
+and build log name the exact archive versions, checksums and directory layout.
+No tool download happens in these tests. The harness uses a blocking ptrace
+observer, native reports and native coverage exports; uninstrumented launchers
+remain refusals. JVM and cmocka controlled projects also rebuild actual constant
+mutants and compare full-suite failures with candidate selection. This is not
+the pinned-real-repository qualification required by LPCV-V0-963.
+
+The collector keeps the native inventory required by cmocka and Boost.Test.
+Simple top-level JUnit zero-argument discovery IDs use exact class#method
+selectors; other native identity forms still need the explicit `Selectors` map.

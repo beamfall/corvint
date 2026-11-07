@@ -1004,6 +1004,26 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-8206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Native coverage exports are bounded to 4 MiB each and 32 processes, restricted to an explicit tracked repository-relative source mapping, and unioned into the unchanged linecov profile/index format. Missing source mappings refuse rather than silently erase repository coverage. Zero-hit lines survive union; malformed and negative counts refuse. Collection scratch directories are private and fresh, never recursively deleting caller-owned paths.
 - `LPCV-V0-8207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Fixture selection binds explicit executable body boundaries to the indexed base blob. Covered edits select their owners, zero-hit edits select none, insertions check both neighbours, and uncovered body lines select all tests reaching that body. Missing or mismatched boundaries, declarations and structural edits keep the static plan. Production exclusion remains disabled for every native family until LPCV-V0-963 passes on its pinned real repository. Fixture fault tests are development evidence only.
 
+### Native live qualification follow-up (V1-4369, V1-4370, V1-4371, V1-4375, V1-4376)
+
+- `LPCV-V0-9400`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4371) Inventory-based native collectors preserve the caller's expected identity inventory when constructing their ordinary-suite invocation. Boost.Test retains that inventory during isolation; cmocka narrows it to the sole selected identity as required by its existing native filter contract. A missing inventory still refuses; collection never invents an inventory from an incomplete terminal report.
+- `LPCV-V0-9401`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369; V1-4370; V1-4371; V1-4375; V1-4376) Opt-in Linux live evidence retains original native terminal reports, coverage exports and event-driven process launch/retirement observations from controlled projects. A stock build/runner launcher without its own native export remains uninstrumented, even if its child writes a profile. Live export decoding and controlled-project selection are development evidence, not the pinned-real-repository fault-injection qualification in LPCV-V0-963. Every native family's production exclusion remains disabled. Missing toolchain dependencies, process dumps, official checksum material and Xcode on Linux remain explicit gaps.
+- `LPCV-V0-9402`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4369) Simple top-level JVM discovery IDs with an unescaped class and zero-argument method are isolated through ConsoleLauncher's exact class#method selector. The collector does not rely on an unsupported unique-ID CLI option for those tests. Nested, dynamic, escaped and parameterized IDs still require an explicit caller selector mapping or refuse; exact passing identity verification is unchanged.
+
+The live harness uses operator-provided tools only, writes its owned projects beneath private
+scratch, and retains raw receipts outside the repository. It does not install tools through Core,
+change native report formats, admit unobserved launchers, or relax the existing qualification gate.
+Failure to observe a complete process tree or to export every process preserves static selection.
+Executable-image history is cumulative within each PID: a later covered Java image cannot
+erase an earlier uninstrumented launcher. PID-scoped sessions cannot independently prove repeated
+Java images in one PID. The positive JVM controlled-project witness explicitly uses the JDK's
+FORK launch mechanism; default POSIX_SPAWN's uninstrumented jspawnhelper remains a refusal.
+Native candidate analysis also requires a source-provider eligibility classification bound to
+both blob OIDs and the complete hunk list. Body boundaries alone do not classify macros or
+structural changes. Unavailable or stale classification keeps the static plan. Controlled
+literal-return mutants supply explicit fixture classifications, not a qualified native parser.
+Rollback removes the opt-in harness and inventory preservation fix; it never enables exclusion.
+
 The implementation is `internal/nativelinecov`, shared by the five families; it adds no command,
 wire member or index version. The execution/capture boundary deliberately accepts the existing
 native report input and native coverage formats, not a synthetic per-test report protocol.
@@ -1016,7 +1036,10 @@ index and static selection remain compatible.
 |---|---|
 | LPCV-V0-8200..8204 | `internal/nativelinecov`: `TestCollectorFamilies`, `TestInstrumentation`, `TestNativeReports` |
 | LPCV-V0-8205..8206 | `TestCollectorRefusals`, `TestProcessCoverage`, `TestNativeReports` |
-| LPCV-V0-8207 | `TestSelectionFaults` |
+| LPCV-V0-8207 | `TestSelectionFaults`, `TestNativeEditClassification` |
+| LPCV-V0-9400 | `TestCollectorInventories`, opt-in `TestNativeLiveCMocka` |
+| LPCV-V0-9401 | opt-in `TestNativeLiveFamilies`, `TestLiveTraceRefusals`, `TestLiveImageHistory` |
+| LPCV-V0-9402 | `TestJUnitMethodSelectors`, opt-in `TestNativeLiveFamilies` |
 
 Failure modes for this section:
 
