@@ -23,3 +23,7 @@ integration blocker remains PARTIAL. Raw repair logs are retained outside the re
 
 Independent review and broad host verification remain assigned to the orchestrator. No new
 pre-change capture, Tasks write, publication or seal is part of this repair.
+
+The first repair check rejected an expanded declaration reason at 1,139 bytes against the
+existing 1,024-byte limit. Shortening the added explanation preserves the limit and both
+classifications; no check or assertion was changed. The failed run is retained with the repair logs.
