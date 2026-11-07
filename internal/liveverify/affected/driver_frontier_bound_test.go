@@ -899,3 +899,75 @@ func TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-3128: environment effects retain claims without make expansion.
+func TestFrontierSiteLiteralExportEffects_AFP_V0_3128(t *testing.T) {
+	for _, tc := range []struct{ name, prefix, recipe string }{
+		{"shell-export", "", "export GOFLAGS=-toolexec=script/audit.sh; "},
+		{"shell-unknown-name", "", "export FUTURE_TOOL_SETTING=script/audit.sh; "},
+		{"shell-unknown-option", "", "export --future-option GOFLAGS; "},
+		{"shell-assignment-export", "", "GOFLAGS=-toolexec=script/audit.sh; export GOFLAGS; "},
+		{"shell-command-local", "", "GOFLAGS=-toolexec=script/audit.sh "},
+		{"shell-env", "", "env GOFLAGS=-toolexec=script/audit.sh "},
+		{"make-export", "export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-unknown-name", "export FUTURE_TOOL_SETTING=script/audit.sh\n", ""},
+		{"make-export-all", "GOFLAGS=-toolexec=script/audit.sh\nexport\n", ""},
+		{"make-target-export", "check: export GOFLAGS=-toolexec=script/audit.sh\n", ""},
+		{"make-export-effectful-control", "export LANE=$(file <AUDIT_INPUT)\n", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := boundFiles(tc.prefix + "check:; " + tc.recipe + "go test ./tools/local\nall: check\n")
+			files["AUDIT_INPUT"] = "approved\n"
+			files["script/audit.sh"] = "#!/bin/sh\ncat AUDIT_INPUT\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("literal recipe lost unmodeled environment effects")
+			}
+			for _, dirty := range []string{"AUDIT_INPUT", sealedCEM} {
+				selected := driverSelections(affected.Select(graph, []string{dirty}))
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				if witness := selected["driver:make:Makefile#check"].Witness.Kind; witness != affected.WitnessFrontierSite {
+					t.Fatalf("got %s; want FRONTIER_SITE", witness)
+				}
+			}
+		})
+	}
+}
+
+// AFP-V0-3121/3122: value alternatives cannot discharge filesystem effects.
+func TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121(t *testing.T) {
+	for _, function := range []string{"realpath MODE", "wildcard MODE", "wildcard MODE*", "future-filesystem-function MODE"} {
+		for _, present := range []bool{false, true} {
+			for _, immediate := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/present=%v/immediate=%v", function, present, immediate), func(t *testing.T) {
+					condition := "$(" + function + ")"
+					prefix := ""
+					if immediate {
+						prefix = "MODE_VALUE := " + condition + "\n"
+						condition = "$(MODE_VALUE)"
+					}
+					files := boundFiles(prefix + "check:; $(if " + condition + ",go test ./tools/ci,go test ./tools/local)\nall: check\n")
+					if present {
+						files["MODE"] = "ci\n"
+					}
+					graph := driverGraph(t, files, nil)
+					bounded := function == "wildcard MODE" && present
+					if computedSite(t, graph, "driver:make:Makefile#check") == bounded {
+						t.Fatal("filesystem effect certification disagrees with literal read allowlist")
+					}
+					for _, dirty := range []string{"MODE", sealedCEM} {
+						selected := driverSelections(affected.Select(graph, []string{dirty}))
+						if bounded && dirty == sealedCEM {
+							wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", makeAll, jobUnit})
+							continue
+						}
+						wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+						if witness := selected["driver:make:Makefile#check"].Witness.Kind; (witness == affected.WitnessFrontierSite) == bounded {
+							t.Fatalf("got %s with bounded=%v", witness, bounded)
+						}
+					}
+				})
+			}
+		}
+	}
+}

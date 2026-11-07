@@ -657,6 +657,7 @@ func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlt
 // `$(shell ...)` and `!=` assignment it reaches there, whether one of them
 // cannot be represented, and whether an expansion there was evaluated.
 type driverParseTime struct {
+	readPaths      []string
 	shells         []string
 	shellAmbiguous bool
 	evaluated      bool
@@ -679,6 +680,7 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 				result.shells = append(result.shells, script)
 			}
 		}
+		result.readPaths = append(result.readPaths, expander.readPaths...)
 		result.shellAmbiguous = result.shellAmbiguous || expander.shellAmbiguous || expander.unmodeledEffects
 		result.evaluated = result.evaluated || expander.evaluated
 		return variants, expander.ambiguous
@@ -720,11 +722,9 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 	return result
 }
 
-// recipeShellCertified reports that make hands every recipe line to a plain
-// shell with a `-c` flag: a SHELL or .SHELLFLAGS assignment that names any
-// other program, or adds an operand, runs that program for every target
-// (AFP-V0-3127). Make never takes SHELL from the environment.
-func (parsed *driverMakeFile) recipeShellCertified() bool {
+// exportsCertified admits only the parsed project-control allowlist with
+// effect-free values. Its refusal applies even to a completely literal recipe.
+func (parsed *driverMakeFile) exportsCertified() bool {
 	if parsed.unmodeledExports {
 		return false
 	}
@@ -732,9 +732,18 @@ func (parsed *driverMakeFile) recipeShellCertified() bool {
 	for _, name := range parsed.exportedNames {
 		expander.expandAll("$(" + name + ")")
 	}
-	if expander.ambiguous || len(expander.shells) != 0 {
+	if expander.ambiguous || len(expander.shells) != 0 || len(expander.readPaths) != 0 {
 		return false
 	}
+	return true
+}
+
+// recipeShellCertified reports that make hands every recipe line to a plain
+// shell with a `-c` flag: a SHELL or .SHELLFLAGS assignment that names any
+// other program, or adds an operand, runs that program for every target
+// (AFP-V0-3127). Make never takes SHELL from the environment.
+func (parsed *driverMakeFile) recipeShellCertified() bool {
+	expander := parsed.expander(map[string]string{})
 	for _, variant := range expander.expandAll("$(SHELL)") {
 		fields := strings.Fields(variant)
 		if len(fields) != 1 || driverDynamic(variant) || !driverShells[path.Base(fields[0])] {
@@ -909,6 +918,8 @@ type driverExpander struct {
 	ambiguous bool
 	// Effects survive enumeration of a condition: evaluation may read files.
 	unmodeledEffects bool
+	// readPaths survive value selection, including discarded conditions.
+	readPaths []string
 	// shellAmbiguous marks an ambiguous expansion inside a `$(shell ...)`
 	// command, which make runs whatever target is built.
 	shellAmbiguous bool
@@ -1238,6 +1249,18 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		e.ambiguous = true
 		return driverComputed, true
 	}
+	// Certify effects independently of returned values. Only these forms have
+	// modeled effects; adding value evaluation for a function is not proof of
+	// its read set. Wildcard below must also prove and retain every read edge.
+	switch name {
+	case "strip", "if", "or", "and", "filter", "filter-out", "findstring",
+		"word", "wordlist", "firstword", "lastword", "join", "addprefix",
+		"addsuffix", "patsubst", "subst", "sort", "dir", "notdir", "basename",
+		"suffix", "error", "warning", "info", "foreach", "origin", "flavor",
+		"words", "shell", "wildcard":
+	default:
+		e.unmodeledEffects = true
+	}
 	switch name {
 	case "strip", "if", "or", "and", "filter", "filter-out", "findstring", "word", "wordlist", "firstword", "lastword", "join":
 		e.evaluated = true
@@ -1259,19 +1282,26 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		// directories stay unknown (AFP-V0-3121), never a truthy argument.
 		value := e.expand(args)
 		if !definite(value) || e.file.source == nil {
+			e.unmodeledEffects = true
 			return retain()
 		}
 		for _, word := range strings.Fields(value) {
-			if strings.ContainsAny(word, "*?[\\~") {
-				return retain()
+			for _, char := range word {
+				if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("/._-+", char)) {
+					e.unmodeledEffects = true
+					return retain()
+				}
 			}
 			relative := driverJoin(e.file.dir, word)
-			if relative == "" {
+			if !ValidRelativePath(relative) {
+				e.unmodeledEffects = true
 				return retain()
 			}
 			if _, err := e.file.source.Stat(relative); err != nil {
+				e.unmodeledEffects = true
 				return retain()
 			}
+			e.readPaths = append(e.readPaths, relative)
 		}
 		return strings.Join(strings.Fields(value), " "), true
 	case "realpath", "abspath":
