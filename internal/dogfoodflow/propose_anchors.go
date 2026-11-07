@@ -72,7 +72,20 @@ func (p *proposal) headingLine(name string, line int) bool {
 	if line > 1 && underline(lines[line-1]) && paragraphLine(lines[line-2]) {
 		return true
 	}
-	return line < len(lines) && paragraphLine(lines[line-1]) && underline(lines[line])
+	// DWC-V0-927: a setext heading's text may span several paragraph lines, so
+	// every line of the paragraph an underline closes is a heading line.
+	if !paragraphLine(lines[line-1]) {
+		return false
+	}
+	for next := line; next < len(lines); next++ {
+		if underline(lines[next]) {
+			return true
+		}
+		if !paragraphLine(lines[next]) {
+			return false
+		}
+	}
+	return false
 }
 
 // draftSpanAllowed requires evidence for cross-file routes and preserves the

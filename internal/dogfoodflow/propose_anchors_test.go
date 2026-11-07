@@ -59,7 +59,8 @@ func TestProposeCitationsDWCV0926OnlyAnchoredDrafts(t *testing.T) {
 
 // DWC-V0-927: a heading that names the exact path is still not substantive evidence.
 func TestProposeCitationsDWCV0927NoHeadings(t *testing.T) {
-	for _, heading := range []string{"# src/widget.go\n\n## Widget contract\n", "src/widget.go\n=============\n\n"} {
+	// The third heading's path appears only on the first line of a multiline setext heading.
+	for _, heading := range []string{"# src/widget.go\n\n## Widget contract\n", "src/widget.go\n=============\n\n", "src/widget.go\nImplementation notes\n===\n\n"} {
 		for _, substantive := range []bool{false, true} {
 			t.Run(fmt.Sprint(heading, substantive), func(t *testing.T) {
 				evidence := heading
@@ -70,7 +71,8 @@ func TestProposeCitationsDWCV0927NoHeadings(t *testing.T) {
 				}
 				out, _ := anchoredDraft(t, map[string]string{"src/widget.go": "old one\nold two\n", "docs/specs/contract.md": evidence}, map[string]string{"src/widget.go": "changed one\nchanged two\n"})
 				fields := strings.Split(strings.TrimSpace(out), "\t")
-				if fields[1] != want || substantive && fields[2] != "4:4" {
+				line := strings.Count(heading, "\n") + 1
+				if fields[1] != want || substantive && fields[2] != fmt.Sprintf("%d:%d", line, line) {
 					t.Fatalf("heading draft: %s", out)
 				}
 			})
