@@ -3,13 +3,17 @@
 package golang
 
 import (
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // inertImports are the standard packages whose whole API, given the values
@@ -109,7 +113,7 @@ var observingMethods = map[string]bool{"Chdir": true, "Setenv": true, "Unsetenv"
 // value of exec.Command or exec.CommandContext, any exec.Cmd reference, a dot
 // import, cgo, reflection beyond reflect.DeepEqual and a standard package
 // this file does not classify, is observing.
-func observesSource(relative string, body []byte, proven map[int]bool) bool {
+func observesSource(root *affected.Source, relative string, body []byte, proven map[int]bool) bool {
 	files := token.NewFileSet()
 	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
@@ -175,7 +179,7 @@ func observesSource(relative string, body []byte, proven map[int]bool) bool {
 				return true
 			}
 			value, ok := classified[qualifier.Name]
-			if ok && classifiedImports[value][selector.Sel.Name] == testdataMember && len(node.Args) != 0 && ownTestdata(node.Args[0], names) {
+			if ok && classifiedImports[value][selector.Sel.Name] == testdataMember && len(node.Args) != 0 && ownTestdata(root, relative, node.Args[0], names) {
 				allowed[selector] = true
 			}
 		case *ast.SelectorExpr:
@@ -207,8 +211,7 @@ func observesSource(relative string, body []byte, proven map[int]bool) bool {
 
 // commandMethods are the exec.Cmd methods a proven command may be called
 // with; commandSetFields the fields it may be assigned (Env only to a
-// literalEnvironment; a Dir target is resolved by AFP-V0-2200's module-root
-// rule, as before); and commandReadFields the fields it may be read through.
+// literalEnvironment; Dir only when directoryOK proves its origin); and commandReadFields the fields it may be read through.
 var (
 	commandMethods = map[string]bool{
 		"CombinedOutput": true, "Environ": true, "Output": true, "Run": true, "Start": true,
@@ -226,7 +229,7 @@ var (
 // or another such definition by an os/exec call. Any other use, such as an
 // argument, a stored or returned value, an address, a Path or Args field or
 // an assignment of name, is not confined.
-func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) bool {
+func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string, directoryOK func(ast.Expr) bool) bool {
 	parents := map[ast.Node]ast.Node{}
 	var stack []ast.Node
 	ast.Inspect(outer, func(node ast.Node) bool {
@@ -303,8 +306,11 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) bool {
 		switch {
 		case method(selector):
 		case target && commandSetFields[field] && assignment.Tok == token.ASSIGN && len(assignment.Lhs) == len(assignment.Rhs):
+			value := assignment.Rhs[slices.Index(assignment.Lhs, ast.Expr(selector))]
 			if field == "Env" {
-				confined = literalEnvironment(assignment.Rhs[slices.Index(assignment.Lhs, ast.Expr(selector))])
+				confined = literalEnvironment(value)
+			} else if field == "Dir" {
+				confined = directoryOK(value)
 			}
 		case !target && commandReadFields[field]:
 			if address, ok := parents[selector].(*ast.UnaryExpr); ok && address.Op == token.AND {
@@ -323,8 +329,10 @@ func confinedCommand(outer ast.Node, call *ast.CallExpr, exec string) bool {
 
 // ownTestdata reports a path argument that is a literal, or a path/filepath
 // Join of literals, naming the package's own testdata directory or a path
-// below it: a test runs in its package directory.
-func ownTestdata(argument ast.Expr, names map[string]string) bool {
+// below it, with only regular files/directories along the source path. Missing
+// entries are harmless after their ancestors are checked; every other mode
+// or lookup error fails closed. Never clean away a component before checking it.
+func ownTestdata(root *affected.Source, relative string, argument ast.Expr, names map[string]string) bool {
 	var parts []string
 	if value, ok := literalString(argument); ok {
 		parts = []string{value}
@@ -349,6 +357,51 @@ func ownTestdata(argument ast.Expr, names map[string]string) bool {
 			parts = append(parts, value)
 		}
 	}
-	joined := path.Clean(strings.ReplaceAll(path.Join(parts...), `\`, "/"))
-	return joined == "testdata" || strings.HasPrefix(joined, "testdata/")
+	for _, part := range parts {
+		if strings.Contains(part, `\`) || strings.HasPrefix(part, "/") {
+			return false
+		}
+		for _, component := range strings.Split(part, "/") {
+			if component == ".." {
+				return false
+			}
+		}
+	}
+	joined := path.Join(parts...)
+	if joined != "testdata" && !strings.HasPrefix(joined, "testdata/") {
+		return false
+	}
+	current := "."
+	components := strings.Split(path.Join(path.Dir(relative), joined), "/")
+	for index, component := range components {
+		// ReadDir exposes unfollowed entry modes even for an FS source
+		// whose Stat (and therefore Source.Lstat) follows symlinks.
+		entries, err := root.ReadDir(current)
+		if errors.Is(err, fs.ErrNotExist) {
+			return true
+		}
+		if err != nil {
+			return false
+		}
+		found := false
+		for _, entry := range entries {
+			if entry.Name() != component {
+				continue
+			}
+			found = true
+			if !entry.IsDir() && !entry.Type().IsRegular() {
+				return false
+			}
+			info, err := entry.Info()
+			if err != nil || info == nil || (!info.IsDir() && !info.Mode().IsRegular()) || index < len(components)-1 && !info.IsDir() {
+				return false
+			}
+			break
+		}
+		if !found {
+			return true
+		}
+		current = path.Join(current, component)
+	}
+	return true
 }

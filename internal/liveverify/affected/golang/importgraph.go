@@ -172,7 +172,10 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 			for _, body := range bodies {
 				maps.Copy(tests, testingParameters(signatures[body], names))
 			}
-			proven = confinedCommand(outer, call, exec) && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
+			rootTargets, rootAll, _ := goListArguments(elements[1:], constants, owner.dir, owner)
+			proven = confinedCommand(outer, call, exec, func(value ast.Expr) bool {
+				return commandDirectoryProven(value, outer, file, names, tests, relative, owner.dir, all == rootAll && maps.Equal(targets, rootTargets))
+			}) && isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
 			result.all, result.unproven = true, true
@@ -882,7 +885,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				break
 			}
 			body, read := bodies[relative]
-			unproven = !read || observesSource(relative, body, scans[index][relative].proven)
+			unproven = !read || observesSource(root, relative, body, scans[index][relative].proven)
 		}
 		all = all || unproven
 		units[index].ImportGraphReadsAll = all
