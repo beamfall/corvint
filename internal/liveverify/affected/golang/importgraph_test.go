@@ -347,6 +347,8 @@ func TestHiddenPackageImportSetSelectsObserver_AFPV02202(t *testing.T) {
 		}
 		return tree
 	}
+	// AFP-V0-9010: all these .go paths remain observable source, even
+	// when Go ignores them or their import headers are unchanged.
 	const libFile = ".github/lib/lib.go"
 	importAdded := "package lib\n\nimport \"strings\"\n\nfunc Help() string { return strings.ToLower(\"help\") }\n"
 	bodyOnly := "package lib\n\nfunc Help() string { return \"other\" }\n"
@@ -356,12 +358,12 @@ func TestHiddenPackageImportSetSelectsObserver_AFPV02202(t *testing.T) {
 		dirty string
 		want  affected.ImportSetChanges
 	}{
-		{"hidden import", head(map[string]string{libFile: importAdded}), libFile, affected.ImportSetChanges{Changed: map[string]string{lib: libFile}}},
-		{"hidden file added", head(map[string]string{".github/lib/extra.go": "package lib\n\nimport \"os\"\n\nvar _ = os.Args\n"}), ".github/lib/extra.go", affected.ImportSetChanges{Changed: map[string]string{lib: ".github/lib/extra.go"}}},
-		{"hidden body", head(map[string]string{libFile: bodyOnly}), libFile, affected.ImportSetChanges{Changed: map[string]string{}}},
-		{"hidden package removed", head(nil), ".github/gone/gone.go", affected.ImportSetChanges{Changed: map[string]string{}, Module: ".github/gone/gone.go"}},
-		{"hidden testdata", head(map[string]string{".github/lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), ".github/lib/testdata/fixture.go", affected.ImportSetChanges{Changed: map[string]string{}}},
-		{"declared output", head(map[string]string{".agent-evidence/run/dump.go": "package dump\n\nimport \"os\"\n"}), ".agent-evidence/run/dump.go", affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"hidden import", head(map[string]string{libFile: importAdded}), libFile, affected.ImportSetChanges{Changed: map[string]string{lib: libFile}, Source: libFile}},
+		{"hidden file added", head(map[string]string{".github/lib/extra.go": "package lib\n\nimport \"os\"\n\nvar _ = os.Args\n"}), ".github/lib/extra.go", affected.ImportSetChanges{Changed: map[string]string{lib: ".github/lib/extra.go"}, Source: ".github/lib/extra.go"}},
+		{"hidden body", head(map[string]string{libFile: bodyOnly}), libFile, affected.ImportSetChanges{Changed: map[string]string{}, Source: libFile}},
+		{"hidden package removed", head(nil), ".github/gone/gone.go", affected.ImportSetChanges{Changed: map[string]string{}, Module: ".github/gone/gone.go", Source: ".github/gone/gone.go"}},
+		{"hidden testdata", head(map[string]string{".github/lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), ".github/lib/testdata/fixture.go", affected.ImportSetChanges{Changed: map[string]string{}, Source: ".github/lib/testdata/fixture.go"}},
+		{"declared output", head(map[string]string{".agent-evidence/run/dump.go": "package dump\n\nimport \"os\"\n"}), ".agent-evidence/run/dump.go", affected.ImportSetChanges{Changed: map[string]string{}, Source: ".agent-evidence/run/dump.go"}},
 	}
 	for _, test := range cases {
 		t.Run("measured "+test.name, func(t *testing.T) {

@@ -246,13 +246,15 @@ func TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010(t *testing.T) {
 // of lib's package comment alone keeps every header, yet changes what docs
 // reads: docs is selected through the Source, with the chain [lib, docs],
 // while the proven reader guard stays out. Fault injection: the same
-// comparison without its Source loses docs.
+// comparison without its Source loses docs. The fixture computes both the
+// package name and expected comment: a literal "lib" independently selects
+// docs through AFP-V0-2203, masking the loss of the Source edge.
 func TestPackageDocReaderSelected_AFP_V0_9010(t *testing.T) {
 	root := importGraphRepository(t)
 	const docs = "package docs\n\nimport (\n\t\"os/exec\"\n\t\"strings\"\n\t\"testing\"\n)\n\n" +
-		"func TestDoc(t *testing.T) {\n\ttarget := strings.Join([]string{\"example.test\", \"g\", \"lib\"}, \"/\")\n" +
+		"func TestDoc(t *testing.T) {\n\tname := string([]byte{108, 105, 98})\n\ttarget := strings.Join([]string{\"example.test\", \"g\", name}, \"/\")\n" +
 		"\tout, err := exec.Command(\"go\", \"list\", \"-f\", \"{{.Doc}}\", target).Output()\n" +
-		"\tif err != nil || strings.TrimSpace(string(out)) != \"Package lib helps.\" {\n\t\tt.Fatalf(\"%s %v\", out, err)\n\t}\n}\n"
+		"\tif err != nil || strings.TrimSpace(string(out)) != \"Package \"+name+\" helps.\" {\n\t\tt.Fatalf(\"%s %v\", out, err)\n\t}\n}\n"
 	const before = "// Package lib helps.\npackage lib\n\nfunc Help() string { return \"help\" }\n"
 	writeFiles(t, root, map[string]string{"lib/lib.go": before, "docs/docs.go": "package docs\n", "docs/docs_test.go": docs})
 	graph, err := affected.Build(context.Background(), root, golang.New())
@@ -285,7 +287,7 @@ func TestPackageDocReaderSelected_AFP_V0_9010(t *testing.T) {
 	// Fault injection: without the Source, docs is lost.
 	for _, selection := range affected.Select(graph.WithImportSetChanges(&affected.ImportSetChanges{Changed: changes.Changed}), dirty).Selected {
 		if selection.UnitID == reader {
-			t.Fatal("docs selected without the source: the regression proves nothing")
+			t.Fatalf("docs selected without the source: the regression proves nothing: %+v", selection.Witness)
 		}
 	}
 }
