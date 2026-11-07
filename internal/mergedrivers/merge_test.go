@@ -40,6 +40,37 @@ func TestAppendDWCV07700(t *testing.T) {
 	}
 }
 
+func TestAppendDWCV07700DefaultMarkerMarkdown(t *testing.T) {
+	for _, tc := range []struct {
+		name, base, ours, theirs, want string
+		clean                          bool
+	}{
+		{"ours-heading-edit", "old\n", "Ours\n=======\n", "Theirs\n", "<<<<<<< ours\nOurs\n=======\n||||||| base\nold\n=======\nTheirs\n>>>>>>> theirs\n", false},
+		{"theirs-heading-edit", "old\n", "Ours\n", "Theirs\n=======\n", "<<<<<<< ours\nOurs\n||||||| base\nold\n=======\nTheirs\n=======\n>>>>>>> theirs\n", false},
+		{"ours-heading-addition", "", "Ours\n=======\n", "Theirs\n", "Ours\n=======\nTheirs\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, clean, err := Append(context.Background(), t.TempDir(), []byte(tc.base), []byte(tc.ours), []byte(tc.theirs), 7)
+			if err != nil || clean != tc.clean || string(got) != tc.want {
+				t.Fatalf("got %q clean=%v err=%v, want %q clean=%v", got, clean, err, tc.want, tc.clean)
+			}
+		})
+	}
+}
+
+func TestAppendDWCV07700MalformedDefaultMarkers(t *testing.T) {
+	for _, data := range []string{
+		"<<<<<<< ours\nOurs\n=======\nTheirs\n>>>>>>> theirs\n",
+		"<<<<<<< ours\nOurs\n||||||| base\n>>>>>>> theirs\n",
+		"<<<<<<< ours\nOurs\n||||||| base\n=======\nTheirs\n",
+	} {
+		got, clean := resolveAppend([]byte(data), 7)
+		if clean || string(got) != data {
+			t.Errorf("malformed conflict changed: got %q clean=%v, want %q clean=false", got, clean, data)
+		}
+	}
+}
+
 func TestJSONDWCV07702(t *testing.T) {
 	for _, tc := range []struct{ name, base, ours, theirs, want string }{
 		{"root-union", `{}`, `{"a":1}`, `{"b":2}`, "{\n  \"a\": 1,\n  \"b\": 2\n}\n"},
