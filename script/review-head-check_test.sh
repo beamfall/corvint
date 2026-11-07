@@ -117,6 +117,17 @@ out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.
 printf 'dogfood-review: reviewed-head=%s verdict=PASS\n' "$(git -C "$seal" rev-parse HEAD~1)" > "$tmp/external-review.txt"
 out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
 [[ $rc == 2 && $out == *'external-review-head-mismatch'* && ! -s $tmp/check.log ]] || fail "wrong external head: $out"
+# DWC-V0-046 review fix: a prose mention of the key is neither a second header nor a switch to
+# the external format, in an external report or in a legacy one.
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\nThe parser recognizes `dogfood-review:` headers.\n' "$sealhead" > "$tmp/prose-review.txt"
+out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
+[[ $rc == 0 && $out == "review-head-check: CURRENT reviewed=$sealhead head=$sealhead verdict=PASS" ]] || fail "external report with a prose mention: rc=$rc out=$out"
+printf 'codex-review: reviewed-head=%s tree=x dirty=no\nThe parser recognizes `dogfood-review:` headers.\n' "$sealhead" > "$tmp/prose-review.txt"
+out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
+[[ $rc == 0 && $out == "review-head-check: CURRENT reviewed=$sealhead head=$sealhead" ]] || fail "legacy report with a prose mention: rc=$rc out=$out"
+printf 'dogfood-review: reviewed-head=%s verdict=PASS\ndogfood-review: reviewed-head=%s verdict=PASS\n' "$sealhead" "$sealhead" > "$tmp/prose-review.txt"
+out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
+[[ $rc == 2 && $out == *'invalid-external-review'* ]] || fail "two header declarations accepted: rc=$rc out=$out"
 # Finish a fixture seal, asserting durable review evidence and a rename-only tree.
 mkdir -p "$seal/.corvint"
 printf 'bound evidence\n' > "$seal/.corvint/change.cem.json"

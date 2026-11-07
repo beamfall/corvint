@@ -98,7 +98,7 @@ func TestDWCV0045RefreshDraftsNewHunkFromItsOwnContent(t *testing.T) {
 }
 
 func TestDWCV0046ExternalReviewSeal(t *testing.T) {
-	for _, kind := range []string{"pass", "legacy", "legacy-duplicate", "external-with-legacy", "wrong-head", "failed", "duplicate", "missing", "absent", "oversized", "malformed", "nonregular", "moved-during-check"} {
+	for _, kind := range []string{"pass", "legacy", "legacy-duplicate", "external-with-legacy", "external-prose", "legacy-prose", "wrong-head", "failed", "duplicate", "missing", "absent", "oversized", "malformed", "nonregular", "moved-during-check"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
 			testGit(t, root, "init", "-q")
@@ -119,6 +119,12 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 				}
 			case "external-with-legacy":
 				raw += "codex-review: reviewed-head=" + base + " tree=x dirty=no\n"
+			case "external-prose":
+				// A prose mention of the key is not a second header.
+				raw += "The parser recognizes `dogfood-review:` headers.\n"
+			case "legacy-prose":
+				// Nor does it switch a legacy report to the external format.
+				raw = "codex-review: reviewed-head=" + base + " tree=x dirty=no\nThe parser recognizes `dogfood-review:` headers.\n"
 			case "wrong-head":
 				raw = strings.Replace(raw, head, base, 1)
 			case "failed":
@@ -148,7 +154,7 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 			var out, stderr bytes.Buffer
 			c := newCheck(context.Background(), "dogfood-seal", CheckOptions{Root: root}, &out, &stderr)
 			c.base = base
-			valid := kind == "pass" || kind == "legacy" || kind == "external-with-legacy" || kind == "absent"
+			valid := kind == "pass" || kind == "legacy" || kind == "external-with-legacy" || kind == "external-prose" || kind == "legacy-prose" || kind == "absent"
 			var rc int
 			var err error
 			if kind == "moved-during-check" {
@@ -183,9 +189,9 @@ func TestDWCV0046ExternalReviewSeal(t *testing.T) {
 			if rc != 0 {
 				t.Fatalf("seal %d %s%s", rc, &out, &stderr)
 			}
-			if kind == "pass" || kind == "legacy" || kind == "external-with-legacy" {
+			if kind == "pass" || kind == "legacy" || kind == "external-with-legacy" || kind == "external-prose" || kind == "legacy-prose" {
 				reviewed, verdict := head, "PASS"
-				if kind == "legacy" {
+				if kind == "legacy" || kind == "legacy-prose" {
 					reviewed, verdict = base, "NOT_OBSERVED"
 				}
 				message := testGit(t, root, "log", "-1", "--format=%B")

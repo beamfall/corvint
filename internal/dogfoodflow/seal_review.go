@@ -11,6 +11,10 @@ import (
 )
 
 var externalReviewHeader = regexp.MustCompile(`(?m)^dogfood-review: reviewed-head=([0-9a-f]{40}) verdict=PASS$`)
+
+// externalReviewDeclaration is a line that declares an external header; a
+// prose mention elsewhere in a line is neither a header nor a format switch.
+var externalReviewDeclaration = regexp.MustCompile(`(?m)^dogfood-review:`)
 var legacyReviewHeader = regexp.MustCompile(`(?m)^codex-review: reviewed-head=([0-9a-f]{40})(?: .*)?$`)
 
 // sealReview binds caller-provided review bytes to the exact head. Legacy
@@ -29,8 +33,8 @@ func (c *check) sealReview() string {
 	c.sealReviewTarget = head
 	matches := externalReviewHeader.FindAllSubmatch(raw, -1)
 	reviewed, verdict := "", "PASS"
-	if strings.Contains(string(raw), "dogfood-review:") {
-		if len(matches) != 1 || strings.Count(string(raw), "dogfood-review:") != 1 {
+	if declarations := len(externalReviewDeclaration.FindAllIndex(raw, -1)); declarations > 0 {
+		if len(matches) != 1 || declarations != 1 {
 			c.refuseSealReview(path)
 		}
 		reviewed = string(matches[0][1])
