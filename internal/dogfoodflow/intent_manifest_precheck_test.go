@@ -115,8 +115,9 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 // TestDWCV07600FinishLaneCanonicalizesIntentManifest (V1-4788): an untracked
 // --intents manifest whose only fault is order or duplicates is rewritten in
 // place to its LC_ALL=C sort -u form and the run goes on to its steps, for both
-// the pre-flight and the finish; a manifest the repository tracks is not
-// rewritten, so its ordering refusal stands.
+// the pre-flight and the finish; a manifest the repository tracks, or one
+// whose tracked state Git cannot read, is not rewritten, so its ordering
+// refusal stands.
 func TestDWCV07600FinishLaneCanonicalizesIntentManifest(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -185,5 +186,33 @@ func TestDWCV07600FinishLaneCanonicalizesIntentManifest(t *testing.T) {
 	if got, _ := os.ReadFile(tracked); string(got) != "docs/b.md\ndocs/a.md\n" || code != 2 || calls != 0 ||
 		!strings.Contains(stderr, "REFUSE intent-manifest-unsorted") || !strings.Contains(stderr, "LC_ALL=C sort -u -o ") {
 		t.Errorf("tracked manifest: code=%d calls=%d manifest=%q:\n%s", code, calls, got, stderr)
+	}
+	// An untracked manifest inside the worktree is rewritten only while Git
+	// can read the index: with the index corrupt, whether it is tracked is
+	// unknown, so the file is kept and the ordering refusal stands.
+	untracked := filepath.Join(root, "lane-intents.txt")
+	if err := os.WriteFile(untracked, []byte("docs/b.md\ndocs/a.md\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	index := filepath.Join(root, ".git", "index")
+	saved, err := os.ReadFile(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(index, []byte("not an index\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	code, calls, stderr = run(untracked, true)
+	if got, _ := os.ReadFile(untracked); string(got) != "docs/b.md\ndocs/a.md\n" || code != 2 || calls != 0 || !strings.Contains(stderr, "REFUSE intent-manifest-unsorted") ||
+		!strings.Contains(stderr, "intents not canonicalized: whether the repository tracks --intents "+untracked+" is unknown (git ls-files --error-unmatch exited 128)") {
+		t.Errorf("unreadable index: code=%d calls=%d manifest=%q:\n%s", code, calls, got, stderr)
+	}
+	if err := os.WriteFile(index, saved, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	_, _, stderr = run(untracked, true)
+	if got, _ := os.ReadFile(untracked); string(got) != "docs/a.md\ndocs/b.md\n" || strings.Contains(stderr, "REFUSE intent-manifest-unsorted") ||
+		!strings.Contains(stderr, "intents canonicalized: LC_ALL=C sort -u rewrote --intents "+untracked+" from 2 to 2 lines") {
+		t.Errorf("untracked manifest in the worktree: manifest %q:\n%s", got, stderr)
 	}
 }

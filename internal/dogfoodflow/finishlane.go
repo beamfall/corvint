@@ -436,7 +436,7 @@ func (l *finishLane) canonicalizeIntents(source string) bool {
 	if !ok {
 		return false
 	}
-	if absolute, err := filepath.Abs(source); err != nil || l.gitSucceeds("ls-files", "--error-unmatch", "--", absolute) {
+	if !l.intentsUntracked(source) {
 		return false
 	}
 	info, err := os.Stat(source)
@@ -459,6 +459,62 @@ func (l *finishLane) canonicalizeIntents(source string) bool {
 	l.say("%s: intents canonicalized: LC_ALL=C sort -u rewrote --intents %s from %d to %d lines; the run goes on with the sorted manifest (DWC-V0-7600)\n",
 		l.prefix, source, len(readLines(data)), len(readLines(sorted)))
 	return true
+}
+
+// intentsUntracked reports whether the repository certainly does not track
+// the directory entry the rewrite of source replaces: the entry lies outside
+// the worktree, or `git ls-files --error-unmatch` exits 1, its no-match
+// status, for it. Any other outcome, such as a corrupt or unreadable index,
+// leaves membership unknown; it prints why and keeps the file, so a tracked
+// manifest is never rewritten (DWC-V0-7600).
+func (l *finishLane) intentsUntracked(source string) bool {
+	relative, inside, err := worktreeEntry(l.root, source)
+	if err == nil && !inside {
+		return true
+	}
+	if err == nil {
+		switch _, status := l.git(true, "ls-files", "--error-unmatch", "--", ":(literal)"+relative); status {
+		case 0:
+			return false
+		case 1:
+			return true
+		default:
+			err = fmt.Errorf("git ls-files --error-unmatch exited %d", status)
+		}
+	}
+	l.say("%s: intents not canonicalized: whether the repository tracks --intents %s is unknown (%v); a tracked manifest is never rewritten (DWC-V0-7600)\n", l.prefix, source, err)
+	return false
+}
+
+// worktreeEntry is the slash path, below root, of the directory entry that
+// names source, with inside false when root is not an ancestor of source's
+// resolved directory. Ancestors are matched with os.SameFile, so a symlinked
+// or case-folded spelling of either path still finds the worktree.
+func worktreeEntry(root, source string) (string, bool, error) {
+	top, err := os.Stat(root)
+	if err != nil {
+		return "", false, err
+	}
+	absolute, err := filepath.Abs(source)
+	if err != nil {
+		return "", false, err
+	}
+	directory, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if err != nil {
+		return "", false, err
+	}
+	entry := filepath.Join(directory, filepath.Base(absolute))
+	for {
+		if info, err := os.Stat(directory); err == nil && os.SameFile(info, top) {
+			relative, err := filepath.Rel(directory, entry)
+			return filepath.ToSlash(relative), err == nil, err
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return "", false, nil
+		}
+		directory = parent
+	}
 }
 
 // canonicalIntentManifest is the LC_ALL=C sort -u form of a manifest whose
