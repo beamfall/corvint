@@ -6,6 +6,10 @@
       "reason": "retained agent evidence output (AZU-V0-002): written by lanes and the dogfood tools, never built or run; its test readers stay selected: conformance/release-artifact-v0 walks it through a path literal, and the unbounded readers read the whole tree"
     },
     {
+      "path": ".corvint/.gitignore",
+      "reason": "ignore rules for the private .corvint ledgers and index (AZU-V0-002, SOL-V0-001): git reads it, no build executes it; internal/observations reads it at run time to admit a ledger append, and tracked_ignore_test pins its rules"
+    },
+    {
       "path": "docs/experiments/linecov-2026-11-04-js-shadow.json",
       "reason": "retained JavaScript shadow qualification output (AZU-V0-002); no build executes it; literal, enclosing-directory, declared and unbounded readers remain selected"
     },
