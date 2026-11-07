@@ -444,9 +444,11 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 // its module's directory, which this graph does not record, so narrowing it
 // could drop a real reader. For a record entry (recordDirectory, AFP-V0-2743)
 // the resolved path must lie at or below the record directory
-// (resolvesRecord), a `/`-anchored token is resolved from the root, and a unit
-// that locates the root at run time resolves every token from it too. For any
-// other path see namesFileOnlyWithin.
+// (resolvesRecord), or at the root or an ancestor of it from which the unit's
+// other literals join the rest of the way (reachesRecord, AFP-V0-2746); a
+// `/`-anchored token is resolved from the root, and a unit that locates the
+// root at run time resolves every token from it too. For any other path see
+// namesFileOnlyWithin.
 // A unit with a declared read scope (AFP-V0-023) reads no dirty path outside
 // that scope, whatever its tokens name (AFP-V0-161): the declaration states
 // it, and full CI confines the package's tests to it.
@@ -483,12 +485,12 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		}
 		if isRecord {
 			if rest, rooted := strings.CutPrefix(value, "/"); rooted {
-				if resolvesRecord("", rest, dirtyPath, record) {
+				if reachesRecord(unit.PathTokens, "", rest, dirtyPath, record) {
 					return true
 				}
 				continue
 			}
-			if resolvesRecord(directory, value, dirtyPath, record) || (anchored && resolvesRecord("", value, dirtyPath, record)) {
+			if reachesRecord(unit.PathTokens, directory, value, dirtyPath, record) || (anchored && reachesRecord(unit.PathTokens, "", value, dirtyPath, record)) {
 				return true
 			}
 			continue
@@ -510,10 +512,11 @@ const BuildLogDirectory = "docs/build-log/"
 // Markdown entry directly under BuildLogDirectory. Nearly every change adds
 // one of each, so a reader of either must read that entry or list that
 // directory; a token that resolves only to an ancestor of the directory (the
-// repository root, `.corvint`, `docs`) reaches the entry only through a name
-// computed or walked at run time, which the reader rules never bound and the
+// repository root, `.corvint`, `docs`) reaches the entry through other
+// literals the unit joins to it (AFP-V0-2746), or through a name computed or
+// walked at run time, which the reader rules never bound and the
 // unbounded-reader rule (AFP-V0-012 rule (d)) and declared read scopes
-// (AFP-V0-023) select instead.
+// (AFP-V0-023) select instead; AFP-V0-2747 refuses to record such a walker.
 func recordDirectory(dirtyPath string) (string, bool) {
 	if name, ok := strings.CutPrefix(dirtyPath, SealedChangesDirectory); ok && !strings.Contains(name, "/") && len(name) > len(".cem.json") && strings.HasSuffix(name, ".cem.json") {
 		return SealedChangesDirectory, true
@@ -528,7 +531,8 @@ func recordDirectory(dirtyPath string) (string, bool) {
 // record entry dirtyPath as resolvesWithin does, at or below its record
 // directory: the entry itself, the record directory, or a fragment completed
 // at the entry's position. A token that resolves to the repository root or
-// to a proper ancestor of record does not (AFP-V0-2743).
+// to a proper ancestor of record does not by itself (AFP-V0-2743); see
+// reachesRecord for one the unit's other literals extend (AFP-V0-2746).
 func resolvesRecord(directory, value, dirtyPath, record string) bool {
 	if !resolvesWithin(directory, value, dirtyPath) {
 		return false
@@ -538,6 +542,54 @@ func resolvesRecord(directory, value, dirtyPath, record string) bool {
 		return false
 	}
 	return !strings.HasPrefix(record, resolved+"/") || resolved+"/" == record
+}
+
+// reachesRecord reports whether a unit holding tokens reaches the record entry
+// dirtyPath of record through value, joined to directory: value resolves at
+// or below record (resolvesRecord), or it resolves to the repository root or
+// a proper ancestor of record and the unit's literals can join the rest of
+// the way (AFP-V0-2746). `filepath.Join("../docs", "build-log", name)` in
+// package `reader` reads every entry of `docs/build-log/` through three
+// separate literals, none of which resolves to the directory alone.
+func reachesRecord(tokens []string, directory, value, dirtyPath, record string) bool {
+	if resolvesRecord(directory, value, dirtyPath, record) {
+		return true
+	}
+	below, ok := recordAncestor(directory, value, dirtyPath, record)
+	return ok && joinsComponents(tokens, below)
+}
+
+// recordAncestor returns, when value joined to directory resolves as
+// resolvesWithin does to the repository root or to a proper ancestor of
+// record, the components of record below that ancestor: what other literals
+// must join to reach record (AFP-V0-2746).
+func recordAncestor(directory, value, dirtyPath, record string) ([]string, bool) {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return nil, false
+	}
+	prefix := path.Join(directory, value) + "/"
+	if prefix == "./" {
+		prefix = ""
+	}
+	if prefix == record || !strings.HasPrefix(record, prefix) {
+		return nil, false
+	}
+	return strings.Split(strings.TrimSuffix(record[len(prefix):], "/"), "/"), true
+}
+
+// joinsComponents reports whether every one of components is a whole
+// component of one of tokens, so separate literals could join them in any
+// order or expression (AFP-V0-2746): the conservative reading of a composed
+// path, since the literal index does not reconstruct the expression.
+func joinsComponents(tokens, components []string) bool {
+	for _, component := range components {
+		if !slices.ContainsFunc(tokens, func(value string) bool {
+			return strings.Contains(value, component) && slices.Contains(strings.Split(value, "/"), component)
+		}) {
+			return false
+		}
+	}
+	return true
 }
 
 // namesFileOnlyWithin reports whether a Go unit in directory whose tokens name

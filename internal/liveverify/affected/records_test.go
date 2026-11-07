@@ -98,3 +98,60 @@ func TestRecordDirectory_AFPV2743(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-2746 (V1-4933, review finding P1): a unit that reaches a record
+// directory by joining separate literals onto an ancestor literal
+// (`filepath.Join("../docs", "build-log", name)`) still selects on a new entry
+// of it, so the ancestor narrowing of AFP-V0-2743 drops no composed reader. A
+// unit whose literals join the ancestor to another directory (`build`,
+// `change`) or to nothing leaves the ancestor narrowed; one that computes the
+// directory's name at run time is AFP-V0-2747's walker. Removing the join
+// from reachesRecord drops every joined unit.
+func TestRecordEntryReadersJoinSeparateLiterals_AFPV2746(t *testing.T) {
+	const sealed = ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
+	const entry = "docs/build-log/2026-11-06-selgo.md"
+	unit := func(id, dir string, tokens ...string) Unit {
+		slices.Sort(tokens)
+		return Unit{ID: "go:" + id, Sources: []string{dir + "/a.go"}, Tests: []string{dir + "/a_test.go"}, PathTokens: tokens}
+	}
+	graph, err := Build(context.Background(), "", fake{name: "go", units: []Unit{
+		unit("joined", "reader", "../docs", "build-log", "entry.md", "../.corvint", "changes"),
+		unit("deep", "internal/deep", "../../docs", "../../.corvint", "build-log/", "changes/"),
+		unit("rooted", "rooted", "/docs", "/.corvint", "build-log", "changes"),
+		unit("fragment", "fragment", "../docs", "build", "../.corvint", "change"),
+		unit("ancestor", "anc", "../.corvint", "../docs"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{sealed, entry} {
+		witness := map[string]string{}
+		for _, selection := range Select(graph, []string{dirty}).Selected {
+			witness[selection.UnitID] = selection.Witness.Kind
+		}
+		for _, id := range []string{"go:joined", "go:deep", "go:rooted"} {
+			if witness[id] != WitnessPathLiteralReader {
+				t.Errorf("%s: %s witness %q, want %s: its literals join the record directory", dirty, id, witness[id], WitnessPathLiteralReader)
+			}
+		}
+		for _, id := range []string{"go:fragment", "go:ancestor"} {
+			if kind := witness[id]; kind == WitnessPathLiteralReader {
+				t.Errorf("%s: %s is a %s: no literal of it names the record directory's last component", dirty, id, kind)
+			}
+		}
+	}
+	for _, c := range []struct {
+		tokens, components []string
+		want               bool
+	}{
+		{[]string{"build-log"}, []string{"build-log"}, true},
+		{[]string{"x/build-log/y"}, []string{"build-log"}, true},
+		{[]string{"build-logs", "abuild-log"}, []string{"build-log"}, false},
+		{[]string{".corvint"}, []string{".corvint", "changes"}, false},
+		{[]string{".corvint", "../changes"}, []string{".corvint", "changes"}, true},
+	} {
+		if got := joinsComponents(c.tokens, c.components); got != c.want {
+			t.Errorf("joinsComponents(%q, %q) = %v, want %v", c.tokens, c.components, got, c.want)
+		}
+	}
+}
