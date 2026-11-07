@@ -1276,11 +1276,19 @@ doc-gates: ## Run the documentation gates
 # line, a failed step prints `dogfood-closeout: FAILED step N/5 NAME rc=RC after Ss` and the exact
 # command that resumes at that step, and CLOSEOUT_FROM=N skips the steps before N, so a closeout cut
 # by a tool timeout resumes where it stopped. ASD-V0-568 (V1-4101): the repin step commits a
-# mechanical repin and refreshes the plan before batch-precheck reads them.
+# mechanical repin and refreshes the plan before the pre-flight, whose line-citation and use-case
+# receipt checks need current pins, and batch-precheck read them; the pre-flight then checks the
+# refreshed plan. When the repin is enabled, the missing-input refusal runs alone first
+# (DOGFOOD_STATIC_PRECHECK=0 stops the wrapper after it), so a closeout missing an input commits no
+# repin. DTL-V0-004: a SEAL=0 closeout keeps SEAL=0 in its resume command.
 CLOSEOUT_FROM ?= 1
 # The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
 DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
-closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
+closeout_seal = $(if $(filter 0,$(SEAL)),SEAL=0 ,$(if $(SEAL),SEAL=$(call dogfood_finish_quote,$(SEAL)) ))
+closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(closeout_seal)CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
+closeout_inputs_present = [ -z $(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) ] || DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_STATIC_PRECHECK=0 DOGFOOD_FINISH_PREFLIGHT=1 \
+	DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) $(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
 	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
 	if [ $$rc -ne 0 ]; then echo "dogfood-closeout: FAILED step $(1)/5 $(2) rc=$$rc after $${secs}s" >&2; \
@@ -1290,9 +1298,9 @@ dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(call closeout_step,1,static-checks,$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(BASE)")
-	@$(call closeout_step,2,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
-	@[ 2 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
-	@$(call closeout_step,3,repin,DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
+	@$(call closeout_step,2,repin,$(closeout_inputs_present) && DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
+	@$(call closeout_step,3,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
+	@[ 3 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
 	@$(call closeout_step,4,batch-precheck,BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)'))
 	@[ 4 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
 	@git rev-parse HEAD > "$$(git rev-parse --git-path dogfood-closeout-start)"
