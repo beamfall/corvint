@@ -89,3 +89,22 @@ func TestEveryExpansionBoundIsACut_AFPV03147(t *testing.T) {
 		}
 	})
 }
+
+// AFP-V0-3148: a value the file repeats verbatim counts once toward the
+// per-name bound, so the same short word list in many loops stays expanded
+// and bounded; seventeen distinct values are still a cut (AFP-V0-3146).
+func TestRepeatedValuesCountOnce_AFPV03148(t *testing.T) {
+	const check = "#!/bin/sh\necho check\n"
+	var loops strings.Builder
+	for range 6 {
+		loops.WriteString("for dir in a b script; do \"$dir/check\"; done\n")
+	}
+	root := t.TempDir()
+	write(t, root, "script/check", check)
+	write(t, root, "use/use_test.sh", loops.String())
+	use := unitOf(t, units(t, root), "use/use_test.sh")
+	if use.UnboundedReads != "" || !slices.Equal(use.Imports, []string{"shell:script/check"}) {
+		t.Errorf("unbounded reads %q imports %v, want the script/check edge alone: 18 words with 3 distinct values are within the bound",
+			use.UnboundedReads, use.Imports)
+	}
+}
