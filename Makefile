@@ -1284,7 +1284,7 @@ doc-gates: ## Run the documentation gates
 CLOSEOUT_FROM ?= 1
 # The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
 DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
-closeout_seal = $(if $(filter 0,$(SEAL)),SEAL=0 ,$(if $(SEAL),SEAL=$(call dogfood_finish_quote,$(SEAL)) ))
+closeout_seal = $(if $(filter x0x,x$(SEAL)x),SEAL=0 ,$(if $(SEAL),SEAL=$(call dogfood_finish_quote,$(SEAL)) ))
 closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(closeout_seal)CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
 closeout_inputs_present = [ -z $(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) ] || DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_STATIC_PRECHECK=0 DOGFOOD_FINISH_PREFLIGHT=1 \
 	DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \

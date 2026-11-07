@@ -490,8 +490,8 @@ make -s dogfood-closeout CLOSEOUT_FROM=3 LANE=1 BASE=feedfacefeedfacefeedfacefee
 rg -q '^dogfood-closeout: FAILED step 3/5 dogfood-inputs-check rc=2 after [0-9]+s$' "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
 rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=3 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='' " "$root/output" || { cat "$root/output" >&2; fail "$LINENO"; }
 # DTL-V0-004 (review): a SEAL=0 closeout keeps SEAL=0 after BASE in its resume command; any other
-# SEAL value is kept quoted, and no SEAL gives none.
-for seal in 0 1 no; do
+# SEAL value, even one holding a 0 word, is kept quoted, and no SEAL gives none.
+for seal in 0 1 no '0 1'; do
   status=0
   make -s dogfood-closeout CLOSEOUT_FROM=3 LANE=1 SEAL="$seal" BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
   [[ $status == 2 ]] || { cat "$root/output" >&2; fail "$LINENO"; }
