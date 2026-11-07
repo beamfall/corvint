@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -79,7 +80,7 @@ func windowOverlay(dir, work string) (string, string, error) {
 			inserts = append(inserts, struct {
 				at   int
 				text string
-			}{pos, fmt.Sprintf("\nif d := corvintLCOS.Getenv(\"CORVINT_LINECOV_WINDOWS\"); d != \"\" {\n if _, err := corvintLCOS.Stat(corvintLCPath.Join(d, \"order\")); corvintLCOS.IsNotExist(err) { p := corvintLCPath.Join(d, \"setup\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) } }; if f, err := corvintLCOS.OpenFile(corvintLCPath.Join(d, \"order\"), corvintLCOS.O_CREATE|corvintLCOS.O_WRONLY|corvintLCOS.O_APPEND, 0600); err == nil { _, _ = f.WriteString(\"%s\\n\"); _ = f.Close() } else { panic(err) }; if err := corvintLCCov.ClearCounters(); err != nil { panic(err) }; %s.Cleanup(func(){\n p := corvintLCPath.Join(d, %q); if err := corvintLCOS.MkdirAll(p, 0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }\n })\n}\n", name, param.Names[0].Name, name)})
+			}{pos, fmt.Sprintf("\nif d := corvintLCOS.Getenv(\"CORVINT_LINECOV_WINDOWS\"); d != \"\" {\n if _, err := corvintLCOS.Stat(corvintLCPath.Join(d, \"order\")); corvintLCOS.IsNotExist(err) { p := corvintLCPath.Join(d, \"setup\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) } }; if f, err := corvintLCOS.OpenFile(corvintLCPath.Join(d, \"order\"), corvintLCOS.O_CREATE|corvintLCOS.O_WRONLY|corvintLCOS.O_APPEND, 0600); err == nil { _, _ = f.WriteString(\"%s\\n\"); _ = f.Close() } else { panic(err) }; p := corvintLCPath.Join(d, \"before-%s\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }; %s.Cleanup(func(){\n p := corvintLCPath.Join(d, %q); if err := corvintLCOS.MkdirAll(p, 0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }\n })\n}\n", name, name, param.Names[0].Name, name)})
 			used = true
 		}
 		if !used {
@@ -119,10 +120,10 @@ func windowOverlay(dir, work string) (string, string, error) {
 	return p, "", err
 }
 
-// attributeWindows unions each test's isolated and in-order profiles. An
-// order-only block also retains every preceding test: those windows may have
-// established the state needed to reach it. The suite union remains as a
-// residual owner for setup, teardown, child and unclosed-window coverage.
+// attributeWindows uses cumulative snapshots, never resets. The ordinary exit
+// profile remains an independent suite-wide union. Before/after differences
+// attribute test bodies; reach between snapshots has unknown ownership and is
+// retained by every test, even when another isolated test reaches it too.
 func attributeWindows(ctxRun func(string) ([]byte, error), outcomes []Outcome, windows map[string]string) []Outcome {
 	isolated := map[string]map[string]map[string]bool{}
 	for _, o := range outcomes {
@@ -133,88 +134,161 @@ func attributeWindows(ctxRun func(string) ([]byte, error), outcomes []Outcome, w
 			isolated[o.Package] = map[string]map[string]bool{}
 		}
 		isolated[o.Package][o.Name] = map[string]bool{}
-		for _, l := range strings.Split(string(o.Record.Profile), "\n") {
-			k, n, ok := strings.Cut(l, " ")
-			if ok && !strings.HasSuffix(n, " 0") {
+		counts, _ := profileCounts(o.Record.Profile)
+		for k, n := range counts {
+			if n > 0 {
 				isolated[o.Package][o.Name][k] = true
 			}
 		}
 	}
 	for i := range outcomes {
 		o := &outcomes[i]
-		if o.Name != InOrder || o.Record == nil {
+		if o.Name != InOrder || o.Record == nil || windows[o.Package] == "" {
 			continue
 		}
 		dir := windows[o.Package]
-		if dir == "" {
-			continue
+		// A failed snapshot cannot justify attribution. Keep the reset-free suite
+		// reach on every test so an isolated overlap cannot hide a residual owner.
+		keepAll := func(data []byte) {
+			for j := range outcomes {
+				if outcomes[j].Package == o.Package && outcomes[j].Name != InOrder && outcomes[j].Record != nil {
+					outcomes[j].Record.Profile = append(outcomes[j].Record.Profile, data...)
+				}
+			}
 		}
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			o.WindowFallback = "window-dump-unavailable"
+			keepAll(o.Record.Profile)
 			continue
 		}
-		type win struct {
-			name string
-			data []byte
-		}
-		var ws []win
+		dumps := map[string]map[string]uint64{}
 		for _, e := range entries {
 			if !e.IsDir() {
 				continue
 			}
-			p := filepath.Join(dir, e.Name())
-			d, err := ctxRun(p)
+			data, err := ctxRun(filepath.Join(dir, e.Name()))
+			if err == nil {
+				dumps[e.Name()], err = profileCounts(data)
+			}
 			if err != nil {
 				o.WindowFallback = "window-dump-invalid"
-				ws = nil
 				break
 			}
-			ws = append(ws, win{e.Name(), d})
-			o.Record.Profile = append(o.Record.Profile, d...)
 		}
 		if o.WindowFallback != "" {
+			keepAll(o.Record.Profile)
 			continue
 		}
-		// Directory iteration is lexical, but dependencies follow the actual start
-		// order, recorded by the marker written before each window opens.
 		order, err := os.ReadFile(filepath.Join(dir, "order"))
 		if err != nil {
 			o.WindowFallback = "window-order-unavailable"
+			keepAll(o.Record.Profile)
 			continue
 		}
-		byName := map[string][]byte{}
-		for _, w := range ws {
-			byName[w.name] = w.data
-		}
+		previous := map[string]uint64{}
 		var prior []*Record
-		for _, n := range strings.Fields(string(order)) {
+		for _, name := range strings.Fields(string(order)) {
 			var target *Record
 			for j := range outcomes {
-				if outcomes[j].Package == o.Package && outcomes[j].Name == n {
+				if outcomes[j].Package == o.Package && outcomes[j].Name == name {
 					target = outcomes[j].Record
 					break
 				}
 			}
-			d, ok := byName[n]
-			if !ok || target == nil {
+			before, startOK := dumps["before-"+name]
+			after, endOK := dumps[name]
+			if !startOK || !endOK || target == nil {
 				o.WindowFallback = "incomplete-test-window"
-				continue
+				break
 			}
+			gap, err := counterDelta(before, previous)
+			if err != nil {
+				o.WindowFallback = "window-dump-invalid"
+				break
+			}
+			keepAll(gap)
+			delta, err := counterDelta(after, before)
+			if err != nil {
+				o.WindowFallback = "window-dump-invalid"
+				break
+			}
+			counts, _ := profileCounts(delta)
 			var only strings.Builder
 			only.WriteString("mode: atomic\n")
-			for _, l := range strings.Split(string(d), "\n") {
-				k, _, ok := strings.Cut(l, " ")
-				if ok && !strings.HasPrefix(l, "mode:") && !isolated[o.Package][n][k] {
-					only.WriteString(l + "\n")
+			for _, line := range strings.Split(string(delta), "\n") {
+				// Keys include the statement count; profileCounts uses the full prefix.
+				prefix := line
+				if n := strings.LastIndexByte(line, ' '); n >= 0 {
+					prefix = line[:n]
+				}
+				if !strings.HasPrefix(line, "mode:") && counts[prefix] > 0 && !isolated[o.Package][name][prefix] {
+					only.WriteString(line + "\n")
 				}
 			}
 			for _, r := range prior {
-				r.Profile = append(r.Profile, []byte(only.String())...)
+				r.Profile = append(r.Profile, only.String()...)
 			}
-			target.Profile = append(target.Profile, d...)
+			target.Profile = append(target.Profile, delta...)
 			prior = append(prior, target)
+			previous = after
+		}
+		if o.WindowFallback != "" {
+			keepAll(o.Record.Profile)
+			continue
+		}
+		total, err := profileCounts(o.Record.Profile)
+		if err == nil {
+			var tail []byte
+			tail, err = counterDelta(total, previous)
+			if err == nil {
+				keepAll(tail)
+			}
+		}
+		if err != nil {
+			o.WindowFallback = "window-dump-invalid"
+			keepAll(o.Record.Profile)
 		}
 	}
 	return outcomes
+}
+
+func profileCounts(data []byte) (map[string]uint64, error) {
+	counts := map[string]uint64{}
+	for _, line := range strings.Split(string(data), "\n") {
+		if line == "" || strings.HasPrefix(line, "mode:") {
+			continue
+		}
+		n := strings.LastIndexByte(line, ' ')
+		if n < 0 {
+			return nil, fmt.Errorf("invalid coverage counter")
+		}
+		count, err := strconv.ParseUint(line[n+1:], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		counts[line[:n]] += count
+	}
+	return counts, nil
+}
+
+func counterDelta(after, before map[string]uint64) ([]byte, error) {
+	for key, n := range before {
+		if after[key] < n {
+			return nil, fmt.Errorf("coverage counters decreased")
+		}
+	}
+	keys := make([]string, 0, len(after))
+	for key := range after {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString("mode: atomic\n")
+	for _, key := range keys {
+		if n := after[key] - before[key]; n > 0 {
+			fmt.Fprintf(&b, "%s %d\n", key, n)
+		}
+	}
+	return []byte(b.String()), nil
 }

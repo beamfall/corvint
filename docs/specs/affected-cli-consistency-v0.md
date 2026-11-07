@@ -27,6 +27,48 @@ driving Corvint from scripts.
 
 ## Requirements
 
+- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736)
+  Every shipped native error shape, stream, exit and stderr byte MUST remain compatible.
+  An unhandled native help invocation MUST leave both streams untouched: in particular,
+  `corvint-pulse --root . serve --help` retains exit 2, empty stdout and its exact native
+  usage refusal on stderr. Tests: `TestNativeHelpPreambleDoesNotWrite`,
+  `TestCLIProfile9301NativePulsePreamble`.
+  `corvint-cli --binary BINARY ARGS...` is an explicitly selected additive CLI profile:
+  unknown verbs and not-found refusals MUST carry a code, a human message different from
+  that code, empty stdout, one stderr envelope and exit 2. Near-verb refusals MUST suggest
+  a command from the selected code-derived tree. Failed native short CLI operations MUST
+  retain their original stdout, stderr and exit in the envelope's details; success MUST
+  pass through its streams. No native decoder, frozen assertion or golden is amended.
+  Protocol/server discovery MUST remain offline; protocol-only execution MUST refuse and
+  direct callers to the native binary. Mixed-mode binaries classify the selected operation:
+  `corvint-gateway serve` MUST refuse before state or listener setup, while its short CLI
+  operations retain native execution. Valid existing paths in catalog-declared positional
+  root input slots MUST reach the native parser, including bare relative directory names.
+  Unrecognized bare words retain the existing unknown-verb refusal.
+  Native short CLI execution is bounded to 30 seconds
+  and 1 MiB per output stream; exceeding either MUST refuse, never truncate a successful result.
+  The shared process conformance package MUST cover every shipped binary's profile help,
+  catalog, version and unknown-verb envelope alongside the existing native refusal table.
+  Tests: `TestCLIProfile9300EveryNode`, `TestCLIProfile9301NativeAnalyzers`,
+  `TestCLIProfile9301RefusalShapes`, `TestCLIProfile9301NotFound`,
+  `TestCLIErrorContracts_ACXV0859`, `TestCLIProfile9301RootPositionalProcess`,
+  `TestCLIProfile9301GatewayServeOffline`.
+  Rollback: remove the opt-in adapter and its catalog row; no native state migration.
+
+- `ACX-V0-7707`: (narrowed by the owner's 2026-11-04 compatibility decision; V1-3736)
+  CLI helpers MUST preserve every existing wire contract: stream ownership, byte rendering,
+  refusal code, error shape and exit status. Existing JSON refusals remain their native envelopes;
+  plain diagnostics MUST pass through byte-for-byte without buffering or duplicated stderr fields.
+  Core keeps its frozen invalid-arguments and help refusals. Tasks keeps its native command result
+  on stdout and its native exit code; its closed result decoder MUST NOT admit added CLI metadata.
+  Offline help MUST NOT introduce a pre-dispatch unknown-verb guard. Protocol traffic retains its
+  owned wire shape. The QAT-V0-001/004 single-rendering abstention contract remains unchanged.
+  This narrow implementation does not deliver V1-3736's proposed universal envelope or exit scheme.
+  Tests: `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`,
+  `TestCAPV07707PlainFailurePassesThrough`, `TestCAPV07707MessageCodeLint`,
+  `TestCAPV07707TasksMissingTicketProcess`, `TestACXV07707ProtocolWire`.
+
+
 - **ACX-V0-850:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)
   `Source.Files` and `Source.FilesIncluding` SHALL call `accept` with each walked file's
   repository-relative slash path and its base name, on a supplied filesystem, a disk source and a
@@ -204,6 +246,15 @@ never says the plan is current: it says the plan is the binary's own and may dif
 current source computes, so a stale binary still yields uncertainty, not invented certainty
 (product invariant 2).
 
+The opt-in CLI profile's existing refusals are owned by ACX-V0-9301:
+`unknown-binary` means the selector has no native profile (including the adapter
+itself); `catalog-unavailable` means its offline tree cannot be encoded;
+`native-protocol-required` directs protocol-only execution to the native binary;
+`cli-deadline` means the bounded native operation exceeded its deadline; and
+`binary-unavailable` means the installed native executable could not be launched.
+These codes use the profile's existing stderr envelope and exit 2; native
+invocations keep their own contracts.
+
 ## Acceptance evidence and traceability
 
 | Requirement | Implementation | Evidence |
@@ -228,3 +279,7 @@ current source computes, so a stale binary still yields uncertainty, not invente
 
 Revert the commits naming these requirements; each is local to its ticket's files and no stored
 state depends on them.
+
+| ACX-V0-7707 | `internal/clierror`, native executable entrypoints and refusal compatibility controls | `TestCLIErrorContracts_ACXV0859`, `TestCAPV07707NativeEnvelopes`, `TestCAPV07707MessageCodeLint`, `TestCAPV07707TasksMissingTicketProcess` |
+
+ACX-V0-7707 preserves the pre-existing per-binary process-envelope, stream and exit contracts.

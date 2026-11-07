@@ -6,6 +6,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -18,14 +20,21 @@ import (
 )
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-corpus-republish", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-corpus-republish", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
-		os.Exit(code)
+	if code, handled := serveHelp(os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
 	}
-	if err := run(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := run(ctx, os.Args[1:], streams.Stdout(), streams.Stderr()); err != nil {
+		fmt.Fprintln(streams.Stderr(), err)
+		os.Exit(streams.Status(1))
 	}
 }
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {

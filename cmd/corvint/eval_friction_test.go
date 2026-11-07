@@ -6,7 +6,6 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -17,7 +16,7 @@ import (
 func TestURE997EvalFrictionReportsWithoutMutating(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	if output, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+	if output, err := fixtureGitCommand("-C", root, "init", "-q").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, output)
 	}
 	record := `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[{"kind":"read","path":"a","planned":false},{"kind":"read","path":"a","planned":true}]}]}`

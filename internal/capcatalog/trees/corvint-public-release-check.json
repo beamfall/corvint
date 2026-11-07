@@ -1,0 +1,73 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-public-release-check",
+  "helpJson": "corvint-public-release-check help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-public-release-check"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-public-release-check",
+      "summary": "usage: corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA [--qualification editor]\n       corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA --qualification core --node-sha256 SHA256 --npm-sha256 SHA256 --go-authority-bundle FILE --go-authority-sha256 SHA256\nEditor qualification rejects the four core runtime/authority flags; core requires all four.\n--browser-cache: populated pinned Playwright browser cache seed\n--bundle-dir: retained companion bundle directory\n--expected-commit: frozen Corvint source commit\n--expected-tree: frozen Corvint source tree\n--go-authority-bundle: core: canonical trusted-local Go authority attachment\n--go-authority-sha256: core: frozen Go authority attachment SHA-256\n--node: canonical Node executable\n--node-sha256: core: frozen Node executable SHA-256\n--npm-cache: populated npm cache seed\n--npm-sha256: core: frozen npm CLI SHA-256\n--output: new retained result JSON path\n--python: canonical Python executable\n--python-sha256: frozen Python executable SHA-256\n--qualification: qualification profile: editor or core\n--scratch: fresh owned scratch path\n--source-root: clean source root used to build this checker",
+      "usage": [
+        "corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA [--qualification editor]",
+        "corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA --qualification core --node-sha256 SHA256 --npm-sha256 SHA256 --go-authority-bundle FILE --go-authority-sha256 SHA256"
+      ],
+      "flags": [
+        "--browser-cache",
+        "--bundle-dir",
+        "--expected-commit",
+        "--expected-tree",
+        "--go-authority-bundle",
+        "--go-authority-sha256",
+        "--node",
+        "--node-sha256",
+        "--npm-cache",
+        "--npm-sha256",
+        "--output",
+        "--python",
+        "--python-sha256",
+        "--qualification",
+        "--scratch",
+        "--source-root"
+      ],
+      "required": [
+        "--source-root DIR",
+        "--bundle-dir DIR",
+        "--scratch DIR",
+        "--output FILE",
+        "--npm-cache DIR",
+        "--browser-cache DIR",
+        "--node FILE",
+        "--python FILE",
+        "--python-sha256 SHA256",
+        "--expected-commit SHA",
+        "--expected-tree SHA"
+      ],
+      "example": "corvint-public-release-check --source-root DIR --bundle-dir DIR --scratch DIR --output FILE --npm-cache DIR --browser-cache DIR --node FILE --python FILE --python-sha256 SHA256 --expected-commit SHA --expected-tree SHA",
+      "help": "corvint-public-release-check --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-public-release-check help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-public-release-check help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-public-release-check help --json",
+      "help": "corvint-public-release-check help --help"
+    }
+  ]
+}

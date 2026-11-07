@@ -24,6 +24,7 @@ var commandTreeInternal = []clitree.Internal{
 	{Word: "authority-event", Reason: "host hook event forwarded by the installed adapter"},
 	{Word: "--native-output", Reason: "authority-event option the installed adapter passes"},
 	{Word: "qualified-event", Reason: "host hook event forwarded by the installed adapter"},
+	{Word: "dogfood-record", Reason: "private local-outcome recorder invoked by dogfood change; the public workflow is dogfood"},
 	{Word: "dogfood-outcome-worker", Reason: "worker process dogfood starts for itself"},
 	{Word: "dogfood-verifier-worker", Reason: "worker process dogfood starts for itself"},
 	{Word: "--aggregate-over-limit", Reason: "dogfood-record option dogfood change passes for itself (DCW-V0-374)"},
@@ -43,25 +44,7 @@ var commandTreeInternal = []clitree.Internal{
 
 // commandTreeRefs are the command trees `corvint help --json` links: corvint's own and each
 // companion binary's with subcommands. The capabilities check reads the snapshots (CAP-V0-045).
-var commandTreeRefs = []capcatalog.CommandTreeRef{
-	{Binary: "corvint", Command: "corvint help --tree", Snapshot: "internal/capcatalog/trees/corvint.json"},
-	{Binary: "corvint-cem-candidate", Command: "corvint-cem-candidate help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-candidate.json"},
-	{Binary: "corvint-cem-experiments", Command: "corvint-cem-experiments help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-experiments.json"},
-	{Binary: "corvint-corpus-republish", Command: "corvint-corpus-republish help --json", Snapshot: "internal/capcatalog/trees/corvint-corpus-republish.json"},
-	{Binary: "corvint-dashboard-snapshot", Command: "corvint-dashboard-snapshot help --json", Snapshot: "internal/capcatalog/trees/corvint-dashboard-snapshot.json"},
-	{Binary: "corvint-gateway", Command: "corvint-gateway help --json", Snapshot: "internal/capcatalog/trees/corvint-gateway.json"},
-	{Binary: "corvint-go-test-provider", Command: "corvint-go-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-go-test-provider.json"},
-	{Binary: "corvint-intake", Command: "corvint-intake help --json", Snapshot: "internal/capcatalog/trees/corvint-intake.json"},
-	{Binary: "corvint-js-test-provider", Command: "corvint-js-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-js-test-provider.json"},
-	{Binary: "corvint-postmerge-connect", Command: "corvint-postmerge-connect help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-connect.json"},
-	{Binary: "corvint-postmerge-metrics", Command: "corvint-postmerge-metrics help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-metrics.json"},
-	{Binary: "corvint-postmerge-workflow", Command: "corvint-postmerge-workflow help --json", Snapshot: "internal/capcatalog/trees/corvint-postmerge-workflow.json"},
-	{Binary: "corvint-ruby-test-provider", Command: "corvint-ruby-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-ruby-test-provider.json"},
-	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
-	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
-	{Binary: "corvint-update", Command: "corvint-update help --json", Snapshot: "internal/capcatalog/trees/corvint-update.json"},
-	{Binary: "corvint-work-queue", Command: "corvint-work-queue help --json", Snapshot: "internal/capcatalog/trees/corvint-work-queue.json"},
-}
+var commandTreeRefs = capcatalog.TreeReferences()
 
 // commandTreeJSON is `corvint help --tree`, the canonical corvint-command-tree/0 document.
 func commandTreeJSON() string {

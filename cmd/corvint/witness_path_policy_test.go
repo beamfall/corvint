@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -27,7 +26,7 @@ func witnessPolicyRange(t *testing.T, policy string) string {
 	}
 	git := func(arguments ...string) {
 		t.Helper()
-		command := exec.Command("git", append([]string{"-c", "user.email=corvint@example.test", "-c", "user.name=Corvint Test", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
+		command := fixtureGitCommand(append([]string{"-c", "user.email=corvint@example.test", "-c", "user.name=Corvint Test", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

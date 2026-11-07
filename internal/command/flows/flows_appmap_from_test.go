@@ -2,7 +2,6 @@ package flows
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,8 +27,8 @@ func TestAMAPV0211BuildFromCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", rel}} {
-			cmd := exec.Command("git", args...)
-			cmd.Dir, cmd.Env = root, append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null")
+			cmd := fixtureGitCommand(args...)
+			cmd.Dir, cmd.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null")
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("git %v: %v %s", args, err, out)
 			}
