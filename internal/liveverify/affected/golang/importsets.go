@@ -61,11 +61,11 @@ func importSetPath(relative string) bool {
 // pattern that matches nothing. A directory whose header differs, or
 // cannot be read or parsed on either side, changed; a changed directory that
 // holds no unit of the graph changes the module's import graph, as does a
-// dirty module file. Source is the least dirty .go path whatever its header
+// dirty module file. Source is graph.SourcePath, whatever its header
 // (AFP-V0-9010): a reader not proven to observe the import graph alone may
 // read the package documentation or source text that no header holds.
 func ImportSetRecords(base, head fs.FS, graph *affected.Graph, dirty []string) *affected.ImportSetChanges {
-	changes := &affected.ImportSetChanges{Changed: map[string]string{}, Source: affected.SourcePath(dirty)}
+	changes := &affected.ImportSetChanges{Changed: map[string]string{}, Source: graph.SourcePath(dirty)}
 	byDirectory := map[string][]string{}
 	var directories []string
 	for _, relative := range dirty {

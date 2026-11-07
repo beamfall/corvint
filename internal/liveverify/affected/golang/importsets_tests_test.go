@@ -325,6 +325,10 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 		{"module helper", "package probe\n\nimport \"example.test/g/base\"\n\nvar _ = base.Name()\n", true},
 		{"template files", "package probe\n\nimport \"text/template\"\n\nvar _, _ = template.New(\"x\").ParseGlob(\"../lib/*.go\")\n", true},
 		{"does not parse", "package probe\n\nfunc {\n", true},
+		{"cgo", "package probe\n\n// #include <stdio.h>\nimport \"C\"\n", true},
+		{"linkname", "package probe\n\nimport _ \"unsafe\"\n\n//go:linkname read os.ReadFile\nfunc read(string) ([]byte, error)\n", true},
+		{"command path swapped", "package probe\n\nimport \"os/exec\"\n\nfunc list() error {\n\tc := exec.Command(\"go\", \"list\", \"-deps\", \"-f\", \"{{.ImportPath}}\", \"./cmd/tool\")\n\tc.Path = \"/usr/bin/git\"\n\treturn c.Run()\n}\n", true},
+		{"zip reader", "package probe\n\nimport \"archive/zip\"\n\nvar _, _ = zip.OpenReader(\"../lib.zip\")\n", true},
 		{"own testdata", "package probe\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar _, _ = os.ReadFile(filepath.Join(\"testdata\", \"fixture.txt\"))\nvar _, _ = os.ReadDir(\"testdata\")\n", false},
 		{"environment", "package probe\n\nimport \"os\"\n\nvar _ = os.Getenv(\"HOME\")\n", false},
 	}
@@ -357,5 +361,55 @@ func TestUnknownReaderFallsBackToRun_AFP_V0_9010(t *testing.T) {
 				t.Fatalf("a body-only edit of lib selected probe by %+v, want selected=%v (changes %+v)", witness, test.unproven, *changes)
 			}
 		})
+	}
+}
+
+// AFP-V0-9010: the Source an unproven reader is selected through is the
+// least dirty path the go command or a source parser may observe: a .go
+// file (testdata included), a file the go command lists by another suffix,
+// or any file below an embedding package, whose content its build reads. A
+// path of none of these kinds gives no Source, so it selects no unproven
+// reader through the import graph.
+func TestSourcePath_AFP_V0_9010(t *testing.T) {
+	graph, err := affected.Build(context.Background(), importGraphRepository(t), golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		dirty []string
+		want  string
+	}{
+		{[]string{"lib/lib.go"}, "lib/lib.go"},
+		{[]string{"lib/testdata/fixture.go"}, "lib/testdata/fixture.go"},
+		{[]string{"lib/asm_amd64.s"}, "lib/asm_amd64.s"},
+		{[]string{"lib/blob.syso"}, "lib/blob.syso"},
+		{[]string{"assets/data.txt"}, "assets/data.txt"},
+		{[]string{"z/z.go", "lib/helper.c"}, "lib/helper.c"},
+		{[]string{"README.md"}, ""},
+		{[]string{"lib/notes.txt"}, ""},
+		{nil, ""},
+	} {
+		if got := graph.SourcePath(test.dirty); got != test.want {
+			t.Errorf("SourcePath(%q) = %q, want %q", test.dirty, got, test.want)
+		}
+	}
+	// Both directions through the plan: an assembly file of base (which
+	// cmd/tool, the command wide builds, does not import) selects the
+	// unproven reader wide, and a README edit selects no reader.
+	for _, test := range []struct {
+		dirty string
+		wide  bool
+	}{{"base/asm_amd64.s", true}, {"README.md", false}} {
+		dirty := []string{test.dirty}
+		changes := golang.ImportSetRecords(fstest.MapFS{}, fstest.MapFS{}, graph, dirty)
+		wide := false
+		for _, selection := range affected.Select(graph.WithImportSetChanges(changes), dirty).Selected {
+			if selection.UnitID == importGraphModule+"wide" && selection.Witness.Kind == affected.WitnessImportGraphReader {
+				wide = true
+			}
+		}
+		if wide != test.wide {
+			t.Errorf("%s selects wide=%v, want %v (changes %+v)", test.dirty, wide, test.wide, *changes)
+		}
 	}
 }
