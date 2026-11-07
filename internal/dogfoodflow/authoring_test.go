@@ -39,6 +39,37 @@ func TestDCWV07403AggregateArgvRefusedBeforePrepare(t *testing.T) {
 	}
 }
 
+// DCW-V0-7403: a restart over an unfinished sidecar with typed VERIFY argv
+// counts the committed change instead of refusing the dirty worktree, both
+// over the limit and at it when more than 200 raw paths changed.
+func TestDCWV07403UnfinishedSidecarRestartCounts(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		source, other int
+		refused       bool
+	}{{"over-limit", 201, 0, true}, {"at-limit-raw-over", 198, 2, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := map[string]string{"pre_test.go": "package pre\nimport \"testing\"\nfunc TestA(t *testing.T) {}\nfunc TestB(t *testing.T) {}\n"}
+			for i := 0; i < tc.source; i++ {
+				files[fmt.Sprintf("source/f%03d.go", i)] = "package source\n"
+			}
+			for i := 0; i < tc.other; i++ {
+				files[fmt.Sprintf("records/f%03d.csv", i)] = "not an index source\n"
+			}
+			root, base := preflightRepository(t, files)
+			writeTree(t, root, map[string]string{finishLaneSidecar: "{\"unfinished\":"})
+			code, _, stderr, calls := preflightRun(t, root, ChangeOptions{Base: base, Citations: writeInput(t, "1\tpre.go\t1:1\tspecification\n"), VerifyFile: writeInput(t, "go test -run 'TestA|TestB' .\n"), AggregateOverLimit: true})
+			if strings.Contains(stderr, "aggregate-admission-unavailable") {
+				t.Fatalf("code=%d stderr=%s", code, stderr)
+			}
+			refused := strings.Contains(stderr, "REFUSE aggregate-verify-argv-unsupported")
+			if refused != tc.refused || (refused && (code != 2 || len(calls) != 0)) || (!refused && len(calls) == 0) {
+				t.Fatalf("refused=%t want=%t code=%d calls=%v stderr=%s", refused, tc.refused, code, calls, stderr)
+			}
+		})
+	}
+}
+
 // DCW-V0-7403: fallback permission does not select an aggregate for a small change.
 func TestDCWV07403SmallChangeAdmitsArgv(t *testing.T) {
 	root, base := preflightRepository(t, map[string]string{"pre_test.go": "package pre\nimport \"testing\"\nfunc TestA(t *testing.T) {}\nfunc TestB(t *testing.T) {}\n"})
