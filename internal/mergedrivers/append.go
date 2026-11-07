@@ -21,6 +21,7 @@ func Append(ctx context.Context, parent string, base, ours, theirs []byte, size 
 	if size < 1 || size > 1024 {
 		return nil, false, fmt.Errorf("invalid marker size")
 	}
+	size = appendMarkerSize(size, base, ours, theirs)
 	dir, err := os.MkdirTemp(parent, "append-union-")
 	if err != nil {
 		return nil, false, err
@@ -45,59 +46,95 @@ func Append(ctx context.Context, parent string, base, ours, theirs []byte, size 
 			return nil, false, err
 		}
 	}
-	// Literal start/base/end markers can be mistaken for generated delimiters.
-	// An equals line in the real base can likewise hide nonblank base content.
-	// Retain Git's conflict verbatim whenever those delimiters are ambiguous.
-	markers := [][]byte{bytes.Repeat([]byte{'<'}, size), bytes.Repeat([]byte{'|'}, size), bytes.Repeat([]byte{'>'}, size)}
-	for _, data := range [][]byte{base, ours, theirs} {
-		for _, line := range bytes.Split(data, []byte("\n")) {
-			for _, marker := range markers {
-				if bytes.HasPrefix(line, marker) {
-					return merged, false, nil
-				}
-			}
-		}
-	}
-	separator := bytes.Repeat([]byte{'='}, size)
-	for _, line := range bytes.Split(base, []byte("\n")) {
-		if bytes.Equal(bytes.TrimRight(line, "\r"), separator) {
-			return merged, false, nil
-		}
-	}
 	result, clean := resolveAppend(merged, size)
 	return result, clean, nil
 }
 
+// appendMarkerSize makes every generated delimiter distinguishable from content,
+// including literal Markdown underlines and labeled marker examples (DWC-V0-7700).
+func appendMarkerSize(size int, inputs ...[]byte) int {
+	if size < 7 {
+		size = 7
+	}
+	for _, data := range inputs {
+		for _, line := range bytes.Split(data, []byte("\n")) {
+			if len(line) == 0 || !strings.ContainsRune("<|=>", rune(line[0])) {
+				continue
+			}
+			run := 1
+			for run < len(line) && line[run] == line[0] {
+				run++
+			}
+			if run >= size {
+				size = run + 1
+			}
+		}
+	}
+	return size
+}
+
+// appendDelimiter recognizes only the exact width and labels emitted above.
+// Shorter marker runs are input text by construction; any other line reaching
+// the chosen width indicates malformed output and must never be resolved.
+func appendDelimiter(line string, size int) (byte, bool) {
+	line = strings.TrimRight(line, "\r\n")
+	if line == "" || !strings.ContainsRune("<|=>", rune(line[0])) {
+		return 0, true
+	}
+	run := 1
+	for run < len(line) && line[run] == line[0] {
+		run++
+	}
+	if run < size {
+		return 0, true
+	}
+	labels := map[byte]string{'<': " ours", '|': " base", '=': "", '>': " theirs"}
+	if run != size || line[run:] != labels[line[0]] {
+		return 0, false
+	}
+	return line[0], true
+}
+
 func resolveAppend(data []byte, size int) ([]byte, bool) {
+	if size < 1 {
+		return data, false
+	}
 	lines := strings.SplitAfter(string(data), "\n")
-	lt, bar, eq, gt := strings.Repeat("<", size), strings.Repeat("|", size), strings.Repeat("=", size), strings.Repeat(">", size)
 	var out bytes.Buffer
-	clean := true
+	clean, sawConflict := true, false
 	for i := 0; i < len(lines); {
-		line := lines[i]
-		if !strings.HasPrefix(line, lt+" ") && strings.TrimRight(line, "\r\n") != lt {
-			out.WriteString(line)
+		marker, valid := appendDelimiter(lines[i], size)
+		if !valid || (marker != 0 && marker != '<') {
+			return data, false
+		}
+		if marker == 0 {
+			out.WriteString(lines[i])
 			i++
 			continue
 		}
+		sawConflict = true
 		start, part := i, 0
 		var sides [3]string
 		i++
 		for ; i < len(lines); i++ {
-			s := lines[i]
-			if strings.HasPrefix(s, bar) && part == 0 {
-				part = 1
-			} else if strings.TrimRight(s, "\r\n") == eq && part == 1 {
-				part = 2
-			} else if strings.HasPrefix(s, gt) && part == 2 {
-				break
-			} else {
-				sides[part] += s
+			marker, valid = appendDelimiter(lines[i], size)
+			if !valid {
+				return data, false
 			}
+			if marker == 0 {
+				sides[part] += lines[i]
+				continue
+			}
+			if marker != "|=>"[part] {
+				return data, false
+			}
+			if part == 2 {
+				break
+			}
+			part++
 		}
 		if i == len(lines) {
-			out.WriteString(strings.Join(lines[start:], ""))
-			return out.Bytes(), false
+			return data, false
 		}
 		i++
 		if strings.TrimSpace(sides[1]) != "" {
@@ -120,5 +157,5 @@ func resolveAppend(data []byte, size int) ([]byte, bool) {
 		}
 		out.WriteString(t)
 	}
-	return out.Bytes(), clean
+	return out.Bytes(), clean && sawConflict
 }
