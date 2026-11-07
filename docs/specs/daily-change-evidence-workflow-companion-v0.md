@@ -226,10 +226,16 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   CGO_ENABLED`) in the git directory's `corvint/dogfood-static-pass`, and a later run whose worktree
   gives the same key MUST skip those checks, printing `static checks REUSE: they passed for this
   clean tree TREE at BASE BASE (DWC-V0-757)`. A `git status` that fails gives no key, never a clean
-  one. A dirty worktree, an unreadable key or any other key runs them. Measured on WSL: `make
+  one. Inputs `git status` cannot see give no key either, as `script/gate-receipt` and
+  `tools/gate-ledger` (`GL-V0-005`) refuse them (review, 2026-11-06): a tracked entry flagged
+  skip-worktree or assume-unchanged, and an ignored `.go` file outside `.`- and `_`-prefixed and
+  testdata directories, which `go run` would compile. A dirty worktree, an unreadable key or any
+  other key runs them. Measured on WSL: `make
   dogfood-finish` 40.2 s to 24.2 s, and two runs at the same base sealed byte-identical CEMs.
   Evidence: the `DWC-V0-757` case of `script/dogfood-cache_test.sh` (a second run skips the checks
-  with the sidecar present; an untracked file runs them) and `docs/build-log/2026-11-01-dsl-w32.md`.
+  with the sidecar present; an untracked file, an ignored `.go` file under
+  `tools/test-read-scopes-check/`, and an assume-unchanged or skip-worktree entry run them; an ignored
+  `.go` file under testdata does not) and `docs/build-log/2026-11-01-dsl-w32.md`.
   Rollback: drop the key, the stamp and the `static_reuse` guards.
 - `DWC-V0-758`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
   `DWC-V0-745`) The last line of `make dogfood-closeout-precheck` MUST say whether the sealed head
@@ -279,7 +285,7 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | HEAD moves while the unwind inspects the range (`DWC-V0-746`) | `NOT_RUN HEAD moved`; nothing is reset |
 | A VERIFY file the pre-flight refuses (`DWC-V0-753`) | the pre-flight lines and `nothing was built, prepared or bound`; exit 2 before any Git read |
 | The draft anchor listing or a blob read fails (`DWC-V0-754`) | the one `git grep -z -n -o` runs instead |
-| A dirty worktree or an unreadable static key (`DWC-V0-757`) | the static checks run |
+| A dirty worktree, an unreadable static key, a skip-worktree or assume-unchanged entry, or an ignored `.go` file `go run` would compile (`DWC-V0-757`) | the static checks run |
 
 ## Acceptance evidence
 
