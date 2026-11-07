@@ -567,11 +567,13 @@ jobs:
     # It decides nothing about which packages run: every shard still runs its own AFP-V0-098 gate
     # and, on FULL, its complete-universe partition over the sized matrix (AFP-V0-022), and
     # go-product's AFP-V0-591 guard checks the sized count. It runs only for a same-repository pull
-    # request with narrowing on and a MET verdict whose docs-plan is neither DOCS nor REUSE; any
-    # other event, a skip and any failure keep the full sixteen-shard matrix, so a merge-queue
-    # entry and a main push are unchanged.
-    needs: [docs-plan, narrowing-verdict]
-    if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && needs.narrowing-verdict.outputs.verdict == 'MET' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+    # request with narrowing on and a MET verdict; any other event, a skip and any failure keep the
+    # full sixteen-shard matrix, so a merge-queue entry and a main push are unchanged. It needs no
+    # docs-plan output, so it runs beside docs-plan, not after it: on a DOCS or REUSE decision no
+    # reader uses its outputs (go-product-shard does not start, go-product requires no coverage
+    # marker and ci-narrowed-tree-record does not run), so its count is unused there.
+    needs: [narrowing-verdict]
+    if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && needs.narrowing-verdict.outputs.verdict == 'MET'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     permissions:
