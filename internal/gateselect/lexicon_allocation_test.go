@@ -81,7 +81,7 @@ func TestScanSourceTokenHistoryKeepsCommentBoundary(t *testing.T) {
 		{"var _ = other.Getwd()", nil},
 		{"var _ = Getwd()", []string{"os.Getwd (dot import)"}},
 	} {
-		got := scanSource([]byte(tc.body), map[string]string{"alias": "os"}, map[string]bool{"os": true})
+		got := scanSource([]byte(tc.body), map[string]string{"alias": "os"}, map[string]bool{"os": true}, nil)
 		if got.err != nil || !reflect.DeepEqual(got.calls, tc.want) {
 			t.Fatalf("scan(%q) calls = %v, error = %v; want %v", tc.body, got.calls, got.err, tc.want)
 		}

@@ -163,11 +163,22 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		callers = nil
 	}
 	for index := range units {
+		// A declared edge does not say which file runs the binary, so it is
+		// never test-only (AFP-V0-2991).
 		for _, id := range declaredEdges[index] {
 			edges[index][id] = true
 		}
 		if len(edges[index]) != 0 {
 			units[index].Execs = sortedKeys(edges[index])
+			testOnly := map[string]bool{}
+			for id, code := range edges[index] {
+				if !code {
+					testOnly[id] = true
+				}
+			}
+			if len(testOnly) != 0 {
+				units[index].TestOnlyExecs = sortedKeys(testOnly)
+			}
 		}
 		if files := callers[units[index].ID]; len(files) != 0 {
 			units[index].ExecConsumers = files
@@ -209,7 +220,10 @@ func matchBinaryConsumers(consumers map[string][]string, commands map[string]str
 // (AFP-V0-402). A literal that is only an argument of a proven `go list`
 // call, which listed holds by file, lists the command's import graph and
 // runs no binary: it adds no edge here (AFP-V0-2200). Only files that name a
-// command are parsed in full.
+// command are parsed in full. Each command maps to true when a non-test file
+// uses it, which the unit's code may run, and to false when only test files
+// do (AFP-V0-2991): the sources are searched first, so a command they use is
+// never test-only, and an unparsed source names every candidate.
 func literalExecs(root *affected.Source, unit affected.Unit, directory string, owner module, commands map[string]string, listed map[string]goListFile) map[string]bool {
 	candidates := map[string]string{}
 	for _, value := range unit.PathTokens {
@@ -225,9 +239,9 @@ func literalExecs(root *affected.Source, unit affected.Unit, directory string, o
 	if len(candidates) == 0 {
 		return edges
 	}
-	for _, relative := range slices.Concat(unit.Sources, unit.Tests) {
+	for index, relative := range slices.Concat(unit.Sources, unit.Tests) {
 		for target := range usedCommandLiterals(root, relative, directory, owner, candidates, listed[relative].listed) {
-			edges[candidates[target]] = true
+			edges[candidates[target]] = index < len(unit.Sources)
 			delete(candidates, target)
 		}
 		if len(candidates) == 0 {

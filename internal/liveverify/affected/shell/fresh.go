@@ -403,3 +403,18 @@ func backgroundedFreshList(parsed script, assigned int) bool {
 	}
 	return false
 }
+
+// onlyAssigned reports a name every occurrence of which in the resolver's
+// file is a plain `NAME=VALUE` assignment word with the same text or a
+// non-assigning expansion: the resolver saw no differing value, declaration,
+// array or `+=` form (conflicting), and the text holds exactly the counted
+// assignments and no `read`, `for`, `local` or `${NAME=...}` form
+// (occurrences), so whichever assignment ran, the value is the same
+// (AFP-V0-2954).
+func onlyAssigned(r *resolver, name string) bool {
+	if r.counts[name] < 2 || r.conflicting[name] || r.text == "" {
+		return false
+	}
+	assignments, ok := occurrences(r.text, name)
+	return ok && assignments == r.counts[name]
+}

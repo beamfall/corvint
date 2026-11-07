@@ -2,6 +2,7 @@ package affected
 
 import (
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -16,12 +17,15 @@ const (
 
 // driverScan is what the shell scanner found in recipe or step text: the
 // literal path tokens, the paths whose owners the text runs (PathImports),
-// the make invocations, and whether a command word is computed.
+// the paths whose owners only `go vet` or `go list` reads and nothing runs
+// (BuildPathImports, AFP-V0-2951), the make invocations, and whether a
+// command word is computed.
 type driverScan struct {
-	computed bool
-	tokens   map[string]bool
-	paths    map[string]bool
-	makes    []driverMakeCall
+	computed   bool
+	tokens     map[string]bool
+	paths      map[string]bool
+	buildPaths map[string]bool
+	makes      []driverMakeCall
 }
 
 // driverMakeCall is one `make` invocation. Dir is the repository-relative
@@ -37,7 +41,7 @@ type driverMakeCall struct {
 }
 
 func newDriverScan() *driverScan {
-	return &driverScan{tokens: map[string]bool{}, paths: map[string]bool{}}
+	return &driverScan{tokens: map[string]bool{}, paths: map[string]bool{}, buildPaths: map[string]bool{}}
 }
 
 // driverWord is one shell word: its text with quotes removed and each
@@ -53,12 +57,28 @@ type driverShellScanner struct {
 	module   string
 	depth    int
 	heredocs []string
+	// feeds counts the enclosing contexts whose standard output another
+	// command consumes: a pipe, a command or process substitution, or make's
+	// `$(shell ...)` (AFP-V0-2956).
+	feeds int
+	// fed counts the enclosing xargs runs, whose command takes arguments
+	// read from standard input, and replaces holds their replacement strings
+	// (AFP-V0-2957).
+	fed      int
+	replaces []string
 }
 
 // scanShell scans script, run with working directory cwd ("" when unknown),
 // into scan. module is the main Go module path, "" when there is none.
 func (scan *driverScan) scanShell(script, cwd, module string) {
 	scanner := &driverShellScanner{scan: scan, module: module}
+	scanner.script(script, cwd)
+}
+
+// scanShellOutput is scanShell for a script whose standard output the caller
+// substitutes into other text, such as make's `$(shell ...)` (AFP-V0-2956).
+func (scan *driverScan) scanShellOutput(script, cwd, module string) {
+	scanner := &driverShellScanner{scan: scan, module: module, feeds: 1}
 	scanner.script(script, cwd)
 }
 
@@ -73,10 +93,23 @@ func (s *driverShellScanner) script(script, cwd string) {
 		s.scan.tokens[token] = true
 	}
 	var words []driverWord
-	var redirect bool
-	flush := func() {
+	var redirect, backtick bool
+	// substitutions holds, per open parenthesis, whether it opened a
+	// process substitution (`<(`, `>(`).
+	var substitutions []bool
+	// flush runs the pending command. Its standard output feeds another
+	// command when a pipe follows it or a substitution encloses it
+	// (AFP-V0-2956).
+	flush := func(piped bool) {
 		if len(words) != 0 {
+			feeding := piped || backtick || slices.Contains(substitutions, true)
+			if feeding {
+				s.feeds++
+			}
 			cwd = s.command(words, cwd)
+			if feeding {
+				s.feeds--
+			}
 		}
 		words = nil
 	}
@@ -91,8 +124,29 @@ func (s *driverShellScanner) script(script, cwd string) {
 				position++
 			case char == '#':
 				position = len(line)
-			case char == ';' || char == '|' || char == '(' || char == ')' || char == '`':
-				flush()
+			case char == '|':
+				// A pipe, `|` or `|&`, not either character of `||`.
+				flush(!strings.HasPrefix(line[position:], "||") && (position == 0 || line[position-1] != '|'))
+				position++
+			case char == '(':
+				flush(false)
+				// After a redirection operator, `(` opens a process
+				// substitution: no redirect target word follows.
+				substitutions = append(substitutions, redirect)
+				redirect = false
+				position++
+			case char == ')':
+				flush(false)
+				if len(substitutions) != 0 {
+					substitutions = substitutions[:len(substitutions)-1]
+				}
+				position++
+			case char == '`':
+				flush(false)
+				backtick = !backtick
+				position++
+			case char == ';':
+				flush(false)
 				position++
 			case char == '&':
 				if position+1 < len(line) && line[position+1] == '>' {
@@ -100,7 +154,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 					position += 2
 					continue
 				}
-				flush()
+				flush(false)
 				position++
 			case char == '<' && strings.HasPrefix(line[position:], "<<") && !strings.HasPrefix(line[position:], "<<<"):
 				position += 2
@@ -129,7 +183,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 					continue
 				}
 				if !word.quoted && (word.text == "{" || word.text == "}") {
-					flush()
+					flush(false)
 					continue
 				}
 				if word.text != "" || word.quoted {
@@ -140,7 +194,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 		if strings.HasSuffix(line, "\\") {
 			continue
 		}
-		flush()
+		flush(false)
 		redirect = false
 		for len(s.heredocs) != 0 && index+1 < len(lines) {
 			terminator := s.heredocs[0]
@@ -154,7 +208,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 		}
 		s.heredocs = nil
 	}
-	flush()
+	flush(false)
 }
 
 // word reads one shell word starting at position. A command substitution
@@ -194,7 +248,9 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 			if end < 0 {
 				end = len(line) - position - 1
 			}
+			s.feeds++
 			s.script(line[position+1:position+1+end], cwd)
+			s.feeds--
 			text.WriteString(driverExpansion)
 			position += end + 2
 		case char == '$':
@@ -204,7 +260,9 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 				end := driverMatchingClose(line, next)
 				inner := line[next+1 : max(next+1, end)]
 				if !strings.HasPrefix(inner, "(") {
+					s.feeds++
 					s.script(inner, cwd)
+					s.feeds--
 				}
 				text.WriteString(driverExpansion)
 				position = min(end+1, len(line))
@@ -309,7 +367,22 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				}
 				words = words[1:]
 			}
-		case head == "nice" || head == "timeout" || head == "xargs" || head == "ionice" || head == "taskset":
+		case head == "xargs":
+			// The command xargs runs takes arguments read from standard
+			// input, which the scan cannot see (AFP-V0-2957).
+			rest, replace, ok := driverXargs(words[1:])
+			if !ok {
+				s.scan.computed = true
+				return cwd
+			}
+			s.fed++
+			defer func() { s.fed-- }()
+			if replace != "" {
+				s.replaces = append(s.replaces, replace)
+				defer func() { s.replaces = s.replaces[:len(s.replaces)-1] }()
+			}
+			words = rest
+		case head == "nice" || head == "timeout" || head == "ionice" || head == "taskset":
 			words = words[1:]
 			for len(words) != 0 && strings.HasPrefix(words[0].text, "-") {
 				if !strings.Contains(words[0].text, "=") && len(words[0].text) == 2 && strings.IndexByte("nksIcpLPdEaR", words[0].text[1]) >= 0 {
@@ -332,6 +405,76 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 		}
 	}
 	return cwd
+}
+
+// driverXargsValues are the short xargs options (GNU and BSD) whose value is
+// the rest of the word or, when that is empty, the next word, and
+// driverXargsLongValues the long options that take a required value.
+var (
+	driverXargsValues     = map[byte]bool{'a': true, 'd': true, 'E': true, 'I': true, 'J': true, 'L': true, 'n': true, 'P': true, 's': true, 'R': true, 'S': true}
+	driverXargsLongValues = map[string]bool{"--arg-file": true, "--delimiter": true, "--max-args": true, "--max-procs": true, "--max-chars": true, "--process-slot-var": true}
+)
+
+// driverXargs splits the options of an xargs invocation from the command it
+// runs. replace is the replacement string `-I`, `-J`, `-i` or `--replace`
+// names ("" without one); ok is false when an option lacks its value.
+func driverXargs(words []driverWord) (rest []driverWord, replace string, ok bool) {
+	for len(words) != 0 {
+		option := words[0].text
+		if option == "--" {
+			return words[1:], replace, true
+		}
+		if !strings.HasPrefix(option, "-") || option == "-" {
+			break
+		}
+		words = words[1:]
+		if strings.HasPrefix(option, "--") {
+			name, value, valued := strings.Cut(option, "=")
+			if name == "--replace" {
+				replace = "{}"
+				if valued {
+					replace = value
+				}
+			}
+			if !valued && driverXargsLongValues[name] {
+				if len(words) == 0 {
+					return nil, "", false
+				}
+				words = words[1:]
+			}
+			continue
+		}
+		for index := 1; index < len(option); index++ {
+			letter := option[index]
+			if letter == 'i' {
+				// -i[R]: R, by default {}, is the replacement.
+				replace = "{}"
+				if index+1 < len(option) {
+					replace = option[index+1:]
+				}
+				break
+			}
+			if letter == 'e' || letter == 'l' {
+				// -e[EOF] and -l[MAX] take only an attached value.
+				break
+			}
+			if driverXargsValues[letter] {
+				value := option[index+1:]
+				if value == "" {
+					if len(words) == 0 {
+						return nil, "", false
+					}
+					value = words[0].text
+					words = words[1:]
+				}
+				if letter == 'I' || letter == 'J' {
+					replace = value
+				}
+				break
+			}
+		}
+	}
+	return words, replace, true
 }
 
 func driverAssignment(word string) bool {
@@ -395,14 +538,26 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	if driverComputedWord(head) {
 		s.scan.computed = true
 	}
+	for _, replace := range s.replaces {
+		// The command xargs runs is named by what it reads (AFP-V0-2957).
+		if strings.Contains(head, replace) {
+			s.scan.computed = true
+		}
+	}
 	base := path.Base(head)
 	if driverInterpreters[base] {
+		// operand reports a script operand or an inline program; without
+		// one the interpreter reads its program from standard input: a
+		// pipe, a heredoc whose body this scanner skips, or a redirect
+		// (AFP-V0-2958).
+		operand := false
 		for index := 1; index < len(words); index++ {
 			arg := words[index].text
 			if driverShells[base] && strings.HasPrefix(arg, "-") && strings.HasSuffix(arg, "c") && !strings.HasPrefix(arg, "--") {
 				if index+1 < len(words) {
 					s.script(words[index+1].text, cwd)
 				}
+				operand = true
 				break
 			}
 			if arg == "-c" || arg == "-e" || (!driverShells[base] && strings.HasPrefix(arg, "-")) {
@@ -411,9 +566,18 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 				// consume the next word; retain the site rather than guess
 				// which word names a script.
 				s.scan.computed = true
+				operand = true
 				break
 			}
-			if strings.HasPrefix(arg, "-") {
+			if driverShells[base] && (arg == "-" || !strings.HasPrefix(arg, "--") && strings.HasPrefix(arg, "-") && strings.Contains(arg, "s")) {
+				// `-s` and `-` read the program from standard input.
+				break
+			}
+			if driverShells[base] && (arg == "-o" || arg == "+o") && index+1 < len(words) {
+				index++
+				continue
+			}
+			if strings.HasPrefix(arg, "-") || driverShells[base] && strings.HasPrefix(arg, "+") {
 				if arg == "-m" && index+1 < len(words) {
 					index++
 				}
@@ -423,7 +587,13 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 				s.scan.computed = true
 			}
 			s.pathWord(arg, cwd)
+			operand = true
 			break
+		}
+		// An interpreter xargs runs may take its script from what xargs
+		// reads (AFP-V0-2957).
+		if !operand || s.fed > 0 {
+			s.scan.computed = true
 		}
 	}
 	s.pathWord(head, cwd)
@@ -432,18 +602,42 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 }
 
 // embedded finds a go or make invocation anywhere in a command, such as one
-// a wrapper script runs, and records every path-like argument.
+// a wrapper script runs, and records every path-like argument, except a
+// package pattern a build-only go command already recorded as a build path
+// import (AFP-V0-2951). After a feeder (xargs, parallel, or find's -exec,
+// -execdir, -ok or -okdir) the command takes arguments the scan cannot see:
+// a go or make invocation is fed, an interpreter is a computed invocation,
+// and so is a command word holding the replacement string `{}` (or, after
+// parallel, any `{`) (AFP-V0-2957).
 func (s *driverShellScanner) embedded(words []driverWord, cwd string) {
+	built := map[int]bool{}
+	fed := s.fed > 0
+	parallel := false
 	for index, word := range words {
-		switch path.Base(word.text) {
+		base := path.Base(word.text)
+		switch base {
 		case "go":
 			if index+1 < len(words) && !driverDynamic(word.text) {
-				s.goInvocation(words[index+1:], cwd)
+				for pattern := range s.goInvocation(words[index+1:], cwd, fed) {
+					built[index+1+pattern] = true
+				}
 			}
 		case "make", "gmake":
-			s.makeInvocation(words[index+1:], cwd)
+			s.makeInvocation(words[index+1:], cwd, fed)
 		}
-		if index > 0 {
+		if fed && driverInterpreters[base] || parallel && strings.Contains(word.text, "{") {
+			s.scan.computed = true
+		}
+		switch {
+		case base == "parallel":
+			fed, parallel = true, true
+		case base == "xargs" || word.text == "-exec" || word.text == "-execdir" || word.text == "-ok" || word.text == "-okdir":
+			fed = true
+			if index+1 < len(words) && strings.Contains(words[index+1].text, "{}") {
+				s.scan.computed = true
+			}
+		}
+		if index > 0 && !built[index] {
 			s.pathWord(word.text, cwd)
 		}
 	}
@@ -501,22 +695,38 @@ var driverGoBoolFlags = map[string]bool{
 	"-test": true, "-find": true, "-compiled": true, "-export": true, "-buildvcs": true, "-fullpath": true,
 }
 
+// driverGoBuildOnlyCommands are the package commands that read the packages
+// they name without running any of their code or leaving a binary another
+// step could run (AFP-V0-2951). `go build` and `go install` are not among
+// them: a later step, or a target that depends on this one, may run what they
+// build.
+var driverGoBuildOnlyCommands = map[string]bool{"vet": true, "list": true}
+
 // goInvocation records the package patterns of `go <command> ...` as path
-// imports. A computed pattern, or a relative one under an unknown working
-// directory, imports every owner.
-func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
+// imports, and those of a build-only command as build path imports. A
+// computed pattern, or a relative one under an unknown working directory,
+// imports every owner, and so does a fed invocation, whose further arguments
+// a feeder supplies (AFP-V0-2957). A build-only command whose standard output
+// feeds another command is no build-only command: the consumer may run what
+// it lists (AFP-V0-2956). It returns the indexes, into words, of the patterns
+// a build-only command recorded, so the caller does not also record them as
+// paths the command runs; every other word stays the caller's.
+func (s *driverShellScanner) goInvocation(words []driverWord, cwd string, fed bool) map[int]bool {
+	offset := 0
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
 		var directory string
 		switch {
 		case words[0].text == "-C" && len(words) >= 2:
 			directory = words[1].text
 			words = words[2:]
+			offset += 2
 		case strings.HasPrefix(words[0].text, "-C="):
 			directory = strings.TrimPrefix(words[0].text, "-C=")
 			words = words[1:]
+			offset++
 		default:
 			s.scan.computed = true
-			return
+			return nil
 		}
 		if driverDynamic(directory) || cwd == "" {
 			cwd = ""
@@ -525,10 +735,20 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 		}
 	}
 	if len(words) == 0 || !driverGoPackageCommands[words[0].text] {
-		return
+		return nil
 	}
 	command := words[0].text
 	words = words[1:]
+	offset++
+	into := s.scan.paths
+	buildOnly := driverGoBuildOnlyCommands[command] && s.feeds == 0
+	if buildOnly {
+		into = s.scan.buildPaths
+	}
+	if fed {
+		into["..."] = true
+	}
+	built := map[int]bool{}
 	hasPackage := false
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
@@ -541,7 +761,7 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 				if arg == "-C" {
 					if index+1 == len(words) {
 						s.scan.computed = true
-						return
+						return built
 					}
 					index++
 					directory = words[index].text
@@ -559,62 +779,69 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string) {
 			continue
 		}
 		hasPackage = true
-		s.goPattern(arg, cwd)
+		if s.goPattern(arg, cwd, into) && buildOnly {
+			built[offset+index] = true
+		}
 		if command == "run" && !strings.HasSuffix(arg, ".go") {
-			return
+			return built
 		}
 	}
 	if !hasPackage && command != "run" {
 		// Package commands other than run default to the current package.
 		// goPattern keeps every owner when cd or -C left cwd unresolved.
-		s.goPattern(".", cwd)
+		s.goPattern(".", cwd, into)
 	}
+	return built
 }
 
-func (s *driverShellScanner) goPattern(pattern, cwd string) {
+// goPattern records one package pattern in into: the scan's paths, or its
+// build paths for a build-only command. It reports whether it recorded one; a
+// glob, a standard-library or external pattern records none.
+func (s *driverShellScanner) goPattern(pattern, cwd string, into map[string]bool) bool {
 	switch {
 	case strings.ContainsAny(pattern, "*?["):
 		// Shell globs are not literal package paths. Retain the caller
 		// rather than silently importing a path that has no owner.
 		s.scan.computed = true
-		return
+		return false
 	case driverDynamic(pattern):
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case pattern == "all":
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case pattern == "std" || pattern == "cmd":
-		return
+		return false
 	}
 	pattern, _, _ = strings.Cut(pattern, "@")
 	relative := ""
 	switch {
 	case pattern == "." || pattern == ".." || strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../"):
 		if cwd == "" {
-			s.scan.paths["..."] = true
-			return
+			into["..."] = true
+			return true
 		}
 		relative = driverGoRelative(cwd, pattern)
 	case s.module != "" && (pattern == s.module || pattern == s.module+"/..."):
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	case s.module != "" && strings.HasPrefix(pattern, s.module+"/"):
 		relative = strings.TrimPrefix(pattern, s.module+"/")
 	case strings.HasSuffix(pattern, ".go"):
 		if cwd == "" {
-			s.scan.paths["..."] = true
-			return
+			into["..."] = true
+			return true
 		}
 		relative = driverJoin(cwd, pattern)
 	default:
-		return
+		return false
 	}
 	if relative == "" {
-		s.scan.paths["..."] = true
-		return
+		into["..."] = true
+		return true
 	}
-	s.scan.paths[relative] = true
+	into[relative] = true
+	return true
 }
 
 // driverGoRelative resolves a relative package pattern against cwd, keeping a
@@ -643,9 +870,10 @@ func driverGoRelative(cwd, pattern string) string {
 
 var driverMakeValueFlags = map[string]bool{"-o": true, "-W": true, "-I": true, "-l": true, "--old-file": true, "--what-if": true, "--include-dir": true, "--load-average": true}
 
-// makeInvocation records a `make` call: its directory, file and goals.
-func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string) {
-	call := driverMakeCall{Dir: cwd}
+// makeInvocation records a `make` call: its directory, file and goals. A fed
+// call, whose further goals a feeder supplies, is computed (AFP-V0-2957).
+func (s *driverShellScanner) makeInvocation(words []driverWord, cwd string, fed bool) {
+	call := driverMakeCall{Dir: cwd, Computed: fed}
 	if cwd == "" {
 		call.Unbounded = true
 	}

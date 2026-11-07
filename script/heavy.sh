@@ -344,9 +344,9 @@ pin_go() {
   [[ $want =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0 # a language-only line pins no release
   { read -r have; read -r cache; read -r os; read -r arch; } < <(GOTOOLCHAIN=local go env GOVERSION GOMODCACHE GOOS GOARCH 2> /dev/null)
   [[ ${have-} == "go$want" ]] && return 0
-  for c in "${HOME:-/nonexistent}/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
-    if [[ -x $c/go && $(GOTOOLCHAIN=local "$c/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
-      export PATH="$c:$PATH"
+  for sdk in "${HOME:-/nonexistent}/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
+    if [[ -x $sdk/go && $(GOTOOLCHAIN=local "$sdk/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
+      export PATH="$sdk:$PATH"
       return 0
     fi
   done
@@ -2160,7 +2160,7 @@ cache_trim() {
 # shell would expand or treat as an operator (ASD-V0-939).
 IFS= read -r -d '' unwrap_perl << 'PERL' || :
 my ($s, $cur, $have, $q) = (shift, "", 0, "");
-my @w;
+my @words;
 for (my $i = 0; $i < length $s; $i++) {
     my $c = substr $s, $i, 1;
     if ($q eq "'") { if ($c eq "'") { $q = "" } else { $cur .= $c } next }
@@ -2172,27 +2172,27 @@ for (my $i = 0; $i < length $s; $i++) {
         ($cur, $have) = ($cur . substr($s, $i, 1), 1);
         next;
     }
-    if ($c eq " " || $c eq "\t") { push @w, $cur if $have; ($cur, $have) = ("", 0); next }
+    if ($c eq " " || $c eq "\t") { push @words, $cur if $have; ($cur, $have) = ("", 0); next }
     exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/; # bash32: allow
     ($cur, $have) = ($cur . $c, 1);
 }
 exit 3 if length $q;
-push @w, $cur if $have;
-print map { "$_\0" } @w;
+push @words, $cur if $have;
+print map { "$_\0" } @words;
 PERL
 
 # unwrap_shell COMMAND...: the argv to run into heavy_argv. `sh -c STRING` or `bash -c STRING` with
 # a go test or go vet inside becomes STRING's words when STRING is a simple command (leading
 # NAME=VALUE words through env) and is refused otherwise; any other command is kept (ASD-V0-939).
 unwrap_shell() {
-  local w words=()
+  local word words=()
   heavy_argv=("$@")
   case ${1##*/} in sh | bash) ;; *) return 0 ;; esac
   [[ ${2-} == -c && $# -ge 3 && " $3 " =~ [[:space:]]go[[:space:]]+(test|vet)[[:space:]] ]] || return 0
   if (($# > 3)) || ! perl -e "$unwrap_perl" "$3" > /dev/null; then
     refuse "wrapped-compound $1 -c '$3': heavy.sh cannot tell where its go command runs; run it directly, for example script/heavy.sh env K=V go test -run X ./pkg"
   fi
-  while IFS= read -r -d '' w; do words+=("$w"); done < <(perl -e "$unwrap_perl" "$3")
+  while IFS= read -r -d '' word; do words+=("$word"); done < <(perl -e "$unwrap_perl" "$3")
   [[ ${words[0]-} =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && words=(env ${words[@]+"${words[@]}"})
   printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]-}" >&2
   heavy_argv=(${words[@]+"${words[@]}"})
