@@ -136,6 +136,8 @@ AFP-V0-2723	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2724	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;	standing	2026-10-11; V1-4934
 AFP-V0-2725	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934;	standing	2026-10-11; V1-4934
 AFP-V0-2726	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4934)	standing	2026-10-11; V1-4934
+AFP-V0-7920	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4501)	standing	2026-10-11; V1-4501
+AFP-V0-7921	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5045)	standing	2026-10-11; V1-5045
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -3746,6 +3748,9 @@ DWC-V0-7600	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimen
 DWC-V0-7601	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
 DWC-V0-7602	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
 DWC-V0-7603	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); amends	standing	2026-11-06
+AFP-V0-7922	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-07); V1-5015; extends	standing	2026-11-07; V1-5015
+AFP-V0-7923	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-07); V1-5015) A VERIF	standing	2026-11-07; V1-5015
+AFP-V0-7924	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-07); V1-5016; extends	standing	2026-11-07; V1-5016
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-

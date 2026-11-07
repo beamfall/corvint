@@ -169,6 +169,38 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   prints the same fix line). Rollback: restore the previous fix
   line.
 
+- `AFP-V0-7922`: (experimental under the standing lane auto-accept (2026-11-07); V1-5015; extends
+  `DCW-V0-804`) A VERIFY line whose first word is `env`, followed by one or more `NAME=value`
+  assignments of which at least one value is single- or double-quoted, MUST be recorded as the
+  typed argv it runs: `env`, each assignment with its value's quotes removed and its bytes kept
+  exactly, then the command words, as `DCW-V0-804` records a line without the `env` word. So
+  `env LANE_SCRIPTS_GROUPS='core policy' bash script/lane-scripts_test.sh` records
+  `["env","LANE_SCRIPTS_GROUPS=core policy","bash","script/lane-scripts_test.sh"]`. An `env` line
+  with no quoted value keeps its unchanged v1 command form. Unquoted shell metacharacters (a pipe,
+  `;`, a glob, `$` expansion inside a value), an `env` option such as `-i`, and an assignment after
+  the command word stay refused as `unsupported shell syntax`. Evidence:
+  `TestVerifyArgumentsAFPV07922AdmitsEnvWordBeforeQuotedAssignment`. Rollback: delete the `env`
+  word branch of `verifyLineArguments`.
+
+- `AFP-V0-7923`: (experimental under the standing lane auto-accept (2026-11-07); V1-5015) A VERIFY
+  line holding a command substitution, `$(...)` or a backtick, MUST stay refused, and
+  `dogfood finish-lane`'s `unsupported-verify-syntax` refusal MUST name the line with a `refused:`
+  line saying a substitution needs a shell, and a `fix:` line naming the plain command to list
+  instead and the finish-lane rerun: `make go-version` (whose recipe is the same toolchain check)
+  when the line reads `go env GOVERSION`, otherwise a committed script listed as
+  `sh path/to/script.sh` (`DCW-V0-065`). Evidence:
+  `TestFinishLaneAFPV07923NamesFixForCommandSubstitution`. Rollback: delete
+  `commandSubstitutionFix` and its call.
+
+- `AFP-V0-7924`: (experimental under the standing lane auto-accept (2026-11-07); V1-5016; extends
+  `DCW-V0-819` and `DCW-V0-921`) When `dogfood change` reports no-diff-yet with the prechange-query
+  or prechange-impact receipt absent, it MUST end the receipt lines with one `fix:` line naming the
+  exact rerun, `make dogfood-change BASE=<base> TASK="THE CHANGE" PATHS="PATH..."`, which records
+  both receipts bound to BASE (`DCW-V0-621`), so a lane that ran only `make dogfood-change` is told
+  how to avoid NOT_OBSERVED receipts at the bind. With both receipts present no such line is
+  printed. Evidence: `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart`. Rollback: delete the line
+  from `absentReceiptHints`.
+
 ## Failure modes
 
 | Condition | Required observation |
@@ -186,6 +218,8 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `BASE=merge-forward` with no merge, an octopus, a foreign merge or a non-mainline merged parent | `dogfood-merge-base: REFUSE <code>` with a `fix:` line, exit 2; make then stops with `BASE=merge-forward refused` before any target runs (`DWC-V0-7601`) |
 | `dogfood-merge-base.sh --paths` when `git show --remerge-diff` fails | `REFUSE remerge-diff-failed`, exit 2, no path printed (`DWC-V0-7601`) |
 | A line-citations refusal whose input path holds a literal `$` | The printed rerun carries `$$`, which Make reads back as the same path (`DWC-V0-7603`) |
+| `env` VERIFY line with a quoted value and an unquoted pipe, `;`, glob, `$` value, `env` option or trailing assignment | Refused as `unsupported shell syntax`; nothing recorded (`AFP-V0-7922`) |
+| VERIFY line with `$(...)` or a backtick | `REFUSE unsupported-verify-syntax` with `refused: line N` and `fix: line N` naming the plain command (`AFP-V0-7923`) |
 
 ## Acceptance evidence
 
@@ -198,6 +232,9 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 | `DWC-V0-7601` (experimental under the standing lane auto-accept (2026-11-06); V1-4721) | `script/dogfood-merge-base.sh`, `Makefile` `DOGFOOD_MERGE_FORWARD_BASE` and its refusal, `dogfood-closeout`; `script/dogfood-merge-base_test.sh` | implemented; shell test PASS |
 | `DWC-V0-7602` (experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527) | `docs/DOGFOOD.md` "Rebinding after a conflicted merge-forward" | documented; batch-check pass observed by hand, not re-run here |
 | `DWC-V0-7603` (experimental under the standing lane auto-accept (2026-11-06)) | `script/dogfood-finish.sh` line-citations refusal; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
+| `AFP-V0-7922` (experimental under the standing lane auto-accept (2026-11-07); V1-5015) | `internal/dogfoodflow/verify_argv.go` `verifyLineArguments`; `TestVerifyArgumentsAFPV07922AdmitsEnvWordBeforeQuotedAssignment` | implemented; focused test PASS |
+| `AFP-V0-7923` (experimental under the standing lane auto-accept (2026-11-07); V1-5015) | `internal/dogfoodflow/verify_argv.go` `commandSubstitutionFix`, `finishlane.go` `requireVerifyInput`; `TestFinishLaneAFPV07923NamesFixForCommandSubstitution` | implemented; focused test PASS |
+| `AFP-V0-7924` (experimental under the standing lane auto-accept (2026-11-07); V1-5016) | `internal/dogfoodflow/change.go` `absentReceiptHints`; `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` | implemented; focused test PASS |
 
 ## Non-goals and limits
 
@@ -205,7 +242,7 @@ No resolution of conflicts in any other file, no rewrite of pushed branches, and
 
 ## Rollback
 
-For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `deriveMerge`, and delete `script/merge-regenerate-specs.sh`; such merges are unbound again and need the rebase recovery. For `DWC-V0-003` and `DWC-V0-7600` to `DWC-V0-7603`, see each requirement's own rollback.
+For `DWC-V0-001` and `DWC-V0-002`, remove `regeneratedSpecs` and its call in `deriveMerge`, and delete `script/merge-regenerate-specs.sh`; such merges are unbound again and need the rebase recovery. For `DWC-V0-003`, `DWC-V0-7600` to `DWC-V0-7603` and `AFP-V0-7922` to `AFP-V0-7924`, see each requirement's own rollback.
 
 ## Lane maintenance evidence (2026-11-04)
 

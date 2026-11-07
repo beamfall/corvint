@@ -313,14 +313,21 @@ func (c *change) absentReceiptHints() {
 	if !isRegular(c.evidence+"/prechange-query.json") || !isRegular(c.evidence+"/prechange-impact.json") {
 		c.say("  agent receipts absent: record them bound to BASE before the first edit: make dogfood-prechange BASE=%s TASK=\"THE CHANGE\" PATHS=\"PATH...\" (corvint dogfood prechange --task \"THE CHANGE\" %s PATH...)\n", c.base, c.base)
 	}
+	absent := false
 	for _, receipt := range []struct{ name, command string }{
 		{"prechange-query", `corvint query --task "THE CHANGE" --limit 1`},
 		{"prechange-impact", "corvint impact PATH... --limit 10"},
 	} {
 		path := c.evidence + "/" + receipt.name + ".json"
 		if !isRegular(path) {
+			absent = true
 			c.say("  agent receipt %s absent: write it before the first edit: %s > %s\n", receipt.name, receipt.command, shellWord(path))
 		}
+	}
+	// AFP-V0-7924 (V1-5016): a lane that runs only dogfood-change is told,
+	// last, the one rerun of that same target that records both receipts.
+	if absent {
+		c.say("  fix: before the first edit, rerun as make dogfood-change BASE=%s TASK=\"THE CHANGE\" PATHS=\"PATH...\"; it records prechange-query and prechange-impact bound to BASE, so they are not NOT_OBSERVED at the bind\n", c.base)
 	}
 }
 

@@ -137,7 +137,9 @@ func TestCurrentTasksSourceArchiveBuildsOffline(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		env := closedGoEnv(filepath.Join(scratch, "home"), "")
+		// AFP-V0-7920 (V1-4501): the extracted archive has no repository of its
+		// own, so a stray .git above scratch must not fail the rebuild.
+		env := testsupport.GoEnv(closedGoEnv(filepath.Join(scratch, "home"), ""))
 		built := runWithStdin(ctx, directory, env, buildTimeout, nil, goPath, "build", "./cmd/corvint-tasks")
 		if built.err != nil {
 			t.Fatalf("offline archive rebuild: %v", built.err)

@@ -512,7 +512,18 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactCheckouts = append(result.impactCheckouts, checkout)
 			continue
 		}
-		if !positionalOnly && strings.HasPrefix(argument, "-") {
+		if !positionalOnly && name == "--path" {
+			// AFP-V0-7921 (V1-5045): --path PATH, repeatable, is the
+			// positional PATH under affected's spelling.
+			if !inline {
+				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
+					return result, argumentError("argument --path: expected one argument (or pass PATH positionally: corvint impact PATH...)")
+				}
+				value = arguments[index+1]
+				index++
+			}
+			argument = value
+		} else if !positionalOnly && strings.HasPrefix(argument, "-") {
 			return result, argumentError("unrecognized arguments: " + argument)
 		}
 		normalized, err := normalizeImpactPath(argument)

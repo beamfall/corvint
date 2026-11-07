@@ -344,9 +344,15 @@ func (l *finishLane) requireVerifyInput() {
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
-	if _, text := refusedVerifyLineOf(l.options.Change); text != "" {
+	if line, text := refusedVerifyLineOf(l.options.Change); text != "" {
 		if why := quotedRunRefusal(text); why != "" {
 			l.say("  refused: %s\n", why)
+		}
+		// AFP-V0-7923: a command substitution stays refused, with the plain
+		// command or committed script that records the same check.
+		if why, fix := commandSubstitutionFix(text); why != "" {
+			l.say("  refused: line %d: %s\n", line, why)
+			l.say("  fix: line %d: %s, then rerun corvint dogfood finish-lane --base %s\n", line, fix, l.options.Change.Base)
 		}
 	}
 	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no globs or operators, and no quotes except around one -run alternation), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)

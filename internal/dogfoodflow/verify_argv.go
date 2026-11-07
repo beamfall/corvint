@@ -120,8 +120,17 @@ func envAssignments(line string) (words []string, rest string, quoted bool) {
 // script/run.sh go test ./a, becomes a typed argv entry whose first words
 // are those assignments verbatim, without their quotes (DCW-V0-804); every
 // other line stays a v1 command under the unchanged grammar.
+//
+// A leading env word before those assignments, as in env NAME='a b' bash
+// script/x.sh, stays the first argv word, so the recorded argv is the command
+// as run (AFP-V0-7922, V1-5015).
 func verifyLineArguments(line string) []string {
-	assignments, rest, quoted := envAssignments(strings.TrimSpace(line))
+	body, lead := strings.TrimSpace(line), []string(nil)
+	if rest, found := strings.CutPrefix(body, "env "); found && envAssignment.MatchString(strings.TrimLeft(rest, " ")) {
+		body, lead = strings.TrimLeft(rest, " "), []string{"env"}
+	}
+	assignments, rest, quoted := envAssignments(body)
+	assignments = append(lead, assignments...)
 	match := quotedRunAlternation.FindStringSubmatch(rest)
 	if match == nil {
 		if !quoted || trace.ValidateVerificationCommands([]string{rest}) != nil {
@@ -247,6 +256,23 @@ func subtestRunForm(line, word string) string {
 		return ""
 	}
 	return form
+}
+
+// commandSubstitutionFix names why a refused verify line holding a command
+// substitution, $(...) or `...`, stays refused and the line to list instead:
+// make go-version for the Go toolchain check, whose recipe is that same test,
+// and otherwise the substitution committed as a script and listed as
+// sh path/to/script.sh. Both are "" for a line without a substitution
+// (AFP-V0-7923, V1-5015).
+func commandSubstitutionFix(line string) (why, fix string) {
+	if !strings.Contains(line, "$(") && !strings.Contains(line, "`") {
+		return "", ""
+	}
+	why = "a command substitution, $(...) or `...`, needs a shell to run it, and the verify grammar records one plain command (AFP-V0-7923)"
+	if strings.Contains(line, "go env GOVERSION") {
+		return why, "list make go-version, whose recipe is the same toolchain check"
+	}
+	return why, "commit the check as a script and list it as sh path/to/script.sh (DCW-V0-065)"
 }
 
 // ValidateVerifyLine reports whether one verify-file line is a command the

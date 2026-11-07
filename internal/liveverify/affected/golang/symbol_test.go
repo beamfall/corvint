@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // symbolHub is the base tree of the symbol-level fixture: hub's exported
@@ -241,7 +242,9 @@ func TestADNV0663SymbolSelectionCoversLinkedTestBinaries(t *testing.T) {
 		binary := filepath.Join(out, pkg+".test")
 		build := exec.Command("go", "test", "-c", "-gcflags=all=-l", "-o", binary, "./"+pkg)
 		build.Dir = root
-		build.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0")
+		// AFP-V0-7920 (V1-4501): the fixture under TMPDIR has no repository of
+		// its own, so a stray .git above it must not stamp or fail the build.
+		build.Env = testsupport.GoEnv(append(os.Environ(), "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0"))
 		if output, err := build.CombinedOutput(); err != nil {
 			t.Fatalf("go test -c ./%s: %v: %s", pkg, err, output)
 		}

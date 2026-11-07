@@ -96,6 +96,12 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 				t.Fatalf("%s: stderr lacks %q:\n%s", label, want, stderr)
 			}
 		}
+		// AFP-V0-7924 (V1-5016): the last receipt line is a fix: naming the
+		// dogfood-change rerun that records both receipts.
+		fix := `  fix: before the first edit, rerun as make dogfood-change BASE=` + base + ` TASK="THE CHANGE" PATHS="PATH..."; it records prechange-query and prechange-impact bound to BASE`
+		if at := strings.Index(stderr, fix); at < 0 || at < strings.Index(stderr, "agent receipt prechange-impact absent") {
+			t.Fatalf("%s: stderr lacks the dogfood-change fix line after the per-receipt lines:\n%s", label, stderr)
+		}
 		if !strings.Contains(report, `"complete": false`) || !strings.Contains(report, `{"name": "coordination-time-query", "status": "PRODUCED", "reason": "none"}`) {
 			t.Fatalf("%s: report:\n%s", label, report)
 		}
@@ -120,7 +126,7 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "prechange-impact.json"), []byte("{}\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	if _, stderr, _ := run(ChangeOptions{}); strings.Contains(stderr, "agent receipts absent") || strings.Contains(stderr, "agent receipt prechange-impact absent") {
+	if _, stderr, _ := run(ChangeOptions{}); strings.Contains(stderr, "agent receipts absent") || strings.Contains(stderr, "agent receipt prechange-impact absent") || strings.Contains(stderr, "rerun as make dogfood-change") {
 		t.Fatalf("both receipts present, still named absent:\n%s", stderr)
 	}
 	queryStatus = 1

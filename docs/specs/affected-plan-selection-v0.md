@@ -26,6 +26,8 @@ fr-scripts (2026-11-04; V1-4532, V1-4512) adds AFP-V0-2540 to AFP-V0-2542 here f
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
 to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
+Lane frfix (2026-11-07; V1-4501, V1-5045) adds AFP-V0-7920 and AFP-V0-7921 here for the same
+reason; see build-log entry `2026-11-07-frfix`.
 
 ## Agent digest
 - Claim: `corvint affected` names Git timeouts, narrows fixture, temp-root and `go list` reads, marks deletions, and honours declared test owners and must-run tests.
@@ -710,6 +712,29 @@ measure. None of them drops a unit the change can reach.
   the `go-static` job runs it in the checkout beside the AFP-V0-2701 and AFP-V0-2702 tests, on
   every pull request, merge-queue entry and main push that runs go-static.
 
+### Fixture builds and the impact path flag (V1-4501, V1-5045)
+
+- **AFP-V0-7920:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4501)
+  `testsupport.GoEnv(env)` SHALL return a copy of `env` for a `go build`, `go run` or `go test`
+  subprocess with `-buildvcs=false` added to its last `GOFLAGS` entry, or a new
+  `GOFLAGS=-buildvcs=false` entry when there is none, and SHALL keep a `GOFLAGS` that already sets
+  `-buildvcs` unchanged; it never modifies `env`. A Go test whose `go` subprocess builds a module
+  under a temporary directory that holds no repository of its own (the failure class: a stray empty
+  `.git` above `TMPDIR` fails it with `error obtaining VCS status: exit status 128`) SHALL pass its
+  environment through `GoEnv`: today the linked test-binary builds of
+  `TestADNV0663SymbolSelectionCoversLinkedTestBinaries` and the offline archive rebuild of
+  `TestCurrentTasksSourceArchiveBuildsOffline`. A subprocess whose module is in the
+  checkout, or a fixture that runs `git init`, resolves VCS against its own repository and is
+  outside the class. Production builds and release stamping are unchanged.
+- **AFP-V0-7921:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5045)
+  `corvint impact` SHALL accept `--path PATH` and `--path=PATH`, repeatable and mixed with positional
+  paths, as an alias of the positional form, as `corvint affected` takes `--path`: each value is
+  normalized and recorded exactly as the same positional path would be, in argument order. A
+  `--path` with no value, or whose next word is an option, SHALL fail with `argument --path:
+  expected one argument (or pass PATH positionally: corvint impact PATH...)`. After `--`, `--path`
+  is a positional path as before, and any other unknown option still fails with `unrecognized
+  arguments`.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -738,6 +763,10 @@ import-path or climbing pattern, and the nested-module reader path (`nested.go`)
 every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
 another package that changes the directory, or a directory built by `filepath.Join` or string
 concatenation into a command argument other than `Dir`, `-C` or a `cd` word, is not seen.
+AFP-V0-7920 does not convert subprocesses whose module is in the checkout, the `.github/cishards`
+isolated-module helpers (a `.github` change belongs in its own pull request), or the separate
+`interop/cem01-go` module, which cannot import `internal/testsupport`. AFP-V0-7921 adds no other
+`affected` flag to `impact`.
 
 ## Failure modes
 
@@ -790,7 +819,10 @@ a MET verdict whose docs-plan decides DOCS or REUSE still runs the plan job (abo
 seconds), because the job cannot read docs-plan's mode without waiting for it; nothing reads its
 count. A file that an isolated helper build needs but does not copy fails that workflow's helper
 build; AFP-V0-2726 catches it before merge, on the pull request that adds the file or the
-dependency.
+dependency. A new temp-fixture `go` subprocess that skips `GoEnv` fails again only on a host with a stray
+`.git` above `TMPDIR`; `TestGoEnvBuildsUnderStrayGitDirectory_AFPV07920` shows the failure and the
+fix on such a tree, and skips where the host's Go does not fail. A `--path` value that names an
+option is refused rather than read as a path.
 
 ## Acceptance evidence and traceability
 
@@ -845,6 +877,8 @@ dependency.
 | AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
+| AFP-V0-7920 | `GoEnv` in `internal/testsupport/goenv.go`; its calls in `internal/liveverify/affected/golang/symbol_test.go` and `internal/companionrelease/exported_current_test.go` | `TestGoEnvAddsBuildVCSFalse_AFPV07920` and `TestGoEnvBuildsUnderStrayGitDirectory_AFPV07920` (a fixture module under an empty `.git` fails `go build` with `VCS status` without `GoEnv` and builds with it) in `internal/testsupport/goenv_test.go` |
+| AFP-V0-7921 | the `--path` branch of `parseImpactArgumentsForPlatform` in `cmd/corvint/main.go` | `TestImpactPathFlagIsPositionalAlias_AFPV07921` in `cmd/corvint/impact_path_flag_test.go` |
 
 ## Rollback
 
@@ -889,3 +923,6 @@ For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, 
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
 line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
 the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
+For AFP-V0-7920, delete `internal/testsupport/goenv.go` and its test and restore the two callers'
+environments. For AFP-V0-7921, delete the `--path` branch of `parseImpactArgumentsForPlatform`;
+`--path` is an unrecognized argument again.
