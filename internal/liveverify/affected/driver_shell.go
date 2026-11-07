@@ -298,11 +298,21 @@ var driverInterpreters = map[string]bool{
 // command handles one simple command and returns the working directory the
 // next command of the same script runs in.
 func (s *driverShellScanner) command(words []driverWord, cwd string) string {
-	var goflags string
 	assignment := func(word string) {
-		if name, value, found := strings.Cut(word, "="); found && name == "GOFLAGS" {
-			goflags = value
+		name, value, _ := strings.Cut(word, "=")
+		// AFP-V0-3128: only the cache location and empty Go flags have
+		// modeled effects here. Unknown environment names can inject startup
+		// hooks or arbitrary tool reads, including through shell wrappers.
+		switch name {
+		case "GOCACHE":
+			return
+		case "GOFLAGS":
+			if value == "" {
+				return
+			}
 		}
+		s.scan.computed = true
+		s.scan.uncertified = true
 	}
 	for len(words) != 0 {
 		head := words[0].text
@@ -359,20 +369,8 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 				words = words[1:]
 			}
 		default:
-			// Explicit GOFLAGS can inject executable flags into Go, even
-			// through a shell wrapper. Do not discard that read boundary
-			// with the command-local environment (AFP-V0-3128).
-			if goflags != "" {
-				s.scan.computed = true
-				s.scan.uncertified = true
-			}
 			return s.simple(words, cwd)
 		}
-	}
-	if goflags != "" {
-		// A standalone assignment can affect later commands in this shell.
-		s.scan.computed = true
-		s.scan.uncertified = true
 	}
 	return cwd
 }
