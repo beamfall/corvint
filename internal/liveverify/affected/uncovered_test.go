@@ -4,6 +4,7 @@ package affected
 import (
 	"context"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -190,4 +191,136 @@ func TestAZUV0006ReaderOwnFilesFrontierInBatch(t *testing.T) {
 		}
 	}
 	t.Fatalf("reader's changed own files must prevent a coverage proof: unknown=%v uncovered=%v", plan.Unknown, plan.Uncovered)
+}
+
+// AZU-V0-006 (selbatch fix round 2): a testless helper whose declared read
+// scope holds an untested owner's file observes it only through its callers,
+// so they are selected before the coverage proof counts them. A scoped reader
+// with its own tests stays untraversed (AFP-V0-021), a helper scoped elsewhere
+// and an unrelated package stay excluded, and a dirty declaration alone
+// carries no caller.
+func TestAZUV0006TestlessScopedReaderCallers(t *testing.T) {
+	base := []Unit{
+		{ID: "go:data", Sources: []string{"data/data.go"}},
+		{ID: "go:helper", Sources: []string{"helper/helper.go"}, ReadScoped: true, ReadScope: []string{"data/"}},
+		{ID: "go:consumer", Tests: []string{"consumer/consumer_test.go"}, TestImports: []string{"go:helper"}},
+		{ID: "go:unrelated", Sources: []string{"unrelated/unrelated.go"}, Tests: []string{"unrelated/unrelated_test.go"}},
+	}
+	controls := []Unit{
+		{ID: "go:caller", Sources: []string{"caller/caller.go"}, Tests: []string{"caller/caller_test.go"}, Imports: []string{"go:helper"}},
+		{ID: "go:tested", Sources: []string{"tested/tested.go"}, Tests: []string{"tested/tested_test.go"}, ReadScoped: true, ReadScope: []string{"data/"}},
+		{ID: "go:testeduser", Tests: []string{"testeduser/testeduser_test.go"}, TestImports: []string{"go:tested"}},
+		{ID: "go:elsewhere", Sources: []string{"elsewhere/elsewhere.go"}, ReadScoped: true, ReadScope: []string{"other/"}},
+		{ID: "go:elsewhereuser", Tests: []string{"elsewhereuser/elsewhereuser_test.go"}, TestImports: []string{"go:elsewhere"}},
+	}
+	for _, tc := range []struct {
+		name     string
+		units    []Unit
+		selected []string
+		excluded []string
+	}{
+		{name: "test-only caller", units: base, selected: []string{"consumer/consumer_test.go"}, excluded: []string{"go:unrelated"}},
+		{
+			name:     "caller closure and controls",
+			units:    append(slices.Clone(base), controls...),
+			selected: []string{"caller/caller_test.go", "consumer/consumer_test.go", "tested/tested_test.go"},
+			excluded: []string{"go:elsewhereuser", "go:testeduser", "go:unrelated"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: tc.units})
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := Select(graph, []string{"data/data.go"})
+			if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 || len(plan.Uncovered) != 0 || !reflect.DeepEqual(plan.SelectedTests(), tc.selected) {
+				t.Fatalf("scope=%s unknown=%v uncovered=%v selected=%v, want %v", plan.Scope, plan.Unknown, plan.Uncovered, plan.SelectedTests(), tc.selected)
+			}
+			var excluded []string
+			for _, exclusion := range plan.Excluded {
+				excluded = append(excluded, exclusion.UnitID)
+			}
+			if !reflect.DeepEqual(excluded, tc.excluded) {
+				t.Fatalf("excluded=%v, want %v", excluded, tc.excluded)
+			}
+			for _, selection := range plan.Selected {
+				if selection.UnitID == "go:consumer" && (selection.Witness.DirtyPath != "data/data.go" || !reflect.DeepEqual(selection.Witness.Via, []string{"go:helper", "go:consumer"})) {
+					t.Fatalf("consumer witness %+v", selection.Witness)
+				}
+			}
+		})
+	}
+	graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: append(slices.Clone(base), controls...)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range Select(graph, []string{ReadScopesPath}).SelectedTests() {
+		if test == "consumer/consumer_test.go" || test == "caller/caller_test.go" {
+			t.Fatalf("a dirty read-scope declaration carried the helper's callers: %s", test)
+		}
+	}
+}
+
+// AZU-V0-006 (selbatch fix round 2): the coverage proof counts a caller only
+// when the plan runs it. A caller the plan leaves out keeps the changed unit
+// unknown when nothing that runs observes it; a reader with its own tests is
+// still enough; and a unit additive narrowing alone leaves out cannot observe
+// the change (ADN-V0-005), so the gap stays a gap.
+func TestAZUV0006CoverageCountsOnlyRunCallers(t *testing.T) {
+	gap := []Unknown{{Reason: UnknownNoSelectableTest, Detail: "go:data"}}
+	for _, tc := range []struct {
+		name               string
+		units              []Unit
+		additive           []GoAdditive
+		dirty              string
+		selected           []string
+		unknown, uncovered []Unknown
+		scope              string
+	}{
+		{
+			name: "exec user of a testless reader",
+			units: []Unit{
+				{ID: "go:data", Sources: []string{"data/data.go"}},
+				{ID: "go:cmd/tool", Sources: []string{"cmd/tool/main.go"}, PathTokens: []string{"data/data.go"}},
+				{ID: "go:runner", Sources: []string{"runner/runner.go"}, Tests: []string{"runner/runner_test.go"}, Execs: []string{"go:cmd/tool"}},
+			},
+			dirty: "data/data.go", selected: []string{}, unknown: gap, scope: ScopeUnknown,
+		},
+		{
+			name: "reader with its own tests",
+			units: []Unit{
+				{ID: "go:data", Sources: []string{"data/data.go"}},
+				{ID: "go:reader", Sources: []string{"reader/reader.go"}, Tests: []string{"reader/reader_test.go"}, PathTokens: []string{"data/data.go"}},
+				{ID: "go:readeruser", Tests: []string{"readeruser/readeruser_test.go"}, TestImports: []string{"go:reader"}},
+			},
+			dirty: "data/data.go", selected: []string{"reader/reader_test.go"}, scope: ScopeBounded,
+		},
+		{
+			name: "additive narrowing",
+			units: []Unit{
+				{ID: "go:data", Sources: []string{"data/data.go", "data/fresh.go"}},
+				{ID: "go:unref", Sources: []string{"unref/unref.go"}, Tests: []string{"unref/unref_test.go"}, Imports: []string{"go:data"}},
+			},
+			additive: []GoAdditive{{Unit: "go:data", State: GoAdditiveNarrowed, Paths: []string{"data/fresh.go"}, Declarations: []string{"Fresh"}, Unreferenced: []string{"go:unref"}}},
+			dirty:    "data/fresh.go", selected: []string{}, uncovered: gap, scope: ScopeBounded,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: tc.units})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.additive != nil {
+				graph = graph.WithGoAdditive(tc.additive)
+			}
+			plan := Select(graph, []string{tc.dirty})
+			unknown := tc.unknown
+			if unknown == nil {
+				unknown = []Unknown{}
+			}
+			if plan.Scope != tc.scope || !reflect.DeepEqual(plan.Unknown, unknown) || !reflect.DeepEqual(plan.Uncovered, tc.uncovered) || !reflect.DeepEqual(plan.SelectedTests(), tc.selected) {
+				t.Fatalf("scope=%s unknown=%v uncovered=%v selected=%v", plan.Scope, plan.Unknown, plan.Uncovered, plan.SelectedTests())
+			}
+		})
+	}
 }

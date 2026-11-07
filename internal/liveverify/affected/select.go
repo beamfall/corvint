@@ -340,10 +340,24 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(plan.Unknown, shellTestInputsChanged(normalized)...)
 	graph.selectOwnershipAudit(&plan, reached, normalized)
 	coverageReaders := make(map[string]map[string]Witness)
+	// AZU-V0-006: the coverage proof counts a caller only when this plan runs
+	// its tests (a reached non-driver unit is selected below, and one reached
+	// only by the ownership audit runs that audit alone) or its declared
+	// consumers (selectDeclaredConsumers runs those of a rebuilt command).
+	runs := func(id string) bool {
+		witness, hit := reached[id]
+		_, built := rebuilt[id]
+		return hit && witness.Kind != WitnessOwnershipAudit && len(graph.units[id].Tests) != 0 || built && strings.HasPrefix(id, "go:") && len(graph.units[id].ExecConsumerRuns) != 0
+	}
+	narrowedOut := func(id string) bool {
+		_, hit := reached[id]
+		_, additiveOnly := through[id]
+		return !hit && additiveOnly
+	}
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
-			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders)
+			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders, runs, narrowedOut)
 			if uncertain {
 				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
 			} else if gap {

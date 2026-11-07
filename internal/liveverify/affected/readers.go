@@ -203,6 +203,8 @@ func globMatches(glob string, parts []string) bool {
 // is untested, to the units that can exercise it (AFP-V0-495, AZU-V0-006): its
 // reverse dependents, and their test-only users, witnessed by the chain from the reader through the
 // smallest such path. Hidden Go paths also retain their callers (AZU-V0-005).
+// A testless unit whose declared read scope holds such a path, other than
+// through the declaration itself, is carried the same way (AZU-V0-006).
 // A reader with its own tests stays untraversed (AFP-V0-021). An untested
 // owner's importers need not include a reader's callers: walk those callers
 // before claiming a coverage gap. A test-less reader would otherwise drop it
@@ -227,15 +229,28 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 			paths = append(paths, path)
 		}
 	}
-	if !found || len(paths) == 0 {
+	if len(paths) == 0 {
 		return nil
 	}
-	named := make(map[string]Witness)
-	graph.readers(named, paths)
 	start := make(map[string]Witness)
-	for id, witness := range named {
-		if testless(id) {
-			start[id] = witness
+	if found {
+		named := make(map[string]Witness)
+		graph.readers(named, paths)
+		for id, witness := range named {
+			if testless(id) {
+				start[id] = witness
+			}
+		}
+	}
+	// AZU-V0-006: a testless unit whose declared read scope holds such a path
+	// observes it only through its callers, as a literal reader does. The
+	// declaration itself is read by no unit, so it carries no caller.
+	read := slices.DeleteFunc(slices.Clone(paths), func(path string) bool { return path == ReadScopesPath })
+	scoped := make(map[string]Witness)
+	graph.scopedReadersOf(scoped, read)
+	for id, witness := range scoped {
+		if !followed[id] && len(graph.units[id].Tests) == 0 {
+			addWitness(start, id, witness)
 		}
 	}
 	if len(start) == 0 {

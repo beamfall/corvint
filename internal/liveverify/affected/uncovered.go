@@ -6,7 +6,11 @@ import "strings"
 // coverageGap inspects modelled and declared callers before claiming that no
 // selectable test can observe a changed unit (AZU-V0-006). It does not narrow
 // the ordinary reach: callers and path readers have already been selected.
-func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witness, dirty []string, readersByPath map[string]map[string]Witness) (gap, uncertain bool) {
+// A caller's tests or declared consumers observe the unit only when runs
+// reports that the plan runs them; a caller with either that the plan leaves
+// out keeps the unit unknown unless a run observer exists or narrowedOut
+// reports that additive narrowing alone left it out (ADN-V0-005).
+func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witness, dirty []string, readersByPath map[string]map[string]Witness, runs, narrowedOut func(string) bool) (gap, uncertain bool) {
 	// A seed is only the smallest witness for a unit, not its complete dirty
 	// input. Reader membership must be recomputed for every path it owns.
 	paths := []string{seed.DirtyPath}
@@ -15,7 +19,7 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 			paths = append(paths, file)
 		}
 	}
-	observer := graph.testReach[id]
+	observer, skipped := false, false
 	callers := map[string]bool{id: true}
 	pending := []string{id}
 	// AFP-V0-811: embedding source bytes does not model execution of that
@@ -30,7 +34,14 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 	}
 	inspect := func(caller string) {
 		unit := graph.units[caller]
-		observer = observer || len(unit.Tests) != 0 || len(unit.ExecConsumerRuns) != 0
+		if len(unit.Tests) != 0 || len(unit.ExecConsumerRuns) != 0 {
+			switch {
+			case runs(caller):
+				observer = true
+			case !narrowedOut(caller):
+				skipped = true
+			}
+		}
 		for _, file := range unit.Callers {
 			if graph.owner[file] == "" {
 				uncertain = true
@@ -113,5 +124,10 @@ func (graph *Graph) coverageGap(id string, seed Witness, reached map[string]Witn
 		}
 	}
 
+	// A test that could observe the unit but will not run proves neither
+	// coverage nor its absence.
+	if !observer && skipped {
+		return false, true
+	}
 	return !observer, uncertain
 }
