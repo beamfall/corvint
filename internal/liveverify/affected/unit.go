@@ -68,9 +68,6 @@ const MaxPathsPerUnit = 20_000
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
 // unit that compiles this one is unbounded too.
-// Command reports a unit nothing compiles into another unit (a Go `package
-// main`): a rule (d) chain reaches it but does not continue to the units that
-// build or run it, whose reads are their own recipes' (AFP-V0-2951).
 // ReadScoped reports a unit whose tests' reads the repository declares
 // (AFP-V0-023): ReadScope then holds the sorted, unique repository paths they
 // read outside the unit's directory, a trailing "/" naming a subtree, and the
@@ -109,6 +106,12 @@ const MaxPathsPerUnit = 20_000
 // owner, a directory the owners of the files directly in it, `dir/...` the
 // owners of every file below it and `...` every owner. Build resolves them
 // into Imports before it reverses the edges.
+// BuildPathImports name, in the same form, repository paths whose owning
+// units the unit only reads with `go vet` or `go list`, never running their
+// code or a binary built from them (AFP-V0-2951). Build resolves them into
+// Imports too, so a change there selects the unit as before, but a rule (d)
+// chain does not continue along an edge only they name: such a unit runs no
+// root locator's code.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -123,6 +126,7 @@ type Unit struct {
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathImports          []string `json:"pathImports,omitempty"`
+	BuildPathImports     []string `json:"buildPathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens,omitempty"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded,omitempty"`
@@ -131,7 +135,6 @@ type Unit struct {
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
-	Command              bool     `json:"command,omitempty"`
 	ReadScoped           bool     `json:"readScoped,omitempty"`
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier,omitempty"`
@@ -309,6 +312,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validPathImports(unit.PathImports); err != nil {
+		return err
+	}
+	if err := validPathImports(unit.BuildPathImports); err != nil {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)

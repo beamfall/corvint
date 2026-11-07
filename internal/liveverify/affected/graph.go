@@ -33,8 +33,12 @@ type Graph struct {
 	routed     map[string][]string
 	testUsers  map[string][]string
 	execUsers  map[string][]string
-	testReach  map[string]bool
-	unbounded  []string
+	// buildOnly maps a unit to the dependents whose only edge to it is a
+	// build path import (`go vet`, `go list`; AFP-V0-2951): a rule (d) chain
+	// does not take that edge.
+	buildOnly map[string]map[string]bool
+	testReach map[string]bool
+	unbounded []string
 	// causes names, for each unbounded reader, the unit whose own reason
 	// makes it one (AFP-V0-192).
 	causes map[string]string
@@ -200,6 +204,7 @@ type digestUnit struct {
 	AdvisoryImports      []string `json:"advisoryImports,omitempty"`
 	RouteDispatchImports []string `json:"routeDispatchImports,omitempty"`
 	PathImports          []string `json:"pathImports,omitempty"`
+	BuildPathImports     []string `json:"buildPathImports,omitempty"`
 	PathTokens           []string `json:"pathTokens"`
 	PathGlobs            []string `json:"pathGlobs,omitempty"`
 	PathTokensBounded    bool     `json:"pathTokensBounded"`
@@ -208,7 +213,6 @@ type digestUnit struct {
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
-	Command              bool     `json:"command,omitzero"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier"`
@@ -549,16 +553,19 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 	return nil
 }
 
-// resolvePathImports turns each unit's PathImports into Imports edges to the
-// units owning the named paths (AZU-V0-001): "..." names every owner,
-// "dir/..." every owner below dir, and any other entry the owner of that
-// file and the owners of the files directly in that directory.
+// resolvePathImports turns each unit's PathImports and BuildPathImports into
+// Imports edges to the units owning the named paths (AZU-V0-001): "..."
+// names every owner, "dir/..." every owner below dir, and any other entry the
+// owner of that file and the owners of the files directly in that directory.
+// An edge only BuildPathImports names, which no PathImports entry or declared
+// import also names, is recorded in buildOnly (AFP-V0-2951).
 func (graph *Graph) resolvePathImports() {
 	graph.driverFiles = graph.driverIndex()
+	graph.buildOnly = map[string]map[string]bool{}
 	var owned []string
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if len(unit.PathImports) == 0 {
+		if len(unit.PathImports) == 0 && len(unit.BuildPathImports) == 0 {
 			continue
 		}
 		if owned == nil {
@@ -568,29 +575,42 @@ func (graph *Graph) resolvePathImports() {
 			}
 			sort.Strings(owned)
 		}
-		targets := make(map[string]bool)
-		below := func(prefix string, direct bool) {
-			for index := sort.SearchStrings(owned, prefix); index < len(owned) && strings.HasPrefix(owned[index], prefix); index++ {
-				if direct && strings.Contains(owned[index][len(prefix):], "/") {
-					continue
+		resolve := func(entries []string) map[string]bool {
+			targets := make(map[string]bool)
+			below := func(prefix string, direct bool) {
+				for index := sort.SearchStrings(owned, prefix); index < len(owned) && strings.HasPrefix(owned[index], prefix); index++ {
+					if direct && strings.Contains(owned[index][len(prefix):], "/") {
+						continue
+					}
+					targets[graph.owner[owned[index]]] = true
 				}
-				targets[graph.owner[owned[index]]] = true
 			}
-		}
-		for _, entry := range unit.PathImports {
-			switch {
-			case entry == "...":
-				below("", false)
-			case strings.HasSuffix(entry, "/..."):
-				below(entry[:len(entry)-3], false)
-			default:
-				if owner, present := graph.owner[entry]; present {
-					targets[owner] = true
+			for _, entry := range entries {
+				switch {
+				case entry == "...":
+					below("", false)
+				case strings.HasSuffix(entry, "/..."):
+					below(entry[:len(entry)-3], false)
+				default:
+					if owner, present := graph.owner[entry]; present {
+						targets[owner] = true
+					}
+					below(entry+"/", true)
 				}
-				below(entry+"/", true)
 			}
+			delete(targets, id)
+			return targets
 		}
-		delete(targets, id)
+		targets := resolve(unit.PathImports)
+		for target := range resolve(unit.BuildPathImports) {
+			if !targets[target] && !slices.Contains(unit.Imports, target) {
+				if graph.buildOnly[target] == nil {
+					graph.buildOnly[target] = map[string]bool{}
+				}
+				graph.buildOnly[target][id] = true
+			}
+			targets[target] = true
+		}
 		if len(targets) == 0 {
 			continue
 		}
@@ -637,6 +657,9 @@ func (graph *Graph) callerEdges() map[string][]string {
 			} else if !slices.Contains(called[owner], id) {
 				called[owner] = append(called[owner], id)
 			}
+			// A declared caller runs the unit, so its edge is no build-only
+			// one (AFP-V0-2951).
+			delete(graph.buildOnly[id], owner)
 			if !slices.Contains(edges[id], owner) {
 				edges[id] = append(edges[id], owner)
 				sort.Strings(edges[id])
@@ -668,10 +691,11 @@ func (graph *Graph) unboundedReaders() ([]string, map[string]string, map[string]
 			locators[id] = Witness{Via: []string{id}}
 		}
 	}
-	// A chain stops at a command (AFP-V0-2951): the units that build or run
-	// it read what their own recipes say, not what the command's code
-	// locates, and nothing compiles a command into another unit.
-	reached := graph.traverseWhere(locators, nil, func(id string) bool { return !graph.units[id].Command })
+	// A chain does not follow a build-only edge (AFP-V0-2951): a unit that
+	// only vets or lists another runs none of its code, so it reads nothing
+	// the other's root locator would. Every other edge, a command's runner
+	// included, is followed.
+	reached := graph.traverseWhere(locators, nil, func(id, dependent string) bool { return !graph.buildOnly[id][dependent] })
 	walked := make(map[string]bool, len(reached))
 	for id := range reached {
 		walked[id] = true
@@ -841,6 +865,7 @@ func projectUnit(unit Unit) digestUnit {
 		AdvisoryImports:      unit.AdvisoryImports,
 		RouteDispatchImports: unit.RouteDispatchImports,
 		PathImports:          unit.PathImports,
+		BuildPathImports:     unit.BuildPathImports,
 		PathTokens:           unit.PathTokens,
 		PathGlobs:            unit.PathGlobs,
 		PathTokensBounded:    unit.PathTokensBounded,
@@ -849,7 +874,6 @@ func projectUnit(unit Unit) digestUnit {
 		EmbedFiles:           unit.EmbedFiles,
 		UnboundedReads:       unit.UnboundedReads,
 		LocatesRoot:          unit.LocatesRoot,
-		Command:              unit.Command,
 		ReadScoped:           unit.ReadScoped,
 		ReadScope:            unit.ReadScope,
 		Frontier:             unit.Frontier,

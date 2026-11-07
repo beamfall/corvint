@@ -128,11 +128,14 @@ func TestBoundedJoinLocatorIsNoRead_AFPV02950(t *testing.T) {
 	}
 }
 
-// AFP-V0-2951 (V1-4283): a command's non-test root locator keeps the
-// command's own reason and selection but reaches no runner: nothing compiles
-// a main package, and a runner's build or run of it is its own recipe. A
-// library locator still reaches its importer.
-func TestCommandLocatorReachesNoRunner_AFPV02951(t *testing.T) {
+// AFP-V0-2951 (V1-4283, review fix): a command's non-test root locator
+// reaches every unit that runs the command, and a rule (d) chain skips only
+// the build-only edges of `go vet` and `go list`, which run no code and leave
+// no binary. The regression is run-tool: the command's runtime read of the
+// located root is the only path from the changed file to the target that runs
+// it. `go build` is no build-only edge: the target that depends on it runs the
+// binary.
+func TestCommandLocatorReachesItsRunners_AFPV02951(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
 		"go.mod":             "module example.test/m\n",
@@ -143,6 +146,13 @@ func TestCommandLocatorReachesNoRunner_AFPV02951(t *testing.T) {
 		"lib/x_test.go":      "package lib\n",
 		"user/u.go":          "package user\nimport _ \"example.test/m/lib\"\n",
 		"user/x_test.go":     "package user\n",
+		"Makefile": "run-tool:\n\tgo run ./cmd/tool\n" +
+			"build-tool:\n\tgo build -o bin/tool ./cmd/tool\n" +
+			"check: build-tool\n\tbin/tool check\n" +
+			"vet-and-run:\n\tgo vet ./cmd/tool\n\tgo run ./cmd/tool\n" +
+			"vet-tool:\n\tgo vet ./cmd/tool\n" +
+			"vet-all:\n\tgo vet ./...\n" +
+			"list-all:\n\tgo list ./...\n",
 	})
 	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
@@ -152,38 +162,36 @@ func TestCommandLocatorReachesNoRunner_AFPV02951(t *testing.T) {
 	for _, unit := range result.Units {
 		units[unit.ID] = unit
 	}
-	tool, lib := units["go:example.test/m/cmd/tool"], units["go:example.test/m/lib"]
-	if tool.UnboundedReads == "" || tool.LocatesRoot {
-		t.Errorf("command: want its own unbounded reason without locatesRoot, got %+v", tool)
+	for _, id := range []string{"go:example.test/m/cmd/tool", "go:example.test/m/lib"} {
+		if unit := units[id]; unit.UnboundedReads == "" || !unit.LocatesRoot {
+			t.Errorf("%s: want an unbounded reason with locatesRoot, got %+v", id, unit)
+		}
 	}
-	if lib.UnboundedReads == "" || !lib.LocatesRoot {
-		t.Errorf("library: want an unbounded reason with locatesRoot, got %+v", lib)
-	}
-	graph, err := affected.Build(context.Background(), root, golang.New(), runner{command: "go:example.test/m/cmd/tool"})
+	graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := map[string]string{}
-	for _, item := range affected.Select(graph, []string{"elsewhere/data.txt"}).Selected {
-		found[item.UnitID] = item.Witness.Kind
+	selected := func(dirty string) map[string]string {
+		found := map[string]string{}
+		for _, item := range affected.Select(graph, []string{dirty}).Selected {
+			found[item.UnitID] = item.Witness.Kind
+		}
+		return found
 	}
-	if found["go:example.test/m/cmd/tool"] != affected.WitnessUnboundedReader {
-		t.Errorf("command not selected on an unrelated change: %v", found)
+	found := selected("elsewhere/data.txt")
+	for _, id := range []string{"go:example.test/m/cmd/tool", "go:example.test/m/user", "driver:make:Makefile#run-tool", "driver:make:Makefile#build-tool", "driver:make:Makefile#check", "driver:make:Makefile#vet-and-run"} {
+		if found[id] != affected.WitnessUnboundedReader {
+			t.Errorf("%s: a unit that runs a root locator was not selected on an unrelated change: %v", id, found)
+		}
 	}
-	if kind, ok := found["driver:make:Makefile#build-tool"]; ok {
-		t.Errorf("the command's runner was selected as %s on an unrelated change", kind)
+	for _, id := range []string{"driver:make:Makefile#vet-tool", "driver:make:Makefile#vet-all", "driver:make:Makefile#list-all"} {
+		if kind, ok := found[id]; ok {
+			t.Errorf("%s: a build-only runner was selected as %s on an unrelated change", id, kind)
+		}
 	}
-	if found["go:example.test/m/user"] != affected.WitnessUnboundedReader {
-		t.Errorf("the library locator's importer was dropped: %v", found)
+	// A build-only edge is still a dependency edge: an edit of the code it
+	// vets selects it.
+	if _, ok := selected("cmd/tool/main.go")["driver:make:Makefile#vet-tool"]; !ok {
+		t.Errorf("vet-tool: an edit of the package it vets did not select it")
 	}
-}
-
-// runner is a one-unit plugin standing for a make target that builds and runs
-// a Go command, with the import edge the driver plugin gives such a recipe.
-type runner struct{ command string }
-
-func (runner) Name() string     { return "driver" }
-func (runner) Owns(string) bool { return false }
-func (r runner) Units(context.Context, string) (affected.Result, error) {
-	return affected.Result{Units: []affected.Unit{{ID: "driver:make:Makefile#build-tool", Sources: []string{}, Tests: []string{}, Imports: []string{r.command}}}}, nil
 }

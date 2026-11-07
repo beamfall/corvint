@@ -3,6 +3,8 @@ package affected_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,15 +15,17 @@ import (
 )
 
 // TestRepositoryScriptsAreBoundedSources_V14283 checks this repository's
-// scripts and commands against the rules of AFP-V0-2951 to AFP-V0-2955: the
-// two shell scripts whose computed sources once made every unit that ran them
-// an unbounded reader are bounded, the two toolchain tests the lane declared
-// are read-scoped, and the commands whose os.Getwd once reached their runners
-// keep their own reason without locating the root for anyone else. Reverting
-// any one fix (the heavy.sh variable renames, the lexer's test-expression
-// split, the constructed-name short-circuit, the environment-named source,
-// the same-valued reassignment, or the command guard) fails the matching
-// assertion.
+// scripts and commands against AFP-V0-2951 to AFP-V0-2955 as the review fix
+// left them. heavy.sh stays a dynamic source through its environment-named
+// `. "${ENVFILE/#\~/$HOME}"` (AFP-V0-2953), but a copy without that one line
+// is bounded, so the lane's other heavy.sh fixes (the variable renames, the
+// lexer's test-expression split, the constructed-name short-circuit) hold;
+// dogfood-finish.sh links its same-valued `$repo` source (AFP-V0-2954);
+// qualify-tasks-basic_test.sh is read-scoped and dogfood-cache_test.sh, which
+// reaches heavy.sh, is not (AFP-V0-2955); the
+// commands whose os.Getwd escapes locate the root for the units that run them
+// (AFP-V0-2951); and literals with no output-only evidence keep rule (d)
+// (AFP-V0-2952). Reverting any one fix fails the matching assertion.
 func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	root := repositoryRoot(t)
 	shellUnits, err := shell.New().Units(context.Background(), root)
@@ -35,22 +39,44 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	for _, unit := range shellUnits.Units {
 		byID[unit.ID] = unit
 	}
-	for _, script := range []string{"script/heavy.sh", "script/dogfood-finish.sh"} {
-		unit, ok := byID["shell:"+script]
-		if !ok {
-			t.Fatalf("%s: no shell unit", script)
-		}
-		if unit.UnboundedReads != "" || unit.LocatesRoot {
-			t.Errorf("%s: a dynamic source is back: %q locatesRoot=%v", script, unit.UnboundedReads, unit.LocatesRoot)
+	if unit := byID["shell:script/heavy.sh"]; unit.UnboundedReads != shell.UnboundedDynamicSource || !unit.LocatesRoot {
+		t.Errorf("heavy.sh: the environment-named source lost its dynamic-source protection: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
+	}
+	body, err := os.ReadFile(filepath.Join(root, "script", "heavy.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const environmentSource = `[[ -n $ENVFILE ]] && { . "${ENVFILE/#\~/$HOME}" || infra "env file $ENVFILE failed"; }`
+	if strings.Count(string(body), environmentSource) != 1 {
+		t.Fatalf("heavy.sh: want exactly one environment-named source line %q", environmentSource)
+	}
+	copied := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(copied, "script"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(copied, "script", "heavy.sh"), []byte(strings.Replace(string(body), environmentSource, ":", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	copyUnits, err := shell.New().Units(context.Background(), copied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unit := range copyUnits.Units {
+		if unit.ID == "shell:script/heavy.sh" && (unit.UnboundedReads != "" || unit.LocatesRoot) {
+			t.Errorf("heavy.sh without its environment-named source: another dynamic source is back: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
 		}
 	}
-	if unit := byID["shell:script/dogfood-finish.sh"]; !slices.Contains(unit.Imports, "shell:script/dogfood-build-corvint.sh") {
-		t.Errorf("dogfood-finish.sh: the same-valued $repo source is not linked: %v", unit.Imports)
+	if unit := byID["shell:script/dogfood-finish.sh"]; unit.UnboundedReads != "" || unit.LocatesRoot || !slices.Contains(unit.Imports, "shell:script/dogfood-build-corvint.sh") {
+		t.Errorf("dogfood-finish.sh: the same-valued $repo source is not linked or a dynamic source is back: %q %v", unit.UnboundedReads, unit.Imports)
 	}
-	for _, test := range []string{"script/dogfood-cache_test.sh", "script/qualify-tasks-basic_test.sh"} {
-		if unit := byID["shell:"+test]; !unit.ReadScoped || unit.UnboundedReads != "" {
-			t.Errorf("%s: not read-scoped: %+v", test, unit)
-		}
+	if unit := byID["shell:script/qualify-tasks-basic_test.sh"]; !unit.ReadScoped || unit.UnboundedReads != "" {
+		t.Errorf("qualify-tasks-basic_test.sh: not read-scoped: %+v", unit)
+	}
+	// dogfood-cache_test.sh names the dogfood wrappers, whose chain reaches
+	// heavy.sh's environment-named source, so TSP-V0-950 admits no scope for
+	// it and it stays on the floor.
+	if unit := byID["shell:script/dogfood-cache_test.sh"]; unit.ReadScoped || unit.UnboundedReads == "" {
+		t.Errorf("dogfood-cache_test.sh: a test that reaches a dynamic source is read-scoped or bounded: %+v", unit)
 	}
 	// lane-scripts_test.sh stays on the floor with its recorded reason: it
 	// sources a sed-filtered copy of heavy.sh from its temporary directory.
@@ -71,22 +97,18 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s: no Go unit", command)
 		}
-		if !unit.Command || unit.LocatesRoot {
-			t.Errorf("%s: a command locates the root for its runners: command=%v locatesRoot=%v (%q)", command, unit.Command, unit.LocatesRoot, unit.UnboundedReads)
-		}
-		if !strings.Contains(unit.UnboundedReads, "os.Getwd") {
-			t.Errorf("%s: the command's own reason was dropped: %q", command, unit.UnboundedReads)
+		if !unit.LocatesRoot || !strings.Contains(unit.UnboundedReads, "os.Getwd") {
+			t.Errorf("%s: a command's escaping os.Getwd no longer reaches the units that run it: locatesRoot=%v (%q)", command, unit.LocatesRoot, unit.UnboundedReads)
 		}
 	}
-	// The Markdown table main.go prints and the Ruby source perfbudget writes
-	// are text (AFP-V0-2952); cem-stable-regen keeps a single-line climbing
-	// path of its own (pointers.go) but, as a command, locates the root for
-	// no runner.
-	if unit := byID[module+"internal/perfbudget"]; strings.Contains(unit.UnboundedReads, "climbs from the working directory") || unit.LocatesRoot {
-		t.Errorf("perfbudget: a line-broken text literal reads as a climbing path again: %q", unit.UnboundedReads)
+	// The Ruby source perfbudget formats with fmt.Appendf and the Markdown
+	// table cem-stable-regen builds in a strings.Builder reach no standard
+	// stream, so their climbing tokens stay paths (AFP-V0-2952).
+	if unit := byID[module+"internal/perfbudget"]; unit.UnboundedReads == "" {
+		t.Errorf("perfbudget: formatted text with a climbing token lost rule (d)")
 	}
-	if unit := byID[module+"tools/cem-stable-regen"]; strings.Contains(unit.UnboundedReads, "main.go carries the literal") || unit.LocatesRoot || !unit.Command {
-		t.Errorf("cem-stable-regen: the printed table reads as a climbing path again, or the command locates the root: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
+	if unit := byID[module+"tools/cem-stable-regen"]; unit.UnboundedReads == "" || !unit.LocatesRoot {
+		t.Errorf("cem-stable-regen: buffered text with a climbing token lost rule (d): %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
 	}
 	if unit := byID[module+"internal/jstestprovider"]; !unit.LocatesRoot {
 		t.Errorf("jstestprovider: a library that runs git over a located root must still locate it: %+v", unit.UnboundedReads)

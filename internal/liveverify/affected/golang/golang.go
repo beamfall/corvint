@@ -536,12 +536,10 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
 		frontierBears = ""
 	}
-	// A command's root locator reaches no importer: nothing compiles a main
-	// package, and what a runner's build or run of it reads is the runner's own
-	// recipe and the command's code, which the runner's edge already follows
-	// (AFP-V0-2951). The unit keeps its own reason and selection.
-	locatesRoot := reads.locatesRoot && !command
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: locatesRoot, Command: command, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+	// A command's root locator reaches every unit that runs the command; a
+	// rule (d) chain skips only the build-only edges of `go vet` and `go
+	// list` (AFP-V0-2951).
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can
