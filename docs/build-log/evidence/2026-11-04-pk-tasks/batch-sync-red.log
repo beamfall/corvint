@@ -1,0 +1,15 @@
+heavy.sh: script sha256=767a9543783f8c8abee2a9e5847955f6648945ca2efcd9ea627b2f7827daaf51 /home/russell/lanes/pk-tasks/script/heavy.sh
+heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config /home/russell/.config/corvint/heavy.env
+heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=/home/russell/.cache/corvint-go-build-cache TMPDIR=/home/russell/.cache/corvint-tmp
+heavy.sh: this Linux host neither builds nor runs 1 darwin-only file(s), first ./internal/tasks/store/lease_guard_darwin_test.go; this run is no darwin evidence (run it on a darwin host)
+heavy.sh: running locally at 6c33df33bc5670131482f5263b410cb980580657 tree=686c279a84c21a0839b1fc033f0683a1f434fee8 dirty=10
+heavy.sh: slot 1/8 after 0s
+=== RUN   TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering
+    batch_refine_sync_test.go:28: batch refine: no sync of post directory "intent/tickets" returned between its publication and the head's (overlap true)
+    batch_refine_sync_test.go:30: independent directory syncs ran serially: max concurrency 1
+--- FAIL: TestCTWV07100_BatchEntryOverlapsSyncsAndKeepsOrdering (1.03s)
+FAIL
+FAIL	github.com/Beamfall/corvint/internal/tasks/store	1.048s
+FAIL
+heavy.sh: done queue=0.0s (load=0s slot=0.0s) run=4.5s rc=1
+heavy.sh: exit rc=1 cause=command cmd=go

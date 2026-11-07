@@ -41,6 +41,9 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		if via := affectedTextVia(receipt.Plan.ViaLinks, selection); len(via) > 1 {
 			fmt.Fprintf(&out, " via %s", textWord(strings.Join(via, " > ")))
 		}
+		if scope := selection.Witness.ReadScope; scope != nil {
+			fmt.Fprintf(&out, " declaration %s entry %s", textWord(scope.Declaration), textWord(scope.Entry))
+		}
 		if selection.Witness.Glob != "" {
 			fmt.Fprintf(&out, " glob %s", textWord(selection.Witness.Glob))
 		}

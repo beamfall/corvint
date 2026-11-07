@@ -286,8 +286,12 @@ async function cdpCoverage(port) {
   const pending = new Map();
   const sessions = new Map(); // sessionId -> Map scriptId -> {url, sourceMapURL}
   const untaken = new Set(); // sessions that parsed possible repository code since their last take
+  // LPCV-V0-8301: a closed transport stays closed; only close() is intentional.
+  let closed = false;
+  let closing = false;
   const send = (method, params, sessionId) =>
     new Promise((resolve, reject) => {
+      if (closed) return reject(new Error("DevTools connection closed"));
       const n = ++id;
       pending.set(n, { resolve, reject, sessionId });
       ws.send(JSON.stringify({ id: n, method, params: params || {}, sessionId }));
@@ -316,7 +320,11 @@ async function cdpCoverage(port) {
     }
   };
   ws.onclose = () => {
+    closed = true;
+    // Already-parsed code can run again after a successful take without a new
+    // scriptParsed, so an unexpected loss is incomplete even with untaken empty.
     if (untaken.size) note("cdp-detached", "a page closed before its coverage was taken");
+    else if (!closing) note("cdp-detached", "the DevTools connection closed unexpectedly; executions after the last take are lost");
     for (const command of pending.values()) command.reject(new Error("DevTools connection closed"));
     pending.clear(); untaken.clear(); sessions.clear();
   };
@@ -338,6 +346,7 @@ async function cdpCoverage(port) {
     browser: version.product,
     // take returns every target's coverage since the last take and resets it.
     async take() {
+      if (closed) throw new Error("DevTools connection closed");
       const out = [];
       for (const [sessionId, scripts] of sessions) {
         let res;
@@ -362,6 +371,7 @@ async function cdpCoverage(port) {
       return out;
     },
     close() {
+      closing = true;
       ws.close();
     },
   };

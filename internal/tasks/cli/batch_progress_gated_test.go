@@ -62,9 +62,16 @@ func TestTLFV01101_GatedCloseOfProgressDelivery(t *testing.T) {
 	if got := gbDispositions(rows); x.code != 0 || !sameRows(got, map[string]string{byPR: "CLOSED", byHead: "CLOSED"}) {
 		t.Fatalf("gated close %v: exit %d %s", got, x.code, x.stdout)
 	}
-	for _, r := range []wire.Value{rows[byPR], rows[byHead]} {
-		if field(r, "source").Str != "PROGRESS" || field(r, "completionKind").Str != "VERIFIED" || field(field(r, "claimScope"), "changedPaths").Str != "2" {
-			t.Fatalf("gated progress row: %s", wire.Encode(r))
+	// TCL-V0-7404 (V1-4288): a row delivered by lane PR #40 claims that lane
+	// head's own diff (src/a.go); a head-only mark names no lane PR, so it
+	// keeps the batch's two-path diff.
+	for _, want := range []struct {
+		row   wire.Value
+		paths string
+	}{{rows[byPR], "1"}, {rows[byHead], "2"}} {
+		r := want.row
+		if field(r, "source").Str != "PROGRESS" || field(r, "completionKind").Str != "VERIFIED" || field(field(r, "claimScope"), "changedPaths").Str != want.paths {
+			t.Fatalf("gated progress row (want %s changed paths): %s", want.paths, wire.Encode(r))
 		}
 	}
 	for _, id := range []string{byPRID, byHeadID} {

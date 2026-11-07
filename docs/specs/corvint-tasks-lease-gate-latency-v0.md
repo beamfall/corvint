@@ -38,6 +38,12 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   Evidence: `internal/tasks/store/checkpoint_decode_unix_test.go` — `TestLGLV07201_CheckpointDecodeOutsideWriterLock`.
 - `LGL-V0-7215`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4305) The shared-resource gate regression MUST keep its repeated shell paths within the 128-byte argv element bound independently of the caller's TMPDIR, using a private short /tmp directory with cleanup. This fixture choice does not enlarge the production argv limit.
   Evidence: `internal/tasks/store/gate_resource_unix_test.go` — `TestLGLV0885_GateRunSerializesASharedResource`.
+- `LGL-V0-7100`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4306)
+  Compaction's post-state regression MUST compare every replay and stored attempt field while
+  excluding only `attempt show`'s derived live `observedAt` timestamp. Crossing a second boundary
+  is not a stored-state change. Live holder status, heartbeat TTL and all other observations
+  remain compared. Acceptance: `TestCALV0302_CompactedStepsKeepTheirPostState`
+  (`internal/tasks/cli`), repeated 20 times alongside `TestERGV0017_ReviewPacketAcrossRounds`.
 
 
 - `LGL-V0-001`: (proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup

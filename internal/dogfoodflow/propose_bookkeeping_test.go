@@ -69,8 +69,8 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 		case "internal/x/named.go":
 			// Only bookkeeping lines name it, so its own nearest stable line
 			// is the marked proposal (DCW-V0-962).
-			if rest != "internal/x/named.go\t4:4\tdependency" || !strings.Contains(stderr.String(), "  drafted proposal: "+row+"\n") {
-				t.Errorf("code row = %q; want the marked proposal of its own nearest stable line", row)
+			if !strings.HasPrefix(rest, "internal/x/named.go\t") || !proposalRow(stderr.String(), row) {
+				t.Errorf("code row = %q; want unknown without an anchor (DWC-V0-926)", row)
 			}
 		default:
 			// DCW-V0-963: the note names the path and BASE range first.

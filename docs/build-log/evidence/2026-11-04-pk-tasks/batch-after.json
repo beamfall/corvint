@@ -1,0 +1,626 @@
+{
+  "chunks": [
+    {
+      "Entries": 1,
+      "WallMS": 4769.367575,
+      "LockMS": 4759.21019,
+      "Phases": {}
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1727.685783,
+      "LockMS": 1676.551741,
+      "Phases": {
+        "fast.apply": 1112.3275840000001,
+        "fast.bind": 42.532112,
+        "fast.checkpoint": 2.578354,
+        "fast.model": 202.925317,
+        "fast.observe": 290.281379,
+        "fast.readCheckpoint": 20.350661
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1763.846208,
+      "LockMS": 1713.017922,
+      "Phases": {
+        "fast.apply": 1197.1580680000002,
+        "fast.bind": 52.865287,
+        "fast.checkpoint": 1.669011,
+        "fast.model": 184.048944,
+        "fast.observe": 247.367613,
+        "fast.readCheckpoint": 25.993759999999998
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1927.09377,
+      "LockMS": 1876.20938,
+      "Phases": {
+        "fast.apply": 1255.619852,
+        "fast.bind": 55.232557,
+        "fast.checkpoint": 1.5652110000000001,
+        "fast.model": 243.66523899999999,
+        "fast.observe": 286.192307,
+        "fast.readCheckpoint": 30.087951000000004
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1853.799509,
+      "LockMS": 1803.049971,
+      "Phases": {
+        "fast.apply": 1126.7691020000002,
+        "fast.bind": 45.400832,
+        "fast.checkpoint": 2.117097,
+        "fast.model": 229.48488999999998,
+        "fast.observe": 370.43595500000004,
+        "fast.readCheckpoint": 24.791708
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1682.844971,
+      "LockMS": 1632.024514,
+      "Phases": {
+        "fast.apply": 1109.7338650000002,
+        "fast.bind": 42.387077,
+        "fast.checkpoint": 2.1260860000000004,
+        "fast.model": 169.04993,
+        "fast.observe": 284.657642,
+        "fast.readCheckpoint": 19.937509
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1518.47125,
+      "LockMS": 1467.630959,
+      "Phases": {
+        "fast.apply": 979.027816,
+        "fast.bind": 39.166019000000006,
+        "fast.checkpoint": 1.449802,
+        "fast.model": 146.329533,
+        "fast.observe": 277.92291600000004,
+        "fast.readCheckpoint": 19.686387000000003
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1501.899098,
+      "LockMS": 1451.104883,
+      "Phases": {
+        "fast.apply": 966.8842790000001,
+        "fast.bind": 29.932336,
+        "fast.checkpoint": 1.221143,
+        "fast.model": 155.505961,
+        "fast.observe": 276.69420099999996,
+        "fast.readCheckpoint": 15.905436
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1589.509122,
+      "LockMS": 1538.680167,
+      "Phases": {
+        "fast.apply": 1024.870539,
+        "fast.bind": 34.235476000000006,
+        "fast.checkpoint": 2.796203,
+        "fast.model": 153.417142,
+        "fast.observe": 303.583413,
+        "fast.readCheckpoint": 15.837926000000001
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1297.848679,
+      "LockMS": 1246.824393,
+      "Phases": {
+        "fast.apply": 791.244094,
+        "fast.bind": 35.712795,
+        "fast.checkpoint": 1.4811870000000003,
+        "fast.model": 159.17850199999998,
+        "fast.observe": 234.959593,
+        "fast.readCheckpoint": 17.078785999999997
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1637.17866,
+      "LockMS": 1586.358625,
+      "Phases": {
+        "fast.apply": 1113.663276,
+        "fast.bind": 37.259619,
+        "fast.checkpoint": 1.76936,
+        "fast.model": 160.197214,
+        "fast.observe": 252.332944,
+        "fast.readCheckpoint": 17.230474
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1333.882675,
+      "LockMS": 1283.056925,
+      "Phases": {
+        "fast.apply": 839.6609559999999,
+        "fast.bind": 32.886049,
+        "fast.checkpoint": 1.693301,
+        "fast.model": 147.24868599999996,
+        "fast.observe": 231.69303399999998,
+        "fast.readCheckpoint": 25.540284
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1372.100452,
+      "LockMS": 1321.288937,
+      "Phases": {
+        "fast.apply": 761.8546259999999,
+        "fast.bind": 49.928819,
+        "fast.checkpoint": 1.688723,
+        "fast.model": 197.804609,
+        "fast.observe": 283.401224,
+        "fast.readCheckpoint": 21.498906
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1626.867363,
+      "LockMS": 1576.038978,
+      "Phases": {
+        "fast.apply": 1099.638732,
+        "fast.bind": 34.080672,
+        "fast.checkpoint": 1.510561,
+        "fast.model": 149.440578,
+        "fast.observe": 269.598093,
+        "fast.readCheckpoint": 18.102713
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1303.155459,
+      "LockMS": 1252.255544,
+      "Phases": {
+        "fast.apply": 762.021402,
+        "fast.bind": 34.486094,
+        "fast.checkpoint": 1.2743120000000001,
+        "fast.model": 156.21192599999998,
+        "fast.observe": 277.701159,
+        "fast.readCheckpoint": 16.577174
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1197.234647,
+      "LockMS": 1146.394539,
+      "Phases": {
+        "fast.apply": 670.319148,
+        "fast.bind": 32.153257,
+        "fast.checkpoint": 1.62725,
+        "fast.model": 155.384966,
+        "fast.observe": 263.895011,
+        "fast.readCheckpoint": 19.280299
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1568.692566,
+      "LockMS": 1517.806181,
+      "Phases": {
+        "fast.apply": 966.424804,
+        "fast.bind": 36.464673,
+        "fast.checkpoint": 3.059703,
+        "fast.model": 183.87048800000002,
+        "fast.observe": 305.790228,
+        "fast.readCheckpoint": 18.517249
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1451.900304,
+      "LockMS": 1401.052734,
+      "Phases": {
+        "fast.apply": 945.623124,
+        "fast.bind": 32.115719,
+        "fast.checkpoint": 1.503982,
+        "fast.model": 167.09276699999998,
+        "fast.observe": 233.14477899999997,
+        "fast.readCheckpoint": 16.959499
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1453.729372,
+      "LockMS": 1402.976275,
+      "Phases": {
+        "fast.apply": 944.713323,
+        "fast.bind": 35.083755000000004,
+        "fast.checkpoint": 1.406001,
+        "fast.model": 167.142645,
+        "fast.observe": 235.658689,
+        "fast.readCheckpoint": 15.299733999999999
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1405.61353,
+      "LockMS": 1354.744134,
+      "Phases": {
+        "fast.apply": 917.2999180000002,
+        "fast.bind": 35.331564,
+        "fast.checkpoint": 1.2369530000000002,
+        "fast.model": 142.786706,
+        "fast.observe": 236.772348,
+        "fast.readCheckpoint": 17.269938000000003
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1341.920519,
+      "LockMS": 1291.062554,
+      "Phases": {
+        "fast.apply": 765.999237,
+        "fast.bind": 44.114723,
+        "fast.checkpoint": 1.4390830000000001,
+        "fast.model": 175.48401299999998,
+        "fast.observe": 283.821637,
+        "fast.readCheckpoint": 16.496292999999998
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1713.109971,
+      "LockMS": 1662.196924,
+      "Phases": {
+        "fast.apply": 1046.0853530000002,
+        "fast.bind": 49.137694999999994,
+        "fast.checkpoint": 5.650458,
+        "fast.model": 193.437215,
+        "fast.observe": 343.605906,
+        "fast.readCheckpoint": 19.886792000000003
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1740.469085,
+      "LockMS": 1689.669649,
+      "Phases": {
+        "fast.apply": 1097.997451,
+        "fast.bind": 47.850311999999995,
+        "fast.checkpoint": 1.71309,
+        "fast.model": 201.936396,
+        "fast.observe": 315.438113,
+        "fast.readCheckpoint": 20.96843
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1631.816502,
+      "LockMS": 1580.956427,
+      "Phases": {
+        "fast.apply": 1011.3830309999998,
+        "fast.bind": 35.690225,
+        "fast.checkpoint": 1.66194,
+        "fast.model": 154.90727,
+        "fast.observe": 349.421517,
+        "fast.readCheckpoint": 23.20437
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 2010.632051,
+      "LockMS": 1959.649012,
+      "Phases": {
+        "fast.apply": 1245.4245,
+        "fast.bind": 62.850061,
+        "fast.checkpoint": 3.131532,
+        "fast.model": 251.844905,
+        "fast.observe": 366.567113,
+        "fast.readCheckpoint": 24.513562000000004
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1319.331294,
+      "LockMS": 1268.441068,
+      "Phases": {
+        "fast.apply": 826.875366,
+        "fast.bind": 31.857267999999998,
+        "fast.checkpoint": 1.6241709999999998,
+        "fast.model": 152.50341,
+        "fast.observe": 234.738306,
+        "fast.readCheckpoint": 16.814061
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1705.861459,
+      "LockMS": 1655.052863,
+      "Phases": {
+        "fast.apply": 1186.237887,
+        "fast.bind": 34.550067999999996,
+        "fast.checkpoint": 2.0533980000000005,
+        "fast.model": 160.31238600000003,
+        "fast.observe": 251.34983799999998,
+        "fast.readCheckpoint": 16.35348
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1807.362409,
+      "LockMS": 1756.487323,
+      "Phases": {
+        "fast.apply": 1224.517727,
+        "fast.bind": 39.247206999999996,
+        "fast.checkpoint": 1.578071,
+        "fast.model": 182.477956,
+        "fast.observe": 287.655125,
+        "fast.readCheckpoint": 15.588568999999998
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1277.576267,
+      "LockMS": 1226.668033,
+      "Phases": {
+        "fast.apply": 702.608098,
+        "fast.bind": 36.459441,
+        "fast.checkpoint": 1.6988699999999999,
+        "fast.model": 170.372245,
+        "fast.observe": 288.017649,
+        "fast.readCheckpoint": 22.583388
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1732.755731,
+      "LockMS": 1681.926041,
+      "Phases": {
+        "fast.apply": 1130.760731,
+        "fast.bind": 45.586762,
+        "fast.checkpoint": 1.830479,
+        "fast.model": 173.11971499999999,
+        "fast.observe": 306.78765400000003,
+        "fast.readCheckpoint": 19.655144
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1802.474374,
+      "LockMS": 1751.45009,
+      "Phases": {
+        "fast.apply": 970.4197919999999,
+        "fast.bind": 74.898911,
+        "fast.checkpoint": 1.989408,
+        "fast.model": 284.806128,
+        "fast.observe": 387.41766499999994,
+        "fast.readCheckpoint": 26.218039
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1948.079088,
+      "LockMS": 1896.840954,
+      "Phases": {
+        "fast.apply": 1092.456861,
+        "fast.bind": 52.659493,
+        "fast.checkpoint": 1.885999,
+        "fast.model": 283.165025,
+        "fast.observe": 432.69224099999997,
+        "fast.readCheckpoint": 27.068364999999996
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1688.651028,
+      "LockMS": 1637.840713,
+      "Phases": {
+        "fast.apply": 1043.214017,
+        "fast.bind": 34.441654,
+        "fast.checkpoint": 4.715642,
+        "fast.model": 163.61075,
+        "fast.observe": 368.92842200000007,
+        "fast.readCheckpoint": 18.707732
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1497.534462,
+      "LockMS": 1446.278479,
+      "Phases": {
+        "fast.apply": 919.043889,
+        "fast.bind": 42.48630599999999,
+        "fast.checkpoint": 1.797991,
+        "fast.model": 167.033678,
+        "fast.observe": 286.207312,
+        "fast.readCheckpoint": 23.629525
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1921.886577,
+      "LockMS": 1870.981482,
+      "Phases": {
+        "fast.apply": 1249.438447,
+        "fast.bind": 50.123186000000004,
+        "fast.checkpoint": 1.7289299999999999,
+        "fast.model": 207.497595,
+        "fast.observe": 341.06219200000004,
+        "fast.readCheckpoint": 16.592188
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1646.504823,
+      "LockMS": 1595.545251,
+      "Phases": {
+        "fast.apply": 1041.647355,
+        "fast.bind": 49.518505000000005,
+        "fast.checkpoint": 1.5597210000000001,
+        "fast.model": 208.32112900000004,
+        "fast.observe": 274.646791,
+        "fast.readCheckpoint": 15.212553000000002
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1786.558443,
+      "LockMS": 1735.739598,
+      "Phases": {
+        "fast.apply": 1273.006965,
+        "fast.bind": 32.626681999999995,
+        "fast.checkpoint": 1.391231,
+        "fast.model": 160.941122,
+        "fast.observe": 249.25763700000002,
+        "fast.readCheckpoint": 14.670653
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1856.09447,
+      "LockMS": 1805.251791,
+      "Phases": {
+        "fast.apply": 1343.332704,
+        "fast.bind": 39.29002,
+        "fast.checkpoint": 1.353973,
+        "fast.model": 140.277793,
+        "fast.observe": 260.693932,
+        "fast.readCheckpoint": 15.705646999999999
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1347.373038,
+      "LockMS": 1296.569498,
+      "Phases": {
+        "fast.apply": 833.138402,
+        "fast.bind": 34.83402400000001,
+        "fast.checkpoint": 1.46559,
+        "fast.model": 133.96063600000002,
+        "fast.observe": 272.43919199999993,
+        "fast.readCheckpoint": 17.022936
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1226.709116,
+      "LockMS": 1175.014728,
+      "Phases": {
+        "fast.apply": 700.751262,
+        "fast.bind": 32.329711,
+        "fast.checkpoint": 1.405892,
+        "fast.model": 137.090718,
+        "fast.observe": 279.90316800000005,
+        "fast.readCheckpoint": 18.13064
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1541.386921,
+      "LockMS": 1490.640219,
+      "Phases": {
+        "fast.apply": 939.686954,
+        "fast.bind": 35.379892999999996,
+        "fast.checkpoint": 3.339678,
+        "fast.model": 176.07657400000002,
+        "fast.observe": 312.27837100000005,
+        "fast.readCheckpoint": 20.20135
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1228.359436,
+      "LockMS": 1177.519371,
+      "Phases": {
+        "fast.apply": 726.979173,
+        "fast.bind": 36.844285,
+        "fast.checkpoint": 1.554391,
+        "fast.model": 144.182191,
+        "fast.observe": 239.51941599999998,
+        "fast.readCheckpoint": 24.494858
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1779.877829,
+      "LockMS": 1729.051691,
+      "Phases": {
+        "fast.apply": 1118.878525,
+        "fast.bind": 56.662223000000004,
+        "fast.checkpoint": 1.7045489999999999,
+        "fast.model": 219.67429999999996,
+        "fast.observe": 306.1461,
+        "fast.readCheckpoint": 22.029016
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 2093.926767,
+      "LockMS": 2042.743402,
+      "Phases": {
+        "fast.apply": 1322.274931,
+        "fast.bind": 63.958386999999995,
+        "fast.checkpoint": 1.76334,
+        "fast.model": 300.39439600000003,
+        "fast.observe": 321.286287,
+        "fast.readCheckpoint": 27.008247000000004
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1757.284578,
+      "LockMS": 1706.362057,
+      "Phases": {
+        "fast.apply": 1201.241321,
+        "fast.bind": 39.77467,
+        "fast.checkpoint": 1.5724209999999998,
+        "fast.model": 166.049153,
+        "fast.observe": 277.28598900000003,
+        "fast.readCheckpoint": 16.68281
+      }
+    },
+    {
+      "Entries": 7,
+      "WallMS": 2101.846699,
+      "LockMS": 2050.990907,
+      "Phases": {
+        "fast.apply": 1575.632014,
+        "fast.bind": 41.208920000000006,
+        "fast.checkpoint": 2.4651680000000002,
+        "fast.model": 135.340319,
+        "fast.observe": 271.27540600000003,
+        "fast.readCheckpoint": 20.446057
+      }
+    },
+    {
+      "Entries": 8,
+      "WallMS": 1810.028039,
+      "LockMS": 1758.913192,
+      "Phases": {
+        "fast.apply": 1122.259317,
+        "fast.bind": 47.240318,
+        "fast.checkpoint": 1.6573110000000002,
+        "fast.model": 197.70317799999998,
+        "fast.observe": 359.427556,
+        "fast.readCheckpoint": 26.574817000000003
+      }
+    },
+    {
+      "Entries": 1,
+      "WallMS": 221.941714,
+      "LockMS": 170.76109,
+      "Phases": {
+        "fast.apply": 87.640197,
+        "fast.bind": 3.947133,
+        "fast.checkpoint": 0.171309,
+        "fast.model": 25.699832,
+        "fast.observe": 46.507859,
+        "fast.readCheckpoint": 2.016178
+      }
+    }
+  ],
+  "entries": 369,
+  "goVersion": "local",
+  "loadAfter": "14.25 13.53 10.85",
+  "loadBefore": "15.78 13.44 10.58",
+  "wallMS": 79520.104113
+}
