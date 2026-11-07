@@ -126,6 +126,7 @@ func TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149(t *testing.T) {
 	}{
 		{name: "an unknown prefix before the reference", body: "b=${B-}\n[[ $b == /* ]] || b=\"$PWD/$b\"\n\"$b\" --version\n"},
 		{name: "the reference alone with a default", body: "dir=${dir:-script}\n\"$dir/check\"\n", imports: []string{"shell:script/check"}},
+		{name: "two unrolled names in one chain", body: "s=$o\no=$B\no=\"$PWD/$o\"\no=\"$b\"\nb=${C-}\nb=\"$PWD/$b\"\n\"$s\" --version\n"},
 		{name: "a literal wrapper is a cut", body: "x=script\nx=\"../$x\"\n\"$x/check\"\n", dynamic: true},
 		{name: "a reference nested in a default is a cut", body: "x=script\nx=\"${y:-abc$x}\"\n\"$x/check\"\n", dynamic: true},
 		{name: "a cycle through another name is a cut", body: "a=\"$PWD/$b\"\nb=\"$a\"\n\"$a/check\"\n", dynamic: true},
