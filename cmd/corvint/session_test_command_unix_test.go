@@ -193,6 +193,40 @@ func TestSTRV0003CLINoPlanRunsDeclaredScope(t *testing.T) {
 	}
 }
 
+// AZU-V0-9923: a graph that an invalid declaration fails leaves no Go
+// universe, so the FULL fallback's `go test ./...` cannot confirm a failing
+// test below an underscore directory, which ./... skips. The run is
+// INCOMPLETE and the declared Go suite never launches, never a PASS.
+func TestAZUV09923CLINoPlanHiddenGoIsIncomplete(t *testing.T) {
+	root, base, log := sessionFixture(t, "pass")
+	for name, body := range map[string]string{
+		"_private/private_test.go":       "package private\n\nimport \"testing\"\n\nfunc TestPrivate(t *testing.T) { t.Fatal(\"skipped by ./...\") }\n",
+		".corvint/non-source-paths.json": `{"profile":"corvint-non-source-paths/0","entries":[{"path":"_out/","reason":"r"},{"path":"_out/","reason":"r"}]}`,
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "hidden test and an invalid declaration")
+	receiptPath := filepath.Join(t.TempDir(), "r.json")
+	code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", receiptPath)
+	if code != testCommandExit[sessiontest.ResultIncomplete] || !strings.Contains(stderr, "corvint-test: FALLBACK no plan: ") || !strings.Contains(stderr, "non-source-paths.json") {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if got := sessionRunnerLog(t, log); got != "go env GOVERSION\n" {
+		t.Fatalf("runner calls:\n%s", got)
+	}
+	receipt := readSessionReceipt(t, receiptPath)
+	if receipt.Scope != sessiontest.ScopeFull || receipt.Result != sessiontest.ResultIncomplete || len(receipt.Invocations) != 0 ||
+		!strings.Contains(strings.Join(receipt.Incomplete, "\n"), "declared:go: no plan gave a Go universe, and go test ./... skips dot and underscore directories: the Go source below them cannot be confirmed without the graph (1 files, first _private/private_test.go)") {
+		t.Fatalf("receipt %s %v %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+}
+
 // STR-V0-003, STR-V0-004: with no plan, a declared language full command is
 // found from the declaration, not the plan, and its failure fails the run;
 // a {"none": reason} language is recorded and runs nothing.

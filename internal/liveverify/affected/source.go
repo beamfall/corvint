@@ -103,11 +103,18 @@ func (s *Source) FilesIncluding(accept func(relative, name string) bool, include
 		return nil, false, ErrInvalidLanguage
 	}
 	if s.fsys == nil && s.ctx == nil {
-		all, bounded, err := SourceFilesIncluding(s.root, acceptEveryName, included...)
+		if s.root == "" || !filepath.IsAbs(s.root) {
+			return nil, false, fmt.Errorf("%w: root %q is not absolute", ErrInvalidLanguage, s.root)
+		}
+		all, bounded, err := sourceFilesIncluding(s.root, acceptEveryName, included)
 		if err != nil {
 			return nil, false, err
 		}
-		return slices.DeleteFunc(all, func(relative string) bool { return !accept(relative, path.Base(relative)) }), bounded, nil
+		files, err := nameableFiles(all, func(relative string) bool { return accept(relative, path.Base(relative)) })
+		if err != nil {
+			return nil, false, err
+		}
+		return files, bounded, nil
 	}
 	key := strings.Join(included, "\x00")
 	s.mu.Lock()
@@ -136,9 +143,14 @@ func (s *Source) FilesIncluding(accept func(relative, name string) bool, include
 		if err := s.cancelled(); err != nil {
 			return nil, false, err
 		}
-		if accept(relative, path.Base(relative)) {
-			files = append(files, relative)
+		if !accept(relative, path.Base(relative)) {
+			continue
 		}
+		if !ValidRelativePath(relative) {
+			// A deferred hidden-directory path the language claims (AZU-V0-005).
+			return nil, false, fmt.Errorf("%w: %q", ErrWalkUnrepresentable, relative)
+		}
+		files = append(files, relative)
 	}
 	return files, shared.bounded, nil
 }
@@ -594,7 +606,7 @@ func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectori
 			return nil
 		}
 		slashed := current
-		if !ValidRelativePath(slashed) {
+		if !ValidRelativePath(slashed) && !deferredUnrepresentable(slashed) {
 			return fmt.Errorf("%w: %q", ErrWalkUnrepresentable, slashed)
 		}
 		files = append(files, slashed)
@@ -622,13 +634,13 @@ func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectori
 			}
 			name := entry.Name()
 			if entry.IsDir() {
-				if strings.HasPrefix(name, ".") {
+				if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && !included[name] {
+				if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 					return fs.SkipDir
 				}
-				if SkippedDirectories[name] && included[name] {
+				if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 					childBounded, childErr := walkIncluded(current)
 					subtreeBounded = subtreeBounded || childBounded
 					if childErr != nil {
@@ -657,13 +669,13 @@ func walkSourceFS(source fs.FS, accept func(name string) bool, includedDirectori
 			if current == "." {
 				return nil
 			}
-			if strings.HasPrefix(name, ".") {
+			if strings.HasPrefix(name, ".") && !includedSourceDirectory(name, included) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && !included[name] {
+			if SkippedDirectories[name] && !includedSourceDirectory(name, included) {
 				return fs.SkipDir
 			}
-			if SkippedDirectories[name] && included[name] {
+			if (SkippedDirectories[name] || strings.HasPrefix(name, ".")) && includedSourceDirectory(name, included) {
 				subtreeBounded, subtreeErr := walkIncluded(current)
 				bounded = bounded || subtreeBounded
 				if subtreeErr != nil {

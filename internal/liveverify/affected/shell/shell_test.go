@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -802,6 +803,50 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		{"link", "tmp=$(mktemp -d)\nln -s \"$PWD\" \"$tmp/r\"\ncat \"$tmp/r/internal/x/y.json\"\n", true},
 		{"conditional", "[ -n \"${tmp-}\" ] || tmp=$(mktemp -d)\ncat \"$tmp/internal/x/y.json\"\n", true},
 		{"used first", "cat \"$tmp/internal/x/y.json\"\ntmp=$(mktemp -d)\n", true},
+		// AFP-V0-2243 is disabled for 1.0: any list operator after the
+		// assignment (`&&`, `||`, a pipeline or the background) refuses it
+		// as the base does, because the end of the list (an `&` after a
+		// compound command or a continued line) is not proven.
+		{"or exit", "tmp=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || exit 1\ncat \"$tmp/repo/internal/x/y.json\"\n", true},
+		{"and cd", "tmp=$(mktemp -d) && cd \"$tmp\"\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"piped", "tmp=$(mktemp -d) | cat\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"background", "tmp=$(mktemp -d) &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"list in background", "tmp=$(mktemp -d) && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or list in background", "tmp=$(mktemp -d) || echo no && true &\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or reassign", "tmp=$(mktemp -d) || tmp=.\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"or read", "tmp=$(mktemp -d) || read -r tmp\ncat \"$tmp/internal/x/y.json\"\n", true},
+		// AFP-V0-2246 is withdrawn: canonicalization remains an assignment,
+		// so even a plain canonicalized root keeps every path token.
+		{"canonical", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/repo/internal/x/y.json\"\n", true},
+		{"canonical physical", "tmp=$(mktemp -d) || exit\ntmp=$(cd \"${tmp}\" && pwd -P)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical without exit", "tmp=$(mktemp -d)\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical other name", "tmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$base\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit piped", "tmp=$(mktemp -d) || exit 1 | cat\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit aliased", "alias exit=:\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical cd function", "cd(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical pwd function", "pwd(){ echo .; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical pwd alias", "alias pwd='echo .'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit function", "exit(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit function keyword", "function exit { :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit disabled", "enable -n exit\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical builtin function", "builtin(){ :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical command function", "command () { :; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical eval", "eval \"$defs\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical sourced helper", ". ./helper.sh\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical sourced variable", "source \"$HELPERS\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical debug trap", "set -T\ntrap '[ \"$BASH_COMMAND\" = pwd ] && cd \"$OLDPWD\"' DEBUG\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted debug trap", "trap 'cd \"$OLDPWD\"' \"DEBUG\"\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted eval", "ev''al 'pwd() { echo .; }'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted enable", "en''able -n cd\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical computed command", "run=eval\n$run 'pwd() { echo .; }'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical quoted function name", "'pwd'() { echo .; }\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical mapfile callback", "mapfile -C 'cd /' -c 1 lines < /dev/null\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical aliases array", "BASH_ALIASES[pwd]='echo .'\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical shopt", "shopt -s expand_aliases\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical declare", "declare -f pwd\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical exit trap", "tmp=$(mktemp -d) || exit 1\ntrap 'rm -rf \"$tmp\"' EXIT\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical path command", "script=$(cd \"$(dirname \"$0\")\" && pwd)/x.sh\n\"$script\" a\ntmp=$(mktemp -d) || exit 1\ntmp=$(cd \"$tmp\" && pwd)\ncat \"$tmp/internal/x/y.json\"\n", true},
+		{"canonical first", "tmp=$(cd \"$tmp\" && pwd)\ntmp=$(mktemp -d) || exit 1\ncat \"$tmp/internal/x/y.json\"\n", true},
 	}
 	for _, tc := range cases {
 		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
@@ -816,5 +861,238 @@ func TestTempRootPathsAreNoTokens_AFPV02204(t *testing.T) {
 		if kept != tc.kept {
 			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
 		}
+	}
+}
+
+// AFP-V0-2243: a list the assignment leads that continues into a compound
+// command (a brace group, a subshell, an if, a loop, a case, `time` or a
+// function) may end in an `&` the lexer does not record after the closing
+// word, so the name is no temp root and the read keeps its token; so does an
+// assignment after the `&&` or `||` that follows a compound command, and a
+// list whose later member's substitution holds a `;`. With AFP-V0-2243
+// disabled for 1.0 every list after the assignment keeps the token. Controls:
+// a lone assignment after a compound command or a function that ends its own
+// line keeps the narrowing.
+func TestBackgroundedCompoundListsKeepTokens_AFPV02243(t *testing.T) {
+	root := t.TempDir()
+	const read = "wait\ncat \"$tmp/internal/x/y.json\"\n"
+	cases := []struct {
+		name, body string
+		kept       bool
+	}{
+		{"brace group", "tmp=$(mktemp -d) && { :; } &\n" + read, true},
+		{"brace group two", "tmp=$(mktemp -d) && { echo a; echo b; } &\n" + read, true},
+		{"subshell", "tmp=$(mktemp -d) && ( :; ) &\n" + read, true},
+		{"subshell or", "tmp=$(mktemp -d) || ( exit 1 ) &\n" + read, true},
+		{"if", "tmp=$(mktemp -d) && if true; then :; fi &\n" + read, true},
+		{"while", "tmp=$(mktemp -d) && while false; do :; done &\n" + read, true},
+		{"for", "tmp=$(mktemp -d) && for f in a; do :; done &\n" + read, true},
+		{"case", "tmp=$(mktemp -d) && case x in x) :;; esac &\n" + read, true},
+		{"time group", "tmp=$(mktemp -d) && time { :; } &\n" + read, true},
+		{"substitution", "tmp=$(mktemp -d) && echo \"$(true; true)\" &\n" + read, true},
+		{"group then and", "tmp=$(mktemp -d) && { :; } && true &\n" + read, true},
+		{"group not backgrounded", "tmp=$(mktemp -d) && { :; }\n" + read, true},
+		{"after group or", "{ true; } || tmp=$(mktemp -d)\n" + read, true},
+		{"after subshell or", "( true ) || tmp=$(mktemp -d)\n" + read, true},
+		{"after esac and", "case x in y) :;; esac && tmp=$(mktemp -d)\n" + read, true},
+		{"after group continued", "{ false; } ||\ntmp=$(mktemp -d)\n" + read, true},
+		// AFP-V0-2243 is disabled for 1.0, so a list after the assignment
+		// keeps the token even after a compound on its own line.
+		{"group on its own line", "{ :; }\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"group then semicolon", "{ :; }; tmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"function before", "f() { :; }\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"simple list", "tmp=$(mktemp -d) && cd \"$tmp\" && echo ok\n" + read, true},
+		{"simple list with substitution", "tmp=$(mktemp -d) || echo \"$(date)\"\n" + read, true},
+		// Controls: a lone assignment after a compound on its own line
+		// keeps the narrowing.
+		{"group on its own line alone", "{ :; }\ntmp=$(mktemp -d)\n" + read, false},
+		{"function before alone", "f() { :; }\ntmp=$(mktemp -d)\n" + read, false},
+		{"subshell on its own line", "( :; )\ntmp=$(mktemp -d)\n" + read, false},
+	}
+	for _, tc := range cases {
+		write(t, root, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh", "#!/usr/bin/env bash\n"+tc.body)
+	}
+	got := units(t, root)
+	for _, tc := range cases {
+		unit := unitOf(t, got, "lib/"+strings.ReplaceAll(tc.name, " ", "-")+"_test.sh")
+		kept := false
+		for _, token := range unit.PathTokens {
+			kept = kept || strings.HasSuffix(token, "internal/x/y.json")
+		}
+		if kept != tc.kept {
+			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+}
+
+// AFP-V0-2243 and AFP-V0-2204 round 7: a compound command that holds no
+// simple command (`case x in esac`) leaves no command for the scan, only the
+// `&` it ends with, so a list that backgrounds the assignment through it keeps
+// the read's token; and a redirection on the assignment can fail (dash then
+// skips the assignment), so a redirected assignment is no temp root.
+// Each counterexample is also run under its shell, with an inherited
+// tmp=. and descriptor 9 closed, to show the read reaches the repository
+// file. With AFP-V0-2243 disabled for 1.0 a list after the assignment (an
+// empty case before it, a list continued over a newline, a redirection on
+// the list's right side) keeps the token too. Control: a lone assignment
+// after an empty case on its own line keeps the narrowing.
+func TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243(t *testing.T) {
+	root := t.TempDir()
+	const read = "cat \"$tmp/internal/x/y.json\"\n"
+	type shellCase struct {
+		name, shell, body string
+		kept              bool
+	}
+	cases := []shellCase{
+		{"empty case background", "bash", "tmp=$(mktemp -d) && case x in esac & wait; " + read, true},
+		{"empty case background dash", "dash", "tmp=$(mktemp -d) && case x in esac & wait; " + read, true},
+		{"empty case background newline", "bash", "tmp=$(mktemp -d) && case x in esac &\nwait\n" + read, true},
+		{"empty case or background", "bash", "tmp=$(mktemp -d) || case x in esac & wait; " + read, true},
+		{"empty arm case background", "bash", "tmp=$(mktemp -d) && case x in y) ;; esac & wait; " + read, true},
+		{"empty case then list background", "bash", "tmp=$(mktemp -d) && case x in esac && true & wait; " + read, true},
+		{"redirect failing or", "dash", "tmp=$(mktemp -d) 3>&9 || :\n" + read, true},
+		{"redirect failing and", "dash", "tmp=$(mktemp -d) 3>&9 && :\n" + read, true},
+		{"redirect own line", "dash", "tmp=$(mktemp -d) 2>/dev/null\n" + read, true},
+		{"redirect before", "dash", "3>&9 tmp=$(mktemp -d) || :\n" + read, true},
+		// AFP-V0-2243 is disabled for 1.0: a list after the assignment
+		// keeps the token.
+		{"empty case own line", "bash", "case x in esac\ntmp=$(mktemp -d) || exit 1\n" + read, true},
+		{"list continued", "bash", "tmp=$(mktemp -d) &&\n  cd \"$tmp\"\n" + read, true},
+		{"redirect on the right", "dash", "tmp=$(mktemp -d) || echo no >&2\n" + read, true},
+		// Control: a lone assignment after an empty case on its own line
+		// keeps the narrowing.
+		{"empty case own line alone", "bash", "case x in esac\ntmp=$(mktemp -d)\n" + read, false},
+	}
+	file := func(name string) string { return "lib/" + strings.ReplaceAll(name, " ", "-") + "_test.sh" }
+	for _, tc := range cases {
+		write(t, root, file(tc.name), "#!/usr/bin/env "+tc.shell+"\n"+tc.body)
+	}
+	got := units(t, root)
+	for _, tc := range cases {
+		unit := unitOf(t, got, file(tc.name))
+		kept := false
+		for _, token := range unit.PathTokens {
+			kept = kept || strings.HasSuffix(token, "internal/x/y.json")
+		}
+		if kept != tc.kept {
+			t.Errorf("%s: internal/x/y.json token kept = %v, want %v (tokens %v)", tc.name, kept, tc.kept, unit.PathTokens)
+		}
+	}
+	// Run the counterexamples: each reads the repository's
+	// internal/x/y.json through the inherited tmp=. it was meant to replace.
+	write(t, root, "internal/x/y.json", "{\"read\":true}\n")
+	for _, name := range []string{"empty case background", "empty case background dash", "redirect failing or"} {
+		tc := cases[slices.IndexFunc(cases, func(c shellCase) bool { return c.name == name })]
+		shell, err := exec.LookPath(tc.shell)
+		if err != nil {
+			t.Logf("%s: %s not installed; run skipped", name, tc.shell)
+			continue
+		}
+		run := exec.Command(shell, file(name))
+		run.Dir = root
+		run.Env = append(os.Environ(), "tmp=.")
+		out, _ := run.CombinedOutput()
+		if !strings.Contains(string(out), `{"read":true}`) {
+			t.Errorf("%s under %s did not read the repository file: %s", name, tc.shell, out)
+		}
+	}
+}
+
+// AFP-V0-2246 is withdrawn. Each round-5 review bypass keeps the path token,
+// including every compound prefix and expansion shape; no shell allowlist is
+// sufficient authority to discard a path computed through cd or pwd.
+func TestCanonicalizationCounterexamplesStaySelected_AFPV02246(t *testing.T) {
+	const suffix = `tmp=$(mktemp -d) || exit 1
+tmp=$(cd "$tmp" && pwd)
+cat "$tmp/internal/x/y.json"
+`
+	const define = `eval "${n}d() { echo .; }"`
+	cases := []struct {
+		name, shell, body string
+	}{
+		// Class 1: the refused command is hidden behind a compound keyword.
+		{"if eval", "bash", `n=pw
+if ` + define + `; then :; fi
+` + suffix},
+		{"if source", "bash", `if [ -f ./h.sh ]; then . ./h.sh; fi
+` + suffix},
+		{"negated enable", "bash", `! enable -n cd
+` + suffix},
+		{"while eval", "bash", `n=pw
+while ` + define + `; do break; done
+` + suffix},
+		{"for eval", "bash", `n=pw
+for once in yes; do ` + define + `; done
+` + suffix},
+		{"time eval", "bash", `n=pw
+time ` + define + `
+` + suffix},
+		{"if tracing and debug trap", "bash", `if set -T; then :; fi
+if trap '[ "$BASH_COMMAND" = pwd ] && cd "$OLDPWD"' DEBUG; then :; fi
+` + suffix},
+		{"if alias dash", "dash", `if alias pwd="echo ."; then :; fi
+` + suffix},
+		// Class 2: a slash written in the command word vanishes on expansion.
+		{"backtick command", "bash", "n=pw\n`echo /eval | cut -c2-` \"${n}d() { echo .; }\"\n" + suffix},
+		{"nested parameter command", "bash", `n=pw
+x=eval/
+y=
+${x%${y}/} "${n}d() { echo .; }"
+` + suffix},
+		// Class 3: a supposedly harmless signal is sent by the script itself.
+		{"self signalled trap", "bash", `n=pw
+trap 'eval "${n}d() { echo .; }"' INT
+kill -INT $$
+` + suffix},
+		// Class 4: backslash-newline splits a function name or its keyword.
+		{"continued function name", "bash", "pwd\\\n() { echo .; }\n" + suffix},
+		{"continued function keyword", "bash", "function\\\n pwd { echo .; }\n" + suffix},
+		// Class 5: set -T has a standalone regression, without a DEBUG trap.
+		{"set tracing alone", "bash", "set -T\n" + suffix},
+		// No override is needed to keep any canonicalization-derived token.
+		{"plain bash", "bash", suffix},
+		{"plain sh", "sh", suffix},
+		{"plain dash", "dash", suffix},
+		{"plain zsh", "zsh", suffix},
+		{"plain ksh", "ksh", suffix},
+		{"no shebang", "", suffix},
+		{"assigned pwd", "bash", `tmp=$(pwd)
+cat "$tmp/internal/x/y.json"
+`},
+		{"derived variable", "bash", `tmp=$(mktemp -d) || exit 1
+repo=$(cd "$tmp" && pwd)
+cat "$repo/internal/x/y.json"
+`},
+		{"derived alias", "bash", `tmp=$(mktemp -d) || exit 1
+tmp=$(cd "$tmp" && pwd)
+repo="$tmp/repo"
+cat "$repo/internal/x/y.json"
+`},
+		{"direct cd substitution", "bash", `tmp=$(mktemp -d) || exit 1
+cat "$(cd "$tmp" && pwd)/internal/x/y.json"
+`},
+		{"direct pwd substitution", "bash", `cat "$(pwd)/internal/x/y.json"
+`},
+		{"assigned substitution", "bash", `tmp=$(mktemp -d) || exit 1
+repo=$(printf '%s' "$tmp")
+cat "$repo/internal/x/y.json"
+`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			text := tc.body
+			if tc.shell != "" {
+				text = "#!/usr/bin/env " + tc.shell + "\n" + text
+			}
+			write(t, root, "probe_test.sh", text)
+			unit := unitOf(t, units(t, root), "probe_test.sh")
+			for _, token := range unit.PathTokens {
+				if strings.HasSuffix(token, "internal/x/y.json") {
+					return
+				}
+			}
+			t.Fatalf("internal/x/y.json token was dropped: tokens %v; script:\n%s", unit.PathTokens, text)
+		})
 	}
 }

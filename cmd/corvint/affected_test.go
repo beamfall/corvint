@@ -390,8 +390,8 @@ func TestAffectedTaskStoreProjectionIsTaskState_AFPV0088(t *testing.T) {
 	}
 }
 
-// AFP-V0-020: an edited Go package with no _test.go file is named in
-// plan.unknown and leaves scope UNKNOWN instead of being omitted.
+// AZU-V0-006 amends AFP-V0-020: an isolated package with no _test.go file
+// is an explicit coverage gap; unresolved callers still leave scope UNKNOWN.
 func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {
 	t.Parallel()
 	root := affectedFixtureRepository(t)
@@ -412,18 +412,62 @@ func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 	plan := receipt["plan"].(map[string]any)
-	if plan["scope"] != "UNKNOWN" {
-		t.Fatalf("an edited package without tests must leave scope UNKNOWN: %v", plan)
+	want := []any{map[string]any{"reason": "NO_SELECTABLE_TEST", "detail": "go:example.com/fixture/untested"}}
+	if plan["scope"] != "BOUNDED" || !reflect.DeepEqual(plan["uncovered"], want) || len(plan["unknown"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
+		t.Fatalf("an isolated package without tests must be an exact bounded coverage gap: %v", plan)
+	}
+	// An undeclared shell caller cannot prove absence of test observers.
+	if err := os.WriteFile(filepath.Join(root, "caller.sh"), []byte("#!/bin/sh\necho caller\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "unresolved caller")
+	if err := os.WriteFile(filepath.Join(root, "caller.sh"), []byte("#!/bin/sh\necho changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code = runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan = receipt["plan"].(map[string]any)
+	if plan["scope"] != "UNKNOWN" || plan["uncovered"] != nil {
+		t.Fatalf("unresolved callers must retain unknown scope: %v", plan)
 	}
 	found := false
 	for _, item := range plan["unknown"].([]any) {
 		entry := item.(map[string]any)
-		if entry["reason"] == "NO_SELECTABLE_TEST" && entry["detail"] == "go:example.com/fixture/untested" {
+		if entry["reason"] == "NO_SELECTABLE_TEST" && entry["detail"] == "shell:caller.sh" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("expected NO_SELECTABLE_TEST for go:example.com/fixture/untested: %v", plan["unknown"])
+		t.Fatalf("expected NO_SELECTABLE_TEST for unresolved shell:caller.sh: %v", plan["unknown"])
+	}
+}
+
+// AZU-V0-006: a root test calling a testless reader observes owned source bytes.
+func TestAZUV0006OwnedSourceReaderCaller(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	affectedGit(t, root, "init", "-q")
+	cemWrite(t, root, "go.mod", "module example.com/reader\n\ngo 1.22\n")
+	cemWrite(t, root, "data/data.go", "package data\nconst Value = 1\n")
+	cemWrite(t, root, "helper/helper.go", "package helper\nimport \"os\"\nfunc Read() ([]byte, error) { return os.ReadFile(\"data/data.go\") }\n")
+	cemWrite(t, root, "root_test.go", "package reader_test\nimport (\"testing\"; \"example.com/reader/helper\")\nfunc TestRead(t *testing.T) { if _, err := helper.Read(); err != nil { t.Fatal(err) } }\n")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "reader fixture")
+	cemWrite(t, root, "data/data.go", "package data\nconst Value = 2\n")
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if plan["scope"] != "BOUNDED" || len(plan["unknown"].([]any)) != 0 || plan["uncovered"] != nil {
+		t.Fatalf("reader callers must prevent a false coverage gap: %v", plan)
+	}
+	selected := plan["selected"].([]any)
+	if len(selected) != 1 || selected[0].(map[string]any)["unitId"] != "go:example.com/reader" || !reflect.DeepEqual(selected[0].(map[string]any)["tests"], []any{"root_test.go"}) {
+		t.Fatalf("root test calling the reader must be selected: %v", selected)
 	}
 }
 

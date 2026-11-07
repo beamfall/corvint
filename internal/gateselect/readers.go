@@ -6,6 +6,7 @@ package gateselect
 // attributed from its literals is `unresolved` and selected on any dirty path.
 
 import (
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -44,7 +45,12 @@ var rootLocatorFuncs = map[string]string{"os": "Getwd"}
 // package's own source does not carry it.
 var rootLocatorToken = "--show-" + "toplevel"
 
-var printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+var (
+	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+	// parentBackslash is the planner's (golang.parentBackslash,
+	// AFP-V0-506, AFP-V0-2242).
+	parentBackslash = strings.NewReplacer(`..\`, `../`)
+)
 
 type goPackage struct {
 	embeds         bool
@@ -64,6 +70,7 @@ type repositoryIndex struct {
 	importers      map[string][]string   // directory -> directories whose non-test files import it
 	namers         map[string][]string   // directory -> directories whose non-test files name it by a path token
 	testImporters  map[string][]string   // directory -> directories whose _test.go files alone import or name it
+	nonSource      []string              // declared non-source entries (.corvint/non-source-paths.json)
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
@@ -74,6 +81,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 // of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
 func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
 	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
+	index.nonSource = declaredNonSource(root)
 	var files []indexedFile
 	entries := 0
 	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -94,7 +102,7 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 		if entry.IsDir() {
 			return index.enterDirectory(root, relative)
 		}
-		if !strings.HasSuffix(relative, ".go") {
+		if !strings.HasSuffix(relative, ".go") || index.declaredOutput(relative) {
 			return nil
 		}
 		if !entry.Type().IsRegular() {
@@ -199,11 +207,67 @@ func scanFiles(root, module string, files []indexedFile, recalled *scanRecall) [
 	return results
 }
 
+// nonSourcePath is the declaration of tracked output (AZU-V0-002); it mirrors
+// affected.NonSourcePathsPath.
+const nonSourcePath = ".corvint/non-source-paths.json"
+
+// declaredNonSource returns the declared non-source entries, or nil for a
+// missing, oversized or malformed declaration: the index then keeps every
+// file, as the planner's affected.DeclaredNonSourceHolds does.
+func declaredNonSource(root string) []string {
+	name := filepath.Join(root, filepath.FromSlash(nonSourcePath))
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxReadScopeBytes {
+		return nil
+	}
+	body, err := os.ReadFile(name)
+	if err != nil || len(body) > maxReadScopeBytes {
+		return nil
+	}
+	var declared struct {
+		Profile string `json:"profile"`
+		Entries []struct {
+			Path   string `json:"path"`
+			Reason string `json:"reason"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &declared, json.RejectUnknownMembers(true)); err != nil || declared.Profile != "corvint-non-source-paths/0" {
+		return nil
+	}
+	entries := make([]string, 0, len(declared.Entries))
+	for _, entry := range declared.Entries {
+		if entry.Path == "" || entry.Reason == "" {
+			return nil
+		}
+		entries = append(entries, entry.Path)
+	}
+	return entries
+}
+
+// declaredOutput reports a Go file below a directory whose name starts with
+// `.` or `_` that the repository declares non-source: retained output, not a
+// package, as in the planner's Go plugin (AZU-V0-005, AZU-V0-9921).
+func (index *repositoryIndex) declaredOutput(relative string) bool {
+	hidden := false
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		hidden = hidden || component != "." && (strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_"))
+	}
+	if !hidden {
+		return false
+	}
+	for _, entry := range index.nonSource {
+		if relative == entry || (strings.HasSuffix(entry, "/") && strings.HasPrefix(relative, entry)) {
+			return true
+		}
+	}
+	return false
+}
+
 func (index *repositoryIndex) enterDirectory(root, relative string) error {
 	if relative == "" {
 		return nil
 	}
-	if hiddenDirectory(path.Base(relative)) {
+	if hiddenDirectory(relative) {
 		return filepath.SkipDir
 	}
 	if exists(filepath.Join(root, relative, "go.mod")) {
@@ -434,15 +498,48 @@ func importState(state int, kind token.Token) int {
 }
 
 // pathTokens splits a literal into path-shaped tokens with printf verbs
-// removed; an import path under the module becomes a root-anchored path.
+// removed. A rewrite only ever adds a token beside the written one
+// (AFP-V0-2242): an import path under the module also yields its
+// root-anchored path; a token whose `/` directly follows `<` or an
+// HTML-escaped `&lt;` (a closing tag, `</repo/lib.js>`) also yields the token
+// without that `/`, the one the planner reads first (AFP-V0-505, AFP-V0-840);
+// and a literal with a backslash after a parent component (`..\x`) also
+// yields the tokens of its rewrite to the slash the planner reads
+// (golang.parentBackslash, AFP-V0-506), after the printf verbs as there. So
+// `foo..\notes` holds the written `foo..` and `notes` and the climbing
+// `foo../notes` in both lexicons, and `..\x` holds a bare `..`.
 func pathTokens(literal, module string) []string {
 	return appendPathTokens(nil, literal, module)
 }
 
+// appendPathTokens appends pathTokens(literal, module) to tokens, so a file's
+// literals can share one backing array.
 func appendPathTokens(tokens []string, literal, module string) []string {
 	if strings.Contains(literal, "%") {
 		literal = printfVerb.ReplaceAllString(literal, " ")
 	}
+	start := len(tokens)
+	tokens = spelledTokens(tokens, literal, module)
+	rewritten := parentBackslash.Replace(literal)
+	if rewritten == literal {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens)-start)
+	for _, value := range tokens[start:] {
+		seen[value] = true
+	}
+	for _, value := range spelledTokens(nil, rewritten, module) {
+		if !seen[value] {
+			seen[value] = true
+			tokens = append(tokens, value)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling pathTokens keeps for each path-shaped
+// run of literal.
+func spelledTokens(tokens []string, literal, module string) []string {
 	for offset := 0; offset < len(literal); {
 		if !pathCharacter(literal[offset]) {
 			offset++
@@ -452,22 +549,48 @@ func appendPathTokens(tokens []string, literal, module string) []string {
 		for offset < len(literal) && pathCharacter(literal[offset]) {
 			offset++
 		}
-		value := literal[start:offset]
-		if value == module {
-			value = "/"
-		} else if rest, ok := strings.CutPrefix(value, module+"/"); ok {
-			value = "/" + rest
+		tokens = appendSpellings(tokens, literal[start:offset], module)
+		if literal[start] == '/' && offset > start+1 && closesTag(literal, start) {
+			tokens = appendSpellings(tokens, literal[start+1:offset], module)
 		}
-		tokens = append(tokens, value)
 	}
 	return tokens
 }
 
-// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-]. Keep
-// this attribution lexicon independent of the planner's narrower token rules.
+// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-].
 func pathCharacter(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
 		c == '.' || c == '_' || c == '~' || c == '@' || c == '+' || c == '/' || c == '-'
+}
+
+// appendSpellings appends value as written and, for an import path under the
+// module, its root-anchored path too.
+func appendSpellings(tokens []string, value, module string) []string {
+	tokens = append(tokens, value)
+	if anchored := moduleAnchored(value, module); anchored != value {
+		tokens = append(tokens, anchored)
+	}
+	return tokens
+}
+
+// moduleAnchored turns an import path under the module into a root-anchored
+// path.
+func moduleAnchored(value, module string) string {
+	if value == module {
+		return "/"
+	}
+	if rest, ok := strings.CutPrefix(value, module+"/"); ok {
+		return "/" + rest
+	}
+	return value
+}
+
+// closesTag reports a `/` at index directly after `<` or, in any letter case,
+// the HTML entity `&lt;`: the planner's closing-tag test (AFP-V0-505,
+// AFP-V0-840).
+func closesTag(literal string, index int) bool {
+	return index > 0 && literal[index-1] == '<' ||
+		index >= len("&lt;") && strings.EqualFold(literal[index-len("&lt;"):index], "&lt;")
 }
 
 // escapesPackage names why a token read from directory's files cannot be
@@ -698,6 +821,11 @@ func (index *repositoryIndex) reach(withNamers bool, directories []string) []str
 // readers are the packages whose own files carry a path token naming
 // dirtyPath. A dependency's literal is resolved against a root or directory its
 // caller hands it; a dependency that finds the root itself is `locatesRoot`.
+// Any run of the token, a lone component included, names the path at any
+// depth: no literal index proves the root a literal is joined to, which may
+// come from the environment, a flag, a walked directory or any other
+// non-constant prefix, so no placement or file-name-only rule narrows it
+// (AFP-V0-2240, AFP-V0-2241).
 func (index *repositoryIndex) readers(dirtyPath string) []string {
 	readers := map[string]bool{}
 	for value, directories := range index.holders {
