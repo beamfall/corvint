@@ -242,7 +242,11 @@ func Build(input Input) (Manifest, error) {
 	for _, id := range input.Selected {
 		// A make target or CI job (AZU-V0-001) is run by make or CI, not by
 		// a language adapter; the affected plan reports it.
-		if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
+		if strings.HasPrefix(id, "declared-consumer:") {
+			// Each consumer has its own project-owned argv, rather than a
+			// language-wide full command. The caller pins it in Declared.
+			languages[id] = true
+		} else if language, _, ok := strings.Cut(id, ":"); ok && language != "go" && language != driverNamespace {
 			languages[language] = true
 		}
 	}

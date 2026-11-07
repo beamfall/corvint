@@ -520,6 +520,9 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
 	}
+	// Read the full scope independently of planning so a failure still finds
+	// every declared full command. Selected consumer argv augment this scope.
+	input.Declared = sessiontest.ReadDeclared(root)
 	var pins testPinsResult
 	// The graph comes from the default affected graph cache when one can be
 	// placed, as `corvint affected` reads it, so an unchanged tree is not
@@ -557,9 +560,6 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 		}
 		input.PlanError = message
 	}
-	// The declaration is read independently of the plan, so a planning
-	// failure still finds every declared full command (STR-V0-003).
-	input.Declared = sessiontest.ReadDeclared(root)
 	return input, pins
 }
 
@@ -592,7 +592,21 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	}
 	for _, selection := range receipt.Plan.Selected {
 		input.Selected = append(input.Selected, selection.UnitID)
+		if selection.Kind == "DECLARED_CONSUMER" && strings.HasPrefix(selection.UnitID, "declared-consumer:") && affected.ValidConsumerRun(selection.Run) {
+			// AZU-V0-007: CI cannot execute the consumer. Keep the legacy
+			// check that the trusted workflow uses to require its browser job,
+			// alongside the exact argv retained as a declared command below.
+			if input.RunnerProfile == sessiontest.ProfileCI {
+				input.Checks = append(input.Checks, sessiontest.BinaryConsumerCheck(strings.TrimPrefix(selection.UnitID, "declared-consumer:")))
+			}
+			// Reuse the declared-command adapter without extending the
+			// manifest wire. Its digest binds the exact per-consumer argv.
+			input.Declared.Languages = append(input.Declared.Languages, sessiontest.LanguageCommand{
+				Language: selection.UnitID, Argv: append([]string(nil), selection.Run...),
+			})
+		}
 	}
+	slices.SortFunc(input.Declared.Languages, func(a, b sessiontest.LanguageCommand) int { return strings.Compare(a.Language, b.Language) })
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base)
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
@@ -649,11 +663,10 @@ func testPlanRunSet(verdict string, planned []string) string {
 	return "run " + strings.Join(packages, " ")
 }
 
-// testGoUniverse is the root Go universe: every graph Go unit the root
-// module's `go list ./...` lists. A dependent nested module's synthetic unit
-// (AFP-V0-582) is a module, not a root package, so it is excluded with its
-// reason rather than left for the runner's listing to report unlisted
-// (STR-V0-069).
+// testGoUniverse is every graph Go package the root runner can list, using
+// ./... plus explicit hidden packages. A dependent nested module's synthetic
+// unit (AFP-V0-582) is not a root package and is excluded with its reason
+// instead of left for discovery to report unlisted (STR-V0-069).
 func testGoUniverse(graph *affected.Graph) (universe, excluded []string) {
 	universe = []string{}
 	for _, id := range graph.UnitIDs() {

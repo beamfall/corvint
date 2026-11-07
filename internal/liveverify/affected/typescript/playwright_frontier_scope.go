@@ -166,7 +166,10 @@ const playwrightOutOfSuiteBound = 8
 func playwrightOutOfSuiteSources(root string, closure *playwrightClosure, base affected.Plan, dirty []string, projects []PlaywrightProject, globalTestDir string) (record *PlaywrightPathDeclaration, unknown []PlaywrightUnknown, applied map[string]bool, err error) {
 	graph := closure.graph
 	var unreached, unowned []string
-	for _, entry := range base.Unknown {
+	// AZU-V0-006 moves static coverage gaps to Uncovered. They still need
+	// Playwright's runtime out-of-suite proof before excluding a dirty source
+	// (TJAA-V0-106, TJAA-V0-121).
+	for _, entry := range slices.Concat(base.Unknown, base.Uncovered) {
 		switch entry.Reason {
 		case affected.UnknownUnownedDirtyPath:
 			unowned = append(unowned, entry.Detail)

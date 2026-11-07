@@ -128,7 +128,7 @@ var pluginDirs = []struct {
 	{"rust", []string{"cmd/corvint-analyzer-rust", "internal/analyzerrust", "internal/liveverify/affected/rust", "internal/nativelinecov"}},
 	{"shell", []string{"cmd/corvint-analyzer-shell", "internal/analyzershell", "internal/liveverify/affected/shell"}},
 	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/nativelinecov", "internal/swiftimpact"}},
-	{"typescript", []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/browsercov", "internal/extmutate", "internal/jslinecov", "internal/jstestprovider", "internal/linecov", "internal/linecov/v8", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve"}},
+	{"typescript", []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/browsercov", "internal/extmutate", "internal/jslinecov", "internal/jstestprovider", "internal/linecov", "internal/linecov/v8", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve", "internal/webdialect"}},
 	{"sql", []string{"cmd/corvint-analyzer-sql-native"}},
 	{"shader", []string{"cmd/corvint-analyzer-shader", "internal/analyzershader"}},
 	{"html-css", []string{"cmd/corvint-analyzer-html-css", "internal/analyzerhtmlcss"}},
