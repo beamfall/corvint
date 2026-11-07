@@ -693,19 +693,29 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 `LPCV-V0-020`.
 
 - `LPCV-V0-7600`: (accepted under standing implementation authority, V1-4379) Go collection
-  uses scratch overlays to dump/reset atomic counters at serial top-level test windows, including
-  cleanup. Each record unions isolated and in-order reach; reach absent from that same test's
+  uses scratch overlays to dump cumulative atomic counters at serial top-level test entry and
+  cleanup, without resetting counters. The independent suite exit profile retains all reach.
+  Each record unions isolated and in-order reach; reach absent from that same test's
   isolated record retains preceding tests as prerequisites, even if another test reaches it alone. Parallel, unsupported entry points or missing instrumentable source
   retain the suite union with a named reason. Setup, teardown and child reach retain the residual
-  union owner. Residual: counts from a goroutine leaked by a test after its window dump can be
-  lost when the next window clears counters; this does not qualify concurrent goroutine attribution.
+  union owner. Reach between cleanup and the next entry, or after the last cleanup, has unknown
+  ownership and MUST be retained for every test, even when another isolated test reaches it.
+  Missing or decreasing snapshots conservatively retain the reset-free suite reach on every test;
+  no incomplete attribution may support exclusion. This does not qualify concurrent goroutine attribution.
   Invalid dumps retain `window-dump-invalid` rather than a secondary missing-window reason.
-  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestFaultInjection`.
+  Witness: `TestInOrderWindows`, `TestInvalidWindowDumpReason`, `TestBetweenWindowReach`, `TestFaultInjection`.
 - `LPCV-V0-7601`: (accepted under standing implementation authority, V1-4380) The Go collector
   observes os/exec launches in its scratch toolchain overlay. A child without coverage build
-  metadata, with a different coverage destination, or without completed counters rejects the
-  record as `uninstrumented-child` or `missing-child-counters`; a child that is instrumented logs
-  `covered-child`. Build-tool processes are exempt;
+  metadata and a digest-bound successful build proving the collector's exact module-wide
+  coverage selector and audit overlay, with a different coverage destination, or without completed counters rejects the
+  record as `uninstrumented-child` or `missing-child-counters`. The scratch audit marks an
+  instrumented launch `covered-child`; that observation alone is not a completed-counter receipt.
+  A child instrumenting only its main package is incomplete even when it writes counters.
+  Build flags and environment are frozen before launch; proof is consumed once and requires
+  that Wait itself to succeed. A private reference build with those frozen settings supplies
+  the digest; delaying the first Wait or replaying Wait cannot certify replacement output.
+  Unknown flags, quoted GOFLAGS or unobserved builds produce no instrumentation proof.
+  Build-tool processes are exempt;
   unknown launchers conservatively reject the record. This implements the detection rule of
   `LPCV-V0-954`; no parent-only record supports exclusion. Witness: `TestUninstrumentedChild`.
 - `LPCV-V0-7602`: (accepted under standing implementation authority, V1-4423) Language collectors
@@ -747,11 +757,13 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
 - `LPCV-V0-7607`: (accepted under standing implementation authority, V1-4372) `linecov watch`
   consumes foreground save events and replans staged, unstaged and untracked working-tree edits
   against the immutable index commit with the same analyzers and fallbacks. Native Linux
-  directory events observe close-write and atomic replacement; other platforms use explicit
+  directory events observe close-write and atomic replacement, including existing untracked and
+  newly created or moved directory trees. Lost events force a recursive watch rescan before the
+  next replan; failure to restore complete watches stops automatic watching. Other platforms use explicit
   editor stdin notifications or one-shot execution. Native output and per-run results stream;
   failures do not prevent the next save from repairing them. Every event is user-scoped and
   ineligible to close a CI gate. Non-Go effective runs retain the unqualified static suite.
-  Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`.
+  Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`, `TestNativeNewDirectorySaves`, `TestNativeLostDirectoryEvents`.
 - `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
   and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
   file the instrumented process tree could report, and per such file the executed line ranges with a
@@ -985,7 +997,7 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   the fixture serves on `[::1]` for that reason. Evidence: `make plugin-test PLUGIN=typescript`.
 
 - `LPCV-V0-8300`: (experimental, V1-4430; refines LPCV-V0-965 and LPCV-V0-973) Browser and Node V8 block attribution MUST share one innermost-range painter. The shared UTF-16 states MUST distinguish units outside every range from unexecuted units, clip ranges to source bounds and preserve equal-span input order. Existing wire types and line/block outputs remain unchanged. Acceptance: `TestPaintInnermostWins`, `TestPaintUnits`, `TestE2EPlaywright` and `TestE2ECypress`. Rollback: restore the two previous private painters together, retaining their regression expectations.
-- `LPCV-V0-8301`: (experimental, V1-4431; refines LPCV-V0-979) Remaining browser collector limits MUST be recorded explicitly with their observation boundary. When an anonymous script is supplied to attribution, it MUST refuse with `script without a URL cannot bind coverage`. Browser and Node collection still do not observe anonymous eval/new Function scripts: Playwright keeps anonymous reporting off, Cypress drops empty URLs, and Node dumps have neither source nor attribution provenance for empty URLs, because framework-owned anonymous evaluation cannot yet be separated from application evaluation without invalidating the frozen E2E completeness assertions. That collection criterion remains PARTIAL, not qualified. A Node build output absent from the indexed tree MUST remain incomplete even with an on-disk source map. A Cypress target detached after parsing possible application code but before taking coverage MUST record `cdp-detached`; pending requests for that target, or for a closed transport, MUST reject so collection cannot wait forever on them. Acceptance: `TestAnonymousScriptIncomplete`, `TestBuildOutputMapRemainsIncomplete`, `TestHookRendererSwapIncomplete` and its real-hook offline CDP fixture. Rollback: revert the additional anonymous-attribution refusal and pending-command cleanup; retain the documented unobserved boundary and existing incomplete paths.
+- `LPCV-V0-8301`: (experimental, V1-4431; refines LPCV-V0-979) Remaining browser collector limits MUST be recorded explicitly with their observation boundary. When an anonymous script is supplied to attribution, it MUST refuse with `script without a URL cannot bind coverage`. Browser and Node collection still do not observe anonymous eval/new Function scripts: Playwright keeps anonymous reporting off, Cypress drops empty URLs, and Node dumps have neither source nor attribution provenance for empty URLs, because framework-owned anonymous evaluation cannot yet be separated from application evaluation without invalidating the frozen E2E completeness assertions. That collection criterion remains PARTIAL, not qualified. A Node build output absent from the indexed tree MUST remain incomplete even with an on-disk source map. A Cypress target detached after parsing possible application code but before taking coverage MUST record `cdp-detached`; pending requests for that target, or for a closed transport, MUST reject so collection cannot wait forever on them. Subsequent requests on a closed transport MUST reject immediately, including the remaining source requests in a multi-script take. Acceptance: `TestAnonymousScriptIncomplete`, `TestBuildOutputMapRemainsIncomplete`, `TestHookRendererSwapIncomplete` and its real-hook offline CDP fixture, including close during source retrieval. Rollback: revert the additional anonymous-attribution refusal and pending-command cleanup; retain the documented unobserved boundary and existing incomplete paths.
 
 | Remaining limit | Observation / incomplete evidence | Fixture |
 |---|---|---|

@@ -187,8 +187,13 @@ including symbolic HEAD via loose or packed refs and linked-worktree common refs
 Detached HEAD is supported. Missing, malformed or over-bound identity refuses with
 `invalid-worktree-identity`, including an unborn branch or a symbolic ref that cannot
 be resolved through the supported files. A same-branch commit invalidates cached
-recovery and in-flight remediation. Native Core remains authoritative for tree,
+recovery and in-flight remediation (PWV-V0-8104). Native Core remains authoritative for tree,
 base, plan, attempt and report identity; these checks do not establish reftable support.
+The explicit
+operator Tasks command supports negotiated `ticket create` and `ticket refine`
+with a native `input.payload`; refine also requires `ticketId` and fresh
+`expectedRevision` (PWV-V0-8102). Malformed envelopes refuse before native dispatch;
+native schema, secret screening, queue policy and role admission remain authoritative.
 
 Preserve installed official binaries; a local candidate is a source build with separate
 provenance and rollback, never a released update. Supervisor participation remains

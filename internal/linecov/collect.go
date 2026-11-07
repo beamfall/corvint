@@ -81,7 +81,7 @@ func Collect(ctx context.Context, root string, o CollectOptions) ([]Outcome, err
 			return nil, err
 		}
 		fallback[pkg] = why
-		overlay, err = collectorOverlay(overlayWork, overlay)
+		overlay, err = collectorOverlay(overlayWork, overlay, o.Module)
 		if err != nil {
 			return nil, err
 		}

@@ -132,6 +132,21 @@ test('LCP-V0-008 Git identity refuses symlink markers and oversized pointer file
  assert.throws(()=>workflowIdentity(f.ctx));unlinkSync(join(f.root,'.git'));writeFileSync(join(f.root,'.git'),'gitdir: '+'x'.repeat(8192));assert.throws(()=>workflowIdentity(f.ctx));
 });
 
+// PWV-V0-8301: invalidate after invoke validates, before its caller resumes.
+test('PWV-V0-8301 settlement discards a response cleared between awaits',async t=>{
+ for(const transition of ['clear','input','session_tree','session_start']) {
+  const f=fixture(t),normal=f.runner.run;
+  f.runner.run=req=>normal(req).then(result=>{
+   if(req.args.includes('stop'))queueMicrotask(()=>queueMicrotask(()=>{
+    if(transition==='clear')f.bridge.clear();
+    else f.emit(transition,transition==='input'?{source:'interactive'}:{reason:'reload'});
+   }));
+   return result;
+  });
+  assert.equal(await f.emit('agent_before_settle',f.boundary),undefined,transition);
+ }
+});
+
 test('PWV-V0-8103 fork and resume cannot replenish a spent original-session remediation',async t=>{
  const f=fixture(t);await f.emit('session_start',{reason:'startup'});
  assert.equal((await f.emit('agent_before_settle',f.boundary)).continue,true);
