@@ -125,3 +125,42 @@ func TestQualifiedSelectionFailsClosed_AFPV09500(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-9500: only valid slash paths with a recognized nested-module
+// certificate can turn empty conservative attribution into NOTHING.
+func TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500(t *testing.T) {
+	for _, tc := range []struct {
+		name, dirty, detail string
+		nothing             bool
+	}{
+		{"valid", "nested/x.go", "go:unobserved-module:nested:nested/x.go", true},
+		{"reported malformed path", "nested//x.go", "go:unobserved-module:nested:nested//x.go", false},
+		{"parent element", "nested/../x.go", "go:unobserved-module:nested:nested/../x.go", false},
+		{"unknown certificate form", "nested/x.go", "go:future-module:nested:nested/x.go", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := writeFixture(t, map[string]string{
+				"go.mod":        "module " + fixtureModule + "\n",
+				"nested/go.mod": "module example.test/nested\n",
+				"nested/x.go":   "package nested\n",
+			})
+			var plan Receipt
+			plan.Plan.Scope = "UNKNOWN"
+			plan.Provider.Go.State = "EMPTY_SELECTION"
+			plan.Plan.Dirty = []string{tc.dirty}
+			plan.Plan.Unknown = append(plan.Plan.Unknown, struct {
+				Reason string `json:"reason"`
+				Detail string `json:"detail"`
+			}{"LANGUAGE_FRONTIER", tc.detail})
+			for _, lines := range [][]string{SelectQualified(plan, fixtureModule, root), SelectQualifiedIndexed(plan, fixtureModule, root, StartIndex(root, fixtureModule, nil))} {
+				prefix := "FALLBACK "
+				if tc.nothing {
+					prefix = "NOTHING "
+				}
+				if got := lines[len(lines)-1]; !strings.HasPrefix(got, prefix) {
+					t.Fatalf("got %q, want %q; audit=%v", got, prefix, lines)
+				}
+			}
+		})
+	}
+}

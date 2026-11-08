@@ -44,11 +44,9 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	}
 	// Even an empty candidate set needs a supported input before it can
 	// certify NOTHING.
-	if !strings.HasPrefix(verdict, "FALLBACK ") {
-		for _, dirty := range plan.Plan.Dirty {
-			if !fs.ValidPath(dirty) || strings.ContainsRune(dirty, '\\') {
-				return fallback("the selection input contains an invalid dirty path")
-			}
+	for _, dirty := range plan.Plan.Dirty {
+		if !fs.ValidPath(dirty) || strings.ContainsRune(dirty, '\\') {
+			return fallback("the selection input contains an invalid dirty path")
 		}
 	}
 	if plan.Plan.Scope != "BOUNDED" && plan.Plan.Scope != "UNKNOWN" {

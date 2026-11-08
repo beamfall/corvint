@@ -82,9 +82,69 @@ func TestSelectionContractReplay_AFPV09501(t *testing.T) {
 		{"nothing hides units", "NOTHING no change", manifest{Scope: "NOTHING", Units: []manifestUnit{goUnit("m/a")}}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := contractAgreement(tc.audit, tc.manifest); (err == nil) != tc.pass {
+			if err := contractAgreement(tc.audit, tc.manifest, []string{"m/a"}); (err == nil) != tc.pass {
 				t.Fatalf("pass=%v, error=%v", tc.pass, err)
 			}
 		})
+	}
+}
+
+// AFP-V0-9501: scope labels and unknown unit forms cannot certify FULL coverage.
+func TestSelectionContractFullCoverage_AFPV09501(t *testing.T) {
+	root := t.TempDir()
+	baselineFile(t, root, "go.mod", "module example.test/full\n\ngo 1.22\n")
+	baselineFile(t, root, "a/a.go", "package a\n")
+	baselineFile(t, root, "b/b_test.go", "package b\nimport \"testing\"\nfunc TestB(t *testing.T) {}\n")
+	baselineFile(t, root, "nested/go.mod", "module example.test/nested\n")
+	baselineFile(t, root, "nested/n.go", "package nested\n")
+	baselineFile(t, root, "nested/.hidden/h.go", "package hidden\n")
+	universe, err := contractUniverse(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"example.test/full/a", "example.test/full/b"}; !reflect.DeepEqual(universe, want) {
+		t.Fatalf("universe=%v, want %v", universe, want)
+	}
+	a := manifestUnit{Adapter: "go", Unit: "go:example.test/full/a"}
+	b := manifestUnit{Adapter: "go", Unit: "go:example.test/full/b"}
+	for _, tc := range []struct {
+		name  string
+		units []manifestUnit
+		pass  bool
+	}{
+		{"complete", []manifestUnit{a, b}, true},
+		{"unreadable declaration", nil, false},
+		{"truncated", []manifestUnit{a}, false},
+		{"unknown full form", []manifestUnit{{Adapter: "go", Unit: "go:future-full-universe"}}, false},
+		{"declared command is not package evidence", []manifestUnit{{Adapter: "go", Unit: "go:./..."}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := manifest{Scope: "FULL", Units: tc.units}
+			if tc.name == "unreadable declaration" {
+				m.Incomplete = []string{"the declared full scope is unreadable"}
+			}
+			if err := contractAgreement("FALLBACK unknown frontier", m, universe); (err == nil) != tc.pass {
+				t.Fatalf("pass=%v error=%v", tc.pass, err)
+			}
+		})
+	}
+	if err := contractAgreement("FALLBACK unknown frontier", manifest{Scope: "FULL", Units: []manifestUnit{a, b}}, nil); err == nil {
+		t.Fatal("unobserved universe passed")
+	}
+	// Hidden root packages are part of the explicit root execution universe.
+	baselineFile(t, root, ".ci/ci.go", "package ci\n")
+	hiddenUniverse, err := contractUniverse(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"example.test/full/.ci", "example.test/full/a", "example.test/full/b"}; !reflect.DeepEqual(hiddenUniverse, want) {
+		t.Fatalf("hidden universe=%v, want %v", hiddenUniverse, want)
+	}
+	if err := contractAgreement("FALLBACK unknown frontier", manifest{Scope: "FULL", Units: []manifestUnit{a, b}}, hiddenUniverse); err == nil {
+		t.Fatal("hidden package omission passed")
+	}
+	baselineFile(t, root, "go.mod", "not a module declaration\n")
+	if _, err := contractUniverse(context.Background(), root); err == nil {
+		t.Fatal("unreadable universe passed")
 	}
 }

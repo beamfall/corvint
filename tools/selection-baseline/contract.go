@@ -2,16 +2,24 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 // contractAgreement compares execution scopes first and root-Go sets second.
 // Non-Go suites, nested module suites, test slicing and placement are declared
 // execution-profile differences; none licenses a different root-Go package.
-// FULL is compared as a scope, never as an empty set or a successful narrowing.
-func contractAgreement(audit string, m manifest) error {
+// FULL also needs an independently listed root-Go universe; a label alone
+// cannot establish coverage, and unknown unit forms never stand for packages.
+func contractAgreement(audit string, m manifest, universe []string) error {
 	lines := strings.Split(strings.TrimSpace(audit), "\n")
 	verdict := lines[len(lines)-1]
 	kind, rest, _ := strings.Cut(verdict, " ")
@@ -39,7 +47,12 @@ func contractAgreement(audit string, m manifest) error {
 		return fmt.Errorf("selection contract scope divergence: driver=%q local=%q", verdict, m.Scope)
 	}
 	if scope == "FULL" {
-		return nil
+		if len(universe) == 0 {
+			return fmt.Errorf("selection contract: empty run verdict")
+		}
+		for _, pkg := range universe {
+			driver[pkg] = true
+		}
 	}
 	if kind == "run" {
 		for _, pkg := range strings.Fields(rest) {
@@ -66,4 +79,47 @@ func contractAgreement(audit string, m manifest) error {
 		return fmt.Errorf("selection contract package divergence: driver-only=%v local-only=%v", extra, omitted)
 	}
 	return nil
+}
+
+// contractUniverse observes ./... plus the root runner's hidden packages independently of the
+// affected receipt and manifest. Only a successful concrete package listing can
+// certify FULL coverage; unreadable or unsupported modules fail the check.
+func contractUniverse(ctx context.Context, root string) ([]string, error) {
+	hidden, err := golang.HiddenSourcePaths(affected.DiskSourceContext(ctx, root))
+	if err != nil {
+		return nil, err
+	}
+	directories := map[string]bool{}
+	for _, source := range hidden {
+		directory := path.Dir(source)
+		nested := false
+		for parent := directory; parent != "."; parent = path.Dir(parent) {
+			info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(parent), "go.mod"))
+			if err == nil {
+				if !info.Mode().IsRegular() {
+					return nil, fmt.Errorf("selection contract: invalid Go unit %q", source)
+				}
+				nested = true
+				break
+			}
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+		}
+		if !nested {
+			directories["./"+directory] = true
+		}
+	}
+	patterns := []string{"./..."}
+	for directory := range directories {
+		patterns = append(patterns, directory)
+	}
+	sort.Strings(patterns)
+	listed, err := run(ctx, root, "go", append([]string{"list", "-mod=readonly"}, patterns...)...)
+	if err != nil {
+		return nil, err
+	}
+	packages := strings.Fields(listed)
+	sort.Strings(packages)
+	return packages, nil
 }
