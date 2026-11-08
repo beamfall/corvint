@@ -45,7 +45,7 @@ func frozenProfileDeclaration(t *testing.T) string {
 	return string(body)
 }
 
-func frozenProfileSelectionFixture(t *testing.T, declaration string) (string, string) {
+func frozenProfileSelectionFixture(t *testing.T, declaration string, connected bool) (string, string) {
 	t.Helper()
 	root := t.TempDir()
 	for name, body := range map[string]string{
@@ -56,6 +56,9 @@ func frozenProfileSelectionFixture(t *testing.T, declaration string) (string, st
 		"engine/graph_test.go":      "package engine\nimport \"testing\"\nfunc TestGraph(t *testing.T) { _ = Value() }\n",
 	} {
 		cemWrite(t, root, name, body)
+	}
+	if connected {
+		cemWrite(t, root, "cmd/corvint/other_test.go", "package main\nimport (\"testing\"; \"example.test/frozen/engine\")\nfunc TestOther(t *testing.T) { _ = engine.Value() }\n")
 	}
 	if declaration != "" {
 		cemWrite(t, root, affected.DeclaredSelectionPath, declaration)
@@ -82,7 +85,7 @@ func TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320(t *testing.T) {
 					policy = declaration
 				}
 				t.Run(name, func(t *testing.T) {
-					root, base := frozenProfileSelectionFixture(t, policy)
+					root, base := frozenProfileSelectionFixture(t, policy, false)
 					before, err := compileAffected(context.Background(), affectedInvocation{Root: root, Base: base, NoCache: true})
 					if err != nil {
 						t.Fatal(err)
@@ -152,7 +155,7 @@ func TestAffectedFrozenProfilesGuardFailureModes_AFPV09322(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"other-test", "missing-guard"} {
 		t.Run(change, func(t *testing.T) {
-			root, base := frozenProfileSelectionFixture(t, frozenProfileDeclaration(t))
+			root, base := frozenProfileSelectionFixture(t, frozenProfileDeclaration(t), false)
 			if change == "missing-guard" {
 				if err := os.Remove(filepath.Join(root, frozenProfilePath)); err != nil {
 					t.Fatal(err)
@@ -173,6 +176,55 @@ func TestAffectedFrozenProfilesGuardFailureModes_AFPV09322(t *testing.T) {
 			got, ok := testGoSlices(context.Background(), receipt.Plan, graph, root, base, typedReachExecutor{environ: os.Environ()})["example.test/frozen/cmd/corvint"]
 			if !ok || got.Pattern != "" || !strings.Contains(got.Reason, frozenProfileName) {
 				t.Fatalf("other test edit drops frozen test: %+v, present=%v", got, ok)
+			}
+		})
+	}
+}
+
+// AFP-V0-9322: a dependency witness survives must-run selection. Typed reach
+// must not overwrite the whole-package guard with just the connected test.
+// Unknown witness kinds also stay whole: only a dependency selection without
+// a must-run obligation is eligible for typed narrowing.
+func TestAffectedFrozenProfilesDependencySlices_AFPV09322(t *testing.T) {
+	t.Parallel()
+	for _, declared := range []bool{false, true} {
+		name, policy := "undeclared", ""
+		if declared {
+			name, policy = "declared", frozenProfileDeclaration(t)
+		}
+		t.Run(name, func(t *testing.T) {
+			root, base := frozenProfileSelectionFixture(t, policy, true)
+			cemWrite(t, root, "engine/graph.go", "package engine\nfunc Value() int { return 2 }\n")
+			receipt, graph, err := compileAffectedGraph(context.Background(), affectedInvocation{Root: root, Base: base, NoCache: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			const pkg = "example.test/frozen/cmd/corvint"
+			index := slices.IndexFunc(receipt.Plan.Selected, func(s affected.Selection) bool {
+				return s.UnitID == "go:"+pkg
+			})
+			if index < 0 || receipt.Plan.Selected[index].Witness.Kind != affected.WitnessDependency {
+				t.Fatalf("connected package must retain its dependency witness: %+v", receipt.Plan.Selected)
+			}
+			for _, witness := range []string{affected.WitnessDependency, "UNKNOWN_FUTURE_WITNESS"} {
+				t.Run(witness, func(t *testing.T) {
+					receipt.Plan.Selected[index].Witness.Kind = witness
+					got, ok := testGoSlices(context.Background(), receipt.Plan, graph, root, base, typedReachExecutor{environ: os.Environ()})[pkg]
+					if !ok {
+						t.Fatal("connected package is missing from slices")
+					}
+					if declared {
+						if got.Pattern != "" || !strings.Contains(got.Reason, frozenProfileName) {
+							t.Fatalf("must-run package narrowed or lost its reason: %+v", got)
+						}
+					} else if witness == affected.WitnessDependency {
+						if got.Pattern != "^(TestOther)$" || !strings.Contains(got.Reason, "typed reach") {
+							t.Fatalf("undeclared control must exercise typed narrowing: %+v", got)
+						}
+					} else if got.Pattern != "" {
+						t.Fatalf("unknown witness must fail closed to whole package: %+v", got)
+					}
+				})
 			}
 		})
 	}
