@@ -6,6 +6,7 @@ import (
 	"context"
 	json "encoding/json/v2"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -118,5 +119,56 @@ func TestCommentOnlyTestlessSelfReader_AFP_V0_3322(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// AFP-V0-3324: a .go file a //go:embed may consume is never narrowed, whether
+// a unit's EmbedFiles names it or it lies below an embedding package.
+func TestCommentOnlyEmbeddedSource_AFP_V0_3324(t *testing.T) {
+	for _, path := range []string{"lib/a.go", "lib/b.go"} {
+		t.Run(path, func(t *testing.T) {
+			graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+				{ID: "go:m/lib", Sources: []string{"lib/a.go", "lib/b.go"}, Embeds: true, EmbedFiles: []string{"lib/a.go"}},
+				{ID: "go:m/user", Sources: []string{"user/user.go"}, Tests: []string{"user/user_test.go"}, Imports: []string{"go:m/lib"}},
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := Select(graph.WithGoChanges([]GoChange{{Path: path, Kind: GoCommentOnly}}), []string{path})
+			if got := witnesses(plan)["go:m/user"]; got.Kind != WitnessDependency || len(plan.GoChanges) != 0 {
+				t.Fatalf("embedded source narrowed: user=%+v goChanges=%+v", got, plan.GoChanges)
+			}
+		})
+	}
+}
+
+// AFP-V0-3325: a unit whose only dirty inputs are comment-only compiles
+// identically, so it reports no coverage gap; a code edit to it still does.
+func TestCommentOnlyCoverageGap_AFP_V0_3325(t *testing.T) {
+	graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+		{ID: "go:m/lib", Sources: []string{"lib/a.go"}},
+		{ID: "go:m/user", Sources: []string{"user/user.go"}, Tests: []string{"user/user_test.go"}, Imports: []string{"go:m/lib"}},
+		{ID: "go:m/solo", Sources: []string{"solo/a.go", "solo/b.go"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gaps := func(plan Plan) []string {
+		var units []string
+		for _, entry := range append(slices.Clone(plan.Unknown), plan.Uncovered...) {
+			if entry.Reason == UnknownNoSelectableTest {
+				units = append(units, entry.Detail)
+			}
+		}
+		return units
+	}
+	classified := graph.WithGoChanges([]GoChange{{Path: "lib/a.go", Kind: GoCommentOnly}, {Path: "solo/a.go", Kind: GoCommentOnly}})
+	for _, dirty := range [][]string{{"lib/a.go"}, {"solo/a.go"}} {
+		if plan := Select(classified, dirty); len(gaps(plan)) != 0 || plan.Scope != ScopeBounded {
+			t.Errorf("%v: comment-only gap=%v scope=%s unknown=%+v", dirty, gaps(plan), plan.Scope, plan.Unknown)
+		}
+	}
+	if got := gaps(Select(classified, []string{"solo/a.go", "solo/b.go"})); !slices.Equal(got, []string{"go:m/solo"}) {
+		t.Errorf("code edit beside a comment-only file lost its coverage gap: %v", got)
 	}
 }

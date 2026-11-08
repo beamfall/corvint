@@ -16,17 +16,43 @@ type GoChange struct {
 // WithGoChanges attaches the Go adapter's BASE/HEAD comparison to this plan's
 // graph copy. Like importSets, this is per-selection evidence, never cached
 // graph state. Callers must compare the same endpoints and dirty paths they
-// plan; absent evidence keeps full propagation (AFP-V0-3323).
+// plan; absent evidence keeps full propagation (AFP-V0-3323). A .go file a
+// //go:embed may name has byte consumers beyond compilation, so a path a unit
+// embeds, or any path below an embedding Go package (SourcePath's rule), is
+// never narrowed (AFP-V0-3324).
 func (graph *Graph) WithGoChanges(changes []GoChange) *Graph {
 	copied := *graph
 	copied.goCommentOnly = make(map[string]bool)
+	var embedding []string
+	if len(changes) != 0 {
+		embedding = graph.embeddingDirectories()
+	}
 	for _, change := range changes {
 		owner, owned := graph.owner[change.Path]
-		if change.Kind == GoCommentOnly && owned && strings.HasPrefix(owner, "go:") && ValidRelativePath(change.Path) && strings.HasSuffix(change.Path, ".go") {
+		if change.Kind != GoCommentOnly || !owned || !strings.HasPrefix(owner, "go:") || !ValidRelativePath(change.Path) || !strings.HasSuffix(change.Path, ".go") {
+			continue
+		}
+		if len(graph.embedded[change.Path]) == 0 && !underEmbedding(embedding, change.Path) {
 			copied.goCommentOnly[change.Path] = true
 		}
 	}
 	return &copied
+}
+
+// commentOnlyUnit reports a seeded unit every dirty input of which is a
+// proven COMMENT_ONLY file. It compiles identically, so no selectable test
+// can observe a behavior change and the coverage-gap check does not apply
+// (AFP-V0-3325). One code edit to the unit restores the check.
+func (graph *Graph) commentOnlyUnit(id string, seed Witness, dirty []string) bool {
+	if !graph.goCommentOnly[seed.DirtyPath] || graph.owner[seed.DirtyPath] != id {
+		return false
+	}
+	for _, relative := range dirty {
+		if graph.owner[relative] == id && !graph.goCommentOnly[relative] {
+			return false
+		}
+	}
+	return true
 }
 
 func (graph *Graph) compilingPaths(dirty []string) []string {

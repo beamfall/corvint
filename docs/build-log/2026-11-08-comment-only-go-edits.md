@@ -1,6 +1,6 @@
 # Stop compile-closure propagation for comment-only Go edits
 
-Date: 2026-11-08. Ticket: V1-5176. Requirements: AFP-V0-3320 through AFP-V0-3323
+Date: 2026-11-08. Ticket: V1-5176. Requirements: AFP-V0-3320 through AFP-V0-3325
 in `docs/specs/affected-plan-selection-v0.md`.
 Base: `8a1935c528bc314057d15e7db7c92f7c36384e01` (the worktree's captured `origin/main`).
 
@@ -8,7 +8,8 @@ Base: `8a1935c528bc314057d15e7db7c92f7c36384e01` (the worktree's captured `origi
 
 The Go adapter compares the same measured BASE and HEAD used by import-set analysis.
 Both bounded reads must parse with `parser.ParseComments`; scanner tokens and literal
-text must match, with comments and positions omitted but inserted semicolons retained.
+text must match, with comments omitted but inserted semicolons retained; after fix round 1
+each token's line must match too (see below).
 Protected directives and cgo preambles retain raw bytes and token attachment. Raw gaps
 preserve legacy build-tag blank lines; the prefix before a legacy build constraint also
 preserves its position inside the accepted header. A parenthesized single `import "C"`
@@ -40,6 +41,31 @@ Unproven `go list` observers can read package documentation (`.Doc`), as AFP-V0-
 records. They therefore remain selected with an explicit `UNBOUNDED_READER` source-comment
 cause, while proven import-only readers are excluded. This preserves byte-reader safety without
 retaining an `IMPORT_GRAPH_READER` edge for an unchanged token stream.
+
+## Fix round 1 (independent review)
+
+The independent review confirmed four findings, all repaired in one follow-up commit:
+
+1. Embedded `.go` files (P1). `.github/cishards/partition.go` embeds Go sources that its
+   profile digest hashes, so their bytes have consumers outside compilation.
+   `WithGoChanges` now refuses a path a unit's `EmbedFiles` names or any path below an
+   embedding Go package (the directory rule `SourcePath` already used, now shared through
+   `embeddingDirectories`). AFP-V0-3324.
+2. Line positions (P1). Lines are compiled into `runtime.Caller`, panics and
+   `log.Lshortfile` (TSP-V0-941). The scanner comparison now also requires each token's
+   unadjusted line to match; only EOF is exempt, so an in-place comment edit and a comment
+   appended after the last token stay eligible while a comment or blank line inserted
+   above code does not. Intraline whitespace remains eligible. AFP-V0-3320 reworded.
+3. Vet-read comments (P2). Any comment containing `+build` or `//go:build`, including a
+   block comment, is now a protected comment, because vet's buildtag check reads it.
+   AFP-V0-3320 reworded.
+4. Coverage-gap precision (P2). Orchestrator decision: with 1-3, an admitted
+   `COMMENT_ONLY` file compiles identically, so a unit whose every dirty input is admitted
+   no longer reports `NO_SELECTABLE_TEST` (which had made such plans `UNKNOWN`). A code edit
+   to the same unit still reports it. AFP-V0-3325 and a new spec failure mode.
+
+Each new behavior has a focused test; the embed and coverage-gap tests were checked to fail
+with their guard disabled.
 
 ## Paired measurement
 
@@ -77,6 +103,17 @@ targets through the Playwright fixture, the local-authority-deps job through sta
 and the spec-toolchain-conformance job through its make target. None starts at the Go owner.
 The after receipt reports exactly one classification, for `internal/tasks/journal/anchor.go`.
 
+Fix round 1 re-measurement: built `../v1-5176-r1` from the fix-round source with the same
+command, outside the repository, and repeated the identical append-and-restore in the clean
+`../wt-5176-measure` worktree (clean afterward). The EOF append moves only the EOF token, so
+it stays `COMMENT_ONLY`; the plan is field-for-field identical to the after receipt above
+(279 units, 69 Go packages, 1,583 Go `testCount`, 67 unknowns, the same witness counts, one
+classification, no `NO_SELECTABLE_TEST`). The receipts differ only in the binary's
+self-staleness degradation notice, since it was built from an uncommitted tree.
+Binary SHA-256 `e9f0ea203e1ed95ffd866f5a56cc38f59eae6135988f6bb1a25286ad8980018b`,
+receipt `../v1-5176-r1.json` SHA-256
+`05698bce43b1310e7f14a4f9fa12684d58831210a940beaebf0ba97523b49ab3`.
+
 The task's supplied earlier count was 279 units / 69 Go packages / 1,901 tests. This run did
 not reproduce that baseline; the paired numbers above use one explicitly pinned source tree.
 Raw receipts remain outside tracked source in `../v1-5176-before.json` and
@@ -109,6 +146,15 @@ inside the spec's Requirements section as the generator requires.
 repinning one unchanged selection citation in `core-compatibility-freeze-v1.md`. Its unbounded
 reader check retained a non-failing advisory about the existing `internal/tasks/cli` declaration;
 that unrelated declaration was not changed.
+
+Fix round 1 ran, each as its own command, with all tests passing:
+`-run 'AFP_V0_332|AFP_V0_220'` for `./internal/liveverify/affected/golang/` (Linux/amd64) and
+`./internal/liveverify/affected/`, `-run 'Embed|ImportSet|SourcePath|ImportGraph'` for
+`./internal/liveverify/affected/` (shared `SourcePath` helper), and
+`-run 'TestAffectedCommentOnlyJSONAndCache_AFP_V0_3323'` for `./cmd/corvint/` (Darwin).
+`GOTOOLCHAIN=local go vet` passed for both changed packages, `gofmt -l` reported nothing, and
+`make spec-requirements` added AFP-V0-3324 and AFP-V0-3325. The `languages` helper test
+was not rerun in this round.
 
 Corvint context and pre-test affected planning were used; the installed Core build 133 reported
 its stale-source degradation, so measurement used freshly built binaries. The official updater

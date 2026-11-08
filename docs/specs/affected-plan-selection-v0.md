@@ -2028,18 +2028,24 @@ one list, so a later class cannot reopen it.
 ### Comment-only Go changes (V1-5176)
 
 Intent: avoid recompiling the reverse dependency closure for ordinary Go comment and
-whitespace edits, while retaining the changed package and every observed byte reader.
+intraline whitespace edits, while retaining the changed package and every observed byte reader.
 The owner requested this bounded optimization on 2026-11-08; it does not prove test
 adequacy, remove unknowns, or narrow any independent byte-read witness.
 
 - **AFP-V0-3320:** (owner-requested V1-5176, 2026-11-08)
   Classify a dirty `.go` path as `COMMENT_ONLY` only when both BASE and HEAD bytes are
   readable within the source bound, both parse fully with `go/parser` and `ParseComments`,
-  and `go/scanner` yields identical tokens and literal text after dropping comments and
-  positions, including automatic semicolons. Compare protected comment lines separately:
+  and `go/scanner` yields identical tokens, literal text and unadjusted line numbers after
+  dropping comments, including automatic semicolons. Line numbers are compiled into
+  `runtime.Caller`, panics and `log.Lshortfile` output (as TSP-V0-941 records), so an
+  edit that moves any token to another line, such as a comment or blank line inserted
+  above a function, is not comment-only; only the EOF position is exempt, so an edit in
+  place or a comment appended after the last token stays eligible. Columns are ignored.
+  Compare protected comment lines separately:
   any `//go:` directive (including build, embed, generate and linkname), `//line`,
-  `/*line`, legacy `// +build`, `//export`, and the comment group immediately preceding
-  `import "C"` or its grouped import spec. Changes to their bytes or token attachment
+  `/*line`, legacy `// +build`, `//export`, any comment containing `+build` or
+  `//go:build` anywhere in its text (including block comments, which vet's buildtag check
+  reads), and the comment group immediately preceding `import "C"` or its grouped import spec. Changes to their bytes or token attachment
   (including raw separation before the next token and the prefix before a legacy build
   constraint, to preserve blank lines and the header region)
   refuse classification. Missing sides, additions, deletions, renames, parse/scanner
@@ -2072,16 +2078,35 @@ adequacy, remove unknowns, or narrow any independent byte-read witness.
   fields keep their shapes. Entries follow normalized dirty-path order. The comparison is
   recomputed after graph-cache lookup, never persisted as cached graph observation or
   inferred from the graph digest. A later plan or changed dirty content cannot inherit it.
+- **AFP-V0-3324:** (owner-requested V1-5176, 2026-11-08)
+  `WithGoChanges` refuses a `COMMENT_ONLY` record for a `.go` path that a unit's
+  `EmbedFiles` names, or that lies below an embedding Go package's directory (the rule
+  `SourcePath` applies). A `//go:embed` consumer, such as a profile digest over embedded Go
+  sources, observes those bytes beyond compilation, so the path keeps full propagation.
+- **AFP-V0-3325:** (owner-requested V1-5176, 2026-11-08)
+  A seeded unit every dirty input of which is an admitted `COMMENT_ONLY` path compiles
+  identically under AFP-V0-3320 and AFP-V0-3324, so it is excluded from the
+  `NO_SELECTABLE_TEST` coverage-gap check (neither `unknown` nor `uncovered`) and cannot
+  make the scope `UNKNOWN` on that ground. Any other dirty input the unit owns, such as a
+  code edit beside the comment, restores the check unchanged.
 
 Failure modes: token comparison alone misses compiler/tool directives and cgo code;
-protected raw lines and attachment checks prevent this. Package-level suppression can hide a
+protected raw lines and attachment checks prevent this. Ignoring positions would hide line
+shifts that change `runtime.Caller`, panic and log output; per-token line comparison
+prevents this. Vet reads build-constraint text even inside ordinary or block comments; any
+comment mentioning `+build` or `//go:build` is protected. Embedded `.go` files have byte
+consumers outside the compile graph; AFP-V0-3324 refuses them. Reporting
+`NO_SELECTABLE_TEST` for a unit that compiles identically would turn a precision gain into
+an `UNKNOWN` plan; AFP-V0-3325 skips only units whose every dirty input is admitted, so a
+real code edit still reports its coverage gap. Package-level suppression can hide a
 second dirty code file; per-path compilation seeds and import-set witness reassignment prevent
 this. Removing the path from all selection loses source-reading tests; reader selection keeps
 the original dirty set. Ignoring inserted semicolons can change Go syntax; scanner output keeps
 them. Unsupported/unavailable evidence always leaves the prior propagation in place.
 
-Acceptance: focused tests named `AFP_V0_3320` through `AFP_V0_3323` cover lexical equality,
-directives/cgo, failure cases, all reader routes, mixed edits, caller defaults, CLI JSON and
+Acceptance: focused tests named `AFP_V0_3320` through `AFP_V0_3325` cover lexical and line
+equality, directives/cgo, build-constraint text, embedded sources, the coverage-gap
+exclusion, failure cases, all reader routes, mixed edits, caller defaults, CLI JSON and
 cache/non-cache planning. The build-log records the paired `anchor.go` comment measurement
 against the same base, with selected units, Go packages, tests and witness-kind counts.
 Non-goals: semantic equivalence of different token streams, excluding the own package,

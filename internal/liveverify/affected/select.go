@@ -367,7 +367,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	}
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, changed := seeds[id]; changed && graph.untested(id) {
+		if _, changed := seeds[id]; changed && graph.untested(id) && !graph.commentOnlyUnit(id, seeds[id], normalized) {
 			gap, uncertain := graph.coverageGap(id, seeds[id], reached, normalized, coverageReaders, runs, narrowedOut)
 			if uncertain {
 				plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})

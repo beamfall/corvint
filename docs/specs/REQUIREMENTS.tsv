@@ -226,6 +226,8 @@ AFP-V0-3320	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2
 AFP-V0-3321	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
 AFP-V0-3322	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
 AFP-V0-3323	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3324	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3325	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
