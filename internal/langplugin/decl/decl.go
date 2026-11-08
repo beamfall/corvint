@@ -95,6 +95,7 @@ var languages = []Language{
 		Dialects:     []Dialect{{ImpactDialect, "ruby", []string{".rb"}, ConstantReferences}, {RegionDialect, "ruby", []string{".rb", ".rake"}, ""}},
 		Dependencies: map[string]string{"rspec": "rspec", "rspec-core": "rspec", "rspec-rails": "rspec", "minitest": "minitest"},
 	},
+	{Name: "shader", Dialects: []Dialect{{RegionDialect, "shader", []string{".metal", ".hlsl", ".glsl"}, ""}}},
 	{Name: "swift", Dialects: []Dialect{{ModuleDialect, "swift", []string{".swift"}, TargetModules}}},
 	{
 		Name: "typescript",
@@ -130,7 +131,7 @@ var pluginDirs = []struct {
 	{"swift", []string{"cmd/corvint-analyzer-swift", "internal/analyzerswift", "internal/liveverify/affected/swift", "internal/nativelinecov", "internal/swiftimpact"}},
 	{"typescript", []string{"cmd/corvint-analyzer-js", "cmd/corvint-js-test-provider", "internal/analyzerjs", "internal/browsercov", "internal/extmutate", "internal/jslinecov", "internal/jstestprovider", "internal/linecov", "internal/linecov/v8", "internal/liveverify/affected/typescript", "internal/liveverify/jsresolve", "internal/webdialect"}},
 	{"sql", []string{"cmd/corvint-analyzer-sql-native"}},
-	{"shader", []string{"cmd/corvint-analyzer-shader", "internal/analyzershader"}},
+	{"shader", []string{"cmd/corvint-analyzer-shader", "internal/analyzershader", "internal/shaderdialect", "internal/shaderrunner"}},
 	{"html-css", []string{"cmd/corvint-analyzer-html-css", "internal/analyzerhtmlcss"}},
 	{"structured-data", []string{"cmd/corvint-analyzer-structured-data", "internal/analyzerstructured"}},
 }

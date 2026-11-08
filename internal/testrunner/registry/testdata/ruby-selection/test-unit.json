@@ -1,0 +1,20 @@
+{
+  "Profile": "corvint-test-unit/0",
+  "Complete": true,
+  "Count": 2,
+  "Tests": [
+    {
+      "ID": "test_add(CalcTest)",
+      "Name": "test_add",
+      "File": "test/calc_test.rb",
+      "State": "PASSED"
+    },
+    {
+      "ID": "test_subtract(CalcTest)",
+      "Name": "test_subtract",
+      "File": "test/calc_test.rb",
+      "State": "PASSED"
+    }
+  ],
+  "Problems": []
+}

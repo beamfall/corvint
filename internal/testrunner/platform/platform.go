@@ -169,6 +169,34 @@ func Build(r tr.Request) (tr.Invocation, error) {
 }
 
 func Parse(in tr.Input) (o tr.Observation, err error) {
+	return parse(in, false)
+}
+
+// ParseShellResults preserves individually parsed terminal results for run-set
+// reconciliation (RSP-V0-003). Report/process errors still prevent completeness.
+// Only the closed Bats and ShellSpec profiles support this internal SPI path;
+// Parse retains its existing observation semantics for every runner.
+func ParseShellResults(in tr.Input) (tr.Observation, error) {
+	if in.Runner != "bats" && in.Runner != "shellspec" {
+		return tr.Observation{}, fmt.Errorf("runner %q native parser unavailable", in.Runner)
+	}
+	return parse(in, true)
+}
+
+// ParseJVMResults is the JVM selection plugin's counterpart of
+// ParseShellResults (RSP-V0-003): testcases parsed before a report error, such
+// as a suite count mismatch, keep their native state so the caller can retain
+// validated failures. The error still prevents completeness, and Parse keeps
+// its existing observation semantics for these runners.
+func ParseJVMResults(in tr.Input) (tr.Observation, error) {
+	switch in.Runner {
+	case "gradle-junit", "maven-surefire", "junit-platform":
+		return parse(in, true)
+	}
+	return tr.Observation{}, fmt.Errorf("runner %q native parser unavailable", in.Runner)
+}
+
+func parse(in tr.Input, preserveTerminal bool) (o tr.Observation, err error) {
 	o = tr.Observation{Runner: in.Runner, Tests: []tr.Test{}, Problems: []tr.Problem{}, RetryInformation: tr.NotReported}
 	defer func() {
 		state, code := "", ""
@@ -186,6 +214,9 @@ func Parse(in tr.Input) (o tr.Observation, err error) {
 		}
 		if state != "" {
 			for j := range o.Tests {
+				if preserveTerminal {
+					continue
+				}
 				o.Tests[j].State = state
 				o.Tests[j].FailureKind = tr.Infrastructure
 				for k := range o.Tests[j].Attempts {
