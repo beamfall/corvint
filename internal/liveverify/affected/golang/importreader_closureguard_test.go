@@ -18,16 +18,19 @@ import (
 func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 	const header = "package probe\nimport (\"bytes\"; \"context\"; \"errors\"; \"os\"; \"os/exec\"; \"path/filepath\"; \"runtime\"; \"strings\"; \"testing\"; \"time\")\n" +
 		"var _ = errors.New\nvar _ = strings.Fields\n"
-	guard := func(name, prefix string) string {
+	guardEnv := func(name, prefix, environment string) string {
 		return "func " + name + "(t *testing.T) {\n" +
 			"_, " + prefix + "File, _, ok := runtime.Caller(0)\nif !ok { t.Fatal(\"caller\") }\n" +
 			prefix + "Root := filepath.Dir(filepath.Dir(" + prefix + "File))\n" +
 			"ctx, cancel := context.WithTimeout(context.Background(), time.Minute)\ndefer cancel()\n" +
 			"command := exec.CommandContext(ctx, \"go\", \"list\", \"-deps\", \"./cmd/tool\")\n" +
 			"command.Dir = " + prefix + "Root\n" +
-			"command.Env = append(os.Environ(), \"GOTOOLCHAIN=local\", \"GOPROXY=off\")\n" +
+			"command.Env = append(os.Environ(), " + environment + ")\n" +
 			"var stderr bytes.Buffer\ncommand.Stderr = &stderr\n" +
 			"out, err := command.Output()\nif err != nil { t.Fatalf(\"%v: %s\", err, stderr.String()) }\n_ = out\n}\n"
+	}
+	guard := func(name, prefix string) string {
+		return guardEnv(name, prefix, `"GOTOOLCHAIN=local", "GOPROXY=off"`)
 	}
 	shared := func(name string) string {
 		return "func " + name + "(t *testing.T) {\n" +
@@ -40,6 +43,12 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 		unbounded  bool
 	}{
 		{"distinct roots per test", guard("TestA", "a") + guard("TestB", "b"), false, false},
+		// An empty flags reset only removes ambient flags (an inherited
+		// -overlay or -e), so it stays proven; any other value does not.
+		{"empty GOFLAGS reset", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="`) + guardEnv("TestB", "b", `"GOFLAGS=", "GOWORK=off"`), false, false},
+		{"non-empty GOFLAGS literal", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS=-mod=mod"`), true, false},
+		{"dynamic GOFLAGS value", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="+os.Getenv("PROBE_FLAGS")`), true, false},
+		{"empty GOFLAGS reset outside an Env assignment", guardEnv("TestA", "a", `"GOTOOLCHAIN=local"`) + "var flags = []string{\"GOFLAGS=\"}\n", true, false},
 		// A proven listing whose root is spelled with a `..` literal still
 		// names the repository root to rule (d), so every edit selects it.
 		{"root climbed with a .. literal", "func TestA(t *testing.T) {\n" +
@@ -72,6 +81,10 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 			}
 			witness, hit := probeSelectedForBodyEdit(graph)
 			switch {
+			case test.unproven && hit && witness.Kind == affected.WitnessBinaryExec:
+				// An unproven listing keeps its literal target as a binary
+				// edge, so a body edit selects it by that stronger witness.
+				return
 			case test.unproven:
 				assertReaderSelectedForLibEdit(t, graph, false)
 			case test.unbounded:

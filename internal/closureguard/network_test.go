@@ -95,11 +95,11 @@ func TestCoreHTTPImportersAreAllowlisted(t *testing.T) {
 		command.Dir = httpRoot
 		switch config {
 		case "darwin/arm64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=darwin", "GOARCH=arm64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=darwin", "GOARCH=arm64")
 		case "linux/amd64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
 		case "windows/amd64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=windows", "GOARCH=amd64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=windows", "GOARCH=amd64")
 		default:
 			cancel()
 			t.Fatalf("config %q has no literal environment", config)
@@ -168,11 +168,11 @@ func TestTestValidityToolNetworkImportersAreAllowlisted(t *testing.T) {
 		command.Dir = validityRoot
 		switch config {
 		case "darwin/arm64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=darwin", "GOARCH=arm64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=darwin", "GOARCH=arm64")
 		case "linux/amd64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=linux", "GOARCH=amd64")
 		case "windows/amd64":
-			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "CGO_ENABLED=0", "GOOS=windows", "GOARCH=amd64")
+			command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS=windows", "GOARCH=amd64")
 		default:
 			cancel()
 			t.Fatalf("config %q has no literal environment", config)

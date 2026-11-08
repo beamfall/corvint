@@ -474,7 +474,10 @@ func testingParameters(signature *ast.FuncType, imports map[string]string) map[s
 
 // literalEnvironment reports an environment `append(os.Environ(), ...)` or
 // `[]string{...}` whose added entries are string literals, none setting
-// GOFLAGS or GOENV, which change what `go list` prints. The Environ receiver
+// GOFLAGS or GOENV, which change what `go list` prints. The one exception is
+// the empty reset `GOFLAGS=` (AFP-V0-9600): it only removes ambient flags
+// (an inherited -overlay or -e), so it cannot widen what the call reads; any
+// other GOFLAGS value stays outside the proof. The Environ receiver
 // must resolve through imports to the unshadowed standard os import; any
 // other receiver or expression is outside this closed proof.
 func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
@@ -507,11 +510,70 @@ func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
 	}
 	for _, entry := range entries {
 		value, ok := literalString(entry)
-		if !ok || strings.HasPrefix(value, "GOFLAGS=") || strings.HasPrefix(value, "GOENV=") {
+		if !ok || (value != emptyFlagsReset && strings.HasPrefix(value, "GOFLAGS=")) || strings.HasPrefix(value, "GOENV=") {
 			return false
 		}
 	}
 	return true
+}
+
+// emptyFlagsReset is the only GOFLAGS entry a literal environment may carry.
+const emptyFlagsReset = "GOFLAGS="
+
+// namesGoEnvironment reports a file that names GOFLAGS or GOENV anywhere
+// (comments included), so it can set either for every `go list` call of its
+// package. A `"GOFLAGS="` string literal that is an entry of an environment
+// assigned to a field named Env (`x.Env = append(os.Environ(), ...)` or
+// `x.Env = []string{...}`) is not counted: isolatedList and confinedCommand
+// still require that assignment to be a literalEnvironment, and the empty
+// reset only removes ambient flags. A file that does not parse counts.
+func namesGoEnvironment(relative string, body []byte) bool {
+	mentions := func(text []byte) bool {
+		return bytes.Contains(text, []byte("GOFLAGS")) || bytes.Contains(text, []byte("GOENV"))
+	}
+	if !mentions(body) {
+		return false
+	}
+	files := token.NewFileSet()
+	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution)
+	if err != nil {
+		return true
+	}
+	masked := append([]byte(nil), body...)
+	ast.Inspect(file, func(node ast.Node) bool {
+		assignment, ok := node.(*ast.AssignStmt)
+		if !ok || assignment.Tok != token.ASSIGN || len(assignment.Lhs) != len(assignment.Rhs) {
+			return true
+		}
+		for index, target := range assignment.Lhs {
+			if selector, ok := target.(*ast.SelectorExpr); !ok || selector.Sel.Name != "Env" {
+				continue
+			}
+			var entries []ast.Expr
+			switch value := assignment.Rhs[index].(type) {
+			case *ast.CallExpr:
+				if function, ok := value.Fun.(*ast.Ident); ok && function.Name == "append" && len(value.Args) > 1 {
+					entries = value.Args[1:]
+				}
+			case *ast.CompositeLit:
+				entries = value.Elts
+			}
+			for _, entry := range entries {
+				literal, ok := entry.(*ast.BasicLit)
+				if !ok || literal.Kind != token.STRING {
+					continue
+				}
+				if value, err := strconv.Unquote(literal.Value); err == nil && value == emptyFlagsReset {
+					start, end := files.Position(literal.Pos()).Offset, files.Position(literal.End()).Offset
+					for offset := start; offset < end; offset++ {
+						masked[offset] = ' '
+					}
+				}
+			}
+		}
+		return true
+	})
+	return mentions(masked)
 }
 
 // goListArguments classifies the arguments after "list": the directories the
@@ -880,8 +942,9 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				bodies[relative] = body
 				builtinsProven = builtinsProven && unshadowedPredeclared(body)
 				// A package that names the go command's environment can
-				// set GOFLAGS (or a GOENV file holding it) for every call.
-				environment = environment || bytes.Contains(body, []byte("GOFLAGS")) || bytes.Contains(body, []byte("GOENV"))
+				// set GOFLAGS (or a GOENV file holding it) for every call;
+				// an empty literal reset does not count (AFP-V0-9600).
+				environment = environment || namesGoEnvironment(relative, body)
 			} else {
 				builtinsProven = false
 			}
