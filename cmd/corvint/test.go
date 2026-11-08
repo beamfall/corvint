@@ -663,9 +663,9 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	case err != nil:
 		input.GoSelection = "FALLBACK the root module path cannot be read"
 	default:
-		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
+		lines := gateselect.SelectQualifiedIndexed(plan, module, root, index)
 		if len(lines) != 0 {
-			input.GoSelection = testPlanRunSet(lines[len(lines)-1], plan.Provider.Go.Packages)
+			input.GoSelection = lines[len(lines)-1]
 		}
 		// A change only inside nested modules no observed module builds
 		// selects no root package; their own units run it (STR-V0-064).
@@ -676,25 +676,11 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	return nil
 }
 
-// testPlanRunSet is the Go verdict `corvint test` runs (AFP-V0-2402, V1-4363,
-// amending STR-V0-061): the AFP-V0-012 attribution still decides FALLBACK and
-// NOTHING, but a `run` verdict runs exactly the plan's own Go selection, the
-// packages `corvint affected` selects with a witness. The attribution's rule
-// (a) to (c) lines re-add packages the plan's narrower reviewed rules exclude
-// (the lone-component and directory-resolving literal narrowings of
-// AFP-V0-021 and AFP-V0-072, namer edges for a path token that names a package
-// directory), so they no longer enter the run set; the CI PR tier's deciding
-// selector (gateselect.Select) keeps them. A run verdict over a plan that
-// selects no Go package is NOTHING with that reason.
+// testPlanRunSet retains the AFP-V0-2402 verdict projection for callers that
+// already hold a qualified package set. The runner now receives that set from
+// gateselect.SelectQualifiedIndexed, shared with the CI selector.
 func testPlanRunSet(verdict string, planned []string) string {
-	if !strings.HasPrefix(verdict, "run ") {
-		return verdict
-	}
-	packages := slices.Compact(slices.Sorted(slices.Values(planned)))
-	if len(packages) == 0 {
-		return "NOTHING the plan selects no Go package; the AFP-V0-012 attribution names only packages the plan's rules exclude (AFP-V0-2402)"
-	}
-	return "run " + strings.Join(packages, " ")
+	return gateselect.PlannedRunSet(verdict, planned)
 }
 
 // testGoUniverse is every graph Go package the root runner can list, using
