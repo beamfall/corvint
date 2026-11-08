@@ -22,6 +22,8 @@
 #   HEAVY_SLOTS     concurrent heavy commands admitted host-wide; default max(1, CPUs/4)
 #   HEAVY_P         Go build/test parallelism (-p) exported through GOFLAGS unless GOFLAGS already
 #                   sets -p; default max(1, CPUs/HEAVY_SLOTS). An explicit -p argument still wins.
+#                   Local commands also inherit GOMAXPROCS=HEAVY_P unless the caller set it
+#                   (ASD-V0-2477); an argv GOMAXPROCS assignment still wins.
 #                   With no GOFLAGS in the environment, -p is appended to `go env GOFLAGS` (a GOENV
 #                   or $GOROOT/go.env value), which the exported GOFLAGS would otherwise replace.
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
@@ -372,17 +374,41 @@ slot_limits() {
   fi
 }
 
+# command_goflags COMMAND...: resolve defaults using the child's leading environment assignments.
+# Unsupported env options cannot establish automatic whole-package authority (ASD-V0-2478).
+command_goflags() {
+  local arg assignments=()
+  for arg in "$@"; do
+    if [[ $arg =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+      assignments+=("$arg")
+    elif [[ ${arg##*/} == env ]]; then
+      :
+    elif [[ ${arg##*/} == go ]]; then
+      env ${assignments[@]+"${assignments[@]}"} GOTOOLCHAIN=local "$arg" env GOFLAGS 2> /dev/null
+      return $?
+    else
+      return 1
+    fi
+  done
+  return 1
+}
+
 # ASD-V0-2475 (V1-4513): an exported GOFLAGS replaces the GOFLAGS that `go env` reads from the GOENV
 # file or $GOROOT/go.env, so with none in the environment the bound starts from that value. A value
 # that already sets -p is left to go, unexported.
 bound_parallelism() {
-  local flags=${GOFLAGS-}
-  if [[ -z $flags ]] && command -v go > /dev/null; then
+  local limit=$1 flags=${GOFLAGS-}
+  shift
+  if flags=$(command_goflags "$@"); then
+    :
+  elif [[ -z ${GOFLAGS-} ]] && command -v go > /dev/null; then
     flags=$(GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null) || flags=
+  else
+    flags=${GOFLAGS-}
   fi
   case " $flags " in
     *" -p="* | *" -p "*) ;;
-    *) export GOFLAGS="${flags:+$flags }-p=$1" ;;
+    *) export GOFLAGS="${flags:+$flags }-p=$limit" ;;
   esac
 }
 
@@ -685,7 +711,7 @@ offload_unavailable() { printf 'heavy.sh: offload unavailable from this checkout
 # build on HEAVY_REMOTE_HOST at this checkout's exact tree. Returns the command's status, or 97 when
 # the remote cannot run it.
 offload() {
-  local top rel head base ref origin t size t0 t1 tree back wip=
+  local top rel head base ref origin t size t0 t1 tree back wip= flags
   t0=$(heavy_now)
   heavy_noretry=1 # cleared once the payload is ready: only a remote failure is retried
   # ASD-V0-056 (V1-3202): a checkout that cannot offload says why, once, before the local run.
@@ -742,6 +768,11 @@ offload() {
     printf 'CALLER_GCG_SET=%q\nCALLER_GCG=%q\n' "${GIT_CONFIG_GLOBAL+1}" "${GIT_CONFIG_GLOBAL-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
+    # Bind Go tests to the sender's effective defaults. A command-local assignment in CMD
+    # keeps the envelope's existing fields; serve consumes it before bounding parallelism.
+    if [[ " $* " == *" go test "* ]] && flags=$(command_goflags "$@"); then
+      printf '%q ' "GOFLAGS=$flags"
+    fi
     printf '%q ' "$@"
     printf ')\n'
   } > "$t/meta.env"
@@ -898,7 +929,7 @@ heavy_cleanup_run_tmp() {
 # the remote cannot run it (the caller then runs locally).
 # shellcheck disable=SC1090,SC2153 # meta.env (written by offload) defines BASE, HEAD, ORIGIN, CMD...
 serve() {
-  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg drop_re
+  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg drop_re flags i prefix
   t0=$(heavy_now)
   infra() {
     printf 'heavy.sh: remote %s: %s\n' "$(command -p hostname)" "$*" >&2
@@ -1006,7 +1037,25 @@ serve() {
     fg=$(free_gb "$a")
     [[ $fg =~ ^[0-9]+$ ]] && ((${MINFREE:-0} > 0 && fg < MINFREE)) && infra "low-disk $a free=${fg}G floor=${MINFREE}G"
   done
-  bound_parallelism "$par"
+  # Offload's leading assignment binds the admitted defaults, even when empty. Consume it
+  # before host setup can export receiver-only filters, preserving the original command argv.
+  if [[ ${CMD[0]-} == GOFLAGS=* ]]; then
+    flags=${CMD[0]#GOFLAGS=}
+    # An empty GOFLAGS still permits Go's GOENV defaults. A nonempty neutral bound prevents
+    # that fallback, including when the original argv explicitly assigned an empty GOFLAGS.
+    flags=${flags:--p=$par}
+    export GOFLAGS=$flags
+    CMD=("${CMD[@]:1}")
+    prefix=1
+    for ((i = 0; i < ${#CMD[@]} && prefix; i++)); do
+      case ${CMD[i]} in
+        GOFLAGS=*) CMD[i]=GOFLAGS=$flags ;;
+        env | */env | *=*) ;;
+        *) prefix=0 ;;
+      esac
+    done
+  fi
+  bound_parallelism "$par" ${CMD[@]+"${CMD[@]}"}
   # V1-1628: -p bounds how many packages build or test at once, not the threads inside one test
   # binary, so a whole-package run on every slot would still contend for all the CPUs.
   # ASD-V0-835: only the argv and this metadata cross ssh, so the caller's exported GOMAXPROCS is
@@ -1398,15 +1447,25 @@ selection_log() {
 # is at most HEAVY_SMALL_TEST_BYTES (ASD-V0-074, V1-3120). Flags are skipped, with the value of a
 # flag that takes one; any other package form (an import path, `...`, a file) fails.
 small_package_bytes() {
-  local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 arg dir total=0 n=0 f size
+  local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 package_state=0 flag arg dir total=0 n=0 f size
   [[ $limit =~ ^[0-9]+$ ]] && ((limit > 0)) || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       *)
         dir=${arg#./}
         [[ $arg == ./* && $dir != *...* && $dir != *..* && ($dir == tools/* || $dir == conformance/*) && -d $dir ]] || return 1
@@ -1419,6 +1478,7 @@ small_package_bytes() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((n > 0 && total <= limit)) || return 1
   printf '%s\n' "$total"
 }
@@ -1430,15 +1490,25 @@ small_package_bytes() {
 # Other flags are skipped as in small_package_bytes; ./..., .., -C, an unresolvable base or a failed
 # git call is not admitted.
 new_package_base() {
-  local seen=0 skip=0 prev_go=0 arg dir base n=0 listed
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir base n=0 listed
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       *)
         dir=${arg#./}
         dir=${dir%/}
@@ -1450,28 +1520,233 @@ new_package_base() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((n > 0)) || return 1
   printf '%s\n' "${base:0:12}"
 }
 
-# run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
+# changed_source_base COMMAND...: ASD-V0-2478. Without a line-level selection, a source edit
+# admits its package whole. Compare the merge base through the working tree (staged and unstaged)
+# and include untracked source. Every named package must qualify; never infer a glob or -C scope.
+changed_source_base() {
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir base n=0 path changed found
+  base=$(git rev-parse --verify -q origin/main 2> /dev/null) && base=$(git merge-base HEAD "$base" 2> /dev/null) && [[ -n $base ]] || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
+    case $arg in
+      -C | -C=* | -args | --) return 1 ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
+      *)
+        dir=${arg#./}; dir=${dir%/}
+        [[ ($arg == . || $arg == ./*) && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        changed=$(git -C "$dir" diff --relative --name-only --no-renames "$base" -- . 2> /dev/null) || return 1
+        changed+=$'\n'$(git -C "$dir" ls-files --others --exclude-standard -- . 2> /dev/null) || return 1
+        found=0
+        while IFS= read -r path; do
+          [[ $path != */* && $path == *.go && $path != *_test.go ]] && found=1
+        done <<< "$changed"
+        ((found)) || return 1
+        n=$((n + 1))
+        ;;
+    esac
+  done
+  (( !skip )) || return 1
+  ((n > 0)) || return 1
+  printf '%s\n' "${base:0:12}"
+}
+
+# whole_run_pattern PATTERN: ASD-V0-2478. A bounded proof that every top-level test/example
+# matches; selective subtest patterns and other regexes cannot supply whole-package authority.
+whole_run_pattern() {
+  case ${1#^} in '' | . | '.*' | '.+') return 0 ;; esac
+  return 1
+}
+
+# go_test_flag_arity NAME: the closed automatic-admission table (ASD-V0-2478).
+# Boolean flags consume no separate operand; value flags consume exactly one unless inline.
+# Unknown names return no arity and cannot certify a selection. No prefix/pattern fallback.
+go_test_flag_arity() {
+  case $1 in
+    run | skip | count | list | fuzz | exec | timeout | parallel | cpu | bench | benchtime | shuffle | vet | fuzztime | fuzzminimizetime | outputdir | blockprofile | blockprofilerate | coverprofile | cpuprofile | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | trace | C | p | tags | ldflags | gcflags | asmflags | gccgoflags | mod | modfile | o | coverpkg | covermode | overlay | pkgdir | toolexec | buildmode | compiler | installsuffix | pgo | debug-actiongraph | debug-runtime-trace | debug-trace) printf '%s\n' value ;;
+    a | asan | artifacts | benchmem | buildvcs | c | cover | failfast | fullpath | json | linkshared | modcacherw | msan | n | race | short | trimpath | v | work | x) printf '%s\n' boolean ;;
+    *) return 1 ;;
+  esac
+}
+
+# FLAG has no leading dashes or test. prefix. Inline values consume no following word.
+go_test_value_flag() {
+  [[ $(go_test_flag_arity "$1") == value ]]
+}
+
+# go_test_known_flag ARG: closed syntax/arity allowlist for automatic admission (ASD-V0-2478).
+# New Go flags and custom test flags must acquire an explicit proof before they are admitted.
+go_test_known_flag() {
+  local flag=${1#-} name value arity
+  [[ $1 == -* ]] || return 1
+  flag=${flag#-}
+  if [[ $flag == test.* ]]; then
+    # Only cmd/go's forwarded test flags have a test. alias; build flags do not.
+    name=${flag%%=*}; name=${name#test.}
+    case $name in
+      artifacts | bench | benchmem | benchtime | blockprofile | blockprofilerate | count | coverprofile | cpu | cpuprofile | failfast | fullpath | fuzz | fuzzminimizetime | fuzztime | list | memprofile | memprofilerate | mutexprofile | mutexprofilefraction | outputdir | parallel | run | short | shuffle | skip | timeout | trace | v) ;;
+      *) return 1 ;;
+    esac
+    flag=${flag#test.}
+  fi
+  name=${flag%%=*}
+  arity=$(go_test_flag_arity "$name") || return 1
+  [[ $arity != value ]] || return 0
+  [[ $flag == *=* ]] || return 0
+  value=${flag#*=}
+  case $value in 0 | 1 | true | false | TRUE | FALSE | True | False | t | f | T | F) return 0 ;; esac
+  [[ $name == buildvcs && $value == auto || $name == v && $value == test2json ]]
+}
+
+# source_tests_unfiltered MODE COMMAND...: ASD-V0-2478. Source edits justify running every
+# test, never silently excluding one. Preserve all environment assignments when inspecting Go's
+# defaults; refuse unsupported env options instead of discarding their effect on the child.
+# The manifest path may validate a direct -skip itself;
+# inherited filters conservatively require an explicit command instead of a whole-unit witness.
+source_tests_unfiltered() {
+  local package_state=0
+  local mode=$1 seen=0 count_next=0 run_next=0 value_next=0 run_set=0 run_value= arg flag go=go flags quoted=
+  local inherited_run_set=0 inherited_run= goenv=() words=()
+  shift
+  for arg in "$@"; do
+    if ((!seen)); then
+      if [[ $arg =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        goenv+=("$arg")
+      elif [[ ${arg##*/} == env ]]; then
+        :
+      elif [[ ${arg##*/} == go ]]; then
+        go=$arg seen=1
+      else
+        return 1
+      fi
+      continue
+    fi
+    if ((seen == 1)); then
+      [[ $arg == test ]] || return 1
+      seen=2
+      continue
+    fi
+    if ((run_next)); then
+      run_value=$arg run_set=1 run_next=0
+      continue
+    fi
+    if ((count_next)); then
+      [[ $arg =~ ^[1-9][0-9]*$ ]] || return 1
+      count_next=0
+      continue
+    fi
+    if ((value_next)); then value_next=0; continue; fi
+    # Only the first contiguous package list is understood. After a following flag,
+    # any positional word and its tail belong to the test binary, not another package list.
+    if [[ $arg != -* ]]; then
+      ((package_state != 2)) || return 1
+      package_state=1
+      continue
+    fi
+    ((package_state != 1)) || package_state=2
+    go_test_known_flag "$arg" || return 1
+    flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+    case $flag in
+      skip | skip=*)
+        [[ $mode == manifest && $arg == -skip* ]] || return 1
+        [[ $flag != skip ]] || value_next=1
+        ;;
+      run | run=*)
+        case $arg in -test.* | --test.*) return 1 ;; esac
+        if [[ $flag == run ]]; then run_next=1; else run_value=${flag#run=} run_set=1; fi
+        ;;
+      list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | args | '') return 1 ;;
+      count) count_next=1 ;;
+      count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
+      n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+      *) if [[ $arg == -* ]] && go_test_value_flag "$flag"; then value_next=1; fi ;;
+    esac
+  done
+  ((seen == 2 && !run_next && !count_next && !value_next)) || return 1
+  (( !run_set )) || whole_run_pattern "$run_value" || return 1
+  flags=$(env ${goenv[@]+"${goenv[@]}"} GOTOOLCHAIN=local "$go" env GOFLAGS 2> /dev/null) || return 1
+  # GOFLAGS permits quoted words. Removing quotes is conservative: even a filter-looking word
+  # inside another flag's value cannot grant automatic whole-package authority.
+  [[ $flags != *\"* && $flags != *\'* ]] || quoted=1
+  flags=${flags//\"/}; flags=${flags//\'/}
+  flags=${flags//$'\n'/ }; flags=${flags//$'\r'/ }
+  read -ra words <<< "$flags"
+  for arg in ${words[@]+"${words[@]}"}; do
+    go_test_known_flag "$arg" || return 1
+    flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+    # GOFLAGS uses one word per flag, so value-taking flags need an inline operand.
+    if [[ $flag != *=* ]] && go_test_value_flag "$flag"; then return 1; fi
+    case $flag in
+      run=*)
+        [[ -z $quoted && $arg != *test.run=* ]] || return 1
+        inherited_run=${flag#run=} inherited_run_set=1
+        ;;
+      run | skip | skip=* | list | list=* | short | short=* | fuzz | fuzz=* | exec | exec=* | count | c | c=* | n | n=1 | n=true | n=TRUE | n=True | n=t | n=T) return 1 ;;
+      count=*) [[ ${flag#count=} =~ ^[1-9][0-9]*$ ]] || return 1 ;;
+    esac
+  done
+  (( !inherited_run_set )) || whole_run_pattern "$inherited_run"
+}
+
+# run_selects_all COMMAND...: whether the final effective -run matches every test (ASD-V0-860):
 # its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
 run_selects_all() {
-  local value next=""
+  local package_state=0
+  local arg flag value= next=0 skip=0 seen=0 prev_go=0 run_set=0 narrow_unproven=0
   for arg in "$@"; do
-    if [[ -n $next ]]; then
-      value=$arg next=""
-    else
-      case $arg in
-        -run | --run) next=1; continue ;;
-        -run=* | --run=*) value=${arg#*=} ;;
-        *) continue ;;
-      esac
+    if ((!seen)); then
+      [[ $arg == test && $prev_go == 1 ]] && seen=1
+      [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0
+      continue
     fi
-    value=${value%%/*}
-    value=${value#^}
-    case $value in '' | . | '.*' | '.+' | Test | 'Test.*' | 'Test.+') return 0 ;; esac
+    if ((skip)); then skip=0; continue; fi
+    if ((next)); then value=$arg run_set=1 next=0; continue; fi
+    # Only the first contiguous package list is understood. After a following flag,
+    # any positional word and its tail belong to the test binary, not another package list.
+    if [[ $arg != -* ]]; then
+      ((package_state != 2)) || return 0
+      package_state=1
+      continue
+    fi
+    ((package_state != 1)) || package_state=2
+    # -args ends Go's flags; the existing alias/terminator guards check the binary tail.
+    [[ $arg != -args ]] || break
+    # Unknown syntax cannot certify a narrow selection: retain the whole-package claim.
+    if [[ $arg == -* ]]; then go_test_known_flag "$arg" || return 0; fi
+    case $arg in
+      -run | --run) next=1 ;;
+      -run=* | --run=*) value=${arg#*=} run_set=1 ;;
+      -args | --) break ;;
+      -*)
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        # Go labels these debugging flags unstable. Their operands are understood, but
+        # narrow admission with instrumentation is outside the certified allowlist.
+        case ${flag%%=*} in debug-actiongraph | debug-runtime-trace | debug-trace) narrow_unproven=1 ;; esac
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
+    esac
   done
+  ((seen && !next && !skip && !narrow_unproven)) || return 0
+  ((run_set)) || return 0 # No effective -run leaves the default whole-package selection.
+  value=${value%%/*}
+  value=${value#^}
+  case $value in '' | . | '.*' | '.+' | Test | 'Test.*' | 'Test.+') return 0 ;; esac
   return 1
 }
 
@@ -1662,18 +1937,29 @@ flags_terminated() {
 # -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
 # or -C. Other flags are skipped as in small_package_bytes.
 manifest_admits() {
-  local seen=0 skip=0 prev_go=0 arg dir mod head manifest pkgs=() skips=()
+  local seen=0 skip=0 prev_go=0 package_state=0 flag arg dir mod head manifest pkgs=() skips=()
+  source_tests_unfiltered manifest "$@" || return 1
   mod=$(module_path) && [[ -n $mod ]] || { not_admitted "./go.mod names no module"; return 1; }
   head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || { not_admitted "git rev-parse HEAD failed"; return 1; }
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then ((skip == 2)) && skips+=("$arg"); skip=0; continue; fi
+    # Go accepts one contiguous package list; a later positional word starts the binary tail.
+    if [[ $arg == -* ]]; then
+      ((package_state != 1)) || package_state=2
+    else
+      ((package_state != 2)) || return 1
+      package_state=1
+    fi
     case $arg in
       -skip) skip=2 ;;
       -skip=*) skips+=("${arg#-skip=}") ;;
-      -run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) not_admitted "argument $arg is not a ./REL directory"; return 1 ;;
-      -*) ;;
+      -*)
+        go_test_known_flag "$arg" || return 1
+        flag=${arg#-}; flag=${flag#-}; flag=${flag#test.}
+        if go_test_value_flag "$flag"; then skip=1; fi
+        ;;
       .) pkgs+=("$mod") ;;
       *)
         dir=${arg#./}
@@ -1683,6 +1969,7 @@ manifest_admits() {
         ;;
     esac
   done
+  (( !skip )) || return 1
   ((${#pkgs[@]})) || { not_admitted "no package argument"; return 1; }
   ((${#skips[@]} < 2)) || { not_admitted "more than one -skip"; return 1; }
   manifest=$(selection_manifest "$HEAVY_SELECTION")
@@ -1766,16 +2053,25 @@ selection_policy() {
       fi
       ;;
   esac
-  local small digest
-  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && small=$(small_package_bytes "$@"); then
+  local small digest unfiltered=
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && source_tests_unfiltered whole "$@"; then unfiltered=1; fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && small=$(small_package_bytes "$@"); then
+    heavy_selection_mode=whole
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
-  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && digest=$(new_package_base "$@"); then
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(new_package_base "$@"); then
+    heavy_selection_mode=whole
     selection_log "$now whole reason=new-package:$digest pwd=$PWD cmd=$*"
     return 0
   fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n $unfiltered ]] && digest=$(changed_source_base "$@"); then
+    heavy_selection_mode=whole
+    selection_log "$now whole reason=changed-source:$digest pwd=$PWD cmd=$*"
+    return 0
+  fi
   if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
+    heavy_selection_mode=manifest
     selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
     return 0
   fi
@@ -2437,7 +2733,7 @@ main() {
   else
     unset HEAVY_CLASS
   fi
-  local remote_hosts=() h
+  local remote_hosts=() h heavy_selection_mode=
   if [[ -n $heavy_admit_only ]]; then
     # A make dry run (-n) still executes $(MAKE) recipe lines; it takes no slot.
     [[ ${MAKEFLAGS-} =~ ^-?[A-Za-z]*n[A-Za-z]*([[:space:]]|$) ]] && exec "$@"
@@ -2524,7 +2820,17 @@ main() {
   heavy_load_wait=0
   [[ ${HEAVY_HELD-} == "$slot_dir"/slot* ]] || load_wait "$cpus"
   pin_go
-  bound_parallelism "$par"
+  bound_parallelism "$par" "$@"
+  # Local toolchain/default setup must not weaken the automatic or manifest admission.
+  if [[ -n $heavy_selection_mode ]] && ! source_tests_unfiltered "$heavy_selection_mode" "$@"; then
+    selection_policy "$@"
+    rerun_lines whole-reason-missing -- ${asked[@]+"${asked[@]}"}
+    printf 'heavy.sh: REFUSED whole-reason-missing (exit 2)\n'
+    heavy_cause=refused
+    return 2
+  fi
+  # ASD-V0-2477: -p bounds package builds, not the runtime inside each test binary.
+  [[ ${GOMAXPROCS+x} ]] || export GOMAXPROCS=$par
   [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default ${TMPDIR:-/tmp}/corvint-go-build-cache

@@ -176,7 +176,7 @@ func TestCommandLocatorReachesItsRunners_AFPV02951(t *testing.T) {
 	selected := func(dirty string) map[string]string {
 		found := map[string]string{}
 		for _, item := range affected.Select(graph, []string{dirty}).Selected {
-			found[item.UnitID] = item.Witness.Kind
+			found[item.UnitID] = runnerWitness(item.Witness)
 		}
 		return found
 	}
@@ -365,4 +365,15 @@ func TestBoundedJoinThroughDirectorySymlinkSelectsReader_AFPV02950(t *testing.T)
 	if selects("shared/other.go") {
 		t.Error("a sibling of the joined file selected its reader")
 	}
+}
+
+// runnerWitness reads a driver target's whole-tree read as the unbounded
+// reader the runner assertions expect: AFP-V0-9401 records a modelled
+// `go run` as the anchored glob "/*", which selects the target on every
+// change exactly as AFP-V0-2951 and AFP-V0-2962 require.
+func runnerWitness(witness affected.Witness) string {
+	if witness.Kind == affected.WitnessPathGlobReader && witness.Glob == "/*" {
+		return affected.WitnessUnboundedReader
+	}
+	return witness.Kind
 }
