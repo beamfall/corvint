@@ -450,6 +450,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		}
 	}
 	complete, patched := p.parseAnchors()
+	p.prefetchRefreshBlobs()
 	used := map[string]bool{}
 	p.carry(owed, used)
 	// DCW-V0-2141 (V1-4441): a carried hunk whose cite rows anchor nothing,
@@ -1029,6 +1030,7 @@ func (p *proposal) parseAnchors() (bool, map[string]bool) {
 			complete = true
 			// One batched read serves every BASE blob the hunks below look up (V1-4095).
 			p.prefetchBlobs(p.base, patchHunkPaths(parsed.Hunks))
+			p.prefetchBlobs(p.target, patchHunkPaths(parsed.Hunks))
 			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
 				p.checkpoint()
@@ -1413,7 +1415,11 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 		p.blobs[key] = nil
 		return nil, false
 	}
-	data, _ := p.git(true, "cat-file", "blob", key)
+	data, status := p.git(true, "cat-file", "blob", key)
+	if status != 0 {
+		p.blobs[key] = nil
+		return nil, false
+	}
 	p.blobs[key] = []byte(data)
 	return p.blobs[key], true
 }
@@ -1427,6 +1433,9 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 // one by one as before. So does a name with a pathspec or revision
 // metacharacter, which blob's unquoted ls-tree reads its own way.
 func (p *proposal) prefetchBlobs(commit string, names []string) {
+	if !prefetchBlobReads || commit == "" {
+		return
+	}
 	const chunk = 1024
 	for len(names) > chunk {
 		p.prefetchBlobs(commit, names[:chunk])
@@ -1491,22 +1500,7 @@ func (p *proposal) prefetchBlobs(commit string, names []string) {
 	if status != 0 || !bounded {
 		return
 	}
-	data := []byte(raw)
-	for len(data) > 0 {
-		header, rest, ok := bytes.Cut(data, []byte{'\n'})
-		fields := strings.Fields(string(header))
-		if !ok || len(fields) != 3 || fields[1] != "blob" {
-			return
-		}
-		size, err := strconv.Atoi(fields[2])
-		if err != nil || size < 0 || size+1 > len(rest) {
-			return
-		}
-		for _, name := range byObject[fields[0]] {
-			p.blobs[commit+":"+name] = rest[:size:size]
-		}
-		data = rest[size+1:]
-	}
+	p.cacheBlobBatch(commit, []byte(raw), byObject)
 }
 
 // splitRecords splits data into LF-terminated records as cem cite counts

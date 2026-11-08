@@ -1006,6 +1006,27 @@ direct orchestrator commits (`https://github.com/beamfall/corvint-history/blob/1
 
 #### Rebinding after a conflicted merge-forward (V1-4721, V1-0527)
 
+Before merging forward, install the local prevention drivers once with `make merge-drivers`
+(`DWC-V0-7700`..`DWC-V0-7704`). Repeat installation safely after a clone. Merge and regenerate
+before committing, since a keep-ours projection can be stale even when Git reports no conflict:
+
+```sh
+make merge-drivers
+git merge --no-ff --no-commit origin/main
+# Resolve any remaining real conflicts, then stage the resolved inputs.
+git add -u
+make spec-requirements
+git commit --no-edit
+```
+
+Stop if the merge command fails for a reason other than conflicts; if it reports already up to
+date, there is no merge to commit. Append-only spec hunks keep ours then theirs; edits to existing
+base text and competing edits to one JSON registry entry stay conflicted. The three generated
+projections keep ours until regeneration; `make spec-requirements-check` still fails closed.
+Batch-check replays these rules from parent blobs in scratch Git, independent of installation,
+and accepts only the exact derived tree (including any regeneration). A hand resolution still
+needs the binding recovery below. This affects local merges; GitHub does not run local drivers.
+
 A lane that merged the mainline forward and resolved a conflict by hand binds and seals the whole
 range from the merged mainline commit; this is the supported path (`DWC-V0-7601`, `DWC-V0-7602`),
 not a workaround:

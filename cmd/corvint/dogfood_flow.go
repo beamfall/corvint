@@ -253,9 +253,9 @@ func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, std
 	}
 	runner := func(name string) dogfoodflow.Runner {
 		if path, ok := flags[name]; ok {
-			return dogfoodflow.Exec(path)
+			return dogfoodCitationRunner(path, self)
 		}
-		return dogfoodflow.Exec(self)
+		return dogfoodCitationRunner(self, self)
 	}
 	codes := dogfoodSignalCodes()
 	notified := make(chan os.Signal, 1)

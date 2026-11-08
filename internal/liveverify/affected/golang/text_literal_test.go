@@ -295,7 +295,7 @@ func TestPrintedTextReachesItsRunner_AFPV02962(t *testing.T) {
 	for _, dirty := range []string{"config.go", "elsewhere/data.txt"} {
 		found := map[string]string{}
 		for _, item := range affected.Select(graph, []string{dirty}).Selected {
-			found[item.UnitID] = item.Witness.Kind
+			found[item.UnitID] = runnerWitness(item.Witness)
 		}
 		for _, id := range []string{"go:example.test/m/quiet", "driver:make:Makefile#read-printed"} {
 			if found[id] != affected.WitnessUnboundedReader {

@@ -221,6 +221,15 @@ line selection: it never dedupes repeated steps and never tells the map which te
   the 12-core reference host after the decode and reach allocations were cut. Under `-race`, as CI's
   Go product shards run, the plan is about 11x slower (p95 281 ms on the reference host), so the test
   scales the budget by 20 there and holds the absolute 100 ms only without `-race`.
+  For shared-host enforcement see MCJ-V0-025; historical wall measurements above are not CPU measurements.
+- `MCJ-V0-025`: (accepted under the owner's standing auto-accept (2026-10-11); heavycap charter 2026-11-07; V1-4944; refines MCJ-V0-019)
+  The segmented reference plan MUST retain the 40-run p95 budget and workload, measured by
+  process user plus system CPU time on Unix and Windows so scheduler stalls do not fail unrelated
+  changes. Total wall time MUST still be reported. The 100 ms budget, race multiplier and explicit
+  LINECOV_PLAN_P95_BUDGET remain. Measurement errors MUST fail; an unsupported CPU clock MUST report
+  NOT_OBSERVED explicitly. A deterministic injected doubling from 60 to 120 ms and a p95 tail
+  regression MUST fail the same 100 ms checker. Reference-host wall latency remains a benchmark
+  qualification, not a shared-runner unit-test assertion.
 
 
 ## Traceability
@@ -234,6 +243,7 @@ library is not yet wired into the plan, the CLI or CI, so no plan carries its re
 | MCJ-V0-021 | `select.go` `AddUncovered` | `TestMCJV0_021_AddsLinkedTestsForUncoveredBlocksOnly`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` (2,000 seeded random cases) |
 | MCJ-V0-022 | `select.go` `ShadowReplace`, `FallbackMisses` (records the proposed linked set beside the fallback set and the omitted tests) | `TestMCJV0_022_ShadowReplacementRecordsTheFallbackMissCheck`. Shadow record only: no CI shadow run, so the 1,000-change zero-miss bar is `NOT_RUN` |
 | MCJ-V0-023 | `select.go` `SelectSurfaces` | `TestMCJV0_023_PageObjectMethodChangeSelectsExactlyItsCallers`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` |
+| MCJ-V0-025 | `internal/linecov/plantime_test.go` and platform CPU clocks | `TestPlanTimeBudgetWithSegments`, `TestMCJV0025PlanBudgetDoubleCostFails`, `TestMCJV0025PlanClockFailure`; `BenchmarkPlanWithSegments` retains wall latency |
 | MCJ-V0-024 | `select.go` `Gaps` | `TestMCJV0_024_GapReport` |
 
 Test identities stay opaque: SKH-V0 test IDs, AFU-V1 test keys and `linecov` test IDs are separate
@@ -307,3 +317,6 @@ revise any of them.
    documentation lists every executing test regardless of which one ran.
 4. Playwright segment boundaries come from `test.step` and page-object calls without any
    test-source change; a project opt-in fixture is allowed only as a fallback, reported per run.
+
+MCJ-V0-025 rollback restores the wall-clock unit assertion; it does not alter planner behavior or
+wire formats. Reference-host benchmark qualification is independent of shared-host CPU evidence.
