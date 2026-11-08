@@ -197,6 +197,9 @@ type E2EInput struct {
 	Mandatory []any
 	// Repositories are the operator's application repository bindings (AFU-V1-067).
 	Repositories []E2ERepositoryInput
+	// RunnerEvidence selects the shared RSP inventory/record model when core
+	// binds it (internal/appflows/e2erunner.Bind).
+	RunnerEvidence *E2ERunnerInput `json:"-"`
 }
 
 // E2ESelection is the e2e-safe test_selection member (AFU-V1-023).
@@ -327,6 +330,9 @@ type evidenceDiff struct {
 // SelectE2E decides the e2e-safe selection. It narrows only when every inventoried test is
 // selected or carries an exclusion proof; otherwise it returns the full relevant suite with codes.
 func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
+	if in.RunnerEvidence != nil {
+		return selectE2ERunner(ctx, in)
+	}
 	out := E2ESelection{Schema: E2ESafeSchema, Profile: E2ESafeProfile, Base: in.Base, Mandatory: in.Mandatory,
 		Selected: []E2ETest{}, OmittedTests: []E2EOmission{}, Proofs: []E2EProof{}, DisjointFrom: []string{}, OmissionsPerBasis: map[string]int{BasisCoverage: 0, BasisReviewedLinks: 0},
 		Fallback: []E2EFallback{}, Note: extevidence.SelectionNote + "; " + e2eSafeNote,

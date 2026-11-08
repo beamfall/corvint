@@ -14,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/mcp/tasksbridge"
 	"github.com/Beamfall/corvint/internal/mcp/tasksread"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
@@ -35,7 +36,7 @@ const (
 
 // toolGroups are the per-root and workspace-level groups a --tool-profile list
 // may add beside at most one code profile (MMR-V0-012).
-var toolGroups = []string{toolProfileTestValidity, toolProfileDocs, toolProfileTasks, toolProfileCorpus, toolProfileTasksWork}
+var toolGroups = []string{toolProfileTestEvidence, toolProfileTestValidity, toolProfileDocs, toolProfileTasks, toolProfileCorpus, toolProfileTasksWork}
 
 // splitToolProfile reads one --tool-profile value: a single code profile, as
 // MCPV0-026 has always admitted, or a comma list of at most one code profile
@@ -178,6 +179,12 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 		for _, name := range groups {
 			var group toolgroup.Group
 			switch name {
+			case toolProfileTestEvidence:
+				binding, ok := rootbind.Bind(root)
+				if !ok {
+					return "repository unavailable"
+				}
+				group = toolgroup.TestEvidence{Root: root, Binding: binding}
 			case toolProfileTestValidity:
 				registry, err := testvaliditybridge.New(root)
 				if err != nil {

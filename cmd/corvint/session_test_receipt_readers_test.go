@@ -378,6 +378,10 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		// The reader and its one dispatch.
 		"cmd/corvint importer",
 		"cmd/corvint/test.go runTest reference",
+		// The script and make runner plugins (RSP-V0-040 step 4, RSP-V0-050)
+		// read only sessiontest's command declarations (DeclarationPath,
+		// ParseDeclared, LanguageCommand, AdapterGo, MaxDocumentBytes).
+		"internal/testrunner/registry importer",
 		// Tools that read sessiontest's command declarations, not receipts.
 		"tools/test-commands-check importer",
 		"tools/test-commands-run importer",
