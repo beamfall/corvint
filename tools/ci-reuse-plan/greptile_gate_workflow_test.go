@@ -14,7 +14,8 @@ import (
 
 // GRG-V0-001: the gate job of .github/workflows/greptile-gate.yml ends on `greptile-gate` success
 // for an open PR head only when Greptile's newest summary reviewed that exact head at 5/5 and no
-// Greptile review thread is unresolved; it keeps a user-posted success, ends pending while the
+// Greptile review thread is unresolved; it posts success for an approver's greptile-gate-waiver
+// (V1-5096) and ignores any other writer's status, ends pending while the
 // head is unreviewed and failure otherwise, posts nothing for a closed or unreadable PR, and
 // leaves pending after a failed later read. On merge_group it re-evaluates the queued PR and posts
 // the result on the PR head and the merge-group commit; any other run also posts on the PR's
@@ -115,16 +116,21 @@ esac
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 			"STUB_DIR="+dir, "REPO=beamfall/corvint", "EVENT="+event, "PR=112", "GROUP_SHA="+sha,
-			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
+			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub", "WAIVER_APPROVERS=Russe11")
 		err := cmd.Run()
 		posts, _ := os.ReadFile(filepath.Join(dir, "posts.log"))
 		return strings.Split(strings.TrimSuffix(string(posts), "\n"), "\n")[:strings.Count(string(posts), "\n")], err == nil
 	}
-	userSuccess := `[{"state":"success","context":"greptile-gate","creator":{"type":"User"}},{"state":"failure","context":"greptile-gate","creator":{"type":"Bot"}}]`
+	// V1-5096: a waiver is an approver's greptile-gate-waiver status; a hand-posted greptile-gate
+	// success or another writer's waiver is ignored.
+	userSuccess := `[{"state":"success","context":"greptile-gate-waiver","creator":{"login":"Russe11","type":"User"}},{"state":"failure","context":"greptile-gate","creator":{"login":"github-actions[bot]","type":"Bot"}}]`
+	handPosted := `[{"state":"success","context":"greptile-gate","creator":{"login":"Russe11","type":"User"}}]`
+	otherWriter := `[{"state":"success","context":"greptile-gate-waiver","creator":{"login":"lane-bot","type":"User"}}]`
+	withdrawn := `[{"state":"failure","context":"greptile-gate-waiver","creator":{"login":"Russe11","type":"User"}},{"state":"success","context":"greptile-gate-waiver","creator":{"login":"Russe11","type":"User"}}]`
 	// A waiver behind more than 100 newer statuses of other contexts, on the second page.
 	var page1 []string
 	for i := 0; i < 100; i++ {
-		page1 = append(page1, `{"state":"success","context":"go-product","creator":{"type":"Bot"}}`)
+		page1 = append(page1, `{"state":"success","context":"go-product","creator":{"login":"github-actions[bot]","type":"Bot"}}`)
 	}
 	deepWaiver := "[" + strings.Join(page1, ",") + "]\n" + userSuccess
 	clean := threads(2, thread(true, "greptile-apps"), thread(false, "Russe11"))
@@ -143,7 +149,10 @@ esac
 		"over 100 threads":              {input{"open", "[]", pass, threads(101), false, ""}, "failure", []string{head}, true},
 		"newer summary wins":            {input{"open", "[]", "[" + strings.Replace(summary("5/5", head), "10:00", "09:00", 1) + "," + summary("3/5", head) + "]", clean, false, ""}, "failure", []string{head}, true},
 		"bot success is re-evaluated":   {input{"open", `[{"state":"success","context":"greptile-gate","creator":{"type":"Bot"}}]`, "[" + summary("4/5", head) + "]", clean, false, ""}, "failure", []string{head}, true},
-		"user success kept":             {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, false, ""}, "", []string{head}, true},
+		"approver waiver":               {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, false, ""}, "success", []string{head}, true},
+		"hand-posted gate success":      {input{"open", handPosted, "[" + summary("4/5", head) + "]", clean, false, ""}, "failure", []string{head}, true},
+		"waiver by another writer":      {input{"open", otherWriter, "[" + summary("4/5", head) + "]", clean, false, ""}, "failure", []string{head}, true},
+		"approver withdrew":             {input{"open", withdrawn, "[" + summary("4/5", head) + "]", clean, false, ""}, "failure", []string{head}, true},
 		"closed PR":                     {input{"closed", "[]", pass, clean, false, ""}, "", []string{head}, true},
 		"unreadable PR":                 {input{"", "[]", pass, clean, false, ""}, "", []string{head}, false},
 		"unreadable statuses":           {input{"open", "", pass, clean, false, ""}, "pending", []string{head}, false},
@@ -151,13 +160,13 @@ esac
 		"unreadable threads":            {input{"open", "[]", pass, "", false, ""}, "pending", []string{head}, false},
 		"queue: 5/5 on PR head":         {input{"open", "[]", pass, clean, true, ""}, "success", []string{head, group}, true},
 		"queue: thread reopened":        {input{"open", "[]", pass, threads(1, thread(false, "greptile-apps")), true, ""}, "failure", []string{head, group}, true},
-		"queue: user waiver":            {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, true, ""}, "success", []string{group}, true},
+		"queue: approver waiver":        {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, true, ""}, "success", []string{head, group}, true},
 		"queue: unreadable threads":     {input{"open", "[]", pass, "", true, ""}, "pending", []string{head, group}, false},
 		"queued: lowered score":         {input{"open", "[]", "[" + summary("4/5", head) + "]", clean, false, group}, "failure", []string{head, group}, true},
 		"queued: 5/5 refreshes both":    {input{"open", "[]", pass, clean, false, group}, "success", []string{head, group}, true},
-		"queued: waiver on queue":       {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, false, group}, "success", []string{group}, true},
+		"queued: waiver on queue":       {input{"open", userSuccess, "[" + summary("4/5", head) + "]", clean, false, group}, "success", []string{head, group}, true},
 		"unreadable queue entry":        {input{"open", "[]", pass, clean, false, "fail"}, "pending", []string{head}, false},
-		"waiver past 100 statuses":      {input{"open", deepWaiver, "[" + summary("4/5", head) + "]", clean, false, ""}, "", []string{head}, true},
+		"waiver past 100 statuses":      {input{"open", deepWaiver, "[" + summary("4/5", head) + "]", clean, false, ""}, "success", []string{head}, true},
 	} {
 		posts, ok := run(tc.in)
 		if ok != tc.ok {
@@ -243,5 +252,25 @@ func TestGRGV0001GreptileGateSerializesRunsPerPR(t *testing.T) {
 		if err != nil || string(got) != "pr="+tc.want+"\n" {
 			t.Errorf("%s: exit err %v, output %q; want pr=%s", name, err, got, tc.want)
 		}
+	}
+}
+
+// V1-5096: both gate workflows carry the same approver list, each a non-empty set of plain logins.
+func TestV15096WaiverApproversAgreeAcrossGates(t *testing.T) {
+	var lists []string
+	for _, wf := range []string{"ci-control-plane.yml", "greptile-gate.yml"} {
+		var found []string
+		for _, line := range strings.Split(readWorkflow(t, wf), "\n") {
+			if v, ok := strings.CutPrefix(strings.TrimSpace(line), "WAIVER_APPROVERS: "); ok {
+				found = append(found, strings.Trim(v, `"`))
+			}
+		}
+		if len(found) != 1 || strings.TrimSpace(found[0]) == "" {
+			t.Fatalf("%s: WAIVER_APPROVERS lines %q, want exactly one non-empty", wf, found)
+		}
+		lists = append(lists, found[0])
+	}
+	if lists[0] != lists[1] {
+		t.Fatalf("WAIVER_APPROVERS differ: ci-control-plane %q, greptile-gate %q", lists[0], lists[1])
 	}
 }
