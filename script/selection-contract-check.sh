@@ -15,6 +15,8 @@ case "$decision" in
 'skip '*) echo "selection-contract-check skipped: ${decision#skip }"; exit 0 ;;
 *) echo "selection-contract-check runs: ${decision#run }" ;;
 esac
+# The replay must not see the decision input, or it answers the decision again.
+unset SELECTION_BASELINE_INPUTS_BASE
 GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$d/" ./cmd/corvint ./tools/gate-affected-select
 SELECTION_CONTRACT_CHECK=1 \
     "$d/selection-baseline" --corvint "$d/corvint" --selector "$d/gate-affected-select"
