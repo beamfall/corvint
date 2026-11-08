@@ -34,9 +34,12 @@ resolved) was enforced only by the orchestrator remembering to check it.
   Greptile's own issue comments, and on `workflow_dispatch` with a PR number (resolving a thread
   raises no event). A closed or unreadable pull request gets no status. Every other refresh posts
   `pending` before it reads the review, so an unreadable status, comment or thread read stops the
-  step leaving `pending` and never an earlier `success`. A `greptile-gate` success posted by a
-  creator of type `User` on the head is kept (owner waiver, as AFP-V0-171); the waiver lookup reads
-  every page of the head's statuses, so newer statuses of other contexts cannot hide it. A run
+  step leaving `pending` and never an earlier `success`. An owner waiver (V1-5096) is the newest
+  `greptile-gate-waiver` status on the head created by a login in the step's `WAIVER_APPROVERS`
+  (the same list as AFP-V0-171, matched case-insensitively); when it is `success` the gate posts
+  `success` itself, and any other writer's status, including a hand-posted `greptile-gate`
+  success, is ignored. The waiver lookup reads every page of the head's statuses, so newer
+  statuses of other contexts cannot hide it, and an unreadable lookup stops with `pending`. A run
   outside the queue also posts on the pull request's active merge-group commit (read from its
   `mergeQueueEntry`; an unreadable entry stops with `pending`), so a later Greptile edit refreshes a
   queued pass. Because reopening a
@@ -57,7 +60,9 @@ resolved) was enforced only by the orchestrator remembering to check it.
   `failure`, never a false `success`; the owner waiver unblocks a merge meanwhile.
 - Thread resolution raises no workflow event; after resolving threads, re-run the gate with
   `gh workflow run greptile-gate.yml -f pr=N` or wait for Greptile's next comment edit.
-- Any user with write access can already post a commit status, so the waiver widens nothing.
+- Only `WAIVER_APPROVERS` (read from the default-branch workflow) can waive; anything holding an
+  approver's token still can. Ignoring hand-posted `greptile-gate` statuses at merge time also
+  needs the ruleset to bind the required context to GitHub Actions (owner step).
 
 ## Rollback
 
@@ -67,4 +72,4 @@ Drop `greptile-gate` from the main ruleset's required status checks, then delete
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (23 cases including 8 merge-queue cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh of either commit, or the statuses pagination) and `TestGRGV0001GreptileGateSerializesRunsPerPR` (per-PR concurrency key without cancellation, and 6 resolve-step cases; a mutation to `cancel-in-progress: true` fails it); GitHub's concurrency scheduling itself is not exercisable locally; a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
+| GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (26 cases including 8 merge-queue cases and 4 V1-5096 waiver-authority cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh of either commit, or the statuses pagination) and `TestGRGV0001GreptileGateSerializesRunsPerPR` (per-PR concurrency key without cancellation, and 6 resolve-step cases; a mutation to `cancel-in-progress: true` fails it); GitHub's concurrency scheduling itself is not exercisable locally; a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
