@@ -1,0 +1,54 @@
+{
+  "profile": "corvint-test-read-scope-trees/0",
+  "trees": {
+    "cmd/corvint-test": {
+      "cmd/": "cmd/corvint-test/fold_test.go builds a package held in a variable (buildCompanion) and howaccept_test.go runs go list -deps over target variables (../corvint, ../corvint-corpus-mcp); the check models neither (AFP-V0-3011 (3)), and the measured run read six cmd/ packages",
+      "internal/": "cmd/corvint-test/fold_test.go buildCompanion builds four companion packages held in its pkg parameter (foldGoldens passes ../corvint-test-runner, ../corvint-behavior-falsify, ../corvint-tests-accept and ../corvint-playwright-minimize), which the check does not model, so their import closures below internal/ cannot be declared as checked entries (AFP-V0-3011 (3))"
+    },
+    "conformance/cli-errors-v0": {
+      "cmd/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal (AFP-V0-3011 (3))",
+      "internal/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal, so the import closures below internal/ are not modelled (AFP-V0-3011 (3))"
+    },
+    "internal/analyzercap": {
+      "cmd/": "internal/analyzercap/source_ceiling_test.go TestCandidateSourceCeilingPerExecutable lists cmd/ (os.ReadDir) to enumerate every corvint-analyzer-* candidate, so a new directory under cmd/ changes its result (AFP-V0-3011 (1))"
+    },
+    "internal/diagnostic": {
+      "cmd/": "internal/diagnostic/gate_test.go treeSources walks cmd/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))",
+      "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"
+    },
+    "internal/langplugin": {
+      "cmd/": "internal/langplugin/langplugin_test.go lists cmd/ (os.ReadDir) so every corvint-analyzer-* directory belongs to a language plugin (AFP-V0-3011 (1))",
+      "internal/": "internal/langplugin/langplugin_test.go lists internal/liveverify/affected, walks each plugin directory, and follows imports by globbing *.go of each imported package, which can reach any package below internal/ (AFP-V0-3011 (1))"
+    },
+    "tools/capabilities-check": {
+      "cmd/": "tools/capabilities-check/check.go scanBinaries lists cmd/ and each cmd/* directory, and ScanLiterals walks every non-test Go file below cmd/; the tests run both on the repository (AFP-V0-3011 (1))",
+      "docs/": "tools/capabilities-check/check.go Check stats every relative link of docs/CAPABILITIES.md against docs/, an existence read of paths taken from data that Landlock does not mediate (AFP-V0-3011 (2))",
+      "integrations/": "tools/capabilities-check/main_test.go walks ../../integrations (filepath.WalkDir) for skill files (AFP-V0-3011 (1))",
+      "internal/": "tools/capabilities-check/check.go ScanLiterals walks every non-test Go file below internal/, and main_test.go runs it on the repository (AFP-V0-3011 (1))"
+    },
+    "tools/ci-forward-row": {
+      ".github/": "tools/ci-forward-row/forwardrow_test.go runs the .github/forward-rows scripts, which compute repository paths at run time, and epoch_test.go reads ../../.github/workflows/ plus a file name held in a variable (AFP-V0-3011 (1), (4))"
+    },
+    "tools/corvint-pr-tests": {
+      "cmd/": "tools/corvint-pr-tests/main_test.go builds and tests through the command helper of main.go, which the check does not model, including go test ./... over the tested root (AFP-V0-3011 (3))",
+      "internal/": "tools/corvint-pr-tests/main_test.go builds and tests through the command helper of main.go, which the check does not model; the measured run listed 167 directories below internal/ (AFP-V0-3011 (3))",
+      "tools/": "tools/corvint-pr-tests/main_test.go copies a source tree with filepath.WalkDir and runs go test ./... through the command helper, which reads packages below tools/ (AFP-V0-3011 (1), (3))"
+    },
+    "tools/fixture-maintenance-check": {
+      "cmd/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks cmd/ (AFP-V0-3011 (1))",
+      "conformance/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks conformance/ (AFP-V0-3011 (1))",
+      "internal/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks internal/ (AFP-V0-3011 (1))",
+      "interop/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks interop/ (AFP-V0-3011 (1))",
+      "tools/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks tools/ (AFP-V0-3011 (1))"
+    },
+    "tools/flow-guide-check": {
+      "cmd/": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1))",
+      "internal/": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1))",
+      "script/": "tools/flow-guide-check/main.go globs script/*.sh, walks script/ (sourceText) and stats each script/ span of the guide (AFP-V0-3011 (1), (2))",
+      "tools/": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1))"
+    },
+    "tools/test-commands-check": {
+      "script/": "tools/test-commands-check/main_test.go globs script/*_test.sh and runs script/*.sh helpers that source their siblings (AFP-V0-3011 (1), (4))"
+    }
+  }
+}

@@ -78,6 +78,10 @@
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
+      "path": ".corvint/test-read-scope-trees.json",
+      "reason": "whole-tree read-scope reasons (AFP-V0-3010); read only by tools/test-read-scopes-check, through a path-literal constant, and by the root-locating repository tests the unbounded-reader rule selects; a change alters what that check accepts, not what any test runs (V1-4993)"
+    },
+    {
       "path": ".corvint/test-read-scopes.json",
       "reason": "read-scope declaration (AFP-V0-023); read by the affected planner, the gate selector and the read-scope tools through path literals and root-locator readers"
     },
