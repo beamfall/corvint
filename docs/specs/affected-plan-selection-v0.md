@@ -9,7 +9,7 @@ Delivery status: experimental
 ## Agent digest
 - Claim: Affected plans name timeouts and deletions, narrow fixture and go-list reads, retain runtime-rooted Go readers, match CI, and honour owners and must-run tests.
 - Status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11); delivery experimental.
-- Exists: `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `resolves`, `namesAny` and `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `parentBackslash` in `internal/gateselect/readers.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `internal/liveverify/affected/golang/typedreach`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`, `tools/typed-reach-measure`; `boundedJoinConsumed` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `driverGoBuildOnlyCommands`, `driverXargs` and `scanShellOutput` in `internal/liveverify/affected/driver_shell.go`, `RequireLiveTier` in `internal/testsupport/livetier.go`, `LiveTests` in `.github/cishards/live.go`, `Size` in `.github/cishards/size.go` and `.github/forward-rows/github-guard.sh`.
+- Exists: `wholeTree` and `readTrees` in `tools/test-read-scopes-check/main.go` with `.corvint/test-read-scope-trees.json`, `fixtureOnlyClaim` in `internal/liveverify/affected/select.go`, `deadlineCode` in `internal/liveverify/affected/dirty.go`, `withWholePackages` in `cmd/corvint/affected_whole.go`, `fixtureTokens` in `internal/liveverify/affected/golang/golang.go`, the measured rounds of `TestIncrementalSelectionMeetsTheLiveBudget`, `TestScanImportsAgreesWithAst_V13322`; `goListScanFile` and `ImportSetRecords` in `internal/liveverify/affected/golang`, `importGraphReadersOf` in `internal/liveverify/affected/importgraph.go`, `resolves`, `namesAny` and `anchoredWithin` in `readers.go`, `tempRoots` and `ExtensionlessScript` in `shell/shell.go`, `affectedDeletedPaths` in `cmd/corvint/affected.go`; `parentBackslash` in `internal/gateselect/readers.go`; `readTestSelection`, `ownersOf` and `mustRunOf` in `internal/liveverify/affected/testselection.go`, `affectedFailFastOrder` in `cmd/corvint/affected_order.go`; `droppedDeclarations` in `tools/unbounded-readers` and `droppedUnrecorded` in `tools/test-read-scopes-check`; `leafPattern` in `internal/liveverify/affected/golang/unbounded.go` and `internal/gateselect/readers.go`; `internal/liveverify/affected/golang/typedreach`, `testTypedSlices` in `cmd/corvint/test_typed_slices.go`, `tools/typed-reach-measure`; `boundedJoinConsumed` in `internal/liveverify/affected/golang/locatorproof.go` and `internal/gateselect/locatorproof.go`, `driverGoBuildOnlyCommands`, `driverXargs` and `scanShellOutput` in `internal/liveverify/affected/driver_shell.go`, `RequireLiveTier` in `internal/testsupport/livetier.go`, `LiveTests` in `.github/cishards/live.go`, `Size` in `.github/cishards/size.go` and `.github/forward-rows/github-guard.sh`.
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
@@ -63,6 +63,8 @@ AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reas
 entry `2026-11-03-floor-typed-reach`.
 Lane selmin (2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9011
 here for the same reason; see build-log entry `2026-11-07-selmin`.
+Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
+for the same reason; see build-log entry `2026-11-07-rscope`.
 
 ## User and current state
 
@@ -627,8 +629,8 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   driver input: `.corvint/evidence-reach.json`, `existence-readers.json`,
   `gated-root-locators.json`, `runtime-edges.json`, `shell-foreign-callers.json`,
   `shell-read-scopes.json`, `shell-test-inputs.json`, `test-binary-consumers.json`,
-  `test-binary-execs.json`, `test-nested-sandboxes.json`, `test-read-scope-literals.json` and
-  `work-queue-policy.json`, each with the readers its reason names. A change to one alone is then a
+  `test-binary-execs.json`, `test-nested-sandboxes.json`, `test-read-scope-literals.json`,
+  `test-read-scope-trees.json` (V1-4993) and `work-queue-policy.json`, each with the readers its reason names. A change to one alone is then a
   `DECLARED_RUNTIME_READERS` path whose literal, scoped and unbounded readers are selected, with no
   `UNOWNED_DIRTY_PATH` and no frontier fan-out; a `*-changed` frontier such a declaration already
   raises (`go:gated-root-locators-changed`, `shell:read-scopes-changed`,
@@ -650,6 +652,91 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   removing or changing a plugin the change does not involve SHALL leave every other byte of the
   plan unchanged but the graph digest and the exclusion universe that names it.
 
+### Whole-tree read scopes need a measured reason (V1-4993)
+
+Intent (lane rscope charter, 2026-11-07; V1-4993): 25 of the 219 packages in
+`.corvint/test-read-scopes.json` declared a whole top-level tree (`internal/`, `cmd/`, `script/`
+or `docs/`), so `corvint affected` selected their tests through `DECLARED_READ_SCOPE` for any edit
+under that tree; a three-line comment edit to `internal/cem/verify/guards.go` selected
+`internal/jstestprovider`, whose tests read nothing below `internal/` outside its own directory
+and an opt-in build closure. The goal is the required minimum of tests and no missed test, so
+over-selection is acceptable where a read cannot be bounded and a narrower declaration must never
+drop a real read.
+
+- **AFP-V0-3010:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4993; extends AFP-V0-051) An AFP-V0-023 entry that names a whole top-level directory (one
+  path component followed by `/`, such as `internal/`, `cmd/`, `script/`, `docs/` or `.github/`)
+  makes every edit under that tree select the package. Each such entry of a declared Go package
+  SHALL carry a reason in the closed record `.corvint/test-read-scope-trees.json`,
+  `{"profile":"corvint-test-read-scope-trees/0","trees":{PACKAGE:{ENTRY:REASON}}}`, at most
+  64 KiB, whose REASON begins with the Git-tracked repository file that holds the read, then names
+  the read that keeps the tree. `make test-read-scopes-check` SHALL exit 1 for each such entry
+  with no reason, or whose reason does not begin with a tracked file, naming the package and the
+  entry, with a `fix:` line: narrow the entry to the paths the package's tests read (AFP-V0-3011),
+  or record the reason. A record that is not exactly this grammar, or holds a blank reason, exits
+  2. A reason whose package no longer declares that entry is reported on stderr without failing,
+  as AFP-V0-051 (4) treats a stale literal. The record is read only by the check; it is classified
+  in `tools/declaration-compat-check` and declared in `.corvint/runtime-readers.json` as
+  `.corvint/test-read-scope-literals.json` is (AFP-V0-2404). Shell test scopes (TSP-V0-950) carry
+  their own `reason` member and are not covered.
+- **AFP-V0-3011:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4993; applies AFP-V0-023 to this repository's declaration) A whole top-level directory entry
+  SHALL stay only where a test's read under that tree is not bounded by a literal the check
+  models: (1) a walk, listing or glob of the tree, since a Landlock rule that lets a directory be
+  listed also grants its subtree; (2) an existence check (`os.Stat`) of a path read from data, which
+  the wrapper does not mediate and an open trace does not see; (3) a go build or go list whose
+  target the check does not model: a variable, a helper argument, or a `+` concatenation outside a
+  `range` over literal names (ASD-V0-611), which AFP-V0-847 models as the directory's `/...`; or
+  (4) shell scripts the tests run that compute repository paths at run time. The size of an import
+  closure is no reason to keep a tree (AFP-V0-3150). Every other whole top-level entry SHALL be
+  replaced by the measured reads: each literal path the tests open, and each package directory of
+  the import closure of a literal go build or go list target the check models, as a subtree entry
+  (AFP-V0-3150). A measurement compiles the package's tests and runs them from the
+  package directory with `GOFLAGS=-buildvcs=false`, as the confined shard does, recording every
+  file and directory opened below the root; the narrowed declaration SHALL pass the check and the
+  package's tests under the AFP-V0-023 wrapper, and the tests are read for darwin-only and opt-in
+  reads, which a Linux trace misses.
+
+Review round 1 (independent review of the lane, 2026-11-07, P2): an earlier text of AFP-V0-3011
+kept a tree for any literal-target closure of 64 or more package directories. That left provably
+bounded scopes whole: an edit confined to `internal/tasks/journal/` still selected
+`cmd/corvint-analyzer-rust`, although that directory is outside both closures its tests list and
+outside every other read of `main_test.go`. The two requirements below replace that exemption.
+
+- **AFP-V0-3150:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4993 review round 1; refines AFP-V0-3011) A declared Go package whose tests read a top-level
+  tree only through the import closures of go build or go list targets the check models (a literal
+  at an `exec.Command`, `exec.CommandContext` or `procgroup.Spec` site, or a concatenation inside a
+  `range` over literal names; AFP-V0-847, ASD-V0-611), plus literal paths, SHALL declare each
+  package directory of those closures outside its own subtree as a subtree entry, whatever the
+  closure's size, and not the tree. The entries are generated from the repository root with
+  `go list -deps -f '{{if not .Standard}}{{.Dir}}{{end}}' TARGET...`, made root-relative, and an
+  entry below another declared subtree entry is dropped. `make test-read-scopes-check` SHALL exit 1
+  for every closure directory a modelled target loads outside the entries, naming the package, the
+  test file and the directory (the V1-2037 and V1-3210 findings). So an entry dropped from such a
+  declaration, or an import that adds a directory to a target's closure, fails the check on the
+  change that makes it, and the declaration cannot fall below the closure silently. A tree stays,
+  with an AFP-V0-3010 reason naming the count, only where the entries would exceed the
+  AFP-V0-023 limit of 256 per package. The check lists closures for the host platform; the closures
+  of this repository's targets are identical for linux, darwin and windows (measured), and a target
+  whose closure differs by platform declares the union.
+- **AFP-V0-3151:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4993 review round 1; applies AFP-V0-3150 to this repository's declaration) The packages whose
+  only remaining reason to keep `internal/` was a modelled closure SHALL declare their closures:
+  `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `conformance/cli-parity-v0`,
+  `conformance/mcp-2026-07-28`, `conformance/mcp-test-validity-v0`,
+  `examples/evidence-provider/v0/conformance`, `internal/analyzerstructured`,
+  `internal/liveverify/provider/interlock`, `internal/mcp/cli` and `internal/mcp/docsbridge`, and
+  `internal/perfbudget` for `cmd/` too, because its `"../../cmd/"+pkg` build ranges over two literal
+  names. `cmd/corvint-corpus-mcp` SHALL spell its literal build of `./cmd/corvint` and
+  `./cmd/corvint-corpus-mcp` in a `procgroup.Spec` literal, which the check models, with the same
+  timeout, output limit and process-group check as before, and then declare that closure.
+  `cmd/corvint-test` keeps `cmd/` and `internal/`: it builds four companion packages through a
+  helper parameter (`buildCompanion`), which the check does not model (AFP-V0-3011 (3)).
+  A repository test SHALL show, through `affected.Select` over the repository graph, that an edit to
+  a file below `internal/tasks/journal/` selects no `cmd/corvint-analyzer-rust` through
+  `DECLARED_READ_SCOPE`, while an edit to `internal/cem/verify/guards.go`, inside its closure,
+  still does.
 - **AFP-V0-2240:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-4437; round 8) `internal/gateselect`'s rule (c), in `Select`, `SelectStructural` and the
   `-bounds` attribution, SHALL NOT narrow an anchored token by placement: as in the planner
@@ -2052,6 +2139,13 @@ AFP-V0-2400 infers no input from a test's
 text; AFP-V0-2401 does not run Python, Node or other non-shell steps beyond the `shell-test` list,
 and AFP-V0-2402 does not change the CI deciding selector. AFP-V0-2404 gives `Makefile` no consumer
 mapping.
+AFP-V0-3010 does not judge whether a reason is true: it checks that one exists and names its
+file, as AFP-V0-025 reasons are reviewed statements. AFP-V0-3011 changes neither the declaration
+grammar nor the wrapper; it does not narrow the shell scopes of `.corvint/shell-read-scopes.json`.
+AFP-V0-3150 adds no entry form naming a build target: a closure is spelled as subtree entries, and
+a subtree entry of a closure directory also covers that directory's non-closure subpackages, which
+over-selects. It does not model a helper parameter or a variable target, and reports no closure
+entry that a target no longer loads, which only over-selects.
 AFP-V0-2542 does not narrow an
 import-path or climbing pattern, and the nested-module reader path (`nested.go`) keeps rule (d) for
 every `/...` token. Its directory-move check reads only the package's own tokens: a helper in
@@ -2197,6 +2291,18 @@ read, would miss the caller's tests. A file that legitimately gives a name more 
 selects its tests on every change; its precision cost is visible as an `UNBOUNDED_READER` witness
 and in `.corvint/unbounded-readers.json`, never as a missed test.
 
+An AFP-V0-3010 reason that names the wrong read keeps a tree that could be narrower; selection
+only over-selects. A narrowed AFP-V0-3011 entry that drops a real read fails twice: the check
+names a test-file literal or a modelled closure directory outside the entries, and the confined
+shard fails the package's tests with `permission denied` for any other read, such as a literal in
+non-test code. A data-driven existence check or a darwin-only read is invisible to both and to the
+trace, so it keeps its tree (AFP-V0-3011 (2)).
+An AFP-V0-3150 closure declaration that loses a directory, through a dropped entry or a new import
+of a modelled target, fails `make test-read-scopes-check` on that change; a test that builds the
+same closure fails under the confined shard with `permission denied` as well. A build through a
+helper or a variable target is not modelled, so its package keeps the tree rather than an unchecked
+closure (AFP-V0-3151, `cmd/corvint-test`).
+
 ## Acceptance evidence and traceability
 
 | Requirement | Implementation | Evidence |
@@ -2241,6 +2347,10 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-2540 | `droppedDeclarations` and the `likely cause` line of `run` in `tools/unbounded-readers/main.go` | `TestAFPV2540RefusalNamesTheDroppedDeclaration` in `tools/unbounded-readers/main_test.go` (a dropped declaration; controls: a package HEAD never declared, no commit) |
 | AFP-V0-2541 | `droppedUnrecorded`, `droppedDeclarations` and the `dropped` report of `run` in `tools/test-read-scopes-check/main.go` | `TestDroppedDeclarationNamesTheRatchetEntry_AFP_V0_2541` in `tools/test-read-scopes-check/main_test.go` (controls: a package the record lists, no commit) |
 | AFP-V0-2542 | `leafPattern`, `directoryMove` and `packageDirectories` in `internal/liveverify/affected/golang/unbounded.go`, their calls in `observeDirectory` and `pathTokens` (`golang.go`); `leafPattern`, `directoryMove`, `goDirectories`, their calls in `record`, `scanSource` and `indexRepositoryMemo` in `internal/gateselect/readers.go`, and the `movesDirectory` memo field in `scanmemo.go` | `TestLeafPackagePatternParity_AFPV02542` in `internal/gateselect/leaf_pattern_test.go` (both analyzers agree, and a cold and a warm scan memo agree; bounded: a leaf, a data-only subtree, Go files only under `testdata`, a `Dir` set to `"."`; unbounded: a package below, a nested module, an import-path, a climbing, a deep and a wildcard pattern, and a leaf pattern in a package that sets `cmd.Dir` to a `runtime.Caller` root, sets `Dir` in another file or in a composite literal, calls `t.Chdir`, or passes `-C` or a `cd` shell word) and `TestAFPV2542LeafPackagePatternIsNoUnboundedRead` in `tools/unbounded-readers/main_test.go` (a package added below makes the read unbounded again) |
+| AFP-V0-3010 | `wholeTree`, `readTrees` and the `tree` and stale-reason reports of `run` in `tools/test-read-scopes-check/main.go`; `.corvint/test-read-scope-trees.json`; its `closed` entry in `tools/declaration-compat-check/main.go` and its `.corvint/runtime-readers.json` entry | `TestWholeTreeEntryNeedsAReason_AFP_V0_3010` in `tools/test-read-scopes-check/main_test.go`; `make test-read-scopes-check` on the tree |
+| AFP-V0-3011 | the narrowed `internal/jstestprovider`, `internal/mcp/tasksbridge`, `cmd/corvint-go-test-provider` and `tools/flow-guide-check` entries of `.corvint/test-read-scopes.json` and the reasons of `.corvint/test-read-scope-trees.json` | the per-package measurement, confined runs, fault injection and before/after plan counts in `../build-log/2026-11-07-rscope.md` |
+| AFP-V0-3150 | `goListTargets`, `goBuildTargets`, `dependencyDirectories` and `dependencyCovered` in `tools/test-read-scopes-check/main.go` (the closure findings); the generation command in `docs/TEST-READ-SCOPES.md` | `TestClosureDeclarationCannotFallBelowItsClosure_AFP_V0_3150` in `tools/test-read-scopes-check/main_test.go` (a complete closure passes; a dropped entry and a new import of the target each exit 1 naming the directory); the repository fault injection in `../build-log/2026-11-07-rscope.md` |
+| AFP-V0-3151 | the closure entries of the twelve packages in `.corvint/test-read-scopes.json`, the `procgroup.Spec` build in `cmd/corvint-corpus-mcp/binary_unix_test.go`, and the remaining reasons of `.corvint/test-read-scope-trees.json` | `TestClosureReaderIsNotSelectedOutsideItsClosure_AFP_V0_3151` in `tools/test-read-scopes-check/main_test.go`; confined runs and the before/after plans for the `guards.go` and `internal/tasks/journal/` edits in `../build-log/2026-11-07-rscope.md` |
 | AFP-V0-920 | `affectedTempUnavailable` and `auditAffectedChange` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920` (a missing `TMPDIR` exits 2 with `temp-unavailable`, the path and the `TMPDIR` advice) |
 | AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 | AFP-V0-2440 | `unownedUnknown` and `fixtureOnlyClaim` in `internal/liveverify/affected/select.go` | `TestFixtureOnlyClaimIsNoUnindexedSource_AFPV2440` in `internal/liveverify/affected/fixtures_test.go` (two reclassified shapes; five kept: unhosted, indexed below, outside testdata, a Go claim, a second indexing claimant); `TestRubyFixturesOfANewGoPackageAreNoUnindexedSource_V14446` in `internal/liveverify/affected/replay_v14446_test.go` (real plugins; a no-`go.mod` negative control); both fail with the rule disabled; live replay of PR 85 in build log `2026-11-03-mqfix` |
@@ -2377,6 +2487,14 @@ then name only the unbounded-readers record again. For AFP-V0-2542, delete both 
 and `directoryMove` functions, `packageDirectories`, `goDirectories`, the `leafReads` and
 `movesDirectory` fields and the memo's `movesDirectory` entry; such patterns are unbounded reads
 again.
+For AFP-V0-3010, delete `wholeTree`, `readTrees` and their reports, the record, and its
+`closed` and runtime-readers entries; a whole-tree entry then needs no reason again. For
+AFP-V0-3011, restore the four packages' previous entries from the parent commit; each restored
+`internal/`, `cmd/`, `tools/`, `docs/` or `.claude/` entry over-selects again and drops no read.
+For AFP-V0-3150 and AFP-V0-3151, restore the twelve packages' `internal/` entries (and
+`internal/perfbudget`'s `cmd/`) with their reasons, and the `execute` build in
+`cmd/corvint-corpus-mcp/binary_unix_test.go`, from the parent commit; each restored tree
+over-selects again and drops no read.
 For AFP-V0-2740 and AFP-V0-2741, drop `deletedFixture` from `admittedDeletion`; such paths are
 `UNINDEXED_SOURCE_PATH` again and both selectors fall back to FULL. For AFP-V0-2742, restore the
 profile condition on the module branch of `Build`. For AFP-V0-2743 and AFP-V0-2744, drop the record
