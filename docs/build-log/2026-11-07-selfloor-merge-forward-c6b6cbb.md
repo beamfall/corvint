@@ -32,3 +32,12 @@ makes no new qualification claim: the owner restricts verification to the
 conflict-resolved Go package and spec-requirements/line-citations checks; host
 verification and batch CI cover the remaining integration. No seal is requested
 because this lane was unsealed. No push, PR or Tasks write is authorized.
+
+Independent review found one composition gap: the lane's parse-time command
+capture used a non-output scanner, which made an earlier `go list`/`go vet`
+package value build-only after reassignment. The parse-time loop now uses
+mainline's `scanBothOutput`, as its final-value and recipe loops already do.
+`TestFrontierSiteParseTimeListingKeepsExecution_AFP_V0_3125` exercises both
+commands and asserts the earlier package retains its execution path import
+(AFP-V0-2956 and AFP-V0-3125). The reviewer found no other conflict-resolution
+issue; no tests were run by the reviewer. Focused package verification follows.

@@ -1071,3 +1071,20 @@ func TestFrontierSiteForeachLimitEffects_AFP_V0_3121(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-2956 and AFP-V0-3125: output captured while make reads an immediate
+// assignment retains execution edges at that point, before later reassignment.
+func TestFrontierSiteParseTimeListingKeepsExecution_AFP_V0_3125(t *testing.T) {
+	for _, command := range []string{"go list", "go vet"} {
+		t.Run(command, func(t *testing.T) {
+			graph := driverGraph(t, boundFiles("PKG = ./tools/local\nOUT := $(shell "+command+" $(PKG))\nPKG = ./tools/ci\ncheck:\n\techo $(if $(OUT),yes,no)\n"), nil)
+			unit, found := graph.Unit("driver:make:Makefile#check")
+			if !found {
+				t.Fatal("check target missing")
+			}
+			if !slices.Contains(unit.PathImports, "tools/local") {
+				t.Fatalf("captured command lost execution path: paths=%v buildPaths=%v", unit.PathImports, unit.BuildPathImports)
+			}
+		})
+	}
+}
