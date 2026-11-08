@@ -951,7 +951,8 @@ func (candidate run) matchesAt(parts []string) bool {
 // Readers selects, from no prior reach, every unit the reader rules select for
 // paths: a literal or glob naming one, an unbounded reader, a declared read
 // scope or existence declaration holding one, an import-graph reader the
-// change can alter, and a declared test owner of one. It is the read reach of
+// change can alter, a declared test owner of one, and a package embedding one
+// with every unit that reaches that package. It is the read reach of
 // the paths alone, apart from import and source reach, so a caller that knows
 // a change by its executed lines can still tell which units may observe the
 // changed bytes (GLS-V0-013). The units are keyed by id with the witness the
@@ -971,16 +972,33 @@ func (graph *Graph) Readers(paths []string) map[string]Witness {
 	// A package embedding files under its directory reads a changed file
 	// there as data (goDataRule), whatever else reaches it.
 	packages := graph.goPackageDirectories()
+	embedding := make(map[string]Witness)
 	for _, p := range normalized {
 		for directory := relativeDirectory(p); ; directory = relativeDirectory(directory) {
 			if id, present := packages[directory]; present && graph.units[id].Embeds {
-				addWitness(reached, id, Witness{Kind: WitnessEnclosingPackage, DirtyPath: p, Via: []string{id}})
+				addWitness(embedding, id, Witness{Kind: WitnessEnclosingPackage, DirtyPath: p, Via: []string{id}})
 			}
 			if directory == "." {
 				break
 			}
 		}
 	}
+	if len(embedding) == 0 {
+		return reached
+	}
+	// The embedded bytes leave the package through its API: an importer's
+	// test can observe them without executing a changed line, so every
+	// transitive importer and runner of an embedding package, with their
+	// test-only users and test-only runners, reads the path too. All edges
+	// are followed, so no such reader is dropped.
+	carried := graph.traverse(embedding, nil)
+	walked := make(map[string]bool, len(carried))
+	for id := range carried {
+		walked[id] = true
+	}
+	graph.testUsersOf(carried, nil)
+	graph.testRunnersOf(carried, walked)
+	mergeWitnesses(reached, carried)
 	return reached
 }
 
