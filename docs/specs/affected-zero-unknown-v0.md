@@ -13,7 +13,7 @@ frontier bearers), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 3 a
 spec is at its OCM obligation limit, so these requirements take a new prefix.
 Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3128, and
 its PR #142 repair AFP-V0-9050 and AFP-V0-9051, and its computed-site narrowing AFP-V0-9620 to
-AFP-V0-9627 (build-log entry `docs/build-log/2026-11-08-v1-5000-driver-computed-narrowing.md`), here
+AFP-V0-9628 (build-log entry `docs/build-log/2026-11-08-v1-5000-driver-computed-narrowing.md`), here
 under the parent's `AFP-V0` prefix for the same reason; see build-log entry
 `2026-11-07-selfloor`.
 
@@ -503,35 +503,38 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - **AFP-V0-9621:** **Allowlisted `set` options.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) A `set` builtin SHALL NOT make a CI step computed when it has at least one
   argument and every argument is `-` or `+` followed only by the letters `e`, `u`, `x`, `v` and `E`,
-  or by `o` and then one of `pipefail`, `errexit`, `nounset` and `xtrace`. `x` and `xtrace`
-  additionally need a known step environment that does not declare `PS4`. Every other form stays
-  computed, including bare `set`, `--`, `-a`, `-f`, `-o posix` and positional parameters.
+  or by `o` and then one of `pipefail`, `errexit`, `nounset` and `xtrace`, in a narrowable script
+  (AFP-V0-9623) that AFP-V0-9628 does not revoke. Every other form stays computed, including bare
+  `set`, `--`, `-a`, `-f`, `-o posix`, positional parameters and every make recipe.
 - **AFP-V0-9622:** **Plain local assignments.** (experimental, V1-5000 orchestrator lane charter,
-  2026-11-08) This amends AFP-V0-3128's assignment allowlist for CI steps only. A standalone
-  assignment, a `+=` append, or a `for`/`select` loop variable SHALL NOT make the step computed
-  when all of the following hold:
-  - the step's environment is known (AFP-V0-9623);
+  2026-11-08; amended by review round 1, 2026-11-08) This amends AFP-V0-3128's assignment
+  allowlist for CI steps only. A standalone assignment, a `+=` append, or a `for`/`select` loop
+  variable SHALL NOT make the step computed when all of the following hold:
+  - the script is narrowable (AFP-V0-9623);
   - the name contains only `[a-z0-9_]`, does not start with a digit, and is not `_`;
   - the name is not a shell or tool special name (`ifs`, `path`, `cdpath`, `env`, `home`, `ps1`
-    to `ps4`, `prompt_command`, `globignore`, `tmpdir`, `lang`, `tz`, the proxy names, and the
-    others in `driverSpecialNames`), and does not start with `bash_` or `lc_`;
+    to `ps4`, `prompt_command`, `globignore`, `tmpdir`, `lang`, `tz`, and the others in
+    `driverSpecialNames`), contains no `proxy`, and does not start with `bash_`, `lc_`, `npm_`,
+    `yarn_` or `pnpm_`;
   - no workflow, job, container or step env block declares the name, compared case-insensitively;
-  - the assignment is not inside an inline script of a shell other than `sh` or `bash`;
-  - no word that can name a command uses the name. This covers the command word itself, a
-    `trap` body, a `source` operand, an interpreter's arguments, the words after `xargs`,
-    `parallel` or `-exec`, an `env -S` value, and a heredoc body that holds a command
-    substitution.
+  - the name occurs nowhere else in the script as a whole word (AFP-V0-9628).
 
-  A value's literal prefix that is a relative path SHALL be recorded as a path and token. If the
-  working directory is unknown, or a candidate is not a valid relative path, the assignment
-  stays computed. A prefix assignment on a command (`x=1 cmd`), an uppercase name and any other
-  form keep the AFP-V0-3128 rule.
+  The value is not modelled and is never recorded as a path: a local is narrowed only when the
+  script never uses it. A loop variable that is uppercase, special or env-declared stays
+  computed as `shell:loop-variable` in every script. A prefix assignment on a command
+  (`x=1 cmd`), an uppercase name and any other form keep the AFP-V0-3128 rule.
 - **AFP-V0-9623:** **Known workflow environments.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) A `run` step's environment SHALL be known only when each of the workflow,
   job, job container and step `env` blocks is absent or a plain mapping. A computed env
-  expression SHALL leave the step's environment unknown. Make recipes SHALL always have an
-  unknown environment, because make exports command-line variables to recipe shells. So SHALL a
-  composite action's steps, whose caller's env is not visible.
+  expression SHALL leave the step's environment unknown, as SHALL a step `shell` holding any word
+  other than `{0}`, `--noprofile`, `--norc`, `-e`, `-eo` and `pipefail` (for example `bash -a {0}`).
+  Make recipes SHALL always have an unknown environment, because make exports command-line
+  variables to recipe shells. So SHALL a composite action's steps, whose caller's env is not
+  visible. A script is narrowable only when its environment is known, declares none of `ENV`,
+  `SHELLOPTS`, `BASHOPTS`, `PS4`, `POSIXLY_CORRECT` or a `BASH_` name, and it is not inside an
+  inline script other than exactly `sh -c` or `bash -c`: another shell, or any other option such
+  as `-a`, `-o allexport` or `-x`, makes the inline script opaque. Nothing in a script that is not
+  narrowable is narrowed.
 - **AFP-V0-9624:** **`read -r` into local names.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) `read -r` and `IFS= read -r` SHALL NOT make the step computed when every
   operand is an unquoted name that meets the AFP-V0-9622 name rules. `read` without `-r`, with
@@ -542,13 +545,33 @@ participation, and inbound shell callers. The remaining classes are small and lo
 - **AFP-V0-9626:** **Environment files stay computed.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) A step that names `GITHUB_ENV` or `GITHUB_PATH` SHALL keep its job
   computed, as SHALL one using the `${{ github.env }}` or `${{ github.path }}` expression. The
-  check is case-insensitive. Appends to `GITHUB_OUTPUT` and `GITHUB_STEP_SUMMARY` do not change
-  the job's later commands and are not computed.
+  check is case-insensitive. A `GITHUB_OUTPUT` value can reach a later step's command through
+  `${{ steps.<id>.outputs.<name> }}`, so a script with a narrowed local that names
+  `GITHUB_OUTPUT` SHALL stay computed (AFP-V0-9628). A `GITHUB_OUTPUT` append in a script with no
+  narrowing keeps the scanner's earlier treatment, and `GITHUB_STEP_SUMMARY` changes nothing.
 - **AFP-V0-9627:** **Glob `shopt` options; variable-setting builtins.** (experimental, V1-5000
   orchestrator lane charter, 2026-11-08) `shopt -s` or `shopt -u` naming only `nullglob`,
   `failglob`, `dotglob`, `globstar` or `nocaseglob` SHALL NOT make the step computed. Every other
   `shopt` form stays computed. So do these builtins, which can set any variable: `printf -v`,
   `mapfile`, `readarray`, `let`, `getopts`, `typeset`, `hash`, `enable` and `alias`.
+- **AFP-V0-9628:** **Narrowing is revoked whenever it may not hold.** (experimental, V1-5000
+  review round 1, 2026-11-08) Every AFP-V0-9621, AFP-V0-9622, AFP-V0-9624 and AFP-V0-9627
+  narrowing in a script SHALL be revoked, with the step computed under every narrowed reason and
+  the revoking one, when the raw script text:
+  - defines a function (`function name` or `name ()`), which may shadow a narrowed builtin
+    (`shell:function-definition`);
+  - sources a file with `source` or `.`, which may define functions or set `PS4`
+    (`shell:sourced`);
+  - with any narrowed local, names that local anywhere else as a whole word
+    (`shell:local-referenced`), uses an indirect expansion `${!` (`shell:indirect-expansion`),
+    has an arithmetic context (`((`, `$[`, `-eq` and the other arithmetic tests, or a `${...}`
+    subscript or substring) that may expand a local without `$` (`shell:arithmetic-context`), or
+    names `GITHUB_OUTPUT` (`shell:github-output`).
+
+  A command substitution inside `${...}` or `$((...))` SHALL make the step computed
+  (`shell:brace-substitution`, `shell:arithmetic-substitution`). `eval`, `alias` and `set -a`
+  stay computed as before. The checks over-approximate on raw text and never model the shell
+  more precisely to keep a narrowing.
 
 ### Lane qualification details
 
@@ -736,14 +759,22 @@ lanes and external full-suite/mutation observations at every historical revision
   - AFP-V0-3126 keeps every target-specific value;
   - regressions pin the review's exact orderings.
 - AFP-V0-9622 drops a CI step's computed claim for a name the runner, a shell or a tool still
-  reads, or for a local that later names the command a step runs. Mitigations:
-  - the name rules exclude uppercase, special and env-declared names;
-  - every word that can name a command marks the step computed;
-  - make and composite actions are never narrowed;
-  - fault-injection cases pin each rule.
+  reads, or for a local whose unbounded value later reaches a file operand, a command or a later
+  step. Review round 1 found the first lane head doing so: it recorded values as paths, ignored
+  functions, sourced files and inline shell options, and let a `GITHUB_OUTPUT` write carry a
+  read value to a later step's command. Mitigations:
+  - the name rules exclude uppercase, special, tool-configuration and env-declared names;
+  - a local is narrowed only when the script never names it again (AFP-V0-9628);
+  - functions, sourced files, indirect and arithmetic expansion and `GITHUB_OUTPUT` revoke every
+    narrowing in the script;
+  - make, composite actions, opaque inline shells and step shells with extra options are never
+    narrowed;
+  - each review counterexample is pinned as a step test and end to end through selection.
 
-  The residual assumption is that the runner exports no other lowercase variable that a tool
-  interprets.
+  The residual assumption is that the runner, or an earlier `uses:` action, exports no other
+  lowercase variable that a tool interprets. Names under `npm_`, `yarn_` and `pnpm_` and every
+  `proxy` name abstain; any other such name a later tool reads, such as one set through an
+  action's own `GITHUB_ENV` write, is not modelled.
 
 ## Acceptance evidence
 
@@ -900,20 +931,25 @@ every listed merge with zero safety misses.
 
 The fullplan slice (AZU-V0-9920 through AZU-V0-9922) is bounded to `.github/` helper discovery and declared non-source precedence over suffix-only claims. `TestFullplanReplay_AZU_V0_9920_9921` covers disk and immutable plans, the Python runtime edge, Go helper dependencies, zero-unit evidence and the unchanged FULL fallback. Whole touched-package results and path-set replay measurements are retained in `docs/build-log/2026-11-05-fullplan-selection-precision.md`. Existing consumers of evidence still run; zero units describes an isolated fixture without such readers, not permission to discard real readers. Revert the discovery changes, declared Python edge and non-source precedence to restore conservative FULL behavior. Wider AZU-V0 acceptance, native Darwin execution and hosted workflow behavior remain unqualified. AZU-V0-9923 closes the no-plan FULL fallback: its declared Go suite shares the root adapter's hidden-package helper and, with no universe, refuses to pass over hidden Go source; revert it to restore `go test ./...` alone, which reports PASS over skipped hidden tests.
 
-AFP-V0-9620 to AFP-V0-9627 (V1-5000, 2026-11-08) are accepted by the `AFP_V0_962x` tests in
-`internal/liveverify/affected/driver_narrow_test.go` and `driver_reason_test.go`. The build-log
-entry `docs/build-log/2026-11-08-v1-5000-driver-computed-narrowing.md` retains:
-- the per-reason computed-site counts before and after, with CI sites falling from 35 to 18 and
-  make sites unchanged at 136;
-- a one-file synthetic change, where selected units fall from 211 to 206 and CI `FRONTIER_SITE`
-  units from 10 to 5. Unknown entries stay at zero.
+AFP-V0-9620 to AFP-V0-9628 (V1-5000, 2026-11-08) are accepted by the `AFP_V0_962x` tests in
+`internal/liveverify/affected/driver_narrow_test.go`, `driver_reason_test.go` and
+`driver_test.go`. The build-log entry
+`docs/build-log/2026-11-08-v1-5000-driver-computed-narrowing.md` retains:
+- the per-reason computed-site counts before and after, with CI sites falling from 35 to 34
+  after the review round 1 repair (18 in the first lane head) and make sites unchanged at 136;
+- a one-file synthetic change, where selected units fall from 211 to 210 and CI `FRONTIER_SITE`
+  units from 10 to 9. Unknown entries stay at zero.
 
 ## Rollback
 
 Each requirement only turns an unknown into a selection, behind its own code path. Reverting its
 commit restores the earlier `UNKNOWN` plan, which consumers already treat as a wide or full run.
-Reverting the AFP-V0-9620 to AFP-V0-9627 commit restores every CI assignment, `set` and `read`
-as a computed site. That only widens selection, with no wire or receipt change.
+Reverting the AFP-V0-9620 to AFP-V0-9628 commits restores the scanner's prior behaviour, with
+no wire or receipt change: every CI assignment, `set`, `read` and glob `shopt` becomes a computed
+site again, and the guards these commits added are removed too: `printf -v` and the other
+variable-setting builtins, command substitution inside `${...}` and `$((...))`, uppercase or
+env-declared loop variables, and the GitHub environment files named through an expression. So a
+revert can also narrow those few forms back to their earlier treatment.
 Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without their readers.
 
 ## Traceability
@@ -951,12 +987,13 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-9051 | V1-5000 | `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051` |
 | AFP-V0-9620 | V1-5000 | `TestDriverComputedReasons_AFP_V0_9620`; `TestDriverComputedReasonCounts` (opt-in census) |
 | AFP-V0-9621 | V1-5000 | `TestDriverSetNarrowing_AFP_V0_9621` |
-| AFP-V0-9622 | V1-5000 | `TestDriverLocalAssignment_AFP_V0_9622`, `TestDriverLocalAssignmentPaths_AFP_V0_9622` |
-| AFP-V0-9623 | V1-5000 | `TestDriverWorkflowEnv_AFP_V0_9623` |
+| AFP-V0-9622 | V1-5000 | `TestDriverLocalAssignment_AFP_V0_9622`, `TestDriverLocalAssignmentNoPaths_AFP_V0_9622` |
+| AFP-V0-9623 | V1-5000 | `TestDriverWorkflowEnv_AFP_V0_9623`, `TestDriverSetNarrowing_AFP_V0_9621`, `TestDriverWorkflowCounterexamples_AFP_V0_9628` |
 | AFP-V0-9624 | V1-5000 | `TestDriverReadNarrowing_AFP_V0_9624` |
 | AFP-V0-9625 | V1-5000 | `TestDriverComputedNeighbours_AFP_V0_9625` |
 | AFP-V0-9626 | V1-5000 | `TestDriverComputedNeighbours_AFP_V0_9625`, `TestDriverWorkflowEnv_AFP_V0_9623` |
 | AFP-V0-9627 | V1-5000 | `TestDriverComputedNeighbours_AFP_V0_9625` |
+| AFP-V0-9628 | V1-5000 | `TestDriverReviewCounterexamples_AFP_V0_9628`, `TestDriverWorkflowCounterexamples_AFP_V0_9628`, `TestDriverReviewCounterexamplesSelected_AFP_V0_9628` |
 | AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
 | AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
 | AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |

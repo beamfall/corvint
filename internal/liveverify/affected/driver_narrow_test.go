@@ -58,7 +58,12 @@ func TestDriverSetNarrowing_AFP_V0_9621(t *testing.T) {
 		{"set -o pipefail -o errexit +o nounset", driverNoEnv, ""},
 		{"set -Eeuxo pipefail", driverNoEnv, ""},
 		{"set -v", driverNoEnv, ""},
-		{"set -e", nil, ""}, // No environment is read: narrowed for make too.
+		// Fault injection: an unknown environment, or one naming a file or
+		// option a shell reads at startup, may shadow the builtin.
+		{"set -e", nil, "shell:builtin-set"},
+		{"set -e", map[string]bool{"bash_env": true}, "shell:builtin-set"},
+		{"set -e", map[string]bool{"env": true}, "shell:builtin-set"},
+		{"set -e", map[string]bool{"shellopts": true}, "shell:builtin-set"},
 		// Fault injection: unsafe neighbours stay computed.
 		{"set -a", driverNoEnv, "shell:builtin-set"},
 		{"set -o allexport", driverNoEnv, "shell:builtin-set"},
@@ -79,12 +84,13 @@ func TestDriverSetNarrowing_AFP_V0_9621(t *testing.T) {
 // shell variable; every unsafe neighbour stays computed.
 func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 	runDriverNarrowCases(t, []driverNarrowCase{
-		{"out=dist\necho \"$out\"", driverNoEnv, ""},
 		{"x=1 y=2", driverNoEnv, ""},
 		{"base=$(git rev-parse HEAD)\ngo test ./...", driverNoEnv, ""},
 		{"count+=1", driverNoEnv, ""},
 		{"if ok=1; then :; fi", driverNoEnv, ""},
-		{"for f in a b; do echo \"$f\"; done", driverNoEnv, ""},
+		{"for f in a b; do :; done", driverNoEnv, ""},
+		{"dir=.", driverNoEnv, ""},
+		{"dir=../x", driverNoEnv, ""},
 		// Fault injection: names a shell, zsh or a tool gives a meaning.
 		{"PATH=/x", driverNoEnv, "shell:assignment"},
 		{"path=/x", driverNoEnv, "shell:assignment"},
@@ -92,6 +98,9 @@ func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 		{"ifs=x", driverNoEnv, "shell:assignment"},
 		{"http_proxy=x", driverNoEnv, "shell:assignment"},
 		{"no_proxy=x", driverNoEnv, "shell:assignment"},
+		{"npm_config_userconfig=x", driverNoEnv, "shell:assignment"},
+		{"yarn_cache_folder=x", driverNoEnv, "shell:assignment"},
+		{"pnpm_home=x", driverNoEnv, "shell:assignment"},
 		{"cdpath=x", driverNoEnv, "shell:assignment"},
 		{"bash_env=x", driverNoEnv, "shell:assignment"},
 		{"lc_all=C", driverNoEnv, "shell:assignment"},
@@ -110,21 +119,23 @@ func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 		{"out=1\ntypeset -x out", driverNoEnv, "shell:builtin-typeset"},
 		{"set -a\nout=1", driverNoEnv, "shell:builtin-set"},
 		{"zsh -c 'out=1'", driverNoEnv, "shell:assignment"},
-		// A value prefix naming the working directory or escaping it.
-		{"dir=.", driverNoEnv, "shell:assignment"},
-		{"dir=../x", driverNoEnv, "shell:assignment"},
-		// Later used to name or prefix a command, anywhere in the script.
-		{"d=tools\n$d/run.sh", driverNoEnv, "shell:local-command-word"},
-		{"d=tools\n\"${d}/run.sh\"", driverNoEnv, "shell:local-command-word"},
-		{"d=tools\nbash \"$d/run.sh\"", driverNoEnv, "shell:local-command-word"},
-		{"d=tools\nsudo $d/run.sh", driverNoEnv, "shell:local-command-word"},
-		{"d=tools\n. \"$d/env.sh\"", driverNoEnv, "shell:local-command-word"},
-		{"t=x\ntrap \"$t/cleanup\" EXIT", driverNoEnv, "shell:local-command-word"},
-		{"t=x\nfind . -exec $t/run {} \\;", driverNoEnv, "shell:local-command-word"},
-		{"t=x\necho a | xargs $t/run", driverNoEnv, "shell:local-command-word"},
-		{"t=x\ncat <<EOF\n$($t/run)\nEOF", driverNoEnv, "shell:local-command-word"},
-		{"$d/run.sh\nd=tools", driverNoEnv, "shell:local-command-word"},
-		{"for f in a; do $f/run.sh; done", driverNoEnv, "shell:local-command-word"},
+		{"bash -c 'out=1'", driverNoEnv, ""},
+		{"bash -e -c 'out=1'", driverNoEnv, "shell:interpreter-inline"},
+		{"sh -xc 'out=1'", driverNoEnv, "shell:assignment"},
+		// Named anywhere else in the script: its value is unbounded.
+		{"out=dist\necho \"$out\"", driverNoEnv, "shell:local-referenced"},
+		{"for f in a b; do echo \"$f\"; done", driverNoEnv, "shell:local-referenced"},
+		{"d=tools\n$d/run.sh", driverNoEnv, "shell:local-referenced"},
+		{"d=tools\n\"${d}/run.sh\"", driverNoEnv, "shell:local-referenced"},
+		{"d=tools\nbash \"$d/run.sh\"", driverNoEnv, "shell:local-referenced"},
+		{"d=tools\nsudo $d/run.sh", driverNoEnv, "shell:local-referenced"},
+		{"d=tools\n. \"$d/env.sh\"", driverNoEnv, "shell:sourced"},
+		{"t=x\ntrap \"$t/cleanup\" EXIT", driverNoEnv, "shell:local-referenced"},
+		{"t=x\nfind . -exec $t/run {} \\;", driverNoEnv, "shell:local-referenced"},
+		{"t=x\necho a | xargs $t/run", driverNoEnv, "shell:local-referenced"},
+		{"t=x\ncat <<EOF\n$($t/run)\nEOF", driverNoEnv, "shell:local-referenced"},
+		{"$d/run.sh\nd=tools", driverNoEnv, "shell:local-referenced"},
+		{"for f in a; do $f/run.sh; done", driverNoEnv, "shell:local-referenced"},
 		{"for PATH in /x; do :; done", driverNoEnv, "shell:loop-variable"},
 		{"for out in a; do :; done", map[string]bool{"out": true}, "shell:loop-variable"},
 		// Fault injection: an unmodelled $X/ command is still root-like (AZU parity).
@@ -132,35 +143,30 @@ func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 	})
 }
 
-// AFP-V0-9622: a literal value prefix is retained as a read path and its
-// directory token, so later `$d/...` operands stay covered.
-func TestDriverLocalAssignmentPaths_AFP_V0_9622(t *testing.T) {
-	_, scan := driverStepScan(t, "d=tools/gen\ncat \"$d/x/input.json\"", driverNoEnv)
-	if scan.computed || !scan.paths["tools/gen"] || !scan.tokens["/tools/gen/"] {
-		t.Fatalf("computed=%v paths=%v tokens=%v", scan.computed, scan.paths, scan.tokens)
-	}
-	scan = newDriverScan()
-	scan.envKnown, scan.envNames = true, driverNoEnv
-	scan.scanShell("cd \"$X\"\nd=tools", "", "example.test/m")
-	if !scan.computed {
-		t.Fatal("a relative value in an unknown directory must stay computed")
+// AFP-V0-9622: an assigned value is never recorded as a path; the step
+// stays computed wherever the name is used again.
+func TestDriverLocalAssignmentNoPaths_AFP_V0_9622(t *testing.T) {
+	reasons, scan := driverStepScan(t, "d=tools/gen\ncat \"$d/x/input.json\"", driverNoEnv)
+	if !slices.Contains(reasons, "shell:local-referenced") || scan.paths["tools/gen"] {
+		t.Fatalf("reasons=%v paths=%v", reasons, scan.paths)
 	}
 }
 
 // AFP-V0-9624: `read -r` into safe names is narrowed; other reads are not.
 func TestDriverReadNarrowing_AFP_V0_9624(t *testing.T) {
 	runDriverNarrowCases(t, []driverNarrowCase{
-		{"while IFS= read -r line; do echo \"$line\"; done < go.mod", driverNoEnv, ""},
+		{"while IFS= read -r line; do echo \"$line\"; done < go.mod", driverNoEnv, "shell:local-referenced"},
 		{"read -r flag pattern pkg < x", driverNoEnv, ""},
 		{"read -r -a argv < x", driverNoEnv, "shell:builtin-read"},
 		{"read line < x", driverNoEnv, "shell:builtin-read"},
 		{"read -r PATH < x", driverNoEnv, "shell:builtin-read"},
 		{"read -r reply < x", driverNoEnv, "shell:builtin-read"},
+		{"read -r http_proxy < x", driverNoEnv, "shell:builtin-read"},
 		{"read -r line < x", map[string]bool{"line": true}, "shell:builtin-read"},
 		{"read -r line < x", nil, "shell:builtin-read"},
 		{"IFS=, read -r a b < x", driverNoEnv, "shell:assignment"},
 		{"IFS= read -r -a a < x", driverNoEnv, "shell:assignment"},
-		{"read -r line < x\n$line/run", driverNoEnv, "shell:local-command-word"},
+		{"read -r line < x\n$line/run", driverNoEnv, "shell:local-referenced"},
 	})
 }
 
@@ -171,6 +177,9 @@ func TestDriverComputedNeighbours_AFP_V0_9625(t *testing.T) {
 		{": \"${out:=dist}\"", driverNoEnv, "shell:assigning-expansion"},
 		{"echo \"${GOFLAGS=-x}\"", driverNoEnv, "shell:assigning-expansion"},
 		{"echo \"${out:-dist}\"", driverNoEnv, ""},
+		{"echo \"${out:-$(date)}\"", driverNoEnv, "shell:brace-substitution"},
+		{"echo \"${out:-`date`}\"", driverNoEnv, "shell:brace-substitution"},
+		{"echo $(( $(cat n) + 1 ))", driverNoEnv, "shell:arithmetic-substitution"},
 		{"echo $(( PATH = 1 ))", driverNoEnv, "shell:arithmetic-assignment"},
 		{"echo $(( n++ ))", driverNoEnv, "shell:arithmetic-assignment"},
 		{"echo $(( n == 1 ))", driverNoEnv, ""},
@@ -228,5 +237,66 @@ func TestDriverWorkflowEnv_AFP_V0_9623(t *testing.T) {
 	}))
 	if len(reasons) != 1 {
 		t.Fatalf("action reasons = %v, want the assignment computed", reasons)
+	}
+}
+
+// AFP-V0-9628: each counterexample of the V1-5000 review, verbatim, keeps
+// the step computed.
+func TestDriverReviewCounterexamples_AFP_V0_9628(t *testing.T) {
+	runDriverNarrowCases(t, []driverNarrowCase{
+		// 1: a read value reaching a file operand.
+		{"read -r dir < chosen-dir; cat \"$dir/payload\"", driverNoEnv, "shell:local-referenced"},
+		// 2: an appended fragment is not a path.
+		{"d=foo; d+=bar; cat \"$d/payload\"", driverNoEnv, "shell:local-referenced"},
+		// 3: a command substitution inside ${...}.
+		{"read -r d < chosen-dir; : \"${unset_name:-$(\"$d/run\")}\"", driverNoEnv, "shell:brace-substitution"},
+		// 4: a function shadowing a narrowed builtin.
+		{"function read { \"$2/run\"; }; read -r tools", driverNoEnv, "shell:function-definition"},
+		{"read() { \"$2/run\"; }; read -r tools", driverNoEnv, "shell:function-definition"},
+		{"set() { :; }\nset -e", driverNoEnv, "shell:function-definition"},
+		{"alias read=x\nread -r tools", driverNoEnv, "shell:builtin-alias"},
+		// 5: a sourced file may set PS4 or define functions.
+		{". ./ci/setup.sh; set -x; :", driverNoEnv, "shell:sourced"},
+		{"source ./ci/setup.sh\nshopt -s nullglob", driverNoEnv, "shell:builtin-shopt"},
+		{"eval \"$x\"\nset -e", driverNoEnv, "shell:eval"},
+		// 6: an inline shell with options, or set -a anywhere.
+		{"bash -ac 'read -r npm_config_userconfig < chosen-config; npm ci'", driverNoEnv, "shell:builtin-read"},
+		{"bash -o allexport -c 'out=1'", driverNoEnv, "shell:assignment"},
+		{"set -a\nread -r tools < x", driverNoEnv, "shell:builtin-set"},
+		// 7: a value written to GITHUB_OUTPUT reaches later steps.
+		{"read -r dir < chosen-dir; echo \"dir=$dir\" >> \"$GITHUB_OUTPUT\"", driverNoEnv, "shell:github-output"},
+		{"read -r dir < chosen-dir; cat x >> \"$GITHUB_OUTPUT\"", driverNoEnv, "shell:github-output"},
+		// Indirect and arithmetic expansion name a local without its name.
+		{"out=1; name=x; echo \"${!name}\"", driverNoEnv, "shell:indirect-expansion"},
+		{"read -r n < x; [ \"$1\" -eq 1 ]", driverNoEnv, "shell:arithmetic-context"},
+		// 8: a tool reads its configuration from these names.
+		{"read -r npm_config_userconfig < chosen-config", driverNoEnv, "shell:builtin-read"},
+	})
+}
+
+// AFP-V0-9628: a read value written to GITHUB_OUTPUT and run by a later
+// step, and a step shell exporting every assignment, keep the job computed.
+func TestDriverWorkflowCounterexamples_AFP_V0_9628(t *testing.T) {
+	workflow := "jobs:\n" +
+		"  choose:\n    runs-on: x\n    steps:\n" +
+		"      - id: choose\n        run: |\n          read -r dir < chosen-dir\n          echo \"dir=$dir\" >> \"$GITHUB_OUTPUT\"\n" +
+		"      - run: ${{ steps.choose.outputs.dir }}/run\n" +
+		"  allexport:\n    runs-on: x\n    steps:\n" +
+		"      - shell: bash -a {0}\n        run: read -r tools < x\n" +
+		"  template:\n    runs-on: x\n    steps:\n" +
+		"      - shell: bash --noprofile --norc -eo pipefail {0}\n        run: read -r tools < x\n"
+	reasons := driverComputedReasons(t, memorySource(t, map[string]string{
+		"go.mod":                   "module example.test/m\n",
+		".github/workflows/ci.yml": workflow,
+	}))
+	id := func(job string) string { return "driver:ci:.github/workflows/ci.yml#" + job }
+	if !slices.Contains(reasons[id("choose")], "shell:github-output") {
+		t.Errorf("choose reasons %v, want shell:github-output", reasons[id("choose")])
+	}
+	if !slices.Contains(reasons[id("allexport")], "shell:builtin-read") {
+		t.Errorf("allexport reasons %v, want shell:builtin-read", reasons[id("allexport")])
+	}
+	if got := reasons[id("template")]; len(got) != 0 {
+		t.Errorf("template reasons %v, want narrowed", got)
 	}
 }
