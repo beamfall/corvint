@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"io/fs"
 	"path"
 	"slices"
 	"sort"
@@ -1045,29 +1046,58 @@ func driverTruth(value string) int {
 func (e *driverExpander) condition(text string) int {
 	saved := e.ambiguous
 	e.ambiguous = false
-	value := e.expand(strings.TrimSpace(text))
+	trimmed, exact := driverMakeTrim(text)
+	value := e.expand(trimmed)
 	unknown := e.ambiguous
 	e.ambiguous = saved
-	if unknown {
+	if unknown || !exact {
 		return -1
 	}
 	return driverTruth(value)
 }
 
-// definite reports values that hold no part only the environment supplies.
+// definite reports values that hold no part only the environment supplies
+// and that make splits into the same words as this evaluator. GNU make splits
+// words at the bytes C isspace accepts, which for bytes past ASCII depends on
+// make's locale; Go's strings.Fields splits at Unicode spaces. Only ASCII
+// values are therefore exact (AFP-V0-9050).
 func definite(values ...string) bool {
 	for _, value := range values {
-		if driverDynamic(value) {
+		if driverDynamic(value) || !driverASCII(value) {
 			return false
 		}
 	}
 	return true
 }
 
+// driverASCII reports text whose every byte is ASCII.
+func driverASCII(text string) bool {
+	for index := 0; index < len(text); index++ {
+		if text[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// driverMakeSpace is the whitespace GNU make's ISSPACE accepts in ASCII.
+const driverMakeSpace = " \t\n\r\v\f"
+
+// driverMakeTrim strips the whitespace make strips from an `if` condition or
+// an `or`/`and` argument before expanding it. It reports false when a byte past
+// ASCII borders the result: make's locale decides whether that is whitespace.
+func driverMakeTrim(text string) (string, bool) {
+	trimmed := strings.Trim(text, driverMakeSpace)
+	if trimmed != "" && (trimmed[0] >= 0x80 || trimmed[len(trimmed)-1] >= 0x80) {
+		return trimmed, false
+	}
+	return trimmed, true
+}
+
 // environmental reports a value made only of parts the environment supplies:
 // any word selected from it is environment-supplied too, or there is none.
 func environmental(value string) bool {
-	return strings.Contains(value, driverComputed) && strings.TrimSpace(strings.ReplaceAll(value, driverComputed, "")) == ""
+	return strings.Contains(value, driverComputed) && strings.Trim(strings.ReplaceAll(value, driverComputed, ""), driverMakeSpace) == ""
 }
 
 // selected is the result of selecting words from an environmental value:
@@ -1142,9 +1172,11 @@ func driverMakeClose(text string, open int) int {
 }
 
 func (e *driverExpander) reference(inner string) string {
-	name, args, spaced := strings.Cut(inner, " ")
-	if !spaced {
-		name, args, spaced = strings.Cut(inner, "\t")
+	// A function name ends at the first blank; make skips every blank
+	// after it, so they are no part of the first argument (AFP-V0-9050).
+	name, args, spaced := inner, "", false
+	if blank := strings.IndexAny(inner, " \t"); blank >= 0 {
+		name, args, spaced = inner[:blank], strings.TrimLeft(inner[blank:], driverMakeSpace), true
 	}
 	if spaced && strings.Contains(name, "$") {
 		e.unmodeledEffects = true
@@ -1156,12 +1188,28 @@ func (e *driverExpander) reference(inner string) string {
 		}
 	}
 	if colon := strings.IndexByte(inner, ':'); colon > 0 && strings.Contains(inner[colon:], "=") && !strings.Contains(inner[:colon], "$") {
-		from, to, _ := strings.Cut(inner[colon+1:], "=")
-		words := strings.Fields(e.lookup(inner[:colon]))
+		// Make expands the whole reference before it splits a
+		// substitution reference, so a reference in the patterns is
+		// their expansion, never their spelling (AFP-V0-9050).
+		from, to, _ := strings.Cut(e.expand(inner[colon+1:]), "=")
+		value := e.lookup(inner[:colon])
+		if driverDynamic(from) || !driverASCII(from+to+value) || strings.Contains(from, "%") && strings.Contains(from+to, "\\") {
+			e.ambiguous = true
+			return driverComputed
+		}
+		words := strings.Fields(value)
 		for index, word := range words {
-			if strings.Contains(from, "%") {
+			switch {
+			case driverDynamic(word):
+				// A partly unknown word can end in from once known; a
+				// wholly unknown one stays unknown, or no word at all.
+				if strings.Trim(word, driverComputed+driverExpansion) != "" {
+					e.ambiguous = true
+					return driverComputed
+				}
+			case strings.Contains(from, "%"):
 				words[index] = driverPatsubst(from, to, word)
-			} else if strings.HasSuffix(word, from) {
+			case strings.HasSuffix(word, from):
 				words[index] = strings.TrimSuffix(word, from) + to
 			}
 		}
@@ -1229,15 +1277,43 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		}
 		return parts
 	}
-	words := func(text string) []string { return strings.Fields(e.expand(text)) }
-	mapWords := func(text string, transform func(string) string) string {
-		out := words(text)
-		for index, word := range out {
-			if !driverDynamic(word) {
-				out[index] = transform(word)
+	// mapWords applies transform to each word. GNU make splits words at
+	// ASCII whitespace only, so non-ASCII values retain. A wholly unknown
+	// word stays unknown. A word only partly known may expand to other
+	// words or a different spelling, so an exact transform retains it;
+	// addprefix and addsuffix keep it unchanged, because the literal they
+	// would add can neither empty the result nor be selected by a filter
+	// that cannot match the unknown word (AFP-V0-9050).
+	mapWords := func(text string, exact bool, transform func(string) (string, bool)) (string, bool) {
+		value := e.expand(text)
+		if !driverASCII(value) {
+			e.ambiguous = true
+			return driverComputed, true
+		}
+		var out []string
+		for _, word := range strings.Fields(value) {
+			if driverDynamic(word) {
+				if exact && strings.Trim(word, driverComputed+driverExpansion) != "" {
+					e.ambiguous = true
+					return driverComputed, true
+				}
+				out = append(out, word)
+				continue
+			}
+			if mapped, keep := transform(word); keep {
+				out = append(out, mapped)
 			}
 		}
-		return strings.Join(out, " ")
+		return strings.Join(out, " "), true
+	}
+	each := func(transform func(string) string) func(string) (string, bool) {
+		return func(word string) (string, bool) { return transform(word), true }
+	}
+	// escaped reports a pattern whose backslashes GNU make may treat as
+	// quoting a percent sign; this evaluator does not model that quoting.
+	escaped := func(values ...string) bool {
+		joined := strings.Join(values, "")
+		return strings.Contains(joined, "%") && strings.Contains(joined, "\\")
 	}
 	// AZU-V0-9850: a superset of words is not conservative when a literal
 	// prefix or suffix attaches to a different word. These functions are
@@ -1285,7 +1361,18 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 			e.unmodeledEffects = true
 			return retain()
 		}
+		seen := map[string]bool{}
 		for _, word := range strings.Fields(value) {
+			// GNU make returns a literal name as spelled. Only a clean
+			// spelling (optionally "./"-prefixed) names exactly the
+			// recorded path; duplicates and symlinks are not modeled
+			// (AFP-V0-9050).
+			clean := strings.TrimPrefix(word, "./")
+			if seen[word] || clean == "" || path.Clean(clean) != clean || strings.HasPrefix(clean, "../") || clean == ".." {
+				e.unmodeledEffects = true
+				return retain()
+			}
+			seen[word] = true
 			for _, char := range word {
 				if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("/._-+", char)) {
 					e.unmodeledEffects = true
@@ -1297,7 +1384,7 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 				e.unmodeledEffects = true
 				return retain()
 			}
-			if _, err := e.file.source.Stat(relative); err != nil {
+			if !driverPlainPath(e.file.source, relative) {
 				e.unmodeledEffects = true
 				return retain()
 			}
@@ -1322,8 +1409,17 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "or", "and":
 		value := ""
 		for _, part := range driverMakeSplitTop(args, ',', 0) {
-			value = e.expand(strings.TrimSpace(part))
+			// GNU make strips ASCII whitespace from the unexpanded argument
+			// and skips an argument left empty (AFP-V0-9050).
+			trimmed, exact := driverMakeTrim(part)
+			if trimmed == "" {
+				continue
+			}
+			value = e.expand(trimmed)
 			truth := driverTruth(value)
+			if !exact {
+				truth = -1
+			}
 			if truth < 0 {
 				// Only the environment decides whether this argument is
 				// empty: both outcomes are choices.
@@ -1343,6 +1439,9 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "filter", "filter-out":
 		parts := split(2)
 		patterns, text := e.expand(parts[0]), e.expand(parts[1])
+		if escaped(patterns) {
+			return retain()
+		}
 		if definite(patterns) && environmental(text) {
 			return e.selected()
 		}
@@ -1400,11 +1499,11 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		if !definite(parts...) {
 			return retain()
 		}
-		start, startErr := strconv.Atoi(strings.TrimSpace(parts[0]))
+		start, startErr := driverMakeNumber(parts[0])
 		end := start
 		var endErr error
 		if name == "wordlist" {
-			end, endErr = strconv.Atoi(strings.TrimSpace(parts[1]))
+			end, endErr = driverMakeNumber(parts[1])
 		}
 		fields := strings.Fields(parts[limit-1])
 		if startErr != nil || endErr != nil || start < 1 || end < 0 {
@@ -1440,36 +1539,63 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	case "addprefix":
 		parts := split(2)
 		prefix := e.expand(parts[0])
-		return mapWords(parts[1], func(word string) string { return prefix + word }), true
+		return mapWords(parts[1], false, each(func(word string) string { return prefix + word }))
 	case "addsuffix":
 		parts := split(2)
 		suffix := e.expand(parts[0])
-		return mapWords(parts[1], func(word string) string { return word + suffix }), true
+		return mapWords(parts[1], false, each(func(word string) string { return word + suffix }))
 	case "patsubst":
 		parts := split(3)
 		from, to := e.expand(parts[0]), e.expand(parts[1])
-		return mapWords(parts[2], func(word string) string { return driverPatsubst(from, to, word) }), true
-	case "subst":
-		parts := split(3)
-		from, to := e.expand(parts[0]), e.expand(parts[1])
-		if from == "" {
-			return e.expand(parts[2]), true
+		if !definite(from) || !driverASCII(to) || escaped(from, to) {
+			return retain()
 		}
-		return strings.ReplaceAll(e.expand(parts[2]), from, to), true
+		return mapWords(parts[2], true, each(func(word string) string { return driverPatsubst(from, to, word) }))
+	case "subst":
+		// GNU make substitutes in the raw text, and an empty search string
+		// matches once, at the end (AFP-V0-9050).
+		parts := split(3)
+		from, to, text := e.expand(parts[0]), e.expand(parts[1]), e.expand(parts[2])
+		switch {
+		case !definite(from) || !driverASCII(to+text):
+			return retain()
+		case environmental(text):
+			return driverComputed, true
+		case driverDynamic(text):
+			return retain()
+		case from == "":
+			return text + to, true
+		}
+		return strings.ReplaceAll(text, from, to), true
 	case "sort":
-		out := words(args)
+		value := e.expand(args)
+		if !driverASCII(value) {
+			return retain()
+		}
+		out := strings.Fields(value)
 		sort.Strings(out)
 		return strings.Join(slices.Compact(out), " "), true
+	// GNU make keeps each word's literal spelling: dir is the prefix through
+	// the last slash, else "./"; notdir removes that prefix, so a trailing
+	// slash yields an empty word; suffix emits nothing for a word without
+	// one. path.Dir would clean the spelling a later filter compares
+	// (AFP-V0-9050).
 	case "dir":
-		return mapWords(args, func(word string) string { return path.Dir(word) + "/" }), true
+		return mapWords(args, true, each(func(word string) string {
+			if slash := strings.LastIndexByte(word, '/'); slash >= 0 {
+				return word[:slash+1]
+			}
+			return "./"
+		}))
 	case "notdir":
-		// GNU make removes everything through the last slash, without
-		// cleaning the path. A trailing slash therefore yields an empty word.
-		return mapWords(args, func(word string) string { return word[strings.LastIndexByte(word, '/')+1:] }), true
+		return mapWords(args, true, each(func(word string) string { return word[strings.LastIndexByte(word, '/')+1:] }))
 	case "basename":
-		return mapWords(args, func(word string) string { return strings.TrimSuffix(word, path.Ext(word)) }), true
+		return mapWords(args, true, each(func(word string) string { return strings.TrimSuffix(word, path.Ext(word)) }))
 	case "suffix":
-		return mapWords(args, path.Ext), true
+		return mapWords(args, true, func(word string) (string, bool) {
+			suffix := path.Ext(word)
+			return suffix, suffix != ""
+		})
 	case "value":
 		e.unmodeledEffects = true
 		return e.lookup(strings.TrimSpace(e.expand(args))), true
@@ -1543,6 +1669,32 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	// retain uncertainty even when a condition discards their returned value.
 	e.unmodeledEffects = true
 	return driverComputed, true
+}
+
+// driverMakeNumber parses a word or wordlist index as GNU make does: ASCII
+// whitespace around decimal digits only. Anything else retains.
+func driverMakeNumber(text string) (int, error) {
+	trimmed, exact := driverMakeTrim(text)
+	if !exact || trimmed == "" || strings.Trim(trimmed, "0123456789") != "" {
+		return 0, strconv.ErrSyntax
+	}
+	return strconv.Atoi(trimmed)
+}
+
+// driverPlainPath reports a repository path whose every component is a
+// directory or, for the last, a regular file or directory, with no symlink
+// whose target the recorded read edge would not cover (AFP-V0-9050).
+func driverPlainPath(source *Source, relative string) bool {
+	for index := 0; index <= len(relative); index++ {
+		if index < len(relative) && relative[index] != '/' {
+			continue
+		}
+		info, err := source.Lstat(relative[:index])
+		if err != nil || info.Mode()&fs.ModeSymlink != 0 || index < len(relative) && !info.IsDir() || !info.IsDir() && !info.Mode().IsRegular() {
+			return false
+		}
+	}
+	return true
 }
 
 // driverPatsubst applies one make pattern substitution to word.

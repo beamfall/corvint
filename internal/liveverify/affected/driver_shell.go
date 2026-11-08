@@ -185,7 +185,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 				if redirect {
 					// AFP-V0-3128: a file read through a redirection whose
 					// name is unknown is outside every bounded read set.
-					if input && (driverDynamic(word.text) || cwd == "" && !strings.HasPrefix(word.text, "/")) {
+					// AFP-V0-9051: so is one whose name no edge records, such
+					// as an absolute, `~` or escaping path.
+					if input && !driverOperandRecorded(word.text, cwd) {
 						s.scan.uncertified = true
 					}
 					if input {
@@ -650,6 +652,13 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 				s.scan.computed = true
 			}
 			s.pathWord(arg, cwd)
+			if driverShells[base] && driverShellTest(arg) {
+				// A certified test script's arguments are recorded as
+				// file operands (AFP-V0-9051).
+				for _, word := range words[index+1:] {
+					s.pathOperand(word.text, cwd)
+				}
+			}
 			operand = true
 			break
 		}
@@ -659,8 +668,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 			s.scan.computed = true
 		}
 	}
-	if driverBoundedCommands[base] {
-		// Every literal operand can name a file, including LICENSE.
+	if driverBoundedCommands[base] || strings.Contains(head, "/") && driverShellTest(head) {
+		// Every literal operand can name a file, including LICENSE, and
+		// so can a test script's argument (AFP-V0-9051).
 		for _, word := range words[1:] {
 			s.pathOperand(word.text, cwd)
 		}
@@ -719,7 +729,37 @@ var driverCommandOptionAllowlist = map[string]driverCommandOptions{
 	"jq":        {flags: "-r -R -s -c -n -e -S -a -j -M -C --raw-output --raw-input --slurp --compact-output --null-input --exit-status --sort-keys --ascii-output --join-output --monochrome-output --color-output"},
 }
 
-func driverCommandOptionsCertified(base string, words []driverWord) bool {
+// driverOperandRecorded reports a file operand, read in cwd, that pathOperand
+// records as a repository edge: a relative literal path that stays inside the
+// repository, or the bounded glob form. An absolute, `~` or escaping path, an
+// empty word or any operand in an unknown directory has no edge, so a command
+// that reads it must not certify (AFP-V0-9051). /dev/null reads nothing.
+func driverOperandRecorded(word, cwd string) bool {
+	switch {
+	case word == "/dev/null":
+		return true
+	case cwd == "" || word == "" || driverDynamic(word) || driverRootedPath(word):
+		return false
+	case strings.ContainsAny(word, "*?["):
+		return driverGlobDirectory(word) != ""
+	}
+	return ValidRelativePath(driverJoin(cwd, strings.TrimSuffix(word, "/")))
+}
+
+// driverRootedPath reports a word that names a path outside every repository
+// edge whatever the working directory: absolute or `~`-prefixed.
+func driverRootedPath(word string) bool {
+	return strings.HasPrefix(word, "/") || strings.HasPrefix(word, "~")
+}
+
+// driverCommandOptionPaths are the option values that name a file the command
+// reads or writes. Other values are counts, delimiters or formats.
+var driverCommandOptionPaths = map[string]string{
+	"grep": "-f --file",
+	"sort": "-o -T --output --temporary-directory",
+}
+
+func driverCommandOptionsCertified(base string, words []driverWord, cwd string) bool {
 	// Check every word, including operands after --. The sole modeled glob
 	// form has an explicit containing-directory read edge in pathOperand.
 	if slices.ContainsFunc(words, func(word driverWord) bool {
@@ -732,12 +772,27 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 	}
 	options := driverCommandOptionAllowlist[base]
 	has := func(list, option string) bool { return slices.Contains(strings.Fields(list), option) }
+	// AFP-V0-9051: every file operand and file-naming option value must be
+	// recorded. tr operands are sets, jq's first operand is its program, and
+	// grep's first is its pattern unless -e or -f supplies one.
+	var operands []string
+	pattern := base == "grep" || base == "jq"
+	value := func(option string, word string) bool {
+		if base == "grep" && (option == "-e" || option == "--regexp" || option == "-f" || option == "--file") {
+			pattern = false
+		}
+		return !has(driverCommandOptionPaths[base], option) || driverOperandRecorded(word, cwd)
+	}
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
 		if arg == "--" {
-			return true
+			for _, word := range words[index+1:] {
+				operands = append(operands, word.text)
+			}
+			break
 		}
 		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			operands = append(operands, arg)
 			continue
 		}
 		if strings.HasPrefix(arg, "--") {
@@ -756,7 +811,7 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 			}
 			if !attached {
 				index++
-				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) {
+				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) || !value(name, words[index].text) {
 					return false
 				}
 			}
@@ -770,7 +825,7 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 					return false
 				}
 				index++
-				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) {
+				if index >= len(words) || (strings.HasPrefix(words[index].text, "-") || strings.ContainsAny(words[index].text, "*?[")) || !value(option, words[index].text) {
 					return false
 				}
 				break
@@ -778,6 +833,17 @@ func driverCommandOptionsCertified(base string, words []driverWord) bool {
 			if !has(options.flags, option) {
 				return false
 			}
+		}
+	}
+	if base == "tr" {
+		return true
+	}
+	if pattern && len(operands) > 0 {
+		operands = operands[1:]
+	}
+	for _, operand := range operands {
+		if operand != "-" && !driverOperandRecorded(operand, cwd) {
+			return false
 		}
 	}
 	return true
@@ -815,7 +881,7 @@ func driverCertified(words []driverWord, cwd string) bool {
 	}
 	base := path.Base(head)
 	if strings.Contains(head, "/") && !strings.HasPrefix(head, "/") {
-		return cwd != "" && driverShellTest(head) && driverLiteral(words[1:])
+		return driverOperandRecorded(head, cwd) && driverShellTest(head) && driverTestArgumentsRecorded(words[1:], cwd)
 	}
 	switch {
 	case driverPureCommands[base]:
@@ -832,7 +898,7 @@ func driverCertified(words []driverWord, cwd string) bool {
 				return true
 			}
 			if !strings.HasPrefix(arg, "-") {
-				return cwd != "" && driverShellTest(arg) && driverLiteral(words[index+1:])
+				return driverOperandRecorded(arg, cwd) && driverShellTest(arg) && driverTestArgumentsRecorded(words[index+1:], cwd)
 			}
 		}
 		return false
@@ -845,9 +911,26 @@ func driverCertified(words []driverWord, cwd string) bool {
 				return false
 			}
 		}
-		return driverCommandOptionsCertified(base, words[1:])
+		return driverCommandOptionsCertified(base, words[1:], cwd)
 	}
 	return false
+}
+
+// driverTestArgumentsRecorded reports shell test script arguments that are
+// literal and, unless they are bare options, recorded file operands: the
+// script may read any argument it is given (AFP-V0-9051).
+func driverTestArgumentsRecorded(words []driverWord, cwd string) bool {
+	for _, word := range words {
+		text := word.text
+		if driverDynamic(text) {
+			return false
+		}
+		if strings.HasPrefix(text, "-") && !strings.Contains(text, "=") || driverOperandRecorded(text, cwd) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // driverMakeCommandCertified admits only options whose effects the make
@@ -863,17 +946,25 @@ func driverMakeCommandCertified(words []driverWord) bool {
 	for index := 0; index < len(words); index++ {
 		arg := words[index].text
 		switch {
-		case !strings.HasPrefix(arg, "-") || slices.Contains(flags, arg):
+		case !strings.HasPrefix(arg, "-"):
+			// AFP-V0-9051: a rooted goal names a file no edge records.
+			if driverRootedPath(arg) {
+				return false
+			}
+		case slices.Contains(flags, arg):
 		case arg == "-C" || arg == "--directory":
 			index++
-			if index >= len(words) || words[index].text == "" || strings.HasPrefix(words[index].text, "-") {
+			if index >= len(words) || words[index].text == "" || strings.HasPrefix(words[index].text, "-") || driverRootedPath(words[index].text) {
 				return false
 			}
 		case strings.HasPrefix(arg, "--directory="):
-			if strings.TrimPrefix(arg, "--directory=") == "" {
+			if value := strings.TrimPrefix(arg, "--directory="); value == "" || driverRootedPath(value) {
 				return false
 			}
 		case strings.HasPrefix(arg, "-C") && !strings.HasPrefix(arg, "--"):
+			if driverRootedPath(arg[2:]) {
+				return false
+			}
 		case arg == "-j" || arg == "--jobs":
 			if index+1 < len(words) && driverNumeric(words[index+1].text) {
 				index++
@@ -920,7 +1011,8 @@ func driverTestCertified(words []driverWord, cwd string) bool {
 			operands = []string{words[index-1].text, words[index+1].text}
 		}
 		for _, operand := range operands {
-			if driverDynamic(operand) || cwd == "" && !strings.HasPrefix(operand, "/") {
+			// AFP-V0-9051: an absolute, `~` or escaping operand has no edge.
+			if !driverOperandRecorded(operand, cwd) {
 				return false
 			}
 		}
@@ -939,10 +1031,12 @@ func driverGoCommandCertified(words []driverWord) bool {
 	}
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
 		if words[0].text == "-C" {
-			if len(words) < 2 || strings.HasPrefix(words[1].text, "-") {
+			if len(words) < 2 || strings.HasPrefix(words[1].text, "-") || driverRootedPath(words[1].text) {
 				return false
 			}
 			words = words[1:]
+		} else if driverRootedPath(strings.TrimPrefix(words[0].text, "-C=")) {
+			return false
 		}
 		words = words[1:]
 	}
@@ -952,9 +1046,19 @@ func driverGoCommandCertified(words []driverWord) bool {
 	for index := 1; index < len(words); index++ {
 		arg := words[index].text
 		if arg == "-args" && words[0].text == "test" {
-			return true // All remaining test arguments were checked literal above.
+			// All remaining test arguments were checked literal above. The
+			// test binary may read any path they name from its package
+			// directory; only names without a directory stay there
+			// (AFP-V0-9051).
+			return !slices.ContainsFunc(words[index+1:], func(word driverWord) bool {
+				return strings.Contains(word.text, "/") || strings.Contains(word.text, "~")
+			})
 		}
 		if !strings.HasPrefix(arg, "-") {
+			// AFP-V0-9051: a rooted package pattern records no edge.
+			if driverRootedPath(arg) {
+				return false
+			}
 			continue
 		}
 		flag, value, attached := strings.Cut(arg, "=")
