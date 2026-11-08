@@ -332,6 +332,22 @@ func (s *Source) Stat(relative string) (infoOut fs.FileInfo, errOut error) {
 	s.record.failed(relative, err)
 	return info, err
 }
+
+// ReadLink reads one unfollowed disk alias and records it for cache invalidation.
+// Sources without a link-reading contract refuse; callers must retain uncertainty.
+func (s *Source) ReadLink(relative string) (string, error) {
+	if err := s.stopped(); err != nil {
+		return "", err
+	}
+	if s == nil || s.fsys != nil || !fs.ValidPath(relative) {
+		return "", ErrWalkUnrepresentable
+	}
+	s.record.path(s.root, relative, false)
+	target, err := os.Readlink(filepath.Join(s.root, filepath.FromSlash(relative)))
+	s.record.failed(relative, err)
+	return target, err
+}
+
 func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	if err := s.stopped(); err != nil {
 		return nil, err

@@ -62,7 +62,10 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 	var candidates []affected.Selection
 	for _, selection := range plan.Selected {
 		pkg, ok := strings.CutPrefix(selection.UnitID, "go:")
-		if !ok || selection.Witness.Kind != affected.WitnessDependency {
+		// Project-owned must-run obligations outrank every witness, including
+		// a dependency witness retained by mustRunOf (AFP-V0-9322). Preserve
+		// the whole-package slice before admitting any typed-reach candidate.
+		if !ok || testMustRunReason(plan, selection.UnitID) != "" || selection.Witness.Kind != affected.WitnessDependency {
 			continue
 		}
 		if relative := strings.TrimPrefix(strings.TrimPrefix(pkg, module), "/"); typedReachPackages[relative] {

@@ -223,8 +223,8 @@ func TestResultCacheRefusesForeignRecords_ASCV0778(t *testing.T) {
 }
 
 func TestCacheEnvironmentKeepsBehaviourVariables_ASCV0778(t *testing.T) {
-	got := cacheEnvironment([]string{"PATH=/bin", "GOFLAGS=-x", "GIT_TRACE2_EVENT=/tmp/t", "GIT_DIR=/x", "CORVINT_A=1", "CGO_ENABLED=0", "SELECTION_BASELINE_JOBS=8", "SELECTION_BASELINE_CACHE=on", "HOME=/h"})
-	want := []string{"CGO_ENABLED=0", "CORVINT_A=1", "GIT_DIR=/x", "GOFLAGS=-x"}
+	got := cacheEnvironment([]string{"PATH=/bin", "GOFLAGS=-x", "GIT_TRACE2_EVENT=/tmp/t", "GIT_DIR=/x", "CORVINT_A=1", "CGO_ENABLED=0", "SELECTION_BASELINE_JOBS=8", "SELECTION_BASELINE_CACHE=on", "SELECTION_CONTRACT_CHECK=1", "HOME=/h"})
+	want := []string{"CGO_ENABLED=0", "CORVINT_A=1", "GIT_DIR=/x", "GOFLAGS=-x", "SELECTION_CONTRACT_CHECK=1"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("cacheEnvironment = %q, want %q", got, want)
 	}

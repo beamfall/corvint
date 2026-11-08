@@ -27,6 +27,9 @@ const (
 	// WitnessFrontierSite names a make target or workflow job selected
 	// because it invokes a computed name (AZU-V0-001, AZU-V0-003).
 	WitnessFrontierSite = "FRONTIER_SITE"
+	// driverTreeReadGlob uses the existing anchored ancestor-glob relation
+	// to retain every repository path, including new files (AFP-V0-9401).
+	driverTreeReadGlob = "/*"
 )
 
 // driverSites selects, on every plan with a dirty path, each make target or
@@ -45,6 +48,12 @@ func (graph *Graph) driverSites(reached map[string]Witness, followed map[string]
 	unbounded := graph.unboundedDirty(dirty)
 	for _, id := range graph.order {
 		frontier := graph.units[id].Frontier
+		// A file-set reader's callers also observe the read, even when the
+		// dirty file already has a tested owner. Generic terminal readers
+		// do not propagate in that case (AFP-V0-9402).
+		if _, hit := reached[id]; hit && slices.Contains(graph.units[id].PathGlobs, driverTreeReadGlob) && strings.HasPrefix(id, DriverNamespace+":") {
+			queue = append(queue, id)
+		}
 		// An unparsable file can hide any execution edge. Reach its fallback
 		// on every change not covered by the project's no-unbounded-reader
 		// proof, so its uncertainty cannot disappear with that edge.
@@ -118,10 +127,19 @@ type driverRegistry struct {
 	actions   map[string]string
 	fileUnits map[string][]string
 	allMake   []string
+	// reasons, when non-nil, receives each computed site's sorted reasons
+	// (AFP-V0-9620). Diagnostics only; units never carry it.
+	reasons map[string][]string
 }
 
 // UnitsSource observes the driver files through source.
 func (Driver) UnitsSource(source *Source) (Result, error) {
+	return driverUnitsSource(source, nil)
+}
+
+// driverUnitsSource is UnitsSource that also records, in reasons when it is
+// non-nil, why each computed site is one (AFP-V0-9620).
+func driverUnitsSource(source *Source, reasons map[string][]string) (Result, error) {
 	makeFiles, err := source.Files(ByName(driverMakeName))
 	if err != nil {
 		return Result{}, err
@@ -144,6 +162,7 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 		workflows: map[string]*driverWorkflow{},
 		actions:   map[string]string{},
 		fileUnits: map[string][]string{},
+		reasons:   reasons,
 	}
 	if body, readErr := source.Read("go.mod"); readErr == nil {
 		registry.module = driverModulePath(body)
@@ -229,10 +248,22 @@ type driverUnitBuilder struct {
 	computed    bool
 	evaluated   bool
 	uncertified bool
+	// reasons names why computed was set (AFP-V0-9620), for diagnostics.
+	reasons   map[string]bool
+	readsTree bool
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
 	return &driverUnitBuilder{id: id, imports: map[string]bool{}, paths: map[string]bool{}, buildPaths: map[string]bool{}, tokens: map[string]bool{}}
+}
+
+// markComputed marks the unit a computed invocation for reason.
+func (b *driverUnitBuilder) markComputed(reason string) {
+	b.computed = true
+	if b.reasons == nil {
+		b.reasons = map[string]bool{}
+	}
+	b.reasons[reason] = true
 }
 
 func (b *driverUnitBuilder) importAll(ids []string) {
@@ -260,9 +291,15 @@ func (b *driverUnitBuilder) readPaths(paths []string) {
 func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.computed {
 		b.computed = true
+		for reason := range scan.reasons {
+			b.markComputed(reason)
+		}
 	}
 	if scan.uncertified {
 		b.uncertified = true
+	}
+	if scan.readsTree {
+		b.readsTree = true
 	}
 	for token := range scan.tokens {
 		b.tokens[token] = true
@@ -300,6 +337,24 @@ func (b *driverUnitBuilder) unit() Unit {
 	}
 	if b.computed || b.evaluated && b.uncertified {
 		unit.Frontier = []string{FrontierDriverComputedInvocation}
+	} else if b.readsTree {
+		// Existing computed sites already retain every path and their
+		// callers. Preserve that fallback and its witness; a literal
+		// enumerator instead records the actual read dependency.
+		unit.PathGlobs = []string{driverTreeReadGlob}
+	}
+	return unit
+}
+
+// unit builds the builder's unit and records why it is a computed site.
+func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
+	unit := b.unit()
+	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
+		reasons := driverSorted(b.reasons)
+		if !b.computed {
+			reasons = append(reasons, "make:evaluated-uncertified")
+		}
+		registry.reasons[b.id] = reasons
 	}
 	return unit
 }
@@ -456,7 +511,9 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		shared.merge(registry, scan)
 	}
 	exportsCertified := parsed.exportsCertified()
-	shared.computed = shared.computed || !exportsCertified
+	if !exportsCertified {
+		shared.markComputed("make:export-uncertified")
+	}
 	uncertified = uncertified || !exportsCertified || !parsed.recipeShellCertified()
 	shared.readPaths(fileExpander.readPaths)
 	shared.readPaths(parse.readPaths)
@@ -465,7 +522,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		// assignments or other statements in this file's environment. No
 		// include form is certified until those ordered effects are modeled,
 		// including files with no targets and optional/computed includes.
-		shared.computed = true
+		shared.markComputed("make:include")
 		uncertified = true
 		expander := parsed.expanderAt(parsed.includeAt[index])
 		for _, expanded := range expander.expandAll(include) {
@@ -483,7 +540,12 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			}
 		}
 	}
-	shared.computed = shared.computed || ambiguous || fileExpander.shellAmbiguous || parse.shellAmbiguous
+	if ambiguous {
+		shared.markComputed("make:file-ambiguous")
+	}
+	if fileExpander.shellAmbiguous || parse.shellAmbiguous {
+		shared.markComputed("make:shell-ambiguous")
+	}
 	// A `$(shell ...)` in a recursive value runs only where a recipe expands
 	// it, which certifies it for that recipe's target; one make runs while
 	// reading the file, and a remainder recipe, can run for any target.
@@ -495,6 +557,10 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		rule := parsed.rules[target]
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
 		builder.computed = shared.computed
+		for reason := range shared.reasons {
+			builder.markComputed(reason)
+		}
+		builder.readsTree = shared.readsTree
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {
@@ -524,7 +590,9 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			lineExpander := parsed.expander(auto)
 			lineExpander.limit = rule.prereqAt[index]
 			variants := lineExpander.expandAll(line)
-			builder.computed = builder.computed || lineExpander.ambiguous
+			if lineExpander.ambiguous {
+				builder.markComputed("make:prerequisite-ambiguous")
+			}
 			builder.evaluated = builder.evaluated || lineExpander.evaluated
 			next := make([]string, 0, len(combinations)*len(variants))
 			for _, combination := range combinations {
@@ -533,7 +601,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 				}
 			}
 			if len(next) > driverMaxVariants {
-				builder.computed = true
+				builder.markComputed("make:prerequisite-variants")
 				next = next[:driverMaxVariants]
 			}
 			combinations = next
@@ -581,9 +649,11 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			builder.merge(registry, registry.scanBothOutput(script, parsed.dir))
 		}
 		builder.readPaths(expander.readPaths)
-		builder.computed = builder.computed || expander.ambiguous
+		if expander.ambiguous {
+			builder.markComputed("make:recipe-ambiguous")
+		}
 		builder.evaluated = builder.evaluated || expander.evaluated
-		units = append(units, builder.unit())
+		units = append(units, registry.unit(builder))
 	}
 	return units
 }
@@ -648,6 +718,7 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 	units := make([]Unit, 0, len(workflow.jobs))
 	for _, job := range workflow.jobs {
 		node := jobs.get(job)
+		jobEnv := driverEnvNames(map[string]bool{}, workflow.root.get("env"), node.get("env"), node.get("container").get("env"))
 		builder := newDriverUnitBuilder(driverWorkflowUnitID(workflow.path, job))
 		for _, token := range remainderTokens {
 			builder.tokens[token] = true
@@ -673,7 +744,7 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 		}
 		steps := node.get("steps")
 		if steps != nil && !steps.isSeq {
-			builder.computed = true
+			builder.markComputed("workflow:steps-not-sequence")
 		}
 		if steps != nil && steps.isSeq {
 			for _, step := range steps.items {
@@ -691,7 +762,7 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 				// Flow maps remain scalars in the YAML subset (AZU-V0-9703).
 				// Preserve the job as a computed site instead of skipping it.
 				if !step.isMap {
-					builder.computed = true
+					builder.markComputed("workflow:step-not-map")
 				}
 				registry.uses(builder, step.get("uses").text())
 				script := step.get("run").text()
@@ -707,13 +778,38 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 				if stepShell == "" {
 					stepShell = shell
 				}
-				registry.runStep(builder, driverExpressions(script), cwd, stepShell)
+				registry.runStep(builder, script, cwd, stepShell, driverEnvNames(jobEnv, step.get("env")))
 			}
 		}
 		registry.stripPrefixes(builder, prefixes)
-		units = append(units, builder.unit())
+		units = append(units, registry.unit(builder))
 	}
 	return units
+}
+
+// driverEnvNames returns the lower-cased names of base and of each env
+// block. It returns nil, unknown, when base is nil or a block is present but
+// not a plain mapping: a computed env may export any name (AFP-V0-9623).
+func driverEnvNames(base map[string]bool, blocks ...*driverYAML) map[string]bool {
+	if base == nil {
+		return nil
+	}
+	names := make(map[string]bool, len(base))
+	for name := range base {
+		names[name] = true
+	}
+	for _, block := range blocks {
+		if block == nil {
+			continue
+		}
+		if !block.isMap {
+			return nil
+		}
+		for _, key := range block.keys {
+			names[strings.ToLower(key)] = true
+		}
+	}
+	return names
 }
 
 // driverWorkflowDirectory turns a step's working directory into a scan cwd:
@@ -730,16 +826,37 @@ func driverWorkflowDirectory(value string) string {
 	return joined
 }
 
-// runStep scans one run script. A shell other than sh or bash is read for
-// its literals only and marks the step computed.
-func (registry *driverRegistry) runStep(builder *driverUnitBuilder, script, cwd, shell string) {
+// driverStepShellOptions are the words of GitHub's own bash and sh shell
+// templates, which leave the step's narrowing intact (AFP-V0-9628).
+var driverStepShellOptions = map[string]bool{"{0}": true, "--noprofile": true, "--norc": true, "-e": true, "-eo": true, "pipefail": true}
+
+// runStep scans one run script, raw before its `${{ }}` expressions are
+// replaced. A shell other than sh or bash is read for its literals only and
+// marks the step computed. env holds, lower-cased, every name the workflow's
+// own env blocks export to the step, and is nil when those are unknown.
+func (registry *driverRegistry) runStep(builder *driverUnitBuilder, raw, cwd, shell string, env map[string]bool) {
+	script := driverExpressions(raw)
 	builder.addTokens(script)
 	interpreter := strings.Fields(shell)
 	if len(interpreter) > 0 && interpreter[0] != "bash" && interpreter[0] != "sh" {
-		builder.computed = true
+		builder.markComputed("workflow:shell-unmodelled")
+	}
+	if lower := strings.ToLower(raw); strings.Contains(lower, "github_env") || strings.Contains(lower, "github_path") ||
+		strings.Contains(lower, "github.env") || strings.Contains(lower, "github.path") {
+		// AFP-V0-9626: a write to either file changes the environment or
+		// command path of the job's later steps, however the script names it.
+		builder.markComputed("workflow:github-env-file")
+	}
+	for _, option := range interpreter[min(1, len(interpreter)):] {
+		if !driverStepShellOptions[option] {
+			// AFP-V0-9628: an option such as -a or -o allexport exports
+			// every assignment; no narrowing applies to the step.
+			env = nil
+		}
 	}
 	scan := newDriverScan()
 	scan.source = registry.source
+	scan.envKnown, scan.envNames = env != nil, env
 	scan.scanShell(script, cwd, registry.module)
 	if cwd != "." {
 		scan.scanShell(script, ".", registry.module)
@@ -757,7 +874,7 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	builder.tokens[target] = ValidRelativePath(target)
 	if !ValidRelativePath(target) {
 		delete(builder.tokens, target)
-		builder.computed = true
+		builder.markComputed("workflow:uses-invalid")
 		return
 	}
 	if ids, present := registry.fileUnits[target]; present {
@@ -769,7 +886,7 @@ func (registry *driverRegistry) uses(builder *driverUnitBuilder, value string) {
 	} else {
 		// AZU-V0-9853: unresolved local actions, including those outside
 		// .github/actions, may run checks anywhere in the repository.
-		builder.computed = true
+		builder.markComputed("workflow:uses-unresolved")
 	}
 }
 
@@ -814,18 +931,19 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 	}
 	steps := root.get("runs").get("steps")
 	if steps != nil && !steps.isSeq {
-		builder.computed = true
+		builder.markComputed("workflow:steps-not-sequence")
 	}
 	if steps != nil && steps.isSeq {
 		for _, step := range steps.items {
 			// AZU-V0-9852: use the workflow's fallback for unsupported steps.
 			if !step.isMap {
-				builder.computed = true
+				builder.markComputed("workflow:step-not-map")
 			}
 			registry.uses(builder, step.get("uses").text())
 			if script := step.get("run").text(); script != "" {
 				cwd := driverWorkflowDirectory(step.get("working-directory").text())
-				registry.runStep(builder, driverExpressions(script), cwd, step.get("shell").text())
+				// The caller's step env is unknown here (AFP-V0-9623).
+				registry.runStep(builder, script, cwd, step.get("shell").text(), nil)
 			}
 		}
 	}
@@ -833,7 +951,7 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 		// A JavaScript or container action runs files of its own directory.
 		builder.paths[directory+"/..."] = true
 	}
-	return builder.unit()
+	return registry.unit(builder)
 }
 
 // DriverRevision is one driver file's content at the plan's base and in the

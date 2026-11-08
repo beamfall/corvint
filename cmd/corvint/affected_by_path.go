@@ -102,7 +102,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 		plans[index] = affected.SelectLinked(graph, []string{path})
 		for _, selection := range plans[index].Selected {
 			selectedBy[selection.UnitID]++
-			tests[selection.UnitID] = len(selection.Tests)
+			tests[selection.UnitID] = projectedTestCount(receipt.TestCounts, selection)
 			if selection.Witness.Kind == affected.WitnessUnboundedReader {
 				if _, exists := unbounded[selection.UnitID]; !exists {
 					unbounded[selection.UnitID] = selection.Witness
@@ -125,7 +125,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 				entry.Shared++
 				continue
 			}
-			entry.Additions = append(entry.Additions, affectedByPathUnit{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: len(selection.Tests), Witness: compactWitness(selection.Witness)})
+			entry.Additions = append(entry.Additions, affectedByPathUnit{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: projectedTestCount(receipt.TestCounts, selection), Witness: compactWitness(selection.Witness)})
 		}
 		result.Paths = append(result.Paths, entry)
 	}

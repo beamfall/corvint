@@ -108,6 +108,13 @@ AFP-V0-2346	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's
 AFP-V0-9012	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5018)	standing	2026-10-11; V1-5018
 AFP-V0-9013	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4941)	standing	2026-10-11; V1-4941
 AFP-V0-9014	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9500	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5094)	standing	2026-10-11; V1-5094
+AFP-V0-9501	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5094)	standing	2026-10-11; V1-5094
+AFP-V0-9499	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5162)	standing	2026-10-11; V1-5162
+AFP-V0-9498	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5162)	standing	2026-10-11; V1-5162
+AFP-V0-9310	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-9311	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-9312	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2600	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Ame	standing	2026-10-11; V1-4679
 AFP-V0-548	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3414)	standing	2026-10-11; V1-3414
 AFP-V0-549	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2728)	standing	2026-10-11; V1-2728
@@ -225,6 +232,15 @@ AFP-V0-9011	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-3340	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08) `HEAVY_REMOTE_ENV` is	unrecorded	-
 AFP-V0-3341	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08; amends AFP-V0-2953/2955 and	unrecorded	-
 AFP-V0-3342	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08) Repository assertions and	unrecorded	-
+AFP-V0-9628	docs/specs/affected-plan-selection-v0.md	**Parsed-reference floor and complete-parse narrowing.** (experimental,	unrecorded	-
+AFP-V0-9320	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9321	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9322	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9450	docs/specs/affected-plan-selection-v0.md	Experimental under the owner's avgo charter (2026-11-08; V1-5085).	unrecorded	-
+AFP-V0-9451	docs/specs/affected-plan-selection-v0.md	Experimental under the owner's avgo charter (2026-11-08; V1-4971),	unrecorded	-
+AFP-V0-9400	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4973, V1-5034)	standing	2026-10-11; V1-4973; V1-5034
+AFP-V0-9401	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A litera	standing	2026-10-11; V1-5033
+AFP-V0-9402	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reache	standing	2026-10-11; V1-5033
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -529,6 +545,14 @@ AFP-V0-3127	docs/specs/affected-zero-unknown-v0.md	**Make-reading commands run f
 AFP-V0-3128	docs/specs/affected-zero-unknown-v0.md	**Operand-bounded commands.** (experimental, owner lane selfloor review round 1	unrecorded	-
 AFP-V0-9050	docs/specs/affected-zero-unknown-v0.md	**Exact make function spelling.** (experimental, PR #142 Greptile P1 repair,	unrecorded	-
 AFP-V0-9051	docs/specs/affected-zero-unknown-v0.md	**Unrecordable operands never certify.** (experimental, PR #142 Greptile P1	unrecorded	-
+AFP-V0-9620	docs/specs/affected-zero-unknown-v0.md	**Computed-site reasons are diagnostic.** (experimental, V1-5000 orchestrator	unrecorded	-
+AFP-V0-9621	docs/specs/affected-zero-unknown-v0.md	**Allowlisted `set` options.** (experimental, V1-5000 orchestrator lane	unrecorded	-
+AFP-V0-9622	docs/specs/affected-zero-unknown-v0.md	**Plain local assignments.** (experimental, V1-5000 orchestrator lane charter,	unrecorded	-
+AFP-V0-9623	docs/specs/affected-zero-unknown-v0.md	**Known workflow environments.** (experimental, V1-5000 orchestrator lane	unrecorded	-
+AFP-V0-9624	docs/specs/affected-zero-unknown-v0.md	**`read -r` into local names.** (experimental, V1-5000 orchestrator lane	unrecorded	-
+AFP-V0-9625	docs/specs/affected-zero-unknown-v0.md	**Hidden assignments stay computed.** (experimental, V1-5000 orchestrator lane	unrecorded	-
+AFP-V0-9626	docs/specs/affected-zero-unknown-v0.md	**Environment files stay computed.** (experimental, V1-5000 orchestrator lane	unrecorded	-
+AFP-V0-9627	docs/specs/affected-zero-unknown-v0.md	**Glob `shopt` options; variable-setting builtins.** (experimental, V1-5000	unrecorded	-
 AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
 AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	**Constructed foreign callers.** The shell caller completeness guard SHALL rejec	unrecorded	-
 AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
@@ -1200,6 +1224,7 @@ BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, d
 BBF-V0-217	docs/specs/browser-behavior-falsification-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2688, GH #1789) A request	standing	2026-10-11; V1-2688; #1789
 BBF-V0-218	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2688) Execution rebuilds the plan, which rechecks every storage-st	unrecorded	-
 BBF-V0-219	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2688) Plans, reports and receipts without `authentication` are	unrecorded	-
+CAP-V0-8800	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-08 clicat charter; V1-4846)	owner	2026-11-08; V1-4846
 CAP-V0-9300	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)	owner	2026-11-05; V1-2685
 CAP-V0-9302	docs/specs/capability-catalog-v0.md	(accepted by the owner's 2026-11-05 clicontract repair charter; V1-3738)	owner	2026-11-05; V1-3738
 CAP-V0-7700	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685; partiall	standing	2026-10-11; V1-2685; 2026-11-04
@@ -1411,7 +1436,7 @@ CKC-V0-008	docs/specs/cem-content-keyed-claims-v0.md	Compiled output.	unrecorded
 CKC-V0-009	docs/specs/cem-content-keyed-claims-v0.md	Read and write scope.	unrecorded	-
 CKC-V0-010	docs/specs/cem-content-keyed-claims-v0.md	The PROPOSED header of a claims refresh reports `claims=FILE carried=N reassess=	unrecorded	-
 CKC-V0-011	docs/specs/cem-content-keyed-claims-v0.md	Evidence.	unrecorded	-
-CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	Batched blob reads.	unrecorded	-
+CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	(amended by owner-requested V1-4852, 2026-11-08; integration qualification pendi	unrecorded	-
 CKC-V0-013	docs/specs/cem-content-keyed-claims-v0.md	In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with	unrecorded	-
 CKC-V0-014	docs/specs/cem-content-keyed-claims-v0.md	Carried-only refresh skips the anchor search.	unrecorded	-
 CKC-V0-015	docs/specs/cem-content-keyed-claims-v0.md	Batch blob reader.	unrecorded	-
@@ -2307,6 +2332,8 @@ ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental un
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
 ASD-V0-2402	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3804 a first b	standing	2026-11-03; V1-3804
 ASD-V0-2403	docs/specs/corvint-self-development-selection-v0.md	(deferred 2026-11-04 by the orchestrator, review round e; formerly experimental	standing	2026-11-04; 2026-11-03; V1-4245
+ASD-V0-2477	docs/specs/corvint-self-development-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-5040
+ASD-V0-2478	docs/specs/corvint-self-development-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-5007; V0-2400
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -3931,6 +3958,12 @@ DWC-V0-7600	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimen
 DWC-V0-7601	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
 DWC-V0-7602	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); V1-4721, V1-0527	standing	2026-11-06; V1-4721; V1-0527
 DWC-V0-7603	docs/specs/daily-change-evidence-workflow-companion-v0.md	(experimental under the standing lane auto-accept (2026-11-06); amends	standing	2026-11-06
+DWC-V0-7700	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
+DWC-V0-7701	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
+DWC-V0-7702	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
+DWC-V0-7703	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
+DWC-V0-7704	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043;	standing	2026-11-07; V1-5043
+DWC-V0-7705	docs/specs/daily-change-evidence-workflow-companion-v0.md	(accepted under the owner's standing auto-accept (2026-11-07); V1-5043)	standing	2026-11-07; V1-5043
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -4826,6 +4859,7 @@ DCR-V1-985	docs/specs/documentation-corpus-verified-reads-v1.md	(experimental un
 DCR-V1-845	docs/specs/documentation-corpus-verified-reads-v1.md	The `DCP-V1-314` checkout stamp is also unavailable when a stamped directory	unrecorded	-
 DCR-V1-846	docs/specs/documentation-corpus-verified-reads-v1.md	A checkout the stamp does not cover (a linked worktree or submodule gitfile, an	unrecorded	-
 DCR-V1-847	docs/specs/documentation-corpus-verified-reads-v1.md	A stamped directory with more than 1,024 recorded entries describes them in chun	unrecorded	-
+DCW-V0-8760	docs/specs/dogfood-citation-plan-precheck-v0.md	(owner-requested V1-4851, 2026-11-08; integration qualification pending) When th	unrecorded	-
 DCW-V0-7401	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3977) A no-dif	standing	2026-10-11; V1-3977
 DCW-V0-7402	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4569) The revi	standing	2026-10-11; V1-4569
 DCW-V0-7403	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4169) Inputs-c	standing	2026-10-11; V1-4169
@@ -5675,6 +5709,7 @@ DTL-V0-013	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's sta
 DTL-V0-014	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3824; refines	standing	2026-10-11; V1-3824
 DTL-V0-015	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
 DTL-V0-016	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
+DTL-V0-017	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4722
 ASD-V0-2190	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash	standing	2026-11-03; V1-4333
 ASD-V0-2191	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane	standing	2026-11-03; V1-4333
 ASD-V0-2192	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334
@@ -6203,6 +6238,7 @@ MCJ-V0-016	docs/specs/map-coverage-join-v0.md	Every `covered-by-representative` 
 MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shadow first: CI computes it, runs every test anyw	unrecorded	-
 MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
 MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
+MCJ-V0-025	docs/specs/map-coverage-join-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4944
 MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938

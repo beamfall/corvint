@@ -126,6 +126,91 @@ its new regression witnesses, restoring conservative unindexed-source fallback; 
 existing fixture classification and frozen output contracts. Non-goals: a new source-kind
 protocol, changing digest bytes, and broadening the session unknown allowlist.
 
+- `AFP-V0-9500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5094)
+  Amending AFP-V0-2402 at the execution boundary, the CI selector and local test runner SHALL
+  consume one qualified root-Go package contract.
+  Starting from conservative attribution, a fresh observation through the existing Go planner
+  SHALL supply each exclusion: a graph-bound no-dependency certificate, a recomputed additive
+  exclusion against the immutable base, or an observed unit with no tests. Receipt-selected
+  packages and freshly witnessed selections SHALL be unioned, never intersected away. A
+  supplied additive claim SHALL NOT certify its own exclusion. A partial observation SHALL
+  retain the Go test holders of unobserved declared runtime targets with a named reason.
+  Unknown, malformed, capped,
+  unreadable or unsupported inputs SHALL retain the wider attribution or produce a named FULL
+  fallback. Every dirty path SHALL pass validation before a nested-module downgrade to NOTHING.
+  Missing base evidence SHALL disable additive narrowing. The legacy selector APIs,
+  receipt and manifest shapes, exit codes and stderr contracts stay unchanged. Re-observation
+  is bounded by the existing graph bounds and a two-minute context. The pinned CI executable
+  and tested checkout remain the authority; a receipt is not an authentication mechanism.
+- `AFP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5094)
+  `make selection-contract-check`, via `script/selection-contract-check.sh`, SHALL replay the
+  actual selector and `corvint test --profile ci --dry-run` over every selection-baseline range
+  and SHALL fail on either a root-Go package difference or an undeclared scope difference.
+  `doc-gates` SHALL include this target. The check SHALL bypass result caches that do not bind
+  parity. Permitted execution differences are test-function slicing, placement/order, non-Go
+  adapters and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
+  The workflow's separate `.github/` FULL guard is outside this package-selection comparison.
+  Same-scope FULL means both run the root universe, never a zero-package narrow success.
+  FULL coverage SHALL match an independent Go listing of the replayed root, including explicit
+  hidden root packages; missing, truncated or unrecognized coverage evidence SHALL fail.
+  Report driver-minus-shadow package counts and package-seconds only from observed evidence;
+  a replay not executed SHALL remain NOT_RUN with its reason. Before/after evidence and
+  outstanding CI pin/control-plane work SHALL be retained in the V1-5094 build-log entry.
+
+- `AFP-V0-9499`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5162)
+  Amending AFP-V0-9501's cache bypass, `selection-contract-check` SHALL share
+  `selection-baseline-check`'s input decision, skipping only a diff disjoint from the replayed
+  binaries' compilation closure and the driver's reads, and SHALL replay at the default
+  parallelism. It SHALL reuse only result-cache records whose key binds
+  `SELECTION_CONTRACT_CHECK`, so a record that never ran the parity assertions cannot pass.
+  Failure mode: PR 145's serial cache-off second replay exceeded doc-gates' 30-minute cap.
+  Rollback: restore the serial cache-off invocation in `script/selection-contract-check.sh`.
+
+- `AFP-V0-9498`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5162)
+  Amending AFP-V0-9501's doc-gates membership, `selection-baseline-check` SHALL run its one
+  corpus replay with `SELECTION_CONTRACT_CHECK=1`, asserting the AFP-V0-9501 root-Go parity
+  together with its floor and miss check, except when `SELECTION_BASELINE_OUT` records results.
+  `doc-gates` SHALL NOT also run `selection-contract-check`, which stays a standalone target.
+  Under CI cadence DEFER both stay NOT_RUN on the pull request and run in the nightly gates.
+  Failure mode: two concurrent full replays on a 4-CPU runner overran doc-gates' 30-minute cap.
+  Rollback: restore `selection-contract-check` to `DOC_GATE_TARGETS` and drop the env prefix.
+
+### Unindexed hosted Swift fixtures (V1-4941)
+
+- **AFP-V0-9310:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) A Swift claim on an unindexed `Package.swift` below a Go-hosted `testdata`
+  directory SHALL be treated as fixture build metadata, even when Swift lists target files
+  below that directory, only when the existing `swift:exclusion-evidence-unrepresentable`
+  frontier carries its declared suite obligation. Empty or unfamiliar frontier forms retain
+  the source claim and FULL; they SHALL NOT fall through to the fixture-only exception.
+  With no other source claimant the admitted path retains `UNOWNED_DIRTY_PATH`,
+  rather than `UNINDEXED_SOURCE_PATH`. Its Swift claimant and all bearing frontiers remain:
+  the manifest can change its targets and their dependencies, so a narrowed execution plan
+  still accounts for the declared Swift suite. The manifest also participates in unowned-path
+  frontier checks for every other plugin, including computed readers and undeclared frontier
+  forms; claimant participation SHALL NOT substitute for those checks.
+  Existing enclosing-package, literal-reader,
+  declared-scope and unbounded-reader rules continue to select readers. No new hint, wire
+  member, reason code or unknown allowance is introduced. An unhosted manifest, a manifest
+  outside `testdata`, another source claimant, or a claimant's unobserved directory SHALL
+  retain the existing conservative classification. Ordinary `.swift` source files do not
+  gain this metadata exception; the existing fixture-only rule still applies where proved.
+- **AFP-V0-9311:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) The confined Go read-data shortcut SHALL apply only after classification as
+  `UNOWNED_DIRTY_PATH`. Read confinement proves readers of data, never the absence of missing
+  compiler dependency edges: an unindexed compiled source, including one below `testdata`,
+  SHALL retain its source uncertainty and force FULL through the existing consumers. The
+  admitted-deletion rules remain separate and unchanged.
+- **AFP-V0-9312:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) Regression evidence SHALL carry the Swift fixture shape from mbapproved head
+  `12b66eb3907ea8da99e51216df9584cd84304bf6` through affected selection, the structural Go
+  selector and the session manifest builder. Disk and immutable graphs SHALL agree; the
+  manifest fixture SHALL keep its enclosing and literal Go readers and Swift suite, exclude
+  an unrelated Go test, and stay NARROWED with uncertainty visible. Omitted compiled Go and
+  Swift source controls SHALL force FULL. A replay on the historical tree SHALL retain its
+  exact dirty-path scope, counts and limits; it does not establish hidden-package execution
+  completeness or authorize a whole-repository gate.
+
 ### Located runner locality (V1-4679)
 
 - **AFP-V0-2600:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Amending AFP-V0-511 (4): for a plugin that owns no dirty source, has no reached
@@ -2080,8 +2165,137 @@ effect for caller/clone/worktree files and their symlinks, a file in an unrelate
 `docs/build-log/2026-11-08-heavy-envfile-bounded.md`. No wire format or command flag changes.
 Rollback: revert the checked operand and analyzer rule together, restore the conservative floor
 and its declarations. Non-goal: prove what trusted host configuration executes after it loads.
+### Driver narrowing after the convergence cap (V1-5000)
+
+- **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
+  owner-requested V1-5000 convergence-cap redesign, 2026-11-08; supersedes review round 1)
+  The scanner SHALL retain parsed local declarations and command references in every scope,
+  including make recipes and opaque inline shells. A locally declared command prefix SHALL
+  stay computed even where the earlier root-like `$VAR/` rule would otherwise admit it.
+  AFP-V0-9621, AFP-V0-9622, AFP-V0-9624 and AFP-V0-9627 MAY remove a computed reason only
+  after the entire script has been parsed with no unsupported construct and no parsed use of
+  an assigned/read local. References in operands, redirects and substitutions count as uses;
+  unknown indirect or arithmetic references count as any local. Raw-text whole-word occurrence
+  counting SHALL NOT justify removal of a computed site.
+
+  Backslash-newline continuations SHALL be joined before keyword/name recognition, and escaped
+  names decoded before reference analysis. These spellings still disqualify narrowing. The
+  scanner SHALL fail closed for every loop variable (including an unused lowercase variable),
+  escaped or quoted command/declaration names, continuations, function definitions in any
+  spelling, `source`/`.`, `eval`, `set -a`/`allexport`, opaque inline scripts, indirect/arithmetic
+  contexts, unsupported wrappers/control flow, incomplete words or here-docs, here-doc
+  delimiters containing a backslash, and any other
+  construct not positively understood. Existing path scanning MAY continue after abstention;
+  it SHALL NOT reauthorize narrowing. Revocation restores every provisional computed reason.
+
+  A skipped here-doc body containing `$(`, a backtick, `${` or `$[` SHALL retain a computed fallback,
+  even with a quoted delimiter, no referenced local, or no provisional narrowing. Parsed
+  here-doc parameter uses SHALL also prevent local narrowing. A local used in any command,
+  operand or redirection stays computed (`shell:local-referenced`); code-bearing references
+  additionally retain `shell:local-command-word`. `GITHUB_OUTPUT` references revoke narrowing
+  because values may reach later steps. Existing assigning-expansion, brace/arithmetic
+  substitution and environment-file guards remain in force.
+
+  The admitted subset is deliberately small: fully parsed simple-command scripts with known
+  environments, allowlisted builtins/options and unused plain locals. Conditional assignments
+  and loops are no longer positive cases. Literal local values SHALL NOT be recorded as paths.
+  The inherited root-like exemption for a command with no local declaration remains outside
+  this redesign; this requirement does not claim a complete shell interpreter.
+
+### Frozen affected digests (V1-4710; lane swgold)
+
+- `AFP-V0-9320`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  Corvint's repository policy MUST declare `cmd/corvint/core_freeze_test.go` as must-run,
+  naming `TestCoreVerbsEmitTheFrozenProfiles` and its affected graph/excluded digest purpose.
+  Every nonempty affected plan therefore retains its whole Go package, including changes
+  whose dependency paths do not reach the test. This deliberately broad baseline trades
+  additional local verification cost for protection against unmodelled digest dependencies;
+  it adds no planner special case, wire member, error code or frozen-output change.
+- `AFP-V0-9321`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  Regression evidence MUST fix a graph-changing diff and a separate exclusion-only diff,
+  verify that the claimed digests really change, and assert selection of the frozen test
+  under the repository's actual declaration. Exercise worktree, staged and committed ranges.
+  Undeclared controls MUST demonstrate that an unrelated frozen test can otherwise be omitted.
+  Retain the reproduction attempt against the pinned public base even when it does not
+  reproduce the historical incident; a failed reproduction is not proof of universal soundness.
+- `AFP-V0-9322`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  The affected plan's runnable Go provider and advisory verification command MUST include
+  the frozen test's package, and downstream test slicing MUST keep it whole. An edit to
+  another test cannot narrow away the frozen test. If the declared test file disappears,
+  retain the existing contradicted-declaration refusal instead of silently dropping the guard.
+  A clean range remains empty under the existing must-run contract. Acceptance is selection
+  and verification-plan coverage, not permission to update a failing frozen golden.
+
+- **AFP-V0-9450:** Experimental under the owner's avgo charter (2026-11-08; V1-5085).
+  Go literal path readers SHALL retain each traversed file or directory symlink and its
+  repository-relative target as additive read dependencies, including intermediate links and
+  missing target leaves. Components SHALL resolve before parent traversal is normalized.
+  Unreadable, cyclic, over-bound or escaping links SHALL retain unbounded reads; a source
+  without a link-reading contract SHALL NOT certify a symlink target. Ordinary sibling files
+  SHALL NOT become dependencies of a fully resolved literal solely because a directory link
+  was traversed. Existing lexical, declared-scope and uncertainty rules remain authoritative.
+  Tests: `TestLiteralSymlinkReaders_AFPV09450` in
+  `internal/liveverify/affected/golang/literal_links_test.go`.
+
+- **AFP-V0-9451:** Experimental under the owner's avgo charter (2026-11-08; V1-4971),
+  amending AFP-V0-035 and AFP-V0-990's Go `testCount` semantics without changing their members.
+  Compact and by-path Go counts SHALL count statically runnable top-level Test and Fuzz
+  functions and examples with output in the selected test files, using Go's discovery name
+  and signature rules. Benchmarks, methods, helpers, output-free examples and the TestMain
+  main hook SHALL NOT count. This is the observed graph's static function inventory across
+  build variants, not a count of subtests, fuzz cases, executed tests or successful outcomes.
+  An unreadable or unparsable selected file, or invalid discovered test signature, SHALL
+  yield `-1` (unavailable), never a fabricated zero or a test-file count. Counts SHALL be
+  captured before the existing worktree drift recheck and before snapshot cleanup; projection
+  SHALL NOT reread mutable source. Non-Go counts and full selected test-file lists remain
+  unchanged. Tests: `TestRunnableGoTestCounts_AFPV09451`,
+  `TestAffectedFunctionCounts_AFPV09451`, `TestAffectedCapturedCounts_AFPV09451` and
+  `TestAffectedByPathFunctionCounts_AFPV09451` in `cmd/corvint/affected_test_counts_test.go`.
+
+### Driver input and file-set reads (lane avdrv, 2026-11-08)
+
+- **AFP-V0-9400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-4973, V1-5034) A driver shell scanner that skips a here-document body SHALL retain
+  `driver:computed-invocation` for its target or job. A wrapper may pass that body to
+  an interpreter, save it for later execution, or pass a nested body's output to another
+  command; a literal first command word does not prove the input inert. Quoted and
+  tab-stripped delimiters and unterminated bodies retain the same fallback. Literal
+  `<<` inside a quoted argument is not a redirection. The existing direct
+  `sh <<'A' | sh` nested-body case remains conservative. This rule does not execute
+  the body, infer its language, or claim to have found its hidden execution edges.
+- **AFP-V0-9401:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A literal driver invocation of `git ls-files`, `git grep`, `find`, or `rg`, and a
+  modelled `go run` invocation, SHALL retain a dependency on every repository file.
+  It SHALL use the existing anchored ancestor glob `/*` in `Unit.PathGlobs` when the
+  target or job has no computed-invocation fallback. The file-set edge matches additions,
+  deletions, unindexed paths, dot paths and tested source without requiring the path to
+  exist in the scanner's inventory. Flags, shell expansions in operands, changed working
+  directories and file or directory symlinks SHALL NOT narrow that dependency. A Go
+  program's package dependencies do not bound its runtime reads or its subprocess
+  `Cmd.Dir`; these commands keep the whole-tree bound until a separate proof can narrow
+  it. A pure command mentioning an enumerator as data does not itself enumerate.
+  Ordinary Go build, vet and test invocations retain their existing package edges.
+  File-set reads discovered in shared make evaluation or remainder recipes, including
+  special rules, SHALL propagate to every target builder (avdrv self-review, 2026-11-07).
+- **AFP-V0-9402:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reached driver file-set reader SHALL also reach its driver dependents,
+  including make prerequisites and workflow callers, even when a dirty path has an
+  already tested owner. Existing computed fallbacks and their `FRONTIER_SITE` witnesses
+  SHALL remain intact; an enumerator edge is not a proof that another command in the
+  same target has bounded reads. An empty change selects no file-set reader. Unknown
+  ownership and other frontier reasons remain visible. No new graph fields, plan kinds,
+  reason codes or execution authority are introduced.
+
+The owner-requested lane builds on `205d188261990927b4118f73fdd1c232ccc0e2c7` and retains
+`a7d38e73236cea3a237ce972f3bd50e11e723c29` as its requested evidence base. V1-4684,
+V1-4687 and V1-4690 already have the AZU driver, verified caller and runnable-consumer
+implementations at that head. V1-5087 is left out: changing the stale-runtime-edge refusal
+would violate an existing assertion, and integration into the trusted CI caller is outside
+this lane's allowed paths. These facts and the pending integration checks are recorded in
+`docs/build-log/2026-11-08-avdrv.md`; no runtime-edge compatibility relaxation is claimed.
 
 ## Non-goals
+
+V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
+committed goldens, Core profiles, or digest encodings. It makes no claim about unrelated
+repositories without this repository-owned must-run declaration.
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
 literals, a runtime read trace, or symbol-level reachability inside a hub package (V1-3282,
@@ -2152,6 +2366,15 @@ bound dropped a value the file gives. AFP-V0-3145 does not recognise `[[` after 
 repository script uses either form.
 
 ## Failure modes
+
+For V1-4941, treating every hosted source as data could hide an omitted compiled dependency.
+Only the Swift package manifest gains the metadata exception; ordinary source omissions and
+unobserved directories keep uncertainty. Treating a manifest as irrelevant could omit its Swift
+suite: claimant/frontier participation is preserved and the consumer regression requires that
+suite. Rollback removes the manifest exception and the read-data classification guard together
+with their new witnesses; this restores the prior FULL fallback and its documented confinement
+soundness limitation, without changing any protocol or execution-universe rule.
+
 
 The parent contract's failure codes apply. A fixture marker on a literal the test really reads is
 an author error. It narrows that read the same way ASD-V0-895 does for `test-read-scopes-check`, so
@@ -2261,11 +2484,38 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
+For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
+spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
+`TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
+opaque scopes and unsupported/incomplete syntax (including here-doc `$[n]`); `TestDriverReviewCounterexamples_AFP_V0_9628`
+holds both decodings of a backslashed here-doc delimiter computed. The existing AFP-V0-9621 through AFP-V0-9628
+cases remain the compatibility floor, with conditional assignment and unused-loop positives
+changed deliberately. Evidence and the convergence-cap decision are in
+`docs/build-log/2026-11-08-v1-5000-redesign.md`.
+
+The avdrv additions are build-only candidates; their new regressions have not been executed
+in the lane. The integration branch must run the complete affected package and independent
+review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check results and limits.
+
+| Requirement | Implementation | Regression witness (pending execution) |
+|---|---|---|
+| AFP-V0-9400 | `driverShellScanner.script` in `internal/liveverify/affected/driver_shell.go` | `TestDriverHeredocConsumers_AFPV09400` in `internal/liveverify/affected/driver_avdrv_test.go`: wrapper, generated script, substitution, nested output, unclosed and tab-stripped body; workflow selection and quoted-text controls |
+| AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverSharedEnumeration_AFPV09401`, `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
+| AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses |
+
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; the shard-0 hidden run in `.github/workflows/ci.yml` is pending the separate follow-up `.github` PR (the github-split-check gate refuses a mixed `.github`+code range) | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestWriteSortedPackages_AFPV09012` (`--mode packages` output order), `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`; the workflow-placement evidence (the `TestAFPV0098SupersetGuardSidecar` subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package and a discovery-failure case) is pending and lands with that follow-up PR's `ci.yml` change |
 | AFP-V0-9013 | `seed` guards `goReadData` with `unownedUnknown`; existing `fixtureOnlyClaim`, Go selector and session unknown allowlist | `TestUnindexedFixtureSession_AFPV09013` |
 | AFP-V0-9014 | existing dependency closure and `testSourceSlice` | `TestCoreFreezeDigestSelection_AFPV09014` |
+| AFP-V0-9500 | `internal/gateselect/qualified.go`; `internal/liveverify/affected/selection_contract.go`; `cmd/corvint/test.go`; `tools/gate-affected-select/main.go` | `TestQualifiedSelectionProofAndParity_AFPV09500`, `TestQualifiedSelectionRecomputesAdditive_AFPV09500`, `TestQualifiedSelectionFailsClosed_AFPV09500`, `TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500`, `TestQualifiedSelectionRetainsUnobservedRuntimeReader_AFPV09500`, `TestSelectionContractUnobservedRuntimeReaders_AFPV09500` (positive proof and missing/forged/unknown/capped negative controls) |
+| AFP-V0-9501 | `tools/selection-baseline/contract.go`, `main.go`; `script/selection-contract-check.sh`; `Makefile` | `TestSelectionContractReplay_AFPV09501`, `TestSelectionContractFullCoverage_AFPV09501` (FULL universe coverage; equal sets and declared differences pass; extra, omitted, malformed and scope differences fail); corpus evidence in `2026-11-08-selection-contract.md` |
+| AFP-V0-9499 | `script/selection-contract-check.sh`; `Makefile`; `tools/selection-baseline/cache.go` | `TestCacheEnvironmentKeepsBehaviourVariables_ASCV0778` (`SELECTION_CONTRACT_CHECK` is keyed); the shared decision prints `run`/`skip` like `selection-baseline-check` | implemented |
+| AFP-V0-9498 | `Makefile` (`selection-baseline-check`, `DOC_GATE_TARGETS`) | `TestSelectionReplayRunsOnce_AFPV09498` | implemented |
+| AFP-V0-9500 | nested-module NOTHING downgrade blocked by a declared runtime edge: `runtimeEdgeIntoModule` in `internal/gateselect/qualified.go` | `TestQualifiedSelectionModuleCoverageRuntimeEdges_AFPV09500` (edge into the nested module, unplaceable Go edge and invalid declaration fall back; an edge elsewhere keeps NOTHING); `TestQualifiedSelectionRuntimeEdgesBoundedRead_AFPV09500` (a non-regular or oversized declaration fails closed without opening or fully reading it) |
+| AFP-V0-9310 | `unownedUnknown` in `internal/liveverify/affected/select.go` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; hosted manifest and plain fixture retain readers, Swift suite and UNKNOWN; omitted Swift source keeps FULL; `TestSwiftFixtureComputedReaders_AFPV09310` (computed Ruby reader and unknown frontier retain suites), `TestSwiftFixtureSuiteProof_AFPV09310` (empty and unknown Swift frontiers retain FULL); `TestSwiftFixtureClaimBoundaries_AFPV09310` preserves other claimants and unobserved directories |
+| AFP-V0-9311 | `seed` in `internal/liveverify/affected/select.go` | `TestUnindexedCompiledSourceStillWidens_AFPV09311` in `internal/liveverify/affected/swfix_test.go`; injected omissions in confined compiled sources outside and below testdata keep FULL |
+| AFP-V0-9312 | `Select`, `gateselect.SelectStructural`, `sessiontest.Build` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; disk/immutable parity and consumer integration; historical replay and limits in `../build-log/2026-11-08-swfix.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
@@ -2382,8 +2632,23 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-9010 | Same implementation as the preceding AFP-V0-9010 row | `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
+| AFP-V0-9320, AFP-V0-9321 | `.corvint/test-selection.json` using the existing must-run planner | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` in `cmd/corvint/affected_core_freeze_test.go`; pinned base probe in `../build-log/2026-11-08-swgold.md` |
+| AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
+its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
+here-doc safeguards if a rollback is needed; do not advertise the earlier narrowing as qualified.
+
+For AFP-V0-9320 to AFP-V0-9322, revert the must-run declaration and its regression together;
+this restores the prior selection policy and loses the explicit digest guard. No encoding,
+golden or cache migration is needed.
+
+For AFP-V0-9400..9402, revert the avdrv scanner, builder and driver-dependent traversal
+changes together. No persisted wire migration or declaration rewrite is required. Reversion
+restores the known wrapper-heredoc and literal enumerator selection gaps; keep those cases
+UNKNOWN or run the full affected scope until a replacement passes integration verification.
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
@@ -2476,3 +2741,9 @@ For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, 
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
 line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
 the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
+
+For AFP-V0-9500 and AFP-V0-9501, restore the callers' legacy `Select` and
+`SelectStructuralIndexed`/plan projection paths, remove the parity target from doc-gates,
+and roll back both trusted CI pins together. No receipt migration is needed. Until corpus
+qualification and the separate CI pin/control-plane change land, this contract is experimental;
+no measured CI saving or qualified deployment is claimed.

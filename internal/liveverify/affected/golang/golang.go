@@ -453,6 +453,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var kindReads unboundedReads
 	var kindLeafReads []string
 	moves := false
+	linkListings := map[string][]fs.DirEntry{}
 	fileSet := token.NewFileSet()
 	// The disk walk drops a symlinked .go file, though the build compiles its
 	// target as one of this package's files: read the target under the link's
@@ -534,6 +535,24 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			globs[glob] = true
 		}
 		for _, name := range scan.tokens {
+			if !scan.fixtureOnly(name, isTest) && (kinds == nil || len(kinds) > 0) {
+				// AFP-V0-9450: a literal can cross directory or file aliases.
+				// Keep the written token as well as every resolved dependency.
+				if links, uncertain := literalLinks(root, directory, name, linkListings); uncertain {
+					fileReads.mark(relative+" has an unresolved symbolic-link read", isTest)
+				} else {
+					for _, target := range links {
+						pattern := literalLinkGlob(target)
+						globs[pattern] = true
+						// A literal may name a directory consumed by ReadDir/Walk.
+						// Keep its descendants as the ordinary literal rule does.
+						if target == "." {
+							pattern = ""
+						}
+						globs[pattern+"/**"] = true
+					}
+				}
+			}
 			if !scan.fixtureOnly(name, isTest) {
 				names[name] = true
 			}
