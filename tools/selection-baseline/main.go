@@ -501,6 +501,12 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 	fillManifest(&res, m)
 	checkFailures(&res)
 	checkAgreement(&res, p, m)
+	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
+		if err := contractAgreement(audit, m); err != nil {
+			return res, fmt.Errorf("%s: %w", c.ID, err)
+		}
+		fmt.Fprintf(os.Stderr, "selection-contract: %s PASS scope=%s driver-minus-shadow=0 package-seconds=0 (same package set)\n", c.ID, m.Scope)
+	}
 	return res, nil
 }
 
@@ -853,7 +859,11 @@ func moduleOf(name string) (string, error) {
 // records that. A historic head can lack a declaration the current binary
 // needs, such as the cfamily one a bearing frontier adds (AFP-V0-2750).
 func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
-	_, err := run(ctx, dir, corvint, "test", "--base", base, "--dry-run", "--manifest", manifestPath)
+	args := []string{"test", "--base", base, "--dry-run", "--manifest", manifestPath}
+	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
+		args = append(args, "--profile", "ci")
+	}
+	_, err := run(ctx, dir, corvint, args...)
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 3 {
 		if info, statErr := os.Stat(manifestPath); statErr == nil && info.Mode().IsRegular() {

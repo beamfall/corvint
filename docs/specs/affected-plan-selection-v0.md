@@ -73,6 +73,35 @@ measure. None of them drops a unit the change can reach.
 
 ## Requirements
 
+- `AFP-V0-9500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5094)
+  Amending AFP-V0-2402 at the execution boundary, the CI selector and local test runner SHALL
+  consume one qualified root-Go package contract.
+  Starting from conservative attribution, a fresh observation through the existing Go planner
+  SHALL supply each exclusion: a graph-bound no-dependency certificate, a recomputed additive
+  exclusion against the immutable base, or an observed unit with no tests. Receipt-selected
+  packages and freshly witnessed selections SHALL be unioned, never intersected away. A
+  supplied additive claim SHALL NOT certify its own exclusion. A partial observation SHALL
+  retain the Go test holders of unobserved declared runtime targets with a named reason.
+  Unknown, malformed, capped,
+  unreadable or unsupported inputs SHALL retain the wider attribution or produce a named FULL
+  fallback. Missing base evidence SHALL disable additive narrowing. The legacy selector APIs,
+  receipt and manifest shapes, exit codes and stderr contracts stay unchanged. Re-observation
+  is bounded by the existing graph bounds and a two-minute context. The pinned CI executable
+  and tested checkout remain the authority; a receipt is not an authentication mechanism.
+- `AFP-V0-9501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5094)
+  `make selection-contract-check`, via `script/selection-contract-check.sh`, SHALL replay the
+  actual selector and `corvint test --profile ci --dry-run` over every selection-baseline range
+  and SHALL fail on either a root-Go package difference or an undeclared scope difference.
+  `doc-gates` SHALL include this target. The check SHALL bypass result caches that do not bind
+  parity. Permitted execution differences are test-function slicing, placement/order, non-Go
+  adapters and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
+  The workflow's separate `.github/` FULL guard is outside this package-selection comparison.
+  Same-scope FULL means both run the root universe, never a zero-package narrow success.
+  Report driver-minus-shadow package counts and package-seconds only from observed evidence;
+  a replay not executed SHALL remain NOT_RUN with its reason. Before/after evidence and
+  outstanding CI pin/control-plane work SHALL be retained in the V1-5094 build-log entry.
+
+
 ### Located runner locality (V1-4679)
 
 - **AFP-V0-2600:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Amending AFP-V0-511 (4): for a plugin that owns no dirty source, has no reached
@@ -2148,6 +2177,8 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-9500 | `internal/gateselect/qualified.go`; `internal/liveverify/affected/selection_contract.go`; `cmd/corvint/test.go`; `tools/gate-affected-select/main.go` | `TestQualifiedSelectionProofAndParity_AFPV09500`, `TestQualifiedSelectionRecomputesAdditive_AFPV09500`, `TestQualifiedSelectionFailsClosed_AFPV09500`, `TestQualifiedSelectionRetainsUnobservedRuntimeReader_AFPV09500`, `TestSelectionContractUnobservedRuntimeReaders_AFPV09500` (positive proof and missing/forged/unknown/capped negative controls) |
+| AFP-V0-9501 | `tools/selection-baseline/contract.go`, `main.go`; `script/selection-contract-check.sh`; `Makefile` | `TestSelectionContractReplay_AFPV09501` (equal sets and declared differences pass; extra, omitted, malformed and scope differences fail); corpus evidence in `2026-11-08-selection-contract.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
@@ -2358,3 +2389,9 @@ For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, 
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
 line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
 the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
+
+For AFP-V0-9500 and AFP-V0-9501, restore the callers' legacy `Select` and
+`SelectStructuralIndexed`/plan projection paths, remove the parity target from doc-gates,
+and roll back both trusted CI pins together. No receipt migration is needed. Until corpus
+qualification and the separate CI pin/control-plane change land, this contract is experimental;
+no measured CI saving or qualified deployment is claimed.
