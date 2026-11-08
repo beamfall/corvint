@@ -77,7 +77,12 @@ Other docs cite this paragraph instead of repeating it.
 `script/heavy.sh` is a host-wide counting semaphore: `HEAVY_SLOTS` commands run at once (default
 CPUs/4, so 3 on 12 CPUs), the rest wait quietly and print `heavy.sh: slot N/M after Ss` when
 admitted. Each admitted command gets `GOFLAGS=-p=HEAVY_P` (default CPUs/slots) unless `GOFLAGS`
-already sets `-p`; an explicit `-p` argument still wins. Slots are `flock(2)` locks in
+already sets `-p`; an explicit `-p` argument still wins. Local runs also export
+`GOMAXPROCS=par`, the validated slot share, unless the caller already set it (ASD-V0-2477,
+V1-5040). This caps the Go runtime inside a test binary as well as build concurrency; an argv
+`GOMAXPROCS=N` or `env GOMAXPROCS=N` wins. Selection-baseline replay workers follow this runtime
+share (or HEAVY_P when GOMAXPROCS is unset), with SELECTION_BASELINE_JOBS as an explicit override
+(DTL-V0-017). Slots are `flock(2)` locks in
 `HEAVY_LOCK_DIR` (default `/tmp/corvint-heavy-<uid>`). The command inherits the locked descriptor
 and runs in its own process group, so the slot stays held while the workload runs even if the
 wrapper is killed, INT/TERM/HUP reach the whole group, and the kernel releases the slot when the
@@ -99,6 +104,13 @@ holder's token `slotN.inner` or any free slot, whichever frees first. It never w
 slot of its own, so nesting cannot deadlock, and it skips the load gate (ASD-V0-931). Each local run
 ends with `heavy.sh: done queue=Ns (load=Ns slot=Ns) run=Ns rc=N`, so queue wait and run time are
 read apart (ASD-V0-935).
+
+Source-edit admission (ASD-V0-2478, V1-5007). With no narrower line-level selection,
+heavy.sh admits a whole `./package` when a non-test `.go` file directly in that package changed
+since the merge base with origin/main, including staged, unstaged and untracked source. Every
+named package must qualify. No HEAVY_WHOLE_REASON is needed, including when a pre-commit caller
+uses this runner. A `_test.go`-only edit still uses its changed-test selection; it grants no new
+whole-package authority. Existing manifest-based line selection remains available.
 
 Go defaults (ASD-V0-938, ASD-V0-939). A `go test` with no `-timeout` gets `-timeout 30m`
 (`HEAVY_GO_TEST_TIMEOUT`, `off` adds none), so a loaded host never trips Go's 600 s default. A

@@ -2304,6 +2304,8 @@ ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental un
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
 ASD-V0-2402	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3804 a first b	standing	2026-11-03; V1-3804
 ASD-V0-2403	docs/specs/corvint-self-development-selection-v0.md	(deferred 2026-11-04 by the orchestrator, review round e; formerly experimental	standing	2026-11-04; 2026-11-03; V1-4245
+ASD-V0-2477	docs/specs/corvint-self-development-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-5040
+ASD-V0-2478	docs/specs/corvint-self-development-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-5007; V0-2400
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -5643,6 +5645,7 @@ DTL-V0-013	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's sta
 DTL-V0-014	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3824; refines	standing	2026-10-11; V1-3824
 DTL-V0-015	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
 DTL-V0-016	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
+DTL-V0-017	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4722
 ASD-V0-2190	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash	standing	2026-11-03; V1-4333
 ASD-V0-2191	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane	standing	2026-11-03; V1-4333
 ASD-V0-2192	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334
@@ -6171,6 +6174,7 @@ MCJ-V0-016	docs/specs/map-coverage-join-v0.md	Every `covered-by-representative` 
 MCJ-V0-017	docs/specs/map-coverage-join-v0.md	Shared-step exclusion runs in shadow first: CI computes it, runs every test anyw	unrecorded	-
 MCJ-V0-018	docs/specs/map-coverage-join-v0.md	A miss marks that equivalence class divergent in the next index until a blob in	unrecorded	-
 MCJ-V0-019	docs/specs/map-coverage-join-v0.md	The join and shared-step analysis MUST keep the LPCV-V0-958 plan within p95 ≤ 10	unrecorded	-
+MCJ-V0-025	docs/specs/map-coverage-join-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4944
 MMR-V0-001	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) `corvint-mcp` MUST accept	owner	decision 0441; V1-0938
 MMR-V0-002	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) An alias MUST match	owner	decision 0441; V1-0938
 MMR-V0-003	docs/specs/mcp-multi-root-v0.md	(accepted by decision 0441; V1-0938) Every declared root MUST be validated	owner	decision 0441; V1-0938

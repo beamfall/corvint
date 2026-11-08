@@ -122,6 +122,13 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   clean up only this invocation's temporary, and retain the cause with `dogfood-report-write`.
   Successful replacement MUST also remove its temporary. Verifier agreement and bindings stay unchanged.
 
+- `DTL-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); heavycap charter 2026-11-07; V1-4722; refines DTL-V0-006)
+  Replay worker count MUST default to a positive GOMAXPROCS environment value, else positive
+  HEAVY_P, else the running Go runtime's GOMAXPROCS. A positive SELECTION_BASELINE_JOBS MUST
+  override that default. Invalid values fall through to the next source; the change count bounds
+  workers, with at least one. JSON bytes, diagnostics order, floor, miss and fallback results MUST
+  be independent of the admitted worker count.
+
 ## Non-goals and failure modes
 
 No authority from same-change specifications; no narrowing of unbounded readers; no cache reuse or
@@ -163,6 +170,7 @@ handback. Full repository and external interoperability qualification are outsid
 | DTL-V0-014 | script/heavy.sh; lane-binary-check.sh; lane-stage-inputs.sh | TestDTLV0014DiskHeadroom; TestDTLV0014ScratchRootRecovery; TestDTLV0014RelativeScratchRootTerminates; lane admission fixtures |
 | DTL-V0-015 | script/requirement-ids-free.sh; requirement-id-collisions.sh | TestDTLV0015FourDigitBlocks; TestDTLV0015FourDigitOpenRefCollision; retained charter-block checks |
 | DTL-V0-016 | internal/dogfoodflow/check.go; .gitignore; docs/DOGFOOD.md | TestDTLV0016ReportPublication; retained cross-mount check |
+| DTL-V0-017 | `replayJobs` in tools/selection-baseline | `TestDTLV0017ReplayJobs`, `TestDTLV0017ReplayBytesIndependentOfWorkers`: real cloned replays at 1, 2, 3 and 8 workers preserve JSON and diagnostics |
 
 ## Rollout and rollback
 
@@ -171,3 +179,5 @@ restore serial doc gates with DOC_GATE_JOBS=1; restore the closed FS admission s
 MapFS. Revert diagnostic and scratch changes independently. No old receipts or traces are erased.
 Reverting DTL-V0-016 restores Git-directory staging and its cross-filesystem refusal; keep any
 unfinished local report temporary ignored until its operator disposes of it.
+
+Revert DTL-V0-017 to restore the CPU-count replay default; no result format migration is needed.
