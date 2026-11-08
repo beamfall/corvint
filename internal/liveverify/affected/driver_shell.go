@@ -396,6 +396,12 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 			break
 		}
 		switch {
+		case char == '\\' && inDouble && position+1 < len(line) && strings.IndexByte("$`\"\\", line[position+1]) < 0:
+			// Inside double quotes Bash keeps a backslash that does not
+			// precede $, `, ", or \ (so <<"\true" ends at \true, not true).
+			escaped = true
+			text.WriteByte('\\')
+			position++
 		case char == '\\' && position+1 < len(line):
 			escaped = true
 			text.WriteByte(line[position+1])
