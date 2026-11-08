@@ -12,6 +12,10 @@
     "internal/analyzercap": {
       "cmd/": "internal/analyzercap/source_ceiling_test.go TestCandidateSourceCeilingPerExecutable lists cmd/ (os.ReadDir) to enumerate every corvint-analyzer-* candidate, so a new directory under cmd/ changes its result (AFP-V0-3011 (1))"
     },
+    "internal/companionrelease": {
+      "cmd/": "internal/companionrelease/companion_cli_contract_test.go buildContractCompanions builds ./cmd/<name> for each entry of the computed contractCompanions list, which the check does not model (AFP-V0-3011 (3))",
+      "internal/": "internal/companionrelease/companion_cli_contract_test.go buildContractCompanions builds a computed list of ./cmd/ companions, so their import closures below internal/ cannot be declared as checked entries (AFP-V0-3011 (3))"
+    },
     "internal/diagnostic": {
       "cmd/": "internal/diagnostic/gate_test.go treeSources walks cmd/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))",
       "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"
@@ -19,6 +23,17 @@
     "internal/langplugin": {
       "cmd/": "internal/langplugin/langplugin_test.go lists cmd/ (os.ReadDir) so every corvint-analyzer-* directory belongs to a language plugin (AFP-V0-3011 (1))",
       "internal/": "internal/langplugin/langplugin_test.go lists internal/liveverify/affected, walks each plugin directory, and follows imports by globbing *.go of each imported package, which can reach any package below internal/ (AFP-V0-3011 (1))"
+    },
+    "internal/obscorpus": {
+      "benchmarks/": "internal/obscorpus/obscorpus_test.go walks every production Go file under benchmarks/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
+      "cmd/": "internal/obscorpus/obscorpus_test.go walks every production Go file under cmd/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
+      "conformance/": "internal/obscorpus/obscorpus_test.go walks every production Go file under conformance/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
+      "experiments/": "internal/obscorpus/obscorpus_test.go walks every production Go file under experiments/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
+      "internal/": "internal/obscorpus/obscorpus_test.go walks every production Go file under internal/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
+      "tools/": "internal/obscorpus/obscorpus_test.go walks every production Go file under tools/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read"
+    },
+    "internal/proctrace": {
+      "internal/": "internal/proctrace/trace_test.go TestRSPV0020ImportDirection runs go list with a {{.Deps}} template over ../../cmd/corvint, whose whole dependency closure the check does not model without -deps (AFP-V0-3011 (3))"
     },
     "tools/capabilities-check": {
       "cmd/": "tools/capabilities-check/check.go scanBinaries lists cmd/ and each cmd/* directory, and ScanLiterals walks every non-test Go file below cmd/; the tests run both on the repository (AFP-V0-3011 (1))",
@@ -28,6 +43,9 @@
     },
     "tools/ci-forward-row": {
       ".github/": "tools/ci-forward-row/forwardrow_test.go runs the .github/forward-rows scripts, which compute repository paths at run time, and epoch_test.go reads ../../.github/workflows/ plus a file name held in a variable (AFP-V0-3011 (1), (4))"
+    },
+    "tools/cli-discovery-gen": {
+      "cmd/": "tools/cli-discovery-gen/install_test.go TestTCLV07703CompleteBoundedInstall lists ../../cmd (os.ReadDir) to stage one stub per executable directory, so any new cmd/ directory is a measured read"
     },
     "tools/corvint-pr-tests": {
       "cmd/": "tools/corvint-pr-tests/main_test.go builds and tests through the command helper of main.go, which the check does not model, including go test ./... over the tested root (AFP-V0-3011 (3))",
