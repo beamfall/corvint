@@ -241,6 +241,7 @@
         "internal/dogfoodocm",
         "internal/dogfoodoperation",
         "internal/frictionmetric",
+        "internal/mergedrivers",
         "internal/perfbudget"
       ]
     },
