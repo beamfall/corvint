@@ -324,6 +324,9 @@ func TestDriverReviewCounterexamples_AFP_V0_9628(t *testing.T) {
 		{". ./ci/setup.sh; set -x; :", driverNoEnv, "shell:sourced"},
 		{"source ./ci/setup.sh\nshopt -s nullglob", driverNoEnv, "shell:builtin-shopt"},
 		{"eval \"$x\"\nset -e", driverNoEnv, "shell:eval"},
+		// Bash keeps the backslash of a double-quoted \t: the here-doc ends at
+		// \true, so the source command runs (V1-5000 redesign review).
+		{"cat <<\"\\true\"\n\\true\n. ./ci/setup.sh\ntrue\nread -r tools", driverNoEnv, "shell:sourced"},
 		// 6: an inline shell with options, or set -a anywhere.
 		{"bash -ac 'read -r npm_config_userconfig < chosen-config; npm ci'", driverNoEnv, "shell:builtin-read"},
 		{"bash -o allexport -c 'out=1'", driverNoEnv, "shell:assignment"},
