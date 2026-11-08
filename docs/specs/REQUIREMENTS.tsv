@@ -5203,6 +5203,35 @@ GFG-V0-004	docs/specs/go-format-gate-v0.md	A file fails when its bytes differ fr
 GFG-V0-005	docs/specs/go-format-gate-v0.md	The failure MUST name each file on its own line and MUST print the exact command	unrecorded	-
 GFG-V0-006	docs/specs/go-format-gate-v0.md	The gate MUST be read-only. It MUST NOT rewrite, stage, or otherwise modify any	unrecorded	-
 GFG-V0-007	docs/specs/go-format-gate-v0.md	A run with nothing to report MUST print nothing and exit zero, and any failure M	unrecorded	-
+GLS-V0-001	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) Writers	standing	2026-10-11; V1-4364
+GLS-V0-002	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) A select	standing	2026-10-11; V1-4364
+GLS-V0-003	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) Opening	standing	2026-10-11; V1-4364
+GLS-V0-008	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) The	standing	2026-10-11; V1-4364
+GLS-V0-009	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) The runn	standing	2026-10-11; V1-4364
+GLS-V0-010	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364)	standing	2026-10-11; V1-4364
+GLS-V0-011	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364)	standing	2026-10-11; V1-4364
+GLS-V0-012	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) The anal	standing	2026-10-11; V1-4364
+GLS-V0-013	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) Only Go	standing	2026-10-11; V1-4364
+GLS-V0-014	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) A NARROW	standing	2026-10-11; V1-4364
+GLS-V0-015	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) The sele	standing	2026-10-11; V1-4364
+GLS-V0-016	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364) The test	standing	2026-10-11; V1-4364
+GLS-V0-017	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364, V1-4365;	standing	2026-10-11; V1-4364; V1-4365
+GLS-V0-018	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4364, V1-4365;	standing	2026-10-11; V1-4364; V1-4365
+GLS-V0-020	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the	standing	2026-10-11; V1-4366
+GLS-V0-030	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365)	standing	2026-10-11; V1-4365
+GLS-V0-031	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) Each mut	standing	2026-10-11; V1-4365
+GLS-V0-032	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) Negative	standing	2026-10-11; V1-4365
+GLS-V0-033	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The repo	standing	2026-10-11; V1-4365
+GLS-V0-034	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The	standing	2026-10-11; V1-4365
+GLS-V0-040	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the	standing	2026-10-11; V1-4366
+GLS-V0-041	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The step	standing	2026-10-11; V1-4366
+GLS-V0-042	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the	standing	2026-10-11; V1-4366
+GLS-V0-043	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) A missin	standing	2026-10-11; V1-4366
+GLS-V0-044	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) Every sh	standing	2026-10-11; V1-4366
+GLS-V0-045	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The	standing	2026-10-11; V1-4366
+GLS-V0-046	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) Miss	standing	2026-10-11; V1-4366
+GLS-V0-047	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) A confir	standing	2026-10-11; V1-4366
+GLS-V0-050	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The buil	standing	2026-10-11; V1-4366
 GLTP-V0-001	docs/specs/go-live-test-provider-v0.md	Each V0 document is one UTF-8 canonical JSON object followed by exactly one LF.	unrecorded	-
 GLTP-V0-002	docs/specs/go-live-test-provider-v0.md	Raw `go test -json` is runner input, not canonical Corvint JSON. Its decoder acc	unrecorded	-
 GLTP-V0-003	docs/specs/go-live-test-provider-v0.md	`H(kind, profile, body)` is lowercase SHA-256 of	unrecorded	-

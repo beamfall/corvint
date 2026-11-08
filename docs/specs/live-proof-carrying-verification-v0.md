@@ -787,11 +787,16 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   changes". This is the only exclusion this section permits. Executed ranges keep their columns: a
   changed line holding code outside every coverage block (a case expression, an `else`) intersects
   every executed range of its enclosing function. Head test names are read under every build
-  constraint, since CI may build with tags such as `-race`; a name no record holds is kept.
+  constraint, since CI may build with tags such as `-race`; a name no record holds is kept. Static
+  source/data-reader dependencies remain selected independently of execution coverage unless
+  independently verified read evidence permits narrowing; observing source bytes does not require
+  executing them.
 - `LPCV-V0-953`: (accepted, decision 0590 (owner 2026-11-03)) The following edits never use line intersection and fall back to the static plan
   (package, import closure, declared readers, or `UNKNOWN_SCOPE`): a change outside every executable
-  body (imports, type, constant, variable and package-level declarations, initialisers, signatures,
-  annotations, decorators, macros, build tags); a new, deleted or renamed source file; a changed
+  body on either side of the immutable diff (both ASTs and corresponding function boundaries must
+  be checked; an insertion introducing `init` is a declaration change); imports, type, constant,
+  variable and package-level declarations, initialisers, signatures,
+  annotations, decorators, macros, build tags; a new, deleted or renamed source file; a changed
   test helper, fixture, configuration, generated file, data file read at run time, or build/test
   manifest; and a language whose runner has no qualified collector. A changed test function selects
   that test, and a test new on the head side selects itself. A declaration-level edit MAY narrow to
@@ -852,14 +857,16 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   state), the collector also runs each package's tests together in their ordinary order and
   attributes coverage to each top-level test by a counter dump and reset at each test's end; a
   test's record is the union of its isolated and in-order coverage (`LPCV-V0-956`). Where per-test
-  attribution in order is unavailable, a block the in-order run executes that no isolated record of
-  that package contains marks the package order-sensitive, and a change reaching any block that run
-  executed keeps every test of the package. An in-order run that fails or times out leaves those
+  attribution in order is unavailable, the in-order record is kept whether or not an isolated record
+  of that package contains each block it executed (tightened 2026-11-04, `GLS-V0-008`: an earlier
+  test can send a later one through a block another test reaches alone), and a change reaching any
+  block that run executed, or an edit of a test function, keeps every test of the package. An in-order run that fails or times out leaves those
   blocks unknown, so the package is recorded as unordered and a change reaching any of its tests
   keeps every test of the package. `LPCV-V0-963` includes a fixture whose tests pass both
   ways but take different branches in order and alone.
 - `LPCV-V0-963`: (accepted, decision 0590 (owner 2026-11-03)) Each collector and the selector MUST be qualified by fault injection before coverage
-  exclusion is enabled for that runner family, and requalified on a collector, runner or selector
+  exclusion is enabled for that runner family, locally as well as in CI; unqualified local plans
+  remain shadow output without applying exclusions. The family is requalified on a collector, runner or selector
   change. A seeded sample of executable lines in covered bodies is each mutated (statement deletion,
   condition negation, constant change) and the full suite is run; every test that fails on a mutant
   MUST be in the set the selector picks for that one-line change. One test that fails but was not
