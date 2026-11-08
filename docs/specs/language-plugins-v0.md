@@ -51,10 +51,13 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   sub-plugin lists: test runners (by testrunner registry name), test providers, coverage
   collectors and mutation tools. Languages with no affected provider (SQL, shader, HTML/CSS,
   structured data) are plugins too, so every analyzer and runner has a language.
-- `LGP-V0-002`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) The pieces
+- `LGP-V0-002`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404; amended under the owner's standing auto-accept (2026-10-11), decision 0592) The pieces
   are the closed set `provider`, `analyzer`, `runners`, `test-provider`, `coverage`, `mutation`.
   Every manifest declares each piece either present or in `Absent` with a non-empty reason, never
-  both, so a missing piece is never silent.
+  both, so a missing piece is never silent. `RSP-V0-001` in
+  [`runner-selection-plugins-v0.md`](runner-selection-plugins-v0.md) adds the per-runner pieces
+  `inventory`, `test-evidence` and `qualification` to this set when its first slice lands; until
+  then a manifest declares only the six.
 - `LGP-V0-003`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Owned
   directories are disjoint across plugins and each exists. A directory several languages use
   (`internal/analyzernativebridge`, `internal/extmutate`, `internal/linecov`) is owned by none and
@@ -233,6 +236,9 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 - Moving packages into per-language directory trees, or renaming them.
 - Loading plugins at run time (Go `plugin`, shared objects, a plugin daemon or network discovery):
   registration stays compiled in; any out-of-process plugin follows `core-bundled-apps-v0.md` (invariant 7, decision 0591).
+  Amended by decision 0592: an out-of-process test runner is a `corvint-runner/1` executable under
+  [`runner-selection-plugins-v0.md`](runner-selection-plugins-v0.md) (`RSP-V0-025..032`), resolved
+  by digest pin, never loaded into the core process.
 - Changing the `analyzercap` protocol, any wire format, selection, or runner argv.
 - Moving the web lexer and the Ruby constant-reference rule out of `internal/contextindex`, or the
   runner readings out of `internal/testsource` (LGP-V0-027); their remaining literals carry
