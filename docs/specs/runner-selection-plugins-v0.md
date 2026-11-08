@@ -581,7 +581,10 @@ Baseline at `origin/main` c6b6cbb0:
 - `RSP-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A sampled
   FULL failure counts as a miss (`RSP-V0-037`) only after the `LPCV-V0-957` rerun rule confirms it
   as deterministic on the head; a failure that does not reproduce is recorded as a flake against the
-  test and never disables a class.
+  test and never disables a class. Requalification clears a retained miss only when the newer
+  admitted qualification matches its runner, repository, OS, architecture, configuration digest
+  (`ConfigDigest`) and environment scope (`EnvironmentDigest`) exactly. The retained plan pins
+  these fields; a missing or unknown field on either side keeps the miss and its narrowing block.
 - `RSP-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) The
   environment digest of `RSP-V0-044` hashes each value with a keyed hash under a repository-local
   key, so a low-entropy value cannot be recovered from a shared index; a key change makes every
