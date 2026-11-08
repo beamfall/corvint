@@ -189,10 +189,16 @@ func affectedLineSelection(ctx context.Context, in affectedLineInputs) linecov.S
 		environ = os.Environ()
 	}
 	readers := affectedLineReaders(in.graph, drift, change)
+	// A declared must-run unit runs whole whatever its tests executed
+	// (AFP-V0-2484): coverage cannot discharge the pin (GLS-V0-013).
+	mustRun := make(map[string]bool, len(in.plan.MustRun))
+	for _, entry := range in.plan.MustRun {
+		mustRun[entry.UnitID] = true
+	}
 	var units []linecov.Unit
 	for _, s := range in.plan.Selected {
 		if dir, ok := linecov.UnitDir(module, s.UnitID); ok {
-			units = append(units, linecov.Unit{ID: s.UnitID, Dir: dir, Witness: s.Witness.DirtyPath, StaticRead: readers(s.UnitID)})
+			units = append(units, linecov.Unit{ID: s.UnitID, Dir: dir, Witness: s.Witness.DirtyPath, StaticRead: readers(s.UnitID), MustRun: mustRun[s.UnitID] || s.Witness.Kind == affected.WitnessMustRun})
 		}
 	}
 	sel := ix.Plan(linecov.PlanInput{

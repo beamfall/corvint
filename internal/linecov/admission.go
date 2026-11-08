@@ -31,6 +31,7 @@ var QualifiedSources = []string{
 	"internal/linecov/redundancy.go",
 	"internal/linecov/shadow.go",
 	"internal/linecov/worktree.go",
+	"internal/liveverify/affected/readers.go",
 	"tools/linecov/main.go",
 	"tools/linecov/qualify.go",
 	"tools/linecov/ci.go",
