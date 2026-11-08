@@ -58,8 +58,9 @@ type CIPlan struct {
 // ciSelection rewrites one CI shard's whole-package list by a line
 // selection: an exclude unit leaves it, a tests unit becomes a -run slice, a
 // compile unit -run ^$, and every other package stays; slices pass through
-// and no package is added (GLS-V0-042). A selection that is not NARROWED
-// leaves both lists as they are (GLS-V0-043).
+// and no package is added (GLS-V0-042). SHADOW writes the proposed lists for
+// comparison only, preserving its state and reason; only a NARROWED plan may
+// change executed lists. Any other state leaves both lists as they are (GLS-V0-043).
 func ciSelection(selFile string, whole, slices []string, out string) error {
 	sel, err := readSelection(selFile)
 	plan := CIPlan{Excluded: []string{}, Sliced: []string{}, Kept: []string{}}
@@ -67,10 +68,10 @@ func ciSelection(selFile string, whole, slices []string, out string) error {
 	switch {
 	case err != nil:
 		plan.State, plan.Reason, plan.Detail = linecov.StateFallback, "selection-unreadable", err.Error()
-	case sel.State != linecov.StateNarrowed:
+	case sel.State != linecov.StateNarrowed && sel.State != linecov.StateShadow:
 		plan.State, plan.Reason, plan.Detail, plan.Index = sel.State, sel.Reason, sel.Detail, sel.Index
 	default:
-		plan.State, plan.Index, plan.Exclusion = sel.State, sel.Index, sel.Exclusion
+		plan.State, plan.Reason, plan.Detail, plan.Index, plan.Exclusion = sel.State, sel.Reason, sel.Detail, sel.Index, sel.Exclusion
 		split := map[string]bool{}
 		for _, s := range slices {
 			if f := strings.Fields(s); len(f) == 3 {

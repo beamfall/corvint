@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,53 @@ import (
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/linecov"
 )
+
+// GLS-V0-040/044: the workflow needs the proposed SHADOW lists for its
+// comparison, while the plan retains the state and reason that forbid
+// execution narrowing. Unknown states still keep the original lists.
+func TestWorkflowShadowComparisonPreservesAuthority(t *testing.T) {
+	for _, state := range []string{linecov.StateShadow, linecov.StateFallback, "UNKNOWN"} {
+		t.Run(state, func(t *testing.T) {
+			sel := linecov.Selection{Profile: linecov.SelectionProfile, State: state, Reason: "unqualified", Detail: "no qualification record",
+				Units: []linecov.UnitSelection{
+					{Unit: "go:m/drop", Mode: linecov.Exclude},
+					{Unit: "go:m/tests", Mode: linecov.Tests, Run: "^(TestA)$"},
+					{Unit: "go:m/split", Mode: linecov.Exclude},
+				}}
+			out := t.TempDir()
+			whole := []string{"m/drop", "m/tests", "m/keep"}
+			slices := []string{"-run ^TestSplit$ m/split"}
+			if err := ciSelection(selectionFile(t, sel, true), whole, slices, out); err != nil {
+				t.Fatal(err)
+			}
+			read := func(name string) []byte {
+				t.Helper()
+				data, err := os.ReadFile(filepath.Join(out, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return data
+			}
+			var plan CIPlan
+			if err := json.Unmarshal(read("plan.json"), &plan); err != nil {
+				t.Fatal(err)
+			}
+			if plan.State != state || plan.Reason != sel.Reason || plan.Detail != sel.Detail {
+				t.Fatalf("report changed authority or lost its reason: %+v", plan)
+			}
+			wantPackages, wantSlices := strings.Join(whole, "\n")+"\n", slices[0]+"\n"
+			if state == linecov.StateShadow {
+				wantPackages, wantSlices = "m/keep\n", "-run ^(TestA)$ m/tests\n"+wantSlices
+				if strings.Join(plan.Excluded, ",") != "m/drop" || strings.Join(plan.Sliced, ",") != "m/tests" {
+					t.Fatalf("shadow comparison lost proposed exclusions: %+v", plan)
+				}
+			}
+			if string(read("packages")) != wantPackages || string(read("slices")) != wantSlices {
+				t.Fatal("comparison lists differ from the proposed shadow or fallback")
+			}
+		})
+	}
+}
 
 // GLS-V0-034, GLS-V0-009: the CI workflow checks the selector's qualification
 // under the runner the shards and the index name: the same build settings, the

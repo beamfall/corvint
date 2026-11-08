@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,242 @@ func TestLinecovPackageMissConfirmation(t *testing.T) {
 	}
 }
 func shellQuoteLinecov(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
+
+// GLS-V0-044: only shards that actually applied narrowing depend on the
+// completed artifact; the pre-test proof cannot substitute for it.
+func TestLinecovCompletedEvidenceRequired(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	upload := stepBlock(t, ci, "Retain the line-level selection (GLS-V0-044)")
+	for _, line := range []string{
+		"        id: linecov-evidence", "        if: always() && steps.linecov.outcome != 'skipped'",
+		"        continue-on-error: true", "          name: linecov-narrow-${{ strategy.job-index }}",
+		"          path: ${{ runner.temp }}/linecov-narrow/", "          if-no-files-found: error",
+	} {
+		wantLine(t, "completed evidence", upload, line)
+	}
+	gate := stepBlock(t, ci, "Require completed evidence for a narrowed shard")
+	if strings.Contains(gate, "continue-on-error:") || strings.Index(ci, gate) < strings.Index(ci, upload) {
+		t.Fatal("evidence gate must fail the shard after the completed upload")
+	}
+	m := regexp.MustCompile(`(?m)^        if: (.*)$`).FindStringSubmatch(gate)
+	if len(m) != 2 {
+		t.Fatal("missing evidence gate condition")
+	}
+	for _, mode := range []string{"NARROWED", "SHADOW", "FALLBACK", ""} {
+		for _, outcome := range []string{"success", "failure", "cancelled", "skipped", ""} {
+			ctx := map[string]string{"always()": "true", "steps.tests.outputs.linecov": mode, "steps.linecov-evidence.outcome": outcome}
+			if got, want := evalActionsIf(t, m[1], ctx), mode == "NARROWED" && outcome != "success"; got != want {
+				t.Errorf("mode=%q upload=%q: gate=%v, want %v", mode, outcome, got, want)
+			}
+		}
+	}
+	dir := t.TempDir()
+	summary := filepath.Join(dir, "summary")
+	code, out := runBash(t, dir, runScript(t, gate), "GITHUB_STEP_SUMMARY="+summary)
+	if code == 0 || !strings.Contains(out, "::error::") || !strings.Contains(readText(t, summary), "not retained") {
+		t.Fatalf("lost evidence did not fail visibly: exit=%d %s", code, out)
+	}
+}
+
+// GLS-V0-040/044: execute the workflow's receipt admission and rewrite
+// blocks. A SHADOW receipt must produce a comparison, but never applied
+// evidence or changed execution lists, even with narrowing switched on.
+func TestLinecovShadowWorkflow(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	selection := runScript(t, stepBlock(t, ci, "Line-level selection (GLS-V0-040"))
+	start := strings.Index(selection, "state=$(jq -r '.state'")
+	if start < 0 {
+		t.Fatal("selection state admission missing")
+	}
+	admit := selection[start:]
+	tests := runScript(t, stepBlock(t, ci, "Go tests (full until matching shadow qualification)"))
+	start, end := strings.Index(tests, `line_narrowed=""`), strings.Index(tests, `[ "$placement" = BALANCED ]`)
+	if start < 0 || end <= start {
+		t.Fatal("line selection rewrite missing")
+	}
+	rewrite := tests[start:end]
+	for _, tc := range []struct {
+		name, state, mode, plan, wantMode string
+		applied                           bool
+	}{
+		{"qualified narrowing", "NARROWED", "NARROWED", "NARROWED", "NARROWED", true},
+		{"unqualified with switch on", "SHADOW", "NARROWED", "SHADOW", "SHADOW", false},
+		{"unqualified in shadow", "SHADOW", "SHADOW", "SHADOW", "SHADOW", false},
+		{"qualified with switch off", "NARROWED", "SHADOW", "NARROWED", "SHADOW", false},
+		{"shadow plan cannot authorize narrowing", "NARROWED", "NARROWED", "SHADOW", "NARROWED", false},
+		{"fallback", "FALLBACK", "NARROWED", "FALLBACK", "FALLBACK", false},
+		{"unknown state", "UNKNOWN", "NARROWED", "UNKNOWN", "FALLBACK", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			ln := filepath.Join(dir, "linecov-narrow")
+			if err := os.MkdirAll(ln, 0700); err != nil {
+				t.Fatal(err)
+			}
+			writeJSON(t, filepath.Join(ln, "selection.json"), map[string]string{"state": tc.state})
+			output := filepath.Join(dir, "output")
+			env := []string{"RUNNER_TEMP=" + dir, "GITHUB_OUTPUT=" + output, "SHARD=0", "PLAN_STATE=" + tc.plan}
+			code, out := runBash(t, dir, "d="+shellQuoteLinecov(ln)+"\nmode="+tc.mode+"\n"+`stop() { echo mode=FALLBACK >> "$GITHUB_OUTPUT"; exit 0; }
+`+admit, env...)
+			if code != 0 || readText(t, output) != "mode="+tc.wantMode+"\n" {
+				t.Fatalf("receipt admission: exit=%d %s", code, out)
+			}
+			// The real CLI's SHADOW plan is pinned in qualified_workflow_test.go.
+			// This fixture also injects a SHADOW plan into NARROWED mode.
+			writeExecutable(t, filepath.Join(dir, "linecov"), `set -eu
+[ "$1" = ci ] && [ "$2" = -selection ] && [ "$4" = -packages ] && [ "$6" = -slices ] && [ "$8" = -out ]
+test -s "$3" && test -s "$5" && test -s "$7"
+mkdir -p "$9"
+printf 'm/keep\n' > "$9/packages"
+printf '%s\n' '-run ^(TestA)$ m/tests' '-run ^TestSplit$ m/split' > "$9/slices"
+jq -n --arg state "$PLAN_STATE" '{state:$state, excluded:["m/drop"], sliced:["m/tests"]}' > "$9/plan.json"
+`)
+			script := `packages=$(printf 'm/drop\nm/keep\nm/tests')
+slices='-run ^TestSplit$ m/split'
+` + rewrite + `
+printf '%s\n' "$packages" > "$RUNNER_TEMP/executed-packages"
+printf '%s\n' "$slices" > "$RUNNER_TEMP/executed-slices"
+printf '%s' "$line_narrowed" > "$RUNNER_TEMP/narrowed"
+`
+			code, out = runBash(t, dir, script, append(env, "LINECOV_MODE="+tc.wantMode)...)
+			if code != 0 {
+				t.Fatalf("rewrite: exit=%d %s", code, out)
+			}
+			wantPackages, wantSlices := "m/drop\nm/keep\nm/tests\n", "-run ^TestSplit$ m/split\n"
+			if tc.applied {
+				wantPackages, wantSlices = "m/keep\n", "-run ^(TestA)$ m/tests\n-run ^TestSplit$ m/split\n"
+			}
+			if readText(t, filepath.Join(dir, "executed-packages")) != wantPackages || readText(t, filepath.Join(dir, "executed-slices")) != wantSlices {
+				t.Fatalf("execution lists disagree with narrowing authority: %s", out)
+			}
+			_, err := os.Stat(filepath.Join(ln, "applied"))
+			if (err == nil) != tc.applied || strings.Contains(readText(t, output), "linecov=NARROWED") != tc.applied || (readText(t, filepath.Join(dir, "narrowed")) == "1") != tc.applied {
+				t.Fatal("applied marker, step output or coverage marker disagrees with actual narrowing")
+			}
+			if tc.wantMode == "SHADOW" {
+				if readText(t, filepath.Join(ln, "before-packages")) != "m/drop\nm/keep\nm/tests\n" || readText(t, filepath.Join(ln, "after", "packages")) != "m/keep\n" || !strings.Contains(out, "(SHADOW)") {
+					t.Fatalf("shadow comparison was not retained and reported: %s", out)
+				}
+			}
+		})
+	}
+}
+
+// GLS-V0-046: a direct PR's tested synthetic commit need not be reachable
+// from main. Exercise the confirmation loop against a local Git remote,
+// proving that it fetches the exact recorded SHA before comparing trees.
+func TestLinecovMissFetchesSyntheticTestedCommit(t *testing.T) {
+	body := runScript(t, stepBlock(t, readWorkflow(t, "linecov-miss.yml"), "Confirm each suspected miss"))
+	start := strings.Index(body, `jq -c ".[:$MAX_SUSPECTS][]"`)
+	if start < 0 {
+		t.Fatal("confirmation loop missing")
+	}
+	loop := body[start:]
+	writer := stepBlock(t, readWorkflow(t, "linecov-miss.yml"), "Persist coverage exclusion kill switch")
+	wantLine(t, "kill persistence after a partial confirmation failure", writer, "        if: always() && steps.confirm.outputs.confirmed == '1'")
+	remote := t.TempDir()
+	git := func(dir string, args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git(remote, "init", "--initial-branch=main")
+	git(remote, "config", "user.name", "Fixture")
+	git(remote, "config", "user.email", "fixture@example.invalid")
+	git(remote, "config", "commit.gpgsign", "false")
+	writeFile := func(name, data string) {
+		t.Helper()
+		if err := os.WriteFile(name, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(filepath.Join(remote, "p"), "base\n")
+	git(remote, "add", "p")
+	git(remote, "commit", "-m", "base")
+	base := git(remote, "rev-parse", "HEAD")
+	writeFile(filepath.Join(remote, "p"), "changed\n")
+	git(remote, "commit", "-am", "synthetic tested commit")
+	head := git(remote, "rev-parse", "HEAD")
+	git(remote, "update-ref", "refs/pull/1/merge", head)
+	git(remote, "reset", "--hard", base)
+	writeFile(filepath.Join(remote, "p"), "changed\n")
+	git(remote, "commit", "-am", "landed commit")
+	merged := git(remote, "rev-parse", "HEAD")
+	if head == merged || git(remote, "rev-parse", head+"^{tree}") != git(remote, "rev-parse", merged+"^{tree}") {
+		t.Fatal("fixture needs distinct commits with identical tested and landed trees")
+	}
+	for _, tc := range []struct {
+		name, fetch string
+		confirmed   bool
+		failed      bool
+	}{
+		{"fetch succeeds", `command git "$@"`, true, false},
+		{"fetch fails", "return 23", false, true},
+		{"failure after confirmation", `[ "$(wc -l < "$d/fetches")" -eq 1 ] || return 23; command git "$@"`, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			source := filepath.Join(dir, "source")
+			git(dir, "clone", "--single-branch", "--branch", "main", "file://"+remote, source)
+			cmd := exec.Command("git", "cat-file", "-e", head+"^{commit}")
+			cmd.Dir = source
+			if err := cmd.Run(); err == nil {
+				t.Fatal("fixture already contains the synthetic tested commit")
+			}
+			suspects := []map[string]string{{"package": "m/p", "test": "TestMiss", "base": base, "head": head, "merged": merged, "runner": "fixture"}}
+			if tc.confirmed && tc.failed {
+				suspects = append(suspects, map[string]string{"package": "m/p", "test": "TestOther", "base": base, "head": head, "merged": merged, "runner": "fixture"})
+			}
+			writeJSON(t, filepath.Join(dir, "suspects.json"), suspects)
+			writeFile(filepath.Join(dir, "confirmed.jsonl"), "")
+			writeFile(filepath.Join(dir, "fetch-errors"), "")
+			script := `set -euo pipefail
+d=$RUNNER_TEMP
+module=m
+MAX_SUSPECTS=5
+BUDGET_SECONDS=17400
+reproducible() { deadline=1s; seconds=1; }
+rerun() { echo "$4" >> "$d/reruns"; }
+git() {
+ if [ "$1" = fetch ]; then
+  printf '%s\n' "$*" >> "$d/fetches"
+  ` + tc.fetch + `
+ else
+  command git "$@"
+ fi
+}
+` + loop
+			code, out := runBash(t, source, script, "RUNNER_TEMP="+dir, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"), "GITHUB_OUTPUT="+filepath.Join(dir, "output"))
+			if got := readText(t, filepath.Join(dir, "fetches")); got != strings.Repeat("fetch --no-tags origin "+head+"\n", len(suspects)) {
+				t.Fatalf("did not fetch the recorded commit: %q", got)
+			}
+			summary := readText(t, filepath.Join(dir, "summary"))
+			if (code != 0) != tc.failed {
+				t.Fatalf("exit=%d, want failure=%v: %s", code, tc.failed, out)
+			}
+			if tc.failed && (!strings.Contains(out, "::error::") || !strings.Contains(summary, "failed to fetch recorded tested commit "+head)) {
+				t.Fatalf("fetch failure was not reported: %s %s", out, summary)
+			}
+			if tc.confirmed {
+				if readText(t, filepath.Join(dir, "reruns")) != "base\nhead1\nhead2\n" || !strings.Contains(summary, ": confirmed") || readText(t, filepath.Join(dir, "output")) != "confirmed=1\n" || !strings.Contains(readText(t, filepath.Join(dir, "kill", "kill.json")), "TestMiss") {
+					t.Fatalf("fetched tested tree did not reach confirmation: exit=%d %s %s", code, out, summary)
+				}
+			} else {
+				if readText(t, filepath.Join(dir, "confirmed.jsonl")) != "" {
+					t.Fatal("fetch failure was confirmed")
+				}
+				if _, err := os.Stat(filepath.Join(dir, "reruns")); !os.IsNotExist(err) {
+					t.Fatal("fetch failure reached reruns")
+				}
+			}
+		})
+	}
+}
 
 // GLS-V0-046, GLS-V0-009: a confirmation rerun reproduces the runner the
 // narrowed selection's index names, which the shard ran under: the -race

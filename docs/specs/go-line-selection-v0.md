@@ -392,7 +392,10 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
 - `GLS-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the
   2026-11-04 deferral is withdrawn 2026-11-06, see Enabled for 1.0) A pull-request shard from a branch of the repository into main and a merge-queue shard of main narrow
   by line coverage only while the repository variable `CORVINT_LINECOV_NARROWING` is `on`; otherwise
-  the same step runs report-only and changes no list.
+  the same step runs report-only and changes no list. A SHADOW receipt, including an unqualified
+  selector's receipt, always forces report-only mode even when the variable is on. `linecov ci
+  -selection` retains the proposed before/after comparison for SHADOW with its state and reason;
+  neither that receipt nor its comparison grants narrowing of the shard's executed lists.
 - `GLS-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The step
   takes the newest unexpired `linecov-index` artifact published from main whose recorded commit is
   an ancestor of the shard's base, and plans with `corvint affected --base BASE --line-index` and
@@ -423,6 +426,9 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   and the reason, so the exclusion entries of every narrowed run are readable by the miss detector.
   `applied` contains `NARROWED` only after a successful rewrite; the detector compares only packages
   actually excluded or sliced in `after/plan.json`, with matching selection and metadata ranges.
+  After tests, uploading this completed evidence must succeed for a shard that applied narrowing;
+  failure fails that shard even if the earlier selection proof upload succeeded. Shards that did
+  not apply narrowing remain unaffected by an evidence upload failure.
   Shadow plans, unchanged split packages and missing application evidence never establish a miss.
 - `GLS-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The
   `linecov-index` workflow refreshes every record on main on its schedule and on dispatch, collecting
@@ -442,7 +448,12 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   those fields, or that cannot finish three runs under its deadline inside the job's budget,
   stays suspected and is never confirmed; a confirmation retains the reproduced runner. A failure
   at the base, a pass on rerun, or an unreadable artifact leaves it suspected, reported and never
-  confirmed. The final merge must have the selection's exact base and tested tree. A build failure
+  confirmed. The final merge must have the selection's exact base and tested tree. Before comparing
+  trees, confirmation fetches the recorded tested commit by SHA, including a direct PR run's
+  synthetic commit absent from main's history. A fetch failure retains the suspect, names the
+  failure in the step summary and fails confirmation visibly; it never silently skips the check.
+  Other confirmed misses still retain their evidence and persist the kill switch despite that failure.
+  A build failure
   is not a reproduced failing test. For `(outside every test)`, confirmation requires the exact
   package's `start` and terminal package `pass` at base and package `fail` at both head reruns
   (no `Test` member); build-fail events and `[build failed]` or `[setup failed]` output reject
