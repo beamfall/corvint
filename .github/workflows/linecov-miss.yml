@@ -130,6 +130,7 @@ jobs:
           d="$RUNNER_TEMP/linecov-miss"
           module=$(go list -m)
           : > "$d/confirmed.jsonl"
+          : > "$d/fetch-errors"
           unset GOMAXPROCS GOGC GOMEMLIMIT GORACE
           go_version=$(GOFLAGS=-race go env GOVERSION)
           test "$go_version" = "go1.27.3"
@@ -190,6 +191,12 @@ jobs:
               verdict="suspected (its recorded runner is not reproducible here: $runner)"
             elif [ $((SECONDS + 3 * seconds + 900)) -gt "$BUDGET_SECONDS" ]; then
               verdict="suspected (no time left for three reruns under its $deadline deadline)"
+            # A direct PR merge can test a synthetic commit absent from main's history.
+            # Fetch the recorded SHA, never the PR's current (possibly changed) merge ref.
+            elif ! git fetch --no-tags origin "$head"; then
+              echo "::error::GLS-V0-046: could not fetch recorded tested commit $head for $pkg.$test"
+              printf '%s\n' "$head" >> "$d/fetch-errors"
+              verdict="suspected (failed to fetch recorded tested commit $head)"
             elif [ "$(git rev-parse "$merged^1" 2> /dev/null)" = "$base" ] &&
               [ "$(git rev-parse "$merged^{tree}" 2> /dev/null)" = "$(git rev-parse "$head^{tree}" 2> /dev/null)" ] &&
               git worktree add -q --detach "$RUNNER_TEMP/at-base" "$base" && git worktree add -q --detach "$RUNNER_TEMP/at-head" "$merged"; then
@@ -209,6 +216,8 @@ jobs:
             jq -s '{profile: "linecov-kill/1", family: "go", misses: .}' "$d/confirmed.jsonl" > "$d/kill/kill.json"
             echo "confirmed=1" >> "$GITHUB_OUTPUT"
           fi
+          # Preserve confirmations and their kill switch even if another suspect cannot be fetched.
+          if [ -s "$d/fetch-errors" ]; then exit 1; fi
       - name: Retain the suspected misses
         if: always() && steps.suspects.outputs.count != '' && steps.suspects.outputs.count != '0'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -217,7 +226,7 @@ jobs:
           path: ${{ runner.temp }}/linecov-miss/suspects.json
           retention-days: 30
       - name: Persist coverage exclusion kill switch (GLS-V0-047, LPCV-V0-020)
-        if: steps.confirm.outputs.confirmed == '1'
+        if: always() && steps.confirm.outputs.confirmed == '1'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

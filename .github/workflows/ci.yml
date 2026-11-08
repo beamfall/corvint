@@ -1381,7 +1381,11 @@ jobs:
             '"GLS-V0-044 shard \($shard) (index run \($run) at \($commit)): \(.state)\(if .reason then " " + .reason else "" end); units \(.counts.units): whole \(.counts.unitsWhole), tests \(.counts.unitsTests), compile \(.counts.unitsCompile), excluded \(.counts.unitsExcluded); tests kept by coverage \(.counts.testsKeptByCoverage), by fallback \(.counts.testsKeptByFallback), left out \(.counts.testsExcluded); load \(.loadMillis) ms, select \(.selectMillis) ms"' \
             "$d/selection.json" | tee -a "$GITHUB_STEP_SUMMARY"
           state=$(jq -r '.state' "$d/selection.json")
-          [ "$state" = NARROWED ] || stop "the selection is $state $(jq -r '.reason // empty' "$d/selection.json")"
+          case "$state" in
+            NARROWED) ;;
+            SHADOW) mode=SHADOW ;;
+            *) stop "the selection is $state $(jq -r '.reason // empty' "$d/selection.json")" ;;
+          esac
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
       - name: Retain the line selection proof before narrowing (GLS-V0-043)
         id: linecov-record
@@ -1506,9 +1510,9 @@ jobs:
             # shellcheck disable=SC2086 # one package per line
             if printf '%s\n' $packages | sed '/^$/d' > "$ln/before-packages" && printf '%s\n' "$slices" | sed '/^$/d' > "$ln/before-slices" &&
               "$RUNNER_TEMP/linecov" ci -selection "$ln/selection.json" -packages "$ln/before-packages" -slices "$ln/before-slices" -out "$ln/after" &&
-              jq -e '.state == "NARROWED"' "$ln/after/plan.json" > /dev/null &&
-              awk -v before="$ln/before-packages" -v split="$ln/before-slices" '
-                BEGIN { while ((getline l < before) > 0) whole[l] = 1; while ((getline l < split) > 0) slice[l] = 1 }
+              jq -e --arg mode "$LINECOV_MODE" '.state == "NARROWED" or ($mode == "SHADOW" and .state == "SHADOW")' "$ln/after/plan.json" > /dev/null &&
+              awk -v before="$ln/before-packages" -v splitfile="$ln/before-slices" '
+                BEGIN { while ((getline l < before) > 0) whole[l] = 1; while ((getline l < splitfile) > 0) slice[l] = 1 }
                 FILENAME ~ /packages$/ { if (!($0 in whole)) bad = 1; next }
                 $0 in slice { next }
                 NF != 3 || $1 != "-run" || !($3 in whole) || $2 !~ /^\^(\$|\((Test|Example|Fuzz)[A-Za-z0-9_]*([|](Test|Example|Fuzz)[A-Za-z0-9_]*)*\)\$)$/ { bad = 1 }
@@ -1519,6 +1523,7 @@ jobs:
                 slices=$(sed '/^$/d' "$ln/after/slices")
                 line_narrowed=1
                 printf 'NARROWED\n' > "$ln/applied"
+                echo "linecov=NARROWED" >> "$GITHUB_OUTPUT"
               fi
             else
               echo "::warning::shard $SHARD: the line-level rewrite failed or left its bounds; the lists stay as planned (GLS-V0-043)"
@@ -1696,6 +1701,7 @@ jobs:
       - name: Retain the line-level selection (GLS-V0-044)
         # The selection, the lists before and after and the reason of every planned shard feed the
         # GLS-V0-046 miss detector and the shadow measurement.
+        id: linecov-evidence
         if: always() && steps.linecov.outcome != 'skipped'
         continue-on-error: true
         timeout-minutes: 2
@@ -1703,9 +1709,17 @@ jobs:
         with:
           name: linecov-narrow-${{ strategy.job-index }}
           path: ${{ runner.temp }}/linecov-narrow/
-          if-no-files-found: ignore
+          if-no-files-found: error
           overwrite: true
           retention-days: 14
+      - name: Require completed evidence for a narrowed shard (GLS-V0-044)
+        # The earlier proof predates after/plan.json and applied; only this upload lets the
+        # miss detector recover what the shard actually left out. Full and shadow shards abstain.
+        if: always() && steps.tests.outputs.linecov == 'NARROWED' && steps.linecov-evidence.outcome != 'success'
+        run: |
+          echo "::error::GLS-V0-044: the narrowed shard's completed linecov evidence was not retained"
+          echo "GLS-V0-044: the narrowed shard failed because its completed linecov-narrow evidence was not retained" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
       - name: Retain package outcomes for the advisory cost-drift report
         # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
         # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
