@@ -139,3 +139,54 @@ Validation: `internal/closureguard` whole package via `script/heavy.sh`: ok. The
 environment tests: ok, including `TestClosureGuardIsProvenImportGraphReader_AFPV09600` on the
 real package. gofmt -l and go vet on both packages: clean. Doc checks
 (`test-read-scopes-check line-citations-check long-lines-check spec-requirements-check`): ok.
+
+## Repair round 2 (rescope)
+
+Finding (round-2 re-review, P1): the round-1 masking hid every `"GOFLAGS="` entry independently,
+so `command.Env = append(os.Environ(), "GOFLAGS=")` followed by
+`command.Env = append(os.Environ(), "GOWORK=off")` stayed proven. The second assignment restores
+ambient flags (for example `-f={{.Doc}}`), so a doc-only edit could be skipped.
+
+Decision: under the lane convergence cap (at most two review-fix rounds), the coordinator rescoped
+the exception to a fail-closed package rule rather than patching another shape.
+
+Fix (ca39b487):
+
+- `goEnvironmentUnproven` in `internal/liveverify/affected/golang/importgraph.go` replaces
+  `namesGoEnvironment`. It is evaluated once per package, at its first `go list` reader file.
+- Any identifier named `Setenv`, `Unsetenv` or `Clearenv` in the package makes it unproven,
+  called or not and on any receiver, because `os.Environ()` carries what they set.
+- If the package names `GOFLAGS` or `GOENV` anywhere, every `Env` assignment in every file must be
+  a `literalEnvironment` that carries the exact `"GOFLAGS="` entry directly. That covers any
+  receiver, an index of the field, and an `Env:` composite key. Those entries must also be the only
+  mentions of either name. Anything else makes the package unproven.
+- A package that never names either name keeps the earlier AFP-V0-2200/9010 rule. Its literal `Env`
+  assignments need no reset, so existing proven fixtures (for example `"GOTOOLCHAIN=local"`) are
+  unchanged. Stated limit: a listing with no `Env` assignment, or one in such a package, still
+  inherits ambient GOFLAGS. That is the classifier's existing assumption, not something this round
+  changes.
+- `internal/closureguard/candidates_test.go`: its five `Env` lines now also append `"GOFLAGS="`.
+  The package names GOFLAGS (in the network guards), so without the reset in these lines the strict
+  rule would make it unproven. The added reset only strengthens these guards.
+- New shape subtests: a later reassignment that drops the reset, a second guard without it, `Env`
+  from a variable, `t.Setenv("GOFLAGS", "")`, and `os.Setenv` of a computed name are all unproven. A
+  reassignment that carries the reset in both is proven. All of the earlier subtests are kept.
+- The AFP-V0-9600 text and traceability row state the rule.
+
+Measurement, with the binary rebuilt at ca39b487 and the same body-only scratch edit: 6
+IMPORT_GRAPH_READER units / 568 test files, 233 selected units / 943 test files, unchanged.
+`internal/closureguard` is not selected. Soundness: the `_ "hash/crc64"` scratch selects
+`internal/closureguard`, five test files, with witness IMPORT_GRAPH_READER via `cmd/corvint`. Both
+scratch commits were dropped.
+
+Validation via `script/heavy.sh` with `-run`:
+
+- `TestClosureGuard` on the golang package: ok, 15 shape subtests plus the real-package
+  `TestClosureGuardIsProvenImportGraphReader_AFPV09600`.
+- The wider golang classifier set (import-graph, import-set, symbol, reader, environment,
+  identity, command-directory): ok.
+- `AFP_V0_90|AFPV0237|AFP_V0_22|AFP_V0_96|GoEnvironment` across `affected`, `golang/...` and
+  `typedreach`: ok.
+- `internal/closureguard` with `-run 'Test'`: ok.
+
+gofmt -l and go vet are clean, the doc checks pass, and `make windows-vet` reports no diagnostics.
