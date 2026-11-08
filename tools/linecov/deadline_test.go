@@ -4,12 +4,25 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/linecov"
 )
+
+// GLS-V0-020: a watch run executes under the runtime the index's runner
+// records, verbose and with its deadline, not the go test default.
+func TestWatchRunsRecordedTestRuntime(t *testing.T) {
+	runtime := strings.Join(linecov.TestRuntime(17*time.Second), " ")
+	ix := &linecov.Index{Runner: "go1 test=" + strconv.Quote(runtime), TestTimeout: time.Minute}
+	got := strings.Join(watchTestArgs(ix, Invocation{Package: "./p", Run: "^(TestA)$"}), " ")
+	if want := "go test -count=1 -json -timeout=17s -run ^(TestA)$ ./p"; got != want {
+		t.Fatalf("watch argv %q, want %q", got, want)
+	}
+}
 
 // LPCV-V0-7603: qualification passes exactly the recorded deadline to mutants.
 func TestQualificationDeadline(t *testing.T) {

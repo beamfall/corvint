@@ -11,6 +11,28 @@ import (
 	"testing"
 )
 
+// GLS-V0-034: every non-test source of this package is bound, so a change to
+// any of them, such as the syscall environment helper the collector injects
+// into each test binary, invalidates an older qualification record.
+func TestQualifiedSourcesBindEveryPackageSource(t *testing.T) {
+	bound := map[string]bool{}
+	for _, p := range QualifiedSources {
+		bound[p] = true
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		if p := "internal/linecov/" + f; !bound[p] {
+			t.Errorf("%s is not a qualified source", p)
+		}
+	}
+}
+
 // GLS-V0-020/034, LPCV-V0-955/963: exclusion requires qualification of the
 // actual runner and executable, not just a matching coverage index.
 func TestLocalQualificationRequiresMatchingEvidence(t *testing.T) {

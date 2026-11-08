@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
 )
@@ -112,15 +111,7 @@ func watch(args []string) error {
 		}
 		var lastErr error
 		for _, inv := range p.Run {
-			deadline := ix.TestTimeout
-			if deadline <= 0 {
-				deadline = 10 * time.Minute
-			}
-			a := []string{"go", "test", "-count=1", "-timeout=" + deadline.String()}
-			if inv.Run != "" {
-				a = append(a, "-run", inv.Run)
-			}
-			a = append(a, inv.Package)
+			a := watchTestArgs(ix, inv)
 			if *wrapper != "" {
 				a = append([]string{*wrapper}, a...)
 			}
@@ -134,6 +125,26 @@ func watch(args []string) error {
 		}
 		return lastErr
 	})
+}
+
+// watchTestArgs is the go test argv of one planned invocation. It runs under
+// the test runtime the index's runner identity records, -json for
+// -test.v=test2json and that deadline, so a test branching on
+// testing.Verbose or t.Deadline executes as it did during collection
+// (GLS-V0-020). An identity naming no runtime already forces the whole plan.
+func watchTestArgs(ix *linecov.Index, inv Invocation) []string {
+	deadline, ok := linecov.RunnerTestTimeout(ix.Runner)
+	if !ok {
+		deadline = ix.TestTimeout
+		if deadline <= 0 {
+			deadline = linecov.DefaultTestTimeout
+		}
+	}
+	a := []string{"go", "test", "-count=1", "-json", "-timeout=" + deadline.String()}
+	if inv.Run != "" {
+		a = append(a, "-run", inv.Run)
+	}
+	return append(a, inv.Package)
 }
 
 // watchSaves serializes saves; one notification always replans all current
