@@ -189,7 +189,7 @@ func TestQualifiedSelectionModuleCoverageRuntimeEdges_AFPV09500(t *testing.T) {
 				"e2e/run_test.go":             "package e2e\nimport \"testing\"\nfunc TestRun(t *testing.T) {}\n",
 				"nested/go.mod":               "module example.test/nested\n",
 				"nested/x.go":                 "package nested\n",
-				".corvint/runtime-edges.json": body,
+				".corvint/runtime-edges.json": body, //corvint:fixture-path
 			})
 			var plan Receipt
 			plan.Plan.Scope = "UNKNOWN"
