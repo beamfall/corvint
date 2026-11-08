@@ -42,19 +42,23 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 	if !ok {
 		return 0, false
 	}
-	if tree.Source != "companion root contract" {
-		// CAP-V0-9300 / ACX-V0-9301: only a complete, exact node help
-		// invocation is ours. Preambles and all other layouts must reach
-		// authored dispatch with untouched streams.
-		if binary != "corvint-tasks" && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
-			words := args[:len(args)-1]
-			if node, found := tree.Find(words); found && len(node.Path) == len(words) {
-				if _, err := io.WriteString(stdout, clitree.Render(tree, node)); err != nil {
-					return 1, true
-				}
-				return 0, true
+	// ACP-011 / CAP-V0-8800: analyzer node argv belongs to the native
+	// protocol dispatcher, even when a discovery-tree node matches exactly.
+	if tree.Source == "companion root contract" && strings.HasPrefix(binary, "corvint-analyzer-") && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
+		return 0, false
+	}
+	// CAP-V0-9300 / CAP-V0-8800: an exact node owns its help page even
+	// when its name is "help". Preambles still reach authored dispatch.
+	if binary != "corvint-tasks" && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
+		words := args[:len(args)-1]
+		if node, found := tree.Find(words); found && len(node.Path) == len(words) {
+			if _, err := io.WriteString(stdout, clitree.Render(tree, node)); err != nil {
+				return 1, true
 			}
+			return 0, true
 		}
+	}
+	if tree.Source != "companion root contract" {
 		return 0, false
 	}
 	var root strings.Builder
