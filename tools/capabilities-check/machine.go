@@ -5,10 +5,17 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/clitree"
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
+	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
+	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
+	"github.com/Beamfall/corvint/internal/mcp/tasksbridge"
+	"github.com/Beamfall/corvint/internal/mcp/tasksread"
+	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 )
 
 const machineCatalogPath = "internal/capcatalog/catalog.json"
@@ -16,6 +23,35 @@ const machineCatalogPath = "internal/capcatalog/catalog.json"
 // CheckMachineCatalog closes the route from root machine help to every tree.
 // Checking the trees alone cannot detect a dropped or stale commandTrees link.
 func CheckMachineCatalog(root string) []Finding {
+	return checkMachineCatalog(root, offlineToolNames())
+}
+
+// The descriptor constructors are offline: no repository, server, artifact or
+// Tasks binary is opened. Evaluate every core profile and every Tasks role.
+// Unlike lexical name discovery, these values cover constants, table projections
+// and arbitrary name expressions without certifying any source syntax as complete.
+func offlineToolNames() []string {
+	descriptors := (bridge.Profile{TaskReview: true, LSP: true, Flows: true, ImportGraph: true}).Tools()
+	descriptors = append(descriptors, corpusbridge.AllTools()...)
+	descriptors = append(descriptors, (&docsbridge.Registry{}).Tools()...)
+	descriptors = append(descriptors, (&testvaliditybridge.Registry{}).Tools()...)
+	for _, class := range tasksbridge.Classes {
+		descriptors = append(descriptors, (tasksbridge.Group{Class: class}).Tools()...)
+	}
+	var names []string
+	for _, descriptor := range descriptors {
+		names = append(names, descriptor.Name)
+	}
+	for _, descriptor := range (tasksread.Group{}).Descriptors() {
+		names = append(names, descriptor.Name)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// Source discovery adds declarations from standalone servers. It is supplementary
+// to the concrete offline descriptors, never proof that a name expression is absent.
+func checkMachineCatalog(root string, offlineNames []string) []Finding {
 	trees, err := readTrees(filepath.Join(root, treesDir))
 	if err != nil {
 		return []Finding{{"malformed", sectionTrees, treesDir, err.Error()}}
@@ -36,7 +72,9 @@ func CheckMachineCatalog(root string) []Finding {
 	if err != nil {
 		return append(findings, Finding{"malformed", sectionTools, machineCatalogPath, err.Error()})
 	}
-	return append(findings, machineToolFindings(inv.Tools, catalog.MCPTools)...)
+	names := append(inv.Tools, offlineNames...)
+	slices.Sort(names)
+	return append(findings, machineToolFindings(slices.Compact(names), catalog.MCPTools)...)
 }
 
 func machineLinkFindings(trees []clitree.Tree, refs []capcatalog.CommandTreeRef) []Finding {

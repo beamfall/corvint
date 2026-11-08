@@ -40,7 +40,11 @@ cannot silently go missing or outlive its command.
   root catalogs. The root catalog MUST expose an additive `mcpTools` array with
   `name`, `availability` and `summary` for every source-inventoried MCP tool, including
   optional profiles and names outside the corvint namespace. Missing, duplicate, stale
-  or incomplete entries MUST fail `CheckMachineCatalog`. These offline discovery
+  or incomplete entries MUST fail `CheckMachineCatalog`. Offline descriptor constructors
+  MUST inventory every core profile and Tasks role without starting a server or opening
+  a repository. Concrete names, including computed and constant-backed names, are checked
+  by exact membership; lexical source scanning is supplementary, not a completeness proof.
+  These offline discovery
   entries do not replace configured `tools/list` input schemas or claim availability.
   Shipped Claude/Codex/Gemini/OpenCode skills MUST point at `docs/CAPABILITIES.md`.
   Analyzer node-help argv MUST reach native dispatch with untouched streams; the
@@ -49,7 +53,7 @@ cannot silently go missing or outlive its command.
   Tests: `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`,
   `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode` (cliapp and cliprofile),
   `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`,
-  `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800AnalyzerNodeHelpDelegates`,
+  `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800OfflineDescriptorOmissionFails`, `TestCAPV08800UnknownOfflineDescriptorFailsClosed`, `TestCAPV08800TasksWorkRoleConditions`, `TestCAPV08800AnalyzerNodeHelpDelegates`,
   `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog`.
 
 - `CAP-V0-9300`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)
@@ -813,7 +817,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| CAP-V0-8800 | `internal/cliapp`, `internal/cliprofile` exact-node help; `internal/capcatalog/mcp.go` offline MCP entries; `tools/capabilities-check/machine.go` root catalog reachability | `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`, `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode`, `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`, `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800AnalyzerNodeHelpDelegates`, `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog` |
+| CAP-V0-8800 | `internal/cliapp`, `internal/cliprofile` exact-node help; `internal/capcatalog/mcp.go` offline MCP entries; `tools/capabilities-check/machine.go` root catalog reachability | `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`, `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode`, `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`, `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800OfflineDescriptorOmissionFails`, `TestCAPV08800UnknownOfflineDescriptorFailsClosed`, `TestCAPV08800TasksWorkRoleConditions`, `TestCAPV08800AnalyzerNodeHelpDelegates`, `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-001 | `docs/CAPABILITIES.md` | `TestCAPV0002RepositoryCatalogMatchesInventory` (structure via gated regions); build log self-check of five rows |
 | CAP-V0-002 | `Collect`, `parseCommands`, `parseDispatched`, `scanBinaries`, `scanTools`, `toolNames`, `parseRows` | `TestCAPV0002RepositoryCatalogMatchesInventory`, `TestCAPV0002InventoryCountsMatchCode`, `TestCAPV0002ToolNamesWithDigitsAndHyphens` |
 | CAP-V0-003 | `Check`, `checkDispatch`, `tools/capabilities-check/main.go` | `TestCAPV0003SyntheticOmissionAndStaleRowFail`, `TestCAPV0003MaturityAndLinkDriftFail`, `TestCAPV0002DispatchDriftFails` |
