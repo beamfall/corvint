@@ -2037,7 +2037,8 @@ one list, so a later class cannot reopen it.
   scanner SHALL fail closed for every loop variable (including an unused lowercase variable),
   escaped or quoted command/declaration names, continuations, function definitions in any
   spelling, `source`/`.`, `eval`, `set -a`/`allexport`, opaque inline scripts, indirect/arithmetic
-  contexts, unsupported wrappers/control flow, incomplete words or here-docs, and any other
+  contexts, unsupported wrappers/control flow, incomplete words or here-docs, here-doc
+  delimiters containing a backslash, and any other
   construct not positively understood. Existing path scanning MAY continue after abstention;
   it SHALL NOT reauthorize narrowing. Revocation restores every provisional computed reason.
 
@@ -2238,7 +2239,8 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
 `TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
-opaque scopes and unsupported/incomplete syntax. The existing AFP-V0-9621 through AFP-V0-9628
+opaque scopes and unsupported/incomplete syntax; `TestDriverReviewCounterexamples_AFP_V0_9628`
+holds both decodings of a backslashed here-doc delimiter computed. The existing AFP-V0-9621 through AFP-V0-9628
 cases remain the compatibility floor, with conditional assignment and unused-loop positives
 changed deliberately. Evidence and the convergence-cap decision are in
 `docs/build-log/2026-11-08-v1-5000-redesign.md`.
