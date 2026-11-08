@@ -210,7 +210,7 @@ func qualify(args []string) error {
 	for _, pkg := range suite {
 		failed, broken, err := failingTests(*root, ix.Module, []string{pkg}, *testTimeout, *execWrapper)
 		failed = declaredFailures(failed, baselineHeads)
-		broken.settle(failed)
+		broken.settle(failed, baselineHeads)
 		result := BaselineResult{Package: pkg, State: "passed", Failing: sortedKeys(failed)}
 		if err != nil || len(failed) > 0 || len(broken.build) > 0 || len(broken.crash) > 0 {
 			result.State = "failed"
@@ -403,7 +403,7 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 		return res, nil
 	}
 	failed = declaredFailures(failed, heads)
-	broken.settle(failed)
+	broken.settle(failed, heads)
 	if len(broken.build) > 0 {
 		res.State, res.Detail = "invalid", "package build failed: "+strings.Join(sortedKeys(broken.build), ", ")
 		return res, nil
@@ -734,16 +734,11 @@ type broken struct{ build, crash, failed map[string]bool }
 // left. A test that prints another run's `--- FAIL:` line yields a result
 // declaredFailures drops; that printed result must not hide the package
 // failure, such as TestMain exiting nonzero, that go test also reported.
-func (b broken) settle(failed map[string]bool) {
+// Only the package's own declared names count: a key prefix would let a
+// failure in a package whose directory extends this one's (p and p.foo) hide it.
+func (b broken) settle(failed map[string]bool, heads map[string][]string) {
 	for dir := range b.failed {
-		declared := false
-		for key := range failed {
-			if strings.HasPrefix(key, dir+".") {
-				declared = true
-				break
-			}
-		}
-		if !declared {
+		if !slices.ContainsFunc(heads[dir], func(name string) bool { return failed[dir+"."+name] }) {
 			b.crash[dir] = true
 		}
 	}

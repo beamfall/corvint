@@ -106,7 +106,7 @@ func TestPrintedUndeclaredFailureKeepsCrash(t *testing.T) {
 		t.Fatal(err)
 	}
 	failed = declaredFailures(failed, map[string][]string{"q": {"TestPrints"}})
-	b.settle(failed)
+	b.settle(failed, map[string][]string{"q": {"TestPrints"}})
 	if len(failed) != 0 || !b.crash["q"] {
 		t.Fatalf("failed=%v broken=%+v", failed, b)
 	}
@@ -216,4 +216,14 @@ func gitOut(t *testing.T, root string, args ...string) string {
 		t.Fatal(err)
 	}
 	return string(out)
+}
+
+// A declared failure in a package whose directory extends another's (p and
+// p.foo) must not count as the shorter package's own result.
+func TestSettleIgnoresExtendingPackage(t *testing.T) {
+	b := broken{build: map[string]bool{}, crash: map[string]bool{}, failed: map[string]bool{"p": true, "p.foo": true}}
+	b.settle(map[string]bool{"p.foo.TestBad": true}, map[string][]string{"p": {"TestA"}, "p.foo": {"TestBad"}})
+	if !b.crash["p"] || b.crash["p.foo"] {
+		t.Fatalf("crash=%v", b.crash)
+	}
 }
