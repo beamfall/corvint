@@ -146,12 +146,9 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   `make selection-contract-check`, via `script/selection-contract-check.sh`, SHALL replay the
   actual selector and `corvint test --profile ci --dry-run` over every selection-baseline range
   and SHALL fail on either a root-Go package difference or an undeclared scope difference.
-  `doc-gates` SHALL include this target. It SHALL share `selection-baseline-check`'s input
-  decision, skipping only a diff disjoint from the replayed binaries' compilation closure and the
-  driver's reads, and SHALL replay at the default parallelism. The check SHALL reuse only result
-  cache records whose key binds `SELECTION_CONTRACT_CHECK`, so a record without parity never passes.
-  Permitted execution differences are test-function slicing, placement/order, non-Go adapters
-  and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
+  `doc-gates` SHALL include this target. The check SHALL bypass result caches that do not bind
+  parity. Permitted execution differences are test-function slicing, placement/order, non-Go
+  adapters and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
   The workflow's separate `.github/` FULL guard is outside this package-selection comparison.
   Same-scope FULL means both run the root universe, never a zero-package narrow success.
   FULL coverage SHALL match an independent Go listing of the replayed root, including explicit
@@ -160,6 +157,14 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   a replay not executed SHALL remain NOT_RUN with its reason. Before/after evidence and
   outstanding CI pin/control-plane work SHALL be retained in the V1-5094 build-log entry.
 
+- `AFP-V0-9502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5162)
+  Amending AFP-V0-9501's cache bypass, `selection-contract-check` SHALL share
+  `selection-baseline-check`'s input decision, skipping only a diff disjoint from the replayed
+  binaries' compilation closure and the driver's reads, and SHALL replay at the default
+  parallelism. It SHALL reuse only result-cache records whose key binds
+  `SELECTION_CONTRACT_CHECK`, so a record that never ran the parity assertions cannot pass.
+  Failure mode: PR 145's serial cache-off second replay exceeded doc-gates' 30-minute cap.
+  Rollback: restore the serial cache-off invocation in `script/selection-contract-check.sh`.
 
 ### Unindexed hosted Swift fixtures (V1-4941)
 
@@ -2389,6 +2394,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9014 | existing dependency closure and `testSourceSlice` | `TestCoreFreezeDigestSelection_AFPV09014` |
 | AFP-V0-9500 | `internal/gateselect/qualified.go`; `internal/liveverify/affected/selection_contract.go`; `cmd/corvint/test.go`; `tools/gate-affected-select/main.go` | `TestQualifiedSelectionProofAndParity_AFPV09500`, `TestQualifiedSelectionRecomputesAdditive_AFPV09500`, `TestQualifiedSelectionFailsClosed_AFPV09500`, `TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500`, `TestQualifiedSelectionRetainsUnobservedRuntimeReader_AFPV09500`, `TestSelectionContractUnobservedRuntimeReaders_AFPV09500` (positive proof and missing/forged/unknown/capped negative controls) |
 | AFP-V0-9501 | `tools/selection-baseline/contract.go`, `main.go`; `script/selection-contract-check.sh`; `Makefile` | `TestSelectionContractReplay_AFPV09501`, `TestSelectionContractFullCoverage_AFPV09501` (FULL universe coverage; equal sets and declared differences pass; extra, omitted, malformed and scope differences fail); corpus evidence in `2026-11-08-selection-contract.md` |
+| AFP-V0-9502 | `script/selection-contract-check.sh`; `Makefile`; `tools/selection-baseline/cache.go` | `TestCacheEnvironmentKeepsBehaviourVariables_ASCV0778` (`SELECTION_CONTRACT_CHECK` is keyed); the shared decision prints `run`/`skip` like `selection-baseline-check` | implemented |
 | AFP-V0-9500 | nested-module NOTHING downgrade blocked by a declared runtime edge: `runtimeEdgeIntoModule` in `internal/gateselect/qualified.go` | `TestQualifiedSelectionModuleCoverageRuntimeEdges_AFPV09500` (edge into the nested module, unplaceable Go edge and invalid declaration fall back; an edge elsewhere keeps NOTHING); `TestQualifiedSelectionRuntimeEdgesBoundedRead_AFPV09500` (a non-regular or oversized declaration fails closed without opening or fully reading it) |
 | AFP-V0-9310 | `unownedUnknown` in `internal/liveverify/affected/select.go` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; hosted manifest and plain fixture retain readers, Swift suite and UNKNOWN; omitted Swift source keeps FULL; `TestSwiftFixtureComputedReaders_AFPV09310` (computed Ruby reader and unknown frontier retain suites), `TestSwiftFixtureSuiteProof_AFPV09310` (empty and unknown Swift frontiers retain FULL); `TestSwiftFixtureClaimBoundaries_AFPV09310` preserves other claimants and unobserved directories |
 | AFP-V0-9311 | `seed` in `internal/liveverify/affected/select.go` | `TestUnindexedCompiledSourceStillWidens_AFPV09311` in `internal/liveverify/affected/swfix_test.go`; injected omissions in confined compiled sources outside and below testdata keep FULL |
