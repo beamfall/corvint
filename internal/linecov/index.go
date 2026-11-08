@@ -538,6 +538,11 @@ func uniqueSorted(ids []int32) []int32 {
 // refusals stay testable).
 func (ix *Index) Encode(w io.Writer) error {
 	ix.full()
+	// The RSP-V0-008 evidence extension keeps main's bounded gob encoding;
+	// linecov-index/4's compact sections do not carry it.
+	if len(ix.Evidence) > 0 {
+		return ix.EncodeBounded(w, 0)
+	}
 	if ix.Format == FormatV3 || ix.Format == FormatV2 {
 		return gob.NewEncoder(w).Encode(ix)
 	}
@@ -560,6 +565,10 @@ func Decode(r io.Reader) (*Index, error) {
 		return nil, fmt.Errorf("linecov: decode: %w", err)
 	}
 	switch ix.Format {
+	case Format:
+		if len(ix.Evidence) == 0 {
+			return nil, fmt.Errorf("linecov: gob index format %q carries no evidence extension", ix.Format)
+		}
 	case FormatV3:
 		ix.Format = Format
 	case FormatV2:
@@ -576,6 +585,9 @@ func Decode(r io.Reader) (*Index, error) {
 		return nil, errors.New("linecov: index identity incomplete")
 	}
 	if err := ix.checkSegments(); err != nil {
+		return nil, err
+	}
+	if err := ix.checkEvidence(); err != nil {
 		return nil, err
 	}
 	// The older gob formats carry no admitted environment-audit version.
@@ -610,6 +622,9 @@ func Merge(parts ...*Index) (*Index, error) {
 	ran, skipped := map[string]bool{}, map[string]bool{}
 	partEnv := map[string][]EnvBinding{} // each test's part's bindings table
 	for _, p := range parts {
+		if err := p.checkEvidence(); err != nil {
+			return nil, err
+		}
 		for _, pkg := range p.InOrderRan {
 			ran[pkg] = true
 		}
