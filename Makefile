@@ -354,6 +354,13 @@ cem-release-gate: go-version
 # Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
 # (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
 # three regenerate.
+.PHONY: merge-drivers
+# DWC-V0-7703: only local Git config is written; no global config or attribute override.
+merge-drivers: ## Install repository-local spec and registry merge drivers (idempotent)
+	git config --local merge.specappend.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers append-union "%O" "%A" "%B" %L'
+	git config --local merge.specgenerated.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers keep-ours "%O" "%A" "%B" %L'
+	git config --local merge.registryunion.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers json-union "%O" "%A" "%B" %L'
+
 # LVT-V0-010: run before staging a spec edit; reads worktree Claims, including new specs.
 .PHONY: spec-claims-check
 .PHONY: spec-claims-test
@@ -1042,6 +1049,8 @@ ai-coauthor-trailers-check:
 # that the results' planner field names.
 # Explicit BASE (or SELECTION_BASELINE_BASE), else the immutable CI event base,
 # admits a skip only for a diff disjoint from compilation and reader inputs.
+# Without SELECTION_BASELINE_OUT the same replay also asserts AFP-V0-9501's root-Go parity, so
+# doc-gates replays the corpus once rather than twice concurrently (AFP-V0-9498).
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@if [ "$${CORVINT_CI_CADENCE-}" = DEFER ]; then echo 'selection-baseline-check: NOT_RUN under CI cadence DEFER (CIN-V0-4753); the nightly release gates run it.'; exit 0; fi; \
@@ -1051,7 +1060,11 @@ selection-baseline-check: ## Check the test-selection baseline
 	case "$$decision" in 'skip '*) echo "selection-baseline-check skipped: $${decision#skip }"; exit 0 ;; \
 	*) echo "selection-baseline-check runs: $${decision#run }" ;; esac && \
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select && \
-	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
+	$(if $(SELECTION_BASELINE_OUT),,SELECTION_CONTRACT_CHECK=1 )"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
+
+.PHONY: selection-contract-check
+selection-contract-check: ## Replay CI and local root-Go package parity (AFP-V0-9501)
+	@$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) SELECTION_BASELINE_INPUTS_BASE='$(if $(SELECTION_BASELINE_BASE),$(SELECTION_BASELINE_BASE),$(if $(filter command line environment,$(origin BASE)),$(BASE)))' script/selection-contract-check.sh
 
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
 # (AFP-V0-2401, V1-3489): it builds corvint and tools/shell-test-select from this checkout, plans

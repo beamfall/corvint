@@ -82,7 +82,7 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:858-924@3541f450`; its
+- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:860-926@3541f450`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1126-1131@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:989@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says

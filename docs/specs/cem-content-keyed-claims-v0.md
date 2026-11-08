@@ -95,12 +95,15 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - A replay harness drives 20 real fix sequences of this repository plus injected duplicate, split, merge and reorder cases, and counts incorrect carries.
   - The same replays measure manual row edits and the plan-step time of both flows.
   - Unmeasured closeout time stays `NOT_OBSERVED`.
-- `CKC-V0-012`: Batched blob reads.
+- `CKC-V0-012`: (amended by owner-requested V1-4852, 2026-11-08; integration qualification pending) Batched blob reads.
   - `record-claims` reads every BASE file it hashes (the hunk paths and the cited paths of the plan and draft) through one `ls-tree` and one `cat-file --batch` call, not two Git processes a file.
   - A claims compile after BASE moved batches its claim and row paths at both commits the same way.
   - A batched read caches each name exactly as the per-file read would, including absent for a missing path, a directory, a symlink or a submodule.
   - A name with a pathspec or revision metacharacter, a blob past the flow's Git output bound and every name of a failed batch fall back to the per-file read.
   - Recorded claims are byte-identical with and without the batch.
+  - For V1-4852 (owner-requested 2026-11-08), plain drafts also prefetch the changed hunk paths at TARGET, and plan refreshes prefetch cited paths at BASE, TARGET and an established prior BASE before carry or vet. These bounded read sets use `ls-tree` plus `cat-file --batch` even when Git lacks `%(objectmode)`; no whole-tree inventory is added.
+  - A batch is cached only after all requested objects have exactly one complete blob record with the required trailing LF. Missing, malformed, duplicate, unexpected or truncated records publish no successful prefix. A failed ordinary blob read is absent, never a present empty file; the existing absent-evidence refusal remains authoritative.
+  - Plain draft and refresh stdout/stderr remain byte-identical to per-file reads for valid evidence. Before claiming a speedup, retain same-host before/after refresh wall times and load using `script/citeperf-measure.py`.
 - `CKC-V0-013`: In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with `; carried` when the hunk's rows were carried from the earlier plan or claims, and `; drafted` otherwise. A plain draft adds no mark.
 - `CKC-V0-014`: Carried-only refresh skips the anchor search.
   - When a refresh (from claims or from a plan) carries rows for every owed hunk, the draft runs neither the BASE `git grep` for anchors nor the governing-spec read, since only drafted hunks use them.
@@ -163,6 +166,7 @@ These focused tests live in `internal/dogfoodflow/claims_test.go` and `internal/
 - `TestClaimsTombstones` covers AC4.
 - `TestClaimsRecordRefusals` covers the record refusals.
 - `TestClaimsPrefetchBlobsMatchesBlob` covers CKC-V0-012: the batched cache equals the per-file read for regular, empty, executable, missing, directory and symlink names, unbatchable names stay uncached, and the bound skips an oversized blob.
+- The V1-4852 tests are `TestProposeDraftAndRefreshBatchParity`, `TestProposeBatchUsesTwoProcessesPerReadSet`, `TestProposeBatchRejectsMalformedRecords` and `TestProposeBatchMissingAndCorruptBlobFailClosed` for CKC-V0-012. These cover both public flow outputs, the portable two-process read set, atomic framing refusal and damaged-object absence. Tests and timing measurements are deferred to integration in this build-only round; no speedup is claimed.
 - `TestClaimsTombstones` also covers CKC-V0-013's carried and drafted marks.
 - `TestClaimsAllCarriedSkipsAnchorSearch` covers CKC-V0-014 for a claims refresh and a plan refresh, and checks that a refresh with a drafted hunk still searches.
 - `TestClaimsBatchBlobMatchesBlob` covers CKC-V0-015. It compares batched and per-file reads across two commits and an unknown commit, for regular, empty, executable, symlink, submodule, directory, missing, spaced, glob and unclean names. It checks the bound refusal, the fallback after it and the boundary close. It also checks that the draft, record stderr, claims bytes and a post-fix claims refresh are byte-identical with and without the reader. It asserts that the reader stays up only where Git's `cat-file` has `%(objectmode)`, and its `without objectmode` subtest swaps in a format Git rejects and checks the fallback's parity on every Git.
@@ -185,5 +189,9 @@ These focused tests live in `internal/dogfoodflow/claims_test.go` and `internal/
 - Full closeout time is not measured by this slice.
 
 ## Rollback
+
+For V1-4852 alone, remove TARGET hunk prefetch and refresh-plan prefetch. Keep failed
+reads absent and retain the batch framing checks; neither requires the performance change.
+No claims, CEM or plan migration is needed.
 
 Remove `record-claims`, the claims branch of `--refresh` and their tests. Plan-file `--refresh` and every bind path are unchanged throughout. Claims files are private lane inputs, with no migration.

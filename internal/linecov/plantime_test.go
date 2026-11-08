@@ -2,6 +2,7 @@ package linecov
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -131,25 +132,27 @@ func ptInputs(tb testing.TB) ([]byte, []FileDiff, func(string) ([]byte, error), 
 	return b.Bytes(), ptChange(), func(string) ([]byte, error) { return src, nil }, heads
 }
 
-// MCJ-V0-019: the plan stays within p95 <= 100 ms beyond git diff and blob
-// reads with segments present. LINECOV_PLAN_P95_BUDGET overrides the budget
-// on a host that is not the reference host, and -race scales it by raceScale;
-// the measured p95 and the budget applied are logged.
+// MCJ-V0-019, MCJ-V0-025: retain the reference workload and p95 budget, measuring
+// process CPU to exclude scheduler stalls on shared runners. Wall time is still reported.
 func TestPlanTimeBudgetWithSegments(t *testing.T) {
 	encoded, diffs, read, heads := ptInputs(t)
 	r := planOnce(t, encoded, diffs, read, heads)
 	if len(r.Shadow.Exclusions) == 0 || r.Counts["e2e"]["selected"] == 0 {
 		t.Fatalf("reference change exercises no shadow exclusion: %v", r.Counts)
 	}
-	const runs = 40
-	times := make([]time.Duration, runs)
-	for i := range times {
-		start := time.Now()
-		planOnce(t, encoded, diffs, read, heads)
-		times[i] = time.Since(start)
+	if _, err := planCPUTime(); errors.Is(err, errPlanCPUUnavailable) {
+		t.Skipf("process CPU measurement NOT_OBSERVED: %v", err)
+	} else if err != nil {
+		t.Fatal(err)
 	}
-	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
-	p50, p95 := times[runs/2], times[runs*95/100]
+	const runs = 40
+	wallStart := time.Now()
+	p50, p95, err := measurePlanCPU(runs, planCPUTime, func() {
+		planOnce(t, encoded, diffs, read, heads)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	budget := raceScale * 100 * time.Millisecond
 	if v := os.Getenv("LINECOV_PLAN_P95_BUDGET"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -158,10 +161,86 @@ func TestPlanTimeBudgetWithSegments(t *testing.T) {
 		}
 		budget = d
 	}
-	t.Logf("index %d bytes, %d tests, %d segments; selected %d, shadow would skip %d; plan p50 %s p95 %s (budget %s)",
-		len(encoded), ptTests, ptTests*ptSegsPerTest, r.Counts["e2e"]["selected"], len(r.Shadow.Exclusions), p50, p95, budget)
+	t.Logf("index %d bytes, %d tests, %d segments; selected %d, shadow would skip %d; plan CPU p50 %s p95 %s (budget %s), wall total %s",
+		len(encoded), ptTests, ptTests*ptSegsPerTest, r.Counts["e2e"]["selected"], len(r.Shadow.Exclusions), p50, p95, budget, time.Since(wallStart))
+	if err := checkPlanBudget(p95, budget); err != nil {
+		t.Fatal(err)
+	}
+}
+
+var errPlanCPUUnavailable = errors.New("process CPU clock unavailable on this platform")
+
+func measurePlanCPU(runs int, clock func() (time.Duration, error), plan func()) (time.Duration, time.Duration, error) {
+	times := make([]time.Duration, runs)
+	for i := range times {
+		start, err := clock()
+		if err != nil {
+			return 0, 0, err
+		}
+		plan()
+		end, err := clock()
+		if err != nil {
+			return 0, 0, err
+		}
+		if end < start {
+			return 0, 0, fmt.Errorf("process CPU clock went backwards")
+		}
+		times[i] = end - start
+	}
+	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
+	return times[runs/2], times[runs*95/100], nil
+}
+
+func checkPlanBudget(p95, budget time.Duration) error {
 	if p95 > budget {
-		t.Fatalf("plan p95 %s exceeds %s", p95, budget)
+		return fmt.Errorf("plan p95 %s exceeds %s", p95, budget)
+	}
+	return nil
+}
+
+func TestMCJV0025PlanClockFailure(t *testing.T) {
+	sentinel := errors.New("clock failed")
+	if _, _, err := measurePlanCPU(40, func() (time.Duration, error) { return 0, sentinel }, func() { t.Fatal("ran without clock") }); !errors.Is(err, sentinel) {
+		t.Fatalf("lost clock failure: %v", err)
+	}
+	calls := 0
+	_, _, err := measurePlanCPU(40, func() (time.Duration, error) {
+		calls++
+		if calls == 1 {
+			return time.Second, nil
+		}
+		return 0, nil
+	}, func() {})
+	if err == nil {
+		t.Fatal("backwards CPU clock admitted")
+	}
+}
+
+func TestMCJV0025PlanBudgetDoubleCostFails(t *testing.T) {
+	// Inject a CPU clock, not sleeps: scheduler delay cannot hide or create the regression.
+	for _, cost := range []time.Duration{60 * time.Millisecond, 120 * time.Millisecond} {
+		var cpu time.Duration
+		clock := func() (time.Duration, error) { return cpu, nil }
+		p50, p95, err := measurePlanCPU(40, clock, func() { cpu += cost })
+		if err != nil || p50 != cost || p95 != cost {
+			t.Fatalf("measurement p50=%s p95=%s err=%v", p50, p95, err)
+		}
+		if failed := checkPlanBudget(p95, 100*time.Millisecond) != nil; failed != (cost > 100*time.Millisecond) {
+			t.Fatalf("cost %s budget failure=%v", cost, failed)
+		}
+	}
+	// A p95 regression must not be averaged away by the other 37 cheap runs.
+	var cpu time.Duration
+	i := 0
+	_, p95, err := measurePlanCPU(40, func() (time.Duration, error) { return cpu, nil }, func() {
+		i++
+		cpu += 60 * time.Millisecond
+		if i > 37 {
+			cpu += 60 * time.Millisecond
+		}
+	})
+	if err != nil || checkPlanBudget(p95, 100*time.Millisecond) == nil {
+		t.Fatalf("tail regression escaped: p95=%s err=%v", p95, err)
 	}
 }
 
