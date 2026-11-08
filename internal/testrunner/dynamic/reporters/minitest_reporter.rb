@@ -20,6 +20,10 @@ class CorvintReporter < Minitest::AbstractReporter
   def record(result)
     state = result.skipped? ? 'SKIPPED' : (result.passed? ? 'PASSED' : 'FAILED')
     row = {ID: "#{result.klass}##{result.name}", Name: result.name, State: state}
+    # RSP-V0-003: preserve the runner's reason for terminal reconciliation.
+    if state == 'SKIPPED'
+      row[:Message] = result.failures.select { |f| f.is_a?(Minitest::Skip) }.map(&:message).join("\n")[0, 1024]
+    end
     # TRE-V0-110: an exception Minitest attributes to one named test fails that
     # test with cause UNKNOWN; it never voids the other cases of the run.
     errors = result.failures.select { |f| f.is_a?(Minitest::UnexpectedError) }

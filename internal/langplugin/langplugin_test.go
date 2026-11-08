@@ -15,6 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/langplugin"
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/registry"
 )
 
@@ -69,11 +70,12 @@ func (fakeLanguage) Units(context.Context, string) (affected.Result, error) {
 func TestValidateRefusesAnUndeclaredPiece_LGPV0007(t *testing.T) {
 	complete := func() langplugin.Manifest {
 		return langplugin.Manifest{
-			Name:      "demo",
-			Paths:     []string{"internal/demo"},
-			Provider:  func() affected.Language { return fakeLanguage{"demo"} },
-			Analyzers: []langplugin.SubPlugin{{Name: "corvint-analyzer-demo", Paths: []string{"internal/demo"}}},
-			Runners:   []string{"demo-test"},
+			Name:         "demo",
+			Paths:        []string{"internal/demo"},
+			Provider:     func() affected.Language { return fakeLanguage{"demo"} },
+			Analyzers:    []langplugin.SubPlugin{{Name: "corvint-analyzer-demo", Paths: []string{"internal/demo"}}},
+			Runners:      []string{"demo-test"},
+			RunnerPieces: map[string]testrunner.RunnerPieces{"demo-test": testrunner.AbsentRunnerPieces("demo-test")},
 			Absent: map[langplugin.Piece]string{
 				langplugin.TestProvider: "none", langplugin.Coverage: "none", langplugin.Mutation: "none",
 			},
@@ -285,6 +287,7 @@ var coreNameLiterals = map[string]map[string]coreLiteral{
 	},
 	"internal/liveverify/affected/languages": {},
 	"internal/testrunner/registry":           {},
+	"internal/runnerselection":               {},
 }
 
 // TestCoreNameLiterals_LGPV0009 keeps language and runner names out of core

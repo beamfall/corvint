@@ -25,6 +25,8 @@ class CorvintTestUnitRunner < Test::Unit::UI::Console::TestRunner
             else 'PASSED'
             end
     row = {ID: test.name, Name: test.name, State: state}
+    # RSP-V0-003: omissions and pending tests carry the framework's reason.
+    row[:Message] = fault.message.to_s[0, 1024] if state == 'SKIPPED'
     # TRE-V0-115: an exception raised in a named test fails that test with
     # cause UNKNOWN, naming only the exception class.
     if fault.is_a?(Test::Unit::Error)

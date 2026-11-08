@@ -122,12 +122,44 @@
       "reason": "flows command fixtures and goldens moved from cmd/corvint/testdata/flows with the handlers (V1-4756); hosted by the internal/command/flows package and read by its tests through path literals and computed golden names"
     },
     {
+      "path": "internal/proctrace/testdata/lseek.S",
+      "reason": "assembly fixture compiled by internal/proctrace backend_linux_amd64_test.go via a testdata/lseek.S path literal (AZU-V0-002); never executed by the product"
+    },
+    {
+      "path": "internal/runnerselection/testdata/",
+      "reason": "runner-selection goldens read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
       "path": "internal/tasks/cli/helptext/archive-restore.txt",
       "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
     },
     {
       "path": "internal/tasks/cli/helptext/queue-snapshot.txt",
       "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
+    },
+    {
+      "path": "internal/testevidence/testdata/",
+      "reason": "test-evidence fixtures read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
+      "path": "internal/testevidencedoc/testdata/",
+      "reason": "test-evidence document fixtures and goldens read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
+      "path": "internal/testrunner/registry/testdata/ruby-selection/",
+      "reason": "Ruby runner selection fixtures read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
+      "path": "internal/testrunner/registry/testdata/rust-nextest-list.json",
+      "reason": "nextest listing fixture read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
+      "path": "internal/testrunner/registry/testdata/script/test-commands.json",
+      "reason": "script runner command fixture read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
+    },
+    {
+      "path": "internal/testrunner/swiftselection/testdata/swift/",
+      "reason": "Swift runner listing and coverage fixtures read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
     },
     {
       "path": "protocol/",
@@ -152,6 +184,18 @@
     {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated linecov command-tree snapshot (make capability-catalog); tools/linecov/languages_test.go reads command-tree.json by a path literal within its package, so the existing reader and enclosing-package rules retain that test selection; never executed or imported"
+    },
+    {
+      "path": "tools/runner-plugin/command-tree.json",
+      "reason": "generated runner-plugin command-tree snapshot embedded by tools/runner-plugin (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
+    },
+    {
+      "path": "tools/runner-qualification/command-tree.json",
+      "reason": "generated runner-qualification command-tree snapshot embedded by tools/runner-qualification (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
+    },
+    {
+      "path": "tools/runner-reference/command-tree.json",
+      "reason": "generated runner-reference command-tree snapshot embedded by tools/runner-reference (go:embed) and checked by its package tests; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
     }
   ]
 }

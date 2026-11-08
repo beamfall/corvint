@@ -55,6 +55,8 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 	for _, name := range groups {
 		var group unavailableGroup
 		switch name {
+		case toolProfileTestEvidence:
+			group = unavailableGroup{toolgroup.TestEvidence{}.Tools, toolgroup.TestEvidenceErrorProfile, reason}
 		case toolProfileTestValidity:
 			group = unavailableGroup{(&testvaliditybridge.Registry{}).Tools, toolgroup.TestValidityErrorProfile, reason}
 		case toolProfileDocs:
