@@ -115,7 +115,8 @@ Baseline at `origin/main` c6b6cbb0:
   After an append, a partial or positioned overwrite, or any truncation, the read edge stays,
   because the bytes read can still depend on the original content. Paths outside the repository
   are kept only as counts per class (toolchain, cache, temporary, other) for audit and never decide
-  selection, because a diff cannot change them.
+  selection, because a diff cannot change them; a path inside a declared sibling repository is
+  governed by `RSP-V0-049` instead, and any other outside path by its last clause.
 - `RSP-V0-008`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592)
   Records live in the `LPCV-V0-958` immutable index (derived state, rebuildable, never authority),
   extended with the new components. An existing `linecov` record reads as `executed` present and
@@ -377,6 +378,68 @@ Baseline at `origin/main` c6b6cbb0:
   runner's class until repaired and requalified, and is retained with the plan. The rate's value and
   its CI cost bound are open numbers in decision 0592.
 
+### Coverage breadth
+
+- `RSP-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ruby is
+  in scope (owner 2026-11-07). The `ruby` plugin's runners (`rspec`, `minitest`, `test-unit`,
+  `rails-test`) declare the three pieces, with `executed` from `internal/rubylinecov` plus trace
+  components, and qualify on `conformance/ruby-profile-v0/rails-app` and any Beamfall Ruby
+  repository at step 7 of `RSP-V0-040`. Until then they are FULL (`RSP-V0-046`).
+- `RSP-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A test run
+  may declare sibling repositories (`--repository ID=DIR`, the `affected` multi-repository model). A
+  read whose resolved path lies inside a declared repository is recorded with that repository id,
+  its path relative to that repository and its blob OID, and takes part in freshness and rules (a)
+  to (g) against that repository's diff between its pinned base and head. A read outside the
+  repository, outside every declared repository and outside the toolchain, cache and temporary
+  classes marks `reads` `incomplete` for that test, which selects it. A change to a sibling pin
+  (submodule, lock entry or checkout reference) is a change to every path read in that repository.
+- `RSP-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A `script`
+  runner kind inventories one identity per command declared in a tracked, project-owned file
+  (`.corvint/test-commands.json`; Corvint's `.github/cishards/test-commands.json` is one instance
+  of the same schema), runs each command under the tracing service and narrows on file-level
+  components only (`reads`, `listings`, `execs`, `external`); it never narrows on `executed`. It
+  covers direct test scripts (`node test/*.ts`, `python3 script/*_test.py`, `script/*_test.sh`),
+  aggregate build-tool tasks (Gradle `fastGate`) and compile checks (`xcrun metal`). A command not
+  in the declaration is outside every inventory and the runner that would run it is FULL.
+- `RSP-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Inventory is
+  keyed by target OS and architecture. A test inventoried for one target and absent from another
+  is FULL on a target without its own inventory and record; Go build constraints are enumerated per
+  CI matrix entry. A record decides only on the target it was collected on, unless the runner's
+  qualification covers cross-target reuse.
+- `RSP-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Trace
+  activity of a build phase (code generation, template rendering, asset compilation) that the
+  plugin's build graph does not model is attributed to every test of that build, never dropped.
+
+### Record quality and read surface
+
+- `RSP-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A read
+  command (`corvint test-evidence`) answers, for a path or line range at a commit, every test whose
+  fresh record reaches it, with the component, record digest and record commit; for a test
+  identity, the components of its record; and with `--explain TEST` against a diff, the rule chain
+  that selected or excluded it. Where no fresh record exists it abstains `UNKNOWN` with the reason.
+  It writes nothing (invariant 4) and is exposed through the same flow projections that
+  `application-flow-understanding-v1.md` uses to link source, tests and run evidence.
+- `RSP-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) There is
+  one E2E inventory and one record format: `AFU-V1-019`'s `e2e-safe` selection profile consumes the
+  `RSP-V0-002` inventories and `RSP-V0-006` records, and its Playwright discovery is the Playwright
+  runner's `inventory` piece. No second E2E selection model narrows a test this spec governs.
+- `RSP-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A record
+  decides an exclusion only after at least two collections agree on `executed`, `reads` and
+  `listings`, or the runner's qualification shows one collection suffices. Disagreement widens the
+  record to the union (`LPCV-V0-956`) and the plan marks the test `nondeterministic`.
+- `RSP-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Record
+  collection and inventory wall time per runner are measured and retained with the qualification
+  record. Selection never waits on collection: a missing or still-collecting record selects its
+  test.
+- `RSP-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A sampled
+  FULL failure counts as a miss (`RSP-V0-037`) only after the `LPCV-V0-957` rerun rule confirms it
+  as deterministic on the head; a failure that does not reproduce is recorded as a flake against the
+  test and never disables a class.
+- `RSP-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) The
+  environment digest of `RSP-V0-044` hashes each value with a keyed hash under a repository-local
+  key, so a low-entropy value cannot be recovered from a shared index; a key change makes every
+  environment digest stale.
+
 ### Policy and rollout
 
 - `RSP-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) CI and
@@ -391,10 +454,11 @@ Baseline at `origin/main` c6b6cbb0:
   order, each step enabling narrowing for a runner only on CI Linux after its qualification: (1)
   record format, index extension and shadow selector over existing Go `linecov` records, changing
   no plan; (2) the Linux tracing service; (3) `go-test` pieces, qualified on Corvint and the
-  Beamfall Go repositories; (4) shell and make (Bats and declared make targets); (5) node runners and
-  Playwright E2E; (6) the out-of-process protocol, conformance kit and one reference plugin; (7)
-  pytest, `cargo test`, `dotnet test`, JUnit and Gradle, XCTest and Swift Testing, shader runners;
-  device runners last. A step's narrowing takes effect only with an admitted qualification record
+  Beamfall Go repositories; (4) shell and make (Bats, declared make targets and the `script` kind of
+  `RSP-V0-050`); (5) node runners (vitest, jest, `node --test`) and Playwright E2E; (6) the
+  out-of-process protocol, conformance kit and one reference plugin; (7) pytest and `python -m
+  unittest`, the Ruby runners of `RSP-V0-048`, `cargo test`, `dotnet test`, JUnit and Gradle, XCTest
+  and Swift Testing, shader runners; device runners last. A step's narrowing takes effect only with an admitted qualification record
   (`RSP-V0-042`) and a nonzero sampling rate (`RSP-V0-037`); otherwise it stays shadow.
 - `RSP-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A
   Beamfall or other repository may ship its own runner plugin: source in that repository, the
@@ -552,6 +616,17 @@ outcomes equal the stated ones.
 | 043 | must-run test and declared-owner unit with otherwise excludable records: both run, owner unit whole, plan names each mandate | filter unable to run the owner unit whole: `superset` or `full` |
 | 044 | listed non-semantic name varied: record still fresh | unlisted feature flag changed: environment digest changes, record stale, test selected; execution configuration outside qualification: runner `full` |
 | 045 | `untraced`-qualified runner narrows a body edit | data, add or delete change: runner `full`; unexecuted-body byte mutant read as data by a test: miss blocks the model |
+| 048 | Ruby runner qualified on the Rails corpus narrows | unqualified Ruby runner: `full` |
+| 049 | sibling read recorded with repository id and OID; sibling diff touching it selects the test | undeclared outside read: `reads` `incomplete`, test selected; sibling pin change: every test reading that repository selected |
+| 050 | declared command inventoried, traced, narrowed on file components | undeclared command: runner `full`; `executed` never used |
+| 051 | path query lists reaching tests with component, digest and commit; `--explain` prints the rule chain | no fresh record: `UNKNOWN` with reason; repository and trace state unchanged |
+| 052 | `e2e-safe` plan equals the RSP plan for Playwright on the same inputs | second inventory disagreeing: refused, runner `full` |
+| 053 | test inventoried on each CI target narrows per target | test absent from a target's inventory: `full` there |
+| 054 | unmodelled codegen read attributed to every test of the build | dropped build-phase read: check fails |
+| 055 | two agreeing collections decide | disagreeing collections: union, `nondeterministic` |
+| 056 | collection and inventory times retained | still-collecting record: test selected |
+| 057 | reproduced sampled failure is a miss | non-reproducing failure: flake, class stays enabled |
+| 058 | keyed digest stable under one key | key change: every environment digest stale |
 
 ## Traceability
 
@@ -567,6 +642,8 @@ outcomes equal the stated ones.
 | RSP-V0-033..037 | qualification harness | (PLANNED) per-runner qualification records; sampled-run fixtures |
 | RSP-V0-038..041, 046 | CI selection, project config | (PLANNED) CI and local parity replay; rollout enforcement fixtures |
 | RSP-V0-042..045 | admission, mandate, environment and model checks | (PLANNED) forged-provenance, mandate, environment and `untraced` fixtures |
+| RSP-V0-048..050, 053, 054 | Ruby plugin, multi-repository tracing, `script` runner, per-target inventory, build-phase attribution | (PLANNED) Rails-corpus qualification; sibling-read, pin-change and undeclared-outside-read fixtures; per-target inventory fixtures |
+| RSP-V0-051, 052, 055..058 | `corvint test-evidence`, AFU profile consumption, record determinism, cost, flake handling, keyed env digest | (PLANNED) read-command goldens and no-write check; nondeterministic-record and flake-not-miss fixtures |
 
 ## Rollout, rollback and compatibility
 
