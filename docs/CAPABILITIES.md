@@ -240,6 +240,12 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 | `corvint-postmerge-workflow` | internal | Replay a post-merge workflow as a dry run | `corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO`; `encode-id VALUE` encodes a branch name as a workflow ID | Replay record | internal | Missing fixture or policy | [PMR-V0](specs/postmerge-replay-v0.md) |
 <!-- /capability-gate:binaries -->
 
+## CI package discovery tool
+
+| Command | Question | Minimal call | Output and limits | Spec |
+|---|---|---|---|---|
+| `corvint-pr-tests --mode packages` | Which packages must FULL CI consider? | Build `./tools/corvint-pr-tests`, then `corvint-pr-tests --mode packages --root .` | Internal development tool; sorted import paths from `go list ./...` plus the dot- and underscore-directory packages `./...` skips. A walk or `go list` failure refuses. Requires only the repository root; runs no tests. | [AFP-V0-9012](specs/affected-plan-selection-v0.md) |
+
 ## Runner plugin development tools
 
 These tools are explicitly built and are not in the default release manifest.
