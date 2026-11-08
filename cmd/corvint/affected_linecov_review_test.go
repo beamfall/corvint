@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -65,6 +66,34 @@ func TestContents(t *testing.T) {
 		cmd.Dir = root
 		if out, err := cmd.CombinedOutput(); err == nil || !bytes.Contains(out, []byte("source changed")) {
 			t.Fatalf("fault not detected: %v %s", err, out)
+		}
+	}
+}
+
+// GLS-V0-013, AFP-V0-2484: a declared must-run unit stays whole even when none
+// of its tests executed a changed line; without the pin the same change
+// excludes it (TestAffectedLineIndexNarrowsTheBasePlan).
+func TestAffectedLineMustRunUnitKeptWhole(t *testing.T) {
+	root, base, index := lineFixtureRepository(t, map[string]string{
+		".corvint/test-selection.json": `{"profile":"corvint-test-selection/0","mustRun":[{"tests":"user/","reason":"release smoke suite"}]}` + "\n",
+	})
+	lineCommit(t, root, "calc/calc.go", "return n * 2", "return n * 3")
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", base, "--line-index", index)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if mustRun, _ := plan["mustRun"].([]any); len(mustRun) != 1 {
+		t.Fatalf("plan.mustRun = %v", plan["mustRun"])
+	}
+	if _, units := lineUnits(t, receipt); !slices.Contains(units, "user=whole") {
+		t.Fatalf("must-run unit narrowed: %v", units)
+	}
+	sel := receipt["lineSelection"].(map[string]any)
+	for _, value := range sel["units"].([]any) {
+		u := value.(map[string]any)
+		if u["unit"] == "go:example.com/lc/user" && u["category"] != linecov.CategoryMustRun {
+			t.Errorf("must-run reason lost: %v", u)
 		}
 	}
 }

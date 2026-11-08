@@ -40,6 +40,9 @@ const (
 	CategoryUnordered      = "unordered"
 	CategoryOrderSensitive = "order-sensitive"
 	CategoryStaticRead     = "static-read"
+	// CategoryMustRun: the static plan pins the package as a declared
+	// must-run unit (AFP-V0-2484), which coverage cannot discharge.
+	CategoryMustRun = "must-run"
 	// CategoryEnvironment: the package's in-order record was observed under
 	// another environment, so what the order reaches now is unknown
 	// (GLS-V0-018).
@@ -162,10 +165,12 @@ func Fallback(reason, detail string) Selection {
 }
 
 // Unit is one Go unit of the static plan: its id, module-relative
-// directory, and the changed path the static plan reached it from.
+// directory, and the changed path the static plan reached it from. MustRun
+// marks a declared must-run unit, StaticRead one a reader rule selects; both
+// run whole.
 type Unit struct {
-	ID, Dir, Witness string
-	StaticRead       bool
+	ID, Dir, Witness    string
+	StaticRead, MustRun bool
 }
 
 // PlanInput is what Plan decides from. Drift is the diff from the index
@@ -273,7 +278,9 @@ func (ix *Index) Plan(in PlanInput) Selection {
 	for _, u := range units {
 		us := UnitSelection{Unit: u.ID}
 		names := heads[u.Dir]
-		if u.StaticRead {
+		if u.MustRun {
+			us.Mode, us.Category, us.Witness = Whole, CategoryMustRun, u.Witness
+		} else if u.StaticRead {
 			us.Mode, us.Category, us.Witness = Whole, CategoryStaticRead, u.Witness
 		} else if witness, whole := reach[u.Dir]; whole {
 			us.Mode, us.Category, us.Witness = Whole, class[witness], witness

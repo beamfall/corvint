@@ -33,6 +33,27 @@ func TestQualifiedSourcesBindEveryPackageSource(t *testing.T) {
 	}
 }
 
+// GLS-V0-034: the selector's sources outside this package are bound too: the
+// CLI line selection, the static reader rules whose answer permits an
+// exclusion (affected.Graph.Readers), and the qualification and CI helpers.
+func TestQualifiedSourcesBindSelectorDependencies(t *testing.T) {
+	bound := map[string]bool{}
+	for _, p := range QualifiedSources {
+		bound[p] = true
+	}
+	for _, p := range []string{
+		"cmd/corvint/affected_linecov.go",
+		"internal/liveverify/affected/readers.go",
+		"tools/linecov/ci.go",
+		"tools/linecov/main.go",
+		"tools/linecov/qualify.go",
+	} {
+		if !bound[p] {
+			t.Errorf("%s is not a qualified source", p)
+		}
+	}
+}
+
 // GLS-V0-020/034, LPCV-V0-955/963: exclusion requires qualification of the
 // actual runner and executable, not just a matching coverage index.
 func TestLocalQualificationRequiresMatchingEvidence(t *testing.T) {

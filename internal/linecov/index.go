@@ -451,7 +451,9 @@ func (f *File) sortBlocks() {
 // not run, and a package with records but no in-order record. Collection
 // writes an in-order record for every package it runs in order, and Build and
 // Merge keep it, so a missing one means an index built before they did (which
-// pruned it) or by hand: order effects are then unknown (GLS-V0-008).
+// pruned it) or by hand: order effects are then unknown (GLS-V0-008). A Ruby
+// index is exempt: every test window it records lies inside one ordinary-order
+// suite run, and coverage no window owns goes to its load record (LPCV-V0-953).
 func (ix *Index) unorderedSet() map[string]bool {
 	out := make(map[string]bool, len(ix.Unordered))
 	for _, pkg := range ix.Unordered {
@@ -465,6 +467,9 @@ func (ix *Index) unorderedSet() map[string]bool {
 		if !ran[pkg] {
 			out[pkg] = true
 		}
+	}
+	if ix.Language == "ruby" {
+		return out
 	}
 	inOrder := map[string]bool{}
 	for _, t := range ix.Tests {

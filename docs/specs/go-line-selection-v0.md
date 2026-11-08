@@ -195,9 +195,12 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   reader rules select for any analysed Go path of the drift or the change, run on those paths
   alone (a path literal or glob naming the path, an unbounded reader, a declared read scope or
   existence declaration holding it, an import-graph reader the change can alter, a declared test
-  owner of it, or a package embedding files under its directory; `affected.Graph.Readers`), stays
+  owner of it, or a package embedding files under its directory together with every transitive
+  importer and runner of that package and their test-only users and runners, since the embedded
+  bytes leave the package through its API; `affected.Graph.Readers`), stays
   `whole` as `static-read`, even when a direct source/import witness won: execution coverage cannot
-  prove which source bytes a test observes. Amended 2026-11-06: the 2026-11-04 form kept every
+  prove which source bytes a test observes. A declared must-run unit of `plan.mustRun`
+  (`AFP-V0-2484`) runs `whole` as `must-run` (amended 2026-11-08, PR 147 review). Amended 2026-11-06: the 2026-11-04 form kept every
   unit with any path token whole, and since the graph records plain string literals as tokens
   that left almost no unit to decide; the reader rules are the static plan's own answer to which
   units may read a path, so the baseline is unchanged. A unit whose in-order record was observed
@@ -371,8 +374,9 @@ misses under fault injection, and the selection adds at most 100 ms p95 for a 50
   `go`, the summarized report's digest, mutant, kill, control and miss counts, the runner identity it
   ran under, and the blob OID of every selector and collector source file it qualified (the non-test
   Go files of `internal/linecov` that index, select and collect, the qualification and CI helpers
-  in `tools/linecov`, and
-  `cmd/corvint/affected_linecov.go`). `linecov qualify -summarize -record FILE` writes it only for
+  in `tools/linecov`,
+  `cmd/corvint/affected_linecov.go`, and `internal/liveverify/affected/readers.go`, whose reader
+  rules decide which units an exclusion may drop; amended 2026-11-08). `linecov qualify -summarize -record FILE` writes it only for
   zero misses, at least one killed mutant and passing controls. Reports bind the implementation
   source blobs at the clean VCS revision recorded in the running executable; an executable without
   that provenance may produce an experiment report but cannot produce a qualification record.
