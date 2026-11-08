@@ -1404,7 +1404,7 @@ CKC-V0-008	docs/specs/cem-content-keyed-claims-v0.md	Compiled output.	unrecorded
 CKC-V0-009	docs/specs/cem-content-keyed-claims-v0.md	Read and write scope.	unrecorded	-
 CKC-V0-010	docs/specs/cem-content-keyed-claims-v0.md	The PROPOSED header of a claims refresh reports `claims=FILE carried=N reassess=	unrecorded	-
 CKC-V0-011	docs/specs/cem-content-keyed-claims-v0.md	Evidence.	unrecorded	-
-CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	Batched blob reads.	unrecorded	-
+CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	(amended by owner-requested V1-4852, 2026-11-08; integration qualification pendi	unrecorded	-
 CKC-V0-013	docs/specs/cem-content-keyed-claims-v0.md	In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with	unrecorded	-
 CKC-V0-014	docs/specs/cem-content-keyed-claims-v0.md	Carried-only refresh skips the anchor search.	unrecorded	-
 CKC-V0-015	docs/specs/cem-content-keyed-claims-v0.md	Batch blob reader.	unrecorded	-
@@ -4819,6 +4819,7 @@ DCR-V1-985	docs/specs/documentation-corpus-verified-reads-v1.md	(experimental un
 DCR-V1-845	docs/specs/documentation-corpus-verified-reads-v1.md	The `DCP-V1-314` checkout stamp is also unavailable when a stamped directory	unrecorded	-
 DCR-V1-846	docs/specs/documentation-corpus-verified-reads-v1.md	A checkout the stamp does not cover (a linked worktree or submodule gitfile, an	unrecorded	-
 DCR-V1-847	docs/specs/documentation-corpus-verified-reads-v1.md	A stamped directory with more than 1,024 recorded entries describes them in chun	unrecorded	-
+DCW-V0-8760	docs/specs/dogfood-citation-plan-precheck-v0.md	(owner-requested V1-4851, 2026-11-08; integration qualification pending) When th	unrecorded	-
 DCW-V0-7401	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3977) A no-dif	standing	2026-10-11; V1-3977
 DCW-V0-7402	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4569) The revi	standing	2026-10-11; V1-4569
 DCW-V0-7403	docs/specs/dogfood-citation-plan-precheck-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4169) Inputs-c	standing	2026-10-11; V1-4169
