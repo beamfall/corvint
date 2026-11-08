@@ -1154,6 +1154,7 @@
       "internal/mcp/tasksread/",
       "internal/mcp/testvaliditybridge/",
       "internal/mcp/toolgroup/",
+      "internal/mergedrivers/",
       "internal/migrationratchet/",
       "internal/necessity/",
       "internal/observations/",
