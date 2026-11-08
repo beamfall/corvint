@@ -11,7 +11,8 @@ frontier bearing, AFP-V0-560 terminal rule, AFP-V0-601/602 data readers),
 claim), `docs/specs/test-selection-precision-v0.md` (TSP-V0-005 shell foreign callers, TSP-V0-942
 frontier bearers), `internal/liveverify/affected`, `AGENTS.md` invariants 2, 3 and 8. The parent
 spec is at its OCM obligation limit, so these requirements take a new prefix.
-Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3128 here
+Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AFP-V0-3128, and
+its PR #142 repair AFP-V0-9050 and AFP-V0-9051, here
 under the parent's `AFP-V0` prefix for the same reason; see build-log entry
 `2026-11-07-selfloor`.
 
@@ -458,6 +459,36 @@ participation, and inbound shell callers. The remaining classes are small and lo
   allowlist: `GOCACHE` (cache location) and empty `GOFLAGS`. Every other name or form, including
   shell startup-hook settings and future unknown names, SHALL retain the frontier independently
   of make expansion. Assignment effects SHALL survive shell wrapping and later assignments.
+- **AFP-V0-9050:** **Exact make function spelling.** (experimental, PR #142 Greptile P1 repair,
+  2026-11-07, V1-5000) An AFP-V0-3121 make function whose value can reach a condition or a
+  filter SHALL return the exact text GNU make returns, or SHALL retain. In particular:
+  - `dir` keeps each word's literal prefix through its last slash, or `./`, never a cleaned path;
+    `notdir` keeps an empty word for a trailing slash; `suffix` emits nothing for a word without
+    one; `subst` with an empty search string appends its replacement once, at the end;
+  - blanks after a function name are not part of its first argument, and a substitution
+    reference expands its search and replacement before matching;
+  - `if`, `or` and `and` strip only ASCII whitespace from an unexpanded argument, and word and
+    wordlist indexes are decimal digits only.
+
+  It SHALL retain a value that holds a byte outside ASCII, whose word splitting depends on make's
+  locale; a word only partly known to `dir`, `notdir`, `basename`, `suffix` or `patsubst`; a
+  pattern in which a backslash may quote a percent sign; and a `wildcard` name that is not a
+  clean, distinct spelling of a regular file or directory reached without a symlink.
+- **AFP-V0-9051:** **Unrecordable operands never certify.** (experimental, PR #142 Greptile P1
+  repair, 2026-11-07, V1-5000) A command SHALL be certified only when every file it may read
+  has a recorded repository edge. An absolute, `~`-prefixed, repository-escaping or empty file
+  operand, or any file operand in an unknown directory, SHALL leave the command uncertified, on
+  every certification path:
+  - bounded-command operands, including after `--`, and file-naming option values (`grep -f`,
+    `sort -o`, `-T`);
+  - input redirections and test-command file operands;
+  - a shell test script and each of its arguments other than a bare option, which SHALL be
+    recorded as file operands;
+  - make goals and `-C` directories, go package patterns and `-C` directories, and every go
+    test argument after `-args` that names a directory.
+
+  `/dev/null` reads nothing. A `tr` set, `jq`'s program and `grep`'s first operand when no `-e`
+  or `-f` supplies the pattern are not file operands.
 
 ### Lane qualification details
 
@@ -835,6 +866,8 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
 | AFP-V0-3128 | V1-5000 | `TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128`, `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-9050 | V1-5000 | `TestFrontierSiteMakeDirSpelling_AFP_V0_9050`, `TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050` |
+| AFP-V0-9051 | V1-5000 | `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051` |
 | AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
 | AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
 | AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
