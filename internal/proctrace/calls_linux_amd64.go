@@ -10,8 +10,10 @@ import (
 	"debug/elf"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,6 +25,7 @@ type call struct {
 	kind                          string
 	lexical, resolved             string
 	targetLexical, targetResolved string
+	targetAbsent                  bool // destination missing at syscall entry
 	flags                         uint64
 	mode                          uint64
 }
@@ -237,10 +240,12 @@ func (c *collector) enter(pid int, regs syscall.PtraceRegs) *call {
 		p.kind = "rename"
 		p.lexical, p.resolved = c.pathAt(pid, cwd, a[0], false, false)
 		p.targetLexical, p.targetResolved = c.pathAt(pid, cwd, a[1], false, false)
+		p.targetAbsent = absentAtEntry(p.targetResolved)
 	case 264, 316:
 		p.kind = "rename"
 		p.lexical, p.resolved = c.pathAt(pid, a[0], a[1], false, false)
 		p.targetLexical, p.targetResolved = c.pathAt(pid, a[2], a[3], false, false)
+		p.targetAbsent = absentAtEntry(p.targetResolved)
 		if n == 316 && a[4] != 0 && a[4] != 1 {
 			c.fail("unsupported-rename-flags")
 		}
@@ -450,7 +455,14 @@ func (c *collector) finish(p *call, ret int64) {
 		if !owned {
 			c.read(p.lexical, p.resolved)
 		}
-		if !targetOwned {
+		// A destination absent at entry is lookup evidence only: a later regular
+		// file there is replaced the same way, while a later directory changes the
+		// lookup. Any other entry state keeps the existing-path dependency.
+		if !targetOwned && p.targetAbsent {
+			if path, ok := c.path(p.targetLexical, p.targetResolved, true); ok {
+				appendUnique(&c.r.Lookups.Entries, path)
+			}
+		} else if !targetOwned {
 			c.read(p.targetLexical, p.targetResolved)
 		}
 		c.write(p.targetLexical, p.targetResolved, "replace", owned)
@@ -460,6 +472,16 @@ func (c *collector) finish(p *call, ret int64) {
 	case "exec":
 		c.recordExec(p.lexical, p.resolved)
 	}
+}
+
+// absentAtEntry reports whether name was missing while the tracee is stopped at
+// syscall entry. Only ENOENT counts; an unreadable or empty name is not absent.
+func absentAtEntry(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, err := os.Lstat(name)
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 const openPath = 0x200000 // Linux O_PATH is absent from the syscall package.

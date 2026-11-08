@@ -23,13 +23,13 @@ import (
 
 func scriptGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	for _, value := range os.Environ() {
 		if !strings.HasPrefix(value, "GIT_") {
 			cmd.Env = append(cmd.Env, value)
 		}
 	}
-	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Russell Lewis", "GIT_COMMITTER_NAME=Russell Lewis", "GIT_AUTHOR_EMAIL=me@russe11.com", "GIT_COMMITTER_EMAIL=me@russe11.com")
+	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_COMMITTER_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)
