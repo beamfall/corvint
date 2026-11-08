@@ -86,6 +86,71 @@ plan, graph-cache or declaration wire formats, or the independent CI selector.
   true reader of the identical parent path without this declaration MUST stay
   selected. Adding a real checkout read requires removing this declaration.
 
+- **AFP-V0-9200:** (accepted by the owner, 2026-11-07; V1-5089 lane charter) Additional
+  repository test read scopes MUST be supported by inspection of test literals, fixtures,
+  repository walks, Git access, nested builds and subprocess reads, followed by a complete
+  package run through the protected AFP-V0-023 Landlock wrapper on Linux. A candidate is
+  retained only when that run passes and its scope excludes `.corvint/changes/`,
+  `docs/build-log/`, and unrelated `docs/specs/` and `script/` paths. A denied read that is
+  tolerated or converted to a skip is not qualification. Tests requiring repository-wide
+  enumeration or Git metadata remain undeclared; missing evidence never justifies a scope.
+  This declaration-only slice changes neither planner logic, test assertions, nor wire contracts.
+  Acceptance records package outcomes and exclusions, source/build identities, and before/after
+  Go package and test-file counts by witness kind for the V1-5000 three-path example and its
+  pinned 20-merge replay. Historical replay retains each historical declaration; applying new
+  scopes to historical tests without confined qualification is not acceptance evidence.
+  Evidence: whole-package confined runs and `tools/test-read-scopes-check`, recorded in
+  `docs/build-log/2026-11-07-rsdecl.md`. Rollback removes the added scope entries, restoring
+  conservative reader selection without changing tests or the confinement wrapper.
+
+### V1-5089 exact-change completion
+
+- `AFP-V0-9201`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Inventory the undeclared Go packages selected at the lane's starting HEAD for exactly
+  `.corvint/agent-grep-exclude`, `docs/specs/lane-check-tooling-v0.md`, and
+  `script/long-lines-check_test.sh`. Record witness kind and test-file count, descending
+  by count. The earlier CEM/build-log/sessiontest example is not this inventory.
+- `AFP-V0-9202`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Preserve rsdecl's five qualified scopes and its settled exclusions. Revisit an
+  exclusion only when the exact-change inventory supplies a different reason;
+  retain the original evidence and explain the new qualification.
+- `AFP-V0-9203`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Inspect each new candidate's fixtures, file reads, enumeration, Git operations,
+  subprocesses and nested builds. Declare only the observed repository read domain;
+  temporary repositories and embedded data are not live checkout reads.
+- `AFP-V0-9204`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Each retained candidate MUST pass its unchanged whole package under the protected
+  CI Landlock wrapper on Linux with the candidate scope. Never split the package or
+  change a test to obtain qualification. Inspect skips: a denied read tolerated or
+  converted into a skip is not qualifying evidence.
+- `AFP-V0-9205`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Scopes MUST exclude `.corvint/changes/`, `docs/build-log/`, and unrelated
+  `docs/specs/` and `script/` paths. Repository-wide readers, unclear reads and failed
+  candidates remain undeclared with explicit reasons. A planner defect exposed by
+  a declaration stops this slice; it does not authorize a planner repair.
+- `AFP-V0-9206`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Add passing scopes with sorted package keys and entries, preserving the existing
+  profile and entries. The declaration checker and its existing whole-package tests
+  MUST pass. No test assertion, golden or wire contract changes are admitted.
+- `AFP-V0-9207`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Measure BASE and final declaration-tree binaries on the identical three paths from
+  AFP-V0-9201. Report Go packages and test files by witness kind before and after;
+  distinguish the merge-base baseline from the inherited rsdecl starting point.
+  A path-list measurement is conditional selection evidence, not a full-diff gate.
+- `AFP-V0-9208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Append the inventory, qualifying runs, undeclared remainder, comparison and limits
+  to the rsdecl build log's rsdecl2 section. Retain raw plans and test logs outside
+  the repository, with committed digests and derived counts. Independent review and
+  host verification remain separate from local confinement and structural CEM checks.
+- `AFP-V0-9209`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5089)
+  Rollback removes only rsdecl2's added scope entries, restoring conservative
+  selection without changing tests, the wrapper or planner. This is declaration
+  qualification, not a new command, wire format or claim of platform-wide coverage.
+
+Acceptance for AFP-V0-9201 through AFP-V0-9209 is the exact-path inventory and
+paired plans, unchanged confined package runs, declaration checker suite, and
+explicit exclusions retained in `docs/build-log/2026-11-07-rsdecl.md` (rsdecl2).
+
 ## Non-goals and failure modes
 
 Non-goals: automatic whole-program read analysis, narrower treatment of arbitrary
@@ -126,3 +191,4 @@ repair direction; it changes no selector behavior or wire contract.
 | AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9004 | unchanged dirty-declaration frontier, conditional path measurement | `TestDirtyForeignCallerDeclaration_AFPV09004` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9005 | `testReadKinds`, `internal/liveverify/mutate/export_test.go` | `TestFixtureReadKinds_AFPV09005` in `internal/liveverify/affected/golang/readkinds_test.go` |
+| AFP-V0-9200 | `.corvint/test-read-scopes.json` | Whole-package Landlock qualification and declaration-checker results in `docs/build-log/2026-11-07-rsdecl.md`; existing tests and assertions unchanged. |
