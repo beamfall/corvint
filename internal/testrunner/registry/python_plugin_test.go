@@ -208,6 +208,69 @@ func TestRSPV0003UnittestAdapterSubtests(t *testing.T) {
 	}
 }
 
+// RSP-V0-003: a failing tearDownClass is an unproven callback outside the
+// active test. It withholds passes, but cannot discard an earlier certified
+// failure, so a passing FULL retry cannot turn the run green.
+func TestRSPV0003UnittestTearDownClassKeepsFailure(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Fatal("unittest adapter fixtures require python3: ", err)
+	}
+	dir := t.TempDir()
+	source := "import unittest\nclass Case(unittest.TestCase):\n    @classmethod\n    def tearDownClass(cls): raise RuntimeError('teardown broken')\n    def test_a(self): self.fail('broken')\n    def test_b(self): pass\n"
+	if err := os.WriteFile(filepath.Join(dir, "test_fixture.py"), []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	p, seed, _ := pythonFixture(t, "unittest")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	execute := func(command CommandResponse) string {
+		t.Helper()
+		cmd := exec.CommandContext(ctx, python, command.Argv[1:]...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "PYTHONDONTWRITEBYTECODE=1")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		output, err := cmd.Output()
+		code := 0
+		if command.Argv[4] != "inventory" {
+			code = 1
+		}
+		if cmd.ProcessState == nil || cmd.ProcessState.ExitCode() != code {
+			t.Fatalf("adapter: %v stderr=%s output=%s", err, &stderr, output)
+		}
+		return string(output)
+	}
+	command, err := p.Command(ctx, CommandRequest{Key: seed.Key, Purpose: "inventory", RunDir: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in, err := p.Inventory(ctx, InventoryRequest{Key: seed.Key, Output: execute(command)})
+	if err != nil || len(in.Tests) != 2 {
+		t.Fatalf("inventory: %+v %v", in, err)
+	}
+	passing, _ := json.Marshal([]tr.RunnerResult{{ID: "test_fixture.Case.test_a", Outcome: "passed"}, {ID: "test_fixture.Case.test_b", Outcome: "passed"}})
+	calls := 0
+	out := NewSelectionSession(p, in.Key, false).Run(ctx, in, nil, nil, dir, true, func(_ context.Context, command CommandResponse) (string, error) {
+		calls++
+		if calls > 1 {
+			return string(passing), nil
+		}
+		output := execute(command)
+		var rows []tr.RunnerResult
+		if err := json.Unmarshal([]byte(output), &rows); err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 || rows[0].ID != "test_fixture.Case.test_a" || rows[0].Outcome != "failed" {
+			t.Fatalf("unproven run must keep only its certified failure: %+v", rows)
+		}
+		return output, nil
+	})
+	if calls != 2 || out.Succeeded || !out.NeedsRequalification || len(out.Attempts) != 2 || !out.Attempts[1].Plan.Full || !out.Attempts[1].Reconciliation.Succeeded {
+		t.Fatalf("passing FULL retry erased failure: %+v calls=%d", out, calls)
+	}
+}
+
 // RSP-V0-003: missing results trigger one FULL retry and sticky divergence;
 // unknown identities, duplicate rows and reasonless skips never succeed.
 func TestRSPV0003PythonDivergence(t *testing.T) {

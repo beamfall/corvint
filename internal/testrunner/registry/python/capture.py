@@ -110,9 +110,14 @@ def unit_capture(purpose, names):
     if purpose == "inventory":
         return tests, 0
     result = unittest.TextTestRunner(resultclass=UnitResult, verbosity=2).run(suite)
-    # Unknown callback forms leave results missing so core reconciliation
-    # fails closed, including on its FULL retry, using the existing contract.
-    return ([] if result.unproven else list(result.rows.values())), 0 if result.wasSuccessful() else 1
+    # Unknown callback forms leave passes and skips missing so core
+    # reconciliation fails closed, including on its FULL retry, using the
+    # existing contract. RSP-V0-003: failures already certified for the active
+    # test stay, so a passing FULL retry cannot erase them.
+    rows = list(result.rows.values())
+    if result.unproven:
+        rows = [row for row in rows if row["Outcome"] == "failed"]
+    return rows, 0 if result.wasSuccessful() else 1
 
 
 def pytest_capture(purpose, names):

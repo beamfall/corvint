@@ -219,6 +219,28 @@ func TestRSPV0003RetryPreservesFailure(t *testing.T) {
 	}
 }
 
+// RSP-V0-003: a failed row from a rejected or incomplete report stays sticky,
+// even when reconciliation refuses its spelling and the FULL retry passes.
+func TestRSPV0003RejectedReportFailureStaysSticky(t *testing.T) {
+	in := inventoryFixture()
+	for _, outcome := range []string{"failed", " FAILED "} {
+		calls := 0
+		out := RunInventoried(in, in.Key, RunSet{Full: true}, true, func(plan RunSet) ([]RunnerResult, bool, error) {
+			calls++
+			if calls == 1 {
+				return []RunnerResult{{ID: "new", Outcome: outcome}}, false, errors.New("report-rejected:count-mismatch")
+			}
+			if !plan.Full {
+				t.Fatal("retry narrowed")
+			}
+			return terminalResults(), false, nil
+		})
+		if out.Succeeded || calls != 2 || len(out.Attempts) != 2 || !out.Attempts[1].Reconciliation.Succeeded || out.Attempts[0].Results[0].Outcome != outcome {
+			t.Fatalf("%q: rejected-report failure erased by passing retry: %+v", outcome, out)
+		}
+	}
+}
+
 // RSP-V0-003: plugin-owned slices cannot change the planned identities or
 // overwrite results retained from an earlier attempt.
 func TestRSPV0003RetainsCorePlanAndResults(t *testing.T) {

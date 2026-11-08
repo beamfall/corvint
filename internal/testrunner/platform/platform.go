@@ -183,6 +183,19 @@ func ParseShellResults(in tr.Input) (tr.Observation, error) {
 	return parse(in, true)
 }
 
+// ParseJVMResults is the JVM selection plugin's counterpart of
+// ParseShellResults (RSP-V0-003): testcases parsed before a report error, such
+// as a suite count mismatch, keep their native state so the caller can retain
+// validated failures. The error still prevents completeness, and Parse keeps
+// its existing observation semantics for these runners.
+func ParseJVMResults(in tr.Input) (tr.Observation, error) {
+	switch in.Runner {
+	case "gradle-junit", "maven-surefire", "junit-platform":
+		return parse(in, true)
+	}
+	return tr.Observation{}, fmt.Errorf("runner %q native parser unavailable", in.Runner)
+}
+
 func parse(in tr.Input, preserveTerminal bool) (o tr.Observation, err error) {
 	o = tr.Observation{Runner: in.Runner, Tests: []tr.Test{}, Problems: []tr.Problem{}, RetryInformation: tr.NotReported}
 	defer func() {
