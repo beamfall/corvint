@@ -207,6 +207,8 @@ func TestBaselineMemoryWorkersASDV0925(t *testing.T) {
 		}
 	}
 	t.Setenv("SELECTION_BASELINE_JOBS", "")
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("HEAVY_P", "")
 	if got := replayJobs(58); got < 1 || got > 16 || got > memoryJobs() {
 		t.Fatalf("unbounded default: %d", got)
 	}

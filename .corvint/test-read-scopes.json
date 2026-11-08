@@ -1,5 +1,4 @@
 {
-  "profile": "corvint-test-read-scopes/0",
   "packages": {
     ".github/cishards": [
       ".github/workflows/ci.yml",
@@ -132,6 +131,7 @@
       "internal/mcp/tasksread/",
       "internal/mcp/testvaliditybridge/",
       "internal/mcp/toolgroup/",
+      "internal/mergedrivers/",
       "internal/migrationratchet/",
       "internal/necessity/",
       "internal/observations/",
@@ -1701,6 +1701,11 @@
     ],
     "tools/heading-nav-bench": [],
     "tools/linecov": [],
+    "tools/merge-drivers": [
+      ".gitattributes",
+      "Makefile",
+      "script/gen-spec-requirements.sh"
+    ],
     "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
@@ -1724,5 +1729,6 @@
       ".github/forward-rows/tiers.sh"
     ],
     "tools/unbounded-readers": []
-  }
+  },
+  "profile": "corvint-test-read-scopes/0"
 }

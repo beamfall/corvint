@@ -429,14 +429,23 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the larger of the CPU
-// count at most 4 and a third of the CPUs at most 8, memory bounded, and at most n (at most eight,
-// DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound
-// (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, at most n. Without it, a
+// positive GOMAXPROCS, else HEAVY_P, environment value is the admitted runtime share (DTL-V0-017;
+// GOMAXPROCS wins as it does for a caller overriding heavy.sh's runtime cap); with neither, the
+// larger of the CPU count at most 4 and a third of the CPUs at most 8 (DTL-V0-006). Both defaults
+// are memory bounded and at most n. A 4-CPU hosted runner needs all 4: one worker there overruns
+// the doc-gates job bound (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8
+// (ASC-V0-777).
 func replayJobs(n int) int {
 	override := os.Getenv("SELECTION_BASELINE_JOBS")
 	jobs := defaultReplayJobs(n, runtime.NumCPU(), override)
 	if v, err := strconv.Atoi(override); err != nil || v <= 0 {
+		for _, key := range []string{"GOMAXPROCS", "HEAVY_P"} {
+			if share, err := strconv.Atoi(os.Getenv(key)); err == nil && share > 0 {
+				jobs = min(share, n)
+				break
+			}
+		}
 		jobs = max(1, min(jobs, memoryJobs()))
 	}
 	return jobs
