@@ -481,6 +481,16 @@ AFP-V0-9002	docs/specs/affected-reader-precision-v0.md	Parent-path examples in T
 AFP-V0-9003	docs/specs/affected-reader-precision-v0.md	Replays of script-only, test-only and data/spec changes MUST	unrecorded	-
 AFP-V0-9004	docs/specs/affected-reader-precision-v0.md	A dirty shell foreign-caller declaration MUST retain	unrecorded	-
 AFP-V0-9005	docs/specs/affected-reader-precision-v0.md	A Go test file may instead declare	unrecorded	-
+AFP-V0-9200	docs/specs/affected-reader-precision-v0.md	(accepted by the owner, 2026-11-07; V1-5089 lane charter) Additional	owner	2026-11-07; V1-5089
+AFP-V0-9201	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9202	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9203	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9204	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9205	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9206	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9207	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9208	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
+AFP-V0-9209	docs/specs/affected-reader-precision-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5089)	standing	2026-10-11; V1-5089
 AZU-V0-001	docs/specs/affected-zero-unknown-v0.md	**Driver claimant.** A built-in claimant SHALL own every driver input that	unrecorded	-
 AZU-V0-002	docs/specs/affected-zero-unknown-v0.md	**Ownership completeness gate.** `corvint affected --ownership-audit` SHALL list	unrecorded	-
 AZU-V0-003	docs/specs/affected-zero-unknown-v0.md	**Outbound site closure.** A plugin SHALL classify each frontier reason as `OUTB	unrecorded	-
