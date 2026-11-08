@@ -599,7 +599,10 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 			if packages == nil {
 				packages = graph.goPackageDirectories()
 			}
-			if graph.goReadData(path, packages) {
+			entry := graph.unownedUnknown(path, packages, fixtureClaims)
+			// AFP-V0-9311: confined reads do not prove that an omitted
+			// compiled source has no missing dependency edges.
+			if entry.Reason == UnknownUnownedDirtyPath && graph.goReadData(path, packages) {
 				// Every unit that can read it is selected (AFP-V0-600,
 				// AFP-V0-601); it stays unowned for frontierUnknowns.
 				if inModule {
@@ -620,7 +623,6 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				}
 				continue
 			}
-			entry := graph.unownedUnknown(path, packages, fixtureClaims)
 			if inModule && entry != module {
 				unknown = append(unknown, module)
 			}
@@ -1320,6 +1322,13 @@ func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo
 				category = FrontierUnobservedModule
 			}
 			return Unknown{Reason: UnknownLanguageFrontier, Detail: name + ":" + category + ":" + directory + ":" + path}
+		}
+		// AFP-V0-9310: a hosted Swift package manifest is fixture build
+		// metadata even when the adapter lists targets beneath it. Keep
+		// its claimant and frontiers: those targets still need their suite.
+		if name == "swift" && strings.HasSuffix(path, "/Package.swift") &&
+			fixtureDirectory(path) != "" && graph.goUnitAbove(fixtureDirectory(path), packages) {
+			continue
 		}
 		if graph.fixtureOnlyClaim(name, path, packages, memo) {
 			fixtureOnly = append(fixtureOnly, name)

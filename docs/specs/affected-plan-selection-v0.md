@@ -71,6 +71,36 @@ measure. None of them drops a unit the change can reach.
 
 ## Requirements
 
+### Unindexed hosted Swift fixtures (V1-4941)
+
+- **AFP-V0-9310:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) A Swift claim on an unindexed `Package.swift` below a Go-hosted `testdata`
+  directory SHALL be treated as fixture build metadata, even when Swift lists target files
+  below that directory. With no other source claimant the path retains `UNOWNED_DIRTY_PATH`,
+  rather than `UNINDEXED_SOURCE_PATH`. Its Swift claimant and all bearing frontiers remain:
+  the manifest can change its targets and their dependencies, so a narrowed execution plan
+  still accounts for the declared Swift suite. Existing enclosing-package, literal-reader,
+  declared-scope and unbounded-reader rules continue to select readers. No new hint, wire
+  member, reason code or unknown allowance is introduced. An unhosted manifest, a manifest
+  outside `testdata`, another source claimant, or a claimant's unobserved directory SHALL
+  retain the existing conservative classification. Ordinary `.swift` source files do not
+  gain this metadata exception; the existing fixture-only rule still applies where proved.
+- **AFP-V0-9311:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) The confined Go read-data shortcut SHALL apply only after classification as
+  `UNOWNED_DIRTY_PATH`. Read confinement proves readers of data, never the absence of missing
+  compiler dependency edges: an unindexed compiled source, including one below `testdata`,
+  SHALL retain its source uncertainty and force FULL through the existing consumers. The
+  admitted-deletion rules remain separate and unchanged.
+- **AFP-V0-9312:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4941) Regression evidence SHALL carry the Swift fixture shape from mbapproved head
+  `12b66eb3907ea8da99e51216df9584cd84304bf6` through affected selection, the structural Go
+  selector and the session manifest builder. Disk and immutable graphs SHALL agree; the
+  manifest fixture SHALL keep its enclosing and literal Go readers and Swift suite, exclude
+  an unrelated Go test, and stay NARROWED with uncertainty visible. Omitted compiled Go and
+  Swift source controls SHALL force FULL. A replay on the historical tree SHALL retain its
+  exact dirty-path scope, counts and limits; it does not establish hidden-package execution
+  completeness or authorize a whole-repository gate.
+
 ### Located runner locality (V1-4679)
 
 - **AFP-V0-2600:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Amending AFP-V0-511 (4): for a plugin that owns no dirty source, has no reached
@@ -1910,6 +1940,15 @@ repository script uses either form.
 
 ## Failure modes
 
+For V1-4941, treating every hosted source as data could hide an omitted compiled dependency.
+Only the Swift package manifest gains the metadata exception; ordinary source omissions and
+unobserved directories keep uncertainty. Treating a manifest as irrelevant could omit its Swift
+suite: claimant/frontier participation is preserved and the consumer regression requires that
+suite. Rollback removes the manifest exception and the read-data classification guard together
+with their new witnesses; this restores the prior FULL fallback and its documented confinement
+soundness limitation, without changing any protocol or execution-universe rule.
+
+
 The parent contract's failure codes apply. A fixture marker on a literal the test really reads is
 an author error. It narrows that read the same way ASD-V0-895 does for `test-read-scopes-check`, so
 the marker is reviewable in the diff. A `whole_packages` entry the parser cannot compute keeps the
@@ -2017,6 +2056,9 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-9310 | `unownedUnknown` in `internal/liveverify/affected/select.go` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; hosted manifest and plain fixture retain readers, Swift suite and UNKNOWN; omitted Swift source keeps FULL; `TestSwiftFixtureClaimBoundaries_AFPV09310` preserves other claimants and unobserved directories |
+| AFP-V0-9311 | `seed` in `internal/liveverify/affected/select.go` | `TestUnindexedCompiledSourceStillWidens_AFPV09311` in `internal/liveverify/affected/swfix_test.go`; injected omissions in confined compiled sources outside and below testdata keep FULL |
+| AFP-V0-9312 | `Select`, `gateselect.SelectStructural`, `sessiontest.Build` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; disk/immutable parity and consumer integration; historical replay and limits in `../build-log/2026-11-08-swfix.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
