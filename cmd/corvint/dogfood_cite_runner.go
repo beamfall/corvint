@@ -6,6 +6,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
 )
@@ -16,7 +17,13 @@ import (
 // DCW-V0-335: prepare still uses the public cite parser and refusal formatter.
 func dogfoodCitationRunner(path, self string) dogfoodflow.Runner {
 	runner := dogfoodflow.Exec(path)
-	selected, selectedErr := os.Stat(path)
+	// Admit only an executable resolved by the same lookup as Exec. A bare
+	// name in the working directory does not establish what PATH will execute.
+	resolved, err := exec.LookPath(path)
+	if err != nil {
+		return runner
+	}
+	selected, selectedErr := os.Stat(resolved)
 	current, currentErr := os.Stat(self)
 	if selectedErr != nil || currentErr != nil || !os.SameFile(selected, current) {
 		return runner
