@@ -165,6 +165,29 @@ func TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500(t *testing.T) {
 	}
 }
 
+// AFP-V0-9500: the runtime-edge declaration is opened only as a regular file
+// and read under a size cap, so a non-regular path (which could be a FIFO that
+// blocks) or an oversized file fails closed instead of stalling the selector.
+func TestQualifiedSelectionRuntimeEdgesBoundedRead_AFPV09500(t *testing.T) {
+	root := t.TempDir()
+	name := filepath.Join(root, ".corvint", "runtime-edges.json")
+	if err := os.MkdirAll(name, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if reason := runtimeEdgeIntoModule(root, fixtureModule, []string{"nested"}); !strings.Contains(reason, "cannot read") {
+		t.Fatalf("non-regular declaration: reason %q, want fail closed", reason)
+	}
+	if err := os.Remove(name); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(name, make([]byte, maxSourceBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if reason := runtimeEdgeIntoModule(root, fixtureModule, []string{"nested"}); !strings.Contains(reason, "cannot read") {
+		t.Fatalf("oversized declaration: reason %q, want fail closed", reason)
+	}
+}
+
 // AFP-V0-9500: a declared runtime edge is invisible to the Go-only index, so
 // a root test that runs a unit inside the dirty nested module, or an edge the
 // downgrade cannot place, blocks the NOTHING downgrade. An edge elsewhere does not.

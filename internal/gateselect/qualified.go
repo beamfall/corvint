@@ -195,9 +195,20 @@ func moduleCovered(plan Receipt) []string {
 // when no declared edge can. An unreadable or invalid declaration, and a Go
 // unit outside the root module, cannot be placed and so fail closed.
 func runtimeEdgeIntoModule(root, module string, directories []string) string {
-	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.RuntimeEdgesPath)))
+	name := filepath.Join(root, filepath.FromSlash(affected.RuntimeEdgesPath))
+	info, err := os.Lstat(name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return ""
+	}
+	var body []byte
+	if err == nil {
+		// Only a regular file is opened, so a FIFO or device cannot block the
+		// selector; the read is size-capped and refuses a swapped file.
+		if !info.Mode().IsRegular() {
+			err = errors.New("not a regular file")
+		} else {
+			body, err = readBounded(name, info)
+		}
 	}
 	var declared struct {
 		Edges []affected.RuntimeEdge `json:"edges"`
