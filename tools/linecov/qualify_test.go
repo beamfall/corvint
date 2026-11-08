@@ -135,10 +135,14 @@ func readReport(t *testing.T, file string) QualReport {
 func TestQualifyFixtureHasNoMiss(t *testing.T) {
 	root := qualifyModule(t)
 	index := filepath.Join(t.TempDir(), "index")
-	if err := collect([]string{"-root", root, "-out", index, "-parallel", "4"}); err != nil {
+	if err := collect([]string{"-root", root, "-out", index, "-parallel", "4", "-test-timeout", "20s"}); err != nil {
 		t.Fatal(err)
 	}
 	report := filepath.Join(t.TempDir(), "report.json")
+	// Mutants run only under the deadline the index's runner records.
+	if err := qualify([]string{"-root", root, "-index", index, "-packages", "calc", "-test-timeout", "21s", "-report", report}); err == nil || !strings.Contains(err.Error(), "test-deadline-mismatch") {
+		t.Fatalf("qualify ran under another deadline than the index records: %v", err)
+	}
 	if err := qualify([]string{"-root", root, "-index", index, "-packages", "calc", "-start", "0", "-count", "1000", "-controls", "1", "-test-timeout", "20s", "-report", report}); err != nil {
 		t.Fatal(err)
 	}
@@ -177,11 +181,12 @@ func TestQualifyReportsASeededMiss(t *testing.T) {
 	root := qualifyModule(t)
 	ctx := context.Background()
 	commit := strings.TrimSpace(gitOut(t, root, "rev-parse", "HEAD"))
-	run, goflags, err := runner(root, linecov.DefaultTestTimeout, "")
+	const deadline = 20 * time.Second
+	run, goflags, err := runner(root, deadline, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	outcomes, err := linecov.Collect(ctx, root, linecov.CollectOptions{Module: "example.com/m", Packages: []string{"calc"}, Work: t.TempDir(), Parallel: 4, Timeout: time.Minute, SuiteTimeout: time.Minute, TestTimeout: linecov.DefaultTestTimeout, GOFLAGS: goflags})
+	outcomes, err := linecov.Collect(ctx, root, linecov.CollectOptions{Module: "example.com/m", Packages: []string{"calc"}, Work: t.TempDir(), Parallel: 4, Timeout: time.Minute, SuiteTimeout: time.Minute, TestTimeout: deadline, GOFLAGS: goflags})
 	if err != nil {
 		t.Fatal(err)
 	}

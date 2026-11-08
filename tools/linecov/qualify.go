@@ -154,14 +154,18 @@ func qualify(args []string) error {
 	}
 	// Mutants run under the deadline the index was collected for, so a test
 	// that reads t.Deadline() executes as recorded (GLS-V0-009); an index
-	// naming none, or a zero one, cannot qualify (LPCV-V0-7603).
-	if *testTimeout <= 0 {
-		recorded, ok := linecov.RunnerTestTimeout(ix.Runner)
-		if !ok || recorded <= 0 {
-			return errors.New("qualify: missing-recorded-test-deadline")
-		}
-		*testTimeout = recorded
+	// naming none, or a zero one, cannot qualify (LPCV-V0-7603). An explicit
+	// -test-timeout must name that same deadline: the report keeps the index's
+	// runner identity, so runs under another deadline would qualify a runner
+	// they did not reproduce.
+	recorded, ok := linecov.RunnerTestTimeout(ix.Runner)
+	if !ok || recorded <= 0 {
+		return errors.New("qualify: missing-recorded-test-deadline")
 	}
+	if *testTimeout > 0 && *testTimeout != recorded {
+		return fmt.Errorf("qualify: test-deadline-mismatch: -test-timeout %s, index runner records %s", *testTimeout, recorded)
+	}
+	*testTimeout = recorded
 	dirs := split(*only)
 	if len(dirs) == 0 {
 		return errors.New("qualify: -packages is required")
