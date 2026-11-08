@@ -1966,6 +1966,43 @@ one list, so a later class cannot reopen it.
   `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
   fallback; none drops a reader.
 
+### Driver input and file-set reads (lane avdrv, 2026-11-08)
+
+- **AFP-V0-9400:** (accepted under the owner's standing auto-accept (2026-10-11); V1-4973, V1-5034) A driver shell scanner that skips a here-document body SHALL retain
+  `driver:computed-invocation` for its target or job. A wrapper may pass that body to
+  an interpreter, save it for later execution, or pass a nested body's output to another
+  command; a literal first command word does not prove the input inert. Quoted and
+  tab-stripped delimiters and unterminated bodies retain the same fallback. Literal
+  `<<` inside a quoted argument is not a redirection. The existing direct
+  `sh <<'A' | sh` nested-body case remains conservative. This rule does not execute
+  the body, infer its language, or claim to have found its hidden execution edges.
+- **AFP-V0-9401:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A literal driver invocation of `git ls-files`, `git grep`, `find`, or `rg`, and a
+  modelled `go run` invocation, SHALL retain a dependency on every repository file.
+  It SHALL use the existing anchored ancestor glob `/*` in `Unit.PathGlobs` when the
+  target or job has no computed-invocation fallback. The file-set edge matches additions,
+  deletions, unindexed paths, dot paths and tested source without requiring the path to
+  exist in the scanner's inventory. Flags, shell expansions in operands, changed working
+  directories and file or directory symlinks SHALL NOT narrow that dependency. A Go
+  program's package dependencies do not bound its runtime reads or its subprocess
+  `Cmd.Dir`; these commands keep the whole-tree bound until a separate proof can narrow
+  it. A pure command mentioning an enumerator as data does not itself enumerate.
+  Ordinary Go build, vet and test invocations retain their existing package edges.
+- **AFP-V0-9402:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reached driver file-set reader SHALL also reach its driver dependents,
+  including make prerequisites and workflow callers, even when a dirty path has an
+  already tested owner. Existing computed fallbacks and their `FRONTIER_SITE` witnesses
+  SHALL remain intact; an enumerator edge is not a proof that another command in the
+  same target has bounded reads. An empty change selects no file-set reader. Unknown
+  ownership and other frontier reasons remain visible. No new graph fields, plan kinds,
+  reason codes or execution authority are introduced.
+
+The owner-requested lane builds on `205d188261990927b4118f73fdd1c232ccc0e2c7` and retains
+`a7d38e73236cea3a237ce972f3bd50e11e723c29` as its requested evidence base. V1-4684,
+V1-4687 and V1-4690 already have the AZU driver, verified caller and runnable-consumer
+implementations at that head. V1-5087 is left out: changing the stale-runtime-edge refusal
+would violate an existing assertion, and integration into the trusted CI caller is outside
+this lane's allowed paths. These facts and the pending integration checks are recorded in
+`docs/build-log/2026-11-08-avdrv.md`; no runtime-edge compatibility relaxation is claimed.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -2146,6 +2183,16 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
+The avdrv additions are build-only candidates; their new regressions have not been executed
+in the lane. The integration branch must run the complete affected package and independent
+review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check results and limits.
+
+| Requirement | Implementation | Regression witness (pending execution) |
+|---|---|---|
+| AFP-V0-9400 | `driverShellScanner.script` in `internal/liveverify/affected/driver_shell.go` | `TestDriverHeredocConsumers_AFPV09400` in `internal/liveverify/affected/driver_avdrv_test.go`: wrapper, generated script, substitution, nested output, unclosed and tab-stripped body; workflow selection and quoted-text controls |
+| AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
+| AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses |
+
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
@@ -2266,6 +2313,11 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 
 ## Rollback
+
+For AFP-V0-9400..9402, revert the avdrv scanner, builder and driver-dependent traversal
+changes together. No persisted wire migration or declaration rewrite is required. Reversion
+restores the known wrapper-heredoc and literal enumerator selection gaps; keep those cases
+UNKNOWN or run the full affected scope until a replacement passes integration verification.
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
