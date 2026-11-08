@@ -87,8 +87,10 @@ func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 		{"x=1 y=2", driverNoEnv, ""},
 		{"base=$(git rev-parse HEAD)\ngo test ./...", driverNoEnv, ""},
 		{"count+=1", driverNoEnv, ""},
-		{"if ok=1; then :; fi", driverNoEnv, ""},
-		{"for f in a b; do :; done", driverNoEnv, ""},
+		// The redesign admits only fully understood simple-command scripts;
+		// conditional assignments and every loop deliberately stay computed.
+		{"if ok=1; then :; fi", driverNoEnv, "shell:assignment"},
+		{"for f in a b; do :; done", driverNoEnv, "shell:loop-variable"},
 		{"dir=.", driverNoEnv, ""},
 		{"dir=../x", driverNoEnv, ""},
 		// Fault injection: names a shell, zsh or a tool gives a meaning.
@@ -141,6 +143,69 @@ func TestDriverLocalAssignment_AFP_V0_9622(t *testing.T) {
 		// Fault injection: an unmodelled $X/ command is still root-like (AZU parity).
 		{"$X/run.sh", driverNoEnv, ""},
 	})
+}
+
+// AFP-V0-9628: unsupported syntax anywhere revokes provisional narrowing,
+// including before a candidate. Parsed references survive escaping and scope.
+func TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628(t *testing.T) {
+	for _, script := range []string{
+		"read -r 'dir' < choice; set -e",
+		`read -r d\ir < choice; "$dir/run"`,
+		"rea\\\nd -r dir < choice; \"$dir/run\"",
+		"funct\\\nion read { \"$2/run\"; }; read -r tools",
+		"read\\\n() { \"$2/run\"; }; read -r tools",
+		`function 'read' { "$2/run"; }; read -r tools`,
+		`out=1; cat <<EOF` + "\n${other:=value}\nEOF",
+		`out=1; cat <<EOF` + "\n`source ci/setup.sh`\nEOF",
+		"out=1; cat <<EOF\n$($tool/run)\nEOF",
+		"out=1; cat <<EOF\n$out\nEOF",
+		// Ordinary << does not allow tab-indented terminators; a # in the
+		// body cannot hide executable substitutions as a shell comment.
+		"unused=1\ncat <<EOF\n\tEOF\n# $(. ./ci/setup.sh; set -x; :)\nEOF",
+		`sourc{e..e} ./ci/setup.sh; set -x; :`,
+		`sourc[e] ./ci/setup.sh; set -x; :`,
+		`*; set -e`,
+		`~; set -e`,
+		`unused=1; bash -ca '. ./ci/setup.sh; set -x; :'`,
+		`unused=1; bash --norc -ca '. ./ci/setup.sh; set -x; :'`,
+		`unused=1; bash -o allexport script.sh`,
+		`out=1; echo "${name[out]}"`,
+		`out=1; echo $[out]`,
+		`out=1; echo $'\x24out'`,
+		`out=1; echo "unterminated`,
+		"set -e; cat <<EOF\nno terminator\nout=1",
+		"out=1; cat <<EOF",
+		`out=1; (echo ok)`,
+		`out=1; cat <(echo ok)`,
+		`out=1; env -S 'source ci/setup.sh'`,
+		`out=1; bash -ac ':'`,
+		`out=1; source ci/setup.sh`,
+		`out=1; eval ':'`,
+		`set -a; out=1`,
+		`out=1; set -o allexport`,
+	} {
+		t.Run(script, func(t *testing.T) {
+			_, scan := driverStepScan(t, script, driverNoEnv)
+			if !scan.computed {
+				t.Fatal("incomplete or unsupported script was narrowed")
+			}
+		})
+	}
+	// <<- alone strips tabs; a plain body remains a positive control.
+	if reasons, _ := driverStepScan(t, "unused=1\ncat <<-EOF\n\tliteral\n\tEOF", driverNoEnv); len(reasons) != 0 {
+		t.Errorf("literal tab-stripped here-doc became computed: %v", reasons)
+	}
+	for _, script := range []string{`out=1; echo "$out"`, `read -r out; "$out/run"`, `for out in tools; do "$out/run"; done`} {
+		t.Run("opaque/"+script, func(t *testing.T) {
+			_, scan := driverStepScan(t, "bash -ac '"+script+"'", driverNoEnv)
+			if !scan.locals["out"] || !scan.references["out"] {
+				t.Fatal("opaque scope lost parsed declarations or references")
+			}
+			if strings.Contains(script, "/run") && !scan.commandRefs["out"] {
+				t.Fatal("opaque scope lost parsed command references")
+			}
+		})
+	}
 }
 
 // AFP-V0-9622: an assigned value is never recorded as a path; the step

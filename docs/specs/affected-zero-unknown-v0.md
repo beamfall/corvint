@@ -507,9 +507,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   (AFP-V0-9623) that AFP-V0-9628 does not revoke. Every other form stays computed, including bare
   `set`, `--`, `-a`, `-f`, `-o posix`, positional parameters and every make recipe.
 - **AFP-V0-9622:** **Plain local assignments.** (experimental, V1-5000 orchestrator lane charter,
-  2026-11-08; amended by review round 1, 2026-11-08) This amends AFP-V0-3128's assignment
-  allowlist for CI steps only. A standalone assignment, a `+=` append, or a `for`/`select` loop
-  variable SHALL NOT make the step computed when all of the following hold:
+  2026-11-08; amended by the owner-requested V1-5000 redesign, 2026-11-08) This amends
+  AFP-V0-3128's assignment allowlist for CI steps only. A standalone assignment or a `+=` append
+  SHALL NOT make the step computed when all of the following hold:
   - the script is narrowable (AFP-V0-9623);
   - the name contains only `[a-z0-9_]`, does not start with a digit, and is not `_`;
   - the name is not a shell or tool special name (`ifs`, `path`, `cdpath`, `env`, `home`, `ps1`
@@ -517,10 +517,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
     `driverSpecialNames`), contains no `proxy`, and does not start with `bash_`, `lc_`, `npm_`,
     `yarn_` or `pnpm_`;
   - no workflow, job, container or step env block declares the name, compared case-insensitively;
-  - the name occurs nowhere else in the script as a whole word (AFP-V0-9628).
+  - no parsed reference uses the name, and the whole script passes AFP-V0-9628.
 
   The value is not modelled and is never recorded as a path: a local is narrowed only when the
-  script never uses it. A loop variable that is uppercase, special or env-declared stays
+  script never uses it. Every loop variable, including an unused lowercase name, stays
   computed as `shell:loop-variable` in every script. A prefix assignment on a command
   (`x=1 cmd`), an uppercase name and any other form keep the AFP-V0-3128 rule.
 - **AFP-V0-9623:** **Known workflow environments.** (experimental, V1-5000 orchestrator lane
@@ -537,8 +537,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   narrowable is narrowed.
 - **AFP-V0-9624:** **`read -r` into local names.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) `read -r` and `IFS= read -r` SHALL NOT make the step computed when every
-  operand is an unquoted name that meets the AFP-V0-9622 name rules. `read` without `-r`, with
-  other options (`-a`, `-p`, `-d`), with no name, or with any other `IFS` value stays computed.
+  operand is an unquoted, unescaped name that meets the AFP-V0-9622 name rules. `read` without
+  `-r`, with other options (`-a`, `-p`, `-d`), with no name, or with any other `IFS` value stays computed.
 - **AFP-V0-9625:** **Hidden assignments stay computed.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) An expansion that assigns stays computed. This covers `${X=}` and `${X:=}`,
   and arithmetic expansion containing `=` (other than `==`, `!=`, `<=` and `>=`), `++` or `--`.
@@ -554,24 +554,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `failglob`, `dotglob`, `globstar` or `nocaseglob` SHALL NOT make the step computed. Every other
   `shopt` form stays computed. So do these builtins, which can set any variable: `printf -v`,
   `mapfile`, `readarray`, `let`, `getopts`, `typeset`, `hash`, `enable` and `alias`.
-- **AFP-V0-9628:** **Narrowing is revoked whenever it may not hold.** (experimental, V1-5000
-  review round 1, 2026-11-08) Every AFP-V0-9621, AFP-V0-9622, AFP-V0-9624 and AFP-V0-9627
-  narrowing in a script SHALL be revoked, with the step computed under every narrowed reason and
-  the revoking one, when the raw script text:
-  - defines a function (`function name` or `name ()`), which may shadow a narrowed builtin
-    (`shell:function-definition`);
-  - sources a file with `source` or `.`, which may define functions or set `PS4`
-    (`shell:sourced`);
-  - with any narrowed local, names that local anywhere else as a whole word
-    (`shell:local-referenced`), uses an indirect expansion `${!` (`shell:indirect-expansion`),
-    has an arithmetic context (`((`, `$[`, `-eq` and the other arithmetic tests, or a `${...}`
-    subscript or substring) that may expand a local without `$` (`shell:arithmetic-context`), or
-    names `GITHUB_OUTPUT` (`shell:github-output`).
-
-  A command substitution inside `${...}` or `$((...))` SHALL make the step computed
-  (`shell:brace-substitution`, `shell:arithmetic-substitution`). `eval`, `alias` and `set -a`
-  stay computed as before. The checks over-approximate on raw text and never model the shell
-  more precisely to keep a narrowing.
+AFP-V0-9628 is defined in [Affected Plan Selection Precision V0](affected-plan-selection-v0.md),
+amended by the V1-5000 convergence-cap redesign (2026-11-08). Its complete-parse prerequisite
+governs every narrowing above.
 
 ### Lane qualification details
 
@@ -764,7 +749,7 @@ lanes and external full-suite/mutation observations at every historical revision
   functions, sourced files and inline shell options, and let a `GITHUB_OUTPUT` write carry a
   read value to a later step's command. Mitigations:
   - the name rules exclude uppercase, special, tool-configuration and env-declared names;
-  - a local is narrowed only when the script never names it again (AFP-V0-9628);
+  - a local is narrowed only with no parsed use and a wholly understood script (AFP-V0-9628);
   - functions, sourced files, indirect and arithmetic expansion and `GITHUB_OUTPUT` revoke every
     narrowing in the script;
   - make, composite actions, opaque inline shells and step shells with extra options are never

@@ -266,6 +266,43 @@ jobs:
 	}
 }
 
+// AFP-V0-9628: the round-2 regressions must retain the site and its selection,
+// including the make expansion path (which turns $$d into a shell reference).
+func TestDriverRoundTwoCounterexamples_AFP_V0_9628(t *testing.T) {
+	for _, tc := range []struct {
+		name, script string
+		makeRecipe   bool
+	}{
+		{"opaque-loop", `bash -ac 'for d in tools; do "$d/run"; done'`, false},
+		{"make-loop", `for d in tools; do "$$d/run"; done`, true},
+		{"escaped-name", `read -r d\ir < choice; "$dir/run"`, false},
+		{"heredoc-substitution", "unused=1\ncat <<EOF\n$(. ./ci/setup.sh; set -x; :)\nEOF", false},
+		{"continued-function", "function\\\n read { \"$2/run\"; }\nread -r tools", false},
+		// Independent redesign review: parser gaps must not admit narrowing.
+		{"redesign-brace-name", `sourc{e..e} ./ci/setup.sh; set -x; :`, false},
+		{"redesign-inline-option-order", `unused=1; bash -ca '. ./ci/setup.sh; set -x; :'`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := map[string]string{"Makefile": "", ".github/workflows/ci.yml": "jobs:\n  plain:\n    steps:\n      - run: echo ok\n"}
+			id := "driver:ci:.github/workflows/ci.yml#regression"
+			if tc.makeRecipe {
+				files["Makefile"] = "regression:\n\t" + tc.script + "\n"
+				id = "driver:make:Makefile#regression"
+			} else {
+				files[".github/workflows/ci.yml"] = "jobs:\n  regression:\n    steps:\n      - run: |\n          " + strings.ReplaceAll(tc.script, "\n", "\n          ") + "\n"
+			}
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, id) {
+				t.Error("round-2 counterexample lost its computed site")
+			}
+			selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			if unit, ok := selected[id]; !ok || unit.Witness.Kind != affected.WitnessFrontierSite {
+				t.Errorf("counterexample selection = %+v, present=%v; want FRONTIER_SITE", unit, ok)
+			}
+		})
+	}
+}
+
 // AZU-V0-9700: malformed wrappers in any recipe or step must remain selected,
 // including recipes that no other target calls. Graph building must not panic.
 func TestDriverMissingWrapperOperand_AZU_V0_9700(t *testing.T) {
