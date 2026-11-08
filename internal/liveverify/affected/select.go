@@ -600,8 +600,8 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				packages = graph.goPackageDirectories()
 			}
 			entry := graph.unownedUnknown(path, packages, fixtureClaims)
-			// AFP-V0-9013: reader confinement proves data attribution, not
-			// that an omitted compiled source has no missing dependency edges.
+			// AFP-V0-9013, AFP-V0-9311: reader confinement proves data attribution,
+			// not that an omitted compiled source has no missing dependency edges.
 			if entry.Reason == UnknownUnownedDirtyPath && graph.goReadData(path, packages) {
 				// Every unit that can read it is selected (AFP-V0-600,
 				// AFP-V0-601); it stays unowned for frontierUnknowns.

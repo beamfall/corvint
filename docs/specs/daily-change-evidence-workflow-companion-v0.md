@@ -10,7 +10,7 @@ Authoritative inputs: repository-owner request (V1-1467, V1-4318, V1-4545, V1-45
 ## Agent digest
 - Claim: Daily-workflow requirements beyond the 256-obligation limit of `daily-change-evidence-workflow-v0.md`, under their own prefix.
 - Status: proposed/experimental
-- Exists: `internal/dogfoodflow/regenerated_specs.go`, `reused_worktree.go`, `rebind.go`, `seal_review.go`, `finishlane.go` intents canonicalization, `script/merge-regenerate-specs.sh`, `script/lane-handback.sh`, `script/dogfood-merge-base.sh` and their focused tests; the `DWC-V0-745` to `DWC-V0-759` closeout and draft work in `Makefile`, `script/dogfood-finish.sh`, `script/dogfood-closeout-unwind.sh`, `internal/dogfoodflow/propose_grep.go`, `propose_entryspan.go`, `verify_syntax.go`, `tools/verify-syntax-check` and `tools/test-read-scopes-check`.
+- Exists: `internal/dogfoodflow/regenerated_specs.go`, `merge_drivers.go`, `internal/mergedrivers/`, `tools/merge-drivers/`, `reused_worktree.go`, `rebind.go`, `seal_review.go`, `finishlane.go` intents canonicalization, `script/merge-regenerate-specs.sh`, `script/lane-handback.sh`, `script/dogfood-merge-base.sh` and their focused tests; the `DWC-V0-745` to `DWC-V0-759` closeout and draft work in `Makefile`, `script/dogfood-finish.sh`, `script/dogfood-closeout-unwind.sh`, `internal/dogfoodflow/propose_grep.go`, `propose_entryspan.go`, `verify_syntax.go`, `tools/verify-syntax-check` and `tools/test-read-scopes-check`.
 - Blocked on: Nothing; companion of the daily change-evidence workflow, whose Requirements section is at the 256-obligation limit.
 - Read next: Requirements; Acceptance evidence and rollback.
 

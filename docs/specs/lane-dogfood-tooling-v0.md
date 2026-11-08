@@ -59,7 +59,10 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
   `DOC_GATE_JOBS`; an empty or non-positive-integer value MUST be refused before any gate runs,
   never widened to an unbounded `-j`); every target MUST still run and failures MUST propagate. Each target MUST
   print elapsed seconds and status. A serial override MUST retain identical gate inventory. Selection-baseline replay defaults
-  to at most sixteen independent workers, bounded by CPUs, the change count and one GiB of available memory per worker (including remaining memory at the process’s cgroup and all visible ancestors resolved through membership and controller mounts; two workers when memory is unobservable); its existing
+  to the admitted runtime share (DTL-V0-017) when a positive GOMAXPROCS or HEAVY_P environment value names one,
+  else to at most sixteen independent workers bounded by CPUs; either is bounded by the change count and one GiB of
+  available memory per worker (including remaining memory at the process’s cgroup and all visible ancestors resolved
+  through membership and controller mounts; two workers when memory is unobservable); its existing
   SELECTION_BASELINE_JOBS override remains explicit. Every immutable range and result MUST still
   be measured, ordered and checked, with identical floor/miss/fallback semantics.
 - `DTL-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4465; refines AFP-V0-041)
@@ -124,7 +127,8 @@ BASE-only CEM evidence and the opaque immutable backend's bounded-open requireme
 
 - `DTL-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); heavycap charter 2026-11-07; V1-4722; refines DTL-V0-006)
   Replay worker count MUST default to a positive GOMAXPROCS environment value, else positive
-  HEAVY_P, else the running Go runtime's GOMAXPROCS. A positive SELECTION_BASELINE_JOBS MUST
+  HEAVY_P, else the DTL-V0-006 CPU default; every default keeps the DTL-V0-006 available-memory
+  bound. A positive SELECTION_BASELINE_JOBS MUST
   override that default. Invalid values fall through to the next source; the change count bounds
   workers, with at least one. JSON bytes, diagnostics order, floor, miss and fallback results MUST
   be independent of the admitted worker count.
@@ -180,4 +184,4 @@ MapFS. Revert diagnostic and scratch changes independently. No old receipts or t
 Reverting DTL-V0-016 restores Git-directory staging and its cross-filesystem refusal; keep any
 unfinished local report temporary ignored until its operator disposes of it.
 
-Revert DTL-V0-017 to restore the CPU-count replay default; no result format migration is needed.
+Revert DTL-V0-017 to restore the DTL-V0-006 CPU- and memory-bounded replay default; no result format migration is needed.

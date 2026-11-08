@@ -108,6 +108,11 @@ AFP-V0-2346	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's
 AFP-V0-9012	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5018)	standing	2026-10-11; V1-5018
 AFP-V0-9013	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4941)	standing	2026-10-11; V1-4941
 AFP-V0-9014	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9500	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5094)	standing	2026-10-11; V1-5094
+AFP-V0-9501	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5094)	standing	2026-10-11; V1-5094
+AFP-V0-9310	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-9311	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-9312	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2600	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4679) Ame	standing	2026-10-11; V1-4679
 AFP-V0-548	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3414)	standing	2026-10-11; V1-3414
 AFP-V0-549	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2728)	standing	2026-10-11; V1-2728
@@ -222,8 +227,14 @@ AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) `to
 AFP-V0-9009	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9010	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-9011	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-9320	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9321	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9322	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
 AFP-V0-9450	docs/specs/affected-plan-selection-v0.md	Experimental under the owner's avgo charter (2026-11-08; V1-5085).	unrecorded	-
 AFP-V0-9451	docs/specs/affected-plan-selection-v0.md	Experimental under the owner's avgo charter (2026-11-08; V1-4971),	unrecorded	-
+AFP-V0-9400	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4973, V1-5034)	standing	2026-10-11; V1-4973; V1-5034
+AFP-V0-9401	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A litera	standing	2026-10-11; V1-5033
+AFP-V0-9402	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reache	standing	2026-10-11; V1-5033
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-

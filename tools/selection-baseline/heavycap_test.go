@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
@@ -22,12 +23,17 @@ func TestDTLV0017ReplayJobs(t *testing.T) {
 	}{
 		{"", "2", "7", 20, 2}, {"", "", "3", 20, 3}, {"5", "2", "3", 20, 5},
 		{"5", "2", "3", 2, 2}, {"bad", "2", "3", 20, 2}, {"0", "0", "3", 20, 3},
-		{"", "", "", 20, min(20, runtime.GOMAXPROCS(0))}, {"1", "2", "3", 0, 1},
+		{"", "", "", 20, max(1, min(defaultReplayJobs(20, runtime.NumCPU(), ""), memoryJobs()))},
+		{"1", "2", "3", 0, 1},
 	} {
 		t.Setenv("SELECTION_BASELINE_JOBS", tc.jobs)
 		t.Setenv("GOMAXPROCS", tc.gmp)
 		t.Setenv("HEAVY_P", tc.heavy)
-		if got := replayJobs(tc.n); got != tc.want {
+		want := tc.want
+		if v, err := strconv.Atoi(tc.jobs); err != nil || v <= 0 {
+			want = max(1, min(want, memoryJobs())) // ASD-V0-925 memory bound on every default
+		}
+		if got := replayJobs(tc.n); got != want {
 			t.Errorf("%+v: jobs=%d", tc, got)
 		}
 	}
@@ -99,6 +105,7 @@ esac
 	if err := execfile.WriteFile(selector, []byte("#!/bin/sh\nprintf 'run m/%s\\n' \"$(cat pkg)\"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("SELECTION_BASELINE_CACHE", "off") // every worker count replays; a cached REUSE would differ
 	var wantJSON, wantLog []byte
 	for _, jobs := range []string{"1", "2", "3", "8"} {
 		t.Setenv("SELECTION_BASELINE_JOBS", jobs)
