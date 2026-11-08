@@ -188,10 +188,14 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 		if err != nil {
 			return 2, err
 		}
+		var listed bytes.Buffer
 		cmd := exec.CommandContext(ctx, "go", listArgs(hidden)...)
-		cmd.Dir, cmd.Stdout, cmd.Stderr = root, os.Stdout, os.Stderr
+		cmd.Dir, cmd.Stdout, cmd.Stderr = root, &listed, os.Stderr
 		if err = cmd.Run(); err != nil {
 			return 2, fmt.Errorf("go list: %w", err)
+		}
+		if err = writeSortedPackages(os.Stdout, listed.Bytes()); err != nil {
+			return 2, err
 		}
 		return 0, nil
 	}
