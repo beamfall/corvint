@@ -42,12 +42,11 @@ The native compatibility paths are all sixteen `corvint-analyzer-*` binaries lis
 `corvint-playwright-minimize` and `corvint-tests-accept` shims. `corvint-js-test-provider`
 also retains its authored provider help. Use the explicit discovery profile for a uniform page.
 
-MCP tools use the configured server's `tools/list` descriptors for machine-readable names,
-descriptions and input schemas; they do not accept CLI help flags. The [MCP tool tables](#mcp-tools)
-below name the server and minimal call, and [MCP setup](MCP-SERVER.md) explains profile selection.
-The root machine catalog links server CLI trees, not individual MCP descriptors. Fully offline
-per-tool discovery from `corvint help --json` remains unavailable (V1-4846); the empty CLI ratchet
-does not assert that coverage.
+Use `corvint help --json` → `mcpTools` for offline MCP tool names, summaries,
+server/profile selection and role conditions. MCP tools do not accept CLI help flags.
+The configured server's live `tools/list` supplies input schemas and configured availability;
+the offline catalog does not assert that a tool is enabled there. The [MCP tool tables](#mcp-tools)
+below give minimal calls, and [MCP setup](MCP-SERVER.md) explains profile selection.
 
 CLI failures use `binary`, `code`, explanatory `error`, `help`, and `ok:false` on stderr
 (ACX-V0-7707). Native evidence and diagnostic fields are retained, with the original document

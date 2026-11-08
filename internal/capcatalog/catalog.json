@@ -9,7 +9,7 @@
     "globalFlags": "every --option the root help Global options block names, including the --json modifier of --version",
     "globalSchemaIds": "every NAME/VERSION schema identifier the root help Global options block names",
     "maturity": "core under the root help Core header, experimental under the Experimental header",
-    "mcpTools": "authored tool names, server/profile availability and summaries; names are checked against the independent source inventory; tools/list on the configured server remains authoritative for argument schemas and availability",
+    "mcpTools": "authored tool names, server/profile availability and summaries; names are checked against offline descriptors and the supplemental source inventory; tools/list on the configured server remains authoritative for argument schemas and availability",
     "nestedHelpTopics": "the two-word corvint help COMMAND SUBCOMMAND topics the help dispatcher accepts",
     "nestedOperations": "the code-declared operation tables one level below an operation, such as docs corpus",
     "operations": "the code-declared subcommand tables plus the lowercase word after the command in each help usage line",
@@ -5192,6 +5192,36 @@
       "name": "corvint.test_validity",
       "availability": "corvint-test-validity-mcp",
       "summary": "Five-axis projection of retained test evidence"
+    },
+    {
+      "name": "tasks_work_start",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
+      "summary": "Validate lane work and return ticket commit trailers; writes nothing"
+    },
+    {
+      "name": "tasks_work_deliver",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
+      "summary": "Validate lane delivery and return delivered commit trailers; writes nothing"
+    },
+    {
+      "name": "tasks_work_block",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
+      "summary": "Validate a lane block and return blocked commit trailers; writes nothing"
+    },
+    {
+      "name": "tasks_work_finding",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
+      "summary": "File or deduplicate findings and record recurrences"
+    },
+    {
+      "name": "tasks_work_close_merged",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only",
+      "summary": "Complete integrated ticket deliveries and record blocks on the store host"
+    },
+    {
+      "name": "tasks_work_release_sync",
+      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only",
+      "summary": "Synchronize a release's open milestone ticket membership on the store host"
     }
   ]
 }

@@ -4,6 +4,7 @@ package capcatalog
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -31,5 +32,22 @@ func TestCAPV08800MCPToolsReachable(t *testing.T) {
 	catalog.MCPTools[0].Name = "changed"
 	if !reflect.DeepEqual(MCPTools(), want) {
 		t.Fatal("caller mutated the authored inventory")
+	}
+}
+
+// CAP-V0-8800 / AC2: the offline entries retain tasks-work's role boundary.
+func TestCAPV08800TasksWorkRoleConditions(t *testing.T) {
+	for _, entry := range MCPTools() {
+		if !strings.HasPrefix(entry.Name, "tasks_work_") {
+			continue
+		}
+		if !strings.Contains(entry.Availability, "--tool-profile tasks-work") ||
+			!strings.Contains(entry.Availability, "OPERATOR") || !strings.Contains(entry.Availability, "OWNER") {
+			t.Fatalf("missing profile or roles: %+v", entry)
+		}
+		privileged := entry.Name == "tasks_work_close_merged" || entry.Name == "tasks_work_release_sync"
+		if strings.Contains(entry.Availability, "AGENT") == privileged {
+			t.Fatalf("incorrect agent availability: %+v", entry)
+		}
 	}
 }

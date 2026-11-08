@@ -147,7 +147,7 @@ var derivation = map[string]string{
 	"writes":                "none when the root help Support boundary lists the command as reading without mutating, local-state when it lists the command (in at least one mode) as writing local CEM artifacts or local state, mode-dependent when it lists both",
 	"selfObservationLedger": "best-effort-append when the root help Support boundary lists the command as appending to .corvint/self-observations.jsonl",
 	"writeStatements":       "sentences of the command's help text that mention writing, mutation or read-only behaviour",
-	"mcpTools":              "authored tool names, server/profile availability and summaries; names are checked against the independent source inventory; tools/list on the configured server remains authoritative for argument schemas and availability",
+	"mcpTools":              "authored tool names, server/profile availability and summaries; names are checked against offline descriptors and the supplemental source inventory; tools/list on the configured server remains authoritative for argument schemas and availability",
 	"commandTrees":          "each binary with subcommands, the command printing its corvint-command-tree/0 document (every subcommand at every depth with its usage, flags, required inputs and example) and the committed snapshot of it",
 	"workflows":             "the code-declared multi-command chains in adoption order; each step's usage, inputs, commit, produces, options and example are the sections of the help the step's command prints for --help, its flags, requiredFlags and schemaIds are read from that help as for commands, requires names earlier steps, chain lists the required steps, and a step with a null command is a repository state to write or commit",
 }

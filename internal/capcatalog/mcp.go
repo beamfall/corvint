@@ -11,7 +11,7 @@ type MCPTool struct {
 }
 
 // MCPTools returns the authored discovery inventory (CAP-V0-8800). The capability
-// checker compares its names with the independently scanned MCP implementations.
+// checker compares its names with offline descriptors and the source inventory.
 func MCPTools() []MCPTool {
 	return []MCPTool{
 		{"corvint.cem.report", "corvint-mcp task-review, task-review-lsp", "Read a CEM report"},
@@ -58,5 +58,11 @@ func MCPTools() []MCPTool {
 		{"corvint.tasks.ticket_search", "corvint-mcp --tool-profile tasks", "One page of corvint-tasks ticket search by status, kind, priority, owner, milestone, label or text"},
 		{"corvint.tasks.ticket_show", "corvint-mcp --tool-profile tasks", "Same envelope as corvint-tasks ticket show ID"},
 		{"corvint.test_validity", "corvint-test-validity-mcp", "Five-axis projection of retained test evidence"},
+		{"tasks_work_start", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane work and return ticket commit trailers; writes nothing"},
+		{"tasks_work_deliver", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane delivery and return delivered commit trailers; writes nothing"},
+		{"tasks_work_block", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate a lane block and return blocked commit trailers; writes nothing"},
+		{"tasks_work_finding", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "File or deduplicate findings and record recurrences"},
+		{"tasks_work_close_merged", "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only", "Complete integrated ticket deliveries and record blocks on the store host"},
+		{"tasks_work_release_sync", "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only", "Synchronize a release's open milestone ticket membership on the store host"},
 	}
 }
