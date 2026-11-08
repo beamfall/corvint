@@ -315,6 +315,37 @@ func TestRSPV0003DotnetMalformedAndIncompleteReport(t *testing.T) {
 	}
 }
 
+// RSP-V0-003: a VSTest TRX report rejected for a wrong total count keeps its
+// validated failed row, so a passing FULL retry cannot report success.
+func TestRSPV0003DotnetVSTestCountMismatchKeepsFailure(t *testing.T) {
+	for _, runner := range []string{"dotnet-vstest-mstest", "dotnet-vstest-nunit", "dotnet-vstest-xunit"} {
+		all, bridge := dotnetTRX(runner, "Demo.Probe.A", "Demo.Probe.B")
+		bad := strings.Replace(all, `testName="Demo.Probe.A" outcome="Passed"`, `testName="Demo.Probe.A" outcome="Failed"`, 1)
+		bad = strings.Replace(bad, `passed="2" failed="0"`, `passed="1" failed="1"`, 1)
+		bad = strings.Replace(bad, `total="2"`, `total="3"`, 1)
+		c := dotnetConfig(runner)
+		c.ResultIDs = bridge
+		p, key := newDotnet(t, c)
+		in := dotnetInventory(t, p, key, c.Platform)
+		results, err := p.Parse(context.Background(), registry.ParseRequest{Runner: runner, Report: bad})
+		if err == nil || len(results) != 1 || results[0].Outcome != "failed" || !strings.HasSuffix(results[0].ID, "Demo.Probe.A") {
+			t.Fatalf("%s: %+v %v", runner, results, err)
+		}
+		s := registry.NewSelectionSession(p, key, false)
+		calls := 0
+		out := s.Run(context.Background(), in, nil, nil, "/reports", true, func(context.Context, registry.CommandResponse) (string, error) {
+			calls++
+			if calls == 1 {
+				return bad, nil
+			}
+			return all, nil
+		})
+		if calls != 2 || out.Succeeded {
+			t.Fatalf("%s: passing retry erased the failure: calls=%d %+v", runner, calls, out)
+		}
+	}
+}
+
 func TestRSPV0004DotnetExclusionAndSuperset(t *testing.T) {
 	for _, platform := range []string{"vstest", "mtp", "mtp-msbuild"} {
 		c := dotnetConfig("dotnet-mtp-mstest")
