@@ -331,6 +331,8 @@ func topicText(topic string) string {
 		return dogfoodOCMHelp
 	case "witness":
 		return witnessHelp
+	case "test-evidence":
+		return testEvidenceHelp
 	case "test-validity":
 		return testValidityHelp
 	case "test-plan":
@@ -381,6 +383,7 @@ Commands:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
     test-plan  test consolidation plan (TCN-V0)
+    test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
     runs  Playwright verdicts (PWR-V0)
     flows  application flows and assertions (AFU-V0)
@@ -856,7 +859,7 @@ The separate corvint-web-flows companion parses JS/TS and optionally observes an
 explicitly trusted local app. Its proposed execution profile remains experimental.
 record explicitly writes one screened private evidence file and refuses overwrite;
 it does not update ranking or accept inferred intent. No automatic ledger is written.
-` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp
+` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp + flowscmd.TestEvidenceHelp
 
 const obligationsHelp = `Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map.
 

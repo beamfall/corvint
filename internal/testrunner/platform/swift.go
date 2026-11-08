@@ -98,6 +98,10 @@ type swiftState struct {
 }
 
 func parseSwift(in tr.Input, o *tr.Observation) error {
+	return parseSwiftFailures(in, o, nil)
+}
+
+func parseSwiftFailures(in tr.Input, o *tr.Observation, failure func(string)) error {
 	b, ok := in.Reports["swift-events.jsonl"]
 	if !ok || len(in.Reports) != 1 || len(b) == 0 || b[len(b)-1] != '\n' || !utf8.Valid(b) {
 		return fmt.Errorf("missing or truncated Swift event stream")
@@ -173,6 +177,9 @@ func parseSwift(in tr.Input, o *tr.Observation) error {
 				return fmt.Errorf("missing or duplicate Swift test start/end")
 			}
 			s.ended = true
+			if failure != nil && s.definition.Kind == "function" && len(s.issues) != 0 {
+				failure(e.TestID)
+			}
 		case "testSkipped":
 			if !started || s == nil || s.started || s.ended {
 				return fmt.Errorf("invalid Swift skip")
