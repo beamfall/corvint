@@ -44,6 +44,9 @@ cannot silently go missing or outlive its command.
   MUST inventory every core profile and Tasks role without starting a server or opening
   a repository. Concrete names, including computed and constant-backed names, are checked
   by exact membership; lexical source scanning is supplementary, not a completeness proof.
+  Standalone descriptor declarations MUST supply a provable name: a string literal or
+  a file-resolved constant initialized directly with one string literal. Other name
+  expressions MUST fail closed as unproven, even when a catalog row happens to match.
   These offline discovery
   entries do not replace configured `tools/list` input schemas or claim availability.
   Shipped Claude/Codex/Gemini/OpenCode skills MUST point at `docs/CAPABILITIES.md`.
@@ -54,7 +57,8 @@ cannot silently go missing or outlive its command.
   `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode` (cliapp and cliprofile),
   `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`,
   `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800OfflineDescriptorOmissionFails`, `TestCAPV08800UnknownOfflineDescriptorFailsClosed`, `TestCAPV08800TasksWorkRoleConditions`, `TestCAPV08800AnalyzerNodeHelpDelegates`,
-  `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog`.
+  `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog`,
+  `TestCAPV08800StandaloneDescriptorDiscovery`.
 
 - `CAP-V0-9300`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)
   Frozen native entrypoints win over universal help interception. The additive
