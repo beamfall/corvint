@@ -36,7 +36,7 @@ const (
 
 // toolGroups are the per-root and workspace-level groups a --tool-profile list
 // may add beside at most one code profile (MMR-V0-012).
-var toolGroups = []string{"test-evidence", toolProfileTestValidity, toolProfileDocs, toolProfileTasks, toolProfileCorpus, toolProfileTasksWork}
+var toolGroups = []string{toolProfileTestEvidence, toolProfileTestValidity, toolProfileDocs, toolProfileTasks, toolProfileCorpus, toolProfileTasksWork}
 
 // splitToolProfile reads one --tool-profile value: a single code profile, as
 // MCPV0-026 has always admitted, or a comma list of at most one code profile
@@ -179,7 +179,7 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 		for _, name := range groups {
 			var group toolgroup.Group
 			switch name {
-			case "test-evidence":
+			case toolProfileTestEvidence:
 				binding, ok := rootbind.Bind(root)
 				if !ok {
 					return "repository unavailable"

@@ -256,12 +256,9 @@ func Requalify(findings []Finding, d q.Declaration, records []q.Admission, ceili
 	if plan.Status != "qualified" {
 		return nil, fmt.Errorf("requalification-not-admitted")
 	}
-	var sequence uint64
-	for _, r := range records {
-		if r.Admitted && r.Record.Declaration.Runner == d.Runner && r.Sequence > sequence {
-			sequence = r.Sequence
-		}
-	}
+	// Only the exact qualification PlanFor accepted may clear a miss: another
+	// configuration's newer admitted record of the same runner name does not.
+	sequence := plan.Sequence
 	out := make([]Finding, 0, len(findings))
 	for _, f := range findings {
 		if !validFinding(f) {

@@ -152,13 +152,29 @@ func Results(d Discovery, raw string) ([]testrunner.RunnerResult, error) {
 }
 
 // nodeResults consumes the existing dynamic/node.mjs reporter's native events.
-// Only per-file completion summaries certify a file unit; dynamic child tests
-// and the aggregate summary never manufacture an identity or hide a failure.
+// Per-file completion summaries certify a file unit; dynamic child tests and the
+// aggregate summary never manufacture an identity or hide a failure. A
+// validated test:fail event whose file resolves keeps a failed result under
+// that file's identity even when the report ends before the file's summary, so
+// a truncated report cannot lose a failure that a passing retry would then
+// hide. The file's own summary, when it arrives, replaces the pending failure
+// with one result rather than adding a second.
 func nodeResults(d Discovery, raw string) ([]testrunner.RunnerResult, error) {
 	if len(raw) > MaxRunnerArtifact {
 		return nil, fmt.Errorf("report-cap-exceeded")
 	}
 	var out []testrunner.RunnerResult
+	var pending []string
+	pendingSet := map[string]bool{}
+	summarized := map[string]bool{}
+	finish := func(err error) ([]testrunner.RunnerResult, error) {
+		for _, p := range pending {
+			if !summarized[p] {
+				out = append(out, testrunner.RunnerResult{ID: TestID(d.Key.Runner, p, "", ""), Outcome: "failed"})
+			}
+		}
+		return out, err
+	}
 	final := false
 	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
 		var e struct {
@@ -169,46 +185,63 @@ func nodeResults(d Discovery, raw string) ([]testrunner.RunnerResult, error) {
 			}
 		}
 		if err := DecodeRunnerJSON(line, &e); err != nil {
-			return out, err
+			return finish(err)
 		}
 		switch e.Type {
-		case "test:pass", "test:fail":
+		case "test:pass":
+			continue
+		case "test:fail":
+			if e.Data.File == "" {
+				continue
+			}
+			p, err := d.Relative(e.Data.File)
+			if err != nil {
+				return finish(err)
+			}
+			if !pendingSet[p] {
+				pendingSet[p] = true
+				pending = append(pending, p)
+				if len(pending) > testrunner.MaxTests {
+					return nil, fmt.Errorf("report-cap-exceeded")
+				}
+			}
 			continue
 		case "test:summary":
 		default:
-			return out, fmt.Errorf("terminal-result-unavailable")
+			return finish(fmt.Errorf("terminal-result-unavailable"))
 		}
 		if e.Data.Success == nil {
-			return out, fmt.Errorf("terminal-result-unavailable")
+			return finish(fmt.Errorf("terminal-result-unavailable"))
 		}
 		if e.Data.File == "" {
 			if final {
-				return out, fmt.Errorf("duplicate-summary")
+				return finish(fmt.Errorf("duplicate-summary"))
 			}
 			final = true
 			if !*e.Data.Success {
-				return out, fmt.Errorf("runner-failed")
+				return finish(fmt.Errorf("runner-failed"))
 			}
 			continue
 		}
 		if final {
-			return out, fmt.Errorf("report-after-completion")
+			return finish(fmt.Errorf("report-after-completion"))
 		}
 		p, err := d.Relative(e.Data.File)
 		if err != nil {
-			return out, err
+			return finish(err)
 		}
 		outcome := "passed"
 		if !*e.Data.Success {
 			outcome = "failed"
 		}
+		summarized[p] = true
 		out = append(out, testrunner.RunnerResult{ID: TestID(d.Key.Runner, p, "", ""), Outcome: outcome})
 		if len(out) > testrunner.MaxTests {
 			return nil, fmt.Errorf("report-cap-exceeded")
 		}
 	}
 	if !final {
-		return out, fmt.Errorf("terminal-result-unavailable")
+		return finish(fmt.Errorf("terminal-result-unavailable"))
 	}
-	return out, nil
+	return finish(nil)
 }

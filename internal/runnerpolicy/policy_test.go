@@ -360,6 +360,33 @@ func TestRSPV0057InvalidRequalificationKeepsBlock(t *testing.T) {
 	}
 }
 
+// RSP-V0-057: only the sequence of the exact qualification PlanFor accepted
+// counts. Config A passed at 9 and missed at 10; config B, another configuration
+// of the same runner name, admitted at 11 cannot clear A's miss.
+func TestRSPV0057OtherConfigurationCannotClearMiss(t *testing.T) {
+	req := fixture()
+	p := retained(t, req)
+	findings := Detect(context.Background(), req.Sampling, true, p, 10, captureFixture(p, false)).Findings
+	if len(findings) != 1 || findings[0].Kind != "miss" || findings[0].Sequence != 10 {
+		t.Fatalf("fixture miss not at 10: %+v", findings)
+	}
+	d, records := qualificationFixture(req, 9)
+	other, otherRecords := qualificationFixture(req, 11)
+	other.Identity.Runner.ConfigurationDigest = strings.Repeat("d", 64)
+	otherRecords[0].Record.Declaration = other
+	records = append(records, otherRecords...)
+	if plan := q.PlanFor(d, records, time.Minute, true); plan.Status != "qualified" || plan.Sequence != 9 {
+		t.Fatalf("config A plan: %+v", plan)
+	}
+	if kept, err := Requalify(findings, d, records, time.Minute); err == nil {
+		t.Fatalf("another configuration's record cleared the miss: %+v", kept)
+	}
+	req.Findings = findings
+	if !runOf(ResolveCI(req)).Full {
+		t.Fatal("block lost")
+	}
+}
+
 // RSP-V0-039: soundness widening is represented in both baseline and build log.
 func TestRSPV0039BaselineUpdateNamesReselectedTests(t *testing.T) {
 	before := testrunner.RunSet{Tests: []string{"a"}}

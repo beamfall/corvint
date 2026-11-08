@@ -28,7 +28,6 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
-	"github.com/Beamfall/corvint/internal/runnerselection"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -204,11 +203,10 @@ type affectedGoProvider struct {
 // (AFP-V0-004). TestSelection is present only when a provider record was
 // named (ETS-V0-002); it never adds to or removes from Checks.
 type affectedAdvice struct {
-	RunnerSelectionShadow *runnerselection.Plan `json:"runner_selection_shadow,omitempty"`
-	Checks                []affectedCheck       `json:"checks"`
-	Note                  string                `json:"note"`
-	Status                string                `json:"status"`
-	TestSelection         map[string]any        `json:"test_selection,omitempty"`
+	Checks        []affectedCheck `json:"checks"`
+	Note          string          `json:"note"`
+	Status        string          `json:"status"`
+	TestSelection map[string]any  `json:"test_selection,omitempty"`
 	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
@@ -1329,8 +1327,6 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 
 		WorktreeDirty: worktreeDirty,
 	}
-	shadow := affectedRunnerShadow(invocation.Base, revision, changed)
-	receipt.Advice.RunnerSelectionShadow = &shadow
 	if invocation.Worktree {
 		receipt.Warning = affectedWorktreeWarning(revision, dirty)
 		receipt.Degradations = append(receipt.Degradations, affectedWorktreeDegradation)
