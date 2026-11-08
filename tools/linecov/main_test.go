@@ -94,6 +94,24 @@ func TestFailingTestsNeedsAResultPerPackage(t *testing.T) {
 	}
 }
 
+// A printed `--- FAIL:` line for a test the package does not declare must not
+// hide the package failure go test also reports, here TestMain exiting nonzero.
+func TestPrintedUndeclaredFailureKeepsCrash(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.com/m\n\ngo 1.22\n")
+	write(t, root, "q/q.go", "package q\n")
+	write(t, root, "q/q_test.go", "package q\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestMain(m *testing.M) {\n\tm.Run()\n\tos.Exit(3)\n}\n\nfunc TestPrints(t *testing.T) { fmt.Println(\"--- FAIL: TestGhost (0.00s)\") }\n")
+	failed, b, err := failingTests(root, "example.com/m", []string{"q"}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed = declaredFailures(failed, map[string][]string{"q": {"TestPrints"}})
+	b.settle(failed)
+	if len(failed) != 0 || !b.crash["q"] {
+		t.Fatalf("failed=%v broken=%+v", failed, b)
+	}
+}
+
 func TestRunnerBindsBuildSettings(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GOENV", filepath.Join(root, "goenv"))

@@ -210,6 +210,7 @@ func qualify(args []string) error {
 	for _, pkg := range suite {
 		failed, broken, err := failingTests(*root, ix.Module, []string{pkg}, *testTimeout, *execWrapper)
 		failed = declaredFailures(failed, baselineHeads)
+		broken.settle(failed)
 		result := BaselineResult{Package: pkg, State: "passed", Failing: sortedKeys(failed)}
 		if err != nil || len(failed) > 0 || len(broken.build) > 0 || len(broken.crash) > 0 {
 			result.State = "failed"
@@ -402,6 +403,7 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 		return res, nil
 	}
 	failed = declaredFailures(failed, heads)
+	broken.settle(failed)
 	if len(broken.build) > 0 {
 		res.State, res.Detail = "invalid", "package build failed: "+strings.Join(sortedKeys(broken.build), ", ")
 		return res, nil
@@ -723,8 +725,29 @@ func isSelectorSel(parent ast.Node, x *ast.Ident) bool {
 }
 
 // broken holds the packages a suite run failed outside every test: build
-// is a build or setup failure, crash any other.
-type broken struct{ build, crash map[string]bool }
+// is a build or setup failure, crash any other. failed holds every package
+// go test reported failing other than by a build; settle decides which of
+// those are crashes once printed results are filtered (declaredFailures).
+type broken struct{ build, crash, failed map[string]bool }
+
+// settle marks as a crash each failed package with no declared failing test
+// left. A test that prints another run's `--- FAIL:` line yields a result
+// declaredFailures drops; that printed result must not hide the package
+// failure, such as TestMain exiting nonzero, that go test also reported.
+func (b broken) settle(failed map[string]bool) {
+	for dir := range b.failed {
+		declared := false
+		for key := range failed {
+			if strings.HasPrefix(key, dir+".") {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			b.crash[dir] = true
+		}
+	}
+}
 
 // failingTests runs the directories whole and returns failing top-level
 // tests as dir.Name, and the packages that failed outside every test. A
@@ -752,8 +775,7 @@ func failingTests(root, module string, dirs []string, timeout time.Duration, wra
 		}
 	}
 	failed, done := map[string]bool{}, map[string]bool{}
-	testFailed := map[string]bool{}
-	b := broken{build: map[string]bool{}, crash: map[string]bool{}}
+	b := broken{build: map[string]bool{}, crash: map[string]bool{}, failed: map[string]bool{}}
 	buildOutput := map[string]bool{}
 	for _, line := range bytes.Split(out, []byte("\n")) {
 		var ev struct{ Action, Package, Test, Output string }
@@ -776,13 +798,12 @@ func failingTests(root, module string, dirs []string, timeout time.Duration, wra
 		if ev.Test == "" {
 			if buildOutput[dir] {
 				b.build[dir] = true
-			} else if !testFailed[dir] {
-				b.crash[dir] = true
+			} else {
+				b.failed[dir] = true
 			}
 			continue
 		}
 		failed[dir+"."+ev.Test] = true
-		testFailed[dir] = true
 	}
 	for _, d := range dirs {
 		if !done[d] {
