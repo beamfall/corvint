@@ -520,60 +520,141 @@ func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
 // emptyFlagsReset is the only GOFLAGS entry a literal environment may carry.
 const emptyFlagsReset = "GOFLAGS="
 
-// namesGoEnvironment reports a file that names GOFLAGS or GOENV anywhere
-// (comments included), so it can set either for every `go list` call of its
-// package. A `"GOFLAGS="` string literal that is an entry of an environment
-// assigned to a field named Env (`x.Env = append(os.Environ(), ...)` or
-// `x.Env = []string{...}`) is not counted: isolatedList and confinedCommand
-// still require that assignment to be a literalEnvironment, and the empty
-// reset only removes ambient flags. A file that does not parse counts.
-func namesGoEnvironment(relative string, body []byte) bool {
-	mentions := func(text []byte) bool {
-		return bytes.Contains(text, []byte("GOFLAGS")) || bytes.Contains(text, []byte("GOENV"))
+// goEnvironmentUnproven reports a package whose files can change the go
+// command's environment for its `go list` calls, so none of them is proven.
+// Any call named Setenv, Unsetenv or Clearenv (any receiver) counts, because
+// os.Environ() carries what it sets. A package that names GOFLAGS or GOENV
+// anywhere (comments included) counts unless it uses only the empty-reset
+// exception (AFP-V0-9600): every Env assignment in every file, of any receiver
+// or shape, is a literalEnvironment that carries the exact `"GOFLAGS="` entry,
+// and those entries are the package's only mentions of either name. A later
+// assignment without the reset would bring the ambient flags back. A file that
+// does not parse counts.
+func goEnvironmentUnproven(files []string, bodies map[string][]byte) bool {
+	named := false
+	for _, relative := range files {
+		body, ok := bodies[relative]
+		if !ok {
+			continue
+		}
+		named = named || mentionsGoEnvironment(body)
+		if bytes.Contains(body, []byte("etenv")) || bytes.Contains(body, []byte("Clearenv")) {
+			if file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.SkipObjectResolution); err != nil || setsEnvironment(file) {
+				return true
+			}
+		}
 	}
-	if !mentions(body) {
+	if !named {
 		return false
 	}
+	for _, relative := range files {
+		body, ok := bodies[relative]
+		if !ok || !mentionsGoEnvironment(body) && !bytes.Contains(body, []byte("Env")) {
+			continue
+		}
+		if !onlyEmptyFlagsResets(relative, body) {
+			return true
+		}
+	}
+	return false
+}
+
+func mentionsGoEnvironment(text []byte) bool {
+	return bytes.Contains(text, []byte("GOFLAGS")) || bytes.Contains(text, []byte("GOENV"))
+}
+
+// setsEnvironment reports any identifier named Setenv, Unsetenv or Clearenv,
+// called or not, so a function value taken from one counts too.
+func setsEnvironment(file *ast.File) bool {
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		if ident, ok := node.(*ast.Ident); ok {
+			found = found || ident.Name == "Setenv" || ident.Name == "Unsetenv" || ident.Name == "Clearenv"
+		}
+		return !found
+	})
+	return found
+}
+
+// onlyEmptyFlagsResets reports a file whose every Env assignment (an
+// assignment to a field named Env, or an `Env:` composite key) is a
+// literalEnvironment carrying the exact `"GOFLAGS="` entry, and whose only
+// GOFLAGS or GOENV mentions are those entries.
+func onlyEmptyFlagsResets(relative string, body []byte) bool {
 	files := token.NewFileSet()
 	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution)
 	if err != nil {
-		return true
+		return false
 	}
+	imports := unshadowedImports(file)
 	masked := append([]byte(nil), body...)
-	ast.Inspect(file, func(node ast.Node) bool {
-		assignment, ok := node.(*ast.AssignStmt)
-		if !ok || assignment.Tok != token.ASSIGN || len(assignment.Lhs) != len(assignment.Rhs) {
-			return true
+	accepted := true
+	reset := func(value ast.Expr) {
+		if !literalEnvironment(value, imports) {
+			accepted = false
+			return
 		}
-		for index, target := range assignment.Lhs {
-			if selector, ok := target.(*ast.SelectorExpr); !ok || selector.Sel.Name != "Env" {
-				continue
-			}
-			var entries []ast.Expr
-			switch value := assignment.Rhs[index].(type) {
-			case *ast.CallExpr:
-				if function, ok := value.Fun.(*ast.Ident); ok && function.Name == "append" && len(value.Args) > 1 {
-					entries = value.Args[1:]
+		var entries []ast.Expr
+		if call, ok := value.(*ast.CallExpr); ok {
+			entries = call.Args[1:]
+		} else {
+			entries = value.(*ast.CompositeLit).Elts
+		}
+		carries := false
+		for _, entry := range entries {
+			if text, ok := literalString(entry); ok && text == emptyFlagsReset {
+				carries = true
+				start, end := files.Position(entry.Pos()).Offset, files.Position(entry.End()).Offset
+				for offset := start; offset < end; offset++ {
+					masked[offset] = ' '
 				}
-			case *ast.CompositeLit:
-				entries = value.Elts
 			}
-			for _, entry := range entries {
-				literal, ok := entry.(*ast.BasicLit)
-				if !ok || literal.Kind != token.STRING {
+		}
+		accepted = accepted && carries
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		if !accepted {
+			return false
+		}
+		switch node := node.(type) {
+		case *ast.AssignStmt:
+			for index, target := range node.Lhs {
+				if !namesEnvField(target) {
 					continue
 				}
-				if value, err := strconv.Unquote(literal.Value); err == nil && value == emptyFlagsReset {
-					start, end := files.Position(literal.Pos()).Offset, files.Position(literal.End()).Offset
-					for offset := start; offset < end; offset++ {
-						masked[offset] = ' '
-					}
+				if _, direct := target.(*ast.SelectorExpr); !direct || node.Tok != token.ASSIGN || len(node.Lhs) != len(node.Rhs) {
+					accepted = false
+					return false
 				}
+				reset(node.Rhs[index])
+			}
+		case *ast.KeyValueExpr:
+			if key, ok := node.Key.(*ast.Ident); ok && key.Name == "Env" {
+				reset(node.Value)
 			}
 		}
 		return true
 	})
-	return mentions(masked)
+	return accepted && !mentionsGoEnvironment(masked)
+}
+
+// namesEnvField reports an assignment target that is, or indexes or slices,
+// a field named Env.
+func namesEnvField(target ast.Expr) bool {
+	for {
+		switch node := target.(type) {
+		case *ast.SelectorExpr:
+			return node.Sel.Name == "Env"
+		case *ast.IndexExpr:
+			target = node.X
+		case *ast.ParenExpr:
+			target = node.X
+		case *ast.StarExpr:
+			target = node.X
+		default:
+			return false
+		}
+	}
 }
 
 // goListArguments classifies the arguments after "list": the directories the
@@ -933,7 +1014,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 	for index := range units {
 		owner := owners[directories[index]]
 		reads := map[string]bool{}
-		all, unproven, reader, environment := false, false, false, false
+		all, unproven, reader := false, false, false
 		builtinsProven := true
 		files := append(append([]string(nil), units[index].Sources...), units[index].Tests...)
 		bodies := make(map[string][]byte, len(files))
@@ -941,14 +1022,14 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			if body, err := root.Read(relative); err == nil {
 				bodies[relative] = body
 				builtinsProven = builtinsProven && unshadowedPredeclared(body)
-				// A package that names the go command's environment can
-				// set GOFLAGS (or a GOENV file holding it) for every call;
-				// an empty literal reset does not count (AFP-V0-9600).
-				environment = environment || namesGoEnvironment(relative, body)
 			} else {
 				builtinsProven = false
 			}
 		}
+		// A package that can set GOFLAGS (or a GOENV file holding it) can
+		// change every call; only the empty-reset exception keeps the proof
+		// (AFP-V0-9600). Decided once, at the package's first reader.
+		environment, decided := false, false
 		for _, relative := range files {
 			body, read := bodies[relative]
 			if !read || !goListCandidate(body) {
@@ -960,6 +1041,9 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			}
 			if !scan.reader {
 				continue
+			}
+			if !decided {
+				environment, decided = goEnvironmentUnproven(files, bodies), true
 			}
 			if environment {
 				scan = goListFile{reader: true, all: true, unproven: true}

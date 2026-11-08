@@ -18,16 +18,23 @@ import (
 func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 	const header = "package probe\nimport (\"bytes\"; \"context\"; \"errors\"; \"os\"; \"os/exec\"; \"path/filepath\"; \"runtime\"; \"strings\"; \"testing\"; \"time\")\n" +
 		"var _ = errors.New\nvar _ = strings.Fields\n"
-	guardEnv := func(name, prefix, environment string) string {
+	guardWith := func(name, prefix, environment string) string {
 		return "func " + name + "(t *testing.T) {\n" +
 			"_, " + prefix + "File, _, ok := runtime.Caller(0)\nif !ok { t.Fatal(\"caller\") }\n" +
 			prefix + "Root := filepath.Dir(filepath.Dir(" + prefix + "File))\n" +
 			"ctx, cancel := context.WithTimeout(context.Background(), time.Minute)\ndefer cancel()\n" +
 			"command := exec.CommandContext(ctx, \"go\", \"list\", \"-deps\", \"./cmd/tool\")\n" +
 			"command.Dir = " + prefix + "Root\n" +
-			"command.Env = append(os.Environ(), " + environment + ")\n" +
+			environment + "\n" +
 			"var stderr bytes.Buffer\ncommand.Stderr = &stderr\n" +
 			"out, err := command.Output()\nif err != nil { t.Fatalf(\"%v: %s\", err, stderr.String()) }\n_ = out\n}\n"
+	}
+	guardEnv := func(name, prefix, environment string) string {
+		return guardWith(name, prefix, "command.Env = append(os.Environ(), "+environment+")")
+	}
+	// reassigned sets the environment twice, as a later edit might.
+	reassigned := func(first, second string) string {
+		return guardWith("TestA", "a", "command.Env = append(os.Environ(), "+first+")\ncommand.Env = append(os.Environ(), "+second+")")
 	}
 	guard := func(name, prefix string) string {
 		return guardEnv(name, prefix, `"GOTOOLCHAIN=local", "GOPROXY=off"`)
@@ -49,6 +56,14 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 		{"non-empty GOFLAGS literal", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS=-mod=mod"`), true, false},
 		{"dynamic GOFLAGS value", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="+os.Getenv("PROBE_FLAGS")`), true, false},
 		{"empty GOFLAGS reset outside an Env assignment", guardEnv("TestA", "a", `"GOTOOLCHAIN=local"`) + "var flags = []string{\"GOFLAGS=\"}\n", true, false},
+		// Every Env assignment of a package that uses the reset must carry
+		// it: a later one without it brings the ambient flags back.
+		{"reset dropped by a later Env assignment", reassigned(`"GOFLAGS="`, `"GOWORK=off"`), true, false},
+		{"reset carried by every Env assignment", reassigned(`"GOFLAGS="`, `"GOWORK=off", "GOFLAGS="`), false, false},
+		{"reset in one guard, none in another", guardEnv("TestA", "a", `"GOFLAGS="`) + guardEnv("TestB", "b", `"GOWORK=off"`), true, false},
+		{"Env assigned from a variable", guardWith("TestA", "a", "environment := append(os.Environ(), \"GOFLAGS=\")\ncommand.Env = environment"), true, false},
+		{"Setenv of an empty GOFLAGS", guardEnv("TestA", "a", `"GOFLAGS="`) + "func TestC(t *testing.T) { t.Setenv(\"GOFLAGS\", \"\") }\n", true, false},
+		{"Setenv of a computed name", guard("TestA", "a") + "func init() { _ = os.Setenv(\"GO\"+\"FLAGS\", \"\") }\n", true, false},
 		// A proven listing whose root is spelled with a `..` literal still
 		// names the repository root to rule (d), so every edit selects it.
 		{"root climbed with a .. literal", "func TestA(t *testing.T) {\n" +

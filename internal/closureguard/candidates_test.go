@@ -29,7 +29,7 @@ func TestCoreHasNoDependencyEdge(t *testing.T) {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint")
 	command.Dir = edgeRoot
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOFLAGS=")
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()
@@ -56,7 +56,7 @@ func TestCandidateClosureIsSelfContained(t *testing.T) {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint-analyzer-rust")
 	command.Dir = closureRoot
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOFLAGS=")
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()
@@ -99,7 +99,7 @@ func TestCandidateIsUnselectedByCore(t *testing.T) {
 	unselectedRoot := filepath.Dir(filepath.Dir(filepath.Dir(unselectedFile)))
 	command := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./cmd/corvint")
 	command.Dir = unselectedRoot
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	dependencies, err := command.Output()
@@ -147,7 +147,7 @@ func TestCoreParentCandidateByteIdentity(t *testing.T) {
 	parentRoot := filepath.Dir(filepath.Dir(filepath.Dir(parentFile)))
 	command := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./cmd/corvint")
 	command.Dir = parentRoot
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	dependencies, err := command.Output()
@@ -200,7 +200,7 @@ func TestConsoleNotLinkedIntoDefaultBinary(t *testing.T) {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint")
 	command.Dir = consoleRoot
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOFLAGS=")
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	output, err := command.Output()
