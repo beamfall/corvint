@@ -80,7 +80,7 @@ func TestRunnerFaultInjection(t *testing.T) {
 					heads[test.Package] = append(heads[test.Package], test.Name)
 				}
 			}
-			plans, why := ix.Narrow([]string{c.file}, heads, linecov.Effect{}, e)
+			plans, why := ix.Narrow(nil, []string{c.file}, heads, linecov.Effect{}, e)
 			if why != "" {
 				t.Fatalf("unexpected fallback %s", why)
 			}

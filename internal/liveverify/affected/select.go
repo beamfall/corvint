@@ -600,8 +600,8 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 				packages = graph.goPackageDirectories()
 			}
 			entry := graph.unownedUnknown(path, packages, fixtureClaims)
-			// AFP-V0-9013: reader confinement proves data attribution, not
-			// that an omitted compiled source has no missing dependency edges.
+			// AFP-V0-9013, AFP-V0-9311: reader confinement proves data attribution,
+			// not that an omitted compiled source has no missing dependency edges.
 			if entry.Reason == UnknownUnownedDirtyPath && graph.goReadData(path, packages) {
 				// Every unit that can read it is selected (AFP-V0-600,
 				// AFP-V0-601); it stays unowned for frontierUnknowns.
@@ -969,7 +969,8 @@ func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
 // changes with selected Go hosts, while preserving each unowned-path proof.
 // An admitted deletion (admittedDeletion: AFP-V0-2610, AFP-V0-821,
 // AFP-V0-2740, AFP-V0-2749) is listed among the unowned paths although
-// claimantsOf names its claimant, which still takes part.
+// claimantsOf names its claimant, which still takes part. Hosted Swift
+// manifests also keep both obligations after metadata reclassification.
 func (graph *Graph) participants(reached map[string]Witness, carried, followed map[string]bool, dirty []string, nonSource []NonSource) (involved, unowned []string, terminal map[string][]string) {
 	if len(dirty) == 0 {
 		return nil, nil, nil
@@ -1018,11 +1019,12 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 			// raises no UNINDEXED_SOURCE_PATH although a plugin's Owns claims
 			// it, so it stays unowned here: every other plugin's unowned-path
 			// checks still see it. The claimant takes part as the owner of a
-			// dirty path.
+			// dirty path. Hosted Swift manifests keep the same dual obligation
+			// when their source claim is reclassified as fixture metadata.
 			if packages == nil {
 				packages = graph.goPackageDirectories()
 			}
-			if graph.admittedDeletion(path, packages) {
+			if graph.admittedDeletion(path, packages) || slices.Contains(claimed, "swift") && graph.hostedSwiftManifest(path, packages) {
 				paths[path] = true
 			}
 		}
@@ -1323,6 +1325,16 @@ func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo
 			}
 			return Unknown{Reason: UnknownLanguageFrontier, Detail: name + ":" + category + ":" + directory + ":" + path}
 		}
+		// AFP-V0-9310: admit fixture metadata only with a known suite
+		// obligation in the frozen plan. Participation alone carries no
+		// command to sessiontest. Empty or unfamiliar frontier forms keep
+		// the source claim and FULL; do not fall through to fixtureOnlyClaim.
+		if name == "swift" && graph.hostedSwiftManifest(path, packages) {
+			if !slices.Contains(graph.frontierBy[name], "swift:exclusion-evidence-unrepresentable") {
+				reason = UnknownUnindexedSourcePath
+			}
+			continue
+		}
 		if graph.fixtureOnlyClaim(name, path, packages, memo) {
 			fixtureOnly = append(fixtureOnly, name)
 			continue
@@ -1335,6 +1347,14 @@ func (graph *Graph) unownedUnknown(path string, packages map[string]string, memo
 			fixtureDirectory(path) + ", a testdata directory a Go unit hosts, below which that plugin lists no path (AFP-V0-2440)"
 	}
 	return entry
+}
+
+// hostedSwiftManifest is the closed metadata path form admitted by AFP-V0-9310.
+// The claimant remains involved; other languages must still see its path as
+// unowned so that computed and undeclared frontier forms fail closed.
+func (graph *Graph) hostedSwiftManifest(path string, packages map[string]string) bool {
+	directory := fixtureDirectory(path)
+	return strings.HasSuffix(path, "/Package.swift") && directory != "" && graph.goUnitAbove(directory, packages)
 }
 
 // fixtureOnlyClaim reports whether the named plugin's claim on path is a
