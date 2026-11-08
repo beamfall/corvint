@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import statistics
 import subprocess
 import time
 
@@ -30,6 +31,23 @@ def file_digest(path):
         for block in iter(lambda: stream.read(65536), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def summarize(runs, failed):
+    """Keep acceptance statistics beside the raw report without changing its schema."""
+    lines = ["V1-4851/V1-4852 paired wall-time measurements (seconds)",
+             "qualification: " + ("FAILED; no savings claim" if failed else "successful invocations; review acceptance thresholds"),
+             "ticket mode arm N median min max"]
+    for mode, ticket in (("draft", "V1-4852"), ("refresh", "V1-4852"), ("prepare", "V1-4851")):
+        medians = {}
+        for arm in ("before", "after"):
+            times = [run["wall_seconds"] for run in runs if run["mode"] == mode and run["arm"] == arm]
+            medians[arm] = statistics.median(times)
+            lines.append(f"{ticket} {mode} {arm} {len(times)} {medians[arm]:.6f} {min(times):.6f} {max(times):.6f}")
+        if not failed and medians["before"] > 0:
+            reduction = 100 * (1 - medians["after"] / medians["before"])
+            lines.append(f"{ticket} {mode} median wall-time reduction: {reduction:.2f}%")
+    return "\n".join(lines) + "\n"
 
 
 def main():
@@ -79,6 +97,9 @@ def main():
             if mode != "prepare" and equality[0] != equality[1]:
                 failed = True
                 print(f"{mode} round {round_index + 1}: unequal stdout/stderr; no parity claim")
+    summary = summarize(report["runs"], failed)
+    (out / "summary.txt").write_text(summary)
+    print(summary, end="")
     print(out / "measurements.json")
     return 1 if failed else 0
 

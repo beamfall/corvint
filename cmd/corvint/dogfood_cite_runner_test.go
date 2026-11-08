@@ -12,11 +12,36 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 // DCW-V0-335 / V1-4851: identical maps, stdout, stderr and statuses for the
 // former per-hunk processes and in-process citation, including failed probes.
 func TestDogfoodInProcessCitationsMatchSubprocess(t *testing.T) {
+	t.Setenv("LC_ALL", "C")
+	t.Setenv(lrfrepo.StableReuseEnv, "")
+	if err := os.Unsetenv(lrfrepo.StableReuseEnv); err != nil {
+		t.Fatal(err)
+	}
+	dogfoodCitationParity(t, true)
+}
+
+// DCW-V0-8760: environment drift after runner construction must retain Exec's
+// locale and run-store contract for both cite and mark, without global mutation.
+func TestDogfoodInProcessCitationsHostileEnvironment(t *testing.T) {
+	t.Setenv("LC_ALL", "C")
+	t.Setenv(lrfrepo.StableReuseEnv, "")
+	if err := os.Unsetenv(lrfrepo.StableReuseEnv); err != nil {
+		t.Fatal(err)
+	}
+	dogfoodCitationParity(t, false)
+	if os.Getenv("LC_ALL") != "tr_TR.UTF-8" || os.Getenv(lrfrepo.StableReuseEnv) != "/inherited/hostile-store" {
+		t.Fatal("runner mutated caller environment")
+	}
+}
+
+func dogfoodCitationParity(t *testing.T, inlineOnly bool) {
+	t.Helper()
 	portable := portableDogfoodRunner(t)
 	root, base, _ := cemRepo(t)
 	for i := 0; i < 3; i++ {
@@ -43,6 +68,8 @@ func TestDogfoodInProcessCitationsMatchSubprocess(t *testing.T) {
 	for i := 1; i <= 4; i++ {
 		commands = append(commands, []string{"cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", fmt.Sprint(i), "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"})
 	}
+	commands = append(commands, []string{"cem", "mark", "--map", ".corvint/change.cem.json", "--hunk", "4", "--disposition", "unknown", "--reason", "insufficient-evidence"})
+	successes := len(commands)
 	// A refused later row cannot silently succeed or alter the cited map.
 	commands = append(commands,
 		[]string{"cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "missing.txt", "--lines", "1:1", "--relation", "specification"},
@@ -57,7 +84,7 @@ func TestDogfoodInProcessCitationsMatchSubprocess(t *testing.T) {
 		for i, args := range commands {
 			var out, errout bytes.Buffer
 			code := runner.Run(context.Background(), root, args, &out, &errout)
-			if (i < 8 && code != 0) || (i >= 8 && code == 0) {
+			if (i < successes && code != 0) || (i >= successes && code == 0) {
 				t.Fatalf("row %d: %d %s %s", i+1, code, &out, &errout)
 			}
 			document, err := os.ReadFile(mapPath)
@@ -79,17 +106,23 @@ func TestDogfoodInProcessCitationsMatchSubprocess(t *testing.T) {
 				}
 			}
 			results = append(results, result{code, out.String(), errout.String(), string(document), probe})
-			if i >= 8 && results[i].document != results[i-1].document {
+			if i >= successes && results[i].document != results[i-1].document {
 				t.Fatal("a refused row changed the map")
 			}
 		}
 		return results
 	}
-	want := run(dogfoodflow.Exec(portable.binary))
 	inline := dogfoodCitationRunner(portable.binary, portable.binary)
+	if !inlineOnly {
+		t.Setenv("LC_ALL", "tr_TR.UTF-8")
+		t.Setenv(lrfrepo.StableReuseEnv, "/inherited/hostile-store")
+	}
+	want := run(dogfoodflow.Exec(portable.binary))
 	// Removing the executable after selection proves these rows start no child.
-	if err := os.Remove(portable.binary); err != nil {
-		t.Fatal(err)
+	if inlineOnly {
+		if err := os.Remove(portable.binary); err != nil {
+			t.Fatal(err)
+		}
 	}
 	got := run(inline)
 	for i := range want {
@@ -153,5 +186,30 @@ func TestDogfoodInProcessCitationsResolvePATH(t *testing.T) {
 					got, &gotOut, &gotErr, want, &wantOut, &wantErr)
 			}
 		})
+	}
+}
+
+// DCW-V0-8760: a new argv form is unproven even with identical environment
+// and binary identity. It must execute the selected child, never runContext.
+func TestDogfoodInProcessCitationsUnknownFormFallsBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX executable fixture")
+	}
+	t.Setenv("LC_ALL", "C")
+	t.Setenv(lrfrepo.StableReuseEnv, "")
+	if err := os.Unsetenv(lrfrepo.StableReuseEnv); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "selected")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nprintf 'selected unknown form\\n'\nexit 23\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"cem", "cite", "--map", "map", "--hunk", "1", "--evidence-path", "rule", "--lines", "1:1", "--relation", "specification", "--future-option", "value"}
+	var gotOut, gotErr, wantOut, wantErr bytes.Buffer
+	root := t.TempDir()
+	want := dogfoodflow.Exec(binary).Run(context.Background(), root, args, &wantOut, &wantErr)
+	got := dogfoodCitationRunner(binary, binary).Run(context.Background(), root, args, &gotOut, &gotErr)
+	if want != 23 || got != want || gotOut.String() != wantOut.String() || gotErr.String() != wantErr.String() {
+		t.Fatalf("unknown form bypassed child: got (%d, %q, %q), want (%d, %q, %q)", got, &gotOut, &gotErr, want, &wantOut, &wantErr)
 	}
 }
