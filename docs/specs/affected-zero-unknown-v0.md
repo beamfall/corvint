@@ -468,7 +468,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   - blanks after a function name are not part of its first argument, and a substitution
     reference expands its search and replacement before matching;
   - `if`, `or` and `and` strip only ASCII whitespace from an unexpanded argument, and word and
-    wordlist indexes are decimal digits only.
+    wordlist indexes are decimal digits only. An empty or ASCII-whitespace-only `and`
+    argument returns empty immediately; `or` continues to its next argument.
 
   It SHALL retain a value that holds a byte outside ASCII, whose word splitting depends on make's
   locale; a word only partly known to `dir`, `notdir`, `basename`, `suffix` or `patsubst`; a
@@ -492,7 +493,14 @@ participation, and inbound shell callers. The remaining classes are small and lo
   A dash-prefixed operand other than `-` SHALL NOT be recorded, so it leaves the command
   uncertified, and an operand SHALL be recorded only when the scanner holds the source and every
   component of its path is a plain file or directory there, not a symbolic link (Greptile P1
-  repair 2).
+  repair 2). Glob certification admits only `literal-dir/*literal-suffix`, without parent
+  traversal, with a plain containing path and at most 4096 directory entries. Every matched
+  non-hidden entry SHALL be a regular file; links, directories, unfamiliar file types and
+  failed listings retain the frontier. Go package certification admits `all`, `std`, `cmd`,
+  relative directories with an optional trailing `/...`, and main-module directories only.
+  Local package roots, implicit working directories and `-C` directories SHALL be proven plain
+  directories against the source before certification. Links, missing paths, parent traversal
+  and unsupported path forms retain the frontier rather than claiming lexical edges cover them.
 
 ### Lane qualification details
 
@@ -872,8 +880,8 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
 | AFP-V0-3128 | V1-5000 | `TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128`, `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
-| AFP-V0-9050 | V1-5000 | `TestFrontierSiteMakeDirSpelling_AFP_V0_9050`, `TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050` |
-| AFP-V0-9051 | V1-5000 | `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051` |
+| AFP-V0-9050 | V1-5000 | `TestFrontierSiteMakeDirSpelling_AFP_V0_9050`, `TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050`, `TestMakeAndEmptyArguments_AFP_V0_9050` |
+| AFP-V0-9051 | V1-5000 | `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051`, `TestDriverSourcePathCertification_AFP_V0_9051` |
 | AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
 | AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
 | AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
