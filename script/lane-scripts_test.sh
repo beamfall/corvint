@@ -103,7 +103,10 @@ if [[ ${1-} == --heavy-host-env-only ]]; then
 #!/usr/bin/env bash
 while [[ \$1 == -o ]]; do shift 2; done
 shift
-exec env -i PATH="$tmp/remote-bin:$tmp/bin:$PATH" HOME="$tmp/home" TMPDIR="$tmp/scratch" LC_ALL=C bash -c "\$*"
+env -i PATH="$tmp/remote-bin:$tmp/bin:$PATH" HOME="$tmp/home" TMPDIR="$tmp/scratch" LC_ALL=C bash -c "\$*"
+rc=\$?
+printf '%s\n' "\$rc" > "$tmp/remote.rc"
+exit "\$rc"
 EOF
   # The simulated remote is Linux on every caller host (review): a Darwin caller's uname would skip
   # the Linux cache checks, and stock macOS has no timeout(1), which the remote half requires.
@@ -176,6 +179,36 @@ EOF
   printf 'export GOCACHE=%q CORVINT_GOCACHE=%q\n' "$tmp/disk-cache" "$tmp/disk-cache" > "$tmp/remote.env"
   run_host_env go vet ./internal/specindex
   check_observed "$tmp/disk-cache"
+  # AFP-V0-3340: the positive run above proves payload creation and remote
+  # dispatch before fault injection. Refusal must precede the env file's effect;
+  # assert the remote infra status separately from any local fallback status.
+  mkdir -p "$tmp/home/.cache/corvint-heavy/wt"
+  for envpath in "$tmp/local/host.env" "$tmp/home/corvint/host.env" "$tmp/home/.cache/corvint-heavy/wt/host.env"; do
+    printf 'touch %q\n' "$tmp/env-loaded" > "$envpath"
+    for form in direct symlink; do
+      rm -f "$tmp/env-loaded" "$tmp/remote.rc" "$tmp/env-link"
+      if [[ $form == symlink ]]; then
+        ln -s "$envpath" "$tmp/env-link"
+        export HEAVY_REMOTE_ENV=$tmp/env-link
+      else
+        export HEAVY_REMOTE_ENV=$envpath
+      fi
+      if run_host_env go vet ./internal/specindex; then :; fi
+      [[ $(cat "$tmp/remote.rc") == 97 ]] || fail "repository ENVFILE did not return infra 97: $envpath $form"
+      [[ ! -e $tmp/env-loaded ]] || fail "repository ENVFILE executed: $envpath $form"
+      grep -q 'host-only ENVFILE:' "$tmp/err" || fail "missing host-only refusal: $(cat "$tmp/err")"
+    done
+    rm -f "$envpath"
+  done
+  # A sibling path sharing the checkout prefix and an external symlink stay valid.
+  mkdir -p "$tmp/local-host"
+  cp "$tmp/remote.env" "$tmp/local-host/host.env"
+  rm -f "$tmp/env-link"
+  ln -s "$tmp/local-host/host.env" "$tmp/env-link"
+  export HEAVY_REMOTE_ENV=$tmp/env-link
+  run_host_env go vet ./internal/specindex
+  check_observed "$tmp/disk-cache"
+  export HEAVY_REMOTE_ENV=$tmp/remote.env
   ln -s "$tmp/tmpfs-cache" "$tmp/cache-link"
   printf 'export GOCACHE=%q CORVINT_GOCACHE=%q\n' "$tmp/cache-link" "$tmp/cache-link" > "$tmp/remote.env"
   run_host_env go test -run X ./internal/specindex
@@ -223,7 +256,7 @@ EOF
   fi
   grep -q 'fix: set HEAVY_REMOTE_GOCACHE.*HEAVY_REMOTE_ENV' "$tmp/err" ||
     fail "RAM-backed fallback refusal lacks recovery: $(cat "$tmp/err")"
-  printf 'lane-scripts_test: heavy host environment: 9 cases passed (cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
+  printf 'lane-scripts_test: heavy host environment: 16 cases passed (host-only ENVFILE, cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
   exit 0
 fi
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
