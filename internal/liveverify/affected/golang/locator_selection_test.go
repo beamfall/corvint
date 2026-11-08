@@ -61,7 +61,7 @@ func TestBoundedJoinLocatorIsNoRead_AFPV02950(t *testing.T) {
 		"joiner/j.go":        "package joiner\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() []byte { root, err := os.Getwd(); if err != nil { return nil }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }\n",
 		"lister/l.go":        "package lister\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() int { root, err := os.Getwd(); if err != nil { return 0 }; entries, _ := os.ReadDir(filepath.Join(root, \"docs\")); return len(entries) }\n",
 		"aliased/a.go":       "package aliased\nimport (\n\tsystem \"os\"\n\tfp \"path/filepath\"\n)\nfunc F() bool { var cwd string; var err error; cwd, err = system.Getwd(); if err != nil { return false }; _, err = system.Stat(fp.Join(cwd, \"docs/guide.md\")); return err == nil }\n",
-		"rebound/r.go":       "package rebound\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F(given string) []byte { root := given; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }\n",
+		"rebound/r.go":       "package rebound\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F(given string) []byte { root := \"\"; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }\n",
 		"bound/b.go":         "package bound\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); if docs == \"/\" { return 0 }; var guide = filepath.Join(cwd, \"docs\", \"guide.md\"); os.Stat(guide); entries, _ := os.ReadDir(docs); return len(entries) }\n",
 		"widened/w.go":       "package widened\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() []byte { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); b, _ := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(docs)), \"config.go\")); return b }\n",
 		"joinreturn/j.go":    "package joinreturn\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\nfunc F() string { cwd, _ := os.Getwd(); return filepath.Join(cwd, \"docs\") }\n",
@@ -231,6 +231,102 @@ func TestListingOutputReachesItsRunner_AFPV02956(t *testing.T) {
 	}
 	if kind, ok := found["driver:make:Makefile#list-only"]; ok {
 		t.Errorf("list-only: a go list whose output feeds no command was selected as %s on an unrelated change", kind)
+	}
+}
+
+// AFP-V0-2950: a conditional fallback does not constrain an arbitrary
+// initializer. The nested changed directory is absent from the reader's text.
+func TestUnprovenLocatorInitializerSelection_AFPV02950(t *testing.T) {
+	for _, initializer := range []string{`os.Getenv("DATA_ROOT")`, `mystery()`} {
+		t.Run(initializer, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.mod":                 "module example.test/m\n",
+				"reader/r.go":            "package reader\nimport (\"os\"; \"path/filepath\")\nfunc F() { root := " + initializer + `; var err error; if root == "" { root, err = os.Getwd() }; _ = err; os.ReadFile(filepath.Join(root, "config.go")) }`,
+				"reader/r_test.go":       "package reader\n",
+				"other/nested/config.go": "package nested\n",
+			})
+			graph, err := affected.Build(context.Background(), root, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, selected := range affected.Select(graph, []string{"other/nested/config.go"}).Selected {
+				if selected.UnitID == "go:example.test/m/reader" {
+					return
+				}
+			}
+			t.Fatal("reader of arbitrary DATA_ROOT/config.go was omitted")
+		})
+	}
+}
+
+// AFP-V0-2956: arbitrary formatted output may be a program, buffered to a
+// named file and executed without a pipe, expansion or feeder.
+func TestBufferedListingProgramSelection_AFPV02956(t *testing.T) {
+	for _, format := range []string{`go test {{.ImportPath}}`, `{{printf "%s %s" "go test" .ImportPath}}`} {
+		t.Run(format, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.mod":               "module example.test/m\n",
+				"lib/lib.go":           "package lib\nimport \"os\"\nfunc Root() string { cwd, _ := os.Getwd(); return cwd }\n",
+				"lib/x_test.go":        "package lib\n",
+				"runtime/settings.env": "MODE=fast\n",
+				"Makefile":             "check:\n\tgo list -f '" + format + "' ./lib > /tmp/check; sh /tmp/check\n",
+			})
+			graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, selected := range affected.Select(graph, []string{"runtime/settings.env"}).Selected {
+				if selected.UnitID == "driver:make:Makefile#check" {
+					return
+				}
+			}
+			t.Fatal("buffered program's runner was omitted for a runtime input change")
+		})
+	}
+}
+
+// AFP-V0-2956: a generated program need not execute the listed package.
+// Unknown output options must retain every owner too, without interpreting
+// their output or relying on an eventual consumer to be visibly computed.
+func TestBufferedListingOtherPackageSelection_AFPV02956(t *testing.T) {
+	for _, tc := range []struct {
+		name, options string
+		selected      bool
+	}{
+		{"reported-template", `-f 'go test ./{{printf "%s%s" "rea" "der"}}'`, true},
+		{"unknown-option", `-future-format program`, true},
+		{"default-paths", "", false},
+		{"directory-paths", `-f '{{.Dir}}'`, false},
+		{"import-paths", `-f '{{.ImportPath}}'`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFiles(t, root, map[string]string{
+				"go.mod":               "module example.test/m\n",
+				"lib/lib.go":           "package lib\n",
+				"lib/x_test.go":        "package lib\n",
+				"reader/r.go":          "package reader\nimport (\"os\"; \"path/filepath\")\nfunc Read() { os.ReadFile(filepath.Join(os.Getenv(\"DATA_ROOT\"), \"settings.env\")) }\n",
+				"reader/r_test.go":     "package reader\n",
+				"runtime/settings.env": "MODE=fast\n",
+				"Makefile":             "check:\n\tgo list " + tc.options + " ./lib > /tmp/check\n\tsh /tmp/check\n",
+			})
+			graph, err := affected.Build(context.Background(), root, golang.New(), affected.Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := map[string]bool{}
+			for _, selected := range affected.Select(graph, []string{"runtime/settings.env"}).Selected {
+				found[selected.UnitID] = true
+			}
+			if !found["go:example.test/m/reader"] {
+				t.Error("runtime configuration change omitted its unbounded reader")
+			}
+			if got := found["driver:make:Makefile#check"]; got != tc.selected {
+				t.Errorf("runtime configuration change selected driver = %v, want %v", got, tc.selected)
+			}
+		})
 	}
 }
 
