@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // The collector only needs the ELF headers to inspect PT_INTERP. Keeping this
@@ -33,7 +35,7 @@ func interpreterImage(t *testing.T, directory, interpreter string) string {
 	data.WriteString(interpreter)
 	data.WriteByte(0)
 	name := filepath.Join(directory, "image")
-	if err := os.WriteFile(name, data.Bytes(), 0700); err != nil {
+	if err := execfile.WriteFile(name, data.Bytes(), 0700); err != nil {
 		t.Fatal(err)
 	}
 	return name
@@ -187,7 +189,7 @@ func TestRSPV0022OutsideUnknownExecutable(t *testing.T) {
 	for _, contents := range []string{"#!/bin/sh\nexit 0\n", "future executable format\n"} {
 		root, outside := t.TempDir(), t.TempDir()
 		name := filepath.Join(outside, "image")
-		if err := os.WriteFile(name, []byte(contents), 0700); err != nil {
+		if err := execfile.WriteFile(name, []byte(contents), 0700); err != nil {
 			t.Fatal(err)
 		}
 		r := emptyResult("test")

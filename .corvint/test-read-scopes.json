@@ -530,6 +530,7 @@
       "internal/versionline/"
     ],
     "internal/appflows": [],
+    "internal/appflows/e2erunner": [],
     "internal/appmap": [
       "internal/authorityevent/",
       "internal/authoritystore/",
@@ -825,6 +826,7 @@
       "go.mod",
       "internal/"
     ],
+    "internal/langplugin/runnernames": [],
     "internal/linecov/v8": [],
     "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
@@ -1039,6 +1041,7 @@
     "internal/requestpath": [],
     "internal/revieworder": [],
     "internal/rubydialect": [],
+    "internal/rubylinecov": [],
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],
@@ -1046,12 +1049,19 @@
       "internal/rubytestprovider/testdata/live/"
     ],
     "internal/runidentity": [],
+    "internal/runnerpolicy": [],
+    "internal/runnerprotocol": [
+      "docs/specs/runner-selection-plugins-v0.md"
+    ],
+    "internal/runnerqualification": [],
+    "internal/runnerselection": [],
     "internal/scopelease": [],
     "internal/secretscreen": [],
     "internal/sessiontest": [
       ".github/cishards/",
       ".github/workflows/ci.yml"
     ],
+    "internal/shaderrunner": [],
     "internal/sharedpath": [],
     "internal/skhproof": [],
     "internal/skillexport": [],
@@ -1410,6 +1420,7 @@
       "internal/versionline/"
     ],
     "internal/testevidence": [],
+    "internal/testevidencedoc": [],
     "internal/testplan": [
       "internal/appmap/testdata/"
     ],
@@ -1436,6 +1447,7 @@
     "internal/testreuse": [],
     "internal/testrunner": [],
     "internal/testrunner/dynamic": [],
+    "internal/testrunner/golang": [],
     "internal/testrunner/mobile": [],
     "internal/testrunner/native": [],
     "internal/testrunner/platform": [],
@@ -1444,6 +1456,7 @@
       "internal/testrunner/platform/testdata/native-report-fixtures.json"
     ],
     "internal/testrunner/sql": [],
+    "internal/testrunner/swiftselection": [],
     "internal/testsource": [],
     "internal/testvaliditydoc": [
       "conformance/test-validity-v0/route-stubs.json",
@@ -1764,6 +1777,8 @@
     "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
+    "tools/runner-plugin": [],
+    "tools/runner-qualification": [],
     "tools/selection-baseline": [
       ".github/cishards/",
       "benchmarks/selection-baseline/",

@@ -152,7 +152,7 @@ func Includes(ctx context.Context, repo *gitauth.Repository, repository, commit 
 			return fmt.Errorf("%s", source.Reason)
 		}
 		if shaderSource(name) {
-			out.Regions.Items = append(out.Regions.Items, testevidence.RegionsFile{Blob: blob, Bodies: source.Bodies})
+			out.Regions.Items = append(out.Regions.Items, testevidence.RegionsFile{Blob: blob, Bodies: evidenceBodies(source.Bodies)})
 		}
 		for _, inc := range source.Includes {
 			if inc.Name == "" || strings.ContainsAny(inc.Name, "\\:\x00\t\n\r <>\"") || path.IsAbs(inc.Name) {
@@ -248,4 +248,17 @@ func Record(ctx context.Context, header testevidence.Record, trace proctrace.Res
 		return testevidence.Record{}, err
 	}
 	return record, nil
+}
+
+// evidenceBodies converts the shader dialect's body shape to test-evidence
+// bodies; the two are field-for-field identical.
+func evidenceBodies(in []shaderdialect.Body) []testevidence.Body {
+	if in == nil {
+		return nil
+	}
+	out := make([]testevidence.Body, 0, len(in))
+	for _, b := range in {
+		out = append(out, testevidence.Body{ID: b.ID, Parent: b.Parent, Range: testevidence.Range(b.Range)})
+	}
+	return out
 }

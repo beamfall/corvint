@@ -134,7 +134,7 @@ func (p *rustPlugin) lineComponents(lines v8.Lines) (testevidence.Component[test
 			regions.State, regions.Reason = testevidence.Incomplete, err.Error()
 			continue
 		}
-		regions.Items = append(regions.Items, testevidence.RegionsFile{Blob: src.Blob, Bodies: bodies})
+		regions.Items = append(regions.Items, testevidence.RegionsFile{Blob: src.Blob, Bodies: rustBodies(bodies)})
 	}
 	return executed, regions
 }
@@ -413,4 +413,17 @@ func (p *rustPlugin) scriptInputs(output []byte, dir string, addTree func(string
 		}
 	}
 	return nil
+}
+
+// rustBodies converts the Rust analyzer's pure body shape to test-evidence
+// bodies; the two are field-for-field identical.
+func rustBodies(in []analyzerrust.Body) []testevidence.Body {
+	if in == nil {
+		return nil
+	}
+	out := make([]testevidence.Body, 0, len(in))
+	for _, b := range in {
+		out = append(out, testevidence.Body{ID: b.ID, Parent: b.Parent, Range: testevidence.Range(b.Range)})
+	}
+	return out
 }

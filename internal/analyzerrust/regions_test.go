@@ -30,7 +30,7 @@ func TestRSPV0005RustDialectExecutableBodies(t *testing.T) {
 	}
 	// Reuse the record validator for parent containment and valid ranges.
 	r := testevidence.New("repo", "test", strings.Repeat("a", 40))
-	r.Regions = testevidence.Component[testevidence.RegionsFile]{State: testevidence.Present, Items: []testevidence.RegionsFile{{Blob: testevidence.Blob{Path: testevidence.Path{Repository: "repo", Lexical: "lib.rs", Resolved: "lib.rs"}, OID: strings.Repeat("a", 40)}, Bodies: bodies}}}
+	r.Regions = testevidence.Component[testevidence.RegionsFile]{State: testevidence.Present, Items: []testevidence.RegionsFile{{Blob: testevidence.Blob{Path: testevidence.Path{Repository: "repo", Lexical: "lib.rs", Resolved: "lib.rs"}, OID: strings.Repeat("a", 40)}, Bodies: evidenceBodies(bodies)}}}
 	if err := r.ValidateComponents(); err != nil {
 		t.Fatal(err)
 	}
@@ -60,4 +60,15 @@ func TestRSPV0005RustReturnTypeConstExpressionRefused(t *testing.T) {
 			t.Fatalf("signature expression emitted executable bodies: %+v %v", bodies, err)
 		}
 	}
+}
+
+func evidenceBodies(in []Body) []testevidence.Body {
+	if in == nil {
+		return nil
+	}
+	out := make([]testevidence.Body, 0, len(in))
+	for _, b := range in {
+		out = append(out, testevidence.Body{ID: b.ID, Parent: b.Parent, Range: testevidence.Range(b.Range)})
+	}
+	return out
 }
