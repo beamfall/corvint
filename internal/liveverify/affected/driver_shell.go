@@ -2,6 +2,7 @@ package affected
 
 import (
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -36,11 +37,13 @@ type driverScan struct {
 	// it any name may already be exported, so no assignment is narrowed.
 	envKnown bool
 	envNames map[string]bool
-	// locals are the names the script assigns as plain shell variables
-	// (AFP-V0-9622, AFP-V0-9624), and commandRefs the names expanded in a
-	// word the shell runs or loads as code; "*" stands for any name.
-	locals      map[string]bool
-	commandRefs map[string]bool
+	// narrowed holds the reason each form the scan did not mark computed
+	// (AFP-V0-9621 to AFP-V0-9627) would otherwise have marked, locals the
+	// names among them set as plain shell variables, and revoked the first
+	// reason seen that none of them holds (AFP-V0-9628).
+	narrowed map[string]bool
+	locals   map[string]bool
+	revoked  string
 }
 
 // markComputed marks the scanned text a computed invocation for reason.
@@ -69,12 +72,10 @@ func newDriverScan() *driverScan {
 }
 
 // driverWord is one shell word: its text with quotes removed and each
-// expansion replaced by driverExpansion, whether any part was quoted, and the
-// parameter names its expansions read ("*" for an indirect or arithmetic one).
+// expansion replaced by driverExpansion, and whether any part was quoted.
 type driverWord struct {
 	text   string
 	quoted bool
-	refs   []string
 }
 
 // driverShellScanner splits shell text into simple-command segments.
@@ -102,7 +103,7 @@ type driverShellScanner struct {
 func (scan *driverScan) scanShell(script, cwd, module string) {
 	scanner := &driverShellScanner{scan: scan, module: module}
 	scanner.script(script, cwd)
-	scan.settleLocals()
+	scan.settleNarrowing(script)
 }
 
 // scanShellOutput is scanShell for a script whose standard output the caller
@@ -110,44 +111,98 @@ func (scan *driverScan) scanShell(script, cwd, module string) {
 func (scan *driverScan) scanShellOutput(script, cwd, module string) {
 	scanner := &driverShellScanner{scan: scan, module: module, feeds: 1}
 	scanner.script(script, cwd)
-	scan.settleLocals()
+	scan.settleNarrowing(script)
 }
 
-// settleLocals keeps the script a computed invocation when a name it assigns
-// as a shell variable, wherever it does so, names or prefixes a command it
-// runs or loads (AFP-V0-9622): such a word is not the root-like `$VAR/`
-// driverComputedWord admits.
-func (scan *driverScan) settleLocals() {
-	if len(scan.locals) == 0 {
-		return
+// narrow records a form left uncomputed that would have marked reason.
+func (scan *driverScan) narrow(reason string) {
+	if scan.narrowed == nil {
+		scan.narrowed = map[string]bool{}
 	}
-	if scan.commandRefs["*"] {
-		scan.markComputed("shell:local-command-word")
-		return
-	}
-	for name := range scan.locals {
-		if scan.commandRefs[name] {
-			scan.markComputed("shell:local-command-word")
-			return
-		}
-	}
+	scan.narrowed[reason] = true
 }
 
-// local records name as a shell variable the script assigns.
-func (scan *driverScan) local(name string) {
+// local records name as a plain shell variable the script sets.
+func (scan *driverScan) local(name, reason string) {
+	scan.narrow(reason)
 	if scan.locals == nil {
 		scan.locals = map[string]bool{}
 	}
 	scan.locals[name] = true
 }
 
-// commandWord records the names word expands as a command the shell runs.
-func (scan *driverScan) commandWord(word driverWord) {
-	for _, name := range word.refs {
-		if scan.commandRefs == nil {
-			scan.commandRefs = map[string]bool{}
+// revoke records why no narrowing in the script holds.
+func (scan *driverScan) revoke(reason string) {
+	if scan.revoked == "" {
+		scan.revoked = reason
+	}
+}
+
+// settleNarrowing marks the script computed, with every narrowed reason,
+// when something in script may defeat the narrowing (AFP-V0-9628):
+//   - a function definition, which may shadow a narrowed builtin;
+//   - a sourced file, which may define functions or set PS4;
+//   - any other occurrence of a narrowed local's name, which may expand its
+//     unbounded value into a file operand, a command, or later steps;
+//   - an indirect expansion or an arithmetic context, which may expand a
+//     local without naming it;
+//   - a write to GITHUB_OUTPUT, which carries values to later steps.
+//
+// The text checks are deliberate over-approximations over the raw script.
+func (scan *driverScan) settleNarrowing(script string) {
+	if len(scan.narrowed) == 0 {
+		return
+	}
+	if driverFunctionPattern.MatchString(script) {
+		scan.revoke("shell:function-definition")
+	}
+	if len(scan.locals) != 0 {
+		switch {
+		case strings.Contains(script, "${!"):
+			scan.revoke("shell:indirect-expansion")
+		case driverArithmeticPattern.MatchString(script):
+			scan.revoke("shell:arithmetic-context")
+		case strings.Contains(strings.ToLower(script), "github_output"):
+			scan.revoke("shell:github-output")
 		}
-		scan.commandRefs[name] = true
+		for name := range scan.locals {
+			if driverWordCount(script, name) > 1 {
+				scan.revoke("shell:local-referenced")
+			}
+		}
+	}
+	if scan.revoked == "" {
+		return
+	}
+	scan.markComputed(scan.revoked)
+	for reason := range scan.narrowed {
+		scan.markComputed(reason)
+	}
+}
+
+var (
+	// driverFunctionPattern matches a shell function definition, and much
+	// else: `function name` or `name ()`.
+	driverFunctionPattern = regexp.MustCompile(`(^|[\s;&|(){}])function\s|[A-Za-z0-9_.:-]\s*\(\s*\)`)
+	// driverArithmeticPattern matches an arithmetic context: `((`, `$[`, an
+	// arithmetic test operator, or a `${...}` subscript or substring offset.
+	driverArithmeticPattern = regexp.MustCompile(`\(\(|\$\[|-(eq|ne|lt|le|gt|ge)\b|\$\{[^}]*(\[|:[^-=?+])`)
+)
+
+// driverWordCount counts the occurrences of name in text that no name byte
+// adjoins.
+func driverWordCount(text, name string) int {
+	count := 0
+	for offset := 0; ; {
+		index := strings.Index(text[offset:], name)
+		if index < 0 {
+			return count
+		}
+		start, end := offset+index, offset+index+len(name)
+		if (start == 0 || !isDriverNameByte(text[start-1])) && (end == len(text) || !isDriverNameByte(text[end])) {
+			count++
+		}
+		offset = start + 1
 	}
 }
 
@@ -286,11 +341,6 @@ func (s *driverShellScanner) script(script, cwd string) {
 				if strings.TrimLeft(lines[index], "\t") == terminator {
 					break
 				}
-				if strings.Contains(lines[index], "$(") || strings.Contains(lines[index], "`") {
-					// The skipped body may run a command substitution whose
-					// command a local names (AFP-V0-9622).
-					s.scan.commandWord(driverWord{refs: []string{"*"}})
-				}
 			}
 		}
 		s.heredocs = nil
@@ -359,18 +409,29 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 						// AFP-V0-9625: it may assign any name, PATH included.
 						s.scan.markComputed("shell:arithmetic-assignment")
 					}
+					if driverSubstitutes(inner) {
+						// AFP-V0-9625: the scanner does not run its command
+						// substitution as shell code.
+						s.scan.markComputed("shell:arithmetic-substitution")
+					}
 				}
 				refs = append(refs, driverReferencedNames(inner)...)
 				text.WriteString(driverExpansion)
 				position = min(end+1, len(line))
 			case next < len(line) && line[next] == '{':
 				end := driverMatchingClose(line, next)
-				names, assigns := driverBraceRefs(line[next+1 : max(next+1, min(end, len(line)))])
+				inner := line[next+1 : max(next+1, min(end, len(line)))]
+				names, assigns := driverBraceRefs(inner)
 				refs = append(refs, names...)
 				if assigns {
 					// AFP-V0-9625: `${NAME=value}` and `${NAME:=value}` assign
 					// NAME, which may be exported or special.
 					s.scan.markComputed("shell:assigning-expansion")
+				}
+				if driverSubstitutes(inner) {
+					// AFP-V0-9625: the scanner does not run a command
+					// substitution in `${NAME:-$(...)}` as shell code.
+					s.scan.markComputed("shell:brace-substitution")
 				}
 				text.WriteString(driverExpansion)
 				position = min(end+1, len(line))
@@ -401,7 +462,12 @@ func (s *driverShellScanner) word(line string, position int, cwd string) (driver
 			s.scan.markComputed("shell:github-env-file")
 		}
 	}
-	return driverWord{text: text.String(), quoted: quoted, refs: refs}, position
+	return driverWord{text: text.String(), quoted: quoted}, position
+}
+
+// driverSubstitutes reports text holding a command substitution.
+func driverSubstitutes(text string) bool {
+	return strings.Contains(text, "$(") || strings.Contains(text, "`")
 }
 
 // driverArithmeticAssigns reports arithmetic text with an assignment or an
@@ -562,7 +628,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	wrapped := false
 	settle := func(standalone bool) {
 		for _, word := range pending {
-			if !standalone || !s.localAssignment(word.text, cwd) {
+			if !standalone || !s.localAssignment(word.text) {
 				assignment(word.text)
 			}
 		}
@@ -606,9 +672,6 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 					if len(words) < 2 {
 						s.scan.markComputed("shell:env-missing-value")
 						return cwd
-					}
-					if option == "-S" {
-						s.scan.commandWord(words[1]) // It splits into the command (AFP-V0-9622).
 					}
 					words = words[1:]
 				}
@@ -701,48 +764,50 @@ func driverLocalName(name string) bool {
 			return false
 		}
 	}
-	return !driverSpecialNames[name] && !strings.HasPrefix(name, "bash_") && !strings.HasPrefix(name, "lc_")
+	for _, prefix := range []string{"bash_", "lc_", "npm_", "yarn_", "pnpm_"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return !driverSpecialNames[name] && !strings.Contains(name, "proxy")
+}
+
+// driverStartupNames are lower-cased environment names that make a shell
+// source a file, set options or trace commands at startup (AFP-V0-9623).
+var driverStartupNames = map[string]bool{"env": true, "shellopts": true, "bashopts": true, "ps4": true, "posixly_correct": true}
+
+// narrowable reports a bash or sh script, run as `-c` with no other
+// option when inline, whose environment is known and sets nothing a shell
+// reads at startup (AFP-V0-9623). Nothing else is narrowed.
+func (s *driverShellScanner) narrowable() bool {
+	if s.opaque != 0 || !s.scan.envKnown {
+		return false
+	}
+	for name := range s.scan.envNames {
+		if driverStartupNames[name] || strings.HasPrefix(name, "bash_") {
+			return false
+		}
+	}
+	return true
 }
 
 // localName reports a name this script may assign or read into as a plain
 // shell variable: a driverLocalName that the caller's configuration does not
 // export to the script, in a bash or sh script (AFP-V0-9622, AFP-V0-9623).
 func (s *driverShellScanner) localName(name string) bool {
-	return s.opaque == 0 && s.scan.envKnown && driverLocalName(name) && !s.scan.envNames[strings.ToLower(name)]
+	return s.narrowable() && driverLocalName(name) && !s.scan.envNames[strings.ToLower(name)]
 }
 
 // localAssignment reports, and records, a standalone assignment word that
-// sets a plain shell variable (AFP-V0-9622). A literal value prefix may name
-// a path the variable later reaches: it is retained as a read path, and a
-// prefix naming the working directory, an escaping path or a path under an
-// unknown directory keeps the assignment computed.
-func (s *driverShellScanner) localAssignment(word, cwd string) bool {
-	name, value, _ := strings.Cut(word, "=")
+// sets a plain shell variable (AFP-V0-9622). Its value is not modelled:
+// settleNarrowing keeps the script computed if the name occurs again.
+func (s *driverShellScanner) localAssignment(word string) bool {
+	name, _, _ := strings.Cut(word, "=")
 	name = strings.TrimSuffix(name, "+")
 	if !s.localName(name) {
 		return false
 	}
-	prefix := value
-	if index := strings.IndexAny(prefix, driverExpansion+driverComputed); index >= 0 {
-		prefix = prefix[:index]
-	}
-	if prefix != "" && !driverRootedPath(prefix) {
-		if cwd == "" {
-			return false
-		}
-		candidates := driverVariants(cwd, strings.TrimSuffix(prefix, "/"))
-		for _, candidate := range candidates {
-			if !ValidRelativePath(candidate) {
-				return false
-			}
-		}
-		for _, candidate := range candidates {
-			s.scan.paths[candidate] = true
-			s.scan.tokens[candidate] = true
-			s.scan.tokens["/"+candidate+"/"] = true
-		}
-	}
-	s.scan.local(name)
+	s.scan.local(name, "shell:assignment")
 	return true
 }
 
@@ -768,13 +833,13 @@ var driverSetOptions = map[string]bool{"pipefail": true, "errexit": true, "nouns
 
 // setNarrowed reports a `set` whose every argument is an allowlisted option
 // (AFP-V0-9621): -e, -u, -x, -v and -E, alone or combined, with - or +, and
-// -o or +o naming pipefail, errexit, nounset or xtrace. Tracing expands PS4,
-// so -x and xtrace need an environment known not to declare it.
+// -o or +o naming pipefail, errexit, nounset or xtrace, in a narrowable
+// script. Tracing expands PS4, which narrowable excludes from the
+// environment and settleNarrowing from sourced files.
 func (s *driverShellScanner) setNarrowed(args []driverWord) bool {
-	if len(args) == 0 {
+	if len(args) == 0 || !s.narrowable() {
 		return false
 	}
-	traces := false
 	for index := 0; index < len(args); index++ {
 		arg := args[index].text
 		if len(arg) < 2 || arg[0] != '-' && arg[0] != '+' {
@@ -787,15 +852,13 @@ func (s *driverShellScanner) setNarrowed(args []driverWord) bool {
 				if index >= len(args) || !driverSetOptions[args[index].text] {
 					return false
 				}
-				traces = traces || args[index].text == "xtrace"
 			case strings.IndexByte("euxvE", letter) >= 0:
-				traces = traces || letter == 'x'
 			default:
 				return false
 			}
 		}
 	}
-	return !traces || s.scan.envKnown && !s.scan.envNames["ps4"]
+	return true
 }
 
 // driverXargsValues are the short xargs options (GNU and BSD) whose value is
@@ -901,27 +964,31 @@ func driverComputedWord(text string) bool {
 
 func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 	head := words[0].text
-	s.scan.commandWord(words[0])
 	switch {
 	case head == "set" && s.setNarrowed(words[1:]):
-		return cwd // AFP-V0-9621.
+		s.scan.narrow("shell:builtin-set") // AFP-V0-9621.
+		return cwd
 	case head == "read":
 		if names := s.localRead(words); names != nil {
 			for _, name := range names {
-				s.scan.local(name) // AFP-V0-9624.
+				s.scan.local(name, "shell:builtin-read") // AFP-V0-9624.
 			}
 			return cwd
 		}
-	case head == "shopt" && driverShoptNarrowed(words[1:]):
-		return cwd // AFP-V0-9627.
+	case head == "shopt" && s.narrowable() && driverShoptNarrowed(words[1:]):
+		s.scan.narrow("shell:builtin-shopt") // AFP-V0-9627.
+		return cwd
 	case head == "printf" && slices.ContainsFunc(words[1:], func(word driverWord) bool { return strings.HasPrefix(word.text, "-v") }):
 		head = "printf-v"
 	case (head == "for" || head == "select") && len(words) > 1:
 		// AFP-V0-9622: the loop assigns its variable like an assignment.
-		if name := words[1].text; !driverLocalName(name) || s.scan.envKnown && s.scan.envNames[name] {
+		// Outside a narrowable script a lower-case loop variable keeps the
+		// scanner's earlier treatment.
+		switch name := words[1].text; {
+		case !driverLocalName(name) || s.scan.envKnown && s.scan.envNames[strings.ToLower(name)]:
 			s.scan.markComputed("shell:loop-variable")
-		} else {
-			s.scan.local(name)
+		case s.localName(name):
+			s.scan.local(name, "shell:loop-variable")
 		}
 	}
 	switch head {
@@ -938,9 +1005,6 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// AFP-V0-3128: the body runs later as shell code, potentially
 		// with a different environment or directory.
 		s.scan.uncertified = true
-		for _, word := range words[1:] {
-			s.scan.commandWord(word)
-		}
 		s.embedded(words[1:], cwd)
 		return cwd
 	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "shift", "return", "exit", "wait":
@@ -969,8 +1033,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		return cwd
 	case ".", "source":
 		s.scan.uncertified = true
+		// AFP-V0-9628: the file may define functions or set PS4.
+		s.scan.revoke("shell:sourced")
 		if len(words) > 1 {
-			s.scan.commandWord(words[1])
 			if driverComputedWord(words[1].text) {
 				s.scan.markComputed("shell:source-computed")
 			}
@@ -997,17 +1062,15 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// pipe, a heredoc whose body this scanner skips, or a redirect
 		// (AFP-V0-2958).
 		operand := false
-		for _, word := range words[1:] {
-			// Any word may name the program the interpreter runs (AFP-V0-9622).
-			s.scan.commandWord(word)
-		}
 		for index := 1; index < len(words); index++ {
 			arg := words[index].text
 			if driverShells[base] && strings.HasPrefix(arg, "-") && strings.HasSuffix(arg, "c") && !strings.HasPrefix(arg, "--") {
 				if index+1 < len(words) {
-					// Another shell's special parameters differ: no assignment
-					// in its inline script is narrowed (AFP-V0-9622).
-					opaque := base != "sh" && base != "bash"
+					// Another shell's special parameters differ, and an option
+					// such as -a exports every assignment: nothing in the inline
+					// script is narrowed unless it is exactly `sh|bash -c`
+					// (AFP-V0-9623).
+					opaque := base != "sh" && base != "bash" || index != 1 || arg != "-c"
 					if opaque {
 						s.opaque++
 					}
@@ -1528,11 +1591,6 @@ func (s *driverShellScanner) embedded(words []driverWord, cwd string) {
 		}
 		if fed && driverInterpreters[base] || parallel && strings.Contains(word.text, "{") {
 			s.scan.markComputed("shell:fed-interpreter")
-		}
-		if fed {
-			// A word after xargs, parallel or -exec may name the command
-			// they run (AFP-V0-9622).
-			s.scan.commandWord(word)
 		}
 		switch {
 		case base == "parallel":

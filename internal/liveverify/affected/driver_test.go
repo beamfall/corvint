@@ -218,6 +218,54 @@ func TestDriverEdgesAndComputedSite_AZU_V0_001(t *testing.T) {
 	}
 }
 
+// AFP-V0-9628: end to end through the driver, each V1-5000 review
+// counterexample still selects its job as a computed frontier site, while a
+// narrowed `set` step is left out.
+func TestDriverReviewCounterexamplesSelected_AFP_V0_9628(t *testing.T) {
+	workflow := `name: ci
+on: [push]
+jobs:
+  readdir:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          read -r dir < chosen-dir
+          cat "$dir/payload"
+  choose:
+    runs-on: ubuntu-latest
+    steps:
+      - id: choose
+        run: |
+          read -r dir < chosen-dir
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+      - run: ${{ steps.choose.outputs.dir }}/run
+  allexport:
+    runs-on: ubuntu-latest
+    steps:
+      - run: bash -ac 'read -r npm_config_userconfig < chosen-config; npm ci'
+  sourced:
+    runs-on: ubuntu-latest
+    steps:
+      - run: . ./ci/setup.sh; set -x; :
+  plain:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set -euo pipefail
+          echo ok
+`
+	graph := driverGraph(t, map[string]string{".github/workflows/ci.yml": workflow}, nil)
+	selected := driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+	job := func(name string) string { return "driver:ci:.github/workflows/ci.yml#" + name }
+	computed := []string{job("readdir"), job("choose"), job("allexport"), job("sourced")}
+	wantDriverSelection(t, selected, computed, []string{job("plain")})
+	for _, id := range computed {
+		if got := selected[id].Witness.Kind; got != affected.WitnessFrontierSite {
+			t.Errorf("%s witness %s, want %s", id, got, affected.WitnessFrontierSite)
+		}
+	}
+}
+
 // AZU-V0-9700: malformed wrappers in any recipe or step must remain selected,
 // including recipes that no other target calls. Graph building must not panic.
 func TestDriverMissingWrapperOperand_AZU_V0_9700(t *testing.T) {

@@ -807,6 +807,10 @@ func driverWorkflowDirectory(value string) string {
 	return joined
 }
 
+// driverStepShellOptions are the words of GitHub's own bash and sh shell
+// templates, which leave the step's narrowing intact (AFP-V0-9628).
+var driverStepShellOptions = map[string]bool{"{0}": true, "--noprofile": true, "--norc": true, "-e": true, "-eo": true, "pipefail": true}
+
 // runStep scans one run script, raw before its `${{ }}` expressions are
 // replaced. A shell other than sh or bash is read for its literals only and
 // marks the step computed. env holds, lower-cased, every name the workflow's
@@ -823,6 +827,13 @@ func (registry *driverRegistry) runStep(builder *driverUnitBuilder, raw, cwd, sh
 		// AFP-V0-9626: a write to either file changes the environment or
 		// command path of the job's later steps, however the script names it.
 		builder.markComputed("workflow:github-env-file")
+	}
+	for _, option := range interpreter[min(1, len(interpreter)):] {
+		if !driverStepShellOptions[option] {
+			// AFP-V0-9628: an option such as -a or -o allexport exports
+			// every assignment; no narrowing applies to the step.
+			env = nil
+		}
 	}
 	scan := newDriverScan()
 	scan.source = registry.source

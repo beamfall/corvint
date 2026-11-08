@@ -533,6 +533,7 @@ AFP-V0-9624	docs/specs/affected-zero-unknown-v0.md	**`read -r` into local names.
 AFP-V0-9625	docs/specs/affected-zero-unknown-v0.md	**Hidden assignments stay computed.** (experimental, V1-5000 orchestrator lane	unrecorded	-
 AFP-V0-9626	docs/specs/affected-zero-unknown-v0.md	**Environment files stay computed.** (experimental, V1-5000 orchestrator lane	unrecorded	-
 AFP-V0-9627	docs/specs/affected-zero-unknown-v0.md	**Glob `shopt` options; variable-setting builtins.** (experimental, V1-5000	unrecorded	-
+AFP-V0-9628	docs/specs/affected-zero-unknown-v0.md	**Narrowing is revoked whenever it may not hold.** (experimental, V1-5000	unrecorded	-
 AZU-V0-8900	docs/specs/affected-zero-unknown-v0.md	**Conservative verification ownership.** Remaining tracked data MAY be assigned	unrecorded	-
 AZU-V0-8901	docs/specs/affected-zero-unknown-v0.md	**Constructed foreign callers.** The shell caller completeness guard SHALL rejec	unrecorded	-
 AZU-V0-8902	docs/specs/affected-zero-unknown-v0.md	**Located runtime caller closure.** A located TypeScript end-to-end runtime site	unrecorded	-
