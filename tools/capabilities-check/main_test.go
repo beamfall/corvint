@@ -397,6 +397,7 @@ func syntheticRepository() map[string]string {
 	files[treesDir+"/corvint-mcp.json"] = string(encoded)
 	var core clitree.Tree
 	_ = json.Unmarshal([]byte(files[treesDir+"/corvint.json"]), &core)
+	files[machineCatalogPath] = syntheticMachineCatalog(core, mcp)
 	files["docs/CAPABILITIES.md"] += "<!-- capability-gate:cli-nodes -->\n" + clitree.CatalogMarkdown([]clitree.Tree{core, mcp}) + "<!-- /capability-gate:cli-nodes -->\n"
 	files[llmsPath] += "- corvint-mcp help --json (" + treesDir + "/corvint-mcp.json)\n"
 	return files
