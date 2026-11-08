@@ -2091,6 +2091,15 @@ repository script uses either form.
 
 ## Failure modes
 
+For V1-4941, treating every hosted source as data could hide an omitted compiled dependency.
+Only the Swift package manifest gains the metadata exception; ordinary source omissions and
+unobserved directories keep uncertainty. Treating a manifest as irrelevant could omit its Swift
+suite: claimant/frontier participation is preserved and the consumer regression requires that
+suite. Rollback removes the manifest exception and the read-data classification guard together
+with their new witnesses; this restores the prior FULL fallback and its documented confinement
+soundness limitation, without changing any protocol or execution-universe rule.
+
+
 The parent contract's failure codes apply. A fixture marker on a literal the test really reads is
 an author error. It narrows that read the same way ASD-V0-895 does for `test-read-scopes-check`, so
 the marker is reviewable in the diff. A `whole_packages` entry the parser cannot compute keeps the
