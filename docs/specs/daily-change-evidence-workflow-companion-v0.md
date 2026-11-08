@@ -427,11 +427,89 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
   prints the same fix line). Rollback: restore the previous fix
   line.
 
+- `DWC-V0-7700`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
+  The repository's native-Go append-union driver MUST run `git merge-file --diff3` and resolve
+  only conflict hunks whose base side is empty or whitespace-only, preserving ours then theirs.
+  It MUST add a newline if ours lacks a final newline and insert one blank line only when ours'
+  last line is nonblank and theirs' first line, after leading whitespace, starts with `#`.
+  A hunk containing nonblank base text MUST remain verbatim conflicted, with exit 1. An execution
+  failure exits 2. The requested marker size defaults to 7 and accepts Git's `%L`. Before invoking
+  Git, choose a size at least 7 and at least the requested size, strictly greater than every run
+  of `<`, `|`, `=` or `>` starting any input line; pass it as `--marker-size=N`. The parser MUST
+  accept only exact generated widths, labels and diff3 ordering. Unexpected delimiters, width
+  mismatches or malformed hunks MUST retain Git's conflict verbatim with nonzero exit. Literal
+  marker lines below the chosen width are content; clean merged text MUST remain unchanged.
+  This reproduces the owner's host reference without a Python runtime dependency.
+- `DWC-V0-7701`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
+  The three generated spec projections MUST use a keep-ours driver. The documented merge-forward
+  flow MUST merge without committing, stage merged inputs, run `make spec-requirements`, then
+  commit. `spec-requirements-check` MUST continue to reject stale projections; a successful Git
+  merge alone does not establish projection freshness.
+- `DWC-V0-7702`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
+  The JSON driver MUST union independent keys of object maps with three-way equality: identical
+  sides coalesce; one unchanged side admits the other's update or deletion; competing changes to
+  the same key conflict. The `scripts`, `packages`, and `tests` registry containers union entries,
+  each entry atomic, including its arrays and objects. Git's empty add/add base is an empty map;
+  current sides still require object roots. It MUST reject duplicate keys, non-object
+  roots, malformed JSON and trailing input. On conflict it exits nonzero and leaves ours untouched.
+  Success emits sorted object keys, two-space indentation, unescaped HTML and a final LF, retaining
+  numeric precision. Only the three named shell/test registries receive this attribute, never CEMs.
+- `DWC-V0-7703`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
+  `.gitattributes` MUST select append-union for `docs/specs/*.md`, overridden by keep-ours for
+  README.md, INDEX.json and REQUIREMENTS.tsv, and JSON union for shell-foreign-callers.json,
+  test-read-scopes.json and shell-read-scopes.json under `.corvint/`. `make merge-drivers` MUST
+  idempotently write only the three repository-local `merge.<name>.driver` config entries.
+  The development tool MUST supply help, required inputs and an example; no release executable,
+  global config, server-side GitHub merge change or implicit installation is introduced.
+- `DWC-V0-7704`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043;
+  extends `DWC-V0-001`) Batch-check MUST recognize append-union and json-union by resolving
+  ort's conflict stages and paths changed by both parents with these same built-in rules in its
+  private attribute-free scratch Git repository. The replay MUST account for custom drivers on
+  textually clean paths too (notably keep-ours projections and canonical JSON). It uses a single
+  merge base; ambiguous multiple bases remain unbound. Only regular 100644 files with both sides present qualify; add/add
+  uses an empty base (an empty object for JSON). Generated conflicts keep the first parent's side
+  and MUST replay the existing parent-derived spec generator. Regeneration may also accompany an
+  append/JSON resolution. The complete resulting tree, including modes, MUST equal the candidate.
+  The derivation is the ordered `+` join of `append-union`, `json-union`, `regenerated-specs` used.
+  No repository config or candidate content may supply a rule or preserved field. Unknown paths,
+  unresolved edits, hand additions, changed modes and failed regeneration stay unbound under
+  existing error codes; existing dropped-side checks remain in force.
+- `DWC-V0-7705`: (accepted under the owner's standing auto-accept (2026-11-07); V1-5043)
+  Fault-injection evidence MUST cover same-anchor appended sections, real edit conflicts, stale
+  projections, disjoint and divergent registry keys, driver-derived batch acceptance and refusal
+  of additional hand edits. Replay MUST compare conflict paths before/after driver installation
+  for merges of fetched origin/main into origin/claude/unbrd and origin/claude/selbatch in scratch
+  clones, retaining revisions, digests and counts in the dated build log; raw logs stay outside Git.
+
+## Merge prevention boundaries and rollback
+
+V1-5043 is the human-owned intent, subsuming V1-4716 and the conflict-free part of V1-4704.
+The baseline is ordinary textual Git merge plus manual projection regeneration. These rules reduce
+mechanical conflicts without resolving genuine code or registry-entry disagreements. Same-entry
+JSON objects are atomic to avoid silently combining two authors' changes to one declaration.
+GitHub's server-side merge is out of scope: installation is per local repository and optional.
+The older DWC-V0-001-only path keeps its narrower behavior; DWC-V0-7704 is an additional derivation.
+Failure to execute Git, parse input, regenerate, or reproduce a full tree never grants acceptance.
+These changes add no wire fields, stderr/error/exit changes to existing commands, or frozen goldens.
+Rollback DWC-V0-7700..7705 by removing the new attributes, unsetting the three local driver entries,
+removing the driverMerge call and development tool; ordinary conflicts and the existing
+DWC-V0-001 regenerated-specs path remain. Promotion requires focused whole-package tests and
+independent review; local replay does not establish server-side conflict prevention.
+
+| Requirement | Implementation and acceptance witness |
+|---|---|
+| DWC-V0-7700 | internal/mergedrivers/append.go; TestAppendDWCV07700; TestAppendDWCV07700LiteralDelimiters; TestAppendDWCV07700CollisionFreeMarkers; TestAppendDWCV07700DefaultMarkerProperty; TestResolveAppendDWCV07700UnexpectedDelimiters; TestGitDriversDWCV07703 |
+| DWC-V0-7701 | documented merge-forward recipe; TestProjectionDWCV07701StaleCheck |
+| DWC-V0-7702 | internal/mergedrivers/json.go; TestJSONDWCV07702 |
+| DWC-V0-7703 | .gitattributes, Makefile merge-drivers; TestGitDriversDWCV07703 |
+| DWC-V0-7704 | internal/dogfoodflow/merge_drivers.go; TestBatchCheckDWCV07704Drivers |
+| DWC-V0-7705 | fault injection tests above; docs/build-log/2026-11-07-mergeprev.md replay |
+
 ## Failure modes
 
 | Condition | Required observation |
 |---|---|
-| Conflict in any other path, including INDEX.json and README.md | `merge-resolution-unbound`; the script leaves the merge in progress with a `fix:` line, exit 1 |
+| Conflict beyond REQUIREMENTS.tsv under DWC-V0-001/002 | Legacy regeneration alone stays `merge-resolution-unbound`; the script leaves the merge in progress with a `fix:` line, exit 1. DWC-V0-7704 separately admits exact driver-derived trees. |
 | Hand edit beside the regenerated bytes, or preserved-field edits | `merge-resolution-unbound` |
 | Generated path is a symlink or non-regular file, or a mode changed | Replay refuses without following it |
 | Replay fails or exceeds 5 minutes | `merge-resolution-unbound` |
@@ -498,7 +576,9 @@ This spec extends `docs/specs/daily-change-evidence-workflow-v0.md`, whose Requi
 
 ## Non-goals and limits
 
-No resolution of conflicts in any other file, no rewrite of pushed branches, and no change to `DCW-V0-401` regenerated commits.
+For DWC-V0-001/002, no resolution of conflicts in other files. DWC-V0-7700..7705 add only the
+named spec/registry rules. No rewrite of pushed branches and no change to `DCW-V0-401`
+regenerated commits.
 
 ## Rollback
 
