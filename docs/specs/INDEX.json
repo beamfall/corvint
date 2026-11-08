@@ -4647,5 +4647,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/runner-selection-plugins-v0.md",
+    "title": "Runner Selection Plugins V0",
+    "reqPrefix": "RSP-V0",
+    "intent": "accepted (owner, 2026-11-07, decision 0592)",
+    "delivery": "not-started",
+    "claim": "Runner plugins declare test inventory, per-test evidence and qualification; one language-neutral selector narrows qualified runners and runs the rest in full.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
