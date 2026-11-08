@@ -1598,31 +1598,44 @@ wrote the fix. The rules below close them. They narrow the roles paragraph above
 a lane write Tasks state.
 
 Claim at dispatch, one anchor per lane (V1-5146). Before a lane starts, the orchestrator claims
-the lane's first ticket (the anchor) with a scope that is the union of every assigned ticket's
-`effects.touchPaths`:
+the lane's first ticket (the anchor) and widens the attempt to the union of every assigned
+ticket's `effects.touchPaths`. A claim may request only paths inside the anchor's declared scope
+(ATR-V0-215), so the claim names the anchor's declared paths and `widen` adds the member paths:
 
 ```sh
 corvint-tasks claim ANCHOR --holder lane:LANE --branch claude/LANE --base BASE \
-  --lease-minutes 180 --lock-wait 300 --scope PATH... --request-id ID
+  --lease-minutes 180 --lock-wait 300 --scope DECLARED_PATH... --request-id ID
+corvint-tasks widen --attempt ATTEMPT --generation G --scope MEMBER_PATH... --request-id ID
 ```
 
 An empty union refuses the dispatch: add the paths to the ticket or pass them by hand. A
-`RESOURCE_COLLISION` refusal means another lane holds an overlapping scope, so the lane waits or is
-rescoped. It is not started anyway. The other tickets are lane members and take no claim of their
-own, because one lane cannot hold two attempts with overlapping scope. Members are recorded one
-per line in `~/lanes/LANE.tickets` on the lane host. While the lane runs, `renew` and `attempt
-heartbeat` the anchor at least every 60 minutes. At the seal, `widen` the attempt to the paths in
-`git diff --no-renames --name-only BASE SEAL`, `submit --tree SEAL^{tree}`, then `gate run` and
-`complete` the anchor. A ticket that merges this way needs no `complete-manual`. A lane that is
-abandoned or superseded `release`s the anchor with a `--reason` closed code.
+`RESOURCE_COLLISION` refusal of either step means another lane holds an overlapping scope. The
+orchestrator then releases any half-made claim, and the lane waits or is rescoped. It is not
+started anyway. The other tickets are lane members and take no claim of their own, because one
+lane cannot hold two attempts with overlapping scope. Members are recorded one per line in
+`~/lanes/LANE.tickets` on the lane host. While the lane runs, `renew` and `attempt heartbeat` the
+anchor at least every 60 minutes. A lane that is abandoned or superseded `release`s the anchor.
+
+The anchor closes in two steps, because `complete` requires its `--commit` to be reachable from
+the integration branch with the submitted tree. Before the merge, at the seal, `widen` the attempt
+to the paths in `git diff --no-renames --name-only BASE SEAL` and `submit --tree SEAL^{tree}`.
+After the merge, `gate run` and `complete --commit SEAL`. A merge commit or batch merge keeps
+SEAL reachable with its own tree, so neither is refused `STALE_TREE`. When the lane reached the
+integration branch any other way (cherry-picked, rewritten, or repaired before it merged), SEAL is
+not on that branch. Resubmit the tree of the commit that is on the branch, gate it, and complete
+that commit. A ticket closed this way needs no `complete-manual`.
 
 Every delivering commit names its ticket (V1-5145). Each lane commit that delivers work ends with
-one `Corvint-Ticket: ID` trailer per ticket it advances. `chore:` commits and merges are exempt.
-The lane verifier runs a trailer check before handback. It lists untrailered commits and fails for
-each ticket in `LANE.tickets` that no commit in `BASE..HEAD` names. The check fails closed outside
-a worktree or for an unknown BASE. Repair it with a new `git commit --allow-empty` that carries the
-missing trailers, and never by amending a bound commit. After the merge, `work close-merged` closes
-the members from their trailers. The anchor closes through `complete`.
+the TAW-V0-002 trailer block: one `Corvint-Ticket: ID` line per ticket it delivers and exactly one
+`Corvint-Ticket-State: delivered` line. `corvint-tasks work deliver ID...` prints that block and
+its `git commit --trailer` arguments, and writes nothing. A block with ticket lines and no state
+line is malformed, and `work close-merged` closes nothing from it. `chore:` commits and merges
+are exempt. The lane verifier runs a trailer check before handback. It lists untrailered commits,
+fails for each malformed block, and fails for each ticket in `LANE.tickets` that no commit in
+`BASE..HEAD` delivers. The check fails closed outside a worktree or for an unknown BASE. The
+repair is a new `git commit --allow-empty` with the arguments `work deliver` prints, never an
+amend of a bound commit. After the merge, `work close-merged` closes the members from their
+trailers. The anchor closes through `complete`.
 
 Reviews are independent of the author (V1-5147). Every review round, the first and each fix round,
 runs in a fresh reviewer session that did not write or repair the change. It is given the diff and
