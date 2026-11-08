@@ -44,7 +44,6 @@ const (
 // may copy into a Go live-test provider bundle (AFP-V0-004).
 type affectedReceipt struct {
 	TestCounts map[string]int `json:"-"`
-
 	Snapshot map[string]any   `json:"snapshot,omitempty"`
 	PathList []string         `json:"path_list,omitempty"`
 	Advice   affectedAdvice   `json:"advice"`
@@ -69,7 +68,6 @@ type affectedReceipt struct {
 	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
 	WorktreeDirty int `json:"-"`
 }
-
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
 // Base is the full commit id `--base` named, or "" for the worktree-only
 // form; Paths is the sorted tree diff base..HEAD that was unioned into
@@ -1288,7 +1286,6 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	testCounts := affectedTestCounts(root, plan)
 	affectedPlanSourcesObserved()
 	// The status, the graph and every later source read (prior read scopes,
 	// advice, provider and e2e selection, app navigations) are observations of
@@ -1316,18 +1313,17 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		return affectedReceipt{}, nil, err
 	}
 	receipt := affectedReceipt{
-		TestCounts: testCounts,
-		PathList:   invocation.PathList,
-		Advice:     advice,
-		Mutates:    false,
-		OK:         true,
-		Plan:       plan,
-		Profile:    affectedProfile,
-		Provider:   affectedProvider{Go: provider},
-		Range:      affectedRange{Base: invocation.Base, Paths: committed},
-		Revision:   revision,
-		Tool:       "affected",
-		Warning:    affectedMixedWarning(revision, dirty, committed),
+		PathList: invocation.PathList,
+		Advice:   advice,
+		Mutates:  false,
+		OK:       true,
+		Plan:     plan,
+		Profile:  affectedProfile,
+		Provider: affectedProvider{Go: provider},
+		Range:    affectedRange{Base: invocation.Base, Paths: committed},
+		Revision: revision,
+		Tool:     "affected",
+		Warning:  affectedMixedWarning(revision, dirty, committed),
 
 		WorktreeDirty: worktreeDirty,
 	}
