@@ -4,6 +4,19 @@ package affected
 
 import "testing"
 
+// AFP-V0-9051: without a source the scanner cannot exclude linked operands.
+func TestDriverOperandWithoutSource_AFP_V0_9051(t *testing.T) {
+	for _, command := range []string{"cat INPUT", "cat -- -INPUT", "cat data/*.txt", "wc -l < INPUT", "test -f INPUT"} {
+		t.Run(command, func(t *testing.T) {
+			scan := newDriverScan()
+			scan.scanShell(command, ".", "")
+			if !scan.uncertified {
+				t.Fatal("operand certified without a source")
+			}
+		})
+	}
+}
+
 // AZU-V0-001: truncated wrapper operands must retain uncertainty instead
 // of panicking or silently claiming the command is fully understood.
 func TestDriverTruncatedWrapperOptions_AZU_V0_001(t *testing.T) {

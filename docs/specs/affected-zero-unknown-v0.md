@@ -489,6 +489,10 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
   `/dev/null` reads nothing. A `tr` set, `jq`'s program and `grep`'s first operand when no `-e`
   or `-f` supplies the pattern are not file operands.
+  A dash-prefixed operand other than `-` SHALL NOT be recorded, so it leaves the command
+  uncertified, and an operand SHALL be recorded only when the scanner holds the source and every
+  component of its path is a plain file or directory there, not a symbolic link (Greptile P1
+  repair 2).
 
 ### Lane qualification details
 
