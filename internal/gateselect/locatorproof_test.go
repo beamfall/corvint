@@ -55,3 +55,36 @@ func TestLocatorComparisonScanner_AZU_V0_9930(t *testing.T) {
 		t.Fatalf("reader calls %v", got)
 	}
 }
+
+// AFP-V0-2950: every possible root initializer and assignment must be
+// certified, including declarations before a conditional Getwd fallback.
+func TestLocatorInitializerAllowlist_AFPV02950(t *testing.T) {
+	for _, tc := range []struct {
+		name, init, write string
+		safe              int
+	}{
+		{name: "environment initializer", init: `root := system.Getenv("DATA_ROOT")`},
+		{name: "unknown initializer", init: `root := mystery()`},
+		{name: "parameter initializer", init: `root := given`},
+		{name: "var environment initializer", init: `var root = system.Getenv("DATA_ROOT")`},
+		{name: "unknown reassignment", init: `root := ""`, write: `root = mystery();`},
+		{name: "other Getwd receiver", init: `root := ""`, write: `root, err = other.Getwd();`},
+		{name: "empty initializer", init: `root := ""`, safe: 1},
+		{name: "zero string", init: `var root string`, safe: 1},
+		{name: "same locator reassignment", init: `root := ""`, write: `root, err = system.Getwd();`, safe: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := []byte(`package p
+func f(given string, other fake) {
+` + tc.init + `; var err error
+if root == "" { root, err = system.Getwd() }; _ = err
+` + tc.write + `
+system.ReadFile(fp.Join(root, "config.go"))
+}`)
+			safe, _ := comparisonOnlyLocators(body, map[string]string{"system": "os"}, map[string]string{"fp": "path/filepath"})
+			if len(safe) != tc.safe {
+				t.Fatalf("exempted %d locators, want %d", len(safe), tc.safe)
+			}
+		})
+	}
+}
