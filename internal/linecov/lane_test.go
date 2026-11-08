@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -63,9 +64,28 @@ func TestC(t *testing.T) { g() }
 			if err != nil {
 				t.Fatal(err)
 			}
-			change := ix.Analyze([]FileDiff{{Path: "ord/ord.go", OldOID: oids["ord/ord.go"], NewOID: "changed", Hunks: []Hunk{{Start: tc.line, End: tc.line}}}}, Reader(context.Background(), root, base))
-			p, why := ix.Narrow([]string{"ord"}, map[string][]string{"ord": {"TestA", "TestB", "TestC", "TestD"}}, Effect{}, change)
-			if why != "" || p["ord"].Mode != Tests || strings.Join(p["ord"].Tests, ",") != tc.want {
+			change := ix.Analyze([]FileDiff{{Path: "ord/ord.go", OldOID: oids["ord/ord.go"], NewOID: "changed", Hunks: []Hunk{{Start: tc.line, End: tc.line}}, NewHunks: []Hunk{{Start: tc.line, End: tc.line}}, NewSource: []byte(tc.source)}}, Reader(context.Background(), root, base))
+			// The windows attribute the in-order reach to the test that ran it
+			// and its prerequisites; the in-order record keeps its union, so
+			// the package still runs whole for order (GLS-V0-008).
+			owners := map[string]bool{}
+			for _, b := range ix.BlocksAtLine("ord/ord.go", int32(tc.line)) {
+				for _, id := range b.Tests {
+					owners[ix.Tests[id].Name] = true
+				}
+			}
+			var got []string
+			for name := range owners {
+				if name != InOrder {
+					got = append(got, name)
+				}
+			}
+			sort.Strings(got)
+			if !owners[InOrder] || strings.Join(got, ",") != tc.want {
+				t.Fatalf("owners of line %d: %v", tc.line, owners)
+			}
+			p, why := ix.Narrow(os.Environ(), []string{"ord"}, map[string][]string{"ord": {"TestA", "TestB", "TestC", "TestD"}}, Effect{}, change)
+			if why != "" || p["ord"].Mode != Whole {
 				t.Fatalf("plans %+v why %s", p, why)
 			}
 			// Unsupported overlapping windows retain a named union fallback.
@@ -187,7 +207,6 @@ func TestUninstrumentedChild(t *testing.T) {
 			}
 			if mode == "missing-second" {
 				tree["cmd/tool/main.go"] = strings.Replace(tree["cmd/tool/main.go"], `"fmt"`, `"fmt"
- "os"
  "syscall"`, 1)
 				tree["cmd/tool/main.go"] = strings.Replace(tree["cmd/tool/main.go"], "func main() {", `func main() {
  if os.Getenv("KILL_CHILD")=="1" { syscall.Kill(os.Getpid(),syscall.SIGKILL) }

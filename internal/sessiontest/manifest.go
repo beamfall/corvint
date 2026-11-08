@@ -112,6 +112,11 @@ type Manifest struct {
 	Excluded    []string `json:"excluded,omitempty"`
 	GraphDigest string   `json:"graphDigest"`
 	Incomplete  []string `json:"incomplete"`
+	// LineIndex is "STATE DETAIL" of the GLS-V0-020 line selection: the
+	// index digest a NARROWED or FALLBACK selection read, or the FALLBACK
+	// reason when it read none. It is absent without --line-index, so such a
+	// manifest keeps its bytes.
+	LineIndex string `json:"lineIndex,omitempty"`
 	// NoSuite records each covered language the declaration asserts has no
 	// suite, as "<language>: <reason>"; nothing runs for it (STR-V0-004).
 	NoSuite         []string       `json:"noSuite"`

@@ -193,6 +193,7 @@ type FaultResult struct {
 // only when it names the tests it proves (Keep, or the representative and
 // Excluded) and each is reached through a segment of the case's kind.
 func (ix *Index) Fault(c FaultCase, read func(string) ([]byte, error)) FaultResult {
+	ix.full()
 	res := FaultResult{Name: c.Name, Kind: c.Kind}
 	e := ix.Analyze(c.Diffs, read)
 	if e.Fallback != "" {

@@ -768,6 +768,42 @@ func TestAFPV0098SupersetGuard(t *testing.T) {
 		num(v["shard"]) != 3 || num(v["shards"]) != 8 || num(v["verdictRunId"]) != 4242 {
 		t.Fatalf("superset decision = %v", v)
 	}
+	// AFP-V0-9510: the recorded selection's package the shadow did not select (c) is reported as
+	// over-selected, and the report does not change the decision.
+	if fmt.Sprint(v["overSelected"]) != fmt.Sprint([]string{c}) || num(v["overSelectedCount"]) != 1 {
+		t.Fatalf("over-selection = %v (%v)", v["overSelected"], v["overSelectedCount"])
+	}
+	{
+		x := good()
+		x.shadow = ""
+		if v := decide(t, x); len(v["overSelected"].([]any)) != 0 || v["overSelectedCount"] != nil {
+			t.Fatalf("over-selection without a shadow = %v (%v)", v["overSelected"], v["overSelectedCount"])
+		}
+	}
+	// AFP-V0-9510: an unreadable selection reports an unknown over-selection, not zero.
+	{
+		x := good()
+		x.selectedOk = "0"
+		if v := decide(t, x); len(v["overSelected"].([]any)) != 0 || v["overSelectedCount"] != nil {
+			t.Fatalf("over-selection without a computed selection = %v (%v)", v["overSelected"], v["overSelectedCount"])
+		}
+	}
+	// AFP-V0-9510: the list holds the first 50 sorted extras and the count stays uncapped.
+	{
+		x := good()
+		extras := make([]string, 60)
+		for i := range extras {
+			extras[i] = fmt.Sprintf("example.org/m/x%02d", i)
+		}
+		all := append([]string{a, b, c}, extras...)
+		x.driver.(doc)["Packages"] = all
+		x.selected = strings.Join(all, "\n") + "\n"
+		x.universe = strings.Join(append(all, d), "\n") + "\n"
+		want := append([]string{c}, extras[:49]...)
+		if v := decide(t, x); fmt.Sprint(v["overSelected"]) != fmt.Sprint(want) || num(v["overSelectedCount"]) != 61 {
+			t.Fatalf("capped over-selection = %v (%v)", v["overSelected"], v["overSelectedCount"])
+		}
+	}
 	// A driver package outside the universe (another module) is not part of the selection.
 	x := good()
 	x.driver.(doc)["Packages"] = []string{a, b, c, "example.org/other/x"}
@@ -1106,6 +1142,25 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		if mode != "NARROWED" || v["mode"] != "NARROWED" || fmt.Sprint(v["executed"]) != fmt.Sprint([]string{b, c}) ||
 			string(sidecar) != b+"\n"+c+"\n" || v["placement"] != "BALANCED" || fmt.Sprint(v["selected"]) != fmt.Sprint([]string{a, b, c}) {
 			t.Fatalf("mode %s, record %v, sidecar %q", mode, v, sidecar)
+		}
+		// AFP-V0-9510: the step summary prints the over-selection count and its names.
+		if s, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "summary")); !strings.Contains(string(s), ", over-selected 1 (AFP-V0-9510): "+c) {
+			t.Fatalf("summary without the over-selection: %q", s)
+		}
+	})
+	// AFP-V0-9510: the summary prints the full over-selection count but only five names.
+	t.Run("summary caps over-selected names", func(t *testing.T) {
+		extras := []string{"example.org/m/e1", "example.org/m/e2", "example.org/m/e3", "example.org/m/e4", "example.org/m/e5", "example.org/m/e6"}
+		list := strings.Join(append([]string{a, b, c, d}, extras...), " ")
+		pkgs := `"` + strings.Join(append([]string{a, b, c}, extras...), `","`) + `"`
+		_, out := narrow(t, false, map[string]string{
+			"go":     "#!/bin/sh\nprintf '%s\\n' " + list + "\n",
+			"driver": "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\njq '.Packages=[" + pkgs + "]' \"$FAKE/selection.json\" > \"$o/selection.json\"\n",
+		})
+		s, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "summary"))
+		want := ", over-selected 7 (AFP-V0-9510): " + strings.Join(append([]string{c}, extras[:4]...), ", ")
+		if !strings.Contains(string(s), want) || strings.Contains(string(s), extras[4]) {
+			t.Fatalf("summary %q, want %q and no %s", s, want, extras[4])
 		}
 	})
 	// AFP-V0-801: all consumers use the proven parent, retaining the original event base.

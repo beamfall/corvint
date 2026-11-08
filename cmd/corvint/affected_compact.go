@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -44,6 +45,8 @@ type affectedCompactReceipt struct {
 	Order *affectedOrder `json:"order,omitempty"`
 	// Summary restates the plan's scope and counts in one object (AFP-V0-510).
 	Summary affectedSummary `json:"summary"`
+	// LineSelection is copied from the full receipt (GLS-V0-010).
+	LineSelection *linecov.Selection `json:"lineSelection,omitempty"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -209,6 +212,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
 
 		DegradationDetails: full.DegradationDetails,
+		LineSelection:      full.LineSelection,
 	}, nil
 }
 

@@ -16,7 +16,8 @@
       "command": "linecov ci",
       "summary": "Narrow a Go CI shard",
       "usage": [
-        "linecov ci -root DIR -index INDEX -base FULL_SHA -packages FILE -slices FILE -out DIR"
+        "linecov ci -root DIR -index INDEX -base FULL_SHA -packages FILE -slices FILE -out DIR",
+        "linecov ci -selection FILE -packages FILE -slices FILE -out DIR"
       ],
       "flags": [
         "-root",
@@ -24,12 +25,12 @@
         "-base",
         "-packages",
         "-slices",
-        "-out"
+        "-out",
+        "-selection",
+        "-test-timeout",
+        "-exec"
       ],
       "required": [
-        "-root DIR",
-        "-index INDEX",
-        "-base FULL_SHA",
         "-packages FILE",
         "-slices FILE",
         "-out DIR"
@@ -44,7 +45,7 @@
       "command": "linecov collect",
       "summary": "Collect Go coverage records",
       "usage": [
-        "linecov collect -root DIR -out INDEX [-packages a,b]"
+        "linecov collect -root DIR -out INDEX [-packages a,b] [-tests RE] [-inorder run|only|skip]"
       ],
       "flags": [
         "-root",
@@ -53,7 +54,11 @@
         "-parallel",
         "-timeout",
         "-suite-timeout",
+        "-test-timeout",
+        "-exec",
         "-work",
+        "-tests",
+        "-inorder",
         "-prior",
         "-misses"
       ],
@@ -61,7 +66,7 @@
         "-root DIR",
         "-out INDEX"
       ],
-      "example": "linecov collect -root DIR -out INDEX [-packages a,b]",
+      "example": "linecov collect -root DIR -out INDEX [-packages a,b] [-tests RE] [-inorder run|only|skip]",
       "help": "linecov collect --help"
     },
     {
@@ -139,26 +144,75 @@
     },
     {
       "path": [
+        "miss"
+      ],
+      "command": "linecov miss",
+      "summary": "List suspected misses of a failed main run",
+      "usage": [
+        "linecov miss -failed FILE [-failed FILE] -run DIR [-run DIR]"
+      ],
+      "flags": [
+        "-failed",
+        "-run"
+      ],
+      "required": [
+        "-failed FILE",
+        "-run DIR"
+      ],
+      "example": "linecov miss -failed FILE [-failed FILE] -run DIR [-run DIR]",
+      "help": "linecov miss --help"
+    },
+    {
+      "path": [
+        "qualified"
+      ],
+      "command": "linecov qualified",
+      "summary": "Check a qualification record against a revision",
+      "usage": [
+        "linecov qualified -root DIR -record FILE -rev FULL_SHA"
+      ],
+      "flags": [
+        "-root",
+        "-record",
+        "-rev",
+        "-exec"
+      ],
+      "required": [
+        "-root DIR",
+        "-record FILE",
+        "-rev FULL_SHA"
+      ],
+      "example": "linecov qualified -root DIR -record FILE -rev FULL_SHA",
+      "help": "linecov qualified --help"
+    },
+    {
+      "path": [
         "qualify"
       ],
       "command": "linecov qualify",
       "summary": "Qualify Go selection by fault injection",
       "usage": [
-        "linecov qualify -root DIR -index INDEX -packages a,b [-mutants N] [-seed N]"
+        "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE]",
+        "linecov qualify -summarize -record FILE REPORT..."
       ],
       "flags": [
         "-root",
         "-index",
         "-packages",
+        "-suite",
         "-mutants",
-        "-seed"
+        "-controls",
+        "-seed",
+        "-start",
+        "-count",
+        "-report",
+        "-test-timeout",
+        "-exec",
+        "-summarize",
+        "-record"
       ],
-      "required": [
-        "-root DIR",
-        "-index INDEX",
-        "-packages a,b"
-      ],
-      "example": "linecov qualify -root DIR -index INDEX -packages a,b [-mutants N] [-seed N]",
+      "required": [],
+      "example": "linecov qualify -root DIR -index INDEX -packages a,b [-suite a,b,c] [-mutants N] [-controls N] [-seed N] [-report FILE]",
       "help": "linecov qualify --help"
     },
     {
@@ -250,7 +304,9 @@
         "-root",
         "-index",
         "-base",
-        "-static"
+        "-static",
+        "-test-timeout",
+        "-exec"
       ],
       "required": [
         "-root DIR",
