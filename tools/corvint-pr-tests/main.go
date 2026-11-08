@@ -106,7 +106,7 @@ type receipt struct {
 
 func main() {
 	var o options
-	flag.StringVar(&o.mode, "mode", "run", "run, plan, prior, freeze, shadow, or qualify")
+	flag.StringVar(&o.mode, "mode", "run", "run, plan, prior, freeze, shadow, qualify, or packages (print the FULL package universe, go list -race ./... plus hidden packages; needs only --root)")
 	flag.StringVar(&o.root, "root", ".", "tested repository")
 	flag.StringVar(&o.base, "base", "", "event base OID")
 	flag.StringVar(&o.head, "head", "", "event PR head OID")
@@ -182,6 +182,23 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 		return 2, err
 	}
 	o.root = root
+	if o.mode == "packages" {
+		// AFP-V0-9012: the workflow's FULL universe, in its own Go environment.
+		hidden, err := hiddenPackages(root)
+		if err != nil {
+			return 2, err
+		}
+		var listed bytes.Buffer
+		cmd := exec.CommandContext(ctx, "go", listArgs(hidden)...)
+		cmd.Dir, cmd.Stdout, cmd.Stderr = root, &listed, os.Stderr
+		if err = cmd.Run(); err != nil {
+			return 2, fmt.Errorf("go list: %w", err)
+		}
+		if err = writeSortedPackages(os.Stdout, listed.Bytes()); err != nil {
+			return 2, err
+		}
+		return 0, nil
+	}
 	out, err := externalPath(root, o.out)
 	if err != nil {
 		return 2, err
@@ -922,13 +939,10 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		if err != nil {
 			return 2, err
 		}
-		listed, err := capture(ctx, o, "go", "list", "./...")
+		// AFP-V0-9012: go list of ./... plus the hidden packages it skips.
+		universe, err = goUniverse(ctx, o)
 		if err != nil {
 			return 2, fmt.Errorf("complete package universe unavailable: %w", err)
-		}
-		universe, err = cishards.Packages([]byte(listed))
-		if err != nil {
-			return 2, err
 		}
 		if layout, err = shardLayout(universe, o.shards); err != nil {
 			return 2, err
@@ -961,6 +975,27 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	}
 	executed := s.Packages
 	var slices []cishards.Slice
+	if universe == nil && equal(executed, []string{"./..."}) {
+		// AFP-V0-9012: unsharded FULL keeps Go's ./... and appends the hidden
+		// packages it skips. A package added after the walk leaves the
+		// checkout unclean, so the run refuses rather than skipping it.
+		head, err := git(ctx, o, "rev-parse", "HEAD")
+		if err != nil {
+			return 2, err
+		}
+		tree, err := git(ctx, o, "rev-parse", "HEAD^{tree}")
+		if err != nil {
+			return 2, err
+		}
+		hidden, err := hiddenPackages(o.root)
+		if err != nil {
+			return 2, fmt.Errorf("hidden Go packages unavailable: %w", err)
+		}
+		if err = requireShardSource(ctx, o, head, tree); err != nil {
+			return 2, err
+		}
+		executed = fullArgs(hidden)
+	}
 	if universe != nil {
 		// FULL also needs this guard: a fallback cannot execute a stale package universe.
 		if err := requireShardSource(ctx, o, universeHead, universeTree); err != nil {

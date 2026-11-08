@@ -1684,7 +1684,9 @@
     ],
     "tools/ci-forward-row": [
       ".github/",
-      "Makefile"
+      "Makefile",
+      "go.mod",
+      "tools/corvint-pr-tests/"
     ],
     "tools/cli-discovery-gen": [
       "VERSION",
