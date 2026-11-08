@@ -1,0 +1,1 @@
+{"binary":"runner-qualification","commands":[{"path":["replay"],"usage":"runner-qualification replay -input FILE -checkout DIR -out FILE -budget D","flags":["-input","-checkout","-out","-budget"],"effect":"write-unadmitted-qualification-record"}]}
