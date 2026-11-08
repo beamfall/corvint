@@ -332,6 +332,11 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 	// metadata outside every pattern need not be representable as evidence.
 	files, _, err := root.FilesIncluding(func(relative, _ string) bool {
 		for offset, patterns := range embedding {
+			// An embed pattern cannot name a file outside its package
+			// directory (the same prefix embedTargets uses), so skip it.
+			if directory := unitDirectories[offset]; directory != "." && !strings.HasPrefix(relative, directory+"/") {
+				continue
+			}
 			if len(embedTargets(unitDirectories[offset], patterns, []string{relative}, moduleRoots)) != 0 {
 				return true
 			}
