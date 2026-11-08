@@ -303,6 +303,11 @@ func (s *driverShellScanner) script(script, cwd string) {
 				}
 				word, next := s.word(line, position, cwd)
 				position = next
+				if word.escaped {
+					// A backslash in a delimiter decides which line ends the
+					// body; fail closed rather than trust that one decoding.
+					s.scan.revoke("shell:escaped-heredoc-delimiter")
+				}
 				if word.text != "" {
 					s.heredocs = append(s.heredocs, driverHeredoc{delimiter: word.text, stripTabs: stripTabs})
 				} else {
