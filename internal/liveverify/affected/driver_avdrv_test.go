@@ -12,6 +12,13 @@ import (
 	"testing/fstest"
 )
 
+// These fixtures return declared units and never read ambient files.
+type driverFixtureLanguage struct{ fake }
+
+func (language driverFixtureLanguage) UnitsSource(*Source) (Result, error) {
+	return language.Units(context.Background(), "")
+}
+
 // Before AFP-V0-9400 only a leading interpreter was retained, even though
 // a wrapper can pass the skipped body to one.
 func TestDriverHeredocConsumers_AFPV09400(t *testing.T) {
@@ -90,7 +97,7 @@ func TestDriverEnumerationSelectsFilesAndCallers_AFPV09401(t *testing.T) {
 	} {
 		t.Run(recipe, func(t *testing.T) {
 			owner := fake{name: "g", units: []Unit{{ID: "g:owned", Sources: []string{"owned.g"}, Tests: []string{"owned_test.g"}}}}
-			graph, err := BuildFS(driverEnumerationFiles(recipe), owner, Driver{})
+			graph, err := BuildFS(driverEnumerationFiles(recipe), driverFixtureLanguage{owner}, Driver{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -198,6 +205,124 @@ func TestDriverEnumerationSymlinkTargets_AFPV09401(t *testing.T) {
 			selected := witnesses(Select(graph, []string{target}))
 			if selected["driver:make:Makefile#check"].Kind != WitnessPathGlobReader {
 				t.Errorf("symlink target %s lost its enumerating reader: %+v", target, selected)
+			}
+		})
+	}
+}
+
+// A directory edge proves only regular glob matches, never their linked targets.
+func TestDriverGlobProvenance_AFPV09051(t *testing.T) {
+	for _, tc := range []struct{ name, operand, link string }{
+		{"linked-file", "data/*", "../lib/lib.go"},
+		{"linked-directory", "data/*", "../lib"},
+		{"unknown-glob-form", "data/?*", ""},
+		{"plain-directory-match", "data/*", "directory"},
+		{"regular-control", "data/*", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			files := map[string]string{
+				"Makefile":       "check:; $(if yes,cat,cat) " + tc.operand + "\n",
+				"data/plain.txt": "plain", "lib/lib.go": "package lib\n",
+			}
+			for name, body := range files {
+				full := filepath.Join(root, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.link == "directory" {
+				if err := os.Mkdir(filepath.Join(root, "data", "sub"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			} else if tc.link != "" {
+				if err := os.Symlink(tc.link, filepath.Join(root, "data", "alias.txt")); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			graph, err := Build(t.Context(), root, Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			const id = "driver:make:Makefile#check"
+			selected := witnesses(Select(graph, []string{"lib/lib.go"}))
+			if tc.name == "regular-control" {
+				if _, found := selected[id]; found {
+					t.Fatalf("regular glob overselected: %+v", selected)
+				}
+			} else if selected[id].Kind != WitnessFrontierSite {
+				t.Fatalf("unproven glob lost its frontier: %+v", selected)
+			}
+		})
+	}
+}
+
+func TestDriverNestedWildcardDirectory_AFPV03121(t *testing.T) {
+	for _, function := range []string{"wildcard marker", "future-filesystem-function marker"} {
+		t.Run(function, func(t *testing.T) {
+			files := fstest.MapFS{
+				"build/Makefile": {Data: []byte("check:; go test ./$(if $(" + function + "),left,right)_pkg\n")},
+				"build/marker":   {Data: []byte("present only beside Makefile")},
+			}
+			// Exercise the reported path through the builder directly:
+			// the generic discovery walk excludes build/ independently.
+			parsed := parseDriverMake("build/Makefile", files["build/Makefile"].Data)
+			parsed.source = FSSource(files)
+			registry := driverRegistry{source: parsed.source}
+			units := registry.makeUnits(parsed, files["build/Makefile"].Data)
+			graph, err := BuildFS(files, driverFixtureLanguage{fake{name: DriverNamespace, units: units, owns: DriverInput}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, dirty := range []string{"left_pkg/pkg.go", "right_pkg/pkg.go", "unknown/new.fixture"} {
+				selected := witnesses(Select(graph, []string{dirty}))
+				if selected["driver:make:build/Makefile#check"].Kind != WitnessFrontierSite {
+					t.Fatalf("%s lost unknown invocation-directory claim: %+v", dirty, selected)
+				}
+			}
+			expander := parsed.expander(nil)
+			values := expander.expandAll("go test ./$(if $(" + function + "),left,right)_pkg")
+			for _, want := range []string{"go test ./left_pkg", "go test ./right_pkg"} {
+				if !slices.Contains(values, want) {
+					t.Fatalf("missing alternative %q: %v", want, values)
+				}
+			}
+		})
+	}
+}
+
+func TestDriverExecutableProvenance_AFPV03128(t *testing.T) {
+	for _, head := range []string{"/repo/tools/echo", "/repo/tools/cat", "/repo/tools/go", "/repo/tools/future-utility", "./tools/echo", "future-utility"} {
+		t.Run(head, func(t *testing.T) {
+			files := fstest.MapFS{"Makefile": {Data: []byte("check:; $(if yes," + head + "," + head + ")\n")}}
+			graph, err := BuildFS(files, Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			selected := witnesses(Select(graph, []string{"unindexed/new.go"}))
+			if selected["driver:make:Makefile#check"].Kind != WitnessFrontierSite {
+				t.Fatalf("unproven executable inherited utility certification: %+v", selected)
+			}
+		})
+	}
+}
+
+func TestDriverSharedEnumeration_AFPV09401(t *testing.T) {
+	for _, rule := range []string{".DEFAULT", ".SUFFIXES", ".PHONY"} {
+		t.Run(rule, func(t *testing.T) {
+			files := fstest.MapFS{"Makefile": {Data: []byte("check: missing\n\techo done\n" + rule + ":\n\trg --files\n")}}
+			graph, err := BuildFS(files, Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, dirty := range []string{"new.fixture", "unindexed/new.go", ".hidden/new"} {
+				selected := witnesses(Select(graph, []string{dirty}))
+				if selected["driver:make:Makefile#check"].Kind != WitnessPathGlobReader {
+					t.Fatalf("shared enumeration lost file-set read for %s: %+v", dirty, selected)
+				}
 			}
 		})
 	}

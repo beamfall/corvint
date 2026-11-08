@@ -513,6 +513,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		rule := parsed.rules[target]
 		builder := newDriverUnitBuilder(driverMakeUnitID(parsed.path, target))
 		builder.computed = shared.computed
+		builder.readsTree = shared.readsTree
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {
