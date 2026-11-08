@@ -38,6 +38,10 @@ func ptSource() []byte {
 // ptTests/ptTemplates members with identical reaches.
 func ptIndex() *Index {
 	ix := &Index{Format: Format, Module: "example.com/m", Commit: "c0", Runner: "go test"}
+	// The in-order record reaches no block: otherwise every change keeps e2e
+	// whole for order (GLS-V0-008). Test t is ix.Tests[t+1].
+	ix.Tests = append(ix.Tests, Test{Package: "e2e", Name: InOrder})
+	ix.Segments = append(ix.Segments, Segment{Test: 0, Kind: KindTest})
 	for t := 0; t < ptTests; t++ {
 		ix.Tests = append(ix.Tests, Test{Package: "e2e", Name: fmt.Sprintf("Test%05d", t), Elapsed: time.Duration(1+t%97) * time.Millisecond, Level: "e2e"})
 	}
@@ -64,12 +68,12 @@ func ptIndex() *Index {
 		tpl := t % ptTemplates
 		for s := 0; s < ptSegsPerTest; s++ {
 			id := int32(len(ix.Segments))
-			ix.Segments = append(ix.Segments, Segment{Test: int32(t), Kind: KindStep, ID: fmt.Sprintf("step:%d:%d", tpl, s), Bound: true, Units: []string{fmt.Sprintf("screen:%d", s)}, Elapsed: time.Millisecond})
+			ix.Segments = append(ix.Segments, Segment{Test: int32(t + 1), Kind: KindStep, ID: fmt.Sprintf("step:%d:%d", tpl, s), Bound: true, Units: []string{fmt.Sprintf("screen:%d", s)}, Elapsed: time.Millisecond})
 			for _, r := range reach(tpl, s) {
 				if tests[r] == nil {
 					tests[r] = map[int32]bool{}
 				}
-				tests[r][int32(t)] = true
+				tests[r][int32(t+1)] = true
 				segs[r] = append(segs[r], id)
 			}
 		}
@@ -91,7 +95,7 @@ func ptChange() []FileDiff {
 	for h := 0; h < ptHunksChanged; h++ {
 		f, fn := (h*37)%ptFiles, (h*11)%ptFuncs
 		l := 3 + 5*fn + 1
-		out = append(out, FileDiff{Path: ptPath(f), OldOID: "blob1", NewOID: "blob2", Hunks: []Hunk{{Start: l, End: l}}})
+		out = append(out, FileDiff{Path: ptPath(f), OldOID: "blob1", NewOID: "blob2", NewSource: ptSource(), NewHunks: []Hunk{{Start: l, End: l}}, Hunks: []Hunk{{Start: l, End: l}}})
 	}
 	return out
 }
@@ -108,7 +112,7 @@ func planOnce(tb testing.TB, encoded []byte, diffs []FileDiff, read func(string)
 	if e.Fallback != "" {
 		tb.Fatalf("fallback %s", e.Fallback)
 	}
-	plans, _ := ix.Narrow([]string{"e2e"}, heads, Effect{}, e)
+	plans, _ := ix.Narrow(nil, []string{"e2e"}, heads, Effect{}, e)
 	j := ix.Join(e)
 	return ix.Report(plans, heads, j, ix.Shadow(j, nil))
 }
@@ -121,7 +125,7 @@ func ptInputs(tb testing.TB) ([]byte, []FileDiff, func(string) ([]byte, error), 
 	}
 	src := ptSource() // read once: blob reads are outside the budget
 	heads := map[string][]string{}
-	for _, t := range ix.Tests {
+	for _, t := range ix.Tests[1:] {
 		heads["e2e"] = append(heads["e2e"], t.Name)
 	}
 	return b.Bytes(), ptChange(), func(string) ([]byte, error) { return src, nil }, heads

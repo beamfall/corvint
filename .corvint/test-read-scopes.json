@@ -95,6 +95,7 @@
       "internal/langplugin/",
       "internal/langplugin/decl/",
       "internal/langplugin/dialect/",
+      "internal/linecov/",
       "internal/liveverify/affected/",
       "internal/liveverify/affected/cfamily/",
       "internal/liveverify/affected/dotnet/",

@@ -1,16 +1,20 @@
 package sessiontest
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os/exec"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/gateselect"
+	"github.com/Beamfall/corvint/internal/linecov"
 )
 
 // Unknown is one plan.unknown entry.
@@ -63,6 +67,20 @@ type Input struct {
 	Source    SourceIdentity
 	Universe  []string // the graph's Go import paths
 	Unknown   []Unknown
+	// LineUnits maps a selected Go import path to its GLS-V0-020 line
+	// decision; LineIndex is the manifest's lineIndex record. Both are empty
+	// without --line-index.
+	LineUnits map[string]LineUnit
+	LineIndex string
+}
+
+// LineUnit is one Go package's line-coverage decision (GLS-V0-020): Mode is
+// exclude, compile or tests, Pattern the anchored -run pattern of a tests
+// unit, and Reason what the manifest names.
+type LineUnit struct {
+	Mode    string
+	Pattern string
+	Reason  string
 }
 
 // GoSlice is one package's STR-V0-063 test-function slice: Pattern is the
@@ -318,6 +336,10 @@ func Build(input Input) (Manifest, error) {
 		}
 	}
 	manifest.Scope = ScopeNarrowed
+	manifest.LineIndex = input.LineIndex
+	if fullReason == "" && len(input.LineUnits) != 0 {
+		goRun = applyLineUnits(&manifest, &input, goRun)
+	}
 	if fullReason != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, fullReason
 		goRun = append([]string{}, input.Universe...)
@@ -546,4 +568,189 @@ func sortedKeys(set map[string]bool) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// applyLineUnits narrows a NARROWED run set by its line decisions
+// (GLS-V0-020): an exclude package leaves the run and is listed in Excluded,
+// a compile package builds and vets only unless a slice already runs tests,
+// and a tests package runs the union of its kept tests and any slice.
+func applyLineUnits(m *Manifest, input *Input, run []string) []string {
+	if input.GoSlices == nil {
+		input.GoSlices = map[string]GoSlice{}
+	}
+	kept := make([]string, 0, len(run))
+	for _, pkg := range run {
+		line, ok := input.LineUnits[pkg]
+		if !ok {
+			kept = append(kept, pkg)
+			continue
+		}
+		static := input.GoSlices[pkg]
+		switch line.Mode {
+		case "exclude":
+			m.Excluded = append(m.Excluded, "go:"+pkg+": "+line.Reason)
+			continue
+		case "compile":
+			if static.Pattern == "" || static.Pattern == "^$" {
+				input.GoSlices[pkg] = GoSlice{Pattern: "^$", Reason: line.Reason}
+			}
+		case "tests":
+			if pattern, ok := unionPatterns(static.Pattern, line.Pattern); ok {
+				reason := line.Reason
+				if static.Pattern != "" && static.Pattern != "^$" {
+					reason += "; with " + static.Reason
+				}
+				input.GoSlices[pkg] = GoSlice{Pattern: pattern, Reason: reason}
+			}
+		}
+		kept = append(kept, pkg)
+	}
+	sort.Strings(m.Excluded)
+	return kept
+}
+
+// unionPatterns joins two anchored name-list patterns, "^(A|B)$", where an
+// empty or "^$" static pattern adds nothing; any other static pattern cannot
+// be joined, so the package stays as the static slice left it.
+func unionPatterns(static, line string) (string, bool) {
+	names := func(p string) ([]string, bool) {
+		inner, ok := strings.CutPrefix(p, "^(")
+		if !ok {
+			return nil, false
+		}
+		inner, ok = strings.CutSuffix(inner, ")$")
+		if !ok || inner == "" {
+			return nil, false
+		}
+		return strings.Split(inner, "|"), true
+	}
+	lineNames, ok := names(line)
+	if !ok {
+		return "", false
+	}
+	all := append([]string(nil), lineNames...)
+	switch static {
+	case "", "^$":
+	default:
+		more, ok := names(static)
+		if !ok {
+			return "", false
+		}
+		all = append(all, more...)
+	}
+	sort.Strings(all)
+	return "^(" + strings.Join(slices.Compact(all), "|") + ")$", true
+}
+
+// runnerNeutralFlags are the go test flags that change neither the built
+// test binary nor the test-binary arguments a test can observe beyond
+// linecov.TestRuntime (GLS-V0-020): parallelism and failing fast. -timeout
+// is bound into the identity as the test runtime's deadline. The values say
+// whether the flag takes a value.
+var runnerNeutralFlags = map[string]bool{"p": true, "timeout": true, "failfast": false}
+
+// runnerVerbosityFlags override the -test.v=test2json collection runs every
+// test under: a declared flag follows `corvint test`'s -json, so -v=false
+// turns testing.Verbose off and -json=false drops the test2json verbosity.
+// Any spelling or value is refused rather than modelled (GLS-V0-020).
+var runnerVerbosityFlags = map[string]bool{"v": true, "json": true, "test.v": true}
+
+// runnerGoEnv are the go.env variables a profile may set and still narrow:
+// Go toolchain settings the runner identity reads (GOTOOLCHAIN through
+// GOVERSION, GOOS, GOARCH, CGO_ENABLED, GOEXPERIMENT, GOFLAGS, GOWORK and the
+// linecov.ArchFeatureVars) or that change no executed code (caches, module
+// download and telemetry settings). Any other one, an application setting,
+// GODEBUG, a runtime setting such as GOMAXPROCS or a C toolchain, is visible
+// to the tests but not to collection, so it is refused (GLS-V0-020).
+var runnerGoEnv = map[string]bool{
+	"GOTOOLCHAIN": true, "GOOS": true, "GOARCH": true, "CGO_ENABLED": true, "GOEXPERIMENT": true, "GOFLAGS": true, "GOWORK": true, "GOENV": true,
+	"GOCACHE": true, "GOCACHEPROG": true, "GOMODCACHE": true, "GOPATH": true, "GOTMPDIR": true, "GOBIN": true,
+	"GOPROXY": true, "GOSUMDB": true, "GONOPROXY": true, "GONOSUMDB": true, "GOPRIVATE": true, "GOINSECURE": true, "GOVCS": true, "GOAUTH": true,
+	"GOTELEMETRY": true, "GOTELEMETRYDIR": true,
+}
+
+// RunnerEnv is the environment the Go runner identity of a profile is read
+// under (GLS-V0-020), and the go test -timeout its tests run under, which
+// names the identity's test runtime (linecov.TestRuntime): environ with the
+// profile's Go environment, and every build flag the profile passes on the
+// command line added to the effective GOFLAGS (`go env GOFLAGS` under that
+// environment at root, so a setting saved with go env -w stays), as the
+// index's runner names them. A flag that is neither one of those nor neutral
+// (a test-behaviour, coverage or exec flag, -count other than 1, or -v,
+// -json or -test.v in any spelling or value), a value GOFLAGS cannot carry,
+// or a -timeout that is not a duration, is refused: the identity could not
+// show it, so the line selection keeps the static plan (runner-unavailable).
+// So is a go.env variable outside runnerGoEnv.
+func RunnerEnv(root, profile string, declared Declared, environ []string) ([]string, time.Duration, error) {
+	goEnv, goFlags := declared.GoEnv, declared.GoFlags
+	if profile == ProfileCI {
+		goEnv, goFlags = ciGoEnv, ciGoFlags
+	}
+	for _, kv := range goEnv {
+		name, _, _ := strings.Cut(kv, "=")
+		if !runnerGoEnv[name] && !slices.Contains(linecov.ArchFeatureVars, name) {
+			return nil, 0, fmt.Errorf("go.env variable %s is visible to the tests but not to line coverage collection, and the line runner identity cannot carry it", name)
+		}
+	}
+	env := append(append([]string{}, environ...), goEnv...)
+	timeout := linecov.DefaultTestTimeout
+	var build []string
+	for i := 0; i < len(goFlags); i++ {
+		word := goFlags[i]
+		if !strings.HasPrefix(word, "-") {
+			return nil, 0, fmt.Errorf("go flag %q is not a flag the line runner identity can carry", word)
+		}
+		name, value, inline := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(word, "-"), "-"), "=")
+		if runnerVerbosityFlags[name] {
+			return nil, 0, fmt.Errorf("go flag -%s overrides the -test.v=test2json verbosity line coverage collection runs every test under, and the line runner identity cannot carry it", name)
+		}
+		valued, neutral := runnerNeutralFlags[name]
+		if !neutral {
+			if name == "count" && inline && value == "1" {
+				continue
+			}
+			var known bool
+			if valued, known = linecov.BuildFlags[name]; !known {
+				return nil, 0, fmt.Errorf("go flag -%s may change which code a test executes, and the line runner identity cannot carry it", name)
+			}
+		}
+		if valued && !inline {
+			if i+1 == len(goFlags) {
+				return nil, 0, fmt.Errorf("go flag -%s has no value", name)
+			}
+			i++
+			value, inline = goFlags[i], true
+		}
+		if name == "timeout" {
+			d, err := time.ParseDuration(value)
+			if err != nil {
+				return nil, 0, fmt.Errorf("go flag -timeout value %q is not a duration", value)
+			}
+			timeout = d
+		}
+		if neutral {
+			continue
+		}
+		if strings.ContainsAny(value, " \t\n\r'\"\\") {
+			return nil, 0, fmt.Errorf("go flag -%s value %q cannot be carried in GOFLAGS", name, value)
+		}
+		if inline {
+			build = append(build, "-"+name+"="+value)
+		} else {
+			build = append(build, "-"+name)
+		}
+	}
+	if len(build) == 0 {
+		return env, timeout, nil
+	}
+	cmd := exec.Command("go", "env", "GOFLAGS")
+	cmd.Dir, cmd.Env = root, env
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, 0, fmt.Errorf("go env GOFLAGS: %v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	flags := strings.TrimSpace(string(out))
+	return append(env, "GOFLAGS="+strings.TrimSpace(flags+" "+strings.Join(build, " "))), timeout, nil
 }

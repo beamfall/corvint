@@ -1,15 +1,19 @@
 // Command linecov collects a per-test Go coverage index at one commit and
 // selects, from it, the tests a change can affect (LPCV-V0-950..963).
 //
-//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D] [-suite-timeout D] [-prior INDEX] [-misses FILE]
+//	linecov collect -root R -out INDEX [-packages a,b] [-parallel N] [-timeout D] [-suite-timeout D] [-tests RE] [-inorder run|only|skip] [-prior INDEX] [-misses FILE]
 //	linecov select  -root R -index INDEX -base SHA [-static a,b]
-//	linecov qualify -root R -index INDEX -packages a,b [-mutants N] [-seed S]
+//	linecov qualify -root R -index INDEX -packages a,b [-suite c,d] [-mutants N | -start K -count N] [-controls N] [-seed S] [-report FILE]
+//	linecov qualify -summarize [-root R -record FILE] REPORT...
+//	linecov qualified -root R -rev REV [-record FILE]
 //	linecov redundancy -root R -index INDEX [-packages a,b] [-low-unique N]
 //	linecov merge -out INDEX PART...
 //	linecov ci -root R -index INDEX -base SHA -packages FILE -slices FILE -out DIR
+//	linecov ci -selection FILE -packages FILE -slices FILE -out DIR
+//	linecov miss -failed FAILED.json... -run DIR...
 //
 // collect needs a clean checkout; the index is bound to its HEAD and written
-// as linecov-index/3 (MCJ-V0-003). -prior carries the previous index's
+// as linecov-index/4 (GLS-V0-001). -prior carries the previous index's
 // divergent shared-step classes, and -misses (a JSON list of linecov.Miss)
 // adds new ones, each kept while its reach blobs are unchanged (MCJ-V0-018).
 // select reads
@@ -22,20 +26,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -65,12 +65,16 @@ func main() {
 		err = selectTests(os.Args[2:])
 	case "qualify":
 		err = qualify(os.Args[2:])
+	case "qualified":
+		err = qualified(os.Args[2:])
 	case "redundancy":
 		err = redundancy(os.Args[2:])
 	case "merge":
 		err = merge(os.Args[2:])
 	case "ci":
 		err = ci(os.Args[2:])
+	case "miss":
+		err = miss(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
@@ -91,22 +95,23 @@ func output(root string, name string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-// runner names everything that must match between collection and selection:
-// the toolchain, platform, build configuration and coverage mode. Build
-// settings bind only through GOFLAGS (-race, -tags), CGO_ENABLED and
-// GOEXPERIMENT, so a run passing -race on the command line instead is a
-// different runner to no one: pass it in GOFLAGS (LPCV-V0-951). It also
-// returns the effective GOFLAGS, which collection must build under.
-func runner(root string) (id, goflags string, err error) {
-	v, err := output(root, "go", "env", "-json", "GOVERSION", "GOOS", "GOARCH", "GOFLAGS", "CGO_ENABLED", "GOEXPERIMENT")
-	if err != nil {
-		return "", "", err
+// runner is the index runner identity of root's environment under the test
+// runtime of the go test -timeout timeout, and its effective GOFLAGS
+// (linecov.RunnerID).
+func runner(root string, timeout time.Duration, wrapper string) (id, goflags string, err error) {
+	return linecov.RunnerID(context.Background(), root, nil, timeout, wrapper)
+}
+
+// runnerLike is the current runner identity of root under the test runtime
+// the identity want names, for a check of an index or a record made under
+// want that compares everything else.
+func runnerLike(root, want, wrapper string) (string, error) {
+	timeout, ok := linecov.RunnerTestTimeout(want)
+	if !ok {
+		return "", fmt.Errorf("runner %q names no test runtime; recollect the index", want)
 	}
-	var env map[string]string
-	if err := json.Unmarshal([]byte(v), &env); err != nil {
-		return "", "", err
-	}
-	return fmt.Sprintf("%s %s %s cgo=%s goflags=%q goexperiment=%q atomic", env["GOVERSION"], env["GOOS"], env["GOARCH"], env["CGO_ENABLED"], env["GOFLAGS"], env["GOEXPERIMENT"]), env["GOFLAGS"], nil
+	id, _, err := runner(root, timeout, wrapper)
+	return id, err
 }
 
 // clean refuses a checkout with tracked changes, or with an untracked Go file
@@ -182,18 +187,7 @@ func packages(root string) (module string, dirs []string, err error) {
 }
 
 // modulePath reads the module directive of root's go.mod.
-func modulePath(root string) (string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
-	if err != nil {
-		return "", err
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		if f := strings.Fields(line); len(f) == 2 && f[0] == "module" {
-			return strings.Trim(f[1], `"`), nil
-		}
-	}
-	return "", errors.New("go.mod has no module directive")
-}
+func modulePath(root string) (string, error) { return linecov.ModulePath(root) }
 
 func split(list string) []string {
 	if list == "" {
@@ -210,12 +204,29 @@ func collect(args []string) error {
 	parallel := fs.Int("parallel", runtime.NumCPU(), "concurrent test processes")
 	timeout := fs.Duration("timeout", 10*time.Minute, "per isolated test process")
 	suite := fs.Duration("suite-timeout", time.Hour, "per package in-order suite run")
+	testTimeout := fs.Duration("test-timeout", linecov.DefaultTestTimeout, "go test -timeout of the runs the index selects for, which every test process gets as its deadline")
+	execWrapper := fs.String("exec", "", "go test -exec wrapper every test process runs under, as the selected runs do")
 	scratch := fs.String("work", "", "scratch directory parent (default the system temp directory)")
+	testsRE := fs.String("tests", "", "collect only the isolated tests whose names match this regexp")
+	inOrder := fs.String("inorder", "run", "the in-order suite run: run, only (no isolated test) or skip")
 	priorFile := fs.String("prior", "", "previous index whose divergent classes carry forward")
 	missFile := fs.String("misses", "", "JSON list of shadow misses to mark divergent")
 	fs.Parse(args)
 	if *out == "" {
 		return errors.New("collect: -out is required")
+	}
+	var filter *regexp.Regexp
+	if *testsRE != "" {
+		re, err := regexp.Compile(*testsRE)
+		if err != nil {
+			return fmt.Errorf("collect: -tests: %w", err)
+		}
+		filter = re
+	}
+	mode := map[string]string{"run": linecov.InOrderRun, "only": linecov.InOrderOnly, "skip": linecov.InOrderSkip}
+	inOrderMode, ok := mode[*inOrder]
+	if !ok {
+		return fmt.Errorf("collect: -inorder must be run, only or skip, got %q", *inOrder)
 	}
 	prior, misses, err := divergenceInputs(*priorFile, *missFile)
 	if err != nil {
@@ -225,7 +236,7 @@ func collect(args []string) error {
 	if err != nil {
 		return err
 	}
-	run, goflags, err := runner(*root)
+	run, goflags, err := runner(*root, *testTimeout, *execWrapper)
 	if err != nil {
 		return err
 	}
@@ -246,14 +257,17 @@ func collect(args []string) error {
 	defer os.RemoveAll(work)
 	ctx := context.Background()
 	start := time.Now()
-	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout, SuiteTimeout: *suite, GOFLAGS: goflags})
+	outcomes, err := linecov.Collect(ctx, *root, linecov.CollectOptions{Module: module, Packages: dirs, Work: work, Parallel: *parallel, Timeout: *timeout, SuiteTimeout: *suite, TestTimeout: *testTimeout, GOFLAGS: goflags, Tests: filter, InOrder: inOrderMode, Exec: *execWrapper})
 	if err != nil {
 		return err
 	}
 	var records []linecov.Record
-	var unordered []string
+	var unordered, ran []string
 	divergent := 0
 	for _, o := range outcomes {
+		if o.Record != nil && o.Name == linecov.InOrder {
+			ran = append(ran, o.Package)
+		}
 		if o.Record == nil {
 			divergent++
 			fmt.Fprintf(os.Stderr, "linecov: isolation-divergent %s.%s: %s\n", o.Package, o.Name, o.Divergent)
@@ -281,6 +295,14 @@ func collect(args []string) error {
 	}
 	sort.Strings(unordered)
 	ix.Unordered = unordered
+	sort.Strings(ran)
+	ix.InOrderRan = ran
+	if inOrderMode == linecov.InOrderSkip {
+		// Every collected package: Merge marks it unordered unless another
+		// part ran its in-order suite.
+		ix.InOrderSkipped = append([]string(nil), dirs...)
+		sort.Strings(ix.InOrderSkipped)
+	}
 	if err := linecov.CarryDivergent(ix, prior, misses); err != nil {
 		return err
 	}
@@ -351,6 +373,8 @@ func selectTests(args []string) error {
 	index := fs.String("index", "", "index file")
 	base := fs.String("base", "", "change base commit")
 	static := fs.String("static", "", "comma-separated statically selected directories (default: every package)")
+	testTimeout := fs.Duration("test-timeout", linecov.DefaultTestTimeout, "go test -timeout the selected tests run under")
+	execWrapper := fs.String("exec", "", "go test -exec wrapper the selected tests run under")
 	fs.Parse(args)
 	if *index == "" || *base == "" {
 		return errors.New("select: -index and -base are required")
@@ -366,7 +390,7 @@ func selectTests(args []string) error {
 	if err != nil {
 		return err
 	}
-	p, err := decide(ctx, *root, ix, *base, split(*static))
+	p, err := decide(ctx, *root, ix, *base, split(*static), *testTimeout, *execWrapper)
 	if err != nil {
 		return err
 	}
@@ -377,8 +401,9 @@ func selectTests(args []string) error {
 }
 
 // decide plans base..HEAD of the checkout at root for the static directories,
-// every package when static is empty.
-func decide(ctx context.Context, root string, ix *linecov.Index, base string, static []string) (Plan, error) {
+// every package when static is empty, for tests run under the go test
+// -timeout timeout and the -exec wrapper exec ("" for none).
+func decide(ctx context.Context, root string, ix *linecov.Index, base string, static []string, timeout time.Duration, wrapper string) (Plan, error) {
 	head, err := output(root, "git", "rev-parse", "HEAD")
 	if err != nil {
 		return Plan{}, err
@@ -395,7 +420,7 @@ func decide(ctx context.Context, root string, ix *linecov.Index, base string, st
 		return Plan{}, err
 	}
 	p := Plan{Index: ix.Commit, Base: base, Head: head}
-	run, _, err := runner(root)
+	run, _, err := runner(root, timeout, wrapper)
 	switch {
 	case err != nil:
 		p.Reason = "runner unavailable: " + err.Error()
@@ -422,7 +447,8 @@ func decide(ctx context.Context, root string, ix *linecov.Index, base string, st
 		return Plan{}, err
 	}
 	var reason string
-	p.Packages, reason = ix.Narrow(dirs, heads, drift, change)
+	// The tests run under this process's environment (GLS-V0-018).
+	p.Packages, reason = ix.Narrow(os.Environ(), dirs, heads, drift, change)
 	if p.Reason == "" {
 		p.Reason = reason
 	}
@@ -466,227 +492,6 @@ func effects(ctx context.Context, root string, ix *linecov.Index, base, head str
 	// Analyze falls back for it rather than mapping stale lines.
 	change = ix.Analyze(c, linecov.Reader(ctx, root, base))
 	return drift, change, nil
-}
-
-// qualify is the LPCV-V0-963 fault injection on a real tree. root must be a
-// clean checkout at the index commit; each mutant inserts a panic as the first
-// statement of one multi-line coverage block of the collected packages,
-// commits it, selects, runs every collected package whole, and requires every
-// failing test to be kept. It restores root to the index commit after each.
-func qualify(args []string) error {
-	fs := flag.NewFlagSet("qualify", flag.ExitOnError)
-	root := fs.String("root", ".", "clean disposable checkout at the index commit")
-	index := fs.String("index", "", "index file")
-	only := fs.String("packages", "", "comma-separated collected directories")
-	mutants := fs.Int("mutants", 20, "mutants to try")
-	seed := fs.Int64("seed", 1, "mutant site seed")
-	fs.Parse(args)
-	f, err := os.Open(*index)
-	if err != nil {
-		return err
-	}
-	ix, err := linecov.Decode(f)
-	f.Close()
-	if err != nil {
-		return err
-	}
-	if ix.TestTimeout <= 0 {
-		return errors.New("qualify: missing-recorded-test-deadline")
-	}
-	dirs := split(*only)
-	if len(dirs) == 0 {
-		return errors.New("qualify: -packages is required")
-	}
-	if head, err := output(*root, "git", "rev-parse", "HEAD"); err != nil || head != ix.Commit {
-		return fmt.Errorf("qualify: root must be checked out at the index commit %s", ix.Commit)
-	}
-	// Every mutant resets the checkout hard, so local work would be lost.
-	if err := clean(*root, dirs); err != nil {
-		return fmt.Errorf("qualify: checkout must be clean: %w", err)
-	}
-	type site struct {
-		path string
-		line int
-	}
-	in := map[string]bool{}
-	for _, d := range dirs {
-		in[d] = true
-	}
-	var sites []site
-	for _, file := range ix.Files {
-		if !in[filepath.ToSlash(filepath.Dir(file.Path))] {
-			continue
-		}
-		src, err := os.ReadFile(filepath.Join(*root, filepath.FromSlash(file.Path)))
-		if err != nil {
-			return err
-		}
-		// A site is the line opening a statement list that continues on
-		// later lines, so the inserted statement always compiles.
-		fset := token.NewFileSet()
-		parsed, err := parser.ParseFile(fset, file.Path, src, parser.SkipObjectResolution)
-		if err != nil {
-			return err
-		}
-		clauses := map[*ast.BlockStmt]bool{} // switch and select bodies hold clauses, not statements
-		ast.Inspect(parsed, func(n ast.Node) bool {
-			open, close := token.NoPos, token.NoPos
-			switch n := n.(type) {
-			case *ast.SwitchStmt:
-				clauses[n.Body] = true
-			case *ast.TypeSwitchStmt:
-				clauses[n.Body] = true
-			case *ast.SelectStmt:
-				clauses[n.Body] = true
-			case *ast.BlockStmt:
-				if clauses[n] {
-					break
-				}
-				open, close = n.Lbrace, n.Rbrace
-			case *ast.CaseClause:
-				open, close = n.Colon, n.End()
-			case *ast.CommClause:
-				open, close = n.Colon, n.End()
-			}
-			if open.IsValid() && fset.Position(close).Line > fset.Position(open).Line+1 {
-				sites = append(sites, site{file.Path, fset.Position(open).Line})
-			}
-			return true
-		})
-	}
-	sort.Slice(sites, func(i, j int) bool {
-		return sites[i].path < sites[j].path || sites[i].path == sites[j].path && sites[i].line < sites[j].line
-	})
-	rand.New(rand.NewSource(*seed)).Shuffle(len(sites), func(i, j int) { sites[i], sites[j] = sites[j], sites[i] })
-	if len(sites) > *mutants {
-		sites = sites[:*mutants]
-	}
-	ctx := context.Background()
-	git := func(args ...string) error {
-		_, err := output(*root, "git", append([]string{"-c", "user.name=linecov", "-c", "user.email=linecov@invalid", "-c", "commit.gpgsign=false"}, args...)...)
-		return err
-	}
-	defer git("reset", "-q", "--hard", ix.Commit)
-	total, misses, failing, invalid, keptSum := 0, 0, 0, 0, 0
-	for _, m := range sites {
-		if err := git("reset", "-q", "--hard", ix.Commit); err != nil {
-			return err
-		}
-		full := filepath.Join(*root, filepath.FromSlash(m.path))
-		src, err := os.ReadFile(full)
-		if err != nil {
-			return err
-		}
-		lines := strings.SplitAfter(string(src), "\n")
-		mutated := strings.Join(lines[:m.line], "") + "\tpanic(\"linecov-mutant\")\n" + strings.Join(lines[m.line:], "")
-		if err := os.WriteFile(full, []byte(mutated), 0o644); err != nil {
-			return err
-		}
-		if err := git("commit", "-qam", "mutant"); err != nil {
-			return err
-		}
-		start := time.Now()
-		p, err := decide(ctx, *root, ix, ix.Commit, dirs)
-		if err != nil {
-			return err
-		}
-		elapsed := time.Since(start)
-		kept := map[string]bool{}
-		heads, err := linecov.HeadTests(*root, dirs)
-		if err != nil {
-			return err
-		}
-		all := 0
-		for d, pp := range p.Packages {
-			all += len(heads[d])
-			names := pp.Tests
-			if pp.Mode == linecov.Whole {
-				names = heads[d]
-			}
-			for _, n := range names {
-				kept[d+"."+n] = true
-			}
-		}
-		failed, buildFail, err := failingTests(*root, ix.Module, dirs, ix.TestTimeout)
-		if err != nil {
-			return err
-		}
-		total++
-		var missed []string
-		for t := range failed {
-			if !kept[t] {
-				missed = append(missed, t)
-			}
-		}
-		sort.Strings(missed)
-		if len(failed) > 0 {
-			failing++
-		} else if buildFail {
-			invalid++ // the mutant did not build: proves nothing
-		}
-		if len(missed) > 0 {
-			misses++
-		}
-		keptSum += len(kept)
-		fmt.Printf("%s:%d fallback=%q kept=%d/%d failed=%d build-fail=%v select=%s MISS=%v\n", m.path, m.line, p.Reason, len(kept), all, len(failed), buildFail, elapsed.Round(time.Millisecond), missed)
-	}
-	fmt.Printf("mutants=%d failing=%d invalid=%d misses=%d mean-kept=%.1f\n", total, failing, invalid, misses, float64(keptSum)/float64(max(total, 1)))
-	if misses > 0 {
-		return fmt.Errorf("%d mutants missed a failing test", misses)
-	}
-	if invalid > 0 {
-		return fmt.Errorf("%d mutants did not build", invalid)
-	}
-	return nil
-}
-
-// failingTests runs the directories whole and returns failing top-level
-// tests as dir.Name, and whether any package failed outside a test. A
-// directory with no package result means go test did not run it, which
-// proves nothing, so it is an error.
-func failingTests(root, module string, dirs []string, deadline ...time.Duration) (map[string]bool, bool, error) {
-	args := []string{"test", "-count=1", "-json"}
-	if len(deadline) == 1 {
-		if deadline[0] <= 0 {
-			return nil, false, errors.New("qualify: missing-recorded-test-deadline")
-		}
-		args = append(args, "-timeout="+deadline[0].String())
-	}
-	for _, d := range dirs {
-		args = append(args, "./"+d)
-	}
-	cmd := exec.Command("go", args...)
-	cmd.Dir = root
-	out, runErr := cmd.Output()
-	failed, done := map[string]bool{}, map[string]bool{}
-	pkgFail := false
-	for _, line := range bytes.Split(out, []byte("\n")) {
-		var ev struct{ Action, Package, Test string }
-		if json.Unmarshal(line, &ev) != nil || strings.Contains(ev.Test, "/") {
-			continue
-		}
-		dir := strings.TrimPrefix(strings.TrimPrefix(ev.Package, module), "/")
-		if dir == "" {
-			dir = "."
-		}
-		if ev.Test == "" && (ev.Action == "pass" || ev.Action == "fail" || ev.Action == "skip") {
-			done[dir] = true
-		}
-		if ev.Action != "fail" {
-			continue
-		}
-		if ev.Test == "" {
-			pkgFail = true
-			continue
-		}
-		failed[dir+"."+ev.Test] = true
-	}
-	for _, d := range dirs {
-		if !done[d] {
-			return nil, false, fmt.Errorf("qualify: go test reported no result for %s (%v)", d, runErr)
-		}
-	}
-	return failed, pkgFail, nil
 }
 
 // Report is the redundancy output.
@@ -913,7 +718,24 @@ func ci(args []string) error {
 	pkgFile := fs.String("packages", "", "file of whole-package import paths")
 	sliceFile := fs.String("slices", "", "file of FLAG PATTERN IMPORTPATH slices")
 	out := fs.String("out", "", "output directory")
+	selection := fs.String("selection", "", "corvint affected --line-index receipt (or its lineSelection) to narrow by, instead of -index and -base")
+	testTimeout := fs.Duration("test-timeout", linecov.DefaultTestTimeout, "go test -timeout the selected tests run under")
+	execWrapper := fs.String("exec", "", "go test -exec wrapper the selected tests run under")
 	fs.Parse(args)
+	if *selection != "" {
+		if *pkgFile == "" || *sliceFile == "" || *out == "" {
+			return errors.New("ci: -selection needs -packages, -slices and -out")
+		}
+		whole, err := lines(*pkgFile)
+		if err != nil {
+			return err
+		}
+		slices, err := lines(*sliceFile)
+		if err != nil {
+			return err
+		}
+		return ciSelection(*selection, whole, slices, *out)
+	}
 	if *index == "" || *base == "" || *pkgFile == "" || *sliceFile == "" || *out == "" {
 		return errors.New("ci: -index, -base, -packages, -slices and -out are required")
 	}
@@ -955,7 +777,7 @@ func ci(args []string) error {
 	if dirs == nil {
 		dirs = []string{} // an empty static plan, not every package
 	}
-	p, err := decide(context.Background(), *root, ix, *base, dirs)
+	p, err := decide(context.Background(), *root, ix, *base, dirs, *testTimeout, *execWrapper)
 	if err != nil {
 		return err
 	}
