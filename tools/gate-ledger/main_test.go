@@ -520,7 +520,11 @@ func packageRepository(t *testing.T, files map[string]string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files["tools/gate-affected-select/main.go"] = strings.Replace(string(wrapper), "github.com/Beamfall/corvint/internal/gateselect", "example.com/fixture/internal/gateselect", 1)
+	if !strings.Contains(string(wrapper), "gateselect.SelectQualified(") {
+		t.Fatal("tools/gate-affected-select/main.go no longer calls gateselect.SelectQualified; update packageRepository's rewrite")
+	}
+	rebased := strings.Replace(string(wrapper), "gateselect.SelectQualified(", "gateselect.Select(", 1)
+	files["tools/gate-affected-select/main.go"] = strings.Replace(rebased, "github.com/Beamfall/corvint/internal/gateselect", "example.com/fixture/internal/gateselect", 1)
 	root := fixtureRepository(t)
 	for file, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, filepath.FromSlash(file))), 0o755); err != nil {
@@ -545,7 +549,10 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 	}
 	names := []string{"taskprojection/taskprojection.go"}
 	for _, source := range sources {
-		if !strings.HasSuffix(source, "_test.go") {
+		// qualified.go narrows Select's set with the whole affected engine and is
+		// tested in internal/gateselect; the fixture's wrapper calls Select, so
+		// the ledger tests see the unnarrowed superset.
+		if !strings.HasSuffix(source, "_test.go") && filepath.Base(source) != "qualified.go" {
 			names = append(names, "gateselect/"+filepath.Base(source))
 		}
 	}
