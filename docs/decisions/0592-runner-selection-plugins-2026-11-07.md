@@ -9,7 +9,7 @@
     every single time ... it should be perfect"; "it would need to support go, but also other
     langauges and e2e"; scope "beamfall support basically"; "each langauge and runner should be a
     plugin so other langauges and runners can be easily added"; "Yes, both forms".
-  - `docs/specs/runner-selection-plugins-v0.md` (`RSP-V0-001..047`).
+  - `docs/specs/runner-selection-plugins-v0.md` (`RSP-V0-001..058`).
 - Amends: `docs/specs/language-plugins-v0.md` (`LGP-V0-002` closed piece set; the run-time loading
   non-goal now points to the runner protocol).
 - Keeps: decision 0590 and `LPCV-V0-950..979` (records, freshness, intersection, misses); decision
@@ -36,8 +36,9 @@ across every Beamfall runner, each language and runner a plugin.
    JavaScript and TypeScript runners stay compiled-in (`RSP-V0-025..032`).
 2. **Scope (owner).** Go, TypeScript and JavaScript with Playwright E2E, Swift (XCTest, XCUITest,
    Swift Testing), Kotlin and Java (JUnit, Espresso), C# (`dotnet test`), Rust (`cargo test`),
-   Python (pytest), shaders, and shell and make targets. Beamfall repositories may ship their own
-   plugins (`RSP-V0-041`).
+   Python (pytest, `unittest`), Ruby (`RSP-V0-048`, owner 2026-11-07), shaders, and shell and make
+   targets, including declared test scripts (`RSP-V0-050`) and tests that read declared sibling
+   repositories (`RSP-V0-049`). Beamfall repositories may ship their own plugins (`RSP-V0-041`).
 3. **"Perfect" means sound within a qualified execution model.** Selected ⊇ affected for every runner
    whose `inventory`, `test-evidence` and `qualification` pieces are present and qualified for the
    change's boundary classes; FULL for every other runner, including every runner never qualified
