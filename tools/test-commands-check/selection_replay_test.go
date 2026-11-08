@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -18,10 +19,18 @@ func TestSelectionReplayRunsOnce_AFPV09498(t *testing.T) {
 	root := requireMake(t)
 	replay := func(extra ...string) string {
 		t.Helper()
-		args := append([]string{"-n", "-C", root, "selection-baseline-check"}, extra...)
-		out, err := exec.Command("make", args...).Output()
+		args := append([]string{"-s", "-n", "-C", root, "-f", "Makefile", "--no-print-directory", "selection-baseline-check"}, extra...)
+		command := exec.Command("make", args...)
+		// A make-driven CI run exports MAKEFLAGS, BASE and possibly the
+		// recording output; none may leak into this dry run.
+		command.Env = append(slices.DeleteFunc(os.Environ(), func(entry string) bool {
+			return strings.HasPrefix(entry, "BASE=") || strings.HasPrefix(entry, "SELECTION_BASELINE_OUT=") || strings.HasPrefix(entry, "MAKELEVEL=")
+		}), "MAKEFLAGS=")
+		var stderr strings.Builder
+		command.Stderr = &stderr
+		out, err := command.Output()
 		if err != nil {
-			t.Fatalf("make -n selection-baseline-check: %v", err)
+			t.Fatalf("make -n selection-baseline-check: %v\n%s", err, stderr.String())
 		}
 		for _, line := range strings.Split(string(out), "\n") {
 			if strings.Contains(line, `"$d/selection-baseline" --check`) {
