@@ -29,6 +29,18 @@ func (Reference) Pieces() testrunner.RunnerPieces {
 	return p
 }
 
+// referenceFailedRows keeps only validated failed rows from a report that
+// cannot be fully trusted; its passes and skips stay unobserved.
+func referenceFailedRows(observation testrunner.Observation) []testrunner.RunnerResult {
+	failed := []testrunner.RunnerResult{}
+	for _, test := range observation.Tests {
+		if test.State == testrunner.Failed {
+			failed = append(failed, testrunner.RunnerResult{ID: test.ID, Outcome: "failed", Reason: test.Message})
+		}
+	}
+	return failed
+}
+
 func readArtifact(path string) ([]byte, error) {
 	f, err := openRegular(path)
 	if err != nil {
@@ -80,19 +92,15 @@ func (Reference) Parse(_ context.Context, r registry.ParseRequest) ([]testrunner
 	}
 	observation, err := native.Parse(testrunner.Input{Runner: "go-test", Stdout: b})
 	if err != nil {
-		return nil, err
+		// A truncated or malformed suffix must not hide failures validated
+		// before it.
+		return referenceFailedRows(observation), err
 	}
 	if !observation.Complete {
 		// The report carries no exit code, so a failed test reads as an exit
 		// contradiction; keep its validated failed rows alongside the error so a
 		// passing retry cannot hide them. Passes and skips stay unobserved.
-		failed := []testrunner.RunnerResult{}
-		for _, test := range observation.Tests {
-			if test.State == testrunner.Failed {
-				failed = append(failed, testrunner.RunnerResult{ID: test.ID, Outcome: "failed", Reason: test.Message})
-			}
-		}
-		return failed, fmt.Errorf("reference-report-incomplete")
+		return referenceFailedRows(observation), fmt.Errorf("reference-report-incomplete")
 	}
 	results := []testrunner.RunnerResult{}
 	for _, test := range observation.Tests {

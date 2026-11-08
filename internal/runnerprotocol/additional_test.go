@@ -150,4 +150,21 @@ func TestRSPV0003ReferenceFailureSurvivesIncompleteReport(t *testing.T) {
 	if len(results) != 1 || results[0].Outcome != "failed" || !strings.Contains(results[0].ID, "TestFail") {
 		t.Fatalf("results = %+v, want only the failed TestFail row", results)
 	}
+	// A truncated JSON frame after the failure is a parse error, and the
+	// validated failed row must survive it too.
+	truncated := `{"Action":"run","Package":"example.com/p","Test":"TestPass"}
+{"Action":"pass","Package":"example.com/p","Test":"TestPass"}
+{"Action":"run","Package":"example.com/p","Test":"TestFail"}
+{"Action":"fail","Package":"example.com/p","Test":"TestFail"}
+{"Action":"fail","Pack`
+	if err := os.WriteFile(report, []byte(truncated), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	results, err = (Reference{}).Parse(context.Background(), registry.ParseRequest{Runner: ReferenceRunner, Report: report})
+	if err == nil {
+		t.Fatalf("truncated report parsed without error: %+v", results)
+	}
+	if len(results) != 1 || results[0].Outcome != "failed" || !strings.Contains(results[0].ID, "TestFail") {
+		t.Fatalf("truncated results = %+v, want only the failed TestFail row", results)
+	}
 }

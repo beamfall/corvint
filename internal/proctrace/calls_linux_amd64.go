@@ -442,16 +442,18 @@ func (c *collector) finish(p *call, ret int64) {
 		targetOwned := c.created[p.targetResolved]
 		delete(c.created, p.resolved)
 		delete(c.created, p.targetResolved)
-		c.write(p.targetLexical, p.targetResolved, "replace", owned)
 		// Both names affect the operation, even when no data was read. A
 		// created source proves only its own contents new: an existing
 		// destination's type still decides whether the replacement succeeds.
+		// Record both reads before the write marks the destination created,
+		// which would otherwise suppress the destination dependency.
 		if !owned {
 			c.read(p.lexical, p.resolved)
 		}
 		if !targetOwned {
 			c.read(p.targetLexical, p.targetResolved)
 		}
+		c.write(p.targetLexical, p.targetResolved, "replace", owned)
 	case "unlink":
 		delete(c.created, p.resolved)
 		c.read(p.lexical, p.resolved)
