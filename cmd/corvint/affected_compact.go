@@ -170,6 +170,9 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		return affectedCompactReceipt{}, err
 	}
 	selected, links := compactAffectedSelections(full.Plan.Selected)
+	for index, selection := range full.Plan.Selected {
+		selected[index].TestCount = projectedTestCount(full.TestCounts, selection)
+	}
 	return affectedCompactReceipt{
 		Snapshot: full.Snapshot,
 		PathList: full.PathList,
