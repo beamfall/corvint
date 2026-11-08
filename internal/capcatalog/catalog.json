@@ -5249,6 +5249,11 @@
       "summary": "Same envelope as corvint-tasks ticket show ID"
     },
     {
+      "name": "corvint.test_evidence",
+      "availability": "corvint-mcp --tool-profile test-evidence",
+      "summary": "Same read-only path, range, test and explanation projection as corvint test-evidence"
+    },
+    {
       "name": "corvint.test_validity",
       "availability": "corvint-test-validity-mcp",
       "summary": "Five-axis projection of retained test evidence"

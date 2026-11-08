@@ -57,6 +57,7 @@ func MCPTools() []MCPTool {
 		{"corvint.tasks.roadmap", "corvint-mcp --tool-profile tasks", "One offset/limit page of corvint-tasks roadmap"},
 		{"corvint.tasks.ticket_search", "corvint-mcp --tool-profile tasks", "One page of corvint-tasks ticket search by status, kind, priority, owner, milestone, label or text"},
 		{"corvint.tasks.ticket_show", "corvint-mcp --tool-profile tasks", "Same envelope as corvint-tasks ticket show ID"},
+		{"corvint.test_evidence", "corvint-mcp --tool-profile test-evidence", "Same read-only path, range, test and explanation projection as corvint test-evidence"},
 		{"corvint.test_validity", "corvint-test-validity-mcp", "Five-axis projection of retained test evidence"},
 		{"tasks_work_start", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane work and return ticket commit trailers; writes nothing"},
 		{"tasks_work_deliver", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane delivery and return delivered commit trailers; writes nothing"},

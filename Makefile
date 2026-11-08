@@ -1049,6 +1049,8 @@ ai-coauthor-trailers-check:
 # that the results' planner field names.
 # Explicit BASE (or SELECTION_BASELINE_BASE), else the immutable CI event base,
 # admits a skip only for a diff disjoint from compilation and reader inputs.
+# Without SELECTION_BASELINE_OUT the same replay also asserts AFP-V0-9501's root-Go parity, so
+# doc-gates replays the corpus once rather than twice concurrently (AFP-V0-9498).
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@if [ "$${CORVINT_CI_CADENCE-}" = DEFER ]; then echo 'selection-baseline-check: NOT_RUN under CI cadence DEFER (CIN-V0-4753); the nightly release gates run it.'; exit 0; fi; \
@@ -1058,7 +1060,7 @@ selection-baseline-check: ## Check the test-selection baseline
 	case "$$decision" in 'skip '*) echo "selection-baseline-check skipped: $${decision#skip }"; exit 0 ;; \
 	*) echo "selection-baseline-check runs: $${decision#run }" ;; esac && \
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select && \
-	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
+	$(if $(SELECTION_BASELINE_OUT),,SELECTION_CONTRACT_CHECK=1 )"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 .PHONY: selection-contract-check
 selection-contract-check: ## Replay CI and local root-Go package parity (AFP-V0-9501)
@@ -1343,7 +1345,6 @@ DOC_GATE_TARGETS := \
   qualify-tasks-basic-test \
   requirement-definitions-check \
   selection-baseline-check \
-  selection-contract-check \
   shell-foreign-callers-check \
   shell-test-registration-check \
   spec-claims-check \
