@@ -281,6 +281,14 @@ Baseline at `origin/main` c6b6cbb0:
   file (`ACC-V0-002`). A missing or mismatched plugin makes its runners FULL. In CI the pins are
   read from the trusted base (`RSP-V0-042`); a candidate that changes the pin file makes every
   runner the file names, before or after the change, FULL.
+  The qualification declaration of `RSP-V0-033` and the runner's configuration paths (the files whose
+  change alters the runner's behavior) are not protocol output: they come from a tracked declaration
+  file `.corvint/runner-plugins/<plugin>.declaration.json` beside the pin. The pin carries that
+  file's SHA-256, so it is digest-bound, and the core validates it strictly (`RSP-V0-047` rules).
+  The plugin never supplies it at runtime, and `hello` does not return it. An absent, mismatched or
+  invalid declaration makes the runner FULL `unqualified`, and a change to any declared
+  configuration path, or any change while the declaration is invalid, touches every test of that
+  runner. This is orchestrator-made under the owner's delegated 1.0 choices (PR #143 review).
   The discovery file and the operator store's equivalent are one strict JSON object with every
   member required, no unknown or duplicate members, unique plugin names matching
   `[a-z0-9][a-z0-9._-]*`, and no runner claimed by two plugins. `sha256` is exactly 64 lowercase
@@ -311,6 +319,13 @@ Baseline at `origin/main` c6b6cbb0:
   (`RSP-V0-047`), `error` response, version mismatch, digest mismatch, repository mutation, or
   response naming a runner it did not declare in `hello` ends the session, publishes no record from
   it, and makes that plugin's runners FULL for the run, with the failure named in the plan.
+  The plugin also supplies that runner's `command`, `inventory` and `parse`, so FULL for an
+  external-plugin runner needs the plugin to launch. A required runner adapter that is unavailable,
+  cannot launch or is unpinned (including after its pin is removed) makes the run FAIL with a named
+  reason such as `runner-adapter-unavailable`; it never passes and never silently skips tests. FULL
+  without the plugin exists only where core already has a pre-plugin execution path for that runner
+  (rollback below); otherwise the failure stands. Orchestrator-made under the owner's delegated 1.0
+  choices (PR #143 review).
 - `RSP-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592)
   `corvint-runner/1` changes only additively through features named in `hello`; a breaking change is
   `corvint-runner/2`, and the core supports the current and previous major versions. When the
@@ -373,7 +388,8 @@ Baseline at `origin/main` c6b6cbb0:
 ### Qualification
 
 - `RSP-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) The
-  `qualification` piece declares the runner's corpus (a pinned repository name and commit; the
+  `qualification` piece declares, in the pinned declaration file of `RSP-V0-028` and never at
+  runtime, the runner's corpus (a pinned repository name and commit; the
   checkout path is an operator input), the boundary classes and execution model it claims (`traced`
   or `untraced`, `RSP-V0-045`), the execution configuration it qualifies (`RSP-V0-044`), and its
   mutation operators (from the language's `mutation` piece; the core supplies the language-neutral
@@ -741,9 +757,10 @@ outcomes equal the stated ones.
 | 023 | OS with a qualified backend narrows on its classes | OS with no backend: every test selected unless `untraced`-qualified there |
 | 024 | traced and untraced outcomes equal | outcome differs: tracing disabled, components `absent` |
 | 025, 026, 027, 047 | conformance kit passes identically on a compiled-in runner and its out-of-process twin; every frame validates against the schemas; `hello` agrees one offered major | unknown member, duplicate member, wrong type, invalid UTF-8, schema violation, unoffered major, `error` response: each ends the session, runner `full` |
-| 028 | pinned digest resolves from the store | digest mismatch: refused, runner `full`; `PATH`-shadowing executable never consulted; candidate edit of the pin file: named runners `full` |
+| 028 | pinned digest resolves from the store; pinned declaration file supplies qualification declaration and configuration paths | absent, mismatched or invalid declaration: runner `full` `unqualified`, its config change touches every test; plugin `hello` carrying a declaration ignored; digest mismatch: refused, runner `full`; `PATH`-shadowing executable never consulted; candidate edit of the pin file: named runners `full` |
 | 029, 031 | session within limits ends cleanly | crash, timeout, oversize, repository mutation, undeclared runner: each `full`, failure named, no record |
 | 030, 042 | admitted qualification and base index from a protected-ref run narrow | forged qualification record, fabricated or candidate-produced coverage record, candidate-modified corpus pin fixture: each not admitted, runner `full`, reason named |
+| 031 | external-plugin runner whose plugin is missing, unlaunchable or unpinned: run outcome checked, not only plan mode | run fails `runner-adapter-unavailable`, never passes or skips; runner with a core pre-plugin path runs that path |
 | 032 | additive feature named in `hello` is used | unnamed feature: never sent |
 | 033, 035 | qualification record holds seed, population, trials, misses and bound; 300 zero-miss trials report 0.995% | 299 trials: class unqualified; one miss: class blocked; unkilled mutants not counted as trials |
 | 059, 060 | edit outside a runner's closure: digest, contract-suite result and qualification reused | edit to one file in the runner package and one in a dependency: digest changes, runner `full` until requalified; unresolved closure: `plugin-digest-unresolved`; failing contract suite: qualification refused |
@@ -822,10 +839,10 @@ can narrow (`RSP-V0-034`, `RSP-V0-036`).
 | RSP-V0-025 | `internal/testrunner/registry/runner_plugin.go` (compiled-in form); `internal/runnerprotocol` SPI adapter, reference twin and shared kit (out-of-process form) | `TestRSPV0025CompiledInSession`, `TestRSPV0025LegacyAndUnknownAbsent`, `TestRSPV0025TwinParity`, `TestRSPV0025UnknownAndLegacy`, `TestRSPV0025CompiledInClaimsRefused` (NOT_RUN: build-only lane) |
 | RSP-V0-026 | `internal/runnerprotocol/schema.go`, `serve.go` | `TestRSPV0026StrictPositive`, `TestRSPV0026StrictNegative`, `TestRSPV0026ServerValidation` (NOT_RUN) |
 | RSP-V0-027 | `internal/runnerprotocol/adapter.go`, `serve.go` | `TestRSPV0027Methods`, `TestRSPV0027UnknownMethodAndPath`, `TestRSPV0027NulEnvironmentRefused` (NOT_RUN) |
-| RSP-V0-028 | `internal/runnerprotocol/discovery.go`, `platform_linux.go`, `snapshot.go` | `TestRSPV0028DiscoveryPositive`, `TestRSPV0028DiscoveryNegative`, `TestRSPV0028DigestAndSymlink`, `TestRSPV0028TrustedBlobReader`, `TestRSPV0028MissingAndMalformedProjectPins`, `TestRSPV0028DocumentedDiscovery` (runtime qualification pending) |
+| RSP-V0-028 | `internal/runnerprotocol/discovery.go`, `platform_linux.go`, `snapshot.go` | `TestRSPV0028DiscoveryPositive`, `TestRSPV0028DiscoveryNegative`, `TestRSPV0028DigestAndSymlink`, `TestRSPV0028TrustedBlobReader`, `TestRSPV0028MissingAndMalformedProjectPins`, `TestRSPV0028DocumentedDiscovery` (runtime qualification pending); PARTIAL: the PR #143 digest-pinned declaration file (`.corvint/runner-plugins/<plugin>.declaration.json`, absent/mismatched/invalid → FULL `unqualified`) is not yet implemented |
 | RSP-V0-029 | `internal/runnerprotocol/session.go`, `snapshot.go` | `TestRSPV0029LimitsAndDiagnostics`, `TestRSPV0029LimitsNegative`, `TestRSPV0029ShutdownDeadlineAndExistingDirtyFile`, `TestRSPV0029SymlinkedRepositoryMutation`, `TestRSPV0029SymlinkedRepositoryRunDirectory`, `TestRSPV0029HookMutationFailsSession`, `TestRSPV0029GitMetadataMutation`, `TestRSPV0029IgnoredTreeStillCovered`, `TestRSPV0029UnknownGitPointerFailsClosed` (runtime qualification pending) |
 | RSP-V0-030 | `internal/runnerprotocol/adapter.go`, core-owned evidence staging | `TestRSPV0030EvidencePublication`, `TestRSPV0030DiscardAndForgedAuthority`, `TestRSPV0030NativeValidation` (NOT_RUN) |
-| RSP-V0-031 | `internal/runnerprotocol/session.go`, fail-closed discovery plans | `TestRSPV0031CleanSession`, `TestRSPV0031FailureFixtures`, `TestRSPV0031UndeclaredResponseAndMissingExecutable` (NOT_RUN) |
+| RSP-V0-031 | `internal/runnerprotocol/session.go`, fail-closed discovery plans | `TestRSPV0031CleanSession`, `TestRSPV0031FailureFixtures`, `TestRSPV0031UndeclaredResponseAndMissingExecutable` (NOT_RUN); PARTIAL: the PR #143 run FAIL `runner-adapter-unavailable` for an unavailable, unlaunchable or unpinned external-plugin runner is not yet implemented |
 | RSP-V0-032 | `internal/runnerprotocol/session.go`, negotiated version and feature guard | `TestRSPV0032NegotiatedFeatures`, `TestRSPV0032UnnegotiatedFeature` (NOT_RUN) |
 | RSP-V0-047 | runner protocol host | (PLANNED) conformance kit and schemas over both forms; failure fixtures |
 | RSP-V0-033..037 | qualification harness; closed core file-operator validation; exact replay base binding, negative-control selection equality, retained execution costs and trusted cost ceilings | `TestRSPV0033LanguageNeutralOperators`, `TestRSPV0034ReplayAndPerClassFaults`, `TestRSPV0034MislabeledPopulations`, `TestRSPV0034ReplayPlanBaseBinding`, `TestRSPV0034CommandRefusesUnpinnedReplayPlan`, `TestRSPV0034NegativeControlPlan`, `TestRSPV0036QualificationBudgetCeiling`, `TestRSPV0056ReplayRetainsExecutionCost`, `TestRSPV0056AdmissionCostForms`, `TestRSPV0056CommandPreservesExecutionBudget`; live per-runner qualification and sampling remain planned; Go execution digest stays separate from checkout binding in `internal/testrunner/golang/plugin.go`: `TestRSPV0036GoCheckoutDoesNotChangeConfigurationDigest`, `TestRSPV0036GoIdentityChangesInvalidateCapturedInventory`; `TestRSPV0035GoUnparseableMutantsRefuseWholePopulation` accounts for every render failure and refuses a reduced population (written, NOT_RUN: build-only lane); Go qualification remains absent, with plugin digest, selector version and verifier revision unavailable in `Configuration` (RSP-V0-036 BLOCKED) |
@@ -888,8 +905,11 @@ success. Both whole-package suites pass; this evidence does not claim live quali
 Rollout is `RSP-V0-040`; every step before its qualification is shadow-only and changes no plan
 (`RSP-V0-046`).
 
-Rollback, per runner: delete or supersede its qualification record, or remove its entry from
-`.corvint/runner-plugins.json`; either returns it to FULL at once. Rollback of the whole capability
+Rollback, per runner: deleting or superseding its qualification record returns it to FULL at once,
+and the still-pinned plugin keeps supplying `command`, `inventory` and `parse` for that FULL run.
+Removing its entry from `.corvint/runner-plugins.json` also returns it to FULL, but only where core
+has a pre-plugin execution path for that runner; otherwise the run fails
+`runner-adapter-unavailable` (`RSP-V0-031`). Rollback of the whole capability
 is a revert of each slice, which restores the plans in force before this spec; records are derived
 state, so deleting the index extension needs no migration. The protocol is versioned
 (`RSP-V0-032`), and removing a plugin never breaks the core's frozen surface (`CMS-V0-003`).
