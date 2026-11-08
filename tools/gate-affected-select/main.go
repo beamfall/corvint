@@ -48,5 +48,5 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Println(strings.Join(gateselect.Select(plan, os.Args[2], os.Args[3]), "\n"))
+	fmt.Println(strings.Join(gateselect.SelectQualified(plan, os.Args[2], os.Args[3]), "\n"))
 }

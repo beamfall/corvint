@@ -28,7 +28,7 @@ var precheckLedgerNames = []string{
 	"import-direction-check", "lane-scripts-test", "legal-file-pins-check", "license-headers-check",
 	"line-citations-check", "live-test", "long-lines-check", "mkfifo-build-tags-check",
 	"no-python-runtime-dependency-test", "py-signal-lint", "qualify-tasks-basic-test",
-	"requirement-definitions-check", "selection-baseline-check", "shell-foreign-callers-check",
+	"requirement-definitions-check", "selection-baseline-check", "selection-contract-check", "shell-foreign-callers-check",
 	"shell-test-registration-check", "spec-claims-check", "spec-requirements-check", "stray-backups-check",
 	"tasks-profiles-check", "test-commands-check", "test-exec-writes-check", "test-read-scopes-check",
 	"traceability-tests-check", "traceability-tests-test", "tracked-ignored-check",
