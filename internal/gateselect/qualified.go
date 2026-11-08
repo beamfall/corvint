@@ -3,8 +3,12 @@ package gateselect
 
 import (
 	"context"
+	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -52,9 +56,16 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	if plan.Plan.Scope != "BOUNDED" && plan.Plan.Scope != "UNKNOWN" {
 		return fallback("the selection input has no supported scope")
 	}
-	if strings.HasPrefix(verdict, "FALLBACK the selection is empty while ") && moduleCovered(plan) {
-		lines[len(lines)-1] = "NOTHING every dirty path is inside a nested Go module whose own unit runs it"
-		return lines
+	if strings.HasPrefix(verdict, "FALLBACK the selection is empty while ") {
+		if directories := moduleCovered(plan); directories != nil {
+			// A declared runtime edge is invisible to the Go-only index: a
+			// root test may run a unit inside the nested module.
+			if reason := runtimeEdgeIntoModule(root, module, directories); reason != "" {
+				return fallback(reason)
+			}
+			lines[len(lines)-1] = "NOTHING every dirty path is inside a nested Go module whose own unit runs it"
+			return lines
+		}
 	}
 	if !strings.HasPrefix(verdict, "run ") {
 		return lines
@@ -159,19 +170,64 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	return append(audit, PlannedRunSet("run qualified", packages))
 }
 
-func moduleCovered(plan Receipt) bool {
-	covered := map[string]bool{}
+// moduleCovered returns the nested module directories that hold every dirty
+// path, or nil when any dirty path lacks a nested-module certificate.
+func moduleCovered(plan Receipt) []string {
+	covered := map[string]string{}
 	for _, entry := range plan.Plan.Unknown {
 		if directory, ok := UnobservedModule(entry.Reason, entry.Detail); ok {
-			covered[strings.TrimPrefix(entry.Detail, "go:unobserved-module:"+directory+":")] = true
+			covered[strings.TrimPrefix(entry.Detail, "go:unobserved-module:"+directory+":")] = directory
 		}
 	}
+	directories := map[string]bool{}
 	for _, dirty := range plan.Plan.Dirty {
-		if !covered[dirty] {
-			return false
+		directory, ok := covered[dirty]
+		if !ok {
+			return nil
+		}
+		directories[directory] = true
+	}
+	return sortedKeys(directories)
+}
+
+// runtimeEdgeIntoModule names why a declared runtime edge may make a root
+// test run a unit inside one of the nested module directories, or returns ""
+// when no declared edge can. An unreadable or invalid declaration, and a Go
+// unit outside the root module, cannot be placed and so fail closed.
+func runtimeEdgeIntoModule(root, module string, directories []string) string {
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.RuntimeEdgesPath)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return ""
+	}
+	var declared struct {
+		Edges []affected.RuntimeEdge `json:"edges"`
+	}
+	if err != nil || json.Unmarshal(body, &declared) != nil {
+		return fmt.Sprintf("the nested-module downgrade cannot read %s", affected.RuntimeEdgesPath)
+	}
+	inside := func(path string) bool {
+		for _, directory := range directories {
+			if path == directory || strings.HasPrefix(path, directory+"/") {
+				return true
+			}
+		}
+		return false
+	}
+	for _, edge := range declared.Edges {
+		namespace, name, _ := strings.Cut(edge.Runs, ":")
+		candidates := []string{name, strings.ReplaceAll(name, ".", "/")}
+		if namespace == "go" {
+			rel, ok := strings.CutPrefix(name, module+"/")
+			if !ok && name != module {
+				return fmt.Sprintf("a declared runtime edge runs %q, which the nested-module downgrade cannot place", edge.Runs)
+			}
+			candidates = []string{rel}
+		}
+		if slices.ContainsFunc(candidates, inside) {
+			return fmt.Sprintf("a declared runtime edge from %q runs %q inside a dirty nested module", edge.Tests, edge.Runs)
 		}
 	}
-	return len(plan.Plan.Dirty) > 0
+	return ""
 }
 
 // PlannedRunSet projects an already-qualified set into the existing verdict

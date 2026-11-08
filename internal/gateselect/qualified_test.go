@@ -164,3 +164,48 @@ func TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-9500: a declared runtime edge is invisible to the Go-only index, so
+// a root test that runs a unit inside the dirty nested module, or an edge the
+// downgrade cannot place, blocks the NOTHING downgrade. An edge elsewhere does not.
+func TestQualifiedSelectionModuleCoverageRuntimeEdges_AFPV09500(t *testing.T) {
+	for _, tc := range []struct {
+		name, runs string
+		nothing    bool
+	}{
+		{"edge into nested module", "typescript:nested/server.cjs", false},
+		{"go edge outside root module", "go:example.test/nested", false},
+		{"edge elsewhere", "go:" + fixtureModule + "/core", true},
+		{"invalid declaration", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{"profile":"corvint-runtime-edges/0","edges":[{"tests":"e2e/run_test.go","runs":"` + tc.runs + `","reason":"drives it"}]}`
+			if tc.runs == "" {
+				body = "{"
+			}
+			root := writeFixture(t, map[string]string{
+				"go.mod":                      "module " + fixtureModule + "\n",
+				"core/core.go":                "package core\n",
+				"e2e/run_test.go":             "package e2e\nimport \"testing\"\nfunc TestRun(t *testing.T) {}\n",
+				"nested/go.mod":               "module example.test/nested\n",
+				"nested/x.go":                 "package nested\n",
+				".corvint/runtime-edges.json": body,
+			})
+			var plan Receipt
+			plan.Plan.Scope = "UNKNOWN"
+			plan.Provider.Go.State = "EMPTY_SELECTION"
+			plan.Plan.Dirty = []string{"nested/x.go"}
+			plan.Plan.Unknown = append(plan.Plan.Unknown, struct {
+				Reason string `json:"reason"`
+				Detail string `json:"detail"`
+			}{"LANGUAGE_FRONTIER", "go:unobserved-module:nested:nested/x.go"})
+			prefix := "FALLBACK "
+			if tc.nothing {
+				prefix = "NOTHING "
+			}
+			if lines := SelectQualified(plan, fixtureModule, root); !strings.HasPrefix(lines[len(lines)-1], prefix) {
+				t.Fatalf("got %q, want %q; audit=%v", lines[len(lines)-1], prefix, lines)
+			}
+		})
+	}
+}
