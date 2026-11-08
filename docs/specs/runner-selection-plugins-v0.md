@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-11-07
-Intent status: accepted (owner, 2026-11-07, decision 0592)
+Intent status: accepted (decision 0592: owner 2026-11-07 for its §1-§2; §3-§7 orchestrator-made under the 2026-11-02 delegation, owner may override)
 Delivery status: not-started
 Authoritative inputs: owner chat of 2026-11-07 (always run only the required minimum tests, "it
 should be perfect"; Go, other languages and E2E, "beamfall support basically"; "each langauge and
@@ -16,7 +16,7 @@ choices and the orchestrator-made defaults); decision 0590 and `live-proof-carry
 
 ## Agent digest
 - Claim: Runner plugins declare test inventory, per-test evidence and qualification; one language-neutral selector narrows qualified runners and runs the rest in full.
-- Status: accepted (owner, 2026-11-07, decision 0592) / not-started
+- Status: accepted (decision 0592: owner 2026-11-07 for its §1-§2; §3-§7 orchestrator-made under the 2026-11-02 delegation, owner may override) / not-started
 - Exists: nothing of this contract; it builds on `internal/langplugin`, `internal/testrunner/registry`, `internal/linecov`, `internal/jslinecov`, `internal/browsercov`.
 - Blocked on: every slice; first proof is the evidence record and shadow selector over existing Go linecov records (RSP-V0-040).
 - Read next: Requirements; Selection rule; Failure modes; Rollback.
