@@ -112,6 +112,8 @@ def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] a
    driverSelected: ($D // [] | length), shadowSelected: ($S // [] | length),
    shadowScope: ($s.scope? // null),
    omitted: $omitted[0:50],
+   overSelected: (if $D != null and $S != null then ($sel - $S - ($R // []))[0:50] else [] end),
+   overSelectedCount: (if $D != null and $S != null then ($sel - $S - ($R // []) | length) else null end),
    shardPackages: ($shardSet | length),
    githubInputs: [(($ARGS.named.githubInputs // "") | split(", ")[] | select(length > 0))],
    selected: (if $mode == "NARROWED" then $sel else [] end),

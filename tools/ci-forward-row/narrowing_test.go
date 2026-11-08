@@ -768,6 +768,18 @@ func TestAFPV0098SupersetGuard(t *testing.T) {
 		num(v["shard"]) != 3 || num(v["shards"]) != 8 || num(v["verdictRunId"]) != 4242 {
 		t.Fatalf("superset decision = %v", v)
 	}
+	// AFP-V0-9510: the recorded selection's package the shadow did not select (c) is reported as
+	// over-selected, and the report does not change the decision.
+	if fmt.Sprint(v["overSelected"]) != fmt.Sprint([]string{c}) || num(v["overSelectedCount"]) != 1 {
+		t.Fatalf("over-selection = %v (%v)", v["overSelected"], v["overSelectedCount"])
+	}
+	{
+		x := good()
+		x.shadow = ""
+		if v := decide(t, x); len(v["overSelected"].([]any)) != 0 || v["overSelectedCount"] != nil {
+			t.Fatalf("over-selection without a shadow = %v (%v)", v["overSelected"], v["overSelectedCount"])
+		}
+	}
 	// A driver package outside the universe (another module) is not part of the selection.
 	x := good()
 	x.driver.(doc)["Packages"] = []string{a, b, c, "example.org/other/x"}
