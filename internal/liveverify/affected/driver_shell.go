@@ -583,6 +583,11 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		if driverDynamic(target) || cwd == "" {
 			return ""
 		}
+		// Preserve uncertainty before lexical cleaning can erase a link
+		// followed by parent traversal (AFP-V0-9051).
+		if _, ok := s.driverPlainDirectory(target, cwd); !ok {
+			s.scan.uncertified = true
+		}
 		return driverJoin(cwd, target)
 	case "eval":
 		s.scan.computed = true
@@ -746,10 +751,31 @@ func (s *driverShellScanner) driverOperandRecorded(word, cwd string) bool {
 	case strings.HasPrefix(word, "-") && word != "-":
 		return false
 	case strings.ContainsAny(word, "*?["):
-		word = driverGlobDirectory(word)
-		if word == "" {
+		directory := driverGlobDirectory(word)
+		if directory == "" {
 			return false
 		}
+		relative := driverJoin(cwd, directory)
+		if !ValidRelativePath(relative) || !driverPlainPath(s.scan.source, relative) {
+			return false
+		}
+		entries, err := s.scan.source.ReadDir(relative)
+		if err != nil || len(entries) > 4096 {
+			return false
+		}
+		// Only regular matched files are covered by the directory edge.
+		// Links, directories and unfamiliar file types may read elsewhere.
+		suffix := word[strings.LastIndexByte(word, '/')+2:]
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), ".") || !strings.HasSuffix(entry.Name(), suffix) {
+				continue
+			}
+			info, err := s.scan.source.Lstat(path.Join(relative, entry.Name()))
+			if err != nil || !info.Mode().IsRegular() {
+				return false
+			}
+		}
+		return true
 	}
 	relative := driverJoin(cwd, strings.TrimSuffix(word, "/"))
 	return ValidRelativePath(relative) && driverPlainPath(s.scan.source, relative)
@@ -898,7 +924,7 @@ func (s *driverShellScanner) driverCertified(words []driverWord, cwd string) boo
 	case base == "make" || base == "gmake":
 		return driverMakeCommandCertified(words[1:])
 	case base == "go":
-		return driverGoCommandCertified(words[1:])
+		return s.driverGoCommandCertified(words[1:], cwd)
 	case driverShells[base]:
 		for index := 1; index < len(words); index++ {
 			arg := words[index].text
@@ -1032,25 +1058,36 @@ func (s *driverShellScanner) driverTestCertified(words []driverWord, cwd string)
 // driverGoCommandCertified admits only recognized flags with literal values.
 // An unbounded value can split into executable flags, including -toolexec,
 // even when the flag that precedes it only names an output (AFP-V0-3128).
-func driverGoCommandCertified(words []driverWord) bool {
+func (s *driverShellScanner) driverGoCommandCertified(words []driverWord, cwd string) bool {
 	if !driverLiteral(words) || slices.ContainsFunc(words, func(word driverWord) bool {
 		return strings.ContainsAny(word.text, "*?[")
 	}) {
 		return false
 	}
 	for len(words) > 0 && (words[0].text == "-C" || strings.HasPrefix(words[0].text, "-C=")) {
+		directory := strings.TrimPrefix(words[0].text, "-C=")
 		if words[0].text == "-C" {
-			if len(words) < 2 || strings.HasPrefix(words[1].text, "-") || driverRootedPath(words[1].text) {
+			if len(words) < 2 {
 				return false
 			}
+			directory = words[1].text
 			words = words[1:]
-		} else if driverRootedPath(strings.TrimPrefix(words[0].text, "-C=")) {
+		}
+		var ok bool
+		cwd, ok = s.driverPlainDirectory(directory, cwd)
+		if !ok {
 			return false
 		}
 		words = words[1:]
 	}
 	if len(words) == 0 || !driverGoCertified[words[0].text] {
 		return false
+	}
+	packageCommand := driverGoPackageCommands[words[0].text]
+	if packageCommand {
+		if _, ok := s.driverPlainDirectory(".", cwd); !ok {
+			return false
+		}
 	}
 	for index := 1; index < len(words); index++ {
 		arg := words[index].text
@@ -1064,8 +1101,9 @@ func driverGoCommandCertified(words []driverWord) bool {
 			})
 		}
 		if !strings.HasPrefix(arg, "-") {
-			// AFP-V0-9051: a rooted package pattern records no edge.
-			if driverRootedPath(arg) {
+			// AFP-V0-9051: certify only package forms whose source paths
+			// agree with the lexical paths recorded by goPattern.
+			if driverRootedPath(arg) || packageCommand && !s.driverGoPackageRecorded(arg, cwd) {
 				return false
 			}
 			continue
@@ -1088,6 +1126,53 @@ func driverGoCommandCertified(words []driverWord) bool {
 		}
 	}
 	return true
+}
+
+// driverPlainDirectory admits only relative ASCII paths without parent traversal,
+// and proves every source component is a directory without a link. Cleaning
+// before this proof could erase a symlink followed by ".." (AFP-V0-9051).
+func (s *driverShellScanner) driverPlainDirectory(word, cwd string) (string, bool) {
+	if s.scan.source == nil || word == "" || cwd == "" || driverRootedPath(word) || strings.HasPrefix(word, "-") {
+		return "", false
+	}
+	for _, component := range strings.Split(word, "/") {
+		if component == ".." {
+			return "", false
+		}
+	}
+	for _, char := range word {
+		if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("/._-+", char)) {
+			return "", false
+		}
+	}
+	relative := driverJoin(cwd, word)
+	if relative != "." && !ValidRelativePath(relative) || !driverPlainPath(s.scan.source, relative) {
+		return "", false
+	}
+	info, err := s.scan.source.Lstat(relative)
+	return relative, err == nil && info.IsDir()
+}
+
+// driverGoPackageRecorded is a closed allowlist: all/std/cmd, relative
+// directories (optionally recursive), and main-module directories. Unknown
+// import forms and linked directories retain the frontier (AFP-V0-9051).
+func (s *driverShellScanner) driverGoPackageRecorded(word, cwd string) bool {
+	if word == "all" || word == "std" || word == "cmd" {
+		return true
+	}
+	if s.module != "" && (word == s.module || strings.HasPrefix(word, s.module+"/")) {
+		word = "./" + strings.TrimPrefix(strings.TrimPrefix(word, s.module), "/")
+		cwd = "."
+	}
+	if word != "." && !strings.HasPrefix(word, "./") {
+		return false
+	}
+	word = strings.TrimSuffix(word, "/...")
+	if strings.Contains(word, "...") {
+		return false
+	}
+	_, ok := s.driverPlainDirectory(word, cwd)
+	return ok
 }
 
 // driverShellTest reports a repository shell test script by the shell
@@ -1172,6 +1257,11 @@ func driverGlobDirectory(word string) string {
 			continue
 		}
 		if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || strings.ContainsRune("/._-+", char)) {
+			return ""
+		}
+	}
+	for _, component := range strings.Split(word[:slash], "/") {
+		if component == ".." {
 			return ""
 		}
 	}

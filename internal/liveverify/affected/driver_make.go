@@ -1410,9 +1410,13 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		value := ""
 		for _, part := range driverMakeSplitTop(args, ',', 0) {
 			// GNU make strips ASCII whitespace from the unexpanded argument
-			// and skips an argument left empty (AFP-V0-9050).
+			// before testing it (AFP-V0-9050). An empty conjunction
+			// argument is false, even before expansion.
 			trimmed, exact := driverMakeTrim(part)
 			if trimmed == "" {
+				if name == "and" {
+					return "", true
+				}
 				continue
 			}
 			value = e.expand(trimmed)
