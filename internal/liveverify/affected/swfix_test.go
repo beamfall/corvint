@@ -14,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/ruby"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -36,7 +37,7 @@ func swfixFiles(t *testing.T, files map[string]string) (string, fstest.MapFS) {
 
 // Use the same structural selector and manifest builder as the test command,
 // without executing a suite or changing the execution universe.
-func swfixSession(t *testing.T, root, module string, graph *affected.Graph, plan affected.Plan) sessiontest.Manifest {
+func swfixSession(t *testing.T, root, module string, graph *affected.Graph, plan affected.Plan, languages ...sessiontest.LanguageCommand) sessiontest.Manifest {
 	t.Helper()
 	body, err := json.Marshal(map[string]any{"plan": plan})
 	if err != nil {
@@ -49,6 +50,7 @@ func swfixSession(t *testing.T, root, module string, graph *affected.Graph, plan
 	receipt.Provider.Go.State = "RUNNABLE"
 	input := sessiontest.Input{ShardCount: 1, RunnerProfile: sessiontest.ProfileLocal, GraphDigest: graph.Digest(),
 		Declared: sessiontest.Declared{Languages: []sessiontest.LanguageCommand{{Language: "swift", Argv: []string{"swift", "test"}}}}}
+	input.Declared.Languages = append(input.Declared.Languages, languages...)
 	for _, id := range graph.UnitIDs() {
 		if pkg, ok := strings.CutPrefix(id, "go:"); ok {
 			input.Universe = append(input.Universe, pkg)
@@ -247,4 +249,143 @@ func (p swfixClaim) Units(context.Context, string) (affected.Result, error) {
 		result.Units = []affected.Unit{{ID: "other:compiled", Sources: []string{"host/testdata/kept.other"}}}
 	}
 	return result, nil
+}
+
+// Reclassification must keep path-open readers in every other language, even
+// when no literal resolves their reads. Unknown frontier forms stay open too.
+func TestSwiftFixtureComputedReaders_AFPV09310(t *testing.T) {
+	const fixture = "host/testdata/swift/"
+	root, fsys := swfixFiles(t, map[string]string{
+		"go.mod":            "module example.test/m\n\ngo 1.27.3\n",
+		"host/host_test.go": "package host\nimport \"testing\"\nfunc TestHost(t *testing.T) {}\n",
+		fixture + "Package.swift": `import PackageDescription
+let package = Package(name: "Probe", targets: [.testTarget(name: "ProbeTests")])`,
+		fixture + "Tests/ProbeTests/Probe.swift": "import XCTest\nfinal class Probe: XCTestCase { func testValue() {} }\n",
+		"spec/fixture_spec.rb": `RSpec.describe "fixture" do
+ it "reads" do
+  File.read(ENV.fetch("FIXTURE_PATH"))
+ end
+end
+`,
+	})
+	for _, tc := range []struct {
+		name, frontier string
+		plugin         affected.Language
+	}{
+		{"ruby", ruby.FrontierImplicitTestDependency + ":spec/fixture_spec.rb", ruby.New()},
+		{"future", "future:unclassified-read", swfixFrontier{name: "future", frontier: []string{"future:unclassified-read"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			disk, err := affected.Build(context.Background(), root, golang.New(), swift.New(), tc.plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pinned, err := affected.BuildFS(fsys, golang.New(), swift.New(), tc.plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if disk.Digest() != pinned.Digest() {
+				t.Fatal("disk/immutable graph mismatch")
+			}
+			for _, graph := range []*affected.Graph{disk, pinned} {
+				plan := affected.Select(graph, []string{fixture + "Package.swift"})
+				found := false
+				for _, u := range plan.Unknown {
+					found = found || u.Reason == affected.UnknownLanguageFrontier && u.Detail == tc.frontier
+				}
+				if !found {
+					t.Fatalf("computed reader lost its frontier: %+v", plan)
+				}
+				m := swfixSession(t, root, "example.test/m", graph, plan, sessiontest.LanguageCommand{Language: tc.name, Argv: []string{"check-suite"}})
+				units := []string{}
+				for _, u := range m.Units {
+					units = append(units, u.Unit)
+				}
+				if !slices.Contains(units, "declared:"+tc.name) || !slices.Contains(units, "declared:swift") {
+					t.Fatalf("computed reader or Swift suite omitted: %+v", m)
+				}
+			}
+		})
+	}
+}
+
+// A library-only Swift graph has no frontier that can carry its suite to the
+// session builder. Unknown frontier forms do not certify that obligation.
+func TestSwiftFixtureSuiteProof_AFPV09310(t *testing.T) {
+	const fixture = "host/testdata/swift/"
+	root, fsys := swfixFiles(t, map[string]string{
+		"go.mod":            "module example.test/m\n\ngo 1.27.3\n",
+		"host/host_test.go": "package host\nimport \"testing\"\nfunc TestHost(t *testing.T) {}\n",
+		fixture + "Package.swift": `import PackageDescription
+let package = Package(name: "Probe", targets: [.target(name: "Logic")])`,
+		fixture + "Sources/Logic/Logic.swift": "public func value() -> Int { 1 }\n",
+	})
+	for _, tc := range []struct {
+		name         string
+		plugin       affected.Language
+		wantFrontier []string
+	}{
+		{"empty frontier", swift.New(), nil},
+		{"unknown frontier", swfixFrontier{name: "swift", frontier: []string{"swift:future-suite-form"}}, []string{"swift:future-suite-form"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			disk, err := affected.Build(context.Background(), root, golang.New(), tc.plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pinned, err := affected.BuildFS(fsys, golang.New(), tc.plugin)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if disk.Digest() != pinned.Digest() {
+				t.Fatal("disk/immutable graph mismatch")
+			}
+			for _, graph := range []*affected.Graph{disk, pinned} {
+				plan := affected.Select(graph, []string{fixture + "Package.swift"})
+				frontiers := []string{}
+				retained := false
+				for _, u := range plan.Unknown {
+					if u.Reason == affected.UnknownLanguageFrontier && strings.HasPrefix(u.Detail, "swift:") {
+						frontiers = append(frontiers, u.Detail)
+					}
+					retained = retained || u.Reason == affected.UnknownUnindexedSourcePath && u.Detail == fixture+"Package.swift"
+				}
+				if !slices.Equal(frontiers, tc.wantFrontier) {
+					t.Fatalf("fixture frontier: %v, want %v", frontiers, tc.wantFrontier)
+				}
+				if !retained {
+					t.Fatalf("unproven suite lost source claim: %+v", plan)
+				}
+				m := swfixSession(t, root, "example.test/m", graph, plan)
+				found := false
+				for _, u := range m.Units {
+					found = found || u.Unit == "declared:swift"
+				}
+				if m.Scope != sessiontest.ScopeFull || !found {
+					t.Fatalf("unproven suite omitted: %+v", m)
+				}
+			}
+		})
+	}
+}
+
+type swfixFrontier struct {
+	name     string
+	frontier []string
+}
+
+func (p swfixFrontier) Name() string { return p.name }
+func (p swfixFrontier) Owns(path string) bool {
+	return p.name == "swift" && strings.HasSuffix(path, ".swift")
+}
+func (p swfixFrontier) Units(context.Context, string) (affected.Result, error) {
+	return p.result(), nil
+}
+func (p swfixFrontier) UnitsSource(*affected.Source) (affected.Result, error) { return p.result(), nil }
+func (p swfixFrontier) result() affected.Result {
+	source := "future/reader.txt"
+	if p.name == "swift" {
+		source = "host/testdata/swift/Sources/Logic/Logic.swift"
+	}
+	return affected.Result{Frontier: p.frontier, Units: []affected.Unit{{ID: p.name + ":library", Sources: []string{source}}}}
 }
