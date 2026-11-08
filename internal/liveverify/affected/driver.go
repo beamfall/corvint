@@ -447,7 +447,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// reads the graph does not bound leaves every target uncertified.
 	parse := parsed.parseTime()
 	for _, script := range parse.shells {
-		scan := registry.scanBoth(script, parsed.dir)
+		scan := registry.scanBothOutput(script, parsed.dir)
 		uncertified = uncertified || scan.uncertified
 		shared.merge(registry, scan)
 	}
