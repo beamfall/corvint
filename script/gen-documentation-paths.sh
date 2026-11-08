@@ -21,7 +21,7 @@ DIRS='docs/build-log/
 docs/decisions/
 docs/specs/'
 INSTRUCTIONS='AGENTS.md CLAUDE.md'
-DOCUMENTS='internal/nativelinecov/README.md'
+DOCUMENTS='internal/nativelinecov/README.md internal/runnerprotocol/README.md tools/runner-plugin/README.md tools/runner-reference/README.md'
 declaration=.corvint/documentation-paths.json
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
