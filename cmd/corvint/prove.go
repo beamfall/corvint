@@ -26,6 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/pyresolve"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate"
@@ -768,7 +769,9 @@ func affectedTestRows(ctx context.Context, gitExecutable string, options options
 	if err != nil {
 		return nil, nil, &gokernel.Error{Code: "unsupported-prove-affected", Message: "the affected-plan graph could not be built: " + err.Error()}
 	}
-	plan := affected.Select(graph, changed)
+	// The range is measured from the base, so the plan compares import sets
+	// as `corvint affected --base` does (AFP-V0-9011).
+	plan := languages.SelectAt(ctx, options.root, options.root, affectedMeasuredCommit(ctx, gitExecutable, options.root, options.impactBase, ""), graph, changed)
 	rows := make([]proveRow, 0, 8)
 	seen := map[string]struct{}{}
 	for _, selection := range plan.Selected {

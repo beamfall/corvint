@@ -111,8 +111,10 @@ func TestGoListReadersAreImportGraphReaders_AFPV02200(t *testing.T) {
 		importGraphModule + "guard":  {reads: []string{tool}},
 		importGraphModule + "slice":  {all: true},
 		importGraphModule + "runner": {execs: []string{tool}},
-		importGraphModule + "mixed":  {execs: []string{tool}, reads: []string{tool}},
-		importGraphModule + "wide":   {execs: []string{tool}, all: true},
+		// A package that also runs `go build` may observe more than its
+		// listing (AFP-V0-9010): a whole-module reader.
+		importGraphModule + "mixed": {execs: []string{tool}, all: true},
+		importGraphModule + "wide":  {execs: []string{tool}, all: true},
 		// A bare dot prints the whole package, an Env assignment can add
 		// GOFLAGS=-json, a listed name may feed another command, and a
 		// package naming GOFLAGS can change every call: none is proven.
@@ -257,20 +259,21 @@ func TestImportSetRecordsCompareHeaders_AFPV02202(t *testing.T) {
 		dirty []string
 		want  affected.ImportSetChanges
 	}{
-		{"body", head(map[string]string{"lib/lib.go": "package lib\n\nfunc Help() string { return \"other\" }\n"}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{}}},
-		{"import", head(map[string]string{"lib/lib.go": "package lib\n\nimport \"strings\"\n\nfunc Help() string { return strings.ToUpper(\"help\") }\n"}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib.go"}}},
-		{"constraint", head(map[string]string{"lib/lib.go": "//go:build linux\n\n" + lib}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib.go"}}},
-		{"added file", head(map[string]string{"lib/extra.go": "package lib\n"}), []string{"lib/extra.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/extra.go"}}},
-		{"test import", head(map[string]string{"lib/lib_test.go": "package lib\n\nimport \"testing\"\n"}), []string{"lib/lib_test.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib_test.go"}}},
+		{"body", head(map[string]string{"lib/lib.go": "package lib\n\nfunc Help() string { return \"other\" }\n"}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{}, Source: "lib/lib.go"}},
+		{"import", head(map[string]string{"lib/lib.go": "package lib\n\nimport \"strings\"\n\nfunc Help() string { return strings.ToUpper(\"help\") }\n"}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib.go"}, Source: "lib/lib.go"}},
+		{"constraint", head(map[string]string{"lib/lib.go": "//go:build linux\n\n" + lib}), []string{"lib/lib.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib.go"}, Source: "lib/lib.go"}},
+		{"added file", head(map[string]string{"lib/extra.go": "package lib\n"}), []string{"lib/extra.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/extra.go"}, Source: "lib/extra.go"}},
+		{"test import", head(map[string]string{"lib/lib_test.go": "package lib\n\nimport \"testing\"\n"}), []string{"lib/lib_test.go"}, affected.ImportSetChanges{Changed: map[string]string{libID: "lib/lib_test.go"}, Source: "lib/lib_test.go"}},
 		{"go.mod", head(map[string]string{"go.mod": "module example.test/g\n\ngo 1.27\n"}), []string{"go.mod"}, affected.ImportSetChanges{Changed: map[string]string{}, Module: "go.mod"}},
-		{"removed package", head(nil), []string{"gone/gone.go"}, affected.ImportSetChanges{Changed: map[string]string{}, Module: "gone/gone.go"}},
-		{"testdata", head(map[string]string{"lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), []string{"lib/testdata/fixture.go"}, affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"removed package", head(nil), []string{"gone/gone.go"}, affected.ImportSetChanges{Changed: map[string]string{}, Module: "gone/gone.go", Source: "gone/gone.go"}},
+		{"testdata", head(map[string]string{"lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), []string{"lib/testdata/fixture.go"}, affected.ImportSetChanges{Changed: map[string]string{}, Source: "lib/testdata/fixture.go"}},
 		// go list fails on an embed pattern that matches nothing: a new
 		// embed line and a removed embedded file change the import set,
-		// an edited embedded file does not.
-		{"embed line", head(map[string]string{"assets/assets.go": "package assets\n\nimport _ \"embed\"\n\n//go:embed data.txt more.txt\nvar Data string\n"}), []string{"assets/assets.go"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/assets.go"}}},
-		{"embedded file removed", without(head(nil), "assets/data.txt"), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/data.txt"}}},
-		{"embedded file edited", head(map[string]string{"assets/data.txt": "other\n"}), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{}}},
+		// an edited embedded file does not, though its build reads it
+		// (Source, AFP-V0-9010).
+		{"embed line", head(map[string]string{"assets/assets.go": "package assets\n\nimport _ \"embed\"\n\n//go:embed data.txt more.txt\nvar Data string\n"}), []string{"assets/assets.go"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/assets.go"}, Source: "assets/assets.go"}},
+		{"embedded file removed", without(head(nil), "assets/data.txt"), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{assetsID: "assets/data.txt"}, Source: "assets/data.txt"}},
+		{"embedded file edited", head(map[string]string{"assets/data.txt": "other\n"}), []string{"assets/data.txt"}, affected.ImportSetChanges{Changed: map[string]string{}, Source: "assets/data.txt"}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -344,6 +347,8 @@ func TestHiddenPackageImportSetSelectsObserver_AFPV02202(t *testing.T) {
 		}
 		return tree
 	}
+	// AFP-V0-9010: all these .go paths remain observable source, even
+	// when Go ignores them or their import headers are unchanged.
 	const libFile = ".github/lib/lib.go"
 	importAdded := "package lib\n\nimport \"strings\"\n\nfunc Help() string { return strings.ToLower(\"help\") }\n"
 	bodyOnly := "package lib\n\nfunc Help() string { return \"other\" }\n"
@@ -353,12 +358,12 @@ func TestHiddenPackageImportSetSelectsObserver_AFPV02202(t *testing.T) {
 		dirty string
 		want  affected.ImportSetChanges
 	}{
-		{"hidden import", head(map[string]string{libFile: importAdded}), libFile, affected.ImportSetChanges{Changed: map[string]string{lib: libFile}}},
-		{"hidden file added", head(map[string]string{".github/lib/extra.go": "package lib\n\nimport \"os\"\n\nvar _ = os.Args\n"}), ".github/lib/extra.go", affected.ImportSetChanges{Changed: map[string]string{lib: ".github/lib/extra.go"}}},
-		{"hidden body", head(map[string]string{libFile: bodyOnly}), libFile, affected.ImportSetChanges{Changed: map[string]string{}}},
-		{"hidden package removed", head(nil), ".github/gone/gone.go", affected.ImportSetChanges{Changed: map[string]string{}, Module: ".github/gone/gone.go"}},
-		{"hidden testdata", head(map[string]string{".github/lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), ".github/lib/testdata/fixture.go", affected.ImportSetChanges{Changed: map[string]string{}}},
-		{"declared output", head(map[string]string{".agent-evidence/run/dump.go": "package dump\n\nimport \"os\"\n"}), ".agent-evidence/run/dump.go", affected.ImportSetChanges{Changed: map[string]string{}}},
+		{"hidden import", head(map[string]string{libFile: importAdded}), libFile, affected.ImportSetChanges{Changed: map[string]string{lib: libFile}, Source: libFile}},
+		{"hidden file added", head(map[string]string{".github/lib/extra.go": "package lib\n\nimport \"os\"\n\nvar _ = os.Args\n"}), ".github/lib/extra.go", affected.ImportSetChanges{Changed: map[string]string{lib: ".github/lib/extra.go"}, Source: ".github/lib/extra.go"}},
+		{"hidden body", head(map[string]string{libFile: bodyOnly}), libFile, affected.ImportSetChanges{Changed: map[string]string{}, Source: libFile}},
+		{"hidden package removed", head(nil), ".github/gone/gone.go", affected.ImportSetChanges{Changed: map[string]string{}, Module: ".github/gone/gone.go", Source: ".github/gone/gone.go"}},
+		{"hidden testdata", head(map[string]string{".github/lib/testdata/fixture.go": "package fixture\n\nimport \"os\"\n"}), ".github/lib/testdata/fixture.go", affected.ImportSetChanges{Changed: map[string]string{}, Source: ".github/lib/testdata/fixture.go"}},
+		{"declared output", head(map[string]string{".agent-evidence/run/dump.go": "package dump\n\nimport \"os\"\n"}), ".agent-evidence/run/dump.go", affected.ImportSetChanges{Changed: map[string]string{}, Source: ".agent-evidence/run/dump.go"}},
 	}
 	for _, test := range cases {
 		t.Run("measured "+test.name, func(t *testing.T) {
