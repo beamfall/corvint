@@ -199,7 +199,32 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 	}
 	changes := graph.importSets
 	if changes == nil {
-		changes = graph.unknownImportSets(normalized)
+		changes = graph.unknownImportSets(graph.compilingPaths(normalized))
+	} else if len(graph.goCommentOnly) != 0 {
+		// The comparison belongs to the plan, so never mutate a shared input.
+		filtered := *changes
+		filtered.Changed = maps.Clone(changes.Changed)
+		for id, relative := range filtered.Changed {
+			if graph.goCommentOnly[relative] {
+				delete(filtered.Changed, id)
+				// ImportSetRecords attributes a package header change to
+				// its first dirty path, which may be a comment-only sibling
+				// of the file that actually changed the header.
+				for _, candidate := range graph.compilingPaths(normalized) {
+					if strings.HasSuffix(candidate, ".go") && relativeDirectory(candidate) == relativeDirectory(relative) {
+						filtered.Changed[id] = candidate
+						break
+					}
+				}
+			}
+		}
+		if graph.goCommentOnly[filtered.Source] {
+			filtered.Source = graph.SourcePath(graph.compilingPaths(normalized))
+		}
+		if graph.goCommentOnly[filtered.Module] {
+			filtered.Module = ""
+		}
+		changes = &filtered
 	}
 	if len(changes.Changed) == 0 && changes.Source == "" && changes.Module == "" {
 		return

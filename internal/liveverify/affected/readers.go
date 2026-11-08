@@ -219,7 +219,11 @@ func globMatches(glob string, parts []string) bool {
 func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []string, followed map[string]bool) map[string]bool {
 	testless := func(id string) bool {
 		witness := reached[id]
-		return (witness.Kind == WitnessPathLiteralReader || witness.Kind == WitnessPathGlobReader) && witness.ViaLength() == 1 && witness.viaHead() == id && len(graph.units[id].Tests) == 0
+		// A comment-only owner's direct witness has not traversed its
+		// callers. Let the independent readers scan below establish any
+		// self-read before deciding those callers can be omitted.
+		reader := witness.Kind == WitnessPathLiteralReader || witness.Kind == WitnessPathGlobReader || witness.Kind == WitnessDirectSource && graph.goCommentOnly[witness.DirtyPath]
+		return reader && witness.ViaLength() == 1 && witness.viaHead() == id && len(graph.units[id].Tests) == 0
 	}
 	found := false
 	for id := range reached {
