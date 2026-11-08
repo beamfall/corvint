@@ -427,6 +427,9 @@ func (p *rustPlugin) Parse(ctx context.Context, req ParseRequest) ([]testrunner.
 		skipReasons = rustSkipReasons(req.Report)
 	}
 	var results []testrunner.RunnerResult
+	// An unsupported row never hides a later independently valid failure: the
+	// core's sticky failure check must see it even if a FULL retry passes.
+	nonterminal := false
 	for _, test := range o.Tests {
 		r := testrunner.RunnerResult{ID: test.ID}
 		switch test.State {
@@ -445,9 +448,13 @@ func (p *rustPlugin) Parse(ctx context.Context, req ParseRequest) ([]testrunner.
 				}
 			}
 		default:
-			return results, errors.Join(nativeErr, fmt.Errorf("rust-report-nonterminal"))
+			nonterminal = true
+			continue
 		}
 		results = append(results, r)
+	}
+	if nonterminal {
+		return results, errors.Join(nativeErr, fmt.Errorf("rust-report-nonterminal"))
 	}
 	// ParseRequest intentionally contains no process exit code. Executor errors
 	// are reconciled by the core. The legacy parser's synthetic zero-exit

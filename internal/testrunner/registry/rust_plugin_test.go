@@ -246,6 +246,20 @@ func TestRSPV0003RustTerminalResults(t *testing.T) {
 	}
 }
 
+// RSP-V0-003: an unsupported nextest row sorted first cannot hide a later
+// failed row; the failure survives alongside the nonterminal error.
+func TestRSPV0003RustNonterminalRowKeepsLaterFailure(t *testing.T) {
+	p := rustNew(t, rustOptions("nextest"))
+	report := `<testsuites><testsuite tests="2"><testcase classname="probe" name="a_crash"><error message="process aborted"/></testcase><testcase classname="probe" name="z_fail"><failure message="assertion failed"/></testcase></testsuite></testsuites>`
+	results, err := p.Parse(context.Background(), registry.ParseRequest{Runner: "nextest", Report: report})
+	if err == nil || !strings.Contains(err.Error(), "rust-report-nonterminal") {
+		t.Fatalf("unsupported row accepted: %+v %v", results, err)
+	}
+	if len(results) != 1 || !strings.HasSuffix(results[0].ID, "z_fail") || results[0].Outcome != "failed" {
+		t.Fatalf("later failure lost: %+v %v", results, err)
+	}
+}
+
 func TestRSPV0003RustDivergenceRerunsFull(t *testing.T) {
 	for _, runner := range []string{"cargo-test", "nextest"} {
 		o := rustOptions(runner)
