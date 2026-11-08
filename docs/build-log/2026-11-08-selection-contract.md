@@ -42,9 +42,24 @@ historical audit numbers, not a measurement at this lane's BASE and not a predic
 
 | Measurement | Before at lane BASE | After this change |
 |---|---|---|
-| Selection-baseline driver-minus-shadow package counts | NOT_RUN | NOT_RUN |
-| Selection-baseline driver-minus-shadow package-seconds | NOT_RUN | NOT_RUN |
+| Selection-baseline driver-minus-shadow package counts, 45 changes narrowed by both | +1,135 (19 to 35 per change) | −10 (0 in 37 changes; −1 or −2 in 8) |
+| Package-seconds of driver packages this change removes | 1,754 s | 0 |
 | CI job/package elapsed savings | NOT_PRODUCED | NOT_PRODUCED |
+
+Method: `tools/selection-baseline` replayed all 58 ranges of `changes.json` on the WSL host
+(GOMAXPROCS=4) with base and head builds of `corvint` and `gate-affected-select`.
+Base was merge-base 16ba0021ab0a; head was 22bfe16fb735. Both replays exited 0, and the
+`summary` blocks agree, with zero misses. "Driver" means the `gate-affected-select` `run`
+package list. "Shadow" means the Go units in the `corvint test --dry-run` manifest.
+The table counts only the 45 changes where the driver chose NARROW and the manifest
+chose NARROWED. The shadow count is identical before and after in all 55 NARROWED changes.
+After the change, the driver drops 1,145 packages and adds none. The package-seconds row
+weights those dropped packages by `.github/cishards/package-costs.json`. Three of the
+dropped packages have no cost entry and count as 0. Treating that figure as the base
+driver-minus-shadow cost assumes the head driver equals the shadow, which holds within the
+−10 residual. In those 8 changes the shadow has 1 or 2 more Go units than the driver.
+These are probably nested-module units, an explicit profile difference. The output records
+only unit counts, so this is an inference and was not checked unit by unit.
 
 The round explicitly prohibits selection-baseline-check, corvint test, doc-gates and
 whole-repository selection. Consequently corpus qualification belongs to the host verifier;
