@@ -129,9 +129,9 @@ command.
 | `CTF-V0-003` | The same goldens: the `runners`, `profiles`, `plan` (groups 1 and 4) and `verify-receipt` documents compare byte for byte, profile IDs included; the flag sets moved unchanged |
 | `CTF-V0-004` | `cmd/corvint-test-runner`, `cmd/corvint-behavior-falsify`, `cmd/corvint-playwright-minimize` and `cmd/corvint-tests-accept` are shims over the shared `cli` entries; their existing tests pass unchanged; the golden tests run the old names |
 | `CTF-V0-006` | `cmd/corvint-test/fold_test.go` `TestCTFV0006AcceptWorkerReentersCorvintTest`: an approved `corvint-test accept accept` over the fixture re-enters the built binary as `corvint-test accept worker`, and no run reads `worker-incomplete` (it does when the re-entry is `worker`). Live NEA-V0-002 (`TestNEAV0002ActualBrowserAssessment`, Playwright 1.64.0, Node 22.23.2) was run through the shim and failed identically before (`721706587`) and after the move with a bare `provider-infrastructure` on that host (lane cce2-1022u). On 2026-10-25 (lane cce-live-1025, V1-2431) it PASSES re-entering `corvint-test accept worker` (`CORVINT_ACCEPTANCE_COMPANION=corvint-test`; Playwright 1.64.0, runner Node v24.11.1, headless shell 1248): blocked, rejected, rejected; controls killed, survived, killed; no provider reasons. The 10-22 cause was not recoverable because the reason was bare; each run now names it (NEA-V0-011) |
-| `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007FoldedGroupBoundary` |
+| `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007FoldedGroupBoundary`; `internal/closureguard/companion_test.go` `TestCTFV0007CoreLinksNoFoldedGroup` |
 | `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
-| `CTF-V0-010` | `TestCTFV0007FoldedGroupBoundary` (core links no group entry) |
+| `CTF-V0-010` | `TestCTFV0007CoreLinksNoFoldedGroup` (core links no group entry) |
 
 `CTF-V0-005` and `CTF-V0-009` have no evidence yet: they bind groups 5 and 6, which have not
 moved.
