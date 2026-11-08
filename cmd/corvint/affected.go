@@ -22,6 +22,7 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
@@ -63,6 +64,9 @@ type affectedReceipt struct {
 	// its stderr line prints, so a reader of stdout alone, as after 2>&1,
 	// still gets the recovery (ACX-V0-750).
 	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
+	// LineSelection is present only with --line-index: the GLS-V0-010
+	// narrowing of the plan's Go units by per-test line coverage.
+	LineSelection *linecov.Selection `json:"lineSelection,omitempty"`
 	// WorktreeDirty is the size of the worktree status set alone, before the
 	// committed range is unioned into plan.dirty; the compact summary
 	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
@@ -153,6 +157,25 @@ type affectedInvocation struct {
 	// AuditChanges is set only by `affected audit`: the change manifest replayed
 	// against observed outcomes (AFP-V0-445).
 	AuditChanges string
+	// LineIndex is the --line-index file whose per-test line coverage narrows
+	// the --base plan into the lineSelection member (GLS-V0-010).
+	LineIndex string
+	// lineEnv is the environment whose Go settings the line selection's
+	// runner identity is read under; nil is this process's. Only
+	// `corvint test` sets it, to its profile's (GLS-V0-020).
+	lineEnv []string
+	// lineEnvErr refuses that environment: the profile passes a go flag the
+	// runner identity cannot carry, so the selection is runner-unavailable.
+	lineEnvErr error
+	// LineTestTimeout is --line-test-timeout, the go test -timeout the
+	// selected tests run under; lineTimeout is it parsed, the go test default
+	// without it, or the `corvint test` profile's -timeout (GLS-V0-020).
+	LineTestTimeout string
+	lineTimeout     time.Duration
+	// LineExec is --line-exec, the go test -exec wrapper the selected tests
+	// run under, which the runner identity names; `corvint test` sets it to
+	// its CI profile's confinement wrapper (GLS-V0-009, GLS-V0-020).
+	LineExec string
 	// OwnershipAudit is set only by `affected --ownership-audit`, which lists the
 	// tracked paths no claimant or declaration claims (AZU-V0-002).
 	OwnershipAudit bool
@@ -324,7 +347,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true, "--line-index": true, "--line-test-timeout": true, "--line-exec": true}
 
 // affectedFormatValues are the --format values `affected` accepts
 // (AFP-V0-928, amending AFP-V0-201).
@@ -474,6 +497,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			err = setAffectedOnce(&invocation.PathsFrom, name, value)
 		case "--cache":
 			err = setAffectedOnce(&invocation.Cache, name, value)
+		case "--line-index":
+			err = setAffectedOnce(&invocation.LineIndex, name, value)
+		case "--line-test-timeout":
+			err = setAffectedOnce(&invocation.LineTestTimeout, name, value)
+		case "--line-exec":
+			err = setAffectedOnce(&invocation.LineExec, name, value)
 		case "--snapshot":
 			if invocation.Snapshot != "" || value == "" {
 				err = argumentError("--snapshot requires exactly one nonempty value")
@@ -564,6 +593,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if len(invocation.PlaywrightEnv) != 0 && invocation.Snapshot != "" {
 		// A snapshot plan reads only the snapshot, never the invoking environment.
 		return affectedInvocation{}, argumentError("--playwright-env cannot be combined with --snapshot")
+	}
+	if err := affectedLineIndexProfileRefusal(invocation); err != nil {
+		return affectedInvocation{}, err
+	}
+	if err := resolveAffectedLineTimeout(&invocation); err != nil {
+		return affectedInvocation{}, err
 	}
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		return invocation, checkAffectedE2ESafe(invocation)
@@ -1223,6 +1258,15 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, affectedGitExecutableRefusal()
 	}
+	var lineRunner func() (string, error)
+	if invocation.LineIndex != "" {
+		// Read beside the graph build, so it adds no wall time (GLS-V0-009).
+		if refused := invocation.lineEnvErr; refused != nil {
+			lineRunner = func() (string, error) { return "", refused }
+		} else {
+			lineRunner = startAffectedLineRunner(ctx, root, invocation.lineEnv, invocation.lineTimeout, invocation.LineExec)
+		}
+	}
 	observed := invocation.observed
 	if observed == nil {
 		if observed, err = affectedObserve(ctx, gitExecutable, root); err != nil {
@@ -1286,6 +1330,14 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
+	var lineSelection *linecov.Selection
+	if invocation.LineIndex != "" {
+		selection := affectedLineSelection(ctx, affectedLineInputs{
+			root: root, index: invocation.LineIndex, base: invocation.Base, revision: revision,
+			worktreeDirty: len(dirty), graph: graph, plan: plan, runner: lineRunner, env: invocation.lineEnv,
+		})
+		lineSelection = &selection
+	}
 	affectedPlanSourcesObserved()
 	// The status, the graph and every later source read (prior read scopes,
 	// advice, provider and e2e selection, app navigations) are observations of
@@ -1325,6 +1377,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
 
+		LineSelection: lineSelection,
 		WorktreeDirty: worktreeDirty,
 	}
 	if invocation.Worktree {

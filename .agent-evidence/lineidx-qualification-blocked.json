@@ -1,0 +1,34 @@
+{
+  "profile": "lineidx-qualification-blocked/1",
+  "index": {
+    "commit": "23368e8dda547c6d58b0681aa2dd116eda592da7",
+    "digest": "sha256:6cc6bfe718d1e684c2b917ca087b1be9bb3d82b520a917e006c43e85d22cad9c",
+    "runner": "go1.27.3 linux amd64 cgo=1 goflags=\"\" goexperiment=\"\" atomic"
+  },
+  "seed": 20261103,
+  "mutationPackages": [
+    "internal/gateselect"
+  ],
+  "suitePackages": 426,
+  "sampleRequested": 5,
+  "controlsRequested": 1,
+  "candidateSites": 1129,
+  "baselinePassedPackages": [
+    "benchmarks",
+    "benchmarks/dogfood-measure",
+    "benchmarks/dogfood-workers",
+    "benchmarks/runner",
+    "benchmarks/selfuse-batch"
+  ],
+  "baselineFailedPackage": "cmd/corvint",
+  "baselineFailedTests": 45,
+  "mutantsExecuted": 0,
+  "controlsExecuted": 0,
+  "elapsedMillis": 272039,
+  "qualification": "NOT_PRODUCED",
+  "reason": "Unchanged baseline fails in the restricted host: synthetic ancestor .git changes non-repository detection; root directory owned by nobody fails work-runner ancestor ownership checks.",
+  "sourceBinding": "NOT_PRODUCED: executable VCS stamp was dirty because of the prepared CEM; this experimental report cannot create a qualification record.",
+  "originalReportSHA256": "289576837862c55586eb029623a9a2ec67b76613c865a598d7ff528294101e75",
+  "originalReport": "../lineidx-evidence/final/qualification.json",
+  "reproduction": "../lineidx-evidence/final/qualification-baseline-repro.log"
+}

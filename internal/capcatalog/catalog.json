@@ -1406,6 +1406,9 @@
         "--fail-fast-order",
         "--format",
         "--full",
+        "--line-exec",
+        "--line-index",
+        "--line-test-timeout",
         "--list",
         "--manifest-repo",
         "--no-cache",
@@ -1433,6 +1436,7 @@
       ],
       "schemaIds": [
         "affected-by-path/1",
+        "affected-line-selection/0",
         "affected-ownership-audit/0",
         "affected-plan/0",
         "affected-plan/1",
@@ -1448,6 +1452,7 @@
         "e2e-safe-selection/1",
         "external-evidence-provider/2",
         "external-test-selection/0",
+        "linecov-index/4",
         "playwright-affected/0",
         "playwright-discovery/0"
       ],
@@ -3724,6 +3729,7 @@
         "--go-parallel",
         "--go-test-json",
         "--harness",
+        "--line-index",
         "--manifest",
         "--out",
         "--outcomes",

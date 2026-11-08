@@ -4659,5 +4659,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/go-line-selection-v0.md",
+    "title": "Go Line-Level Test Selection V0",
+    "reqPrefix": "GLS-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-4364, V1-4365, V1-4366)",
+    "delivery": "experimental",
+    "claim": "A fresh per-test Go coverage index, bound to the environment it observed, narrows a Go change to the tests its lines can reach, fail-closed.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

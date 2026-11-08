@@ -206,10 +206,10 @@ func TestCollectorFamilies(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(ix.Tests) != 2 || !reflect.DeepEqual(ix.Unordered, []string{"tests"}) {
+			if len(ix.Tests) != 3 || !reflect.DeepEqual(ix.Unordered, []string{"tests"}) { // alpha, beta and the retained in-order record (GLS-V0-008)
 				t.Fatalf("index %+v", ix)
 			}
-			p, _ := ix.Narrow([]string{"tests"}, map[string][]string{"tests": {"alpha", "beta"}}, linecov.Effect{}, linecov.Effect{})
+			p, _ := ix.Narrow(nil, []string{"tests"}, map[string][]string{"tests": {"alpha", "beta"}}, linecov.Effect{}, linecov.Effect{})
 			if p["tests"].Mode != linecov.Whole {
 				t.Fatal("unqualified family excluded tests")
 			}

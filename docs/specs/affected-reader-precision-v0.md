@@ -151,6 +151,19 @@ Acceptance for AFP-V0-9201 through AFP-V0-9209 is the exact-path inventory and
 paired plans, unchanged confined package runs, declaration checker suite, and
 explicit exclusions retained in `docs/build-log/2026-11-07-rsdecl.md` (rsdecl2).
 
+### V1-5165 over-selection diagnostic
+
+- `AFP-V0-9510`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5165)
+  Every `corvint-pr-narrowing/0` record MUST carry `overSelected`, the recorded
+  selection's packages that the shadow plan did not select and that were not reused
+  (at most 50, sorted), and `overSelectedCount`, their full count. Both are computed
+  only when the driver and shadow selections were read and the selection within the universe was computed (`selectedOk`); otherwise the list is empty
+  and the count is `null`. The shard summary line names the count and up to five
+  packages. The fields are diagnostics only: they never change the mode, reasons,
+  placement or executed set, and an over-selection is not a narrowing failure.
+  Rollback deletes the two fields and the summary clause. Acceptance is
+  `TestAFPV0098SupersetGuard` and `TestAFPV0098SupersetGuardSidecar` in `tools/ci-forward-row/narrowing_test.go`.
+
 ## Non-goals and failure modes
 
 Non-goals: automatic whole-program read analysis, narrower treatment of arbitrary
@@ -192,3 +205,4 @@ repair direction; it changes no selector behavior or wire contract.
 | AFP-V0-9004 | unchanged dirty-declaration frontier, conditional path measurement | `TestDirtyForeignCallerDeclaration_AFPV09004` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9005 | `testReadKinds`, `internal/liveverify/mutate/export_test.go` | `TestFixtureReadKinds_AFPV09005` in `internal/liveverify/affected/golang/readkinds_test.go` |
 | AFP-V0-9200 | `.corvint/test-read-scopes.json` | Whole-package Landlock qualification and declaration-checker results in `docs/build-log/2026-11-07-rsdecl.md`; existing tests and assertions unchanged. |
+| AFP-V0-9510 | `.github/forward-rows/narrow.jq` `overSelected`/`overSelectedCount`, `narrow.sh` summary clause | `TestAFPV0098SupersetGuard` (cap, unknown selection) and `TestAFPV0098SupersetGuardSidecar` (summary names five) in `tools/ci-forward-row/narrowing_test.go` |

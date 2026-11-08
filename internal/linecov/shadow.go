@@ -164,6 +164,7 @@ func (ix *Index) classKey(s int32) (key, reach string, blocks int) {
 // own source is unchanged, and every reached segment has an equivalent in a
 // selected representative other than itself (MCJ-V0-006).
 func (ix *Index) Shadow(j Join, selected func(test int32) bool) ShadowReport {
+	ix.full()
 	r := ShadowReport{Mode: ShadowMode}
 	if j.Fallback != "" {
 		return r
