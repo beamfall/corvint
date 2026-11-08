@@ -4653,7 +4653,7 @@
     "title": "Runner Selection Plugins V0",
     "reqPrefix": "RSP-V0",
     "intent": "accepted (decision 0592: owner 2026-11-07 for its §1-§2; §3-§7 orchestrator-made under the 2026-11-02 delegation, owner may override)",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "Runner plugins declare inventory, per-test evidence and qualification; one language-neutral selector narrows qualified runners and runs every other runner FULL.",
     "dependsOn": [],
     "supersededBy": null,

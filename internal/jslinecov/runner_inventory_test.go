@@ -200,6 +200,7 @@ func TestRSPV0003NodeFailedSummary(t *testing.T) {
 		t.Fatal("partial events passed")
 	}
 }
+
 // A Node report truncated before a file's test:summary keeps that file's
 // validated test:fail as a failed result, so a passing FULL retry cannot make
 // the inventoried run succeed; a later summary does not add a second result.
