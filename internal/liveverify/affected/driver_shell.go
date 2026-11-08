@@ -758,10 +758,32 @@ func (s *driverShellScanner) driverOperandRecorded(word, cwd string) bool {
 	case strings.HasPrefix(word, "-") && word != "-":
 		return false
 	case strings.ContainsAny(word, "*?["):
-		word = driverGlobDirectory(word)
-		if word == "" {
+		directory := driverGlobDirectory(word)
+		if directory == "" {
 			return false
 		}
+		relative := driverJoin(cwd, directory)
+		if !ValidRelativePath(relative) || !driverPlainPath(s.scan.source, relative) {
+			return false
+		}
+		entries, err := s.scan.source.ReadDir(relative)
+		if err != nil {
+			return false
+		}
+		suffix := strings.TrimPrefix(path.Base(word), "*")
+		for _, entry := range entries {
+			if !strings.HasSuffix(entry.Name(), suffix) {
+				continue
+			}
+			// Only regular matched files are covered by the directory
+			// edge. Links, directories and unknown kinds can introduce
+			// reads outside it; never infer their targets from the parent.
+			info, err := s.scan.source.Lstat(path.Join(relative, entry.Name()))
+			if err != nil || !info.Mode().IsRegular() {
+				return false
+			}
+		}
+		return true
 	}
 	relative := driverJoin(cwd, strings.TrimSuffix(word, "/"))
 	return ValidRelativePath(relative) && driverPlainPath(s.scan.source, relative)
@@ -901,7 +923,7 @@ func (s *driverShellScanner) driverCertified(words []driverWord, cwd string) boo
 		return false
 	}
 	base := path.Base(head)
-	if strings.Contains(head, "/") && !strings.HasPrefix(head, "/") {
+	if strings.Contains(head, "/") {
 		return s.driverOperandRecorded(head, cwd) && driverShellTest(head) && s.driverTestArgumentsRecorded(words[1:], cwd)
 	}
 	switch {

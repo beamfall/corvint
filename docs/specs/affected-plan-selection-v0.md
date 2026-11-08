@@ -1987,6 +1987,8 @@ one list, so a later class cannot reopen it.
   `Cmd.Dir`; these commands keep the whole-tree bound until a separate proof can narrow
   it. A pure command mentioning an enumerator as data does not itself enumerate.
   Ordinary Go build, vet and test invocations retain their existing package edges.
+  File-set reads discovered in shared make evaluation or remainder recipes, including
+  special rules, SHALL propagate to every target builder (avdrv self-review, 2026-11-07).
 - **AFP-V0-9402:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reached driver file-set reader SHALL also reach its driver dependents,
   including make prerequisites and workflow callers, even when a dirty path has an
   already tested owner. Existing computed fallbacks and their `FRONTIER_SITE` witnesses
@@ -2190,7 +2192,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | Requirement | Implementation | Regression witness (pending execution) |
 |---|---|---|
 | AFP-V0-9400 | `driverShellScanner.script` in `internal/liveverify/affected/driver_shell.go` | `TestDriverHeredocConsumers_AFPV09400` in `internal/liveverify/affected/driver_avdrv_test.go`: wrapper, generated script, substitution, nested output, unclosed and tab-stripped body; workflow selection and quoted-text controls |
-| AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
+| AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverSharedEnumeration_AFPV09401`, `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
 | AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses |
 
 | Requirement | Implementation | Evidence |
