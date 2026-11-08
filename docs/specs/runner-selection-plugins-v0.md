@@ -678,10 +678,11 @@ outcomes equal the stated ones.
 Rollout is `RSP-V0-040`; every step before its qualification is shadow-only and changes no plan
 (`RSP-V0-046`).
 
-Rollback, per runner: delete or supersede its qualification record, or remove its entry from
-`.corvint/runner-plugins.json`; either returns it to FULL at once where core has a pre-plugin
-execution path for that runner, and otherwise the run fails `runner-adapter-unavailable`
-(`RSP-V0-031`). Rollback of the whole capability
+Rollback, per runner: deleting or superseding its qualification record returns it to FULL at once,
+and the still-pinned plugin keeps supplying `command`, `inventory` and `parse` for that FULL run.
+Removing its entry from `.corvint/runner-plugins.json` also returns it to FULL, but only where core
+has a pre-plugin execution path for that runner; otherwise the run fails
+`runner-adapter-unavailable` (`RSP-V0-031`). Rollback of the whole capability
 is a revert of each slice, which restores the plans in force before this spec; records are derived
 state, so deleting the index extension needs no migration. The protocol is versioned
 (`RSP-V0-032`), and removing a plugin never breaks the core's frozen surface (`CMS-V0-003`).
