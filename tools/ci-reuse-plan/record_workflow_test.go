@@ -21,8 +21,8 @@ import (
 func TestAFPV0170RecordJobRunsNoRepositoryCode(t *testing.T) {
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), "ci-tested-tree-record")
 	wantLine(t, "ci-tested-tree-record", b, "    needs: [docs-plan, narrowing-verdict, go-product-shard]")
-	if !strings.Contains(b, "needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (") {
-		t.Error("the record job must need every shard to succeed with no narrowing verdict or every shard FULL")
+	if !strings.Contains(b, "needs.go-product-shard.result == 'success' && ((needs.go-product-shard.outputs.full0 == 'FULL'") || strings.Contains(b, "needs.narrowing-verdict.outputs.verdict") {
+		t.Error("the record job must need every shard to succeed with every shard FULL, whatever the narrowing verdict")
 	}
 	runsNoRepositoryCode(t, "ci-tested-tree-record", b)
 }
@@ -131,7 +131,7 @@ func runsNoRepositoryCode(t *testing.T, name, b string) {
 	}
 }
 
-// AFP-V0-170 (V1-3051): under a MET narrowing verdict the record job still runs when every shard
+// AFP-V0-170 (V1-3051): under any narrowing verdict the record job runs only when every shard
 // says, through its own job output, that it ran its complete package set. Each full<index> output
 // is non-empty only in the shard of that index (matrix outputs are last-writer-wins), says FULL
 // only when that shard's tests passed and its narrowing gate, the only route to a narrowed shard,
@@ -152,7 +152,7 @@ func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 	}
 	var all []string
 	for i, o := range outs {
-		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}", i)
+		want := fmt.Sprintf("${{ strategy.job-index == %d && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}", i)
 		if o[1] != fmt.Sprintf("full%d", i) || o[2] != want {
 			t.Errorf("output %s: %s, want full%d: %s", o[1], o[2], i, want)
 		}
@@ -162,8 +162,8 @@ func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 		t.Error("a full<index> output must not read an output the tests step can write")
 	}
 	record := jobBlock(t, w, "ci-tested-tree-record")
-	if !strings.Contains(record, "(needs.narrowing-verdict.outputs.verdict != 'MET' || ("+strings.Join(all, " && ")+"))") {
-		t.Errorf("the record job must need every one of the %d full<index> outputs under a MET verdict", n)
+	if !strings.Contains(record, "needs.go-product-shard.result == 'success' && (("+strings.Join(all, " && ")+"))") {
+		t.Errorf("the record job must need every one of the %d full<index> outputs under any verdict", n)
 	}
 	// The narrowing gate is the only route to a narrowed shard: the tests step narrows only on
 	// its NARROWED output, and the gate runs before the tests step.
@@ -174,6 +174,12 @@ func TestAFPV0170RecordNeedsEveryShardFullUnderAMetVerdict(t *testing.T) {
 	}
 	if strings.Count(shard, `"$NARROW_MODE"`) != 1 || !strings.Contains(shard, `[ "$NARROW_MODE" = NARROWED ]`) {
 		t.Error("the tests step must narrow only on a NARROWED gate output")
+	}
+	// GLS-V0-042: the line-level step, the only route to a line-narrowed shard, also runs before
+	// the tests step and names no tested tree when it says NARROWED.
+	line := strings.Index(shard, "        id: linecov\n")
+	if line < 0 || line > tests || !strings.Contains(shard, `[ "$LINECOV_MODE" = NARROWED ]`) {
+		t.Error("the line-level step must run before the tests step, which narrows only on its NARROWED output")
 	}
 }
 
