@@ -59,6 +59,14 @@ func Profile(ctx context.Context, binDir string, args []string, stdin io.Reader,
 		return 0
 	}
 	words, help := helpPath(tree, rest)
+	// An exact inventory node followed by a help flag owns its page, including
+	// the literal "help" node. General `help COMMAND` remains a topic alias.
+	if len(rest) > 1 && (rest[len(rest)-1] == "--help" || rest[len(rest)-1] == "-h") {
+		path := rest[:len(rest)-1]
+		if node, found := tree.Find(path); found && len(node.Path) == len(path) {
+			words, help = path, true
+		}
+	}
 	if help {
 		if len(words) > 0 && (words[len(words)-1] == "--help" || words[len(words)-1] == "-h") {
 			words = words[:len(words)-1]

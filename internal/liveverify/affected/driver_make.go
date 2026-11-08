@@ -1357,7 +1357,10 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		// their own wildcard result. Patterns, absent names and unknown
 		// directories stay unknown (AFP-V0-3121), never a truthy argument.
 		value := e.expand(args)
-		if !definite(value) || e.file.source == nil {
+		// Only the root makefile's default source-root context is known.
+		// A nested file can be invoked with -f from a different directory;
+		// its location is not evidence of the invocation's working directory.
+		if !definite(value) || e.file.source == nil || e.file.dir != "." {
 			e.unmodeledEffects = true
 			return retain()
 		}
@@ -1410,9 +1413,13 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		value := ""
 		for _, part := range driverMakeSplitTop(args, ',', 0) {
 			// GNU make strips ASCII whitespace from the unexpanded argument
-			// and skips an argument left empty (AFP-V0-9050).
+			// before testing it (AFP-V0-9050). An empty conjunction
+			// argument is false, even before expansion.
 			trimmed, exact := driverMakeTrim(part)
 			if trimmed == "" {
+				if name == "and" {
+					return "", true
+				}
 				continue
 			}
 			value = e.expand(trimmed)
