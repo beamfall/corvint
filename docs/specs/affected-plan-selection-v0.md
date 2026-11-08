@@ -61,6 +61,8 @@ to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
 Lane floor (2026-11-03; V1-0643, V1-2744) adds
 AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reason; see build-log
 entry `2026-11-03-floor-typed-reach`.
+Lane selmin (2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9011
+here for the same reason; see build-log entry `2026-11-07-selmin`.
 
 ## User and current state
 
@@ -265,13 +267,20 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   concatenation whose first operand is a literal or a file constant that does not start with `-`.
   The outermost function holding the call must also assign no `Args` field, assign an `Env`
   field only `append(os.Environ(), ...)` or `[]string{...}` of string literals none of which sets
-  `GOFLAGS` or `GOENV`, and make every other `os/exec` call with string-literal arguments only, so
+  `GOFLAGS` or `GOENV`. At every environment proof site, the `Environ` receiver SHALL
+  resolve to an unshadowed standard `os` import (including an explicit alias), not merely
+  have the spelling `os`; unknown receivers and environment forms leave the call unproven.
+  It must also make every other `os/exec` call with string-literal arguments only, so
   no listed name feeds another command; the call, its command, its output and every value derived
   from them must stay in that function: none is returned, sent on a channel, stored anywhere but a
   local of the function, or passed to a call other than a builtin or conversion, a function of a
   standard-library import, or a method of a derived value or of a `*testing.T`, `*testing.B`,
   `*testing.F` or `testing.TB` parameter of a function enclosing the call, so no helper or caller
-  can build or run what it lists; and no file of the unit may name `GOFLAGS` or `GOENV`. Each literal pattern of a proven call names the directory it
+  can build or run what it lists; and no file of the unit may name `GOFLAGS` or `GOENV`.
+  Every builtin or predeclared conversion used by these proofs SHALL have unshadowed identity:
+  conservatively, any declaration or import shadowing a predeclared name anywhere in the unit,
+  a dot import, or an unreadable/unparseable file leaves every listing unproven.
+  Each literal pattern of a proven call names the directory it
   resolves to as `commandDirectory` resolves a command literal (AFP-V0-402); a pattern with
   `...`, the `all` pattern, a computed pattern or a directory that holds no observed package
   makes the unit a reader of the whole module (`Unit.ImportGraphReadsAll`), and `std` and `cmd`
@@ -311,8 +320,9 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   skips but an import still builds and the Go plugin indexes, SHALL be a package file in both
   the comparison and the assumption below, unless no unit owns it and the repository declares it
   non-source output (AZU-V0-9921) or it lies below `.git`, `.hg` or `.svn`, so an import change in
-  an indexed hidden package selects the readers that list an importer of it. Without the comparison (a `--path` plan, an unreadable base, a caller of `affected.Select`
-  that supplies none) the selector SHALL assume every dirty `.go` file of a Go unit changes its
+  an indexed hidden package selects the readers that list an importer of it. Unconstrained test files
+  fold into their package's test import sets (AFP-V0-9010). Without the comparison (a `--path` plan, an unreadable base, a caller of `affected.Select`
+  that supplies none; library planners that measure from a base supply it, AFP-V0-9011) the selector SHALL assume every dirty `.go` file of a Go unit changes its
   unit's import set and every unowned one, or a module file, changes the module's, so no reader is
   lost. Measured (build-log entry `2026-11-03-selprec-selection-precision`): deleting
   `cmd/corvint-lsp/swift_impact.go`, an import-set change in a binary that
@@ -1091,7 +1101,12 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   amends AFP-V0-012 rule (d) and AZU-V0-9930; review fix 2026-11-07) Locating the working directory
   is not a read. An `os.Getwd` call (under the local name the file's import gives `os`) whose two
   results are bound by one `:=` or `=` statement to a local variable and a local variable or blank
-  SHALL NOT make its package an unbounded reader when every other use of the path variable is (a) an
+  SHALL NOT make its package an unbounded reader only after every initializer and assignment is
+  certified: the closed allowlist is a two-result call of the imported `os.Getwd`, a single local
+  string declaration with no initializer, or a single local declaration initialized to the empty
+  string literal. Arbitrary calls, parameters, other literals, unresolved receivers and all other
+  write forms retain the root-locator claim, even before a conditional fallback. Every other use
+  of the path variable must be (a) an
   operand of `==` or `!=` against a string literal, or (b) the first argument of a `filepath.Join`
   or `path.Join` call (under the local name the file's import gives `path/filepath` or `path`) whose
   every other argument is a string literal whose path components are plain names, not empty, `.`,
@@ -1180,10 +1195,19 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   command substitution (`$(...)`, backticks), a process substitution (`<(...)`, `>(...)`) or a make
   `$(shell ...)` encloses it, at any nesting (a `sh -c` script inside such a context inherits it).
   The consumer may run what the command lists: `go list ./lib | xargs -I PKG go test PKG` runs
-  lib's tests, so a root locator in lib reaches the driver. A `go list` whose output goes to a file
-  or nowhere keeps its build-only edge; a command that later reads that file is fed (AFP-V0-2957)
-  or holds an expansion, which already imports every owner. The shell scanner SHALL NOT take the
-  word after `<(` or `>(` as a redirect target.
+  lib's tests, so a root locator in lib reaches the driver. Buffered listing output can also be
+  executed as a named program (`go list -f 'go test {{.ImportPath}}' ./lib > /tmp/check; sh /tmp/check`).
+  A listing without a known direct consumer keeps build-only classification only for the closed
+  output allowlist: default package paths, or the exact single-field `{{.Dir}}` and `{{.ImportPath}}`
+  formats. The understood options are `f`, `C`, `tags`, `mod`, `modfile`, `overlay`, `compiler`,
+  `gcflags`, `asmflags`, `ldflags`, `pkgdir`, `e`, `deps`, `test`, `find`, `race`, `msan`, `asan`,
+  `trimpath`, `modcacherw` and `buildvcs`. Any other option or output format retains execution edges
+  to every possible owner and marks the invocation computed: an emitted program may execute a
+  package other than the listed input
+  (`go list -f 'go test ./{{printf "%s%s" "rea" "der"}}' ./lib` runs `reader`, not `lib`).
+  Do not infer that a later file consumer must be fed or expanded. This is conservative over
+  arbitrary templates whether or not the scanner sees their eventual consumer. The shell scanner
+  SHALL NOT take the word after `<(` or `>(` as a redirect target.
 - **AFP-V0-2957:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   review fix 2, 2026-11-07) A command that `xargs`, `parallel`, or `find`'s `-exec`, `-execdir`,
   `-ok` or `-okdir` runs takes arguments the scanner cannot read. A go package command it runs
@@ -1412,24 +1436,35 @@ one list, so a later class cannot reopen it.
   a cut (AFP-V0-3146).
 - **AFP-V0-3149:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   review fix 7, 2026-11-07; refines TSP-V0-960 and AFP-V0-3147) A value of a name that refers to that
-  name SHALL be expanded once, with no cut, when no unrolling of it can be a literal path. Two cases
-  qualify:
-  - an unknown part precedes the first reference at the top level of the value
-    (`corvint_bin="$PWD/$corvint_bin"`), so every unrolled value holds it;
-  - the value is the reference alone (`dir=${dir:-script}`), whose unrollings are the name's values
-    themselves.
+  name SHALL be expanded once, with no cut, only when every self-referential assignment
+  belongs to this closed allowlist:
+  - the plain identity `$name` or `${name}`;
+  - a standalone `-`, `:-`, `=` or `:=` default with a literal operand containing no `$` or
+    backquote (`dir=${dir:-script}`);
+  - a plain reference with exactly the working-directory prefix `$PWD/` or `${PWD}/`
+    (`corvint_bin="$PWD/$corvint_bin"`), with no suffix, whose complete bounded expansion is
+    exactly one unknown part followed by `/`. Other prefixes and appended suffixes are unproven:
+    wildcard-prefixed extensionless execution targets are not resolved by `constructed`.
 
-  Each such reference takes the name's values that do not refer to it, and the unknown part for any
-  earlier value. The unrolled value expands at its name's depth, because it adds no link to a chain
-  and its reference cannot recur on itself. So `static_bin` reaching `override="$PWD/$override"`
-  and then `corvint_bin="$PWD/$corvint_bin"` stays within depth 4. A deeper unrolling links nothing and has a file name that the single unrolling's
-  pattern, or the unknown part's, already matches. So the depth bound drops nothing and the unit
-  stays bounded, with the single unrolling's edges and constructed names. Three forms SHALL still
-  reach the depth bound and be cuts (AFP-V0-3147), because their unrollings may each be a literal
-  path that links:
-  - a literal wrapper (`x="../$x"`, `x="$x/bin"`);
-  - a reference nested in another expansion (`${y:-abc$x}`);
-  - a cycle through another name.
+  Each reference takes all non-self-referential values, every allowed default's literal operand,
+  and the unknown part for earlier values. Thus one default cannot discard another default's
+  reachable target. The unrolled value expands at its name's depth, because its reference cannot
+  recur on itself. References inside opaque command substitutions or backquotes do not recurse
+  through the value expander and SHALL NOT be classified as self-reference cycles; they retain
+  TSP-V0-960's existing opaque-result treatment. Existing working-directory normalization chains stay within depth 4 and retain their edges and
+  constructed names. Any self-reference outside this allowlist SHALL retain the dynamic-source
+  protection of AFP-V0-3147, whether or not expansion reaches a numerical bound. This includes
+  composed alternatives (`x=${x:-script}; x=${x:+$x/check}`), unknown transformations
+  (`x=${x%/unused}`), unknown-prefix references with suffixes (`x="$PWD/$x/check"`), literal
+  wrappers, nested self-references and cycles through other names. A prefix that adds a directory
+  (`x=check; x="$PWD/script/$x"`), an opaque command-result prefix, or an in-file `PWD` value
+  that adds a directory SHALL retain the same protection. Unknown prefix forms fail closed.
+  Failure mode: discarding a default or certifying an arbitrary braced reference can omit a
+  reachable extensionless script and its dynamic sources. Acceptance: the reported default/alternative
+  composition, prefix-directory composition and unknown prefix/transform forms select the wrapper
+  for configuration and target changes; composed defaults and plain working-directory normalization
+  preserve the literal execution edge. Rollback: disable this shortcut
+  and retain dynamic-source protection for every self-reference; never restore unchecked unrolling.
 
 ### Live test tier (V1-4815)
 
@@ -1866,6 +1901,124 @@ one list, so a later class cannot reopen it.
   dropped tests (a missed observer can only be one of them) plus `-oracle-also` controls. Recall
   against observed outcomes is retained in the build-log entry.
 
+### Test-file import edges, line-less runtime sites and library planning (V1-5029, V1-5026, V1-5030)
+
+- **AFP-V0-9009:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5026; amending AZU-V0-8902) The file of a located
+  `typescript:e2e-runtime-dependency:` site SHALL be the site text with its trailing backquoted
+  token (a space and a backquoted spelling, cut at the last space-backquote) removed, then a trailing `:LINE` of digits
+  removed. A line-less site such as `` dir/tests/items.spec.cjs `playwright` `` therefore reaches
+  a directory runtime edge (`.corvint/runtime-edges.json`) that declares its test, selects the
+  declared caller and closes, as a site with a line already did. A site ending in a backquote
+  with no space-backquote, a truncated `+N` entry, or one whose file no unit owns as a test still
+  names no declared caller and stays unknown. When the whole site text is itself a test path (a
+  file whose name ends in a backquoted word or `:digits`), that test is the site. When the parsed
+  file is a test as well, the site is ambiguous and stays unknown, so the parse never moves a site
+  onto another declared test. Measured on this tree with `corvint affected
+  --path extensions/vscode/src/extension.ts`: the three live-1.61.1 Playwright specs
+  (`internal/doccorpus/.../behavior-events/live-1.61.1/tests/items.spec.cjs` and the two
+  `internal/jstestprovider/.../route-stubs/live-1.61.1*/tests/*.spec.cjs`) become selections
+  (264 to 267 selected units), and their three `e2e-runtime-dependency` unknowns close (67 to 64).
+
+- **AFP-V0-9010:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5029; amending AFP-V0-2202) A test file adds an import edge to no other package unless it
+  changes its package's test import set. The package header compared by AFP-V0-2202 SHALL
+  therefore fold every *unconstrained* test file of a directory into one summary line, when
+  the directory's non-test files declare exactly one package clause N that neither ends in
+  `_test` nor is `documentation`, and every unconstrained test file declares N or `N_test`. The
+  summary holds the sorted set of import paths of the N test files, that of the `N_test` files,
+  and the sorted `//go:embed` lines of both. A test file is unconstrained when it has no
+  `//go:build` or `// +build` line, imports no `"C"`, and its name names no GOOS or GOARCH
+  (`go/build.Context.MatchFile` accepts it for a platform no name names). A new, edited or
+  removed test file that leaves both role sets and the embed lines as they were changes no import
+  set and selects no *proven* import-graph reader outside its package. A test file that adds an
+  import path to its role's set, moves one between roles, shrinks a set, adds an embed line,
+  declares another package clause, carries a constraint or a platform name, or imports `"C"`
+  still changes it. So does any test file of a directory without exactly one non-test clause,
+  which keeps its own header line. The fold, and every header comparison, narrows only readers
+  proven to observe the import graph alone. A reader (a unit with a `go list` call) SHALL be
+  marked `Unit.ImportGraphReadsFiles` (set only with `ImportGraphReadsAll`, part of the graph
+  digest and the graph cache entry when set) unless it is proven: every `go list` call is proven
+  (AFP-V0-2200; a `-json` call, a template naming `Doc`, `TestGoFiles` or another field outside
+  the AFP-V0-2200 list, or a unit that names `GOFLAGS` or `GOENV` is not), and no file of the
+  unit may observe package metadata or source text by another channel. The channel classifier is
+  a closed allowlist that fails closed: a file is proven only when every construct in it is one
+  the allowlist names, and anything it cannot classify is observing. A file is proven when it
+  can be read and parsed; every `//go:` line is `build`, `generate`, `noinline` or `fix` (so
+  `embed`, `linkname`, `wasmimport` and any unknown directive are not); every function has a body
+  (one without is implemented in assembly); every import is either a standard package on the
+  inert list (`inertImports`: packages such as `bytes`, `context`, `encoding/json`, `fmt`, `io/fs`,
+  `runtime`, `strings`, `testing` and `time`, whose API cannot read a file, start a process or
+  report build metadata from the values a file can build without the classified packages) or a
+  classified package (`os`, `io/ioutil`, `path/filepath`, `reflect`, `os/exec`), named by a local
+  name no declaration of the file shadows, never by a dot import; and no selector names `Chdir`,
+  `Setenv`, `Unsetenv` or `Clearenv`, whatever the receiver (`t.Chdir` and `t.Setenv` included),
+  because a working-directory move redirects every relative read and `go list` target, and an
+  environment change can set `GOFLAGS` or `GOENV` by a computed name. A classified package's
+  members are allowed one by one (`classifiedImports`). `reflect` allows only `DeepEqual`. Among
+  the other packages, only explicitly classified non-observing members, including path arithmetic
+  (`filepath.Join`, `Dir`, `Rel` and the like) and environment reads, are allowed. Filesystem
+  mutators are observing: their errors can reveal source existence or metadata. No mutator
+  is certified here, including one targeting fixtures or temporary outputs, because mutation-path
+  confinement is not proven. Unknown members also remain observing. `ReadFile`, `Open`, `ReadDir`, `Stat` and `Lstat` of `os` (and
+  `ReadFile` and `ReadDir` of `io/ioutil`) are allowed only as a call whose path is a literal, or
+  a `path` or `path/filepath` `Join` of literals, naming the package's own `testdata` directory or
+  a path below it. This path proof SHALL reject climbing components and admit only
+  regular files and directories in unfollowed source-directory entries, checking every ancestor
+  before descent. An absent entry after checked ancestors is harmless; a symlink, other entry
+  mode, metadata failure or unknown filesystem result is observing. Any other member makes the file observing: `filepath.Walk`, `WalkDir`, `Glob`,
+  `os.DirFS`, `OpenRoot` and `StartProcess` among them. An `os/exec` member is allowed only as the
+  selector of a `go list` call that AFP-V0-2200 proves (recorded by byte offset), and only inside
+  a function. Every other reference makes the file observing: an alias (`run := exec.Command`), a
+  function or method value, an `exec.Cmd` or `exec.ExitError` type, a struct literal, a
+  package-level command, or any other command. The command such a call builds SHALL stay confined
+  to its outermost function. It is either the receiver of a call of `Output`, `CombinedOutput`,
+  `Run`, `Start`, `Wait`, `String`, `Environ` or a pipe method, or the sole value of a
+  `name := call` (or `var name = call`). Every other use of name SHALL be such a method call; an
+  assignment of `Stdin`, `Stdout`, `Stderr`, `WaitDelay`, `Cancel`, `Dir`, or `Env` from a literal
+  environment proven by the closed AFP-V0-2200 forms and import identity; a read of `Stdin`,
+  `Stdout`, `Stderr`, `Process` or `ProcessState` that does not take its address; or another definition by an `os/exec` call. Any other use leaves the call
+  unproven: an argument (`json.Unmarshal(data, c)` included), a stored or returned value, an
+  address, a `Path` or `Args` reference (`c.Args[4] = ...` included) or a reassignment. A `Dir`
+  assignment SHALL keep the call proven only for the closed directory-origin allowlist:
+  the literals `""` and `"."`; a direct fresh `TempDir()` on an unshadowed testing parameter
+  used only as a direct method receiver; or the module root derived from this source file's
+  `runtime.Caller(0)` physical filename through `filepath.Dir`, `Clean` and `Join` with relative
+  literals. This filename origin SHALL be certified only without line remapping: either
+  `//line` or `/*line ...*/` directives anywhere in the file invalidate this origin.
+  Root derivations may use uniquely declared, preceding top-level locals only when
+  every use belongs to the derivation (no assignment, address, alias or escape), and only when
+  resolving the call from the root preserves its target set. Every unknown origin or form
+  makes the call unproven, retaining whole-module source observation as well as import reads.
+  Directory provenance alone SHALL NOT add a binary-execution edge for the listing's literal
+  targets: when the arguments, command confinement, environment and output uses otherwise
+  satisfy the closed AFP-V0-2200 proof, those literals are still only listing arguments.
+  An unknown command use, mutation or escape keeps them ordinary uses and retains any binary
+  edge. A later known directory assignment SHALL NOT erase an earlier unknown one.
+  The comparison SHALL record
+  `ImportSetChanges.Source` (`Graph.SourcePath`), whatever the headers: the least dirty path
+  that the go command or a source parser may observe. That is a `.go` file (paths the go tool
+  ignores included), a file the go command lists by another suffix (`.c`, `.h`, `.s`, `.syso`
+  and the rest), or any file below an embedding Go unit's directory, whose content its build
+  reads. Every `ImportGraphReadsFiles` reader is selected through it when no import set changed, with the witness chain owning unit (when a Go unit owns the path),
+  reader. So a package comment, a body edit, a kept-set test file, an assembly file or an
+  embedded file's content selects every unproven reader and no proven one; a path of none of
+  these kinds (a README) selects none through this edge. A reader's file reads of other paths
+  stay governed by its read scopes. With no comparison (nil), `Source` is computed from the dirty paths
+  the same way.
+
+- **AFP-V0-9011:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5030) Library planning from a known base SHALL compare import sets as `corvint affected
+  --base` does. `languages.SelectAt(ctx, root, head, commit, graph, dirty)` compares at a
+  pinned commit read from the repository under root, and `languages.SelectBetween(base, head,
+  graph, dirty)` compares two source trees; both then call `affected.Select`. The library callers
+  that measure a change from a base use them: `prove`'s affected-test rows, `flows impact`
+  (`appflows.FlowImpactAt`) and `delta.Compile`. So does `corvint affected --snapshot`, which
+  pins its base. An unpinned or unreadable base (or a nil base tree) leaves the comparison
+  unknown, and the plan counts every dirty Go file as an import-set change, exactly as a
+  `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
+  fallback; none drops a reader.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -1988,7 +2141,10 @@ owns is an author error: the path's real readers are still selected by the reade
 the unowned-path unknown is lifted, as for a documentation declaration (AFP-V0-160). A mapping
 whose tests no longer exist refuses the build (AFP-V0-2483). A must-run entry makes every plan
 larger; it never makes one smaller. An unreadable `corvint test` receipt leaves the order with
-that receipt `UNREADABLE` and contributes no failure; it never fails the plan.
+that receipt `UNREADABLE` and contributes no failure; it never fails the plan. A test file
+whose header cannot be parsed on either side changes its directory, as any unparsable file
+does (AFP-V0-9010). A base that `SelectAt` cannot resolve or read never narrows a plan: it
+falls back to the unknown comparison (AFP-V0-9011).
 A stale AFP-V0-2400 declaration misses an input the
 test later reads, as before the declaration; it can never narrow. An AFP-V0-2402 run set misses a
 package only where the plan's reviewed rules exclude a real reader, which AFP-V0-2403 measures on
@@ -2120,13 +2276,13 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-2749 | `admittedDeletion` in `internal/liveverify/affected/deletedtests.go`, its calls in `seed` and `participants` (`select.go`) | `TestDeletedGoSourceStaysUnownedForOtherPlugins_AFPV2749` and `TestAdmittedDeletionsStayUnownedInParticipants_AFPV2749` in `internal/liveverify/affected/deletedsources_test.go` (both fail with `participants` testing only `deletedFixture`); the one-file deletion replays in build-log entry `2026-11-07-selgo-fix4` |
 | AFP-V0-2750 | `AllowedUnknown` and `FrontierSuite` in `internal/gateselect/allowlist.go`; the `FrontierSuite` case and `suite` lines of `unknownNarrowing` and `selectPackagesFrom` in `internal/gateselect/select.go`; `frontierSuite` and its call in `Build` (`internal/sessiontest/plan.go`); the shell-test-select allowance; the `cfamily` entry of `.github/cishards/test-commands.json` and of `languageRunners` in `tools/test-commands-check/main.go`; `dryRunManifest` and `testIncomplete` in `tools/selection-baseline/main.go` | `TestFrontierSuiteRunsInCorvintTest_AFPV2750` and `TestFrontierSuiteNamedByGateAffectedSelect_AFPV2750` (`internal/sessiontest/frontiersuite_afpv2750_test.go`; both fail with the blanket allowance restored); `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`; `TestSelectionBaselineReadsAnIncompleteDryRun_AFPV2750`; the replays in build-log entry `2026-11-07-selgo-fix5` |
 | AFP-V0-2610 | `deletedGoSource` (was `deletedGoTest`) in `internal/liveverify/affected/deletedtests.go` and its call in `seed` (`select.go`); `goSourceRule` in `structure.go` | `TestDeletedGoSourceIsAttributedToItsPackageAndImporters_AFPV02610` and the amended `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (fails before the change: `UNINDEXED_SOURCE_PATH provider/extra.go`); amended to the new rule: `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340` (no unindexed entry), the two AFP-V0-191 tests in `golang/unobserved_test.go` and the Go case of `TestSeamWidensRatherThanNarrowingOnUnknownInput` (a new unindexed file is written to disk), and the two abstention rows of `TestUseCaseHostileChangeConsequence` (a directory left with no package); the PR #114 replay and a one-file deletion replay in build-log entry `2026-11-06-selection-audit` |
-| AFP-V0-2950 | `comparisonOnlyLocators`, `boundedJoin`, `boundedJoinArgument`, `boundedJoinConsumed`, `boundedRead` and `literalComparison` in `internal/liveverify/affected/golang/locatorproof.go` and the identical `internal/gateselect/locatorproof.go`; their calls in `pathTokens` (`golang.go`) and `scanSource` (`gateselect/readers.go`) | `TestBoundedJoinLocatorIsNoRead_AFPV02950` in `internal/liveverify/affected/golang/locator_selection_test.go` (a join read through `os.ReadFile`, `os.Stat`, `os.ReadDir` or a bound variable is selected only by the path it names; returned, re-assigned, `Dir`-climbed, computed-join, `..`-join controls stay rule (d), and so do the review's `Dir`-widened joined path, a returned join, an `os.Open` join, a rebound joined variable and a joined path handed to a function); `TestBoundedJoinLocatorParity_AFPV02950` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree); counts in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
+| AFP-V0-2950 | `comparisonOnlyLocators`, `boundedJoin`, `boundedJoinArgument`, `boundedJoinConsumed`, `boundedRead` and `literalComparison` in `internal/liveverify/affected/golang/locatorproof.go` and the identical `internal/gateselect/locatorproof.go`; their calls in `pathTokens` (`golang.go`) and `scanSource` (`gateselect/readers.go`) | `TestBoundedJoinLocatorIsNoRead_AFPV02950` in `internal/liveverify/affected/golang/locator_selection_test.go` (a join read through `os.ReadFile`, `os.Stat`, `os.ReadDir` or a bound variable is selected only by the path it names; returned, re-assigned, `Dir`-climbed, computed-join, `..`-join controls stay rule (d), and so do the review's `Dir`-widened joined path, a returned join, an `os.Open` join, a rebound joined variable and a joined path handed to a function); `TestUnprovenLocatorInitializerSelection_AFPV02950`, `TestLocatorInitializerAllowlist_AFPV02950` and `TestUnprovenInitializerParity_AFPV02950` cover environment, unknown-call, parameter and unknown-write roots; `TestBoundedJoinLocatorParity_AFPV02950` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree); counts in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
 | AFP-V0-2951 | `driverGoBuildOnlyCommands`, `goInvocation`, `goPattern` and `embedded` in `internal/liveverify/affected/driver_shell.go`; `buildPaths` in `driver.go`; `Unit.BuildPathImports` (`unit.go`, `graphcache.go`, `graph.go`); `buildOnly` in `resolvePathImports` and `callerEdges` and the edge filter of `unboundedReaders` (`graph.go`); `traverseWhere` in `select.go` | `TestCommandLocatorReachesItsRunners_AFPV02951` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: `go run`, `go build` and its dependent target and a vet-and-run target are selected on an unrelated change through the command's runtime read; `go vet` and `go list` targets are not, and a vet target is still selected by an edit of what it vets); `TestRepositoryScriptsAreBoundedSources_V14283` (the five commands locate the root); counts in build log `2026-11-07-unbounded-readers-review-fix` |
 | AFP-V0-2952 | Superseded by AFP-V0-2962; the implementation was removed in review fix 3, and its history is in build logs `2026-11-06-unbounded-readers`, `2026-11-07-unbounded-readers-review-fix` and `2026-11-07-unbounded-readers-review-fix-2` | `TestPrintedClimbKeepsRuleD_AFPV02962` and `TestPrintedClimbParity_AFPV02962` pin the replacement |
 | AFP-V0-2953 | the source branch of `observe` (`internal/liveverify/affected/shell/shell.go`), which marks every source no literal or fresh directory resolves dynamic | `TestEnvironmentNamedSourceStaysDynamic_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (five environment-named forms stay dynamic, and a test containing only `. "$ENVFILE"` is selected by an edit of the repository's `lib.sh`); the `envfile.sh` near miss of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/unbounded_readers_v14283_repo_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` |
 | AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |
 | AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh dynamic only through its environment-named source, dogfood-finish.sh linked, qualify-tasks-basic_test.sh read-scoped, dogfood-cache_test.sh on the floor); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the plans in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
-| AFP-V0-2956 | `feeds`, `flush` and the substitution stack of `script`, the `$(...)` and backtick branches of `word`, `scanShellOutput` and the `buildOnly` condition of `goInvocation` in `internal/liveverify/affected/driver_shell.go`; `scanBothOutput` in `internal/liveverify/affected/driver.go` | `TestDriverListingOutputKeepsExecution_AFPV02956` in `internal/liveverify/affected/driver_shell_test.go` (the review's `go list ./lib \| xargs -I PKG go test PKG`, `\|&`, `cd`, `$(...)`, quoted `$(...)`, backticks, a while-read loop, a process substitution, piped `go vet`, a piped `sh -c` all give lib an execution edge; output to a file, `\|\|` and `&&` keep the build-only edge); `TestListingOutputReachesItsRunner_AFPV02956` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: the review's target, a backtick target and a while-read target are selected through lib's root locator on an unrelated change; a `go list > pkgs.txt` target is not) |
+| AFP-V0-2956 | `feeds`, `flush` and the substitution stack of `script`, the `$(...)` and backtick branches of `word`, `scanShellOutput` and the `buildOnly` condition of `goInvocation` in `internal/liveverify/affected/driver_shell.go`; `scanBothOutput` in `internal/liveverify/affected/driver.go` | `TestBufferedListingProgramSelection_AFPV02956` and `TestDriverListOutputAllowlist_AFPV02956` cover buffered programs, unknown templates/options and certified path formats; `TestDriverListingOutputKeepsExecution_AFPV02956` in `internal/liveverify/affected/driver_shell_test.go` (the review's `go list ./lib \| xargs -I PKG go test PKG`, `\|&`, `cd`, `$(...)`, quoted `$(...)`, backticks, a while-read loop, a process substitution, piped `go vet`, a piped `sh -c` all give lib an execution edge; output to a file, `\|\|` and `&&` keep the build-only edge); `TestListingOutputReachesItsRunner_AFPV02956` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: the review's target, a backtick target and a while-read target are selected through lib's root locator on an unrelated change; a `go list > pkgs.txt` target is not); `TestBufferedListingOtherPackageSelection_AFPV02956` (cross-package buffered template and unknown option retain the driver for runtime configuration edits; all three certified formats preserve precision) |
 | AFP-V0-2957 | `driverXargs`, the `xargs` branch of `command`, the replacement check and the `s.fed` condition of `simple`, `embedded`, the `fed` parameter of `goInvocation` and `makeInvocation` in `internal/liveverify/affected/driver_shell.go` | `TestDriverListingOutputKeepsExecution_AFPV02956` (xargs, `xargs -a`, `parallel` and `find -execdir` go runs import every owner; a fed `go vet` keeps the build-only class; a fed make call is computed); `TestDriverStdinProgramIsComputed_AFPV02958` (an interpreter xargs runs, an xargs replacement command word, `find -exec {}`, `parallel {}`); `TestDriverTruncatedWrapperOptions_AZU_V0_001` (`xargs -I` stays computed) |
 | AFP-V0-2958 | `operand` and the `-s`, `-`, `-o`/`+o` and `+` branches of the interpreter loop in `simple` (`internal/liveverify/affected/driver_shell.go`) | `TestDriverStdinProgramIsComputed_AFPV02958` (`\| sh`, a heredoc-fed `bash`, `bash -s`; a named script, an inline `-c` program and `bash -eu script` stay uncomputed) |
 | AFP-V0-2959 | Superseded by AFP-V0-2962; the implementation was removed in review fix 3, and its history is in build log `2026-11-07-unbounded-readers-review-fix-2` | `TestPrintedClimbKeepsRuleD_AFPV02962` (the commands `printed`, `streamed`, `raw` keep rule (d)) pins the replacement |
@@ -2146,7 +2302,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-3146 | `named` and `truncated` in `internal/liveverify/affected/shell/computed.go`; the `computed` closure of `observe` (`internal/liveverify/affected/shell/shell.go`) | `TestPerVariableBoundKeepsTheCallerSelected_AFPV03146` in `internal/liveverify/affected/shell/computed_bounds_test.go` (the review's reproducer: a 17-word loop running `"$dir/check"` beside a `script/check` that sources `"$ENVFILE"` is `shell:dynamic-source`, and edits of `config/settings.env` and of `script/check` select the wrapper test; it fails at `aa16cbf1a`); the 16-value control in `TestEveryExpansionBoundIsACut_AFPV03147` |
 | AFP-V0-3147 | `truncated` at the depth bounds of `braced` and `named` in `computed.go`; `commandStrings` and its use in `observe` (`shell.go`) | `TestEveryExpansionBoundIsACut_AFPV03147` in `computed_bounds_test.go` (17 plain and braced assignments, a five-name chain, a five-deep default, a five-deep `:+` alternative and a 17-valued `sh -c "$cmd"` each make the test `shell:dynamic-source`, and each fails at `aa16cbf1a`; an environment-input directory stays bounded, and a 16-value loop links `script/check` with no unbounded witness); build log `2026-11-07-unbrd-fix7` |
 | AFP-V0-3148 | the distinct-value `add` of `variableValues` in `computed.go` | `TestRepeatedValuesCountOnce_AFPV03148` in `computed_bounds_test.go` (six loops over the same three words link `script/check` with no unbounded witness; it fails when `add` keeps duplicates); `script/gen-spec-requirements_test.sh`, whose `mode` repeats 6 distinct flags across 7 loops, stays bounded in build log `2026-11-07-unbrd-fix7` |
-| AFP-V0-3149 | `unrolled`, `selfReference`, `topLevel` and their use in `named` (`computed.go`) | `TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149` in `computed_bounds_test.go` (`b="$PWD/$b"`, `dir=${dir:-script}` and two unrolled names in one chain stay bounded, the second linking `script/check`; a single unrolling keeps the `script/run.sh` edge and the constructed name's frontier; `x="../$x"`, `${y:-abc$x}` and a two-name cycle are `shell:dynamic-source`; the bounded cases fail without `unrolled`); `TestRepositoryScriptsAreBoundedSources_V14283`, `TestRepositoryInboundCallers_AZU_V0_8901` and `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` (unchanged) keep the dogfood wrappers bounded |
+| AFP-V0-3149 | `unrolled`, `unrollSeed`, `selfReference`, `topLevel` and their use in `named` (`computed.go`) | `TestComposedSelfReferencesKeepSelection_AFPV03149` in `computed_bounds_test.go` (default/alternative, unknown-transform, prefix-directory, opaque-prefix and unknown-prefix suffix selection, composed-default and working-directory execution edges); `TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149` in `computed_bounds_test.go` (`b="$PWD/$b"`, `dir=${dir:-script}` and two unrolled names in one chain stay bounded, the second linking `script/check`; a single unrolling keeps the `script/run.sh` edge and the constructed name's frontier; `x="../$x"`, `${y:-abc$x}` and a two-name cycle are `shell:dynamic-source`; the bounded cases fail without `unrolled`); `TestRepositoryScriptsAreBoundedSources_V14283`, `TestRepositoryInboundCallers_AZU_V0_8901` and `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` (unchanged) keep the dogfood wrappers bounded |
 | AFP-V0-3145 | `openTest` and `testLeaders` in `internal/liveverify/affected/shell/lex.go` | `TestConditionalOpensOnlyInCommandPosition_AFPV03145` in `internal/liveverify/affected/shell/conditional_position_test.go` (an argument `[[` before `&&`, `||` or `\|` keeps the next source; the test after every leader keeps its operators, and fails without the leaders); `TestCasePatternsAndConditionalsAreNotCommands_NSAV0008_NSAV0009` (unchanged) |
 
 | AFP-V0-2700 | `RequireLiveTier`, `liveTierSkipped`, `LiveTierSkipEnv` in `internal/testsupport/livetier.go`; `liveTier` in `livetier_default.go` and `livetier_live.go`; the `RequireLiveTier` calls in 25 tests of `internal/liveverify/affected`, `internal/companionrelease` and `cmd/corvint` | `TestRequireLiveTierRunsUnlessThePRShardSkips_AFPV02700` and the fault-injection `TestBrokenLiveTestFailsAnOrdinaryRun_AFPV02700` in `internal/testsupport/livetier_test.go` (with and without `-tags live`); before/after package seconds in build-log entry `2026-11-06-ci-speed` |
@@ -2159,11 +2315,19 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-2724 | the `shard-plan` job, the `go-product-shard` matrix and `needs`, the workflow-level pins, the `SHARDS` of `go-product` and `ci-narrowed-tree-record` in `.github/workflows/ci.yml`; `.github/forward-rows/shard-plan.sh` | `TestAFPV02724ShardPlanSizesTheMatrix_AFPV02724` and `TestAFPV02724ShardPlanOverlapsDocsPlan_AFPV02724` (the plan job needs only `narrowing-verdict`, and every reader of its outputs skips or ignores them on DOCS and REUSE) in `tools/ci-forward-row/narrowing_sized_test.go`; `TestAFPV0097WorkflowBindings`, `TestAFPV0591CoverageGuard`, `TestCINV0011ToolsBuildFromComparedMain` and `TestCINV0010PinLagRefusesNarrowing` (`pinlag_test.go`), `TestAFPV0734NarrowedRecordJob` and `TestAFPV0024WorkflowShardCountsAgree` (`tools/ci-reuse-plan`) on the workflow text; an observed sized pull-request run is pending the owner's ci-control-plane review and a `CORVINT_PR_TOOL_SOURCE` that carries `shard-plan.sh` |
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
+| AFP-V0-9009 | `inboundRuntimeSiteFile`, `ownedTest` and their calls in `inboundRuntimeSite` (`internal/liveverify/affected/inbound_runtime.go`) | `TestLinelessInboundRuntimeSite_AFP_V0_9009` (declared directory edge selects the caller and closes the entry; the undeclared fault injection keeps it unknown) `TestInboundRuntimeSiteFile_AFP_V0_9009` and `TestInboundRuntimeSiteAmbiguity_AFP_V0_9009` in `internal/liveverify/affected/inbound_runtime_test.go`; `TestDeclaredInboundRuntime_AZU_V0_8902`; the before/after repro in build-log entry `2026-11-07-selmin` |
+| AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven` and `goListFile.proven`, the `confinedCommand` check of `goListScanFile` and the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and the allowlist `observesSource`, `inertImports`, `classifiedImports`, `allowedDirectives`, `observingMethods`, `confinedCommand` and `ownTestdata` (`golang/sourcereaders.go`), and `commandDirectoryProven` (`golang/commanddirectories.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (34 channels each make a proven reader unproven and selected by a body-only edit, among them an `os.Symlink` into testdata, an aliased `exec.Command` and `exec.CommandContext`, a function value of `exec.Command`, an `exec.ExitError` type, a package-level command, an `Args` index swap, a command passed to `json.Unmarshal`, and the unclassified `net/http/cgi` import, `reflect.ValueOf`, an unknown `//go:` directive, `t.Chdir` and a computed `t.Setenv`; an own-testdata read, an environment read and a confined command with literal `Env`, `Dir`, `Stderr`, `ProcessState` and `reflect.DeepEqual` stay proven and unselected); `TestReaderEnvironmentIdentity_AFP_V0_9010` (custom and shadowed receivers and an unknown environment producer retain folded-test-addition selection; standard, aliased and literal controls); `TestReaderBuiltinIdentity_AFP_V0_9010` (package/local append, argument append, shadowed conversion and unknown environment retain folded-test-addition selection; builtin control); `TestCallerFilenameProvenance_AFP_V0_9010` (line/block/column directives and unknown filename transform retain remapped-target import selection; physical filename control) |
+| AFP-V0-9010 | Same implementation as the preceding AFP-V0-9010 row | `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
+| AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 
 ## Rollback
 
-Revert the lane's commits for the requirement and delete its row here. For AFP-V0-2720 to
+Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
+site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
+line, so every test-file header change counts again; keep `ImportSetChanges.Source`, `observesSource`
+and `Unit.ImportGraphReadsFiles`, which only add selections. For AFP-V0-9011, call `affected.Select`
+directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
 `github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
 `shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and

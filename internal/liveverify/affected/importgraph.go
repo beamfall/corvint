@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -20,12 +21,18 @@ const WitnessImportGraphReader = "IMPORT_GRAPH_READER"
 // changed) to the first dirty path that changed it. Module is the first dirty
 // path that may change any package's import graph: a go.mod, go.sum, go.work
 // or go.work.sum, a vendor/modules.txt, or a changed directory that no
-// longer holds an observed package. A nil value is unknown: the selector then
-// counts every dirty Go file of a Go unit as changing its package's import
-// set and every unowned one as changing the module's.
+// longer holds an observed package. Source is the least dirty path a reader
+// of package metadata or source text may observe (SourcePath), whatever its
+// header: a reader not proven to observe the import graph alone
+// (Unit.ImportGraphReadsFiles) may read any package's metadata or source
+// text, its documentation included, so it is selected through any of them
+// (AFP-V0-9010). A nil value is unknown: the selector then counts every dirty
+// Go file of a Go unit as changing its package's import set and every
+// unowned one as changing the module's.
 type ImportSetChanges struct {
 	Changed map[string]string
 	Module  string
+	Source  string
 }
 
 // WithImportSetChanges returns a copy of graph whose selection decides its
@@ -34,9 +41,9 @@ type ImportSetChanges struct {
 func (graph *Graph) WithImportSetChanges(changes *ImportSetChanges) *Graph {
 	copied := *graph
 	if changes != nil {
-		cloned := &ImportSetChanges{Changed: make(map[string]string, len(changes.Changed)), Module: changes.Module}
-		for id, dirty := range changes.Changed {
-			cloned.Changed[id] = dirty
+		cloned := &ImportSetChanges{Changed: maps.Clone(changes.Changed), Module: changes.Module, Source: changes.Source}
+		if cloned.Changed == nil {
+			cloned.Changed = map[string]string{}
 		}
 		changes = cloned
 	}
@@ -91,13 +98,45 @@ func (graph *Graph) GoPackageFile(relative string) bool {
 	return !hidden || !graph.declaredUnindexedOutput(relative)
 }
 
+// goToolSources are the file name suffixes, besides .go, that the go
+// command lists as package files (CFiles, SFiles, SysoFiles and the rest).
+var goToolSources = []string{".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".for", ".f90", ".s", ".S", ".sx", ".swig", ".swigcxx", ".syso"}
+
+// SourcePath is ImportSetChanges.Source for dirty: its least path that a
+// reader of package metadata or source text may observe (AFP-V0-9010). That
+// is a .go file, testdata and other paths the go tool ignores included since
+// a reader that parses source may read them; a file the go command lists by
+// another suffix; or any file below an embedding Go unit's directory, whose
+// content its build (Stale, Export) depends on. It is "" when dirty holds
+// none.
+func (graph *Graph) SourcePath(dirty []string) string {
+	var embedding []string
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if files := append(slices.Clone(unit.Sources), unit.Tests...); unit.Embeds && strings.HasPrefix(id, "go:") && len(files) != 0 {
+			embedding = append(embedding, relativeDirectory(files[0]))
+		}
+	}
+	first := ""
+	for _, relative := range dirty {
+		source := strings.HasSuffix(relative, ".go") || slices.ContainsFunc(goToolSources, func(suffix string) bool { return strings.HasSuffix(relative, suffix) })
+		for _, directory := range embedding {
+			source = source || directory == "." || strings.HasPrefix(relative, directory+"/")
+		}
+		if source && (first == "" || relative < first) {
+			first = relative
+		}
+	}
+	return first
+}
+
 // unknownImportSets is the ImportSetChanges the selector assumes without a
 // comparison: every dirty .go file a Go unit owns changes its unit's import
 // set, every other dirty file below an embedding Go unit changes that unit's,
 // and a module file or an unowned .go file the go tool may build, an indexed
 // hidden package's included (GoPackageFile), changes the module's.
 func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
-	changes := &ImportSetChanges{Changed: map[string]string{}}
+	changes := &ImportSetChanges{Changed: map[string]string{}, Source: graph.SourcePath(normalized)}
 	for _, dirty := range normalized {
 		switch {
 		case ModuleFile(dirty):
@@ -141,10 +180,13 @@ func (graph *Graph) unknownImportSets(normalized []string) *ImportSetChanges {
 // graph listing the change can alter (AFP-V0-2201): a reader of the whole
 // module when any import set changed, and a reader of named units when one
 // of them depends, through import edges, on a unit whose import set changed,
-// or on any unit when the module's import graph changed. The witness chain
-// runs from the changed unit through its importers to the listed unit, then
-// the reader. A body-only edit changes no import set and selects no reader
-// through this edge.
+// or on any unit when the module's import graph changed. A reader whose
+// listing is not proven (Unit.ImportGraphReadsFiles) is also selected by
+// any dirty .go path (Source), since it may observe package metadata or
+// source text beyond the import graph (AFP-V0-9010). The witness chain runs
+// from the changed unit through its importers to the listed unit, then the
+// reader. A body-only edit changes no import set and selects no proven
+// reader through this edge.
 func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized []string) {
 	var readers []string
 	for _, id := range graph.order {
@@ -159,7 +201,7 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 	if changes == nil {
 		changes = graph.unknownImportSets(normalized)
 	}
-	if len(changes.Changed) == 0 && changes.Module == "" {
+	if len(changes.Changed) == 0 && changes.Source == "" && changes.Module == "" {
 		return
 	}
 	closure := graph.importClosure(changes.Changed)
@@ -169,6 +211,12 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 			first = id
 			break
 		}
+	}
+	// The source witness runs from the unit owning the dirty path, when a
+	// Go unit owns it, to the reader.
+	source := Witness{Kind: WitnessImportGraphReader, DirtyPath: changes.Source}
+	if owner, owned := graph.owner[changes.Source]; owned && strings.HasPrefix(owner, "go:") {
+		source.Via = []string{owner}
 	}
 	for _, id := range readers {
 		if _, seen := reached[id]; seen {
@@ -180,11 +228,12 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 		switch {
 		case changes.Module != "":
 			witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: changes.Module, Via: []string{id}}, true
+		case unit.ImportGraphReadsAll && first != "":
+			parent := closure[first]
+			witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: parent.DirtyPath, link: parent.extended(id)}, true
+		case unit.ImportGraphReadsFiles && changes.Source != "":
+			witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: changes.Source, link: source.extended(id)}, true
 		case unit.ImportGraphReadsAll:
-			if first != "" {
-				parent := closure[first]
-				witness, found = Witness{Kind: WitnessImportGraphReader, DirtyPath: parent.DirtyPath, link: parent.extended(id)}, true
-			}
 		default:
 			for _, target := range unit.ImportGraphReads {
 				parent, hit := closure[target]
