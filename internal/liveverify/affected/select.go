@@ -165,6 +165,8 @@ type Unknown struct {
 type Plan struct {
 	GraphDigest string   `json:"graphDigest"`
 	Dirty       []string `json:"dirty"`
+	// GoChanges explains stopped compile propagation (AFP-V0-3323).
+	GoChanges []GoChange `json:"goChanges,omitempty"`
 	// Deleted names, in Dirty order, each dirty path absent from the tree
 	// the graph was observed from: a file the change deletes or renames
 	// away (AFP-V0-2206). The caller fills it; it is omitted when no dirty
@@ -308,6 +310,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan := Plan{
 		GraphDigest: graph.digest,
 		Dirty:       normalized,
+		GoChanges:   graph.goChanges(normalized),
 		Scope:       ScopeBounded,
 		Selected:    []Selection{},
 		Excluded:    []Exclusion{},
@@ -455,11 +458,14 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // (AFP-V0-762).
 func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]Witness) {
 	seeds, unknown = graph.seed(normalized)
-	changed, traversed, enclosing := graph.goStructure(normalized)
-	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
+	compiling := graph.compilingPaths(normalized)
+	compileSeeds, _ := graph.seed(compiling)
+	changed, traversed, enclosing := graph.goStructure(compiling)
+	contained := graph.testOnlyGoUnits(compileSeeds, compiling, changed, traversed)
 	mergeWitnesses(seeds, changed)
 	start := make(map[string]Witness, len(seeds)+len(traversed))
-	mergeWitnesses(start, seeds)
+	mergeWitnesses(start, compileSeeds)
+	mergeWitnesses(start, changed)
 	mergeWitnesses(start, traversed)
 	for id := range contained {
 		delete(start, id)
@@ -469,7 +475,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for _, id := range sortedKeys(contained) {
 		for _, caller := range graph.dependents[id] {
 			if strings.HasPrefix(caller, DriverNamespace+":") {
-				addWitness(start, caller, Witness{Kind: WitnessDependency, DirtyPath: seeds[id].DirtyPath, link: seeds[id].extended(caller)})
+				addWitness(start, caller, Witness{Kind: WitnessDependency, DirtyPath: compileSeeds[id].DirtyPath, link: compileSeeds[id].extended(caller)})
 			}
 		}
 	}
@@ -491,14 +497,22 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.testUsersOf(reached, allowed)
 	if ownTests {
 		for id := range contained {
-			reached[id] = seeds[id]
+			reached[id] = compileSeeds[id]
 		}
 	}
 	mergeWitnesses(reached, enclosing)
 	graph.execUsersOf(reached, built)
 	graph.importGraphReadersOf(reached, normalized)
+	// Keep the owning package cheap and conservative, but add it only after
+	// compile/exec propagation. Byte readers below still see every dirty path.
+	for _, relative := range normalized {
+		if id, owned := graph.owner[relative]; owned && graph.goCommentOnly[relative] && strings.HasPrefix(id, "go:") && (ownTests || !strings.HasSuffix(relative, "_test.go")) {
+			addWitness(reached, id, Witness{Kind: WitnessDirectSource, DirtyPath: relative, Via: []string{id}})
+		}
+	}
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
+	graph.commentSourceReadersOf(reached, normalized)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
