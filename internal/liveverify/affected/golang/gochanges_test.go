@@ -13,8 +13,9 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
-// AFP-V0-3320: parse both sides, compare scanner tokens including automatic
-// semicolons, and protect every directive kind and cgo preamble.
+// AFP-V0-3320: parse both sides, compare scanner tokens and their lines
+// including automatic semicolons, and protect every directive kind, any
+// build-constraint text and cgo preamble.
 func TestGoChangeRecords_AFP_V0_3320(t *testing.T) {
 	const plain = "package p\n\nfunc F() int { return 1 }\n"
 	graph, err := affected.BuildFS(fstest.MapFS{
@@ -31,7 +32,13 @@ func TestGoChangeRecords_AFP_V0_3320(t *testing.T) {
 		commentOnly         bool
 	}{
 		{"comment", plain, plain + "// more context\n", true},
-		{"whitespace", plain, "package  p\n\n\nfunc  F() int {  return 1 }\n", true},
+		{"whitespace", plain, "package  p\n\nfunc  F() int {  return 1 }\n", true},
+		{"blank line", plain, "package p\n\n\nfunc F() int { return 1 }\n", false},
+		{"comment shifts lines", plain, "package p\n\n// F returns one.\nfunc F() int { return 1 }\n", false},
+		{"comment edited in place", "package p\n\n// F one.\nfunc F() int { return 1 }\n", "package p\n\n// F returns one.\nfunc F() int { return 1 }\n", true},
+		{"build text", plain + "// see +build linux\n", plain + "// see +build darwin\n", false},
+		{"block build", plain + "/*\n+build linux\n*/\n", plain + "/*\n+build darwin\n*/\n", false},
+		{"block go build", plain + "/* //go:build linux */\n", plain + "/* //go:build darwin */\n", false},
 		{"code", plain, strings.Replace(plain, "return 1", "return 2", 1), false},
 		{"parse head", plain, "package p\nfunc {", false},
 		{"parse base", "package p\nfunc {", plain, false},

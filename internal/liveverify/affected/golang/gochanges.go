@@ -41,7 +41,9 @@ func GoChangesAt(ctx context.Context, root, head, commit string, dirty []string)
 
 // GoChangeRecords returns only proven COMMENT_ONLY paths. Both endpoints
 // must exist, parse in full, and have identical scanner tokens (including
-// inserted semicolons). Directives and cgo preambles are compared separately.
+// inserted semicolons) on identical lines, since line numbers are compiled
+// into runtime.Caller, panics and log output. Directives, build-constraint
+// text and cgo preambles are compared separately.
 // Add/delete/rename endpoints and unreadable or invalid files fail closed.
 func GoChangeRecords(base, head fs.FS, dirty []string) []affected.GoChange {
 	if base == nil || head == nil {
@@ -80,6 +82,9 @@ func readChangeSource(tree fs.FS, relative string) ([]byte, error) {
 type goLexeme struct {
 	Kind token.Token
 	Text string
+	// Line is the unadjusted line, 0 for EOF: a comment appended after the
+	// last token moves only EOF, which no compiled position records.
+	Line int
 }
 
 // protectedComment also pins attachment to the surrounding tokens: moving a
@@ -182,15 +187,21 @@ func goContent(body []byte) ([]goLexeme, []protectedComment, bool) {
 			// constraint even though the newline count stays unchanged.
 			protected[i].Gap = string(body[ends[i]:tokens.Offset(pos)])
 		}
-		stream = append(stream, goLexeme{Kind: kind, Text: literal})
+		line := 0
+		if kind != token.EOF {
+			line = tokens.PositionFor(pos, false).Line
+		}
+		stream = append(stream, goLexeme{Kind: kind, Text: literal, Line: line})
 		if kind == token.EOF {
 			return stream, protected, scan.ErrorCount == 0
 		}
 	}
 }
 
+// sensitiveComment also protects any comment mentioning a build constraint,
+// including inside a block comment, because vet's buildtag check reads them.
 func sensitiveComment(text string) bool {
-	return strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "//line") || strings.HasPrefix(text, "/*line") || legacyBuildComment(text) || strings.HasPrefix(text, "//export")
+	return strings.Contains(text, "+build") || strings.Contains(text, "//go:build") || strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "//line") || strings.HasPrefix(text, "/*line") || legacyBuildComment(text) || strings.HasPrefix(text, "//export")
 }
 
 func legacyBuildComment(text string) bool {
