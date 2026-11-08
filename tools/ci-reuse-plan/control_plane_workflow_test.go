@@ -11,11 +11,13 @@ import (
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
-// AFP-V0-171 (V1-1847): when CI reruns on a pull-request head that changes .github/, the
-// control-plane job keeps a ci-control-plane success a user (the admin review) posted on that
-// head: it posts nothing. A bot-posted success, a newer failure, another context, or no status
-// at all (a new push) still gets failure, and an unreadable status listing posts nothing.
-func TestAFPV0171ControlPlaneKeepsAUserPostedSuccess(t *testing.T) {
+// V1-5096 (replaces the AFP-V0-171 user-success keep): when CI reruns on a pull-request head
+// that changes .github/, the control-plane job posts ci-control-plane success only when the newest
+// ci-control-plane-waiver status on that head was posted by a login in WAIVER_APPROVERS (matched
+// case-insensitively), found past the first page of statuses. A hand-posted ci-control-plane
+// success, a waiver by any other writer, a withdrawn waiver, or no status at all gets failure, and
+// an unreadable status listing posts nothing.
+func TestV15096ControlPlaneWaiverNeedsAnApprover(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the control-plane step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
@@ -27,8 +29,8 @@ func TestAFPV0171ControlPlaneKeepsAUserPostedSuccess(t *testing.T) {
 	if err := os.WriteFile(script, []byte(runScript(t, jobBlock(t, readWorkflow(t, "ci-control-plane.yml"), "control-plane"))), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	status := func(state, creator, context string) string {
-		return `{"state":"` + state + `","context":"` + context + `","creator":{"login":"x","type":"` + creator + `"}}`
+	status := func(state, login, context string) string {
+		return `{"state":"` + state + `","context":"` + context + `","creator":{"login":"` + login + `","type":"User"}}`
 	}
 	// run returns the status POSTs of one step run with STATUSES as the newest-first listing of
 	// statuses on the head ("" makes the listing fail), and whether the step exited zero.
@@ -53,9 +55,11 @@ case " $* " in
   *"repos/$REPO/pulls?state=open&per_page=100"*) echo 1144 ;;
   *"repos/$REPO/pulls/1144/files?per_page=100"*) printf 'README.md\n.github/workflows/ci.yml\n' ;;
   *"repos/$REPO/pulls/1144 "*) echo 2 ;;
-  *"repos/$REPO/commits/$HEAD/statuses?per_page=100 --jq "*)
+  *" --paginate repos/$REPO/commits/$HEAD/statuses?per_page=100 --jq "*)
+    # One JSON document per page; --paginate applies the --jq filter to every page.
     [ -f "$STUB_DIR/statuses.json" ] || exit 22
-    exec jq -r "$3" "$STUB_DIR/statuses.json" ;;
+    for a; do last=$a; done
+    exec jq -r "$last" "$STUB_DIR/statuses.json" ;;
   *) exit 22 ;;
 esac
 `
@@ -65,25 +69,34 @@ esac
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head,
-			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
+			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub", "WAIVER_APPROVERS=Russe11")
 		err := cmd.Run()
 		posts, _ := os.ReadFile(filepath.Join(dir, "posts.log"))
 		return string(posts), err == nil
 	}
-	if posts, ok := run("[" + status("success", "User", "ci-control-plane") + "," + status("failure", "Bot", "ci-control-plane") + "]"); !ok || posts != "" {
-		t.Errorf("a rerun after the admin-posted success: exit ok %v, posted %q, want nothing", ok, posts)
+	waiver := status("success", "Russe11", "ci-control-plane-waiver")
+	var page1 []string
+	for i := 0; i < 100; i++ {
+		page1 = append(page1, status("success", "github-actions[bot]", "go-product"))
 	}
-	for name, statuses := range map[string]string{
-		"new push, no status":     "[]",
-		"bot success":             "[" + status("success", "Bot", "ci-control-plane") + "]",
-		"newer failure":           "[" + status("failure", "Bot", "ci-control-plane") + "," + status("success", "User", "ci-control-plane") + "]",
-		"user success, other ctx": "[" + status("success", "User", "go-product") + "," + status("failure", "Bot", "ci-control-plane") + "]",
-		"user pending":            "[" + status("pending", "User", "ci-control-plane") + "]",
+	for name, tc := range map[string]struct{ statuses, state string }{
+		"approver waiver":            {"[" + waiver + "," + status("failure", "github-actions[bot]", "ci-control-plane") + "]", "success"},
+		"approver login, other case": {"[" + status("success", "russe11", "ci-control-plane-waiver") + "]", "success"},
+		"waiver past 100 statuses":   {"[" + strings.Join(page1, ",") + "]\n[" + waiver + "]", "success"},
+		"new push, no status":        {"[]", "failure"},
+		"hand-posted gate success":   {"[" + status("success", "Russe11", "ci-control-plane") + "]", "failure"},
+		"waiver by another writer":   {"[" + status("success", "lane-bot", "ci-control-plane-waiver") + "]", "failure"},
+		"waiver by a login prefix":   {"[" + status("success", "Russe1", "ci-control-plane-waiver") + "]", "failure"},
+		"approver withdrew":          {"[" + status("failure", "Russe11", "ci-control-plane-waiver") + "," + waiver + "]", "failure"},
+		"other writer after waiver":  {"[" + status("failure", "lane-bot", "ci-control-plane-waiver") + "," + waiver + "]", "success"},
 	} {
-		posts, ok := run(statuses)
+		posts, ok := run(tc.statuses)
 		if !ok || strings.Count(posts, "\n") != 1 || !strings.Contains(posts, "repos/beamfall/corvint/statuses/"+head) ||
-			!strings.Contains(posts, "state=failure") || !strings.Contains(posts, "context=ci-control-plane") {
-			t.Errorf("%s: exit ok %v, posted %q, want one ci-control-plane failure", name, ok, posts)
+			!strings.Contains(posts, "state="+tc.state+" ") || !strings.Contains(posts, "context=ci-control-plane ") {
+			t.Errorf("%s: exit ok %v, posted %q, want one ci-control-plane %s", name, ok, posts, tc.state)
+		}
+		if tc.state == "success" && !strings.Contains(posts, "owner waiver by ") {
+			t.Errorf("%s: posted %q, want the approver named in the description", name, posts)
 		}
 	}
 	if posts, ok := run(""); ok || posts != "" {
