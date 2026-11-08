@@ -52,7 +52,10 @@ func hostEnvironmentSource(r *resolver, parsed script, text string, at int) bool
 	// perl itself loads modules named by PERL5LIB, PERL5OPT or PERLLIB (and the
 	// loader preloads by LD_ or DYLD_ names): any mention anywhere, strings and
 	// prose included, is refused because assignments can be built dynamically.
-	if strings.Contains(text, "command_not_found_handle") || hostEnvironmentHijack.MatchString(text) {
+	normalized := strings.ReplaceAll(text, "\\\n", "")
+	normalized = strings.NewReplacer("'", "", `"`, "", `\`, "").Replace(normalized)
+	if strings.Contains(text, "command_not_found_handle") || hostEnvironmentHijack.MatchString(text) ||
+		strings.Contains(normalized, "command_not_found_handle") || hostEnvironmentHijack.MatchString(normalized) {
 		return false
 	}
 	for index, cmd := range parsed.commands {
@@ -90,7 +93,7 @@ var hostEnvironmentHijack = regexp.MustCompile(`(^|[^A-Za-z0-9_])(PERL[A-Za-z0-9
 // reset (`-`), or a handler for EXIT or the INT, TERM, HUP and QUIT signals
 // whose text lexes to commands, without definitions or assignments, that each
 // run a file-defined function (whose body the caller scans), an inert builtin
-// or an external command named literally. DEBUG, RETURN and ERR handlers run
+// or an explicitly allowed cleanup command. DEBUG, RETURN and ERR handlers run
 // between ordinary commands, so they and any other signal are refused.
 func hostTrapAllowed(parsed script, args []string) bool {
 	if len(args) > 0 && unquote(args[0]) == "--" {
@@ -117,6 +120,15 @@ func hostTrapAllowed(parsed script, args []string) bool {
 	if action == "-" {
 		return true
 	}
+	// Preserve the handler's inner quoting: unquote removes every quote,
+	// including the double quotes that keep git's directory a single word.
+	raw := args[0]
+	if len(raw) >= 2 && raw[0] == '\'' && raw[len(raw)-1] == '\'' && strings.Count(raw, "'") == 2 {
+		action = raw[1 : len(raw)-1]
+	} else if strings.ContainsAny(raw, "$`\\") {
+		// Other forms may expand while installing the handler.
+		return false
+	}
 	handler := parse(action)
 	if len(handler.definitions) != 0 {
 		return false
@@ -131,11 +143,28 @@ func hostTrapAllowed(parsed script, args []string) bool {
 		if len(plain) == 0 {
 			continue
 		}
-		word, _ := commandWord(plain)
+		// Inspect the actual verb: commandWord would unwrap external runners
+		// such as env, which are outside this exact allowlist.
+		word := unquote(plain[0])
 		if parsed.definitions[word] != 0 || hostTrapInert[word] {
 			continue
 		}
-		if !hostTrapExternal.MatchString(word) || hostTrapShellWords[word] {
+		switch word {
+		case "rm", "/bin/rm", "rmdir", "/bin/rmdir":
+		case "git":
+			args := plain[1:]
+			for len(args) >= 2 && unquote(args[0]) == "-C" {
+				// Unquoted expansion (and even quoted $@) can inject global
+				// options. Admit literal paths or heavy.sh's single-word form.
+				if args[1] != `"${clone:-/nonexistent}"` && !hostTrapGitDirectory.MatchString(unquote(args[1])) {
+					return false
+				}
+				args = args[2:]
+			}
+			if len(args) == 0 || unquote(args[0]) != "update-ref" {
+				return false
+			}
+		default:
 			return false
 		}
 	}
@@ -149,19 +178,5 @@ var hostTrapInert = map[string]bool{
 	"[[": true, "[": true, "test": true, "echo": true, "kill": true, "wait": true,
 }
 
-// hostTrapExternal is a literally named command; hostTrapShellWords are the
-// bash builtins and reserved words, which are not external commands.
-var hostTrapExternal = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
-
-var hostTrapShellWords = func() map[string]bool {
-	words := map[string]bool{}
-	for _, word := range strings.Fields(`. : [ alias bg bind break builtin caller cd command compgen
-		complete compopt continue declare dirs disown echo enable eval exec exit export false fc fg
-		getopts hash help history jobs kill let local logout mapfile popd printf pushd pwd read
-		readarray readonly return set shift shopt source suspend test times trap true type typeset
-		ulimit umask unalias unset wait load if then else elif fi case esac for select while until
-		do done in function time coproc { } ! [[ ]]`) {
-		words[word] = true
-	}
-	return words
-}()
+// hostTrapGitDirectory excludes expansions, globbing and shell metacharacters.
+var hostTrapGitDirectory = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
