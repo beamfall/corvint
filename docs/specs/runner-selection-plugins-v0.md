@@ -125,7 +125,10 @@ Baseline at `origin/main` c6b6cbb0:
   component is attributed to one test only when it came from a process tree that ran that test
   alone, or from runner start and end markers inside one process that the runner's qualification
   covers (`LPCV-V0-962`). Otherwise it is attributed to every test that ran in that tree. Build-phase
-  activity goes only to `loaded`, through the plugin's build graph, never to a test's `reads`.
+  activity the plugin's build graph models goes to `loaded`; every path a build phase reads, lists,
+  probes or executes also stays in the `reads`, `listings`, `lookups` or `execs` of every test of
+  that build (`RSP-V0-054`), so rules (d) to (f) apply to it whatever that test's coverage of the
+  same path.
 - `RSP-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A
   record is fresh for a planned run when `LPCV-V0-951` holds for every path in `executed`,
   `loaded`, `reads` and `execs`, and its runner and execution identities equal the planned run's.
@@ -386,18 +389,24 @@ Baseline at `origin/main` c6b6cbb0:
   components, and qualify on `conformance/ruby-profile-v0/rails-app` and any Beamfall Ruby
   repository at step 7 of `RSP-V0-040`. Until then they are FULL (`RSP-V0-046`).
 - `RSP-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A test run
-  may declare sibling repositories (`--repository ID=DIR`, the `affected` multi-repository model). A
-  read whose resolved path lies inside a declared repository is recorded with that repository id,
-  its path relative to that repository and its blob OID, and takes part in freshness and rules (a)
-  to (g) against that repository's diff between its pinned base and head. A read outside the
-  repository, outside every declared repository and outside the toolchain, cache and temporary
-  classes marks `reads` `incomplete` for that test, which selects it. A change to a sibling pin
-  (submodule, lock entry or checkout reference) is a change to every path read in that repository.
+  may declare sibling repositories (`--repository ID=DIR`, the `affected` multi-repository model).
+  An entry of any path-bearing component (`reads`, `listings`, `lookups`, `execs`) whose resolved
+  path lies inside a declared repository is recorded with that repository id, its path relative to
+  that repository and, where the path exists, its blob OID, and takes part in freshness and rules
+  (a) to (g) against that repository's diff between its pinned base and head. Such an entry outside
+  the repository, outside every declared repository and outside the toolchain, cache and temporary
+  classes marks its component `incomplete` for that test, which selects it. A change to a sibling
+  pin (submodule, lock entry or checkout reference) is a change to every path of that repository
+  named in any path-bearing component, so a test that only probed a missing sibling path is
+  selected.
 - `RSP-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A `script`
   runner kind inventories one identity per command declared in a tracked, project-owned file
   (`.corvint/test-commands.json`; Corvint's `.github/cishards/test-commands.json` is one instance
   of the same schema), runs each command under the tracing service and narrows on file-level
-  components only (`reads`, `listings`, `execs`, `external`); it never narrows on `executed`. It
+  components only (`reads`, `listings`, `lookups`, `execs`, `external`); it never narrows on
+  `executed`. For this kind, rules (b) and (c) do not apply and `RSP-V0-013` requires only the
+  components rules (d) to (f) need: `executed`, `regions` and `loaded` are declared `absent` with
+  reason `script-kind` and select nothing on their own. It
   covers direct test scripts (`node test/*.ts`, `python3 script/*_test.py`, `script/*_test.sh`),
   aggregate build-tool tasks (Gradle `fastGate`) and compile checks (`xcrun metal`). A command not
   in the declaration is outside every inventory and the runner that would run it is FULL.
@@ -408,7 +417,9 @@ Baseline at `origin/main` c6b6cbb0:
   qualification covers cross-target reuse.
 - `RSP-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Trace
   activity of a build phase (code generation, template rendering, asset compilation) that the
-  plugin's build graph does not model is attributed to every test of that build, never dropped.
+  plugin's build graph does not model is attributed to every test of that build, never dropped, as
+  the `reads`, `listings`, `lookups` and `execs` entries of each such test (`RSP-V0-009`); a test's
+  instrumented coverage of a path never removes that path's build-phase read entry.
 
 ### Record quality and read surface
 
@@ -617,12 +628,12 @@ outcomes equal the stated ones.
 | 044 | listed non-semantic name varied: record still fresh | unlisted feature flag changed: environment digest changes, record stale, test selected; execution configuration outside qualification: runner `full` |
 | 045 | `untraced`-qualified runner narrows a body edit | data, add or delete change: runner `full`; unexecuted-body byte mutant read as data by a test: miss blocks the model |
 | 048 | Ruby runner qualified on the Rails corpus narrows | unqualified Ruby runner: `full` |
-| 049 | sibling read recorded with repository id and OID; sibling diff touching it selects the test | undeclared outside read: `reads` `incomplete`, test selected; sibling pin change: every test reading that repository selected |
-| 050 | declared command inventoried, traced, narrowed on file components | undeclared command: runner `full`; `executed` never used |
+| 049 | sibling read recorded with repository id and OID; sibling diff touching it selects the test; probe-only fixture: test that only looked up a missing sibling path is selected when a pin change adds it | undeclared outside read: `reads` `incomplete`, test selected; sibling pin change: every test naming that repository in any path-bearing component selected |
+| 050 | declared command inventoried, traced, narrowed on file components; adding a path the command probed and found missing selects it | undeclared command: runner `full`; `executed` never used; absent `executed`/`regions`/`loaded` alone does not select |
 | 051 | path query lists reaching tests with component, digest and commit; `--explain` prints the rule chain | no fresh record: `UNKNOWN` with reason; repository and trace state unchanged |
 | 052 | `e2e-safe` plan equals the RSP plan for Playwright on the same inputs | second inventory disagreeing: refused, runner `full` |
 | 053 | test inventoried on each CI target narrows per target | test absent from a target's inventory: `full` there |
-| 054 | unmodelled codegen read attributed to every test of the build | dropped build-phase read: check fails |
+| 054 | unmodelled codegen read attributed to every test of the build; generator reads F as text while T has coverage of F: editing an unexecuted body of F selects T by rule (d) | dropped build-phase read: check fails |
 | 055 | two agreeing collections decide | disagreeing collections: union, `nondeterministic` |
 | 056 | collection and inventory times retained | still-collecting record: test selected |
 | 057 | reproduced sampled failure is a miss | non-reproducing failure: flake, class stays enabled |
