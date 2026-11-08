@@ -72,9 +72,10 @@ across every Beamfall runner, each language and runner a plugin.
 
 ## Rollback
 
-- Per runner: delete or supersede its qualification record, or drop its entry from
-  `.corvint/runner-plugins.json`; it returns to FULL immediately where core has a pre-plugin
-  execution path for it, and otherwise the run fails `runner-adapter-unavailable`. Qualification
+- Per runner: deleting or superseding its qualification record returns it to FULL immediately,
+  run through the still-pinned plugin. Dropping its entry from `.corvint/runner-plugins.json`
+  returns it to FULL only where core has a pre-plugin execution path for it, and otherwise the run
+  fails `runner-adapter-unavailable`. Qualification
   declarations and configuration paths come from a digest-pinned tracked declaration file, never
   from the plugin at runtime (orchestrator-made under the owner's delegated 1.0 choices).
 - Whole capability: revert each slice, restoring the plans in force before this spec; records are
