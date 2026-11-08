@@ -544,3 +544,37 @@ func TestRSPV0003JVMDamagedSuffixRetainsFailureAcrossRetry(t *testing.T) {
 		}
 	}
 }
+
+// RSP-V0-003: a suite rejected for a count mismatch keeps its parsed failed
+// testcases (never its passes), so a passing FULL retry cannot erase them.
+func TestRSPV0003JVMCountMismatchRetainsFailureAcrossRetry(t *testing.T) {
+	for _, runner := range []string{"gradle-junit", "maven-surefire"} {
+		t.Run(runner, func(t *testing.T) {
+			c := jvmConfig(runner)
+			p := jvmPlugin(t, c)
+			failing := `<testcase classname="p.Probe" name="alpha"><failure type="java.lang.AssertionError" message="expected"/></testcase>`
+			first := jvmSuite(runner, failing, "2", "1", "0")
+			mixed := jvmSuite(runner, `<testcase classname="p.Probe" name="beta"/>`+failing, "3", "1", "0")
+			for _, report := range []string{first, mixed, "<testsuites>" + mixed + "</testsuites>"} {
+				results, err := p.Parse(context.Background(), registry.ParseRequest{Runner: runner, Report: report})
+				if err == nil || !strings.HasPrefix(err.Error(), "jvm-native-report-incomplete:") || len(results) != 1 || results[0].ID != "p.Probe#alpha" || results[0].Outcome != "failed" || results[0].Reason == "" {
+					t.Fatalf("count mismatch lost failure or admitted pass: %+v %v", results, err)
+				}
+			}
+			s := registry.NewSelectionSession(p, c.Key, false)
+			in := s.Inventory(context.Background(), jvmInventoryFixture(runner))
+			passing := jvmSuite(runner, `<testcase classname="p.Probe" name="alpha"/><testcase classname="p.Probe" name="beta"/>`, "2", "0", "0")
+			calls := 0
+			out := s.Run(context.Background(), in, nil, nil, c.Request.ReportDir, true, func(context.Context, registry.CommandResponse) (string, error) {
+				calls++
+				if calls == 1 {
+					return first, nil
+				}
+				return passing, nil
+			})
+			if calls != 2 || out.Succeeded || !out.NeedsRequalification || len(out.Attempts) != 2 || !out.Attempts[1].Plan.Full || !out.Attempts[1].Reconciliation.Succeeded {
+				t.Fatalf("passing FULL retry erased failure: %+v calls=%d", out, calls)
+			}
+		})
+	}
+}

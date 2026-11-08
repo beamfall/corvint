@@ -247,6 +247,12 @@ type InventoryRun struct {
 // FULL rerun in the same invocation, or fails when the caller forbids it. Its
 // sticky NeedsRequalification output must be retained by the core qualification
 // owner; a successful retry does not repair inventory qualification.
+//
+// RSP-V0-003: a failed outcome reported by ANY attempt is sticky, including one
+// returned alongside a runner or report error, an otherwise rejected or
+// incomplete report, or a non-canonical spelling that reconciliation refuses.
+// A later passing FULL retry can complete the evidence but never turn the run
+// into success.
 func RunInventoried(in RunnerInventory, key InventoryKey, planned RunSet, allowRerun bool, run func(RunSet) ([]RunnerResult, bool, error)) InventoryRun {
 	var out InventoryRun
 	failedResult := false
@@ -256,7 +262,7 @@ func RunInventoried(in RunnerInventory, key InventoryKey, planned RunSet, allowR
 		results, superset, err := run(runPlan)
 		results = append([]RunnerResult(nil), results...)
 		for _, result := range results {
-			if result.Outcome == "failed" {
+			if strings.EqualFold(strings.TrimSpace(result.Outcome), "failed") {
 				failedResult = true
 			}
 		}

@@ -238,10 +238,23 @@ func (p *jvmSelectionPlugin) Parse(ctx context.Context, r ParseRequest) ([]tr.Ru
 		var parseErr error
 		for _, code := range []int{0, 1} {
 			in.ExitCode = code
-			observation, parseErr = platform.Parse(in)
+			observation, parseErr = platform.ParseJVMResults(in)
 			if parseErr != nil || observation.Complete {
 				break
 			}
+		}
+		if parseErr != nil {
+			// RSP-V0-003: a rejected suite (count mismatch, bad testcase) keeps
+			// its fully parsed failed testcases, so a passing FULL retry cannot
+			// erase them. Its passes and skips stay unobserved.
+			for _, test := range observation.Tests {
+				if test.State != tr.Failed || strings.TrimSpace(test.ID) == "" || seen[test.ID] || len(out) == tr.MaxTests {
+					continue
+				}
+				seen[test.ID] = true
+				out = append(out, tr.RunnerResult{ID: test.ID, Outcome: "failed", Reason: test.Message})
+			}
+			return out, fmt.Errorf("jvm-native-report-incomplete:%v", parseErr)
 		}
 		for _, test := range observation.Tests {
 			state := map[string]string{tr.Passed: "passed", tr.Failed: "failed", tr.Skipped: "skipped"}[test.State]
