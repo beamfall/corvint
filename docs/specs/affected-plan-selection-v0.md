@@ -76,10 +76,16 @@ measure. None of them drops a unit the change can reach.
 - **AFP-V0-9310:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-4941) A Swift claim on an unindexed `Package.swift` below a Go-hosted `testdata`
   directory SHALL be treated as fixture build metadata, even when Swift lists target files
-  below that directory. With no other source claimant the path retains `UNOWNED_DIRTY_PATH`,
+  below that directory, only when the existing `swift:exclusion-evidence-unrepresentable`
+  frontier carries its declared suite obligation. Empty or unfamiliar frontier forms retain
+  the source claim and FULL; they SHALL NOT fall through to the fixture-only exception.
+  With no other source claimant the admitted path retains `UNOWNED_DIRTY_PATH`,
   rather than `UNINDEXED_SOURCE_PATH`. Its Swift claimant and all bearing frontiers remain:
   the manifest can change its targets and their dependencies, so a narrowed execution plan
-  still accounts for the declared Swift suite. Existing enclosing-package, literal-reader,
+  still accounts for the declared Swift suite. The manifest also participates in unowned-path
+  frontier checks for every other plugin, including computed readers and undeclared frontier
+  forms; claimant participation SHALL NOT substitute for those checks.
+  Existing enclosing-package, literal-reader,
   declared-scope and unbounded-reader rules continue to select readers. No new hint, wire
   member, reason code or unknown allowance is introduced. An unhosted manifest, a manifest
   outside `testdata`, another source claimant, or a claimant's unobserved directory SHALL
@@ -2056,7 +2062,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| AFP-V0-9310 | `unownedUnknown` in `internal/liveverify/affected/select.go` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; hosted manifest and plain fixture retain readers, Swift suite and UNKNOWN; omitted Swift source keeps FULL; `TestSwiftFixtureClaimBoundaries_AFPV09310` preserves other claimants and unobserved directories |
+| AFP-V0-9310 | `unownedUnknown` in `internal/liveverify/affected/select.go` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; hosted manifest and plain fixture retain readers, Swift suite and UNKNOWN; omitted Swift source keeps FULL; `TestSwiftFixtureComputedReaders_AFPV09310` (computed Ruby reader and unknown frontier retain suites), `TestSwiftFixtureSuiteProof_AFPV09310` (empty and unknown Swift frontiers retain FULL); `TestSwiftFixtureClaimBoundaries_AFPV09310` preserves other claimants and unobserved directories |
 | AFP-V0-9311 | `seed` in `internal/liveverify/affected/select.go` | `TestUnindexedCompiledSourceStillWidens_AFPV09311` in `internal/liveverify/affected/swfix_test.go`; injected omissions in confined compiled sources outside and below testdata keep FULL |
 | AFP-V0-9312 | `Select`, `gateselect.SelectStructural`, `sessiontest.Build` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; disk/immutable parity and consumer integration; historical replay and limits in `../build-log/2026-11-08-swfix.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
