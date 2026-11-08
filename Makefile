@@ -354,6 +354,13 @@ cem-release-gate: go-version
 # Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
 # (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
 # three regenerate.
+.PHONY: merge-drivers
+# DWC-V0-7703: only local Git config is written; no global config or attribute override.
+merge-drivers: ## Install repository-local spec and registry merge drivers (idempotent)
+	git config --local merge.specappend.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers append-union "%O" "%A" "%B" %L'
+	git config --local merge.specgenerated.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers keep-ours "%O" "%A" "%B" %L'
+	git config --local merge.registryunion.driver 'GOTOOLCHAIN=local go run ./tools/merge-drivers json-union "%O" "%A" "%B" %L'
+
 # LVT-V0-010: run before staging a spec edit; reads worktree Claims, including new specs.
 .PHONY: spec-claims-check
 .PHONY: spec-claims-test
