@@ -142,3 +142,26 @@ func TestCAPV08800HelpTableOmissionFails(t *testing.T) {
 		})
 	}
 }
+
+// CAP-V0-8800: corvint-cli must reject an unknown child below a known
+// two-word node, rather than serving the parent's otherwise valid help page.
+func TestCAPV08800DeepUnknownChild(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		for _, unknown := range []bool{false, true} {
+			args := []string{"--binary", "corvint", "docs", "corpus"}
+			if unknown {
+				args = append(args, "zz-unknown")
+			}
+			args = append(args, flag)
+			var out, errout bytes.Buffer
+			code := cliprofile.Profile(context.Background(), t.TempDir(), args, unreadableHelpInput{}, &out, &errout)
+			if unknown {
+				if code != 2 || out.Len() != 0 || !strings.Contains(errout.String(), `"code":"unknown-verb"`) {
+					t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
+				}
+			} else if code != 0 || !strings.Contains(out.String(), "corvint docs corpus") || errout.Len() != 0 {
+				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
+			}
+		}
+	}
+}

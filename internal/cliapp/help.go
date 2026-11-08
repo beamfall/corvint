@@ -42,6 +42,11 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 	if !ok {
 		return 0, false
 	}
+	// ACP-011 / CAP-V0-8800: analyzer node argv belongs to the native
+	// protocol dispatcher, even when a discovery-tree node matches exactly.
+	if tree.Source == "companion root contract" && strings.HasPrefix(binary, "corvint-analyzer-") && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
+		return 0, false
+	}
 	// CAP-V0-9300 / CAP-V0-8800: an exact node owns its help page even
 	// when its name is "help". Preambles still reach authored dispatch.
 	if binary != "corvint-tasks" && len(args) > 1 && (args[len(args)-1] == "--help" || args[len(args)-1] == "-h") {
