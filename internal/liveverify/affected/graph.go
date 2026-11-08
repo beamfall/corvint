@@ -113,6 +113,7 @@ type Graph struct {
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
 	priorReadScopes map[string][]string
+	readScopeInputs *readScopeInputs
 	// goAdditive holds the golang plugin's additive-change records, sorted
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
 	// not part of the observed graph or its digest.
@@ -229,12 +230,15 @@ type digestUnit struct {
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
 	ReadScope            []string `json:"readScope,omitempty"`
-	Frontier             []string `json:"frontier"`
-	FrontierBears        string   `json:"frontierBears,omitempty"`
-	Callers              []string `json:"callers,omitempty"`
-	ExecConsumers        []string `json:"execConsumers,omitempty"`
-	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
-	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+
+	ReadScopeTrees []ReadScopeTree `json:"readScopeTrees,omitempty"`
+
+	Frontier            []string `json:"frontier"`
+	FrontierBears       string   `json:"frontierBears,omitempty"`
+	Callers             []string `json:"callers,omitempty"`
+	ExecConsumers       []string `json:"execConsumers,omitempty"`
+	ImportGraphReads    []string `json:"importGraphReads,omitempty"`
+	ImportGraphReadsAll bool     `json:"importGraphReadsAll,omitzero"`
 	// ImportGraphReadsFiles is part of the digest when set (AFP-V0-9010).
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitzero"`
 
@@ -918,6 +922,7 @@ func projectUnit(unit Unit) digestUnit {
 		LocatesRoot:          unit.LocatesRoot,
 		ReadScoped:           unit.ReadScoped,
 		ReadScope:            unit.ReadScope,
+		ReadScopeTrees:       unit.ReadScopeTrees,
 		Frontier:             unit.Frontier,
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,

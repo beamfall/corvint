@@ -29,8 +29,8 @@ const (
 )
 
 type scopeFile struct {
-	Profile  string              `json:"profile"`
-	Packages map[string][]string `json:"packages"`
+	Profile  string                  `json:"profile"`
+	Packages map[string][]scopeEntry `json:"packages"`
 }
 
 // Load returns the declared scopes by package directory: nil with no
@@ -66,12 +66,16 @@ func Load(root string) (map[string][]string, error) {
 	if declared.Profile != scopesProfile || declared.Packages == nil || len(declared.Packages) > maxPackages {
 		return nil, fmt.Errorf("%s: profile must be %s with at most %d packages", ScopesPath, scopesProfile, maxPackages)
 	}
+	scopes := make(map[string][]string, len(declared.Packages))
 	for directory, entries := range declared.Packages {
 		if !validRelativePath(directory) || entries == nil || len(entries) > maxEntries {
 			return nil, fmt.Errorf("%s: package %q", ScopesPath, directory)
 		}
 		previous := ""
-		for _, entry := range entries {
+		scopes[directory] = make([]string, 0, len(entries))
+		for _, item := range entries {
+			entry := string(item)
+			scopes[directory] = append(scopes[directory], entry)
 			trimmed := strings.TrimSuffix(entry, "/")
 			if !validRelativePath(trimmed) || trimmed == ".git" || strings.HasPrefix(trimmed, ".git/") || entry <= previous {
 				return nil, fmt.Errorf("%s: package %q entry %q", ScopesPath, directory, entry)
@@ -79,7 +83,7 @@ func Load(root string) (map[string][]string, error) {
 			previous = entry
 		}
 	}
-	return declared.Packages, nil
+	return scopes, nil
 }
 
 func validRelativePath(value string) bool {
@@ -194,4 +198,33 @@ func ConfinedEnv(env []string) []string {
 		confined = append(confined, variable)
 	}
 	return append(confined, "GOFLAGS="+strings.TrimSpace(flags+" -buildvcs=false"))
+}
+
+// scopeEntry projects an AFP-V0-3300 tree object to its full filesystem
+// bound. This independent consumer does not claim predicate narrowing.
+type scopeEntry string
+
+func (entry *scopeEntry) UnmarshalJSON(body []byte) error {
+	if len(body) > 0 && body[0] == '"' {
+		var value string
+		if err := json.Unmarshal(body, &value); err != nil {
+			return err
+		}
+		*entry = scopeEntry(value)
+		return nil
+	}
+	var tree struct {
+		Tree             string   `json:"tree"`
+		ContentPredicate string   `json:"contentPredicate,omitempty"`
+		Samples          []string `json:"samples,omitempty"`
+		ListingOnly      bool     `json:"listingOnly,omitempty"`
+	}
+	if err := json.Unmarshal(body, &tree, json.RejectUnknownMembers(true)); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(tree.Tree, "/") {
+		return fmt.Errorf("tree scope must name a subtree: %q", tree.Tree)
+	}
+	*entry = scopeEntry(tree.Tree)
+	return nil
 }

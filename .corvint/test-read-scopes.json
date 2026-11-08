@@ -2593,12 +2593,48 @@
     "internal/nativelinecov": [],
     "internal/necessity": [],
     "internal/obscorpus": [
-      "benchmarks/",
-      "cmd/",
-      "conformance/",
-      "experiments/",
-      "internal/",
-      "tools/"
+      {
+        "tree": "benchmarks/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      {
+        "tree": "cmd/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      {
+        "tree": "conformance/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      {
+        "tree": "experiments/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      {
+        "tree": "internal/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      {
+        "tree": "tools/",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      }
     ],
     "internal/observations": [
       ".corvint/.gitignore",
@@ -3527,20 +3563,75 @@
       "script/line-citation-unpinned-inventory.txt"
     ],
     "tools/fixture-maintenance-check": [
-      "cmd/",
-      "conformance/",
-      "internal/",
-      "interop/",
-      "tools/"
+      {
+        "tree": "cmd/",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      {
+        "tree": "conformance/",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      {
+        "tree": "internal/",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      {
+        "tree": "interop/",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      {
+        "tree": "tools/",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      }
     ],
     "tools/flow-guide-check": [
       ".claude/skills/corvint-lane-flow/SKILL.md",
       "Makefile",
-      "cmd/",
+      {
+        "tree": "cmd/",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      },
       "docs/LANE-ORCHESTRATION.md",
-      "internal/",
+      {
+        "tree": "internal/",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      },
+      "internal/dogfoodflow/",
       "script/",
-      "tools/"
+      {
+        "tree": "tools/",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      }
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [

@@ -23,7 +23,7 @@ import (
 
 // GraphCacheProfile names the graph cache entry format (AFP-V0-391). An entry
 // written under any other profile is never trusted.
-const GraphCacheProfile = "corvint-affected-graph-cache/0"
+const GraphCacheProfile = "corvint-affected-graph-cache/1"
 
 const (
 	// graphCacheMaxBytes bounds one entry read or written.
@@ -199,12 +199,15 @@ type cachedUnit struct {
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped"`
 	ReadScope            []string `json:"readScope"`
-	Frontier             []string `json:"frontier"`
-	FrontierBears        string   `json:"frontierBears"`
-	Callers              []string `json:"callers"`
-	ExecConsumers        []string `json:"execConsumers"`
-	ImportGraphReads     []string `json:"importGraphReads"`
-	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
+
+	ReadScopeTrees []ReadScopeTree `json:"readScopeTrees,omitempty"`
+
+	Frontier            []string `json:"frontier"`
+	FrontierBears       string   `json:"frontierBears"`
+	Callers             []string `json:"callers"`
+	ExecConsumers       []string `json:"execConsumers"`
+	ImportGraphReads    []string `json:"importGraphReads"`
+	ImportGraphReadsAll bool     `json:"importGraphReadsAll"`
 	// ImportGraphReadsFiles mirrors Unit (AFP-V0-9010).
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles"`
 

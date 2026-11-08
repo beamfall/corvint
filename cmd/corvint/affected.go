@@ -1518,6 +1518,7 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 		// the measured commit, so a hunk seeds its own target or job
 		// (AZU-V0-001).
 		graph = graph.WithDriverContent(affectedDriverContent(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
+		graph = affectedReadScopeChanges(ctx, in, graph, changed)
 		graph = affectedOwnershipInputs(ctx, in, graph, changed)
 	}
 	plan := affectedSelect(graph, changed, in.shared)

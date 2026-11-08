@@ -1222,6 +1222,12 @@ type unitResult struct {
 func checkUnit(root string, unit affected.Unit, paths map[string]bool, recorded map[string]map[string]string, sandboxes map[string]string, trees map[string]map[string]string, existence []string) unitResult {
 	var result unitResult
 	directory := path.Dir(unit.Tests[0])
+	for _, rule := range unit.ReadScopeTrees {
+		if err := rule.Validate(); err != nil {
+			result.err = fmt.Errorf("package %s entry %s: %w (AFP-V0-3302)", directory, rule.Tree, err)
+			return result
+		}
+	}
 	if reason, ok := sandboxes[directory]; ok {
 		result.findings = append(result.findings, finding{pkg: directory, sandbox: reason})
 		return result

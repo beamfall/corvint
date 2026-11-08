@@ -149,12 +149,15 @@ type Unit struct {
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
 	ReadScoped           bool     `json:"readScoped,omitempty"`
 	ReadScope            []string `json:"readScope,omitempty"`
-	Frontier             []string `json:"frontier,omitempty"`
-	FrontierBears        string   `json:"frontierBears,omitempty"`
-	Callers              []string `json:"callers,omitempty"`
-	ExecConsumers        []string `json:"execConsumers,omitempty"`
-	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
-	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
+
+	ReadScopeTrees []ReadScopeTree `json:"readScopeTrees,omitempty"`
+
+	Frontier            []string `json:"frontier,omitempty"`
+	FrontierBears       string   `json:"frontierBears,omitempty"`
+	Callers             []string `json:"callers,omitempty"`
+	ExecConsumers       []string `json:"execConsumers,omitempty"`
+	ImportGraphReads    []string `json:"importGraphReads,omitempty"`
+	ImportGraphReadsAll bool     `json:"importGraphReadsAll,omitempty"`
 	// ImportGraphReadsFiles needs ImportGraphReadsAll.
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitempty"`
 
@@ -282,6 +285,13 @@ func validUnit(unit Unit, namespace string) error {
 	}
 	if err := validReadScope(unit.ReadScoped, unit.ReadScope); err != nil {
 		return err
+	}
+	previousTree := ""
+	for _, rule := range unit.ReadScopeTrees {
+		if !unit.ReadScoped || !strings.HasSuffix(rule.Tree, "/") || !slices.Contains(unit.ReadScope, rule.Tree) || rule.Tree <= previousTree {
+			return ErrInvalidUnit
+		}
+		previousTree = rule.Tree
 	}
 	if err := validPathList(unit.Sources); err != nil {
 		return err
