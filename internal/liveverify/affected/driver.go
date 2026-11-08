@@ -27,6 +27,9 @@ const (
 	// WitnessFrontierSite names a make target or workflow job selected
 	// because it invokes a computed name (AZU-V0-001, AZU-V0-003).
 	WitnessFrontierSite = "FRONTIER_SITE"
+	// driverTreeReadGlob uses the existing anchored ancestor-glob relation
+	// to retain every repository path, including new files (AFP-V0-9401).
+	driverTreeReadGlob = "/*"
 )
 
 // driverSites selects, on every plan with a dirty path, each make target or
@@ -45,6 +48,12 @@ func (graph *Graph) driverSites(reached map[string]Witness, followed map[string]
 	unbounded := graph.unboundedDirty(dirty)
 	for _, id := range graph.order {
 		frontier := graph.units[id].Frontier
+		// A file-set reader's callers also observe the read, even when the
+		// dirty file already has a tested owner. Generic terminal readers
+		// do not propagate in that case (AFP-V0-9402).
+		if _, hit := reached[id]; hit && slices.Contains(graph.units[id].PathGlobs, driverTreeReadGlob) && strings.HasPrefix(id, DriverNamespace+":") {
+			queue = append(queue, id)
+		}
 		// An unparsable file can hide any execution edge. Reach its fallback
 		// on every change not covered by the project's no-unbounded-reader
 		// proof, so its uncertainty cannot disappear with that edge.
@@ -240,7 +249,8 @@ type driverUnitBuilder struct {
 	evaluated   bool
 	uncertified bool
 	// reasons names why computed was set (AFP-V0-9620), for diagnostics.
-	reasons map[string]bool
+	reasons   map[string]bool
+	readsTree bool
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -288,6 +298,9 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	if scan.uncertified {
 		b.uncertified = true
 	}
+	if scan.readsTree {
+		b.readsTree = true
+	}
 	for token := range scan.tokens {
 		b.tokens[token] = true
 	}
@@ -324,6 +337,11 @@ func (b *driverUnitBuilder) unit() Unit {
 	}
 	if b.computed || b.evaluated && b.uncertified {
 		unit.Frontier = []string{FrontierDriverComputedInvocation}
+	} else if b.readsTree {
+		// Existing computed sites already retain every path and their
+		// callers. Preserve that fallback and its witness; a literal
+		// enumerator instead records the actual read dependency.
+		unit.PathGlobs = []string{driverTreeReadGlob}
 	}
 	return unit
 }
@@ -542,6 +560,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		for reason := range shared.reasons {
 			builder.markComputed(reason)
 		}
+		builder.readsTree = shared.readsTree
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/sessiontest"
@@ -30,7 +31,7 @@ const testHelp = `Run the affected test set (experimental, STR-V0).
 Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
-    [--profile local|ci [--confine PATH]] [--go-parallel N]
+    [--profile local|ci [--confine PATH]] [--go-parallel N] [--line-index FILE]
     [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
@@ -48,6 +49,17 @@ combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
+
+--line-index FILE (experimental, GLS-V0-020) narrows a NARROWED run by the
+per-test line coverage index FILE, as corvint affected --line-index decides,
+under the runner identity of the profile's Go environment (ci: -race): a
+package no kept test reaches leaves the run and is listed in excluded, one
+whose changed lines no test executed builds and vets only (-run ^$), and one
+some tests reach runs those, joined with any slice below. FULL, a FALLBACK
+or SHADOW selection and whole packages are unchanged. Unqualified selectors
+retain SHADOW plans; exclusion requires matching qualification. The manifest records
+lineIndex. Example: corvint test --base "$(git merge-base HEAD origin/main)"
+--line-index linecov.idx --dry-run --summary
 
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
@@ -156,7 +168,10 @@ const testPartitionDirectory = ".github/cishards"
 
 type testOptions struct {
 	base, placement, profile, confine, manifest, receipt, shardPlan string
-	shard, shardCount                                               int
+	// lineIndex is --line-index, the linecov index whose line selection
+	// narrows a NARROWED run (GLS-V0-020).
+	lineIndex         string
+	shard, shardCount int
 	// goParallel is --go-parallel, the local Go `-p` (STR-V0-173); zero
 	// keeps the declared flags.
 	goParallel int
@@ -219,6 +234,7 @@ func parseTestOptions(args []string) (testOptions, error) {
 	once("manifest", &options.manifest)
 	once("receipt", &options.receipt)
 	once("shard-plan", &options.shardPlan)
+	once("line-index", &options.lineIndex)
 	shard := ""
 	once("shard", &shard)
 	goParallel := ""
@@ -228,7 +244,7 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.full, "full", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--line-index FILE] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -567,7 +583,16 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	// the same cache directory (AFP-V0-822).
 	// The compile reuses the identity's HEAD and dirty set, and its closing
 	// recheck spans the identity read too (AFP-V0-824).
-	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed}
+	declared := sessiontest.ReadDeclared(root)
+	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed, LineIndex: options.lineIndex}
+	if options.profile == sessiontest.ProfileCI {
+		// The CI profile runs every test under the confinement wrapper, which
+		// the runner identity names (GLS-V0-020).
+		invocation.LineExec = options.confine
+	}
+	if options.lineIndex != "" {
+		invocation.lineEnv, invocation.lineTimeout, invocation.lineEnvErr = sessiontest.RunnerEnv(root, options.profile, declared, os.Environ())
+	}
 	err := resolveAffectedBatchAndCache(&invocation)
 	var index *gateselect.Index
 	if module, moduleErr := golang.ReadModulePath(root); err == nil && moduleErr == nil {
@@ -604,6 +629,14 @@ type testPinsResult struct {
 }
 
 func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string, index *gateselect.Index) error {
+	if receipt.LineSelection != nil {
+		// The plan digest binds the decisions, not the time they took, so
+		// every shard reproduces one manifest (GLS-V0-020).
+		sel := *receipt.LineSelection
+		sel.LoadMillis, sel.SelectMillis, sel.StaticMillis, sel.GitMillis = 0, 0, 0, 0
+		receipt.LineSelection = &sel
+		input.LineIndex, input.LineUnits = testLineUnits(sel)
+	}
 	compact, err := compactAffectedReceipt(receipt)
 	if err != nil {
 		return err
@@ -663,9 +696,9 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	case err != nil:
 		input.GoSelection = "FALLBACK the root module path cannot be read"
 	default:
-		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
+		lines := gateselect.SelectQualifiedIndexed(plan, module, root, index)
 		if len(lines) != 0 {
-			input.GoSelection = testPlanRunSet(lines[len(lines)-1], plan.Provider.Go.Packages)
+			input.GoSelection = lines[len(lines)-1]
 		}
 		// A change only inside nested modules no observed module builds
 		// selects no root package; their own units run it (STR-V0-064).
@@ -676,25 +709,11 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	return nil
 }
 
-// testPlanRunSet is the Go verdict `corvint test` runs (AFP-V0-2402, V1-4363,
-// amending STR-V0-061): the AFP-V0-012 attribution still decides FALLBACK and
-// NOTHING, but a `run` verdict runs exactly the plan's own Go selection, the
-// packages `corvint affected` selects with a witness. The attribution's rule
-// (a) to (c) lines re-add packages the plan's narrower reviewed rules exclude
-// (the lone-component and directory-resolving literal narrowings of
-// AFP-V0-021 and AFP-V0-072, namer edges for a path token that names a package
-// directory), so they no longer enter the run set; the CI PR tier's deciding
-// selector (gateselect.Select) keeps them. A run verdict over a plan that
-// selects no Go package is NOTHING with that reason.
+// testPlanRunSet retains the AFP-V0-2402 verdict projection for callers that
+// already hold a qualified package set. The runner now receives that set from
+// gateselect.SelectQualifiedIndexed, shared with the CI selector.
 func testPlanRunSet(verdict string, planned []string) string {
-	if !strings.HasPrefix(verdict, "run ") {
-		return verdict
-	}
-	packages := slices.Compact(slices.Sorted(slices.Values(planned)))
-	if len(packages) == 0 {
-		return "NOTHING the plan selects no Go package; the AFP-V0-012 attribution names only packages the plan's rules exclude (AFP-V0-2402)"
-	}
-	return "run " + strings.Join(packages, " ")
+	return gateselect.PlannedRunSet(verdict, planned)
 }
 
 // testGoUniverse is every graph Go package the root runner can list, using
@@ -1080,6 +1099,34 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = stdout.Write(encoded)
 	return 0
+}
+
+// testLineUnits turns a line selection into the manifest's lineIndex record
+// and, for a NARROWED one, each decided package's line unit (GLS-V0-020).
+func testLineUnits(sel linecov.Selection) (string, map[string]sessiontest.LineUnit) {
+	record := sel.State + " " + sel.Reason
+	if sel.Index != nil {
+		record = sel.State + " " + sel.Index.Digest
+	}
+	if sel.State != linecov.StateNarrowed {
+		return record, nil
+	}
+	units := map[string]sessiontest.LineUnit{}
+	for _, u := range sel.Units {
+		pkg, ok := strings.CutPrefix(u.Unit, "go:")
+		if !ok {
+			continue
+		}
+		switch u.Mode {
+		case linecov.Exclude:
+			units[pkg] = sessiontest.LineUnit{Mode: "exclude", Reason: fmt.Sprintf("excluded by line coverage: none of its %d tests executed a changed line (GLS-V0-020)", u.Declared)}
+		case linecov.Compile:
+			units[pkg] = sessiontest.LineUnit{Mode: "compile", Pattern: "^$", Reason: "selected: no test executed a changed line; build and vet only (GLS-V0-020)"}
+		case linecov.Tests:
+			units[pkg] = sessiontest.LineUnit{Mode: "tests", Pattern: u.Run, Reason: fmt.Sprintf("selected: %d of %d tests executed a changed line (GLS-V0-020)", len(u.Kept), u.Declared)}
+		}
+	}
+	return record, units
 }
 
 // testSummarySelected chooses the bounded local/default or explicit summary projection.

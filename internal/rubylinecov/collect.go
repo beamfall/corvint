@@ -466,6 +466,7 @@ func Index(module, commit string, run *Run, oids map[string]string) (*linecov.In
 	if err != nil {
 		return nil, err
 	}
+	ix.Language = "ruby" // its records lie inside one ordinary-order run (LPCV-V0-953)
 	unordered := map[string]bool{}
 	for _, o := range run.Outcomes {
 		if !run.isolated || !o.Recorded {

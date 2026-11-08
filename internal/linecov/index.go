@@ -7,7 +7,9 @@ package linecov
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -21,11 +23,14 @@ import (
 	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
-// Format names the index encoding this package writes; a reader refuses any
-// other but FormatV2 (LPCV-V0-951, MCJ-V0-003). An index of FormatV2 reads as
-// one whole-test segment per test, so it selects exactly as before.
+// Format names the index encoding this package writes, the compact
+// linecov-index/4 (GLS-V0-001); a reader also reads the gob encodings
+// FormatV3 and FormatV2 and refuses any other (LPCV-V0-951, MCJ-V0-003). An
+// index of FormatV2 reads as one whole-test segment per test, so it selects
+// exactly as before.
 const (
-	Format   = "linecov-index/3"
+	Format   = "linecov-index/4"
+	FormatV3 = "linecov-index/3"
 	FormatV2 = "linecov-index/2"
 )
 
@@ -48,6 +53,20 @@ type Index struct {
 	// pass, so which blocks only that order reaches is unknown: a change
 	// reaching any of their tests keeps the whole package (LPCV-V0-962).
 	Unordered []string
+	// EnvBound reports that every record was collected with its inherited
+	// environment reads observed, so Env and Test.Env are complete; an index
+	// without it binds no environment and cannot exclude a test
+	// (GLS-V0-017, GLS-V0-018). Env is the table of distinct bindings the
+	// tests refer to, sorted.
+	EnvBound bool         `json:",omitempty"`
+	Env      []EnvBinding `json:",omitempty"`
+	// InOrderRan and InOrderSkipped list, sorted, the packages of a part
+	// collected with its in-order run passed, or left out (-inorder skip).
+	// Merge resolves them: a package some part skipped and no part ran is
+	// unordered. An unmerged index reads a skipped package as unordered
+	// (GLS-V0-008).
+	InOrderRan     []string `json:",omitempty"`
+	InOrderSkipped []string `json:",omitempty"`
 	// Segments lists every test's segments, grouped by Test in ascending
 	// order and, within a test, in run order (MCJ-V0-001). Empty means each
 	// test is its own single whole-test segment, as a FormatV2 index or an
@@ -64,8 +83,10 @@ type Index struct {
 
 	byName   map[string]int32
 	byPath   map[string]int
-	segs     []Segment // Segments, or one synthesized whole-test segment per test
-	segFirst []int32   // per test, its first index into segs; len(Tests)+1 entries
+	digest   string      // Digest
+	lazy     *lazySource // set by Open for a lazily read /4 index
+	segs     []Segment   // Segments, or one synthesized whole-test segment per test
+	segFirst []int32     // per test, its first index into segs; len(Tests)+1 entries
 	diverged map[string]bool
 	reach    *segReach
 }
@@ -81,6 +102,9 @@ type Test struct {
 	// Incomplete marks a segment record that is not whole (MCJ-V0-015): the
 	// test keeps its test-level reach and joins no equivalence class.
 	Incomplete bool `json:",omitempty"`
+	// Env indexes, ascending, the Index.Env bindings the record was observed
+	// under (GLS-V0-017).
+	Env []int32 `json:",omitempty"`
 }
 
 // File is one instrumented file at the index commit: its blob OID and every
@@ -118,13 +142,28 @@ type Record struct {
 	// reaching them keeps the test.
 	Segments   []SegmentRecord
 	Incomplete bool // MCJ-V0-015
+	// Env is the inherited environment the run was observed under, and
+	// EnvObserved that it was observed at all (GLS-V0-017): a record without
+	// it leaves the index unbound, so no selection excludes by it.
+	Env         []EnvBinding
+	EnvObserved bool
+	// Union marks an InOrder record that owns every block it executed, so a
+	// change reaching one keeps the package whole: the Go collector sets it,
+	// because a test that reaches a block alone and in order may still
+	// depend in order on state an earlier test left, which no per-test
+	// window records (GLS-V0-008). Without it (a language collector) an
+	// InOrder record owns its blocks only when some block of it no other
+	// record of the package executed (LPCV-V0-7600 residual).
+	Union bool
 }
 
 // InOrder is the Name of a package's record from one run of its whole suite in
-// ordinary order. Build keeps it only when that run executed a block no
-// isolated record of the package did; a change reaching such a block then
-// keeps the whole package, since which test took that path depends on order
-// (LPCV-V0-962).
+// ordinary order. Build and Merge always keep it: the run attributes no block
+// to a test, and an isolated record executing the same block does not show
+// that every test behaves in order as it does alone (an earlier test can set
+// state that sends a later one through the block). A change reaching any
+// block the run executed therefore keeps the whole package (LPCV-V0-962,
+// GLS-V0-008).
 const InOrder = "(in-order)"
 
 // profileLine is one block of a cover profile. Any file extension is read, so
@@ -195,7 +234,6 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 	// segRan[i][j] is the blocks segment j of record i executed; a segmented
 	// record's blocks outside every segment become one trailing segment.
 	segRan := make([][]map[blockKey]bool, len(records))
-	isolated := map[string]map[hit]bool{} // package -> executed blocks
 	seen := map[string]bool{}
 	segmented := false
 	incomplete := make([]bool, len(records))
@@ -256,12 +294,21 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 				incomplete[i] = true
 			}
 		}
-		for _, x := range hits[i] {
-			if x.ran && r.Name != InOrder {
-				if isolated[r.Package] == nil {
-					isolated[r.Package] = map[hit]bool{}
+	}
+	// owned[pkg] is every block some test record of pkg executed; an InOrder
+	// record without Union owns its blocks only when it executed one no test
+	// record did.
+	owned := map[string]map[blockKey]bool{}
+	for i, r := range records {
+		if r.Name == InOrder {
+			continue
+		}
+		for _, h := range hits[i] {
+			if h.ran {
+				if owned[r.Package] == nil {
+					owned[r.Package] = map[blockKey]bool{}
 				}
-				isolated[r.Package][x] = true
+				owned[r.Package][blockKey{h.path, h.k}] = true
 			}
 		}
 	}
@@ -269,21 +316,19 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 	tests := map[string]Test{}
 	recordOf := map[string]int{}
 	for i, r := range records {
-		if r.Name == InOrder {
-			sensitive := false
-			for _, h := range hits[i] {
-				if h.ran && !isolated[r.Package][h] {
-					sensitive = true
-					break
-				}
-			}
-			if !sensitive {
-				continue
-			}
-		}
 		name := r.Package + "\x00" + r.Name
 		tests[name] = Test{Package: r.Package, Name: r.Name, Elapsed: r.Elapsed, Level: r.Level, Incomplete: incomplete[i]}
 		recordOf[name] = i
+		owns := true
+		if r.Name == InOrder && !r.Union {
+			owns = false
+			for _, h := range hits[i] {
+				if h.ran && !owned[r.Package][blockKey{h.path, h.k}] {
+					owns = true
+					break
+				}
+			}
+		}
 		for _, h := range hits[i] {
 			if files[h.path] == nil {
 				files[h.path] = map[key]map[string]bool{}
@@ -291,7 +336,7 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 			if files[h.path][h.k] == nil {
 				files[h.path][h.k] = map[string]bool{}
 			}
-			if h.ran {
+			if h.ran && owns {
 				files[h.path][h.k][name] = true
 			}
 		}
@@ -301,11 +346,34 @@ func Build(module, commit, runner string, oids map[string]string, records []Reco
 		names = append(names, n)
 	}
 	sort.Strings(names)
-	ix := &Index{Format: Format, Module: module, Commit: commit, Runner: runner}
+	ix := &Index{Format: Format, Module: module, Commit: commit, Runner: runner, EnvBound: len(records) > 0}
+	envIDs := map[EnvBinding]int32{}
+	for _, r := range records {
+		if !r.EnvObserved {
+			ix.EnvBound = false
+		}
+		for _, b := range r.Env {
+			envIDs[b] = 0
+		}
+	}
+	for b := range envIDs {
+		ix.Env = append(ix.Env, b)
+	}
+	sort.Slice(ix.Env, func(i, j int) bool {
+		return ix.Env[i].Name < ix.Env[j].Name || ix.Env[i].Name == ix.Env[j].Name && ix.Env[i].Value < ix.Env[j].Value
+	})
+	for i, b := range ix.Env {
+		envIDs[b] = int32(i)
+	}
 	ids := map[string]int32{}
 	for i, n := range names {
 		ids[n] = int32(i)
-		ix.Tests = append(ix.Tests, tests[n])
+		t := tests[n]
+		for _, b := range records[recordOf[n]].Env {
+			t.Env = append(t.Env, envIDs[b])
+		}
+		t.Env = uniqueSorted(t.Env)
+		ix.Tests = append(ix.Tests, t)
 	}
 	// segOf maps a block to the segments reaching it, filled only when a
 	// record is segmented; an unsegmented test is its own whole segment.
@@ -384,6 +452,45 @@ func (f *File) sortBlocks() {
 	})
 }
 
+// unorderedSet is every package Narrow keeps whole for order (LPCV-V0-962):
+// Unordered, a package whose in-order run this unmerged part skipped and did
+// not run, and a package with records but no in-order record. Collection
+// writes an in-order record for every package it runs in order, and Build and
+// Merge keep it, so a missing one means an index built before they did (which
+// pruned it) or by hand: order effects are then unknown (GLS-V0-008). A Ruby
+// index is exempt: every test window it records lies inside one ordinary-order
+// suite run, and coverage no window owns goes to its load record (LPCV-V0-953).
+func (ix *Index) unorderedSet() map[string]bool {
+	out := make(map[string]bool, len(ix.Unordered))
+	for _, pkg := range ix.Unordered {
+		out[pkg] = true
+	}
+	ran := map[string]bool{}
+	for _, pkg := range ix.InOrderRan {
+		ran[pkg] = true
+	}
+	for _, pkg := range ix.InOrderSkipped {
+		if !ran[pkg] {
+			out[pkg] = true
+		}
+	}
+	if ix.Language == "ruby" {
+		return out
+	}
+	inOrder := map[string]bool{}
+	for _, t := range ix.Tests {
+		if t.Name == InOrder {
+			inOrder[t.Package] = true
+		}
+	}
+	for _, t := range ix.Tests {
+		if !inOrder[t.Package] {
+			out[t.Package] = true
+		}
+	}
+	return out
+}
+
 func (ix *Index) reindex() {
 	ix.byName = make(map[string]int32, len(ix.Tests))
 	for i, t := range ix.Tests {
@@ -426,26 +533,44 @@ func uniqueSorted(ids []int32) []int32 {
 	return out
 }
 
-// Encode writes the index.
+// Encode writes the index as linecov-index/4, or in the older gob encoding
+// an index whose Format names FormatV3 or FormatV2 (kept so their readers'
+// refusals stay testable).
 func (ix *Index) Encode(w io.Writer) error {
+	ix.full()
+	// The RSP-V0-008 evidence extension keeps main's bounded gob encoding;
+	// linecov-index/4's compact sections do not carry it.
 	if len(ix.Evidence) > 0 {
 		return ix.EncodeBounded(w, 0)
 	}
-	if err := ix.checkEvidence(); err != nil {
-		return err
+	if ix.Format == FormatV3 || ix.Format == FormatV2 {
+		return gob.NewEncoder(w).Encode(ix)
 	}
-	return gob.NewEncoder(w).Encode(ix)
+	return ix.encodeCompact(w)
 }
 
-// Decode reads an index and refuses another format or an inconsistent body,
-// so a damaged index decides nothing.
+// Decode reads a whole index and refuses another format or an inconsistent
+// body, so a damaged index decides nothing. A linecov-index/4 index has
+// every section verified (GLS-V0-002).
 func Decode(r io.Reader) (*Index, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("linecov: decode: %w", err)
+	}
+	if bytes.HasPrefix(data, []byte(magicV4)) {
+		return decodeCompact(data)
+	}
 	var ix Index
-	if err := gob.NewDecoder(bufio.NewReader(r)).Decode(&ix); err != nil {
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&ix); err != nil {
 		return nil, fmt.Errorf("linecov: decode: %w", err)
 	}
 	switch ix.Format {
 	case Format:
+		if len(ix.Evidence) == 0 {
+			return nil, fmt.Errorf("linecov: gob index format %q carries no evidence extension", ix.Format)
+		}
+	case FormatV3:
+		ix.Format = Format
 	case FormatV2:
 		// A /2 index has no segments: each test reads as one whole segment,
 		// so selection is unchanged (MCJ-V0-003).
@@ -465,6 +590,10 @@ func Decode(r io.Reader) (*Index, error) {
 	if err := ix.checkEvidence(); err != nil {
 		return nil, err
 	}
+	// The older gob formats carry no admitted environment-audit version.
+	ix.EnvBound = false
+	sum := sha256.Sum256(data)
+	ix.digest = "sha256:" + hex.EncodeToString(sum[:])
 	ix.reindex()
 	return &ix, nil
 }
@@ -473,10 +602,16 @@ func Decode(r io.Reader) (*Index, error) {
 // package sets, as sharded collection writes them. A package absent from
 // every part keeps its tests unrecorded, so Narrow runs it whole. Parts that
 // disagree on identity, on a file's blob, or that both record one test
-// refuse the merge.
+// refuse the merge. A package's in-order record may come from another part
+// than its isolated records; it stays, as Build keeps it (GLS-V0-008).
 func Merge(parts ...*Index) (*Index, error) {
 	if len(parts) == 0 {
 		return nil, errors.New("linecov: merge needs at least one index")
+	}
+	for _, p := range parts {
+		if err := p.loadAll(); err != nil {
+			return nil, err
+		}
 	}
 	first := parts[0]
 	type key struct{ start, startCol, end, endCol int32 }
@@ -484,9 +619,17 @@ func Merge(parts ...*Index) (*Index, error) {
 	oids := map[string]string{}
 	blocks := map[string]map[key]map[string]bool{}
 	unordered := map[string]bool{}
+	ran, skipped := map[string]bool{}, map[string]bool{}
+	partEnv := map[string][]EnvBinding{} // each test's part's bindings table
 	for _, p := range parts {
 		if err := p.checkEvidence(); err != nil {
 			return nil, err
+		}
+		for _, pkg := range p.InOrderRan {
+			ran[pkg] = true
+		}
+		for _, pkg := range p.InOrderSkipped {
+			skipped[pkg] = true
 		}
 		if p.Module != first.Module || p.Commit != first.Commit || p.Runner != first.Runner || p.TestTimeout != first.TestTimeout || p.SuiteTimeout != first.SuiteTimeout || p.Language != first.Language || !slices.Equal(p.Command, first.Command) || p.Executable != first.Executable || p.RunnerFamily != first.RunnerFamily || p.Config != first.Config {
 			return nil, fmt.Errorf("linecov: merge of %s %s %q with %s %s %q", first.Module, first.Commit, first.Runner, p.Module, p.Commit, p.Runner)
@@ -497,6 +640,7 @@ func Merge(parts ...*Index) (*Index, error) {
 				return nil, fmt.Errorf("linecov: merge: %s.%s recorded twice", t.Package, t.Name)
 			}
 			tests[name] = t
+			partEnv[name] = p.Env
 		}
 		for _, pkg := range p.Unordered {
 			unordered[pkg] = true
@@ -521,6 +665,11 @@ func Merge(parts ...*Index) (*Index, error) {
 			}
 		}
 	}
+	for pkg := range skipped {
+		if !ran[pkg] {
+			unordered[pkg] = true
+		}
+	}
 	names := make([]string, 0, len(tests))
 	for n := range tests {
 		names = append(names, n)
@@ -536,10 +685,39 @@ func Merge(parts ...*Index) (*Index, error) {
 			ix.WindowFallback[pkg] = reason
 		}
 	}
+	// Every part bound its environment, or the union binds none; the
+	// bindings table is the union, and each test's indexes are remapped.
+	ix.EnvBound = true
+	envIDs := map[EnvBinding]int32{}
+	for _, p := range parts {
+		if !p.EnvBound {
+			ix.EnvBound = false
+		}
+		for _, b := range p.Env {
+			envIDs[b] = 0
+		}
+	}
+	for b := range envIDs {
+		ix.Env = append(ix.Env, b)
+	}
+	sort.Slice(ix.Env, func(i, j int) bool {
+		return ix.Env[i].Name < ix.Env[j].Name || ix.Env[i].Name == ix.Env[j].Name && ix.Env[i].Value < ix.Env[j].Value
+	})
+	for i, b := range ix.Env {
+		envIDs[b] = int32(i)
+	}
 	ids := map[string]int32{}
 	for i, n := range names {
 		ids[n] = int32(i)
-		ix.Tests = append(ix.Tests, tests[n])
+		t := tests[n]
+		var env []int32
+		for _, e := range t.Env {
+			if int(e) < len(partEnv[n]) {
+				env = append(env, envIDs[partEnv[n][e]])
+			}
+		}
+		t.Env = uniqueSorted(env)
+		ix.Tests = append(ix.Tests, t)
 	}
 	for pkg := range unordered {
 		ix.Unordered = append(ix.Unordered, pkg)

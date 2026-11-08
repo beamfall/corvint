@@ -1,11 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/linecov"
 )
 
 func write(t *testing.T, root, name, body string) {
@@ -77,15 +82,33 @@ func TestCleanRefusesEditsAndUntrackedGo(t *testing.T) {
 
 func TestFailingTestsNeedsAResultPerPackage(t *testing.T) {
 	root := module(t)
-	failed, pkgFail, err := failingTests(root, "example.com/m", []string{"p"})
+	failed, b, err := failingTests(root, "example.com/m", []string{"p"}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !failed["p.TestFail"] || failed["p.TestPass"] || !pkgFail {
-		t.Fatalf("failed=%v pkgFail=%v", failed, pkgFail)
+	if !failed["p.TestFail"] || failed["p.TestPass"] || len(b.build) != 0 || len(b.crash) != 0 {
+		t.Fatalf("failed=%v broken=%+v", failed, b)
 	}
-	if _, _, err := failingTests(root, "example.com/m", []string{"p", "absent"}); err == nil {
+	if _, _, err := failingTests(root, "example.com/m", []string{"p", "absent"}, time.Minute); err == nil {
 		t.Fatal("a package go test never ran was accepted")
+	}
+}
+
+// A printed `--- FAIL:` line for a test the package does not declare must not
+// hide the package failure go test also reports, here TestMain exiting nonzero.
+func TestPrintedUndeclaredFailureKeepsCrash(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "go.mod", "module example.com/m\n\ngo 1.22\n")
+	write(t, root, "q/q.go", "package q\n")
+	write(t, root, "q/q_test.go", "package q\n\nimport (\n\t\"fmt\"\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestMain(m *testing.M) {\n\tm.Run()\n\tos.Exit(3)\n}\n\nfunc TestPrints(t *testing.T) { fmt.Println(\"--- FAIL: TestGhost (0.00s)\") }\n")
+	failed, b, err := failingTests(root, "example.com/m", []string{"q"}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed = declaredFailures(failed, map[string][]string{"q": {"TestPrints"}})
+	b.settle(failed, map[string][]string{"q": {"TestPrints"}})
+	if len(failed) != 0 || !b.crash["q"] {
+		t.Fatalf("failed=%v broken=%+v", failed, b)
 	}
 }
 
@@ -93,12 +116,12 @@ func TestRunnerBindsBuildSettings(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GOENV", filepath.Join(root, "goenv"))
 	t.Setenv("GOFLAGS", "")
-	plain, _, err := runner(root)
+	plain, _, err := runner(root, linecov.DefaultTestTimeout, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("GOFLAGS", "-tags=linecovtest")
-	tagged, flags, err := runner(root)
+	tagged, flags, err := runner(root, linecov.DefaultTestTimeout, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +132,7 @@ func TestRunnerBindsBuildSettings(t *testing.T) {
 	// flags collection builds under must carry them too.
 	t.Setenv("GOFLAGS", "")
 	run(t, root, "go", "env", "-w", "GOFLAGS=-tags=savedtag")
-	saved, flags, err := runner(root)
+	saved, flags, err := runner(root, linecov.DefaultTestTimeout, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,8 +154,10 @@ func TestKnownRequirements(t *testing.T) {
 }
 
 // TestCINarrowsWholePackages collects a two-package module, changes one
-// function, and checks ci turns the changed package into a -run slice of the
-// test that reaches it, drops the untouched package, and keeps given slices.
+// function, and checks ci keeps the changed package whole, since its in-order
+// run executed the function (GLS-V0-008), drops the untouched package, and
+// keeps given slices. Collection and selection share this process's
+// environment, so every binding holds (GLS-V0-018).
 func TestCINarrowsWholePackages(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "go.mod", "module example.com/m\n\ngo 1.22\n")
@@ -167,11 +192,18 @@ func TestCINarrowsWholePackages(t *testing.T) {
 		}
 		return string(data)
 	}
-	if got := read("packages"); got != "" {
-		t.Errorf("packages = %q, want none", got)
+	if got := read("packages"); got != "example.com/m/p\n" {
+		t.Errorf("packages = %q, want example.com/m/p", got)
 	}
-	if got, want := read("slices"), "-run ^(TestA)$ example.com/m/p\n-run ^TestX$ example.com/m/r\n"; got != want {
+	if got, want := read("slices"), "-run ^TestX$ example.com/m/r\n"; got != want {
 		t.Errorf("slices = %q, want %q\nplan: %s", got, want, read("plan.json"))
+	}
+	var plan Plan
+	if err := json.Unmarshal([]byte(read("plan.json")), &plan); err != nil {
+		t.Fatal(err)
+	}
+	if plan.Reason != "" || !reflect.DeepEqual(plan.Excluded, []string{"./q"}) {
+		t.Errorf("plan reason %q excluded %v, want none and ./q", plan.Reason, plan.Excluded)
 	}
 }
 
@@ -184,4 +216,14 @@ func gitOut(t *testing.T, root string, args ...string) string {
 		t.Fatal(err)
 	}
 	return string(out)
+}
+
+// A declared failure in a package whose directory extends another's (p and
+// p.foo) must not count as the shorter package's own result.
+func TestSettleIgnoresExtendingPackage(t *testing.T) {
+	b := broken{build: map[string]bool{}, crash: map[string]bool{}, failed: map[string]bool{"p": true, "p.foo": true}}
+	b.settle(map[string]bool{"p.foo.TestBad": true}, map[string][]string{"p": {"TestA"}, "p.foo": {"TestBad"}})
+	if !b.crash["p"] || b.crash["p.foo"] {
+		t.Fatalf("crash=%v", b.crash)
+	}
 }

@@ -62,6 +62,8 @@ func segChange(names ...string) []FileDiff {
 		l := segLine(n) + 1
 		d.Hunks = append(d.Hunks, Hunk{Start: l, End: l})
 	}
+	d.NewHunks = append([]Hunk(nil), d.Hunks...)
+	d.NewSource = segSource()
 	return []FileDiff{d}
 }
 
@@ -167,7 +169,7 @@ func TestSegmentedIndexRoundTripsAndSelectsAsBefore(t *testing.T) {
 		testSpec{name: "TestExtra", segs: []segSpec{step(KindStep, "step:ping", "ping")}, ran: []string{"health"}},
 		testSpec{name: "TestPlain", ran: []string{"admin", "open"}})
 	ix := buildSeg(t, specs...)
-	if ix.Format != Format || Format != "linecov-index/3" {
+	if ix.Format != Format || Format != "linecov-index/4" { // GLS-V0-001
 		t.Fatalf("format %q", ix.Format)
 	}
 	extra := ix.byName["e2e\x00TestExtra"]
@@ -279,8 +281,8 @@ func TestV2IndexReadsAsOneSegmentPerTest(t *testing.T) {
 	}
 	heads := map[string][]string{"e2e": {"TestA", "TestB", "TestC"}, "app": nil}
 	for _, f := range segFuncs {
-		want, _ := ix.Narrow([]string{"e2e", "app"}, heads, Effect{}, ix.Analyze(segChange(f), segRead))
-		got, _ := read.Narrow([]string{"e2e", "app"}, heads, Effect{}, read.Analyze(segChange(f), segRead))
+		want, _ := ix.Narrow(nil, []string{"e2e", "app"}, heads, Effect{}, ix.Analyze(segChange(f), segRead))
+		got, _ := read.Narrow(nil, []string{"e2e", "app"}, heads, Effect{}, read.Analyze(segChange(f), segRead))
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: /2 plan %v, /3 plan %v", f, got, want)
 		}
@@ -494,11 +496,13 @@ func TestShadowReportsAndNeverChangesSelection(t *testing.T) {
 	for i := range specs {
 		specs[i].level = "e2e"
 	}
-	specs = append(specs, testSpec{name: "TestUnit", ran: []string{"admin"}})
+	// An in-order record reaching none of the changed blocks leaves the
+	// per-test rules to decide (GLS-V0-008).
+	specs = append(specs, testSpec{name: "TestUnit", ran: []string{"admin"}}, testSpec{name: InOrder})
 	ix := buildSeg(t, specs...)
 	heads := map[string][]string{"e2e": {"TestCartA", "TestCartB", "TestCartC", "TestUnit", "TestNew"}}
 	e := ix.Analyze(segChange("open"), segRead)
-	plans, reason := ix.Narrow([]string{"e2e"}, heads, Effect{}, e)
+	plans, reason := ix.Narrow(nil, []string{"e2e"}, heads, Effect{}, e)
 	before := fmt.Sprint(plans)
 	j := ix.Join(e)
 	sh := ix.Shadow(j, nil)

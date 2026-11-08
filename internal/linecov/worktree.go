@@ -54,6 +54,13 @@ func WorkingDiff(ctx context.Context, root, commit string) ([]FileDiff, error) {
 			return nil, err
 		}
 		d.NewOID = strings.TrimSpace(string(oid))
+		// The new side of a Go file is the working copy itself; Analyze
+		// requires both sides (GLS-V0-012) and a missing one is unreadable.
+		if strings.HasSuffix(d.Path, ".go") {
+			if d.NewSource, err = os.ReadFile(filepath.Join(root, filepath.FromSlash(d.Path))); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return diffs, nil
 }

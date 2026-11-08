@@ -192,9 +192,10 @@ func TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628(t *testing.T) {
 			}
 		})
 	}
-	// <<- alone strips tabs; a plain body remains a positive control.
-	if reasons, _ := driverStepScan(t, "unused=1\ncat <<-EOF\n\tliteral\n\tEOF", driverNoEnv); len(reasons) != 0 {
-		t.Errorf("literal tab-stripped here-doc became computed: %v", reasons)
+	// <<- strips tabs and the body parses, but AFP-V0-9400 still keeps any
+	// here-doc computed: the scanner skips bodies a wrapper may execute.
+	if reasons, _ := driverStepScan(t, "unused=1\ncat <<-EOF\n\tliteral\n\tEOF", driverNoEnv); !slices.Contains(reasons, "shell:heredoc-body") {
+		t.Errorf("tab-stripped here-doc lost its AFP-V0-9400 reason: %v", reasons)
 	}
 	for _, script := range []string{`out=1; echo "$out"`, `read -r out; "$out/run"`, `for out in tools; do "$out/run"; done`} {
 		t.Run("opaque/"+script, func(t *testing.T) {

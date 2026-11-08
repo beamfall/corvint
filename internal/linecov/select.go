@@ -1,8 +1,10 @@
 package linecov
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -18,11 +20,13 @@ import (
 type Hunk struct{ Start, End int }
 
 // FileDiff is one changed path. OldOID is empty for an added file and NewOID
-// for a deleted one.
+// for a deleted one. NewHunks and NewSource carry the immutable new side.
 type FileDiff struct {
 	Path           string
 	OldOID, NewOID string
 	Hunks          []Hunk
+	NewHunks       []Hunk
+	NewSource      []byte // immutable new-side blob; nil forbids narrowing
 }
 
 // Effect is what one diff does to the index: the tests it reaches by line,
@@ -39,80 +43,200 @@ type Effect struct {
 	Direct map[int32]bool
 }
 
-// Analyze maps a diff to its effect. read returns a file's content on the
-// diff's old side. Only an edit inside one function body of an instrumented
-// file whose old blob the index recorded is mapped by line; anything else is
-// a fallback or, for a test file, the whole package.
-func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error)) Effect {
+// The path classes of GLS-V0-012. ClassBody and ClassTestFunction are
+// mapped by line; every other class is a static-fallback category of
+// LPCV-V0-953.
+const (
+	ClassBody           = "body"
+	ClassTestFunction   = "test-function"
+	ClassNonGo          = "non-go"
+	ClassAdded          = "added"
+	ClassDeleted        = "deleted"
+	ClassDeclaration    = "declaration"
+	ClassUninstrumented = "uninstrumented"
+	ClassBlobMismatch   = "blob-mismatch"
+	ClassTestHelper     = "test-helper"
+	ClassUnparsable     = "unparsable"
+	ClassUnreadable     = "unreadable"
+	ClassSectionInvalid = "index-section-invalid"
+)
+
+// PathResult is one changed path's class. Hunks are its base-side ranges
+// when the class is mapped by line; Detail says why a fallback class applies.
+type PathResult struct {
+	Path   string
+	Class  string
+	Detail string
+	Hunks  []Hunk
+}
+
+// Mapped reports whether the path was mapped by line.
+func (r PathResult) Mapped() bool { return r.Class == ClassBody || r.Class == ClassTestFunction }
+
+// AnalyzePaths classifies each diff (GLS-V0-012) and adds, for each body
+// and test-function path, the tests it reaches to the effect. read returns a
+// file's content on the diff's old side. A fallback path adds nothing: its
+// static reach decides. Touched holds every package directory with a
+// changed Go file, whatever its class.
+func (ix *Index) AnalyzePaths(diffs []FileDiff, read func(path string) ([]byte, error)) ([]PathResult, Effect) {
 	e := Effect{Tests: map[int32]bool{}, Whole: map[string]bool{}, Touched: map[string]bool{}, Blocks: map[BlockRef]bool{}, Direct: map[int32]bool{}}
-	fail := func(format string, args ...any) Effect {
-		return Effect{Fallback: fmt.Sprintf(format, args...)}
-	}
+	results := make([]PathResult, 0, len(diffs))
 	for _, d := range diffs {
-		if !strings.HasSuffix(d.Path, ".go") {
-			return fail("non-Go input %s", d.Path)
+		r := ix.analyzePath(d, read, &e)
+		results = append(results, r)
+	}
+	return results, e
+}
+
+func (ix *Index) analyzePath(d FileDiff, read func(path string) ([]byte, error), e *Effect) PathResult {
+	res := PathResult{Path: d.Path}
+	fail := func(class, format string, args ...any) PathResult {
+		res.Class, res.Detail = class, fmt.Sprintf(format, args...)
+		return res
+	}
+	if !strings.HasSuffix(d.Path, ".go") {
+		return fail(ClassNonGo, "non-Go input %s", d.Path)
+	}
+	pkg := path.Dir(d.Path)
+	e.Touched[pkg] = true
+	test := strings.HasSuffix(d.Path, "_test.go")
+	switch {
+	case d.OldOID == "":
+		return fail(ClassAdded, "added file %s", d.Path)
+	case d.NewOID == "":
+		return fail(ClassDeleted, "deleted file %s", d.Path)
+	}
+	var file *File
+	fileIdx := -1
+	if !test {
+		i, ok := ix.byPath[d.Path]
+		if !ok {
+			return fail(ClassUninstrumented, "uninstrumented file %s", d.Path)
 		}
-		pkg := path.Dir(d.Path)
-		e.Touched[pkg] = true
-		test := strings.HasSuffix(d.Path, "_test.go")
-		if d.OldOID == "" || d.NewOID == "" {
+		if ix.Files[i].OID != d.OldOID {
+			return fail(ClassBlobMismatch, "index records %s at another blob", d.Path)
+		}
+		if err := ix.ensureFile(i); err != nil {
+			return fail(ClassSectionInvalid, "%v", err)
+		}
+		file, fileIdx = &ix.Files[i], i
+	}
+	src, err := read(d.Path)
+	if err != nil {
+		return fail(ClassUnreadable, "unreadable %s: %v", d.Path, err)
+	}
+	fset := token.NewFileSet()
+	parsed, err := parser.ParseFile(fset, d.Path, src, parser.SkipObjectResolution)
+	if err != nil {
+		return fail(ClassUnparsable, "unparsable %s", d.Path)
+	}
+	if d.NewSource == nil || len(d.NewHunks) != len(d.Hunks) || len(d.Hunks) == 0 {
+		return fail(ClassUnreadable, "missing new-side evidence %s", d.Path)
+	}
+	newSet := token.NewFileSet()
+	newFile, err := parser.ParseFile(newSet, d.Path, d.NewSource, parser.SkipObjectResolution)
+	if err != nil {
+		return fail(ClassUnparsable, "unparsable new side %s", d.Path)
+	}
+	// A body-only edit preserves every declaration and signature. Strip
+	// bodies before printing, keeping boundary changes out of line mapping.
+	if !sameDeclarations(parsed, newFile, test) {
+		class := ClassDeclaration
+		if test {
+			class = ClassTestHelper
+		}
+		return fail(class, "declarations or function boundaries changed %s", d.Path)
+	}
+	var code []span
+	if !test {
+		code = codeTokens(src)
+	}
+	// The path's tests join the effect only once every hunk is mapped.
+	local := Effect{Tests: map[int32]bool{}, Blocks: map[BlockRef]bool{}, Direct: map[int32]bool{}}
+	for i, h := range d.Hunks {
+		lo, hi := h.Start, h.End
+		insert := hi < lo
+		if insert { // either neighbouring line may run it
+			hi = lo + 1
+		}
+		fn := enclosingFunc(fset, parsed, lo, hi, insert, test)
+		nh := d.NewHunks[i]
+		nlo, nhi := nh.Start, nh.End
+		ninsert := nhi < nlo
+		if ninsert {
+			nhi = nlo + 1
+		}
+		nfn := enclosingFunc(newSet, newFile, nlo, nhi, ninsert, test)
+		if fn == nil || nfn == nil || funcOrdinal(parsed, fn) != funcOrdinal(newFile, nfn) {
+			class := ClassDeclaration
 			if test {
-				e.Whole[pkg] = true
-				continue
+				class = ClassTestHelper
 			}
-			return fail("added or deleted file %s", d.Path)
+			return fail(class, "edit crosses function boundaries %s:%d", d.Path, h.Start)
 		}
-		var file *File
-		fileIdx := -1
-		if !test {
-			i, ok := ix.byPath[d.Path]
+		switch {
+		case test:
+			name, ok := topLevelTest(fn)
 			if !ok {
-				return fail("uninstrumented file %s", d.Path)
+				return fail(ClassTestHelper, "edit of %s, not a top-level test, %s:%d", fn.Name.Name, d.Path, h.Start)
 			}
-			file, _ = ix.FileByPath(d.Path)
-			fileIdx = i
-			if file.OID != d.OldOID {
-				return fail("index records %s at another blob", d.Path)
+			if id, ok := ix.byName[pkg+"\x00"+name]; ok {
+				local.Tests[id] = true
+				local.Direct[id] = true
 			}
-		}
-		src, err := read(d.Path)
-		if err != nil {
-			return fail("unreadable %s: %v", d.Path, err)
-		}
-		fset := token.NewFileSet()
-		parsed, err := parser.ParseFile(fset, d.Path, src, parser.SkipObjectResolution)
-		if err != nil {
-			return fail("unparsable %s", d.Path)
-		}
-		var code []span
-		if !test {
-			code = codeTokens(src)
-		}
-		for _, h := range d.Hunks {
-			lo, hi := h.Start, h.End
-			insert := hi < lo
-			if insert { // either neighbouring line may run it
-				hi = lo + 1
-			}
-			fn := enclosingFunc(fset, parsed, lo, hi, insert, test)
-			switch {
-			case fn == nil && test:
-				e.Whole[pkg] = true
-			case fn == nil:
-				return fail("declaration-level edit %s:%d", d.Path, h.Start)
-			case test:
-				if name, ok := topLevelTest(fn); ok {
-					if id, ok := ix.byName[pkg+"\x00"+name]; ok {
-						e.Tests[id] = true
-						e.Direct[id] = true
-					}
-					// An unrecorded test is kept by Narrow anyway.
-				} else {
-					e.Whole[pkg] = true // TestMain, init or a helper
+			// The head name can already have a record (for example two tests
+			// swapping names). Keep both sides of the edited test function.
+			if headName, ok := topLevelTest(nfn); ok {
+				if id, ok := ix.byName[pkg+"\x00"+headName]; ok {
+					local.Tests[id], local.Direct[id] = true, true
 				}
-			default:
-				ix.selectLines(int32(fileIdx), file, code, fset, fn, lo, hi, e)
+			} else {
+				return fail(ClassTestHelper, "new side is not a top-level test %s:%d", d.Path, nh.Start)
 			}
+			// The edited test also runs in its package's in-order suite, where
+			// state it leaves can change what a later test reaches; that run
+			// attributes nothing to one test, so the edit reaches the
+			// in-order record and keeps the package (GLS-V0-008).
+			if id, ok := ix.byName[pkg+"\x00"+InOrder]; ok {
+				local.Tests[id] = true
+			}
+			// An unrecorded test is kept by Narrow anyway.
+		default:
+			ix.selectLines(int32(fileIdx), file, code, fset, fn, lo, hi, local)
+		}
+	}
+	for id := range local.Tests {
+		e.Tests[id] = true
+	}
+	for id := range local.Direct {
+		e.Direct[id] = true
+	}
+	for b := range local.Blocks {
+		e.Blocks[b] = true
+	}
+	res.Class, res.Hunks = ClassBody, d.Hunks
+	if test {
+		res.Class = ClassTestFunction
+	}
+	return res
+}
+
+// Analyze maps a diff to its effect. read returns a file's content on the
+// diff's old side; FileDiff carries the new side. Only an edit inside the
+// same function body on both sides of an instrumented
+// file whose old blob the index recorded is mapped by line; a test file's
+// helper edit, addition or deletion keeps its whole package; anything else
+// is a fallback that keeps the static plan (LPCV-V0-952, LPCV-V0-953).
+func (ix *Index) Analyze(diffs []FileDiff, read func(path string) ([]byte, error)) Effect {
+	results, e := ix.AnalyzePaths(diffs, read)
+	for _, r := range results {
+		test := strings.HasSuffix(r.Path, "_test.go")
+		switch {
+		case r.Mapped():
+		case test && (r.Class == ClassAdded || r.Class == ClassDeleted || r.Class == ClassTestHelper):
+			e.Whole[path.Dir(r.Path)] = true
+		default:
+			return Effect{Fallback: r.Detail}
 		}
 	}
 	for id := range e.Tests {
@@ -271,12 +395,16 @@ type PackagePlan struct {
 	Why   map[string]string // kept test -> selected|stale|unrecorded
 }
 
-// Narrow decides each statically selected package directory. headTests lists
-// the top-level tests each package declares at the change head. drift is the
-// effect of the history between the index commit and the change base, change
-// the effect of the change itself. A fallback in either keeps every package
-// whole (LPCV-V0-951, LPCV-V0-953).
-func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, change Effect) (map[string]PackagePlan, string) {
+// Narrow decides each statically selected package directory. environ is the
+// environment the tests will run under: a test, or a package's in-order
+// record, observed under bindings that environment does not hold is kept
+// (GLS-V0-018), and an index that binds no environment keeps every package
+// whole. A nil environ compares nothing, for a language shadow whose plan is
+// a candidate only. headTests lists the top-level tests each package declares
+// at the change head. drift is the effect of the history between the index
+// commit and the change base, change the effect of the change itself. A
+// fallback in either keeps every package whole (LPCV-V0-951, LPCV-V0-953).
+func (ix *Index) Narrow(environ []string, static []string, headTests map[string][]string, drift, change Effect) (map[string]PackagePlan, string) {
 	plans := map[string]PackagePlan{}
 	reason := drift.Fallback
 	if reason != "" {
@@ -284,10 +412,12 @@ func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, c
 	} else {
 		reason = change.Fallback
 	}
-	unordered := map[string]bool{}
-	for _, pkg := range ix.Unordered {
-		unordered[pkg] = true
+	if environ != nil && !ix.EnvBound && reason == "" {
+		reason = ReasonEnvironmentUnbound + ": the index records no environment bindings"
 	}
+	values := EnvValues(environ)
+	unbound := func(id int32) bool { return environ != nil && EnvUnbound(ix.envBindings(id), values) != "" }
+	unordered := ix.unorderedSet()
 	for _, pkg := range static {
 		// An unordered package's order-only blocks may have no isolated owner,
 		// so no selected test reveals that a change reaches them (LPCV-V0-962).
@@ -295,7 +425,22 @@ func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, c
 			plans[pkg] = PackagePlan{Mode: Whole}
 			continue
 		}
+		if id, ok := ix.byName[pkg+"\x00"+InOrder]; ok && unbound(id) {
+			plans[pkg] = PackagePlan{Mode: Whole}
+			continue
+		}
 		names := headTests[pkg]
+		// A test binary without a named test runs only its TestMain, init
+		// and package variables, which its in-order record alone shows: kept
+		// whole without that record or when the change reaches it (GLS-V0-008).
+		if ix.suiteUnrecorded(pkg, names) {
+			plans[pkg] = PackagePlan{Mode: Whole}
+			continue
+		}
+		if id, ok := ix.byName[pkg+"\x00"+InOrder]; ok && names != nil && len(names) == 0 && (change.Tests[id] || drift.Tests[id]) {
+			plans[pkg] = PackagePlan{Mode: Whole}
+			continue
+		}
 		p := PackagePlan{Why: map[string]string{}}
 		for _, name := range names {
 			id, ok := ix.byName[pkg+"\x00"+name]
@@ -306,6 +451,8 @@ func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, c
 				p.Why[name] = "selected"
 			case drift.Tests[id]:
 				p.Why[name] = "stale"
+			case unbound(id):
+				p.Why[name] = WhyEnvironment
 			default:
 				continue
 			}
@@ -325,4 +472,41 @@ func (ix *Index) Narrow(static []string, headTests map[string][]string, drift, c
 		plans[pkg] = p
 	}
 	return plans, reason
+}
+
+// sameDeclarations compares syntax outside ordinary bodies. Test declarations
+// may change signature/name because both versions still have to be tests.
+func sameDeclarations(a, b *ast.File, tests bool) bool {
+	outline := func(f *ast.File) string {
+		clone := *f
+		clone.Decls = append([]ast.Decl(nil), f.Decls...)
+		for i, d := range clone.Decls {
+			if fn, ok := d.(*ast.FuncDecl); ok {
+				c := *fn
+				c.Body = nil
+				if tests {
+					if _, ok := topLevelTest(fn); ok {
+						c.Name = ast.NewIdent("TestChanged")
+						c.Type = &ast.FuncType{Params: &ast.FieldList{}}
+					}
+				}
+				clone.Decls[i] = &c
+			}
+		}
+		var buf bytes.Buffer
+		if err := format.Node(&buf, token.NewFileSet(), &clone); err != nil {
+			return ""
+		}
+		return buf.String()
+	}
+	x, y := outline(a), outline(b)
+	return x != "" && x == y
+}
+func funcOrdinal(f *ast.File, fn *ast.FuncDecl) int {
+	for i, d := range f.Decls {
+		if d == fn {
+			return i
+		}
+	}
+	return -1
 }
