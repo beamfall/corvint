@@ -546,3 +546,18 @@ gh() {
 		})
 	}
 }
+
+// GLS-V0-046: the privileged miss job checks out the triggering commit, so it
+// runs only for this repository's own pushes to main.
+func TestLinecovMissRunsOnlyOwnMainPushes(t *testing.T) {
+	workflow := readWorkflow(t, "linecov-miss.yml")
+	for _, guard := range []string{
+		"github.event.workflow_run.event == 'push'",
+		"github.event.workflow_run.head_branch == 'main'",
+		"github.event.workflow_run.head_repository.full_name == github.repository",
+	} {
+		if !strings.Contains(workflow, guard) {
+			t.Fatalf("miss job guard missing %q", guard)
+		}
+	}
+}
