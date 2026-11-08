@@ -2238,6 +2238,16 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
+The avdrv additions are build-only candidates; their new regressions have not been executed
+in the lane. The integration branch must run the complete affected package and independent
+review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check results and limits.
+
+| Requirement | Implementation | Regression witness (pending execution) |
+|---|---|---|
+| AFP-V0-9400 | `driverShellScanner.script` in `internal/liveverify/affected/driver_shell.go` | `TestDriverHeredocConsumers_AFPV09400` in `internal/liveverify/affected/driver_avdrv_test.go`: wrapper, generated script, substitution, nested output, unclosed and tab-stripped body; workflow selection and quoted-text controls |
+| AFP-V0-9401 | `driverShellScanner.simple`, `goInvocation`, `driverUnitBuilder.unit` | `TestDriverSharedEnumeration_AFPV09401`, `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationDoesNotInventReaders_AFPV09401`, `TestDriverEnumerationSymlinkTargets_AFPV09401`: direct and nested commands, new/deleted/unindexed files, unknown directories, file and directory links, negative controls |
+| AFP-V0-9402 | `Graph.driverSites` in `internal/liveverify/affected/driver.go` | `TestDriverEnumerationSelectsFilesAndCallers_AFPV09401`, `TestDriverEnumerationKeepsComputedFallback_AFPV09402`: tested-owner callers, unrelated exclusions, empty change, retained computed witnesses |
+
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; the shard-0 hidden run in `.github/workflows/ci.yml` is pending the separate follow-up `.github` PR (the github-split-check gate refuses a mixed `.github`+code range) | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestWriteSortedPackages_AFPV09012` (`--mode packages` output order), `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`; the workflow-placement evidence (the `TestAFPV0098SupersetGuardSidecar` subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package and a discovery-failure case) is pending and lands with that follow-up PR's `ci.yml` change |
@@ -2363,6 +2373,11 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-9400..9402, revert the avdrv scanner, builder and driver-dependent traversal
+changes together. No persisted wire migration or declaration rewrite is required. Reversion
+restores the known wrapper-heredoc and literal enumerator selection gaps; keep those cases
+UNKNOWN or run the full affected scope until a replacement passes integration verification.
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own

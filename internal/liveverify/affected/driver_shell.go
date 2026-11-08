@@ -24,6 +24,7 @@ type driverScan struct {
 	source      *Source
 	computed    bool
 	uncertified bool
+	readsTree   bool
 	tokens      map[string]bool
 	paths       map[string]bool
 	buildPaths  map[string]bool
@@ -159,6 +160,11 @@ func (s *driverShellScanner) script(script, cwd string) {
 				flush(false)
 				position++
 			case char == '<' && strings.HasPrefix(line[position:], "<<") && !strings.HasPrefix(line[position:], "<<<"):
+				// AFP-V0-9400: a wrapper may hand this body to an
+				// interpreter, or save its output for later execution. The
+				// scanner skips bodies, so it cannot certify their effects,
+				// even when the first command word is not an interpreter.
+				s.scan.computed = true
 				position += 2
 				if position < len(line) && line[position] == '-' {
 					position++
@@ -616,6 +622,12 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		}
 	}
 	base := path.Base(head)
+	// AFP-V0-9401: enumeration depends on the file set, including paths
+	// that have no owner or do not exist yet. Do not infer a narrower root
+	// from operands: flags, symlinks and runtime directories can change it.
+	if base == "find" || base == "rg" || base == "git" && slices.ContainsFunc(words[1:], func(word driverWord) bool { return word.text == "ls-files" || word.text == "grep" }) {
+		s.scan.readsTree = true
+	}
 	if driverInterpreters[base] {
 		// operand reports a script operand or an inline program; without
 		// one the interpreter reads its program from standard input: a
@@ -915,7 +927,7 @@ func (s *driverShellScanner) driverCertified(words []driverWord, cwd string) boo
 		return false
 	}
 	base := path.Base(head)
-	if strings.Contains(head, "/") && !strings.HasPrefix(head, "/") {
+	if strings.Contains(head, "/") {
 		return s.driverOperandRecorded(head, cwd) && driverShellTest(head) && s.driverTestArgumentsRecorded(words[1:], cwd)
 	}
 	switch {
@@ -1381,6 +1393,12 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string, fed bo
 		return nil
 	}
 	command := words[0].text
+	if command == "run" {
+		// A tool's runtime reads are not its Go package imports. Until
+		// those reads are bounded, retain every repository path, whatever
+		// the tool's command directory or literal program arguments.
+		s.scan.readsTree = true
+	}
 	words = words[1:]
 	offset++
 	into := s.scan.paths
