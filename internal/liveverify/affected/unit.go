@@ -65,6 +65,9 @@ const MaxPathsPerUnit = 20_000
 // exactly (AFP-V0-600): files compiled into the unit as its source text is,
 // so a dirty one is owned by the unit instead of by none. A directive the
 // plugin cannot resolve exactly contributes nothing.
+// TestEmbeds and TestEmbedFiles are the corresponding test-only facts
+// (AFP-V0-3350). They select the owning tests without affecting production
+// imports or built binaries. An unresolved directive retains TestEmbeds.
 // UnboundedReads names why no literal bounds what the unit reads (a
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
@@ -145,6 +148,8 @@ type Unit struct {
 	PlacesFileNames      bool     `json:"placesFileNames,omitempty"`
 	Embeds               bool     `json:"embeds,omitempty"`
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
+	TestEmbeds           bool     `json:"testEmbeds,omitempty"`
+	TestEmbedFiles       []string `json:"testEmbedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads,omitempty"`
 	LocatesRoot          bool     `json:"locatesRoot,omitempty"`
 	ReadScoped           bool     `json:"readScoped,omitempty"`
@@ -290,6 +295,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validPathList(unit.EmbedFiles); err != nil {
+		return err
+	}
+	if err := validPathList(unit.TestEmbedFiles); err != nil {
 		return err
 	}
 	if err := validPathList(unit.Callers); err != nil {
