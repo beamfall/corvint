@@ -2019,6 +2019,42 @@ one list, so a later class cannot reopen it.
   `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
   fallback; none drops a reader.
 
+### Driver narrowing after the convergence cap (V1-5000)
+
+- **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
+  owner-requested V1-5000 convergence-cap redesign, 2026-11-08; supersedes review round 1)
+  The scanner SHALL retain parsed local declarations and command references in every scope,
+  including make recipes and opaque inline shells. A locally declared command prefix SHALL
+  stay computed even where the earlier root-like `$VAR/` rule would otherwise admit it.
+  AFP-V0-9621, AFP-V0-9622, AFP-V0-9624 and AFP-V0-9627 MAY remove a computed reason only
+  after the entire script has been parsed with no unsupported construct and no parsed use of
+  an assigned/read local. References in operands, redirects and substitutions count as uses;
+  unknown indirect or arithmetic references count as any local. Raw-text whole-word occurrence
+  counting SHALL NOT justify removal of a computed site.
+
+  Backslash-newline continuations SHALL be joined before keyword/name recognition, and escaped
+  names decoded before reference analysis. These spellings still disqualify narrowing. The
+  scanner SHALL fail closed for every loop variable (including an unused lowercase variable),
+  escaped or quoted command/declaration names, continuations, function definitions in any
+  spelling, `source`/`.`, `eval`, `set -a`/`allexport`, opaque inline scripts, indirect/arithmetic
+  contexts, unsupported wrappers/control flow, incomplete words or here-docs, and any other
+  construct not positively understood. Existing path scanning MAY continue after abstention;
+  it SHALL NOT reauthorize narrowing. Revocation restores every provisional computed reason.
+
+  A skipped here-doc body containing `$(`, a backtick or `${` SHALL retain a computed fallback,
+  even with a quoted delimiter, no referenced local, or no provisional narrowing. Parsed
+  here-doc parameter uses SHALL also prevent local narrowing. A local used in any command,
+  operand or redirection stays computed (`shell:local-referenced`); code-bearing references
+  additionally retain `shell:local-command-word`. `GITHUB_OUTPUT` references revoke narrowing
+  because values may reach later steps. Existing assigning-expansion, brace/arithmetic
+  substitution and environment-file guards remain in force.
+
+  The admitted subset is deliberately small: fully parsed simple-command scripts with known
+  environments, allowlisted builtins/options and unused plain locals. Conditional assignments
+  and loops are no longer positive cases. Literal local values SHALL NOT be recorded as paths.
+  The inherited root-like exemption for a command with no local declaration remains outside
+  this redesign; this requirement does not claim a complete shell interpreter.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -2199,6 +2235,14 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
+For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
+spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
+`TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
+opaque scopes and unsupported/incomplete syntax. The existing AFP-V0-9621 through AFP-V0-9628
+cases remain the compatibility floor, with conditional assignment and unused-loop positives
+changed deliberately. Evidence and the convergence-cap decision are in
+`docs/build-log/2026-11-08-v1-5000-redesign.md`.
+
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; the shard-0 hidden run in `.github/workflows/ci.yml` is pending the separate follow-up `.github` PR (the github-split-check gate refuses a mixed `.github`+code range) | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestWriteSortedPackages_AFPV09012` (`--mode packages` output order), `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`; the workflow-placement evidence (the `TestAFPV0098SupersetGuardSidecar` subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package and a discovery-failure case) is pending and lands with that follow-up PR's `ci.yml` change |
@@ -2322,6 +2366,10 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 
 ## Rollback
+
+For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
+its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
+here-doc safeguards if a rollback is needed; do not advertise the earlier narrowing as qualified.
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-9009, cut the
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
