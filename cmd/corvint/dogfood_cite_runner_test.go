@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
@@ -159,7 +160,7 @@ func TestDogfoodInProcessCitationsResolvePATH(t *testing.T) {
 		self:                                "#!/bin/sh\nexit 24\n",
 		filepath.Join(installed, "corvint"): "#!/bin/sh\nprintf 'selected installed binary\\n'\nprintf 'selected stderr\\n' >&2\nexit 23\n",
 	} {
-		if err := os.WriteFile(path, []byte(body), 0755); err != nil {
+		if err := execfile.WriteFile(path, []byte(body), 0755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -203,7 +204,7 @@ func TestDogfoodInProcessCitationsUnknownFormFallsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(t.TempDir(), "selected")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nprintf 'selected unknown form\\n'\nexit 23\n"), 0700); err != nil {
+	if err := execfile.WriteFile(binary, []byte("#!/bin/sh\nprintf 'selected unknown form\\n'\nexit 23\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	args := []string{"cem", "cite", "--map", "map", "--hunk", "1", "--evidence-path", "rule", "--lines", "1:1", "--relation", "specification", "--future-option", "value"}

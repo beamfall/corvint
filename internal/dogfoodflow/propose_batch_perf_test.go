@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestProposeBatchUsesTwoProcessesPerReadSet(t *testing.T) {
@@ -36,7 +38,7 @@ func TestProposeBatchUsesTwoProcessesPerReadSet(t *testing.T) {
 	log := filepath.Join(dir, "calls")
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'" }
 	wrapper := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + quote(log) + "\nexec " + quote(git) + " \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(wrapper), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(wrapper), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
