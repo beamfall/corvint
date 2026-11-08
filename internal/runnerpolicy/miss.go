@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	q "github.com/Beamfall/corvint/internal/runnerqualification"
@@ -16,6 +17,7 @@ import (
 // private slices are copied on capture/access so replay cannot change exclusions.
 type Retained struct {
 	base, head, runner, repository string
+	environmentDigest              string
 	inventory                      testrunner.RunnerInventory
 	excluded                       []string
 	classes                        []s.Class
@@ -61,7 +63,7 @@ func Retain(d Decision, runner string, actual testrunner.RunSet) (Retained, erro
 		}
 		selected[t] = true
 	}
-	p := Retained{base: d.input.Base, head: d.input.Head, runner: runner, repository: d.input.Repository, inventory: inv, valid: true}
+	p := Retained{base: d.input.Base, head: d.input.Head, runner: runner, repository: d.input.Repository, environmentDigest: candidate.Execution.EnvironmentDigest, inventory: inv, valid: true}
 	if !actual.Full {
 		for _, t := range inv.Tests {
 			if !selected[t.ID] {
@@ -265,7 +267,7 @@ func Requalify(findings []Finding, d q.Declaration, records []q.Admission, ceili
 			return nil, fmt.Errorf("miss-history-unverifiable")
 		}
 		if f.Runner == d.Runner && f.Kind != "flake" {
-			if d.Corpus.Repository != f.Plan.repository || d.Identity.Execution.OS != f.Plan.inventory.Key.OS || d.Identity.Execution.Architecture != f.Plan.inventory.Key.Arch {
+			if !f.Plan.matchesQualificationScope(d) {
 				out = append(out, f)
 				continue
 			}
@@ -282,6 +284,24 @@ func Requalify(findings []Finding, d q.Declaration, records []q.Admission, ceili
 	}
 	return out, nil
 }
+
+// Missing or unknown scope cannot establish identity, even on both sides.
+// PlanFor has already validated the declaration and its admitted record.
+func (p Retained) matchesQualificationScope(d q.Declaration) bool {
+	for _, pair := range [][2]string{
+		{p.repository, d.Corpus.Repository},
+		{p.inventory.Key.OS, d.Identity.Execution.OS},
+		{p.inventory.Key.Arch, d.Identity.Execution.Architecture},
+		{p.inventory.Key.ConfigDigest, d.Identity.Runner.ConfigurationDigest},
+		{p.environmentDigest, d.Identity.Execution.EnvironmentDigest},
+	} {
+		if pair[0] == "" || strings.EqualFold(pair[0], "unknown") || pair[0] != pair[1] {
+			return false
+		}
+	}
+	return true
+}
+
 func containsClasses(have, want []s.Class) bool {
 	for _, c := range want {
 		if !slices.Contains(have, c) {
