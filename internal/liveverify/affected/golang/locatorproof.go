@@ -142,15 +142,16 @@ func comparisonOnlyLocators(body []byte, aliases, joins map[string]string) (safe
 						bounded = false
 					}
 				case *ast.AssignStmt:
-					// Its own binding, the declaration an `=` form rebinds, or
-					// a rebinding that keeps the proof's premise: another
-					// assignment of the same two results.
-					if expression != assignment && expression != value.Obj.Decl && !sameLocatorBinding(expression, assignment) {
+					// Certify every write, including the original declaration.
+					// Only Getwd and a local empty-string initializer preserve
+					// the root premise; arbitrary initializers may survive a
+					// conditional Getwd fallback.
+					if expression != assignment && !sameLocatorBinding(expression, assignment, aliases) && !emptyLocatorDeclaration(expression, use) {
 						bounded = false
 					}
 				case *ast.ValueSpec:
-					// The `var` declaration an `=` form rebinds.
-					if expression != value.Obj.Decl {
+					// Only an uninitialized or empty local string is known.
+					if !emptyLocatorDeclaration(expression, use) {
 						bounded = false
 					}
 				default:
@@ -290,11 +291,47 @@ func localDeclaration(declaration any, packageLevel map[*ast.ValueSpec]bool) boo
 	return false
 }
 
+// emptyLocatorDeclaration recognizes only a single local zero-string
+// declaration. Any other initializer or write remains unproven (AFP-V0-2950).
+func emptyLocatorDeclaration(node ast.Node, use *ast.Ident) bool {
+	if use.Obj == nil || use.Obj.Decl != node {
+		return false
+	}
+	var initial ast.Expr
+	switch declaration := node.(type) {
+	case *ast.AssignStmt:
+		if declaration.Tok != token.DEFINE || len(declaration.Lhs) != 1 || len(declaration.Rhs) != 1 || declaration.Lhs[0] != use {
+			return false
+		}
+		initial = declaration.Rhs[0]
+	case *ast.ValueSpec:
+		if len(declaration.Names) != 1 || declaration.Names[0] != use {
+			return false
+		}
+		if len(declaration.Values) == 0 {
+			typ, ok := declaration.Type.(*ast.Ident)
+			return ok && typ.Obj == nil && typ.Name == "string"
+		}
+		if len(declaration.Values) != 1 {
+			return false
+		}
+		initial = declaration.Values[0]
+	default:
+		return false
+	}
+	literal, ok := initial.(*ast.BasicLit)
+	if !ok || literal.Kind != token.STRING {
+		return false
+	}
+	value, err := strconv.Unquote(literal.Value)
+	return err == nil && value == ""
+}
+
 // sameLocatorBinding reports an assignment that rebinds the proof's variable
 // from another `os.Getwd()` call with the same two-result shape (a `root, err
 // = os.Getwd()` after a `root := ""`), which the proof inspects on its own.
-func sameLocatorBinding(candidate, original *ast.AssignStmt) bool {
-	if len(candidate.Lhs) != 2 || len(candidate.Rhs) != 1 {
+func sameLocatorBinding(candidate, original *ast.AssignStmt, aliases map[string]string) bool {
+	if (candidate.Tok != token.DEFINE && candidate.Tok != token.ASSIGN) || len(candidate.Lhs) != 2 || len(candidate.Rhs) != 1 {
 		return false
 	}
 	call, ok := candidate.Rhs[0].(*ast.CallExpr)
@@ -305,9 +342,14 @@ func sameLocatorBinding(candidate, original *ast.AssignStmt) bool {
 	if !ok || selector.Sel.Name != "Getwd" {
 		return false
 	}
+	qualifier, ok := selector.X.(*ast.Ident)
+	if !ok || qualifier.Obj != nil || aliases[qualifier.Name] != "os" {
+		return false
+	}
 	left, ok := candidate.Lhs[0].(*ast.Ident)
+	second, simple := candidate.Lhs[1].(*ast.Ident)
 	first, _ := original.Lhs[0].(*ast.Ident)
-	return ok && first != nil && left.Obj == first.Obj
+	return ok && simple && second.Obj != left.Obj && first != nil && left.Obj == first.Obj
 }
 
 // boundedJoin reports a call of filepath.Join or path.Join (under the local
