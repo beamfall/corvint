@@ -5,11 +5,15 @@ package main
 import (
 	"context"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 // dogfoodCitationRunner keeps the selected executable's identity and runs its
@@ -17,7 +21,11 @@ import (
 // an explicitly selected older verifier must never execute this tree's code.
 // DCW-V0-335: prepare still uses the public cite parser and refusal formatter.
 func dogfoodCitationRunner(path, self string) dogfoodflow.Runner {
-	runner := dogfoodflow.Exec(path)
+	return inlineDogfoodCitationRunner(dogfoodflow.Exec(path), self)
+}
+
+func inlineDogfoodCitationRunner(runner dogfoodflow.Runner, self string) dogfoodflow.Runner {
+	path := runner.Path
 	// Admit only an executable resolved by the same lookup as Exec. A bare
 	// name in the working directory does not establish what PATH will execute.
 	resolved, err := exec.LookPath(path)
@@ -31,8 +39,8 @@ func dogfoodCitationRunner(path, self string) dogfoodflow.Runner {
 	}
 	external := runner.Run
 	runner.Run = func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
-		if filepath.IsAbs(root) && inlineCitationArgs(args) && dogfoodflow.ChildEnvironmentMatchesProcess(ctx) {
-			return runContext(ctx, append([]string{"--root", root}, args...), nil, stdout, stderr)
+		if code, handled := runDogfoodCitation(ctx, root, args, dogfoodflow.CitationEnvironment(ctx), stdout, stderr); handled {
+			return code
 		}
 		return external(ctx, root, args, stdout, stderr)
 	}
@@ -58,4 +66,43 @@ func inlineCitationArgs(args []string) bool {
 	default:
 		return false
 	}
+}
+
+// runDogfoodCitation receives the invocation's actual child settings, including
+// its run-owned store. These closed cite/unknown-mark forms do not read OCM
+// stable verdicts: they create a fresh workflow.Session and use gitauth, whose
+// Git environment always pins LC_ALL=C and excludes the reuse store. Thus these
+// two settings have the same meaning here without changing process globals.
+// Every other environment difference remains unproven and must use Exec.
+func runDogfoodCitation(ctx context.Context, root string, args, environment []string, stdout, stderr io.Writer) (int, bool) {
+	if !filepath.IsAbs(root) || !inlineCitationArgs(args) || !citationEnvironmentEquivalent(os.Environ(), environment) {
+		return 0, false
+	}
+	return runContext(ctx, append([]string{"--root", root}, args...), nil, stdout, stderr), true
+}
+
+func citationEnvironmentEquivalent(process, child []string) bool {
+	effective := func(entries []string) map[string]string {
+		values := make(map[string]string, len(entries))
+		for _, entry := range entries {
+			key, value, ok := strings.Cut(entry, "=")
+			if !ok {
+				continue
+			}
+			if runtime.GOOS == "windows" {
+				key = strings.ToUpper(key)
+			}
+			values[key] = value
+		}
+		return values
+	}
+	parent, invocation := effective(process), effective(child)
+	if invocation["LC_ALL"] != "C" {
+		return false
+	}
+	for _, key := range []string{"LC_ALL", lrfrepo.StableReuseEnv} {
+		delete(parent, key)
+		delete(invocation, key)
+	}
+	return maps.Equal(parent, invocation)
 }
