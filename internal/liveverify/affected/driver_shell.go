@@ -741,7 +741,17 @@ func (s *driverShellScanner) goInvocation(words []driverWord, cwd string, fed bo
 	words = words[1:]
 	offset++
 	into := s.scan.paths
-	buildOnly := driverGoBuildOnlyCommands[command] && s.feeds == 0
+	pathOutput := command != "list" || driverListPathOutput(words)
+	if !pathOutput {
+		// Uncertified output can name any execution target, not just the
+		// packages being listed, even when buffered to a named script.
+		// AFP-V0-2956: retain every owner unless the output is proven path data.
+		into["..."] = true
+		// Its targets may also carry runtime reads that do not propagate
+		// through package edges, or live outside the scanned owner graph.
+		s.scan.computed = true
+	}
+	buildOnly := driverGoBuildOnlyCommands[command] && s.feeds == 0 && pathOutput
 	if buildOnly {
 		into = s.scan.buildPaths
 	}
@@ -1019,4 +1029,40 @@ func driverPathTokens(text string) []string {
 	}
 	emit(len(text))
 	return tokens
+}
+
+// driverListPathOutput certifies the closed set of listing formats this
+// scanner understands as path data. Arbitrary templates can print programs
+// consumed later from a file without any pipe or expansion (AFP-V0-2956).
+func driverListPathOutput(words []driverWord) bool {
+	for index := 0; index < len(words); index++ {
+		arg := words[index].text
+		if arg == "-args" || arg == "--" {
+			break
+		}
+		if !strings.HasPrefix(arg, "-") {
+			continue
+		}
+		flag, value, inline := strings.Cut(strings.TrimPrefix(arg, "-"), "=")
+		flag = strings.TrimPrefix(flag, "-")
+		switch flag {
+		case "f", "C", "tags", "mod", "modfile", "overlay", "compiler", "gcflags", "asmflags", "ldflags", "pkgdir":
+			if !inline {
+				index++
+				if index == len(words) {
+					return false
+				}
+				value = words[index].text
+			}
+			if flag == "f" && value != "{{.Dir}}" && value != "{{.ImportPath}}" {
+				return false
+			}
+		case "e", "deps", "test", "find", "race", "msan", "asan", "trimpath", "modcacherw", "buildvcs":
+			// These known switches do not replace the path output format.
+		default:
+			// New options and output encodings are not certified implicitly.
+			return false
+		}
+	}
+	return true
 }

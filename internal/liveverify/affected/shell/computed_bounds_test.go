@@ -110,8 +110,8 @@ func TestRepeatedValuesCountOnce_AFPV03148(t *testing.T) {
 }
 
 // AFP-V0-3149: a value that refers to its own name is unrolled once, with no
-// cut, when no unrolled value can be literal: an unknown part precedes the
-// reference (`b="$PWD/$b"`), or the value is the reference alone
+// cut, for working-directory normalization (`b="$PWD/$b"`), or when the
+// value is the reference alone
 // (`dir=${dir:-script}`). Each deeper unrolling then names nothing the single
 // unrolling and the wildcard for the earlier value do not, so the depth
 // bound drops nothing. A literal wrapper (`x="../$x"`), whose unrollings may
@@ -154,4 +154,49 @@ func TestSelfReferenceUnrollsOnceWhenNoValueIsLiteral_AFPV03149(t *testing.T) {
 				use.UnboundedReads, use.Imports, use.Frontier, FrontierForeignInvocation)
 		}
 	})
+}
+
+// AFP-V0-3149: every self-referential assignment must be certified before
+// discarding it. Defaults supply values to later alternatives; unsupported
+// transformations retain dynamic-source protection even without a depth cut.
+func TestComposedSelfReferencesKeepSelection_AFPV03149(t *testing.T) {
+	for _, tc := range []struct {
+		name, body string
+		dynamic    bool
+	}{
+		{name: "prefix directory with extensionless target", body: "x=check\nx=\"$PWD/script/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "unknown command-result prefix", body: "x=check\nx=\"$(printf '%s' \"$PWD/script\")/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "working-directory value adds a directory", body: "PWD=\"$ROOT/script\"\nx=check\nx=\"$PWD/$x\"\n\"$x\"\n", dynamic: true},
+		{name: "braced working-directory normalization", body: "x=script/check\nx=\"${PWD}/${x}\"\n\"$x\"\n"},
+		{name: "unknown prefix with appended extensionless target", body: "x=script\nx=\"$PWD/$x/check\"\n\"$x\"\n", dynamic: true},
+		{name: "unknown prefix with unsupported suffix expansion", body: "x=script\nx=\"$PWD/$x/${CHECK:-check}\"\n\"$x\"\n", dynamic: true},
+		{name: "default then alternative", body: "unset x\nx=${x:-script}\nx=${x:+$x/check}\n\"$x\"\n", dynamic: true},
+		{name: "default then identity", body: "unset x\nx=${x:-script}\nx=$x\n\"$x/check\"\n"},
+		{name: "two defaults", body: "unset x\nx=${x:-script}\nx=${x:=elsewhere}\n\"$x/check\"\n"},
+		{name: "opaque command result is not recursion", body: "x=script\nx=$(type -P -- \"$x\")\nx=\"$PWD/$x\"\n\"$x/check\"\n"},
+		{name: "opaque backquote result is not recursion", body: "x=script\nx=`type -P -- \"$x\"`\nx=\"$PWD/$x\"\n\"$x/check\"\n"},
+		{name: "unknown transformation", body: "x=script/check/unused\nx=${x%/unused}\n\"$x\"\n", dynamic: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "script/check", "#!/bin/sh\n. \"$ENVFILE\"\n")
+			write(t, root, "use/wrap_test.sh", tc.body)
+			write(t, root, "config/settings.env", "MODE=fast\n")
+			use := unitOf(t, units(t, root), "use/wrap_test.sh")
+			if tc.dynamic {
+				if use.UnboundedReads != UnboundedDynamicSource {
+					t.Errorf("unbounded reads %q, want %q for uncertified self-reference", use.UnboundedReads, UnboundedDynamicSource)
+				}
+			} else if use.UnboundedReads != "" || !slices.Contains(use.Imports, "shell:script/check") {
+				t.Errorf("unbounded reads %q imports %v, want the preserved default's script/check edge", use.UnboundedReads, use.Imports)
+			}
+			graph := build(t, root)
+			for _, dirty := range []string{"config/settings.env", "script/check"} {
+				plan := affected.Select(graph, []string{dirty})
+				if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "shell:use/wrap_test.sh" }) {
+					t.Errorf("edit of %s omitted use/wrap_test.sh", dirty)
+				}
+			}
+		})
+	}
 }
