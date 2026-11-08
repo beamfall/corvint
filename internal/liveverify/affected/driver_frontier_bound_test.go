@@ -1088,3 +1088,135 @@ func TestFrontierSiteParseTimeListingKeepsExecution_AFP_V0_3125(t *testing.T) {
 		})
 	}
 }
+
+// TestFrontierSiteMakeDirSpelling_AFP_V0_9050 is Greptile's PR #142 case:
+// GNU make keeps the literal spelling `./a/` that dir returns, so the filter
+// matches and `check` tests ./ci. path.Dir would clean it to `a/` and the
+// planner would follow only ./local.
+func TestFrontierSiteMakeDirSpelling_AFP_V0_9050(t *testing.T) {
+	files := boundFiles("check:; go test ./$(if $(filter ./a/,$(dir ./a/file)),ci,local)\nall: check\n")
+	files["ci/ci.go"] = "package ci\n"
+	files["local/local.go"] = "package local\n"
+	graph := driverGraph(t, files, nil)
+	selected := driverSelections(affected.Select(graph, []string{"ci/ci.go"}))
+	wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+}
+
+// TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050 places the enumerating
+// branch on each side of a condition. An exact condition visits only the
+// branch GNU make takes; a retained one (truth -1) visits both.
+func TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050(t *testing.T) {
+	for _, tc := range []struct {
+		prelude, condition string
+		truth              int
+	}{
+		{"", "$(filter ./a/,$(dir ./a/file))", 1},
+		{"", "$(filter a/,$(dir ./a/file))", 0},
+		{"", "$(filter ./,$(dir file))", 1},
+		{"", "$(filter a//,$(dir a//b))", 1},
+		// suffix emits nothing for a word without one.
+		{"", "$(suffix a b)", 0},
+		// An empty search string matches once, at the end of the text.
+		{"", "$(subst ,x,)", 1},
+		// Blanks after a function name are not part of its first argument.
+		{"", "$(subst  ,x,)", 1},
+		// A substitution reference expands its search and replacement.
+		{"V = a.c\nX = .c\n", "$(filter a.o,$(V:$(X)=.o))", 1},
+		// Partly unknown words may expand to another spelling.
+		{"", "$(notdir $(CI)/)", -1},
+		{"", "$(basename $(CI).)", -1},
+		// GNU make splits words at ASCII whitespace only.
+		{"", "$(filter a, a)", -1},
+		// Numbers are decimal digits; GNU make rejects a sign.
+		{"", "$(word +1,a)", -1},
+		// A backslash may quote a pattern's percent sign.
+		{"", "$(filter a\\%,a%)", -1},
+		{"", "$(patsubst a\\%,b,a%)", -1},
+		// Wildcard returns a literal name as spelled, so only clean,
+		// distinct, non-symlink spellings are exact.
+		{"", "$(wildcard script//audit.sh)", -1},
+		{"", "$(wildcard script/audit.sh script/audit.sh)", -1},
+		{"", "$(wildcard script/)", -1},
+	} {
+		for _, onTrue := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/enumerate-on-%t", tc.condition, onTrue), func(t *testing.T) {
+				first, second := "go test ./tools/local", "sh script/lsfiles.sh"
+				if onTrue {
+					first, second = second, first
+				}
+				graph := driverGraph(t, boundFiles(tc.prelude+"check:; $(if "+tc.condition+","+first+","+second+")\nall: check\n"), nil)
+				want := tc.truth < 0 || onTrue == (tc.truth == 1)
+				if got := computedSite(t, graph, "driver:make:Makefile#check"); got != want {
+					t.Fatalf("computed site %t; want %t", got, want)
+				}
+				if want {
+					selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+					wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+				}
+			})
+		}
+	}
+}
+
+// TestFrontierSiteUnrecordableOperand_AFP_V0_9051 starts from Greptile's
+// PR #142 case: neither pathOperand nor driverPathTokens records an absolute
+// operand, so a certified `cat /work/project/INPUT` would read a file no
+// edge names. Every certification path retains an operand it cannot record.
+func TestFrontierSiteUnrecordableOperand_AFP_V0_9051(t *testing.T) {
+	for _, recipe := range []string{
+		"$(if yes,cat,cat) /work/project/INPUT",
+		"$(if yes,cat,cat) ~/INPUT",
+		"$(if yes,cat,cat) ../INPUT",
+		"$(if yes,cat,cat) -- /work/project/INPUT",
+		"$(if yes,wc,wc) -l < /work/project/INPUT",
+		"$(if yes,wc,wc) -l < ~/INPUT",
+		"$(if yes,test,test) -f /work/project/INPUT",
+		"$(if yes,grep,grep) -f /work/project/PATTERNS known.txt",
+		"$(if yes,grep,grep) -e x /work/project/INPUT",
+		"$(if yes,sort,sort) -o ~/out known.txt",
+		"$(if yes,sh,sh) script/audit_test.sh /work/project/INPUT",
+		"$(if yes,script/audit_test.sh,script/audit_test.sh) /work/project/INPUT",
+		"$(if yes,~/audit_test.sh,~/audit_test.sh)",
+		"$(if yes,make,make) /work/project/INPUT",
+		"$(if yes,make,make) -C /work/project other",
+		"$(if yes,go,go) test /work/project/tools/local",
+		"$(if yes,go,go) -C /work/project test ./tools/local",
+		"$(if yes,go,go) test ./tools/local -args /work/project/INPUT",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := boundFiles("check:; " + recipe + "\nother:\n\tgo test ./tools/local\nall: check\n")
+			files["known.txt"] = "x\n"
+			graph := driverGraph(t, files, nil)
+			if !computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("unrecordable operand certified check")
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
+			if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite {
+				t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
+			}
+		})
+	}
+}
+
+// TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051 is the control:
+// patterns, translation sets and /dev/null are not file operands, and
+// relative operands are recorded, so these evaluated targets keep no site.
+func TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051(t *testing.T) {
+	for _, recipe := range []string{
+		"$(if yes,cat,cat) known.txt",
+		"$(if yes,grep,grep) ^/work known.txt",
+		"$(if yes,tr,tr) / _ < known.txt",
+		"$(if yes,wc,wc) -l < /dev/null",
+		"$(if yes,test,test) -f known.txt",
+	} {
+		t.Run(recipe, func(t *testing.T) {
+			files := boundFiles("check:; " + recipe + "\nall: check\n")
+			files["known.txt"] = "x\n"
+			graph := driverGraph(t, files, nil)
+			if computedSite(t, graph, "driver:make:Makefile#check") {
+				t.Fatal("recorded operands left check a computed site")
+			}
+		})
+	}
+}
