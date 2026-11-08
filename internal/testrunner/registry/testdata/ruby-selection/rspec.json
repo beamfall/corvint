@@ -1,0 +1,23 @@
+{
+  "version": "3.13.0",
+  "examples": [
+    {
+      "id": "./spec/calc_spec.rb[1:1]",
+      "file_path": "./spec/calc_spec.rb",
+      "description": "adds",
+      "status": "passed"
+    },
+    {
+      "id": "./spec/calc_spec.rb[1:2]",
+      "file_path": "./spec/calc_spec.rb",
+      "description": "subtracts",
+      "status": "passed"
+    }
+  ],
+  "summary": {
+    "example_count": 2,
+    "failure_count": 0,
+    "pending_count": 0,
+    "errors_outside_of_examples_count": 0
+  }
+}

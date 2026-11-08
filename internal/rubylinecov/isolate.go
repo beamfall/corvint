@@ -15,6 +15,19 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 	if err != nil {
 		return nil, err
 	}
+	return isolateArtifacts(run, func(i int, out Outcome) (*Run, error) {
+		one := o
+		if o.IsolatedTimeout > 0 {
+			one.Timeout = o.IsolatedTimeout
+		}
+		one.Work = filepath.Join(o.Work, fmt.Sprintf("isolated-%d", i))
+		one.onlyName, one.onlyPackage = out.Name, out.Package
+		return collectOnce(ctx, one)
+	}), nil
+}
+
+// isolateArtifacts shares the same comparison for live and core-captured runs.
+func isolateArtifacts(run *Run, isolatedRun func(int, Outcome) (*Run, error)) *Run {
 	run.isolated = true
 	records := map[string]*record{}
 	for i := range run.records {
@@ -26,13 +39,7 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 		if out.Status == "pending" {
 			continue
 		}
-		one := o
-		if o.IsolatedTimeout > 0 {
-			one.Timeout = o.IsolatedTimeout
-		}
-		one.Work = filepath.Join(o.Work, fmt.Sprintf("isolated-%d", i))
-		one.onlyName, one.onlyPackage = out.Name, out.Package
-		isolated, err := collectOnce(ctx, one)
+		isolated, err := isolatedRun(i, *out)
 		divergent := err != nil || isolated == nil || len(isolated.Outcomes) != 1
 		if !divergent {
 			a := isolated.Outcomes[0]
@@ -85,7 +92,7 @@ func Collect(ctx context.Context, o Options) (*Run, error) {
 		}
 	}
 	run.records = kept
-	return run, nil
+	return run
 }
 
 // reachCovered reports whether every line and method the ordinary-order record
