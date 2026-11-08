@@ -9,12 +9,13 @@
     every single time ... it should be perfect"; "it would need to support go, but also other
     langauges and e2e"; scope "beamfall support basically"; "each langauge and runner should be a
     plugin so other langauges and runners can be easily added"; "Yes, both forms".
-  - `docs/specs/runner-selection-plugins-v0.md` (`RSP-V0-001..041`).
+  - `docs/specs/runner-selection-plugins-v0.md` (`RSP-V0-001..047`).
 - Amends: `docs/specs/language-plugins-v0.md` (`LGP-V0-002` closed piece set; the run-time loading
   non-goal now points to the runner protocol).
 - Keeps: decision 0590 and `LPCV-V0-950..979` (records, freshness, intersection, misses); decision
   0591 and `CMS-V0-001..011` (invariant 7); `ACC-V0-002`/`-005` (no `PATH`, digest-pinned
-  executables); every existing static plan until a runner qualifies.
+  executables); every existing static plan only while this spec is shadow-only, before its rollout
+  enables a first runner (`RSP-V0-046`).
 
 ## Context
 
@@ -39,14 +40,20 @@ across every Beamfall runner, each language and runner a plugin.
    plugins (`RSP-V0-041`).
 3. **"Perfect" means sound within a qualified execution model.** Selected ⊇ affected for every runner
    whose `inventory`, `test-evidence` and `qualification` pieces are present and qualified for the
-   change's boundary classes; FULL for every other runner; an auditable reason per excluded test.
-   Exact minimality is not claimed (`RSP-V0-017`).
+   change's boundary classes; FULL for every other runner, including every runner never qualified
+   under this spec; every project-mandated test (`AFP-V0-2484`, `AFP-V0-2485`) always run; an
+   auditable reason per excluded test. Selection is the union of every observed dependency, and
+   anything missing or uncertain selects or widens to FULL. In CI only trusted-base inputs and
+   protected-ref evidence can narrow (`AFP-V0-013`/`-014`). Exact minimality is not claimed
+   (`RSP-V0-012`, `RSP-V0-017`, `RSP-V0-042`, `RSP-V0-043`).
 4. **Measured, not asserted.** Narrowing is enabled per runner and class only by a retained passing
    qualification record (replay plus fault injection per boundary class), stating the one-sided 95%
-   upper bound on the miss rate, never "zero misses". The initial floor is 300 killed mutants per
-   class (an upper bound near 1%). Sampled FULL runs on the default branch measure misses; the
-   sampling rate and its CI cost bound are open numbers, set from the first measured runs and not
-   invented here (`RSP-V0-034..037`).
+   upper bound on the miss rate, never "zero misses". A trial is one independently sampled mutant
+   that FULL kills, and a miss is any failing test left unselected; the bound covers only that
+   mutant population. The initial floor is 300 trials per class (an upper bound of 0.995%). Sampled
+   FULL runs on the default branch measure misses against the retained plan's exact base, head and
+   excluded set. No runner narrows until the sampling rate is nonzero; its value and CI cost bound
+   are open numbers, set from the first measured runs and not invented here (`RSP-V0-034..037`).
 5. **Tracing is a core service.** File reads, failed lookups, directory listings, writes, execs and
    outside-process contact are observed by one compiled-in backend per OS, Linux first (`ptrace` with
    seccomp-BPF, unprivileged), used only by test execution, never by read commands. A plugin's
@@ -58,13 +65,15 @@ across every Beamfall runner, each language and runner a plugin.
    that conflicts with a soundness fix is updated in that change and recorded in the build log
    (`RSP-V0-039`).
 7. **Local may stay broader than CI** until a runner's runtime evidence qualifies on the local OS;
-   it is never narrower (`RSP-V0-038`). A runner not yet qualified keeps today's plan, labelled
-   `static-unqualified`; forcing such runners FULL is left to the owner.
+   it is never narrower (`RSP-V0-038`). A runner not qualified under this spec is FULL. Today's
+   static plans govern only while the spec is shadow-only (rollout steps 1 and 2); from the first
+   enabled runner, no static narrowing survives for an unqualified runner (`RSP-V0-046`).
 
 ## Rollback
 
 - Per runner: delete or supersede its qualification record, or drop its entry from
-  `.corvint/runner-plugins.json`; it returns to FULL or its prior plan immediately.
-- Whole capability: revert each slice; records are derived state and need no migration.
+  `.corvint/runner-plugins.json`; it returns to FULL immediately.
+- Whole capability: revert each slice, restoring the plans in force before this spec; records are
+  derived state and need no migration.
 - Reversing §1 or §2 is a new owner decision superseding this one; §3 to §7 may be overridden by
   the owner in chat and recorded as an amendment.
