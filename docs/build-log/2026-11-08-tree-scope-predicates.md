@@ -6,14 +6,30 @@ requested focused checks; no Tasks mutation or publication.
 
 ## Design
 
-Existing `corvint-test-read-scopes/0` string entries keep their meaning. Additive entries are
-`{"tree":"cmd/","contentPredicate":"REGEX","samples":["POSITIVE LINE"]}` and
-`{"tree":"cmd/","listingOnly":true}`. Entries remain sorted/unique by path. The Go adapter
-retains the filesystem bound separately from selection metadata; both enter the graph digest
-and cache. `corvint-affected-graph-cache/1` rebuilds stale caches. Confinement and the independent
-CI selector accept the objects as full access trees, without claiming predicate narrowing.
-The declaration compatibility check's closed top-level member set is unchanged.
+Fix round 1 corrects a confirmed P1 in `934f91e20`: putting object entries in
+`.corvint/test-read-scopes.json` broke its many string-only readers (including test reuse,
+gate-ledger and repository tests). Every entry is again a plain string. Each converted guard
+keeps its whole-tree string as the conservative superset. The only net addition to that file
+against `ebeb5a643` is the plain `internal/dogfoodflow/` overlap for `tools/flow-guide-check`.
+The changes to `.github/testconfine/scopes.go`, `internal/gateselect/readscopes.go` and
+`internal/liveverify/affected/golang/readscopes.go` are reverted exactly to that base; there
+is no net `.github/` change or change to any reader of the string-only declaration.
 
+Narrowing now lives solely in `.corvint/test-read-scope-trees.json`. Each package/tree value
+can remain a reason string or become `{"reason":"GUARD READ","contentPredicate":"REGEX",
+"samples":["POSITIVE LINE"]}` or `{"reason":"GUARD READ","listingOnly":true}`. The two existing
+checker consumers accept these alternatives without a profile bump; top-level shape stays
+`corvint-test-read-scope-trees/0`. The compatibility checker admits the known metadata members
+and refuses unknown object members. Old binaries and all other readers still see the same plain
+whole-tree strings, so they keep conservative selection and filesystem access.
+
+The affected graph loads metadata separately from the unchanged Go declaration reader. Missing,
+unreadable, oversized or malformed trees files, invalid predicates/samples, and absent objects
+leave the plain whole-tree scopes intact. Graph units and digest retain admitted rules.
+`corvint-affected-graph-cache/2` binds the trees file's exact SHA-256 content and mandatory read
+stamp (including absence); metadata edits, deletion and reappearance invalidate cached graphs.
+Edits to the string declaration keep the existing package comparison; edits to the trees file
+select declared readers even when its metadata cannot be admitted.
 Content predicates inspect bounded immutable BASE and planned HEAD/worktree bytes. Either match
 selects. Missing/invalid predicates, empty matches, missing/uncovered samples, binary text,
 unreadable/oversized/missing endpoints, sparse checkouts and all uncertainty retain selection.
@@ -51,31 +67,39 @@ and `internal/proctrace` remain unchanged as requested.
 
 ## Before/after measurement
 
-Baseline: `ebeb5a643539faca17e390ad3fe99370dd6f8872`. Append only
-`// V1-5174 behavior-neutral planner measurement.` to `internal/tasks/journal/anchor.go`, then
-revert. The baseline used the source-built CLI with `affected --base FULL_SHA --format json`.
-This revision rejects `--json`; `--format json` is its supported equivalent.
+Fix-round measurement repeats the original behavior-neutral edit:
+append `// V1-5174 behavior-neutral planner measurement.` to
+`internal/tasks/journal/anchor.go`, then restore the original bytes in a `finally` block.
+Both runs use the same branch-built binary and source inventory in the self-contained shallow
+fixture `/tmp/v1-5174-fix1/measurement`. Before uses the two declarations from
+`ebeb5a643539faca17e390ad3fe99370dd6f8872`; after uses this repair's declarations. Clean fixture
+commits are `5f41844610b6f7db563f87ba02d57b1d9bcc78f1` and
+`0d9f11c07f7f092f279c013a12c7a5bc978f09b3` respectively. Only the comment is dirty during each run;
+the fixture and task worktree have no remaining anchor edit.
 
-To exclude implementation edits from the experiment, the after run uses the candidate CLI and
-candidate declarations over the same source inventory in an isolated checkout. Its clean fixture
-commit is `89c32e679d1d3d35112fb72f75113e550c24b96d`; only the same comment is dirty. Command:
-`go run ./cmd/corvint --root /tmp/v1-5174/qualified-measurement affected --format json`.
-Worktree-only mode uses implicit HEAD, equivalent here to the baseline's empty committed range.
-A preliminary shared clone correctly retained all guards because verified Git reads reject object
-alternates. The self-contained shallow fixture admits immutable reads but refuses explicit
-`--base`; implicit HEAD supplies the equivalent measured endpoint. Preliminary refusals are not
-counted as successful narrowing. Original and scratch comment edits are restored afterward.
+Build: `script/heavy.sh --admit-only env GOTOOLCHAIN=local go build -o /tmp/v1-5174-fix1/corvint ./cmd/corvint`.
+Binary SHA-256: `4808e32e90393ba082b90372296cb87212f38def250a9bad18cfa67cfe007fc9`.
+Command for each run:
+`/tmp/v1-5174-fix1/corvint --root /tmp/v1-5174-fix1/measurement affected --format json`.
+Implicit HEAD supplies the measured endpoint without an explicit range over shallow history.
+Both runs retain `self-binary-unverified` because the source build's VCS commit is absent from
+the isolated fixture; this is a provenance limitation, not a selection failure. The binary was
+built from the repaired worktree immediately before measurement. Original round artifacts remain
+in `/tmp/v1-5174/`; fix-round raw plans, stderr, argv and summary are in `/tmp/v1-5174-fix1/`.
 
-| Metric | Before | After |
+| Metric | Before | After fix round 1 |
 |---|---:|---:|
-| Whole-tree reasons in `.corvint/test-read-scope-trees.json` | 37 | 37 |
-| Plain whole top-level tree entries | 37 | 23 |
-| Predicate entries | 0 | 14 |
-| Listing-only entries | 0 | 0 |
-| Packages with plain whole top-level trees | 15 | 13 |
+| Whole-tree reasons in the trees file | 37 | 37 |
+| Plain whole top-level strings in the scopes file | 37 | 37 |
+| Predicate objects in the trees file | 0 | 14 |
+| Listing-only objects | 0 | 0 |
+| Packages with plain whole top-level strings | 15 | 15 |
 | Selected units | 280 | 279 |
 | Excluded units | 609 | 610 |
 | `LANGUAGE_FRONTIER` unknowns | 67 | 67 |
+| One observed invocation, seconds | 4.608 | 3.675 |
+
+The elapsed times are individual observations, not a performance benchmark.
 
 | Converted guard | Before | After |
 |---|---|---|
@@ -88,28 +112,42 @@ The latter two retain selection because `anchor.go` contains `github.com` and
 that all comment edits or all converted guards are excluded. Retained `diagnostic`, `langplugin`
 and `capabilities-check` stay selected; `analyzercap` and `cli-discovery-gen` remain unselected.
 Both plans retain UNKNOWN scope and all 67 frontier observations. Raw receipts/command logs:
-`/tmp/v1-5174/`.
+`/tmp/v1-5174-fix1/`.
 
 ## Verification and review
 
-- PASS: `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'AFP_V0_33|AFP_V0_315|AFP_V0_301' ./internal/liveverify/affected/` on Darwin. Covers endpoints, binary/unreadable/missing/bad-regex fallbacks, listing transitions, cache round-trip, declaration identities and overlapping witnesses.
-- PASS: the same focused command for `./tools/test-read-scopes-check/`, on wrapper-selected WSL/Linux. Covers samples, reasons, empty matches and existing AFP-V0-3010/3150/3151 cases.
+Fix round 1, on Darwin with Go 1.27.3:
+
+- PASS: `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'AFP_V0_33|AFP_V0_315|AFP_V0_301' ./internal/liveverify/affected/`.
+- PASS: `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'AFP_V0_33|AFP_V0_315|AFP_V0_301|Tasks' ./tools/test-read-scopes-check/`.
+- PASS: `HEAVY_WHOLE_REASON='small tool package' script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/declaration-compat-check/`.
+- PASS: `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'ReadScope|Declaration' ./internal/liveverify/affected/`.
 - PASS: `make test-read-scopes-check`.
-- PASS: `GOTOOLCHAIN=local go vet ./internal/liveverify/affected/... ./tools/test-read-scopes-check/ ./tools/declaration-compat-check/`.
-- PASS: `make spec-requirements` after staging the spec as required; only reserved AFP-V0-3300 through AFP-V0-3303 added to `REQUIREMENTS.tsv`.
-- PASS: `gofmt -l` on changed Go files, no output.
+- PASS: `make changed-checks BASE=ebeb5a643539faca17e390ad3fe99370dd6f8872` (line citations, unbounded-reader check and read-scope check). The unbounded-reader checker reports the advisory that `internal/tasks/cli` is recorded but not currently unbounded; this repair leaves that separate ratchet entry unchanged. The line-citation checker retains its 180 skipped external-basename citations.
+- PASS: `GOTOOLCHAIN=local go vet` on `cmd/corvint`, `internal/liveverify/affected`, its `golang` adapter, `internal/gateselect`, `.github/testconfine`, and both changed tools, through `script/heavy.sh --admit-only` for the writable Go cache. The first direct attempt was blocked by sandbox permissions on the default Go cache; no source error was reported.
+- PASS: `make spec-requirements`, after staging the spec; AFP-V0-3300 through AFP-V0-3303 retain their IDs.
+- PASS: `gofmt -l` on every changed Go file, no output; `git diff --check`.
+- PASS: `git diff ebeb5a643 -- .corvint/test-read-scopes.json` shows only the added plain overlap string. JSON validation confirms all 3,156 entries are strings and all 14 metadata objects retain their whole-tree scope string. `.github/` and the restored readers have no net diff against the base.
 
-Independent native reviewer found no remaining blocking issues after repairs to the unsafe CLI
-listing conversion, overlapping witness attribution, deterministic observation order and the
-fault-injection fixture. The permission fixture initially lacked `OpenBounded`; its reach assertion
-caught this before coverage was claimed. The overlap fixture initially exercised an earlier
-literal-reader witness; it now directly exercises `DECLARED_READ_SCOPE`. A temporary Git-reader
-import into the affected library caused two consumer-closure checker findings; moving admission
-to the CLI restored the original closure instead of changing unrelated declarations.
+Coverage includes both content endpoints, binary/missing/unreadable/invalid-regex failures,
+missing/unreadable/malformed metadata and absent package/tree objects, listing transitions,
+cache round-trip and metadata-only invalidation, declaration edits and overlapping witnesses.
+The first checker run caught a diagnostic-wording regression in existing AFP-V0-3010 tests;
+restoring the `want exactly` prefix fixed it, and the requested checker command then passed.
+No tests or acceptance assertions were weakened.
 
-Corvint context was consulted first, but its snapshot revision was stale; original source reads,
-the source-built planner and independent review supplied the task evidence. Installed Core:
-`1.0.0-rc.3.dev`, build 133. Official update check: freshness UNKNOWN after its version smoke could not prove process-group cleanup in the sandbox; no upgrade claimed.
-Usage/billed telemetry: NOT_OBSERVED. Tasks, publication, exhaustive/Windows gates and multi-commit
-CEM/seal closeout are NOT_RUN under the owner's focused-command, single-local-commit scope.
-Rollback restores the object entries to their original string trees; all reasons remain available.
+An independent native read-only reviewer found no blocking issues in the repaired code, metadata,
+cache bindings or regression coverage. The earlier round's review missed the shared-format P1;
+this repair restores the format instead of attempting to update its many independent readers.
+
+Corvint context and `affected --base ebeb5a643539faca17e390ad3fe99370dd6f8872 --format json`
+were collected before focused tests. The context snapshot was stale and the installed affected
+binary reported `self-binary-stale`; source inspection, the branch-built measurement and the
+independent review supply the repair evidence. Installed Core is `1.0.0-rc.3.dev`, build 133.
+Official Core update freshness remains UNKNOWN: its version smoke could not prove process-group
+cleanup in the sandbox. No tool upgrade is claimed. Usage/billed telemetry: NOT_OBSERVED.
+Tasks, publication, exhaustive/Windows gates and multi-commit CEM/seal closeout are NOT_RUN under
+the owner's single-local-commit repair scope. Dogfood status also refused ambiguous Claude/Codex
+session identities without an enrollment key. No lifecycle completion is claimed.
+Rollback replaces metadata objects in the trees file with their reason strings; the main
+read-scope declaration stays string-only and conservative.

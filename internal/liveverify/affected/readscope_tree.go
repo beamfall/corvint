@@ -3,9 +3,13 @@ package affected
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	json "encoding/json/v2"
 	"fmt"
 	"io/fs"
+	"maps"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -21,41 +25,101 @@ type ReadScopeTree struct {
 	ListingOnly      bool     `json:"listingOnly,omitempty"`
 }
 
-// ReadScopeEntry admits the legacy string and the additive tree object.
-type ReadScopeEntry struct {
-	Path string
-	Rule *ReadScopeTree
+const ReadScopeTreesPath = ".corvint/test-read-scope-trees.json"
+const ReadScopeTreesProfile = "corvint-test-read-scope-trees/0"
+const MaxReadScopeTreesBytes = 1 << 16
+
+// ReadScopeTreeValue preserves legacy reasons and optional narrowing metadata.
+// The tree path remains the map key, never a member of the object value.
+type ReadScopeTreeValue struct {
+	Reason string
+	Rule   *ReadScopeTree
 }
 
-func (entry *ReadScopeEntry) UnmarshalJSON(body []byte) error {
-	*entry = ReadScopeEntry{}
+func (value *ReadScopeTreeValue) UnmarshalJSON(body []byte) error {
+	*value = ReadScopeTreeValue{}
 	if len(body) > 0 && body[0] == '"' {
-		return json.Unmarshal(body, &entry.Path)
+		return json.Unmarshal(body, &value.Reason)
 	}
-	var rule ReadScopeTree
-	if err := json.Unmarshal(body, &rule, json.RejectUnknownMembers(true)); err != nil {
+	var object struct {
+		Reason           string   `json:"reason"`
+		ContentPredicate string   `json:"contentPredicate,omitempty"`
+		Samples          []string `json:"samples,omitempty"`
+		ListingOnly      bool     `json:"listingOnly,omitempty"`
+	}
+	if err := json.Unmarshal(body, &object, json.RejectUnknownMembers(true)); err != nil {
 		return err
 	}
-	if !strings.HasSuffix(rule.Tree, "/") || !ValidReadScopeEntry(rule.Tree) {
-		return fmt.Errorf("tree scope must name a canonical subtree: %q", rule.Tree)
-	}
-	entry.Path, entry.Rule = rule.Tree, &rule
+	value.Reason = object.Reason
+	value.Rule = &ReadScopeTree{ContentPredicate: object.ContentPredicate, Samples: object.Samples, ListingOnly: object.ListingOnly}
 	return nil
 }
 
-// ReadScopeIdentities preserves all selection metadata when comparing the
-// BASE and HEAD declarations. Legacy entries retain their string identity.
-func ReadScopeIdentities(scope []string, rules []ReadScopeTree) []string {
-	identities := slices.Clone(scope)
-	for i, entry := range scope {
-		for _, rule := range rules {
-			if rule.Tree == entry {
-				body, _ := json.Marshal(rule)
-				identities[i] = string(body)
+// ParseReadScopeTrees validates the optional metadata independently of the
+// frozen string-only read-scope declaration. A planner discards all metadata
+// on any error; checkers report the invalid package/tree to its author.
+func ParseReadScopeTrees(body []byte) (map[string]map[string]ReadScopeTreeValue, error) {
+	var record struct {
+		Profile string                                   `json:"profile"`
+		Trees   map[string]map[string]ReadScopeTreeValue `json:"trees"`
+	}
+	if len(body) > MaxReadScopeTreesBytes {
+		return nil, fmt.Errorf("%s: metadata exceeds byte limit", ReadScopeTreesPath)
+	}
+	if err := json.Unmarshal(body, &record, json.RejectUnknownMembers(true)); err != nil {
+		return nil, fmt.Errorf("%s: %w", ReadScopeTreesPath, err)
+	}
+	if record.Profile != ReadScopeTreesProfile || record.Trees == nil {
+		return nil, fmt.Errorf("%s: want profile %s and trees", ReadScopeTreesPath, ReadScopeTreesProfile)
+	}
+	for _, directory := range slices.Sorted(maps.Keys(record.Trees)) {
+		entries := record.Trees[directory]
+		if directory == "." || !ValidRelativePath(directory) || path.Clean(directory) != directory || len(entries) == 0 {
+			return nil, fmt.Errorf("%s: invalid package %q", ReadScopeTreesPath, directory)
+		}
+		for _, tree := range slices.Sorted(maps.Keys(entries)) {
+			value := entries[tree]
+			name, rest, slash := strings.Cut(tree, "/")
+			if !slash || rest != "" || !ValidReadScopeEntry(tree) || name == "" || strings.TrimSpace(value.Reason) == "" {
+				return nil, fmt.Errorf("%s: package %s entry %s needs a whole top-level tree and non-empty reason", ReadScopeTreesPath, directory, tree)
+			}
+			if value.Rule != nil {
+				value.Rule.Tree = tree
+				if err := value.Rule.Validate(); err != nil {
+					return nil, fmt.Errorf("%s: package %s entry %s: %w (AFP-V0-3302)", ReadScopeTreesPath, directory, tree, err)
+				}
 			}
 		}
 	}
-	return identities
+	return record.Trees, nil
+}
+
+func readScopeTrees(source *Source) (map[string]map[string]ReadScopeTreeValue, string) {
+	body, err := source.ReadBounded(ReadScopeTreesPath, MaxReadScopeTreesBytes)
+	if err != nil {
+		return nil, ""
+	}
+	sum := sha256.Sum256(body)
+	trees, err := ParseReadScopeTrees(body)
+	if err != nil {
+		trees = nil // malformed metadata never weakens the plain whole-tree scope
+	}
+	return trees, hex.EncodeToString(sum[:])
+}
+
+func (graph *Graph) applyReadScopeTrees(trees map[string]map[string]ReadScopeTreeValue) {
+	for id, unit := range graph.units {
+		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+		if !strings.HasPrefix(id, "go:") || !unit.ReadScoped || len(files) == 0 {
+			continue
+		}
+		for _, entry := range unit.ReadScope {
+			if value := trees[relativeDirectory(files[0])][entry]; value.Rule != nil {
+				unit.ReadScopeTrees = append(unit.ReadScopeTrees, *value.Rule)
+			}
+		}
+		graph.units[id] = unit
+	}
 }
 
 // Validate checks the positive examples supplied from the guard's own
@@ -156,7 +220,7 @@ func scopeEntryHolds(entry, name string) bool {
 }
 
 func (graph *Graph) inReadScope(directory string, unit Unit, name string) bool {
-	if name == ReadScopesPath || directory == "." || name == directory || strings.HasPrefix(name, directory+"/") {
+	if name == ReadScopesPath || name == ReadScopeTreesPath || directory == "." || name == directory || strings.HasPrefix(name, directory+"/") {
 		return true
 	}
 	for _, entry := range unit.ReadScope {
@@ -180,8 +244,11 @@ func (graph *Graph) scopeEntryBears(unit Unit, entry, name string) bool {
 }
 
 func (graph *Graph) treeReadScopeCause(id, directory string, unit Unit, name string) *ReadScopeCause {
+	if name == ReadScopeTreesPath {
+		return &ReadScopeCause{Declaration: ReadScopeTreesPath, Entry: ReadScopeTreesPath}
+	}
 	cause := readScopeCause(id, directory, nil, name)
-	if name == ReadScopesPath || name == ShellReadScopesPath {
+	if name == ReadScopesPath || name == ReadScopeTreesPath || name == ShellReadScopesPath {
 		return cause
 	}
 	for _, entry := range unit.ReadScope {

@@ -152,3 +152,31 @@ func TestTestSelectionClosedPositions_AFPV0710(t *testing.T) {
 		})
 	}
 }
+
+func TestTreeMetadataValuesKeepStringScopes_AFP_V0_3303(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	const scopes = `{"profile":"corvint-test-read-scopes/0","packages":{"guard":["cmd/"]}}`
+	const prefix = `{"profile":"corvint-test-read-scope-trees/0","trees":{"guard":{"cmd/":`
+	writeFile(t, root, ".corvint/test-read-scopes.json", scopes)
+	writeFile(t, root, ".corvint/test-read-scope-trees.json", prefix+`"guard/test.go reads cmd/"}}}`)
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "pin")
+	pinned := git(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+pinned+"\"\n")
+	for _, tc := range []struct {
+		value string
+		want  int
+	}{
+		{`"guard/test.go reads cmd/"`, 0},
+		{`{"reason":"guard/test.go reads cmd/","contentPredicate":"x","samples":["x"]}`, 0},
+		{`{"reason":"guard/test.go lists cmd/","listingOnly":true}`, 0},
+		{`{"reason":"guard/test.go reads cmd/","extra":true}`, 1},
+	} {
+		writeFile(t, root, ".corvint/test-read-scope-trees.json", prefix+tc.value+`}}}`)
+		var stdout, stderr bytes.Buffer
+		if code := run(root, ".github/workflows/ci.yml", &stdout, &stderr); code != tc.want {
+			t.Fatalf("value %s: %d %s", tc.value, code, stderr.String())
+		}
+	}
+}

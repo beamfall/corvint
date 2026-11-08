@@ -112,8 +112,9 @@ type Graph struct {
 	// priorReadScopes is the read-scope declaration a change is measured
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
-	priorReadScopes map[string][]string
-	readScopeInputs *readScopeInputs
+	priorReadScopes      map[string][]string
+	readScopeInputs      *readScopeInputs
+	readScopeTreesDigest string
 	// goAdditive holds the golang plugin's additive-change records, sorted
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
 	// not part of the observed graph or its digest.
@@ -330,12 +331,14 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language, partia
 // observed graph: the documentation entries (AFP-V0-160), the
 // runtime-readers entries (AFP-V0-602) and the existence readers (AFP-V0-980).
 type declarations struct {
-	documentation    []string
-	runtimeReaders   []RuntimeReader
-	nonSource        []NonSourcePath
-	runtimeEdges     []RuntimeEdge
-	existenceReaders []ExistenceReader
-	testSelection    *testSelection
+	documentation        []string
+	runtimeReaders       []RuntimeReader
+	nonSource            []NonSourcePath
+	runtimeEdges         []RuntimeEdge
+	existenceReaders     []ExistenceReader
+	testSelection        *testSelection
+	readScopeTrees       map[string]map[string]ReadScopeTreeValue
+	readScopeTreesDigest string
 	// partial marks a graph built from a subset of the plugins, which skips
 	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
 	partial bool
@@ -368,7 +371,8 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
+		trees, treesDigest := readScopeTrees(reader)
+		return declarations{readScopeTrees: trees, readScopeTreesDigest: treesDigest, documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -429,6 +433,8 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	if err != nil {
 		return nil, err
 	}
+	graph.readScopeTreesDigest = repository.readScopeTreesDigest
+	graph.applyReadScopeTrees(repository.readScopeTrees)
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
 	graph.nonSource = repository.nonSource

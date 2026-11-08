@@ -37,14 +37,14 @@ const (
 )
 
 type readScopeFile struct {
-	Profile  string                               `json:"profile"`
-	Packages map[string][]affected.ReadScopeEntry `json:"packages"`
+	Profile  string              `json:"profile"`
+	Packages map[string][]string `json:"packages"`
 }
 
 // readScopes returns the declared scopes by package directory: nil with no
 // declaration, an error for one that is unreadable, oversized, not a regular
 // file, or invalid in any member.
-func readScopes(root *affected.Source) (map[string][]affected.ReadScopeEntry, error) {
+func readScopes(root *affected.Source) (map[string][]string, error) {
 	body, err := root.ReadBounded(affected.ReadScopesPath, maxReadScopeBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -65,10 +65,10 @@ func readScopes(root *affected.Source) (map[string][]affected.ReadScopeEntry, er
 		}
 		previous := ""
 		for _, entry := range entries {
-			if !affected.ValidReadScopeEntry(entry.Path) || entry.Path <= previous {
-				return nil, fmt.Errorf("%s: package %q entry %q", affected.ReadScopesPath, directory, entry.Path)
+			if !affected.ValidReadScopeEntry(entry) || entry <= previous {
+				return nil, fmt.Errorf("%s: package %q entry %q", affected.ReadScopesPath, directory, entry)
 			}
-			previous = entry.Path
+			previous = entry
 		}
 	}
 	return declared.Packages, nil
@@ -129,17 +129,12 @@ func CommittedReadScopes(ctx context.Context, root, commit string) (map[string][
 			return nil, fmt.Errorf("%s at %s declares %q, which holds no Go package", affected.ReadScopesPath, commit, directory)
 		}
 	}
-	identities := map[string][]string{}
-	for directory, entries := range scopes {
-		paths, rules := scopeParts(entries)
-		identities[directory] = affected.ReadScopeIdentities(paths, rules)
-	}
-	return identities, nil
+	return scopes, nil
 }
 
 // committedDeclaration reads and validates the declaration at commit under
 // the frozen default budget; an absent declaration is an empty map.
-func committedDeclaration(ctx context.Context, root, commit string) (map[string][]affected.ReadScopeEntry, error) {
+func committedDeclaration(ctx context.Context, root, commit string) (map[string][]string, error) {
 	repository, err := gitauth.Open(root, gitrun.NewBudget(readScopeBaseOperations, gitrun.DefaultTotalBudget))
 	if err != nil {
 		return nil, err
@@ -153,7 +148,7 @@ func committedDeclaration(ctx context.Context, root, commit string) (map[string]
 	if err != nil || scopes != nil {
 		return scopes, err
 	}
-	return map[string][]affected.ReadScopeEntry{}, nil
+	return map[string][]string{}, nil
 }
 
 // readScopeBaseOperations is the frozen default Git operation count and
@@ -168,7 +163,7 @@ var (
 // readScopeOperations bounds the second pass: the default count for the
 // commit, go.work and go.mod reads, plus each declared directory's path
 // components.
-func readScopeOperations(scopes map[string][]affected.ReadScopeEntry) int {
+func readScopeOperations(scopes map[string][]string) int {
 	operations := readScopeBaseOperations
 	for directory := range scopes {
 		operations += readScopeComponentOperations * (strings.Count(directory, "/") + 1)
@@ -261,12 +256,12 @@ func applyReadScopes(root *affected.Source, units []affected.Unit, directories [
 	if err != nil {
 		frontier[FrontierReadScopesInvalid] = true
 		for index := range units {
-			units[index].ReadScoped, units[index].ReadScope, units[index].ReadScopeTrees = false, nil, nil
+			units[index].ReadScoped, units[index].ReadScope = false, nil
 		}
 	}
 }
 
-func matchReadScopes(scopes map[string][]affected.ReadScopeEntry, units []affected.Unit, directories []string) error {
+func matchReadScopes(scopes map[string][]string, units []affected.Unit, directories []string) error {
 	matched := 0
 	for index, directory := range directories {
 		entries, declared := scopes[directory]
@@ -275,25 +270,11 @@ func matchReadScopes(scopes map[string][]affected.ReadScopeEntry, units []affect
 		if !declared || !walkedDirectory(directory) {
 			continue
 		}
-		units[index].ReadScoped = true
-		units[index].ReadScope, units[index].ReadScopeTrees = scopeParts(entries)
+		units[index].ReadScoped, units[index].ReadScope = true, append([]string{}, entries...)
 		matched++
 	}
 	if matched != len(scopes) {
 		return fmt.Errorf("%s declares a directory that holds no Go package", affected.ReadScopesPath)
 	}
 	return nil
-}
-
-// scopeParts keeps the filesystem bound separate from selection predicates.
-func scopeParts(entries []affected.ReadScopeEntry) ([]string, []affected.ReadScopeTree) {
-	paths := make([]string, 0, len(entries))
-	var rules []affected.ReadScopeTree
-	for _, entry := range entries {
-		paths = append(paths, entry.Path)
-		if entry.Rule != nil {
-			rules = append(rules, *entry.Rule)
-		}
-	}
-	return paths, rules
 }

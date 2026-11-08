@@ -463,7 +463,7 @@ func (graph *Graph) declarationChanged(id string, unit Unit, directory string) b
 	if !unit.ReadScoped {
 		return declared
 	}
-	return !declared || !slices.Equal(prior, ReadScopeIdentities(unit.ReadScope, unit.ReadScopeTrees))
+	return !declared || !slices.Equal(prior, unit.ReadScope)
 }
 
 // InReadScope reports whether a dirty path bears on a package in directory

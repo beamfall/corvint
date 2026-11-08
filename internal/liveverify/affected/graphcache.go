@@ -23,7 +23,7 @@ import (
 
 // GraphCacheProfile names the graph cache entry format (AFP-V0-391). An entry
 // written under any other profile is never trusted.
-const GraphCacheProfile = "corvint-affected-graph-cache/1"
+const GraphCacheProfile = "corvint-affected-graph-cache/2"
 
 const (
 	// graphCacheMaxBytes bounds one entry read or written.
@@ -237,9 +237,10 @@ type cacheEntry struct {
 	// ExistenceReaders is the AFP-V0-980 declaration, with its manifest names.
 	ExistenceReaders []ExistenceReader `json:"existenceReaders,omitempty"`
 	// TestSelection is the AFP-V0-2480 declaration.
-	TestSelection *testSelection `json:"testSelection,omitempty"`
-	Digest        string         `json:"digest"`
-	Stamps        []cachedStamp  `json:"stamps"`
+	TestSelection        *testSelection `json:"testSelection,omitempty"`
+	ReadScopeTreesDigest string         `json:"readScopeTreesDigest"`
+	Digest               string         `json:"digest"`
+	Stamps               []cachedStamp  `json:"stamps"`
 }
 
 // GraphCacheEntryPath names the one entry for root and language set inside
@@ -313,10 +314,11 @@ func newCacheEntry(root, identity string, names []string, graph *Graph, results 
 	if record.uncacheable != "" {
 		return cacheEntry{}, record.uncacheable
 	}
-	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, NonSource: graph.nonSource, RuntimeEdges: graph.runtimeEdges, ExistenceReaders: graph.existenceReaders, TestSelection: graph.testSelection, Digest: graph.digest}
+	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, NonSource: graph.nonSource, RuntimeEdges: graph.runtimeEdges, ExistenceReaders: graph.existenceReaders, TestSelection: graph.testSelection, Digest: graph.digest, ReadScopeTreesDigest: graph.readScopeTreesDigest}
 	for index, result := range results {
 		units := make([]cachedUnit, 0, len(result.Units))
 		for _, unit := range result.Units {
+			unit.ReadScopeTrees = graph.units[unit.ID].ReadScopeTrees
 			units = append(units, cachedUnit(unit))
 		}
 		entry.Languages = append(entry.Languages, cachedLanguage{Name: names[index], Units: units, Frontier: result.Frontier, Unobserved: result.Unobserved, Runnable: result.Runnable})
@@ -412,6 +414,10 @@ func loadGraphCache(ctx context.Context, entryPath, root string, excluded []stri
 	if reason := verifyObservation(ctx, root, entry); reason != "" {
 		return nil, reason
 	}
+	_, treesDigest := readScopeTrees(DiskSourceContext(ctx, root))
+	if treesDigest != entry.ReadScopeTreesDigest {
+		return nil, "tree scope metadata changed"
+	}
 	graph, err := restoreGraph(ctx, entry, languages)
 	if err != nil {
 		return nil, "entry graph invalid: " + err.Error()
@@ -486,7 +492,7 @@ func completeStamps(entry cacheEntry) string {
 	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
 		return incomplete
 	}
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, NonSourcePathsPath, RuntimeEdgesPath, UnboundedReaderExclusionsPath, ExistenceReadersPath, DeclaredSelectionPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, NonSourcePathsPath, RuntimeEdgesPath, UnboundedReaderExclusionsPath, ExistenceReadersPath, DeclaredSelectionPath, ReadScopeTreesPath} {
 		if _, ok := stamps[observedPath{relative: declaration}]; !ok {
 			return incomplete
 		}
@@ -561,7 +567,7 @@ const verifyWorkers = 8
 func restoreGraph(ctx context.Context, entry cacheEntry, languages []Language) (*Graph, error) {
 	index := 0
 	return build(ctx, languages, func() (declarations, error) {
-		return declarations{documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders, nonSource: entry.NonSource, runtimeEdges: entry.RuntimeEdges, existenceReaders: entry.ExistenceReaders, testSelection: entry.TestSelection}, nil
+		return declarations{readScopeTreesDigest: entry.ReadScopeTreesDigest, documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders, nonSource: entry.NonSource, runtimeEdges: entry.RuntimeEdges, existenceReaders: entry.ExistenceReaders, testSelection: entry.TestSelection}, nil
 	}, func(language Language) (Result, error) {
 		cached := entry.Languages[index]
 		index++
