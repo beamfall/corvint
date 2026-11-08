@@ -32,18 +32,22 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
+	"github.com/Beamfall/corvint/internal/testrunner"
 )
 
 // Piece names one declarable part of a language plugin (LGP-V0-002).
 type Piece string
 
 const (
-	Provider     Piece = "provider"
-	Analyzer     Piece = "analyzer"
-	Runners      Piece = "runners"
-	TestProvider Piece = "test-provider"
-	Coverage     Piece = "coverage"
-	Mutation     Piece = "mutation"
+	Provider      Piece = "provider"
+	Analyzer      Piece = "analyzer"
+	Runners       Piece = "runners"
+	TestProvider  Piece = "test-provider"
+	Coverage      Piece = "coverage"
+	Mutation      Piece = "mutation"
+	Inventory     Piece = "inventory"
+	TestEvidence  Piece = "test-evidence"
+	Qualification Piece = "qualification"
 )
 
 func dialectKindNames() []string {
@@ -55,7 +59,7 @@ func dialectKindNames() []string {
 }
 
 // Pieces is every piece, in declaration order.
-var Pieces = []Piece{Provider, Analyzer, Runners, TestProvider, Coverage, Mutation}
+var Pieces = []Piece{Provider, Analyzer, Runners, TestProvider, Coverage, Mutation, Inventory, TestEvidence, Qualification}
 
 // SubPlugin is one tool of a language: an analyzer binary, a test provider,
 // a coverage collector or a mutation tool, with the repository-relative
@@ -86,6 +90,9 @@ var DialectKinds = decl.DialectKinds
 
 // Manifest is one language plugin (LGP-V0-001).
 type Manifest struct {
+	// RunnerPieces declares selection capabilities for each Runners entry (RSP-V0-001).
+	// It is not part of any existing manifest wire.
+	RunnerPieces map[string]testrunner.RunnerPieces `json:"-"`
 	// Name is the plugin namespace; with a provider it equals Provider().Name().
 	Name string
 	// Paths are the repository-relative directories this language owns
@@ -239,7 +246,7 @@ var manifests = []Manifest{
 	},
 	{
 		Name:      "shader",
-		Paths:     []string{"cmd/corvint-analyzer-shader", "internal/analyzershader"},
+		Paths:     []string{"cmd/corvint-analyzer-shader", "internal/analyzershader", "internal/shaderdialect", "internal/shaderrunner"},
 		Analyzers: []SubPlugin{sub("corvint-analyzer-shader", "internal/analyzershader")},
 		Runners:   []string{"shader-behavior"},
 		Absent:    map[Piece]string{Provider: noProvider, TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},
@@ -262,6 +269,14 @@ var manifests = []Manifest{
 
 func init() {
 	for i, m := range manifests {
+		manifests[i].RunnerPieces = make(map[string]testrunner.RunnerPieces, len(m.Runners))
+		for _, r := range m.Runners {
+			manifests[i].RunnerPieces[r] = testrunner.AbsentRunnerPieces(r)
+			switch r {
+			case "rspec", "minitest", "test-unit", "rails-test":
+				manifests[i].RunnerPieces[r] = testrunner.RunnerPieces{Inventory: testrunner.RunnerPiece{Present: true}, TestEvidence: testrunner.RunnerPiece{Present: true}, Qualification: testrunner.RunnerPiece{Reason: "unqualified"}}
+			}
+		}
 		d := decl.Of(m.Name)
 		manifests[i].Dialects, manifests[i].Dependencies = d.Dialects, d.Dependencies
 	}
@@ -408,6 +423,9 @@ func Validate(m Manifest) error {
 	}
 	known := map[Piece]bool{}
 	for _, piece := range Pieces {
+		if piece == Inventory || piece == TestEvidence || piece == Qualification {
+			continue
+		}
 		known[piece] = true
 		reason, absent := m.Absent[piece]
 		switch {
@@ -444,6 +462,26 @@ func Validate(m Manifest) error {
 	for _, r := range m.Runners {
 		if r == "" {
 			errs = append(errs, fmt.Errorf("%s: empty runner name", m.Name))
+		}
+	}
+	for _, r := range m.Runners {
+		p := m.RunnerPieces[r]
+		for _, item := range []struct {
+			name  Piece
+			piece testrunner.RunnerPiece
+		}{
+			{Inventory, p.Inventory}, {TestEvidence, p.TestEvidence}, {Qualification, p.Qualification},
+		} {
+			if item.piece.Present && item.piece.Reason != "" {
+				errs = append(errs, fmt.Errorf("%s: runner %s %s is declared and also absent", m.Name, r, item.name))
+			} else if !item.piece.Present && strings.TrimSpace(item.piece.Reason) == "" {
+				errs = append(errs, fmt.Errorf("%s: runner %s %s is absent without a reason", m.Name, r, item.name))
+			}
+		}
+	}
+	for r := range m.RunnerPieces {
+		if !contains(m.Runners, r) {
+			errs = append(errs, fmt.Errorf("%s: pieces name undeclared runner %q", m.Name, r))
 		}
 	}
 	for _, d := range m.Dialects {

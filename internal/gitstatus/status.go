@@ -580,18 +580,25 @@ func unsafeConfig(raw []byte, root, gitdir string) (reasonClass, string) {
 // and commondir paths those pointers name. A plain clone's common directory
 // is its `.git`.
 func CommonDirectory(root string) (string, error) {
-	root, err := filepath.Abs(root)
+	_, common, err := Directories(root)
+	return common, err
+}
+
+// Directories resolves the checkout-specific and common Git directories using
+// the same bounded, closed pointer grammar as Status and CommonDirectory.
+func Directories(root string) (gitdir, common string, err error) {
+	root, err = filepath.Abs(root)
 	if err != nil {
-		return "", errRoot
+		return "", "", errRoot
 	}
 	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
-		return "", errRoot
+		return "", "", errRoot
 	}
 	reader := metadataReader{}
 	defer reader.Close()
-	_, common, _, err := directories(root, &reader)
-	return common, err
+	gitdir, common, _, err = directories(root, &reader)
+	return gitdir, common, err
 }
 
 func directories(root string, reader *metadataReader) (string, string, []capturedFile, error) {

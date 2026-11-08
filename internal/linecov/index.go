@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
 // Format names the index encoding this package writes; a reader refuses any
@@ -55,6 +57,10 @@ type Index struct {
 	// into the next index until a blob in the class reach changes
 	// (MCJ-V0-018). A divergent class takes part in no exclusion.
 	Divergent []Divergence
+
+	// Evidence extends the immutable index with RSP-V0-008 records. Legacy
+	// collectors leave it empty; EvidenceRecords supplies their read adapter.
+	Evidence []testevidence.Record
 
 	byName   map[string]int32
 	byPath   map[string]int
@@ -422,6 +428,12 @@ func uniqueSorted(ids []int32) []int32 {
 
 // Encode writes the index.
 func (ix *Index) Encode(w io.Writer) error {
+	if len(ix.Evidence) > 0 {
+		return ix.EncodeBounded(w, 0)
+	}
+	if err := ix.checkEvidence(); err != nil {
+		return err
+	}
 	return gob.NewEncoder(w).Encode(ix)
 }
 
@@ -450,6 +462,9 @@ func Decode(r io.Reader) (*Index, error) {
 	if err := ix.checkSegments(); err != nil {
 		return nil, err
 	}
+	if err := ix.checkEvidence(); err != nil {
+		return nil, err
+	}
 	ix.reindex()
 	return &ix, nil
 }
@@ -470,6 +485,9 @@ func Merge(parts ...*Index) (*Index, error) {
 	blocks := map[string]map[key]map[string]bool{}
 	unordered := map[string]bool{}
 	for _, p := range parts {
+		if err := p.checkEvidence(); err != nil {
+			return nil, err
+		}
 		if p.Module != first.Module || p.Commit != first.Commit || p.Runner != first.Runner || p.TestTimeout != first.TestTimeout || p.SuiteTimeout != first.SuiteTimeout || p.Language != first.Language || !slices.Equal(p.Command, first.Command) || p.Executable != first.Executable || p.RunnerFamily != first.RunnerFamily || p.Config != first.Config {
 			return nil, fmt.Errorf("linecov: merge of %s %s %q with %s %s %q", first.Module, first.Commit, first.Runner, p.Module, p.Commit, p.Runner)
 		}
@@ -510,6 +528,7 @@ func Merge(parts ...*Index) (*Index, error) {
 	sort.Strings(names)
 	ix := &Index{Format: Format, Module: first.Module, Commit: first.Commit, Runner: first.Runner, TestTimeout: first.TestTimeout, SuiteTimeout: first.SuiteTimeout, Language: first.Language, Command: first.Command, Executable: first.Executable, RunnerFamily: first.RunnerFamily, Config: first.Config}
 	for _, part := range parts {
+		ix.Evidence = append(ix.Evidence, part.Evidence...)
 		for pkg, reason := range part.WindowFallback {
 			if ix.WindowFallback == nil {
 				ix.WindowFallback = map[string]string{}
@@ -543,6 +562,9 @@ func Merge(parts ...*Index) (*Index, error) {
 		}
 		f.sortBlocks()
 		ix.Files = append(ix.Files, f)
+	}
+	if err := ix.checkEvidence(); err != nil {
+		return nil, err
 	}
 	ix.reindex()
 	return ix, nil
