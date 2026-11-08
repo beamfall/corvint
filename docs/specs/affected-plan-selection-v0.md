@@ -2130,6 +2130,43 @@ one list, so a later class cannot reopen it.
   `TestClosureGuardIsProvenImportGraphReader_AFPV09600` classifies the real package and fails when
   any of its tests stops being a proven reader.
 
+### Driver narrowing after the convergence cap (V1-5000)
+
+- **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
+  owner-requested V1-5000 convergence-cap redesign, 2026-11-08; supersedes review round 1)
+  The scanner SHALL retain parsed local declarations and command references in every scope,
+  including make recipes and opaque inline shells. A locally declared command prefix SHALL
+  stay computed even where the earlier root-like `$VAR/` rule would otherwise admit it.
+  AFP-V0-9621, AFP-V0-9622, AFP-V0-9624 and AFP-V0-9627 MAY remove a computed reason only
+  after the entire script has been parsed with no unsupported construct and no parsed use of
+  an assigned/read local. References in operands, redirects and substitutions count as uses;
+  unknown indirect or arithmetic references count as any local. Raw-text whole-word occurrence
+  counting SHALL NOT justify removal of a computed site.
+
+  Backslash-newline continuations SHALL be joined before keyword/name recognition, and escaped
+  names decoded before reference analysis. These spellings still disqualify narrowing. The
+  scanner SHALL fail closed for every loop variable (including an unused lowercase variable),
+  escaped or quoted command/declaration names, continuations, function definitions in any
+  spelling, `source`/`.`, `eval`, `set -a`/`allexport`, opaque inline scripts, indirect/arithmetic
+  contexts, unsupported wrappers/control flow, incomplete words or here-docs, here-doc
+  delimiters containing a backslash, and any other
+  construct not positively understood. Existing path scanning MAY continue after abstention;
+  it SHALL NOT reauthorize narrowing. Revocation restores every provisional computed reason.
+
+  A skipped here-doc body containing `$(`, a backtick, `${` or `$[` SHALL retain a computed fallback,
+  even with a quoted delimiter, no referenced local, or no provisional narrowing. Parsed
+  here-doc parameter uses SHALL also prevent local narrowing. A local used in any command,
+  operand or redirection stays computed (`shell:local-referenced`); code-bearing references
+  additionally retain `shell:local-command-word`. `GITHUB_OUTPUT` references revoke narrowing
+  because values may reach later steps. Existing assigning-expansion, brace/arithmetic
+  substitution and environment-file guards remain in force.
+
+  The admitted subset is deliberately small: fully parsed simple-command scripts with known
+  environments, allowlisted builtins/options and unused plain locals. Conditional assignments
+  and loops are no longer positive cases. Literal local values SHALL NOT be recorded as paths.
+  The inherited root-like exemption for a command with no local declaration remains outside
+  this redesign; this requirement does not claim a complete shell interpreter.
+
 ### Frozen affected digests (V1-4710; lane swgold)
 
 - `AFP-V0-9320`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
@@ -2412,6 +2449,15 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 ## Acceptance evidence and traceability
 
+For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
+spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
+`TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
+opaque scopes and unsupported/incomplete syntax (including here-doc `$[n]`); `TestDriverReviewCounterexamples_AFP_V0_9628`
+holds both decodings of a backslashed here-doc delimiter computed. The existing AFP-V0-9621 through AFP-V0-9628
+cases remain the compatibility floor, with conditional assignment and unused-loop positives
+changed deliberately. Evidence and the convergence-cap decision are in
+`docs/build-log/2026-11-08-v1-5000-redesign.md`.
+
 The avdrv additions are build-only candidates; their new regressions have not been executed
 in the lane. The integration branch must run the complete affected package and independent
 review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check results and limits.
@@ -2556,6 +2602,10 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
+its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
+here-doc safeguards if a rollback is needed; do not advertise the earlier narrowing as qualified.
 
 For AFP-V0-9320 to AFP-V0-9322, revert the must-run declaration and its regression together;
 this restores the prior selection policy and loses the explicit digest guard. No encoding,
