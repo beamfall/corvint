@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
 // Format names the index encoding this package writes, the compact
@@ -74,6 +76,10 @@ type Index struct {
 	// into the next index until a blob in the class reach changes
 	// (MCJ-V0-018). A divergent class takes part in no exclusion.
 	Divergent []Divergence
+
+	// Evidence extends the immutable index with RSP-V0-008 records. Legacy
+	// collectors leave it empty; EvidenceRecords supplies their read adapter.
+	Evidence []testevidence.Record
 
 	byName   map[string]int32
 	byPath   map[string]int
@@ -656,6 +662,7 @@ func Merge(parts ...*Index) (*Index, error) {
 	sort.Strings(names)
 	ix := &Index{Format: Format, Module: first.Module, Commit: first.Commit, Runner: first.Runner, TestTimeout: first.TestTimeout, SuiteTimeout: first.SuiteTimeout, Language: first.Language, Command: first.Command, Executable: first.Executable, RunnerFamily: first.RunnerFamily, Config: first.Config}
 	for _, part := range parts {
+		ix.Evidence = append(ix.Evidence, part.Evidence...)
 		for pkg, reason := range part.WindowFallback {
 			if ix.WindowFallback == nil {
 				ix.WindowFallback = map[string]string{}
@@ -718,6 +725,9 @@ func Merge(parts ...*Index) (*Index, error) {
 		}
 		f.sortBlocks()
 		ix.Files = append(ix.Files, f)
+	}
+	if err := ix.checkEvidence(); err != nil {
+		return nil, err
 	}
 	ix.reindex()
 	return ix, nil

@@ -12,7 +12,7 @@
   "subjects": [
     {
       "path": "cmd/corvint/main.go",
-      "sha256": "7363a8025d84eb5c6300645a334559575514a7927dcc4b6f8527ffc6b773c133"
+      "sha256": "df20f8373ff29b8639daff998a5ad90b26fbf4b26eeeb98c45459eef36a4aabd"
     },
     {
       "path": "cmd/corvint/affected.go",

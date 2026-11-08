@@ -4762,6 +4762,35 @@
     },
     {
       "path": [
+        "flows",
+        "test-evidence"
+      ],
+      "command": "corvint flows test-evidence",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows test-evidence --flows DIR PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]",
+        "corvint [--root PATH] flows test-evidence --flows DIR --test TEST [--revision COMMIT] [--index FILE] [--format json|text]",
+        "corvint [--root PATH] flows test-evidence --flows DIR --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]"
+      ],
+      "flags": [
+        "--base",
+        "--explain",
+        "--flows",
+        "--format",
+        "--index",
+        "--lines",
+        "--revision",
+        "--root",
+        "--test"
+      ],
+      "required": [
+        "--flows DIR"
+      ],
+      "example": "corvint flows test-evidence --flows DIR PATH",
+      "help": "corvint flows test-evidence --help"
+    },
+    {
+      "path": [
         "frontier"
       ],
       "command": "corvint frontier",
@@ -6486,6 +6515,31 @@
       ],
       "example": "corvint test verify-shards --manifest PATH RECEIPT...",
       "help": "corvint test verify-shards --help"
+    },
+    {
+      "path": [
+        "test-evidence"
+      ],
+      "command": "corvint test-evidence",
+      "summary": "Read retained test dependencies at an immutable commit",
+      "usage": [
+        "corvint [--root PATH] test-evidence PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]",
+        "corvint [--root PATH] test-evidence --test TEST [--revision COMMIT] [--index FILE] [--format json|text]",
+        "corvint [--root PATH] test-evidence --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]"
+      ],
+      "flags": [
+        "--base",
+        "--explain",
+        "--format",
+        "--index",
+        "--lines",
+        "--revision",
+        "--root",
+        "--test"
+      ],
+      "required": [],
+      "example": "corvint test-evidence PATH",
+      "help": "corvint test-evidence --help"
     },
     {
       "path": [
