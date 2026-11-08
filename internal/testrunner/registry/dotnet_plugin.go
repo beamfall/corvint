@@ -333,6 +333,24 @@ func (p *dotnetPlugin) Parse(ctx context.Context, r ParseRequest) ([]testrunner.
 		}
 		out = append(out, testrunner.RunnerResult{ID: p.id(id), Outcome: strings.ToLower(test.State), Reason: test.Message})
 	}
+	if err != nil && p.c.Platform == "vstest" {
+		// RSP-V0-003: a rejected TRX report (such as a wrong total count) keeps
+		// its validated failed rows, so a passing FULL retry cannot erase them.
+		seen := map[string]bool{}
+		for _, row := range out {
+			seen[row.ID] = true
+		}
+		for _, test := range native.TRXFailures(r.Runner, []byte(r.Report)) {
+			id := p.c.ResultIDs[test.ID]
+			if id == "" {
+				id = test.ID
+			}
+			if rid := p.id(id); !seen[rid] {
+				seen[rid] = true
+				out = append(out, testrunner.RunnerResult{ID: rid, Outcome: "failed", Reason: test.Message})
+			}
+		}
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	if err == nil && !observation.Complete {
 		err = fmt.Errorf("dotnet-native-report-incomplete:%v", observation.Problems)
