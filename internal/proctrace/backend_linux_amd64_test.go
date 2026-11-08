@@ -616,6 +616,11 @@ func TestRSPV0007RenameOverSymlink(t *testing.T) {
 			if r.Reads.State != Present || !hasPath(r.Reads.Entries, "data") {
 				t.Fatalf("read of untouched symlink target lost: %+v", r)
 			}
+			// The created source does not make the existing destination
+			// irrelevant: a later directory at dest would fail the rename.
+			if !hasPath(r.Reads.Entries, "dest") {
+				t.Fatalf("existing rename destination dependency lost: %+v", r)
+			}
 			var replaced bool
 			for _, w := range r.Writes.Entries {
 				if w.Kind == "replace" {
