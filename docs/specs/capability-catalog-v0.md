@@ -25,6 +25,23 @@ cannot silently go missing or outlive its command.
 
 ## Requirements
 
+- `CAP-V0-8800`: (accepted by the owner's 2026-11-08 clicat charter; V1-4846)
+  The whole-inventory help table MUST first compare command trees with the independent
+  binary and dispatch inventory, then exercise both `--help` and `-h` for every node
+  through the CAP-V0-9300 discovery profile (the adapter itself uses its own handler).
+  Every page MUST contain that node's command, all usage forms, flags, required inputs
+  and example, with exit 0 and no stderr or stdin read. A literal `help` node followed
+  by a help flag MUST render its own page; ordinary `help COMMAND` keeps topic routing.
+  A missing, duplicate or stale execution-table row MUST fail; an unknown child MUST
+  refuse rather than return its known parent's page. The compiled profile conformance
+  test MUST check these fields at every depth, not only on root nodes.
+  The existing capabilities check MUST also reject missing, duplicate, stale or
+  mismatched root machine catalog tree references and missing, malformed or unsupported
+  root catalogs. This adds no JSON member, protocol help flag or native refusal change.
+  Tests: `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`,
+  `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode` (cliapp and cliprofile),
+  `TestCLIProfile9300EveryNode`. Runtime evidence remains NOT_RUN in the build-only lane.
+
 - `CAP-V0-9300`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-2685)
   Frozen native entrypoints win over universal help interception. The additive
   `corvint-cli --binary BINARY [COMMAND...] --help|-h` profile MUST answer every
@@ -667,6 +684,18 @@ cannot silently go missing or outlive its command.
 
 ## Boundaries and failure modes
 
+V1-4846's literal universal native-help and root MCP-entry acceptance remains PARTIAL under
+the clicat charter's frozen-contract rule. CAP-V0-9300 supplies uniform CLI discovery for
+CAP-V0-7700's native compatibility exceptions; it does not authorize replacing their native
+protocol responses, folded help or existing exits. MCP tools are protocol methods, not CLI
+subcommands: their machine descriptors come from `tools/list` on the configured server/profile.
+The root catalog currently links server CLI trees, not individual MCP descriptors. Adding such
+entries needs an explicitly authorized catalog contract; this lane does not invent an encoding
+in existing fields or change frozen `tools/list` goldens. The zero CLI ratchet therefore measures
+binary tree coverage, not universal native help or complete offline MCP discovery.
+CAP-V0-8800 rollback removes its routing correction, link check and added tests; existing native
+compatibility controls, tree snapshots and protocol goldens remain in force.
+
 Non-goals: generating the authored capability descriptions from code (CAP-V0-7700 adds a separate generated full-node table to the same page); checking semantic flag preconditions, output schemas or the truth of prose; running any listed command; ranking capabilities; replacing a spec, a help page or
 the deep guides the catalog links to.
 
@@ -774,6 +803,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
+| CAP-V0-8800 | `internal/cliapp`, `internal/cliprofile` exact-node help; `tools/capabilities-check/machine.go` root catalog reachability | `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`, `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode`, `TestCLIProfile9300EveryNode`; build-only runtime evidence NOT_RUN |
 | CAP-V0-001 | `docs/CAPABILITIES.md` | `TestCAPV0002RepositoryCatalogMatchesInventory` (structure via gated regions); build log self-check of five rows |
 | CAP-V0-002 | `Collect`, `parseCommands`, `parseDispatched`, `scanBinaries`, `scanTools`, `toolNames`, `parseRows` | `TestCAPV0002RepositoryCatalogMatchesInventory`, `TestCAPV0002InventoryCountsMatchCode`, `TestCAPV0002ToolNamesWithDigitsAndHyphens` |
 | CAP-V0-003 | `Check`, `checkDispatch`, `tools/capabilities-check/main.go` | `TestCAPV0003SyntheticOmissionAndStaleRowFail`, `TestCAPV0003MaturityAndLinkDriftFail`, `TestCAPV0002DispatchDriftFails` |
