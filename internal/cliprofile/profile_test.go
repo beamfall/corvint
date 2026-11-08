@@ -12,6 +12,24 @@ import (
 	"github.com/Beamfall/corvint/internal/clierror"
 )
 
+func TestCAPV08800HelpNode(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		var out, errout bytes.Buffer
+		args := []string{"--binary", "corvint-mcp", "help", flag}
+		code := Profile(context.Background(), t.TempDir(), args, nil, &out, &errout)
+		if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "corvint-mcp help [COMMAND...] [--json]") || !strings.Contains(out.String(), "Required: none") {
+			t.Fatalf("%v: code=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
+		}
+		out.Reset()
+		args = []string{"--binary", "corvint-mcp", "help", "zz-unknown", flag}
+		code = Profile(context.Background(), t.TempDir(), args, nil, &out, &errout)
+		var refusal clierror.Envelope
+		if code != 2 || out.Len() != 0 || json.Unmarshal(errout.Bytes(), &refusal) != nil || refusal.Code != "unknown-verb" {
+			t.Fatalf("unknown help: %v: code=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
+		}
+	}
+}
+
 func TestCLIProfile9301RefusalShapes(t *testing.T) {
 	for _, row := range []struct{ out, stderr, code, message string }{
 		{"", `{"code":"missing","error":"File is missing"}`, "missing", "File is missing"},

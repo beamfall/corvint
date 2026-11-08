@@ -27,6 +27,10 @@
 
 - `corvint help --json`: the `corvint-capability-catalog/0` command catalog
   ([snapshot](internal/capcatalog/catalog.json)); its `commandTrees` member links every command tree
+- MCP tool descriptors come from `tools/list` on the configured server and profile. The
+  [MCP tool catalog](docs/CAPABILITIES.md#mcp-tools) names servers and minimal calls;
+  [MCP setup](docs/MCP-SERVER.md) explains profile selection. Root machine help links server
+  CLI trees, not individual MCP descriptors; offline per-tool discovery remains unavailable.
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
 - `corvint-cem-candidate help --json`: the CEM candidate companion's tree

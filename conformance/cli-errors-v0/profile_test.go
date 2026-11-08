@@ -39,12 +39,10 @@ func TestCLIProfile9300EveryNode(t *testing.T) {
 					if code != 0 || errout != "" || !strings.Contains(strings.ToLower(out), "usage") || !strings.Contains(strings.ToLower(out), "required") || !strings.Contains(strings.ToLower(out), "example") {
 						t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, out, errout)
 					}
-					if len(node.Path) == 0 {
-						for _, contract := range [][]string{node.Usage, node.Flags, node.Required, {node.Example}} {
-							for _, text := range contract {
-								if !strings.Contains(out, text) {
-									t.Errorf("%v: root help omits contract %q: %s", args, text, out)
-								}
+					for _, contract := range [][]string{node.Usage, node.Flags, node.Required, {node.Command, node.Example}} {
+						for _, text := range contract {
+							if !strings.Contains(out, text) {
+								t.Errorf("%v: node help omits contract %q: %s", args, text, out)
 							}
 						}
 					}
