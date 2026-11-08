@@ -171,6 +171,7 @@ func TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628(t *testing.T) {
 		`unused=1; bash -o allexport script.sh`,
 		`out=1; echo "${name[out]}"`,
 		`out=1; echo $[out]`,
+		"read -r n < choice; cat <<EOF\n$[n]\nEOF",
 		`out=1; echo $'\x24out'`,
 		`out=1; echo "unterminated`,
 		"set -e; cat <<EOF\nno terminator\nout=1",
