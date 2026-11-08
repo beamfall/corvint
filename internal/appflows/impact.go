@@ -81,7 +81,11 @@ func FlowImpactAt(ctx context.Context, root string, set IntentSet, base string) 
 	if err != nil {
 		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
-	plan := affected.Select(graph, changed)
+	// The change is measured from base, so the plan compares import sets as
+	// `corvint affected --base` does (AFP-V0-9011); an unresolved base leaves
+	// them unknown.
+	commit, _ := ResolveRevision(ctx, root, base)
+	plan := languages.SelectAt(ctx, root, root, commit, graph, changed)
 	// The graph is walked from the working tree while intents and changed paths come from HEAD; a
 	// worktree that differs from HEAD may have built a different graph, so the hit list may be short.
 	if differs := slices.Compact(slices.Sorted(slices.Values(append(dirty, recheck...)))); len(differs) != 0 {
