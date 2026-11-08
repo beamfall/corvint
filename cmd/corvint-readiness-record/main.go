@@ -7,6 +7,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"os/signal"
@@ -15,7 +17,20 @@ import (
 	"github.com/Beamfall/corvint/internal/releasecandidate"
 )
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+// usage is the source-owned synopsis for offline discovery.
+const usage = `usage: corvint-readiness-record --candidate DIR --source-root DIR --evidence-file FILE --output FILE [--store-release ID --store-candidate-sha256 SHA256]
+       corvint-readiness-record --verify FILE --candidate DIR --evidence-file FILE
+Build mode takes both store flags together or neither. Verify mode accepts no build inputs.`
+
+func main() {
+	streams := &clierror.Streams{Binary: "corvint-readiness-record", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-readiness-record", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+	os.Exit(streams.Status(run(os.Args[1:], streams.Stdout(), streams.Stderr())))
+}
 
 // The two modes are variables so a test can run each through run.
 var (

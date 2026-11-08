@@ -43,9 +43,10 @@ func ImportSetChangesAt(ctx context.Context, root, head, commit string, graph *a
 }
 
 // importSetPath reports a dirty path that can change an import set: a module
-// file, or a .go file the go tool may build.
-func importSetPath(relative string) bool {
-	return affected.ModuleFile(relative) || strings.HasSuffix(relative, ".go") && !affected.GoIgnoredPath(relative)
+// file, or a .go file the go tool may build, an indexed hidden package's
+// included (AZU-V0-005).
+func importSetPath(graph *affected.Graph, relative string) bool {
+	return affected.ModuleFile(relative) || graph.GoPackageFile(relative)
 }
 
 // ImportSetRecords is ImportSetChangesAt over two source trees: base, the
@@ -69,7 +70,7 @@ func ImportSetRecords(base, head fs.FS, graph *affected.Graph, dirty []string) *
 			if changes.Module == "" {
 				changes.Module = relative
 			}
-		case importSetPath(relative):
+		case importSetPath(graph, relative):
 			directory := path.Dir(relative)
 			if _, seen := byDirectory[directory]; !seen {
 				directories = append(directories, directory)

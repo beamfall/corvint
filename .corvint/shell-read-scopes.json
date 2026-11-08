@@ -24,9 +24,15 @@
         "go.mod",
         "go.sum",
         "go.work",
-        "internal/toolchainreceipt/"
+        "internal/capcatalog/",
+        "internal/cliapp/",
+        "internal/clierror/",
+        "internal/clitree/",
+        "internal/companioncli/",
+        "internal/toolchainreceipt/",
+        "internal/versionline/"
       ],
-      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 runs go build ./cmd/corvint-go-toolchain-receipt, whose only non-standard package is internal/toolchainreceipt (TSP-V0-951, V1-2167)."
+      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 builds cmd/corvint-go-toolchain-receipt, compiling internal/toolchainreceipt and its offline CLI help, framing and release metadata closure (TSP-V0-951, CAP-V0-7700, V1-2167)."
     },
     "script/core-n1-replay-default_test.sh": {
       "reads": [
@@ -89,6 +95,15 @@
         "Makefile"
       ],
       "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830)."
+    },
+    "script/qualify-tasks-basic_test.sh": {
+      "reads": [
+        "cmd/corvint-tasks/",
+        "go.mod",
+        "go.sum",
+        "internal/"
+      ],
+      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283)."
     },
     "script/repin_test.sh": {
       "reads": [

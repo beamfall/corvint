@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -49,7 +48,7 @@ func TestParseWitnessRanges(t *testing.T) {
 
 func revParse(t *testing.T, root string, revisions ...string) []string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"rev-parse"}, revisions...)...)
+	command := fixtureGitCommand(append([]string{"rev-parse"}, revisions...)...)
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {
@@ -148,7 +147,7 @@ func TestRunWitnessPairedIgnoresAPairingTrailer(t *testing.T) {
 	}
 	plainHead := revParse(t, tests, "HEAD")[0]
 	plain := report()
-	command := exec.Command("git", "commit", "-q", "--amend", "-m", "change\n\nPaired-Range: app=example.test/app@"+appCommits[0]+".."+appCommits[1])
+	command := fixtureGitCommand("commit", "-q", "--amend", "-m", "change\n\nPaired-Range: app=example.test/app@"+appCommits[0]+".."+appCommits[1])
 	command.Dir = tests
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git commit --amend: %v\n%s", err, output)
@@ -166,7 +165,7 @@ func TestRunWitnessPairedIgnoresAPairingTrailer(t *testing.T) {
 // new head.
 func amendTestsHead(t *testing.T, root, message string) string {
 	t.Helper()
-	command := exec.Command("git", "commit", "-q", "--amend", "-m", message)
+	command := fixtureGitCommand("commit", "-q", "--amend", "-m", message)
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git commit --amend: %v\n%s", err, output)

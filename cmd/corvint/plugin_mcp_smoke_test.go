@@ -40,7 +40,7 @@ func TestAHI631ClaudePluginMCPLaunchHandshakes(t *testing.T) {
 		t.Fatalf("declared command %q is not the corvint binary %q", server.Command, binary)
 	}
 	repository := t.TempDir()
-	if output, err := exec.Command("git", "init", "-q", repository).CombinedOutput(); err != nil {
+	if output, err := fixtureGitCommand("init", "-q", repository).CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v %s", err, output)
 	}
 	for name, project := range map[string]string{"repository": repository, "not-a-repository": t.TempDir()} {

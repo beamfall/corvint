@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -167,12 +166,12 @@ func TestRunWitnessCompilesAHistoricalHead(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# later\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	command := exec.Command("git", "commit", "-qam", "later")
+	command := fixtureGitCommand("commit", "-qam", "later")
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, output)
 	}
-	command = exec.Command("git", "rev-parse", "HEAD~1", "HEAD")
+	command = fixtureGitCommand("rev-parse", "HEAD~1", "HEAD")
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {
@@ -225,7 +224,7 @@ func witnessCLIRange(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# changed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	command := exec.Command("git", "commit", "-qam", "change")
+	command := fixtureGitCommand("commit", "-qam", "change")
 	command.Dir = root
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("git commit: %v\n%s", err, output)
@@ -254,7 +253,7 @@ func witnessGoModuleRange(t *testing.T) string {
 	}
 	git := func(arguments ...string) {
 		t.Helper()
-		command := exec.Command("git", append([]string{"-c", "user.email=corvint@example.test", "-c", "user.name=Corvint Test", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
+		command := fixtureGitCommand(append([]string{"-c", "user.email=corvint@example.test", "-c", "user.name=Corvint Test", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
@@ -282,7 +281,7 @@ func TestRunWitnessAttachesABoundReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := exec.Command("git", "rev-parse", "HEAD", "HEAD^{tree}")
+	command := fixtureGitCommand("rev-parse", "HEAD", "HEAD^{tree}")
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {
@@ -406,7 +405,7 @@ func assertWitnessCheckModes(t *testing.T, root, evidence string, want []byte) {
 func TestRunWitnessResolvesRevisionsAndChecks(t *testing.T) {
 	t.Parallel()
 	root := witnessCLIRange(t)
-	command := exec.Command("git", "rev-parse", "HEAD~1", "HEAD")
+	command := fixtureGitCommand("rev-parse", "HEAD~1", "HEAD")
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {

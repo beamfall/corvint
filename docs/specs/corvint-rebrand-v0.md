@@ -217,7 +217,7 @@ VS Code extension. Acceptance evidence: `TestRubyProviderBundleProfileThree`,
 installed qualification of a `/3` bundle remain `NOT_RUN` until a release is cut. Rollback: restore
 the `/2` writer and drop the `/3` reader branch; no retained `/3` bundle exists to migrate.
 
-Companion inventory evidence: `TestCurrentAndLegacyClosedBundleProfiles`, `TestCurrentBundleRejectsInvalidProfilesAndMixedIdentities`, and opt-in `TestCurrentExportedTasksAndVSIX` cover CRB-V0-017; final bundle/installed qualification is deferred to the combined source gate.
+Companion inventory evidence: `TestCurrentAndLegacyClosedBundleProfiles`, `TestCurrentBundleRejectsInvalidProfilesAndMixedIdentities`, and opt-in `TestCurrentExportedTasksAndVSIX` (in `internal/companionrelease/currentproof`) cover CRB-V0-017; final bundle/installed qualification is deferred to the combined source gate.
 
 ## Alias retirement amendment (2026-09-17)
 

@@ -12,6 +12,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
+	"github.com/Beamfall/corvint/internal/clierror"
 	"io"
 	"os"
 	"path/filepath"
@@ -116,19 +118,26 @@ type localLease struct {
 }
 
 func main() {
+	streams := &clierror.Streams{Binary: "corvint-go-test-provider", Out: os.Stdout, Err: os.Stderr}
+	defer streams.Finish()
+
+	if code, handled := cliapp.Answer("corvint-go-test-provider", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+		os.Exit(streams.Status(code))
+	}
+
 	if len(os.Args) == 5 && os.Args[1] == "--experimental" && os.Args[2] == "--trusted-local" && os.Args[3] == attachmentArgument {
 		capability, ok := readParentCapability()
 		if !ok {
-			os.Exit(2)
+			os.Exit(streams.Status(2))
 		}
 		ctx, cancel := providerContext()
 		defer cancel()
-		os.Exit(runProductionAuthority(ctx, os.Args[4], capability, os.Stdout))
+		os.Exit(streams.Status(runProductionAuthority(ctx, os.Args[4], capability, streams.Stdout())))
 	}
 	if len(os.Args) >= 2 && os.Args[1] == "session" {
-		os.Exit(runSessionCommand(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+		os.Exit(streams.Status(runSessionCommand(os.Args[2:], os.Stdin, streams.Stdout(), streams.Stderr())))
 	}
-	os.Exit(runOrTestRun(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(streams.Status(runOrTestRun(os.Args[1:], streams.Stdout(), streams.Stderr())))
 }
 
 func run(arguments []string, stdout, stderr io.Writer) int {

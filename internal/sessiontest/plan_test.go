@@ -113,9 +113,13 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 			in.Selected = []string{"python:pkg/mod.py"}
 			declare(in, noPython)
 		}, scope: ScopeNarrowed, units: whole("a"), noSuite: []string{"python: fixtures only"}},
-		{name: "allowlisted non-Go frontier names no unit", edit: func(in *Input) {
+		{name: "a bearing non-Go frontier needs its language's declaration (AFP-V0-2750)", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "swift:conditional-compilation"}}
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .github/cishards/test-commands.json declares no swift full command"}},
+		{name: "a driver frontier names no suite", edit: func(in *Input) {
+			in.GoSelection = "NOTHING none"
+			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "driver:unparsable-file"}}
 		}, scope: ScopeNothing, reason: "none", units: []string{}},
 		{name: "selected unit with no adapter and no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"

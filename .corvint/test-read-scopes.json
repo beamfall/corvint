@@ -1,6 +1,12 @@
 {
   "profile": "corvint-test-read-scopes/0",
   "packages": {
+    ".github/cishards": [
+      ".github/workflows/ci.yml",
+      "internal/companionrelease",
+      "internal/liveverify/affected"
+    ],
+    ".github/testconfine/cmd": [],
     "benchmarks": [
       "docs/specs/lsp-qualification-evaluation-policy-v0.json",
       "go.mod",
@@ -17,7 +23,13 @@
     ],
     "cmd/corvint-analyzer-c-jni": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-go": [
       "go.mod",
@@ -25,19 +37,43 @@
     ],
     "cmd/corvint-analyzer-html-css": [
       "go.mod",
-      "internal/analyzerhtmlcss/"
+      "internal/analyzerhtmlcss/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-java": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-js": [
       "go.mod",
-      "internal/analyzerjs/"
+      "internal/analyzerjs/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-objective-c": [
       "go.mod",
-      "internal/analyzernativebridge/"
+      "internal/analyzernativebridge/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-rust": [
       ".github/cishards/",
@@ -55,11 +91,23 @@
     ],
     "cmd/corvint-analyzer-structured-data": [
       "go.mod",
-      "internal/analyzerstructured/"
+      "internal/analyzerstructured/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-analyzer-swift": [
       "go.mod",
-      "internal/analyzerswift/"
+      "internal/analyzerswift/",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "cmd/corvint-cem-candidate": [
       "internal/capcatalog/trees/corvint-cem-candidate.json",
@@ -140,6 +188,7 @@
     "conformance/cli-errors-v0": [
       ".github/cishards/",
       "cmd/",
+      "experimental/analyzers/sqlnative/",
       "go.mod",
       "go.sum",
       "internal/"
@@ -154,8 +203,12 @@
     "conformance/go-live-test-v0": [
       "cmd/corvint-go-test-provider/",
       "go.mod",
+      "internal/capcatalog/",
       "internal/cem/",
+      "internal/cliapp/",
+      "internal/clierror/",
       "internal/clitree/",
+      "internal/companioncli/",
       "internal/gitstatus/",
       "internal/gotestrun/",
       "internal/groupreap/",
@@ -168,7 +221,8 @@
       "internal/taskprojection/",
       "internal/tcq/",
       "internal/testevidence/",
-      "internal/testvalidity/"
+      "internal/testvalidity/",
+      "internal/versionline/"
     ],
     "conformance/host-lifecycle-v1": [
       "cmd/corvint/host_adapter.go",
@@ -178,6 +232,7 @@
       "integrations/compatibility.json",
       "integrations/opencode/package.json"
     ],
+    "conformance/human-documentation-compiler-v0": [],
     "conformance/mcp-2026-07-28": [
       "cmd/corvint-mcp/",
       "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -272,7 +327,13 @@
     ],
     "internal/analyzerswift": [
       "cmd/corvint-analyzer-swift/",
-      "go.mod"
+      "go.mod",
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/versionline/"
     ],
     "internal/appflows": [],
     "internal/appmap": [
@@ -353,6 +414,45 @@
       "internal/appmap/testdata/"
     ],
     "internal/compactionkernel": [],
+    "internal/companionrelease": [
+      ".gitattributes",
+      ".github/cishards/",
+      ".gitignore",
+      "LICENSE",
+      "LICENSE-APACHE-2.0",
+      "LICENSING.md",
+      "PROVENANCE.md",
+      "cmd/",
+      "cmd/corvint-console/",
+      "cmd/corvint-corpus-mcp/",
+      "cmd/corvint-dashboard-snapshot/",
+      "cmd/corvint-docs-mcp/",
+      "cmd/corvint-js-test-provider/",
+      "cmd/corvint-mcp/",
+      "cmd/corvint-ruby-test-provider/",
+      "cmd/corvint-tasks/",
+      "cmd/corvint-test-validity-mcp/",
+      "cmd/corvint-update/",
+      "cmd/corvint-web-flows/",
+      "cmd/corvint/",
+      "conformance/interactive-alpha/core-process.mjs",
+      "conformance/interactive-alpha/core-provider-proof.mjs",
+      "conformance/interactive-alpha/fixture/package-lock.json",
+      "conformance/interactive-alpha/fixture/package.json",
+      "docs/specs/public-release-v0.md",
+      "extensions/vscode/",
+      "extensions/vscode/test/installed/index.cjs",
+      "extensions/vscode/test/installed/run.mjs",
+      "go.mod",
+      "internal/",
+      "protocol/cem-1.0/stable/MIGRATION.json",
+      "protocol/cem-1.0/stable/neutral-criterion/results/accept.json",
+      "tools/cem-release-suites/READINESS.json",
+      "tools/web-flows/navigation.mjs",
+      "tools/web-flows/observe.mjs",
+      "tools/web-flows/package-lock.json",
+      "tools/web-flows/package.json"
+    ],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
     "internal/corpusserve": [],
@@ -372,6 +472,7 @@
       "internal/",
       "script/diagnostic-coverage.count"
     ],
+    "internal/disagree": [],
     "internal/doccompiler": [],
     "internal/doccorpus": [
       "docs/DOCUMENTATION-CORPUS.md",
@@ -391,11 +492,18 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "script/lane-handback.sh"
     ],
+    "internal/evalrepo": [],
     "internal/extevidence": [
       "cmd/corvint-remote-provider/",
       "examples/evidence-provider/",
       "go.mod",
-      "internal/remoteprovider/"
+      "internal/capcatalog/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/remoteprovider/",
+      "internal/versionline/"
     ],
     "internal/extmutate": [],
     "internal/flowcoverage": [],
@@ -446,6 +554,7 @@
     "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
+    "internal/liveverify/affected/languages": [],
     "internal/liveverify/affected/python": [],
     "internal/liveverify/affected/ruby": [],
     "internal/liveverify/affected/rust": [],
@@ -508,12 +617,14 @@
     ],
     "internal/modelgateway": [],
     "internal/nativelinecov": [],
+    "internal/necessity": [],
     "internal/observations": [
       ".corvint/.gitignore",
       ".gitignore",
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
+    "internal/outcomecal": [],
     "internal/perfbudget": [
       ".github/cishards/",
       "cmd/",
@@ -546,6 +657,7 @@
     "internal/releasecandidate": [],
     "internal/requestpath": [],
     "internal/revieworder": [],
+    "internal/rubydialect": [],
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],
@@ -560,6 +672,7 @@
     "internal/sharedpath": [],
     "internal/skhproof": [],
     "internal/skillexport": [],
+    "internal/slotlearn": [],
     "internal/specindex": [
       ".corvint/test-read-scopes.json",
       "docs/specs/",
@@ -580,6 +693,8 @@
     "internal/tasks/journal": [],
     "internal/tasks/safeopen": [],
     "internal/tasks/scale": [],
+    "internal/tasks/scopes": [],
+    "internal/tasks/similar": [],
     "internal/tasks/store": [
       "go.mod"
     ],
@@ -595,9 +710,14 @@
       "go.mod",
       "go.sum",
       "internal/behaviorfalsify/",
+      "internal/capcatalog/",
       "internal/cem/cemcode/",
       "internal/cem/gitrun/",
       "internal/cem/wire/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/clitree/",
+      "internal/companioncli/",
       "internal/groupreap/",
       "internal/jstestprovider/",
       "internal/liveverify/mutate/",
@@ -606,7 +726,8 @@
       "internal/secretscreen/",
       "internal/stepnegation/",
       "internal/tcq/",
-      "internal/testvalidity/"
+      "internal/testvalidity/",
+      "internal/versionline/"
     ],
     "internal/testevidence": [],
     "internal/testplan": [
@@ -644,14 +765,19 @@
       "conformance/test-validity-v0/route-stubs.json",
       "internal/changee2e/testdata/recorded/"
     ],
+    "internal/touchsurprise": [],
     "internal/trace": [],
+    "internal/tracemigraterepo": [],
+    "internal/tracerecordrepo": [],
     "internal/unplannedread": [],
     "internal/upgradechanges": [],
     "internal/witness": [
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
     ],
+    "internal/workqueue": [],
     "internal/worksource": [],
+    "internal/worktreeimpact": [],
     "protocol/integrations": [],
     "script/spec-coverage-audit": [],
     "tools/beamfall-shadow": [
@@ -717,6 +843,7 @@
     "tools/cw-trial": [
       "benchmarks/results/"
     ],
+    "tools/declaration-compat-check": [],
     "tools/dogfood-guard-hunks": [],
     "tools/dogfood-inherit-citations": [
       "script/check-line-citations.sh",
@@ -742,15 +869,20 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
+      "Makefile",
       "internal/gateselect/",
       "internal/taskprojection/taskprojection.go",
+      "script/batch-precheck.sh",
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
-      "benchmarks/selection-baseline/changes.json"
+      ".github/cishards/",
+      "benchmarks/selection-baseline/",
+      "go.mod"
     ],
     "tools/str-parity": [],
     "tools/test-commands-check": [
@@ -762,6 +894,59 @@
     "tools/tiers-replay": [
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"
-    ]
+    ],
+    "internal/jobinputs": [
+      ".corvint/ci-job-inputs.json",
+      ".github/workflows/ci.yml"
+    ],
+    "internal/tasks/cli": [
+      ".taskman/tickets/",
+      "cmd/corvint-cli/",
+      "cmd/corvint-tasks/",
+      "docs/TASKS-EXTERNAL-AGENTS.md",
+      "docs/build-log/",
+      "go.mod",
+      "go.sum",
+      "integrations/opencode/src/dispatch-notice.js",
+      "internal/capcatalog/",
+      "internal/cem/cemcode/",
+      "internal/cem/gitrun/",
+      "internal/cliapp/",
+      "internal/clierror/",
+      "internal/cliprofile/",
+      "internal/clitree/",
+      "internal/companioncli/",
+      "internal/contextindex/",
+      "internal/criterionexperiment/testdata/capture.json",
+      "internal/diagnostic/",
+      "internal/gitstatus/",
+      "internal/groupreap/",
+      "internal/langplugin/decl/",
+      "internal/langplugin/dialect/",
+      "internal/projectprofile/",
+      "internal/pythongrammar/",
+      "internal/pythonsyntax/",
+      "internal/rubyautoload/",
+      "internal/rubydialect/",
+      "internal/runtimeenv/",
+      "internal/secretscreen/",
+      "internal/taskprojection/",
+      "internal/tasks/",
+      "internal/untrackedallowance/",
+      "internal/versionline/",
+      "internal/webdialect/",
+      "script/lane-stage-inputs.sh",
+      "script/tasks-reconcile.sh",
+      "script/tasks-scratch-queue.sh"
+    ],
+    "tools/cli-discovery-gen": [
+      "VERSION",
+      "cmd/",
+      "internal/cliprofile/",
+      "internal/mcp/cli/",
+      "script/install-local-bin.sh"
+    ],
+    "tools/linecov": [],
+    "tools/unbounded-readers": []
   }
 }

@@ -227,7 +227,7 @@ else
     "./internal/tasks/safeopen TestCALV0070_ @prebind"
     "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
     "./tools/ci-forward-row Test .github/"
-    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
+    "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
@@ -277,7 +277,7 @@ doc_gate_commands() {
       sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s)
       if (pending != "") { s = pending " " s; pending = "" }
       if (s ~ /\\$/) { pending = substr(s, 1, length(s) - 1); return }
-      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : "") s
+      if (s != "" && s !~ /^#/) print (step == "ci-only" ? "\034" : (step == "named" && s == "set -eu" ? "\t" : "")) s
     }
     function unparsed(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); print "\t" s }
     block {
@@ -295,7 +295,7 @@ doc_gate_commands() {
     }
     /^[[:space:]]*#/ { next }
     /^[[:space:]]*- / { step = "" }
-    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : ""; next }
+    /^[[:space:]]*(- )?name:/ { step = ($0 ~ /\(CIN-V0-2304[,)]/) ? "ci-only" : "named"; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[|>][-+]?[[:space:]]*$/ { match($0, /^[[:space:]]*/); indent = RLENGTH; block = 1; next }
     /^[[:space:]]*(- )?run:[[:space:]]*[^[:space:]]/ {
       s = $0; match(s, /run:/); cont = RSTART - 1
@@ -307,16 +307,50 @@ doc_gate_commands() {
       /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
 }
 
-# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
+# CIN-V0-2304: retain the exact-body local mirror for an anonymous inline step.
+# Named CI-only steps use ASD-V0-2472 and are never derived as local commands;
+# the same body under another name fails closed.
+batch_cem_body() {
+  cat <<'EOF'
+set -eu
+case "$EVENT_NAME:$HEAD_REF" in
+pull_request:claude/batch-*) ;;
+*) echo "not a batch pull request; skipped"; exit 0 ;;
+esac
+base=$(git merge-base "$PR_BASE" "$PR_HEAD")
+git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
+(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
+git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
+cd "$RUNNER_TEMP/batch-head"
+test "$(git rev-parse HEAD)" = "$PR_HEAD"
+"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
+EOF
+}
+
+# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE", "batchcem<TAB>"
+# or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
 # ci.yml ever reaches a step. The CI-only step prints one "cionly<TAB>CIN-V0-2304" row while its body
 # matches CI_ONLY_BATCH_CHECK and one "cionly-drift<TAB>CIN-V0-2304" row otherwise (ASD-V0-2472).
 doc_gates() {
-  local cmd words w targets ok ci_only=
+  local cmd words w targets ok body next i ci_only=
   while IFS= read -r cmd; do
     if [[ $cmd == $'\034'* ]]; then
       ci_only+="${cmd#$'\034'}"$'\n'
+      continue
+    fi
+    if [[ $cmd == 'set -eu' ]]; then
+      body=$cmd
+      for ((i=1; i<12; i++)); do
+        IFS= read -r next || break
+        body=$body$'\n'$next
+      done
+      if [[ $body == "$(batch_cem_body)" ]]; then
+        printf 'batchcem\t\n'
+      else
+        while IFS= read -r next; do printf 'unknown\t%s\n' "$next"; done <<< "$body"
+      fi
       continue
     fi
     if [[ $cmd == $'\t'* ]]; then
@@ -731,10 +765,10 @@ lane_own_skip() {
   done
 }
 
-# select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
-# diff read but no usable plan, only when no Go input and no declared input changed at all.
+# select_baseline retains selection for legacy recipes. Recipes with the shared
+# ASD-V0-944 preflight must reach it, including declaration-only edits and unknowns.
 select_baseline() {
-  local pkgs tok p expanded
+  local pkgs tok p expanded recipe
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
   # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
   if [[ $lane_closeout == 1 ]]; then
@@ -752,6 +786,10 @@ select_baseline() {
     printf 'batch-precheck: %s\n' "$sb_deferred"
     return 0
   fi
+  recipe=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null)
+  # The shared recipe bounds compilation and validates reader declarations.
+  # The old outer input list cannot prove either, even with a usable plan.
+  [[ $recipe != *SELECTION_BASELINE_INPUTS_BASE=* ]] || return 0
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
@@ -926,9 +964,13 @@ doc_gate_rows() {
         elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
         else
+          # The target makes the shared ASD-V0-944 reader-bound decision too,
+          # even when this conservative outer plan cannot narrow a Go edit.
+          [[ $value != selection-baseline-check || -z $sel_sha ]] || envs+=("SELECTION_BASELINE_BASE=$sel_sha")
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
+      batchcem) printf 'batch-cem-check\tenv %s EVENT_NAME=%q HEAD_REF=%q bash -c %q\n' "${envs[*]-}" "${EVENT_NAME-}" "${HEAD_REF-}" "$(batch_cem_body)" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
@@ -1465,7 +1507,20 @@ since_receipt() {
 since_base=
 ((static_only)) || [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-((static_only)) || /bin/rm -f "$receipt" "$receipt.lane"
+# ASC-V0-775 (V1-4239): a well-formed passing receipt that names a strict ancestor of HEAD stays,
+# with its `.lane` mark. It states only that that commit passed every step, which no run at a later
+# commit changes, and the sealed-head precheck of a reseal selects against it (ASD-V0-943). Any
+# other receipt, one naming HEAD included, is removed before the steps run (ASD-V0-035), and a
+# passing full run replaces it. A --static run leaves the receipt alone.
+if ((!static_only)); then
+  kept=$(awk '$1 == "head" { print $2 }' "$receipt" 2> /dev/null) || kept=
+  if [[ -n $kept && $kept != "$(git rev-parse HEAD)" ]] && verify_receipt "$kept" > /dev/null 2>&1 &&
+    git merge-base --is-ancestor "$kept" HEAD 2> /dev/null; then
+    printf 'batch-precheck: kept the passing receipt for ancestor %s, so a later sealed-head run can select against it (ASC-V0-775)\n' "$(git rev-parse --short "$kept")"
+  else
+    /bin/rm -f "$receipt" "$receipt.lane"
+  fi
+fi
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -1617,9 +1672,12 @@ run_one() {
       'gofmt '*) lname=go-format-check ;;
       *) lname=batch-precheck ;;
     esac
-    salt=$({ printf '%s\n%s\n' "$name" "$cmd"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; } | git hash-object --stdin) || salt=
+    # GL-V0-786 (V1-4194): the salt batch-precheck hashed for every step at once, else this one.
+    salt=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/salts" 2> /dev/null)
+    [[ -n $salt ]] || salt=$(salt_input "$name" "$cmd" | git hash-object --stdin) || salt=
     if [[ -n $salt ]]; then
-      "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
+      # ASC-V0-776 (V1-4242): the step name rides beside the record as its label, never in its key.
+      GATE_LEDGER_LABEL=$name "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
       rc=$?
       [[ $rc == 0 ]] && grep -q '^gate-ledger: HIT ' "$log" && reused=reuse
     else
@@ -1670,6 +1728,38 @@ else
 fi
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
+# salt_input NAME CMD prints what a ledger step's salt hashes: its name, its command and every GO*,
+# CGO_* and CORVINT_* variable (ASD-V0-042).
+salt_input() {
+  { printf '%s\n%s\n' "$1" "$2"; env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; }
+}
+export -f salt_input
+# GL-V0-786 (V1-4194): with reuse on, the steps share one worktree digest (GATE_LEDGER_SHARED_DIGEST,
+# outside the salted prefixes) and one `git hash-object` call for every salt, instead of a
+# private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
+# the per-step form; a mismatch or a failed batch leaves each step to hash its own.
+# BATCH_PRECHECK_SHARED_DIGEST=off keeps the per-step digest and salt (same keys, more git calls).
+# A step on the shared digest re-digests just before it runs and after it passes, and records nothing
+# unless its key from both digests is its shared-tree key; its pass is staged in
+# $dir/ledger-digest.json.stage, which no lookup reads, until verify_shared below finds the tree
+# unchanged and promotes it. cleanup removes $dir on EXIT, HUP, INT and TERM, so an interrupted run
+# discards every unverified pass, and a run killed outright leaves them unread.
+if [[ -n $ledger && ${BATCH_PRECHECK_SHARED_DIGEST:-} != off ]]; then
+  if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
+    export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json
+  else
+    printf 'batch-precheck: shared ledger digest unavailable (%s); each step digests the worktree\n' "$(tail -n 1 "$dir/ledger-digest.log")"
+  fi
+  for ((i = 1; i <= n; i++)); do
+    line=$(sed -n "${i}p" "$dir/steps")
+    salt_input "${line%%$'\t'*}" "${line#*$'\t'}" > "$dir/salt.$i"
+    printf '%s\n' "$dir/salt.$i"
+  done > "$dir/salt-paths"
+  if ! git hash-object --no-filters --stdin-paths < "$dir/salt-paths" > "$dir/salts" 2> /dev/null ||
+    [[ $(wc -l < "$dir/salts" | tr -d ' ') != "$n" || $(sed -n 1p "$dir/salts") != $(git hash-object --stdin < "$dir/salt.1") ]]; then
+    : > "$dir/salts"
+  fi
+fi
 # ASD-V0-047 (V1-3142): a SERIAL_TARGETS step runs alone after the parallel ones, so its timing
 # bounds never compete with this run's own go test steps; its rerun (ASD-V0-046) is alone too.
 parallel=() serial=()
@@ -1679,6 +1769,20 @@ for ((i = 1; i <= n; i++)); do
 done
 ((${#parallel[@]})) && printf '%s\n' "${parallel[@]}" | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
+# GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest, and
+# the run fails: a step may have reused, or recorded, a pass for content it did not read. A verify
+# that cannot run fails the same way, and promotes nothing.
+# verify_shared checks the tree against the shared digest again; it runs after the steps and after
+# every retry attempt below, since a retried step can edit an input and then pass. An unchanged tree
+# promotes the passes staged so far into the ledger; a moved one discards them and removes those an
+# earlier verify of this run promoted.
+ledger_moved=0
+verify_shared() {
+  [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]] || return 0
+  "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" > "$dir/ledger-verify.log" 2>&1 < /dev/null || ledger_moved=1
+  sed 's/^gate-ledger: /batch-precheck: ledger /' "$dir/ledger-verify.log"
+}
+verify_shared
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`
 # names a step log reports, comma-separated, at most 20, or nothing.
@@ -1712,6 +1816,8 @@ for ((i = 1; i <= n; i++)); do
   bash -c "${line#*$'\t'}" > "$dir/$i.log" 2>&1 < /dev/null
   rerc=$?
   resecs=$((SECONDS - t0))
+  # GL-V0-786: a retry that edited the tree fails the run below, whatever the retry returned.
+  verify_shared
   if [[ $rerc == 0 ]]; then
     flaky=$((flaky + 1))
     flakes+=("$name")
@@ -1804,6 +1910,10 @@ printf 'batch-precheck: %d passed, %d failed%s in %ss wall, %ss summed\n' "$pass
 if ((warn)); then
   printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]-}")"
 fi
+if ((ledger_moved)); then
+  printf 'batch-precheck: FAIL the worktree changed during the run, so no step result above holds for one tree; the passes staged under the shared digest were discarded and any already promoted removed; rerun on a tree nothing edits (GL-V0-786)\n'
+  exit 1
+fi
 if ((fail)); then
   if ((repin_rc)); then
     printf 'batch-precheck: FAIL repin (mechanical) output:\n'
@@ -1825,7 +1935,8 @@ if ((fail)); then
   exit 1
 fi
 if ((warn)); then
-  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+  # DWC-V0-745 (V1-3837): the run still exits 0, so the line says a caller continues.
+  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present; exit 0, continuing\n' "$warn"
 elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
   printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps the bind can reach\n'
   # ICL-V0-021: the passed pre-bind entries, bound to this head, for the precheck of the sealed head.

@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // deadlineAdapterContext is an adapter context whose dogfood event expires after limit while read
@@ -191,5 +195,37 @@ func TestAHI801UserPromptDeadlineEmitsReducedPacket(t *testing.T) {
 	}
 	if hook, _ := output["hookSpecificOutput"].(map[string]any); hook["hookEventName"] != "UserPromptSubmit" || output["systemMessage"] != nil {
 		t.Fatalf("reduced packet changed channel: %+v", output)
+	}
+}
+
+// AHI-801 (V1-4182): a main-thread SessionStart in an enrolled checkout whose snapshot is stale
+// still gives the session its deterministic session key: the reduced packet after the stale notice
+// carries the `dogfood status --session-key` argv beside the named cause and the refresh argv,
+// since the key does not depend on the index.
+func TestAHI801StaleSnapshotSessionStartCarriesSessionKey(t *testing.T) {
+	t.Parallel()
+	root := staleSnapshotRepository(t)
+	if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".git", "corvint", "local-completion"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root, "CORVINT_INDEX_AUTO_REFRESH": "0"})
+	output := runClaudeAdapter(ctx, "session-start", map[string]any{"session_id": "s", "source": "startup"})
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	text, _ := hook["additionalContext"].(string)
+	if adapterDegradationReason(output) != claudeSnapshotStaleReason {
+		t.Fatalf("stale session start lost its ledger reason: %+v", output)
+	}
+	key, _ := json.Marshal([]string{"corvint", "--root", root, "dogfood", "status", "--session-key", claudeSessionHash("s")})
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	for _, want := range []string{"No index snapshot matches the current tree", string(refresh), string(key)} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("stale session start context lacks %s:\n%s", want, text)
+		}
+	}
+	if packet := reducedPacketOf(t, text); packet["degradation"] != "dogfood-event-index-snapshot-stale" || packet["degraded"] != true {
+		t.Fatalf("stale reduced packet: %+v", packet)
 	}
 }
