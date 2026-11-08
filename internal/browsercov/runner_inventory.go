@@ -49,6 +49,7 @@ func playwrightRows(d jslinecov.Discovery, raw string, run bool) (testrunner.Run
 	if jslinecov.DecodeRunnerJSON(raw, &r) != nil || r.Suites == nil || !filepath.IsAbs(r.Config.RootDir) {
 		return fail()
 	}
+	nonterminal := false
 	var walk func([]selectionSuite, int) error
 	walk = func(ss []selectionSuite, depth int) error {
 		if depth > 64 {
@@ -80,7 +81,7 @@ func playwrightRows(d jslinecov.Discovery, raw string, run bool) (testrunner.Run
 						switch t.Status {
 						case "expected":
 							if len(t.Results) == 0 {
-								return fmt.Errorf("terminal-result-unavailable")
+								break
 							}
 							outcome = "passed"
 							for _, a := range t.Results {
@@ -91,9 +92,20 @@ func playwrightRows(d jslinecov.Discovery, raw string, run bool) (testrunner.Run
 						case "unexpected", "flaky":
 							outcome = "failed"
 						case "skipped":
+							// An interrupted or unknown attempt under an aggregate skip
+							// did not finish; only skipped attempts certify the skip.
 							outcome, reason = "skipped", "skipped"
-						default:
-							return fmt.Errorf("terminal-result-unavailable")
+							for _, a := range t.Results {
+								if a.Status != "skipped" {
+									outcome, reason = "", ""
+								}
+							}
+						}
+						if outcome == "" {
+							// An unfinished row never hides a later independently valid
+							// failure: keep reading and fail the report after the walk.
+							nonterminal = true
+							continue
 						}
 						results = append(results, testrunner.RunnerResult{ID: id, Outcome: outcome, Reason: reason})
 					}
@@ -105,7 +117,7 @@ func playwrightRows(d jslinecov.Discovery, raw string, run bool) (testrunner.Run
 		}
 		return nil
 	}
-	if err := walk(r.Suites, 0); err != nil {
+	if err := walk(r.Suites, 0); err != nil || nonterminal {
 		return fail()
 	}
 	// Global diagnostics cannot erase independently validated terminal results.
