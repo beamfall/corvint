@@ -1608,6 +1608,64 @@ runs `script/github-split-check.sh` on the batch range: a range mixing `.github/
 other paths fails with `refuse github-in-code-range SHA SUBJECT` and the side-branch recovery; a
 `.github`-only range passes.
 
+## 19. Claim at dispatch, ticket trailers and independent review (V1-5145 to V1-5147)
+
+An audit of the 2026-11-08 lanes found three gaps between this page and practice: lane commits
+without `Corvint-Ticket` trailers, so `work close-merged` closed nothing and tickets were closed by
+hand; lanes dispatched with no native claim, so overlapping lanes were found at merge instead of at
+dispatch and closeout fell back to `complete-manual`; and fix rounds reviewed by the session that
+wrote the fix. The rules below close them. They narrow the roles paragraph above; they do not let
+a lane write Tasks state.
+
+Claim at dispatch, one anchor per lane (V1-5146). Before a lane starts, the orchestrator claims
+the lane's first ticket (the anchor) and widens the attempt to the union of every assigned
+ticket's `effects.touchPaths`. A claim may request only paths inside the anchor's declared scope
+(ATR-V0-215), so the claim names the anchor's declared paths and `widen` adds the member paths:
+
+```sh
+corvint-tasks claim ANCHOR --holder lane:LANE --branch claude/LANE --base BASE \
+  --lease-minutes 180 --lock-wait 300 --scope DECLARED_PATH... --request-id CLAIM_ID
+corvint-tasks widen --attempt ATTEMPT --generation G --scope MEMBER_PATH... --request-id WIDEN_ID
+```
+
+Each request takes its own request ID: reusing the claim's ID for `widen` refuses with
+`REQUEST_ID_CONFLICT`. Reuse an ID only to retry the same request.
+
+An empty union refuses the dispatch: add the paths to the ticket or pass them by hand. A
+`RESOURCE_COLLISION` refusal of either step means another lane holds an overlapping scope. The
+orchestrator then releases any half-made claim, and the lane waits or is rescoped. It is not
+started anyway. The other tickets are lane members and take no claim of their own, because one
+lane cannot hold two attempts with overlapping scope. Members are recorded one per line in
+`~/lanes/LANE.tickets` on the lane host. While the lane runs, `renew` and `attempt heartbeat` the
+anchor at least every 60 minutes. A lane that is abandoned or superseded `release`s the anchor.
+
+The anchor closes in two steps, because `complete` requires its `--commit` to be reachable from
+the integration branch with the submitted tree. Before the merge, at the seal, `widen` the attempt
+to the paths in `git diff --no-renames --name-only BASE SEAL` and `submit --tree SEAL^{tree}`.
+After the merge, `gate run` and `complete --commit SEAL`. A merge commit or batch merge keeps
+SEAL reachable with its own tree, so neither is refused `STALE_TREE`. When the lane reached the
+integration branch any other way (cherry-picked, rewritten, or repaired before it merged), SEAL is
+not on that branch. Resubmit the tree of the commit that is on the branch, gate it, and complete
+that commit. A ticket closed this way needs no `complete-manual`.
+
+Every delivering commit names its ticket (V1-5145). Each lane commit that delivers work ends with
+the TAW-V0-002 trailer block: one `Corvint-Ticket: ID` line per ticket it delivers and exactly one
+`Corvint-Ticket-State: delivered` line. `corvint-tasks work deliver ID...` prints that block and
+its `git commit --trailer` arguments, and writes nothing. A block with ticket lines and no state
+line is malformed, and `work close-merged` closes nothing from it. `chore:` commits and merges
+are exempt. The lane verifier runs a trailer check before handback. It lists untrailered commits,
+fails for each malformed block, and fails for each ticket in `LANE.tickets` that no commit in
+`BASE..HEAD` delivers. The check fails closed outside a worktree or for an unknown BASE. The
+repair is a new `git commit --allow-empty` with the arguments `work deliver` prints, never an
+amend of a bound commit. After the merge, `work close-merged` closes the members from their
+trailers. The anchor closes through `complete`.
+
+Reviews are independent of the author (V1-5147). Every review round, the first and each fix round,
+runs in a fresh reviewer session that did not write or repair the change. It is given the diff and
+the original acceptance criteria, not the builder's summary. The report's first line names the
+reviewer identity (tool, model, session) and the reviewed head. A builder's self-review checklist
+runs before handback, but it is recorded as self-review and never counts as the independent review.
+
 ## Dogtools scratch recovery (DTL-V0-014)
 
 Set CORVINT_SCRATCH_ROOT to an absolute roomy disk directory before lane commands. heavy.sh

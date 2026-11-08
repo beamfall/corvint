@@ -1,0 +1,45 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-runner-reference",
+  "helpJson": "corvint-runner-reference help --json",
+  "source": "explicit development tool; not in release manifest",
+  "dispatchSources": [
+    "tools/runner-reference"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-runner-reference",
+      "summary": "Unqualified corvint-runner/1 reference twin over stdio.",
+      "usage": [
+        "corvint-runner-reference < requests.jsonl"
+      ],
+      "flags": [
+        "--help"
+      ],
+      "required": [
+        "stdin: corvint-runner/1 requests"
+      ],
+      "example": "corvint-runner-reference < requests.jsonl",
+      "help": "corvint-runner-reference --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-runner-reference help",
+      "summary": "Show usage or the offline command catalog.",
+      "usage": [
+        "corvint-runner-reference help [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-runner-reference help --json",
+      "help": "corvint-runner-reference --help"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "rust-build-meta": {
+    "target-directory": "/fixture/rust/target",
+    "base-output-directories": ["debug"],
+    "non-test-binaries": {},
+    "linked-paths": {},
+    "target-platforms": []
+  },
+  "test-count": 3,
+  "rust-suites": {
+    "probe": {
+      "package-name": "probe",
+      "binary-name": "probe",
+      "package-id": "path+file:///fixture/rust#probe@0.1.0",
+      "binary-id": "probe",
+      "binary-path": "/fixture/rust/target/debug/deps/probe-fixture",
+      "build-platform": "target",
+      "kind": "lib",
+      "cwd": "/fixture/rust",
+      "status": "listed",
+      "testcases": {
+        "a": {"kind": "test", "ignored": false, "filter-match": {"status": "matches"}},
+        "b": {"kind": "test", "ignored": false, "filter-match": {"status": "matches"}},
+        "c": {"kind": "test", "ignored": true, "filter-match": {"status": "matches"}}
+      }
+    }
+  }
+}

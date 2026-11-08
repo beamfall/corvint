@@ -1,0 +1,39 @@
+{
+  "shadow": true,
+  "governing_plan": "static-unqualified",
+  "soundness": "shadow only; no soundness claim before enforcement; governing static plans are outside this claim",
+  "runners": [
+    {
+      "runner": "fixture-runner",
+      "mode": "selected",
+      "reasons": [],
+      "execution_model": "traced",
+      "changes": [
+        {
+          "repository": "repo",
+          "path": "source",
+          "class": "body-edit"
+        }
+      ],
+      "selected": [
+        {
+          "test": "suite/test",
+          "rules": [
+            "rule:b"
+          ]
+        }
+      ],
+      "excluded": [],
+      "counts": {
+        "inventoried": 1,
+        "selected": 1,
+        "coverage": 1,
+        "fallback": 0,
+        "excluded": 0,
+        "inventory_known": true
+      }
+    }
+  ],
+  "loading_ns": null,
+  "selection_ns": null
+}

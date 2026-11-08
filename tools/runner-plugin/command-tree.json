@@ -1,0 +1,63 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-runner-plugin",
+  "helpJson": "corvint-runner-plugin help --json",
+  "source": "explicit development tool; not in release manifest",
+  "dispatchSources": [
+    "tools/runner-plugin"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-runner-plugin",
+      "summary": "Explicit operator installation of pinned runner plugins.",
+      "usage": [
+        "corvint-runner-plugin --help"
+      ],
+      "flags": [
+        "--help"
+      ],
+      "required": [],
+      "example": "corvint-runner-plugin --help",
+      "help": "corvint-runner-plugin --help"
+    },
+    {
+      "path": [
+        "install"
+      ],
+      "command": "corvint-runner-plugin install",
+      "summary": "Copy digest-verified executable bytes into the per-user store.",
+      "usage": [
+        "corvint-runner-plugin install --manifest FILE [--store DIRECTORY]"
+      ],
+      "flags": [
+        "--manifest",
+        "--store",
+        "--help"
+      ],
+      "required": [
+        "--manifest"
+      ],
+      "example": "corvint-runner-plugin install --manifest ./runner-plugins.json",
+      "help": "corvint-runner-plugin install --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-runner-plugin help",
+      "summary": "Show usage or the offline command catalog.",
+      "usage": [
+        "corvint-runner-plugin help [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-runner-plugin help --json",
+      "help": "corvint-runner-plugin --help"
+    }
+  ]
+}

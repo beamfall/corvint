@@ -2639,6 +2639,55 @@
       ]
     },
     {
+      "name": "test-evidence",
+      "helpTopic": "corvint help test-evidence",
+      "purpose": "read retained test dependencies",
+      "maturity": "experimental",
+      "owningSpec": "RSP-V0",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--base",
+        "--explain",
+        "--format",
+        "--index",
+        "--lines",
+        "--revision",
+        "--test"
+      ],
+      "schemaIds": [
+        "corvint-test-evidence-query/1"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "This command writes nothing, runs no tests and executes no runner."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
       "name": "test-validity",
       "helpTopic": "corvint help test-validity",
       "purpose": "project a live-test receipt",
@@ -3017,7 +3066,8 @@
         "navigate",
         "record",
         "request-path",
-        "stability"
+        "stability",
+        "test-evidence"
       ],
       "nestedOperations": {},
       "requiredFlags": {
@@ -3028,6 +3078,9 @@
           "--evidence",
           "--manifest",
           "--output"
+        ],
+        "flows test-evidence": [
+          "--flows"
         ]
       },
       "flags": [
@@ -3058,6 +3111,7 @@
         "--environment-id",
         "--evidence",
         "--expected-proposal",
+        "--explain",
         "--file",
         "--fixture-digest",
         "--fixture-id",
@@ -3069,8 +3123,10 @@
         "--goal",
         "--handler",
         "--head",
+        "--index",
         "--ledger",
         "--limit",
+        "--lines",
         "--links",
         "--manifest",
         "--manifest-repo",
@@ -3110,6 +3166,7 @@
         "--source-tree",
         "--step",
         "--strip-prefix",
+        "--test",
         "--test-key",
         "--text",
         "--trace",
@@ -3129,6 +3186,7 @@
         "application-flow-lookup/1",
         "application-flow-map/1",
         "application-flow-report/0",
+        "application-flow-test-evidence/1",
         "application-flow-traffic/0",
         "application-map-endpoints/0",
         "application-map-plan/0",
@@ -3199,7 +3257,8 @@
         "With --source (experimental, SKH-V0 stage 7) the request is one goal: plan writes the site-knowledge-how/0 answer of `flows appmap how` with a draft head field instead.",
         "The draft is a proposal, never accepted intent; it writes nothing.",
         "request-path reads one Express-style route registered in --file (or one named handler) from committed JavaScript/TypeScript at --revision (default HEAD) and writes corvint-request-path/0: each guard and the handler in run order, the environment and configuration keys each reads, the outbound network calls each makes with the call chain, and guard-order findings where a guard with an outbound call runs before a cheaper guard.",
-        "It writes nothing."
+        "It writes nothing.",
+        "Writes nothing."
       ],
       "unknowns": [
         {
@@ -4638,6 +4697,7 @@
       "reads",
       "calibrate",
       "witness",
+      "test-evidence",
       "test-validity",
       "test-plan",
       "features",

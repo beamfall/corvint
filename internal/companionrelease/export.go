@@ -77,7 +77,9 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 // internal/rubydialect because internal/contextindex runs the dialect hooks
 // the Ruby plugin registers there (LGP-V0-023, LGP-V0-025), and
 // internal/webdialect because it registers the TypeScript plugin's impact
-// profile (LGP-V0-027, AFP-V0-2247).
+// profile (LGP-V0-027, AFP-V0-2247); internal/shaderdialect because
+// internal/contextindex and internal/langplugin/decl read its shader dialect
+// (RSP-V0-052).
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
 var tasksExportPrefixes = []string{
@@ -86,7 +88,7 @@ var tasksExportPrefixes = []string{
 	"internal/cem/cemcode/", "internal/cem/gitrun/", "internal/clitree/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
 	"internal/langplugin/decl/", "internal/langplugin/dialect/", "internal/projectprofile/", "internal/pythongrammar/",
-	"internal/pythonsyntax/", "internal/rubyautoload/", "internal/rubydialect/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
+	"internal/pythonsyntax/", "internal/rubyautoload/", "internal/rubydialect/", "internal/runtimeenv/", "internal/secretscreen/", "internal/shaderdialect/", "internal/taskprojection/",
 	"internal/untrackedallowance/", "internal/webdialect/",
 }
 

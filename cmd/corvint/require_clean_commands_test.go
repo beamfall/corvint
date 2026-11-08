@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/Beamfall/corvint/internal/testevidencedoc"
 	"maps"
 	"os"
 	"path/filepath"
@@ -42,6 +43,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"surprise": {args: []string{"surprise"}}, "answerability": {args: []string{"answerability"}},
 	"kernel": {args: []string{"kernel"}}, "lease": {args: []string{"lease", "status"}}, "reads": {args: []string{"reads"}},
 	"calibrate": {args: []string{"calibrate"}}, "witness": {args: []string{"witness"}},
+	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
 	"test-plan":     {args: []string{"test-plan", "check", "--plan", "a.json", "--input", "b.json"}},
 	"features":      {args: []string{"features"}}, "overview": {args: []string{"overview"}},
@@ -62,8 +64,9 @@ var requireCleanRefusalForms = map[string]struct {
 // element (CF-V0-024) and is the same for a missing input file: their parser
 // must accept the form and refuse it once --require-clean is appended.
 var requireCleanParseWitness = map[string]func([]string) error{
-	"frontier": func(args []string) error { _, err := parseFrontierOptions(args[1:]); return err },
-	"step":     func(args []string) error { _, _, err := parseStepInvocation(args); return err },
+	"test-evidence": func(args []string) error { _, _, err := testevidencedoc.Parse(args[1:]); return err },
+	"frontier":      func(args []string) error { _, err := parseFrontierOptions(args[1:]); return err },
+	"step":          func(args []string) error { _, _, err := parseStepInvocation(args); return err },
 }
 
 // DIRTY-CACHE-016 (V1-1174): every dispatched verb, every prove mode and the
