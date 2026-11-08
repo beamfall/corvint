@@ -113,16 +113,19 @@ func TestClosureReaderIsNotSelectedOutsideItsClosure_AFP_V0_3151(t *testing.T) {
 	// sets unknown, the go list guard is selected one edge past the closure
 	// as an IMPORT_GRAPH_READER instead.
 	graph = graph.WithImportSetChanges(&affected.ImportSetChanges{})
+	// Inside the closure a path-literal read of the same file can win the
+	// witness first; either kind is a read-based selection of the reader.
+	readBased := map[string]bool{affected.WitnessDeclaredReadScope: true, affected.WitnessPathLiteralReader: true}
 	for _, c := range cases {
 		plan := affected.Select(graph, []string{c.dirty})
 		got := false
 		for _, selection := range plan.Selected {
-			if len(selection.Tests) > 0 && path.Dir(selection.Tests[0]) == reader && selection.Witness.Kind == affected.WitnessDeclaredReadScope {
+			if len(selection.Tests) > 0 && path.Dir(selection.Tests[0]) == reader && readBased[selection.Witness.Kind] {
 				got = true
 			}
 		}
 		if got != c.want {
-			t.Errorf("an edit to %s selects %s through %s: %t, want %t", c.dirty, reader, affected.WitnessDeclaredReadScope, got, c.want)
+			t.Errorf("an edit to %s selects %s through a read witness: %t, want %t", c.dirty, reader, got, c.want)
 		}
 	}
 }
