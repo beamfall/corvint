@@ -51,6 +51,8 @@ const (
 	toolProfileCorpus       = "corpus"
 	// toolProfileTasks adds the read-only Corvint Tasks group (TMR-V0-950).
 	toolProfileTasks = "tasks"
+	// toolProfileTestEvidence adds the opt-in test-evidence reader (RSP-V0-051).
+	toolProfileTestEvidence = "test-evidence"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.

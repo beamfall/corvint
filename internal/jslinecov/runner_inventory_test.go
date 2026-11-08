@@ -200,6 +200,37 @@ func TestRSPV0003NodeFailedSummary(t *testing.T) {
 		t.Fatal("partial events passed")
 	}
 }
+// A Node report truncated before a file's test:summary keeps that file's
+// validated test:fail as a failed result, so a passing FULL retry cannot make
+// the inventoried run succeed; a later summary does not add a second result.
+func TestRSPV0003NodeTruncatedFailureKept(t *testing.T) {
+	d := discovery("node-test", "22.22.1")
+	d.Files = []string{"a.test.js"}
+	in, e := Inventory(d, "")
+	if e != nil {
+		t.Fatal(e)
+	}
+	truncated := "{\"type\":\"test:fail\",\"data\":{\"name\":\"x\",\"file\":\"/repo/a.test.js\",\"details\":{\"type\":\"test\"}}}\n{\"type\":\"test:sum"
+	out, e := Results(d, truncated)
+	if e == nil || len(out) != 1 || out[0].Outcome != "failed" || out[0].ID != TestID("node-test", "a.test.js", "", "") {
+		t.Fatal(out, e)
+	}
+	passing := "{\"type\":\"test:summary\",\"data\":{\"file\":\"/repo/a.test.js\",\"success\":true}}\n{\"type\":\"test:summary\",\"data\":{\"success\":true}}"
+	reports := []string{truncated, passing}
+	attempt := 0
+	run := testrunner.RunInventoried(in, d.Key, testrunner.PlanRunSet(in, d.Key, nil, nil), true, func(testrunner.RunSet) ([]testrunner.RunnerResult, bool, error) {
+		r, err := Results(d, reports[attempt])
+		attempt++
+		return r, false, err
+	})
+	if run.Succeeded {
+		t.Fatal("truncated failure hidden by a passing retry", run)
+	}
+	complete := "{\"type\":\"test:fail\",\"data\":{\"name\":\"x\",\"file\":\"/repo/a.test.js\",\"details\":{\"type\":\"test\"}}}\n{\"type\":\"test:summary\",\"data\":{\"file\":\"/repo/a.test.js\",\"success\":false}}\n{\"type\":\"test:summary\",\"data\":{\"success\":false}}"
+	if out, _ = Results(d, complete); len(out) != 1 || out[0].Outcome != "failed" {
+		t.Fatal("summary double-counted", out)
+	}
+}
 func source(text string) Source {
 	raw := []byte(text)
 	h := sha1.Sum(append([]byte(fmt.Sprintf("blob %d\x00", len(raw))), raw...))

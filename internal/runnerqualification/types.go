@@ -158,4 +158,7 @@ type Plan struct {
 	Reasons       []string
 	Jobs          []Job
 	Qualification runnerselection.Qualification
+	// Sequence is the admission sequence of the exact record a qualified plan
+	// accepted; zero unless Status is "qualified".
+	Sequence uint64
 }

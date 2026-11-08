@@ -8,7 +8,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/runnerselection"
 )
 
 // affectedExcludedDigestPrefix tags the digest of the full exclusion list.
@@ -88,14 +87,13 @@ type affectedCompactPlan struct {
 // advisory Go command names provider.go.packages instead of repeating the
 // package list (AFP-V0-038).
 type affectedCompactAdvice struct {
-	RunnerSelectionShadow *runnerselection.Plan   `json:"runner_selection_shadow,omitempty"`
-	Checks                []affectedCompactCheck  `json:"checks"`
-	Note                  string                  `json:"note"`
-	Status                string                  `json:"status"`
-	TestSelection         map[string]any          `json:"test_selection,omitempty"`
-	AppNavigation         []affectedAppNavigation `json:"app_navigation,omitempty"`
-	Unknown               []string                `json:"unknown"`
-	WholePackages         []affectedWhole         `json:"whole_packages,omitempty"`
+	Checks        []affectedCompactCheck  `json:"checks"`
+	Note          string                  `json:"note"`
+	Status        string                  `json:"status"`
+	TestSelection map[string]any          `json:"test_selection,omitempty"`
+	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
+	Unknown       []string                `json:"unknown"`
+	WholePackages []affectedWhole         `json:"whole_packages,omitempty"`
 }
 
 // affectedCompactCheck is an advice check. When Arguments is set, the
@@ -345,7 +343,7 @@ func compactAffectedAdvice(advice affectedAdvice, packages []string, planUnknown
 		}
 		checks = append(checks, compact)
 	}
-	return affectedCompactAdvice{RunnerSelectionShadow: advice.RunnerSelectionShadow, Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown), WholePackages: advice.WholePackages}
+	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown), WholePackages: advice.WholePackages}
 }
 
 func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []string {

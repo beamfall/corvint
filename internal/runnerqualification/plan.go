@@ -85,6 +85,7 @@ func PlanFor(d Declaration, records []Admission, ceiling time.Duration, sampling
 		return pending(reason)
 	}
 	out.Status = "qualified"
+	out.Sequence = latest.Sequence
 	out.Qualification = runnerselection.Qualification{Admitted: true, Passed: true, SamplingEnabled: samplingEnabled, Model: d.Model, Classes: append([]runnerselection.Class{}, d.Classes...), Runner: d.Identity.Runner, Execution: d.Identity.Execution}
 	if samplingEnabled {
 		out.Mode = "selected"
