@@ -640,6 +640,33 @@ func TestRSPV0007RenameOverSymlink(t *testing.T) {
 	}
 }
 
+// RSP-V0-007: a created source renamed over an existing regular file keeps
+// the destination as a dependency; a later directory at dest would fail it.
+func TestRSPV0007RenameOverRegularDestination(t *testing.T) {
+	for _, variant := range []string{"rename", "renameat", "renameat2"} {
+		t.Run(variant, func(t *testing.T) {
+			q := fixture(t, "rename-symlink")
+			q.Args = append(q.Args, variant)
+			if err := os.WriteFile(filepath.Join(q.Dir, "dest"), []byte("old"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			r := traceFixture(t, q)
+			if r.Reads.State != Present || !hasPath(r.Reads.Entries, "dest") {
+				t.Fatalf("existing regular rename destination dependency lost: %+v", r)
+			}
+			var replaced bool
+			for _, w := range r.Writes.Entries {
+				if w.Kind == "replace" && w.Path.Path == "dest" {
+					replaced = true
+				}
+			}
+			if !replaced {
+				t.Fatal("rename not observed")
+			}
+		})
+	}
+}
+
 // RSP-V0-007: every hop remains a dependency when only the middle link changes.
 func TestRSPV0007ChainedSymlink(t *testing.T) {
 	q := fixture(t, "byte")
