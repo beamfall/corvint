@@ -200,6 +200,23 @@ EOF
     done
     rm -f "$envpath"
   done
+  # A Git checkout outside every excluded root proves the .git walk alone, and a hard link
+  # placed outside every checkout to a checkout file proves the link-count rule alone.
+  mkdir -p "$tmp/unrelated/sub" "$tmp/outside"
+  git init -q "$tmp/unrelated"
+  printf 'touch %q\n' "$tmp/env-loaded" > "$tmp/unrelated/sub/host.env"
+  printf 'touch %q\n' "$tmp/env-loaded" > "$tmp/local/linked.env"
+  ln "$tmp/local/linked.env" "$tmp/outside/host.env"
+  for pair in "$tmp/unrelated/sub/host.env:Git checkout" "$tmp/outside/host.env:hard-linked"; do
+    envpath=${pair%%:*}
+    rm -f "$tmp/env-loaded" "$tmp/remote.rc"
+    export HEAVY_REMOTE_ENV=$envpath
+    if run_host_env go vet ./internal/specindex; then :; fi
+    [[ $(cat "$tmp/remote.rc") == 97 ]] || fail "repository ENVFILE did not return infra 97: $envpath"
+    [[ ! -e $tmp/env-loaded ]] || fail "repository ENVFILE executed: $envpath"
+    grep -q "host-only ENVFILE: ${pair#*:}" "$tmp/err" || fail "missing ${pair#*:} refusal: $(cat "$tmp/err")"
+  done
+  rm -rf "$tmp/unrelated" "$tmp/outside" "$tmp/local/linked.env"
   # A sibling path sharing the checkout prefix and an external symlink stay valid.
   mkdir -p "$tmp/local-host"
   cp "$tmp/remote.env" "$tmp/local-host/host.env"
@@ -256,7 +273,7 @@ EOF
   fi
   grep -q 'fix: set HEAVY_REMOTE_GOCACHE.*HEAVY_REMOTE_ENV' "$tmp/err" ||
     fail "RAM-backed fallback refusal lacks recovery: $(cat "$tmp/err")"
-  printf 'lane-scripts_test: heavy host environment: 16 cases passed (host-only ENVFILE, cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
+  printf 'lane-scripts_test: heavy host environment: 18 cases passed (host-only ENVFILE, cache, windows-vet, disk, symlink, env/leading TMPDIR, Make assignment operators, failure cleanup, refusal)\n'
   exit 0
 fi
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
