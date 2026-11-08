@@ -205,6 +205,8 @@ type cachedUnit struct {
 	ExecConsumers        []string `json:"execConsumers"`
 	ImportGraphReads     []string `json:"importGraphReads"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll"`
+	// ImportGraphReadsFiles mirrors Unit (AFP-V0-9010).
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles"`
 
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`

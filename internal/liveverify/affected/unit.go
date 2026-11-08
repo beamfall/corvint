@@ -107,6 +107,11 @@ const MaxPathsPerUnit = 20_000
 // that lists packages it does not name, which reads the whole module's. A
 // plan selects the unit through these edges only when the change alters an
 // import set in that closure (IMPORT_GRAPH_READER, AFP-V0-2201).
+// ImportGraphReadsFiles marks a whole-module reader not proven to observe
+// only the import graph: a `go list` call that is not proven, or a file that
+// may observe package metadata or source text by another channel (file
+// reads, other commands, go/ parsers, build information). Any dirty .go path
+// may change what it reads, a package comment included (AFP-V0-9010).
 // PathImports name repository paths whose owning units the unit runs, as an
 // edge the plugin cannot name by unit identity (AZU-V0-001): a file selects its
 // owner, a directory the owners of the files directly in it, `dir/...` the
@@ -150,6 +155,8 @@ type Unit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitempty"`
+	// ImportGraphReadsFiles needs ImportGraphReadsAll.
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitempty"`
 
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
@@ -316,7 +323,7 @@ func validUnit(unit Unit, namespace string) error {
 	if err := validIdentifierList(unit.ImportGraphReads); err != nil {
 		return err
 	}
-	if unit.ImportGraphReadsAll && len(unit.ImportGraphReads) != 0 {
+	if unit.ImportGraphReadsAll && len(unit.ImportGraphReads) != 0 || unit.ImportGraphReadsFiles && !unit.ImportGraphReadsAll {
 		return ErrInvalidUnit
 	}
 	if err := validIdentifierList(unit.AdvisoryImports); err != nil {

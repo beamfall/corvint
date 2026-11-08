@@ -92,6 +92,11 @@ func TestBuildRejectsUnitsThatBreakTheSeamContract(t *testing.T) {
 			}},
 			want: ErrDuplicateOwner,
 		},
+		// AFP-V0-9010: only a whole-module reader can be an unproven one.
+		"file-set reader without whole-module reads": {
+			language: fake{name: "x", units: []Unit{{ID: "x:core", Sources: []string{"core.x"}, ImportGraphReadsFiles: true}}},
+			want:     ErrInvalidUnit,
+		},
 		"empty frontier reason": {
 			language: fake{name: "x", frontier: []string{""}},
 			want:     ErrInvalidLanguage,
