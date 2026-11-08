@@ -34,7 +34,7 @@ func TestRSPV0008LegacyIndexes(t *testing.T) {
 		Files                                    []File
 	}
 	for _, language := range []string{"go", "javascript"} {
-		for _, format := range []string{FormatV2, Format} {
+		for _, format := range []string{FormatV2, FormatV3} {
 			t.Run(language+format, func(t *testing.T) {
 				old := oldIndex{format, language, "module", strings.Repeat("a", 40), "runner", []Test{{Package: "p", Name: "TestA"}, {Package: "p", Name: "TestB"}}, []File{{Path: "src", OID: strings.Repeat("2", 40), Blocks: []Block{{Start: 1, StartCol: 1, End: 2, EndCol: 2, Tests: []int32{0}}, {Start: 3, StartCol: 1, End: 3, EndCol: 2, Tests: []int32{1}}}}}}
 				var data bytes.Buffer
