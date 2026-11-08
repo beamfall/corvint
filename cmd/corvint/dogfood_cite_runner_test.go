@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
@@ -108,5 +109,49 @@ func TestDogfoodInProcessCitationsPreserveSelectedExecutable(t *testing.T) {
 	var out, errout bytes.Buffer
 	if code := runner.Run(context.Background(), t.TempDir(), []string{"cem", "cite"}, &out, &errout); code != 127 {
 		t.Fatalf("selected missing binary returned %d, want exec failure 127", code)
+	}
+}
+
+// DCW-V0-8760: only successful executable lookup plus same-file identity
+// admits in-process execution; every unresolved selection stays external.
+func TestDogfoodInProcessCitationsResolvePATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX executable fixtures")
+	}
+	cwd, installed, empty := t.TempDir(), t.TempDir(), t.TempDir()
+	self := filepath.Join(cwd, "corvint")
+	for path, body := range map[string]string{
+		self:                                "#!/bin/sh\nexit 24\n",
+		filepath.Join(installed, "corvint"): "#!/bin/sh\nprintf 'selected installed binary\\n'\nprintf 'selected stderr\\n' >&2\nexit 23\n",
+	} {
+		if err := os.WriteFile(path, []byte(body), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(cwd)
+	t.Setenv("GODEBUG", "execerrdot=1")
+	for _, tc := range []struct {
+		name, path string
+		code       int
+	}{
+		{"different-same-named-executable", installed, 23},
+		{"missing-path-selection", empty, 127},
+		{"unproven-implicit-current-directory", ".", 127},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("PATH", tc.path)
+			var wantOut, wantErr, gotOut, gotErr bytes.Buffer
+			args := []string{"cem", "cite"}
+			want := dogfoodflow.Exec("corvint").Run(context.Background(), cwd, args, &wantOut, &wantErr)
+			if want != tc.code {
+				t.Fatalf("external fixture returned %d, want %d: %s", want, tc.code, &wantErr)
+			}
+			runner := dogfoodCitationRunner("corvint", self)
+			got := runner.Run(context.Background(), cwd, args, &gotOut, &gotErr)
+			if got != want || gotOut.String() != wantOut.String() || gotErr.String() != wantErr.String() {
+				t.Fatalf("lookup changed execution: got (%d, %q, %q), want (%d, %q, %q)",
+					got, &gotOut, &gotErr, want, &wantOut, &wantErr)
+			}
+		})
 	}
 }

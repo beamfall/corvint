@@ -50,7 +50,7 @@ as evidence refusals. Passing precheck does not establish semantic support or pa
 
 | Requirement | Implementation | Deterministic evidence |
 |---|---|---|
-| `DCW-V0-8760` | `cmd/corvint/dogfood_cite_runner.go`; existing flow probe and cite loops | `TestDogfoodInProcessCitationsMatchSubprocess` (multi-hunk byte parity and refusal preservation with executable removed after selection); `TestDogfoodInProcessCitationsPreserveSelectedExecutable` (unavailable external selection). Execution and measurement deferred to integration. |
+| `DCW-V0-8760` | `cmd/corvint/dogfood_cite_runner.go`; existing flow probe and cite loops | `TestDogfoodInProcessCitationsMatchSubprocess` (multi-hunk byte parity and refusal preservation with executable removed after selection); `TestDogfoodInProcessCitationsPreserveSelectedExecutable` (unavailable external selection); `TestDogfoodInProcessCitationsResolvePATH` (different same-named PATH executable, missing lookup and refused implicit current-directory lookup retain external behavior). Runtime results are retained in the lane handback; timing qualification remains pending integration. |
 | `DCW-V0-2130` | `internal/dogfoodflow/change.go` `precheckCitationPlan` | `TestDCWV02130InputsCheckNamesEveryRefusedRowAtPlanLimit`: 256 rows, 255 mixed authority/stability/missing-evidence refusals named exactly once, final valid row omitted, HEAD preserved, map/probes restored, no bind. |
 | Existing mixed-row and prepare behavior | Same `cem cite` probe | `TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass`; `TestFinishLaneDCWV0335PrepareRefusesUnstableCiteSpanBeforeBind`. |
 
