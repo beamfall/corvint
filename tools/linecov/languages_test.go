@@ -98,11 +98,14 @@ func TestWatchWorkingTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, _, err := runner(root)
+	id, _, err := runner(root, linecov.DefaultTestTimeout, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ix, err := linecov.Build("example.com/m", base, id, oids, []linecov.Record{{Package: "p", Name: "TestPass", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:2.14,4.2 1 1\n")}, {Package: "p", Name: "TestFail", Profile: []byte("mode: atomic\nexample.com/m/p/p.go:2.14,4.2 1 0\n")}})
+	// A hand-built index needs an in-order record, else its package is
+	// unordered and runs whole (GLS-V0-008), and records observed under an
+	// environment, else it binds none (GLS-V0-017); this one reached no block.
+	ix, err := linecov.Build("example.com/m", base, id, oids, []linecov.Record{{Package: "p", Name: "TestPass", EnvObserved: true, Profile: []byte("mode: atomic\nexample.com/m/p/p.go:2.14,4.2 1 1\n")}, {Package: "p", Name: "TestFail", EnvObserved: true, Profile: []byte("mode: atomic\nexample.com/m/p/p.go:2.14,4.2 1 0\n")}, {Package: "p", Name: linecov.InOrder, Union: true, EnvObserved: true, Profile: []byte("mode: atomic\nexample.com/m/p/p.go:2.14,4.2 1 0\n")}})
 	if err != nil {
 		t.Fatal(err)
 	}

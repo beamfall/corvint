@@ -235,7 +235,7 @@ func languageDecide(ctx context.Context, root string, ix *linecov.Index, languag
 		change.Fallback = "checkout is not clean"
 	}
 	p.RecordedTests = heads
-	p.Candidate, _ = ix.Narrow(static, heads, drift, change)
+	p.Candidate, _ = ix.Narrow(nil, static, heads, drift, change) // a candidate: no environment binding
 	for _, f := range static {
 		pp := p.Candidate[f]
 		if len(heads[f]) == 0 {
@@ -278,7 +278,7 @@ func languageWorkingPlan(ctx context.Context, root string, ix *linecov.Index, st
 		}
 	}
 	p.RecordedTests = heads
-	p.Candidate, _ = ix.Narrow(static, heads, linecov.Effect{}, e)
+	p.Candidate, _ = ix.Narrow(nil, static, heads, linecov.Effect{}, e) // a candidate: no environment binding
 	for _, f := range static {
 		pp := p.Candidate[f]
 		if len(heads[f]) == 0 {

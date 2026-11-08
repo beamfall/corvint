@@ -130,6 +130,7 @@ func TestSources(root, dir string) (map[string]Source, error) {
 // still be listed. The order-sensitive in-order record is never a candidate
 // and never a superset, and a declared test with no record is listed apart.
 func (ix *Index) Redundancy(declared map[string][]string, sources map[string]map[string]Source, lowUnique int) []PackageReport {
+	ix.full()
 	sets := make([][]int32, len(ix.Tests)) // test -> ascending global block numbers
 	var owners [][]int32                   // global block -> tests executing it
 	for _, f := range ix.Files {
