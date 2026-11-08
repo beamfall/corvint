@@ -1053,6 +1053,10 @@ selection-baseline-check: ## Check the test-selection baseline
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
+.PHONY: selection-contract-check
+selection-contract-check: ## Replay CI and local root-Go package parity (AFP-V0-9501)
+	@$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) script/selection-contract-check.sh
+
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
 # (AFP-V0-2401, V1-3489): it builds corvint and tools/shell-test-select from this checkout, plans
 # with `corvint affected --base BASE` and runs the printed steps with --keep-going. A plan that
@@ -1332,6 +1336,7 @@ DOC_GATE_TARGETS := \
   qualify-tasks-basic-test \
   requirement-definitions-check \
   selection-baseline-check \
+  selection-contract-check \
   shell-foreign-callers-check \
   shell-test-registration-check \
   spec-claims-check \
