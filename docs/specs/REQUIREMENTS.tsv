@@ -216,6 +216,9 @@ AFP-V0-2375	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A n
 AFP-V0-2376	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) The changed declarations SHALL be read per changed	unrecorded	-
 AFP-V0-2377	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) A package SHALL be refused narrowing, with the reason	unrecorded	-
 AFP-V0-2378	docs/specs/affected-plan-selection-v0.md	(experimental; V1-2744) `tools/typed-reach-measure` SHALL replay the narrowing	unrecorded	-
+AFP-V0-9320	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9321	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
+AFP-V0-9322	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-

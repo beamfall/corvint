@@ -1838,7 +1838,35 @@ one list, so a later class cannot reopen it.
   dropped tests (a missed observer can only be one of them) plus `-oracle-also` controls. Recall
   against observed outcomes is retained in the build-log entry.
 
+### Frozen affected digests (V1-4710; lane swgold)
+
+- `AFP-V0-9320`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  Corvint's repository policy MUST declare `cmd/corvint/core_freeze_test.go` as must-run,
+  naming `TestCoreVerbsEmitTheFrozenProfiles` and its affected graph/excluded digest purpose.
+  Every nonempty affected plan therefore retains its whole Go package, including changes
+  whose dependency paths do not reach the test. This deliberately broad baseline trades
+  additional local verification cost for protection against unmodelled digest dependencies;
+  it adds no planner special case, wire member, error code or frozen-output change.
+- `AFP-V0-9321`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  Regression evidence MUST fix a graph-changing diff and a separate exclusion-only diff,
+  verify that the claimed digests really change, and assert selection of the frozen test
+  under the repository's actual declaration. Exercise worktree, staged and committed ranges.
+  Undeclared controls MUST demonstrate that an unrelated frozen test can otherwise be omitted.
+  Retain the reproduction attempt against the pinned public base even when it does not
+  reproduce the historical incident; a failed reproduction is not proof of universal soundness.
+- `AFP-V0-9322`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4710)
+  The affected plan's runnable Go provider and advisory verification command MUST include
+  the frozen test's package, and downstream test slicing MUST keep it whole. An edit to
+  another test cannot narrow away the frozen test. If the declared test file disappears,
+  retain the existing contradicted-declaration refusal instead of silently dropping the guard.
+  A clean range remains empty under the existing must-run contract. Acceptance is selection
+  and verification-plan coverage, not permission to update a failing frozen golden.
+
 ## Non-goals
+
+V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
+committed goldens, Core profiles, or digest encodings. It makes no claim about unrelated
+repositories without this repository-owned must-run declaration.
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
 literals, a runtime read trace, or symbol-level reachability inside a hub package (V1-3282,
@@ -2129,8 +2157,14 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 | AFP-V0-2725 | `$counts`, `$m` and `$no` in `.github/forward-rows/row.jq`; `narrowedRecordOf`, `recordedNarrowed` and `recordShards` in `tools/ci-reuse-plan/main.go`; the REUSE check of the docs-plan reuse step in `ci.yml` | `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; the sized cases of `TestAFPV0734ReusesANarrowedPullRequestRunOfTheSameRange` in `tools/ci-reuse-plan/main_test.go` |
 | AFP-V0-2726 | the `size.go` copy in `.github/workflows/linecov-index.yml`; the go-static `-run` pattern in `.github/workflows/ci.yml` | `TestIsolatedHelperBuildsCopyWhatTheyNeed_AFPV02726` in `.github/cishards/isolated_copies_test.go` (it fails with `partition.go embeds size.go` and the isolated vet error when `size.go` is dropped from the linecov copy list) |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
+| AFP-V0-9320, AFP-V0-9321 | `.corvint/test-selection.json` using the existing must-run planner | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` in `cmd/corvint/affected_core_freeze_test.go`; pinned base probe in `../build-log/2026-11-08-swgold.md` |
+| AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-9320 to AFP-V0-9322, revert the must-run declaration and its regression together;
+this restores the prior selection policy and loses the explicit digest guard. No encoding,
+golden or cache migration is needed.
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete

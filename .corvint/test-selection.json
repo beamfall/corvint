@@ -1484,5 +1484,10 @@
       ]
     }
   ],
-  "mustRun": []
+  "mustRun": [
+    {
+      "tests": "cmd/corvint/core_freeze_test.go",
+      "reason": "AFP-V0-9320: TestCoreVerbsEmitTheFrozenProfiles guards affected graph and excluded digests; keep its package whole for every nonempty change"
+    }
+  ]
 }
