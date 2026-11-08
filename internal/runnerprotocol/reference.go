@@ -83,7 +83,16 @@ func (Reference) Parse(_ context.Context, r registry.ParseRequest) ([]testrunner
 		return nil, err
 	}
 	if !observation.Complete {
-		return nil, fmt.Errorf("reference-report-incomplete")
+		// The report carries no exit code, so a failed test reads as an exit
+		// contradiction; keep its validated failed rows alongside the error so a
+		// passing retry cannot hide them. Passes and skips stay unobserved.
+		failed := []testrunner.RunnerResult{}
+		for _, test := range observation.Tests {
+			if test.State == testrunner.Failed {
+				failed = append(failed, testrunner.RunnerResult{ID: test.ID, Outcome: "failed", Reason: test.Message})
+			}
+		}
+		return failed, fmt.Errorf("reference-report-incomplete")
 	}
 	results := []testrunner.RunnerResult{}
 	for _, test := range observation.Tests {

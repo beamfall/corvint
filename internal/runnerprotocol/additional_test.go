@@ -129,3 +129,25 @@ func TestRSPV0041BareRepositoryRefused(t *testing.T) {
 	gitFixture(t, root, "init", "--bare", "-q")
 	requireFailure(t, outsideRepository(filepath.Join(root, "plugins")), "inside-repository")
 }
+
+// RSP-V0-003: a Go report has no exit code, so a failed test reads as an exit
+// contradiction; the rejected report still returns its failed row so a passing
+// FULL retry cannot hide it, while passes stay unobserved.
+func TestRSPV0003ReferenceFailureSurvivesIncompleteReport(t *testing.T) {
+	requireLinux(t)
+	report := filepath.Join(t.TempDir(), "report.json")
+	lines := `{"Action":"run","Package":"example.com/p","Test":"TestPass"}
+{"Action":"pass","Package":"example.com/p","Test":"TestPass"}
+{"Action":"run","Package":"example.com/p","Test":"TestFail"}
+{"Action":"fail","Package":"example.com/p","Test":"TestFail"}
+{"Action":"fail","Package":"example.com/p"}
+`
+	if err := os.WriteFile(report, []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	results, err := (Reference{}).Parse(context.Background(), registry.ParseRequest{Runner: ReferenceRunner, Report: report})
+	requireFailure(t, err, "reference-report-incomplete")
+	if len(results) != 1 || results[0].Outcome != "failed" || !strings.Contains(results[0].ID, "TestFail") {
+		t.Fatalf("results = %+v, want only the failed TestFail row", results)
+	}
+}
