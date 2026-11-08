@@ -15,20 +15,23 @@ import (
 )
 
 // Walk descriptor-relative with NOFOLLOW at every component, including parents.
+// Parents are opened O_PATH: the walk needs only search permission, so an
+// ancestor that is traversable but not listable (a 0711 home directory, or a
+// Landlock domain that grants only the checkout) does not refuse the file.
 func openRegular(path string) (*os.File, error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	fd, err := syscall.Open("/", syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_CLOEXEC, 0)
+	fd, err := syscall.Open("/", oPath|syscall.O_DIRECTORY|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, err
+		return nil, &os.PathError{Op: "open", Path: path, Err: err}
 	}
 	parts := strings.Split(strings.TrimPrefix(absolute, "/"), "/")
 	for i, part := range parts {
 		flags := syscall.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK | syscall.O_CLOEXEC
 		if i < len(parts)-1 {
-			flags |= syscall.O_DIRECTORY
+			flags = oPath | syscall.O_DIRECTORY | syscall.O_NOFOLLOW | syscall.O_CLOEXEC
 		}
 		next, e := syscall.Openat(fd, part, flags, 0)
 		syscall.Close(fd)
@@ -105,3 +108,6 @@ func executableFile(r Resolved) (*os.File, error) {
 	return f, nil
 }
 func executablePath() string { return "/proc/self/fd/3" }
+
+// oPath is Linux O_PATH; package syscall defines it only on some Linux ports.
+const oPath = 0x200000
