@@ -296,6 +296,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   as results. Literal wildcard names proven to exist through the explicit repository source MAY
   return those names. Patterns, absent names and other unmodeled results SHALL stay unknown;
   an absent wildcard condition SHALL preserve the false branch and its dependencies.
+  The avdrv self-review repair (2026-11-07) limits literal wildcard evaluation to the
+  source-root make context. A nested makefile's directory does not prove its invocation
+  directory: without that provenance, both conditional alternatives and the frontier remain.
   `strip` SHALL trim and collapse expanded ASCII whitespace to single spaces before testing
   a condition or constructing a package path; an unmodeled result SHALL retain uncertainty.
   Amended by the owner self-review repair charter (2026-11-07): condition alternatives SHALL
@@ -433,6 +436,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   flag's value, whether separate, attached with `=`, or quoted. An unquoted unknown value can
   split into executable flags such as `-toolexec`. Unknown constructs SHALL retain conservative
   frontier claims and run-all behavior; no wire shape, error or output contract changes.
+  The avdrv self-review repair (2026-11-07) applies utility allowlists only to bare command
+  names. Executable paths, including absolute paths with utility basenames, require the
+  existing recorded shell-test-script proof; every other executable path remains uncertified.
   Attached option values that can name input files, including extensionless `--file=LICENSE`,
   SHALL have explicit dependency edges or remain uncertified. Make options SHALL use an exact
   allowlist of modeled forms; evaluation, loading, include search paths and unsupported forms
@@ -468,7 +474,8 @@ participation, and inbound shell callers. The remaining classes are small and lo
   - blanks after a function name are not part of its first argument, and a substitution
     reference expands its search and replacement before matching;
   - `if`, `or` and `and` strip only ASCII whitespace from an unexpanded argument, and word and
-    wordlist indexes are decimal digits only.
+    wordlist indexes are decimal digits only. An empty or ASCII-whitespace-only `and`
+    argument returns empty immediately; `or` continues to its next argument.
 
   It SHALL retain a value that holds a byte outside ASCII, whose word splitting depends on make's
   locale; a word only partly known to `dir`, `notdir`, `basename`, `suffix` or `patsubst`; a
@@ -492,7 +499,15 @@ participation, and inbound shell callers. The remaining classes are small and lo
   A dash-prefixed operand other than `-` SHALL NOT be recorded, so it leaves the command
   uncertified, and an operand SHALL be recorded only when the scanner holds the source and every
   component of its path is a plain file or directory there, not a symbolic link (Greptile P1
-  repair 2).
+  repair 2). Glob certification admits only `literal-dir/*literal-suffix`, without parent
+  traversal, with a plain containing path and at most 4096 directory entries. Every matched
+  non-hidden entry SHALL be a regular file; links, directories, unfamiliar file types and
+  failed listings retain the frontier. Go package certification admits `all`, `std`, `cmd`,
+  relative directories with an optional trailing `/...`, and main-module directories only.
+  Local package roots, implicit working directories and `-C` directories SHALL be proven plain
+  directories against the source before certification. Links, missing paths, parent traversal
+  and unsupported path forms retain the frontier rather than claiming lexical edges cover them.
+  The directory edge continues to cover additions and deletions (avdrv self-review, 2026-11-07).
 
 ### Lane qualification details
 
@@ -864,16 +879,16 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9852 | PR #99 finding D | `TestDriverCompositeFlowSteps_AZU_V0_9852` |
 | AZU-V0-9853 | PR #99 finding E | `TestDriverUnresolvedLocalUses_AZU_V0_9853` |
 | AFP-V0-3120 | V1-5000 | `TestFrontierSiteFaultInjection_AFP_V0_3120`, `TestFrontierSiteFileStatementKeepsClaim_AFP_V0_3120` |
-| AFP-V0-3121 | V1-5000 | `TestFrontierSiteIncludeEffects_AFP_V0_3121`, `TestFrontierSiteNotdirCondition_AFP_V0_3121`, `TestFrontierSiteForeachLimitEffects_AFP_V0_3121`, `TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121`, `TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121`, `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-3121 | V1-5000 | `TestDriverNestedWildcardDirectory_AFPV03121` in `internal/liveverify/affected/driver_avdrv_test.go`, `TestFrontierSiteIncludeEffects_AFP_V0_3121`, `TestFrontierSiteNotdirCondition_AFP_V0_3121`, `TestFrontierSiteForeachLimitEffects_AFP_V0_3121`, `TestFrontierSiteFilesystemConditionEffects_AFP_V0_3121`, `TestFrontierSiteConditionEffectsKeepClaim_AFP_V0_3121`, `TestFrontierSiteStripCondition_AFP_V0_3121`, `TestFrontierSiteFilesystemCondition_AFP_V0_3121`, `TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121`, `TestDriverAlternativeMakeValues_AZU_V0_9702`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
 | AFP-V0-3122 | V1-5000 | `TestFrontierSiteBoundedSetExcludesPath_AFP_V0_3122`, `TestFrontierSiteShellTestParity_AFP_V0_3122`; 20-merge replay in `docs/build-log/2026-11-07-selfloor.md` |
 | AFP-V0-3123 | V1-5000 | `TestFrontierSiteUnboundedKeepsClaim_AFP_V0_3123` |
 | AFP-V0-3124 | V1-5000 | `TestDriverFrontierBoundParity_AFP_V0_3124` |
 | AFP-V0-3125 | V1-5000 | `TestFrontierSiteImmediateValueKeepsCapturedEdge_AFP_V0_3125`, `TestFrontierSiteUnsupportedAssignmentKeepsClaim_AFP_V0_3125` |
 | AFP-V0-3126 | V1-5000 | `TestFrontierSiteTargetSpecificSurvivesGlobal_AFP_V0_3126` |
 | AFP-V0-3127 | V1-5000 | `TestFrontierSiteRepositoryShellWrapper_AFP_V0_3127`, `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`, `TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127` |
-| AFP-V0-3128 | V1-5000 | `TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128`, `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
-| AFP-V0-9050 | V1-5000 | `TestFrontierSiteMakeDirSpelling_AFP_V0_9050`, `TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050` |
-| AFP-V0-9051 | V1-5000 | `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051` |
+| AFP-V0-3128 | V1-5000 | `TestDriverExecutableProvenance_AFPV03128` in `internal/liveverify/affected/driver_avdrv_test.go`, `TestFrontierSiteCommandEnvironmentEffects_AFP_V0_3128`, `TestFrontierSiteGlobOperandsKeepClaim_AFP_V0_3128`, `TestFrontierSiteDirectoryGlobEdges_AFP_V0_3128`, `TestFrontierSiteLiteralExportEffects_AFP_V0_3128`, `TestFrontierSiteExportEffectsKeepClaim_AFP_V0_3128`, `TestFrontierSiteAttachedFileOptionKeepsClaim_AFP_V0_3128`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128`, `TestFrontierSiteGoEnvironmentKeepsClaim_AFP_V0_3128`, `TestFrontierSiteExtensionlessOperand_AFP_V0_3128`, `TestFrontierSiteDynamicTrap_AFP_V0_3128`, `TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128`, `TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128`, `TestFrontierSiteGoFlagAllowlist_AFP_V0_3128`, `TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128`, `TestDriverMakeFunctionsComputed_AZU_V0_9850` |
+| AFP-V0-9050 | V1-5000 | `TestFrontierSiteMakeDirSpelling_AFP_V0_9050`, `TestFrontierSiteMakeFunctionSpelling_AFP_V0_9050`, `TestMakeAndEmptyArguments_AFP_V0_9050` |
+| AFP-V0-9051 | V1-5000 | `TestDriverGlobProvenance_AFPV09051` in `internal/liveverify/affected/driver_avdrv_test.go`, `TestFrontierSiteUnrecordableOperand_AFP_V0_9051`, `TestFrontierSiteRecordedOperandDropsClaim_AFP_V0_9051`, `TestDriverSourcePathCertification_AFP_V0_9051` |
 | AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
 | AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
 | AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |

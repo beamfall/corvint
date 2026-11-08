@@ -43,9 +43,12 @@ func TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader(t *testi
 	for _, name := range linked {
 		args = append(args, module+"cmd/"+name)
 	}
-	out, err := exec.Command("go", args...).Output()
+	cmd := exec.Command("go", args...)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("go list: %v", err)
+		t.Fatalf("go list: %v\n%s", err, stderr.String())
 	}
 	deps := map[string]map[string]bool{}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
