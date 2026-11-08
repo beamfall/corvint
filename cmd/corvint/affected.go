@@ -43,6 +43,8 @@ const (
 // canonical plan; provider is the derived, non-authoritative input an operator
 // may copy into a Go live-test provider bundle (AFP-V0-004).
 type affectedReceipt struct {
+	TestCounts map[string]int `json:"-"`
+
 	Snapshot map[string]any   `json:"snapshot,omitempty"`
 	PathList []string         `json:"path_list,omitempty"`
 	Advice   affectedAdvice   `json:"advice"`
@@ -1286,6 +1288,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
+	testCounts := affectedTestCounts(root, plan)
 	affectedPlanSourcesObserved()
 	// The status, the graph and every later source read (prior read scopes,
 	// advice, provider and e2e selection, app navigations) are observations of
@@ -1313,17 +1316,18 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		return affectedReceipt{}, nil, err
 	}
 	receipt := affectedReceipt{
-		PathList: invocation.PathList,
-		Advice:   advice,
-		Mutates:  false,
-		OK:       true,
-		Plan:     plan,
-		Profile:  affectedProfile,
-		Provider: affectedProvider{Go: provider},
-		Range:    affectedRange{Base: invocation.Base, Paths: committed},
-		Revision: revision,
-		Tool:     "affected",
-		Warning:  affectedMixedWarning(revision, dirty, committed),
+		TestCounts: testCounts,
+		PathList:   invocation.PathList,
+		Advice:     advice,
+		Mutates:    false,
+		OK:         true,
+		Plan:       plan,
+		Profile:    affectedProfile,
+		Provider:   affectedProvider{Go: provider},
+		Range:      affectedRange{Base: invocation.Base, Paths: committed},
+		Revision:   revision,
+		Tool:       "affected",
+		Warning:    affectedMixedWarning(revision, dirty, committed),
 
 		WorktreeDirty: worktreeDirty,
 	}
@@ -2260,7 +2264,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, invocation.Root, root, snapshot.Base, graph, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
-		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
+		receipt = affectedReceipt{TestCounts: affectedTestCounts(root, plan), Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
 	}
 	if err := snapshot.Validate(ctx, invocation.Root); err != nil {
 		return nil, snapshotAffectedError()

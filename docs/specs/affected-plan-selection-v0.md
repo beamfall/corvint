@@ -1966,6 +1966,32 @@ one list, so a later class cannot reopen it.
   `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
   fallback; none drops a reader.
 
+- **AFP-V0-9450:** Experimental under the owner's avgo charter (2026-11-08; V1-5085).
+  Go literal path readers SHALL retain each traversed file or directory symlink and its
+  repository-relative target as additive read dependencies, including intermediate links and
+  missing target leaves. Components SHALL resolve before parent traversal is normalized.
+  Unreadable, cyclic, over-bound or escaping links SHALL retain unbounded reads; a source
+  without a link-reading contract SHALL NOT certify a symlink target. Ordinary sibling files
+  SHALL NOT become dependencies of a fully resolved literal solely because a directory link
+  was traversed. Existing lexical, declared-scope and uncertainty rules remain authoritative.
+  Tests: `TestLiteralSymlinkReaders_AFPV09450` in
+  `internal/liveverify/affected/golang/literal_links_test.go`.
+
+- **AFP-V0-9451:** Experimental under the owner's avgo charter (2026-11-08; V1-4971),
+  amending AFP-V0-035 and AFP-V0-990's Go `testCount` semantics without changing their members.
+  Compact and by-path Go counts SHALL count statically runnable top-level Test and Fuzz
+  functions and examples with output in the selected test files, using Go's discovery name
+  and signature rules. Benchmarks, methods, helpers, output-free examples and the TestMain
+  main hook SHALL NOT count. This is the observed graph's static function inventory across
+  build variants, not a count of subtests, fuzz cases, executed tests or successful outcomes.
+  An unreadable or unparsable selected file, or invalid discovered test signature, SHALL
+  yield `-1` (unavailable), never a fabricated zero or a test-file count. Counts SHALL be
+  captured before the existing worktree drift recheck and before snapshot cleanup; projection
+  SHALL NOT reread mutable source. Non-Go counts and full selected test-file lists remain
+  unchanged. Tests: `TestRunnableGoTestCounts_AFPV09451`,
+  `TestAffectedFunctionCounts_AFPV09451`, `TestAffectedCapturedCounts_AFPV09451` and
+  `TestAffectedByPathFunctionCounts_AFPV09451` in `cmd/corvint/affected_test_counts_test.go`.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
