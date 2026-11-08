@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestRSPV0021Read(t *testing.T) {
@@ -152,7 +154,7 @@ func fixture(t *testing.T, mode string) Request {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if e := os.WriteFile(filepath.Join(root, "exec-target"), b, 0700); e != nil {
+		if e := execfile.WriteFile(filepath.Join(root, "exec-target"), b, 0700); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -253,7 +255,7 @@ func TestRSPV0022Incomplete(t *testing.T) {
 					t.Fatal(err)
 				}
 				p := filepath.Join(q.Dir, "privileged")
-				if err := os.WriteFile(p, b, 0700); err != nil {
+				if err := execfile.WriteFile(p, b, 0700); err != nil {
 					t.Fatal(err)
 				}
 				if err := os.Chmod(p, 0700|os.ModeSetuid); err != nil {
@@ -340,7 +342,7 @@ func TestRSPV0021OutsideExecutableCopiedLoader(t *testing.T) {
 		t.Fatal(err)
 	}
 	localInterpreter := filepath.Join(q.Dir, "interpreter")
-	if err := os.WriteFile(localInterpreter, loader, 0700); err != nil {
+	if err := execfile.WriteFile(localInterpreter, loader, 0700); err != nil {
 		t.Fatal(err)
 	}
 	outside := t.TempDir()
@@ -933,7 +935,7 @@ func TestRSPV0022OutsideExecutableInterpreter(t *testing.T) {
 		t.Fatal(err)
 	}
 	interpreter := filepath.Join(q.Dir, "interpreter")
-	if err := os.WriteFile(interpreter, contents, 0700); err != nil {
+	if err := execfile.WriteFile(interpreter, contents, 0700); err != nil {
 		t.Fatal(err)
 	}
 	outside := t.TempDir()
@@ -956,7 +958,7 @@ func TestRSPV0022OutsideExecutableInterpreter(t *testing.T) {
 	if r.Reads.State != Present || r.Execs.State != Present || !hasPath(r.Reads.Entries, "interpreter") || len(r.Execs.Entries) != 0 {
 		t.Fatalf("outside executable lost repository interpreter: %+v", r)
 	}
-	if err := os.WriteFile(interpreter, []byte("unknown interpreter format\n"), 0700); err != nil {
+	if err := execfile.WriteFile(interpreter, []byte("unknown interpreter format\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	after := New().Trace(context.Background(), q)
@@ -970,7 +972,7 @@ func TestRSPV0022UnknownOutsideExecutableFormat(t *testing.T) {
 	root, outside := t.TempDir(), t.TempDir()
 	q := Request{Repositories: []Repository{{ID: "main", Root: root}}, Outside: []OutsideClass{{"toolchain", outside}}, PathCap: 100}
 	q.Executable = filepath.Join(outside, "launcher")
-	if err := os.WriteFile(q.Executable, []byte("future executable format\n"), 0700); err != nil {
+	if err := execfile.WriteFile(q.Executable, []byte("future executable format\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	r := emptyResult("test")
@@ -1162,7 +1164,7 @@ func TestRSPV0022OutsideUnknownExecutableFormatIncomplete(t *testing.T) {
 	for _, contents := range []string{"unknown future executable format", "#!/bin/sh\nexit 0\n"} {
 		outside := t.TempDir()
 		exe := filepath.Join(outside, "program")
-		if err := os.WriteFile(exe, []byte(contents), 0700); err != nil {
+		if err := execfile.WriteFile(exe, []byte(contents), 0700); err != nil {
 			t.Fatal(err)
 		}
 		r := emptyResult("test")
@@ -1201,7 +1203,7 @@ func TestRSPV0007InterpreterLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"loaderA", "loaderB"} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(root, name), []byte(name), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1218,7 +1220,7 @@ func TestRSPV0007InterpreterLinks(t *testing.T) {
 	image.WriteString(interpreter)
 	image.WriteByte(0)
 	executable := filepath.Join(root, "program")
-	if err := os.WriteFile(executable, image.Bytes(), 0700); err != nil {
+	if err := execfile.WriteFile(executable, image.Bytes(), 0700); err != nil {
 		t.Fatal(err)
 	}
 	parsed, err := elf.Open(executable)

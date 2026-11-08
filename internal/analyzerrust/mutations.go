@@ -2,10 +2,7 @@
 
 package analyzerrust
 
-import (
-	"fmt"
-	"sort"
-)
+import "sort"
 
 // BooleanMutation describes a single Rust boolean-token replacement for the
 // core qualification harness. It neither edits files nor runs/qualifies a
@@ -26,7 +23,7 @@ func BooleanMutations(source []byte) ([]BooleanMutation, error) {
 	}
 	tokens, reason := tokenize(source)
 	if reason != "" {
-		return nil, fmt.Errorf("rust-mutations:%s", reason)
+		return nil, Unsupported("rust-mutations:" + reason)
 	}
 	starts := []int{0}
 	for i, b := range source {
@@ -57,7 +54,7 @@ func BooleanMutations(source []byte) ([]BooleanMutation, error) {
 		}
 		out = append(out, BooleanMutation{Offset: t.start, Before: t.text, After: after, Body: body})
 		if len(out) > MaxFacts {
-			return nil, fmt.Errorf("rust-mutations:cap-exceeded")
+			return nil, Unsupported("rust-mutations:cap-exceeded")
 		}
 	}
 	return out, nil

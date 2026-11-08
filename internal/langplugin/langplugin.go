@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/langplugin/decl"
+	"github.com/Beamfall/corvint/internal/langplugin/runnernames"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/cfamily"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/dotnet"
@@ -32,7 +33,6 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
-	"github.com/Beamfall/corvint/internal/testrunner"
 )
 
 // Piece names one declarable part of a language plugin (LGP-V0-002).
@@ -92,7 +92,7 @@ var DialectKinds = decl.DialectKinds
 type Manifest struct {
 	// RunnerPieces declares selection capabilities for each Runners entry (RSP-V0-001).
 	// It is not part of any existing manifest wire.
-	RunnerPieces map[string]testrunner.RunnerPieces `json:"-"`
+	RunnerPieces map[string]runnernames.RunnerPieces `json:"-"`
 	// Name is the plugin namespace; with a provider it equals Provider().Name().
 	Name string
 	// Paths are the repository-relative directories this language owns
@@ -269,12 +269,12 @@ var manifests = []Manifest{
 
 func init() {
 	for i, m := range manifests {
-		manifests[i].RunnerPieces = make(map[string]testrunner.RunnerPieces, len(m.Runners))
+		manifests[i].RunnerPieces = make(map[string]runnernames.RunnerPieces, len(m.Runners))
 		for _, r := range m.Runners {
-			manifests[i].RunnerPieces[r] = testrunner.AbsentRunnerPieces(r)
+			manifests[i].RunnerPieces[r] = runnernames.AbsentRunnerPieces(r)
 			switch r {
 			case "rspec", "minitest", "test-unit", "rails-test":
-				manifests[i].RunnerPieces[r] = testrunner.RunnerPieces{Inventory: testrunner.RunnerPiece{Present: true}, TestEvidence: testrunner.RunnerPiece{Present: true}, Qualification: testrunner.RunnerPiece{Reason: "unqualified"}}
+				manifests[i].RunnerPieces[r] = runnernames.RunnerPieces{Inventory: runnernames.RunnerPiece{Present: true}, TestEvidence: runnernames.RunnerPiece{Present: true}, Qualification: runnernames.RunnerPiece{Reason: "unqualified"}}
 			}
 		}
 		d := decl.Of(m.Name)
@@ -468,7 +468,7 @@ func Validate(m Manifest) error {
 		p := m.RunnerPieces[r]
 		for _, item := range []struct {
 			name  Piece
-			piece testrunner.RunnerPiece
+			piece runnernames.RunnerPiece
 		}{
 			{Inventory, p.Inventory}, {TestEvidence, p.TestEvidence}, {Qualification, p.Qualification},
 		} {

@@ -10,7 +10,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/langplugin/dialect"
-	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
 const (
@@ -31,11 +30,24 @@ type token struct {
 	line, column int
 }
 
+// Range is a one-based, half-open line/column span. It mirrors the
+// test-evidence region shape field for field, so the shader runner converts it
+// without this dialect importing the evidence record.
+type Range struct {
+	Start, StartColumn, End, EndColumn int32
+}
+
+// Body is one shader function body with its span.
+type Body struct {
+	ID, Parent string
+	Range      Range
+}
+
 // Source retains no partial complete result: Reason names any unsupported,
 // malformed or capped input. Bodies use physical, one-based half-open ranges.
 type Source struct {
 	Includes     []Include
-	Bodies       []testevidence.Body
+	Bodies       []Body
 	Declarations []dialect.Declaration
 	Lines        []dialect.Line
 	Reason       string
@@ -185,7 +197,7 @@ func Parse(text string) Source {
 			}
 			close := code[end-1]
 			out.Declarations = append(out.Declarations, dialect.Declaration{Kind: "function", Name: name, Line: nameLine})
-			out.Bodies = append(out.Bodies, testevidence.Body{ID: fmt.Sprintf("%s:%d:%d", name, code[i].line, code[i].column), Range: testevidence.Range{Start: int32(code[i].line), StartColumn: int32(code[i].column), End: int32(close.line), EndColumn: int32(close.column + 1)}})
+			out.Bodies = append(out.Bodies, Body{ID: fmt.Sprintf("%s:%d:%d", name, code[i].line, code[i].column), Range: Range{Start: int32(code[i].line), StartColumn: int32(code[i].column), End: int32(close.line), EndColumn: int32(close.column + 1)}})
 			if len(out.Bodies) > MaxBodies {
 				return fail("shader-body-cap")
 			}

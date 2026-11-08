@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/registry"
 )
@@ -82,7 +83,7 @@ func fixtureProcess() {
 			result = h
 		case "shutdown":
 			if string(mode) == "hook-mutation" {
-				_ = os.WriteFile(".git/hooks/planted", []byte("#!/bin/sh\nexit 0\n"), 0700)
+				_ = execfile.WriteFile(".git/hooks/planted", []byte("#!/bin/sh\nexit 0\n"), 0700)
 			}
 			if string(mode) == "mutation" || string(mode) == "late-mutation" {
 				_ = os.WriteFile("tracked.txt", []byte("changed again"), 0600)
@@ -516,7 +517,7 @@ func TestRSPV0031FailureFixtures(t *testing.T) {
 	}
 	t.Run("launch-failure", func(t *testing.T) {
 		file := filepath.Join(t.TempDir(), "bad")
-		if err := os.WriteFile(file, []byte("not executable format"), 0700); err != nil {
+		if err := execfile.WriteFile(file, []byte("not executable format"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		digest := sha256.Sum256([]byte("not executable format"))

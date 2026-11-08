@@ -11,8 +11,7 @@
     },
     "docs/build-log/": {
       "cmd/corvint": "its affected and dogfood record-class tests name build-log entries of fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
-      "internal/liveverify/affected": "readers.go names the directory as BuildLogDirectory, the planner's own record-directory constant, and its documentation and replay tests plan build-log entries; an unbounded reader, so no read scope is declared (V1-4933 baseline)",
-      "internal/tasks/cli": "closeout_debt.go reads build-log entries of the repository it closes out, and its tests use fixture repositories; an unbounded reader, so no read scope is declared (V1-4933 baseline)"
+      "internal/liveverify/affected": "readers.go names the directory as BuildLogDirectory, the planner's own record-directory constant, and its documentation and replay tests plan build-log entries; an unbounded reader, so no read scope is declared (V1-4933 baseline)"
     }
   },
   "profile": "corvint-record-readers/0"

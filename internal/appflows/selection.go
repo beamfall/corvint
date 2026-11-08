@@ -197,7 +197,8 @@ type E2EInput struct {
 	Mandatory []any
 	// Repositories are the operator's application repository bindings (AFU-V1-067).
 	Repositories []E2ERepositoryInput
-	// RunnerEvidence selects the shared RSP inventory/record model when core binds it.
+	// RunnerEvidence selects the shared RSP inventory/record model when core
+	// binds it (internal/appflows/e2erunner.Bind).
 	RunnerEvidence *E2ERunnerInput `json:"-"`
 }
 

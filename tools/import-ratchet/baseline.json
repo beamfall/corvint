@@ -1,7 +1,6 @@
 {
   "profile": "corvint-import-ratchet-baseline/0",
   "edges": [
-    "internal/appflows -> internal/doccorpus",
     "internal/appflows -> internal/extevidence",
     "internal/appflows -> internal/jstestprovider",
     "internal/appflows -> internal/liveverify/affected",

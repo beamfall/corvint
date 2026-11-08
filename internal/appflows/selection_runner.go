@@ -3,23 +3,32 @@ package appflows
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/extevidence"
-	"github.com/Beamfall/corvint/internal/jslinecov"
-	"github.com/Beamfall/corvint/internal/runnerselection"
-	"github.com/Beamfall/corvint/internal/webdialect"
 )
 
+// E2ERunnerTest is one test from the runner's native list report.
+type E2ERunnerTest struct {
+	TestKey, Path, Project string
+}
+
+// E2ERunnerResult is what the core RSP binding (internal/appflows/e2erunner)
+// reports: either Failed with a bounded reason, or the inventoried tests and
+// the shared selector's per-runner reasons.
+type E2ERunnerResult struct {
+	Failed  bool
+	Failure string
+	Tests   []E2ERunnerTest
+	Reasons []string
+}
+
 // E2ERunnerInput is an in-process core binding, not a provider/wire extension.
-// Selector carries admitted T1 records and core qualification; discovery is
-// exclusively the runner's native list report. No old coverage/provider record
-// can substitute for a missing RSP component.
+// The core binds Evaluate to admitted T1 records, core qualification and the
+// runner's native list report; no old coverage/provider record can substitute
+// for a missing RSP component. Keeping the binding behind a callback keeps
+// this package off the runner and inventory packages.
 type E2ERunnerInput struct {
-	Discovery jslinecov.Discovery
-	Report    string
-	Selector  runnerselection.Input
+	Evaluate func(context.Context) E2ERunnerResult
 }
 
 func selectE2ERunner(ctx context.Context, in E2EInput) E2ESelection {
@@ -31,35 +40,21 @@ func selectE2ERunner(ctx context.Context, in E2EInput) E2ESelection {
 		out.Fallback = append(out.Fallback, E2EFallback{Code: CodeExclusionUnproven, Subject: reason})
 		return out
 	}
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || in.RunnerEvidence.Evaluate == nil {
 		return fail("inventory-unavailable")
 	}
-	rsp := in.RunnerEvidence
-	inv, err := webdialect.E2EInventory(rsp.Discovery, rsp.Report)
-	if err != nil {
-		return fail(inv.Reason)
+	res := in.RunnerEvidence.Evaluate(ctx)
+	if res.Failed {
+		return fail(res.Failure)
 	}
 	out.Discovery = E2EDiscovery{State: "MATCHED"}
-	for _, t := range inv.Tests {
-		var tuple []string
-		if json.Unmarshal([]byte(strings.TrimPrefix(t.ID, "playwright:")), &tuple) != nil || len(tuple) != 3 {
-			return fail("inventory-unavailable")
-		}
-		out.Selected = append(out.Selected, E2ETest{TestKey: t.ID, Path: t.Path, Project: tuple[1], Reasons: []string{CodeExclusionUnproven}})
+	for _, t := range res.Tests {
+		out.Selected = append(out.Selected, E2ETest{TestKey: t.TestKey, Path: t.Path, Project: t.Project, Reasons: []string{CodeExclusionUnproven}})
 	}
-	input := rsp.Selector
-	input.Runners = append([]runnerselection.Runner{}, input.Runners...)
-	if len(input.Runners) != 1 || input.Runners[0].Name != "playwright" || input.Head != inv.Key.Checkout || input.Runners[0].Identity.ConfigurationDigest != inv.Key.ConfigDigest || input.Runners[0].Identity.RunnerVersion != rsp.Discovery.Version || input.Runners[0].Execution.OS != inv.Key.OS || input.Runners[0].Execution.Architecture != inv.Key.Arch {
-		return fail("inventory-key-mismatch")
-	}
-	input.Runners[0].Inventory = inv
-	plan := runnerselection.Select(input)
 	// T2 is explicitly shadow-only. Even supplied qualification cannot activate
 	// a second enforcing selector here; promotion belongs to the shared rollout.
-	for _, p := range plan.Runners {
-		for _, reason := range p.Reasons {
-			out.Fallback = append(out.Fallback, E2EFallback{Code: CodeExclusionUnproven, Subject: reason})
-		}
+	for _, reason := range res.Reasons {
+		out.Fallback = append(out.Fallback, E2EFallback{Code: CodeExclusionUnproven, Subject: reason})
 	}
 	if len(out.Fallback) == 0 {
 		out.Fallback = append(out.Fallback, E2EFallback{Code: CodeExclusionUnproven, Subject: "runner-selection-shadow"})
