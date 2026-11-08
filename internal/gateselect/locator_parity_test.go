@@ -79,7 +79,7 @@ func TestBoundedJoinLocatorParity_AFPV02950(t *testing.T) {
 		"joiner/joiner_test.go": "package joiner\n",
 		"aliased/aliased.go":    "package aliased\n\nimport (\n\tsystem \"os\"\n\tfp \"path/filepath\"\n)\n\nfunc F() bool { var cwd string; var err error; cwd, err = system.Getwd(); if err != nil { return false }; _, err = system.Stat(fp.Join(cwd, \"docs/guide.md\")); return err == nil }\n",
 		"aliased/a_test.go":     "package aliased\n",
-		"rebound/rebound.go":    src("rebound", "func F(given string) []byte { root := given; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
+		"rebound/rebound.go":    src("rebound", "func F(given string) []byte { root := \"\"; if root == \"\" { var err error; root, err = os.Getwd(); if err != nil { return nil } }; b, _ := os.ReadFile(filepath.Join(root, \"docs\", \"guide.md\")); return b }"),
 		"bound/bound.go":        src("bound", "func F() int { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); if docs == \"/\" { return 0 }; var guide = filepath.Join(cwd, \"docs\", \"guide.md\"); os.Stat(guide); entries, _ := os.ReadDir(docs); return len(entries) }"),
 		"bound/b_test.go":       "package bound\n",
 		"widened/widened.go":    src("widened", "func F() []byte { cwd, _ := os.Getwd(); docs := filepath.Join(cwd, \"docs\"); b, _ := os.ReadFile(filepath.Join(filepath.Dir(filepath.Dir(docs)), \"config.go\")); return b }"),
@@ -296,4 +296,19 @@ func containsString(values []string, value string) bool {
 		}
 	}
 	return false
+}
+
+// AFP-V0-2950: both proofs retain unknown initializers, cold and memoized.
+func TestUnprovenInitializerParity_AFPV02950(t *testing.T) {
+	for _, initializer := range []string{`os.Getenv("DATA_ROOT")`, `mystery()`, `given`} {
+		t.Run(initializer, func(t *testing.T) {
+			root := writeFixture(t, map[string]string{
+				"go.mod":                 "module example.com/fixture\n\ngo 1.22\n",
+				"reader/r.go":            "package reader\nimport (\"os\"; \"path/filepath\")\nfunc F(given string) { root := " + initializer + `; var err error; if root == "" { root, err = os.Getwd() }; _ = err; os.ReadFile(filepath.Join(root, "config.go")) }`,
+				"reader/r_test.go":       "package reader\n",
+				"other/nested/config.go": "package nested\n",
+			})
+			agree(t, root, []string{"reader"})
+		})
+	}
 }
