@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -119,6 +121,20 @@ func listArgs(hidden []string) []string {
 		}
 	}
 	return append(args, fullArgs(hidden)...)
+}
+
+// writeSortedPackages prints `go list` output as sorted import paths, one per
+// line: the wildcard lists visible packages before the appended hidden ones
+// (AFP-V0-9012), so `--mode packages` sorts the combined list.
+func writeSortedPackages(w io.Writer, listed []byte) error {
+	packages := strings.Fields(string(listed))
+	sort.Strings(packages)
+	for _, p := range packages {
+		if _, err := fmt.Fprintln(w, p); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // goUniverse is `go list` of the FULL argv in the execution build context:

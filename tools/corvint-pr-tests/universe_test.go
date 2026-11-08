@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -38,5 +39,18 @@ func TestHiddenPackageDirs_AFPV09012(t *testing.T) {
 	}
 	if err := fullReceiptArgs([]string{"./..."}, nil); err == nil {
 		t.Fatal("receipt admitted without the target tree")
+	}
+}
+
+// AFP-V0-9012: --mode packages prints the visible and appended hidden
+// packages as one sorted list, not in go list's argument order.
+func TestWriteSortedPackages_AFPV09012(t *testing.T) {
+	var out bytes.Buffer
+	listed := "example.org/m/a\nexample.org/m/b\nexample.org/m/.hidden\nexample.org/m/_tools\n"
+	if err := writeSortedPackages(&out, []byte(listed)); err != nil {
+		t.Fatal(err)
+	}
+	if want := "example.org/m/.hidden\nexample.org/m/_tools\nexample.org/m/a\nexample.org/m/b\n"; out.String() != want {
+		t.Fatalf("packages = %q, want %q", out.String(), want)
 	}
 }
