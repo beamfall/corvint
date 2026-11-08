@@ -861,7 +861,13 @@ func moduleOf(name string) (string, error) {
 func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
 	args := []string{"test", "--base", base, "--dry-run", "--manifest", manifestPath}
 	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
-		args = append(args, "--profile", "ci")
+		// CI planning requires an absolute wrapper path even in dry-run mode.
+		// It only appears in planned argv; no wrapper is created or executed.
+		confine, err := filepath.Abs(filepath.Join(dir, "test-confine"))
+		if err != nil {
+			return err
+		}
+		args = append(args, "--profile", "ci", "--confine", confine)
 	}
 	_, err := run(ctx, dir, corvint, args...)
 	var exit *exec.ExitError
