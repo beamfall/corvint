@@ -72,7 +72,12 @@ func checkMachineCatalog(root string, offlineNames []string) []Finding {
 	if err != nil {
 		return append(findings, Finding{"malformed", sectionTools, machineCatalogPath, err.Error()})
 	}
+	standaloneNames, err := standaloneToolNames(filepath.Join(root, "cmd"))
+	if err != nil {
+		return append(findings, Finding{"malformed", sectionTools, machineCatalogPath, err.Error()})
+	}
 	names := append(inv.Tools, offlineNames...)
+	names = append(names, standaloneNames...)
 	slices.Sort(names)
 	return append(findings, machineToolFindings(slices.Compact(names), catalog.MCPTools)...)
 }
