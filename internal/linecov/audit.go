@@ -11,11 +11,18 @@ import (
 	"strings"
 )
 
-// collectorOverlay initializes runtime/coverage before test windows and observes
-// every os/exec launch, including a prebuilt or GOFLAGS-cleared child. Unknown
-// launchers fail closed: absence of child counters alone never proves completeness
+// collectorOverlay initializes runtime/coverage before test windows, observes
+// every os/exec launch, including a prebuilt or GOFLAGS-cleared child, and
+// reports every inherited environment read (GLS-V0-017). Unknown launchers
+// fail closed: absence of child counters alone never proves completeness
 // (LPCV-V0-954). The patches are scratch copies of this toolchain's sources.
 func collectorOverlay(work, overlay, module string) (string, error) {
+	// Only these targets compile the exact syscall implementation audited below.
+	switch runtime.GOOS {
+	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris", "illumos", "aix":
+	default:
+		return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", filepath.Join(runtime.GOROOT(), "src", "syscall", "env_unix.go"))
+	}
 	var o struct{ Replace map[string]string }
 	o.Replace = map[string]string{}
 	collectorPath := filepath.Join(work, "collector-overlay.json")
@@ -28,9 +35,27 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 			return "", e
 		}
 	}
-	edits := []struct{ path, old, new, tail string }{
-		{"internal/coverage/cfile/hooks.go", "if istest {", "if istest && os.Getenv(\"CORVINT_LINECOV_WINDOWS\") == \"\" {", ""},
-		{"os/exec/exec.go", "func (c *Cmd) Start() error {", "func (c *Cmd) Start() error {\ncorvintLinecovAudit(c)", strings.NewReplacer("CORVINT_MODULE_PATTERN", strconv.Quote(module+"/..."), "CORVINT_COLLECTOR_OVERLAY", strconv.Quote(collectorPath)).Replace(auditHelper)},
+	edits := []struct {
+		path    string
+		replace [][2]string // each old occurs exactly once
+		tail    string
+	}{
+		{path: "internal/coverage/cfile/hooks.go", replace: [][2]string{
+			{"if istest {", "if istest && os.Getenv(\"CORVINT_LINECOV_WINDOWS\") == \"\" {"},
+			{`import "internal/runtime/exithook"`, `import "internal/runtime/exithook"` + "\nimport \"os\""},
+		}},
+		{path: "os/exec/exec.go", replace: [][2]string{
+			{"func (c *Cmd) Start() error {", "func (c *Cmd) Start() error {\ncorvintLinecovAudit(c)"},
+			{"import (", "import (\ncorvintLCBuild \"debug/buildinfo\"\ncorvintLCFlag \"flag\"\ncorvintLCHash \"crypto/sha256\"\ncorvintLCHex \"encoding/hex\""},
+			{"func (c *Cmd) Wait() error {", "func (c *Cmd) Wait() (corvintLinecovWaitErr error) {\ndefer func() { corvintLinecovBuilt(c, corvintLinecovWaitErr) }()"},
+			{"type Cmd struct {", "type Cmd struct {\ncorvintLinecovProof func()\ncorvintLinecovReference bool"},
+		}, tail: strings.NewReplacer("CORVINT_MODULE_PATTERN", strconv.Quote(module+"/..."), "CORVINT_COLLECTOR_OVERLAY", strconv.Quote(collectorPath)).Replace(auditHelper)},
+		// The inherited environment each test reads (GLS-V0-017).
+		{path: "os/env.go", replace: envEdits},
+		{path: "syscall/env_unix.go", replace: [][2]string{
+			{"func Getenv(key string) (value string, found bool) {", "func CorvintLinecovGetenvQuiet(key string) (value string, found bool) {"},
+			{"func Environ() []string {", "func CorvintLinecovEnvironQuiet() []string {"},
+		}, tail: syscallEnvHelper},
 	}
 	for i, e := range edits {
 		p := filepath.Join(runtime.GOROOT(), "src", e.path)
@@ -38,24 +63,12 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if strings.Count(string(src), e.old) != 1 {
-			return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
-		}
-		s := strings.Replace(string(src), e.old, e.new, 1)
-		if i == 0 {
-			s = strings.Replace(s, `import "internal/runtime/exithook"`, `import "internal/runtime/exithook"`+"\nimport \"os\"", 1)
-		} else {
-			s = strings.Replace(s, "import (", "import (\ncorvintLCBuild \"debug/buildinfo\"\ncorvintLCFlag \"flag\"\ncorvintLCHash \"crypto/sha256\"\ncorvintLCHex \"encoding/hex\"", 1)
-			wait := "func (c *Cmd) Wait() error {"
-			if strings.Count(s, wait) != 1 {
+		s := string(src)
+		for _, r := range e.replace {
+			if strings.Count(s, r[0]) != 1 {
 				return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
 			}
-			s = strings.Replace(s, wait, "func (c *Cmd) Wait() (corvintLinecovWaitErr error) {\ndefer func() { corvintLinecovBuilt(c, corvintLinecovWaitErr) }()", 1)
-			decl := "type Cmd struct {"
-			if strings.Count(s, decl) != 1 {
-				return "", fmt.Errorf("linecov: unsupported-collector-toolchain: %s", p)
-			}
-			s = strings.Replace(s, decl, decl+"\ncorvintLinecovProof func()\ncorvintLinecovReference bool", 1)
+			s = strings.Replace(s, r[0], r[1], 1)
 		}
 		dst := filepath.Join(work, fmt.Sprintf("stdlib-%d.go", i))
 		if err := os.WriteFile(dst, []byte(s+e.tail), 0600); err != nil {
@@ -63,6 +76,12 @@ func collectorOverlay(work, overlay, module string) (string, error) {
 		}
 		o.Replace[p] = dst
 	}
+	// The env audit helper is a file added to package os.
+	helper := filepath.Join(work, "stdlib-env.go")
+	if err := os.WriteFile(helper, []byte(envHelper), 0600); err != nil {
+		return "", err
+	}
+	o.Replace[filepath.Join(runtime.GOROOT(), "src", "os", "corvint_linecov_env.go")] = helper
 	b, _ := json.Marshal(o)
 	p := filepath.Join(work, "collector-overlay.json")
 	return p, os.WriteFile(p, b, 0600)
@@ -89,7 +108,7 @@ func corvintLinecovAudit(c *Cmd) {
    if s.Key == "-cover" && s.Value == "true" { covered = true }
   }
   env := c.Env
-  if env == nil { env = os.Environ() }
+  if env == nil { env = os.CorvintLinecovEnvironQuiet() }
   cov := ""
   for _,kv := range env { if strings.HasPrefix(kv,"GOCOVERDIR=") { cov = strings.TrimPrefix(kv,"GOCOVERDIR=") } }
   digest := corvintLinecovDigest(c.Path)
@@ -97,9 +116,10 @@ func corvintLinecovAudit(c *Cmd) {
   if covered && digest != "" && proofErr == nil && cov == os.Getenv("GOCOVERDIR") && cov != "" {
    child,err:=os.MkdirTemp(cov,"child-")
    if err != nil { panic(err) }
-   clean:=make([]string,0,len(env)+1)
-   for _,kv:=range env{if !strings.HasPrefix(kv,"GOCOVERDIR="){clean=append(clean,kv)}}
-   c.Env=append(clean,"GOCOVERDIR="+child)
+   clean:=make([]string,0,len(env)+2)
+   for _,kv:=range env{if !strings.HasPrefix(kv,"GOCOVERDIR=") && !strings.HasPrefix(kv,"CORVINT_LINECOV_ENVSELF="){clean=append(clean,kv)}}
+   // The child's own-setting names: what this process changed for it (GLS-V0-017).
+   c.Env=append(clean,"GOCOVERDIR="+child,"CORVINT_LINECOV_ENVSELF="+os.CorvintLinecovEnvSelfFor(env))
    reason="covered-child"
    // A private directory per launch makes a second child's missing counters
    // visible even when the first completed normally.
@@ -130,7 +150,7 @@ func corvintLinecovBuildPlan(c *Cmd) func() {
  if p=="" || len(c.Args)<3 || c.Args[1]!="build" { return nil }
  info,err:=corvintLCBuild.ReadFile(c.Path)
  if err!=nil || info.Path!="cmd/go" { return nil }
- env:=c.Env; if env==nil {env=os.Environ()}
+ env:=c.Env; if env==nil {env=os.CorvintLinecovEnvironQuiet()}
  goflags:=""
  for _,kv:=range env {if strings.HasPrefix(kv,"GOFLAGS="){goflags=strings.TrimPrefix(kv,"GOFLAGS=")}}
  // Go's quoted GOFLAGS grammar is deliberately outside this bounded proof.

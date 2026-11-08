@@ -123,7 +123,7 @@ func Plan(ix *linecov.Index, static []string, drift, change linecov.Effect) (map
 			head[t.Package] = append(head[t.Package], t.Name)
 		}
 	}
-	plans, reason := ix.Narrow(static, head, drift, change)
+	plans, reason := ix.Narrow(nil, static, head, drift, change) // a candidate: no environment binding
 	for _, file := range static {
 		if head[file] == nil {
 			plans[file] = linecov.PackagePlan{Mode: linecov.Whole}

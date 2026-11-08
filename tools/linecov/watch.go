@@ -183,11 +183,11 @@ func watchSaves(ctx context.Context, root string, ix *linecov.Index, static []st
 				return err
 			}
 			effect := ix.Analyze(diffs, linecov.Reader(ctx, root, ix.Commit))
-			id, _, e := runner(root)
+			id, e := runnerLike(root, ix.Runner, "")
 			if e != nil || id != ix.Runner {
 				effect.Fallback = "runner identity changed"
 			}
-			p.Packages, p.Reason = ix.Narrow(dirs, heads, linecov.Effect{}, effect)
+			p.Packages, p.Reason = ix.Narrow(os.Environ(), dirs, heads, linecov.Effect{}, effect)
 			for _, d := range dirs {
 				pp := p.Packages[d]
 				switch pp.Mode {

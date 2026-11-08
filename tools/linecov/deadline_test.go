@@ -36,3 +36,14 @@ func TestQualificationDeadline(t *testing.T) {
 		t.Fatal("unknown deadline admitted")
 	}
 }
+
+// GLS-V0-031: a `--- FAIL:` line a test prints (another run's output) is a
+// result go test frames for a test the package has not got; only declared
+// tests fail, and a declared failure is never dropped.
+func TestDeclaredFailuresDropPhantoms(t *testing.T) {
+	heads := map[string][]string{"tools/linecov": {"TestReal"}, "p": {"TestP"}}
+	got := declaredFailures(map[string]bool{"tools/linecov.TestReal": true, "tools/linecov.TestFail": true, "p.TestP": true, "q.TestQ": true}, heads)
+	if len(got) != 2 || !got["tools/linecov.TestReal"] || !got["p.TestP"] {
+		t.Fatalf("declared failures %v", got)
+	}
+}

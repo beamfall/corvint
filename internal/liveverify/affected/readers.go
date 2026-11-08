@@ -948,6 +948,42 @@ func (candidate run) matchesAt(parts []string) bool {
 	return true
 }
 
+// Readers selects, from no prior reach, every unit the reader rules select for
+// paths: a literal or glob naming one, an unbounded reader, a declared read
+// scope or existence declaration holding one, an import-graph reader the
+// change can alter, and a declared test owner of one. It is the read reach of
+// the paths alone, apart from import and source reach, so a caller that knows
+// a change by its executed lines can still tell which units may observe the
+// changed bytes (GLS-V0-013). The units are keyed by id with the witness the
+// rule gives; a nil graph has no readers.
+func (graph *Graph) Readers(paths []string) map[string]Witness {
+	reached := make(map[string]Witness)
+	if graph == nil || len(paths) == 0 {
+		return reached
+	}
+	normalized := NormalizePaths(paths)
+	graph.importGraphReadersOf(reached, normalized)
+	graph.readers(reached, normalized)
+	graph.unboundedReadersOf(reached, graph.unboundedDirty(normalized))
+	graph.scopedReadersOf(reached, normalized)
+	graph.existenceReadersOf(reached, normalized)
+	graph.ownersOf(reached, normalized)
+	// A package embedding files under its directory reads a changed file
+	// there as data (goDataRule), whatever else reaches it.
+	packages := graph.goPackageDirectories()
+	for _, p := range normalized {
+		for directory := relativeDirectory(p); ; directory = relativeDirectory(directory) {
+			if id, present := packages[directory]; present && graph.units[id].Embeds {
+				addWitness(reached, id, Witness{Kind: WitnessEnclosingPackage, DirtyPath: p, Via: []string{id}})
+			}
+			if directory == "." {
+				break
+			}
+		}
+	}
+	return reached
+}
+
 // hiddenPackagePath identifies the Go directories newly indexed by AZU-V0-005.
 // Their source used to be unowned, so retain every testless reader's callers:
 // owning the Go file does not model a shell script that reads or executes it.
