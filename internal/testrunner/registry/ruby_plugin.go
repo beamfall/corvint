@@ -150,15 +150,13 @@ func (p *RubyPlugin) Parse(ctx context.Context, r ParseRequest) ([]tr.RunnerResu
 	if r.Runner != p.key.Runner {
 		return nil, fmt.Errorf("ruby-report-runner-mismatch")
 	}
+	// RSP-V0-003: rows returned with an error are retained failures; keep them.
 	rows, err := dynamic.RubySelectionReport(r.Runner, r.Report)
-	if err != nil {
-		return nil, err
-	}
 	out := make([]tr.RunnerResult, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, tr.RunnerResult{ID: row.ID, Outcome: strings.ToLower(row.State), Reason: row.Message})
 	}
-	return out, nil
+	return out, err
 }
 
 func (p *RubyPlugin) Evidence(ctx context.Context, r EvidenceRequest) ([]NativeEvidence, error) {

@@ -366,6 +366,50 @@ func TestRSPV0003RubyReportedSkipsAndFailures(t *testing.T) {
 	}
 }
 
+// A rejected report keeps its failed examples, so a passing FULL retry cannot
+// turn the invocation green.
+func TestRSPV0003RubyRejectedReportKeepsFailures(t *testing.T) {
+	for _, runner := range rubyRunners {
+		t.Run(runner, func(t *testing.T) {
+			p, key, report := rubyFixture(t, runner, nil)
+			in, err := p.Inventory(context.Background(), registry.InventoryRequest{Key: key, Output: report})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rejected := strings.Replace(report, `"State": "PASSED"`, `"State": "FAILED"`, 1)
+			rejected = strings.Replace(rejected, `"Count": 2`, `"Count": 3`, 1)
+			if runner == "rspec" {
+				rejected = strings.Replace(report, `"status": "passed"`, `"status": "failed"`, 1)
+				rejected = strings.Replace(rejected, `"failure_count": 0`, `"failure_count": 1`, 1)
+				rejected = strings.Replace(rejected, `"errors_outside_of_examples_count": 0`, `"errors_outside_of_examples_count": 1`, 1)
+			}
+			if rejected == report {
+				t.Fatal("fixture mutation did not apply")
+			}
+			rows, err := p.Parse(context.Background(), registry.ParseRequest{Runner: runner, Report: rejected})
+			if err == nil || len(rows) != 1 || rows[0].Outcome != "failed" {
+				t.Fatalf("%+v %v", rows, err)
+			}
+			passing, err := p.Parse(context.Background(), registry.ParseRequest{Runner: runner, Report: report})
+			if err != nil {
+				t.Fatal(err)
+			}
+			calls := 0
+			run := tr.RunInventoried(in, key, tr.PlanRunSet(in, key, nil, nil), true, func(tr.RunSet) ([]tr.RunnerResult, bool, error) {
+				calls++
+				if calls == 1 {
+					first, parseErr := p.Parse(context.Background(), registry.ParseRequest{Runner: runner, Report: rejected})
+					return first, false, parseErr
+				}
+				return passing, false, nil
+			})
+			if run.Succeeded || calls != 2 {
+				t.Fatalf("calls=%d %+v", calls, run)
+			}
+		})
+	}
+}
+
 func TestRSPV0002RubyConfigurationIgnoresStaging(t *testing.T) {
 	for _, runner := range rubyRunners {
 		t.Run(runner, func(t *testing.T) {
