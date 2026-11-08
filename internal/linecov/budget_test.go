@@ -119,7 +119,14 @@ func TestLazyPlanBudget(t *testing.T) {
 	}
 	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
 	p50, p95 := times[runs/2], times[runs*95/100]
+	// Under -race (raceScale > 1) the lazy path also decodes the 20 MB index on
+	// every run; CI's shard 1 measured p50 1.58 s and p95 2.06 s there, past
+	// 20x. Double the race factor here so the bound still catches only a gross
+	// regression; the uninstrumented 100 ms budget is unchanged.
 	budget := raceScale * 100 * time.Millisecond
+	if raceScale > 1 {
+		budget *= 2
+	}
 	if v := os.Getenv("LINECOV_PLAN_P95_BUDGET"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
