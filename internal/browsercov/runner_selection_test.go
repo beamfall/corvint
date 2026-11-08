@@ -270,6 +270,16 @@ func TestRSPV0003PlaywrightFailureSurvivesMalformedLaterResult(t *testing.T) {
 	if err == nil || len(out) != 1 || out[0].Outcome != "failed" {
 		t.Fatal(out, err)
 	}
+	// Reverse order: an unfinished earlier row (no status, an empty expected
+	// row, or an interrupted attempt under an aggregate skip) keeps the later failure.
+	for _, first := range []string{``, `,"status":"expected"`, `,"status":"skipped","results":[{"status":"interrupted"}]`} {
+		raw = strings.Replace(selectionList, `"projectName":"chromium"`, `"projectName":"chromium"`+first, 1)
+		raw = strings.Replace(raw, `"projectName":"firefox"`, `"projectName":"firefox","status":"unexpected"`, 1)
+		out, err = PlaywrightResults(d, raw)
+		if err == nil || len(out) != 1 || out[0].Outcome != "failed" || !strings.Contains(out[0].ID, "firefox") {
+			t.Fatal("later failure lost or unfinished row accepted", first, out, err)
+		}
+	}
 	raw = strings.Replace(selectionList, `"projectName":"chromium"`, `"status":"expected"`, 1)
 	in, err := PlaywrightInventory(d, raw)
 	if err == nil || in.Complete {
