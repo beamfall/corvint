@@ -32,3 +32,10 @@ func ChildEnvironmentMatchesProcess(ctx context.Context) bool {
 	}
 	return maps.Equal(effective(os.Environ()), effective(childEnvironment(ctx)))
 }
+
+// CitationEnvironment returns the exact settings Exec would give this
+// invocation. An inline citation handler must explicitly account for them;
+// comparing only the process environment misses the run-owned reuse store.
+func CitationEnvironment(ctx context.Context) []string {
+	return childEnvironment(ctx)
+}

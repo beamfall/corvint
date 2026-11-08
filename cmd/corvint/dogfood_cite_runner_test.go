@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
@@ -211,5 +213,104 @@ func TestDogfoodInProcessCitationsUnknownFormFallsBack(t *testing.T) {
 	got := dogfoodCitationRunner(binary, binary).Run(context.Background(), root, args, &gotOut, &gotErr)
 	if want != 23 || got != want || gotOut.String() != wantOut.String() || gotErr.String() != wantErr.String() {
 		t.Fatalf("unknown form bypassed child: got (%d, %q, %q), want (%d, %q, %q)", got, &gotOut, &gotErr, want, &wantOut, &wantErr)
+	}
+}
+
+// DCW-V0-8760 / V1-4851: exercise inputs-check's normal change.run context,
+// including its private reuse store, and count actual external citation calls.
+func TestDogfoodInProcessCitationsInputsCheckRunStore(t *testing.T) {
+	portable := portableDogfoodRunner(t)
+	for _, inline := range []bool{false, true} {
+		t.Run(fmt.Sprintf("inline=%t", inline), func(t *testing.T) {
+			t.Setenv("LC_ALL", "C")
+			t.Setenv(lrfrepo.StableReuseEnv, "/inherited/unused-store")
+			t.Setenv("DOGFOOD_TASK", "Answer two.")
+			t.Setenv("DOGFOOD_VERIFY", "go test ./fixture")
+			root, base := portableDogfoodRepo(t)
+			for i := 0; i < 3; i++ {
+				cemWrite(t, root, fmt.Sprintf("extra%d.txt", i), "new text\n")
+			}
+			cemGit(t, root, "add", ".")
+			cemGit(t, root, "commit", "-qm", "extra hunks")
+			head := cemGit(t, root, "rev-parse", "HEAD")
+			_, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n2\tintent.md\t5:5\tspecification\n3\tintent.md\t1:5\tspecification\n4\tintent.md\t5:5\tspecification\n", "intent.md\n")
+			flags := map[string]string{"--seal": "no"}
+			for i := 0; i < len(args); i += 2 {
+				flags[args[i]] = args[i+1]
+			}
+			children, citationChildren, probes := 0, 0, 0
+			external := dogfoodflow.Exec(portable.binary)
+			execRun := external.Run
+			external.Run = func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
+				children++
+				if inlineCitationArgs(args) {
+					citationChildren++
+				}
+				return execRun(ctx, root, args, out, errout)
+			}
+			runner := external
+			if inline {
+				runner = inlineDogfoodCitationRunner(external, portable.binary)
+			}
+			run := runner.Run
+			runner.Run = func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
+				if inlineCitationArgs(args) {
+					probes++
+					store := ""
+					for _, entry := range dogfoodflow.CitationEnvironment(ctx) {
+						if value, ok := strings.CutPrefix(entry, lrfrepo.StableReuseEnv+"="); ok {
+							store = value
+						}
+					}
+					info, err := os.Stat(store)
+					if err != nil || !info.IsDir() || store == os.Getenv(lrfrepo.StableReuseEnv) {
+						t.Fatalf("citation has no run-owned reuse directory: %q, %v", store, err)
+					}
+				}
+				return run(ctx, root, args, out, errout)
+			}
+			var out, errout bytes.Buffer
+			code, err := runDogfoodAction(context.Background(), root, "inputs-check", base, flags,
+				func(string) dogfoodflow.Runner { return runner }, &out, &errout)
+			if err != nil || code != 0 || !strings.Contains(out.String(), "prepare PASS hunks=4") {
+				t.Fatalf("inputs-check: %d %v\n%s\n%s", code, err, &out, &errout)
+			}
+			want := 4
+			if inline {
+				want = 0
+			}
+			if probes != 4 || citationChildren != want || children != 1+want {
+				t.Fatalf("probes=%d citation children=%d total children=%d; want 4, %d, %d", probes, citationChildren, children, want, 1+want)
+			}
+			if cemGit(t, root, "rev-parse", "HEAD") != head || cemGit(t, root, "status", "--porcelain", "--untracked-files=all") != "" {
+				t.Fatal("inputs-check changed HEAD or left map/probe outputs")
+			}
+			if os.Getenv("LC_ALL") != "C" || os.Getenv(lrfrepo.StableReuseEnv) != "/inherited/unused-store" {
+				t.Fatal("inputs-check changed process environment")
+			}
+		})
+	}
+}
+
+// DCW-V0-8760: only the two understood child settings may differ. Any future
+// transformation (including removal) leaves the inline handler unproven.
+func TestDogfoodInProcessCitationsUnknownEnvironmentFallsBack(t *testing.T) {
+	args := []string{"cem", "cite", "--map", "map", "--hunk", "1", "--evidence-path", "rule", "--lines", "1:1", "--relation", "specification"}
+	t.Setenv("CORVINT_FUTURE_SETTING", "parent")
+	for _, value := range []string{"child", ""} {
+		child := dogfoodflow.CitationEnvironment(context.Background())
+		filtered := []string{}
+		for _, entry := range child {
+			if !strings.HasPrefix(entry, "CORVINT_FUTURE_SETTING=") {
+				filtered = append(filtered, entry)
+			}
+		}
+		if value != "" {
+			filtered = append(filtered, "CORVINT_FUTURE_SETTING="+value)
+		}
+		var out, errout bytes.Buffer
+		if code, handled := runDogfoodCitation(context.Background(), t.TempDir(), args, filtered, &out, &errout); handled || code != 0 || out.Len() != 0 || errout.Len() != 0 {
+			t.Fatalf("unknown child transformation handled inline: %d %t %s %s", code, handled, &out, &errout)
+		}
 	}
 }
