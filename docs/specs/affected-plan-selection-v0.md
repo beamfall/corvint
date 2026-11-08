@@ -2414,3 +2414,9 @@ For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, 
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
 line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
 the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
+
+For AFP-V0-9500 and AFP-V0-9501, restore the callers' legacy `Select` and
+`SelectStructuralIndexed`/plan projection paths, remove the parity target from doc-gates,
+and roll back both trusted CI pins together. No receipt migration is needed. Until corpus
+qualification and the separate CI pin/control-plane change land, this contract is experimental;
+no measured CI saving or qualified deployment is claimed.
