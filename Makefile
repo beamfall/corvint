@@ -1062,7 +1062,7 @@ selection-baseline-check: ## Check the test-selection baseline
 
 .PHONY: selection-contract-check
 selection-contract-check: ## Replay CI and local root-Go package parity (AFP-V0-9501)
-	@$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) script/selection-contract-check.sh
+	@$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) SELECTION_BASELINE_INPUTS_BASE='$(if $(SELECTION_BASELINE_BASE),$(SELECTION_BASELINE_BASE),$(if $(filter command line environment,$(origin BASE)),$(BASE)))' script/selection-contract-check.sh
 
 # shell-test-affected runs only the shell-test steps the affected plan of BASE..worktree selects
 # (AFP-V0-2401, V1-3489): it builds corvint and tools/shell-test-select from this checkout, plans

@@ -146,9 +146,12 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   `make selection-contract-check`, via `script/selection-contract-check.sh`, SHALL replay the
   actual selector and `corvint test --profile ci --dry-run` over every selection-baseline range
   and SHALL fail on either a root-Go package difference or an undeclared scope difference.
-  `doc-gates` SHALL include this target. The check SHALL bypass result caches that do not bind
-  parity. Permitted execution differences are test-function slicing, placement/order, non-Go
-  adapters and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
+  `doc-gates` SHALL include this target. It SHALL share `selection-baseline-check`'s input
+  decision, skipping only a diff disjoint from the replayed binaries' compilation closure and the
+  driver's reads, and SHALL replay at the default parallelism. The check SHALL reuse only result
+  cache records whose key binds `SELECTION_CONTRACT_CHECK`, so a record without parity never passes.
+  Permitted execution differences are test-function slicing, placement/order, non-Go adapters
+  and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
   The workflow's separate `.github/` FULL guard is outside this package-selection comparison.
   Same-scope FULL means both run the root universe, never a zero-package narrow success.
   FULL coverage SHALL match an independent Go listing of the replayed root, including explicit
