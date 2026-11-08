@@ -4,6 +4,19 @@ package affected
 
 import "testing"
 
+// AFP-V0-9051: without a source the scanner cannot exclude linked operands.
+func TestDriverOperandWithoutSource_AFP_V0_9051(t *testing.T) {
+	for _, command := range []string{"cat INPUT", "cat -- -INPUT", "cat data/*.txt", "wc -l < INPUT", "test -f INPUT"} {
+		t.Run(command, func(t *testing.T) {
+			scan := newDriverScan()
+			scan.scanShell(command, ".", "")
+			if !scan.uncertified {
+				t.Fatal("operand certified without a source")
+			}
+		})
+	}
+}
+
 // AZU-V0-001: truncated wrapper operands must retain uncertainty instead
 // of panicking or silently claiming the command is fully understood.
 func TestDriverTruncatedWrapperOptions_AZU_V0_001(t *testing.T) {
@@ -183,6 +196,40 @@ func TestDriverStdinProgramIsComputed_AFPV02958(t *testing.T) {
 		scan.scanShell(script, ".", "example.test/m")
 		if scan.computed {
 			t.Errorf("%q: a named script or inline program became a computed invocation", script)
+		}
+	}
+}
+
+// AFP-V0-2956: only the closed set of path formats is certified as data.
+func TestDriverListOutputAllowlist_AFPV02956(t *testing.T) {
+	for _, command := range []string{
+		`go list -f 'go test {{.ImportPath}}' ./lib > /tmp/check; sh /tmp/check`,
+		`go list -f='{{printf "%s %s" "go test" .ImportPath}}' ./lib > /tmp/check; sh /tmp/check`,
+		`go list -future-format program ./lib > /tmp/check; sh /tmp/check`,
+		`go list -json ./lib > /tmp/check; sh /tmp/check`,
+		`go list -f 'go test ./{{printf "%s%s" "rea" "der"}}' ./lib > /tmp/check; sh /tmp/check`,
+	} {
+		scan := newDriverScan()
+		scan.scanShell(command, ".", "example.test/m")
+		if !scan.paths["lib"] || scan.buildPaths["lib"] {
+			t.Errorf("%q: uncertified output lost execution edge: %+v", command, scan)
+		}
+		if !scan.paths["..."] {
+			t.Errorf("%q: uncertified output must retain every possible execution owner: %+v", command, scan)
+		}
+		if !scan.computed {
+			t.Errorf("%q: uncertified output lost invocation uncertainty: %+v", command, scan)
+		}
+	}
+	for _, command := range []string{
+		`go list -f '{{.Dir}}' ./lib`,
+		`go list --f={{.ImportPath}} ./lib`,
+		`go list -tags custom -test ./lib`,
+	} {
+		scan := newDriverScan()
+		scan.scanShell(command, ".", "example.test/m")
+		if scan.paths["lib"] || !scan.buildPaths["lib"] {
+			t.Errorf("%q: certified path output lost build edge: %+v", command, scan)
 		}
 	}
 }

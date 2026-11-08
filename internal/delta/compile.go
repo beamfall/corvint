@@ -105,7 +105,14 @@ func Compile(ctx context.Context, root string, o Options) (Record, error) {
 		r.RunFullSuite = true
 		r.unknown("immutable-graph-unavailable", 1, nil)
 	} else {
-		plan := affected.Select(graph, r.ChangedPaths)
+		// The immutable base is the side the change is measured from, so the
+		// plan compares import sets as `corvint affected --base` does
+		// (AFP-V0-9011); an unreadable base leaves them unknown.
+		baseSource, baseErr := auth.RevisionFS(ctx, o.Base, affected.MaxSourceBytes)
+		if baseErr != nil {
+			baseSource = nil
+		}
+		plan := languages.SelectBetween(baseSource, source, graph, r.ChangedPaths)
 		if plan.Scope != affected.ScopeBounded {
 			r.RunFullSuite = true
 			b, _ := json.Marshal(plan.Unknown, json.Deterministic(true))

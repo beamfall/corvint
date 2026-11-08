@@ -1730,8 +1730,10 @@ shell-test: \
 # 16 GiB /tmp) it filled RAM. There it uses the home-disk cache heavy.sh uses; a CORVINT_GOCACHE
 # the caller set, and any disk default, are kept. The `make gate` ledger's CORVINT_GOCACHE stays
 # the static default STR-V0-908 resolves; GOCACHE selects no files, so the AFP-V0-054 parity holds.
+# Recursive, not immediate (AFP-V0-3127): its stat then runs only when windows-vet expands it, so
+# make reading this file runs no command and the other targets keep certified frontier claims.
 ifndef WINDOWS_VET_GOCACHE
-WINDOWS_VET_GOCACHE := $(if $(filter environment command line,$(origin CORVINT_GOCACHE)),$(CORVINT_GOCACHE),$(if $(filter tmpfs ramfs,$(shell stat -f -c %T $(patsubst %/,%,$(or $(TMPDIR),/tmp)) 2> /dev/null)),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache,$(CORVINT_GOCACHE)))
+WINDOWS_VET_GOCACHE = $(if $(filter environment command line,$(origin CORVINT_GOCACHE)),$(CORVINT_GOCACHE),$(if $(filter tmpfs ramfs,$(shell stat -f -c %T $(patsubst %/,%,$(or $(TMPDIR),/tmp)) 2> /dev/null)),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache,$(CORVINT_GOCACHE)))
 endif
 WINDOWS_VET_ENV = GOCACHE=$(WINDOWS_VET_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
 .PHONY: windows-vet

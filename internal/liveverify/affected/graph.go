@@ -235,6 +235,8 @@ type digestUnit struct {
 	ExecConsumers        []string `json:"execConsumers,omitempty"`
 	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
 	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+	// ImportGraphReadsFiles is part of the digest when set (AFP-V0-9010).
+	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitzero"`
 
 	// ExecConsumerRuns pins declared root argv by consumer file (AZU-V0-007).
 	ExecConsumerRuns map[string][]string `json:"execConsumerRuns,omitempty"`
@@ -923,6 +925,8 @@ func projectUnit(unit Unit) digestUnit {
 		ExecConsumerRuns:     unit.ExecConsumerRuns,
 		ImportGraphReads:     unit.ImportGraphReads,
 		ImportGraphReadsAll:  unit.ImportGraphReadsAll,
+		// AFP-V0-9010.
+		ImportGraphReadsFiles: unit.ImportGraphReadsFiles,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"maps"
 	"path"
 	"regexp"
@@ -38,14 +39,21 @@ var templateField = regexp.MustCompile(`\.([A-Za-z_][A-Za-z0-9_]*)`)
 var bareDot = regexp.MustCompile(`\.([^A-Za-z_]|$)`)
 
 // goListFile is what one file's `go list` calls show (AFP-V0-2200): the
-// string literals that are only arguments of a proven call, the repository
-// directories those calls list, and whether some call lists packages it does
-// not name by a literal or observes more than the import graph (all).
+// string literals that are only arguments of a confined listing (even when
+// its directory provenance is unknown), the repository
+// directories those calls list, whether some call lists packages it does not
+// name by a literal or observes more than the import graph (all), and
+// whether some call is not proven (unproven), so it may observe each
+// package's file names as well (AFP-V0-9010).
 type goListFile struct {
-	listed  map[token.Pos]bool
-	targets map[string]bool
-	all     bool
-	reader  bool
+	listed map[token.Pos]bool
+	// proven holds the byte offsets of the os/exec selectors of the
+	// proven calls, the only os/exec references observesSource allows.
+	proven   map[int]bool
+	targets  map[string]bool
+	all      bool
+	unproven bool
+	reader   bool
 }
 
 // goListCandidate reports a file whose bytes can hold a `go list` call, so
@@ -64,12 +72,15 @@ func goListCandidate(body []byte) bool {
 // targets; a pattern that is not a literal, or that matches more than one
 // directory, lists the whole module (all). A call that is not proven makes
 // the file a reader of the whole module, and its literals stay ordinary uses.
+// Unknown directory provenance alone still records the literals as listed:
+// it widens the read scope but cannot make this command run a listed binary.
 // The arguments are the call's own, or a local []string variable that is
 // only initialized by a composite literal, extended by append and passed as
 // the call's variadic argument.
-func goListScanFile(relative string, body []byte, directory string, owner module) (goListFile, error) {
-	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}}
-	file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.SkipObjectResolution)
+func goListScanFile(relative string, body []byte, directory string, owner module, builtinsProven bool) (goListFile, error) {
+	result := goListFile{listed: map[token.Pos]bool{}, targets: map[string]bool{}, proven: map[int]bool{}}
+	files := token.NewFileSet()
+	file, err := parser.ParseFile(files, relative, body, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		return result, err
 	}
@@ -146,7 +157,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 				// Not provably a `go list` call; a function that holds a
 				// "list" literal still makes the file a whole-module reader.
 				if len(bodies) != 0 && mentionsList(bodies[len(bodies)-1]) {
-					result.reader, result.all = true, true
+					result.reader, result.all, result.unproven = true, true, true
 				}
 				return true
 			}
@@ -156,21 +167,36 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 		}
 		result.reader = true
 		targets, all, proven := goListArguments(elements[1:], constants, directory, owner)
-		if bodies := enclosingBodies(functions, call); proven && len(bodies) != 0 {
+		directoryProven := true
+		// A call outside any function (a package-level command) is
+		// reachable from every file, so it is never proven.
+		bodies := enclosingBodies(functions, call)
+		if proven = proven && builtinsProven && len(bodies) != 0; proven {
 			outer := bodies[len(bodies)-1]
 			tests := map[string]bool{}
 			for _, body := range bodies {
 				maps.Copy(tests, testingParameters(signatures[body], names))
 			}
-			proven = isolatedList(outer, exec, call) && !escapes(outer, call, names, tests)
+			rootTargets, rootAll, _ := goListArguments(elements[1:], constants, owner.dir, owner)
+			proven = confinedCommand(outer, call, exec, names, func(value ast.Expr) bool {
+				directoryProven = commandDirectoryProven(value, outer, file, names, tests, relative, owner.dir, all == rootAll && maps.Equal(targets, rootTargets)) && directoryProven
+				// A directory of unknown origin widens the read scope. It
+				// cannot turn this confined listing into a binary invocation.
+				return true
+			}) && isolatedList(outer, exec, call, names) && !escapes(outer, call, names, tests)
 		}
 		if !proven {
-			result.all = true
+			result.all, result.unproven = true, true
 			return true
 		}
-		result.all = result.all || all
-		for target := range targets {
-			result.targets[target] = true
+		if directoryProven {
+			result.proven[files.Position(selector.Pos()).Offset] = true
+			result.all = result.all || all
+			for target := range targets {
+				result.targets[target] = true
+			}
+		} else {
+			result.all, result.unproven = true, true
 		}
 		for _, element := range elements {
 			ast.Inspect(element, func(node ast.Node) bool {
@@ -192,7 +218,7 @@ func goListScanFile(relative string, body []byte, directory string, owner module
 // (literalEnvironment), which cannot carry GOFLAGS=-json; and every other os/exec
 // call in body passes only string literals after its context, so no listed
 // name becomes another command's argument.
-func isolatedList(body ast.Node, exec string, list *ast.CallExpr) bool {
+func isolatedList(body ast.Node, exec string, list *ast.CallExpr, imports map[string]string) bool {
 	isolated := true
 	ast.Inspect(body, func(node ast.Node) bool {
 		if !isolated {
@@ -205,7 +231,7 @@ func isolatedList(body ast.Node, exec string, list *ast.CallExpr) bool {
 				if !ok || selector.Sel.Name != "Env" && selector.Sel.Name != "Args" {
 					continue
 				}
-				if selector.Sel.Name == "Args" || len(node.Rhs) != len(node.Lhs) || !literalEnvironment(node.Rhs[index]) {
+				if selector.Sel.Name == "Args" || len(node.Rhs) != len(node.Lhs) || !literalEnvironment(node.Rhs[index], imports) {
 					isolated = false
 				}
 			}
@@ -448,8 +474,10 @@ func testingParameters(signature *ast.FuncType, imports map[string]string) map[s
 
 // literalEnvironment reports an environment `append(os.Environ(), ...)` or
 // `[]string{...}` whose added entries are string literals, none setting
-// GOFLAGS or GOENV, which change what `go list` prints.
-func literalEnvironment(expression ast.Expr) bool {
+// GOFLAGS or GOENV, which change what `go list` prints. The Environ receiver
+// must resolve through imports to the unshadowed standard os import; any
+// other receiver or expression is outside this closed proof.
+func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
 	var entries []ast.Expr
 	switch node := expression.(type) {
 	case *ast.CallExpr:
@@ -465,7 +493,7 @@ func literalEnvironment(expression ast.Expr) bool {
 		if !ok || selector.Sel.Name != "Environ" {
 			return false
 		}
-		if qualifier, ok := selector.X.(*ast.Ident); !ok || qualifier.Name != "os" {
+		if qualifier, ok := selector.X.(*ast.Ident); !ok || imports[qualifier.Name] != "os" {
 			return false
 		}
 		entries = node.Args[1:]
@@ -804,11 +832,36 @@ func mentionsList(body ast.Node) bool {
 	return found
 }
 
+// unshadowedPredeclared is the package-wide prerequisite for every proof
+// relying on builtin calls or conversions (AFP-V0-2200, AFP-V0-9010), including
+// append in argument and environment slices. Only predeclared names with no
+// declaration or import shadow anywhere in the unit are certified. Scope is
+// deliberately over-approximated, including fields and separate test packages.
+// Unreadable or unparseable files and dot imports cannot certify identity.
+func unshadowedPredeclared(body []byte) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), "", body, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, name := range declaredNames(file) {
+		if types.Universe.Lookup(name) != nil {
+			return false
+		}
+	}
+	for name := range importNames(file.Imports) {
+		if name == "." || types.Universe.Lookup(name) != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // goListUnits sets each unit's import-graph edges (AFP-V0-2200) from its
 // files' `go list` calls, and returns, by unit index and file, the scans
 // whose listed literals literalExecs then does not count as command uses. A
 // target directory that holds no observed package makes the unit a reader of
-// the whole module.
+// the whole module. A reader that is not proven (a call, or observesSource
+// for any of its files, AFP-V0-9010) reads the whole module and its source.
 func goListUnits(root *affected.Source, units []affected.Unit, directories []string, owners map[string]module) []map[string]goListFile {
 	byDirectory := make(map[string]string, len(units))
 	for index, directory := range directories {
@@ -818,15 +871,19 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 	for index := range units {
 		owner := owners[directories[index]]
 		reads := map[string]bool{}
-		all, reader, environment := false, false, false
+		all, unproven, reader, environment := false, false, false, false
+		builtinsProven := true
 		files := append(append([]string(nil), units[index].Sources...), units[index].Tests...)
 		bodies := make(map[string][]byte, len(files))
 		for _, relative := range files {
 			if body, err := root.Read(relative); err == nil {
 				bodies[relative] = body
+				builtinsProven = builtinsProven && unshadowedPredeclared(body)
 				// A package that names the go command's environment can
 				// set GOFLAGS (or a GOENV file holding it) for every call.
 				environment = environment || bytes.Contains(body, []byte("GOFLAGS")) || bytes.Contains(body, []byte("GOENV"))
+			} else {
+				builtinsProven = false
 			}
 		}
 		for _, relative := range files {
@@ -834,7 +891,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			if !read || !goListCandidate(body) {
 				continue
 			}
-			scan, err := goListScanFile(relative, body, directories[index], owner)
+			scan, err := goListScanFile(relative, body, directories[index], owner, builtinsProven)
 			if err != nil {
 				continue
 			}
@@ -842,7 +899,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 				continue
 			}
 			if environment {
-				scan = goListFile{reader: true, all: true}
+				scan = goListFile{reader: true, all: true, unproven: true}
 			}
 			if scans[index] == nil {
 				scans[index] = map[string]goListFile{}
@@ -850,6 +907,7 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 			scans[index][relative] = scan
 			reader = true
 			all = all || scan.all
+			unproven = unproven || scan.unproven
 			for target := range scan.targets {
 				id, observed := byDirectory[target]
 				if !observed {
@@ -862,7 +920,18 @@ func goListUnits(root *affected.Source, units []affected.Unit, directories []str
 		if !reader {
 			continue
 		}
+		// A reader whose files may observe metadata or source text by
+		// another channel, or that cannot all be read, is unproven too.
+		for _, relative := range files {
+			if unproven {
+				break
+			}
+			body, read := bodies[relative]
+			unproven = !read || observesSource(root, relative, body, scans[index][relative].proven)
+		}
+		all = all || unproven
 		units[index].ImportGraphReadsAll = all
+		units[index].ImportGraphReadsFiles = unproven
 		if !all {
 			units[index].ImportGraphReads = sortedKeys(reads)
 		}

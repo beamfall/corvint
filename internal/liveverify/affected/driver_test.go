@@ -265,15 +265,24 @@ func TestDriverImplicitGoPackage_AZU_V0_9701(t *testing.T) {
 }
 
 // AZU-V0-9702: alternatives must not turn ./$(PKG) into ./left right,
-// silently losing the package named by make's final assignment.
+// silently losing the package named by make's final assignment. Since
+// AFP-V0-3121 every alternative is expanded as one complete value, so the
+// recipe keeps the exact edge of each value make can leave in PKG; a go
+// package command is then no computed site. The script case runs a
+// repository script whose reads the graph does not bound, so it stays a
+// computed site that claims every dirty path (AFP-V0-3122).
 func TestDriverAlternativeMakeValues_AZU_V0_9702(t *testing.T) {
-	for _, tc := range []struct{ name, assignments, recipe, dirty string }{
-		{"reassigned", "PKG = left\nPKG = right\n", "go test ./$(PKG)", "right/right.go"},
-		{"conditional", "ifeq ($(MODE),left)\nPKG = left\nelse\nPKG = right\nendif\n", "go test ./$(PKG)", "right/right.go"},
-		{"suffix", "PKG = left\nPKG = right\n", "go test ./$(PKG)/...", "right/right.go"},
-		{"script", "PKG = left\nPKG = right\n", "sh ./$(PKG)/check.sh", "core/core.go"},
-		{"same-value", "PKG = right\nPKG = right\n", "go test ./$(PKG)", "right/right.go"},
-		{"same-value-append-suffix", "PKG = ./left\nPKG += ./left\n", "go test $(PKG)_suffix", "left/left.go"},
+	for _, tc := range []struct {
+		name, assignments, recipe, dirty, unrelated string
+		computed                                    bool
+	}{
+		{"reassigned", "PKG = left\nPKG = right\n", "go test ./$(PKG)", "right/right.go", "left/left.go", false},
+		{"conditional", "ifeq ($(MODE),left)\nPKG = left\nelse\nPKG = right\nendif\n", "go test ./$(PKG)", "right/right.go", "core/core.go", false},
+		{"conditional-left", "ifeq ($(MODE),left)\nPKG = left\nelse\nPKG = right\nendif\n", "go test ./$(PKG)", "left/left.go", "core/core.go", false},
+		{"suffix", "PKG = left\nPKG = right\n", "go test ./$(PKG)/...", "right/right.go", "left/left.go", false},
+		{"script", "PKG = left\nPKG = right\n", "sh ./$(PKG)/check.sh", "right/check.sh", "core/core.go", true},
+		{"same-value", "PKG = right\nPKG = right\n", "go test ./$(PKG)", "right/right.go", "left/left.go", false},
+		{"same-value-append-suffix", "PKG = ./left\nPKG += ./left\n", "go test $(PKG)_suffix", "left/left.go", "right/right.go", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			graph := driverGraph(t, map[string]string{
@@ -283,13 +292,19 @@ func TestDriverAlternativeMakeValues_AZU_V0_9702(t *testing.T) {
 				"left_suffix/suffix.go":    "package left_suffix\n",
 				"right/right.go":           "package right\n",
 				"right/right_test.go":      "package right\nimport \"testing\"\nfunc TestRight(t *testing.T) {}\n",
+				"right/check.sh":           "#!/bin/sh\n",
 				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make check\n",
 			}, nil)
-			selected := driverSelected(t, affected.Select(graph, []string{tc.dirty}))
+			selected := driverSelections(affected.Select(graph, []string{tc.dirty}))
 			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", jobUnit}, nil)
-			unit, found := graph.Unit("driver:make:Makefile#check")
-			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
-				t.Errorf("ambiguous recipe did not retain computed-site fallback")
+			selected = driverSelections(affected.Select(graph, []string{tc.unrelated}))
+			if tc.computed {
+				wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", jobUnit}, nil)
+			} else {
+				wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", jobUnit})
+			}
+			if got := computedSite(t, graph, "driver:make:Makefile#check"); got != tc.computed {
+				t.Errorf("computed site = %v, want %v", got, tc.computed)
 			}
 		})
 	}
@@ -318,26 +333,44 @@ func TestDriverFlowSteps_AZU_V0_9703(t *testing.T) {
 }
 
 // AZU-V0-9850: approximate word selection loses attached prefixes/suffixes.
+// Since AFP-V0-3121 these functions are evaluated exactly over definite
+// values, so the edge is the complete word GNU make produces and no computed
+// site remains. A word selected from a wholly environment-supplied value is
+// that value or nothing: `go test ./<value>_test` imports every owner, but
+// the value can split into more words, a `-exec` among them, so the go
+// command is not certified and check stays a site (AFP-V0-3128). Over a mix
+// of literal and environment-supplied values, or an environment-supplied
+// index or search string, the function still retains the computed
+// invocation. Either way check is selected on any dirty path.
 func TestDriverMakeFunctionsComputed_AZU_V0_9850(t *testing.T) {
-	for _, expression := range []string{
-		"$(join pkg,_test)", "$(firstword pkg other)_test", "$(lastword other pkg)_test",
-		"$(word 2,other pkg)_test", "$(wordlist 2,2,other pkg)_test",
-		"$(filter pkg,other pkg)_test", "$(filter-out other,other pkg)_test",
-		"$(if yes,pkg,other)_test", "$(or pkg,other)_test", "$(and other,pkg)_test",
-		"$(findstring absent,pkg)pkg_test",
+	for _, tc := range []struct {
+		expression        string
+		computed, anyPath bool
+	}{
+		{"$(join pkg,_test)", false, false}, {"$(firstword pkg other)_test", false, false}, {"$(lastword other pkg)_test", false, false},
+		{"$(word 2,other pkg)_test", false, false}, {"$(wordlist 2,2,other pkg)_test", false, false},
+		{"$(filter pkg,other pkg)_test", false, false}, {"$(filter-out other,other pkg)_test", false, false},
+		{"$(if yes,pkg,other)_test", false, false}, {"$(or pkg,other)_test", false, false}, {"$(and other,pkg)_test", false, false},
+		{"$(findstring absent,pkg)pkg_test", false, false}, {"$(filter %kg,other pkg)_test", false, false},
+		{"$(firstword $(PKGS))_test", true, true}, {"$(filter pkg,$(PKGS))_test", true, true},
+		{"$(join pkg,$(SUFFIX))", true, true}, {"$(firstword $(PKGS) pkg)_test", true, true},
+		{"$(word $(N),other pkg)_test", true, true}, {"$(findstring pkg,$(PKGS))_test", true, true},
 	} {
-		t.Run(expression, func(t *testing.T) {
+		t.Run(tc.expression, func(t *testing.T) {
 			graph := driverGraph(t, map[string]string{
-				"Makefile":                 "check:; go test ./" + expression + "\nall: check\n",
+				"Makefile":                 "check:; go test ./" + tc.expression + "\nall: check\n",
 				"pkg_test/value.go":        "package pkg_test\n",
 				"pkg_test/value_test.go":   "package pkg_test\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n",
 				".github/workflows/ci.yml": "jobs:\n  unit:\n    steps:\n      - run: make all\n",
 			}, nil)
 			selected := driverSelected(t, affected.Select(graph, []string{"pkg_test/value.go"}))
 			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", makeAll, jobUnit}, nil)
-			unit, found := graph.Unit("driver:make:Makefile#check")
-			if !found || !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation) {
-				t.Error("function did not retain computed-site fallback")
+			if got := computedSite(t, graph, "driver:make:Makefile#check"); got != tc.computed {
+				t.Errorf("computed site = %v, want %v", got, tc.computed)
+			}
+			selected = driverSelected(t, affected.Select(graph, []string{"core/core.go"}))
+			if _, hit := selected["driver:make:Makefile#check"]; hit != tc.anyPath {
+				t.Errorf("an unrelated change selects check = %v, want %v", hit, tc.anyPath)
 			}
 		})
 	}
