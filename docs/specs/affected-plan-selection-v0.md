@@ -2042,7 +2042,7 @@ one list, so a later class cannot reopen it.
   construct not positively understood. Existing path scanning MAY continue after abstention;
   it SHALL NOT reauthorize narrowing. Revocation restores every provisional computed reason.
 
-  A skipped here-doc body containing `$(`, a backtick or `${` SHALL retain a computed fallback,
+  A skipped here-doc body containing `$(`, a backtick, `${` or `$[` SHALL retain a computed fallback,
   even with a quoted delimiter, no referenced local, or no provisional narrowing. Parsed
   here-doc parameter uses SHALL also prevent local narrowing. A local used in any command,
   operand or redirection stays computed (`shell:local-referenced`); code-bearing references
@@ -2239,7 +2239,7 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
 `TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
-opaque scopes and unsupported/incomplete syntax; `TestDriverReviewCounterexamples_AFP_V0_9628`
+opaque scopes and unsupported/incomplete syntax (including here-doc `$[n]`); `TestDriverReviewCounterexamples_AFP_V0_9628`
 holds both decodings of a backslashed here-doc delimiter computed. The existing AFP-V0-9621 through AFP-V0-9628
 cases remain the compatibility floor, with conditional assignment and unused-loop positives
 changed deliberately. Evidence and the convergence-cap decision are in

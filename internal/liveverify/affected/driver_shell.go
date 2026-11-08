@@ -363,8 +363,9 @@ func (s *driverShellScanner) script(script, cwd string) {
 					break
 				}
 				body := lines[index]
-				if driverSubstitutes(body) || strings.Contains(body, "${") {
-					// A skipped body can execute code or assign a parameter.
+				if driverSubstitutes(body) || strings.Contains(body, "${") || strings.Contains(body, "$[") {
+					// A skipped body can execute code, evaluate arithmetic or
+					// assign a parameter.
 					// Quoted delimiters deliberately get the same fallback.
 					s.scan.markComputed("shell:heredoc-substitution")
 					s.scan.revoke("shell:heredoc-substitution")
