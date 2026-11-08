@@ -2255,6 +2255,9 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		if err != nil {
 			return nil, snapshotAffectedError()
 		}
+		// The snapshot pins its base, so the plan compares import sets as
+		// a --base plan does (AFP-V0-2202, AFP-V0-9011).
+		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, invocation.Root, root, snapshot.Base, graph, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
 		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
