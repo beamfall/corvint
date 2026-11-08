@@ -93,3 +93,35 @@ earlier figure of 45 make units was measured on an older base. The plan remains 
 
 Revert this commit: the analyzer rule, the checked operand, the `CHECKOUT` metadata field and the
 restored unbounded-reader records go back together.
+
+## Fix round 1 (independent review, five P2 findings)
+
+- Guard rewrites the analyzer could not see: `hostEnvironmentSource` now also refuses, anywhere in
+  the file, a `trap` other than a listing, a reset or an EXIT/INT/TERM/HUP/QUIT handler whose text
+  lexes to definition- and assignment-free commands that each run a file-defined function, an inert
+  builtin or a literally named external command (a DEBUG trap could redefine `command` before the
+  source line); any mention of `command_not_found_handle`; and any `PERL`-prefixed variable name
+  longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other `PERL5*`), plus `LD_`/`DYLD_` loader
+  names, which are the same class (perl loading chosen code). Mentions are matched in the raw text
+  so assignments built in strings or prose also fail closed. heavy.sh's own EXIT, INT/TERM/HUP and
+  reset traps pass the narrower rule, so the real script stays bounded.
+- Hard links: the validator now refuses a file whose link count is above 1, since a path check
+  cannot see a second name inside a checkout. heavy.sh and `hostEnvironmentOperand` carry the same
+  new line byte for byte.
+- `script/lane-scripts_test.sh --heavy-host-env-only` adds two refusals with their expected reason:
+  a file in an unrelated `git init` directory outside every excluded root (the `.git` walk on its
+  own) and a hard link outside every checkout to a checkout file (the link-count rule on its own).
+- `.corvint/unbounded-readers.json`: the `script/lane-scripts_test.sh` reason no longer claims a
+  dynamic HEAVY_REMOTE_ENV source; only the sourced temporary copy remains.
+- AFP-V0-553 no longer claims the two heavy.sh tests stay selected for an unrelated edit; AFP-V0-3340
+  to 3342 state the new refusals and the hard-link rule.
+
+Evidence (fix round): `TestHostEnvironmentSource_AFPV03341` 32 subtests pass (15 new: inert traps
+admitted; DEBUG, RETURN, signal-rewrite, EXIT-source, eval, dynamic-command and assignment traps,
+four PERL variable forms, both `command_not_found_handle` forms and a removed link check refused);
+`TestRepositoryScriptsAreBoundedSources_V14283` passes on the real heavy.sh; the host-environment
+lane test reports 18 cases.
+
+Residual: a variable name assembled at run time (for example `declare "$name=..."` or a nameref) is
+not matched by the text scan; heavy.sh has no such construct, and the proof remains a static source
+path proof under the trusted host model stated above.

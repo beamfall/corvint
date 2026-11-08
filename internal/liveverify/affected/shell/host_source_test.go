@@ -34,6 +34,24 @@ func TestHostEnvironmentSource_AFPV03341(t *testing.T) {
 		{"eval", "eval \"$SETUP\"\n" + source, false},
 		{"prefix", "PERL5OPT=-Mbad " + source, false},
 		{"redirect", strings.TrimSuffix(source, " || exit 97\n") + " > out\n", false},
+		{"no-link-check", strings.ReplaceAll(source, `if (stat $file)[3] != 1`, "if 0"), false},
+		// Trap strings are not parsed as the file's commands: a DEBUG trap runs
+		// before the source line, and a signal handler can rewrite command.
+		{"inert-traps", "f() { exit 1; }\ntrap '/bin/rm -rf \"$w\"' EXIT\ntrap 'exit 130' INT TERM\ntrap 'f 143' HUP\ntrap - EXIT INT\n" + source, true},
+		{"debug-trap", "trap 'command() { printf /repo/file; }' DEBUG\n" + source, false},
+		{"return-trap", "trap 'true' RETURN\n" + source, false},
+		{"signal-trap-rewrite", "trap 'command() { printf /repo/file; }' INT\n" + source, false},
+		{"exit-trap-source", "trap '. ./setup.sh' EXIT\n" + source, false},
+		{"trap-eval", "trap 'eval \"$SETUP\"' TERM\n" + source, false},
+		{"trap-dynamic-command", "trap '$handler' INT\n" + source, false},
+		{"trap-assignment", "trap 'HOME=/repo' INT\n" + source, false},
+		// perl -MCwd and -MFile::Basename load modules through @INC and PERL5OPT.
+		{"perl5lib-export", "export PERL5LIB=/repo/lib\n" + source, false},
+		{"perl5opt-assign", "f() {\nPERL5OPT=-Mbad\n" + source + "}\n", false},
+		{"perllib-declare", "declare -x PERLLIB=/repo/lib\n" + source, false},
+		{"perl5-other", "export PERL5DB='BEGIN { require \"/repo/x\" }'\n" + source, false},
+		{"not-found-handler", "command_not_found_handle() { printf /repo/file; }\n" + source, false},
+		{"not-found-keyword", "function command_not_found_handle { printf /repo/file; }\n" + source, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

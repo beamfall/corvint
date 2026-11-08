@@ -917,6 +917,7 @@ serve() {
   [[ -n $ENVFILE ]] && { . "$(command -p perl -MCwd=realpath -MFile::Basename=dirname -e '
     my $file = realpath(shift @ARGV);
     die "host-only ENVFILE: unreadable path\n" unless defined($file) && -f $file && $file !~ /[\r\n]/;
+    die "host-only ENVFILE: hard-linked $file\n" if (stat $file)[3] != 1;
     for my $root (@ARGV) {
       $root =~ s{^~(?=/|$)}{$ENV{HOME}};
       next unless length($root) && -e $root;

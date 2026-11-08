@@ -213,8 +213,8 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   field, and a `sh -c` or `bash -c` command string held in a variable, which is parsed once for
   each value the file gives it. Any other `$(...)` part stays unknown, so it never reads as a
   literal path. Each form only adds edges. With it, `script/analyzer-schema_test.sh` and
-  `script/codex-review_test.sh` inherited `shell:dynamic-source` from `script/heavy.sh` before AFP-V0-3341 bounded its
-  host-only source, as the historical `.corvint/unbounded-readers.json` recorded, and stay selected for an unrelated edit.
+  `script/codex-review_test.sh` inherited `shell:dynamic-source` from `script/heavy.sh` until AFP-V0-3341 bounded its
+  host-only source, as the historical `.corvint/unbounded-readers.json` recorded; that inheritance no longer holds.
 
 - **AFP-V0-830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3509,
   amending `AFP-V0-160` (6) and `AFP-V0-465`) This repository's `.corvint/documentation-paths.json`
@@ -2025,7 +2025,8 @@ one list, so a later class cannot reopen it.
 - **AFP-V0-3340:** (experimental, owner-requested V1-3360, 2026-11-08) `HEAVY_REMOTE_ENV` is
   executable host-only configuration. Before sourcing it, `heavy.sh` SHALL resolve its real path
   on the consuming host and refuse with its infra error (97) if it is not a regular file, cannot
-  be resolved, contains CR/LF, lies within a Git checkout (including linked worktrees and symlink
+  be resolved, contains CR/LF, has a link count above 1 (a hard link outside every checkout can
+  name a checkout file, which no path check sees), lies within a Git checkout (including linked worktrees and symlink
   targets), or lies at/below the caller checkout, remote clone or remote worktree area. The caller
   checkout SHALL travel in generated metadata; clone and worktree roots SHALL use the remote
   HOME for tilde expansion and their existing defaults. A missing excluded root has no content to
@@ -2038,7 +2039,14 @@ one list, so a later class cannot reopen it.
   sourcing the empty operand fails. Matching SHALL retain raw quoting and every validation step,
   require exactly the source verb and operand with no prefix or redirection, outside a command
   substitution or `sh -c`/`bash -c` command string, reject a redefined `command`, `source` or `.`,
-  and reject alias/hash/enable/eval rewriting. Any other source anywhere in the file (function
+  and reject alias/hash/enable/eval rewriting. It SHALL also reject, anywhere in the file, any
+  `trap` other than a listing, a reset (`-`), or an EXIT, INT, TERM, HUP or QUIT handler whose text
+  lexes to commands without definitions or assignments that each run a function the file defines,
+  an inert builtin or a literally named external command (trap strings are otherwise unparsed, and
+  DEBUG, RETURN and ERR handlers run between ordinary commands); any mention of
+  `command_not_found_handle`, which `command -p` still runs when perl is missing; and any mention
+  of a `PERL`-prefixed variable longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other
+  `PERL5*`) or an `LD_`/`DYLD_` loader variable, which could make perl load chosen code. Any other source anywhere in the file (function
   bodies run in call order, not text order) is admitted only if TSP-V0-004 proves its fresh
   runtime metadata form. A filename or comment alone
   SHALL never grant the exemption. Any changed guard or other unresolved source stays
@@ -2046,7 +2054,8 @@ one list, so a later class cannot reopen it.
   static source-path proof under the existing trusted host tool/runtime-metadata model, not a
   sandbox for arbitrary host configuration code or concurrent hostile filesystem replacement.
 - **AFP-V0-3342:** (experimental, owner-requested V1-3360, 2026-11-08) Repository assertions and
-  unbounded-reader records SHALL reflect the checked host source. Retain independent dynamic
+  unbounded-reader records SHALL reflect the checked host source, including its hard-link,
+  trap, perl-environment and not-found-handler refusals. Retain independent dynamic
   sources and toolchain floors. The comment-only `internal/tasks/journal/anchor.go` probe SHALL
   record the before/after number of `driver:make` units whose witness cause is
   `shell:script/heavy.sh`, using a baseline binary from `origin/main` and a candidate built outside
@@ -2055,7 +2064,8 @@ one list, so a later class cannot reopen it.
 Acceptance: `TestHostEnvironmentSource_AFPV03341`, the repository heavy.sh guard-mutation
 regression `TestRepositoryScriptsAreBoundedSources_V14283`, `script/lane-scripts_test.sh
 --heavy-host-env-only` (successful load before fault injection, remote 97 and no execution side
-effect for caller/clone/worktree files and their symlinks), the unbounded-reader ratchet and
+effect for caller/clone/worktree files and their symlinks, a file in an unrelated Git checkout
+  outside every excluded root, and a hard link outside every checkout to a checkout file), the unbounded-reader ratchet and
 `docs/build-log/2026-11-08-heavy-envfile-bounded.md`. No wire format or command flag changes.
 Rollback: revert the checked operand and analyzer rule together, restore the conservative floor
 and its declarations. Non-goal: prove what trusted host configuration executes after it loads.
