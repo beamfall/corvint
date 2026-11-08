@@ -265,7 +265,9 @@ func matchReadScopes(scopes map[string][]string, units []affected.Unit, director
 	matched := 0
 	for index, directory := range directories {
 		entries, declared := scopes[directory]
-		if !declared {
+		// AFP-V0-9012: dot packages are observed, but the frozen read-scope
+		// profile still rejects directories its committed reader cannot admit.
+		if !declared || !walkedDirectory(directory) {
 			continue
 		}
 		units[index].ReadScoped, units[index].ReadScope = true, append([]string{}, entries...)

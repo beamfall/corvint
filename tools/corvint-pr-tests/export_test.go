@@ -126,6 +126,7 @@ func TestContainerRunResult(t *testing.T) {
 		e := execution{Selection: s, Exit: 1, Env: id.Env, Args: append(append([]string{}, testArgs...), s.Packages...)}
 		failure := exec.Command("sh", "-c", "exit 1").Run()
 		driverError := exec.Command("sh", "-c", "exit 2").Run()
+		noHidden := func() ([]string, error) { return nil, nil }
 		write := func() {
 			t.Helper()
 			writeJSON(filepath.Join(dir, "selection.json"), s)
@@ -134,7 +135,7 @@ func TestContainerRunResult(t *testing.T) {
 			os.WriteFile(filepath.Join(dir, "go.json"), []byte("{\"Action\":\"fail\",\"Package\":\"example.org/fixture/a\"}\n"), 0600)
 		}
 		write()
-		if code, err := containerRunResult(o, p, dir, nil, failure); code != 1 || err != nil {
+		if code, err := containerRunResult(o, p, dir, nil, failure, noHidden); code != 1 || err != nil {
 			t.Fatalf("test failure misclassified: %d %v", code, err)
 		}
 		for _, mutate := range []func(){
@@ -172,28 +173,48 @@ func TestContainerRunResult(t *testing.T) {
 		} {
 			write()
 			mutate()
-			if code, err := containerRunResult(o, p, dir, nil, failure); code != 2 || err == nil {
+			if code, err := containerRunResult(o, p, dir, nil, failure, noHidden); code != 2 || err == nil {
 				t.Fatal("invalid evidence admitted")
 			}
 		}
 		write()
 		for _, err := range []error{driverError, context.Canceled, context.DeadlineExceeded} {
-			if code, _ := containerRunResult(o, p, dir, nil, err); code != 2 {
+			if code, _ := containerRunResult(o, p, dir, nil, err, noHidden); code != 2 {
 				t.Fatal("infrastructure exit admitted")
 			}
 		}
-		if code, _ := containerRunResult(o, p, dir, map[string]string{"go.stderr": "missing"}, failure); code != 2 {
+		if code, _ := containerRunResult(o, p, dir, map[string]string{"go.stderr": "missing"}, failure, noHidden); code != 2 {
 			t.Fatal("export error admitted")
 		}
 		e.Exit = 0
 		write()
 		os.WriteFile(filepath.Join(dir, "go.json"), []byte("{\"Action\":\"pass\",\"Package\":\"example.org/fixture/a\"}\n"), 0600)
-		if code, err := containerRunResult(o, p, dir, nil, nil); code != 0 || err != nil {
+		if code, err := containerRunResult(o, p, dir, nil, nil, noHidden); code != 0 || err != nil {
 			t.Fatalf("success: %d %v", code, err)
 		}
 		os.Remove(filepath.Join(dir, "execution.json"))
-		if code, _ := containerRunResult(o, p, dir, nil, nil); code != 2 {
+		if code, _ := containerRunResult(o, p, dir, nil, nil, noHidden); code != 2 {
 			t.Fatal("unproven success admitted")
+		}
+		// AFP-V0-9012: a FULL receipt is checked against the hidden packages of
+		// the target tree, never against itself; a missing tree check refuses.
+		write()
+		os.WriteFile(filepath.Join(dir, "go.json"), []byte("{\"Action\":\"pass\",\"Package\":\"example.org/fixture/a\"}\n"), 0600)
+		treeHidden := func() ([]string, error) { return []string{"./.github/hidden"}, nil }
+		if code, err := containerRunResult(o, p, dir, nil, nil, treeHidden); code != 2 || err == nil {
+			t.Fatal("FULL receipt that skipped a hidden package admitted")
+		}
+		if code, err := containerRunResult(o, p, dir, nil, nil, nil); code != 2 || err == nil {
+			t.Fatal("FULL receipt admitted without the target tree")
+		}
+		complete := e
+		complete.Args = append(append([]string{}, testArgs...), "./...", "./.github/hidden")
+		writeJSON(filepath.Join(dir, "execution.json"), complete)
+		if code, err := containerRunResult(o, p, dir, nil, nil, treeHidden); code != 0 || err != nil {
+			t.Fatalf("complete hidden FULL receipt: %d %v", code, err)
+		}
+		if code, err := containerRunResult(o, p, dir, nil, nil, noHidden); code != 2 || err == nil {
+			t.Fatal("FULL receipt with a package outside the target tree admitted")
 		}
 	})
 }
