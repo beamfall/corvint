@@ -11,8 +11,11 @@ name: Greptile gate
 # and on workflow_dispatch with a PR number, which re-reads the state after review threads are
 # resolved (resolving a thread raises no workflow event).
 #
-# Owner waiver: a `greptile-gate` success posted by a user on the exact head (for example while
-# Greptile is out of review credits) is kept; the job posts nothing over it, like AFP-V0-171.
+# Owner waiver (V1-5096): an approver listed in WAIVER_APPROVERS below posts a success status with
+# context `greptile-gate-waiver` on the exact head (for example while Greptile is out of review
+# credits), then re-runs the gate with workflow_dispatch; the gate posts `greptile-gate` success
+# itself. A status any other writer posts is ignored. The ruleset should accept `greptile-gate`
+# only from GitHub Actions, so a hand-posted `greptile-gate` success cannot satisfy it.
 #
 # A refresh first posts `pending`, so a failed read can never leave an earlier success standing.
 # Reopening a resolved thread raises no workflow event, so a success can go stale before the PR
@@ -88,6 +91,8 @@ jobs:
           EVENT: ${{ github.event_name }}
           PR: ${{ needs.resolve.outputs.pr }}
           GROUP_SHA: ${{ github.event.merge_group.head_sha }}
+          # Logins whose greptile-gate-waiver status waives the gate; must equal ci-control-plane.yml.
+          WAIVER_APPROVERS: "Russe11"
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -129,20 +134,20 @@ jobs:
                  target="$target $queued" ;;
             esac
           fi
-          # Keep an owner waiver: the newest greptile-gate status on the PR head posted by a user. The
-          # list is newest first across every context, so read every page.
-          if ! newest=$(gh api --paginate "repos/$REPO/commits/$head/statuses?per_page=100" \
-            --jq '.[] | select(.context == "greptile-gate") | "\(.state) \(.creator.type)"' | sed -n 1p); then
-            post pending "cannot read the greptile-gate statuses of $short; re-run the gate"
+          # V1-5096 owner waiver: the newest `greptile-gate-waiver` status on the exact head posted by
+          # a login in WAIVER_APPROVERS (read from this default-branch file, so a PR cannot name
+          # itself). Its state decides: success waives, anything else withdraws. Statuses posted by
+          # any other writer, including a `greptile-gate` success, are ignored. The listing is newest
+          # first across every context, so read every page.
+          case "$WAIVER_APPROVERS" in ''|*[!A-Za-z0-9\ -]*) post pending "bad WAIVER_APPROVERS"; exit 1 ;; esac
+          approvers=$(printf '%s' "$WAIVER_APPROVERS" | tr 'A-Z' 'a-z' | jq -Rc 'split(" ") | map(select(. != ""))')
+          if ! waiver=$(gh api --paginate "repos/$REPO/commits/$head/statuses?per_page=100" \
+            --jq '.[] | select(.context == "greptile-gate-waiver") | select((.creator.login // "" | ascii_downcase) as $l | '"$approvers"' | index($l)) | "\(.state) \(.creator.login)"' | sed -n 1p); then
+            post pending "cannot read the greptile-gate-waiver statuses of $short; re-run the gate"
             exit 1
           fi
-          if [ "$newest" = "success User" ]; then
-            target=${target#"$head"}
-            if [ -z "${target// /}" ]; then
-              echo "greptile-gate: a user-posted success on $head is kept; no status posted"
-            else
-              post success "owner waiver on PR $PR head $short"
-            fi
+          if [ "${waiver%% *}" = success ]; then
+            post success "owner waiver by ${waiver#* } on PR $PR head $short"
             exit 0
           fi
           # Withdraw any earlier success before reading: a failed read below leaves this pending.
