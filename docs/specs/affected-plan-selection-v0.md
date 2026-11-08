@@ -2042,11 +2042,22 @@ one list, so a later class cannot reopen it.
   and reject alias/hash/enable/eval rewriting. It SHALL also reject, anywhere in the file, any
   `trap` other than a listing, a reset (`-`), or an EXIT, INT, TERM, HUP or QUIT handler whose text
   lexes to commands without definitions or assignments that each run a function the file defines,
-  an inert builtin or a literally named external command (trap strings are otherwise unparsed, and
-  DEBUG, RETURN and ERR handlers run between ordinary commands); any mention of
+  an inert builtin or an exact allowlisted external command: `git`, `rm`, `/bin/rm`, `rmdir` or
+  `/bin/rmdir`. For `git`, the only permitted global options are `-C <dir>` pairs and the subcommand
+  MUST be exactly `update-ref`. Each directory operand SHALL be a literal path containing only
+  letters, digits, `_`, `.`, `/`, `+` or `-` after unquoting, or the exact quoted
+  `"${clone:-/nonexistent}"` form heavy.sh uses; other expansions and globbing could inject global
+  options and SHALL be refused. All other global options (including `-c`, `--config-env` and
+  `--exec-path`) and subcommands SHALL be refused. Every other external command, including command
+  runners such as `bash`, `sh` and `env`, SHALL be refused rather than unwrapped. Trap strings are
+  otherwise unparsed, and DEBUG, RETURN and ERR handlers run between ordinary commands. It SHALL
+  also reject any mention of
   `command_not_found_handle`, which `command -p` still runs when perl is missing; and any mention
   of a `PERL`-prefixed variable longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other
-  `PERL5*`) or an `LD_`/`DYLD_` loader variable, which could make perl load chosen code. Any other source anywhere in the file (function
+  `PERL5*`) or an `LD_`/`DYLD_` loader variable, which could make perl load chosen code. Both mention
+  checks SHALL match the raw text and normalized text: first remove backslash-newline continuations,
+  then delete every single quote, double quote and backslash. Quoting or escaping a name SHALL NOT
+  evade either check. Any other source anywhere in the file (function
   bodies run in call order, not text order) is admitted only if TSP-V0-004 proves its fresh
   runtime metadata form. A filename or comment alone
   SHALL never grant the exemption. Any changed guard or other unresolved source stays

@@ -888,6 +888,11 @@ worktree_slot() {
   done
 }
 
+# Keep cleanup in a parsed function body rather than an opaque trap string.
+heavy_cleanup_run_tmp() {
+  [[ -n ${run_tmp-} ]] && { chmod -R u+rwx "$run_tmp"; /bin/rm -rf "$run_tmp"; }
+}
+
 # serve: the remote half. Reads the payload from stdin, reproduces the tree in this slot's reused
 # worktree of the remote clone, and runs the command under the remote flock semaphore. Exit 97 =
 # the remote cannot run it (the caller then runs locally).
@@ -905,7 +910,7 @@ serve() {
   w=$(command -p mktemp -d "${TMPDIR:-/tmp}/corvint-heavy-in.XXXXXX") || infra "mktemp failed"
   # shellcheck disable=SC2016 # expanded when the trap runs
   trap 'git -C "${clone:-/nonexistent}" update-ref -d "refs/heavy/$id" > /dev/null 2>&1
-    [[ -n ${run_tmp-} ]] && { chmod -R u+rwx "$run_tmp"; /bin/rm -rf "$run_tmp"; } > /dev/null 2>&1
+    heavy_cleanup_run_tmp > /dev/null 2>&1
     /bin/rm -rf "$w"' EXIT
   trap 'exit 130' INT TERM HUP
   command -p base64 -d | command -p tar -x -C "$w" || infra "payload decode failed"

@@ -125,3 +125,44 @@ lane test reports 18 cases.
 Residual: a variable name assembled at run time (for example `declare "$name=..."` or a nameref) is
 not matched by the text scan; heavy.sh has no such construct, and the proof remains a static source
 path proof under the trusted host model stated above.
+
+## Fix round 2
+
+Two confirmed P2 review findings could admit a bounded host source while executing code chosen
+elsewhere: arbitrary literal external commands in trap strings, and quoted/escaped names evading
+the raw hijack scan. The trap rule now admits only `git`, `rm`, `/bin/rm`, `rmdir` and `/bin/rmdir`
+as external verbs. Git accepts only `-C <dir>` global options and the `update-ref` subcommand;
+command runners are refused without unwrapping. Independent review caught a further option-injection
+path through expanded `-C` directory operands; these now accept only literal paths or heavy.sh's
+exact single-word quoted form, with regressions for variable, array and glob expansion. Both the not-found handler and environment-hijack
+checks match raw text and a second form with backslash-newline continuations removed first, then
+all single quotes, double quotes and backslashes deleted.
+
+The real heavy.sh EXIT trap also contained `chmod`. Its run-directory cleanup now lives in the
+file-defined `heavy_cleanup_run_tmp` function, whose body the analyzer scans, preserving cleanup
+and its redirected output without widening the external trap allowlist. Regression cases cover
+the reported command runners, Git configuration options/subcommand, split/escaped/quoted and
+continued PERL names, the split not-found handler, and both actual heavy.sh trap forms.
+
+The focused regression initially rejected the real trap after the Git directory restriction:
+`unquote` had erased its inner double quotes. Literal single-quoted handlers now retain their
+inner quoting; other encodings with expansion/escape syntax fail closed. Independent delta review
+found no remaining findings after this correction. The existing static-proof and trusted-host
+limits remain; runtime-computed variable names are still outside the text match.
+
+Verification (final code):
+
+- `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'Source|Dynamic|Bounded|Unbounded|Fresh' ./internal/liveverify/affected/shell/`: PASS on the WSL remote.
+- `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'TestRepositoryScriptsAreBoundedSources_V14283|UnboundedReaders|DynamicSource' ./internal/liveverify/affected/`: PASS; heavy.sh selected Darwin-local execution for Darwin-specific files. The real heavy.sh remains bounded.
+- `script/lane-scripts_test.sh --heavy-host-env-only`: PASS, 18 cases.
+- `make unbounded-readers-check`: PASS; retains the existing `internal/tasks/cli` extra-record notice.
+- `make spec-requirements`: PASS, no generated changes; `make spec-requirements-check`: PASS.
+- `GOTOOLCHAIN=local go vet ./internal/liveverify/affected/shell/`: PASS.
+- `gofmt -l internal/liveverify/affected/shell/host_source.go internal/liveverify/affected/shell/host_source_test.go`: PASS, no output.
+
+The sandbox denied creating the worktree Git `index.lock`, so staging in the real index and the
+requested commit remain blocked. Spec generation/checking used a temporary index/object directory
+under `/tmp`, with the changed spec staged there; no repository Git state was overwritten. Core
+context/affected ran with the installed build 133's `self-binary-stale` diagnostic retained;
+`corvint-update check --component core --allow-network` failed process-quiescence verification
+(`operation not permitted`), so freshness is UNKNOWN. Tasks commands were explicitly excluded.
