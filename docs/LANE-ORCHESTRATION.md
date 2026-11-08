@@ -1604,9 +1604,12 @@ ticket's `effects.touchPaths`. A claim may request only paths inside the anchor'
 
 ```sh
 corvint-tasks claim ANCHOR --holder lane:LANE --branch claude/LANE --base BASE \
-  --lease-minutes 180 --lock-wait 300 --scope DECLARED_PATH... --request-id ID
-corvint-tasks widen --attempt ATTEMPT --generation G --scope MEMBER_PATH... --request-id ID
+  --lease-minutes 180 --lock-wait 300 --scope DECLARED_PATH... --request-id CLAIM_ID
+corvint-tasks widen --attempt ATTEMPT --generation G --scope MEMBER_PATH... --request-id WIDEN_ID
 ```
+
+Each request takes its own request ID: reusing the claim's ID for `widen` refuses with
+`REQUEST_ID_CONFLICT`. Reuse an ID only to retry the same request.
 
 An empty union refuses the dispatch: add the paths to the ticket or pass them by hand. A
 `RESOURCE_COLLISION` refusal of either step means another lane holds an overlapping scope. The
