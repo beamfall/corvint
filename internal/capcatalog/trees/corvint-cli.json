@@ -1,0 +1,53 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-cli",
+  "helpJson": "corvint-cli help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-cli",
+    "internal/cliprofile"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-cli",
+      "summary": "usage: corvint-cli --binary BINARY [ARGS...]\nServe uniform help, catalogs, release versions and coded CLI refusals without changing native defaults.\nRequired: --binary names a shipped binary; remaining arguments belong to that binary.\nExample: corvint-cli --binary corvint-analyzer-go --help\nUse help --json after the binary for its complete command tree.\nNative execution is limited to short CLI operations (30 seconds, 1 MiB per output stream);\nprotocol/server entrypoints support discovery only. Use their native binary for protocol traffic.",
+      "usage": [
+        "corvint-cli --binary BINARY [ARGS...] [--help] [--json] [--tree] [--version] [-h]"
+      ],
+      "flags": [
+        "--binary",
+        "--help",
+        "--json",
+        "--tree",
+        "--version",
+        "-h"
+      ],
+      "required": [
+        "--binary BINARY"
+      ],
+      "example": "corvint-cli --binary BINARY",
+      "help": "corvint-cli --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-cli help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-cli help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-cli help --json",
+      "help": "corvint-cli help --help"
+    }
+  ]
+}

@@ -190,7 +190,7 @@ func TestAdoptObservationMatchesTheObservedLoader(t *testing.T) {
 	t.Parallel()
 	root := ledgerRepository(t)
 	sharedObservationStates["dirty-snapshot-present"](t, root)
-	output, err := exec.Command("git", "-C", root, "rev-parse", "--show-object-format", "HEAD", "HEAD^{tree}").Output()
+	output, err := fixtureGitCommand("-C", root, "rev-parse", "--show-object-format", "HEAD", "HEAD^{tree}").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

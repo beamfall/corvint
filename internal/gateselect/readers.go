@@ -6,6 +6,7 @@ package gateselect
 // attributed from its literals is `unresolved` and selected on any dirty path.
 
 import (
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -44,13 +45,19 @@ var rootLocatorFuncs = map[string]string{"os": "Getwd"}
 // package's own source does not carry it.
 var rootLocatorToken = "--show-" + "toplevel"
 
-var printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+var (
+	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+	// parentBackslash is the planner's (golang.parentBackslash,
+	// AFP-V0-506, AFP-V0-2242).
+	parentBackslash = strings.NewReplacer(`..\`, `../`)
+)
 
 type goPackage struct {
 	embeds         bool
 	unresolved     string   // why the package's reads are not bounded by its literals
 	locatesRoot    bool     // a non-test file is unresolved, so every dependent is too
 	movesDirectory bool     // a file moves the working directory (directoryMove)
+	command        bool     // a non-test file declares package main, so the package builds a binary
 	leafReads      []string // rule (d) reasons leafPattern exempts while no file moves it
 }
 
@@ -64,6 +71,10 @@ type repositoryIndex struct {
 	importers      map[string][]string   // directory -> directories whose non-test files import it
 	namers         map[string][]string   // directory -> directories whose non-test files name it by a path token
 	testImporters  map[string][]string   // directory -> directories whose _test.go files alone import or name it
+	nonSource      []string              // declared non-source entries (.corvint/non-source-paths.json)
+	codeRunners    map[string][]string   // command directory -> directories whose non-test files may run its binary (AFP-V0-2992)
+	testRunners    map[string][]string   // command directory -> directories whose _test.go files alone may run its binary
+	execsErr       error                 // why the binary-execs declaration was not applied; rule (d) then widens to every package
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
@@ -73,7 +84,8 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 // indexRepositoryMemo is indexRepository that reuses, through memo, the scan
 // of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
 func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
-	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
+	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}, codeRunners: map[string][]string{}, testRunners: map[string][]string{}}
+	index.nonSource = declaredNonSource(root)
 	var files []indexedFile
 	entries := 0
 	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -94,7 +106,7 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 		if entry.IsDir() {
 			return index.enterDirectory(root, relative)
 		}
-		if !strings.HasSuffix(relative, ".go") {
+		if !strings.HasSuffix(relative, ".go") || index.declaredOutput(relative) {
 			return nil
 		}
 		if !entry.Type().IsRegular() {
@@ -147,6 +159,8 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 		}
 	}
 	index.link(imports)
+	index.linkRunners()
+	index.applyBinaryExecs(root)
 	index.applyGatedLocators(root, files, recalled)
 	memo.store(root, module, recalled, results)
 	return index, nil
@@ -163,6 +177,7 @@ type indexedFile struct {
 type scannedFile struct {
 	relative, directory string
 	test                bool
+	command             bool // a non-test file whose package clause names main
 	imports             []string
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
@@ -199,11 +214,67 @@ func scanFiles(root, module string, files []indexedFile, recalled *scanRecall) [
 	return results
 }
 
+// nonSourcePath is the declaration of tracked output (AZU-V0-002); it mirrors
+// affected.NonSourcePathsPath.
+const nonSourcePath = ".corvint/non-source-paths.json"
+
+// declaredNonSource returns the declared non-source entries, or nil for a
+// missing, oversized or malformed declaration: the index then keeps every
+// file, as the planner's affected.DeclaredNonSourceHolds does.
+func declaredNonSource(root string) []string {
+	name := filepath.Join(root, filepath.FromSlash(nonSourcePath))
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > maxReadScopeBytes {
+		return nil
+	}
+	body, err := os.ReadFile(name)
+	if err != nil || len(body) > maxReadScopeBytes {
+		return nil
+	}
+	var declared struct {
+		Profile string `json:"profile"`
+		Entries []struct {
+			Path   string `json:"path"`
+			Reason string `json:"reason"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &declared, json.RejectUnknownMembers(true)); err != nil || declared.Profile != "corvint-non-source-paths/0" {
+		return nil
+	}
+	entries := make([]string, 0, len(declared.Entries))
+	for _, entry := range declared.Entries {
+		if entry.Path == "" || entry.Reason == "" {
+			return nil
+		}
+		entries = append(entries, entry.Path)
+	}
+	return entries
+}
+
+// declaredOutput reports a Go file below a directory whose name starts with
+// `.` or `_` that the repository declares non-source: retained output, not a
+// package, as in the planner's Go plugin (AZU-V0-005, AZU-V0-9921).
+func (index *repositoryIndex) declaredOutput(relative string) bool {
+	hidden := false
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		hidden = hidden || component != "." && (strings.HasPrefix(component, ".") || strings.HasPrefix(component, "_"))
+	}
+	if !hidden {
+		return false
+	}
+	for _, entry := range index.nonSource {
+		if relative == entry || (strings.HasSuffix(entry, "/") && strings.HasPrefix(relative, entry)) {
+			return true
+		}
+	}
+	return false
+}
+
 func (index *repositoryIndex) enterDirectory(root, relative string) error {
 	if relative == "" {
 		return nil
 	}
-	if hiddenDirectory(path.Base(relative)) {
+	if hiddenDirectory(relative) {
 		return filepath.SkipDir
 	}
 	if exists(filepath.Join(root, relative, "go.mod")) {
@@ -226,12 +297,17 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		scanned.err = fmt.Errorf("%s: imports do not parse", relative)
 		return scanned
 	}
+	scanned.command = !scanned.test && file.Name != nil && file.Name.Name == "main"
 	for _, spec := range file.Imports {
 		value, _ := strconv.Unquote(spec.Path.Value)
 		scanned.imports = append(scanned.imports, value)
 	}
 	aliases, dotImported := rootLocatorImports(file.Imports)
-	scanned.scan = scanSource(body, aliases, dotImported)
+	joins, _ := qualifiedImports(file.Imports, func(importPath string) bool {
+		_, join := pathJoinFuncs[importPath]
+		return join
+	})
+	scanned.scan = scanSource(body, aliases, dotImported, joins)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
 	for offset, literal := range scanned.scan.literals {
@@ -240,6 +316,11 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		if len(tokens) != start {
 			scanned.tokens[offset] = tokens[start:]
 		}
+	}
+	if len(scanned.scan.joined) != 0 {
+		// A bounded join's root-anchored token names what the join reads
+		// (AFP-V0-2950): one more token entry past the literals.
+		scanned.tokens = append(scanned.tokens, scanned.scan.joined)
 	}
 	return scanned
 }
@@ -264,6 +345,7 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 		pkg.markUnresolved(relative+" calls "+call, test)
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
+	pkg.command = pkg.command || scanned.command
 	pkg.movesDirectory = pkg.movesDirectory || scan.movesDirectory
 	for _, values := range scanned.tokens {
 		for _, value := range values {
@@ -317,6 +399,7 @@ func readBounded(name string, expected fs.FileInfo) ([]byte, error) {
 
 type sourceScan struct {
 	literals       []string
+	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
 	embeds         bool
 	movesDirectory bool // the file moves the working directory (directoryMove)
@@ -329,19 +412,27 @@ type sourceScan struct {
 // import path pulled in with `import . "path"`, whose exported names appear
 // unqualified. A blank (`_`) import brings no identifier into scope.
 func rootLocatorImports(specs []*ast.ImportSpec) (aliases map[string]string, dotImported map[string]bool) {
+	return qualifiedImports(specs, func(importPath string) bool {
+		_, ok := rootLocatorFuncs[importPath]
+		return ok
+	})
+}
+
+// qualifiedImports maps each local qualifier of an import that wanted accepts
+// (its default name, the last import path element, or its alias) to the
+// import path, and marks the ones pulled in with a dot import; it mirrors the
+// planner's qualifiedImports.
+func qualifiedImports(specs []*ast.ImportSpec, wanted func(string) bool) (aliases map[string]string, dotImported map[string]bool) {
 	aliases = map[string]string{}
 	dotImported = map[string]bool{}
 	for _, spec := range specs {
 		value, err := strconv.Unquote(spec.Path.Value)
-		if err != nil {
-			continue
-		}
-		if _, ok := rootLocatorFuncs[value]; !ok {
+		if err != nil || !wanted(value) {
 			continue
 		}
 		switch {
 		case spec.Name == nil:
-			aliases[value] = value
+			aliases[path.Base(value)] = value
 		case spec.Name.Name == ".":
 			dotImported[value] = true
 		case spec.Name.Name == "_":
@@ -357,9 +448,10 @@ func rootLocatorImports(specs []*ast.ImportSpec) (aliases map[string]string, dot
 // declarations, its root-locating calls (`os.Getwd`, under
 // whatever local name the file's own imports gave them — a plain import, an
 // alias, or a dot import), and any //go:embed directive.
-func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool) sourceScan {
+func scanSource(body []byte, aliases map[string]string, dotImported map[string]bool, joins map[string]string) sourceScan {
 	var scan sourceScan
-	comparisonOnly := comparisonOnlyLocators(body, aliases)
+	comparisonOnly, joined := comparisonOnlyLocators(body, aliases, joins)
+	scan.joined = joined
 	var lexer scanner.Scanner
 	source := token.NewFileSet().AddFile("", -1, len(body))
 	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
@@ -434,15 +526,48 @@ func importState(state int, kind token.Token) int {
 }
 
 // pathTokens splits a literal into path-shaped tokens with printf verbs
-// removed; an import path under the module becomes a root-anchored path.
+// removed. A rewrite only ever adds a token beside the written one
+// (AFP-V0-2242): an import path under the module also yields its
+// root-anchored path; a token whose `/` directly follows `<` or an
+// HTML-escaped `&lt;` (a closing tag, `</repo/lib.js>`) also yields the token
+// without that `/`, the one the planner reads first (AFP-V0-505, AFP-V0-840);
+// and a literal with a backslash after a parent component (`..\x`) also
+// yields the tokens of its rewrite to the slash the planner reads
+// (golang.parentBackslash, AFP-V0-506), after the printf verbs as there. So
+// `foo..\notes` holds the written `foo..` and `notes` and the climbing
+// `foo../notes` in both lexicons, and `..\x` holds a bare `..`.
 func pathTokens(literal, module string) []string {
 	return appendPathTokens(nil, literal, module)
 }
 
+// appendPathTokens appends pathTokens(literal, module) to tokens, so a file's
+// literals can share one backing array.
 func appendPathTokens(tokens []string, literal, module string) []string {
 	if strings.Contains(literal, "%") {
 		literal = printfVerb.ReplaceAllString(literal, " ")
 	}
+	start := len(tokens)
+	tokens = spelledTokens(tokens, literal, module)
+	rewritten := parentBackslash.Replace(literal)
+	if rewritten == literal {
+		return tokens
+	}
+	seen := make(map[string]bool, len(tokens)-start)
+	for _, value := range tokens[start:] {
+		seen[value] = true
+	}
+	for _, value := range spelledTokens(nil, rewritten, module) {
+		if !seen[value] {
+			seen[value] = true
+			tokens = append(tokens, value)
+		}
+	}
+	return tokens
+}
+
+// spelledTokens appends every spelling pathTokens keeps for each path-shaped
+// run of literal.
+func spelledTokens(tokens []string, literal, module string) []string {
 	for offset := 0; offset < len(literal); {
 		if !pathCharacter(literal[offset]) {
 			offset++
@@ -452,22 +577,48 @@ func appendPathTokens(tokens []string, literal, module string) []string {
 		for offset < len(literal) && pathCharacter(literal[offset]) {
 			offset++
 		}
-		value := literal[start:offset]
-		if value == module {
-			value = "/"
-		} else if rest, ok := strings.CutPrefix(value, module+"/"); ok {
-			value = "/" + rest
+		tokens = appendSpellings(tokens, literal[start:offset], module)
+		if literal[start] == '/' && offset > start+1 && closesTag(literal, start) {
+			tokens = appendSpellings(tokens, literal[start+1:offset], module)
 		}
-		tokens = append(tokens, value)
 	}
 	return tokens
 }
 
-// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-]. Keep
-// this attribution lexicon independent of the planner's narrower token rules.
+// pathCharacter is exactly the legacy lexicon's [A-Za-z0-9._~@+/-].
 func pathCharacter(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
 		c == '.' || c == '_' || c == '~' || c == '@' || c == '+' || c == '/' || c == '-'
+}
+
+// appendSpellings appends value as written and, for an import path under the
+// module, its root-anchored path too.
+func appendSpellings(tokens []string, value, module string) []string {
+	tokens = append(tokens, value)
+	if anchored := moduleAnchored(value, module); anchored != value {
+		tokens = append(tokens, anchored)
+	}
+	return tokens
+}
+
+// moduleAnchored turns an import path under the module into a root-anchored
+// path.
+func moduleAnchored(value, module string) string {
+	if value == module {
+		return "/"
+	}
+	if rest, ok := strings.CutPrefix(value, module+"/"); ok {
+		return "/" + rest
+	}
+	return value
+}
+
+// closesTag reports a `/` at index directly after `<` or, in any letter case,
+// the HTML entity `&lt;`: the planner's closing-tag test (AFP-V0-505,
+// AFP-V0-840).
+func closesTag(literal string, index int) bool {
+	return index > 0 && literal[index-1] == '<' ||
+		index >= len("&lt;") && strings.EqualFold(literal[index-len("&lt;"):index], "&lt;")
 }
 
 // escapesPackage names why a token read from directory's files cannot be
@@ -656,10 +807,10 @@ func (index *repositoryIndex) directoryOf(importPath string) (string, bool) {
 	return strings.CutPrefix(importPath, index.module+"/")
 }
 
-// dependents is the reverse closure of directories over importers and
-// namers, then one level of testImporters of every directory reached, seeds
-// included, excluding a seed unless an edge returns to it. It is the reach of
-// rules (a) and (b).
+// dependents is the reverse closure of directories over importers, namers
+// and code runners, then one level of testImporters of every directory
+// reached, seeds included, excluding a seed unless an edge returns to it. It
+// is the reach of rules (a) and (b).
 func (index *repositoryIndex) dependents(directories ...string) []string {
 	return index.reach(true, directories)
 }
@@ -668,14 +819,20 @@ func (index *repositoryIndex) dependents(directories ...string) []string {
 // affected, Graph.traverse and Graph.testUsersOf) over this index's edges:
 // the closure over non-test edges, namers too when withNamers, and then the
 // packages whose tests alone import or name a reached package, never expanded
-// further because their importers do not compile their tests (V1-2727).
+// further because their importers do not compile their tests (V1-2727). The
+// non-test edges include code runners: a package whose code runs a reached
+// command's binary runs its code, as the planner's code-run class does
+// (AFP-V0-2993). A run the namers relation cannot see, one declared in
+// .corvint/test-binary-execs.json, is walked too, so a changed command
+// reaches its runner's importers whatever the runner's own additive record
+// narrows (AFP-V0-3143).
 func (index *repositoryIndex) reach(withNamers bool, directories []string) []string {
 	seen := map[string]bool{}
 	queue := append([]string(nil), directories...)
 	for len(queue) > 0 {
 		next := queue[0]
 		queue = queue[1:]
-		edges := index.importers[next]
+		edges := slices.Concat(index.importers[next], index.codeRunners[next])
 		if withNamers {
 			edges = slices.Concat(edges, index.namers[next])
 		}
@@ -698,6 +855,11 @@ func (index *repositoryIndex) reach(withNamers bool, directories []string) []str
 // readers are the packages whose own files carry a path token naming
 // dirtyPath. A dependency's literal is resolved against a root or directory its
 // caller hands it; a dependency that finds the root itself is `locatesRoot`.
+// Any run of the token, a lone component included, names the path at any
+// depth: no literal index proves the root a literal is joined to, which may
+// come from the environment, a flag, a walked directory or any other
+// non-constant prefix, so no placement or file-name-only rule narrows it
+// (AFP-V0-2240, AFP-V0-2241).
 func (index *repositoryIndex) readers(dirtyPath string) []string {
 	readers := map[string]bool{}
 	for value, directories := range index.holders {
@@ -746,6 +908,19 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 	readers := map[string]bool{}
 	anchors := index.rootAnchors(dirtyPath)
 	climbs := index.climbingAnchors()
+	record, isRecord := recordDirectory(dirtyPath)
+	within := resolvesWithin
+	if isRecord {
+		// A record entry's reader resolves at or below its record
+		// directory, never to an ancestor of it (AFP-V0-2744).
+		within = func(directory, value, dirtyPath string) bool {
+			return resolvesRecord(directory, value, dirtyPath, record)
+		}
+	}
+	// joins holds, per package whose token resolves to the root or a proper
+	// ancestor of a record entry's directory, the components of the
+	// directory below each such ancestor (AFP-V0-2746).
+	joins := map[string][][]string{}
 	for value, directories := range index.holders {
 		if !namesPath(value, dirtyPath) {
 			continue
@@ -756,13 +931,105 @@ func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 		// (AFP-V0-931).
 		named := namesResolvedPath(value, dirtyPath)
 		for _, directory := range directories {
-			if resolvesWithin(directory, value, dirtyPath) ||
-				(anchors[directory] && resolvesWithin("", value, dirtyPath) && (named || climbs[directory])) {
+			fromRoot := anchors[directory] && (named || climbs[directory])
+			if within(directory, value, dirtyPath) || (fromRoot && within("", value, dirtyPath)) {
 				readers[directory] = true
+				continue
+			}
+			if !isRecord {
+				continue
+			}
+			if below, ok := recordAncestor(directory, value, dirtyPath, record); ok {
+				joins[directory] = append(joins[directory], below)
+			}
+			if below, ok := recordAncestor("", value, dirtyPath, record); ok && fromRoot {
+				joins[directory] = append(joins[directory], below)
+			}
+		}
+	}
+	for directory, components := range index.heldComponents(joins) {
+		for _, below := range joins[directory] {
+			if !slices.ContainsFunc(below, func(component string) bool { return !components[component] }) {
+				readers[directory] = true
+				break
 			}
 		}
 	}
 	return sortedKeys(readers)
+}
+
+// recordAncestor is the planner's recordAncestor (AFP-V0-2746): when value,
+// resolved against directory as resolvesWithin does, is the repository root or
+// a proper ancestor of record, it returns the components of record below it,
+// which the package's other literals must join to reach a record entry.
+func recordAncestor(directory, value, dirtyPath, record string) ([]string, bool) {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return nil, false
+	}
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	prefix := resolved + "/"
+	if prefix == "./" || prefix == "/" {
+		prefix = ""
+	}
+	if prefix == record || !strings.HasPrefix(record, prefix) {
+		return nil, false
+	}
+	return strings.Split(strings.TrimSuffix(record[len(prefix):], "/"), "/"), true
+}
+
+// heldComponents returns, for each package of joins, which of the components
+// its joins name are a whole component of one of its tokens: the planner's
+// joinsComponents over the package's holders, read in one pass over the
+// index (AFP-V0-2746).
+func (index *repositoryIndex) heldComponents(joins map[string][][]string) map[string]map[string]bool {
+	if len(joins) == 0 {
+		return nil
+	}
+	wanted := map[string]bool{}
+	held := make(map[string]map[string]bool, len(joins))
+	for directory, lists := range joins {
+		held[directory] = map[string]bool{}
+		for _, below := range lists {
+			for _, component := range below {
+				wanted[component] = true
+			}
+		}
+	}
+	for value, directories := range index.holders {
+		for component := range strings.SplitSeq(value, "/") {
+			if !wanted[component] {
+				continue
+			}
+			for _, directory := range directories {
+				if components, ok := held[directory]; ok {
+					components[component] = true
+				}
+			}
+		}
+	}
+	return held
+}
+
+// resolvesRecord is resolvesWithin for the record entry dirtyPath of the
+// record directory record (AFP-V0-2744, the planner's AFP-V0-2743): the token
+// must also resolve at or below record, so one that resolves to the
+// repository root or to a proper ancestor of record (`.corvint`, `docs`) does
+// not name the entry.
+func resolvesRecord(directory, value, dirtyPath, record string) bool {
+	if !resolvesWithin(directory, value, dirtyPath) {
+		return false
+	}
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	if resolved == "." || resolved == "" {
+		return false
+	}
+	return !strings.HasPrefix(record, resolved+"/") || resolved+"/" == record
 }
 
 // holderReaders are the packages holding a literal that, resolved against
@@ -901,11 +1168,16 @@ func (index *repositoryIndex) enclosing(dirtyPath string) []string {
 
 // unresolved maps each package whose reads no literal bounds to the reason:
 // its own root-locating file, or a dependency whose non-test code locates the
-// root and so reads from it when the package's tests call it. The dependency
-// is reached as the planner's Graph.unboundedReaders reaches it: over non-test
-// import edges, then one level of test importers; a path token naming the
-// locator's directory links no code to it, so namers are not followed
-// (V1-2727).
+// root and so reads from it when the package's tests call it, or a command
+// whose binary runs such code when the package runs it. The dependency is
+// reached as the planner's Graph.unboundedReaders reaches it: over non-test
+// import edges and the edges to packages whose non-test code may run a
+// reached command's binary, then one level of test importers and of packages
+// whose tests alone may run a reached command (runReach, AFP-V0-2992). A
+// path token naming a library's directory links no code to it, so namers
+// are not followed (V1-2727). When the binary-execs declaration cannot be
+// applied, every package is unresolved: the selector cannot tell which
+// package runs which command, so it widens rather than guess.
 func (index *repositoryIndex) unresolved() map[string]string {
 	reasons := map[string]string{}
 	var locators []string
@@ -917,9 +1189,17 @@ func (index *repositoryIndex) unresolved() map[string]string {
 			locators = append(locators, directory)
 		}
 	}
+	if index.execsErr != nil {
+		for directory := range index.packages {
+			if reasons[directory] == "" {
+				reasons[directory] = binaryExecsPath + " is not applied (" + index.execsErr.Error() + "), so any package may run a root-locating command"
+			}
+		}
+		return reasons
+	}
 	sort.Strings(locators)
 	for _, locator := range locators {
-		for _, dependent := range index.reach(false, []string{locator}) {
+		for _, dependent := range index.runReach([]string{locator}) {
 			if reasons[dependent] == "" {
 				reasons[dependent] = "depends on " + importPath(index.module, locator) + ", whose " + index.packages[locator].unresolved
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -271,9 +272,24 @@ func TestSeamWidensRatherThanNarrowingOnUnknownInput(t *testing.T) {
 	root := fixtureRoot(t)
 	for _, testCase := range seamCases() {
 		t.Run(testCase.language.Name(), func(t *testing.T) {
-			graph, err := affected.Build(context.Background(), root, testCase.language)
+			caseRoot := root
+			if testCase.language.Name() == "go" {
+				// An absent Go path beside an observed package is a deletion
+				// that rule (a) attributes (AFP-V0-2610); a new file is on
+				// disk, so the Go case writes it to a copy after the build.
+				caseRoot = t.TempDir()
+				if err := os.CopyFS(caseRoot, os.DirFS(root)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			graph, err := affected.Build(context.Background(), caseRoot, testCase.language)
 			if err != nil {
 				t.Fatal(err)
+			}
+			if caseRoot != root {
+				if err := os.WriteFile(filepath.Join(caseRoot, filepath.FromSlash(testCase.ownedUnindexed)), []byte("package core\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			baseline := affected.Select(graph, []string{testCase.dirty})
 			if testCase.permanentFrontier == "" && baseline.Scope != affected.ScopeBounded {
@@ -443,7 +459,13 @@ func TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020(t *testing.T) {
 			}
 			owner, _ := graph.OwnerOf(testCase.solo)
 			changed := affected.Select(graph, []string{testCase.solo})
-			if named := noSelectableTest(changed); changed.Scope != affected.ScopeUnknown || len(named) != 1 || named[0] != owner {
+			// AZU-V0-006: exact uncovered evidence replaces the former unknown
+			// only when no inbound frontier leaves callers unresolved.
+			if testCase.permanentFrontier == "" {
+				if !reflect.DeepEqual(changed.Uncovered, []affected.Unknown{{Reason: affected.UnknownNoSelectableTest, Detail: owner}}) || len(noSelectableTest(changed)) != 0 || changed.Scope != affected.ScopeBounded {
+					t.Fatalf("changed untested unit %s scope=%s unknown=%v uncovered=%v", owner, changed.Scope, changed.Unknown, changed.Uncovered)
+				}
+			} else if named := noSelectableTest(changed); changed.Scope != affected.ScopeUnknown || len(named) != 1 || named[0] != owner {
 				t.Fatalf("changed untested unit %s scope=%s unknown=%v", owner, changed.Scope, changed.Unknown)
 			}
 			unchanged := affected.Select(graph, []string{testCase.dirty})

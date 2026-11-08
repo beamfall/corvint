@@ -268,8 +268,8 @@ func belowToplevel(declared, toplevel string) string {
 
 // profileRegistries binds each --tool-profile value; the empty value is the
 // default V0 registry.
-var profileRegistries = map[string]func(string) (*bridge.Registry, *bridge.Error){
-	"": bridge.New, toolProfileTaskReview: typedRegistry(bridge.NewTaskReview), toolProfileTaskReviewLSP: typedRegistry(bridge.NewTaskReviewLSP), toolProfileFlows: bridge.NewFlows, toolProfileImportGraph: bridge.NewImportGraph,
+var profileRegistries = map[string]func(string) (*bridge.Registry, error){
+	"": bridge.New, toolProfileTaskReview: bridge.NewTaskReview, toolProfileTaskReviewLSP: bridge.NewTaskReviewLSP, toolProfileFlows: bridge.NewFlows, toolProfileImportGraph: bridge.NewImportGraph,
 }
 
 // extractToolProfile removes the optional, closed descendant-profile selector
@@ -597,15 +597,4 @@ func onlyKeys(params map[string]any, allowed ...string) bool {
 		}
 	}
 	return true
-}
-
-// typedRegistry adapts the public constructor error to the transport's typed error.
-func typedRegistry(open func(string) (*bridge.Registry, error)) func(string) (*bridge.Registry, *bridge.Error) {
-	return func(root string) (*bridge.Registry, *bridge.Error) {
-		registry, err := open(root)
-		if err != nil {
-			return nil, err.(*bridge.Error)
-		}
-		return registry, nil
-	}
 }

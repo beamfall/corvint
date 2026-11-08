@@ -116,7 +116,9 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 // TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830: the three shell tests
 // whose only toolchain is make over the Makefile leave a spec edit's and a
 // REQUIREMENTS.tsv edit's plans, stay selected for a Makefile edit, and the
-// test that runs git over the real checkout stays an unbounded reader.
+// test that sources a filtered copy of the heavy runner from its temporary directory stays an
+// unbounded reader (V1-4283 declared qualify-tasks-basic_test.sh, the earlier
+// control, under AFP-V0-2955).
 func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	declared := []string{
@@ -129,8 +131,13 @@ func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 				t.Errorf("%s: %s selected as %s; its declared read scope is the Makefile", dirty, unit, kind)
 			}
 		}
-		if kind := units["shell:script/qualify-tasks-basic_test.sh"]; kind != "UNBOUNDED_READER" {
-			t.Errorf("%s: shell:script/qualify-tasks-basic_test.sh witness %q, want UNBOUNDED_READER", dirty, kind)
+		// The spec and the requirement table are among the paths it names,
+		// so a nearer witness may reach it first; it is selected either way.
+		if _, selected := units["shell:script/lane-scripts_test.sh"]; !selected {
+			t.Errorf("%s: shell:script/lane-scripts_test.sh not selected; it stays an unbounded reader", dirty)
+		}
+		if kind, selected := units["shell:script/qualify-tasks-basic_test.sh"]; selected {
+			t.Errorf("%s: shell:script/qualify-tasks-basic_test.sh selected as %s; its declared read scope is cmd/corvint-tasks, internal, go.mod and go.sum (AFP-V0-2955)", dirty, kind)
 		}
 	}
 	units := selectedUnits(graph, module, "Makefile")

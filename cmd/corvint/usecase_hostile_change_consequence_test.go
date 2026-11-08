@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -142,38 +143,48 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 				t.Fatalf("dirty core must select core and its importer: %s", mustJSON(t, plan))
 			}
 		}},
+		// AZU-V0-006: a proven coverage gap is named without selection uncertainty.
 		{"hostile", "dirty-worktree", "dirty package without tests is named", func(t *testing.T) {
 			root := consequenceRepository(t)
 			cemWrite(t, root, "util/util.go", "package util\n\nfunc Util() int { return 4 }\n")
 			cemGit(t, root, "add", ".")
 			cemGit(t, root, "commit", "-qm", "util")
 			appendFile(t, filepath.Join(root, "util", "util.go"), "\n// dirty\n")
-			if plan := consequencePlan(t, root)["plan"].(map[string]any); plan["scope"] != "UNKNOWN" || !strings.Contains(string(mustJSON(t, plan["unknown"])), "util") {
-				t.Fatalf("a dirty package without tests must be named as unknown scope: %s", mustJSON(t, plan))
+			want := []any{map[string]any{"reason": "NO_SELECTABLE_TEST", "detail": "go:example.com/g/util"}}
+			if plan := consequencePlan(t, root)["plan"].(map[string]any); plan["scope"] != "BOUNDED" || !reflect.DeepEqual(plan["uncovered"], want) || len(plan["unknown"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
+				t.Fatalf("an isolated dirty package without tests must be an exact bounded coverage gap: %s", mustJSON(t, plan))
 			}
 		}},
 		// abstention: UNKNOWN scope or a named advice gap instead of a bounded claim.
-		{"abstention", "symlinked-or-relocated-subjects", "uncommitted relocation leaves the scope unknown", func(t *testing.T) {
+		// A file moved or deleted out of a directory that still holds a package
+		// is attributed to that package (AFP-V0-620, AFP-V0-2610); the scope
+		// stays unknown only when the directory keeps no Go package to name.
+		{"abstention", "symlinked-or-relocated-subjects", "uncommitted relocation out of a packageless directory leaves the scope unknown", func(t *testing.T) {
 			root := consequenceRepository(t)
 			if err := os.MkdirAll(filepath.Join(root, "core2"), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			cemGit(t, root, "mv", "core/core.go", "core2/core.go")
+			cemGit(t, root, "mv", "core/core_test.go", "core2/core_test.go")
+			cemWrite(t, root, "core/README.md", "moved\n")
 			receipt := consequencePlan(t, root)
 			assertConsequenceUnknown(t, receipt, "UNINDEXED_SOURCE_PATH", "core/core.go")
-			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/core"`) || !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
-				t.Fatalf("the package that lost a file and its importer are not selected: %s", selected)
+			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
+				t.Fatalf("the importer of the package that lost its files is not selected: %s", selected)
 			}
 		}},
-		{"abstention", "dirty-worktree", "deleted source leaves the scope unknown", func(t *testing.T) {
+		{"abstention", "dirty-worktree", "deleted source of a packageless directory leaves the scope unknown", func(t *testing.T) {
 			root := consequenceRepository(t)
-			if err := os.Remove(filepath.Join(root, "core", "core.go")); err != nil {
-				t.Fatal(err)
+			for _, name := range []string{"core.go", "core_test.go"} {
+				if err := os.Remove(filepath.Join(root, "core", name)); err != nil {
+					t.Fatal(err)
+				}
 			}
+			cemWrite(t, root, "core/notes.txt", "kept\n")
 			receipt := consequencePlan(t, root)
 			assertConsequenceUnknown(t, receipt, "UNINDEXED_SOURCE_PATH", "core/core.go")
-			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/core"`) || !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
-				t.Fatalf("the package that lost a file and its importer are not selected: %s", selected)
+			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
+				t.Fatalf("the importer of the package that lost its files is not selected: %s", selected)
 			}
 		}},
 		{"abstention", "missing-anchors", "no declared gate and no selection are named advice gaps", func(t *testing.T) {

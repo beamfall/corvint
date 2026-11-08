@@ -4,6 +4,7 @@ package linecov
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -129,7 +130,7 @@ func TestInvalidWindowDumpReason(t *testing.T) {
 // record, even when its build explicitly strips GOFLAGS.
 func TestUninstrumentedChild(t *testing.T) {
 	requireGo(t)
-	for _, mode := range []string{"covered", "cleared", "prebuilt", "missing-second"} {
+	for _, mode := range []string{"covered", "covered-delayed-wait", "partial", "partial-replace", "partial-replace-wait", "partial-replace-first-wait", "cleared", "prebuilt", "missing-second"} {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			tree := map[string]string{}
@@ -141,6 +142,42 @@ func TestUninstrumentedChild(t *testing.T) {
 			if mode == "cleared" {
 				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "bin := filepath.Join", `t.Setenv("GOFLAGS", "")
  bin := filepath.Join`, 1)
+			}
+			if mode == "partial" {
+				// The helper still emits counters, but calc.Double is not
+				// instrumented. Its caller must never publish a partial record.
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], `"build", "-o"`, `"build", "-coverpkg=example.com/m/cmd/tool", "-o"`, 1)
+			}
+			if mode == "partial-replace" {
+				// A prior full build at the same path must not authorize different
+				// bytes from a later partial build.
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ out, err := exec.Command(bin).Output()`, 1)
+			}
+			if mode == "partial-replace-wait" {
+				// LPCV-V0-7601/954: the original successful command cannot confer
+				// its full-module proof on a partial replacement through Wait replay.
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], `if out, err := exec.Command("go", "build", "-o", bin, "../cmd/tool").CombinedOutput(); err != nil {`, `build := exec.Command("go", "build", "-o", bin, "../cmd/tool")
+ if out, err := build.CombinedOutput(); err != nil {`, 1)
+				tree["e2e/e2e_test.go"] = strings.Replace(tree["e2e/e2e_test.go"], "out, err := exec.Command(bin).Output()", `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ if err:=build.Wait();err==nil{t.Fatal("repeated Wait must fail")}
+ out, err := exec.Command(bin).Output()`, 1)
+			}
+			if mode == "covered-delayed-wait" || mode == "partial-replace-first-wait" {
+				// EOF observes completion without calling Cmd.Wait. The first Wait
+				// must not certify bytes installed by a subsequent partial build.
+				src := strings.Replace(tree["e2e/e2e_test.go"], `"os/exec"`, `"os/exec"; "io"`, 1)
+				src = strings.Replace(src, `if out, err := exec.Command("go", "build", "-o", bin, "../cmd/tool").CombinedOutput(); err != nil {`, `build := exec.Command("go", "build", "-o", bin, "../cmd/tool")
+ stderr, err := build.StderrPipe(); if err != nil { t.Fatal(err) }
+ if err := build.Start(); err != nil { t.Fatal(err) }
+ if out, err := io.ReadAll(stderr); err != nil || len(out) != 0 {`, 1)
+				beforeWait := ""
+				if mode == "partial-replace-first-wait" {
+					beforeWait = `if out,err:=exec.Command("go","build","-coverpkg=example.com/m/cmd/tool","-o",bin,"../cmd/tool").CombinedOutput();err!=nil{t.Fatalf("partial rebuild: %v %s",err,out)}
+ `
+				}
+				tree["e2e/e2e_test.go"] = strings.Replace(src, "out, err := exec.Command(bin).Output()", beforeWait+`if err:=build.Wait();err!=nil{t.Fatalf("first Wait: %v",err)}
+ out, err := exec.Command(bin).Output()`, 1)
 			}
 			if mode == "prebuilt" {
 				tree["e2e/e2e_test.go"] = `package e2e
@@ -177,7 +214,7 @@ func TestUninstrumentedChild(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, o := range out {
-				if mode == "covered" {
+				if mode == "covered" || mode == "covered-delayed-wait" {
 					if o.Record == nil {
 						t.Fatalf("covered child refused %+v", o)
 					}
@@ -259,5 +296,78 @@ func TestMergeCollectorIdentity(t *testing.T) {
 	}
 	if merged.TestTimeout != time.Second || len(merged.WindowFallback) != 2 {
 		t.Fatalf("lost collection metadata %+v", merged)
+	}
+}
+
+// LPCV-V0-7600: a surviving goroutine runs after A's cleanup snapshot and
+// before B's entry snapshot. B also reaches the block in isolation; that overlap
+// must not erase A's ownership. No reset may destroy the suite-wide receipt.
+func TestBetweenWindowReach(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"before-TestA", "TestA", "before-TestB", "TestB"} {
+		if err := os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "order"), []byte("TestA\nTestB\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	profile := func(n int) []byte {
+		return []byte("mode: atomic\nexample.com/m/p/p.go:3.1,3.20 1 " + strconv.Itoa(n) + "\n")
+	}
+	out := attributeWindows(func(path string) ([]byte, error) {
+		switch filepath.Base(path) {
+		case "before-TestA", "TestA":
+			return profile(0), nil
+		case "before-TestB":
+			return profile(1), nil // asynchronous execution in the gap
+		default:
+			return profile(2), nil
+		}
+	}, []Outcome{
+		{Package: "p", Name: "TestA", Record: &Record{Package: "p", Name: "TestA", Profile: profile(0)}},
+		{Package: "p", Name: "TestB", Record: &Record{Package: "p", Name: "TestB", Profile: profile(1)}},
+		{Package: "p", Name: InOrder, Record: &Record{Package: "p", Name: InOrder, Profile: profile(2)}},
+	}, map[string]string{"p": dir})
+	var records []Record
+	for _, o := range out {
+		if o.WindowFallback != "" {
+			t.Fatalf("unexpected fallback: %+v", o)
+		}
+		records = append(records, *o.Record)
+	}
+	ix, err := Build("example.com/m", "base", "test", map[string]string{"p/p.go": "oid"}, records)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, test := range ix.TestsOfFile("p/p.go") {
+		found = found || test.Name == "TestA"
+	}
+	if !found {
+		t.Fatal("gap reach dropped the surviving goroutine's caller")
+	}
+	// The real overlay must preserve the independent suite exit counters too.
+	writeTree(t, dir, map[string]string{"p.go": "package p\nfunc f() {}\n", "p_test.go": "package p\nimport \"testing\"\nfunc TestA(t *testing.T) {}\n"})
+	overlay, reason, err := windowOverlay(dir, t.TempDir())
+	if err != nil || reason != "" {
+		t.Fatalf("overlay: %s %v", reason, err)
+	}
+	var mapping struct{ Replace map[string]string }
+	data, err := os.ReadFile(overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &mapping); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range mapping.Replace {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(source, []byte("ClearCounters")) || !bytes.Contains(source, []byte("before-TestA")) {
+			t.Fatal("overlay can lose counters between test windows")
+		}
 	}
 }

@@ -128,6 +128,25 @@ func TestASDV0997NewUnhintedRefusalFails(t *testing.T) {
 	}
 }
 
+func TestASDV0566RefuseMessageWithNestedQuotes(t *testing.T) {
+	for _, test := range []struct{ line, want string }{
+		{`refuse "dirty-worktree $(git -C "$dir" status --short | head -1) (fix: commit first)"`, `dirty-worktree $(git -C "$dir" status --short | head -1) (fix: commit first)`},
+		{`refuse "a \"quoted\" word"`, `a \"quoted\" word`},
+		{`x && refuse "b $(printf '%s)' "$(echo "in")") run y" || refuse "c"`, `b $(printf '%s)' "$(echo "in")") run y`},
+	} {
+		got := shellRefuseMessages(test.line)
+		if len(got) == 0 || got[0] != test.want {
+			t.Errorf("%s: got %q, want %q", test.line, got, test.want)
+		}
+	}
+	if got := shellRefuseMessages(`refuse "unterminated $(x "y"`); len(got) != 0 {
+		t.Errorf("unterminated: got %q", got)
+	}
+	if !hinted(shellRefuseMessages(`refuse "dirty $(git -C "$d" rev-parse HEAD) (fix: commit)"`)[0]) {
+		t.Error("nested-quote message: hint after the substitution not seen")
+	}
+}
+
 func TestASDV0997StaleRowFails(t *testing.T) {
 	root := fixture(t)
 	edit(t, root, baselinePath, "# header\n", "# header\nscript/heavy.sh\tinvalid-slots\n")

@@ -1,0 +1,61 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-corpus-mcp",
+  "helpJson": "corvint-corpus-mcp help --json",
+  "source": "companion root contract",
+  "dispatchSources": [
+    "cmd/corvint-corpus-mcp"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [],
+      "command": "corvint-corpus-mcp",
+      "summary": "usage: corvint-corpus-mcp --root ROOT --artifact ARTIFACT [--map FILE]... [--consolidation] [--legacy-cases]\n           [--outcome-log FILE] [--protocol-version 2026-07-28|2025-11-25]\n       corvint-corpus-mcp --outcome-summary LOG [--floor FLOOR]\n       corvint-corpus-mcp --version\nA local read-only stdio MCP server for the documentation corpus ARTIFACT of the Git worktree at ROOT.\nDeprecated alias for the corpus tools, kept for one release:\ncorvint-mcp --root ROOT --tool-profile corpus --corpus-artifact ARTIFACT serves the same corpus tools\nwith the same results; --map, --consolidation, --legacy-cases and --outcome-log stay here.\nExample: corvint-corpus-mcp --root /absolute/repo --artifact corpus.json",
+      "usage": [
+        "corvint-corpus-mcp --root ROOT --artifact ARTIFACT [--map FILE]... [--consolidation] [--legacy-cases] [--outcome-log FILE] [--protocol-version 2026-07-28|2025-11-25] [--help] [-h]",
+        "corvint-corpus-mcp --outcome-summary LOG [--floor FLOOR]",
+        "corvint-corpus-mcp --version"
+      ],
+      "flags": [
+        "--artifact",
+        "--consolidation",
+        "--floor",
+        "--help",
+        "--legacy-cases",
+        "--map",
+        "--outcome-log",
+        "--outcome-summary",
+        "--protocol-version",
+        "--root",
+        "--version",
+        "-h"
+      ],
+      "required": [
+        "--root ROOT",
+        "--artifact ARTIFACT"
+      ],
+      "example": "corvint-corpus-mcp --root ROOT --artifact ARTIFACT",
+      "help": "corvint-corpus-mcp --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-corpus-mcp help",
+      "summary": "Show command help or the offline machine catalog.",
+      "usage": [
+        "corvint-corpus-mcp help [COMMAND...] [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-corpus-mcp help --json",
+      "help": "corvint-corpus-mcp help --help"
+    }
+  ]
+}

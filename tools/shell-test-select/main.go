@@ -11,8 +11,9 @@
 // It fails closed: every step is printed (FULL, with the reason on stderr) when
 // the plan is unreadable, is not a successful affected-plan/1, names the
 // Makefile as dirty (every step runs through it) or carries any unknown outside
-// the shell allowlist: a LANGUAGE_FRONTIER gateselect.AllowedUnknown admits other than a `shell:`
-// one (only shell:foreign-invocation-unmodelled, which bears on non-shell callers, is kept), a
+// the shell allowlist: a LANGUAGE_FRONTIER gateselect.AllowedUnknown or
+// gateselect.FrontierSuite admits other than a `shell:` one (only
+// shell:foreign-invocation-unmodelled, which bears on non-shell callers, is kept), a
 // NO_SELECTABLE_TEST (no step tests such a unit, FULL included) and a
 // well-formed UNSELECTED_BINARY_CONSUMER (no shell step runs it). An
 // UNOWNED_DIRTY_PATH is not admitted: a shell test may read an unowned path by
@@ -172,6 +173,8 @@ func Select(raw []byte, steps []Step) (run []string, unstepped []string, full st
 			// dynamically sourced script) can hide a shell test's own edge or input.
 			return all("the plan names the shell frontier " + entry.Detail + ", which may hide a shell test's edge or input")
 		case entry.Reason == "LANGUAGE_FRONTIER" && gateselect.AllowedUnknown(entry.Reason, entry.Detail):
+		case entry.Reason == "LANGUAGE_FRONTIER" && isFrontierSuite(entry.Reason, entry.Detail):
+			// Another language's suite, which this selector does not run (AFP-V0-2750).
 		case entry.Reason == "NO_SELECTABLE_TEST":
 		case entry.Reason == "UNSELECTED_BINARY_CONSUMER":
 			if _, ok := gateselect.BinaryConsumer(entry.Reason, entry.Detail); !ok {
@@ -277,4 +280,12 @@ func readBounded(name string) ([]byte, error) {
 		return nil, fmt.Errorf("%s exceeds %d bytes", name, maxPlanBytes)
 	}
 	return raw, nil
+}
+
+// isFrontierSuite reports a non-Go frontier whose language suite the Go
+// selectors add (gateselect.FrontierSuite, AFP-V0-2750); a shell one has
+// already been decided by the shell rule above.
+func isFrontierSuite(reason, detail string) bool {
+	_, ok := gateselect.FrontierSuite(reason, detail)
+	return ok
 }

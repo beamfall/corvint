@@ -23,7 +23,10 @@ func TestTasksExportCoversCorvintTasksImportClosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(goPath, "list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}", "./cmd/corvint-tasks")
+	// -buildvcs=false: the closure needs no VCS stamp, and a test confined by
+	// .corvint/test-read-scopes.json cannot read .git (AFP-V0-023). GOFLAGS=
+	// below would otherwise drop the confinement wrapper's own -buildvcs=false.
+	cmd := exec.Command(goPath, "list", "-buildvcs=false", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}", "./cmd/corvint-tasks")
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
 	out, err := cmd.Output()

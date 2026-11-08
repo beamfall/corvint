@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,8 +27,8 @@ func TestChangesCLI(t *testing.T) {
 		}
 		git := func(args ...string) string {
 			t.Helper()
-			c := exec.Command("git", append([]string{"-C", root}, args...)...)
-			c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+			c := fixtureGitCommand(append([]string{"-C", root}, args...)...)
+			c.Env = append(fixtureGitEnvironment(), "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
 			b, e := c.CombinedOutput()
 			if e != nil {
 				t.Fatalf("git: %v %s", e, b)
@@ -84,13 +83,13 @@ func TestChangesCLI(t *testing.T) {
 			args  []string
 			stdin string
 		}{{[]string{"init", "-q", "-b", "main"}, ""}, {[]string{"fast-import", "--quiet"}, stream.String()}} {
-			c := exec.Command("git", append([]string{"-C", root}, step.args...)...)
+			c := fixtureGitCommand(append([]string{"-C", root}, step.args...)...)
 			c.Stdin = strings.NewReader(step.stdin)
 			if b, e := c.CombinedOutput(); e != nil {
 				t.Fatalf("git %v: %v %s", step.args, e, b)
 			}
 		}
-		revs, e := exec.Command("git", "-C", root, "rev-parse", "main~513", "main").Output()
+		revs, e := fixtureGitCommand("-C", root, "rev-parse", "main~513", "main").Output()
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -114,8 +113,8 @@ func TestSPCV0008ChangesSharedCLI(t *testing.T) {
 	}
 	git := func(args ...string) string {
 		t.Helper()
-		c := exec.Command("git", append([]string{"-C", root}, args...)...)
-		c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+		c := fixtureGitCommand(append([]string{"-C", root}, args...)...)
+		c.Env = append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
 		b, e := c.CombinedOutput()
 		if e != nil {
 			t.Fatalf("git %v: %v %s", args, e, b)

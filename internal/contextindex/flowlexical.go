@@ -15,6 +15,13 @@ func FlowCodeLines(language, text string) []string {
 	if profile, ok := dialect.LookupImpact(language); ok {
 		return profile.CodeLines(text)
 	}
+	return flowWebCodeLines(text)
+}
+
+// flowWebCodeLines is the web mask split into lines: the code lines of the
+// TypeScript plugin's impact profile (webdialect.Impact), which core registers
+// because the mask is core's (LGP-V0-027).
+func flowWebCodeLines(text string) []string {
 	return strings.Split(flowWebMask(text), "\n")
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/cliapp"
 	"io"
 	"math/big"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
+// PUB-V0-001 keeps this literal synchronized with VERSION.
 const version = "1.0.0-rc.3"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
@@ -1785,6 +1787,10 @@ func pythonJSONString(value string) string {
 }
 
 func main() {
+	if code, handled := cliapp.Answer("corvint", os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+
 	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
 		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
 	}

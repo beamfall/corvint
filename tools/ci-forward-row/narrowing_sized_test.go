@@ -239,4 +239,94 @@ func TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725(t *testing.T) {
 	if row["class"] != "NARROWED" || num(row["selectionShards"]) != sized {
 		t.Fatalf("pull-request row = %v", row)
 	}
+	// AFP-V0-3260: a sized queue run whose shards fell back to FULL reports its own count; the row
+	// takes it and still checks its coverage.
+	queueSized := func(drop int) *fixture {
+		f := queueFixture(t)
+		fail(f.out[0], p, "fail", "RAN", "pass")
+		for k := range f.out {
+			if k >= sized || k == drop {
+				delete(f.out, k)
+				continue
+			}
+			f.out[k]["shards"] = sized
+		}
+		return f
+	}
+	row, _ = queueSized(-1).classify(t, nil)
+	if row["class"] != "CLEAN" || len(strs(row["incomplete"])) != 0 || len(strs(row["selectedFailedInQueue"])) != 1 {
+		t.Fatalf("a sized queue row = %v", row)
+	}
+	row, _ = queueSized(2).classify(t, nil)
+	wantIncomplete(t, row, "outcomes documents cover shards 0,1,3 of 4")
+}
+
+// TestAFPV03260ShardPlanSizesMergeQueueEntries: a merge-queue entry on main sizes its matrix too.
+// shard-plan.sh runs mq-narrow.sh, the queue-range gate every shard runs, when QUEUE_BASE is set and
+// narrow.sh otherwise, always as shard 0 of the full matrix and without MQ_DELTA; the job runs for
+// a merge-queue entry only under CORVINT_MQ_NARROWING with a MET verdict, takes shard-plan.sh and
+// pin-lag.sh from the commit of main the shards take mq-narrow.sh from, and sizes at the queue
+// shards' go test -p.
+func TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "shard-plan.sh runs its gate under sh")
+	gate := func(t *testing.T, env ...string) (ran, count, summary string) {
+		t.Helper()
+		dir := t.TempDir()
+		rows := filepath.Join(dir, "rows")
+		body, err := os.ReadFile(script(t, "shard-plan.sh"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(rows, "shard-plan.sh"), body)
+		for _, name := range []string{"narrow.sh", "mq-narrow.sh"} {
+			writeFile(t, filepath.Join(rows, name), []byte("#!/bin/sh\nprintf '%s shard=%s of %s delta=[%s]\\n' "+name+" \"$SHARD\" \"$SHARDS\" \"${MQ_DELTA-unset}\" >> \"$RUNNER_TEMP/ran\"\n"+
+				"mkdir -p \"$RUNNER_TEMP/corvint-narrowing\"\nprintf '{\"mode\":\"FULL\"}' > \"$RUNNER_TEMP/corvint-narrowing/narrowing.json\"\n"))
+		}
+		writeFile(t, filepath.Join(dir, "output"), nil)
+		cmd := exec.Command("sh", filepath.Join(rows, "shard-plan.sh"))
+		cmd.Dir = dir
+		cmd.Env = append([]string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + dir, "GITHUB_OUTPUT=" + filepath.Join(dir, "output"),
+			"GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary"), "MQ_DELTA=candidate"}, env...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("shard-plan.sh: %v\n%s", err, out)
+		}
+		r, _ := os.ReadFile(filepath.Join(dir, "ran"))
+		s, _ := os.ReadFile(filepath.Join(dir, "summary"))
+		return string(r), outputValue(t, dir, "count"), string(s)
+	}
+	if ran, count, summary := gate(t, "QUEUE_BASE=142f0e3e7bfb153f803fb6c4bad7989f87ee324a"); ran != "mq-narrow.sh shard=0 of 16 delta=[]\n" || count != "16" || !strings.Contains(summary, "the trusted decision is FULL") {
+		t.Fatalf("a merge-queue entry ran %q, count %s\n%s", ran, count, summary)
+	}
+	if ran, _, _ := gate(t); ran != "narrow.sh shard=0 of 16 delta=[]\n" {
+		t.Fatalf("a pull request ran %q", ran)
+	}
+
+	plan := workflowJob(t, "shard-plan")
+	for _, want := range []string{
+		"    if: needs.narrowing-verdict.outputs.verdict == 'MET' && ((github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main'))\n",
+		"          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}\n",
+		"          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}\n",
+		"          QUEUE_HEAD_REF: ${{ github.event.merge_group.head_ref }}\n",
+		"            git archive \"$scripts\" .github/forward-rows | tar -x -C \"$trusted\"\n",
+		"            grep -q 'mq-narrow.sh' \"$trusted/.github/forward-rows/shard-plan.sh\"\n",
+		"            sh \"$trusted/.github/forward-rows/pin-lag.sh\" \"$scripts\" \"$CORVINT_PR_TOOL_SOURCE\" \"$CORVINT_TEST_SHADOW_SOURCE\"\n",
+		"              sh \"$trusted/.github/forward-rows/shard-plan.sh\"\n",
+	} {
+		if !strings.Contains(plan, want) {
+			t.Fatalf("the shard-plan job lacks %q", want)
+		}
+	}
+	// The scripts commit is the one the shards' gate derives, by the same text.
+	shard := workflowJob(t, "go-product-shard")
+	for _, line := range []string{
+		"            scripts=$QUEUE_BASE\n",
+		"            if ! git merge-base --is-ancestor \"$QUEUE_BASE\" refs/remotes/origin/main 2> /dev/null; then\n",
+	} {
+		if !strings.Contains(plan, line) || !strings.Contains(shard, line) {
+			t.Fatalf("shard-plan and go-product-shard disagree on the scripts commit: %q", line)
+		}
+	}
+	if !strings.Contains(shard, "          SHARD_TEST_P: ${{ github.event_name == 'pull_request' && '4' || '1' }}\n") {
+		t.Fatal("the shards' go test -p changed; the shard-plan sizing must price the same placement")
+	}
 }

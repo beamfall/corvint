@@ -3,6 +3,7 @@
 package safeopen
 
 import (
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -22,4 +23,33 @@ func openat(fd int, name string, flags int, perm uint32) (int, error) {
 		return -1, errno
 	}
 	return int(r), nil
+}
+
+// LstatIn describes name, one component beneath the pinned directory dir,
+// without following it. Darwin traversal handles are readable directories,
+// so the RootOf bridge serves (ASD-V0-2421).
+func LstatIn(dir *os.File, name string) (os.FileInfo, error) {
+	if err := oneComponent(name); err != nil {
+		return nil, err
+	}
+	root, err := RootOf(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return root.Lstat(name)
+}
+
+// ReadlinkIn returns the target of the symbolic link name, one component
+// beneath the pinned directory dir.
+func ReadlinkIn(dir *os.File, name string) (string, error) {
+	if err := oneComponent(name); err != nil {
+		return "", err
+	}
+	root, err := RootOf(dir)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	return root.Readlink(name)
 }

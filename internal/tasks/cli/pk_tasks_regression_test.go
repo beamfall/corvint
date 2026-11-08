@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,9 +52,9 @@ func TestTCLV07100_ReceiptPutResolvesEnvCwd(t *testing.T) {
 // offending argv element and its byte limit rather than reporting a spawn failure.
 func TestTCLV07101_GateArgumentNamesLimit(t *testing.T) {
 	p := fixture.PolicyValue()
-	p.Obj.Set("gates", wire.Array(commandGate("verify", "/bin/sh", "-c", strings.Repeat("x", 129))))
+	p.Obj.Set("gates", wire.Array(commandGate("verify", "/bin/sh", "-c", strings.Repeat("x", wire.MaxGateArgBytes+1))))
 	_, err := intent.DecodePolicy(wire.EncodeFile(p))
-	if err == nil || wire.CodeOf(err) != wire.CodeLimitExceeded || !strings.Contains(err.Error(), "/gates/0/argv/2") || !strings.Contains(err.Error(), "128 bytes") {
+	if err == nil || wire.CodeOf(err) != wire.CodeLimitExceeded || !strings.Contains(err.Error(), "/gates/0/argv/2") || !strings.Contains(err.Error(), fmt.Sprintf("%d bytes", wire.MaxGateArgBytes)) {
 		t.Fatalf("limit not named: %v", err)
 	}
 }
