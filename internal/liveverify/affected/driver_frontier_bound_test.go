@@ -147,7 +147,9 @@ func TestFrontierSiteBoundedAlternativesKeepTheirEdges_AFP_V0_3121(t *testing.T)
 		{"names-cem-file", "PICK = $(if $(SUMMARY),grep -c profile,grep -l profile)\ncheck:\n\t$(PICK) " + sealedCEM + "\n", sealedCEM},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			files := boundFiles(tc.makefile + "all: check\n")
+			files[sealedCEM] = "{}\n"
+			graph := driverGraph(t, files, nil)
 			if computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Errorf("every alternative is a literal command the graph bounds, but check stays a computed site")
 			}
@@ -424,7 +426,10 @@ func TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128(t *testing.T) {
 		{"make-literal", evaluated + "check:\n\t$(MAKE) other\nother:\n\tgo test ./tools/local\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
+			files := boundFiles(tc.makefile + "all: check\n")
+			files["known.txt"] = "x\n"
+			files["known.json"] = "{}\n"
+			graph := driverGraph(t, files, nil)
 			if computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Fatalf("check reads only literal operands, but it is a computed site")
 			}
@@ -451,8 +456,19 @@ func TestFrontierSiteRootMakefileRunsNoReadTimeCommand_AFP_V0_3127(t *testing.T)
 	if strings.Count(string(body), recursive) != 1 {
 		t.Fatalf("the root Makefile no longer assigns WINDOWS_VET_GOCACHE recursively once; an immediate `$(shell ...)` makes every root target a computed site (AFP-V0-3127)")
 	}
+	// AFP-V0-9051: script operands must exist as plain files before a
+	// command can certify. Their contents are irrelevant to this driver-only
+	// comparison; the fixture does not execute them.
+	files := map[string]string{}
+	for _, word := range strings.Fields(string(body)) {
+		word = strings.TrimLeft(word, "@+-") // Make recipe prefixes are not part of the path.
+		if strings.HasSuffix(word, ".sh") && affected.ValidRelativePath(word) {
+			files[word] = "#!/bin/sh\n"
+		}
+	}
 	computed := func(makefile string) (sites []string, targets int) {
-		graph := driverGraph(t, map[string]string{"Makefile": makefile}, nil)
+		files["Makefile"] = makefile
+		graph := driverGraph(t, files, nil)
 		for _, id := range graph.UnitIDs() {
 			if !strings.HasPrefix(id, "driver:make:Makefile#") {
 				continue
@@ -1168,6 +1184,7 @@ func TestFrontierSiteUnrecordableOperand_AFP_V0_9051(t *testing.T) {
 		"$(if yes,cat,cat) ~/INPUT",
 		"$(if yes,cat,cat) ../INPUT",
 		"$(if yes,cat,cat) -- /work/project/INPUT",
+		"$(if yes,cat,cat) -- -INPUT",
 		"$(if yes,wc,wc) -l < /work/project/INPUT",
 		"$(if yes,wc,wc) -l < ~/INPUT",
 		"$(if yes,test,test) -f /work/project/INPUT",
@@ -1186,6 +1203,7 @@ func TestFrontierSiteUnrecordableOperand_AFP_V0_9051(t *testing.T) {
 		t.Run(recipe, func(t *testing.T) {
 			files := boundFiles("check:; " + recipe + "\nother:\n\tgo test ./tools/local\nall: check\n")
 			files["known.txt"] = "x\n"
+			files["-INPUT"] = "x\n"
 			graph := driverGraph(t, files, nil)
 			if !computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Fatal("unrecordable operand certified check")
@@ -1195,6 +1213,55 @@ func TestFrontierSiteUnrecordableOperand_AFP_V0_9051(t *testing.T) {
 			if witness := selected["driver:make:Makefile#check"].Witness; witness.Kind != affected.WitnessFrontierSite {
 				t.Errorf("check witness %+v; want FRONTIER_SITE", witness)
 			}
+		})
+	}
+}
+
+// AFP-V0-9051: a recorded alias does not cover the file a symlink reads,
+// whether the link is the operand itself or an intermediate directory.
+func TestFrontierSiteLinkedOperand_AFP_V0_9051(t *testing.T) {
+	for _, tc := range []struct {
+		name, operand, linkTarget string
+	}{
+		{"file", "alias", "data/INPUT"},
+		{"directory", "alias/INPUT", "data"},
+		{"plain", "data/INPUT", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			files := boundFiles("check:; $(if yes,cat,cat) " + tc.operand + "\nall: check\n")
+			files["data/INPUT"] = "x\n"
+			for name, body := range files {
+				file := filepath.Join(root, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(file, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.linkTarget != "" {
+				if err := os.Symlink(tc.linkTarget, filepath.Join(root, "alias")); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			graph, err := affected.Build(t.Context(), root, affected.Driver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			linked := tc.linkTarget != ""
+			if got := computedSite(t, graph, "driver:make:Makefile#check"); got != linked {
+				t.Fatalf("computed site %t; want %t", got, linked)
+			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			units := []string{"driver:make:Makefile#check", makeAll, jobUnit}
+			if linked {
+				wantDriverSelection(t, selected, units, nil)
+			} else {
+				wantDriverSelection(t, selected, nil, units)
+			}
+			selected = driverSelections(affected.Select(graph, []string{"data/INPUT"}))
+			wantDriverSelection(t, selected, units, nil)
 		})
 	}
 }

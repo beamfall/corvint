@@ -110,6 +110,7 @@ func (driver Driver) Units(ctx context.Context, root string) (Result, error) {
 
 // driverRegistry holds every parsed driver file while units are built.
 type driverRegistry struct {
+	source    *Source
 	module    string
 	makes     map[string]*driverMakeFile
 	makeOrder []string
@@ -138,6 +139,7 @@ func (Driver) UnitsSource(source *Source) (Result, error) {
 		return Result{}, err
 	}
 	registry := &driverRegistry{
+		source:    source,
 		makes:     map[string]*driverMakeFile{},
 		workflows: map[string]*driverWorkflow{},
 		actions:   map[string]string{},
@@ -318,6 +320,7 @@ func driverSorted(set map[string]bool) []string {
 // not always the file's own.
 func (registry *driverRegistry) scanBoth(text, cwd string) *driverScan {
 	scan := newDriverScan()
+	scan.source = registry.source
 	scan.scanShell(text, cwd, registry.module)
 	if cwd != "." {
 		scan.scanShell(text, ".", registry.module)
@@ -329,6 +332,7 @@ func (registry *driverRegistry) scanBoth(text, cwd string) *driverScan {
 // output make substitutes into the makefile's text (AFP-V0-2956).
 func (registry *driverRegistry) scanBothOutput(text, cwd string) *driverScan {
 	scan := newDriverScan()
+	scan.source = registry.source
 	scan.scanShellOutput(text, cwd, registry.module)
 	if cwd != "." {
 		scan.scanShellOutput(text, ".", registry.module)
@@ -735,6 +739,7 @@ func (registry *driverRegistry) runStep(builder *driverUnitBuilder, script, cwd,
 		builder.computed = true
 	}
 	scan := newDriverScan()
+	scan.source = registry.source
 	scan.scanShell(script, cwd, registry.module)
 	if cwd != "." {
 		scan.scanShell(script, ".", registry.module)
