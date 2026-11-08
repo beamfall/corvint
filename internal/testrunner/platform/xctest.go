@@ -56,6 +56,10 @@ func buildXCTest(r tr.Request, i *tr.Invocation) error {
 // parallel xUnit writer, the native terminal explicitly distinguishes a skip.
 // Suite summaries count failure events, not failing test methods.
 func parseXCTest(in tr.Input, o *tr.Observation) error {
+	return parseXCTestFailures(in, o, nil)
+}
+
+func parseXCTestFailures(in tr.Input, o *tr.Observation, failure func(string)) error {
 	if len(in.Reports) != 0 || !utf8.Valid(in.Stdout) || len(in.Stdout) == 0 || in.Stdout[len(in.Stdout)-1] != '\n' {
 		return fmt.Errorf("complete native XCTest stdout required")
 	}
@@ -173,6 +177,9 @@ func parseXCTest(in tr.Input, o *tr.Observation) error {
 				names = append(names, s.name)
 			}
 			o.Tests = append(o.Tests, test(class+"/"+method, method, firstFile, strings.Join(names, "/"), state, kind, strings.TrimSpace(message)))
+			if failure != nil && state == tr.Failed {
+				failure(class + "/" + method)
+			}
 			facts = append(facts, xctestFact{issueCount, unexpectedCount, skipped})
 			active = ""
 			if len(o.Tests) > tr.MaxTests {

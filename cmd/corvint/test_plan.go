@@ -16,6 +16,9 @@ import (
 // runTestCommand dispatches `test-validity` and `test-plan` after any --root prefix; it reports
 // false for every other command.
 func runTestCommand(ctx context.Context, arguments []string, stdout, stderr io.Writer) (int, bool) {
+	if root, rest, ok := parseTestEvidenceInvocation(arguments); ok {
+		return runTestEvidence(ctx, root, rest, stdout, stderr), true
+	}
 	if root, rest, isTestValidity := parseTestValidityInvocation(arguments); isTestValidity {
 		return runTestValidity(root, rest, stdout, stderr), true
 	}

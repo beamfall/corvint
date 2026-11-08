@@ -1,0 +1,11 @@
+Test Suite 'Selected tests' started at 2026-10-01 08:00:33.763.
+Test Suite 'ProofTests.xctest' started at 2026-10-01 08:00:33.765.
+Test Suite 'Proof' started at 2026-10-01 08:00:33.765.
+Test Case '-[ProofTests.Proof testPass]' started.
+Test Case '-[ProofTests.Proof testPass]' passed (0.001 seconds).
+Test Suite 'Proof' passed at 2026-10-01 08:00:33.766.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ProofTests.xctest' passed at 2026-10-01 08:00:33.766.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'Selected tests' passed at 2026-10-01 08:00:33.766.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.003) seconds

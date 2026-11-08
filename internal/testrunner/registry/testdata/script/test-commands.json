@@ -1,0 +1,12 @@
+{
+  "profile": "corvint-test-commands/0",
+  "go": {"env": {"GOTOOLCHAIN": "local"}, "flags": ["-count=1"]},
+  "languages": {
+    "typescript": ["node", "test/*.e2e.ts"],
+    "python": ["python3", "script/*_test.py"],
+    "shell": ["script/*_test.sh"],
+    "kotlin": ["./gradlew", "fastGate"],
+    "shader": ["xcrun", "metal", "shaders/main.metal"],
+    "ruby": {"none": "no Ruby suite in this fixture"}
+  }
+}
