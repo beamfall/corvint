@@ -502,7 +502,14 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 	checkFailures(&res)
 	checkAgreement(&res, p, m)
 	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
-		if err := contractAgreement(audit, m); err != nil {
+		var universe []string
+		if m.Scope == "FULL" {
+			universe, err = contractUniverse(ctx, clone)
+			if err != nil {
+				return res, fmt.Errorf("%s: %w", c.ID, err)
+			}
+		}
+		if err := contractAgreement(audit, m, universe); err != nil {
 			return res, fmt.Errorf("%s: %w", c.ID, err)
 		}
 		fmt.Fprintf(os.Stderr, "selection-contract: %s PASS scope=%s driver-minus-shadow=0 package-seconds=0 (same package set)\n", c.ID, m.Scope)

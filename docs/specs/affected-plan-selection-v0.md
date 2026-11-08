@@ -84,7 +84,8 @@ measure. None of them drops a unit the change can reach.
   retain the Go test holders of unobserved declared runtime targets with a named reason.
   Unknown, malformed, capped,
   unreadable or unsupported inputs SHALL retain the wider attribution or produce a named FULL
-  fallback. Missing base evidence SHALL disable additive narrowing. The legacy selector APIs,
+  fallback. Every dirty path SHALL pass validation before a nested-module downgrade to NOTHING.
+  Missing base evidence SHALL disable additive narrowing. The legacy selector APIs,
   receipt and manifest shapes, exit codes and stderr contracts stay unchanged. Re-observation
   is bounded by the existing graph bounds and a two-minute context. The pinned CI executable
   and tested checkout remain the authority; a receipt is not an authentication mechanism.
@@ -97,6 +98,8 @@ measure. None of them drops a unit the change can reach.
   adapters and nested-module suites outside root-Go shards; none permits unequal root-Go sets.
   The workflow's separate `.github/` FULL guard is outside this package-selection comparison.
   Same-scope FULL means both run the root universe, never a zero-package narrow success.
+  FULL coverage SHALL match an independent Go listing of the replayed root, including explicit
+  hidden root packages; missing, truncated or unrecognized coverage evidence SHALL fail.
   Report driver-minus-shadow package counts and package-seconds only from observed evidence;
   a replay not executed SHALL remain NOT_RUN with its reason. Before/after evidence and
   outstanding CI pin/control-plane work SHALL be retained in the V1-5094 build-log entry.
@@ -2177,8 +2180,8 @@ and in `.corvint/unbounded-readers.json`, never as a missed test.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| AFP-V0-9500 | `internal/gateselect/qualified.go`; `internal/liveverify/affected/selection_contract.go`; `cmd/corvint/test.go`; `tools/gate-affected-select/main.go` | `TestQualifiedSelectionProofAndParity_AFPV09500`, `TestQualifiedSelectionRecomputesAdditive_AFPV09500`, `TestQualifiedSelectionFailsClosed_AFPV09500`, `TestQualifiedSelectionRetainsUnobservedRuntimeReader_AFPV09500`, `TestSelectionContractUnobservedRuntimeReaders_AFPV09500` (positive proof and missing/forged/unknown/capped negative controls) |
-| AFP-V0-9501 | `tools/selection-baseline/contract.go`, `main.go`; `script/selection-contract-check.sh`; `Makefile` | `TestSelectionContractReplay_AFPV09501` (equal sets and declared differences pass; extra, omitted, malformed and scope differences fail); corpus evidence in `2026-11-08-selection-contract.md` |
+| AFP-V0-9500 | `internal/gateselect/qualified.go`; `internal/liveverify/affected/selection_contract.go`; `cmd/corvint/test.go`; `tools/gate-affected-select/main.go` | `TestQualifiedSelectionProofAndParity_AFPV09500`, `TestQualifiedSelectionRecomputesAdditive_AFPV09500`, `TestQualifiedSelectionFailsClosed_AFPV09500`, `TestQualifiedSelectionModuleCoverageFailsClosed_AFPV09500`, `TestQualifiedSelectionRetainsUnobservedRuntimeReader_AFPV09500`, `TestSelectionContractUnobservedRuntimeReaders_AFPV09500` (positive proof and missing/forged/unknown/capped negative controls) |
+| AFP-V0-9501 | `tools/selection-baseline/contract.go`, `main.go`; `script/selection-contract-check.sh`; `Makefile` | `TestSelectionContractReplay_AFPV09501`, `TestSelectionContractFullCoverage_AFPV09501` (FULL universe coverage; equal sets and declared differences pass; extra, omitted, malformed and scope differences fail); corpus evidence in `2026-11-08-selection-contract.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
 | AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
