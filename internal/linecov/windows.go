@@ -18,7 +18,13 @@ import (
 
 // windowOverlay wraps top-level tests in scratch sources. It never edits the
 // checkout. Parallel tests and unsupported entry points retain the suite union
-// (LPCV-V0-962); overlapping counter windows cannot support attribution.
+// (LPCV-V0-962); overlapping counter windows cannot support attribution. A
+// binary whose instrumented code no test references links no counters, so
+// its windows open nothing and the in-order run keeps its union with the
+// window-order-unavailable reason instead of panicking. A window reads
+// CORVINT_LINECOV_WINDOWS through syscall, not os, so the collector's own
+// read is not reported as the test's read of a collector-modified variable
+// (GLS-V0-017).
 func windowOverlay(dir, work string) (string, string, error) {
 	paths, err := filepath.Glob(filepath.Join(dir, "*_test.go"))
 	if err != nil {
@@ -80,7 +86,7 @@ func windowOverlay(dir, work string) (string, string, error) {
 			inserts = append(inserts, struct {
 				at   int
 				text string
-			}{pos, fmt.Sprintf("\nif d := corvintLCOS.Getenv(\"CORVINT_LINECOV_WINDOWS\"); d != \"\" {\n if _, err := corvintLCOS.Stat(corvintLCPath.Join(d, \"order\")); corvintLCOS.IsNotExist(err) { p := corvintLCPath.Join(d, \"setup\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) } }; if f, err := corvintLCOS.OpenFile(corvintLCPath.Join(d, \"order\"), corvintLCOS.O_CREATE|corvintLCOS.O_WRONLY|corvintLCOS.O_APPEND, 0600); err == nil { _, _ = f.WriteString(\"%s\\n\"); _ = f.Close() } else { panic(err) }; p := corvintLCPath.Join(d, \"before-%s\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }; %s.Cleanup(func(){\n p := corvintLCPath.Join(d, %q); if err := corvintLCOS.MkdirAll(p, 0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }\n })\n}\n", name, name, param.Names[0].Name, name)})
+			}{pos, fmt.Sprintf("\nif d, _ := corvintLCSys.CorvintLinecovGetenvQuiet(\"CORVINT_LINECOV_WINDOWS\"); d != \"\" && corvintLCCov.WriteCounters(corvintLCIO.Discard) == nil {\n if _, err := corvintLCOS.Stat(corvintLCPath.Join(d, \"order\")); corvintLCOS.IsNotExist(err) { p := corvintLCPath.Join(d, \"setup\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) } }; if f, err := corvintLCOS.OpenFile(corvintLCPath.Join(d, \"order\"), corvintLCOS.O_CREATE|corvintLCOS.O_WRONLY|corvintLCOS.O_APPEND, 0600); err == nil { _, _ = f.WriteString(\"%s\\n\"); _ = f.Close() } else { panic(err) }; p := corvintLCPath.Join(d, \"before-%s\"); if err := corvintLCOS.MkdirAll(p,0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }; %s.Cleanup(func(){\n p := corvintLCPath.Join(d, %q); if err := corvintLCOS.MkdirAll(p, 0700); err != nil { panic(err) }; if err := corvintLCCov.WriteMetaDir(p); err != nil { panic(err) }; if err := corvintLCCov.WriteCountersDir(p); err != nil { panic(err) }\n })\n}\n", name, name, param.Names[0].Name, name)})
 			used = true
 		}
 		if !used {
@@ -97,7 +103,7 @@ func windowOverlay(dir, work string) (string, string, error) {
 			return "", "", err
 		}
 		decl := &ast.GenDecl{Tok: token.IMPORT, Lparen: 1}
-		for _, im := range [][2]string{{"corvintLCCov", "runtime/coverage"}, {"corvintLCOS", "os"}, {"corvintLCPath", "path/filepath"}} {
+		for _, im := range [][2]string{{"corvintLCCov", "runtime/coverage"}, {"corvintLCIO", "io"}, {"corvintLCOS", "os"}, {"corvintLCPath", "path/filepath"}, {"corvintLCSys", "syscall"}} {
 			decl.Specs = append(decl.Specs, &ast.ImportSpec{Name: ast.NewIdent(im[0]), Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(im[1])}})
 		}
 		f.Decls = append([]ast.Decl{decl}, f.Decls...)

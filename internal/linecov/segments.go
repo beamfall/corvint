@@ -166,7 +166,7 @@ func (ix *Index) blockSegs(b *Block) []int32 {
 // record (MCJ-V0-021).
 func (ix *Index) BlocksAt(path, oid string, lo, hi int) ([]BlockRef, bool) {
 	i, ok := ix.byPath[path]
-	if !ok || ix.Files[i].OID != oid {
+	if !ok || ix.Files[i].OID != oid || ix.ensureFile(i) != nil {
 		return nil, false
 	}
 	var out []BlockRef
@@ -226,6 +226,7 @@ type Join struct {
 // Join joins an Effect to the index's segments and units. A fallback effect
 // joins nothing and keeps its reason.
 func (ix *Index) Join(e Effect) Join {
+	ix.full()
 	if e.Fallback != "" {
 		return Join{Fallback: e.Fallback}
 	}

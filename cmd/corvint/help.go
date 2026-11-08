@@ -912,6 +912,7 @@ Usage:
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]
+  corvint [--root PATH] affected --base FULL_COMMIT_ID --line-index FILE [--line-test-timeout DURATION] [--line-exec PATH]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
           [--playwright-env NAME[=VALUE] ...]
@@ -1011,6 +1012,32 @@ UNOWNED_DIRTY_PATH marks the union's unowned paths from either component.
 When a committed range path is not in the worktree dirty set and the worktree
 is dirty, the receipt carries a top-level warning naming HEAD and the dirty
 count: the plan mixes that commit with mutable worktree content.
+
+--line-index FILE (experimental, GLS-V0-010; requires --base, JSON plan only)
+adds lineSelection (affected-line-selection/0): each Go unit plan.selected
+names, narrowed by the per-test line coverage index FILE (linecov collect,
+linecov-index/4) to whole, tests with an anchored -run pattern, compile
+(-run ^$) or exclude. A unit a declaration, new-file, non-Go, test-helper or
+other fallback path reaches, through the index's drift to --base too, stays
+whole with that category; possible source/data readers stay whole too. Both
+sides must preserve declarations and function boundaries. A test without a
+complete record is always kept. Unqualified selectors report SHADOW
+(unqualified), with proposed decisions only; applying exclusions requires a
+matching qualification record and a clean VCS-stamped selector executable.
+The selection is FALLBACK, deciding nothing, for an unreadable index, another
+module, runner (go env GOFLAGS, CGO_ENABLED, GOEXPERIMENT, -p aside, and the
+test runtime: -test.v=test2json and the --line-test-timeout DURATION deadline,
+default 10m, the go test -timeout the selected tests run under, and the
+--line-exec PATH go test -exec wrapper they run under, none by default) or
+ancestry, a dirty worktree, an unknown static scope or an index that binds no
+environment; plan is unchanged either way. A test, or a package's in-order
+record, observed under an environment the current one does not hold is kept
+(environment). It reports counts and loadMillis, selectMillis, staticMillis and
+gitMillis, and an exclusion entry (record digest, changed ranges, "any
+recorded blob OID changes"). Refused under --full, --summary, --format text,
+--by-path, --path, --snapshot, --provider, --playwright-config and
+--appmap-impact (unsupported-affected-line-index-profile).
+Example: corvint affected --base FULL_SHA --line-index linecov.idx
 
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
