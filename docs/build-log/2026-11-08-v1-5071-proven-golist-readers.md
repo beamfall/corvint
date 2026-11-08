@@ -30,8 +30,8 @@ To be provable, each guard has to follow five rules:
 
 Behavior notes:
 
-- The network guards no longer set `GOFLAGS=`. Mentioning GOFLAGS makes a unit unproven.
-  `GOWORK=off` and the other literals stay.
+- The network guards keep their `GOFLAGS=` reset, restored in repair round 1 (see below), along
+  with `GOWORK=off` and the other literals.
 - `TestRSPV0020ImportDirectionRejects` is removed. It only self-tested the test-local `checkImports`
   helper. That helper is now inlined into `TestRSPV0020ImportDirection`, because passing the listing
   to a helper is an escape. The forbidden-edge assertions themselves are unchanged.
@@ -106,3 +106,36 @@ not part of this change.
 
 Rollback: revert the commit. The guards return to their packages with the same assertions, and
 those homes only add selections.
+
+## Repair round 1 (independent review P1)
+
+Finding: the first commit dropped the `GOFLAGS=` reset from the two network guards to keep them
+proven. Without it, an inherited `-overlay` can substitute stale dependency source, so a new
+`net/http` importer escapes detection, and an inherited `-e` suppresses loader failures.
+
+Fix (c3b9e176):
+
+- All six `.Env` lines in `internal/closureguard/network_test.go` again append `"GOFLAGS="`, in
+  the original helper's order.
+- The classifier in `internal/liveverify/affected/golang/importgraph.go` now treats one shape as
+  safe: the exact empty `"GOFLAGS="` string as a direct entry of an `x.Env = append(...)` or
+  `x.Env = []string{...}` assignment. `namesGoEnvironment` masks only those entries before the
+  per-package GOFLAGS/GOENV scan, and `literalEnvironment` accepts the same entry. An empty value only
+  removes ambient flags, so it cannot widen what `go list` reads. Any non-empty or concatenated
+  value, any `GOENV` value, and any other mention (including comments and other literals) still
+  makes the unit unproven.
+- New shape subtests in `TestClosureGuardShapeIsProven_AFP_V0_9600`: an empty reset is proven; a
+  non-empty literal, a dynamic value and an empty reset outside an `.Env` assignment are unproven.
+- The AFP-V0-9600 text and traceability row state the rule.
+
+Measurement, with the binary rebuilt at c3b9e176 and the same body-only scratch edit: 6
+IMPORT_GRAPH_READER units / 568 test files, 233 selected units / 943 test files, unchanged from
+the first commit (baseline 16 / 820 and 240 / 973). `internal/closureguard` is not selected.
+Soundness: the `_ "hash/crc64"` scratch selects `internal/closureguard`, five test files, with
+witness IMPORT_GRAPH_READER via `cmd/corvint`. Both scratch commits were dropped.
+
+Validation: `internal/closureguard` whole package via `script/heavy.sh`: ok. The golang package with
+`-run` covering the closure-guard, import-graph (AFP-V0-2200 to 2202), symbol, reader and
+environment tests: ok, including `TestClosureGuardIsProvenImportGraphReader_AFPV09600` on the
+real package. gofmt -l and go vet on both packages: clean. Doc checks
+(`test-read-scopes-check line-citations-check long-lines-check spec-requirements-check`): ok.
