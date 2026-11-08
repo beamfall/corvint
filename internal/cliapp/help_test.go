@@ -71,3 +71,22 @@ func TestNativeProviderHelpDoesNotWrite(t *testing.T) {
 		}
 	}
 }
+
+// CAP-V0-8800 / ACP-011: even an exact analyzer help node must leave
+// protocol dispatch untouched; offline root discovery remains supported.
+func TestCAPV08800AnalyzerNodeHelpDelegates(t *testing.T) {
+	for _, flag := range []string{"--help", "-h"} {
+		for _, node := range []string{"help", "zz-unknown"} {
+			var out, errout bytes.Buffer
+			code, handled := Answer("corvint-analyzer-go", []string{node, flag}, &out, &errout)
+			if code != 0 || handled || out.Len() != 0 || errout.Len() != 0 {
+				t.Fatalf("%s %s: code=%d handled=%t stdout=%q stderr=%q", node, flag, code, handled, out.String(), errout.String())
+			}
+		}
+		var out, errout bytes.Buffer
+		code, handled := Answer("corvint-analyzer-go", []string{flag}, &out, &errout)
+		if code != 0 || !handled || !strings.Contains(out.String(), "corvint-analyzer-go < REQUEST.json") || errout.Len() != 0 {
+			t.Fatalf("root %s: code=%d handled=%t stdout=%q stderr=%q", flag, code, handled, out.String(), errout.String())
+		}
+	}
+}

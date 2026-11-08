@@ -269,6 +269,12 @@ Build with `go build -o /tmp/linecov ./tools/linecov`. Its command snapshot is
 
 ## MCP tools
 
+`corvint help --json` includes an offline `mcpTools` entry for every tool below:
+`name`, `availability` (server/profile conditions) and `summary`. The source inventory
+check rejects missing entries; configured `tools/list` supplies the argument schemas
+and actual availability. The [root snapshot](../internal/capcatalog/catalog.json)
+ships these entries even without a running server.
+
 Each server speaks MCP over stdio, is bound to one repository root, and is read-only. Tool names
 are the `corvint.*` names in `tools/list`. The [MCP guide](MCP-SERVER.md) covers setup and the
 protocol version: both servers speak MCP `2026-07-28` (no `initialize`; every request carries
