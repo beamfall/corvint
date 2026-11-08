@@ -5649,7 +5649,7 @@ LVT-V0-008	docs/specs/lane-verification-tooling-v0.md	(experimental under the st
 LVT-V0-009	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4319)	standing	2026-11-03; V1-4319
 LVT-V0-010	docs/specs/lane-verification-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; owner friction)	standing	2026-11-03
 LGP-V0-001	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each	standing	2026-11-03; V1-4404
-LGP-V0-002	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) The piec	standing	2026-11-03; V1-4404
+LGP-V0-002	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404; amended	standing	2026-11-03; V1-4404; 2026-10-11; decision 0592
 LGP-V0-003	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Owned	standing	2026-11-03; V1-4404
 LGP-V0-004	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each	standing	2026-11-03; V1-4404
 LGP-V0-005	docs/specs/language-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4404)	standing	2026-11-03; V1-4404
@@ -7179,6 +7179,47 @@ RVN-V0-005	docs/specs/run-verified-navigation-v0.md	The status MUST be exactly o
 RVN-V0-006	docs/specs/run-verified-navigation-v0.md	When receipts are supplied, the `screen` and `flow` projections MUST print the	unrecorded	-
 RVN-V0-007	docs/specs/run-verified-navigation-v0.md	The fact and its text MUST always carry authority `learned`. A run status MUST N	unrecorded	-
 RVN-V0-008	docs/specs/run-verified-navigation-v0.md	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate	unrecorded	-
+RSP-V0-001	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-002	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-003	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
+RSP-V0-004	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-005	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-006	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) On	standing	2026-10-11; decision 0592
+RSP-V0-007	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Pa	standing	2026-10-11; decision 0592
+RSP-V0-008	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-009	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-010	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-011	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) On	standing	2026-10-11; decision 0592
+RSP-V0-012	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Fo	standing	2026-10-11; decision 0592
+RSP-V0-013	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-014	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-015	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-016	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-017	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-018	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) An	standing	2026-10-11; decision 0592
+RSP-V0-019	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Se	standing	2026-10-11; decision 0592
+RSP-V0-020	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-021	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-022	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-023	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) ma	standing	2026-10-11; decision 0592
+RSP-V0-024	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-025	docs/specs/runner-selection-plugins-v0.md	(accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) A runner's piece	owner	decision 0592; 2026-11-07
+RSP-V0-026	docs/specs/runner-selection-plugins-v0.md	(accepted, decision 0592 (owner 2026-11-07, "Yes, both forms")) `corvint-runner/	owner	decision 0592; 2026-11-07
+RSP-V0-027	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-028	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-029	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) On	standing	2026-10-11; decision 0592
+RSP-V0-030	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Pl	standing	2026-10-11; decision 0592
+RSP-V0-031	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-032	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-033	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-034	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-035	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
+RSP-V0-036	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
+RSP-V0-037	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Sa	standing	2026-10-11; decision 0592
+RSP-V0-038	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) CI	standing	2026-10-11; decision 0592
+RSP-V0-039	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592)	standing	2026-10-11; decision 0592
+RSP-V0-040	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ro	standing	2026-10-11; decision 0592
+RSP-V0-041	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) A	standing	2026-10-11; decision 0592
 RUST-AFFECTED-V0-001	docs/specs/rust-affected-test-understanding-v0.md	`Owns` MUST claim `.rs` and MUST NOT claim Cargo manifests, Gherkin	unrecorded	-
 RUST-AFFECTED-V0-002	docs/specs/rust-affected-test-understanding-v0.md	Each Cargo package MUST produce one manifest-identified unit. Nested	unrecorded	-
 RUST-AFFECTED-V0-003	docs/specs/rust-affected-test-understanding-v0.md	Test anchors MUST include source files containing built-in `#[test]`,	unrecorded	-
