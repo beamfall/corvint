@@ -166,6 +166,52 @@ func TestAFPV0391CachedGraphIsRestoredExactly(t *testing.T) {
 	}
 }
 
+// AFP-V0-3352: a real cached graph retains test embeds and their reader guard;
+// an old-format entry is rejected even when its content checksum is intact.
+func TestTestEmbedGraphCacheRejectsOldProfile_AFPV03352(t *testing.T) {
+	pinnable(t)
+	root, dir := t.TempDir(), privateCacheDir(t)
+	writeCacheFixture(t, root, map[string]string{
+		"go.mod":            "module example.test/m\n",
+		"cat/cat.go":        "package cat\n",
+		"cat/cat_test.go":   "package cat\nimport _ \"embed\"\n//go:embed sub/x.go\nvar payload string\n",
+		"cat/sub/x.go":      "package sub\n",
+		"cat/sub/x_test.go": "package sub\n",
+	})
+	fresh, outcome := buildCached(t, root, dir, graphCacheIdentity)
+	if !outcome.Stored {
+		t.Fatalf("fixture must store before testing cache: %+v", outcome)
+	}
+	cached, outcome := buildCached(t, root, dir, graphCacheIdentity)
+	if !outcome.Hit {
+		t.Fatalf("fixture must hit before testing invalidation: %+v", outcome)
+	}
+	dirty := []string{"cat/sub/x.go"}
+	if !reflect.DeepEqual(affected.Select(fresh, dirty), affected.Select(cached, dirty)) || !reflect.DeepEqual(fresh.Readers(dirty), cached.Readers(dirty)) {
+		t.Fatal("cached test embed selection or readers differ from fresh graph")
+	}
+	unit, _ := cached.Unit("go:example.test/m/cat")
+	if !unit.TestEmbeds || !reflect.DeepEqual(unit.TestEmbedFiles, []string{"cat/sub/x.go"}) || unit.Embeds || len(unit.EmbedFiles) != 0 {
+		t.Fatalf("cache lost test-scoped facts: %+v", unit)
+	}
+	entry := affected.GraphCacheEntryPath(dir, root, allLanguages())
+	body, err := os.ReadFile(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(body, []byte("corvint-affected-graph-cache/1 ")) {
+		t.Fatal("expected new profile before injecting old header")
+	}
+	body = bytes.Replace(body, []byte("corvint-affected-graph-cache/1 "), []byte("corvint-affected-graph-cache/0 "), 1)
+	if err := os.WriteFile(entry, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, outcome = buildCached(t, root, dir, graphCacheIdentity)
+	if outcome.Hit || outcome.Reason != "entry checksum or profile mismatch" || !outcome.Stored {
+		t.Fatalf("old profile must rebuild: %+v", outcome)
+	}
+}
+
 // AFP-V0-392: every change to what the build observed, and every damaged
 // entry, falls back to a full build whose graph is the fresh one.
 func TestAFPV0392CacheFailsClosedOnAnyMismatch(t *testing.T) {

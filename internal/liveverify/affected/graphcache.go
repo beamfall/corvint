@@ -23,7 +23,8 @@ import (
 
 // GraphCacheProfile names the graph cache entry format (AFP-V0-391). An entry
 // written under any other profile is never trusted.
-const GraphCacheProfile = "corvint-affected-graph-cache/0"
+// AFP-V0-3352: /1 includes test-scoped embed facts; /0 cannot prove them.
+const GraphCacheProfile = "corvint-affected-graph-cache/1"
 
 const (
 	// graphCacheMaxBytes bounds one entry read or written.
@@ -195,6 +196,8 @@ type cachedUnit struct {
 	PlacesFileNames      bool     `json:"placesFileNames"`
 	Embeds               bool     `json:"embeds"`
 	EmbedFiles           []string `json:"embedFiles"`
+	TestEmbeds           bool     `json:"testEmbeds"`
+	TestEmbedFiles       []string `json:"testEmbedFiles"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped"`

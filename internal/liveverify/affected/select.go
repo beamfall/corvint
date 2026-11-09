@@ -503,6 +503,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
+	graph.testEmbedReadersOf(reached, normalized)
 	graph.inboundRuntimeCallers(reached, followed, normalized)
 	graph.inboundRevisionCallers(reached, followed, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt

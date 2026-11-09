@@ -969,6 +969,7 @@ func (graph *Graph) Readers(paths []string) map[string]Witness {
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
 	graph.ownersOf(reached, normalized)
+	graph.testEmbedReadersOf(reached, normalized)
 	// A package embedding files under its directory reads a changed file
 	// there as data (goDataRule), whatever else reaches it.
 	packages := graph.goPackageDirectories()
@@ -1030,4 +1031,22 @@ func (graph *Graph) NamesPath(id, dirtyPath string) bool {
 // glob, the match a PATH_GLOB_READER selection rests on (AFP-V0-2377).
 func (graph *Graph) GlobRead(id string, dirty []string) (dirtyPath, glob string, ok bool) {
 	return graph.globRead(id, dirty)
+}
+
+// testEmbedReadersOf selects only the embedding tests, never production
+// importers or binary consumers (AFP-V0-3350/3351). Like production embeds,
+// retain every descendant path: deleted targets and unresolved directives
+// must not disappear merely because the current walk cannot resolve them.
+func (graph *Graph) testEmbedReadersOf(reached map[string]Witness, paths []string) {
+	packages := graph.goPackageDirectories()
+	for _, dirty := range paths {
+		for directory := relativeDirectory(dirty); ; directory = relativeDirectory(directory) {
+			if id, ok := packages[directory]; ok && graph.units[id].TestEmbeds {
+				addWitness(reached, id, Witness{Kind: WitnessEnclosingPackage, DirtyPath: dirty, Via: []string{id}})
+			}
+			if directory == "." {
+				break
+			}
+		}
+	}
 }

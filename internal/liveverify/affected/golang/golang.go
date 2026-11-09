@@ -244,7 +244,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	testImports := make(map[string]map[string]bool, len(directories))
 	ordered := sortedKeys(directories)
 	observedDirectories := language.observeDirectories(root, owners, directories, ordered, packageDirectories(ordered, manifests))
-	embedding := make(map[int][]string)
+	embedding := make(map[int]directoryEmbeds)
 	for offset, directory := range ordered {
 		observation := observedDirectories[offset]
 		for reason := range observation.frontier {
@@ -259,7 +259,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 		units = append(units, unit)
 		unitDirectories = append(unitDirectories, directory)
-		if len(observation.embeds) != 0 {
+		if len(observation.embeds.production)+len(observation.embeds.tests) != 0 {
 			embedding[len(units)-1] = observation.embeds
 		}
 		if observation.command {
@@ -316,11 +316,12 @@ func runnableModules(evidence []nestedModule, unobserved []string) []string {
 	return slices.Compact(directories)
 }
 
-// resolveEmbeds sets each embedding unit's EmbedFiles from its directives'
+// resolveEmbeds sets each embedding unit's production and test EmbedFiles
+// separately (AFP-V0-3350) from its directives'
 // patterns against every file the walk lists (AFP-V0-600). The listing is the
 // same shared walk the Go files came from, so a file the walk skips is never
 // claimed and stays owned by none.
-func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories []string, embedding map[int][]string, manifests []string) error {
+func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories []string, embedding map[int]directoryEmbeds, manifests []string) error {
 	if len(embedding) == 0 {
 		return nil
 	}
@@ -337,7 +338,8 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 			if directory := unitDirectories[offset]; directory != "." && !strings.HasPrefix(relative, directory+"/") {
 				continue
 			}
-			if len(embedTargets(unitDirectories[offset], patterns, []string{relative}, moduleRoots)) != 0 {
+			if len(embedTargets(unitDirectories[offset], patterns.production, []string{relative}, moduleRoots)) != 0 ||
+				len(embedTargets(unitDirectories[offset], patterns.tests, []string{relative}, moduleRoots)) != 0 {
 				return true
 			}
 		}
@@ -348,11 +350,12 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 	}
 	sort.Strings(files)
 	for offset, patterns := range embedding {
-		targets := embedTargets(unitDirectories[offset], patterns, files, moduleRoots)
-		if len(targets) == 0 || len(targets) > affected.MaxPathsPerUnit {
-			continue
+		if targets := embedTargets(unitDirectories[offset], patterns.production, files, moduleRoots); len(targets) <= affected.MaxPathsPerUnit {
+			units[offset].EmbedFiles = targets
 		}
-		units[offset].EmbedFiles = targets
+		if targets := embedTargets(unitDirectories[offset], patterns.tests, files, moduleRoots); len(targets) <= affected.MaxPathsPerUnit {
+			units[offset].TestEmbedFiles = targets
+		}
 	}
 	return nil
 }
@@ -383,6 +386,11 @@ func unobservedModules(evidence []nestedModule, modules map[string]module) []str
 	return slices.Compact(directories)
 }
 
+// directoryEmbeds keeps production and test directives separate (AFP-V0-3350).
+type directoryEmbeds struct {
+	production, tests []string
+}
+
 // directoryObservation is one observeDirectory result with the frontier
 // reasons that directory raised.
 type directoryObservation struct {
@@ -390,9 +398,8 @@ type directoryObservation struct {
 	imports, testImports map[string]bool
 	frontier             map[string]bool
 	command              bool
-	// embeds holds the patterns of the non-test files' //go:embed
-	// directives (AFP-V0-600).
-	embeds []string
+	// embeds holds separately scoped //go:embed patterns.
+	embeds directoryEmbeds
 	err    error
 }
 
@@ -437,17 +444,17 @@ const observeWorkers = 8
 // observeDirectory turns one directory of Go files into one unit plus the raw
 // import path sets its non-test files and its test files declare, and reports
 // whether a non-test file declares package main (a command, AFP-V0-037). It
-// also returns the patterns of the non-test files' //go:embed directives; a
+// also returns production and test //go:embed patterns separately; a
 // file whose directives do not parse contributes none (AFP-V0-600).
-func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool, aliases *readKindAliases) (affected.Unit, map[string]bool, map[string]bool, bool, []string, error) {
+func (Language) observeDirectory(root *affected.Source, owner module, directory string, files, packages []string, frontier map[string]bool, aliases *readKindAliases) (affected.Unit, map[string]bool, map[string]bool, bool, directoryEmbeds, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
 	globs := make(map[string]bool)
-	embeds, constrained, command := false, false, false
-	var patterns []string
+	embeds, testEmbeds, constrained, command := false, false, false, false
+	var patterns directoryEmbeds
 	var reads unboundedReads
 	var leafReads []string
 	var kindReads unboundedReads
@@ -480,10 +487,19 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		}
 		isTest := strings.HasSuffix(relative, "_test.go")
 		command = command || (!isTest && file.Name.Name == "main")
-		if !isTest && bytes.Contains(body, []byte(embedDirective)) {
-			embeds = true
-			if parsed, ok := embedPatterns(body); ok {
-				patterns = append(patterns, parsed...)
+		if bytes.Contains(body, []byte(embedDirective)) {
+			target := &patterns.production
+			if isTest {
+				testEmbeds = true
+				target = &patterns.tests
+			} else {
+				embeds = true
+			}
+			if parsed, ok := embedPatterns(body); ok && validEmbedPatterns(parsed) {
+				*target = append(*target, parsed...)
+			} else {
+				// Invalid test directives are as uncertain as production ones.
+				frontier[FrontierUnparsedSource] = true
 			}
 		}
 		declared := importPaths
@@ -584,7 +600,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		}
 	}
 	if len(sources) == 0 && len(tests) == 0 {
-		return affected.Unit{}, nil, nil, false, nil, nil
+		return affected.Unit{}, nil, nil, false, directoryEmbeds{}, nil
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
@@ -626,7 +642,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	// A command's root locator reaches every unit that runs the command; a
 	// rule (d) chain skips only the build-only edges of `go vet` and `go
 	// list` (AFP-V0-2951).
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, TestEmbeds: testEmbeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // linkedSources maps each symlinked .go entry of directory whose target it can
