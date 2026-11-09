@@ -4558,7 +4558,7 @@
     "reqPrefix": "GRG-V0",
     "intent": "accepted (owner instruction 2026-11-06: make Greptile a required check, \"Yes, build it\")",
     "delivery": "experimental",
-    "claim": "A trusted workflow posts the required `greptile-gate` status, `success` only when Greptile reviewed the exact PR head at 5/5 with no unresolved Greptile thread.",
+    "claim": "The required gate accepts Greptile 5/5 on the head or an unchanged PR diff, with no unresolved Greptile threads.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
