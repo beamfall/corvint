@@ -7,7 +7,9 @@
 // A literal that is only a fixture path, such as a path written into a
 // temporary repository, is exempt when its line ends with the comment
 // //corvint:fixture-path and no unmarked literal of the same file holds the
-// same token (ASD-V0-895).
+// same token (ASD-V0-895). An entry naming a whole top-level directory fails
+// unless .corvint/test-read-scope-trees.json records, beginning with the
+// tracked file that holds it, the read that keeps the tree (AFP-V0-3010).
 package main
 
 import (
@@ -52,6 +54,8 @@ const (
 	maxLiterals        = 1 << 16
 	sandboxesPath      = ".corvint/test-nested-sandboxes.json"
 	sandboxesProfile   = "corvint-test-nested-sandboxes/0"
+	treesPath          = ".corvint/test-read-scope-trees.json"
+	treesProfile       = "corvint-test-read-scope-trees/0"
 	unboundedPath      = ".corvint/unbounded-readers.json"
 )
 
@@ -118,6 +122,62 @@ func readLiterals(root string) (map[string]map[string]string, error) {
 	return record.Literals, nil
 }
 
+// readTrees reads the closed {profile, trees} record of the whole top-level
+// directory entries the declaration keeps (AFP-V0-3010): trees maps a declared
+// package directory to each such entry and the reason it stays, which begins
+// with the tracked file holding the read. An absent record is empty.
+func readTrees(root string) (map[string]map[string]string, error) {
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(treesPath)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return map[string]map[string]string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var record struct {
+		Profile string                       `json:"profile"`
+		Trees   map[string]map[string]string `json:"trees"`
+	}
+	// json/v2 matches member names exactly and refuses a duplicate member or trailing data.
+	bad := len(raw) > maxLiterals || json.Unmarshal(raw, &record, json.RejectUnknownMembers(true)) != nil ||
+		record.Profile != treesProfile || record.Trees == nil
+	for directory, entries := range record.Trees {
+		bad = bad || len(entries) == 0 || directory == "" || path.Clean(directory) != directory || path.IsAbs(directory) ||
+			directory == "." || directory == ".." || strings.HasPrefix(directory, "../")
+		for entry, reason := range entries {
+			bad = bad || !wholeTree(entry) || strings.TrimSpace(reason) == ""
+		}
+	}
+	if bad {
+		return nil, fmt.Errorf("%s: want exactly {\"profile\":%q,\"trees\":{PACKAGE:{TREE/:REASON}}} with a clean relative package directory, a whole top-level directory entry such as \"internal/\" and a non-empty reason for each", treesPath, treesProfile)
+	}
+	return record.Trees, nil
+}
+
+// wholeTree reports an AFP-V0-023 entry that names a whole top-level directory,
+// one path component and a trailing slash, which selects its package for every
+// edit under that tree (AFP-V0-3010).
+func wholeTree(entry string) bool {
+	name, rest, ok := strings.Cut(entry, "/")
+	return ok && rest == "" && name != "" && name != "." && name != ".."
+}
+
+// treeReasonFile returns the first word of a whole-tree reason, without a
+// trailing colon, comma or semicolon, when it is a tracked regular file: the
+// file holding the read that keeps the tree (AFP-V0-3010).
+func treeReasonFile(root string, paths map[string]bool, reason string) (string, bool) {
+	fields := strings.Fields(reason)
+	if len(fields) == 0 {
+		return "", false
+	}
+	name := strings.TrimRight(fields[0], ":,;")
+	if !paths[name] {
+		return name, false
+	}
+	info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(name)))
+	return name, err == nil && info.Mode().IsRegular()
+}
+
 // finding is one test file literal that names an undeclared repository path.
 type finding struct {
 	pkg, file, path string
@@ -150,6 +210,11 @@ type finding struct {
 	// whose tests are now unbounded and absent from the unbounded-readers
 	// units (AFP-V0-2541); file and path are then empty.
 	dropped bool
+	// tree is a whole top-level directory entry of the package's declaration
+	// that the trees record gives no usable reason for (AFP-V0-3010); file and
+	// path are then empty. reason holds the recorded reason, if any, whose
+	// first word is no tracked file.
+	tree, reason string
 }
 
 // rootLocator names the first test-file literal of a package that locates the
@@ -973,8 +1038,9 @@ func recordedAbove(recorded map[string]string, dependency string) (string, bool)
 	return "", false
 }
 
-// check returns the unrecorded findings and the recorded literals that no test
-// file names any more.
+// check returns the unrecorded findings and one report for each recorded
+// literal that no test file names any more and each recorded whole-tree
+// reason whose package no longer declares that entry.
 func check(root string) ([]finding, []string, error) {
 	// The memos hold the reads of one run only, so a later run sees edited files.
 	parsedFiles.Clear()
@@ -1002,6 +1068,10 @@ func check(root string) ([]finding, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	trees, err := readTrees(root)
+	if err != nil {
+		return nil, nil, err
+	}
 	existence := graph.ExistenceReaderPackages()
 	var units []affected.Unit
 	for _, id := range graph.UnitIDs() {
@@ -1025,7 +1095,7 @@ func check(root string) ([]finding, []string, error) {
 		go func() {
 			defer group.Done()
 			for index := range work {
-				results[index] = checkUnit(root, units[index], paths, recorded, sandboxes, existence)
+				results[index] = checkUnit(root, units[index], paths, recorded, sandboxes, trees, existence)
 			}
 		}()
 	}
@@ -1034,7 +1104,7 @@ func check(root string) ([]finding, []string, error) {
 	}
 	close(work)
 	group.Wait()
-	used := map[string]bool{}
+	used, usedTrees := map[string]bool{}, map[string]bool{}
 	var findings []finding
 	for _, result := range results {
 		if result.err != nil {
@@ -1044,12 +1114,22 @@ func check(root string) ([]finding, []string, error) {
 		for _, key := range result.used {
 			used[key] = true
 		}
+		for _, key := range result.usedTrees {
+			usedTrees[key] = true
+		}
 	}
 	var stale []string
 	for directory, targets := range recorded {
 		for target := range targets {
 			if !used[directory+" "+target] {
-				stale = append(stale, directory+" "+target)
+				stale = append(stale, fmt.Sprintf("%s records %s %s, which no test file of the package names; remove it", literalsPath, directory, target))
+			}
+		}
+	}
+	for directory, entries := range trees {
+		for entry := range entries {
+			if !usedTrees[directory+" "+entry] {
+				stale = append(stale, fmt.Sprintf("%s records a reason for %s %s, which %s no longer declares for that Go package; remove it (AFP-V0-3010)", treesPath, directory, entry, affected.ReadScopesPath))
 			}
 		}
 	}
@@ -1132,18 +1212,32 @@ var (
 // unitResult is one package's part of check: its findings in file order, the
 // recorded literals it used, or the error that stops the check.
 type unitResult struct {
-	findings []finding
-	used     []string
-	err      error
+	findings  []finding
+	used      []string
+	usedTrees []string
+	err       error
 }
 
 // checkUnit checks the test files of one read-scoped package unit.
-func checkUnit(root string, unit affected.Unit, paths map[string]bool, recorded map[string]map[string]string, sandboxes map[string]string, existence []string) unitResult {
+func checkUnit(root string, unit affected.Unit, paths map[string]bool, recorded map[string]map[string]string, sandboxes map[string]string, trees map[string]map[string]string, existence []string) unitResult {
 	var result unitResult
 	directory := path.Dir(unit.Tests[0])
 	if reason, ok := sandboxes[directory]; ok {
 		result.findings = append(result.findings, finding{pkg: directory, sandbox: reason})
 		return result
+	}
+	for _, entry := range unit.ReadScope {
+		if !wholeTree(entry) {
+			continue
+		}
+		reason, ok := trees[directory][entry]
+		if ok {
+			result.usedTrees = append(result.usedTrees, directory+" "+entry)
+			if _, tracked := treeReasonFile(root, paths, reason); tracked {
+				continue
+			}
+		}
+		result.findings = append(result.findings, finding{pkg: directory, tree: entry, reason: reason})
 	}
 	tokens, runs := make([][]string, len(unit.Tests)), make([][]string, len(unit.Tests))
 	bodies := make([][]byte, len(unit.Tests))
@@ -1363,12 +1457,23 @@ func run(root string, stdout, stderr io.Writer) int {
 	// A stale entry only reports: failing on it would break a merge of one change
 	// that drops a literal with another that still records it.
 	for _, entry := range stale {
-		fmt.Fprintf(stderr, "test-read-scopes-check: %s records %s, which no test file of the package names; remove it\n", literalsPath, entry)
+		fmt.Fprintln(stderr, "test-read-scopes-check:", entry)
 	}
 	for _, found := range findings {
 		if found.dropped {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s is declared in %s at HEAD and not in the working tree, so its tests now read outside the package unbounded and run on every change, but units of %s do not list it; restore its entry in %s, or add %q to units of %s with a reasons entry naming the read (that ratchet compares sets, AFP-V0-025; AFP-V0-2541)\n",
 				found.pkg, affected.ReadScopesPath, unboundedPath, affected.ReadScopesPath, found.pkg, unboundedPath)
+			continue
+		}
+		if found.tree != "" {
+			problem := fmt.Sprintf("%s gives no reason for it", treesPath)
+			if found.reason != "" {
+				name, _ := treeReasonFile(root, nil, found.reason)
+				problem = fmt.Sprintf("its reason in %s begins with %q, which is no tracked file of the repository", treesPath, name)
+			}
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s declares the whole top-level tree %s in %s, which selects its tests for every edit under %s, and %s (AFP-V0-3010)\n"+
+				"fix: narrow %q to the paths the package's tests read, measured by running them from the package directory and confirmed under the .github/testconfine wrapper (AFP-V0-3011); or, when a test walks, lists or globs the tree, checks the existence of paths read from data, or builds a target whose import closure the entries cannot list, add %q: \"<tracked file holding the read> <that read>\" under %q in %s\n",
+				found.pkg, found.tree, affected.ReadScopesPath, found.tree, problem, found.tree, found.tree, found.pkg, treesPath)
 			continue
 		}
 		if found.sandbox != "" {

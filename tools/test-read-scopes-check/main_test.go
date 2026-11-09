@@ -405,6 +405,8 @@ func TestStatOfDataDerivedPathFails_V1_3772(t *testing.T) {
 			"idx/idx.go":                     "package idx\n",
 			"idx/idx_test.go":                test,
 			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"idx":["specs/"]}}`,
+			// AFP-V0-3011 (2): an existence check of paths read from data keeps the tree.
+			treesPath: `{"profile":"corvint-test-read-scope-trees/0","trees":{"idx":{"specs/":"idx/idx_test.go stats paths read from specs/INDEX.json"}}}`,
 		}
 		if c.existence != "" {
 			files[".corvint/existence-readers.json"] = c.existence
@@ -755,5 +757,57 @@ func TestDroppedDeclarationNamesTheRatchetEntry_AFP_V0_2541(t *testing.T) {
 	write(".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"internal/cem/verify":[`+entries+`]}}`)
 	if output := check("bounded package dropped", 0, "test-read-scopes-check: ok"); strings.Contains(output, "fixtures/f is declared") {
 		t.Fatalf("a bounded dropped package was reported: %s", output)
+	}
+}
+
+// AFP-V0-3010 (V1-4993): a declared entry naming a whole top-level directory
+// selects the package for every edit under that tree, so it fails unless
+// .corvint/test-read-scope-trees.json records a reason that begins with the
+// tracked file holding the read; the failure carries a fix: line. A narrowed
+// entry needs no reason, a reason the declaration no longer uses is reported
+// without failing, and a record outside the grammar exits 2.
+func TestWholeTreeEntryNeedsAReason_AFP_V0_3010(t *testing.T) {
+	const reason = `"pkg/p/p_test.go walks internal/ for every Go file"`
+	record := func(trees string) string {
+		return `{"profile":"corvint-test-read-scope-trees/0","trees":` + trees + `}`
+	}
+	for name, c := range map[string]struct {
+		entries, trees string
+		code           int
+		want, absent   string
+	}{
+		"no record": {`"internal/"`, "", 1,
+			"package pkg/p declares the whole top-level tree internal/ in .corvint/test-read-scopes.json, which selects its tests for every edit under internal/, and .corvint/test-read-scope-trees.json gives no reason for it (AFP-V0-3010)\nfix: narrow \"internal/\" to the paths", ""},
+		"no reason for this tree": {`"docs/","internal/"`, record(`{"pkg/p":{"internal/":` + reason + `}}`), 1,
+			"declares the whole top-level tree docs/", "tree internal/"},
+		"reason names a tracked file": {`"internal/"`, record(`{"pkg/p":{"internal/":` + reason + `}}`), 0,
+			"test-read-scopes-check: ok", "fix:"},
+		"reason names no tracked file": {`"internal/"`, record(`{"pkg/p":{"internal/":"walks internal/"}}`), 1,
+			`its reason in .corvint/test-read-scope-trees.json begins with "walks", which is no tracked file of the repository`, ""},
+		"reason names a directory": {`"internal/"`, record(`{"pkg/p":{"internal/":"internal/other walks it"}}`), 1,
+			`begins with "internal/other"`, ""},
+		"narrowed entry": {`"internal/other/"`, "", 0, "test-read-scopes-check: ok", "whole top-level"},
+		"stale reason": {`"internal/other/"`, record(`{"pkg/p":{"internal/":` + reason + `}}`), 0,
+			"test-read-scopes-check: .corvint/test-read-scope-trees.json records a reason for pkg/p internal/, which .corvint/test-read-scopes.json no longer declares for that Go package; remove it (AFP-V0-3010)", ""},
+		"blank reason":       {`"internal/"`, record(`{"pkg/p":{"internal/":" "}}`), 2, "want exactly", ""},
+		"entry below a tree": {`"internal/"`, record(`{"pkg/p":{"internal/other/":` + reason + `}}`), 2, "want exactly", ""},
+		"unknown member":     {`"internal/"`, `{"profile":"corvint-test-read-scope-trees/0","trees":{},"extra":1}`, 2, "want exactly", ""},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"pkg/p/p.go":                     "package p\n",
+			"pkg/p/p_test.go":                "package p\n",
+			"internal/other/o.go":            "package other\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"pkg/p":[` + c.entries + `]}}`,
+		}
+		if c.trees != "" {
+			files[treesPath] = c.trees
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || c.absent != "" && strings.Contains(output, c.absent) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or holds %q", name, code, c.code, output, c.want, c.absent)
+		}
 	}
 }

@@ -54,3 +54,50 @@ A package listed in `.corvint/unbounded-readers.json` because its tests `source`
 `shell:runs-toolchain` units (`TSP-V0-950`). `make unbounded-readers-check` names each computed
 `source` line and the fix: source a literal path, such as a helper file beside the script
 (`ASD-V0-614`).
+
+## Whole top-level trees need a reason
+
+An entry naming a whole top-level directory (`internal/`, `cmd/`, `script/`, `docs/`, `.github/`
+and so on) selects the package's tests for every edit under that tree, so `make
+test-read-scopes-check` fails on it, with a `fix:` line, unless
+`.corvint/test-read-scope-trees.json` (`corvint-test-read-scope-trees/0`) gives a reason
+(`AFP-V0-3010`). Prefer narrowing (`AFP-V0-3011`):
+
+1. Measure what the tests open: compile the package's tests (`go test -c`) and run the binary from
+   the package directory with `GOFLAGS=-buildvcs=false`, as the confined shard does, under any
+   tracer that records file and directory opens below the root. Compare the result with the
+   static check's findings for the package with the tree entry removed, and read the tests for
+   darwin-only or opt-in reads a Linux run skips.
+2. Replace the tree with the measured reads: each literal file, and each package directory of the
+   import closure of a literal `go build` or `go list` target the static check models, as a
+   subtree entry, however large the closure (`AFP-V0-3150`). Generate the closure from the
+   repository root, then drop each entry that lies below another declared subtree entry:
+
+   ```sh
+   go list -deps -f '{{if not .Standard}}{{.Dir}}{{end}}' ./cmd/corvint ./cmd/OTHER |
+     sed "s|^$PWD/||; s|$|/|" | grep -v '^/' | sort -u
+   ```
+
+   The check lists the same closures on every run and fails when one leaves the entries, naming
+   the directory. That happens when an entry is dropped or when a target gains an import, so a
+   closure declaration cannot drift below the closure unnoticed. A target counts as modelled when
+   it is a literal at an `exec.Command`, `exec.CommandContext` or `procgroup.Spec` site, or a
+   concatenation inside a `range` over literal names. Spell a fixed build through a helper in one
+   of those forms rather than keeping the tree.
+3. Run the static check and the package under the runtime twin above. A read you missed fails there
+   with `permission denied`.
+
+Keep the tree, and record why, when a test walks, lists or globs it (a Landlock grant that lets a
+directory be listed covers its whole subtree), checks the existence of paths read from data
+(`os.Stat` is not confined and a trace does not see it), builds a target the static check cannot
+model (a variable, a helper parameter, a concatenation outside a `range` over literal names), or
+runs scripts that compute repository paths. Closure size is no reason. The reason begins with the
+tracked file that holds the read and then names it:
+
+```json
+"internal/diagnostic": {
+  "internal/": "internal/diagnostic/gate_test.go treeSources walks internal/ and reads every non-test .go file outside testdata (AFP-V0-3011 (1))"
+}
+```
+
+A reason whose package no longer declares the tree is reported for removal without failing.
