@@ -19,7 +19,9 @@ var ShellSuffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
 const ShellForeignCallersProfile = "corvint-shell-foreign-callers/0"
 
 const (
-	MaxShellForeignCallerBytes = 64 << 10
+	// MaxShellForeignCallerBytes is 256 KiB (V1-4989): the declaration grew
+	// past 64 KiB with ordinary new callers; the member limits stay as before.
+	MaxShellForeignCallerBytes = 256 << 10
 	maxForeignCallerScripts    = 64
 	maxForeignCallers          = 256
 	// maxForeignCallerReason is 1024 bytes (V1-4062, TSP-V0-820): the
