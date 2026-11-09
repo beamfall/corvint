@@ -1,16 +1,16 @@
 # Agent evidence routes
 
 This is a reading aid, not accepted intent or a delivery claim. Use native Corvint first under the
-installed skill and [dogfood contract](DOGFOOD.md#1-orient-with-corvint). Retain its omissions,
+installed skill. Retain its omissions,
 uncertainty and unsupported results. A ranked document is a lead, not the governing answer.
 Read the matching row, then expand only the relevant original sources.
 
 | Question | First source and expansion | Boundary / next action |
 |---|---|---|
 | Select features for Corvint development | [Shared stage guide](SELF-DEVELOPMENT.md) → owning spec and actual CLI help. | Corvint itself or explicit repository adoption only; select applicable routes and preserve actual receipts/exclusions, not an all-command loop or FULL claim. |
-| Starting a change | [AGENTS.md](../AGENTS.md) → [dogfood loop](DOGFOOD.md#required-loop-for-substantive-changes) and [authority order](SPEC-DRIVEN-DEVELOPMENT.md#authority) | Freeze the base and measurement before context. For an enrolled local change follow [local completion](DOGFOOD.md#enrolled-local-completion-policy); final CEM binding/checking remains post-commit under DOGFOOD §4. |
+| Starting a change | [AGENTS.md](../AGENTS.md) → [authority order](SPEC-DRIVEN-DEVELOPMENT.md#authority) | Freeze the base and measurement before context. |
 | Adding a `script/*_test.sh` shell test | [SHELL-TEST-REGISTRATION](SHELL-TEST-REGISTRATION.md) → `STR-V0-004` in [Session Test Runner V0](specs/session-test-runner-v0.md) and `AFP-V0-025` in [Affected Plan V0](specs/affected-plan-v0.md). | A `Makefile` target in `GATE_STEPS`, the same step in `shell-test`, and a `units` entry or declared read scope; `make doc-gates` names every missing one in one run. |
-| Running several agent lanes on one host | [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md) → ASD-V0-013..018 in [Corvint Self-Development V0](specs/corvint-self-development-v0.md#requirements). | Heavy Go commands through `script/heavy.sh`; dogfood inputs up front and one finish; no polling in lanes; the orchestrator owns waits, the idle watchdog and checkout cleanup. |
+| Running several agent lanes on one host | [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md) → ASD-V0-013..018 in [Corvint Self-Development V0](specs/corvint-self-development-v0.md#requirements). | Heavy Go commands through `script/heavy.sh`; no polling in lanes; the orchestrator owns waits, the idle watchdog and checkout cleanup. |
 | Measuring a performance or latency target on a quiet host | [BENCHMARK-HOST](BENCHMARK-HOST.md) → the harness table, then the ticket's build-log entry. | WSL2 numbers are their own baseline: never compared with macOS, Windows or CI; ext4 clone; idle check before every step; no Windows workload during a run. |
 | What capability exists? | [CAPABILITIES](CAPABILITIES.md) first: one row per command, binary and MCP tool with its question, minimal call, maturity, refusals and owning spec. For intent or delivery detail, select matching records from [INDEX.json](specs/INDEX.json) and read that spec's Agent digest and its named sections. | The catalog is gated against the code by `tools/capabilities-check` (CAP-V0), but subcommands and prose claims are not gated; `corvint COMMAND --help` is the exact contract. Keep intent, delivery, dependencies, supersession and promotion evidence separate. An accepted spec can have no executable delivery. |
 | Which experimental verb answers this? | [Decision 0089](decisions/0089-agentic-completeness-wave-2026-09-11.md) names the eight wave verbs and their owning specs; read that spec's Agent digest, then `corvint VERB --help`. | Every one is `proposed` intent and `experimental` delivery: read its receipt, do not let another capability consume it. `depsource` abstains with `module-not-required` in this repository, `calibrate` returns empty buckets until `internal/trace/record.go` carries a packet stance, and `surprise` refuses on a dirty worktree. |
@@ -19,11 +19,10 @@ Read the matching row, then expand only the relevant original sources.
 | Searching the repository for an ID or string | `script/agent-grep.sh [GIT-GREP-OPTION...] PATTERN [REV]`: `git grep` with the generated and data paths in [`.corvint/agent-grep-exclude`](../.corvint/agent-grep-exclude) excluded (CEMs, ticket records, test corpora, results). With plain `git grep` or `rg`, pass the same globs as `':(exclude,glob)GLOB'` or `-g '!GLOB'`. | Search the excluded paths only when the question is about them; `make long-lines-check` (ASD-V0-573) fails on a new tracked file with a line over 4 KB until it is excluded or listed in `.corvint/long-line-allow`. |
 | Why did a command fail? | Preserve the exact error/receipt; search its code with `rg -n -F 'ERROR_CODE' internal cmd`, then read the matching implementation, tests and owning requirement. | Check profile, revision and worktree preconditions before changing code. Unsupported-by-design is a boundary; never discard local work to satisfy a read command. |
 | Search code for an identifier or string | `git grep -n 'TEXT' -- . ':!.agent-evidence' ':!.corvint/changes'`, or `rg -n -g '!.agent-evidence' -g '!.corvint/changes' 'TEXT' .`; then read the matching source slices. | Tracked change evidence under `.agent-evidence/` and `.corvint/changes/` is long single-line JSON that quotes source: at `6c33df33` an unscoped `git grep -n check-line-citations` printed 997 KB, 23 evidence lines, against 65 KB with the pathspec. Drop the exclusions only when the question is about that evidence. |
-| Review a change | [CEM non-claims](CHANGE-EVIDENCE-MAP.md#positioning-and-non-claims), [OCM digest](specs/ocm-v0-dogfood.md#agent-digest), then [reviewer reports](DOGFOOD.md#6-review-what-another-reviewer-sees). | Inspect mapped hunks, every scoped requirement, unknowns and test witnesses. Structural closure does not establish semantic support, test adequacy or a passing gate. |
-| Run Corvint from CI, a git hook or a team automation | [Triggered automation contract](AUTOMATION.md) → the step's `corvint VERB --help` and the source lines that page cites. | Only the listed read-only steps; each is one foreground process and a run grants no authority. `cem report` and `dogfood-check` write local state, and `dogfood-check` fails in a fresh clone (V1-0182). |
+| Run Corvint from CI, a git hook or a team automation | [Triggered automation contract](AUTOMATION.md) → the step's `corvint VERB --help` and the source lines that page cites. | Only the listed read-only steps; each is one foreground process and a run grants no authority. |
 | Resume or select work | If this checkout has an initialized `.taskman` store, read its native queue and current receipt first; otherwise route to a workspace with that store. Use [ROADMAP history](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings), [0.6 portfolio](PORTFOLIO-0.6.md), `rg -n '^### ' docs/agent-memory/*.md`, and the owning spec for intent. | Native store presence makes it operative for execution status; never initialize a replacement or treat AT/E/U Markdown as live state. Search `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` and `docs/build-log/` by heading or ID, then read matching entries. Re-pin status and coordinate owners; preserve pending gates and owner-goal gaps. |
 | Find a pre-1.0 build-log entry, CEM, closed ticket or dated result | [Build log](build-log/README.md) → [decision 0587](decisions/0587-fresh-1-0-repository.md) → `beamfall/corvint-history` at `1c4d8793cf71cbb01b8509b68a6cb1502a40a13e`. | Archived records are history, not live authority. Record new entries as `docs/build-log/YYYY-MM-DD-<slug>.md` in this repository. |
-| Verify documentation | [Focused checks](#focused-documentation-checks), then the owning spec's test/measurement matrix. | Focused checks do not replace `make gate`, frozen evaluations, independent review or dogfood. Coordinate full gates with an existing runner. |
+| Verify documentation | [Focused checks](#focused-documentation-checks), then the owning spec's test/measurement matrix. | Focused checks do not replace `make gate`, frozen evaluations, or independent review. Coordinate full gates with an existing runner. |
 
 For `CAL-V0-206` facet changes, read `internal/tasks/wire/facets.go`, the closed facets decoder, before editing the CLI projection.
 
@@ -65,8 +64,7 @@ claim that the packet covers every task constraint or that fewer bytes prove low
 exit status and measurement; do not remove traces, dirty the tree, or rewrite the task to change
 the selected profile. See [decision 0011](decisions/0011-standalone-query-trace-state-acceptance-2026-09-01.md).
 
-For workflow/queue questions, open [AGENTS.md](../AGENTS.md), the
-[dogfood loop](DOGFOOD.md#required-loop-for-substantive-changes), and the
+For workflow/queue questions, open [AGENTS.md](../AGENTS.md) and the
 [historical queue](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings); use an initialized native `.taskman` store for current execution status.
 For a malformed, unsafe, or path-invalid trace diagnostic, retain the exact command, stderr and
 original trace-file bytes before recovery. Distinguish this from the intentional profile refusal
@@ -87,11 +85,6 @@ corvint context --task "THE SAME TASK" --limit 5
 Keep its syntax/relationship evidence and uncertainty separate from governing owner prose.
 `context` does not consume local trace learning and its success does not qualify authority-start
 query support. Charge the refusal, fallback, and subsequent source reads to the same task.
-For structural dogfood closeout only, the proposed experimental
-[query abstention contract](specs/dogfood-query-abstention-v0.md) retains the exact intentional
-refusal with original argv/task and immutable digest bindings plus independent verifier replay.
-The query stays `NOT_PRODUCED`; corrupt/unreachable trace errors do not qualify, and every
-CEM/OCM/check/clean-outcome requirement still applies. Keep the original trace and task intact.
 
 ## Token-efficient process without model or cache changes
 
@@ -128,9 +121,7 @@ rg -n '^FPK-V0-023\t' docs/specs/REQUIREMENTS.tsv
 The TSV row names the spec file, not a line (decision 0543): open the clause with
 `rg -n -F 'FPK-V0-023' <file>`, or list every line with `script/gen-spec-requirements.sh --lines`.
 The TSV is a locator, not an authority or obligation-completeness check. Read the original clause
-and relevant non-goals/failure modes. For OCM, confirm the spec uses the executable
-[requirement form](SPEC-DRIVEN-DEVELOPMENT.md#required-capability-spec-shape); index presence alone
-does not prove that `ocm prepare` enumerates a clause. Locate named tests with `rg -n -F` inside the
+and relevant non-goals/failure modes. Locate named tests with `rg -n -F` inside the
 owning implementation directory, then open their assertions. If a pointer is stale, use `rg --files`
 in that directory before guessing a filename. Record missing evidence or unresolved conflicts.
 
@@ -147,10 +138,10 @@ nice -n 15 make spec-requirements-check requirement-definitions-check traceabili
 `spec-requirements-check` compares REQUIREMENTS.tsv, INDEX.json and the README.md spec table with
 their regeneration and runs `internal/specindex` for index/header/digest/README consistency.
 The other Make targets check definitions, named tests, decision numbering and line-citation shape.
-Neither proves link meaning, semantic agreement, owner acceptance or exhaustive OCM enumeration.
+Neither proves link meaning, semantic agreement, or owner acceptance.
 After moving clauses or editing a spec header, run `make spec-requirements` and inspect the
 three generated diffs. Keep IDs and historical decisions stable. Full verification remains
-[Makefile](../Makefile) and [DOGFOOD.md](DOGFOOD.md); report anything not run with its reason.
+[Makefile](../Makefile); report anything not run with its reason.
 
 These checks read the Git index, not the worktree, so `git add` your edits before running them;
 an unstaged fix does not change their result. A line citation `path:N-M@hex` pins content: `hex`
