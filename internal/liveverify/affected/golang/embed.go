@@ -96,6 +96,20 @@ func embedArguments(arguments string) ([]string, bool) {
 	return patterns, len(patterns) != 0
 }
 
+// validEmbedPatterns rejects patterns the go command cannot resolve.
+func validEmbedPatterns(patterns []string) bool {
+	for _, pattern := range patterns {
+		glob := strings.TrimPrefix(pattern, "all:")
+		if glob == "." || !fs.ValidPath(glob) {
+			return false
+		}
+		if _, err := path.Match(glob, ""); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
 // embedTargets resolves the patterns of the package in directory against the
 // sorted repository files, as the go command resolves them (AFP-V0-600): a
 // pattern is matched component by component relative to the package
@@ -106,6 +120,9 @@ func embedArguments(arguments string) ([]string, bool) {
 // the whole list unknown, so it returns nil: claiming less leaves a file owned
 // by none, never selected less.
 func embedTargets(directory string, patterns, files []string, moduleRoots map[string]bool) []string {
+	if !validEmbedPatterns(patterns) {
+		return nil
+	}
 	prefix := directory + "/"
 	if directory == "." {
 		prefix = ""
@@ -118,12 +135,6 @@ func embedTargets(directory string, patterns, files []string, moduleRoots map[st
 	targets := make(map[string]bool)
 	for _, pattern := range patterns {
 		glob, all := strings.CutPrefix(pattern, "all:")
-		if glob == "." || !fs.ValidPath(glob) {
-			return nil
-		}
-		if _, err := path.Match(glob, ""); err != nil {
-			return nil
-		}
 		depth := strings.Count(glob, "/") + 1
 		for _, file := range below {
 			components := strings.Split(file[len(prefix):], "/")

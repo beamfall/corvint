@@ -25,7 +25,7 @@ type Graph struct {
 	// and selection-input copy of this graph. It is not part of the wire data.
 	tokens [][]pathToken
 	owner  map[string]string
-	// embedded maps each file a unit's EmbedFiles lists to those units, in
+	// embedded maps each file a unit's production or test embeds list to those units, in
 	// unit order (AFP-V0-600).
 	embedded   map[string][]string
 	dependents map[string][]string
@@ -225,6 +225,8 @@ type digestUnit struct {
 	PlacesFileNames      bool     `json:"placesFileNames,omitzero"`
 	Embeds               bool     `json:"embeds"`
 	EmbedFiles           []string `json:"embedFiles,omitempty"`
+	TestEmbeds           bool     `json:"testEmbeds,omitzero"`
+	TestEmbedFiles       []string `json:"testEmbedFiles,omitempty"`
 	UnboundedReads       string   `json:"unboundedReads"`
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
@@ -563,7 +565,7 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 			}
 			graph.owner[path] = unit.ID
 		}
-		for _, path := range unit.EmbedFiles {
+		for _, path := range append(slices.Clone(unit.EmbedFiles), unit.TestEmbedFiles...) {
 			graph.embedded[path] = append(graph.embedded[path], unit.ID)
 		}
 		graph.units[unit.ID] = unit
@@ -914,6 +916,8 @@ func projectUnit(unit Unit) digestUnit {
 		PlacesFileNames:      unit.PlacesFileNames,
 		Embeds:               unit.Embeds,
 		EmbedFiles:           unit.EmbedFiles,
+		TestEmbeds:           unit.TestEmbeds,
+		TestEmbedFiles:       unit.TestEmbedFiles,
 		UnboundedReads:       unit.UnboundedReads,
 		LocatesRoot:          unit.LocatesRoot,
 		ReadScoped:           unit.ReadScoped,

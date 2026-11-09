@@ -2191,6 +2191,31 @@ one list, so a later class cannot reopen it.
   `--path` plan and plain `affected.Select` do. A caller with no base keeps that conservative
   fallback; none drops a reader.
 
+### Test-only Go embeds (V1-5177)
+
+This extension belongs beside V1-5176's comment-only guard (AFP-V0-3324), whose
+implementation is on the sibling branch and absent from the V1-5177 base.
+
+- **AFP-V0-3350:** (experimental, owner-requested V1-5177, 2026-11-08)
+  A `_test.go` `//go:embed` directive SHALL contribute test-scoped embed facts to its
+  owning unit, including external-package tests. An edit to an embedded file, including
+  a code or comment edit to a non-imported package's source, SHALL select the embedding
+  unit's tests. Production `Embeds` and `EmbedFiles` facts SHALL remain production-only;
+  test-embed edges SHALL NOT propagate through production import or binary-execution
+  edges. Existing independent structural selection rules remain unchanged.
+  An unparsable directive or invalid pattern SHALL retain `go:unparsed-source` frontier
+  uncertainty, as for a production directive, and retain the enclosing test reader.
+- **AFP-V0-3351:** (experimental, owner-requested V1-5177, 2026-11-08)
+  AFP-V0-3324's comment-only narrowing guard SHALL refuse a path resolved by a test-only
+  embed. The shared resolved-embed index SHALL include both scopes, while the byte-reader
+  selection retains the embedding tests without production propagation. Missing narrowing
+  code at this slice's base SHALL remain an explicit integration limit until exercised
+  together with V1-5176.
+- **AFP-V0-3352:** (experimental, owner-requested V1-5177, 2026-11-08)
+  Test embed flags and paths SHALL participate in the graph digest, path validation and
+  cache serialization. Graph-cache entries predating these facts SHALL NOT be reused:
+  use `corvint-affected-graph-cache/1`, rejecting the old `/0` profile.
+
 ### Driver narrowing after the convergence cap (V1-5000)
 
 - **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
@@ -2529,6 +2554,12 @@ closure (AFP-V0-3151, `cmd/corvint-test`).
 
 ## Acceptance evidence and traceability
 
+AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
+`TestTestOnlyEmbedMalformedFailsClosed_AFPV03350`, `TestTestEmbedReadersStayTestScoped_AFPV03350`,
+`TestCommentOnlyTestEmbedIndex_AFPV03351`, `TestTestEmbedFactsAreDigestedValidatedAndCached_AFPV03352`
+and `TestTestEmbedGraphCacheRejectsOldProfile_AFPV03352`. The before/after regression and
+V1-5176 integration evidence are retained in `../build-log/2026-11-08-test-only-embeds.md`.
+
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
 `TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
@@ -2685,6 +2716,10 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-3350 to AFP-V0-3352, revert the test-scoped fields, collector, reader selection
+and resolved-index additions together. Retain the cache-profile bump or clear derived
+cache entries before reusing an older observer; reverting restores the known under-selection.
 
 For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
 its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
