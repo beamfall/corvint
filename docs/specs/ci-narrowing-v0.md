@@ -18,7 +18,7 @@ Lane cir-w35 (V1-4232, V1-4233, V1-4234) defines AFP-V0-100 to AFP-V0-106 here u
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change; delivery experimental.
 - Exists: `.github/workflows/ci.yml`, `.github/workflows/ci-forward-bar.yml`, `.github/workflows/ci-control-plane.yml`, `.github/forward-rows/{names.sh,bar.jq,verdict.sh,accept.sh,selection.jq,collect.sh,absence.jq,narrow.sh}`, `.github/workflows/cache-prune.yml`, `Decide` in `tools/ci-reuse-plan/main.go`; `tools/ci-forward-row/absence-alarm.py` (standalone developer alarm, hosted scheduling pending); tests named for each requirement.
 - Blocked on: the `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` repin (PR #11) for any forward row; the live V1-3158 measurement after merge.
-- Read next: Requirements; Failure modes; Acceptance evidence and traceability.
+- Read next: Hosted macOS capacity (V1-5017); Requirements; Failure modes; Acceptance evidence and traceability.
 
 ## Intent and scope
 
@@ -325,14 +325,14 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 
 - `CIN-V0-4625`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4625; amended under the owner's standing auto-accept (2026-10-11), V1-4732)
   Every pull request SHALL start the independent `.github/workflows/go-macos.yml` workflow,
-  retaining the advisory job and check name `go-macos`. A routine-change DEFER starts no macOS runner (CIN-V0-4754). It SHALL use at most four GitHub-hosted
-  `macos-15` matrix jobs with the pinned production Go toolchain and nightly macOS host provisioning.
+  retaining the advisory job and check name `go-macos`. A routine-change DEFER starts no macOS runner (CIN-V0-4754). It SHALL use four GitHub-hosted
+  `macos-15` matrix partitions with at most two concurrent jobs (CIN-V0-5017) with the pinned production Go toolchain and nightly macOS host provisioning.
   The `CI` workflow SHALL contain no Darwin job or dependency on this workflow; its completion and
   the `ci-control-plane` workflow-run status SHALL not wait for advisory Darwin execution.
   The independent workflow SHALL recompute the trusted documentation classifier/verifier and
   protected-base narrowing verdict, without waiting for CI or consuming its Linux selection.
   A verified `docs-plan` DOCS decision
-  MAY skip its tests; a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
+  SHALL skip allocating the advisory shards (CIN-V0-5017); a Linux REUSE decision or `ci:batched` label SHALL NOT. From native
   `go list` metadata for the root module and CI's existing nested modules `tools/local-authority`
   and `interop/cem01-go`, the job SHALL select packages containing Darwin filename/build constraints,
   `GOOS` comparisons or switch cases with `"darwin"` in code or tests, or `/private/var` or
@@ -552,9 +552,9 @@ the single listing in the integrity step, and delete `.github/workflows/ci-route
   `doc-gates` verdict.
 - `CIN-V0-4754`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
   `go-macos.yml` SHALL run its own `cadence-plan` job. A DEFER SHALL start no macOS runner
-  (`docs-plan` and `go-macos-shard` are skipped only on a verified DEFER); the stable `go-macos` aggregator SHALL accept
-  only a verified DEFER (a successful `cadence-plan` job with output DEFER) and otherwise check
-  all four shards as before, so a skipped or failed plan runs every shard.
+  (`docs-plan` is skipped only on a verified DEFER); the stable `go-macos` aggregator SHALL accept
+  a verified DEFER (a successful `cadence-plan` job with output DEFER) or a verified DOCS decision
+  (CIN-V0-5017) and otherwise check all four shards, so unavailable skip evidence runs every shard.
 - `CIN-V0-4755`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
   The nightly `release-gates.yml` SHALL include a `selection-baseline` entry running
   `make selection-baseline-check` in full. The native archive gate is already part of `make gate`,
@@ -563,6 +563,47 @@ the single listing in the integrity step, and delete `.github/workflows/ci-route
   A first rollout whose event base lacks the classifier SHALL be FULL. Rollback SHALL be setting
   the repository variable `CI_CADENCE_FORCE=FULL` or reverting the change. Product features,
   evidence formats and persisted state are unchanged.
+
+### Hosted macOS capacity (V1-5017)
+
+Owner decision: 2026-11-08 V1-5017 request; advisory shards may be path-gated **or** capped.
+This change chooses the cap plus existing conservative cadence/docs gating, rather than adding
+another filename-only dependency classifier. Shared Go production code can affect Darwin through
+imports; absence of a Darwin filename alone does not prove irrelevance. The existing cadence
+classifier rejects platform filenames, build constraints and scripts from its routine-test class.
+
+- `CIN-V0-5017`: The four advisory `go-macos-shard` partitions SHALL use `max-parallel: 2`.
+  Only successful trusted cadence DEFER or verified docs-plan DOCS SHALL skip allocating the
+  macOS runners. Failed, skipped, missing, empty or unknown classifier decisions SHALL run the
+  capped shards unless the other classifier independently supplies verified skip evidence.
+  The stable `go-macos` aggregator SHALL use the same skip decisions and otherwise require all
+  four outcomes. Changes to `*_darwin.go`, `*_unix.go`, Darwin/build-tagged Go files, macOS
+  scripts and the shard workflow SHALL remain on the run path. Conservative over-selection is
+  allowed. The nightly release-gates macOS gate SHALL keep its full native campaign.
+  This cap bounds one PR matrix, not all PRs combined; it leaves three of five slots unused by
+  that matrix, but cannot guarantee a global reservation across concurrent PRs or other jobs.
+- `CIN-V0-5018`: The default-branch `merge-queue-cleanup.yml` SHALL run on main pushes, queue
+  branch deletion and a five-minute scheduled fallback, using an Ubuntu runner and no checkout.
+  It SHALL inspect paginated queued/in-progress merge-group runs of `ci.yml` (AFP-V0-026,
+  AFP-V0-433) and `cem-release-gate.yml` (AFP-V0-432), re-read each run's identity/event/status,
+  and cancel only when a successful, well-formed matching-refs response proves its exact
+  `refs/heads/gh-readonly-queue/*` ref absent. A prefix match is not an exact ref match.
+  A live exact ref, malformed response, API failure (including 404), different workflow/event
+  or non-queue branch SHALL never authorize cancellation. Cancellation permissions SHALL be
+  confined to the cleanup job; no untrusted checkout or candidate code SHALL execute there.
+  Existing per-entry workflow concurrency SHALL remain: a newer queue head for the same base
+  alone is not grounds to cancel a live entry. The cleanup workflow SHALL serialize without
+  cancelling its in-progress run. Cleanup is eventual: hosted scheduling/API delays may defer it.
+- `CIN-V0-5019`: This capacity change SHALL preserve required-status contexts (`go-product`,
+  `doc-gates`, `ci-control-plane`, plus the independently governed `greptile-gate`), advisory
+  names and nightly coverage. Its build log SHALL retain the 2026-11-07 job 128372903198
+  created 10:02 / started 11:06 observation, four advisory shards plus CEM occupying all five
+  slots, and an after-measurement pending a day of PRs. Local tests SHALL execute cleanup
+  against live/deleted/unreadable refs and assert capped fail-closed shard scheduling.
+
+Non-goals: changing queue grouping, status requirements, native test coverage or global runner
+quotas. Rollback: revert V1-5017's workflow changes (restoring four concurrent advisory shards
+and removing cleanup); no persistent repository state or required-status configuration migrates.
 
 ## Non-goals
 
@@ -685,6 +726,9 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-4754 | the `cadence-plan` job, `docs-plan`, `go-macos-shard` and `go-macos` aggregator in `go-macos.yml` | `TestCINV04753CadenceWorkflowWiring` |
 | CIN-V0-4755 | the `selection-baseline` entry of `release-gates.yml` | `TestCINV04753CadenceWorkflowWiring` |
 | CIN-V0-4756 | the `cadence-plan` fallback step and the `CI_CADENCE_FORCE` variable | `TestCINV04752CadenceRefusals`, `TestCINV04753CadenceWorkflowWiring` |
+| CIN-V0-5017 | `go-macos.yml` matrix and cadence/docs conditions | `TestCINV05017MacOSSlotCap`, `TestCINV05017DarwinGatingFailsClosed`, `TestCINV04750CadenceClassifier`, `TestCINV04752CadenceRunWrapper`, `TestCINV04753CadenceWorkflowWiring` |
+| CIN-V0-5018 | `merge-queue-cleanup.yml` | `TestCINV05018StaleQueueCleanup`; hosted cancellation NOT_OBSERVED locally |
+| CIN-V0-5019 | unchanged required jobs/status publishers and nightly workflow; `2026-11-08-macos-slot-cap` build log | base diff/readback; after-measurement pending a day of PRs |
 
 ## Rollback
 
