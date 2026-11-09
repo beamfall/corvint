@@ -1173,6 +1173,12 @@
       ]
     },
     {
+      "paths": "internal/testvaliditydoc/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "internal/wp3codec/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"

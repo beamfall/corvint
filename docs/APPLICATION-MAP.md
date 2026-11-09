@@ -31,9 +31,10 @@ root. Its schema is `application-map-manifest/0` (AMAP-V0-001).
 
 - **Required members:** `schema`; `app`, matching `^[a-z0-9][a-z0-9._-]{0,63}$`; 1 to 64
   `routers`, each with a dialect (`ui-router-states/0`, `rails-routes/0` or `react-router/0`);
-  and `tests`, with `root`, `specs` and `page_objects`, every directory under `tests.root`. A flat
-  layout lists the same directory in both: there, `*.spec.ts` and `*.test.ts` files are specs and
-  every other file is a page object (AMAP-V0-780). `web_root` (optional) names the dev-server
+  and `tests`, with `root` and `specs`; every directory must be under `tests.root`.
+  `page_objects` may be empty or omitted. A flat layout lists the same directory in `specs` and
+  `page_objects`: there, `*.spec.ts` and `*.test.ts` files are specs and every other file is a
+  page object (AMAP-V0-780). `web_root` (optional) names the dev-server
   root (AMAP-V0-781, AMAP-V0-782).
 - **Optional `flows`:** a directory of `application-flow-intent/1` files.
 - **Other optional members:** the application-map spec lists them, for example `workflows`,
