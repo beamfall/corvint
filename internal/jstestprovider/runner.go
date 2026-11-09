@@ -465,7 +465,7 @@ func waitReady(ctx context.Context, url string, limit time.Duration) error {
 }
 
 // resolveArgv resolves argv[0] to an absolute path via PATH lookup, matching
-// the containment runner's own expectation (see internal/console/process.go)
+// the containment runner's own expectation
 // that a spawned leader is identified unambiguously.
 func resolveArgv(argv []string) []string {
 	if len(argv) == 0 {

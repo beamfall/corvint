@@ -27,8 +27,9 @@ Baseline at `origin/main` 463f0dd5f, from the code named here:
 
 - `affected.Language` (`internal/liveverify/affected/unit.go`) is a good seam with optional
   capability interfaces, and `internal/liveverify/affected/languages` holds the one provider list.
-- The `analyzercap` subprocess protocol is the external analyzer seam; each analyzer is a
-  `cmd/corvint-analyzer-*` binary.
+- The analyzer subprocess protocol (`corvint-analyzer/v0`, formerly hosted by `internal/analyzercap`,
+  whose host side decision 0594 removed on 2026-11-09) is the external analyzer form; each analyzer
+  is a `cmd/corvint-analyzer-*` binary.
 - `internal/testrunner/registry` dispatched by a hand-written switch over five runner families,
   duplicated in `Build` and `Parse`, and named `rspec` in its generic path.
 - One language is spread over up to nine packages (Ruby: `analyzerruby`, its analyzer binary,
@@ -47,7 +48,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 - `LGP-V0-001`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each
   language is one `langplugin.Manifest` in `internal/langplugin`, registered in-process in one
   ordered list. A manifest names the plugin, the repository directories it owns, its
-  affected-selection provider (`affected.Language`), its `analyzercap` analyzer binaries, and its
+  affected-selection provider (`affected.Language`), its analyzer binaries, and its
   sub-plugin lists: test runners (by testrunner registry name), test providers, coverage
   collectors and mutation tools. Languages with no affected provider (SQL, shader, HTML/CSS,
   structured data) are plugins too, so every analyzer and runner has a language.
@@ -65,7 +66,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 - `LGP-V0-004`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each
   declared analyzer is a `cmd/<name>` binary, declared by exactly one plugin, and every
   `cmd/corvint-analyzer-*` directory is declared by a plugin. Registration is in-process; the
-  `analyzercap` protocol stays the analyzer's external form.
+  analyzer subprocess protocol stays the analyzer's external form.
 - `LGP-V0-005`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404)
   `languages.All()` returns `langplugin.Providers()`: one fresh provider per plugin that declares
   one, in registration order, which equals the previous hand-written list. A provider's `Name()`
@@ -239,7 +240,7 @@ appears as a core literal fails the ratchet when it is registered, and the basel
   Amended by decision 0592: an out-of-process test runner is a `corvint-runner/1` executable under
   [`runner-selection-plugins-v0.md`](runner-selection-plugins-v0.md) (`RSP-V0-025..032`), resolved
   by digest pin, never loaded into the core process.
-- Changing the `analyzercap` protocol, any wire format, selection, or runner argv.
+- Changing the analyzer subprocess protocol, any wire format, selection, or runner argv.
 - Moving the web lexer and the Ruby constant-reference rule out of `internal/contextindex`, or the
   runner readings out of `internal/testsource` (LGP-V0-027); their remaining literals carry
   recorded reasons.

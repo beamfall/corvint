@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/playwrightruns"
-	"github.com/Beamfall/corvint/internal/runidentity"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -25,13 +24,11 @@ Usage:
     --candidate FILE[,FILE...]
     [--identity REPORT=FILE...] [--identity-sidecars]
   corvint [--root PATH] runs reusable --selection FILE
-    [--prior FILE[,FILE...]] [--fresh] [--summary]
+    [--prior FILE[,FILE...]] [--summary]
     [--identity REPORT=FILE...] [--identity-sidecars]
   corvint [--root PATH] runs redundancy --runs FILE[,FILE...] [--since TIME]
     [--summary]
     [--identity REPORT=FILE...] [--identity-sidecars]
-  corvint [--root PATH] runs fresh --old REV --new REV [--cite PATH[,PATH...]]
-    [--summary]
   corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...]
     --isolated FILE[,FILE...] [--allow-unobserved]
     [--identity REPORT=FILE...] [--identity-sidecars]
@@ -43,9 +40,6 @@ Usage:
   corvint [--root PATH] runs server-errors --runs FILE[,FILE...]
     --server-log FILE [--requests FILE] [--support-path P[,P...]]
     [--window-ms N]
-  corvint [--root PATH] runs identity --config FILE [--test-dir DIR]
-    [--app-root DIR] [--test-match REGEXP] [--project-test-dir DIR[:REGEXP]...]
-    [--artifact-digest VALUE] [--closure-digests FILE] [--compute-closures]
 
 stability pools each test (project, file, title path) across runs whose
 identity inputs match: Playwright version plus the applicationRevision,
@@ -60,8 +54,7 @@ or a run was flaky; differing first-error lines listed) or INSUFFICIENT with a
 reason (BELOW_THRESHOLD, IDENTITY_INPUT_MISSING, IDENTITY_AMBIGUOUS,
 RUN_INTERRUPTED, NOT_RUN for no result or an unexpected skip);
 IDENTITY_INPUT_MISSING names missingInputs (applicationRevision,
-configDigest, testFileBlobs[file]; a ../ file usually needs
-runs identity --project-test-dir). An
+configDigest, testFileBlobs[file]). An
 intermittent test.fail() test is flagged EXPECTED_FAIL_NOT_DETERMINISTIC with
 the alternatives. A report with no corvintRunIdentity at all is named once in
 runs[] (identityInputs NOT_DECLARED, unpooledTests, remedy) and counted in
@@ -70,7 +63,7 @@ summary.identityNotDeclaredRuns; its tests are not listed one by one.
 servedArtifactDigest, testClosureRule and testClosureDigests[file] in place of
 configDigest and testFileBlobs[file], so an unrelated tracked edit no longer
 splits pools; runs[].closureSource reads DECLARED, COMPUTED (rule
-corvint-test-closure/0 from runs identity --compute-closures) or NOT_DECLARED
+corvint-test-closure/0) or NOT_DECLARED
 (summary.closureNotDeclaredRuns), and a test without a closure digest is
 IDENTITY_INPUT_MISSING. A DECLARED and a COMPUTED digest never pool together. Two reports declaring one closure digest for a file
 over different test-file blobs refuse runs-report-unavailable
@@ -84,53 +77,6 @@ all (default) counts an interrupted run toward N and lists such runs in
 windowInterruptedRuns, completed (--window, needs --last) skips interrupted
 runs and marks them outsideWindow; a report without a start time refuses
 runs-report-unavailable (START_TIME_MISSING).
-
-identity prints a corvint-run-identity/0 document whose corvintRunIdentity
-member is the declaration to embed under config.metadata (for example
-metadata: { corvintRunIdentity: JSON.parse(execFileSync("corvint", ["runs",
-"identity", "--config", __filename])).corvintRunIdentity }). Rules: test
-files are the files under --test-dir (the config's top-level testDir, which
-is config.rootDir; default the config's directory; never a project testDir)
-whose testDir-relative path matches --test-match (default Playwright's
-testMatch, node_modules excluded), plus, per repeatable --project-test-dir
-DIR[:REGEXP] (a project's own testDir; REGEXP defaults to --test-match), the
-files under DIR whose DIR-relative path matches; testFileBlobs maps each such
-path, spelled as the report's file (relative to --test-dir, so a project
-testDir beside it gives ../setup/x.setup.ts), to its working-tree Git blob
-id. projectTestDirs[] states each project testDir: RESOLVED with its file
-count, or UNRESOLVED with limit PROJECT_TEST_DIR_UNRESOLVED (not a directory)
-or PROJECT_TEST_DIR_NO_TEST_FILES; one outside the repository refuses.
---artifact-digest VALUE (1-256 bytes of letters, digits and ._:+/=@-), the
-digest of the build the browser loads as the deploy step reports it (an
-image digest, or sha256 of the served entry bundles computed by the
-caller), is declared as servedArtifactDigest and servedDigest reads
-DECLARED; without it servedDigest reads UNKNOWN. Corvint fetches nothing.
---closure-digests FILE ({"<test file>": "sha256:<64 hex>", ...}, each key a
-testFileBlobs path) declares caller-computed per-test closures as
-testClosureDigests with testClosureRule DECLARED; Corvint does not verify
-what a closure covers. A malformed file or an unknown key refuses
-(CLOSURE_DECLARATION_INVALID). --compute-closures computes each test's
-closure from the config's static TypeScript graph (testClosureRule
-corvint-test-closure/0): the configDigest lines plus the test-file lines,
-less the files the test provably cannot load (TypeScript files only another
-test's imports reach; a modified file is never left out). A test whose
-closure is not static (dynamic import, unresolved config, an untracked
-closure file) gets no digest and is listed under closure.unknown (limit
-TEST_CLOSURE_UNKNOWN; a reason shared by several tests is also stated once in closure.sharedCauses); a frontier outside the suite leaves nothing out
-(closure.widened, limit TEST_CLOSURE_EXCLUSION_WIDENED). --closure-digests
-wins over it (closure.source DECLARED).
-configDigest is sha256 over "mode blob<TAB>path" of every tracked non-test
-file of the config's repository at working-tree content, plus the config
-file and its path; untracked files are outside it (limit UNTRACKED_FILES_OUTSIDE_DIGEST).
-applicationRevision is the HEAD commit of --app-root (default the config's
-repository), suffixed +worktree.sha256:<diff digest> when it has tracked
-uncommitted changes (limit APPLICATION_WORKTREE_MODIFIED). testRevision and
-testRootPath are the config repository's HEAD and testDir path. Refusal:
-runs-identity-unavailable with a reason (CONFIG_UNREADABLE, NOT_A_REPOSITORY,
-TEST_DIR_OUTSIDE_REPOSITORY, TEST_MATCH_INVALID, TEST_REVISION_UNRESOLVED,
-APPLICATION_REVISION_UNRESOLVED, UNMERGED_PATHS, SUBMODULE_MODIFIED,
-INDEX_FLAGS_SET, FILTER_CONFIGURED, PATH_UNREPRESENTABLE, NO_TEST_FILES,
-GIT_READ_FAILED, PROJECT_TEST_DIR_OUTSIDE_REPOSITORY); both checkouts are validated first.
 
 Repeats and shards: each repeat of a project run with --repeat-each N
 (config.projects[].repeatEach) is one observation, numbered in report order
@@ -174,11 +120,7 @@ EXACT_PASS: a prior run passed the test at the selection's fingerprint, and
 every prior result there is a qualified pass (expected, passed, not flaky,
 from an admitted run without report errors). MUST_RUN reasons:
 IDENTITY_INPUT_MISSING (fields named), IDENTITY_AMBIGUOUS, NO_PRIOR_RESULT,
-FINGERPRINT_CHANGED (fields named), PRIOR_NOT_PASSED, PRIOR_NOT_QUALIFIED,
-and with --fresh STALE (paths named) or FRESHNESS_UNRESOLVED. --fresh adds
-FRESH_PASS: a qualified pass whose fingerprint differs only in revisions,
-where every differing revision pair is FRESH for the test file (located by
-corvintRunIdentity.testRootPath, else config.rootDir under the repository).
+FINGERPRINT_CHANGED (fields named), PRIOR_NOT_PASSED, PRIOR_NOT_QUALIFIED.
 
 redundancy tallies test minutes per run category
 (config.metadata.corvintRunCategory, else UNDECLARED), ordering runs by
@@ -187,16 +129,6 @@ strictly earlier), same-file-content re-runs (same version, test-file blob,
 config and project; a revision differs) and their shares. Runs before
 --since (RFC 3339) are history: not counted, but their passes count as
 earlier. A run without a start time, or a refused shard set, is excluded.
-
-fresh reads Git for evidence produced at --old and read at --new: FRESH
-when no changed path is in reach, STALE naming each changed path that is
-cited (--cite), matches a shared pattern, or is the reach declaration
-itself, else UNRESOLVED with a reason (REVISION_UNRESOLVED,
-REACH_UNDECLARED, REACH_INVALID, REACH_UNREADABLE, DIFF_FAILED,
-DIFF_BOUND_EXCEEDED); UNRESOLVED is never FRESH. Shared patterns come from
-.corvint/evidence-reach.json at --new: {"profile":
-"corvint-evidence-reach/0","shared":[...]}, repository-relative globs where
-** spans directories and a trailing / covers a directory.
 
 baseline record prints a corvint-run-baseline/0 document for the caller to
 retain: the tests that failed both in the --full run and in the --isolated
@@ -233,16 +165,14 @@ IDENTITY_SIDECAR_INVALID, IDENTITY_SIDECAR_MISMATCH, IDENTITY_SIDECAR_CONFLICT).
 
 --summary prints the compact form: counts without per-test, per-run or path
 rows. Reads only the named regular files (relative to --root when given; at
-most 64 per option, 64 MiB each; a baseline 16 MiB) and, for fresh, --fresh
-and baseline, bounded Git reads of the repository at --root (identity: of
-the named checkouts); writes nothing and uses no network. Exit 0
+most 64 per option, 64 MiB each; a baseline 16 MiB) and, for baseline,
+bounded Git reads of the repository at --root; writes nothing and uses no network. Exit 0
 with JSON on stdout. Refusals: runs-invalid-arguments (with reason
 SUBCOMMAND_MISSING, SUBCOMMAND_UNKNOWN, OPTION_UNKNOWN (with hint OPTION_VALUE_JOINED when an option and its value arrived as one argument), VALUE_MISSING,
 VALUE_INVALID, ARGUMENT_UNEXPECTED or OPTION_REQUIRED, and the option when
 known; values are never echoed),
 runs-report-unavailable (stability, reusable, redundancy, baseline),
-runs-baseline-unavailable, runs-revision-unresolved, runs-output-unavailable,
-runs-identity-unavailable.
+runs-baseline-unavailable, runs-revision-unresolved, runs-output-unavailable.
 response-wait reads a HAR or JSON-lines server request log for a wait that
 timed out: REQUEST_NEVER_SENT (with up to 5 earlier 4xx/5xx requests on the
 same page), SLOW_RESPONSE (duration, lateness), RESPONSE_IN_WAIT, or UNKNOWN
@@ -444,19 +374,15 @@ func runRuns(ctx context.Context, root string, args []string, out, diagnostic io
 	case "compare":
 		return runRunsCompare(root, args[1:], out, diagnostic)
 	case "reusable":
-		return runRunsReusable(ctx, root, args[1:], out, diagnostic)
+		return runRunsReusable(root, args[1:], out, diagnostic)
 	case "redundancy":
 		return runRunsRedundancy(root, args[1:], out, diagnostic)
-	case "fresh":
-		return runRunsFresh(ctx, root, args[1:], out, diagnostic)
 	case "baseline":
 		return runRunsBaseline(ctx, root, args[1:], out, diagnostic)
 	case "response-wait":
 		return runRunsResponseWait(root, args[1:], out, diagnostic)
 	case "server-errors":
 		return runRunsServerErrors(root, args[1:], out, diagnostic)
-	case "identity":
-		return runRunsIdentity(ctx, root, args[1:], out, diagnostic)
 	}
 	return runsInvalid(diagnostic, "", runsArgSubcommandUnknown)
 }
@@ -577,96 +503,4 @@ func runsEmit(value any, out, diagnostic io.Writer) int {
 		return runsRefuse(diagnostic, "runs-output-unavailable", nil)
 	}
 	return 0
-}
-
-// runRunsIdentity prints the corvintRunIdentity declaration for a Playwright config
-// (PWR-V0-046..PWR-V0-050).
-func runRunsIdentity(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
-	f := flag.NewFlagSet("runs identity", flag.ContinueOnError)
-	f.SetOutput(io.Discard)
-	opts := runidentity.Options{}
-	closureFile := ""
-	once := func(dst *string, resolve bool) func(string) error {
-		return func(v string) error {
-			if v == "" || *dst != "" {
-				return errRunsArgument
-			}
-			if resolve && root != "" && !filepath.IsAbs(v) {
-				v = filepath.Join(root, v)
-			}
-			*dst = v
-			return nil
-		}
-	}
-	f.Func("config", "Playwright config file", once(&opts.Config, true))
-	f.Func("test-dir", "Playwright top-level testDir (config.rootDir)", once(&opts.TestDir, true))
-	f.Func("app-root", "application checkout", once(&opts.AppRoot, true))
-	f.Func("test-match", "test file regular expression", once(&opts.TestMatch, false))
-	f.Func("artifact-digest", "digest of the served build (PWR-V0-054)", func(v string) error {
-		if opts.ArtifactDigest != "" || !runidentity.ValidArtifactDigest(v) {
-			return errRunsArgument
-		}
-		opts.ArtifactDigest = v
-		return nil
-	})
-	f.Func("closure-digests", "JSON file of caller-declared per-test closure digests (PWR-V0-071)", func(v string) error {
-		if v == "" || opts.ClosureDigests != nil {
-			return errRunsArgument
-		}
-		if root != "" && !filepath.IsAbs(v) {
-			v = filepath.Join(root, v)
-		}
-		closureFile = v
-		opts.ClosureDigests = map[string]string{}
-		return nil
-	})
-	f.BoolVar(&opts.ComputeClosures, "compute-closures", false, "compute per-test closure digests (PWR-V0-072)")
-	f.Func("project-test-dir", "project testDir DIR[:REGEXP], repeatable", func(v string) error {
-		dir, match, ok := splitProjectTestDir(v)
-		if !ok {
-			return errRunsArgument
-		}
-		if root != "" && !filepath.IsAbs(dir) {
-			dir = filepath.Join(root, dir)
-		}
-		opts.ProjectTestDirs = append(opts.ProjectTestDirs, runidentity.ProjectTestDir{Dir: dir, TestMatch: match})
-		return nil
-	})
-	if !runsParse(f, args, diagnostic, func() []runsNeed { return []runsNeed{runsRequired("config", opts.Config == "")} }) {
-		return 2
-	}
-	if closureFile != "" {
-		// The file is read bounded and regular-only, as a sidecar is (PWR-V0-071).
-		raw, err := playwrightruns.ReadSidecarFile(closureFile)
-		if err == nil {
-			opts.ClosureDigests, err = runidentity.ParseClosureDigests(raw)
-		}
-		if err != nil {
-			return runsRefuse(diagnostic, "runs-identity-unavailable", map[string]any{"reason": runidentity.ReasonClosureInvalid, "option": "closure-digests"})
-		}
-	}
-	doc, err := runidentity.Produce(ctx, opts)
-	if err != nil {
-		var coded *runidentity.Error
-		if errors.As(err, &coded) {
-			return runsRefuse(diagnostic, "runs-identity-unavailable", map[string]any{"reason": coded.Reason, "detail": coded.Detail})
-		}
-		return runsRefuse(diagnostic, "runs-identity-unavailable", map[string]any{"reason": runidentity.ReasonGitReadFailed})
-	}
-	return runsEmit(doc, out, diagnostic)
-}
-
-// splitProjectTestDir splits DIR[:REGEXP] at the first colon after a Windows drive prefix; an
-// empty DIR or an empty REGEXP after a colon is invalid (PWR-V0-052).
-func splitProjectTestDir(v string) (dir, match string, ok bool) {
-	skip := 0
-	if len(v) >= 3 && v[1] == ':' && (v[2] == '\\' || v[2] == '/') && ('a' <= v[0]|0x20 && v[0]|0x20 <= 'z') {
-		skip = 2
-	}
-	i := strings.IndexByte(v[skip:], ':')
-	if i < 0 {
-		return v, "", v != ""
-	}
-	dir, match = v[:skip+i], v[skip+i+1:]
-	return dir, match, dir != "" && match != ""
 }

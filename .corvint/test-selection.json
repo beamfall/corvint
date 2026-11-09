@@ -141,24 +141,6 @@
       ]
     },
     {
-      "paths": "cmd/corvint-corpus-republish/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "cmd/corvint-postmerge-connect/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "cmd/corvint-postmerge-metrics/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "cmd/corvint-test-runner/README.md",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -184,24 +166,6 @@
     },
     {
       "paths": "conformance/cli-parity-v0/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/dashboard-snapshot-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/dashboard-snapshot-v0/cases.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/dashboard-snapshot-v0/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -603,12 +567,6 @@
       ]
     },
     {
-      "paths": "conformance/postmerge-runtime-v2/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "conformance/pulse-snapshot-v0/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -885,18 +843,6 @@
       ]
     },
     {
-      "paths": "internal/dashboard/adapters/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/dashboard/repository/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/doccorpus/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -1018,18 +964,6 @@
     },
     {
       "paths": "internal/playwrightruns/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/postmergehost/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/postmergeworkflow/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]

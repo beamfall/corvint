@@ -49,9 +49,10 @@ Baseline at `origin/main` c6b6cbb0:
   a test looks for and does not find, and processes it starts are not observed, so `LPCV-V0-953`
   sends every such change to the static plan.
 - No out-of-process runner exists. `analyzercap` (`corvint-analyzer/v0`, 64 KiB one-shot frames,
-  registry-and-lock resolution, no `PATH`, `ACC-V0-002`) is the only external-executable protocol.
-- `internal/analyzerexec` contains processes with `sandbox-exec` on macOS; Linux containment is
-  unsupported there. No component traces a test's file or process activity.
+  registry-and-lock resolution, no `PATH`, `ACC-V0-002`) was the only external-executable protocol.
+- `internal/analyzerexec` contained processes with `sandbox-exec` on macOS; Linux containment was
+  unsupported there. Decision 0594 (2026-11-09) removed both host packages; no component traces a
+  test's file or process activity.
 
 ## Requirements
 
@@ -986,7 +987,6 @@ requirement that cites its emitting package; this list adds no behaviour.
 | `internal/runnerqualification` | `add-target-not-absent`, `data-target-invalid`, `delete-target-invalid`, `file-operator-unsupported`, `file-target-class-invalid`, `file-target-invalid-or-duplicate`, `file-targets-empty-or-capped`, `population-bytes-capped`, `population-capped`, `population-empty`, `qualification-budget-exceeded`, `qualification-class-missing`, `qualification-class-not-passing`, `qualification-cost-ceiling-exceeded`, `qualification-cost-invalid`, `qualification-identity-changed`, `qualification-incomplete`, `qualification-not-admitted`, `qualification-order-ambiguous`, `qualification-population-digest-invalid`, `qualification-records-capped`, `rename-destination-not-absent` |
 | `internal/runnerselection` | `change-path-or-range-unverifiable`, `comparison-identity-unverifiable`, `configuration-changed`, `configuration-path-unverifiable`, `confirmed-miss-disabled`, `evidence-not-admitted`, `execution-configuration-unqualified`, `execution-model-unsupported`, `index-missing-stale-or-unverifiable`, `input-cap-exceeded`, `inventory-divergent`, `runner-cap-exceeded`, `runner-identity-missing`, `sampling-disabled` |
 | `internal/shaderdialect` | `shader-aggregate-unsupported`, `shader-body-cap`, `shader-byte-cap`, `shader-continuation-unsupported`, `shader-directive-malformed`, `shader-directive-unsupported`, `shader-include-malformed`, `shader-include-unresolved`, `shader-invalid-text`, `shader-signature-malformed`, `shader-signature-unsupported`, `shader-trailing-declaration`, `shader-unbalanced-body` |
-| `internal/shaderrunner` | `shader-checkout-not-pinned-commit`, `shader-checkout-unavailable`, `shader-file-cap`, `shader-graph-input-missing`, `shader-include-directory-invalid`, `shader-source-unsupported` |
 | `internal/testevidence` | `attribution-marker-outside-tree`, `attribution-tests-invalid`, `attribution-tests-missing`, `collection-count-invalid`, `commit-missing-or-malformed`, `cross-repository-link`, `duplicate-record-member`, `environment-exclusion-invalid`, `environment-key-missing-or-short`, `environment-name-invalid`, `environment-value-uncapturable`, `executable-digest-drift-or-missing`, `execution-identity-drift`, `execution-identity-incomplete`, `malformed-record`, `producer-provenance-incomplete-or-duplicate`, `read-blob-malformed`, `read-capture-not-started`, `read-path-unresolved`, `record-depth-cap`, `record-invalid-utf8`, `record-size-cap`, `repository-declaration-invalid`, `runner-identity-drift`, `runner-identity-incomplete`, `sibling-pin-drift`, `target-identity-missing`, `trailing-record-data`, `undeclared-outside-read`, `union-blob-drift`, `union-collection-conflict`, `union-identity-drift`, `unsupported-record-format` |
 | `internal/testevidencedoc` | `component-unavailable`, `diff-unresolved`, `file-changed`, `path-changed`, `read-cap-exceeded`, `record-cap-exceeded`, `records-unreadable`, `result-cap-exceeded`, `unsafe-or-capped-file`, `unsupported-record` |
 | `internal/testrunner` | `selection-cap-exceeded` |

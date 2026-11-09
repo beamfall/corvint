@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-08-25
-Intent status: accepted
-Delivery status: experimental (static in-memory registry/lock model and unqualified one-shot boundary; no persisted signed registry, accepted profile, or supported launch)
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `internal/analyzercap` and `internal/analyzerexec` as unreached code (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/ARCHITECTURE.md`, `docs/EXTENSION-ECOSYSTEM.md`, and
 `docs/specs/go-production-kernel-migration-v0.md`.
@@ -15,9 +16,9 @@ gate below.
 
 ## Agent digest
 - Claim: Optional external analyzers may submit bounded candidates only through Corvint-owned admission, containment, and exact-verification boundaries.
-- Status: accepted/experimental (static in-memory registry/lock model and unqualified one-shot boundary; no persisted signed registry, accepted profile, or supported launch)
-- Exists: `internal/analyzercap` and the isolated `internal/analyzerexec` boundary.
-- Blocked on: one accepted supported-launch qualification profile.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `internal/analyzercap` and `internal/analyzerexec` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: `analyzer-candidate-profiles.md` and the selected family-specific candidate spec.
 
 ## User and measurable job
@@ -445,19 +446,8 @@ covers the warm-probe precondition and one Core call per attempt.
 
 ## Traceability and promotion/kill criteria
 
-| Requirements | Planned implementation | Evidence before promotion |
-|---|---|---|
-| `ACC-V0-001..006` | capability resolver, signed local registry, terminal lock | offline trust/lock/provider/path/PATH/release/digest vectors |
-| `ACC-V0-002` | source traversal descriptor cleanup | `TestSourceWalkClosesDescriptors`, `TestSourceWalkLstatFailureClosesBoundDescriptor`: depth-three traversal and post-open lookup failure retain zero descriptors with GC disabled |
-| `ACC-V0-002` | repository containment by directory identity | `TestRunRejectsRepositoryAndStagingContainment`, `TestRunRejectsCaseAliasedContainment`: an executable or staging parent under a lexical or case-aliased repository root fails `identity-unsafe` with no start |
-| `ACC-V0-002` | content-addressed staging reuse | `TestStageReusesVerifiedContentAddressedEntry`, `TestStageRemovesDivergentReusedEntry`, `TestStageKeepsReusedEntryWhenCancelled`: a cancelled reuse keeps the entry |
-| `ACC-V0-007..011` | profile model and correlated DNF resolver | host/target/feature/semver/dependency hostile corpus |
-| `ACC-V0-007` | unique component identity within a profile | `TestProfileRefusesRepeatedComponentIdentity`: two components sharing `(scopeID, role, ecosystemCoordinate, stableInstanceID)` with different exact values yield `PROFILE_UNAVAILABLE` through `NewProfile`; a distinct instance ID is accepted |
-| `ACC-V0-008` | unique clause ID within a manifest | `TestManifestRefusesRepeatedClauseID`: two sorted clauses sharing one ID with different bodies yield `CAPABILITY_PROJECTION_UNAVAILABLE` through `Resolve` |
-| `ACC-V0-009` | component and clause-requirement scheme classification | `TestComponentAndRequirementSchemesUseClosedSchemeReasons`: an absent or malformed scheme on a profile component or a clause requirement yields `SCHEME_MISSING` or `SCHEME_INVALID` through `NewProfile` and `Resolve` |
-| `ACC-V0-012..016` | candidate one-shot runner, canonical protocol, independent admission | process spy, safe-handle/staging race, projection/echo, injection, admission-vs-exact vectors |
-| `ACC-V0-017..020` | candidate scoped receipts, trust-before-cache, limit and diagnostic harness | `TestCleanupObservationIsClosed` rejects open termination and cleanup-error values; failure taxonomy, cache invalidation, reaping, absolute caps, five-warmup/100-fresh-process ratchets |
-| `ACC-V0-021..023` | tuple ledger and release rollback controller | accepted profile review, qualified tuple, side-by-side rollback drill |
+Retired by decision 0594: this table cited code and tests deleted as unreached code.
+Read it at the last tree that held them: `git show 4663b4e2:docs/specs/analyzer-capability-contract-v0.md`.
 
 Kill or disable an affected profile immediately after an unpinned executable launch, repo-path/URL/
 shell/PATH execution, network/download attempt, unresolved lock, fallback selection, host/target

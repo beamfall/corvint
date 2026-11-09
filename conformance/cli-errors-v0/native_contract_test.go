@@ -32,15 +32,8 @@ type contract struct {
 var contracts = map[string]contract{
 	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
 	"corvint-cem-candidate":      companion("./cmd/corvint-cem-candidate"),
-	"corvint-corpus-republish":   companion("./cmd/corvint-corpus-republish"),
-	"corvint-dashboard-snapshot": companion("./cmd/corvint-dashboard-snapshot"),
-	"corvint-gateway":            companion("./cmd/corvint-gateway"),
 	"corvint-go-test-provider":   companion("./cmd/corvint-go-test-provider"),
-	"corvint-intake":             companion("./cmd/corvint-intake"),
 	"corvint-js-test-provider":   companion("./cmd/corvint-js-test-provider"),
-	"corvint-postmerge-connect":  companion("./cmd/corvint-postmerge-connect"),
-	"corvint-postmerge-metrics":  companion("./cmd/corvint-postmerge-metrics"),
-	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
 	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
 	"corvint-update":             companion("./cmd/corvint-update"),
 }

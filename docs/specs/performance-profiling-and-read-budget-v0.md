@@ -91,7 +91,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `native-hook`, `authority-event` and `qualified-event`), every MCP server that honours them,
   and the entries that do not. Until the capability catalog of GitHub #1588 lands, `help --json`
   prints only this member; the catalog absorbs it unchanged.
-- `PRB-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`,
+- `PRB-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`,
   `corvint-test-validity-mcp`) MUST apply the same bracket at its entry point, one profile per
   server process, written when the server exits (end of input) and on SIGINT or SIGTERM.
 - `PRB-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CRB-V0-018`'s exact runtime-settings list MUST name `CORVINT_CPUPROFILE` and
@@ -253,7 +253,7 @@ They amend `PRB-V0-030`, `PRB-V0-031` and `PRB-V0-034`.
   in `pending_on`) or `advisory` (a target no change is committed to enforce; no `pending_on`).
   An `enforced` or `advisory` limit carries no `pending_on`, and a ceiling is always `enforced`.
   Any other value or combination is refused when the budgets file is loaded.
-- `PRB-V0-055`: Every product target MUST record the product profile it belongs to as `profile`,
+- `PRB-V0-055`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every product target MUST record the product profile it belongs to as `profile`,
   one of `core`, `required-companion`, `companion` or `experimental`, the surface labels of
   `docs/specs/corvint-1.0-product-and-release-v1.md`; a ceiling carries none, because it is a
   regression guard, not a product target. A target in any enforcement state, `enforced`

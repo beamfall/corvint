@@ -57,7 +57,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "1d4cc0cfbfbfbcc8783f5f2bf705426bb3ecccc0ae24125f382a87fa500a383c"
+    "sha256": "da9f60031fb38df3eaf0ae4902637cd28dea0d041c0aa3f0730365815a22393e"
   },
   "commands": [
     {
@@ -3565,8 +3565,6 @@
       "operations": [
         "baseline",
         "compare",
-        "fresh",
-        "identity",
         "redundancy",
         "response-wait",
         "reusable",
@@ -3578,13 +3576,6 @@
         "runs compare": [
           "--baseline",
           "--candidate"
-        ],
-        "runs fresh": [
-          "--new",
-          "--old"
-        ],
-        "runs identity": [
-          "--config"
         ],
         "runs redundancy": [
           "--runs"
@@ -3608,16 +3599,9 @@
       },
       "flags": [
         "--allow-unobserved",
-        "--app-root",
-        "--artifact-digest",
         "--base",
         "--baseline",
         "--candidate",
-        "--cite",
-        "--closure-digests",
-        "--compute-closures",
-        "--config",
-        "--fresh",
         "--full",
         "--identity",
         "--identity-sidecars",
@@ -3628,12 +3612,9 @@
         "--max-age",
         "--method",
         "--min-runs",
-        "--new",
-        "--old",
         "--own",
         "--pool-by",
         "--prior",
-        "--project-test-dir",
         "--repeat-each",
         "--requests",
         "--rev",
@@ -3643,8 +3624,6 @@
         "--since",
         "--summary",
         "--support-path",
-        "--test-dir",
-        "--test-match",
         "--timeout-ms",
         "--url-contains",
         "--wait-start",
@@ -3652,10 +3631,8 @@
         "--window-ms"
       ],
       "schemaIds": [
-        "corvint-evidence-reach/0",
         "corvint-run-baseline/0",
         "corvint-run-identity-sidecar/0",
-        "corvint-run-identity/0",
         "corvint-test-closure/0",
         "server-error-log/0"
       ],
@@ -3668,7 +3645,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Reads only the named regular files (relative to --root when given; at most 64 per option, 64 MiB each; a baseline 16 MiB) and, for fresh, --fresh and baseline, bounded Git reads of the repository at --root (identity: of the named checkouts); writes nothing and uses no network."
+        "Reads only the named regular files (relative to --root when given; at most 64 per option, 64 MiB each; a baseline 16 MiB) and, for baseline, bounded Git reads of the repository at --root; writes nothing and uses no network."
       ],
       "unknowns": [
         {
@@ -4327,7 +4304,6 @@
     "schema": "corvint-profile-knobs/0",
     "scope": "every command dispatched by the corvint binary, and every listed MCP server, one profile per process",
     "servers": [
-      "corvint-corpus-mcp",
       "corvint-docs-mcp",
       "corvint-mcp",
       "corvint-test-validity-mcp"
@@ -4436,44 +4412,9 @@
       "snapshot": "internal/capcatalog/trees/corvint-companion-release.json"
     },
     {
-      "binary": "corvint-console",
-      "command": "corvint-console help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-console.json"
-    },
-    {
-      "binary": "corvint-corpus-http",
-      "command": "corvint-corpus-http help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-corpus-http.json"
-    },
-    {
-      "binary": "corvint-corpus-mcp",
-      "command": "corvint-corpus-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-corpus-mcp.json"
-    },
-    {
-      "binary": "corvint-corpus-parity",
-      "command": "corvint-corpus-parity help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-corpus-parity.json"
-    },
-    {
-      "binary": "corvint-corpus-republish",
-      "command": "corvint-corpus-republish help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-corpus-republish.json"
-    },
-    {
-      "binary": "corvint-dashboard-snapshot",
-      "command": "corvint-dashboard-snapshot help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
-    },
-    {
       "binary": "corvint-docs-mcp",
       "command": "corvint-docs-mcp help --json",
       "snapshot": "internal/capcatalog/trees/corvint-docs-mcp.json"
-    },
-    {
-      "binary": "corvint-gateway",
-      "command": "corvint-gateway help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-gateway.json"
     },
     {
       "binary": "corvint-go-test-provider",
@@ -4484,11 +4425,6 @@
       "binary": "corvint-go-toolchain-receipt",
       "command": "corvint-go-toolchain-receipt help --json",
       "snapshot": "internal/capcatalog/trees/corvint-go-toolchain-receipt.json"
-    },
-    {
-      "binary": "corvint-intake",
-      "command": "corvint-intake help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-intake.json"
     },
     {
       "binary": "corvint-js-test-provider",
@@ -4504,26 +4440,6 @@
       "binary": "corvint-mcp",
       "command": "corvint-mcp help --json",
       "snapshot": "internal/capcatalog/trees/corvint-mcp.json"
-    },
-    {
-      "binary": "corvint-postmerge-connect",
-      "command": "corvint-postmerge-connect help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
-    },
-    {
-      "binary": "corvint-postmerge-host-launcher",
-      "command": "corvint-postmerge-host-launcher help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-postmerge-host-launcher.json"
-    },
-    {
-      "binary": "corvint-postmerge-metrics",
-      "command": "corvint-postmerge-metrics help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-postmerge-metrics.json"
-    },
-    {
-      "binary": "corvint-postmerge-workflow",
-      "command": "corvint-postmerge-workflow help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
     },
     {
       "binary": "corvint-public-release-check",
@@ -4544,11 +4460,6 @@
       "binary": "corvint-release-install",
       "command": "corvint-release-install help --json",
       "snapshot": "internal/capcatalog/trees/corvint-release-install.json"
-    },
-    {
-      "binary": "corvint-remote-provider",
-      "command": "corvint-remote-provider help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-remote-provider.json"
     },
     {
       "binary": "corvint-ruby-test-provider",
@@ -4598,23 +4509,18 @@
       "summary": "Read a CEM report"
     },
     {
-      "name": "corvint.consolidate_tests",
-      "availability": "corvint-corpus-mcp with --consolidation",
-      "summary": "Test consolidation plan"
-    },
-    {
       "name": "corvint.context",
       "availability": "corvint-mcp task-review, task-review-lsp",
       "summary": "Same packet as corvint context"
     },
     {
       "name": "corvint.docs_claims",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run; each claim carries a claim_kind, filterable by kind / exclude_kind, and run records rank below behavioural claims ([DCS-V1-591..593](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
       "name": "corvint.docs_concept",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "One concept's record"
     },
     {
@@ -4624,12 +4530,12 @@
     },
     {
       "name": "corvint.docs_coverage",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Coverage counts per outcome"
     },
     {
       "name": "corvint.docs_dependencies",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Dependencies of a subject"
     },
     {
@@ -4639,87 +4545,82 @@
     },
     {
       "name": "corvint.docs_find_related",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Related subjects"
     },
     {
       "name": "corvint.docs_flow",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "One documented flow"
     },
     {
       "name": "corvint.docs_gaps",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Producer gap claims"
     },
     {
       "name": "corvint.docs_get",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "One subject and its links, by ID or legacy case ID"
     },
     {
       "name": "corvint.docs_get_journey",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "One user journey"
     },
     {
       "name": "corvint.docs_get_stability",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Stability records"
     },
     {
       "name": "corvint.docs_info",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Corpus header, revision and capabilities"
     },
     {
       "name": "corvint.docs_intent",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Intent records of one subject, or every intent comparison"
     },
     {
       "name": "corvint.docs_inventory",
-      "availability": "corvint-corpus-mcp (/2 artifacts)",
+      "availability": "corvint-mcp --tool-profile corpus (/2 artifacts)",
       "summary": "Page through the corpus inventory"
     },
     {
       "name": "corvint.docs_locate",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Where a path is documented, including the subjects documenting it through one documents hop, or module and symbol subjects ranked by a query, with line anchors ([DCS-V1-594](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
       "name": "corvint.docs_navigation",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
       "name": "corvint.docs_recommend_tests",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Tests the corpus links to a subject, plus the subjects documenting the path and their test links ([DCS-V1-595](specs/documentation-corpus-search-ranking-v1.md))"
     },
     {
       "name": "corvint.docs_search",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Search the corpus; compact receipt by default, receipt: \"full\" for the full one"
     },
     {
-      "name": "corvint.docs_search_cases",
-      "availability": "corvint-corpus-mcp with --legacy-cases",
-      "summary": "Search imported legacy test cases"
-    },
-    {
       "name": "corvint.docs_trace",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Walk relations to a depth"
     },
     {
       "name": "corvint.docs_validate",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Validate the corpus artifact"
     },
     {
       "name": "corvint.docs_vocabulary",
-      "availability": "corvint-corpus-mcp",
+      "availability": "corvint-mcp --tool-profile corpus",
       "summary": "Corpus vocabulary"
     },
     {
@@ -4754,23 +4655,13 @@
     },
     {
       "name": "corvint.help",
-      "availability": "corvint-mcp (all profiles), corvint-docs-mcp, corvint-corpus-mcp, corvint-test-validity-mcp",
+      "availability": "corvint-mcp (all profiles), corvint-docs-mcp, corvint-test-validity-mcp",
       "summary": "Same bytes as corvint help guide (default), corvint help --json COMMAND (command) or corvint help --json (topic catalog)"
     },
     {
       "name": "corvint.impact",
       "availability": "corvint-mcp (all profiles)",
       "summary": "Same receipt as corvint impact, path requests for Go, Ruby, JS and TS"
-    },
-    {
-      "name": "corvint.map_knowledge",
-      "availability": "corvint-corpus-mcp with --map",
-      "summary": "Site knowledge (page objects, steps, setup, static links, candidate flows) mined from committed E2E sources"
-    },
-    {
-      "name": "corvint.map_plan",
-      "availability": "corvint-corpus-mcp with --map",
-      "summary": "Scenario plan over an application map"
     },
     {
       "name": "corvint.query",

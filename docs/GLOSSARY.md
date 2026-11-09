@@ -44,12 +44,12 @@ The following was checked against the working tree on branch `integration/go-mig
   `docs/TECHNICAL-BRAIN.md:153@b20ddc29`, which names a checked-in glossary as an admission precondition that
   nothing satisfies.
 - `authorityClass` is declared with five disjoint value sets across five owners
-  (`internal/dashboard/model/types.go:40-46@9d0ecd1e`, `internal/mcp/bridge/bridge.go:1113@982aa756`,
+  (`internal/dashboard/model/types.go` lines 40-46 at 4663b4e2, `internal/mcp/bridge/bridge.go:1113@982aa756`,
   `docs/specs/change-frontier-v0.md:249@1e1231f8`, `internal/lrf/types.go:12@fc816169`,
   `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a sixth single-value constraint in
   `docs/tcq-0.schema.json:125@49b495d9`.
 - A total order over `authorityClass` is declared exactly once, at
-  `docs/specs/local-observability-dashboard-v0.md:85@186c53c1`, and covers only the seven dashboard values.
+  `docs/specs/local-observability-dashboard-v0.md:86@186c53c1`, and covers only the seven dashboard values.
   No other surface's values are placed in it.
 - The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:129-134@c09c41e2`, which
   names four of the five sets and requires "one ordered lattice, one casing, one owner — before the
@@ -68,15 +68,15 @@ currently declares a variant of it.
 independent of whether the value was observed, whether it is complete, and whether it is current.
 It never states that a proposition is true.
 
-**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` supplies the definition and
-the only declared ordering (`:85@186c53c1`). *Proposal:* ownership of the axis moves to this file, and the
+**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:81@4b5e015c` supplies the definition and
+the only declared ordering (`:86@186c53c1`). *Proposal:* ownership of the axis moves to this file, and the
 dashboard spec cites it.
 
 **Declared variants.**
 
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
-| Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go:40-46@9d0ecd1e`; `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` |
+| Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go` lines 40-46 at 4663b4e2; `docs/specs/local-observability-dashboard-v0.md:81@4b5e015c` |
 | MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:260@f4047e06` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:249@1e1231f8` |
 | Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12@fc816169`; `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:268,270@1875648f` |
@@ -92,18 +92,18 @@ every other set.
 **Normative definition.** Whether a value was measured, copied from a declaration, derived from
 non-authoritative evidence, or is unavailable. Independent of authority.
 
-**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:79@4c15b452`.
+**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:80@4c15b452`.
 
 **Declared variants.** `OBSERVED`, `DECLARED`, `ADVISORY`, `NOT_OBSERVED`
-(`internal/dashboard/model/types.go:31-34@36ca6aad`). The MCP bridge admits only the two-value subset
+(`internal/dashboard/model/types.go` lines 31-34 at 4663b4e2). The MCP bridge admits only the two-value subset
 `OBSERVED`, `NOT_OBSERVED` (`internal/mcp/bridge/bridge.go:1112@85072359`). The subset is a restriction, not
 a divergence: both members carry the dashboard meaning.
 
 ### `ADVISORY`
 
 **Current state, unresolved.** The token `ADVISORY` is a member of two different axes in the same
-table: `epistemicClass` at `docs/specs/local-observability-dashboard-v0.md:79@4c15b452` and `authorityClass`
-at `:80@4b5e015c`. `docs/specs/local-observability-dashboard-v0.md:86-87@3068dd84` uses both in one sentence — a
+table: `epistemicClass` at `docs/specs/local-observability-dashboard-v0.md:80@4c15b452` and `authorityClass`
+at `:81@4b5e015c`. `docs/specs/local-observability-dashboard-v0.md:87-88@3068dd84` uses both in one sentence — a
 proposed repository declaration is `DECLARED` with authority `ADVISORY`.
 
 This file does not resolve the collision, because renaming a shipped enum member is the owning
@@ -143,7 +143,7 @@ splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:11
 only. It is legal only alongside an active abstention: the MCP bridge rejects any result that pairs
 `NONE` with a non-abstaining state (`internal/mcp/bridge/bridge.go:1119-1126@e542140b`).
 
-**Declared variants.** `internal/dashboard/model/types.go:46@9b49e16a`;
+**Declared variants.** `internal/dashboard/model/types.go` line 46 at 4663b4e2;
 `internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/change-frontier-v0.md:249@1e1231f8`.
 
 ### `UNKNOWN`
@@ -154,9 +154,9 @@ result and MUST never be converted into `cannot happen` (`docs/ARCHITECTURE.md:2
 
 **Declared variants.** As a proposition verdict alongside `PROVED`, `REFUTED`, `CONFLICTED`
 (`docs/ARCHITECTURE.md:85@d7e7f51a`). As a `completeness` value meaning the denominator is not closed over
-the cohort (`docs/specs/local-observability-dashboard-v0.md:81@c6ea8ee8`;
-`internal/dashboard/model/types.go:52-56@d3bbd1ac`). As a `currency` value
-(`docs/specs/local-observability-dashboard-v0.md:82@fb4bf96f`).
+the cohort (`docs/specs/local-observability-dashboard-v0.md:82@c6ea8ee8`;
+`internal/dashboard/model/types.go` lines 52-56 at 4663b4e2). As a `currency` value
+(`docs/specs/local-observability-dashboard-v0.md:83@fb4bf96f`).
 
 *Current state, unresolved:* the proposition-verdict `UNKNOWN` and the completeness `UNKNOWN` are
 different axes carrying the same token, the same collision as `ADVISORY`. The same reading rule
@@ -167,9 +167,9 @@ applies: name the axis.
 **Normative definition.** The value was not measured. It is a value of the `epistemicClass` axis.
 It is distinct from a measured zero: missing, invalid, inaccessible, unsupported, disabled,
 expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, never zero
-(`docs/specs/local-observability-dashboard-v0.md:91-93@62f9e105`).
+(`docs/specs/local-observability-dashboard-v0.md:92-94@62f9e105`).
 
-**Declared variants.** `internal/dashboard/model/types.go:34@7bc4de6c`;
+**Declared variants.** `internal/dashboard/model/types.go` line 34 at 4663b4e2;
 `internal/mcp/bridge/bridge.go:955,1112@1e3552e5`.
 
 ### `NOT_RUN`
@@ -206,7 +206,7 @@ root (`docs/specs/change-frontier-v0.md:76@7d410827`). It is evidence for review
 non-closing: it cannot remove a frontier item
 (`docs/specs/test-claim-qualification-v0.md:43@1e6cb0de`; `docs/TEST-CLAIM-QUALIFICATION.md:16@65656d2d`).
 
-**Declared variants.** `internal/dashboard/model/types.go:44@12f467c0`;
+**Declared variants.** `internal/dashboard/model/types.go` line 44 at 4663b4e2;
 `docs/specs/change-frontier-v0.md:249@1e1231f8`; `docs/tcq-0.schema.json:125@49b495d9`;
 `docs/specs/verification-planner-observer-v0.md:285@14fac67d`. The four agree; this term is not in drift.
 
@@ -282,7 +282,7 @@ Ranks are ordinal labels spaced by ten so a future member can be inserted withou
 | Rank | Value | Authority root |
 |---:|---|---|
 | 70 | `REPOSITORY_ACCEPTED` | The repository accepted the declaration at that revision: a merged specification, decision, policy, or owner record with the declared status and scope. |
-| 60 | `OWNING_VERIFIER` | The exact verifier that owns the artifact validated it, and it passed. A failed owning verifier does not lower the class; it makes the source `INVALID` (`docs/specs/local-observability-dashboard-v0.md:87@9f0d5ee6`). |
+| 60 | `OWNING_VERIFIER` | The exact verifier that owns the artifact validated it, and it passed. A failed owning verifier does not lower the class; it makes the source `INVALID` (`docs/specs/local-observability-dashboard-v0.md:88@9f0d5ee6`). |
 | 50 | `PROVIDER_QUALIFIED` | A qualified execution or evidence provider, identified and admitted under its own profile, attested the value. |
 | 40 | `ADAPTER_QUALIFIED` | A registered, compiled Corvint adapter produced the value from admitted bytes. |
 | 30 | `PRODUCER_DECLARED` | The producing Corvint profile declared it from its own deterministic evaluation, with no independent root. |
@@ -291,7 +291,7 @@ Ranks are ordinal labels spaced by ten so a future member can be inserted withou
 | 0 | `NONE` | No authority root. Legal only alongside an active abstention. |
 
 Ranks 70–40, 20, 10, and 0 are the dashboard set unchanged
-(`docs/specs/local-observability-dashboard-v0.md:80@4b5e015c`) in its declared order (`:85@186c53c1`). Rank 30 is the
+(`docs/specs/local-observability-dashboard-v0.md:81@4b5e015c`) in its declared order (`:86@186c53c1`). Rank 30 is the
 single new member, admitted because `PRODUCER_DECLARED` is already shipped in two profiles
 (`docs/specs/change-frontier-v0.md:249@1e1231f8`; `internal/lrf/types.go:12@fc816169`) and has no dashboard
 equivalent.
@@ -319,10 +319,10 @@ equivalent.
 **`CORVINT_PROCESS_OBSERVED` — retire.** The token names an *observation mechanism*, not an authority
 root, so it sits on the wrong axis. Its content is already carried by two other axes that the
 dashboard contract requires to stay independent: `epistemicClass: OBSERVED`
-(`docs/specs/local-observability-dashboard-v0.md:79@4c15b452`) and the profile's own `containmentClass`
+(`docs/specs/local-observability-dashboard-v0.md:80@4c15b452`) and the profile's own `containmentClass`
 (`docs/specs/verification-planner-observer-v0.md:392@a56726cd`). Keeping it as an `authorityClass` value
 collapses epistemic class into authority, which
-`docs/specs/local-observability-dashboard-v0.md:73-74@8d0948b1` forbids in exactly those words. On the authority
+`docs/specs/local-observability-dashboard-v0.md:74-75@8d0948b1` forbids in exactly those words. On the authority
 axis a VPO observation is the output of Corvint's own compiled process observer, which is rank 40; it
 can never be rank 50, because VPO-V0-028 places `PROVIDER_UNQUALIFIED` permanently in that profile's
 unknown set (`docs/specs/verification-planner-observer-v0.md:448@84be3668`) and VPO-V0-029 explicitly
@@ -347,10 +347,10 @@ declared relations are those involving rank 30, which no surface previously orde
    only legal operations. Differences, sums, averages, and ratios of ranks have no meaning and MUST
    NOT be computed.
 4. **Derivation takes the weakest contributor.** A value derived from several sources carries the
-   minimum rank among them (`docs/specs/local-observability-dashboard-v0.md:85-86@525946a0`).
+   minimum rank among them (`docs/specs/local-observability-dashboard-v0.md:86-87@525946a0`).
 5. **Cross-axis comparison is illegal.** `authorityClass` MUST NOT be compared against, substituted
    for, or collapsed into `epistemicClass`, `validity`, `completeness`, `currency`, or
-   `deliveryStage` (`docs/specs/local-observability-dashboard-v0.md:73-74@8d0948b1`). A token that appears on
+   `deliveryStage` (`docs/specs/local-observability-dashboard-v0.md:74-75@8d0948b1`). A token that appears on
    two axes — `ADVISORY`, `UNKNOWN` — is two different values and the axis must be named.
 6. **Rank is not a verdict.** A higher rank never means a proposition is true
    (`docs/ARCHITECTURE.md:87@1bb66862`), never means a test passed, and never confers merge permission; see
