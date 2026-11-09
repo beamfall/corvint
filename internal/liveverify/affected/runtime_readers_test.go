@@ -140,9 +140,8 @@ func TestRuntimeReadersDeclarationIsValidated_AFPV0602(t *testing.T) {
 		"unsorted":         `{"profile":"corvint-runtime-readers/0","entries":[{"path":"b.json","reason":"r"},{"path":"a.json","reason":"r"}]}`,
 		"duplicate":        `{"profile":"corvint-runtime-readers/0","entries":[{"path":"a.json","reason":"r"},{"path":"a.json","reason":"r"}]}`,
 		"escaping":         `{"profile":"corvint-runtime-readers/0","entries":[{"path":"../a.json","reason":"r"}]}`,
-		"itself":           `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/runtime-readers.json","reason":"r"}]}`,
+		"itself as dir":    `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/runtime-readers.json/","reason":"r"}]}`,
 		"declarations dir": `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/","reason":"r"}]}`,
-		"documentation":    `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/documentation-paths.json","reason":"r"}]}`,
 		"workflow":         `{"profile":"corvint-runtime-readers/0","entries":[{"path":".github/workflows/","reason":"r"}]}`,
 		"github":           `{"profile":"corvint-runtime-readers/0","entries":[{"path":".github/","reason":"r"}]}`,
 		"make file":        `{"profile":"corvint-runtime-readers/0","entries":[{"path":"build/rules.mk","reason":"r"}]}`,
@@ -154,6 +153,11 @@ func TestRuntimeReadersDeclarationIsValidated_AFPV0602(t *testing.T) {
 	}
 	if _, err := runtimeReadersGraph(t, `{"profile":"corvint-runtime-readers/0","entries":[]}`, nil); err != nil {
 		t.Fatalf("empty entries: %v", err)
+	}
+	// AZU-V0-8910: an exact entry for a parser-owned control declaration,
+	// itself included, is the one accepted `.corvint/` declaration entry.
+	if _, err := runtimeReadersGraph(t, `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/documentation-paths.json","reason":"r"},{"path":".corvint/runtime-readers.json","reason":"r"}]}`, nil); err != nil {
+		t.Fatalf("exact control declarations: %v", err)
 	}
 }
 

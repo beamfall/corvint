@@ -24,7 +24,7 @@ func (graph *Graph) WithOwnershipChanges(changed, committed []string) *Graph {
 
 func (graph *Graph) ownershipTrigger(dirty []string) string {
 	for _, path := range dirty {
-		if slices.Contains(graph.ownershipChanges, path) || path == RuntimeReadersPath || path == DocumentationPathsPath || path == NonSourcePathsPath {
+		if slices.Contains(graph.ownershipChanges, path) || path == RuntimeReadersPath || path == DocumentationPathsPath || path == NonSourcePathsPath || path == DeclaredSelectionPath {
 			return path
 		}
 	}
