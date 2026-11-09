@@ -18,26 +18,11 @@ const nodeHelpPrefix = "node:"
 // or agent types them: hook and worker entry points the binary or its installed hooks invoke, test
 // fixtures, hook event values, and alternative spellings (CAP-V0-043).
 var commandTreeInternal = []clitree.Internal{
-	{Word: "native-hook", Reason: "host hook entry point the installed adapter invokes"},
-	{Word: "--qualified-lifecycle", Reason: "native-hook option the installed adapter passes"},
-	{Word: "--qualified-direct-lifecycle", Reason: "native-hook option the installed adapter passes"},
-	{Word: "authority-event", Reason: "host hook event forwarded by the installed adapter"},
-	{Word: "--native-output", Reason: "authority-event option the installed adapter passes"},
-	{Word: "qualified-event", Reason: "host hook event forwarded by the installed adapter"},
-	{Word: "dogfood-record", Reason: "private local-outcome recorder invoked by dogfood change; the public workflow is dogfood"},
-	{Word: "dogfood-outcome-worker", Reason: "worker process dogfood starts for itself"},
-	{Word: "dogfood-verifier-worker", Reason: "worker process dogfood starts for itself"},
-	{Word: "--aggregate-over-limit", Reason: "dogfood-record option dogfood change passes for itself (DCW-V0-374)"},
-	{Word: "dogfood-observe", Reason: "self-observation ledger writer the dogfood hooks invoke (SOL-V0-001)"},
-	{Word: "--step", Reason: "dogfood-observe option"},
-	{Word: "--status", Reason: "dogfood-observe option"},
 	{Word: "frontier-next", Reason: "experimental frontier/2 stub with no admitted deployment adapter"},
 	{Word: "--enrollment", Reason: "frontier-next option"},
 	{Word: "plan-fixture", Reason: "work test fixture entry point"},
 	{Word: "--executor", Reason: "work plan-fixture option"},
 	{Word: "--observations", Reason: "work plan-fixture option"},
-	{Word: "pre-compact", Reason: "claude-code EVENT value of adapter"},
-	{Word: "post-compact", Reason: "claude-code EVENT value of adapter"},
 	{Word: "audit", Reason: "spaced spelling of docs corpus audit-sample and audit-report"},
 	{Word: "sample", Reason: "spaced spelling of docs corpus audit-sample"},
 }
@@ -56,14 +41,12 @@ func commandTreeJSON() string {
 }
 
 // helpTopics lists every authored help topic that documents commands, in a stable order: each
-// public command, each cem action, and each nested docs and harness topic.
+// public command, each cem action, and each nested docs topic.
 func helpTopics() []string {
 	topics := []string{}
 	for _, command := range topLevelCommands {
 		topic, _ := publicHelpTopic(command)
-		if topic != "harness-event" {
-			topics = append(topics, topic)
-		}
+		topics = append(topics, topic)
 	}
 	for _, action := range slices.Sorted(func(yield func(string) bool) {
 		for action := range cemHelpActions {
@@ -74,7 +57,7 @@ func helpTopics() []string {
 	}) {
 		topics = append(topics, cemActionHelpPrefix+action)
 	}
-	topics = append(topics, "harness-event", "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
+	topics = append(topics, "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}
@@ -96,8 +79,6 @@ func helpTopicPath(topic string) []string {
 		return []string{"docs", "flows"}
 	case "docs-maintain":
 		return []string{"docs", "maintain"}
-	case "harness-event":
-		return []string{"harness", "event"}
 	case flowsAppmapBuildHelpTopic:
 		return []string{"flows", "appmap", "build"}
 	}
@@ -162,7 +143,7 @@ func nodeHelpText(path string) string {
 	if !ok {
 		panic("unknown command tree node")
 	}
-	return clitree.Render(commandTree(), node) + dogfoodFlowOptionsText(node.Path) + parentTopicPointer(node.Path)
+	return clitree.Render(commandTree(), node) + parentTopicPointer(node.Path)
 }
 
 // parentTopicPointer names the authored help topic that documents a node's command in full, so a

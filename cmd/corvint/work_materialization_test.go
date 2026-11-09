@@ -194,22 +194,17 @@ func workCaptureSlot(t *testing.T) {
 // command-line config that overrides repository config. Sanitized product Git
 // environments drop it, and where it passes through it changes only auto
 // maintenance, so a product write to .git is still caught. GIT_CONFIG_COUNT is
-// left alone because record fixtures key on it. A native-hook replacement of
-// this binary keeps its exact two-entry environment.
+// left alone because record fixtures key on it.
 func TestMain(m *testing.M) {
 	testsupport.ServeFakeGoplsIfRequested()
-	executable, _ := os.Executable()
-	removeRunParent := func() error { return nil }
-	if !exactNativeHookEnvironment(os.Environ(), nativeHookEnvironment(executable)) {
-		os.Setenv("CORVINT_INDEX_AUTO_REFRESH", "0")
-		os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
-		// Work run roots, with each run's private Go cache, and source scratch go
-		// under the test temporary root instead of the fixed /tmp (V1-2768).
-		var err error
-		if removeRunParent, err = testsupport.PrivateWorkRunParent(); err != nil {
-			fmt.Fprintln(os.Stderr, "work run parent:", err)
-			os.Exit(1)
-		}
+	os.Setenv("CORVINT_INDEX_AUTO_REFRESH", "0")
+	os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
+	// Work run roots, with each run's private Go cache, and source scratch go
+	// under the test temporary root instead of the fixed /tmp (V1-2768).
+	removeRunParent, err := testsupport.PrivateWorkRunParent()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "work run parent:", err)
+		os.Exit(1)
 	}
 	// A fixture build on a loaded host can pass the one-second snapshot-miss
 	// notice threshold and add a stderr line that tests asserting empty stderr
@@ -222,7 +217,7 @@ func TestMain(m *testing.M) {
 	// cache (decision 0111, WQO-V0-096).
 	workUserCacheDir = workSharedCompilerCache
 	code := m.Run()
-	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root, "portable dogfood build": portableDogfoodBuild.root} {
+	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root} {
 		if root == "" {
 			continue
 		}

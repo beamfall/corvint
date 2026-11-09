@@ -166,7 +166,7 @@ func TestUnknownHelpTopicListsValidTopics(t *testing.T) {
 		topics[topic] = true
 		corpusHelpRun(t, append([]string{"help"}, strings.Fields(topic)...)...)
 	}
-	for _, want := range []string{"query", "docs", "docs corpus", "harness event", "test-plan"} {
+	for _, want := range []string{"context", "docs", "docs corpus", "test-plan"} {
 		if !topics[want] {
 			t.Errorf("valid topics omit %q: %s", want, list)
 		}

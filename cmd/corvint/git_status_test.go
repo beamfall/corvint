@@ -45,14 +45,10 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 					args  []string
 					input string
 				}{
-					{[]string{"query", "--task", "find Split", "--limit", "1"}, ""},
 					{[]string{"context", "--task", "find Split", "--limit", "1"}, ""},
 					{[]string{"feature", "split"}, ""},
 					{[]string{"impact", "cache/demux.go"}, ""},
 					{[]string{"affected"}, ""},
-					{cliArguments(root, "session-start")[2:], `{}`},
-					{cliArguments(root, "user-prompt")[2:], `{"task":"find Split"}`},
-					{cliArguments(root, "file-change")[2:], `{"paths":["cache/demux.go"]}`},
 				} {
 					t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 						var stdout, stderr bytes.Buffer

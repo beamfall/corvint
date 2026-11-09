@@ -267,7 +267,7 @@ func TestDocsCLIEncodedConsumeResultIsBounded(t *testing.T) {
 
 func TestDocsRootHelpDisclosesLedgerException(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(strings.Join(strings.Fields(rootHelp), " "), "impact, feature, docs, harness event, ocm, lrf, cem, dogfood-ocm, witness, index, calibrate, frontier, and record best-effort append") {
+	if !strings.Contains(strings.Join(strings.Fields(rootHelp), " "), "impact, feature, docs, ocm, lrf, cem, witness, index, frontier, and record best-effort append") {
 		t.Fatal("root help omits docs unsupported-error ledger exception")
 	}
 }

@@ -73,9 +73,7 @@ func TestExpandedRangeImpactCLIClosedSelection(t *testing.T) {
 			{"--range-profile", "expanded-800", "--base", base},
 			{"--range-profile", "expanded-256"},
 			{"--range-profile", "expanded-256", "pkg/main.go"},
-			{"--range-profile", "expanded-256", "--working-tree-untracked", "pkg/main.go"},
 			{"--base", base, "--range-profile", "expanded-256", "pkg/main.go"},
-			{"--base", base, "--range-profile", "expanded-256", "--working-tree-untracked"},
 			{"--base", base, "--range-profile", "expanded-256", "--range-profile=expanded-256"},
 		} {
 			var stdout, stderr bytes.Buffer

@@ -20,17 +20,8 @@ type taskContextOptions struct {
 	root, task, subject                                                     string
 	instructionHost, instructionVersion, instructionCWD, instructionProfile string
 	instructionFlags                                                        map[string]bool
-	lsp                                                                     string
-	lspSet                                                                  bool
 	limit                                                                   int
-	// summary, summaryBytes, expand and maxBytes are the opt-in experimental
-	// consumers (TCP-V0-024, ESV-V0-008/009); absent, the wire is unchanged.
-	summary                 bool
-	summaryBytes, maxBytes  int
-	expand                  string
-	summarySet, limitSet    bool
-	summaryBytesSet, maxSet bool
-	expandSet               bool
+	limitSet                                                                bool
 	// overlay is --worktree-overlay (DIRTY-CACHE-940); absent, the wire is unchanged.
 	overlay bool
 }
@@ -38,9 +29,7 @@ type taskContextOptions struct {
 const taskContextDefaultLimit = 20
 
 // parseTaskContextInvocation recognises `[--root PATH] context (--task TEXT | TEXT)
-// [--subject PATH] [--limit N] [--summary [--summary-bytes N]]` and
-// `[--root PATH] context --expand HANDLE [--max-bytes N]`; any other shape is
-// not a context invocation.
+// [--subject PATH] [--limit N]`; any other shape is not a context invocation.
 func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, error) {
 	if _, requested, _ := parseHelpInvocation(arguments); requested {
 		return taskContextOptions{}, false, nil
@@ -49,7 +38,7 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	if position < 0 || arguments[position] != "context" {
 		return taskContextOptions{}, false, nil
 	}
-	options := taskContextOptions{root: ".", limit: taskContextDefaultLimit, summaryBytes: contextSummaryDefaultBytes, maxBytes: contextExpandDefaultBytes}
+	options := taskContextOptions{root: ".", limit: taskContextDefaultLimit}
 	for index := 0; index < position; index++ {
 		if arguments[index] == "--root" {
 			options.root, index = arguments[index+1], index+1
@@ -63,10 +52,6 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	for index := 0; index < len(rest); index++ {
 		if !argparseOptionLike(rest[index]) {
 			positionals = append(positionals, rest[index])
-			continue
-		}
-		if rest[index] == "--summary" {
-			options.summary, options.summarySet = true, true
 			continue
 		}
 		if rest[index] == worktreeOverlayFlag {
@@ -99,11 +84,6 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			case "--instruction-profile":
 				options.instructionProfile = value
 			}
-		case "--lsp":
-			if options.lspSet || (value != "gopls" && value != "off") {
-				return options, true, argumentError("argument --lsp: requires one of gopls or off, once")
-			}
-			options.lsp, options.lspSet = value, true
 		case "--task":
 			options.task, taskSet, flagTaskSet = value, true, true
 		case "--subject":
@@ -114,21 +94,6 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 				return options, true, argumentError("argument --limit: invalid int value: " + strconv.Quote(value))
 			}
 			options.limit, options.limitSet = limit, true
-		case "--summary-bytes", "--max-bytes":
-			bytes, err := strconv.Atoi(value)
-			if err != nil {
-				return options, true, argumentError("argument " + flag + ": invalid int value: " + strconv.Quote(value))
-			}
-			if flag == "--max-bytes" {
-				options.maxBytes, options.maxSet = bytes, true
-				continue
-			}
-			options.summaryBytes, options.summaryBytesSet = bytes, true
-		case "--expand":
-			if options.expandSet {
-				return options, true, argumentError("argument --expand: may not be repeated")
-			}
-			options.expand, options.expandSet = value, true
 		default:
 			return options, true, argumentError("unrecognized arguments: " + rest[index])
 		}
@@ -159,8 +124,7 @@ func contextPositionalTaskRefusal(reason string) string {
 	return reason + "; quote the task once or pass --task, for example: corvint context --task \"fix the parser\""
 }
 
-// checkContextViewArguments refuses mixed or orphaned view flags: --expand
-// stands alone except --max-bytes, and --summary-bytes needs --summary.
+// checkContextViewArguments refuses incomplete instruction-prediction flags and a missing task.
 func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 	if len(options.instructionFlags) > 0 {
 		if len(options.instructionFlags) != 4 || options.subject == "" {
@@ -169,26 +133,8 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 		if options.instructionProfile != "default" {
 			return argumentError("argument --instruction-profile: requires default, an explicit conditional assumption")
 		}
-		if options.expandSet || options.summarySet {
-			return argumentError("instruction prediction is not allowed with --expand or --summary")
-		}
 	}
-	if options.overlay && options.expandSet {
-		return argumentError("argument " + worktreeOverlayFlag + ": not allowed with --expand")
-	}
-	if options.lspSet && (options.expandSet || options.summarySet) {
-		return argumentError("argument --lsp: not allowed with --expand or --summary")
-	}
-	if options.expandSet && (taskSet || options.subject != "" || options.limitSet || options.summarySet || options.summaryBytesSet) {
-		return argumentError("argument --expand: not allowed with --task, --subject, --limit, --summary or --summary-bytes")
-	}
-	if !options.expandSet && options.maxSet {
-		return argumentError("argument --max-bytes: requires --expand")
-	}
-	if options.summaryBytesSet && !options.summarySet {
-		return argumentError("argument --summary-bytes: requires --summary")
-	}
-	if !options.expandSet && !taskSet {
+	if !taskSet {
 		return argumentError("the following arguments are required: --task")
 	}
 	return nil
@@ -198,9 +144,6 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 // snapshot when `corvint index` wrote one, else one index build over the
 // committed tree; no trace, ledger, or snapshot write on any path.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
-	if options.expandSet {
-		return runContextExpand(ctx, options, stdout, stderr)
-	}
 	load := loadContextSnapshot
 	if options.overlay {
 		// The overlay reuses every HEAD source, so it loads them eagerly.
@@ -225,13 +168,6 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 		emitError(stderr, err)
 		return 2
 	}
-	if options.summary {
-		encoded, err = summarizeContextPacket(append(encoded, '\n'), options.summaryBytes)
-		if err != nil {
-			emitError(stderr, err)
-			return 2
-		}
-	}
 	if _, err := stdout.Write(append(encoded, '\n')); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write task-context packet"})
 		return 2
@@ -242,7 +178,7 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 const taskContextHelp = `Compile the task-context packet: the files to read for one task.
 
 Usage:
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]
+  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
   corvint [--root PATH] context --task TEXT --subject PATH
     --instruction-host HOST --instruction-host-version VERSION
     --instruction-cwd DIR --instruction-profile default
@@ -270,8 +206,7 @@ files a term search would list:
 
 The instruction flags request an experimental conditional project-file prediction
 (IID-V0), currently qualified only for Codex 0.153.2 default source rules. All four
-flags and a tracked --subject are required together; summary/expand combinations
-refuse. Actual host configuration, global instructions and session load state remain
+flags and a tracked --subject are required together. Actual host configuration, global instructions and session load state remain
 UNKNOWN. Predictions never change repository governance or detect semantic conflicts.
 
 --subject names the task's own path (a changed or commented file). It is
@@ -280,42 +215,10 @@ of the question, not one of its answers. Without --subject the packet has the
 retrieval shape (mentioned, definition, lexical). "state" is READY when at
 least one result exists and NO_CANDIDATES otherwise; --limit defaults to 20.
 
-When an admitted learned trace .context-corvint/slot-weights.json exists
-(learned-trace-admission-v0, LTA-V0-011, experimental), rows of higher-weighted
-relations move ahead and the packet discloses the file's path, sha256 and
-weights as "learned_slot_weights"; a malformed file refuses, and
-corvint eval --reset-slot-weights restores the default order.
-
-Optional Go semantic evidence: --lsp gopls starts a bounded local gopls session
-and adds definition/reference path relations under external. Requires gopls on
-PATH and locally available Go dependencies. --lsp off overrides
-CORVINT_CONTEXT_LSP=gopls; omission preserves that legacy setting. Other values
-and combining --lsp with --summary or --expand are refused. Missing or failed
-gopls is visible as an unavailable provider; rankings remain unchanged.
-See docs/LSP.md for setup, MCP integration, resource limits and qualification.
-
 --worktree-overlay (experimental, DIRTY-CACHE-940..942) reads tracked dirty
 paths from the worktree over the HEAD snapshot instead of the committed tree.
 Rows citing them carry authority worktree-overlay, low confidence and the
-worktree blob id; untracked paths are never read. It writes nothing and is
-refused with --expand.
-
-Experimental opt-in views (experimental-source-views-v0, ESV-V0-008..010);
-without these flags the packet bytes are unchanged:
-
-  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
-    --summary [--summary-bytes N]
-  corvint [--root PATH] context --expand HANDLE [--max-bytes N]
-
---summary prints the same packet with compact result rows, at most
---summary-bytes (default 8192, 1024..65536) including the newline. Every other
-member, coverage included, is kept verbatim; a budget that cannot hold every
-critical row refuses. "summary" gives the full packet's sha256, the row totals
-and the continuation route. Each pinned row carries a handle
-cv1:TREE:BLOB:RANGE:PATH (RANGE is all or START-END). --expand prints that
-handle's exact bytes from Git objects with the verified blob identity, at most
---max-bytes (default 65536, up to 1048576); an invalid, stale, missing or
-ambiguous handle refuses and never substitutes current content.
+worktree blob id; untracked paths are never read. It writes nothing.
 `
 
 // loadContextSnapshot is the context verb's snapshot read. On a miss it also
@@ -348,14 +251,7 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 			return nil, hit, built, err
 		}
 	}
-	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
-	if err != nil {
-		return nil, hit, built, err
-	}
-	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
-	if err == nil {
-		err = attachLSPEvidence(ctx, index, options.subject, packet, options.limit, options.lsp)
-	}
+	packet, err := contextindex.TaskContext(ctx, index, options.task, options.subject, options.limit)
 	if err == nil && len(options.instructionFlags) > 0 {
 		var loadSet map[string]any
 		loadSet, err = contextindex.InstructionLoadSet(index, options.subject, contextindex.InstructionLoadOptions{
@@ -365,7 +261,7 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 			packet["instruction_load_set"] = loadSet
 		}
 	}
-	// The LSP evidence and the instruction load set read bodies after
+	// The instruction load set reads bodies after
 	// TaskContext's own refusal check; a deferred body that failed there
 	// refuses the packet too, so runTaskContext reloads eagerly
 	// (IDX-SNAP-V0-814).

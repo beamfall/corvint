@@ -7,7 +7,7 @@ import (
 
 // headAliasVerbs are the verbs whose range end is --target; each takes --head
 // as that same option (ACX-V0-858, V1-3731).
-var headAliasVerbs = map[string]bool{"prove": true, "surprise": true, "lrf": true, "obligations": true, "ocm": true, "dogfood-ocm": true}
+var headAliasVerbs = map[string]bool{"prove": true, "lrf": true, "obligations": true, "ocm": true}
 
 // withHeadAlias rewrites --head and --head=VALUE to --target after a
 // headAliasVerbs verb, which may follow the global --root option, so each

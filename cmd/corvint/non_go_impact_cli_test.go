@@ -83,7 +83,6 @@ func TestNonGoImpactCLIProfileAdmission(t *testing.T) {
 		{"a.ts", "--language-profile"},
 		{"a.ts", "--language-profile", "non-go-syntax-v0", "--language-profile", "non-go-syntax-v0"},
 		{"--base", strings.Repeat("0", 40), "--language-profile", "non-go-syntax-v0"},
-		{"a.go", "--working-tree-untracked", "--language-profile", "non-go-syntax-v0"},
 	} {
 		if _, err := parseImpactArgumentsForPlatform(options{impactLimit: 10}, args, "darwin"); err == nil {
 			t.Fatalf("accepted invalid profile argv: %v", args)

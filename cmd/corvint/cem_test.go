@@ -338,7 +338,7 @@ func TestRootHelpMutationBoundary(t *testing.T) {
 		t.Fatalf("help exited %d", code)
 	}
 	flowed := strings.Join(strings.Fields(out), " ")
-	for _, required := range []string{"query, impact, docs, harness, and lrf read without mutating", "write local CEM artifacts", "cem report, ocm, record"} {
+	for _, required := range []string{"impact, docs, and lrf read without mutating", "write local CEM artifacts", "cem report, ocm, record"} {
 		if !strings.Contains(flowed, required) {
 			t.Fatalf("support boundary lost %q", required)
 		}

@@ -49,7 +49,7 @@ func TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814(t *testing.
 		t.Fatal(err)
 	}
 	options := taskContextOptions{
-		root: root, task: "where is Source", subject: "app/source.go", limit: 5, lsp: "off", lspSet: true,
+		root: root, task: "where is Source", subject: "app/source.go", limit: 5,
 		instructionHost: "codex", instructionVersion: "0.153.2", instructionCWD: "app", instructionProfile: "default",
 		instructionFlags: map[string]bool{"--instruction-load-set": true},
 	}
