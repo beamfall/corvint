@@ -11,8 +11,7 @@ owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
 [issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
 and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051; issue 426 follow-up V1-0625, CAL-V0-120..121); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
 owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
-owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
-[issue 421](https://github.com/beamfall/corvint/issues/421) and
+owner requests [issue 420](https://github.com/beamfall/corvint/issues/420), [issue 421](https://github.com/beamfall/corvint/issues/421) and
 [issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
 owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
 owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
@@ -36,8 +35,7 @@ owner request [issue 625](https://github.com/beamfall/corvint/issues/625) (CTW-V
 owner decision 2026-10-07 on native ticket V1-0979 (CAL-V0-186, proposed), owner request [issue 679](https://github.com/beamfall/corvint/issues/679) (CAL-V0-192..193, ticket V1-1021, proposed), owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
 owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
-`docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
-sources under `internal/tasks`.
+`docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.

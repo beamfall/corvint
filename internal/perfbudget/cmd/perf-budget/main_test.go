@@ -210,13 +210,13 @@ func TestPRBV0970FilteredBaselineReplacesOnlySelected(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "budgets.json")
-	dirty := judgedReport(t, budgets, []string{"mcp-warm-call"})
+	dirty := judgedReport(t, budgets, []string{"affected-go"})
 	dirty.Revision += "+dirty"
 	empty := *budgets
 	empty.Baseline = nil
 	for name, attempt := range map[string]func() error{
 		"dirty revision": func() error { return recordBaseline(path, budgets, dirty) },
-		"no baseline":    func() error { return recordBaseline(path, &empty, judgedReport(t, budgets, []string{"mcp-warm-call"})) },
+		"no baseline":    func() error { return recordBaseline(path, &empty, judgedReport(t, budgets, []string{"affected-go"})) },
 	} {
 		if err := os.WriteFile(path, committed, 0o600); err != nil {
 			t.Fatal(err)
@@ -228,7 +228,7 @@ func TestPRBV0970FilteredBaselineReplacesOnlySelected(t *testing.T) {
 			t.Errorf("%s: budgets file changed", name)
 		}
 	}
-	if err := recordBaseline(path, budgets, judgedReport(t, budgets, []string{"mcp-warm-call"})); err != nil {
+	if err := recordBaseline(path, budgets, judgedReport(t, budgets, []string{"affected-go"})); err != nil {
 		t.Fatal(err)
 	}
 	recorded, err := perfbudget.LoadBudgets(path)
@@ -240,7 +240,7 @@ func TestPRBV0970FilteredBaselineReplacesOnlySelected(t *testing.T) {
 	}
 	for index, m := range recorded.Baseline.Scenarios {
 		was := budgets.Baseline.Scenarios[index]
-		if m.ID != "mcp-warm-call" {
+		if m.ID != "affected-go" {
 			if !reflect.DeepEqual(m, was) {
 				t.Fatalf("unselected scenario %s changed", m.ID)
 			}

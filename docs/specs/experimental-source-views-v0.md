@@ -12,7 +12,7 @@ The owner requested this private development prototype; this proposal does not a
 
 ## Agent digest
 - Claim: Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.
-- Status: proposed/experimental; outside PCCO V0; default command bytes and default hook unchanged (`context --summary`/`--expand` are opt-in flags).
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: native Go `adapter source-view` consumer, opt-in `adapter claude-source-handoff` capture, opt-in `context --summary`/`--expand` views (V1-0023) and focused synthetic Go tests; the Python consumer and wrapper were deleted 2026-09-11 (`54735d98`). Native source digests are frozen (`ESV-V0-005`, decision 0364).
 - Blocked on: the preregistered matched complete-task trial `benchmarks/evidence-summary-trial-v0.json` (NOT_OBSERVED, `ESV-V0-010`) and owner acceptance for any promotion. Until both pass the views stay experimental and do not satisfy the V1-0023 release delivery claim.
 - Read next: Interface and bounds; Opt-in evidence summary and handle expansion; Requirements; Native implementation status; Acceptance and rollback.

@@ -12,7 +12,7 @@ Authoritative inputs: `AGENTS.md`, `ROADMAP.md`,
 
 ## Agent digest
 - Claim: A bounded, pinned kernel block makes "governing requirements survived compaction" a checkable property rather than a hope.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/compactionkernel`, `cmd/corvint/kernel.go`, the opt-in adapter injection (`CKN-V0-009`), and their requirement-traced Go tests.
 - Blocked on: a frozen compaction-survival case set, and the `PreCompact`/`SessionStart(compact)` verify hook configuration.
 - Read next: User and measurable job; Requirements; Traceability.

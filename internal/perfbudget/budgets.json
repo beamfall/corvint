@@ -182,25 +182,6 @@
       ]
     },
     {
-      "id": "lifecycle-hook",
-      "samples": 5,
-      "targets": [],
-      "ceilings": [
-        {
-          "metric": "p95_wall_ms",
-          "limit": 1000,
-          "status": "enforced",
-          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (282 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
-        },
-        {
-          "metric": "peak_rss_bytes",
-          "limit": 134217728,
-          "status": "enforced",
-          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (55 MiB), rounded up to 64 MiB; not a product target"
-        }
-      ]
-    },
-    {
       "id": "affected-go",
       "samples": 5,
       "targets": [],
@@ -599,9 +580,7 @@
           "--task",
           "change Word0002 in pkg/p0002 so the invoice ledger word is reported",
           "--subject",
-          "pkg/p0002/p0002.go",
-          "--lsp",
-          "off"
+          "pkg/p0002/p0002.go"
         ],
         "samples": [
           {
@@ -628,62 +607,6 @@
         "p50_wall_ms": 243.53,
         "p95_wall_ms": 262.09,
         "peak_rss_bytes": 67256320,
-        "provenance": {
-          "recorded_at": "2026-10-28T13:18:29Z",
-          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
-          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
-          "host": {
-            "goos": "darwin",
-            "goarch": "arm64",
-            "go_version": "go1.27.3",
-            "cores": 12,
-            "load_before": [
-              65.76,
-              67.33,
-              48.51
-            ],
-            "load_after": [
-              46.83,
-              62.77,
-              47.41
-            ],
-            "contended": true
-          }
-        }
-      },
-      {
-        "id": "lifecycle-hook",
-        "command": [
-          "corvint",
-          "adapter",
-          "claude-code",
-          "user-prompt"
-        ],
-        "samples": [
-          {
-            "wall_ms": 274.32,
-            "peak_rss_bytes": 57540608
-          },
-          {
-            "wall_ms": 258.88,
-            "peak_rss_bytes": 57507840
-          },
-          {
-            "wall_ms": 277.43,
-            "peak_rss_bytes": 57114624
-          },
-          {
-            "wall_ms": 275.09,
-            "peak_rss_bytes": 57311232
-          },
-          {
-            "wall_ms": 282.33,
-            "peak_rss_bytes": 57737216
-          }
-        ],
-        "p50_wall_ms": 275.09,
-        "p95_wall_ms": 282.33,
-        "peak_rss_bytes": 57737216,
         "provenance": {
           "recorded_at": "2026-10-28T13:18:29Z",
           "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",

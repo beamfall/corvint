@@ -17,7 +17,7 @@ expectations; its Python oracle was retired by decision 0088), `docs/decisions/0
 
 ## Agent digest
 - Claim: `corvint prove` embeds the unchanged query packet and attaches a mechanical falsifier and PASS/FAIL/NOT_RUN verdict beside every evidence row.
-- Status: accepted (decision 0052)/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/liveverify/rbmutate` (FPK-V0-068 to FPK-V0-073, experimental), `cmd/corvint/prove_named.go` (FPK-V0-074 to FPK-V0-077 named Ruby source, experimental), `cmd/corvint/prove_container.go` and `internal/liveverify/rbmutate/container.go` (FPK-V0-078 to FPK-V0-081 containerised Ruby runner, experimental), `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed); `cmd/corvint/prove_bundle.go` (FPK-V0-041 to FPK-V0-049 failure bundles, proposed). V1-0408: `internal/revieworder` is a pure experimental library projection, with no CLI; FPK-V0-053..056 are accepted, decision 0515.
 - Blocked on: the 19-of-20 second-checkout witness replay gate, a falsification rate over time, and the three-arm trial in the bet.
 - Read next: Requirements; Non-goals and authority; Failure modes.
