@@ -112,7 +112,9 @@ type Graph struct {
 	// priorReadScopes is the read-scope declaration a change is measured
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
-	priorReadScopes map[string][]string
+	priorReadScopes      map[string][]string
+	readScopeInputs      *readScopeInputs
+	readScopeTreesDigest string
 	// goAdditive holds the golang plugin's additive-change records, sorted
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
 	// not part of the observed graph or its digest.
@@ -121,6 +123,9 @@ type Graph struct {
 	// (AFP-V0-2202); nil is unknown. Like priorReadScopes it is a selection
 	// input, not part of the observed graph or its digest.
 	importSets *ImportSetChanges
+	// goCommentOnly is per-selection BASE/HEAD evidence (AFP-V0-3323),
+	// attached after graph-cache lookup, never part of cached observations.
+	goCommentOnly map[string]bool
 	// sparse records that the disk checkout is a sparse checkout, where an
 	// absent directory may lie outside the cone rather than be deleted
 	// (AFP-V0-821). Like priorReadScopes it is a selection input.
@@ -138,6 +143,10 @@ type Graph struct {
 	// Ownership inputs are measured per plan, never cached as graph state.
 	ownershipChanges []string
 	committedPaths   map[string]bool
+	// Addition-only record scopes are measured inputs, like priorReadScopes;
+	// never store a Git status or a source-scope binding in the graph cache.
+	addedRecords      []string
+	recordEntryScopes map[string][]string
 }
 
 // WithReadScopeBase returns a copy of graph whose selection compares an edit
@@ -231,12 +240,15 @@ type digestUnit struct {
 	LocatesRoot          bool     `json:"locatesRoot"`
 	ReadScoped           bool     `json:"readScoped,omitzero"`
 	ReadScope            []string `json:"readScope,omitempty"`
-	Frontier             []string `json:"frontier"`
-	FrontierBears        string   `json:"frontierBears,omitempty"`
-	Callers              []string `json:"callers,omitempty"`
-	ExecConsumers        []string `json:"execConsumers,omitempty"`
-	ImportGraphReads     []string `json:"importGraphReads,omitempty"`
-	ImportGraphReadsAll  bool     `json:"importGraphReadsAll,omitzero"`
+
+	ReadScopeTrees []ReadScopeTree `json:"readScopeTrees,omitempty"`
+
+	Frontier            []string `json:"frontier"`
+	FrontierBears       string   `json:"frontierBears,omitempty"`
+	Callers             []string `json:"callers,omitempty"`
+	ExecConsumers       []string `json:"execConsumers,omitempty"`
+	ImportGraphReads    []string `json:"importGraphReads,omitempty"`
+	ImportGraphReadsAll bool     `json:"importGraphReadsAll,omitzero"`
 	// ImportGraphReadsFiles is part of the digest when set (AFP-V0-9010).
 	ImportGraphReadsFiles bool `json:"importGraphReadsFiles,omitzero"`
 
@@ -328,12 +340,14 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language, partia
 // observed graph: the documentation entries (AFP-V0-160), the
 // runtime-readers entries (AFP-V0-602) and the existence readers (AFP-V0-980).
 type declarations struct {
-	documentation    []string
-	runtimeReaders   []RuntimeReader
-	nonSource        []NonSourcePath
-	runtimeEdges     []RuntimeEdge
-	existenceReaders []ExistenceReader
-	testSelection    *testSelection
+	documentation        []string
+	runtimeReaders       []RuntimeReader
+	nonSource            []NonSourcePath
+	runtimeEdges         []RuntimeEdge
+	existenceReaders     []ExistenceReader
+	testSelection        *testSelection
+	readScopeTrees       map[string]map[string]ReadScopeTreeValue
+	readScopeTreesDigest string
 	// partial marks a graph built from a subset of the plugins, which skips
 	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
 	partial bool
@@ -366,7 +380,8 @@ func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
+		trees, treesDigest := readScopeTrees(reader)
+		return declarations{readScopeTrees: trees, readScopeTreesDigest: treesDigest, documentation: documentation, runtimeReaders: runtimeReaders, nonSource: nonSource, runtimeEdges: runtimeEdges, existenceReaders: existenceReaders, testSelection: testSelection, partial: partial}, nil
 	}
 }
 
@@ -427,6 +442,8 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	if err != nil {
 		return nil, err
 	}
+	graph.readScopeTreesDigest = repository.readScopeTreesDigest
+	graph.applyReadScopeTrees(repository.readScopeTrees)
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
 	graph.nonSource = repository.nonSource
@@ -922,6 +939,7 @@ func projectUnit(unit Unit) digestUnit {
 		LocatesRoot:          unit.LocatesRoot,
 		ReadScoped:           unit.ReadScoped,
 		ReadScope:            unit.ReadScope,
+		ReadScopeTrees:       unit.ReadScopeTrees,
 		Frontier:             unit.Frontier,
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,

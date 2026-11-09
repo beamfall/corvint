@@ -88,6 +88,7 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	// Never consume a supplied additive exclusion. Recompute it against the
 	// immutable base; an absent base or snapshot only permits wider selection.
 	if plan.Snapshot == nil && fullObjectID.MatchString(base) {
+		graph = graph.WithRecordEntryBase(ctx, "git", root, base, plan.Plan.Dirty)
 		graph = graph.WithGoAdditive(golang.AdditiveChanges(ctx, root, base, graph, plan.Plan.Dirty))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, root, root, base, graph, plan.Plan.Dirty))
 	}

@@ -11,12 +11,27 @@ import (
 
 const maxExecutableBytes uint64 = 256 << 20
 
+// openAbsoluteDirectory is the first directory open; tests observe the path
+// and inject replacement at this boundary.
+var openAbsoluteDirectory = os.OpenRoot
+
 func openDirectory(path string) (directoryBinding, *Failure) {
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
 		return directoryBinding{}, unavailable(ReasonUnavailable)
 	}
 	base, components := directoryBaseAndComponents(path)
-	currentRoot, err := os.OpenRoot(base)
+	// AFP-V0-3360: pin the first component directly. Opening the filesystem
+	// root for reading makes otherwise fixture-only tests impossible to
+	// confine. Only an explicit request for that root should read it.
+	if len(components) != 0 {
+		base = filepath.Join(base, components[0])
+		components = components[1:]
+	}
+	before, err := os.Lstat(base)
+	if err != nil || before.Mode()&os.ModeSymlink != 0 || !before.IsDir() {
+		return directoryBinding{}, unavailable(ReasonUnavailable)
+	}
+	currentRoot, err := openAbsoluteDirectory(base)
 	if err != nil {
 		return directoryBinding{}, unavailable(ReasonUnavailable)
 	}
@@ -25,6 +40,13 @@ func openDirectory(path string) (directoryBinding, *Failure) {
 	if !ok {
 		_ = currentRoot.Close()
 		return directoryBinding{}, unavailable(ReasonUnavailable)
+	}
+	opened, statErr := current.file.Stat()
+	after, afterErr := os.Lstat(base)
+	if statErr != nil || afterErr != nil || after.Mode()&os.ModeSymlink != 0 ||
+		!os.SameFile(before, opened) || !os.SameFile(before, after) {
+		closeDirectoryBinding(&current)
+		return directoryBinding{}, changed()
 	}
 	for _, component := range components {
 		childPath := filepath.Join(currentPath, component)

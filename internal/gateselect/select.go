@@ -315,6 +315,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 	}
 	dirties := sortedUnique(plan.Plan.Dirty)
 	readers := index.pathReaders(dirties)
+	recordAllows := recordAdditionAllows(plan, root, module)
 	// The planner's narrowings apply to SelectStructural (`corvint test`)
 	// only; Select, the CI PR tier's frozen selector, keeps the whole
 	// attribution as it keeps rule (d) (STR-V0-061).
@@ -343,6 +344,9 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 			}
 			if rule.kind == "reader" {
 				rule.directories = boundedReaders(rule.directories, scopes, prior, dirty)
+				rule.directories = slices.DeleteFunc(slices.Clone(rule.directories), func(directory string) bool {
+					return !recordAllows(directory, dirty)
+				})
 			}
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
@@ -364,7 +368,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 	}
 	for _, directory := range sortedKeys(declared) {
 		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
-			if declared[directory] && declaredBears(directory, scopes, prior, dirty) {
+			if declared[directory] && declaredBears(directory, scopes, prior, dirty) && recordAllows(directory, dirty) {
 				add([]string{directory}, "declared", " <- "+dirty)
 				break
 			}

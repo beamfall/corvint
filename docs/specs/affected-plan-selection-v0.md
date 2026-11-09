@@ -13,6 +13,11 @@ Delivery status: experimental
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
+V1-5176's comment-only Go classification is specified in
+[Comment-only Go changes](#comment-only-go-changes-v1-5176), implemented by
+`golang.GoChangeRecords`, `Graph.WithGoChanges` and `Select`, with acceptance evidence in
+`docs/build-log/2026-11-08-comment-only-go-edits.md`.
+
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
 failure codes and acceptance gates), `docs/specs/affected-plan-python-playwright-v0.md` (the
 Python adapter), `docs/specs/corvint-self-development-v0.md` (ASD-V0-895, the
@@ -63,8 +68,11 @@ AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reas
 entry `2026-11-03-floor-typed-reach`.
 Lane selmin (2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9011
 here for the same reason; see build-log entry `2026-11-07-selmin`.
+V1-5071 (2026-11-08) adds AFP-V0-9600 here for the same reason; see build-log entry
+`2026-11-08-v1-5071-proven-golist-readers`.
 Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
 for the same reason; see build-log entry `2026-11-07-rscope`.
+V1-5174 (2026-11-08) adds AFP-V0-3300 through AFP-V0-3305 for predicate, listing-only tree scopes and per-unit declaration comparison.
 
 ## User and current state
 
@@ -74,6 +82,55 @@ Git deadline, a TestMain change and a fixture-only path literal, and how two exi
 measure. None of them drops a unit the change can reach.
 
 ## Requirements
+
+### Audited shell sibling reads (V1-5178)
+
+- **AFP-V0-3330:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Amend TSP-V0-950: a shell read-scope entry MAY carry `localReads`, an optional
+  sorted unique array of repository-relative read-scope entries under the test's
+  directory, bounded by the same 256-entry limit as `reads`. An explicit empty
+  array declares no sibling reads; omission retains the entire own-directory
+  scope. The test itself always remains in scope. Invalid entries refuse the
+  declaration with the existing invalid-scope frontier. Root-level tests retain
+  their conservative whole-tree scope. The project must audit each narrowed
+  declaration against the actual test and its executed/copied helpers. This is
+  declared authority, not a new static proof of arbitrary shell behavior.
+- **AFP-V0-3331:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Apply the complete shell scope consistently to declared, literal, glob and
+  transitive reader selection, without changing Go's implicit package subtree.
+  An enumerating test without an audited local declaration remains selected for
+  a sibling data edit. Keep explicitly named helpers, source changes, external
+  declared reads, and declaration-change uncertainty. Do not infer an empty
+  local scope from absence of a matching token or from a filename suffix.
+- **AFP-V0-3332:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Shell literal read operands SHALL retain the pre-lane bare-utility rules for
+  `cp`, `mv` and `mkdir`. Qualified or computed commands SHALL preserve every
+  operand: a basename does not prove standard utility behavior. Preserve source
+  operands, target-directory options, ambiguous arity and recursive source reads;
+  unresolved computed paths remain conservative. No file-specific exclusion or
+  relaxed Go token matching is authorized by this change.
+
+
+- **AFP-V0-3333:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  A complete simple shell wildcard path MAY retain its wildcard through
+  reader selection alongside its conservative directory fragments. Matched names
+  can feed derived read paths, so a pattern SHALL NOT replace those tokens. Admit
+  only slash-qualified components made of literal path characters and `*`,
+  optionally following one leading plain root-variable expansion. Match at
+  any depth because the root is unresolved. Keep unrestricted `*` enumeration;
+  parent climbs, globstars, escapes, other expansions, shell pattern extensions
+  and heredoc bodies retain the existing conservative relation. Count patterns
+  against the existing token bound and retain its frontier if exceeded.
+- **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  A direct string literal argument to a diagnostic method of a syntactically
+  resolved `*testing.T` parameter is output metadata, not a path read. The same
+  applies to `Run`'s direct literal name only when its literal callback's test
+  parameter is used exclusively for diagnostics, `Helper`, or `Parallel`.
+  Resolve lexical bindings and the exact testing import, including aliases;
+  custom or shadowed receivers, unparsed code, nested read expressions, and
+  callbacks observing or escaping their handles retain all path tokens. This
+  amends AFP-V0-2203 only for these proven metadata sinks; preserve real tokens
+  elsewhere in the same file and all root-locating calls.
 
 ### Unindexed paths and frozen digest consumers (selwide)
 
@@ -300,8 +357,8 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   field, and a `sh -c` or `bash -c` command string held in a variable, which is parsed once for
   each value the file gives it. Any other `$(...)` part stays unknown, so it never reads as a
   literal path. Each form only adds edges. With it, `script/analyzer-schema_test.sh` and
-  `script/codex-review_test.sh` inherit `shell:dynamic-source` from `script/heavy.sh`, as
-  `.corvint/unbounded-readers.json` records, and stay selected for an unrelated edit.
+  `script/codex-review_test.sh` inherited `shell:dynamic-source` from `script/heavy.sh` until AFP-V0-3341 bounded its
+  host-only source, as the historical `.corvint/unbounded-readers.json` recorded; that inheritance no longer holds.
 
 - **AFP-V0-830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3509,
   amending `AFP-V0-160` (6) and `AFP-V0-465`) This repository's `.corvint/documentation-paths.json`
@@ -413,7 +470,7 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   unit's import set and every unowned one, or a module file, changes the module's, so no reader is
   lost. Measured (build-log entry `2026-11-03-selprec-selection-precision`): deleting
   `cmd/corvint-lsp/swift_impact.go`, an import-set change in a binary that
-  `internal/swiftimpact`'s `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader`
+  `internal/swiftimpact`'s `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader` (since V1-5071 in `internal/closureguard`)
   names only by a computed string, selected 57 units without that package before (its test fails
   on the change) and selects it now, 58 units.
 
@@ -822,6 +879,69 @@ outside every other read of `main_test.go`. The two requirements below replace t
   a file below `internal/tasks/journal/` selects no `cmd/corvint-analyzer-rust` through
   `DECLARED_READ_SCOPE`, while an edit to `internal/cem/verify/guards.go`, inside its closure,
   still does.
+
+- **AFP-V0-3300:** (experimental; owner-requested V1-5174) Every entry in
+  `.corvint/test-read-scopes.json` (`corvint-test-read-scopes/0`) SHALL remain a plain
+  string with its existing meaning, including each converted guard's whole-tree string.
+  Optional narrowing metadata belongs only in `.corvint/test-read-scope-trees.json`
+  (`corvint-test-read-scope-trees/0`), whose package/tree values accept either the existing
+  reason string or `{"reason":"GUARD READ","contentPredicate":"REGEX","samples":["POSITIVE LINE"]}`.
+  A dirty path under a tree with admitted object metadata SHALL select the declaring package
+  when either its immutable BASE content or planned HEAD/worktree content matches the Go regex.
+  Exclusion requires both endpoints to be readable regular text, neither matching, and a valid
+  predicate with covered samples. Missing/unreadable/malformed trees files, absent package/tree
+  objects, missing/invalid predicates, empty matches, binary/NUL/invalid UTF-8, unreadable or
+  oversized endpoints, added/deleted/renamed paths without both readable sides, sparse checkout,
+  exhausted read budgets and every unknown SHALL retain the plain whole-tree selection.
+  Own-subtree, plain overlapping scopes, import and execution dependencies retain existing
+  selection. Path-literal and glob readers respect the same predicate so they cannot reselect
+  a disproven declared read. No inferred regex may replace the guard's reviewed intent.
+- **AFP-V0-3301:** (experimental; owner-requested V1-5174) A trees-file value
+  `{"reason":"GUARD READ","listingOnly":true}` SHALL select when a direct child is added,
+  deleted, renamed or changes type. A content-only edit of an existing child, or a nested
+  path change leaving the direct children identical, SHALL not select through this entry.
+  Both BASE and HEAD direct-child names and types must be known to exclude; unavailable
+  listings, unknown entry/change kinds, missing directories and other uncertainty select.
+  A newly added directory is detected even when Git names only its first contained file.
+  Listing-only conversion is permitted only when the guard reads that tree's listing alone;
+  content readers, including computed build/source closures, retain a plain reason value.
+- **AFP-V0-3302:** (experimental; owner-requested V1-5174) `test-read-scopes-check` SHALL
+  accept reason strings and object values in the trees file and still require the AFP-V0-3010
+  reason for every whole top-level tree, including predicates and listings. Each predicate
+  carries nonempty `samples` of positive lines taken from its guard's matching logic. The
+  checker refuses missing/invalid regexes, unmatched samples, regexes matching the empty string,
+  and mixed listing/predicate forms, naming the package and tree. Samples are a regression
+  check, not proof of a semantic superset: conversions SHALL be justified against all of the
+  package's repository reads; unproven conversions remain plain with reasons recorded.
+- **AFP-V0-3303:** (experimental; owner-requested V1-5174) Observed graph units and their
+  digest/cache SHALL retain the tree predicates, samples and listing markers. The graph cache
+  SHALL bind the trees file's content digest and read stamp, including absence, and advance to
+  `corvint-affected-graph-cache/3` (which also carries the test embed facts) so older entries rebuild. A metadata-only change MUST NOT
+  reuse a stale graph. BASE/HEAD content and listings are per-plan inputs and SHALL NOT survive
+  in the reusable graph cache. Edits of either declaration retain selection: the string-only
+  file keeps its existing package comparison; the trees file compares package entries under AFP-V0-3304 and selects declared scopes when
+  its metadata is missing or invalid under AFP-V0-3305. Every other reader, including old binaries, confinement,
+  CI selection, test reuse and gate-ledger, SHALL consume the unchanged string-only file and
+  retain its conservative whole-tree superset without reader changes. Witnesses name the actual
+  bearing entry or edited declaration. `declaration-compat-check` SHALL accept the trees file's
+  string/object value alternatives, reject unknown object members and preserve top-level checks.
+
+- **AFP-V0-3304:** (experimental; owner-requested V1-5174) When the trees declaration
+  is dirty, selection SHALL compare each Go unit's parsed package/tree entries at the immutable
+  comparison commit (explicit base, otherwise HEAD) with the planned tree. Added, removed or
+  changed entries, including reasons, predicates, samples and listing markers, select that unit
+  with `DECLARED_READ_SCOPE`. JSON whitespace and object key order, and edits to other units'
+  entries, SHALL NOT select it through the declaration edit. Explicit reads of the declaration
+  and other dependency witnesses remain effective. A changed string-only declaration keeps
+  AFP-V0-050 selection independently. Comparison data SHALL remain per-plan input, outside the
+  reusable graph cache; the trees content digest and read stamp SHALL remain cache inputs.
+- **AFP-V0-3305:** (experimental; owner-requested V1-5174) Declaration narrowing SHALL
+  require both trees files to be readable and valid under `corvint-test-read-scope-trees/0`.
+  A missing, unreadable, malformed or unsupported-profile file on either side, an unknown
+  comparison base, or a sparse checkout SHALL retain the existing selection of all read-scoped
+  units on a trees-file edit. No missing prior file may be interpreted as an empty declaration.
+  Legacy reason-only declarations SHALL receive the same comparison and fallback as objects.
+
 - **AFP-V0-2240:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-4437; round 8) `internal/gateselect`'s rule (c), in `Select`, `SelectStructural` and the
   `-bounds` attribution, SHALL NOT narrow an anchored token by placement: as in the planner
@@ -966,6 +1086,8 @@ child process (`git`) that writes its own temporary files reports its own error,
 names as that change's error. Acceptance: `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920`.
 Rollback: restore the `cannot create a scratch clone` message in `auditAffectedChange`.
 
+
+
 ### Deleted Go sources of a surviving package (selection audit 2026-11-06)
 
 - **AFP-V0-2610:** (experimental under the owner's standing lane auto-accept (2026-11-06); lane
@@ -1069,6 +1191,56 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   keep their rules. Falsifier: a test outside the plan whose outcome a new record entry changes.
   Acceptance: `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743`.
   Rollback: drop the record branch of `resolves`.
+- **AFP-V0-3420:** (experimental; owner-directed V1-4933 / V1-4544, 2026-11-08;
+  refines AFP-V0-2743 for additions) An added record entry SHALL select a literal, glob or
+  declared directory reader only when its tests read that exact filename or enumerate entries
+  (`ReadDir`, `Glob`, `Walk`, `DirFS`, `ls`, `find`, `git ls-files`) and their result can depend
+  on the set of entries. Enumeration filtered to fixed names is an exact-file read. Unknown
+  readers remain selected. The reviewed declaration `.corvint/record-entry-read-scopes.json`
+  SHALL have the closed profile `corvint-record-entry-read-scopes/0` and a `units` map keyed by
+  full Go or shell unit ID. Each scope has `sourceSha256`, a sorted unique `reads` list, a
+  nonblank code-citing `reason`, and optional sorted unique `inputs` for data supplying names.
+  A read is an exact record filename or either record directory; an empty list declares no
+  repository record reads (fixture paths and expected text). The declaration is bounded to
+  1 MiB, 256 units, 256 reads and 4096 inputs per unit. It does not infer absence of reads
+  from a missing enumeration token. The real corpusbinding and wire corpus enumerators remain
+  selected; fixture-only cemchain and shell readers can be excluded.
+- **AFP-V0-3421:** (experimental; V1-4933) A record scope SHALL narrow only with a matching
+  SHA-256 over the sorted unique source/test/input filenames and their complete bytes, using
+  domain `corvint-record-entry-sources/0` followed by LF and, per file, decimal name-byte length,
+  `:`, name, `:`, decimal content-byte length, `:`, content. Every file must be a regular bounded
+  source (at most `MaxSourceBytes`), total bytes at most 32 MiB, inventory at most 4096 files;
+  Go syntax must parse. Added test files, changed bound data, stale digests, missing files,
+  invalid/unknown declaration members, truncated path tokens and any unparseable input SHALL
+  retain readers. Scope authors must bind data that supplies filenames, including the use-case
+  ledger and receipts. A changed declaration SHALL not narrow its own change.
+- **AFP-V0-3422:** (experimental; V1-4933) The narrowing SHALL require Git `A` status from a
+  bounded NUL-delimited no-renames diff against the immutable measured base, restricted to the
+  record directories. Modified, deleted, untracked, unknown-status, path-probe and materialized
+  snapshot inputs SHALL keep the existing selection. Malformed status or failed observation
+  SHALL admit no exclusions. The inputs are per-change observations, never graph-cache state.
+  Other selection causes, including ownership, imports and unbounded reads, remain unchanged.
+- **AFP-V0-3423:** (experimental; V1-4933) `gate-affected-select` SHALL re-observe the same
+  addition and source-scope evidence before narrowing its literal or declared readers, in both
+  structural and qualified selection. It SHALL not trust a receipt-supplied exclusion. Its
+  path-only bounds, lacking a measured status, remain conservative. Acceptance compares both
+  selectors on added and modified CEM and build-log entries, exact names, listing consumers,
+  fixed siblings and unknown readers.
+- **AFP-V0-3424:** (experimental; V1-4933; extends AFP-V0-2745) The existing
+  `unbounded-readers-check` record-reader ratchet SHALL include shell test units, keyed by test
+  filename, as well as Go packages. A new literal/glob record-directory reader without a
+  general read scope, a current addition-only read scope or an existing explicitly reasoned
+  baseline entry SHALL fail. A stale addition-only source binding SHALL also fail rather than
+  silently restoring perpetual over-selection. The ratchet remains independent of selection:
+  its baseline record grants no exclusion. Acceptance introduces new Go and shell readers,
+  admits their audited scopes, then changes source and requires refusal.
+  Ancestor-only walkers SHALL remain refused under AFP-V0-2747 even with a current
+  addition-only scope: that scope filters existing reader matches and does not create them.
+- **AFP-V0-3425:** (experimental; V1-4933) Acceptance SHALL retain a regression failure with
+  the prior implementation and a before/after CLI measurement on identical record additions:
+  a copied sealed CEM under a new 40-hex name and one new dated build-log entry. Report
+  `summary.line`, all selected units, and code citations for retained directory enumerators.
+  A copied CEM is a selection probe, not a claim that the corpus-binding tests pass it.
 - **AFP-V0-2744:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;
   CI selector rule (c), CIN-V0-860, AFP-V0-012) `gate-affected-select` SHALL apply AFP-V0-2743 to
   its own rule (c): a record entry's readers are `resolvingReaders`, whose resolution must lie at
@@ -1332,10 +1504,11 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   followed by `/`, `#` or `%` and a pattern), whether or not the file ever assigns NAME: a file
   that gives the name no value proves nothing about where its caller's value points, and a caller
   that names a repository file (`ENVFILE=lib.sh`) makes the sourcing file read it. Only a literal
-  link (NSA-V0-008, AFP-V0-2954) or a TSP-V0-004 fresh-directory source bounds a source. The first
+  link (NSA-V0-008, AFP-V0-2954), a TSP-V0-004 fresh-directory source or the checked host-only
+  operand of AFP-V0-3341 bounds a source. The first
   version of this requirement admitted such a source when the file never assigned the name and
-  sourced no repository file; the review rejected it, so `script/heavy.sh`, whose remote half
-  sources `"${ENVFILE/#\~/$HOME}"`, stays a dynamic source, and so does every unit that runs it.
+  sourced no repository file; the review rejected it, so the former unguarded `script/heavy.sh` ENVFILE source stayed dynamic until AFP-V0-3340/3341
+  introduced its runtime refusal and checked operand. An unguarded environment source stays dynamic.
 - **AFP-V0-2954:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends NSA-V0-008) A variable that leads a `source`, `.`, `load` or run target SHALL resolve as a
   directory form when it is assigned more than once only if every assignment is a plain
@@ -1351,15 +1524,15 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   them, and `.corvint/unbounded-readers.json` SHALL list exactly the units the corrected
   AFP-V0-2950 to AFP-V0-2954 leave on the floor, each with its reason.
   `script/dogfood-cache_test.sh` declares no scope: it names the dogfood wrappers, whose chain
-  reaches `script/heavy.sh`'s environment-named source (AFP-V0-2953), and TSP-V0-950 refuses a
-  declaration over a test that reaches a dynamic source. `script/lane-scripts_test.sh` stays recorded:
+  reached `script/heavy.sh`'s environment-named source (AFP-V0-2953). AFP-V0-3341 now bounds that
+  source; the test still has its own toolchain floor without a read-scope declaration. `script/lane-scripts_test.sh` stays recorded:
   it sources a `sed`-filtered copy of `script/heavy.sh` it writes into its temporary directory,
   a read of its own directory that no proof links (TSP-V0-004 admits no write between the
   `mktemp` and the source), so TSP-V0-950 refuses a declaration over it. `script/heavy.sh` SHALL
   keep its remote half provable under TSP-V0-004 (the payload directory variable is assigned once
   and no other function or embedded program reuses its name) and its toolchain probe a literal
   binary name (`"$sdk/go"`), so the shell plugin links or bounds every source and run target it
-  holds but the environment-named source AFP-V0-2953 keeps dynamic.
+  holds, including the checked host-only source of AFP-V0-3341.
 - **AFP-V0-2956:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   review fix 2, 2026-11-07; amends AFP-V0-2951) A `go vet` or `go list` whose standard output feeds
   another command SHALL record its package patterns as path imports (execution edges), not build
@@ -2214,8 +2387,195 @@ implementation is on the sibling branch and absent from the V1-5177 base.
 - **AFP-V0-3352:** (experimental, owner-requested V1-5177, 2026-11-08)
   Test embed flags and paths SHALL participate in the graph digest, path validation and
   cache serialization. Graph-cache entries predating these facts SHALL NOT be reused:
-  use `corvint-affected-graph-cache/1`, rejecting the old `/0` profile.
+  use `corvint-affected-graph-cache/3` (which also carries the tree predicates), rejecting the older `/0` to `/2` profiles.
 
+- **AFP-V0-9600:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5071) This repository's `go list` import-graph guards that the AFP-V0-9010 rule can prove
+  SHALL live in `internal/closureguard`, a test-only package that reads nothing but the listings,
+  so it is a bounded unit, every test in it is a proven reader, and a body-only edit selects none
+  of them while an import-set change still does. Each guard SHALL derive its own module root from
+  its own `runtime.Caller(0)` file name by nested `filepath.Dir` calls (no `..` or `/...`
+  literal, which rule (d) of AFP-V0-023 reads as the repository root), feed that root to exactly
+  one listing, give each listing its own output and error names, set a literal environment, and
+  capture stderr in a buffer rather than recovering it from an `*exec.ExitError`. A guard that
+  sets an environment SHALL reset ambient flags with the exact empty `"GOFLAGS="` entry, because an
+  inherited `-overlay`, `-e` or `-f` changes what the listing reports, and an empty value cannot
+  widen what `go list` reads. A package that names `GOFLAGS` or `GOENV` anywhere keeps the proof
+  only when every `Env` assignment in its files (any receiver; an assignment to a field named
+  `Env`, an index of one, or an `Env:` composite key) is an `x.Env = append(os.Environ(), ...)` or
+  `x.Env = []string{...}` of string literals carrying that entry directly, and those entries are its
+  only mentions of either name. Any other shape, an `Env` assignment without the reset (including a
+  later reassignment that drops it), a non-empty or dynamic `GOFLAGS` value, any `GOENV` value, and
+  any other mention SHALL keep the unproven fallback. Any identifier named `Setenv`, `Unsetenv` or
+  `Clearenv` in a reader package also keeps it, because `os.Environ()` carries what they set. A guard that
+  needs more (a `/...` pattern, a computed environment, a package that also reads files) SHALL stay
+  in its owning package as an unproven or unbounded reader, and its build-log entry SHALL say why.
+  `TestClosureGuardIsProvenImportGraphReader_AFPV09600` classifies the real package and fails when
+  any of its tests stops being a proven reader.
+
+
+### Comment-only Go changes (V1-5176)
+
+Intent: avoid recompiling the reverse dependency closure for ordinary Go comment and
+intraline whitespace edits, while retaining the changed package and every observed byte reader.
+The owner requested this bounded optimization on 2026-11-08; it does not prove test
+adequacy, remove unknowns, or narrow any independent byte-read witness.
+
+- **AFP-V0-3320:** (owner-requested V1-5176, 2026-11-08)
+  Classify a dirty `.go` path as `COMMENT_ONLY` only when both BASE and HEAD bytes are
+  readable within the source bound, both parse fully with `go/parser` and `ParseComments`,
+  and `go/scanner` yields identical tokens, literal text and unadjusted line numbers after
+  dropping comments, including automatic semicolons. Line numbers are compiled into
+  `runtime.Caller`, panics and `log.Lshortfile` output (as TSP-V0-941 records), so an
+  edit that moves any token to another line, such as a comment or blank line inserted
+  above a function, is not comment-only; only the EOF position is exempt, so an edit in
+  place or a comment appended after the last token stays eligible. Columns are ignored.
+  Compare protected comment lines separately:
+  any `//go:` directive (including build, embed, generate and linkname), `//line`,
+  `/*line`, legacy `// +build`, `//export`, any comment containing `+build` or
+  `//go:build` anywhere in its text (including block comments, which vet's buildtag check
+  reads), and the comment group immediately preceding `import "C"` or its grouped import spec. Changes to their bytes or token attachment
+  (including raw separation before the next token and the prefix before a legacy build
+  constraint, to preserve blank lines and the header region)
+  refuse classification. Missing sides, additions, deletions, renames, parse/scanner
+  errors, unreadable or oversized sources, and any analysis error retain full propagation.
+- **AFP-V0-3321:** (owner-requested V1-5176, 2026-11-08)
+  A proven comment-only path owned by a Go unit still selects its package with
+  `DIRECT_SOURCE_CHANGE`, but does not seed `DEPENDENCY_PATH`, `BINARY_EXEC`,
+  `IMPORT_GRAPH_READER`, or driver build-dependency edges from compilation of that file.
+  Narrow each path independently: a code or structural change in the same package or
+  another package keeps its existing propagation and names the propagating dirty path.
+  An unowned or unindexed Go path remains conservative rather than inventing ownership.
+- **AFP-V0-3322:** (owner-requested V1-5176, 2026-11-08)
+  Every byte-read route still receives the complete dirty set: `PATH_LITERAL_READER`,
+  `PATH_GLOB_READER`, `DECLARED_READ_SCOPE`, `UNBOUNDED_READER`, driver readers and their
+  existing reader-dependent rules, including a testless package reading its own source.
+  A testless independent literal or glob reader of a comment-only path still carries
+  its callers transitively even when the owning package has tests: removing compilation
+  seeds cannot remove the tests that exercise those source-byte reads.
+  Unproven `go list` observers marked `ImportGraphReadsFiles` may read package documentation:
+  keep them through an explicit `UNBOUNDED_READER` source-comment cause rather than an
+  `IMPORT_GRAPH_READER` edge, preserving AFP-V0-9010's byte-reader safety.
+  Such an observer without tests is checked only through its callers, so its importers and
+  the runners of a binary built from it are carried as a testless literal reader's are.
+  A `_test.go` file is not classified when its package
+  or tests may inspect comments: importing `go/doc`, or `go/ast` together with an
+  identifier use of `parser.ParseComments` (including aliases and dot imports) suffices
+  conservatively without claiming to prove the parser's source roots. Read/directory/parse
+  errors while inspecting either endpoint's package also refuse classification.
+- **AFP-V0-3323:** (owner-requested V1-5176, 2026-11-08)
+  Supply the comparison as explicit per-plan evidence through `WithGoChanges`, analogous
+  to `WithImportSetChanges`, from the CLI's measured BASE/HEAD and snapshot routes and
+  the Go-aware library planning helpers. A plain library caller, absent comparison,
+  unknown classification or `--path` probe retains today's propagation. Full and compact
+  plan JSON add optional `goChanges` entries with `path` and `kind: COMMENT_ONLY`; existing
+  fields keep their shapes. Entries follow normalized dirty-path order. The comparison is
+  recomputed after graph-cache lookup, never persisted as cached graph observation or
+  inferred from the graph digest. A later plan or changed dirty content cannot inherit it.
+- **AFP-V0-3324:** (owner-requested V1-5176, 2026-11-08)
+  `WithGoChanges` refuses a `COMMENT_ONLY` record for a `.go` path that a unit's
+  `EmbedFiles` names, or that lies below an embedding Go package's directory (the rule
+  `SourcePath` applies). A `//go:embed` consumer, such as a profile digest over embedded Go
+  sources, observes those bytes beyond compilation, so the path keeps full propagation.
+- **AFP-V0-3325:** (owner-requested V1-5176, 2026-11-08)
+  A seeded unit every dirty input of which is an admitted `COMMENT_ONLY` path compiles
+  identically under AFP-V0-3320 and AFP-V0-3324, so it is excluded from the
+  `NO_SELECTABLE_TEST` coverage-gap check (neither `unknown` nor `uncovered`) and cannot
+  make the scope `UNKNOWN` on that ground. Any other dirty input reaching the unit,
+  through ownership or any Go structural rule, restores the check unchanged. This includes
+  added, deleted and renamed files and enclosing data inputs, even when the retained
+  seed witness names a comment-only sibling; every input must be an admitted edit of an
+  existing file before the check can be skipped.
+
+Failure modes: token comparison alone misses compiler/tool directives and cgo code;
+protected raw lines and attachment checks prevent this. Ignoring positions would hide line
+shifts that change `runtime.Caller`, panic and log output; per-token line comparison
+prevents this. Vet reads build-constraint text even inside ordinary or block comments; any
+comment mentioning `+build` or `//go:build` is protected. Embedded `.go` files have byte
+consumers outside the compile graph; AFP-V0-3324 refuses them. Reporting
+`NO_SELECTABLE_TEST` for a unit that compiles identically would turn a precision gain into
+an `UNKNOWN` plan; AFP-V0-3325 skips only units whose every dirty input is admitted, so a
+real code edit still reports its coverage gap. Package-level suppression can hide a
+second dirty code file; per-path compilation seeds and import-set witness reassignment prevent
+this. Removing the path from all selection loses source-reading tests; reader selection keeps
+the original dirty set. Ignoring inserted semicolons can change Go syntax; scanner output keeps
+them. Unsupported/unavailable evidence always leaves the prior propagation in place.
+
+Acceptance: focused tests named `AFP_V0_3320` through `AFP_V0_3325` cover lexical and line
+equality, directives/cgo, build-constraint text, embedded sources, the coverage-gap
+exclusion, failure cases, all reader routes, mixed edits, caller defaults, CLI JSON and
+cache/non-cache planning. The build-log records the paired `anchor.go` comment measurement
+against the same base, with selected units, Go packages, tests and witness-kind counts.
+Non-goals: semantic equivalence of different token streams, excluding the own package,
+changing the CI selector, or certifying all comment readers from syntax alone.
+Rollback: remove the comparison attachment to restore full propagation; no store migration
+or graph-cache schema change is required.
+
+### Host-only shell environment source (V1-3360)
+
+- **AFP-V0-3340:** (experimental, owner-requested V1-3360, 2026-11-08) `HEAVY_REMOTE_ENV` is
+  executable host-only configuration. Before sourcing it, `heavy.sh` SHALL resolve its real path
+  on the consuming host and refuse with its infra error (97) if it is not a regular file, cannot
+  be resolved, contains CR/LF, has a link count above 1 (a hard link outside every checkout can
+  name a checkout file, which no path check sees), lies within a Git checkout (including linked worktrees and symlink
+  targets), or lies at/below the caller checkout, remote clone or remote worktree area. The caller
+  checkout SHALL travel in generated metadata; clone and worktree roots SHALL use the remote
+  HOME for tilde expansion and their existing defaults. A missing excluded root has no content to
+  read. An external host file, including a symlink to one and a sibling sharing a checkout path
+  prefix, SHALL still load, preserving exported settings and the existing infra fallback behavior.
+- **AFP-V0-3341:** (experimental, owner-requested V1-3360, 2026-11-08; amends AFP-V0-2953/2955 and
+  TSP-V0-004) The shell analyzer MAY bound exactly the quoted inline Perl realpath/check/print
+  operand retained as `hostEnvironmentOperand` in `internal/liveverify/affected/shell/host_source.go`.
+  The validator SHALL emit only an absolute canonical host-file path, or nothing on refusal;
+  sourcing the empty operand fails. Matching SHALL retain raw quoting and every validation step,
+  require exactly the source verb and operand with no prefix or redirection, outside a command
+  substitution or `sh -c`/`bash -c` command string, reject a redefined `command`, `source` or `.`,
+  and reject alias/hash/enable/eval rewriting. It SHALL also reject, anywhere in the file, any
+  `trap` other than a listing, a reset (`-`), or an EXIT, INT, TERM, HUP or QUIT handler whose text
+  lexes to commands without definitions or assignments that each run a function the file defines,
+  an inert builtin or an exact allowlisted external command: `git`, `rm`, `/bin/rm`, `rmdir` or
+  `/bin/rmdir`. For `git`, the only permitted global options are `-C <dir>` pairs and the subcommand
+  MUST be exactly `update-ref`. Each directory operand SHALL be a literal path containing only
+  letters, digits, `_`, `.`, `/`, `+` or `-` after unquoting, or the exact quoted
+  `"${clone:-/nonexistent}"` form heavy.sh uses; other expansions and globbing could inject global
+  options and SHALL be refused. All other global options (including `-c`, `--config-env` and
+  `--exec-path`) and subcommands SHALL be refused. Every other external command, including command
+  runners such as `bash`, `sh` and `env`, SHALL be refused rather than unwrapped. Trap strings are
+  otherwise unparsed. Before parsing a handler, the analyzer SHALL refuse command substitution
+  (`$(` or backtick), process substitution (`<(` or `>(`), any input redirection (`<`, whose file
+  read the reader index never records), arithmetic expansion, and parameter
+  operator words containing `$` or backtick. This check includes arguments to inert builtins and
+  single-quoted raw actions; literal parameter defaults remain permitted. DEBUG, RETURN and ERR
+  handlers run between ordinary commands. It SHALL
+  also reject any mention of
+  `command_not_found_handle`, which `command -p` still runs when perl is missing; and any mention
+  of a `PERL`-prefixed variable longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other
+  `PERL5*`) or an `LD_`/`DYLD_` loader variable, which could make perl load chosen code. Both mention
+  checks SHALL match the raw text and normalized text: first remove backslash-newline continuations,
+  then delete every single quote, double quote and backslash. Quoting or escaping a name SHALL NOT
+  evade either check. Any other source anywhere in the file (function
+  bodies run in call order, not text order) is admitted only if TSP-V0-004 proves its fresh
+  runtime metadata form. A filename or comment alone
+  SHALL never grant the exemption. Any changed guard or other unresolved source stays
+  `shell:dynamic-source`; unrelated script names with the same proof are admitted. This is a
+  static source-path proof under the existing trusted host tool/runtime-metadata model, not a
+  sandbox for arbitrary host configuration code or concurrent hostile filesystem replacement.
+- **AFP-V0-3342:** (experimental, owner-requested V1-3360, 2026-11-08) Repository assertions and
+  unbounded-reader records SHALL reflect the checked host source, including its hard-link,
+  trap, perl-environment and not-found-handler refusals. Retain independent dynamic
+  sources and toolchain floors. The comment-only `internal/tasks/journal/anchor.go` probe SHALL
+  record the before/after number of `driver:make` units whose witness cause is
+  `shell:script/heavy.sh`, using a baseline binary from `origin/main` and a candidate built outside
+  the checkout. No zero-cause result may be reported as complete affected-plan coverage.
+
+Acceptance: `TestHostEnvironmentSource_AFPV03341`, the repository heavy.sh guard-mutation
+regression `TestRepositoryScriptsAreBoundedSources_V14283`, `script/lane-scripts_test.sh
+--heavy-host-env-only` (successful load before fault injection, remote 97 and no execution side
+effect for caller/clone/worktree files and their symlinks, a file in an unrelated Git checkout
+  outside every excluded root, and a hard link outside every checkout to a checkout file), the unbounded-reader ratchet and
+`docs/build-log/2026-11-08-heavy-envfile-bounded.md`. No wire format or command flag changes.
+Rollback: revert the checked operand and analyzer rule together, restore the conservative floor
+and its declarations. Non-goal: prove what trusted host configuration executes after it loads.
 ### Driver narrowing after the convergence cap (V1-5000)
 
 - **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
@@ -2342,6 +2702,48 @@ would violate an existing assertion, and integration into the trusted CI caller 
 this lane's allowed paths. These facts and the pending integration checks are recorded in
 `docs/build-log/2026-11-08-avdrv.md`; no runtime-edge compatibility relaxation is claimed.
 
+### Fixture-only dashboard readers (V1-5180)
+
+- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180)
+  `internal/dashboard/repository.openDirectory` SHALL open the first absolute path component
+  directly instead of reading the filesystem root merely to traverse it. Before binding it,
+  the opener SHALL refuse a symlink or non-directory; the opened descriptor and a second
+  no-follow observation SHALL identify the same directory as the first observation. Remaining
+  components retain the existing descriptor-relative no-follow walk. An explicit request for
+  the filesystem root SHALL still require reading that root. This removes the fixture tests'
+  confinement blocker without granting any extra repository reads.
+- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180)
+  The existing `.corvint/test-read-scopes.json` SHALL bound `internal/dashboard/repository` to
+  its implicit own subtree and `go.mod`, used to build its own standard-library-only process
+  fixture; it SHALL bound `conformance/dashboard-snapshot-v0` to its implicit own subtree,
+  `internal/secretscreen/testdata/parity.json`, `go.mod`, `go.sum` and the complete non-standard
+  import closure of the `cmd/corvint-dashboard-snapshot` producer its tests build. Neither scope
+  grants `docs/build-log/` or `.corvint/changes/`. Both entries SHALL leave the unbounded-reader
+  ratchet record. No new scope grammar, runtime-command exemption or record-path exclusion is
+  introduced.
+- **AFP-V0-3362:** (experimental; owner direction 2026-11-08, V1-5180)
+  A repository regression SHALL exclude both declared readers for an unrelated build-log or
+  CEM entry and retain them for their real fixture, source and build inputs. A dependency-closure
+  check SHALL fail when the producer gains a repository build dependency outside its declared
+  set. Unresolved shell execution closures and tracked-tree readers SHALL remain selected for
+  the build-log probe. The existing ratchet SHALL continue refusing an added undeclared
+  unbounded reader, including a shell declaration that hides an unresolved source.
+- **AFP-V0-3363:** (experimental; owner direction 2026-11-08, V1-5180)
+  The lane's evidence SHALL audit every original unbounded witness against its source and
+  distinguish a bounded test read from a command's runtime reads. A test-only declaration SHALL
+  NOT bound `go run`; a command-line input, environment-named source, unknown execution edge or
+  unsupported confinement proof SHALL retain selection. Before/after evidence SHALL use the
+  same two added record paths, report `summary.line` and counts by unit prefix and witness kind,
+  and retain the computed-driver reason histogram and its unchanged uncertainty.
+- **AFP-V0-3364:** (experimental; owner direction 2026-11-08, V1-5180)
+  In the existing shell foreign-caller declaration, `script/dogfood-change-runs.sh` SHALL be
+  a non-executing mention of `script/dogfood-change.sh`, not its caller: the reporter names
+  the writer only in a comment and reads the Git common directory's run ledger with `awk`.
+  An unrelated build-log entry SHALL NOT select the reporting target through that comment;
+  changing the reporter SHALL still select the target, and the actual writer SHALL retain
+  its unresolved execution closure. Independent computed-invocation reasons remain selected.
+  The caller/mention completeness gate remains mandatory.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -2356,7 +2758,7 @@ adapter. AFP-V0-2200 does not narrow a declared read scope or an unbounded read:
 `go list` guards whose scopes declare `internal/` (`internal/liveverify/provider/interlock`,
 `internal/analyzerstructured`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`) stay
 selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be a new owner
-declaration. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
+declaration. AFP-V0-9600 moved the last three packages' guards to `internal/closureguard` but does not narrow their declared scopes either. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
 and AFP-V0-2241 port no non-Go reader to the CI selector, and change neither its rules (a), (b)
 and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). No TypeScript token is narrowed: AFP-V0-2245
 is withdrawn, and TypeScript keeps the component-run relation (AFP-V0-072 (3)). AFP-V0-2246 is
@@ -2552,6 +2954,14 @@ same closure fails under the confined shard with `permission denied` as well. A 
 helper or a variable target is not modelled, so its package keeps the tree rather than an unchecked
 closure (AFP-V0-3151, `cmd/corvint-test`).
 
+Predicate failure modes (AFP-V0-3300 to AFP-V0-3303): an uncovered guard branch can hide a
+verdict-changing edit even when examples pass; source review is mandatory before conversion.
+Syntax-valid content filters cannot stand in for guards which independently reject parse errors,
+read arbitrary literals, or follow computed build/import closures. Such entries stay broad unless
+those reads have separately declared plain bounds. Missing endpoint/listing observations never
+prove non-impact. Rollback replaces tree metadata objects with their reason strings; the main
+read-scope declaration remains string-only throughout.
+
 ## Acceptance evidence and traceability
 
 AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
@@ -2559,6 +2969,30 @@ AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSo
 `TestCommentOnlyTestEmbedIndex_AFPV03351`, `TestTestEmbedFactsAreDigestedValidatedAndCached_AFPV03352`
 and `TestTestEmbedGraphCacheRejectsOldProfile_AFPV03352`. The before/after regression and
 V1-5176 integration evidence are retained in `../build-log/2026-11-08-test-only-embeds.md`.
+
+V1-5180: `TestBoundedDirectoryOpen_AFPV03360` and
+`TestBoundedDirectoryOpenRejectsReplacement_AFPV03360` in `internal/dashboard/repository`
+cover AFP-V0-3360; `TestUnboundedDashboardScopes_AFPV03360` and
+`TestRepositoryBuiltReaderDeclarations_AFPV0873` in `internal/liveverify/affected` cover
+AFP-V0-3361 and AFP-V0-3362. The existing `tools/unbounded-readers` negative controls
+`TestAFPV0025RatchetFailsOffTheRecordedSet` and `TestInvalidShellReadScopeEntryRefused_TSP_V0_831`
+retain the refusal boundary. `../build-log/2026-11-08-unbounded.md` records AFP-V0-3363's
+per-unit audit, measurements and qualification limits.
+`TestUnboundedLedgerMention_AFPV03364` in `internal/liveverify/affected` checks AFP-V0-3364
+against the real graph and the unchanged caller/mention completeness gate.
+
+AFP-V0-3330/3331: `TestShellDataReaders_AFPV03330`,
+`TestRepositoryShellDataReaders_AFPV03330` and
+`TestShellLocalReadScopeValidation_AFPV03330` cover explicit/empty/omitted/invalid
+local declarations, actual audited source paths, and fail-closed enumeration.
+AFP-V0-3332: `TestShellCopyDestinationReaders_AFPV03332` retains real copy inputs;
+`TestShellQualifiedUtilityReaders_AFPV03332` retains computed/project wrapper inputs.
+AFP-V0-3333: `TestShellGlobDataReaders_AFPV03333` retains matching files and
+unsupported patterns; `TestShellDerivedGlobReaders_AFPV03333` retains data reads
+derived from wildcard matches. AFP-V0-3334: `TestTestMetadataReaders_AFPV03334` retains
+name-derived reads, escaped handles, shadowed receivers and nested reads.
+The per-unit diagnosis, source audit and measured plans are recorded in
+`docs/build-log/2026-11-08-tsv-readers.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
@@ -2581,6 +3015,12 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-3300 | `readscope_tree.go`, graph declarations, reader predicates and CLI planning tail | `TestTreePredicateEndpointsAndFallback_AFP_V0_3300`, `TestTreePredicateUnreadable_AFP_V0_3300`, `TestTreeMetadataFailureKeepsPlainScopes_AFP_V0_3300` |
+| AFP-V0-3301 | direct-child snapshots in `readscope_tree.go` | `TestListingOnlyTransitions_AFP_V0_3301`; conversion audit in `../build-log/2026-11-08-tree-scope-predicates.md` |
+| AFP-V0-3302 | `ReadScopeTree.Validate`, `ParseReadScopeTrees` and `readTrees` | `TestTreeScopeSamplesAndReasons_AFP_V0_3302` in `tools/test-read-scopes-check` |
+| AFP-V0-3303 | graph/digest/cache, trees-file inputs and string-only declaration compatibility | `TestTreeScopeCacheAndDeclarationIdentity_AFP_V0_3303`, `TestTreeMetadataValuesKeepStringScopes_AFP_V0_3303`; focused vet and before/after planner measurements in `../build-log/2026-11-08-tree-scope-predicates.md` |
+| AFP-V0-3304 | per-plan parsed trees comparison in `readscope_tree.go`, `scopedReadersOf`, CLI base admission | `TestTreeDeclarationChanges_AFPV03304`, `TestAffectedTreeDeclarationBase_AFPV03304`; declaration-edit measurements in `../build-log/2026-11-08-tree-scope-predicates.md` |
+| AFP-V0-3305 | conservative declaration endpoint admission | `TestTreeDeclarationChanges_AFPV03304`, `TestTreeDeclarationUnreadable_AFPV03305`, `TestAffectedTreeDeclarationBase_AFPV03304` |
 | AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; the shard-0 hidden run in `.github/workflows/ci.yml` is pending the separate follow-up `.github` PR (the github-split-check gate refuses a mixed `.github`+code range) | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestWriteSortedPackages_AFPV09012` (`--mode packages` output order), `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`; the workflow-placement evidence (the `TestAFPV0098SupersetGuardSidecar` subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package and a discovery-failure case) is pending and lands with that follow-up PR's `ci.yml` change |
 | AFP-V0-9013 | `seed` guards `goReadData` with `unownedUnknown`; existing `fixtureOnlyClaim`, Go selector and session unknown allowlist | `TestUnindexedFixtureSession_AFPV09013` |
 | AFP-V0-9014 | existing dependency closure and `testSourceSlice` | `TestCoreFreezeDigestSelection_AFPV09014` |
@@ -2659,6 +3099,12 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2740 | `deletedFixture`, `fixtureSubtree` in `internal/liveverify/affected/deletedfixtures.go`, the call in `seed` and the unowned-path listing in `participants` (`select.go`) | `TestDeletedFixtureIsFixtureData_AFPV2740` in `internal/liveverify/affected/deletedfixtures_test.go` (no unknown, hosting package and literal reader selected; seven kept cases; fails with the call removed); `TestDeletedFixtureStaysUnownedForOtherPlugins_AFPV2740` there (a deleted Python fixture still bears a third plugin's path-open entry; fails with `participants` reading `claimantsOf` alone); the PR #114 replay in build-log entry `2026-11-06-selgo` |
 | AFP-V0-2741 | the shared plan; rules (b) and (c) of `internal/gateselect` unchanged | the PR #114 replay in build-log entry `2026-11-06-selgo` (driver and shadow narrow, shadow a subset of the driver) |
 | AFP-V0-2742 | the module branch of `Build` and `ModuleCheck` in `internal/sessiontest/plan.go`; the `UnobservedModule` comment in `internal/gateselect/allowlist.go` | `TestCIProfileNamesTheNestedModuleSuite_AFPV2742` in `internal/sessiontest/module_ci_afpv2742_test.go` (fails with the profile condition restored); the amended ci case of `TestSTRV0064NestedModuleUnit`; `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`; the PR #105 replay |
+| AFP-V0-3420 | `recordadditions.go`, the record-entry scope declaration, and reader guards | `TestAddedRecordEntryReaders_AFPV3420`; retained corpus enumeration citations in `2026-11-08-record-entry-readers` |
+| AFP-V0-3421 | `ReadRecordEntryScopes`, `RecordEntrySourceDigest`, `WithRecordEntryBase` | `TestAddedRecordEntryUnknownFailsClosed_AFPV3421`; stale binding ratchet control |
+| AFP-V0-3422 | `AddedRecordEntries`, `addedRecordEntries`, `RecordEntryAllows` and `planAffectedGraph` | `TestAddedRecordEntryReaders_AFPV3420` M/D controls; unknown/untracked controls |
+| AFP-V0-3423 | `internal/gateselect/recordadditions.go` and literal/declared selection guards | `TestAddedRecordEntryBothSelectors_AFPV3423` |
+| AFP-V0-3424 | `Graph.RecordReaders`, `tools/unbounded-readers/records.go` | `TestAddedRecordEntryReadScopeRatchet_AFPV3424`, `TestRecordEntryShellReaderRatchet_AFPV3424`, `TestRecordEntryScopeCannotAdmitWalker_AFPV3424` |
+| AFP-V0-3425 | CLI probe retained in the build log | baseline/candidate `summary.line` and selected-unit comparison; fail-before ratchet control |
 | AFP-V0-2743 | `recordDirectory`, `resolvesRecord`, `BuildLogDirectory` and the record branch of `resolves` in `internal/liveverify/affected/readers.go` | `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743` in `internal/liveverify/affected/records_test.go` (both fault injections fail it); the PR #106 replay |
 | AFP-V0-2744 | `recordDirectory`, `resolvedReaders` in `internal/gateselect/select.go`; `resolvesRecord` and the record branch of `resolvingReaders` in `internal/gateselect/readers.go` | `TestRecordEntryReadersResolveToTheDirectory_AFPV2744` in `internal/gateselect/records_afpv2744_test.go` (both fault injections fail it); the amended `TestSelectPackagesNarrowsSealedChangeEvidenceReaders`; the PR #106 replay |
 | AFP-V0-2745 | `Graph.RecordReaders`, `namesRecordAncestor` in `internal/liveverify/affected/recordreaders.go`; `tools/unbounded-readers/records.go` and its call in `run`; `.corvint/record-readers.json` and its `notPlanner` entry in `tools/declaration-compat-check` | `TestAFPV2745RecordDirectoryReadersRatchet` in `tools/unbounded-readers/records_test.go`; the `RecordReaders` cases of `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743`; `make unbounded-readers-check` on the repository |
@@ -2711,6 +3157,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven` and `goListFile.proven`, the `confinedCommand` check of `goListScanFile` and the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and the allowlist `observesSource`, `inertImports`, `classifiedImports`, `allowedDirectives`, `observingMethods`, `confinedCommand` and `ownTestdata` (`golang/sourcereaders.go`), and `commandDirectoryProven` (`golang/commanddirectories.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (34 channels each make a proven reader unproven and selected by a body-only edit, among them an `os.Symlink` into testdata, an aliased `exec.Command` and `exec.CommandContext`, a function value of `exec.Command`, an `exec.ExitError` type, a package-level command, an `Args` index swap, a command passed to `json.Unmarshal`, and the unclassified `net/http/cgi` import, `reflect.ValueOf`, an unknown `//go:` directive, `t.Chdir` and a computed `t.Setenv`; an own-testdata read, an environment read and a confined command with literal `Env`, `Dir`, `Stderr`, `ProcessState` and `reflect.DeepEqual` stay proven and unselected); `TestReaderEnvironmentIdentity_AFP_V0_9010` (custom and shadowed receivers and an unknown environment producer retain folded-test-addition selection; standard, aliased and literal controls); `TestReaderBuiltinIdentity_AFP_V0_9010` (package/local append, argument append, shadowed conversion and unknown environment retain folded-test-addition selection; builtin control); `TestCallerFilenameProvenance_AFP_V0_9010` (line/block/column directives and unknown filename transform retain remapped-target import selection; physical filename control) |
 | AFP-V0-9010 | Same implementation as the preceding AFP-V0-9010 row | `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
+| AFP-V0-9600 | `internal/closureguard` (`network_test.go`, `candidates_test.go`, `companion_test.go`, `ledgers_test.go`, `proctrace_test.go`); the moved guards' former homes in `cmd/corvint`, `cmd/corvint-test`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `cmd/corvint-analyzer-structured-data`, `internal/analyzerpython`, `internal/analyzerstructured`, `internal/console`, `internal/contextindex`, `internal/proctrace` and `internal/swiftimpact` | `TestClosureGuardIsProvenImportGraphReader_AFPV09600` in `internal/liveverify/affected/golang/closureguard_repo_test.go` (the real package is bounded and every test a proven reader); `TestClosureGuardShapeIsProven_AFP_V0_9600` in `internal/liveverify/affected/golang/importreader_closureguard_test.go` (distinct roots per test are proven, unselected by a body edit and selected by an import-set change; an empty `GOFLAGS=` reset carried by every literal `.Env` assignment stays proven, while a non-empty literal, a dynamic value, an empty reset outside an `.Env` assignment, a later `.Env` reassignment that drops the reset, a second guard without it, an `.Env` assigned from a variable, `t.Setenv("GOFLAGS", "")` and a `Setenv` of a computed name are unproven; a `..` root is unbounded; a shared root name, a reused root and an `exec.ExitError` stay unproven); before/after body-edit plan in build-log entry `2026-11-08-v1-5071-proven-golist-readers` |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 | AFP-V0-9320, AFP-V0-9321 | `.corvint/test-selection.json` using the existing must-run planner | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` in `cmd/corvint/affected_core_freeze_test.go`; pinned base probe in `../build-log/2026-11-08-swgold.md` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
@@ -2720,6 +3167,21 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 For AFP-V0-3350 to AFP-V0-3352, revert the test-scoped fields, collector, reader selection
 and resolved-index additions together. Retain the cache-profile bump or clear derived
 cache entries before reusing an older observer; reverting restores the known under-selection.
+
+For AFP-V0-3360 to AFP-V0-3364, first remove the two new read-scope entries and restore their
+unbounded-ratchet entries, then restore the original filesystem-root opener. Reverting the
+opener while retaining the declarations would reintroduce confinement failures. No wire or
+stored-receipt migration is involved.
+Restore the reporter to the writer's callers to roll back AFP-V0-3364; this widens selection.
+
+For AFP-V0-3420 through AFP-V0-3425, remove the record-entry read-scope declaration
+to restore conservative readers immediately; then remove the addition-only guards and
+status observation. Do not remove the record-reader ratchet.
+
+For AFP-V0-3330 through AFP-V0-3334, remove the optional `localReads` members
+before restoring the legacy shell adapter and reader rules; restore the Go
+metadata and shell wildcard token behavior. No persistent format migration is
+required. Missing or invalid declarations keep broad selection/uncertainty.
 
 For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
 its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
@@ -2738,7 +3200,9 @@ Revert the lane's commits for the requirement and delete its row here. For AFP-V
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
 line, so every test-file header change counts again; keep `ImportSetChanges.Source`, `observesSource`
 and `Unit.ImportGraphReadsFiles`, which only add selections. For AFP-V0-9011, call `affected.Select`
-directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-2720 to
+directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-9600,
+move each `internal/closureguard` test back to its former package (or keep the package): either way
+the guards keep their assertions, and the former homes only add selections. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
 `github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
 `shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and

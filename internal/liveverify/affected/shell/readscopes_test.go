@@ -187,3 +187,38 @@ func TestShellReadScopeEntryInvalidAlone_TSP_V0_831(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-3330: omitted/null local reads keep the legacy sibling tree, an
+// explicit empty array narrows it, and malformed local declarations fail closed.
+func TestShellLocalReadScopeValidation_AFPV03330(t *testing.T) {
+	for _, tc := range []struct {
+		name, member   string
+		valid, sibling bool
+	}{
+		{"omitted", "", true, true},
+		{"null", `,"localReads":null`, true, true},
+		{"empty", `,"localReads":[]`, true, false},
+		{"file", `,"localReads":["script/data.tsv"]`, true, true},
+		{"directory", `,"localReads":["script/"]`, true, true},
+		{"external", `,"localReads":["other/data.tsv"]`, false, true},
+		{"climb", `,"localReads":["script/../data.tsv"]`, false, true},
+		{"duplicates", `,"localReads":["script/a","script/a"]`, false, true},
+		{"unsorted", `,"localReads":["script/b","script/a"]`, false, true},
+		{"wrong type", `,"localReads":"script/"`, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			write(t, root, "script/build_test.sh", "go build ./tool\n")
+			write(t, root, affected.ShellReadScopesPath, `{"profile":"corvint-shell-read-scopes/0","tests":{"script/build_test.sh":{"reads":["tool/"],"reason":"r"`+tc.member+`}}}`)
+			result := units(t, root)
+			if u := unitOf(t, result, "script/build_test.sh"); u.ReadScoped != tc.valid {
+				t.Fatalf("ReadScoped=%v, want %v: %+v", u.ReadScoped, tc.valid, result.Frontier)
+			}
+			plan := affected.Select(build(t, root), []string{"script/data.tsv"})
+			selected := slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool { return s.UnitID == "shell:script/build_test.sh" })
+			if selected != tc.sibling {
+				t.Fatalf("selected=%v, want %v: %+v", selected, tc.sibling, plan)
+			}
+		})
+	}
+}

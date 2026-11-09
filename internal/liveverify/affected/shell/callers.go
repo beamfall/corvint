@@ -61,6 +61,9 @@ func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
+	if errors.Is(err, affected.ErrWalkLimit) {
+		return nil, fmt.Errorf("%w: %s is over its %d-byte bound (V1-4989)", err, affected.ShellForeignCallersPath, affected.MaxShellForeignCallerBytes)
+	}
 	if err != nil {
 		return nil, err
 	}
