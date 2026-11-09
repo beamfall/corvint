@@ -48,9 +48,6 @@ cannot.
   cited evidence, an explicit unknown or a checked mechanical exception. The verifier checks
   patch, hunk, blob and span identity locally with no LLM, index or service, so CI can enforce it.
   `ocm` and `frontier` turn declared obligations into a deterministic review queue.
-- **Corvint Tasks.** `corvint-tasks` is a local ticket store and roadmap with claims, heartbeats,
-  expiry, gates and audited completion. While a claim is valid, no other agent on the same store
-  can take that ticket.
 - **Agent integration.** Stdio MCP servers expose the same receipts to any MCP host, and adapters
   for Codex, Claude Code, Gemini CLI, OpenCode and Pi feed one bounded lifecycle event to Corvint.
 - **One local release.** `corvint` is a single native Go binary today; decision 0591 accepts a
@@ -79,7 +76,6 @@ with the code.
 | Affected test selection | The tests to run for a branch, the mandatory checks, and an explicit unknown frontier instead of a silent full run | `corvint affected --base FULL_SHA` | core |
 | Change Evidence Map | Every diff hunk bound to cited evidence, an explicit unknown or a checked exception; CI verifies it with no LLM | `corvint cem prepare --base BASE_SHA --target HEAD_SHA` | core |
 | Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
-| Tasks | A local ticket store with roadmap, claims, gates and audited completion | `corvint-tasks queue status` | experimental |
 | Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
 | Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint mcp --root /abs/repo --tool-profile task-review` | experimental |
@@ -141,7 +137,6 @@ tools, upgrades and removal.
 | Before running tests | Plan the tests a change can reach (`affected`) | Selected test units, mandatory checks, and a named reason whenever the plan widens |
 | After the run | Record what actually ran (test providers, `flows ingest`) | A receipt pinned to the run, its environment and the source commit |
 | At review and in CI | Attach a Change Evidence Map to the diff (`cem`) | A disposition for every textual hunk that CI verifies locally |
-| Across agents | Claim work from the Tasks queue (`corvint-tasks`) | Exclusive claims with heartbeats and expiry within one store |
 
 A green test run is a fact about that run; Corvint never treats it as proof that the tests are
 adequate.
@@ -167,20 +162,8 @@ Corvint. See [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md) for the full wor
 
 ## Corvint Tasks
 
-`corvint-tasks` is a separate binary built from `cmd/corvint-tasks`. Its store lives in
-`.taskman/` in the repository and needs no server or account:
-
-```console
-GOTOOLCHAIN=local go build -o "$HOME/.local/bin/corvint-tasks" ./cmd/corvint-tasks
-corvint-tasks queue status
-corvint-tasks roadmap --summary
-corvint-tasks help --json
-```
-
-Agents claim work with `claim --next`, keep it with `renew` and `attempt heartbeat`, and finish
-through `submit`, `gate run` and `complete`. Every read takes no lock and writes nothing. See
-[external-agent usage](docs/TASKS-EXTERNAL-AGENTS.md) and, for operator-started supervision and
-dispatch, [Tasks supervision](docs/TASKS-SUPERVISION.md).
+The local ticket store and roadmap, `corvint-tasks`, is a separate project:
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594). Corvint works without it.
 
 ## MCP servers and agent adapters
 

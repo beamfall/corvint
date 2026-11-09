@@ -18,7 +18,8 @@ and 1 MiB per output stream, and retains failed native streams/status inside its
 
 With the pinned Go toolchain, run `make install-local` from the source checkout. It builds every
 native `cmd/` executable from that tree and installs them into `~/.local/bin`, including
-all provider tools and `corvint-tasks`. Override the destination with
+all provider tools. `corvint-tasks` builds from [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks)
+(decision 0594). Override the destination with
 `make install-local LOCAL_BIN_DIR=/absolute/bin` and add that directory to `PATH`. Existing
 binaries are replaced atomically with one bounded rollback copy per tool. Historical `.bak-*`
 files made by other installers are not owned or removed by this command. Core and companions
@@ -152,42 +153,8 @@ state. [Automation](AUTOMATION.md) lists each write condition.
 
 ## Standalone Tasks archive
 
-Tasks has a separate `corvint-tasks_darwin_arm64.tar.gz` candidate builder. The Core archives
-remain unchanged. From a clean source checkout, build a candidate with:
-
-```sh
-go run ./cmd/corvint-companion-release -tasks-only \
-  -source-root "$PWD" -target darwin/arm64 \
-  -scratch /absolute/fresh/tasks-scratch \
-  -output-parent /absolute/release-output -bundle-name tasks-candidate
-```
-
-Both output directories must be outside the checkout. The builder independently builds the
-binary twice from the pinned Git export, includes its source and notices, verifies deterministic
-archive bytes, and runs the extracted version/help commands. The retained directory holds the
-archive and `SHA256SUMS`; verify that checksum before extracting into a fresh directory. Add its
-`bin/` to PATH and use the [external-agent setup guide](TASKS-EXTERNAL-AGENTS.md).
-The version keeps its explicit unverified label. This candidate is not an execution cutover,
-release promotion, or proof that the complete workflow bundle is qualified. Publishing it as a
-release asset remains an explicit operator action.
-
-For Linux agent hosts the same command with `-target linux/amd64` cross-builds
-`corvint-tasks_linux_amd64.tar.gz` (static, `CGO_ENABLED=0`) with its `SHA256SUMS` line. The build
-host never runs it, so no version/help smoke happens and the manifest `qualification` is
-`reproducible-cross-build-only-target-runtime-not-observed`: the Linux runtime is NOT_OBSERVED until
-a Linux host does the following with a downloaded archive and an existing `.taskman` store
-(CAL-V0-320):
-
-```sh
-# One && chain: a failed checksum stops before anything is extracted or run.
-sha256sum -c SHA256SUMS --ignore-missing &&
-  mkdir tasks && tar -xzf corvint-tasks_linux_amd64.tar.gz -C tasks &&
-  tasks/bin/corvint-tasks version &&
-  (cd /path/to/repo-with-.taskman && /abs/tasks/bin/corvint-tasks roadmap)
-```
-
-Run `roadmap` read-only on a copy or a clean checkout. Other Tasks archive targets, including
-linux/arm64, are NOT_RUN.
+Corvint Tasks moved to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) with decision 0594; its
+archive builder and install steps live there.
 
 ## Optional workflow bundle
 
