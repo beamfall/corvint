@@ -2,15 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted `cmd/corvint-postmerge-workflow`
+and `internal/postmergeworkflow` (4663b4e2b is the last tree with them). The body below is
+historical and its requirement IDs stay for traceability.
 Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/395,
 native V1-0542 revision 5; decision 0373; `AGENTS.md`; contracts `postmerge-connectors-v0.md`
 (issue #392) and the documented `corvint delta` record of issue #389.
 
 ## Agent digest
 - Claim: An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.
-- Status: proposed/experimental harness; whole-workflow qualification `NOT_OBSERVED`.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/postmergeworkflow/`, `cmd/corvint-postmerge-workflow/`.
 - Blocked on: actual delta/scope/validation stage integration and CI host containment evidence; the author and draft stages replay with outward writes recorded, not performed (`PMR-V0-940`..`943`, V1-0805).
 - Read next: Requirements; Trust and limits; Acceptance and rollback.

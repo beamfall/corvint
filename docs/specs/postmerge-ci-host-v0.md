@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-10-01
 Intent status: accepted
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-postmerge-host-launcher` and
+`internal/postmergehost`; `protocol/postmerge-host` stays only as a published schema.
 Authoritative inputs: human request https://github.com/beamfall/corvint/issues/398 (part of #388);
 owner acceptance 2026-10-05 recorded on V1-0545 (rev 17, receipts 2745 and 2746);
 `docs/specs/postmerge-connectors-v0.md`; `docs/specs/authoring-step-scope-v0.md`;

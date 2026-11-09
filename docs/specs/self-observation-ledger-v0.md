@@ -6,6 +6,8 @@ Amendment: `SOL-V0-008` ratified `accepted` 2026-09-01 by the repository owner; 
 Ratification is per clause; every other clause retains the document's `proposed` status.
 Intent status: proposed (except `SOL-V0-008`, accepted 2026-09-01)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the `observations` and `self` command groups;
+the ledger writer stays until its own cut.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`, `docs/specs/observation-corpus-authority-v0.md`
 
 ## Agent digest

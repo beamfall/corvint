@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Requested: 2026-08-23
 Intent status: proposed (owner requested the product outcome)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-dashboard-snapshot` and
+`conformance/dashboard-snapshot-v0`; the snapshot requirements are retired.
 Authoritative inputs: `AGENTS.md`, `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/live-proof-carrying-verification-v0.md`,
 `docs/specs/pulse-snapshot-lease-v0.md`,

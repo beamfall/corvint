@@ -5,6 +5,8 @@ Date: 2026-09-30
 Requirement prefix: `TAT-V0`
 Intent status: proposed
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the `prove` command group
+(`cmd/corvint/prove_attack.go`); `internal/liveverify/mutate` stays.
 Authoritative inputs: repository-owner request; `AGENTS.md` invariants 1, 2, 4, 7 and 8; `docs/specs/falsifiable-packet-v0.md` FPK-V0-014 and FPK-V0-017.
 
 ## Agent digest

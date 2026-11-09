@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-09-19
 Intent status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548); NTP-V0-026 accepted under the owner's standing auto-accept (2026-10-11, V1-2119)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the `taskman` and `work` command groups
+(`cmd/corvint/taskman_fixture.go`); `internal/taskman` leaves with Corvint Tasks.
 Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
