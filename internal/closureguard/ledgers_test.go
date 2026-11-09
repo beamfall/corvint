@@ -36,8 +36,7 @@ func TestLTAV0009LiveContextPathCannotReachTheLedgers(t *testing.T) {
 // with Corvint Tasks (decision 0594).
 func TestNGIV0988ImpactBinariesLinkReader(t *testing.T) {
 	const module = "github.com/Beamfall/corvint/"
-	linked := []string{"corvint", "corvint-docs-mcp", "corvint-lsp", "corvint-mcp",
-		"corvint-test-validity-mcp", "corvint-web-flows"}
+	linked := []string{"corvint", "corvint-lsp", "corvint-mcp", "corvint-test-validity-mcp"}
 	args := []string{"list", "-f", "{{.ImportPath}} {{join .Deps \" \"}}"}
 	for _, name := range linked {
 		args = append(args, module+"cmd/"+name)

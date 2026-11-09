@@ -4,6 +4,10 @@ Owner: Russell Lewis
 Date: 2026-09-24
 Intent status: accepted (decision 0385)
 Delivery status: partially delivered; original issue-175 flows qualified locally
+Retirement note: decision 0594 (2026-11-09). Every `corvint flows` verb except `appmap` and the
+`corvint-web-flows` companion were deleted (4663b4e2b is the last tree with them);
+`internal/appflows` stays only as the application map's reader. The requirements of the deleted
+verbs are historical.
 Authoritative inputs: owner request [issue 175](https://github.com/beamfall/corvint/issues/175) and
 the owner's additions of 2026-09-24 (mapping E2E tests to code changes, an agent that can navigate
 and use a website, documentation proven accurate by the same evidence), `AGENTS.md`,
@@ -861,7 +865,7 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
 | AFU-V1-251..252 | experimental under the standing lane auto-accept (V1-2924, GitHub #1930): `internal/appflows/import.go` (`mergeProjects`, `disjointProjects`, `dropCollisions`), `internal/appflows/query.go` (`variationGaps`); `TestAFUV1251PlaywrightListMergesProjects`, `TestAFUV1252NoTestNamesInferredLinks`, `TestAFUV1FlowsQueryGoldens` |
 | AFU-V1-131 | experimental under the standing lane auto-accept (V1-2873, V1-2874): `internal/appflows/runingest.go` (`parsePlaywrightRunAt`, `RunHeader.Root`, `Ingested.Unjoined`), `internal/command/flows/flows.go` (`flowSubcommand` diagnostic writer, `runFlowsIngest`); `TestAFUV1131IngestJoinsPlaywrightListImport` |
-| AFU-V1-112..120 | implemented (GitHub #1587): `internal/appflows/coverage_ingest.go` (`IngestCoverage`, `parseV8`, `parseIstanbul`, `parseLCOV`, `parseRSpec`, `bind`, `joinFile`, `v8Lines`, `checkLink`), `internal/doccorpus/line_anchor.go` (`LineIndex.Bytes`), `internal/command/flows/flows_ingest_coverage.go`, `internal/command/flows/flows.go`, `internal/appflows/runevidence.go` (`validateCoverageArtifacts`) |
+| AFU-V1-112..120 | implemented (GitHub #1587): `internal/appflows/coverage_ingest.go` (`IngestCoverage`, `parseV8`, `parseIstanbul`, `parseLCOV`, `parseRSpec`, `bind`, `joinFile`, `v8Lines`, `checkLink`), `internal/lineanchor/lineanchor.go` (`LineIndex.Bytes`), `internal/command/flows/flows_ingest_coverage.go`, `internal/command/flows/flows.go`, `internal/appflows/runevidence.go` (`validateCoverageArtifacts`) |
 
 ## Unresolved decisions and promotion or kill criteria
 
@@ -1304,7 +1308,7 @@ the moved one; only an equal region moves across paths. Rollback: revert this se
   the corpus primary repository and revision and the generation repository and revision. When the
   corpus declares the generation repository only in `additional_repositories`, the message says so.
   That form is not accepted: the supported corpus has the documented repository at `--revision` as
-  its primary (AFU-V1-047), and `docs/FLOW-DOCUMENTATION.md` states that shape.
+  its primary (AFU-V1-047); the flow-documentation guide that stated that shape was retired by decision 0594.
 
 Acceptance: `TestFlowDocsCorpusRepositoryMismatchIsTypedUpFront` (an evidence-primary corpus that
 declares the application as an additional repository, and a corpus of the application at an older

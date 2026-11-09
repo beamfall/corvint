@@ -43,8 +43,8 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 | Core `corvint` | index, query/context, impact, `affected`/test selection, review, CEM/dogfood evidence, `corvint-test-runner` | n/a (root module) |
 | Kernel (leaf packages) | git runner, `gitprobe`, `gitstatus`, language ID, `execfile`, `procgroup`, `secretscreen`, `analyzerenvelope`, `langplugin`, `protocol/**` | upward imports (V1-4809) |
 | Tasks `corvint-tasks` | `internal/tasks/**`, `taskman`, `taskprojection`, `taskbarrier`, `localcompletion`, `scopelease`, `workqueue`, `worksource`, `corvint-work-queue` | `tasks`→`contextindex` (V1-4810); `cmd/corvint`→`taskman`; `internal/mcp/tasksbridge`, `internal/mcp/tasksread` |
-| Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, `corvint-docs-mcp` (corpus index/serve/republish left with decision 0594) | `cmd/corvint`→`doccorpus`/`doccompiler`/`docmaintain`; `internal/mcp/docsbridge` |
-| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs (the E2E proof lab left with decision 0593) | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
+| Docs `corvint-docs` | doccorpus, doccompiler (decision 0594 deleted docmaintain, doccitations, `corvint-docs-mcp` and corpus index/serve/republish) | `cmd/corvint`→`doccorpus`/`doccompiler`; `internal/mcp/docsbridge` |
+| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs (the E2E proof lab left with decision 0593; decision 0594 deleted `corvint-web-flows` and every flows verb except `appmap`) | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
 | Adapters | `corvint-mcp`, `corvint-lsp`, test-validity MCP | bridges call apps through envelopes |
 | Plugins | analyzers; test providers only if measured (V1-4824) | registries (V1-4818); `corvint-plugin/1` (V1-4819) |
 | Release/update (in manifest) | `corvint-update`, `corvint-release-install` | none |

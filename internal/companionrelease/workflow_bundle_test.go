@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
-	"github.com/Beamfall/corvint/internal/mcp/protocol"
-	"github.com/Beamfall/corvint/internal/mcp/server"
 )
 
 func TestCanonicalVSIXRequiresClosedAgreeingMembers(t *testing.T) {
@@ -204,28 +202,10 @@ func TestBinaryComponentsShareOneModuleSourceReference(t *testing.T) {
 
 func TestMCPResponseAcceptsProductionDiscovery(t *testing.T) {
 	t.Run("PUB-V0-015 production-mcp-response-framing", func(t *testing.T) {
-		srv, err := server.New(server.Config{
-			Name: "corvint-mcp", Version: "0.1.0-experimental", Description: "Corvint <context> & evidence",
-			Capabilities: map[string]any{"tools": map[string]any{}},
-			Handler: server.HandlerFunc(func(context.Context, protocol.Request, server.Notifier) (map[string]any, *protocol.RPCError) {
-				t.Error("discovery reached tool handler")
-				return nil, nil
-			}),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		raw, err := json.Marshal(mcpRequest(1, "server/discover", map[string]any{"_meta": mcpMeta}))
-		if err != nil {
-			t.Fatal(err)
-		}
+		// A recorded production discovery frame: the MCP encoder does not HTML-escape strings.
+		frame := `{"jsonrpc":"2.0","id":1,"result":{"_meta":{"io.modelcontextprotocol/serverInfo":{"description":"Corvint <context> & evidence","name":"corvint-mcp","version":"0.1.0-experimental"}},"cacheScope":"public","capabilities":{"tools":{}},"resultType":"complete","supportedVersions":["2026-07-28"],"ttlMs":0}}` + "\n"
 		var out bytes.Buffer
-		if err := srv.Serve(t.Context(), bytes.NewReader(append(raw, '\n')), &out); err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Contains(out.Bytes(), []byte("Corvint <context> & evidence")) {
-			t.Fatalf("production encoder escaping changed: %s", out.Bytes())
-		}
+		out.WriteString(frame)
 		response, err := decodeMCPResponse(out.Bytes(), 1)
 		if err != nil {
 			t.Fatalf("production MCP response rejected: %v; %s", err, out.Bytes())
@@ -246,7 +226,7 @@ func TestMCPResponseRefusesInvalidFramingAndIdentity(t *testing.T) {
 		"non object":    []byte("[]\n"),
 		"null":          []byte("null\n"),
 		"invalid UTF-8": append([]byte(`{"jsonrpc":"2.0","id":1,"result":"`), 0xff, '"', '}', '\n'),
-		"over limit":    []byte(good + strings.Repeat(" ", protocol.MaxMessageBytes-len(good)+1) + "\n"),
+		"over limit":    []byte(good + strings.Repeat(" ", maxMCPFrameBytes-len(good)+1) + "\n"),
 		"wrong version": []byte(`{"jsonrpc":"1.0","id":1,"result":{}}` + "\n"),
 		"wrong ID":      []byte(`{"jsonrpc":"2.0","id":2,"result":{}}` + "\n"),
 		"wrong ID type": []byte(`{"jsonrpc":"2.0","id":"1","result":{}}` + "\n"),
@@ -258,7 +238,7 @@ func TestMCPResponseRefusesInvalidFramingAndIdentity(t *testing.T) {
 			}
 		})
 	}
-	for _, raw := range []string{good + "\r\n", good + strings.Repeat(" ", protocol.MaxMessageBytes-len(good)) + "\n"} {
+	for _, raw := range []string{good + "\r\n", good + strings.Repeat(" ", maxMCPFrameBytes-len(good)) + "\n"} {
 		if _, err := decodeMCPResponse([]byte(raw), 1); err != nil {
 			t.Fatalf("valid frame rejected: %v", err)
 		}

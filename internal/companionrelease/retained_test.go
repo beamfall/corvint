@@ -18,7 +18,7 @@ func TestVerifyRetainedBundleAndFreshExtraction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if verified.ArchiveSHA256 == "" || len(verified.Manifest.Components) != 9 {
+	if verified.ArchiveSHA256 == "" || len(verified.Manifest.Components) != 8 {
 		t.Fatalf("incomplete verification: %+v", verified)
 	}
 	target := filepath.Join(t.TempDir(), "extract")
@@ -87,7 +87,7 @@ func makeRetainedFixture(t *testing.T) string {
 	taskmanDigest := sha256Hex(taskmanSource)
 	var components []ComponentManifest
 	var entries []ArchiveEntry
-	for name, module := range map[string]string{"corvint": "corvint", "corvint-console": "corvint", "corvint-dashboard-snapshot": "corvint", "corvint-mcp": "corvint", "corvint-docs-mcp": "corvint", "corvint-test-validity-mcp": "corvint", "corvint-js-test-provider": "corvint", "corvint-go-test-provider": "corvint", "atm": "corvint-taskman"} {
+	for name, module := range map[string]string{"corvint": "corvint", "corvint-console": "corvint", "corvint-dashboard-snapshot": "corvint", "corvint-mcp": "corvint", "corvint-test-validity-mcp": "corvint", "corvint-js-test-provider": "corvint", "corvint-go-test-provider": "corvint", "atm": "corvint-taskman"} {
 		data := []byte("binary-" + name)
 		path := "bin/" + name
 		entries = append(entries, ArchiveEntry{Path: path, Mode: 0o755, Data: data})
@@ -131,7 +131,7 @@ func makeRetainedFixture(t *testing.T) string {
 		componentByName[component.Name] = component
 	}
 	var smokeSteps []SmokeStep
-	for _, name := range []string{"atm-version", "atm-help", "corvint-mcp-version", "corvint-docs-mcp-version", "corvint-test-validity-mcp-version", "corvint-mcp-discover-list-status", "corvint-docs-mcp-draft-consume", "corvint-test-validity-mcp-list", "corvint-js-test-provider-help", "corvint-go-test-provider-help", "atm-init", "atm-ticket-create", "atm-ticket-refine", "corvint-dashboard-snapshot", "console-listen", "console-board", "console-detail", "console-create-form", "console-refuse-cross-origin", "console-refuse-missing-token", "console-refusal-no-store-effect", "console-detail-controls", "console-edit", "console-evidence", "console-requirement-links", "console-code-links", "console-link-gaps", "console-stop-no-descendants"} {
+	for _, name := range []string{"atm-version", "atm-help", "corvint-mcp-version", "corvint-test-validity-mcp-version", "corvint-mcp-discover-list-status", "corvint-test-validity-mcp-list", "corvint-js-test-provider-help", "corvint-go-test-provider-help", "atm-init", "atm-ticket-create", "atm-ticket-refine", "corvint-dashboard-snapshot", "console-listen", "console-board", "console-detail", "console-create-form", "console-refuse-cross-origin", "console-refuse-missing-token", "console-refusal-no-store-effect", "console-detail-controls", "console-edit", "console-evidence", "console-requirement-links", "console-code-links", "console-link-gaps", "console-stop-no-descendants"} {
 		componentName := "corvint-console"
 		switch {
 		case strings.HasPrefix(name, "atm-"):
@@ -140,8 +140,6 @@ func makeRetainedFixture(t *testing.T) string {
 			componentName = "corvint-dashboard-snapshot"
 		case strings.HasPrefix(name, "corvint-mcp"):
 			componentName = "corvint-mcp"
-		case strings.HasPrefix(name, "corvint-docs"):
-			componentName = "corvint-docs-mcp"
 		case strings.HasPrefix(name, "corvint-test-validity"):
 			componentName = "corvint-test-validity-mcp"
 		case strings.HasPrefix(name, "corvint-js"):
@@ -180,7 +178,7 @@ func mustWrite(t *testing.T, path string, body []byte) {
 }
 
 func TestVerifyRetainedBundleRequiresEachBoundMCPVersion(t *testing.T) {
-	for _, component := range []string{"corvint-mcp", "corvint-docs-mcp", "corvint-test-validity-mcp"} {
+	for _, component := range []string{"corvint-mcp", "corvint-test-validity-mcp"} {
 		for _, mutation := range []string{"missing", "duplicate", "wrong component"} {
 			t.Run(component+"/"+mutation, func(t *testing.T) {
 				dir := makeRetainedFixture(t)

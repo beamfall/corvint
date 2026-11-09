@@ -123,7 +123,6 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		{name: "corvint-console", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-console", module: "corvint", export: corvintExport},
 		{name: "corvint-dashboard-snapshot", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-dashboard-snapshot", module: "corvint", export: corvintExport},
 		{name: "corvint-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-mcp", module: "corvint", export: corvintExport},
-		{name: "corvint-docs-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-docs-mcp", module: "corvint", export: corvintExport},
 		{name: "corvint-test-validity-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-test-validity-mcp", module: "corvint", export: corvintExport},
 		{name: "corvint-js-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-js-test-provider", module: "corvint", export: corvintExport},
 		{name: "corvint-go-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-go-test-provider", module: "corvint", export: corvintExport},
