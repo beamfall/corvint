@@ -416,7 +416,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 				clone := <-clones
 				defer func() { clones <- clone }()
 				measured[i], errs[i] = measure(ctx, clone, tmp, guard, module, corvint, selector, c, costs)
-				if errs[i] == nil && cache != nil {
+				if errs[i] == nil && cache != nil && cacheable(measured[i]) {
 					if err := cache.store(keys[i], measured[i]); err != nil {
 						fmt.Fprintf(os.Stderr, "selection-baseline: result cache record for %s not written: %v\n", c.ID, err)
 					}
@@ -590,6 +590,20 @@ const guardPath = ".github/forward-rows/github-guard.sh"
 // githubGuard runs the guard over base..head in clone (TSP-V0-7330). Its first line `0` is no
 // narrowing input changed; `1` is a changed input, named by the lines after it; anything else,
 // or a guard that cannot run, fails closed as a change, as narrow.sh records it.
+// cacheable reports whether a measured result may be recorded in the result
+// cache (TSP-V0-7330). A guard that could not run (an `unreadable:` input: no
+// shell, no temporary directory, an unreadable guard) depends on conditions
+// the cache key does not hold, so its FULL verdict stays in this report only
+// and the next run measures the change again.
+func cacheable(res Result) bool {
+	for _, input := range res.GithubInputs {
+		if strings.HasPrefix(input, "unreadable:") {
+			return false
+		}
+	}
+	return true
+}
+
 func githubGuard(ctx context.Context, clone, guard, base, head string) (bool, []string) {
 	out, err := run(ctx, clone, "sh", guard, base, head)
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
