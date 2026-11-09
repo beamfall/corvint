@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"os"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -17,27 +16,4 @@ func exitProcess(status int) {
 	groupreap.KillLive()
 	gitstatus.CloseScratch()
 	os.Exit(status)
-}
-
-// adapterStdout turns a hook stdout the host closed into a write error instead of a SIGPIPE death,
-// and names that fault on stderr (AHI-044).
-func adapterStdout(stdout, stderr io.Writer) io.Writer {
-	notifyBrokenPipe()
-	return hookStdout{stdout: stdout, stderr: stderr}
-}
-
-// hookStdout names a hook stdout the host closed before the adapter wrote on stderr, the one
-// channel left, since the host can no longer read the degradation stdout would have carried. Hook
-// adapters still exit 0, so a closed pipe never becomes a failed or blocking hook (AHI-044); the
-// `pi-tool` command, which is not a hook, keeps its own failure status.
-type hookStdout struct {
-	stdout, stderr io.Writer
-}
-
-func (w hookStdout) Write(p []byte) (int, error) {
-	n, err := w.stdout.Write(p)
-	if err != nil {
-		_, _ = io.WriteString(w.stderr, "Corvint FALLBACK degraded: hook-stdout-unwritable; coding continues\ncause: hook-stdout-unwritable\nfix: restore the hook stdout pipe in the host and retry; the hook cannot repair a closed host pipe\n")
-	}
-	return n, err
 }

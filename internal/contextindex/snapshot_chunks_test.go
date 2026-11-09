@@ -150,11 +150,6 @@ func TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806(t *testing.T) {
 		if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
 			t.Fatalf("a %s snapshot loaded: hit=%v err=%v", format, hit, err)
 		}
-		for _, compact := range []bool{false, true} {
-			if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
-				t.Fatalf("a %s snapshot event-loaded compact=%v: hit=%v err=%v", format, compact, hit, err)
-			}
-		}
 	}
 }
 

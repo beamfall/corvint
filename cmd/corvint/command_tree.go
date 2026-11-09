@@ -18,8 +18,6 @@ const nodeHelpPrefix = "node:"
 // or agent types them: hook and worker entry points the binary or its installed hooks invoke, test
 // fixtures, hook event values, and alternative spellings (CAP-V0-043).
 var commandTreeInternal = []clitree.Internal{
-	{Word: "pre-compact", Reason: "claude-code EVENT value of adapter"},
-	{Word: "post-compact", Reason: "claude-code EVENT value of adapter"},
 	{Word: "audit", Reason: "spaced spelling of docs corpus audit-sample and audit-report"},
 	{Word: "sample", Reason: "spaced spelling of docs corpus audit-sample"},
 }
@@ -38,16 +36,14 @@ func commandTreeJSON() string {
 }
 
 // helpTopics lists every authored help topic that documents commands, in a stable order: each
-// public command, each cem action, and each nested docs and harness topic.
+// public command, each cem action, and each nested docs topic.
 func helpTopics() []string {
 	topics := []string{}
 	for _, command := range topLevelCommands {
 		topic, _ := publicHelpTopic(command)
-		if topic != "harness-event" {
-			topics = append(topics, topic)
-		}
+		topics = append(topics, topic)
 	}
-	topics = append(topics, "harness-event", "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
+	topics = append(topics, "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}
@@ -66,8 +62,6 @@ func helpTopicPath(topic string) []string {
 		return []string{"docs", "flows"}
 	case "docs-maintain":
 		return []string{"docs", "maintain"}
-	case "harness-event":
-		return []string{"harness", "event"}
 	case flowsAppmapBuildHelpTopic:
 		return []string{"flows", "appmap", "build"}
 	}

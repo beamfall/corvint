@@ -65,19 +65,3 @@ func TestTaskStoreProjectionDirtIsSourceClean(t *testing.T) {
 		t.Fatalf("budgeted packet: %s", raw)
 	}
 }
-
-// DIRTY-CACHE-017: the dogfood prompt (hook) packet reports clean plus task state.
-func TestDogfoodPromptTaskStoreProjectionDirtIsClean(t *testing.T) {
-	index := localPromptFixture(t)
-	index.DirtyPaths = []string{".taskman/queue.json"}
-	packet := localPrompt(t, index, "pkg/packet.go", nil, 20, 8000)
-	taskState, _ := packet["task_state"].(map[string]any)
-	if packet["freshness"] != "clean" || taskState["class"] != "TASK_STORE_PROJECTION" || taskState["path_count"] != 1 {
-		t.Fatalf("freshness=%v task_state=%v", packet["freshness"], packet["task_state"])
-	}
-	index.DirtyPaths = []string{".taskman/queue.json", "pkg/packet.go"}
-	packet = localPrompt(t, index, "pkg/packet.go", nil, 20, 8000)
-	if packet["freshness"] != "mixed-worktree" || packet["task_state"] != nil {
-		t.Fatalf("source dirt hidden: freshness=%v task_state=%v", packet["freshness"], packet["task_state"])
-	}
-}

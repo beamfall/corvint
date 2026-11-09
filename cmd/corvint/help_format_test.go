@@ -36,7 +36,7 @@ func TestEveryVerbHelpFollowsTheHouseFormat(t *testing.T) {
 // verb is dispatched, absent from the root-help verb index, and its own help says it is unlisted.
 func TestHiddenVerbsStayCallableButUnlisted(t *testing.T) {
 	t.Parallel()
-	want := []string{"changes", "dogfood-ocm", "lrf", "migrate-traces", "migration-ratchet", "prove-observe"}
+	want := []string{"dogfood-ocm", "lrf", "migrate-traces", "migration-ratchet", "prove-observe"}
 	if len(hiddenCommands) != len(want) {
 		t.Fatalf("hiddenCommands has %d verbs, want %q", len(hiddenCommands), want)
 	}

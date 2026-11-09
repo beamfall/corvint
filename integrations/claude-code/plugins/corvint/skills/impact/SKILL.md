@@ -29,5 +29,5 @@ If Corvint refuses the request or the target is unsupported, show its reason and
 repository tool would answer instead. Never approximate a Corvint result.
 
 Other Corvint capabilities: `corvint help` lists every command, and the catalog at
-https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
-MCP tool with its maturity and refusals.
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command and binary with
+its maturity and refusals.

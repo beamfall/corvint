@@ -10,11 +10,10 @@
     {
       "name": "corvint",
       "source": "./plugins/corvint",
-      "description": "Revision-pinned repository context, impact analysis and affected tests from Corvint, with explicit uncertainty",
-      "version": "0.3.13",
+      "description": "Revision-pinned impact analysis and affected tests from Corvint, with explicit uncertainty",
+      "version": "0.4.0",
       "category": "Development",
       "tags": [
-        "context",
         "evidence",
         "git",
         "impact",

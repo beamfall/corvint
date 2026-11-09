@@ -120,24 +120,3 @@ func TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807(t *testing.T) {
 		t.Fatal("a table naming a term outside its list decoded")
 	}
 }
-
-// TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807: a written snapshot loads
-// with the table attached and equal to a fresh build; the event loads do not
-// read it.
-func TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807(t *testing.T) {
-	index := taskContextFixture(t)
-	if _, err := WriteSnapshot(index); err != nil {
-		t.Fatal(err)
-	}
-	loaded, hit, err := LoadSnapshot(context.Background(), index.Root)
-	if err != nil || !hit {
-		t.Fatalf("hit=%v err=%v", hit, err)
-	}
-	if loaded.symbolTerms == nil || !reflect.DeepEqual(loaded.symbolTerms, buildSymbolTermTable(loaded)) {
-		t.Fatal("the loaded snapshot does not carry the table built from its symbols")
-	}
-	event, hit, err := LoadEventSnapshot(context.Background(), index.Root, false)
-	if err != nil || !hit || event.symbolTerms != nil {
-		t.Fatalf("event load: hit=%v err=%v table=%v", hit, err, event != nil && event.symbolTerms != nil)
-	}
-}

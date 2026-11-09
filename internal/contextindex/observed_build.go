@@ -15,20 +15,6 @@ type LoaderObservation struct{ observed repositoryObservation }
 
 var errNoEngine = errors.New("engine identity unavailable")
 
-// Observation is the loader's pair in Observe's exported shape, for a caller
-// outside the package that checks a read against it. A pair carried out of a
-// hit has no error on either side: the loader returned them instead.
-func (opening *LoaderObservation) Observation() Observation {
-	observed := opening.observed
-	return Observation{
-		ObjectFormat:   observed.identity.objectFormat,
-		CommitRevision: observed.identity.commitRevision,
-		Revision:       observed.identity.treeRevision,
-		StatusSHA256:   observed.statusSHA256,
-		DirtyPaths:     observed.dirty,
-	}
-}
-
 // LoadContextSnapshot is LoadSnapshot for the context verb: the same read,
 // the same hit, and on a miss the loader's observation. The observation is
 // nil when the loader spawned nothing (no snapshot directory) or when HEAD
@@ -64,18 +50,6 @@ func LoadContextPackSnapshotDeferred(ctx context.Context, root string) (*Index, 
 // and, on a refusal, discards the result and reloads through LoadSnapshot.
 func LoadSnapshotDeferred(ctx context.Context, root string) (*Index, bool, error) {
 	index, hit, _, err := loadSnapshot(ctx, root, loadContext)
-	return index, hit, err
-}
-
-// LoadEventSnapshotDeferred is LoadEventSnapshot whose pack hit verifies each
-// body when a read first touches it, under the same SnapshotRefusal contract
-// as LoadSnapshotDeferred; the fallback is LoadEventSnapshot.
-func LoadEventSnapshotDeferred(ctx context.Context, root string, compact bool) (*Index, bool, error) {
-	load := loadEventDeferred
-	if compact {
-		load = loadCompact | loadDeferredBodies
-	}
-	index, hit, _, err := loadSnapshot(ctx, root, load)
 	return index, hit, err
 }
 

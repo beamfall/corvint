@@ -38,7 +38,6 @@
         "internal/runtimeenv",
         "internal/scopelease",
         "internal/secretscreen",
-        "internal/sharedpath",
         "internal/testsupport",
         "internal/versionline",
         "internal/workspace",
@@ -84,13 +83,7 @@
         "internal/analyzershell",
         "internal/analyzerstructured",
         "internal/analyzerswift",
-        "internal/depsource",
-        "internal/goplsclient",
         "internal/langplugin",
-        "internal/lspevidence",
-        "internal/lspprovider",
-        "internal/lspsnapshot",
-        "internal/lspstdio",
         "internal/pythongrammar",
         "internal/pythonsyntax",
         "internal/rubyautoload",
@@ -109,32 +102,21 @@
         "internal/authorityevent",
         "internal/authoritystore",
         "internal/capcatalog",
-        "internal/compactionkernel",
         "internal/contextindex",
-        "internal/contextsummary",
         "internal/delta",
-        "internal/disagree",
-        "internal/evalrepo",
         "internal/frontier",
         "internal/frontiernext",
         "internal/frontiernextrepo",
         "internal/frontierrepo",
-        "internal/funclink",
         "internal/genesis",
         "internal/localauthority",
         "internal/lrf",
         "internal/lrfrepo",
-        "internal/necessity",
-        "internal/obscorpus",
         "internal/observations",
         "internal/observedstale",
-        "internal/outcomecal",
         "internal/plansnapshot",
         "internal/requestpath",
-        "internal/semescalate",
-        "internal/slotlearn",
         "internal/specindex",
-        "internal/touchsurprise",
         "internal/trace",
         "internal/tracemigraterepo",
         "internal/tracerecordrepo",
@@ -189,7 +171,6 @@
         "internal/nativelinecov",
         "internal/playwrightruns",
         "internal/proctrace",
-        "internal/repro",
         "internal/rubylinecov",
         "internal/rubytestprovider",
         "internal/runnerpolicy",
@@ -208,8 +189,7 @@
         "internal/testrunner",
         "internal/testsource",
         "internal/testvalidity",
-        "internal/testvaliditydoc",
-        "internal/worktreeimpact"
+        "internal/testvaliditydoc"
       ]
     },
     {
@@ -237,7 +217,6 @@
         "internal/dogfoodflow",
         "internal/dogfoodocm",
         "internal/dogfoodoperation",
-        "internal/frictionmetric",
         "internal/mergedrivers",
         "internal/perfbudget"
       ]
@@ -261,7 +240,6 @@
       "layer": 7,
       "summary": "release candidates, gates, post-merge and update",
       "prefixes": [
-        "internal/betarung",
         "internal/corerelease",
         "internal/migrationratchet",
         "internal/releasecandidate",
@@ -276,9 +254,7 @@
       "summary": "MCP, model gateway, console, dashboard and companion integrations",
       "prefixes": [
         "internal/companioncli",
-        "internal/mcp",
-        "internal/opencodequalification",
-        "internal/upgradechanges"
+        "internal/mcp"
       ]
     },
     {

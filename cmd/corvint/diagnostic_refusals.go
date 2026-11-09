@@ -64,14 +64,6 @@ func enclosingRepositoryRoot(root string) string {
 	return ""
 }
 
-func queryPlatformRefusal(platform string) error {
-	return refused("unsupported-query-platform", "native Go authority-start query is qualified only on Darwin and Linux", diagnostic.Refusal{
-		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},
-		Evidence: []diagnostic.Evidence{{Name: "platform", Value: platform}},
-		Terminal: "unsupported-platform",
-	})
-}
-
 func featurePlatformRefusal(platform string) error {
 	return refused("unsupported-feature-platform", "native Go feature is qualified only on Darwin and Linux", diagnostic.Refusal{
 		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},
@@ -89,17 +81,9 @@ func genesisPlatformRefusal(platform string) error {
 }
 
 func impactBudgetOptionRefusal() error {
-	return refused("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base or --working-tree-untracked", diagnostic.Refusal{
+	return refused("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base", diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "argument", Value: "--budget-bytes"},
 		SupportedFixes: []string{"impact.omit-budget-bytes"},
-	})
-}
-
-// batchSnapshotRefusal: no snapshot matches, so there is no snapshot identity to report.
-func batchSnapshotRefusal() error {
-	return refused("unsupported-batch-snapshot", "no index snapshot matches this tree and this binary: run corvint index", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "repository-state", Value: "index-snapshot"},
-		SupportedFixes: []string{"index.write-snapshot"},
 	})
 }
 

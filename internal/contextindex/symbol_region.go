@@ -101,24 +101,3 @@ func webNormalizedLines(text string) ([]dialect.Line, bool) {
 	}
 	return out, true
 }
-
-// ImplementedDialects lists the dialects of kind this package implements,
-// sorted, so a test can fail when a language plugin declares one it does not
-// (LGP-V0-016).
-func ImplementedDialects(kind decl.DialectKind) []string {
-	var out []string
-	switch kind {
-	case decl.ImpactDialect:
-		out = dialect.ImpactNames()
-	case decl.ModuleDialect:
-		for _, name := range decl.Dialects(decl.ModuleDialect) {
-			if _, ok := moduleDisclosures[decl.RuleOf(decl.ModuleDialect, name)]; ok {
-				out = append(out, name)
-			}
-		}
-	case decl.RegionDialect:
-		out = dialect.RegionNames()
-	}
-	sort.Strings(out)
-	return out
-}

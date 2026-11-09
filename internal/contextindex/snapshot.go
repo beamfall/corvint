@@ -104,8 +104,6 @@ func (snapshot *eventSnapshot) index() (*Index, error) {
 	return index, nil
 }
 
-type compactEventSnapshot struct{ ProfileID string }
-
 // SnapshotReceipt is what `corvint index` reports about the file it wrote.
 type SnapshotReceipt struct {
 	Path                 string
@@ -203,13 +201,6 @@ func digestExecutable() string {
 	}
 	return hex.EncodeToString(digest.Sum(nil))[:16]
 }
-
-// LoadedEngineID is the engine id loadSnapshot computes to name the snapshot
-// file it opens: a digest of the running binary, taken with no child process
-// (SBQ-V0-010(f)). It is the load-path id, not SnapshotReceipt.Engine, which is
-// write-side only, and it spawns nothing, unlike ProbeSnapshot's Git identity
-// read. Empty when the executable cannot be read, which disables snapshots.
-func LoadedEngineID() string { return engine() }
 
 // SnapshotDirectory is where a repository's snapshots live: `corvint/index`
 // under the Git common directory, shared by every linked worktree, or the
@@ -827,18 +818,6 @@ func SnapshotFreshness(ctx context.Context, root string) (SnapshotProbe, string,
 	}, "matching", nil
 }
 
-// LoadEventSnapshot reads only the tables used by file-change and compact
-// session-start. A clean compact event needs only the profile identifier; a
-// dirty one reopens the immutable file for the impact tables it must rehydrate.
-func LoadEventSnapshot(ctx context.Context, root string, compact bool) (*Index, bool, error) {
-	load := loadEvent
-	if compact {
-		load = loadCompact
-	}
-	index, hit, _, err := loadSnapshot(ctx, root, load)
-	return index, hit, err
-}
-
 // snapshotEngineID names the running binary for the load path. It is a
 // variable only so a test can hold the engine goroutine open and prove the
 // load joins it before snapshotPath is taken; production always binds engine.
@@ -1019,48 +998,6 @@ func decodeCompactEventSnapshot(file *os.File, identity repositoryIdentity, engi
 		return nil, err
 	}
 	return &Index{ProfileID: wire.ProfileID}, nil
-}
-
-// LoadEventSnapshotObserved is LoadEventSnapshot for a caller whose own
-// bracket already holds the opening observation and will take the closing one
-// (CORVINT_HARNESS_SHARED_OBSERVATION=1, proposed GPK-V0-058). It spawns no Git
-// process: the observation names the file and supplies the dirty set, and the
-// caller's closing observation is the identity re-read this loader otherwise
-// makes. The Observation is the one Observe returns: the identity that names
-// the snapshot file and the status read whose sorted paths and digest a hit
-// applies (IDX-SNAP-V0-010). Everything else -- the stat miss, the engine check, the header
-// check, the compact and dirty decode choice -- is loadSnapshot's.
-func LoadEventSnapshotObserved(root string, compact bool, observation Observation) (*Index, bool, error) {
-	directory, present := snapshotDirectoryPresent(root)
-	if !present {
-		return nil, false, nil
-	}
-	engineID := engine()
-	if engineID == "" {
-		return nil, false, nil
-	}
-	identity := repositoryIdentity{objectFormat: observation.ObjectFormat, commitRevision: observation.CommitRevision, treeRevision: observation.Revision}
-	decode := func(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-		return decodeEventSnapshot(file, identity, engineID, false)
-	}
-	if compact && len(observation.DirtyPaths) == 0 {
-		decode = decodeCompactEventSnapshot
-	}
-	file, err := os.Open(snapshotPath(directory, identity.objectFormat, identity.treeRevision, engineID))
-	if err != nil {
-		return nil, false, nil
-	}
-	index, err := decode(file, identity, engineID)
-	file.Close()
-	if err != nil {
-		return nil, false, nil
-	}
-	dirty := make(map[string]struct{}, len(observation.DirtyPaths))
-	for _, item := range observation.DirtyPaths {
-		dirty[item] = struct{}{}
-	}
-	index.Root, index.DirtyPaths, index.StatusSHA256, index.CommitRevision = root, keys(dirty), observation.StatusSHA256, observedCommit(observation.CommitRevision, index.CommitRevision)
-	return index, true, nil
 }
 
 // LoadSnapshotObserved is LoadSnapshot for a caller whose own bracket holds

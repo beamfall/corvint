@@ -21,8 +21,7 @@ const invalidRoot = "invalid-root"
 // profileTools is each --tool-profile value's root-free tool surface, the
 // tools its registry in profileRegistries advertises (MCPV0-950).
 var profileTools = map[string]bridge.Profile{
-	"": {}, toolProfileTaskReview: {TaskReview: true}, toolProfileTaskReviewLSP: {LSP: true},
-	toolProfileFlows: {Flows: true}, toolProfileImportGraph: {ImportGraph: true},
+	"": {}, toolProfileFlows: {Flows: true},
 }
 
 // unavailableGroup lists a per-root group's tools for a server whose single

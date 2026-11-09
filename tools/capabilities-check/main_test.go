@@ -25,14 +25,13 @@ const (
 	helpPath    = "../../cmd/corvint/help.go"
 	mainPath    = "../../cmd/corvint/main.go"
 	cmdPath     = "../../cmd"
-	mcpPath     = "../../internal/mcp"
 	internalDir = "../../internal"
 	linkBase    = "../../docs"
 )
 
 func load(t *testing.T) (Inventory, []byte, []byte) {
 	t.Helper()
-	inv, err := Collect(helpPath, mainPath, cmdPath, mcpPath)
+	inv, err := Collect(helpPath, mainPath, cmdPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,15 +73,15 @@ func TestCAPV0002RepositoryCatalogMatchesInventory(t *testing.T) {
 // that silently returns nothing cannot pass the gate.
 func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	inv, _, _ := load(t)
-	if len(inv.Commands) < 40 || len(inv.Binaries) < 20 || len(inv.Tools) < 30 {
-		t.Fatalf("inventory too small: %d commands, %d binaries, %d tools", len(inv.Commands), len(inv.Binaries), len(inv.Tools))
+	if len(inv.Commands) < 15 || len(inv.Binaries) < 10 {
+		t.Fatalf("inventory too small: %d commands, %d binaries", len(inv.Commands), len(inv.Binaries))
 	}
-	for _, c := range []string{"init", "context", "harness event", "delta"} {
+	for _, c := range []string{"init", "impact", "affected"} {
 		if !contains(inv.Commands, c) {
 			t.Errorf("command %q not collected", c)
 		}
 	}
-	for _, c := range []string{"init", "adopt", "index", "query", "context", "impact", "affected", "prove", "cem", "ocm", "frontier", "dogfood"} {
+	for _, c := range []string{"init", "adopt", "index", "impact", "affected"} {
 		if !inv.Core[c] {
 			t.Errorf("Core verb %q not collected", c)
 		}
@@ -90,19 +89,14 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	if inv.Core["feature"] || inv.Core["Experimental"] {
 		t.Errorf("Core list reads past its section: %v", inv.Core)
 	}
-	for _, c := range []string{"init", "harness", "delta", "tests"} {
+	for _, c := range []string{"init", "impact", "tests"} {
 		if !contains(inv.Dispatched, c) {
 			t.Errorf("dispatched verb %q not collected", c)
 		}
 	}
-	for _, b := range []string{"corvint", "corvint-mcp", "corvint-lsp", "corvint-analyzer-go"} {
+	for _, b := range []string{"corvint", "corvint-mcp", "corvint-analyzer-go", "corvint-test-runner"} {
 		if !contains(inv.Binaries, b) {
 			t.Errorf("binary %q not collected", b)
-		}
-	}
-	for _, tool := range []string{"corvint.query", "corvint.cem.report", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
-		if !contains(inv.Tools, tool) {
-			t.Errorf("MCP tool %q not collected", tool)
 		}
 	}
 }
@@ -114,11 +108,10 @@ func TestCAPV0003SyntheticOmissionAndStaleRowFail(t *testing.T) {
 	cases := []struct {
 		name, drop, add, kind, want string
 	}{
-		{"command omitted", "| `corvint delta` |", "", "missing", "delta"},
-		{"binary omitted", "| `corvint-lsp` |", "", "missing", "corvint-lsp"},
-		{"tool omitted", "| `corvint.docs_trace` |", "", "missing", "corvint.docs_trace"},
+		{"command omitted", "| `corvint impact` |", "", "missing", "impact"},
+		{"binary omitted", "| `corvint-analyzer-go` |", "", "missing", "corvint-analyzer-go"},
 		{"stale command", "", "| `corvint retired-verb` | q | u | `corvint retired-verb` | o | experimental | r | s |\n", "stale", "retired-verb"},
-		{"duplicate command", "", "| `corvint delta` | q | u | `corvint delta` | o | experimental | r | s |\n", "duplicate", "delta"},
+		{"duplicate command", "", "| `corvint impact` | q | u | `corvint impact` | o | experimental | r | s |\n", "duplicate", "impact"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -165,26 +158,6 @@ func TestCAPV0780NewCommandNamesEveryArtifact(t *testing.T) {
 	}
 	if !strings.HasSuffix(bin, ": no catalog row") {
 		t.Errorf("missing-binary finding changed: %q", bin)
-	}
-}
-
-// TestCAPV0002ToolNamesWithDigitsAndHyphens proves a tool name with a digit or a hyphen is
-// collected, so a catalog that omits it fails.
-func TestCAPV0002ToolNamesWithDigitsAndHyphens(t *testing.T) {
-	src := []byte(`package mcp
-var names = []string{"corvint.docs_trace_v2", "corvint.docs-trace", "corvint.flows.navigate"}
-`)
-	got := toolNames(src)
-	for _, want := range []string{"corvint.docs_trace_v2", "corvint.docs-trace", "corvint.flows.navigate"} {
-		if !contains(got, want) {
-			t.Fatalf("toolNames missed %q: %v", want, got)
-		}
-	}
-	inv, catalog, _ := load(t)
-	inv.Tools = append(append([]string(nil), inv.Tools...), "corvint.docs_trace_v2", "corvint.docs-trace")
-	missing := kinds(Check(catalog, nil, inv, linkBase))["missing"]
-	if !contains(missing, "corvint.docs_trace_v2") || !contains(missing, "corvint.docs-trace") {
-		t.Fatalf("uncatalogued digit/hyphen tools not reported missing: %v", missing)
 	}
 }
 
@@ -249,9 +222,9 @@ func TestCAPV0004ReadmeRowsMapToCatalog(t *testing.T) {
 	if got := kinds(Check(catalog, unmapped, inv, linkBase)); !contains(got["readme-unmapped"], "corvint teleport --now") {
 		t.Fatalf("unmapped README row not reported: %v", got)
 	}
-	oversold := []byte("<!-- capability-gate:readme -->\n" + header + "| X | y | `corvint harness event --host codex` | core |\n| Z | w | `corvint-mcp --root /r` | implemented |\n<!-- /capability-gate:readme -->\n")
+	oversold := []byte("<!-- capability-gate:readme -->\n" + header + "| X | y | `corvint impact PATH` | experimental |\n| Z | w | `corvint-analyzer-go < r.json` | core |\n<!-- /capability-gate:readme -->\n")
 	got := kinds(Check(catalog, oversold, inv, linkBase))
-	if !contains(got["readme-maturity"], "corvint harness event --host codex") || !contains(got["readme-maturity"], "corvint-mcp --root /r") {
+	if !contains(got["readme-maturity"], "corvint impact PATH") || !contains(got["readme-maturity"], "corvint-analyzer-go < r.json") {
 		t.Fatalf("overstated README maturity not reported: %v", got)
 	}
 }
@@ -348,8 +321,8 @@ func TestCAPV0005RoutingPointersNameTheCatalog(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if skills < 10 {
-		t.Fatalf("found %d shipped skill files, want at least 10", skills)
+	if skills < 5 {
+		t.Fatalf("found %d shipped skill files, want at least 5", skills)
 	}
 }
 
@@ -363,7 +336,7 @@ func TestCAPV0006CheckIsReadOnly(t *testing.T) {
 	if code := run(root, &stdout, &stderr); code != 0 {
 		t.Fatalf("synthetic repository: exit %d, stderr %q", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "ok (1 commands, 2 binaries, 1 MCP tools)") {
+	if !strings.Contains(stdout.String(), "ok (1 commands, 2 binaries)") {
 		t.Fatalf("synthetic repository: stdout %q", stdout.String())
 	}
 	if after := snapshotTree(t, root); after != before {
@@ -380,10 +353,8 @@ func syntheticRepository() map[string]string {
 		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\nvar docsSubcommands = []string{}\n" +
 			"var flowSubcommands = map[string]bool{}\nvar leaseActions = []string{}\n",
 		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.query\"\n",
-		"internal/mcp/tools.go":   "package mcp\n",
 		"docs/CAPABILITIES.md": "<!-- capability-gate:commands -->\n| Command | Maturity |\n|---|---|\n| `corvint init` | core |\n<!-- /capability-gate:commands -->\n" +
-			"<!-- capability-gate:binaries -->\n| Binary | Maturity |\n|---|---|\n| `corvint` | core |\n| `corvint-mcp` | experimental |\n<!-- /capability-gate:binaries -->\n" +
-			"<!-- capability-gate:mcp-tools -->\n| Tool | Maturity |\n|---|---|\n| `corvint.query` | experimental |\n<!-- /capability-gate:mcp-tools -->\n",
+			"<!-- capability-gate:binaries -->\n| Binary | Maturity |\n|---|---|\n| `corvint` | core |\n| `corvint-mcp` | experimental |\n<!-- /capability-gate:binaries -->\n",
 		"README.md":                "<!-- capability-gate:readme -->\n| Capability | Try it | Maturity |\n|---|---|---|\n| Init | `corvint init` | core |\n<!-- /capability-gate:readme -->\n",
 		ratchetPath:                "binary\treason\n",
 		treesDir + "/corvint.json": syntheticCorvintTree(),

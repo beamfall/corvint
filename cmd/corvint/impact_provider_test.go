@@ -41,7 +41,6 @@ func TestImpactProviderFlagParsing(t *testing.T) {
 		"empty inline value":   {"--provider=", "pkg/main.go"},
 		"fifth provider":       {"--provider", "1", "--provider", "2", "--provider", "3", "--provider", "4", "--provider", "5", "pkg/main.go"},
 		"with --base":          {"--provider", "a.json", "--base", strings.Repeat("a", 40)},
-		"with working tree":    {"--provider", "a.json", "--working-tree-untracked", "pkg/main.go"},
 		"still requires paths": {"--provider", "a.json"},
 	}
 	for name, arguments := range refusals {

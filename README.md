@@ -79,13 +79,10 @@ with the code.
 | Application map | A checked map of a web application that E2E-safe test selection reads | `corvint flows appmap build --manifest appmap.json --revision HEAD` | experimental |
 | Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
-| Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint mcp --root /abs/repo --tool-profile task-review` | experimental |
 | Obligation closure and review order | Declared obligations linked to test claims, then a deterministic review queue | `corvint ocm prepare --target HEAD_SHA --intent docs/specs/my-spec.md` | core |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
-| Governing context first | The instruction file that governs the task, then the minimum context, as one canonical receipt | `corvint query --task "add a retry to the uploader"` | core |
 | Context compilation with pinned evidence | The files to read, each pinned to a Git blob with the relation and reason that admitted it | `corvint context --task "fix the date parser" --subject internal/date/parse.go` | core |
 | Falsifiable evidence | Every claimed row of a packet gets a falsifier verdict, so a wrong citation is caught | `corvint prove --task "fix the date parser"` | core |
-| Gated learning | Learned ranking weights reach ranking only after a frozen held-out evaluation admits them | `corvint eval --learn-slot-weights` | experimental |
 <!-- /capability-gate:readme -->
 
 ## Try it in sixty seconds
@@ -166,26 +163,22 @@ Corvint. See [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md) for the full wor
 The local ticket store and roadmap, `corvint-tasks`, is a separate project:
 [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594). Corvint works without it.
 
-## MCP servers and agent adapters
+## Agent plugins
 
 Each MCP server is a local stdio process bound to one repository root and is read-only
 ([protocol and setup](docs/MCP-SERVER.md)):
 
 | Server | Tools |
 |---|---|
-| `corvint-mcp` | `corvint.query`, `corvint.impact`, `corvint.status` and `corvint.help`; with `--tool-profile task-review`, also `corvint.context` and a non-publishing `corvint.cem.report` preview |
+| `corvint-mcp` | `corvint.impact`, `corvint.status` and `corvint.help` |
 | `corvint-docs-mcp` | `corvint.docs_draft` drafts source-pinned documentation; `corvint.docs_consume` rechecks a draft against source |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 
 `corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the others with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
 
-Host adapters run `corvint` from `PATH` and share one bounded lifecycle receipt
-(`corvint help harness event`): [Codex](integrations/codex/README.md),
-[Claude Code](integrations/claude-code/README.md), [Gemini CLI](integrations/gemini-cli/README.md),
-[OpenCode](integrations/opencode/README.md) and [Pi](integrations/pi/README.md). Lifecycle
-adapters report `FALLBACK` support; the [compatibility matrix](integrations/README.md) records each
-host's qualification. The [VS Code extension](extensions/vscode/README.md) projects the same
-receipts into editor views and is not part of 1.0.
+The [Claude Code](integrations/claude-code/README.md) and [Codex](integrations/codex/README.md)
+plugins run `corvint` from `PATH` and drive kept reads such as `affected`, `impact`, `index` and `review`.
+The editor server and the lifecycle host adapters were removed by decision 0594.
 
 Other tools in this repository (test providers, the dashboard and loopback console, analyzers, the
 work queue, Pulse and release checks) are listed with their maturity in the

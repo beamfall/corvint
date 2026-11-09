@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -197,47 +196,6 @@ func TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte(t *testing.T
 	}
 }
 
-// TestQueryVerbsReadTheSnapshotWithoutChangingAByte pins IDX-SNAP-V0-008 for
-// the two per-prompt verbs. Each ranks out of a build narrower than the
-// snapshot -- `query` out of the authority-only query index, user-prompt out of
-// the eval index -- so the receipt the snapshot serves is the assertion that
-// the wider index is a substitute, not merely a faster one.
-func TestQueryVerbsReadTheSnapshotWithoutChangingAByte(t *testing.T) {
-	t.Parallel()
-	root := queryCLIRepository(t)
-	invocations := map[string]struct {
-		arguments []string
-		stdin     string
-	}{
-		"query":       {[]string{"--root", root, "query", "--task", authorityStartPrompt, "--limit", "1"}, ""},
-		"user-prompt": {cliArguments(root, "user-prompt"), `{"task":"` + authorityStartPrompt + `"}`},
-	}
-	cold := map[string]string{}
-	for name, invocation := range invocations {
-		var stdout, stderr bytes.Buffer
-		if code := runContext(context.Background(), invocation.arguments, strings.NewReader(invocation.stdin), &stdout, &stderr); code != 0 {
-			t.Fatalf("%s exit %d: %s", name, code, stderr.String())
-		}
-		cold[name] = stdout.String()
-	}
-	if _, err := os.Stat(contextindex.SnapshotDirectory(root)); !os.IsNotExist(err) {
-		t.Fatalf("IDX-SNAP-V0-005: a read verb created the snapshot directory: %v", err)
-	}
-	var receipt, stderr bytes.Buffer
-	if code := runContext(context.Background(), []string{"--root", root, "index"}, strings.NewReader(""), &receipt, &stderr); code != 0 {
-		t.Fatalf("index exit %d: %s", code, stderr.String())
-	}
-	for name, invocation := range invocations {
-		var stdout bytes.Buffer
-		if code := runContext(context.Background(), invocation.arguments, strings.NewReader(invocation.stdin), &stdout, &stderr); code != 0 {
-			t.Fatalf("%s exit %d: %s", name, code, stderr.String())
-		}
-		if stdout.String() != cold[name] {
-			t.Fatalf("IDX-SNAP-V0-008: %s differs between miss and hit:\n%s\n%s", name, cold[name], stdout.String())
-		}
-	}
-}
-
 // TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte pins IDX-SNAP-V0-019:
 // path impact (the reverse-import rule and the eval profile) and feature
 // answer a dirty worktree's snapshot hit exactly as their build did, and the
@@ -271,66 +229,6 @@ func TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte(t *testing.T) {
 	for position, arguments := range invocations {
 		if warm := run(arguments); warm != cold[position] {
 			t.Fatalf("IDX-SNAP-V0-019: %v differs between miss and hit:\n%s\n%s", arguments, cold[position], warm)
-		}
-	}
-}
-
-// TestProveKernelAndWitnessReadTheSnapshotWithoutChangingAByte pins
-// IDX-SNAP-V0-020: prove's impact and change modes, kernel, kernel verify and
-// witness answer an absent, a stale and a current snapshot with the same
-// stdout, stderr and exit code.
-func TestProveKernelAndWitnessReadTheSnapshotWithoutChangingAByte(t *testing.T) {
-	t.Parallel()
-	root := impactCLIRepository(t)
-	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("# Agent contract\n\nEvidence is pinned to immutable Git content.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	affectedGit(t, root, "add", ".")
-	affectedGit(t, root, "commit", "-qm", "add a governing contract")
-	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	if err := os.WriteFile(filepath.Join(root, "pkg", "main.go"), []byte("package main\n\nfunc StableValue() string { return \"changed\" }\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	affectedGit(t, root, "commit", "-qam", "change StableValue")
-	run := func(arguments []string, stdin string) string {
-		var stdout, stderr bytes.Buffer
-		code := runContext(context.Background(), append([]string{"--root", root}, arguments...), strings.NewReader(stdin), &stdout, &stderr)
-		return fmt.Sprintf("exit %d\nstdout %s\nstderr %s", code, stdout.String(), stderr.String())
-	}
-	var kernel bytes.Buffer
-	if code := runContext(context.Background(), []string{"--root", root, "kernel"}, strings.NewReader(""), &kernel, io.Discard); code != 0 {
-		t.Fatalf("kernel exit %d", code)
-	}
-	invocations := []struct {
-		arguments []string
-		stdin     string
-	}{
-		{[]string{"prove", "pkg/main.go"}, ""},
-		{[]string{"prove", "--base", base}, ""},
-		{[]string{"kernel"}, ""},
-		{[]string{"kernel", "verify"}, "summary\n" + kernel.String()},
-		{[]string{"witness", "--base", base}, ""},
-		{[]string{"witness", "--base", base, "--json"}, ""},
-	}
-	cold := make([]string, len(invocations))
-	for position, invocation := range invocations {
-		cold[position] = run(invocation.arguments, invocation.stdin)
-	}
-	if _, err := os.Stat(contextindex.SnapshotDirectory(root)); !os.IsNotExist(err) {
-		t.Fatalf("IDX-SNAP-V0-005: a read verb created the snapshot directory: %v", err)
-	}
-	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	affectedGit(t, root, "checkout", "-q", base)
-	run([]string{"index"}, "")
-	affectedGit(t, root, "checkout", "-q", head)
-	for _, state := range []string{"stale", "current"} {
-		if state == "current" {
-			run([]string{"index"}, "")
-		}
-		for position, invocation := range invocations {
-			if answer := run(invocation.arguments, invocation.stdin); answer != cold[position] {
-				t.Fatalf("IDX-SNAP-V0-020: %v differs on a %s snapshot:\n%s\n%s", invocation.arguments, state, cold[position], answer)
-			}
 		}
 	}
 }
@@ -382,67 +280,6 @@ func TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte(t 
 		}
 	}
 	compare([]string{"impact", "--base", base}, []string{"impact", "--base", base, "--range-profile", "expanded-256"})
-	if err := os.WriteFile(filepath.Join(root, "pkg", "untracked.go"), []byte("package main\n\nfunc Untracked() string { return StableValue() }\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	compare([]string{"impact", "--working-tree-untracked", "pkg/untracked.go"})
-}
-
-func TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte(t *testing.T) {
-	t.Parallel()
-	cases := map[string]struct {
-		event string
-		input string
-	}{
-		"file-change":           {"file-change", `{"paths":["internal/auth/session.go"]}`},
-		"compact-session-start": {"session-start", `{"startSource":"compact"}`},
-	}
-	for name, test := range cases {
-		t.Run(name, func(t *testing.T) {
-			root := ledgerRepository(t)
-			tracked := filepath.Join(root, "internal", "auth", "session.go")
-			if err := os.WriteFile(tracked, []byte("package auth\n\n// feature:session-revocation\nfunc EnforceSessionRevocation() bool { return false }\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			arguments := cliArguments(root, test.event)
-			var cold, stderr bytes.Buffer
-			if code := runContext(context.Background(), arguments, strings.NewReader(test.input), &cold, &stderr); code != 0 {
-				t.Fatalf("cold exit %d: %s", code, stderr.String())
-			}
-			index, err := contextindex.Build(context.Background(), root)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := contextindex.WriteSnapshot(index); err != nil {
-				t.Fatal(err)
-			}
-			loaded, hit, err := contextindex.LoadSnapshot(context.Background(), root)
-			if err != nil || !hit {
-				t.Fatalf("IDX-SNAP-V0-010: dirty snapshot load: hit=%v err=%v", hit, err)
-			}
-			if len(loaded.DirtyPaths) != 1 || loaded.DirtyPaths[0] != "internal/auth/session.go" {
-				t.Fatalf("IDX-SNAP-V0-010: dirty paths = %v", loaded.DirtyPaths)
-			}
-			var warm bytes.Buffer
-			stderr.Reset()
-			if code := runContext(context.Background(), arguments, strings.NewReader(test.input), &warm, &stderr); code != 0 {
-				t.Fatalf("warm exit %d: %s", code, stderr.String())
-			}
-			if !bytes.Equal(warm.Bytes(), cold.Bytes()) {
-				t.Fatalf("IDX-SNAP-V0-010: output differs between miss and hit:\n%s\n%s", cold.Bytes(), warm.Bytes())
-			}
-			for _, gitArguments := range [][]string{{"add", "internal/auth/session.go"}, {"commit", "-qm", "change tree"}} {
-				command := fixtureGitCommand(gitArguments...)
-				command.Dir = root
-				if output, err := command.CombinedOutput(); err != nil {
-					t.Fatalf("git %v: %v\n%s", gitArguments, err, output)
-				}
-			}
-			if _, hit, err := contextindex.LoadSnapshot(context.Background(), root); err != nil || hit {
-				t.Fatalf("IDX-SNAP-V0-010: stale snapshot load: hit=%v err=%v", hit, err)
-			}
-		})
-	}
 }
 
 // IDX-SNAP-V0-027 (proposed): the index receipt names the superseded
