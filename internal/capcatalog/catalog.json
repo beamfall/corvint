@@ -4576,11 +4576,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-update.json"
     },
     {
-      "binary": "corvint-web-flows",
-      "command": "corvint-web-flows help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-web-flows.json"
-    },
-    {
       "binary": "corvint-work-queue",
       "command": "corvint-work-queue help --json",
       "snapshot": "internal/capcatalog/trees/corvint-work-queue.json"

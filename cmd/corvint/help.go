@@ -271,8 +271,6 @@ func topicText(topic string) string {
 		return obligationsHelp
 	case "flows":
 		return flowsHelp
-	case "how":
-		return flowscmd.HowHelp
 	case "step":
 		return stepHelp
 	case "changes":
@@ -386,8 +384,7 @@ Commands:
     test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
     runs  Playwright verdicts (PWR-V0)
-    flows  application flows and assertions (AFU-V0)
-    how  how do I GOAL: alias of flows appmap how (SKH-V0)
+    flows  application map for E2E-safe selection (AMAP-V0)
     repro  pinned reproduction bundles (RPB-V0)
   Experimental, agent hosts and local records:
     harness event  one agent lifecycle event (AHI)
@@ -844,22 +841,13 @@ counting retained hour windows with the newest window; an out-of-project
 post-tool target is a correct exclusion and is tallied as ADAPTER-EXCLUSION.
 `
 
-const flowsHelp = `Inspect experimental web-flow assertion candidates and runtime observations.
+const flowsHelp = `Build and read the experimental application map that E2E-safe test selection uses.
 
 Usage:
-  corvint [--root PATH] flows --manifest FILE [--evidence FILE]
-  corvint [--root PATH] flows record --manifest FILE --evidence FILE --output FILE
+  corvint [--root PATH] flows appmap ...
 
-Read-only inspection binds declared tracked source and test files to Git and emits
-application-flow-report/0. Static assertions are candidates, not passing tests.
-Stale, missing, unsupported and contradicted evidence remains visible. Universal
-application completeness is never claimed. Core reads launch no browser or server.
-
-The separate corvint-web-flows companion parses JS/TS and optionally observes an
-explicitly trusted local app. Its proposed execution profile remains experimental.
-record explicitly writes one screened private evidence file and refuses overwrite;
-it does not update ranking or accept inferred intent. No automatic ledger is written.
-` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp + flowscmd.TestEvidenceHelp
+appmap is the only flows subcommand; the others were retired by decision 0594.
+` + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp
 
 const obligationsHelp = `Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map.
 

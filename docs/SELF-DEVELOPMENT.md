@@ -39,9 +39,9 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Inspect native fixture planning | `work plan-fixture --executor ABSOLUTE_FILE --observations FILE` | Explicit native fixture only; fixed read commands and immutable source/snapshot bindings. Trusted-local reservation/history observations; no admission or production qualification. See [NTP](specs/native-taskman-planning-v0.md). |
 | Bind and review a change | keyed `dogfood` workflow plus `cem` / every scoped `ocm` | Reuse the existing frozen plan, selected-check observations and exact report-set acknowledgment. Inspect citation meaning, unknowns and check adequacy. |
 | Inspect unresolved review obligations | `frontier --cem MAP --ocm MAP --expected-base BASE --target TARGET --json`; `lrf` where relevant | Before acknowledgment inspect each relevant bound scope. Valid exit 1 means an open advisory queue; distinguish it from invalid input. `frontier/0` cannot close authority or make local policy satisfied. |
-| Read test dependency evidence | `test-evidence PATH [--lines START:END] --revision COMMIT`, `test-evidence --test TEST`, or `test-evidence --explain TEST --base COMMIT`; `flows test-evidence --flows DIR` joins AFU links; MCP group `test-evidence` exposes `corvint.test_evidence` | RSP-V0-051; reads existing records only. UNKNOWN names unavailable inventory, run context or freshness; absent admitted qualification is FULL unqualified. No collection or authority promotion. |
+| Read test dependency evidence | `test-evidence PATH [--lines START:END] --revision COMMIT`, `test-evidence --test TEST`, or `test-evidence --explain TEST --base COMMIT`; MCP group `test-evidence` exposes `corvint.test_evidence` | RSP-V0-051; reads existing records only. UNKNOWN names unavailable inventory, run context or freshness; absent admitted qualification is FULL unqualified. No collection or authority promotion. |
 | Use a live Go provider | separate `corvint-go-test-provider --experimental --trusted-local --authority-bundle FILE` | Only an actual admitted parent-verifier attachment qualifies the route. Missing attachment is unavailable; ordinary selected tests still run. Protected runner/LPCV qualification is separate. |
-| Inspect web flows and test gaps | `flows --manifest FILE [--evidence FILE]`; separate opt-in `corvint-web-flows` | Experimental declared-flow reports, literal assertion candidates and guided DOM observations. Read commands never launch the provider; unknown inventory, unexplored controls, stale evidence and backend contradictions remain visible. See [application flows](specs/application-flow-understanding-v0.md) and [provider usage](../tools/web-flows/README.md). |
+| Build the application map for E2E selection | `flows appmap ...` | Experimental map that E2E-safe test selection reads; see [application map](APPLICATION-MAP.md). Other flows verbs and `corvint-web-flows` were retired by decision 0594. |
 | Record outcome or inspect learning | existing `dogfood finish`; supported trace-aware query; explicit `migrate-traces` | Do not duplicate finish's outcome. Migration apply requires explicit scope. Preserve trace refusal/learned-path counts; a mechanism or scoring change needs the registered two-arm LTA gate, not every record row. |
 | Investigate repeated friction | `observations`; explicitly scoped `prove-observe` | Bounded private counts never rank evidence or confer authority. No transcript scan, invented usage or background monitor. |
 | Change retrieval, learning or a profile | owning frozen `eval --goldens FILE` / registered benchmark engine arms | Pin engine, corpus, fixture and output identities; retain losing arms. No blind-v4 access or broad campaign for a prose-only change. Current eval supports an explicit trace-fixture arm, not unrestricted persisted trace replay. |
@@ -143,11 +143,6 @@ manifest, then use `docs flows check` for read-only per-item span drift and byte
 Commit provider bytes only at the caller's explicit boundary and use `docs flows finalize` before
 corpus build/Open. This route produces generated lexical observations; existing accepted-outcome
 AFU docs and original Playwright witnesses keep their separate meaning. See [flow generation](FLOW-DOCUMENTATION.md).
-
-For a complete accepted flow-variation denominator and original `/3` receipts, use the bounded
-[flow coverage route](FLOW-COVERAGE.md): `flows coverage --denominator FILE --receipts FILE`.
-Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
-Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.
 
 
 Pi integration changes use `docs/specs/pi-workflow-v0.md`, AHI-024/025 and LCP-V0-008/009.

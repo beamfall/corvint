@@ -33,16 +33,16 @@ type InstalledOptions struct {
 }
 
 type InstalledReport struct {
-	Profile      string              `json:"profile"`
-	Status       string              `json:"status"`
-	BundleSHA256 string              `json:"bundleSha256"`
-	SourceCommit string              `json:"sourceCommit"`
-	SourceTree   string              `json:"sourceTree"`
-	NodeSHA256   string              `json:"nodeSha256"`
-	PythonSHA256 string              `json:"pythonSha256"`
-	EditorHost   json.RawMessage     `json:"editorHost"`
-	Roadmap      json.RawMessage     `json:"roadmap"`
-	Stages       []InstalledStage    `json:"stages"`
+	Profile      string           `json:"profile"`
+	Status       string           `json:"status"`
+	BundleSHA256 string           `json:"bundleSha256"`
+	SourceCommit string           `json:"sourceCommit"`
+	SourceTree   string           `json:"sourceTree"`
+	NodeSHA256   string           `json:"nodeSha256"`
+	PythonSHA256 string           `json:"pythonSha256"`
+	EditorHost   json.RawMessage  `json:"editorHost"`
+	Roadmap      json.RawMessage  `json:"roadmap"`
+	Stages       []InstalledStage `json:"stages"`
 }
 
 type InstalledEvidence struct {
