@@ -26,7 +26,6 @@ type Inventory struct {
 	Core       map[string]bool // verbs the root help lists as Core
 	Dispatched []string        // cmd/corvint/main.go topLevelCommands: the verbs runContext dispatches
 	Binaries   []string        // cmd/ directories holding a package main Go file
-	Tools      []string        // corvint.* MCP tool name literals
 	// Experimental holds the verbs the grouped root help lists under the Experimental header (CAP-V0-008).
 	Experimental map[string]bool
 	// Subcommands maps a verb to the subcommands its code-declared table names (CAP-V0-007) and,
@@ -56,13 +55,11 @@ func (f Finding) String() string {
 const (
 	sectionCommands = "commands"
 	sectionBinaries = "binaries"
-	sectionTools    = "mcp-tools"
 	sectionReadme   = "readme"
 )
 
 var (
 	packageMain = regexp.MustCompile(`(?m)^package main\s*$`)
-	toolLiteral = regexp.MustCompile(`"(corvint\.[A-Za-z0-9_.-]+)"`)
 	dispatchSet = regexp.MustCompile(`(?s)\btopLevelCommands\s*=\s*\[\]string\{(.*?)\}`)
 	quotedWord  = regexp.MustCompile(`"([^"]+)"`)
 	backticked  = regexp.MustCompile("`([^`]+)`")
@@ -70,9 +67,9 @@ var (
 )
 
 // Collect reads the inventory from the root help source, the dispatch list in the corvint
-// main package, the cmd/ tree and the MCP bridge sources. It reads only those paths and
+// main package and the cmd/ tree. It reads only those paths and
 // writes nothing (CAP-V0-006).
-func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
+func Collect(helpGo, mainGo, cmdDir string) (Inventory, error) {
 	src, err := os.ReadFile(helpGo)
 	if err != nil {
 		return Inventory{}, err
@@ -93,20 +90,6 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	toolDirs := []string{mcpDir}
-	for _, b := range binaries {
-		serves, err := servesMCP(filepath.Join(cmdDir, b))
-		if err != nil {
-			return Inventory{}, err
-		}
-		if serves || strings.HasPrefix(b, "corvint-") && strings.HasSuffix(b, "mcp") {
-			toolDirs = append(toolDirs, filepath.Join(cmdDir, b))
-		}
-	}
-	tools, err := scanTools(toolDirs)
-	if err != nil {
-		return Inventory{}, err
-	}
 	tableDirs, err := commandPackageDirs(filepath.Dir(helpGo), filepath.Join(filepath.Dir(cmdDir), "internal", "command"))
 	if err != nil {
 		return Inventory{}, err
@@ -115,7 +98,7 @@ func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	return Inventory{Commands: commands, Core: core, Dispatched: dispatched, Binaries: binaries, Tools: tools,
+	return Inventory{Commands: commands, Core: core, Dispatched: dispatched, Binaries: binaries,
 		Experimental: experimental, Subcommands: subcommands}, nil
 }
 
@@ -492,114 +475,6 @@ func scanBinaries(cmdDir string) ([]string, error) {
 	return out, nil
 }
 
-// servesMCP reports whether a binary's non-test sources name the MCP "tools/list" method in an
-// interpreted or raw string literal, so an MCP server is found by what it serves rather than by
-// its name (CAP-V0-047).
-func servesMCP(dir string) (bool, error) {
-	files, err := os.ReadDir(dir)
-	if err != nil {
-		return false, err
-	}
-	for _, file := range files {
-		name := file.Name()
-		if file.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		src, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			return false, err
-		}
-		if bytes.Contains(src, []byte(`"tools/list"`)) || bytes.Contains(src, []byte("`tools/list`")) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func scanTools(dirs []string) ([]string, error) {
-	seen := map[string]bool{}
-	for _, dir := range dirs {
-		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			name := d.Name()
-			if d.IsDir() {
-				if name == "testdata" {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-				return nil
-			}
-			src, err := os.ReadFile(p)
-			if err != nil {
-				return err
-			}
-			for _, name := range toolNames(src) {
-				seen[name] = true
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for name := range seen {
-		out = append(out, name)
-	}
-	slices.Sort(out)
-	return out, nil
-}
-
-// toolNames returns the corvint.* string literals in one Go source file.
-func toolNames(src []byte) []string {
-	var out []string
-	// A tool descriptor's name is not required to start with corvint. Namespace
-	// conventions cannot hide a new MCP tool from the drift gate.
-	if file, err := parser.ParseFile(token.NewFileSet(), "tools.go", src, parser.SkipObjectResolution); err == nil {
-		ast.Inspect(file, func(n ast.Node) bool {
-			object, ok := n.(*ast.CompositeLit)
-			if !ok {
-				return true
-			}
-			name, schema := "", false
-			for _, elt := range object.Elts {
-				kv, ok := elt.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key := ""
-				switch k := kv.Key.(type) {
-				case *ast.Ident:
-					key = k.Name
-				case *ast.BasicLit:
-					key, _ = strconv.Unquote(k.Value)
-				}
-				if key == "inputSchema" || key == "InputSchema" {
-					schema = true
-				}
-				if key == "name" || key == "Name" {
-					if value, ok := kv.Value.(*ast.BasicLit); ok && value.Kind == token.STRING {
-						name, _ = strconv.Unquote(value.Value)
-					}
-				}
-			}
-			if schema && name != "" {
-				out = append(out, name)
-			}
-			return true
-		})
-	}
-
-	for _, m := range toolLiteral.FindAllSubmatch(src, -1) {
-		out = append(out, strings.TrimRight(string(m[1]), ".-"))
-	}
-	return out
-}
-
 // row is one gated table row: its name, its maturity cell and every relative link in it.
 type row struct {
 	Name     string
@@ -761,7 +636,6 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 	}{
 		{sectionCommands, commands, commandName},
 		{sectionBinaries, inv.Binaries, func(s string) string { return s }},
-		{sectionTools, inv.Tools, func(s string) string { return s }},
 	}
 	for _, sec := range sections {
 		rows, err := parseRows(catalog, sec.name)
@@ -1025,8 +899,6 @@ func resolveReadme(command string, inv Inventory) (string, string) {
 		return "", ""
 	}
 	switch {
-	case strings.HasPrefix(fields[0], "corvint."):
-		return sectionTools, fields[0]
 	case fields[0] != "corvint":
 		return sectionBinaries, fields[0]
 	}

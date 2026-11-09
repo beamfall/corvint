@@ -24,7 +24,7 @@ func main() {
 
 // run checks the repository at root; main passes the working directory.
 func run(root string, stdout, stderr io.Writer) int {
-	inv, err := Collect(filepath.Join(root, "cmd", "corvint", "help.go"), filepath.Join(root, "cmd", "corvint", "main.go"), filepath.Join(root, "cmd"), filepath.Join(root, "internal", "mcp"))
+	inv, err := Collect(filepath.Join(root, "cmd", "corvint", "help.go"), filepath.Join(root, "cmd", "corvint", "main.go"), filepath.Join(root, "cmd"))
 	if err != nil {
 		fmt.Fprintln(stderr, "capabilities-check:", err)
 		return 2
@@ -59,6 +59,6 @@ func run(root string, stdout, stderr io.Writer) int {
 	if len(findings) > 0 {
 		return 1
 	}
-	fmt.Fprintf(stdout, "capabilities-check: ok (%d commands, %d binaries, %d MCP tools)\n", len(inv.Commands), len(inv.Binaries), len(inv.Tools))
+	fmt.Fprintf(stdout, "capabilities-check: ok (%d commands, %d binaries)\n", len(inv.Commands), len(inv.Binaries))
 	return 0
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/doccorpus"
-	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
@@ -204,12 +203,30 @@ func readHeader(raw []byte) (header, error) {
 	}
 	return h, nil
 }
-func (r *Registry) Tools() []bridge.ToolDescriptor { return descriptors(r.header) }
+// ToolDescriptor is one MCP tools/list entry. It moved here from internal/mcp/bridge when the
+// unified MCP server left Corvint (decision 0594).
+type ToolDescriptor struct {
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	InputSchema  map[string]any  `json:"inputSchema"`
+	OutputSchema map[string]any  `json:"outputSchema,omitempty"`
+	Annotations  ToolAnnotations `json:"annotations"`
+}
+
+// ToolAnnotations carries the MCP tool behaviour hints.
+type ToolAnnotations struct {
+	ReadOnlyHint    bool `json:"readOnlyHint"`
+	DestructiveHint bool `json:"destructiveHint"`
+	IdempotentHint  bool `json:"idempotentHint"`
+	OpenWorldHint   bool `json:"openWorldHint"`
+}
+
+func (r *Registry) Tools() []ToolDescriptor { return descriptors(r.header) }
 
 // AllTools lists every corpus tool as a SchemaV2 artifact declaring every
 // capability would. The unified corvint-mcp server lists it while its configured
 // artifact cannot be opened, and answers each of them corpus-refused (MMR-V0-014).
-func AllTools() []bridge.ToolDescriptor {
+func AllTools() []ToolDescriptor {
 	h := header{Schema: doccorpus.SchemaV2}
 	for _, op := range tools {
 		h.Capabilities = append(h.Capabilities, doccorpus.Capability{Name: doccorpus.CapabilityFor(op), State: "present"})
@@ -217,8 +234,8 @@ func AllTools() []bridge.ToolDescriptor {
 	return descriptors(h)
 }
 
-func descriptors(h header) []bridge.ToolDescriptor {
-	result := []bridge.ToolDescriptor{}
+func descriptors(h header) []ToolDescriptor {
+	result := []ToolDescriptor{}
 	for name, op := range tools {
 		if !h.has(op) {
 			continue
@@ -305,7 +322,7 @@ func descriptors(h header) []bridge.ToolDescriptor {
 		if op == "search" {
 			description += " " + SearchIncludeDescription + " " + SearchReceiptDescription
 		}
-		result = append(result, bridge.ToolDescriptor{Name: name, Description: description, Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
+		result = append(result, ToolDescriptor{Name: name, Description: description, Annotations: ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result
