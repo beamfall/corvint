@@ -75,7 +75,6 @@ GATE_STEPS = \
   ci-least-privilege-check \
   ci-least-privilege-test \
   codex-review-test \
-  companion-release-gate-test \
   conflict-markers-check \
   decision-numbers-check \
   decision-numbers-test \
@@ -1090,24 +1089,6 @@ sql-native-ratchets:
 sql-native-ratchets-test:
 	@script/check-sql-native-ratchets_test.sh
 
-# companion-release-gate is opt-in and is not a `make gate` prerequisite. It builds
-# all nine bundled binaries twice, including the MCP servers and test providers,
-# and independently assembles and verifies the archives (PUB-V0-013/014).
-# The native CLI archive gate remains independent (PUB-V0-002). corvint-tasks
-# builds from this checkout's cmd/corvint-tasks (decision 0397).
-.PHONY: companion-release-gate
-companion-release-gate:
-	@script/corvint-companion-release-gate
-
-# public-release-check is the opt-in retained-artifact qualification. Required
-# paths and frozen source identities are passed through the named CORVINT_* env.
-# CORVINT_PUBLIC_RELEASE_QUALIFICATION selects editor (default) or core (bundle /2,
-# PUB-V0-020); core also needs CORVINT_NODE_SHA256, CORVINT_NPM_SHA256,
-# CORVINT_GO_AUTHORITY_BUNDLE and CORVINT_GO_AUTHORITY_SHA256, which editor refuses.
-.PHONY: public-release-check
-public-release-check:
-	@script/public-release-check
-
 # core-n1-replay is the opt-in CCF-V1-007 N-1 replay and is not a `make gate` prerequisite. It
 # builds CORE_N1_TAG from `git archive` and runs every frozen Core mode under it beside this build
 # (TestCoreVerbsEmitTheFrozenProfiles), then each Core verb's refusal under it
@@ -1318,8 +1299,8 @@ dr-numbers-check:
 lane-dispatch-check:
 	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(if $(ORPHANS),--orphans "$(ORPHANS)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
 
-# ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
-# shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.
+# ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These four are gate steps, so CI's
+# shell command runs them.
 .PHONY: agent-preflight-test
 agent-preflight-test:
 	@script/agent-preflight_test.sh
@@ -1336,32 +1317,18 @@ review-head-check-test:
 test-run-pattern-test:
 	@script/test-run-pattern_test.sh
 
-.PHONY: companion-release-gate-test
-companion-release-gate-test:
-	@script/corvint-companion-release-gate_test.sh
-
 .PHONY: runtime-environment-test
 runtime-environment-test:
 	@bash script/runtime-environment_test.sh
 
 # Outside the gate: vscode-check-install-test runs npm ci, which needs the npm registry on an empty
-# cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
-# loaded host exceeds; release-env-compat-test already runs in companion-release-gate-test; and
-# seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
+# cache; and seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
 # Outside the gate: host-adapters-test-test cancels script/host-adapters-test.sh and waits out a
 # 1-second SIGKILL grace for a TERM-ignoring grandchild, a process-timing check a loaded host can
 # disturb (V1-4147).
 .PHONY: host-adapters-test-test
 host-adapters-test-test:
 	@script/host-adapters-test_test.sh
-
-.PHONY: public-release-check-test
-public-release-check-test:
-	@script/public-release-check_test.sh
-
-.PHONY: release-env-compat-test
-release-env-compat-test:
-	@bash script/release-env-compat_test.sh
 
 .PHONY: seed-planning-store-test
 seed-planning-store-test:
@@ -1413,7 +1380,6 @@ shell-test: \
   changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
-  companion-release-gate-test \
   decision-numbers-test \
   documentation-paths-test \
   dogfood-merge-base-test \

@@ -44,7 +44,6 @@ benchmarks/results/*.partial.json
 /corvint
 /corvint
 /corvint-tasks
-/corvint-companion-release
 /test-read-scopes-check
 /verify-syntax-check
 /declaration-compat-check

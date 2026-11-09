@@ -242,7 +242,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   (`CEM-V1-091`), keeping `goVersion` `go1.27.1`. The frozen `cancelledContextExpectedResult`
   snapshot of the cancel-before-content cell is not a regenerated value and keeps the old label;
   no consumer reads it. Rollback is a Git revert of the re-emission and the three emission sites.
-- `CEM-V1-569`: (proposed; V1-2323) `companionrelease.ValidateStableReleaseEvidence` MUST read
+- `CEM-V1-569`: (proposed; V1-2323) `corerelease.ValidateStableReleaseEvidence` MUST read
   its `Result` bytes as one exact `cem-stable-verification/1` result. It requires the strict CEM
   JSON profile with signed integers (`wire.ParseSigned`, since `citation.specificity` is a signed
   integer in `RESULT.schema.json`), the 23 members of `RESULT.schema.json` in their normative order
@@ -299,7 +299,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `structuralProof`. The repository-envelope cells are prose S0E recipes, so the tool runs them at
   source level in the same committed tree, through the native and portable S0E, envelope-cell and
   adversarial-shape tests, and reports them as not run against the binaries.
-- `CEM-V1-600`: (proposed; V1-2323) `companionrelease.ReadStableReleaseDeclaration` MUST read a
+- `CEM-V1-600`: (proposed; V1-2323) `corerelease.ReadStableReleaseDeclaration` MUST read a
   release-readiness declaration as one exact `cem-release-readiness/1` document: at most 64 KiB of
   UTF-8 strict CEM JSON (duplicate keys refused) holding exactly `profile`, `runner`, `platform`
   and `external`, with these exact names in this order, one value and nothing after it. A
@@ -309,7 +309,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   requires the five sealed suites on both release binaries, the source-level envelope run,
   `darwin/arm64` and `linux/amd64`, and one independent external consumer. The declaration names
   what must be observed; it observes nothing.
-- `CEM-V1-601`: (proposed; V1-2323) `companionrelease.StableReleaseReadiness` MUST refuse with
+- `CEM-V1-601`: (proposed; V1-2323) `corerelease.StableReleaseReadiness` MUST refuse with
   class `stable-result-not-accepted` a release run that produced no accepted stable result. It
   MUST read every accepted result through the `CEM-V1-569` and `CEM-V1-570` reader before any
   outcome, so a malformed later result is never hidden behind a missing row. It then applies
@@ -411,7 +411,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `profile`, `revision` (a full 40- or 64-hex object name), `declarationSha256`, `records` (the
   distinct digests of the records the run wrote or aggregated, `[]` when it wrote none), `verdict` and `reason`, in
   that order, LF terminated. `READY` carries an empty reason and `REFUSED` a non-empty one.
-  `companionrelease.ReadStableGateOutcome` MUST admit only that canonical encoding and refuse
+  `corerelease.ReadStableGateOutcome` MUST admit only that canonical encoding and refuse
   everything else with class `release-gate-outcome`. A run refused before readiness is judged
   writes no outcome, so a missing outcome never reads as a verdict.
 - `CEM-V1-614`: (proposed; V1-2581) The stable readiness record (SRR-V1-005) MUST end its
@@ -3196,7 +3196,8 @@ proposed until recorded under that acceptance.
   This retires `CEM-V1-PSR-001..003`, `FPK-V0-035` and `CEM-PILOT-020..023`.
 - `CEM-V1-223`: (accepted by decision 0546, 2026-10-20) `examples/cem` except the 0.x-free `examples/cem/experiments/` companion demo, its recipe script test and gate member (`cem-recipes-test`), and
   `tools/cem-interop-runner` MUST be deleted, with their Makefile, gate-ledger, CI shard and
-  unbounded-reader entries. This retires `CEM-V1-PSR-004` and `CEM-PILOT-024..027`.
+  unbounded-reader entries. This retires `CEM-V1-PSR-004` and `CEM-PILOT-024..027`. Decision 0594 later deleted the retained
+  `examples/cem/experiments/` demo too.
   `tools/cem-citation-baseline` has had no 0.x mode since S2a and is unchanged.
 - `CEM-V1-224`: (accepted by decision 0546, 2026-10-20) The Core remnants MUST name no retired wire: the dogfood loop passes
   `--artifacts` to every `cem status` it runs (`stableStatusArguments`), the experimental
@@ -5355,7 +5356,9 @@ changed.
 
 ## Release readiness over the stable result (V1-2323, MIGRATION A02, 2026-10-23)
 
-Status: proposed (V1-2323); owner acceptance and promotion open. `MIGRATION.json` addition A02
+Status: proposed (V1-2323); owner acceptance and promotion open. Amended by decision 0594: the
+readers below moved unchanged from the retired `internal/companionrelease` to `internal/corerelease`;
+requirement IDs and behavior are unchanged. `MIGRATION.json` addition A02
 said that the companion release Core evidence readers (`internal/companionrelease`) used
 `wire.Parse` only as a strict JSON parser. They never recognized the exact `cem/1.0` stable result,
 its mode, or its authority, runtime and envelope limits. No gate ran the sealed suites against the
@@ -5390,7 +5393,7 @@ anything, reads only committed objects, and reports the first case where the two
 disagree. Build stamps can be forged, so the runner reports them as unauthenticated and pins the
 binary bytes; it does not prove how the binaries were built.
 
-Acceptance evidence: `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`) runs one
+Acceptance evidence: `TestCEMV1569StableReleaseReadiness` (`internal/corerelease`) runs one
 accepted case and refusals for every class. The accepted case is the public
 `neutral-criterion/results/accept.json` line, and the admission, authority, runner, platform and
 external refusals keep its passing reference integrity. `TestCEMV1572ReleaseBuildsMustMatch`
@@ -5400,7 +5403,7 @@ over clean same-commit builds passed 23 tamper-matrix, 8 citation-vector, 8 neut
 `cem01-go` built from a different commit was refused with `builds differ`. The review repair
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-cem-release-readiness-review-repair.md`) records the rerun.
 The 2026-10-24 integration adds `TestCEMV1600ReadinessDeclaration`,
-`TestCEMV1601ReadinessReadsEveryResultFirst` (`internal/companionrelease`),
+`TestCEMV1601ReadinessReadsEveryResultFirst` (`internal/corerelease`),
 `TestCEMV1602ObservedRowsNeverPassUnrunRows`, `TestCEMV1602BuildPlatform`,
 `TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative`
 (`tools/cem-release-suites`) and the Node check `tools/cem-release-suites/readiness.test.mjs`.
@@ -5412,7 +5415,7 @@ Its sealed map is [`.corvint/changes/fafdef4db349da6aedf6098067801d9a1e978a53.ce
 SHA-256 `f392f540dce0a8ef1f0fc66791b15cdb38c81100fed250c731f89d3aac5a4abc`, target
 `b3a82e86695a58d02d81c5eb0e43c1e030b4554e`); this sentence is its follow-up drift commit.
 
-Rollback: revert `internal/companionrelease/core_stable_result.go` and its test,
+Rollback: revert `internal/corerelease/core_stable_result.go` and its test,
 `wire.ParseSigned` and its test, `verify.StructuralTupleAdmitted`, `tools/cem-release-suites`, the
 `cem-release-suites` Makefile target and these rows. To roll back only the 2026-10-24 integration,
 revert its commit: that removes `core_stable_readiness.go`, `READINESS.json`, the Node check, the
@@ -5424,15 +5427,15 @@ sealed case depends on them.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/companionrelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode, null specificity under the original and a resealed verdict, scalar reference value; negative specificity accepted. `TestParseSignedAdmitsNegativeIntegers` (`internal/cem/wire`) | The public neutral-criterion ACCEPT line is accepted unchanged |
+| CEM-V1-569 | `TestCEMV1569StableReleaseReadiness` (`internal/corerelease`): unknown member, missing member, member order, stale verdict, unknown axis, wrong profile, retired spec, other mode, null specificity under the original and a resealed verdict, scalar reference value; negative specificity accepted. `TestParseSignedAdmitsNegativeIntegers` (`internal/cem/wire`) | The public neutral-criterion ACCEPT line is accepted unchanged |
 | CEM-V1-570 | `TestCEMV1569StableReleaseReadiness`: raised native authority and runner execution, experimental and unsupported tuples, a qualified tuple outside the allowlist or without a structural proof, failed structural proof, mismatched or unchecked sidecar, unadmitted envelope, `UNSUPPORTED` outcome, `REJECT` | Admission and authority cases keep `REFERENCE_INTEGRITY_ONLY` |
 | CEM-V1-571 | `TestCEMV1569StableReleaseReadiness`: runner `FAILED`, `SKIPPED` and missing rows, platform `NOT_OBSERVED`, external undeclared | Each refusal follows an admitted ACCEPT with reference integrity |
 | CEM-V1-572 | `TestCEMV1572ReleaseBuildsMustMatch`, `TestCEMV1572GoVersionIsTheOnlyMaskedValue`, `TestCEMV1572RuntimeConsistent`, `TestCEMV1572ProvenanceIsReportedNotProven`, `TestCEMV1572SuitesReadCommittedObjects`, `TestCEMV1572MaterializeRefusesNonRegularEntries`, `TestCEMV1572EnvelopeSuitesRunInTheCommittedTree` (`tools/cem-release-suites`) | Local `make cem-release-suites` runs recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-cem-release-readiness-a02.md` and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-cem-release-readiness-review-repair.md` |
-| CEM-V1-600 | `TestCEMV1600ReadinessDeclaration` (`internal/companionrelease`): committed declaration 11/2/1 rows; 18 malformed variants, including case aliases and reordering | Node check `readiness.test.mjs` reads the same bytes |
+| CEM-V1-600 | `TestCEMV1600ReadinessDeclaration` (`internal/corerelease`): committed declaration 11/2/1 rows; 18 malformed variants, including case aliases and reordering | Node check `readiness.test.mjs` reads the same bytes |
 | CEM-V1-601 | `TestCEMV1601ReadinessReadsEveryResultFirst`: ready, no result, later wrong-mode result before outcomes, runner `NOT_RUN`, platform and external unobserved | Every refusal is a `*StableReleaseRefusal` |
 | CEM-V1-602 | `TestCEMV1602ObservedRowsNeverPassUnrunRows`, `TestCEMV1602BuildPlatform` (`tools/cem-release-suites`) | Binary-level envelope rows `NOT_RUN`; no external row |
 | CEM-V1-603 | `TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative` | Committed declaration exits 3 with `release-runner-incomplete` |
-| CEM-V1-604 | `TestCEMV1604MigrationA02Integrated` (`internal/companionrelease`); `make cem-stable-regen-check` | Node check recomputes the manifest pin |
+| CEM-V1-604 | `TestCEMV1604MigrationA02Integrated` (`internal/corerelease`); `make cem-stable-regen-check` | Node check recomputes the manifest pin |
 | CEM-V1-605 | `make cem-release-gate` run recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`; `node --test tools/cem-release-suites/readiness.test.mjs` | Exit 3 refused; not a gate step |
 
 ## Runner-bound verdict anchors (V1-2577, 2026-10-24)
@@ -5520,7 +5523,7 @@ records verify under both versions.
 | CEM-V1-610 | `TestCEMV1610EnvelopeOutcome`, `TestCEMV1610FailingBinaryEnvelopeRunIsRefused` | A stub binary fails every cell and the row is `FAILED` |
 | CEM-V1-611 | `TestCEMV1611RunRecordIsCanonical` | darwin and linux records by digest in the build log |
 | CEM-V1-612 | `TestCEMV1612AggregationRefusesMismatchedRuns`, `TestCEMV1612BothPlatformRowsFromTwoRuns` | Real aggregation: both platform rows `PASSED`, exit 3 at the external row |
-| CEM-V1-613 | `TestCEMV1613GateOutcomeIsExact` (`internal/companionrelease`) | Outcomes of both runs and the aggregation read back |
+| CEM-V1-613 | `TestCEMV1613GateOutcomeIsExact` (`internal/corerelease`) | Outcomes of both runs and the aggregation read back |
 | CEM-V1-614 | `TestCEMV1614ReadinessBindsTheCEMGateOutcome` (`internal/releasecandidate`) | rc.1 and rc.2 fixtures unchanged (`TestSRRV1005MissingEvidenceIsNotRun` and the other SRR-V1 tests) |
 
 ## Omission soundness limits (V1-2599, 2026-10-25)

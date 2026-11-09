@@ -14,12 +14,11 @@
     {
       "path": [],
       "command": "corvint-release-candidate",
-      "summary": "usage: corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION [--companion-dir DIR]\n--companion-dir: verified companion retained directory (omit for a Core-only candidate)\n--core-dir: verified core archive-gate directory\n--output-parent: parent for the fresh versioned candidate\n--scratch: private scratch directory\n--source-root: Corvint Git checkout containing the exact built commit\n--version: exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix",
+      "summary": "usage: corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION\n--core-dir: verified core archive-gate directory\n--output-parent: parent for the fresh versioned candidate\n--scratch: private scratch directory\n--source-root: Corvint Git checkout containing the exact built commit\n--version: exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix",
       "usage": [
-        "corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION [--companion-dir DIR]"
+        "corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION"
       ],
       "flags": [
-        "--companion-dir",
         "--core-dir",
         "--output-parent",
         "--scratch",

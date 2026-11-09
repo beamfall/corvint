@@ -537,12 +537,6 @@
       ]
     },
     {
-      "paths": "examples/cem/experiments/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "examples/documentation-corpus/README.md",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"

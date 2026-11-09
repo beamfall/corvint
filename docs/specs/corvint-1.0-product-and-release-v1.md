@@ -15,7 +15,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 ## Agent digest
 - Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.
 - Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0); PRS-V1-840 experimental under the owner's standing lane auto-accept (2026-10-31; V1-2487)) / partial; expanded 1.0 qualification pending
-- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229). windows/amd64 is UNSUPPORTED for 1.0 and fails closed with typed refusals (decision 0559, `PRS-V1-021`, `PRS-V1-022`); native Windows qualification is post-1.0 and CI windows-vet stays.
+- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one (V1-0229); since decision 0594 the Core-only profile is the only one and `-companion-dir` is gone. windows/amd64 is UNSUPPORTED for 1.0 and fails closed with typed refusals (decision 0559, `PRS-V1-021`, `PRS-V1-022`); native Windows qualification is post-1.0 and CI windows-vet stays.
 - Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/viper (decision 0555): urfave/cli (decision 0432), which replaced the cobra pin already scored in development, stopped counting as held out once the V1-0859 and V1-0431 fixes were derived from its rc.2 misses (decision 0539); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
 
@@ -121,7 +121,7 @@ Companion packaging alone does not qualify a capability. Companion list:
   CLI extension, the OpenCode plugin, the Pi extension, `corvint harness event` and `corvint pi-tool`.
 - Formal host FULL or protected authority for any host (see "Externally dependent gates").
 - The combined companion bundle `/2` or `/3` (`corvint-companion-release`, `corvint-public-release-check`)
-  and its installed qualification (`PUB-V0-020`, ticket V1-0004).
+  and its installed qualification (`PUB-V0-020`, ticket V1-0004); both were deleted by decision 0594.
 
 ## Supported platforms and hosts
 
@@ -180,13 +180,13 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads` (decision 0594 retired `skill-export`) | experimental | Help text already labels them experimental. |
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
-| `corvint-tasks` | companion | Native task store with its own qualification. The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is a stable 1.0 requirement again (amendment 2026-10-22); no takeover claim until its production completion and owner switch are retained. |
+| `corvint-tasks` | companion | Native task store with its own qualification, built and released from `beamfall/corvint-tasks` and no longer bundled with Core (decision 0594). The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is a stable 1.0 requirement again (amendment 2026-10-22); no takeover claim until its production completion and owner switch are retained. |
 | `corvint-mcp` (decision 0594 retired `corvint-docs-mcp`) | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
 | `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2` or `/3`, not Core. |
 | `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
-| `corvint-companion-release`, `corvint-public-release-check` | companion | Build and qualify the companion bundle (`/3` written, `/2` still read). |
+| `corvint-companion-release`, `corvint-public-release-check` | retired 2026-11-09 (decision 0594) | Deleted with the companion bundle; the Core source archive and stable readers moved to `internal/corerelease`. |
 | `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` stays for the hostile-regression row. |
 | `corvint-test`, `corvint-tests-accept`, `corvint-behavior-falsify`, `corvint-playwright-minimize` | retired 2026-11-09 (decision 0593) | Deleted with the E2E proof lab. |
 | `corvint-work-queue` (decision 0594 retired `corvint-web-flows`) | experimental | Prototypes with proposed or experimental specs. |
@@ -334,7 +334,10 @@ accepted by decision 0373 and the amendment it requires are stated.
   bytes; without it the platform is reported FALLBACK, never Core. Windows MUST stay UNSUPPORTED.
 - `PRS-V1-005`: A Core release candidate MUST NOT require companion input. Companions keep their
   own qualification and version and can be released separately. This assembly independence does
-  not waive the whole-product stable-promotion requirements in PRS-V1-013..017.
+  not waive the whole-product stable-promotion requirements in PRS-V1-013..017. Amended by decision
+  0594 (2026-11-09): the combined companion profile and the companion bundle are retired, so the
+  Core-only profile `corvint-core-release-candidate/0` is the only candidate `corvint-release-candidate`
+  assembles and its reader admits; Corvint Tasks is released from `beamfall/corvint-tasks`.
 - `PRS-V1-006`: Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Claude
   Code rows at FALLBACK when owner question 5 is answered yes. Formal FULL or protected authority for
   any host MUST NOT block Core.
@@ -520,7 +523,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-018` | Owner instruction 2026-10-13; V1-1344..V1-1348 at milestone v1-0 (V1-0020 dependencies) | Owner scope recorded; each clause NOT_QUALIFIED until its ticket retains acceptance evidence and completes natively |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
-| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler requires `-source-root` and, since decision 0397, takes no `-tasks-root` (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
+| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler and its `TestEmptyRootsRefuseBeforeExecution` were retired by decision 0594 | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |

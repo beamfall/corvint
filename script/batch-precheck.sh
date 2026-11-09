@@ -115,7 +115,7 @@
 # Pre-bind run (ASD-V0-837, V1-3550): BATCH_PRECHECK_SKIP_DRIFT=1 leaves out every batch-drift
 # step and writes no receipt, since not every step ran. The retired dogfood-closeout used it for its
 # precheck before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
-# as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
+# as an input of the cmd/corvint drift tests, so only the precheck of the
 # sealed head runs them, once per closeout.
 # ICL-V0-020 (V1-1629): the pre-bind run still runs the @prebind drift entries, which read Go
 # source and fixtures and never the change evidence, so their failure stops the closeout before
@@ -125,12 +125,10 @@
 # `corvint affected --path` plan of those paths that selects none of its packages and has no
 # unknown beyond the frontier); otherwise it prints why and runs the entry again.
 #
-# Lane closeout (ASD-V0-825, V1-4069): with BATCH_PRECHECK_LANE_CLOSEOUT=1 (set inline by the two
-# closeout recipes), an `@own` entry
-# (the companion-release reproducible builds, about 170 s each) runs only when a COMPANION_INPUTS
-# path changed since the base; otherwise it is skipped with the reason printed, and the batch
-# precheck, which clears that mode, runs it. With no readable diff it runs. A receipt written by
-# such a run gets a `.lane` sidecar naming its head. Outside lane-closeout mode, a since-receipt
+# Lane closeout (ASD-V0-825, V1-4069): with BATCH_PRECHECK_LANE_CLOSEOUT=1, selection-baseline-check
+# is deferred to the batch precheck (ASD-V0-1990); the `@own` companion-build skip left with the
+# companion release path (decision 0594). A receipt written by such a run gets a `.lane` sidecar
+# naming its head. Outside lane-closeout mode, a since-receipt
 # run cannot narrow from it and the push guard refuses it (ASD-V0-1991, ASD-V0-1992).
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
@@ -176,9 +174,6 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 # recipe itself, the CI shard costs and the fixed change set; it replays fixed historical commits,
 # so nothing else changes its result (ASD-V0-944, V1-3550).
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
-# What the @own companion-release builds read beyond the Go module: their package (ASD-V0-825,
-# V1-4069). The Tasks command, fixtures and guide left with decision 0594.
-COMPANION_INPUTS=(internal/companionrelease/ go.mod go.sum)
 lane_skipped=0
 planner=${BATCH_PRECHECK_PLANNER-corvint}
 node_tool=${BATCH_PRECHECK_NODE:-node}
@@ -223,8 +218,6 @@ else
     "./internal/lrfrepo Test[A-Za-z0-9]*Specs?Enumerat @prebind"
     "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
     "./tools/ci-forward-row Test .github/"
-    "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
-    "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
 
@@ -741,26 +734,6 @@ select_report() {
   select_baseline
 }
 
-# lane_own_skip leaves out, in lane-closeout mode, each @own entry no COMPANION_INPUTS path reaches
-# (ASD-V0-825, V1-4069); with no readable diff every entry stays.
-lane_own_skip() {
-  local i n=${#DRIFT_TESTS[@]} pkg prefix inputs
-  [[ $lane_closeout == 1 ]] || return 0
-  if ((!sel_diff)); then
-    printf 'batch-precheck: lane closeout runs the @own companion builds (%s)\n' "$sel_why"
-    return 0
-  fi
-  for ((i = 0; i < n; i++)); do
-    [[ ${drift_on[i]:-1} == 1 ]] || continue
-    read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
-    [[ " $inputs " == *" @own "* ]] || continue
-    wanted "" "${COMPANION_INPUTS[@]}" && continue
-    drift_on[i]=0
-    lane_skipped=1
-    printf 'batch-precheck:   skipped %s %s (lane closeout: no companion input changed since %s; the batch precheck runs it, ASD-V0-825)\n' "$pkg" "$prefix" "$sel_sha"
-  done
-}
-
 # select_baseline retains selection for legacy recipes. Recipes with the shared
 # ASD-V0-944 preflight must reach it, including declaration-only edits and unknowns.
 select_baseline() {
@@ -882,7 +855,7 @@ steps() {
     if [[ ${carried[i]:-0} == 1 ]]; then kc=$((kc + 1)); continue; fi
     k=$((k + 1))
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
-    # An `@own` entry (the slow companion-release builds) runs as its own step beside the union, so
+    # An `@own` entry (a slow test) runs as its own step beside the union, so
     # it no longer waits behind the other tests of its package (V1-3232).
     if [[ " $inputs " == *" @own "* ]]; then own+=("$pkg $prefix"); continue; fi
     contains "$pkg" "${pkgs[@]+"${pkgs[@]}"}" || pkgs+=("$pkg")
@@ -1107,7 +1080,7 @@ verify_receipt() {
   head=$(awk '$1 == "head" { print $2 }' "$receipt")
   [[ $head == "$want" ]] || { printf 'batch-precheck: refused: the precheck receipt names %s, not %s; rerun make batch-precheck\n' "${head:-nothing}" "$want" >&2; return 1; }
   if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$receipt"; then
-    printf 'batch-precheck: refused: lane closeout receipt deferred selection-baseline-check or skipped @own companion builds; batch evidence is required (ASD-V0-1992)\n' >&2
+    printf 'batch-precheck: refused: lane closeout receipt deferred selection-baseline-check; batch evidence is required (ASD-V0-1992)\n' >&2
     printf 'batch-precheck: fix: make batch-precheck\n' >&2
     return 1
   fi
@@ -1485,7 +1458,7 @@ since_receipt() {
   named=$(awk '$1 == "head" { print $2 }' "$(receipt_path)" 2> /dev/null) || named=
   head=$(git rev-parse HEAD)
   if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$(receipt_path)"; then
-    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)\n'
+    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check (ASD-V0-1990)\n'
   elif [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
     printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
   elif [[ $named == "$head" ]] && tree_clean; then
@@ -1710,7 +1683,6 @@ export BATCH_PRECHECK_STATIC_PASS=$dir/static.pass
 select_plan
 select_report
 lst_report
-lane_own_skip
 # ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
 # carries what the record still binds.
 prebind_ran=()
@@ -1951,7 +1923,7 @@ elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_bef
     "$head_before" "$((pass + fail + ${#notrun[@]}))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     for x in ${notrun[@]+"${notrun[@]}"}; do printf 'not-run %s\n' "$x"; done; } > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
-    # A lane receipt with deferred selection-baseline or skipped @own entries cannot narrow a batch.
+    # A lane receipt with a deferred selection-baseline cannot narrow a batch.
     ((!lane_skipped)) || printf '%s\n' "$head_before" > "$receipt.lane" || /bin/rm -f "$receipt"
   else
     /bin/rm -f "$receipt.tmp"
