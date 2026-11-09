@@ -12,7 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/lineanchor"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -122,7 +122,7 @@ type DiscoveredExample struct {
 	Hooks        []DiscoveredHook        `json:"hooks"`
 	Read         string                  `json:"read"` // "located" or why the example's body was not read
 	Review       string                  `json:"review"`
-	Evidence     doccorpus.Anchor        `json:"evidence"`
+	Evidence     lineanchor.Anchor       `json:"evidence"`
 }
 
 // ExampleIdentity is the line-free key `tests example-join` and run receipts use (TSA-V0-410):
@@ -138,78 +138,78 @@ type ExampleIdentity struct {
 
 // DiscoveredTitle is one title on the example's path, outermost group first.
 type DiscoveredTitle struct {
-	Title    string           `json:"title"`
-	Evidence doccorpus.Anchor `json:"evidence"`
+	Title    string            `json:"title"`
+	Evidence lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveredTag is one tag or metadata entry, declared on the example or an enclosing group.
 type DiscoveredTag struct {
-	Name     string           `json:"name"`
-	Value    string           `json:"value"`
-	Evidence doccorpus.Anchor `json:"evidence"`
+	Name     string            `json:"name"`
+	Value    string            `json:"value"`
+	Evidence lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveredAnnotation is one annotation or run modifier (skip, fixme, fail, slow, only, todo).
 type DiscoveredAnnotation struct {
-	Type        string           `json:"type"`
-	Description string           `json:"description"`
-	Conditional bool             `json:"conditional"`
-	Evidence    doccorpus.Anchor `json:"evidence"`
+	Type        string            `json:"type"`
+	Description string            `json:"description"`
+	Conditional bool              `json:"conditional"`
+	Evidence    lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveredExpectation is one assertion in the example's own body.
 type DiscoveredExpectation struct {
-	Matcher  string           `json:"matcher"`
-	Negated  bool             `json:"negated"`
-	Receiver string           `json:"receiver"`
-	Unknown  string           `json:"unknown"`
-	Evidence doccorpus.Anchor `json:"evidence"`
+	Matcher  string            `json:"matcher"`
+	Negated  bool              `json:"negated"`
+	Receiver string            `json:"receiver"`
+	Unknown  string            `json:"unknown"`
+	Evidence lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveredNavigation is one navigation, request or awaited route in the example or a hook
 // that applies to it (Source "example" or "hook").
 type DiscoveredNavigation struct {
-	Kind       string           `json:"kind"`
-	Method     string           `json:"method"`
-	Target     string           `json:"target"`
-	Expression string           `json:"expression"`
-	Source     string           `json:"source"`
-	Unknown    string           `json:"unknown"`
-	Evidence   doccorpus.Anchor `json:"evidence"`
+	Kind       string            `json:"kind"`
+	Method     string            `json:"method"`
+	Target     string            `json:"target"`
+	Expression string            `json:"expression"`
+	Source     string            `json:"source"`
+	Unknown    string            `json:"unknown"`
+	Evidence   lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveredReach is one module, fixture or shared group the example reaches statically.
 type DiscoveredReach struct {
-	Kind        string            `json:"kind"` // import, fixture, shared-example or shared-context
-	Name        string            `json:"name"`
-	Specifier   string            `json:"specifier"`
-	Target      string            `json:"target"`
-	State       string            `json:"state"` // repository, package, builtin or unresolved
-	Reason      string            `json:"reason"`
-	Evidence    doccorpus.Anchor  `json:"evidence"`
-	Declaration *doccorpus.Anchor `json:"declaration,omitempty"`
+	Kind        string             `json:"kind"` // import, fixture, shared-example or shared-context
+	Name        string             `json:"name"`
+	Specifier   string             `json:"specifier"`
+	Target      string             `json:"target"`
+	State       string             `json:"state"` // repository, package, builtin or unresolved
+	Reason      string             `json:"reason"`
+	Evidence    lineanchor.Anchor  `json:"evidence"`
+	Declaration *lineanchor.Anchor `json:"declaration,omitempty"`
 }
 
 // DiscoveredHook is one hook that applies to the example.
 type DiscoveredHook struct {
-	Kind        string           `json:"kind"`
-	Scope       string           `json:"scope"`
-	Asserts     bool             `json:"asserts"`
-	Conditional bool             `json:"conditional"`
-	Evidence    doccorpus.Anchor `json:"evidence"`
+	Kind        string            `json:"kind"`
+	Scope       string            `json:"scope"`
+	Asserts     bool              `json:"asserts"`
+	Conditional bool              `json:"conditional"`
+	Evidence    lineanchor.Anchor `json:"evidence"`
 }
 
 // DiscoveryUnknown is something the reader saw and could not classify.
 type DiscoveryUnknown struct {
-	Example  string            `json:"example"`
-	Path     string            `json:"path"`
-	Reason   string            `json:"reason"`
-	Detail   string            `json:"detail"`
-	Evidence *doccorpus.Anchor `json:"evidence,omitempty"`
+	Example  string             `json:"example"`
+	Path     string             `json:"path"`
+	Reason   string             `json:"reason"`
+	Detail   string             `json:"detail"`
+	Evidence *lineanchor.Anchor `json:"evidence,omitempty"`
 }
 
 func discoveryFail(format string, args ...any) error {
-	return &doccorpus.Error{Code: "corpus-refused", Message: fmt.Sprintf(format, args...)}
+	return &lineanchor.Error{Code: "corpus-refused", Message: fmt.Sprintf(format, args...)}
 }
 
 // discoveryTyped keeps a corpus code and maps a TSA-V0 refusal onto corpus-refused with its code
@@ -221,7 +221,7 @@ func discoveryTyped(err error) error {
 		if t.Code == "tests-invalid-revision" {
 			code = "corpus-invalid-revision"
 		}
-		return &doccorpus.Error{Code: code, Message: t.Code + ": " + t.Message}
+		return &lineanchor.Error{Code: code, Message: t.Code + ": " + t.Message}
 	}
 	return err
 }
@@ -242,7 +242,7 @@ func BuildTestDiscovery(ctx context.Context, input TestDiscoveryInput) ([]byte, 
 	r := OpenRepo(ctx, input.Root)
 	commit, err := r.Resolve(input.Revision)
 	if err != nil || commit != input.Revision {
-		return nil, &doccorpus.Error{Code: "corpus-invalid-revision", Message: "test discovery revision is not a commit"}
+		return nil, &lineanchor.Error{Code: "corpus-invalid-revision", Message: "test discovery revision is not a commit"}
 	}
 	repository, err := contextindex.CorpusRepositoryID(ctx, input.Root, input.Revision)
 	if err != nil {
@@ -291,7 +291,7 @@ func BuildTestDiscovery(ctx context.Context, input TestDiscoveryInput) ([]byte, 
 	}
 	resolver := &discoveryResolver{tracked: tracked, overflow: overflow}
 	for _, e := range readable {
-		f := &discoveryFile{path: e.path, index: doccorpus.NewLineIndex(repository, commit, e.path, e.oid, data[e.oid]), text: string(data[e.oid]), out: out, resolver: resolver}
+		f := &discoveryFile{path: e.path, index: lineanchor.NewLineIndex(repository, commit, e.path, e.oid, data[e.oid]), text: string(data[e.oid]), out: out, resolver: resolver}
 		read := ""
 		if input.Runner == "rspec" {
 			read = f.discoverRSpec()
@@ -336,7 +336,7 @@ const discoveryLocated = testvalidity.ExampleSourceLocated
 type discoveryFile struct {
 	path     string
 	text     string
-	index    *doccorpus.LineIndex
+	index    *lineanchor.LineIndex
 	out      *TestDiscovery
 	resolver *discoveryResolver
 	err      error
@@ -345,7 +345,7 @@ type discoveryFile struct {
 // anchor is the source anchor of lines start..end. A span the compiler would refuse (over the
 // excerpt bound) is narrowed to its first line, and says so in its reason; a vacuous span yields
 // false, and callers then record an unknown instead of evidence.
-func (f *discoveryFile) anchor(start, end int, reason string) (doccorpus.Anchor, bool) {
+func (f *discoveryFile) anchor(start, end int, reason string) (lineanchor.Anchor, bool) {
 	if end < start {
 		end = start
 	}
@@ -358,7 +358,7 @@ func (f *discoveryFile) anchor(start, end int, reason string) (doccorpus.Anchor,
 	if a, err := f.index.Anchor(start, start, "source", reason+" (first line only: the whole span exceeds the excerpt bound)"); err == nil && end > start {
 		return a, true
 	}
-	return doccorpus.Anchor{}, false
+	return lineanchor.Anchor{}, false
 }
 
 // unknown records one unclassified reading, anchored when lines are given.
@@ -425,7 +425,7 @@ func (f *discoveryFile) dropUnanchored(e *DiscoveredExample) {
 			f.unknown(e.ID, discoverReasonFactUnanchored, fmt.Sprintf("%d %s on the example could not be anchored to the source and are not reported", n, kind), 0, 0)
 		}
 	}
-	unanchored := func(a doccorpus.Anchor) bool { return a == (doccorpus.Anchor{}) }
+	unanchored := func(a lineanchor.Anchor) bool { return a == (lineanchor.Anchor{}) }
 	if n := countFunc(e.TitlePath, func(t DiscoveredTitle) bool { return unanchored(t.Evidence) }); n > 0 {
 		note(n, "titles")
 		e.TitlePath = []DiscoveredTitle{}

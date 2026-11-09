@@ -26,6 +26,7 @@
         "internal/gokernel",
         "internal/groupreap",
         "internal/jsonend",
+        "internal/lineanchor",
         "internal/mcp/protocol",
         "internal/procgroup",
         "internal/procprofile",
