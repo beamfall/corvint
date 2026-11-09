@@ -3,12 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-09-08
 Requirement prefix: `PLE-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted `tools/local-authority`,
+`internal/localauthority`, `internal/authoritystore` and `internal/authorityevent` (4663b4e2b is the
+last tree with them). The body below is historical and its requirement IDs stay for traceability.
 
 ## Agent digest
 - Claim: Optional fixed WASI candidate execution; no admitted execution root or FULL qualification.
-- Status: proposed/experimental; decision 0009 still admits no execution root.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `tools/local-authority`, `internal/localauthority`, experimental Frontier/OCM/TCQ consumers and native Stop adapter work.
 - Blocked on: independent review, privileged principal separation campaign, accepted root, exact native Desktop tuple qualification and AHI performance/equal-recall evidence.
 - Read next: Requirements; Wire contract; Runtime boundary; Acceptance and rollback.

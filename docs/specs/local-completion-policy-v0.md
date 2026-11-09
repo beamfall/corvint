@@ -4,6 +4,9 @@ Owner: Russell Lewis
 Date: 2026-09-06
 Intent status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)
 Delivery status: implemented
+Retirement note: decision 0594 (2026-11-09) deleted the `local` command group and
+`internal/localcompletion`; requirements naming them are retired, and the host-adapter and context
+rows stay until their own cut.
 Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-boundary.md`, `docs/specs/agent-harness-integration-v0.md`
 
 ## Agent digest

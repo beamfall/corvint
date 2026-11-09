@@ -5,8 +5,11 @@ Nothing here amends
 `change-frontier-v0.md`; where a `frontier/0` clause would have to change, this document *describes*
 the change rather than making it.
 Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the CEM 0.2 inputs below are historical and any `frontier/1` implementation would need a `cem/1.0` input (`docs/specs/cem-stable-v1.md`) under its own accepted profile.
-Intent status: accepted (decision 0047, 2026-09-04)
-Delivery status: not-started
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the `frontier` command group and
+its `internal/frontier*` packages, so this profile cannot start (4663b4e2b is the last tree with
+them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/specs/change-frontier-v0.md`,
 `docs/specs/change-witness-relation-v0.md`, `docs/specs/harness-authority-relation-v0.md`
 (superseded by `docs/decisions/0009-harness-authority-boundary.md`),
@@ -14,7 +17,7 @@ Authoritative inputs: `docs/specs/change-frontier-v0.md`,
 
 ## Agent digest
 - Claim: The accepted `frontier/1` draft proposes closing witnessed change obligations without altering `frontier/0` authority.
-- Status: accepted (decision 0047, 2026-09-04)/not-started
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: nothing executable — draft profile and relation contracts only.
 - Blocked on: dependency gates and owner inputs preserved by decision 0047; harness integration remains unavailable.
 - Read next: The finding that matters most; CF-V1-020; decision 0047; `0009-harness-authority-boundary.md` (successor to the harness-authority relation).

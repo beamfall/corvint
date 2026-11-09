@@ -3,15 +3,18 @@
 Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `DOGFOOD-BIND`
-Intent status: accepted; moved unchanged from the docs/DOGFOOD.md retroactive-binding contract (2026-11-01)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood workflow and its CEM
+binding (4663b4e2b is the last tree with them). The body below is historical and its requirement IDs
+stay for traceability.
 Authoritative inputs: `../DOGFOOD.md` "Bind a landed range after the fact" (the procedure and the
 `DOGFOOD-011` and `DOGFOOD-012` product rules it serves), decision 0165, and
 `daily-change-evidence-workflow-v0.md` `DCW-V0-824` to `DCW-V0-831` (which refine this contract).
 
 ## Agent digest
 - Claim: A landed commit range is bound to one cited CEM after the fact by a retroactive binding commit, never by rewriting history.
-- Status: accepted; moved unchanged from the docs/DOGFOOD.md retroactive-binding contract (2026-11-01) / implemented
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `script/dogfood-bind-range.sh`, `tools/dogfood-guard-hunks`, and `script/dogfood-bind-range_test.sh` (`make dogfood-bind-range-test`).
 - Blocked on: nothing; `DOGFOOD-BIND-003`'s plan-map mismatch sentence stays proposed as recorded inline.
 - Read next: Requirements; Failure modes; Traceability.

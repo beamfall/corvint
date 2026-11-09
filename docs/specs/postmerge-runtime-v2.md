@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-10-03
 Intent status: accepted
 Delivery status: partial
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-postmerge-workflow`,
+`internal/postmergeworkflow` and `internal/postmergeproof`; requirements naming them are retired.
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
 Only the PMR-V2-006 process verifier and host collector slices are implemented; no /2 workflow
 runtime, host qualification or qualified positive replay is claimed.

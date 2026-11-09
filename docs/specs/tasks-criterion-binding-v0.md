@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-10-01
 Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761); TCB-V0-047 accepted (decision 0548, reaffirmed 2026-10-24; V1-1895)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted `internal/criterionexperiment` and the `cem
+gate-verdict` command; the Tasks side leaves with Corvint Tasks.
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 

@@ -4,6 +4,8 @@
 - Date: 2026-08-23
 - Intent status: accepted
 - Delivery status: experimental
+- Retirement note: decision 0594 (2026-11-09) deleted `internal/lrfrepo`; requirements naming the
+  LRF/OCM spec pins are retired.
 - Authoritative inputs: `AGENTS.md`, `ROADMAP.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`,
   `docs/DOGFOOD.md`, `docs/specs/agent-harness-integration-v0.md`,
   `docs/specs/test-claim-qualification-v0.md`,

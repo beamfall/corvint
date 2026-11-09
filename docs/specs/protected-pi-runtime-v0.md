@@ -5,6 +5,8 @@ Date: 2026-09-22
 Requirement prefix: `PPI-V0`
 Intent status: accepted direction (owner approval, 2026-09-22); technical details experimental
 Delivery status: experimental; no protected installation or native qualification
+Retirement note: decision 0594 (2026-11-09) deleted the `qualified` command group,
+`internal/authoritystore` and `tools/local-authority`; requirements naming them are retired.
 Authoritative inputs: `agent-harness-integration-v0.md`, `protected-local-execution-v0.md`, `qualified-lifecycle-v0.md`, decision 0009
 
 ## Agent digest
