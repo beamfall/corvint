@@ -135,10 +135,7 @@ shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` add
 V1-4081 / ASD-V0-026: do not put Go test executables under noexec `/dev/shm`.
 Use an executable writable `TMPDIR` (for example a private directory under the user cache;
 `/var/tmp` only where writable). The eight store commands above are the supported split,
-not one whole-package call with Go's implicit 600-second timeout. `make host-adapter-node-test`
-is a separate Node-only qualification: at the mixbugs base Opencode passed 55/55 tests;
-Pi passed 134 of 135 with one intentional skip and zero failures. That observed pass refutes a persistent failure at this
-base; it does not retroactively pass an earlier host run.
+not one whole-package call with Go's implicit 600-second timeout.
 
 The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
 packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest

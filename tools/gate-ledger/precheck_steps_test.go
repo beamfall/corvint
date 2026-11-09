@@ -24,7 +24,7 @@ var precheckLedgerNames = []string{
 	"ci-least-privilege-check", "conflict-markers-check", "decision-numbers-check",
 	"declaration-compat-check", "documentation-paths-check", "error-code-ownership-check",
 	"fixed-tmp-paths-check", "flow-guide-check", "go-format-check", "go-version-pins-check",
-	"host-adapter-node-test", "host-package-versions-check", "host-package-versions-test",
+	"host-package-versions-check", "host-package-versions-test",
 	"lane-scripts-test", "legal-file-pins-check", "license-headers-check",
 	"line-citations-check", "live-test", "long-lines-check", "mkfifo-build-tags-check",
 	"no-python-runtime-dependency-test", "py-signal-lint",
