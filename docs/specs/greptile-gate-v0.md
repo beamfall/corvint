@@ -57,8 +57,8 @@ resolved) was enforced only by the orchestrator remembering to check it.
   metadata proves the PR-authored diff unchanged. Read the PR base branch ref and compare
   `<base_ref>...R` and `<base_ref>...H` using the GitHub compare API (diffs from their merge
   bases), never checking out or executing PR code. Canonicalize each file to `(status, filename,
-  previous_filename, patch)`, sort the file set, and remove only the numeric coordinates/counts
-  in `@@` hunk headers; preserve hunk section text and every other patch byte. Exclude only
+  previous_filename, patch)`, sort the file set, and keep every patch byte, `@@` hunk coordinates included, so a
+  shifted or moved hunk refuses carry. Exclude only
   `.corvint/change.cem.json` and `.corvint/changes/*.cem.json` (direct children); a rename from
   a non-evidence path is not excluded. Carry only when the canonical sets are byte-identical
   and `compare/R...H` reports `ahead` or `identical`. A failed base/compare read, missing files

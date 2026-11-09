@@ -14,7 +14,7 @@ therefore forced another manual review cycle without a new PR-authored code chan
 
 GRG-V0-002 admits a stale 5/5 review only when GitHub's `<base_ref>...R` and
 `<base_ref>...head` comparisons have identical sorted `(status, filename,
-previous_filename, patch)` tuples after removing hunk-header numbers and excluding
+previous_filename, patch)` tuples with every patch byte (hunk coordinates included, after review found that dropping them let an edit move between identical contexts) and excluding
 only the named dogfood evidence files. Hunk section text and all other patch bytes
 remain significant. Renames from source into an evidence path remain in the comparison.
 An independent `R...head` comparison must report `ahead` or `identical`.

@@ -306,7 +306,7 @@ func TestGRGV0002CarryOnlyUnchangedPRDiff(t *testing.T) {
 		unresolved, total           int
 	}{
 		"identical diff":             {old: pages(code), head: pages(code), want: "success"},
-		"hunk numbers only":          {old: pages(code), head: pages(shifted), want: "success"},
+		"hunk numbers only":          {old: pages(code), head: pages(shifted), want: "pending"},
 		"one PR line differs":        {old: pages(code), head: pages(changed)},
 		"same missing patch on both": {old: pages(binary), head: pages(binary)},
 		"truncated compare":          {old: []any{map[string]any{"files": []file{code}, "truncated": true}}, head: pages(code)},
