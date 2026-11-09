@@ -235,7 +235,13 @@ func TestDTLV0003WorktreeBuild(t *testing.T) {
 			t.Fatal(err)
 		}
 		binary := strings.TrimSpace(string(out))
-		if binary != filepath.Join(root, ".git", "corvint", "lane-corvint") {
+		// The script names the build under Git's resolved top level; macOS TempDir sits under
+		// /var -> /private/var, so the want is the symlink-resolved root.
+		resolved, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if binary != filepath.Join(resolved, ".git", "corvint", "lane-corvint") {
 			t.Fatal(binary)
 		}
 		if got, err := exec.Command(binary).Output(); err != nil || strings.TrimSpace(string(got)) != "worktree" {
