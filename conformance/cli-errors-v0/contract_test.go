@@ -83,12 +83,6 @@ func TestCAPV07700ShippedHelp(t *testing.T) {
 						if err != nil || errout.Len() != 0 || out.Len() == 0 {
 							t.Fatalf("%v: %v stderr=%q stdout=%q", args, err, errout.String(), out.String())
 						}
-						if ref.Binary == "corvint-tasks" {
-							var native map[string]any
-							if json.Unmarshal(out.Bytes(), &native) != nil || native["profile"] != "taskman-command-result/0" {
-								t.Fatalf("%v corrupted native help JSON: %s", args, out.String())
-							}
-						}
 						text := strings.ToLower(out.String())
 						if !strings.Contains(text, "usage") || !strings.Contains(text, "example") || (!strings.Contains(text, "required") && !strings.Contains(text, "inputs")) {
 							t.Fatalf("%v lacks usage, example or required inputs: %s", args, out.String())

@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -29,12 +28,10 @@ type contract struct {
 // contracts is keyed by binary name; the package path literal is the build
 // input (AFP-V0-037). Every companion refuses with the one shared envelope
 // (ACX-V0-904, V1-3878); corvint keeps its argparse-parity invalid-arguments
-// envelope (ACX-V0-859), corvint-tasks its Tasks command result on stdout
-// and corvint-work-queue the exact text WQO-V0-007 and WQO-V0-030 pin.
+// envelope (ACX-V0-859).
 var contracts = map[string]contract{
 	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
 	"corvint-cem-candidate":      companion("./cmd/corvint-cem-candidate"),
-	"corvint-cem-experiments":    companion("./cmd/corvint-cem-experiments"),
 	"corvint-corpus-republish":   companion("./cmd/corvint-corpus-republish"),
 	"corvint-dashboard-snapshot": companion("./cmd/corvint-dashboard-snapshot"),
 	"corvint-gateway":            companion("./cmd/corvint-gateway"),
@@ -45,9 +42,7 @@ var contracts = map[string]contract{
 	"corvint-postmerge-metrics":  companion("./cmd/corvint-postmerge-metrics"),
 	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
 	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
-	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
 	"corvint-update":             companion("./cmd/corvint-update"),
-	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
 }
 
 // companion is the shared unknown-verb refusal row (ACX-V0-904): exit 2 and
@@ -62,7 +57,7 @@ func companion(pkg string) contract {
 
 // TestCLIErrorContracts_ACXV0859 (ACX-V0-859, TCL-V0-859; V1-3736) builds
 // every catalog binary and checks its unknown-verb refusal against its row,
-// then the near-verb suggestions of corvint and corvint-tasks.
+// then the near-verb suggestion of corvint.
 func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the rows record the POSIX refusals; Windows runs the commands' own tests")
@@ -119,9 +114,6 @@ func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 	if _, _, stderr := launch(t, filepath.Join(bin, "corvint"), work, "contxt"); !strings.Contains(stderr, "; did you mean 'context'?") {
 		t.Errorf("corvint contxt: no suggestion: %q", stderr)
 	}
-	if _, stdout, _ := launch(t, filepath.Join(bin, "corvint-tasks"), work, "tikcet", "show"); !strings.Contains(stdout, "did you mean `corvint-tasks ticket --help`") {
-		t.Errorf("corvint-tasks tikcet: no suggestion: %q", stdout)
-	}
 }
 
 func launch(t *testing.T, binary, dir string, args ...string) (int, string, string) {
@@ -138,16 +130,6 @@ func launch(t *testing.T, binary, dir string, args ...string) (int, string, stri
 		t.Fatalf("%s: %v", binary, err)
 	}
 	return 0, stdout.String(), stderr.String()
-}
-
-// text checks that a plain-text refusal contains want.
-func text(want string) func(string) error {
-	return func(out string) error {
-		if !strings.Contains(out, want) {
-			return fmt.Errorf("text does not contain %q", want)
-		}
-		return nil
-	}
 }
 
 // jsonFields checks one JSON object whose fields include want and, when
@@ -187,26 +169,6 @@ func envelope(want map[string]any) func(string) error {
 			if got[key] != value {
 				return fmt.Errorf("field %s = %v, want %v", key, got[key], value)
 			}
-		}
-		return nil
-	}
-}
-
-// tasksResult checks a taskman-command-result/0 ERROR envelope that carries
-// code and a warning containing warning.
-func tasksResult(code, warning string) func(string) error {
-	return func(out string) error {
-		var got struct {
-			Profile  string   `json:"profile"`
-			Outcome  string   `json:"outcome"`
-			Codes    []string `json:"codes"`
-			Warnings []string `json:"warnings"`
-		}
-		if err := json.Unmarshal([]byte(out), &got); err != nil {
-			return fmt.Errorf("not one JSON object: %v", err)
-		}
-		if got.Profile != "taskman-command-result/0" || got.Outcome != "ERROR" || !slices.Contains(got.Codes, code) || !strings.Contains(strings.Join(got.Warnings, ";"), warning) {
-			return fmt.Errorf("want an ERROR result with code %s and a %q warning", code, warning)
 		}
 		return nil
 	}

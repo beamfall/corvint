@@ -24,7 +24,7 @@ func TestASDV0996RepositoryGuideResolves(t *testing.T) {
 
 func TestASDV0997RepositoryRefusalsAreHintedOrListed(t *testing.T) {
 	code, stdout, stderr := runCheck(t, filepath.Join("..", ".."), "--audit")
-	if code != 0 || !strings.Contains(stdout, "surface=dogfoodflow sites=") || !strings.Contains(stdout, "surface=corvint-tasks NOT_CLASSIFIED refusal_call_sites=") {
+	if code != 0 || !strings.Contains(stdout, "surface=dogfoodflow sites=") || !strings.Contains(stdout, "surface=corvint NOT_CLASSIFIED refusal_call_sites=") {
 		t.Fatalf("audit exit %d\nstdout %s\nstderr %s", code, stdout, stderr)
 	}
 }
@@ -37,15 +37,14 @@ func fixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	files := map[string]string{
-		guidePath:                        guide,
-		skillPath:                        "Run `make doc-gates`.\n",
-		treesDir + "/corvint.json":       strings.Replace(tree, "%s", "corvint", 1),
-		treesDir + "/corvint-tasks.json": strings.Replace(tree, "%s", "corvint-tasks", 1),
-		"Makefile":                       ".PHONY: doc-gates\ndoc-gates:\n\t@true\nVAR := x\n",
-		"script/heavy.sh":                "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"\nrefuse \"invalid-slots HEAVY_SLOTS=$slots (want 1..64)\"\n",
-		"script/heavy_test.sh":           "refuse \"test-only-code\"\n",
-		dogfoodDir + "/check.go":         "package dogfoodflow\n\nvar failRecoveries = map[string]string{\"report-drift\": \"rerun\"}\n\nfunc f(c interface{ fail(string, ...string) }) {\n\tc.fail(\"report-drift\")\n\tc.fail(\"own-fix\", \"  fix: rerun it\")\n}\n",
-		baselinePath:                     "# header\n",
+		guidePath:                  guide,
+		skillPath:                  "Run `make doc-gates`.\n",
+		treesDir + "/corvint.json": strings.Replace(tree, "%s", "corvint", 1),
+		"Makefile":                 ".PHONY: doc-gates\ndoc-gates:\n\t@true\nVAR := x\n",
+		"script/heavy.sh":          "refuse \"whole-reason-missing set HEAVY_WHOLE_REASON\"\nrefuse \"invalid-slots HEAVY_SLOTS=$slots (want 1..64)\"\n",
+		"script/heavy_test.sh":     "refuse \"test-only-code\"\n",
+		dogfoodDir + "/check.go":   "package dogfoodflow\n\nvar failRecoveries = map[string]string{\"report-drift\": \"rerun\"}\n\nfunc f(c interface{ fail(string, ...string) }) {\n\tc.fail(\"report-drift\")\n\tc.fail(\"own-fix\", \"  fix: rerun it\")\n}\n",
+		baselinePath:               "# header\n",
 	}
 	for name, content := range files {
 		path := filepath.Join(root, filepath.FromSlash(name))

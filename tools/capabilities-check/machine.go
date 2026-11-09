@@ -13,8 +13,6 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
-	"github.com/Beamfall/corvint/internal/mcp/tasksbridge"
-	"github.com/Beamfall/corvint/internal/mcp/tasksread"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 )
 
@@ -26,8 +24,8 @@ func CheckMachineCatalog(root string) []Finding {
 	return checkMachineCatalog(root, offlineToolNames())
 }
 
-// The descriptor constructors are offline: no repository, server, artifact or
-// Tasks binary is opened. Evaluate every core profile and every Tasks role.
+// The descriptor constructors are offline: no repository, server or artifact is
+// opened. Evaluate every core profile.
 // Unlike lexical name discovery, these values cover constants, table projections
 // and arbitrary name expressions without certifying any source syntax as complete.
 func offlineToolNames() []string {
@@ -35,14 +33,8 @@ func offlineToolNames() []string {
 	descriptors = append(descriptors, corpusbridge.AllTools()...)
 	descriptors = append(descriptors, (&docsbridge.Registry{}).Tools()...)
 	descriptors = append(descriptors, (&testvaliditybridge.Registry{}).Tools()...)
-	for _, class := range tasksbridge.Classes {
-		descriptors = append(descriptors, (tasksbridge.Group{Class: class}).Tools()...)
-	}
 	var names []string
 	for _, descriptor := range descriptors {
-		names = append(names, descriptor.Name)
-	}
-	for _, descriptor := range (tasksread.Group{}).Descriptors() {
 		names = append(names, descriptor.Name)
 	}
 	slices.Sort(names)

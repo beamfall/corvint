@@ -52,18 +52,7 @@ func MCPTools() []MCPTool {
 		{"corvint.map_plan", "corvint-corpus-mcp with --map", "Scenario plan over an application map"},
 		{"corvint.query", "corvint-mcp (all profiles)", "Same receipt as corvint query"},
 		{"corvint.status", "corvint-mcp (all profiles)", "Repository status receipt"},
-		{"corvint.tasks.queue_status", "corvint-mcp --tool-profile tasks", "Same envelope as corvint-tasks queue status"},
-		{"corvint.tasks.receipt_audit", "corvint-mcp --tool-profile tasks", "Same envelope as corvint-tasks receipt audit"},
-		{"corvint.tasks.roadmap", "corvint-mcp --tool-profile tasks", "One offset/limit page of corvint-tasks roadmap"},
-		{"corvint.tasks.ticket_search", "corvint-mcp --tool-profile tasks", "One page of corvint-tasks ticket search by status, kind, priority, owner, milestone, label or text"},
-		{"corvint.tasks.ticket_show", "corvint-mcp --tool-profile tasks", "Same envelope as corvint-tasks ticket show ID"},
 		{"corvint.test_evidence", "corvint-mcp --tool-profile test-evidence", "Same read-only path, range, test and explanation projection as corvint test-evidence"},
 		{"corvint.test_validity", "corvint-test-validity-mcp", "Five-axis projection of retained test evidence"},
-		{"tasks_work_start", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane work and return ticket commit trailers; writes nothing"},
-		{"tasks_work_deliver", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate lane delivery and return delivered commit trailers; writes nothing"},
-		{"tasks_work_block", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "Validate a lane block and return blocked commit trailers; writes nothing"},
-		{"tasks_work_finding", "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER", "File or deduplicate findings and record recurrences"},
-		{"tasks_work_close_merged", "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only", "Complete integrated ticket deliveries and record blocks on the store host"},
-		{"tasks_work_release_sync", "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only", "Synchronize a release's open milestone ticket membership on the store host"},
 	}
 }

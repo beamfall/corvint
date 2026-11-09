@@ -579,7 +579,7 @@ func TestCEMV1340CEMActionHelpNamesOnlyThatAction(t *testing.T) {
 
 // TestCEMV1340HelpCEMActionAndOwnedArgvActions covers the per-action help
 // routes V1-2109 adds: `corvint help cem ACTION` for every action, and
-// `--help`/`-h` on verify-stable and gate-verdict, which own their argv and
+// `--help`/`-h` on verify-stable and bundle, which own their argv and
 // otherwise refuse it. Each prints exactly that action's help and exits 0.
 func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
 	t.Parallel()
@@ -599,7 +599,7 @@ func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
 		check([]string{"help", "cem", action}, action)
 		check([]string{"--root", "/definitely/not/a/repository", "help", "cem", action}, action)
 	}
-	for _, action := range []string{"verify-stable", "gate-verdict", "bundle"} {
+	for _, action := range []string{"verify-stable", "bundle"} {
 		check([]string{"cem", action, "--help"}, action)
 		check([]string{"--root", "/definitely/not/a/repository", "cem", action, "-h"}, action)
 		check([]string{"cem", action, "--base", "x", "--help"}, action)
@@ -610,22 +610,6 @@ func TestCEMV1340HelpCEMActionAndOwnedArgvActions(t *testing.T) {
 	if code := run([]string{"cem", "verify-stable", "--map", "--help"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 2 ||
 		!strings.Contains(stdout.String(), `"code":"invalid-arguments"`) {
 		t.Fatalf("verify-stable --map --help: exit=%d stdout=%q", code, &stdout)
-	}
-}
-
-// TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery covers V1-2324:
-// `corvint help cem gate-verdict` names the verifier-build-mismatch refusal
-// and the consumer rebuild command TCB-V0-045 prescribes.
-func TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery(t *testing.T) {
-	t.Parallel()
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"help", "cem", "gate-verdict"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
-		t.Fatalf("help cem gate-verdict: exit=%d stderr=%q", code, &stderr)
-	}
-	for _, want := range []string{"verifier-disagreement", "verifier-build-mismatch", `(cd interop/cem01-go && GOTOOLCHAIN=local go build -o "$CONSUMER" .)`} {
-		if !strings.Contains(stdout.String(), want) {
-			t.Errorf("gate-verdict help lacks %q:\n%s", want, &stdout)
-		}
 	}
 }
 
