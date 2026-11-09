@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -130,13 +128,16 @@ func TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445(t *testing.T) {
 			aggregate["miss_rate_upper_bound"] != "0.950000" || aggregate["recall"] != "1.000000" {
 			t.Fatalf("aggregate=%v", aggregate)
 		}
-		for _, name := range []string{"appmap-impact", "e2e-compile"} {
+		for _, name := range []string{"appmap-impact"} {
 			if scored := auditSelector(t, report, 0, name); scored["verdict"] != "NOT_RUN" || scored["recall"] != "NOT_RUN" {
 				t.Fatalf("%s=%v", name, scored)
 			}
 			if aggregate := auditAggregate(t, report, name); aggregate["changes"].(float64) != 0 || aggregate["miss_rate_upper_bound"] != "NOT_RUN" {
 				t.Fatalf("%s aggregate=%v", name, aggregate)
 			}
+		}
+		if names := report["selectors"].([]any); len(names) != 2 || names[0].(map[string]any)["name"] != "affected" || names[1].(map[string]any)["name"] != "appmap-impact" {
+			t.Fatalf("selectors=%v", names)
 		}
 		for _, item := range report["selectors"].([]any) {
 			selector := item.(map[string]any)
@@ -236,7 +237,7 @@ func TestAffectedAuditMissingObservationIsUnknown_AFPV0447(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		body = bytes.Replace(body, []byte(`"changed":"changed.xml"`), []byte(`"changed":"changed.xml","appmap":{"map":"absent.json"},"e2e":{"manifest":"absent-e2e.json"}`), 1)
+		body = bytes.Replace(body, []byte(`"changed":"changed.xml"`), []byte(`"changed":"changed.xml","appmap":{"map":"absent.json"}`), 1)
 		if err := os.WriteFile(manifest, body, 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -244,7 +245,7 @@ func TestAffectedAuditMissingObservationIsUnknown_AFPV0447(t *testing.T) {
 		if code != 3 {
 			t.Fatalf("exit %d: %s %v", code, stderr, report)
 		}
-		for _, name := range []string{"appmap-impact", "e2e-compile"} {
+		for _, name := range []string{"appmap-impact"} {
 			selector := auditSelector(t, report, 0, name)
 			if selector["scope"] != "ERROR" || selector["verdict"] != "UNKNOWN" || selector["error"] == nil || selector["recall"] != "UNKNOWN" {
 				t.Fatalf("%s=%v", name, selector)
@@ -388,115 +389,6 @@ func TestAffectedAuditPlaywrightAndBounds_AFPV0445(t *testing.T) {
 	}
 }
 
-// AFP-V0-447: the e2e-compile selector is run on the change and scored by
-// its compiled scenario placements.
-// It builds the corvint-test companion and puts it on PATH, so it is not parallel.
-// auditE2EFixture puts a built corvint-test on PATH and commits the changee2e overlay as base
-// and a booking edit as head. With split, the e2e suite moves to a second repository that the
-// manifest names as tests.repo "e2e", whose root and commit are returned (AFP-V0-490).
-func auditE2EFixture(t *testing.T, split bool) (root, base, head, tests, testsRev string) {
-	t.Helper()
-	bin := t.TempDir()
-	build := exec.Command("go", "build", "-o", filepath.Join(bin, "corvint-test"), "../corvint-test")
-	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build corvint-test: %v\n%s", err, output)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	root = appmapCLIRepo(t)
-	overlay := filepath.Join("..", "..", "internal", "changee2e", "testdata", "overlay")
-	err := filepath.WalkDir(overlay, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		rel, _ := filepath.Rel(overlay, p)
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(rel)), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(filepath.Join(root, rel), data, 0o644)
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	commit := func(repository, message string) string {
-		affectedGit(t, repository, "add", "-A")
-		affectedGit(t, repository, "-c", "user.name=F", "-c", "user.email=f@example.invalid", "commit", "-qm", message)
-		return strings.TrimSpace(affectedGit(t, repository, "rev-parse", "HEAD"))
-	}
-	if split {
-		tests = t.TempDir()
-		// The suite and its block declarations are read from the tests root (CCE-V0-135).
-		for _, moved := range []string{"e2e", ".corvint"} {
-			if err := os.Rename(filepath.Join(root, moved), filepath.Join(tests, moved)); err != nil {
-				t.Fatal(err)
-			}
-		}
-		affectedGit(t, tests, "init", "-q")
-		testsRev = commit(tests, "suite")
-		manifest := filepath.Join(root, "appmap.json")
-		raw, err := os.ReadFile(manifest)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(manifest, []byte(strings.Replace(string(raw), `"tests": {`, `"tests": {"repo": "e2e",`, 1)), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	base = commit(root, "overlay")
-	booked, err := os.ReadFile(filepath.Join(overlay, "app", "components", "teesheet.head.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "app", "components", "teesheet.html"), booked, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	head = commit(root, "book")
-	return root, base, head, tests, testsRev
-}
-
-func TestAffectedAuditE2ECompileSelector_AFPV0447(t *testing.T) {
-	root, base, head, _, _ := auditE2EFixture(t, false)
-	const compiled = "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts"
-	spec := func(file, status string) string {
-		return `{"title":"` + file + `","file":"` + file + `","specs":[{"title":"t","tests":[{"projectName":"chromium","status":"` + status + `"}]}]}`
-	}
-	outcomes := t.TempDir()
-	documents := map[string]string{
-		"base.json":   `{"suites":[` + spec("e2e/specs/login.spec.ts", "expected") + `]}`,
-		"safe.json":   `{"suites":[` + spec("e2e/specs/login.spec.ts", "expected") + `,` + spec(compiled, "unexpected") + `]}`,
-		"missed.json": `{"suites":[` + spec("e2e/specs/login.spec.ts", "unexpected") + `]}`,
-	}
-	for name, body := range documents {
-		if err := os.WriteFile(filepath.Join(outcomes, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	change := func(id, changed string) string {
-		return `{"id":"` + id + `","base":"` + base + `","head":"` + head + `","format":"playwright-json","baseline":"base.json","changed":"` + changed + `","e2e":{"manifest":"appmap.json"}}`
-	}
-	manifest := writeAuditManifest(t, outcomes, change("caught", "safe.json"), change("missed", "missed.json"))
-	report, code, stderr := runAuditCLI(t, root, manifest)
-	if code != 1 {
-		t.Fatalf("exit %d: %s %v", code, stderr, report)
-	}
-	caught := auditSelector(t, report, 0, "e2e-compile")
-	if caught["scope"] != "BOUNDED" || caught["selector_state"] != "COMPILED" || caught["verdict"] != "SAFE" || caught["selection_size"].(float64) != 1 || caught["recall"] != "1.000000" {
-		t.Fatalf("caught=%v", caught)
-	}
-	missed := auditSelector(t, report, 1, "e2e-compile")
-	misses := missed["misses"].([]any)
-	if missed["verdict"] != "MISS" || len(misses) != 1 || misses[0].(map[string]any)["file"] != "e2e/specs/login.spec.ts" || missed["recall"] != "0.000000" {
-		t.Fatalf("missed=%v", missed)
-	}
-	if aggregate := auditAggregate(t, report, "e2e-compile"); aggregate["changes_with_miss"].(float64) != 1 || aggregate["observed_changes"].(float64) != 2 || aggregate["recall"] != "0.500000" {
-		t.Fatalf("aggregate=%v", aggregate)
-	}
-}
-
 // AFP-V0-447 (4), (5): an unobserved test, even a selected one, keeps recall
 // UNKNOWN, and an UNKNOWN per-change ratio keeps the aggregate ratio UNKNOWN.
 func TestAffectedAuditUnknownRatiosPropagate_AFPV0447(t *testing.T) {
@@ -532,114 +424,16 @@ func TestAffectedAuditUnknownRatiosPropagate_AFPV0447(t *testing.T) {
 	}
 }
 
-// AFP-V0-490, AFP-V0-492: e2e {repos, repo_revisions} reach e2e-compile as its --repo and
-// --repo-revision flags, so a suite in a second repository compiles, and the selection records
-// the tests root's alias and revision.
-func TestAffectedAuditE2ETwoRepository_AFPV0490(t *testing.T) {
-	root, base, head, tests, testsRev := auditE2EFixture(t, true)
-	const compiled = "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts"
-	spec := func(file, status string) string {
-		return `{"title":"` + file + `","file":"` + file + `","specs":[{"title":"t","tests":[{"projectName":"chromium","status":"` + status + `"}]}]}`
-	}
-	outcomes := t.TempDir()
-	documents := map[string]string{
-		"base.json": `{"suites":[` + spec("e2e/specs/login.spec.ts", "expected") + `]}`,
-		"safe.json": `{"suites":[` + spec("e2e/specs/login.spec.ts", "expected") + `,` + spec(compiled, "unexpected") + `]}`,
-	}
-	for name, body := range documents {
-		if err := os.WriteFile(filepath.Join(outcomes, name), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	change := func(id, e2e string) string {
-		return `{"id":"` + id + `","base":"` + base + `","head":"` + head + `","format":"playwright-json","baseline":"base.json","changed":"safe.json","e2e":` + e2e + `}`
-	}
-	repos := `"repos":{"e2e":"` + tests + `"}`
-	manifest := writeAuditManifest(t, outcomes,
-		change("stated", `{"manifest":"appmap.json",`+repos+`,"repo_revisions":{"e2e":"`+testsRev+`"}}`),
-		change("at-head", `{"manifest":"appmap.json",`+repos+`}`),
-		change("one-repo", `{"manifest":"appmap.json"}`))
-	report, code, stderr := runAuditCLI(t, root, manifest)
-	if code != 3 {
-		t.Fatalf("exit %d: %s %v", code, stderr, report)
-	}
-	for index, stated := range []bool{true, false} {
-		selected := auditSelector(t, report, index, "e2e-compile")
-		pins, _ := selected["roots"].([]any)
-		if selected["verdict"] != "SAFE" || selected["selector_state"] != "COMPILED" || len(pins) != 1 {
-			t.Fatalf("change %d: %v", index, selected)
-		}
-		pin := pins[0].(map[string]any)
-		if pin["repo"] != "e2e" || pin["revision"] != testsRev || (pin["stated"] == true) != stated {
-			t.Fatalf("change %d pin: %v", index, pin)
-		}
-	}
-	// AFP-V0-493: a dropped test is never "removed" on the application repository's evidence
-	// when the suite lives in a second repository; deleting a same-path application file keeps
-	// it unobserved.
-	if err := os.Remove(filepath.Join(root, "index.html")); err != nil {
-		t.Fatal(err)
-	}
-	affectedGit(t, root, "add", "-A")
-	affectedGit(t, root, "-c", "user.name=F", "-c", "user.email=f@example.invalid", "commit", "-qm", "drop")
-	dropped := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	if err := os.WriteFile(filepath.Join(outcomes, "with-index.json"), []byte(`{"suites":[`+spec("index.html", "expected")+`,`+spec("e2e/specs/login.spec.ts", "expected")+`]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(outcomes, "without-index.json"), []byte(`{"suites":[`+spec("e2e/specs/login.spec.ts", "expected")+`]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	for _, tc := range []struct {
-		e2e     string
-		removed bool
-	}{{`{"manifest":"appmap.json",` + repos + `}`, false}, {`{"manifest":"appmap.json"}`, true}} {
-		document := `{"id":"drop","base":"` + head + `","head":"` + dropped + `","format":"playwright-json","baseline":"with-index.json","changed":"without-index.json","e2e":` + tc.e2e + `}`
-		report, code, stderr := runAuditCLI(t, root, writeAuditManifest(t, outcomes, document))
-		if code == 2 {
-			t.Fatalf("%s: exit 2: %s", tc.e2e, stderr)
-		}
-		observation, _ := report["changes"].([]any)[0].(map[string]any)["observation"].(map[string]any)
-		removed, unobserved := observation["removed"].([]any), observation["unobserved"].([]any)
-		if (len(removed) == 1) != tc.removed || (len(unobserved) == 1) == tc.removed {
-			t.Fatalf("%s: %s %v", tc.e2e, stderr, observation)
-		}
-	}
-	// Without the second repository the compile cannot read the suite: UNKNOWN, as before.
-	if unread := auditSelector(t, report, 2, "e2e-compile"); unread["verdict"] != "UNKNOWN" || unread["scope"] != "ERROR" || unread["roots"] != nil {
-		t.Fatalf("one-repo: %v", unread)
-	}
-}
-
-// AFP-V0-491: an invalid two-repository input is an input error (exit 2) before any change
-// runs, never an UNKNOWN selection.
-func TestAffectedAuditE2ETwoRepositoryInputErrors_AFPV0491(t *testing.T) {
+// AFP-V0-447, AFP-V0-490: the e2e-compile selector was removed with the E2E proof lab, so a
+// change carrying e2e is an input error (exit 2), never silently ignored.
+func TestAffectedAuditE2EFieldRefused_AFPV0447(t *testing.T) {
 	root := appmapCLIRepo(t)
 	commit := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	tests := t.TempDir()
-	link := filepath.Join(t.TempDir(), "app")
-	if err := os.Symlink(root, link); err != nil {
-		t.Fatal(err)
-	}
-	for _, tc := range []struct{ e2e, want string }{
-		{`"repos":{"e2e":"relative/tests"}`, `repos "e2e" must be an absolute, clean path`},
-		{`"repos":{"e2e":"` + tests + `/../x"}`, `repos "e2e" must be an absolute, clean path`},
-		{`"repos":{"e2e":"` + tests + `"},"repo_revisions":{"e2e":"main"}`, `repo_revisions "e2e" must be a full lowercase commit id`},
-		{`"repos":{"e2e":"` + tests + `"},"repo_revisions":{"other":"` + commit + `"}`, "--repo-revision names an alias without --repo"},
-		{`"repos":{"e2e":"` + tests + `"},"manifest_repo":"other"`, `manifest_repo "other" names no repos alias`},
-		{`"repos":{"E2E":"` + tests + `"}`, `repos alias "E2E" is invalid`},
-		{`"repos":{"e2e":"` + tests + `"},"manifest_repo":"Bad"`, `manifest_repo "Bad" names no repos alias`},
-		// A key holding "=" would re-split into another alias and root once joined.
-		{`"repos":{"e2e=bad":"` + tests + `"}`, `repos alias "e2e=bad" is invalid`},
-		{`"repos":{"e2e":"` + tests + `"},"repo_revisions":{"e2e=x":"` + commit + `"}`, `repo_revisions alias "e2e=x" is invalid`},
-		// The audited repository, directly or through a symlink, is not a second repository.
-		{`"repos":{"e2e":"` + root + `"}`, `repos "e2e" is the audited repository`},
-		{`"repos":{"e2e":"` + link + `"}`, `repos "e2e" is the audited repository`},
-	} {
-		document := `{"id":"c","base":"` + commit + `","head":"` + commit + `","e2e":{"manifest":"appmap.json",` + tc.e2e + `}}`
-		report, code, stderr := runAuditCLI(t, root, writeAuditManifest(t, t.TempDir(), document))
-		var refusal struct{ Code, Error string }
-		if code != 2 || json.Unmarshal([]byte(stderr), &refusal) != nil || refusal.Code != "unsupported-affected-audit" || !strings.Contains(refusal.Error, tc.want) {
-			t.Fatalf("%s: exit %d, stderr %q, want %q (%v)", tc.e2e, code, stderr, tc.want, report)
-		}
+	document := `{"id":"c","base":"` + commit + `","head":"` + commit + `","e2e":{"manifest":"appmap.json"}}`
+	report, code, stderr := runAuditCLI(t, root, writeAuditManifest(t, t.TempDir(), document))
+	var refusal struct{ Code, Error string }
+	if code != 2 || json.Unmarshal([]byte(stderr), &refusal) != nil || refusal.Code != "unsupported-affected-audit" ||
+		!strings.Contains(refusal.Error, "--changes:") || !strings.Contains(refusal.Error, `"e2e"`) {
+		t.Fatalf("exit %d, stderr %q (%v)", code, stderr, report)
 	}
 }

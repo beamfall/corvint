@@ -143,7 +143,7 @@
     },
     {
       "path": "internal/capcatalog/trees/",
-      "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint, cmd/corvint-test, internal/tasks/cli and tools/capabilities-check through path literals"
+      "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint, internal/tasks/cli and tools/capabilities-check through path literals"
     },
     {
       "path": "internal/command/flows/testdata/",

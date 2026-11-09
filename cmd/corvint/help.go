@@ -1156,14 +1156,9 @@ listing changes: id, full base commit id, and kind replay (full head), revert
 (full commit id reverted on base) or mutant (diff file applied on base);
 junit or playwright-json baseline and changed outcome files relative to FILE,
 or none (FILE, outcome, diff and map files must be regular files; a symlink is
-refused); optional path_prefix, appmap {map, ledger} and e2e {manifest,
-manifest_repo, repos, repo_revisions}, where repos maps an alias to an absolute
-tests-repository root and repo_revisions an alias to a full commit id, passed
-to e2e-compile as --repo, --manifest-repo and --repo-revision; the report
-records each root e2e-compile read and its revision. In a
-private shared clone it runs affected on every change, appmap-impact and
-e2e-compile (the corvint-test companion) where configured, treats each test whose outcome changed or is new
-as one that had to run, and writes a corvint-affected-audit/1 report: per
+refused); optional path_prefix and appmap {map, ledger}. In a private shared
+clone it runs affected on every change and appmap-impact where configured,
+treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per
 change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses,
 recall, precision, fallback and elapsed time; per selector micro recall and
 precision and a 95% one-sided Clopper-Pearson bound on the per-change miss

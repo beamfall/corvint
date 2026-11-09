@@ -17,8 +17,8 @@ separates current product and contributor guidance from historical records.
   degradation guidance, including adopters without CEM/OCM artifacts.
 - [MCP server](MCP-SERVER.md), [integration ecosystem](EXTENSION-ECOSYSTEM.md), and
   [Beamfall integration](BEAMFALL-INTEGRATION.md) — integration contracts and current limits.
-- [Change-compiled E2E adoption](E2E-ADOPTION.md) — the minimum application-map manifest and what
-  each `corvint flows appmap build` and `corvint-test e2e` step needs committed (experimental).
+- [Application map adoption](APPLICATION-MAP.md) — the minimum application-map manifest and what
+  `corvint flows appmap build` needs committed (experimental).
 - [External evidence providers](EXTERNAL-EVIDENCE-PROVIDERS.md) — the provider record format,
   `context.external`, authority, and privacy boundary for a third-party evidence source.
 - [Architecture](ARCHITECTURE.md), [development contract](SPEC-DRIVEN-DEVELOPMENT.md), and

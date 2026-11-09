@@ -1,7 +1,7 @@
 // corvint-test-runner is an experimental optional companion. Trusted test code
 // runs locally; its receipts attest observed bytes, not complete dependencies.
-// It is a shim over the `corvint-test runner` group's entry (CTF-V0-004): both
-// call internal/testrunner/cli, so its output stays byte-identical.
+// It is a shim over internal/testrunner/cli (CTF-V0-004); the `corvint-test runner`
+// group that shared that entry left with the E2E proof lab (decision 0593).
 package main
 
 import (

@@ -134,13 +134,12 @@ Goals
    corvint --version --json
    Output: corvint-version/1.
 
-15. Adopt change-compiled E2E tests (experimental)
+15. Adopt an application map (experimental)
    corvint flows appmap build --manifest appmap.json --revision HEAD
    Output: application-map/0, which checks the committed hand-written
-   manifest. The chain then runs in the corvint-test companion: e2e catalog,
-   obligations, compile, prove and shadow. The workflows member of
-   `corvint help --json` lists each step's flags, inputs and commits in order,
-   each step's --help prints them, and docs/E2E-ADOPTION.md is the guide.
+   manifest. The workflows member of `corvint help --json` lists each step's
+   flags, inputs and commits in order, each step's --help prints them, and
+   docs/APPLICATION-MAP.md is the guide.
 
 Non-capabilities
 

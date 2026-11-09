@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// cli-discovery-gen migrates single-mode and folded companion help to command trees.
+// cli-discovery-gen migrates single-mode companion help to command trees.
 package main
 
 import (
@@ -39,36 +39,17 @@ func main() {
 		if err != nil && !os.IsNotExist(err) {
 			must(err)
 		}
-		var tree clitree.Tree
-		if group := map[string]string{"corvint-behavior-falsify": "falsify", "corvint-playwright-minimize": "minimize", "corvint-test-runner": "runner", "corvint-tests-accept": "accept"}[binary]; group != "" {
-			tree = clitree.Tree{Schema: clitree.Schema, Binary: binary, HelpJSON: binary + " help --json", Source: "companion root contract", Global: []string{"--version"}}
-			data, err = os.ReadFile(filepath.Join(treeDir, "corvint-test.json"))
-			must(err)
-			var folded clitree.Tree
-			must(json.Unmarshal(data, &folded))
-			tree.Sources = []string{"cmd/" + binary, map[string]string{"falsify": "internal/behaviorfalsify/cli", "minimize": "internal/playwrightminimize/cli", "runner": "internal/testrunner/cli", "accept": "internal/testacceptance/cli"}[group]}
-			tree.Internal = folded.Internal
-			tree.Nodes = nil
-			for _, node := range folded.Nodes {
-				if len(node.Path) == 0 || node.Path[0] != group {
-					continue
-				}
-				node.Path = slices.Clone(node.Path[1:])
-				node.Command = strings.Replace(node.Command, "corvint-test "+group, binary, 1)
-				node.Help = strings.Replace(node.Help, "corvint-test "+group, binary, 1)
-				node.Example = strings.Replace(node.Example, "corvint-test "+group, binary, 1)
-				for i, form := range node.Usage {
-					node.Usage[i] = strings.Replace(form, "corvint-test "+group, binary, 1)
-				}
-				tree.Nodes = append(tree.Nodes, node)
-			}
-		} else {
-			tree = rootTree(binary)
+		if binary == "corvint-test-runner" && err == nil {
+			// Its tree was derived from the retired corvint-test runner group (decision 0593);
+			// the committed snapshot is now authored, and capabilities-check still holds it to
+			// the binary's dispatch sources.
+			continue
 		}
+		tree := rootTree(binary)
 		tree.Nodes = append(tree.Nodes, clitree.Node{Path: []string{"help"}, Command: binary + " help", Summary: "Show command help or the offline machine catalog.", Usage: []string{binary + " help [COMMAND...] [--json]"}, Flags: []string{"--json"}, Required: []string{}, Example: binary + " help --json", Help: binary + " help --help"})
 		// CAP-V0-9300: offline catalogs must link executable discovery
 		// commands even when the native protocol/shim help is frozen.
-		if strings.HasPrefix(binary, "corvint-analyzer-") || slices.Contains([]string{"corvint-test-runner", "corvint-behavior-falsify", "corvint-playwright-minimize", "corvint-tests-accept"}, binary) {
+		if strings.HasPrefix(binary, "corvint-analyzer-") || binary == "corvint-test-runner" {
 			tree.HelpJSON = "corvint-cli --binary " + binary + " help --json"
 			for i := range tree.Nodes {
 				tree.Nodes[i].Help = "corvint-cli --binary " + tree.Nodes[i].Help

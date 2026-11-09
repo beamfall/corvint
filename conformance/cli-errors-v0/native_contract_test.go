@@ -46,7 +46,6 @@ var contracts = map[string]contract{
 	"corvint-postmerge-workflow": companion("./cmd/corvint-postmerge-workflow"),
 	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),
 	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
-	"corvint-test":               companion("./cmd/corvint-test"),
 	"corvint-update":             companion("./cmd/corvint-update"),
 	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
 }

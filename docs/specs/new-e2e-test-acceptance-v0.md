@@ -2,16 +2,19 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0593)
+Delivery status: retired
+Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `cmd/corvint-tests-accept` and
+`internal/testacceptance` with the E2E proof lab (b1a117eb is the last tree with them). The body
+below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/394;
 `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; existing JS provider and behavior falsification contracts.
 
 ## Agent digest
 - Claim: A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.
-- Status: proposed/experimental. Request /0 stays negative-only with unknown freshness. Opt-in request /1 uses the separate proposed PTF profile and actual observed native joins; caller pins never promote freshness.
-- Exists: `internal/testacceptance`, `cmd/corvint-tests-accept`; focused checks and actual local browser negative assessment; NEA-V0-008/009 attach per-test repeat, cleanup and order/isolation evidence and render a bound Markdown change-request body; NEA-V0-011 names each run's provider infrastructure cause; NEA-V0-012..016 add the opt-in caller-owned authenticated-disposable app profile and NEA-V0-017 splits blocked verdicts into infrastructure and freshness-unknown.
-- Blocked on: parent V1-0541 final clean-bound standalone N2/N32 qualification, CEM/OCM, integration and native completion. Child V1-0556 is integrated and natively completed; its evidence does not complete the parent.
+- Status: retired 2026-11-09 (decision 0593) / retired
+- Exists: nothing; `cmd/corvint-tests-accept` and `internal/testacceptance` were deleted (read them at b1a117eb).
+- Blocked on: nothing; retired by decision 0593.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
 ## User and measurable job
@@ -266,19 +269,8 @@ operator-controlled redirection; no product file writer or store migration.
 
 ## Acceptance evidence and traceability
 
-| Requirements | Implementation | Evidence |
-|---|---|---|
-| NEA-V0-001 | closed request/pinning | malformed, approval drift and dirty-root tests |
-| NEA-V0-002, NEA-V0-005 | actual provider repeats/probes | disposable browser stable, nonasserting and alternating fixtures |
-| NEA-V0-003, NEA-V0-004 | control execution/projection | actual killed/survived controls; blocked stable freshness |
-| NEA-V0-006 | sanitized worker/observer | sentinel isolation, nested group cancellation and cleanup tests |
-| NEA-V0-007 | fixed report/body | bounded body and unknown preservation tests |
-| NEA-V0-008 | per-test summary, isolation probes | `TestNEAV0008AttachedOrderEvidence` (all isolation statuses, cleanup attribution, grep anchoring); actual browser `NEA-V0-008/attached-order-evidence` |
-| NEA-V0-010 | validated per-run root and standalone worker scope | `TestNEAV0010TempRootValidation`, `TestNEAV0010StandaloneScope`, `TestNEAV0010NativeTempScope`, `TestNEAV0010NativeOutputSelection` |
-| NEA-V0-011 | named infrastructure cause per run | `TestNEAV0011InfrastructureCause` (code reason and code detail joined; free-text detail dropped; non-code reason `unrecognized`; `markInfrastructure` sets the reason and the cause together; field absent without a failure; a worker-level run with a forced provider failure is NOT_RUN); actual browser NEA-V0-002 through `corvint-test accept worker` PASS 2026-10-25 |
-| NEA-V0-012..016 | `internal/testacceptance/external.go` (`validateExternal`, `externalHook`, `externalReport`), `execute.go` (`RunWorker`, `ExecuteWithWorker`), `internal/jstestprovider/caller_owned.go` (`runCallerOwned`) | `TestNEAV0012ExternalProfileValidation`, `TestNEAV0012CallerOwnedServerRun`, `TestNEAV0013DeclaredEnvironment`, `TestNEAV0014AuthFilePinning`, `TestNEAV0014AuthMaterialNeverPublished`, `TestNEAV0015HealthHookFailure`, `TestNEAV0016LegacyWireUnchanged`, `TestCallerOwnedServerAdmission`, `TestCallerOwnedServerUnavailableAtPublish` |
-| NEA-V0-017 | `internal/testacceptance/report.go` (`blockedReason`) | `TestNEAV0017BlockedReasonSplit` |
-| NEA-V0-009 | Markdown change-request body | `TestNEAV0009ChangeRequestBody` (bindings, row, `UNVALIDATED` substitution, no title text); actual browser `NEA-V0-007/fixed-body` |
+Retired by decision 0593: this table cited tests deleted with the E2E proof lab. Read it
+at the last tree that held them: `git show b1a117eb:docs/specs/new-e2e-test-acceptance-v0.md`.
 
 Focused conformance and independent review qualify only their named local paths. Synthetic tests
 can test fail-closed classification but cannot qualify actual browser acceptance. Record actual

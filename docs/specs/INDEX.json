@@ -218,8 +218,8 @@
     "path": "docs/specs/change-compiled-e2e-v0.md",
     "title": "Change-Compiled E2E V0",
     "reqPrefix": "CCE-V0",
-    "intent": "accepted (owner, 2026-10-22)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0593)",
+    "delivery": "retired",
     "claim": "Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.",
     "dependsOn": [
       "docs/specs/application-map-v0.md",
@@ -233,10 +233,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/changee2e",
-      "cmd/corvint-test"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/test-consolidation-planner-v0.md",
@@ -363,8 +360,8 @@
     "path": "docs/specs/browser-behavior-falsification-v0.md",
     "title": "Browser behavior falsification V0",
     "reqPrefix": "BBF-V0",
-    "intent": "proposed; BBF-V0-015..018, BBF-V0-019..028, BBF-V0-029..033 and BBF-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027, V1-2029)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0593)",
+    "delivery": "retired",
     "claim": "An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.",
     "dependsOn": [
       "docs/specs/documentation-corpus-v1.md",
@@ -372,10 +369,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/behaviorfalsify",
-      "cmd/corvint-behavior-falsify"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-0.2-canonical-binding.md",
@@ -1815,8 +1809,8 @@
     "path": "docs/specs/new-e2e-test-acceptance-v0.md",
     "title": "New E2E Test Acceptance V0",
     "reqPrefix": "NEA-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0593)",
+    "delivery": "retired",
     "claim": "A separate companion repeats new Playwright tests, executes approved negative controls and produces one bound assessment and fixed PR body.",
     "dependsOn": [
       "docs/specs/js-live-test-provider-v0.md",
@@ -1825,9 +1819,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/testacceptance",
-      "internal/procgroup",
-      "cmd/corvint-tests-accept"
+      "internal/procgroup"
     ]
   },
   {
@@ -2439,16 +2431,15 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/jstestprovider",
-      "internal/testacceptance"
+      "internal/jstestprovider"
     ]
   },
   {
     "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
     "title": "Playwright Suite-Interaction Minimizer V0",
     "reqPrefix": "PSM-V0",
-    "intent": "proposed",
-    "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
+    "intent": "retired 2026-11-09 (decision 0593)",
+    "delivery": "retired",
     "claim": "A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.",
     "dependsOn": [
       "docs/specs/playwright-external-provider-v0.md",
@@ -2456,10 +2447,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/playwrightminimize",
-      "cmd/corvint-playwright-minimize"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-ci-host-v0.md",
@@ -2547,7 +2535,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/testacceptance",
       "internal/postmergeproof",
       "internal/postmergeconnector",
       "internal/postmergeworkflow",
@@ -3781,8 +3768,8 @@
     "path": "docs/specs/site-knowledge-howto-v0.md",
     "title": "Site Knowledge How-To V0",
     "reqPrefix": "SKH-V0",
-    "intent": "accepted",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0593)",
+    "delivery": "retired",
     "claim": "Page objects, steps, setup and edges mined from tests answer \"how do I X\" with a live-proven E2E test, or abstain naming the missing knowledge.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md",
@@ -3876,8 +3863,8 @@
     "path": "docs/specs/corvint-test-fold-v0.md",
     "title": "Corvint Test Fold V0",
     "reqPrefix": "CTF-V0",
-    "intent": "accepted (owner, 2026-10-22)",
-    "delivery": "experimental",
+    "intent": "accepted (owner, 2026-10-22); retired except CTF-V0-010 by decision 0593",
+    "delivery": "retired",
     "claim": "Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.",
     "dependsOn": [],
     "supersededBy": null,

@@ -165,18 +165,6 @@
       ]
     },
     {
-      "paths": "cmd/corvint-test/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "cmd/corvint-tests-accept/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "cmd/corvint-web-flows/help.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -885,12 +873,6 @@
       ]
     },
     {
-      "paths": "internal/changee2e/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/contextindex/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -1186,6 +1168,12 @@
     },
     {
       "paths": "internal/testvaliditydoc/externalorigins/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/testvaliditydoc/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
