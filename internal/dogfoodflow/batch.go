@@ -540,7 +540,7 @@ func (b *batch) archivesInherited(parent, commit string) bool {
 func (b *batch) deriveMerge(merge, first, second string) {
 	tree := b.gitValue("rev-parse", merge+"^{tree}")
 	firstTree := tree == b.gitValue("rev-parse", first+"^{tree}")
-	var attempted, conflicted string
+	var attempted, conflicted, automatic string
 	for _, strategy := range []struct{ name, option string }{{"ort", ""}, {"ort-ours", "-Xours"}, {"ort-theirs", "-Xtheirs"}} {
 		// The merge conflict style is fixed so that the conflict markers
 		// droppedSide parses do not depend on any configuration.
@@ -550,6 +550,9 @@ func (b *batch) deriveMerge(merge, first, second string) {
 		}
 		result, status := b.scratchGit(append(args, first, second)...)
 		written := strings.SplitN(result, "\x00", 2)[0]
+		if strategy.name == "ort" && (status == 0 || status == 1) {
+			automatic = result
+		}
 		if strategy.name == "ort" && status == 1 {
 			conflicted = result
 		}
@@ -572,6 +575,13 @@ func (b *batch) deriveMerge(merge, first, second string) {
 	if conflicted != "" && !firstTree && b.regeneratedSpecs(merge, tree, conflicted) {
 		b.derive(merge, "regenerated-specs")
 		return
+	}
+	// DWC-V0-7704: replay built-in driver rules from parent blobs, never local config.
+	if automatic != "" && !firstTree {
+		if derivation := b.driverMerge(tree, automatic, first, second); derivation != "" {
+			b.derive(merge, derivation)
+			return
+		}
 	}
 	detail := ""
 	if attempted != "" {

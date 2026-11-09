@@ -53,7 +53,7 @@
     "scope": "UNKNOWN",
     "selected": [
       {
-        "testCount": 1,
+        "testCount": -1,
         "unitId": "go:example.test/cli/pkg",
         "witness": {
           "dirtyPath": "pkg/main.go",

@@ -131,7 +131,7 @@ func goEnvFileStamp(ctx context.Context, root string) (string, error) {
 var goEnvKeys = []string{"CGO_ENABLED", "GO111MODULE", "GOAMD64", "GOARCH", "GOARM64", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GONOPROXY", "GONOSUMDB", "GOOS", "GOPRIVATE", "GOPROXY", "GOSUMDB", "GOTOOLCHAIN", "GOWORK"}
 
 // cacheEnvironment is every GO*, CGO_*, CORVINT_*, GIT_* and SELECTION_BASELINE_*
-// variable, sorted, except the trace sinks, which change no output, and the
+// variable and SELECTION_CONTRACT_CHECK, which changes measure (AFP-V0-9501), sorted, except the trace sinks, which change no output, and the
 // cache's own switches.
 func cacheEnvironment(env []string) []string {
 	var kept []string
@@ -140,7 +140,7 @@ func cacheEnvironment(env []string) []string {
 		switch {
 		case strings.HasPrefix(name, "GIT_TRACE"), name == "SELECTION_BASELINE_CACHE", name == "SELECTION_BASELINE_CACHE_DIR", name == "SELECTION_BASELINE_JOBS":
 			continue
-		case strings.HasPrefix(name, "GO"), strings.HasPrefix(name, "CGO_"), strings.HasPrefix(name, "CORVINT_"), strings.HasPrefix(name, "GIT_"), strings.HasPrefix(name, "SELECTION_BASELINE_"):
+		case strings.HasPrefix(name, "GO"), strings.HasPrefix(name, "CGO_"), strings.HasPrefix(name, "CORVINT_"), strings.HasPrefix(name, "GIT_"), strings.HasPrefix(name, "SELECTION_BASELINE_"), name == "SELECTION_CONTRACT_CHECK":
 			kept = append(kept, kv)
 		}
 	}

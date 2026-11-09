@@ -429,14 +429,23 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the larger of the CPU
-// count at most 4 and a third of the CPUs at most 8, memory bounded, and at most n (at most eight,
-// DTL-V0-006). A 4-CPU hosted runner needs all 4: one worker there overruns the doc-gates job bound
-// (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8 (ASC-V0-777).
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, at most n. Without it, a
+// positive GOMAXPROCS, else HEAVY_P, environment value is the admitted runtime share (DTL-V0-017;
+// GOMAXPROCS wins as it does for a caller overriding heavy.sh's runtime cap); with neither, the
+// larger of the CPU count at most 4 and a third of the CPUs at most 8 (DTL-V0-006). Both defaults
+// are memory bounded and at most n. A 4-CPU hosted runner needs all 4: one worker there overruns
+// the doc-gates job bound (ASD-V0-925); a 12-CPU host keeps 4 and the 32-CPU lane host gets 8
+// (ASC-V0-777).
 func replayJobs(n int) int {
 	override := os.Getenv("SELECTION_BASELINE_JOBS")
 	jobs := defaultReplayJobs(n, runtime.NumCPU(), override)
 	if v, err := strconv.Atoi(override); err != nil || v <= 0 {
+		for _, key := range []string{"GOMAXPROCS", "HEAVY_P"} {
+			if share, err := strconv.Atoi(os.Getenv(key)); err == nil && share > 0 {
+				jobs = min(share, n)
+				break
+			}
+		}
 		jobs = max(1, min(jobs, memoryJobs()))
 	}
 	return jobs
@@ -501,6 +510,19 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 	fillManifest(&res, m)
 	checkFailures(&res)
 	checkAgreement(&res, p, m)
+	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
+		var universe []string
+		if m.Scope == "FULL" {
+			universe, err = contractUniverse(ctx, clone)
+			if err != nil {
+				return res, fmt.Errorf("%s: %w", c.ID, err)
+			}
+		}
+		if err := contractAgreement(audit, m, universe); err != nil {
+			return res, fmt.Errorf("%s: %w", c.ID, err)
+		}
+		fmt.Fprintf(os.Stderr, "selection-contract: %s PASS scope=%s driver-minus-shadow=0 package-seconds=0 (same package set)\n", c.ID, m.Scope)
+	}
 	return res, nil
 }
 
@@ -853,7 +875,17 @@ func moduleOf(name string) (string, error) {
 // records that. A historic head can lack a declaration the current binary
 // needs, such as the cfamily one a bearing frontier adds (AFP-V0-2750).
 func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
-	_, err := run(ctx, dir, corvint, "test", "--base", base, "--dry-run", "--manifest", manifestPath)
+	args := []string{"test", "--base", base, "--dry-run", "--manifest", manifestPath}
+	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
+		// CI planning requires an absolute wrapper path even in dry-run mode.
+		// It only appears in planned argv; no wrapper is created or executed.
+		confine, err := filepath.Abs(filepath.Join(dir, "test-confine"))
+		if err != nil {
+			return err
+		}
+		args = append(args, "--profile", "ci", "--confine", confine)
+	}
+	_, err := run(ctx, dir, corvint, args...)
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 3 {
 		if info, statErr := os.Stat(manifestPath); statErr == nil && info.Mode().IsRegular() {
