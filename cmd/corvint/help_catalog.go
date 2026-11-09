@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
+	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
 // capabilityRegistry assembles the binary's own command surface for the
@@ -33,7 +34,7 @@ func capabilityRegistry() capcatalog.Registry {
 	registry.Topics["docs"] = strings.Join(docsTopics, "\n")
 	registry.NestedOperations["docs"] = map[string][]string{"corpus": corpus}
 	registry.Operations["docs"] = slices.Clone(docsSubcommands)
-	registry.Operations["flows"] = []string{"appmap"}
+	registry.Operations["flows"] = flowscmd.Subcommands()
 	for _, nested := range nestedHelpTopics {
 		registry.NestedHelpTopics = append(registry.NestedHelpTopics, nested[0])
 	}

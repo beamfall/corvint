@@ -88,5 +88,6 @@
 - `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
 - `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
 - `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
+- `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
 - `corvint help --tree`: [corvint](internal/capcatalog/trees/corvint.json)
 <!-- /cli-tree-links -->

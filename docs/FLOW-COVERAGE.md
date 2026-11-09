@@ -1,8 +1,5 @@
 # Flow variation coverage
 
-The `corvint flows coverage` command was retired by decision 0594. This guide stays only while the
-`corvint-mcp` flows tools still read the same inputs; remove it with them.
-
 `corvint flows coverage` reports the complete declared documentation inventory against accepted
 AFU variation matrices and retained original Playwright `/3` receipts. It does not execute tests,
 accept generated intent, or discover runs that were never retained.

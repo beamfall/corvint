@@ -22,6 +22,9 @@
       "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/jstestprovider/route-stubs.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."
     },
     {
+      "tests": "tools/web-flows/test/fixture/flows.spec.ts",
+      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+      "reason": "tools/web-flows/test/e2e.mjs copies this fixture spec into a scratch app and runs it through the corvint-web-flows observer (CORVINT_FLOW_BIN) (V1-3571)."
     }
   ]
 }

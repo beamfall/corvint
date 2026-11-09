@@ -61,9 +61,13 @@ func railsTestsRepoCLI(t *testing.T) (app, tests, mapFile, workspaceFile string)
 // --full after --source ALIAS:DIR.
 func TestWSDV0145SourceVerbsWorkspace(t *testing.T) {
 	app, tests, mapFile, workspaceFile := railsTestsRepoCLI(t)
-	for _, verb := range []string{"refs", "pageobjects", "steps", "setup", "links"} {
+	for _, verb := range []string{"refs", "pageobjects", "steps", "setup", "links", "infer", "how"} {
+		tail := []string{}
+		if verb == "how" {
+			tail = []string{"open orders"}
+		}
 		run := func(args ...string) (int, string, string) {
-			return runFlowsCLI(app, append(append([]string{"appmap", verb, "--map", mapFile, "--source", "tests:e2e"}, args...), "--full")...)
+			return runFlowsCLI(app, append(append(append([]string{"appmap", verb, "--map", mapFile, "--source", "tests:e2e"}, args...), "--full"), tail...)...)
 		}
 		code, want, diag := run("--repo", "tests="+tests)
 		if code != 0 && code != 1 || want == "" {
@@ -115,10 +119,18 @@ func TestSKHV0329AliasedManifestUnbound(t *testing.T) {
 	}
 }
 
-// SKH-V0-330 (#1933): a source verb's flags parse in any order, and
+// SKH-V0-330 (#1933): a source verb's flags parse in any order, how's included after its GOAL, and
 // a refusal names the flag or argument that failed before the usage.
 func TestSKHV0330SourceVerbFlagOrder(t *testing.T) {
-	app, _, mapFile, _ := railsTestsRepoCLI(t)
+	app, tests, mapFile, _ := railsTestsRepoCLI(t)
+	repo := "tests=" + tests
+	code, want, diag := runFlowsCLI(app, "appmap", "how", "--full", "--map", mapFile, "--repo", repo, "--source", "tests:e2e", "open orders")
+	if code != 0 || want == "" {
+		t.Fatalf("how flags first: %d %s", code, diag)
+	}
+	if code, out, diag := runFlowsCLI(app, "appmap", "how", "--map", mapFile, "open orders", "--source", "tests:e2e", "--repo", repo, "--full"); code != 0 || out != want {
+		t.Fatalf("how flags after GOAL: %d %s", code, diag)
+	}
 	for _, tc := range []struct {
 		verb  string
 		args  []string
@@ -128,6 +140,8 @@ func TestSKHV0330SourceVerbFlagOrder(t *testing.T) {
 		{"steps", []string{"--map", mapFile, "--source", "tests:e2e", "--fulll"}, "--fulll"},
 		{"links", []string{"--map", mapFile, "--source", "tests:e2e", "stray"}, "unexpected argument"},
 		{"refs", []string{"--source", "tests:e2e", "--full"}, "missing --map"},
+		{"how", []string{"--map", mapFile, "--source", "tests:e2e", "--full"}, "missing GOAL"},
+		{"how", []string{"--map", mapFile, "a", "b"}, "unexpected argument"},
 	} {
 		code, _, diag := runFlowsCLI(app, append([]string{"appmap", tc.verb}, tc.args...)...)
 		if code != 2 || !strings.Contains(diag, "invalid-arguments") || !strings.Contains(diag, tc.named) || !strings.Contains(diag, "requires --map FILE") {
