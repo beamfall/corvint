@@ -63,6 +63,8 @@ AFP-V0-2360 to AFP-V0-2363 and AFP-V0-2370 to AFP-V0-2378 here for the same reas
 entry `2026-11-03-floor-typed-reach`.
 Lane selmin (2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9011
 here for the same reason; see build-log entry `2026-11-07-selmin`.
+V1-5071 (2026-11-08) adds AFP-V0-9600 here for the same reason; see build-log entry
+`2026-11-08-v1-5071-proven-golist-readers`.
 Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
 for the same reason; see build-log entry `2026-11-07-rscope`.
 
@@ -413,7 +415,7 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   unit's import set and every unowned one, or a module file, changes the module's, so no reader is
   lost. Measured (build-log entry `2026-11-03-selprec-selection-precision`): deleting
   `cmd/corvint-lsp/swift_impact.go`, an import-set change in a binary that
-  `internal/swiftimpact`'s `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader`
+  `internal/swiftimpact`'s `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader` (since V1-5071 in `internal/closureguard`)
   names only by a computed string, selected 57 units without that package before (its test fails
   on the change) and selects it now, 58 units.
 
@@ -2216,6 +2218,30 @@ implementation is on the sibling branch and absent from the V1-5177 base.
   cache serialization. Graph-cache entries predating these facts SHALL NOT be reused:
   use `corvint-affected-graph-cache/1`, rejecting the old `/0` profile.
 
+- **AFP-V0-9600:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5071) This repository's `go list` import-graph guards that the AFP-V0-9010 rule can prove
+  SHALL live in `internal/closureguard`, a test-only package that reads nothing but the listings,
+  so it is a bounded unit, every test in it is a proven reader, and a body-only edit selects none
+  of them while an import-set change still does. Each guard SHALL derive its own module root from
+  its own `runtime.Caller(0)` file name by nested `filepath.Dir` calls (no `..` or `/...`
+  literal, which rule (d) of AFP-V0-023 reads as the repository root), feed that root to exactly
+  one listing, give each listing its own output and error names, set a literal environment, and
+  capture stderr in a buffer rather than recovering it from an `*exec.ExitError`. A guard that
+  sets an environment SHALL reset ambient flags with the exact empty `"GOFLAGS="` entry, because an
+  inherited `-overlay`, `-e` or `-f` changes what the listing reports, and an empty value cannot
+  widen what `go list` reads. A package that names `GOFLAGS` or `GOENV` anywhere keeps the proof
+  only when every `Env` assignment in its files (any receiver; an assignment to a field named
+  `Env`, an index of one, or an `Env:` composite key) is an `x.Env = append(os.Environ(), ...)` or
+  `x.Env = []string{...}` of string literals carrying that entry directly, and those entries are its
+  only mentions of either name. Any other shape, an `Env` assignment without the reset (including a
+  later reassignment that drops it), a non-empty or dynamic `GOFLAGS` value, any `GOENV` value, and
+  any other mention SHALL keep the unproven fallback. Any identifier named `Setenv`, `Unsetenv` or
+  `Clearenv` in a reader package also keeps it, because `os.Environ()` carries what they set. A guard that
+  needs more (a `/...` pattern, a computed environment, a package that also reads files) SHALL stay
+  in its owning package as an unproven or unbounded reader, and its build-log entry SHALL say why.
+  `TestClosureGuardIsProvenImportGraphReader_AFPV09600` classifies the real package and fails when
+  any of its tests stops being a proven reader.
+
 ### Driver narrowing after the convergence cap (V1-5000)
 
 - **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,
@@ -2356,7 +2382,7 @@ adapter. AFP-V0-2200 does not narrow a declared read scope or an unbounded read:
 `go list` guards whose scopes declare `internal/` (`internal/liveverify/provider/interlock`,
 `internal/analyzerstructured`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`) stay
 selected on any `internal/` edit by AFP-V0-023, and a header-only scope would be a new owner
-declaration. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
+declaration. AFP-V0-9600 moved the last three packages' guards to `internal/closureguard` but does not narrow their declared scopes either. AFP-V0-2205 does not sniff extensionless files elsewhere in the tree. AFP-V0-2240
 and AFP-V0-2241 port no non-Go reader to the CI selector, and change neither its rules (a), (b)
 and (d), the CEM evidence rule, nor declared read scopes (TSP-V0-980). No TypeScript token is narrowed: AFP-V0-2245
 is withdrawn, and TypeScript keeps the component-run relation (AFP-V0-072 (3)). AFP-V0-2246 is
@@ -2711,6 +2737,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9010 | `packageHeader`, `readHeaderFile`, `platformFree`, `testSummary` and `Source` in `ImportSetRecords` (`internal/liveverify/affected/golang/importsets.go`); `goListFile.unproven` and `goListFile.proven`, the `confinedCommand` check of `goListScanFile` and the `observesSource` pass of `goListUnits` (`golang/importgraph.go`) and the allowlist `observesSource`, `inertImports`, `classifiedImports`, `allowedDirectives`, `observingMethods`, `confinedCommand` and `ownTestdata` (`golang/sourcereaders.go`), and `commandDirectoryProven` (`golang/commanddirectories.go`); `ImportSetChanges.Source`, `Graph.SourcePath`, `unknownImportSets` and the `ImportGraphReadsFiles` case of `importGraphReadersOf` (`internal/liveverify/affected/importgraph.go`); `Unit.ImportGraphReadsFiles` in `unit.go`, `graph.go` and `graphcache.go` | `TestTestFileImportEdges_AFP_V0_9010` in `internal/liveverify/affected/golang/importsets_tests_test.go` (kept sets change no import set and select no proven reader, but a new kept-set file or a test body edit still selects the unproven `-json` reader wide; added import, role move, shrink, constraint, platform name, foreign clause, embed, cgo and test-only directory each still change it and select guard, slice and wide); `TestFoldedTestFilesKeepUnprovenReaders_AFP_V0_9010` (a duplicate-import test file added, or a test file renamed, selects the unproven file-name reader names and not the proven guard; dropping `Source` loses it; an added import selects both); `TestPackageDocReaderSelected_AFP_V0_9010` (a package comment edit selects the computed-target `{{.Doc}}` reader with chain lib, docs and not guard; dropping `Source` loses it); `TestUnknownReaderFallsBackToRun_AFP_V0_9010` (34 channels each make a proven reader unproven and selected by a body-only edit, among them an `os.Symlink` into testdata, an aliased `exec.Command` and `exec.CommandContext`, a function value of `exec.Command`, an `exec.ExitError` type, a package-level command, an `Args` index swap, a command passed to `json.Unmarshal`, and the unclassified `net/http/cgi` import, `reflect.ValueOf`, an unknown `//go:` directive, `t.Chdir` and a computed `t.Setenv`; an own-testdata read, an environment read and a confined command with literal `Env`, `Dir`, `Stderr`, `ProcessState` and `reflect.DeepEqual` stay proven and unselected); `TestReaderEnvironmentIdentity_AFP_V0_9010` (custom and shadowed receivers and an unknown environment producer retain folded-test-addition selection; standard, aliased and literal controls); `TestReaderBuiltinIdentity_AFP_V0_9010` (package/local append, argument append, shadowed conversion and unknown environment retain folded-test-addition selection; builtin control); `TestCallerFilenameProvenance_AFP_V0_9010` (line/block/column directives and unknown filename transform retain remapped-target import selection; physical filename control) |
 | AFP-V0-9010 | Same implementation as the preceding AFP-V0-9010 row | `TestCommandDirectoryFallsBack_AFP_V0_9010` (computed byte directory and unknown origins retain import and body selection; derived root and fresh temporary directory controls); `TestUnknownDirectoryListingIsNotExecution_AFP_V0_9010` (computed directory, Git stdout and unknown origins retain import/body reads without a false execution edge; unknown command methods and escapes retain that edge); `TestExistingTestdataSymlinkFallsBack_AFP_V0_9010` (existing directory, root and file symlinks retain body selection); `TestTestdataUnknownEntryFailsClosed_AFP_V0_9010` (regular-file control, unknown filesystem modes and lookup error); `TestFilesystemMutatorsObserveSource_AFP_V0_9010` (filesystem mutators and unknown members fail closed as calls and values); `TestMutatorSeesFoldedTestFileAddition_AFP_V0_9010` (computed-path mutator errors and an unknown operation retain selection on a kept-import test addition, with import-only and dropped-Source controls); `TestSourcePath_AFP_V0_9010` (`.go`, testdata `.go`, `.s`, `.syso`, `.c` and embedded-file paths give the Source, a README or a non-embedded text file none; an assembly file selects the unproven reader wide and a README does not); `TestImportSetRecordsCompareHeaders_AFPV02202`; the file-set reader case of `TestBuildRejectsUnitsThatBreakTheSeamContract` in `internal/liveverify/affected/affected_test.go` |
 | AFP-V0-9011 | `SelectAt`, `SelectBetween` in `internal/liveverify/affected/languages/select.go`; their calls in `affectedTestRows` (`cmd/corvint/prove.go`), `FlowImpactAt` (`internal/appflows/impact.go`), `Compile` (`internal/delta/compile.go`); the `ImportSetChangesAt` call in `compileSnapshotAffected` (`cmd/corvint/affected.go`) | `TestSelectAtComparesImportSets_AFP_V0_9011` (real Git base: body edit drops the reader, import edit keeps it, no base falls back) and `TestSelectBetweenComparesImportSets_AFP_V0_9011` in `internal/liveverify/affected/languages/select_test.go` |
+| AFP-V0-9600 | `internal/closureguard` (`network_test.go`, `candidates_test.go`, `companion_test.go`, `ledgers_test.go`, `proctrace_test.go`); the moved guards' former homes in `cmd/corvint`, `cmd/corvint-test`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `cmd/corvint-analyzer-structured-data`, `internal/analyzerpython`, `internal/analyzerstructured`, `internal/console`, `internal/contextindex`, `internal/proctrace` and `internal/swiftimpact` | `TestClosureGuardIsProvenImportGraphReader_AFPV09600` in `internal/liveverify/affected/golang/closureguard_repo_test.go` (the real package is bounded and every test a proven reader); `TestClosureGuardShapeIsProven_AFP_V0_9600` in `internal/liveverify/affected/golang/importreader_closureguard_test.go` (distinct roots per test are proven, unselected by a body edit and selected by an import-set change; an empty `GOFLAGS=` reset carried by every literal `.Env` assignment stays proven, while a non-empty literal, a dynamic value, an empty reset outside an `.Env` assignment, a later `.Env` reassignment that drops the reset, a second guard without it, an `.Env` assigned from a variable, `t.Setenv("GOFLAGS", "")` and a `Setenv` of a computed name are unproven; a `..` root is unbounded; a shared root name, a reused root and an `exec.ExitError` stay unproven); before/after body-edit plan in build-log entry `2026-11-08-v1-5071-proven-golist-readers` |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 | AFP-V0-9320, AFP-V0-9321 | `.corvint/test-selection.json` using the existing must-run planner | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` in `cmd/corvint/affected_core_freeze_test.go`; pinned base probe in `../build-log/2026-11-08-swgold.md` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
@@ -2738,7 +2765,9 @@ Revert the lane's commits for the requirement and delete its row here. For AFP-V
 site at its first `:` again. For AFP-V0-9010, make `packageHeader` add every test file's own
 line, so every test-file header change counts again; keep `ImportSetChanges.Source`, `observesSource`
 and `Unit.ImportGraphReadsFiles`, which only add selections. For AFP-V0-9011, call `affected.Select`
-directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-2720 to
+directly in the four callers: they fall back to the unknown comparison, which drops no reader. For AFP-V0-9600,
+move each `internal/closureguard` test back to its former package (or keep the package): either way
+the guards keep their assertions, and the former homes only add selections. For AFP-V0-2720 to
 AFP-V0-2722, restore the `git diff --quiet ... -- .github/` check in `narrow.sh` and delete
 `github-guard.sh`: every `.github/` change is FULL again. For AFP-V0-2723 to AFP-V0-2725, delete
 `shard-plan.sh`, `size.go` and the `shard-plan` job, restore the literal sixteen-shard matrix and
