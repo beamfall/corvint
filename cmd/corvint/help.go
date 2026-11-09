@@ -66,7 +66,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic = capabilityOrPublicHelpTopic(rest[1])
 		// A nested topic passed as the one argument the refusal lists it as
-		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
+		// ("harness event") resolves like its separate-word form (DCP-V1-057).
 		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
 			directTopic = nestedHelpTopic(command, subcommand)
 		}
@@ -99,9 +99,6 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 // unknown-topic refusal lists them (DCP-V1-057).
 var nestedHelpTopics = [][2]string{
 	{"harness event", "harness-event"},
-	{"docs corpus", "docs-corpus"},
-	{"docs flows", "docs-flows"},
-	{"docs maintain", "docs-maintain"},
 }
 
 func nestedHelpTopic(command, subcommand string) string {
@@ -138,12 +135,6 @@ func commandHelpTopic(rest []string) string {
 	switch {
 	case !known:
 		return ""
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "flows":
-		return "docs-flows"
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "maintain":
-		return "docs-maintain"
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "corpus":
-		return corpusHelpTopic(rest[2:])
 	case len(rest) > 2 && rest[0] == "flows" && rest[1] == "appmap" && rest[2] == "build":
 		// The build step's own help: manifest, commit rules and the e2e chain (CCE-V0-118).
 		return flowsAppmapBuildHelpTopic
@@ -217,22 +208,11 @@ func topicText(topic string) string {
 	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
 		return cemActionHelp(action)
 	}
-	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
-		return docsCorpusOperationHelp(operation)
-	}
 	switch topic {
 	case flowsAppmapBuildHelpTopic:
 		return flowsAppmapBuildHelp()
 	case "catalog-json":
 		return capabilityCatalogJSON()
-	case "docs-corpus":
-		return docsCorpusHelp()
-	case "docs":
-		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
-	case "docs-flows":
-		return docsFlowsHelp
-	case "docs-maintain":
-		return docsMaintainHelp
 	case "root":
 		return rootHelp
 	case "query":
@@ -303,8 +283,6 @@ func topicText(topic string) string {
 		return readsHelp
 	case "calibrate":
 		return calibrateHelp
-	case "skill-export":
-		return skillExportHelp
 	case "prove":
 		return proveHelp
 	case "context":
@@ -370,7 +348,6 @@ Commands:
     features | overview | review  inferred repository guidance (RGV-V0)
     graph  pinned whole-tree import edges and uncertainty (NGI-V0)
     batch  batched query, context, impact (SBQ-V0)
-    docs  source-derived documentation (SDD-V0)
     depsource  cite pinned Go module source (DSE-V0)
     breakage  cross-repository API relations (BKM-V0)
     witness  unwitnessed surface of a range (AGW-V0)
@@ -395,7 +372,6 @@ Commands:
     reads  opt-in unplanned-read digest (URE-V0)
     record  record one local task outcome (LTPM-V0)
     observations  self-observation digest (SOL-V0)
-    skill-export  learned traces as SKILL.md (LTA-V0)
   Experimental, lab (research metrics):
     eval  evaluate a frozen corpus (REC-V0)
     necessity  label packet file necessity (NEC-V0)

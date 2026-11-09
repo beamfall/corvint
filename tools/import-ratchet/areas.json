@@ -134,7 +134,6 @@
         "internal/observedstale",
         "internal/outcomecal",
         "internal/plansnapshot",
-        "internal/requestpath",
         "internal/semescalate",
         "internal/slotlearn",
         "internal/specindex",
@@ -157,11 +156,8 @@
       "prefixes": [
         "internal/corpusrepublish",
         "internal/corpusserve",
-        "internal/doccitations",
         "internal/doccompiler",
         "internal/doccorpus",
-        "internal/docmaintain",
-        "internal/docviews",
         "internal/flowdocs"
       ]
     },
@@ -295,7 +291,6 @@
         "internal/modelgateway",
         "internal/opencodequalification",
         "internal/remoteprovider",
-        "internal/skillexport",
         "internal/upgradechanges"
       ]
     },

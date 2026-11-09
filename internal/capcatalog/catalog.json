@@ -4328,7 +4328,6 @@
     "scope": "every command dispatched by the corvint binary, and every listed MCP server, one profile per process",
     "servers": [
       "corvint-corpus-mcp",
-      "corvint-docs-mcp",
       "corvint-mcp",
       "corvint-test-validity-mcp"
     ],
@@ -4464,11 +4463,6 @@
       "binary": "corvint-dashboard-snapshot",
       "command": "corvint-dashboard-snapshot help --json",
       "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
-    },
-    {
-      "binary": "corvint-docs-mcp",
-      "command": "corvint-docs-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-docs-mcp.json"
     },
     {
       "binary": "corvint-gateway",
@@ -4614,7 +4608,7 @@
     },
     {
       "name": "corvint.docs_consume",
-      "availability": "corvint-docs-mcp",
+      "availability": "corvint-mcp --tool-profile docs",
       "summary": "Recheck a draft's exact bytes against source"
     },
     {
@@ -4629,7 +4623,7 @@
     },
     {
       "name": "corvint.docs_draft",
-      "availability": "corvint-docs-mcp",
+      "availability": "corvint-mcp --tool-profile docs",
       "summary": "Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019)"
     },
     {
@@ -4749,7 +4743,7 @@
     },
     {
       "name": "corvint.help",
-      "availability": "corvint-mcp (all profiles), corvint-docs-mcp, corvint-corpus-mcp, corvint-test-validity-mcp",
+      "availability": "corvint-mcp (all profiles), corvint-corpus-mcp, corvint-test-validity-mcp",
       "summary": "Same bytes as corvint help guide (default), corvint help --json COMMAND (command) or corvint help --json (topic catalog)"
     },
     {
