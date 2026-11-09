@@ -158,12 +158,10 @@ Traceability for the 2026-11-04 evaluation:
   says exactly what it said before the snapshot existed. Neither verb writes under `.corvint/index/`
   (`IDX-SNAP-V0-005`). Clarifying amendment (2026-09-12, resolving the open question recorded in
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
-  verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
-  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1115-1117@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1489-1490@c39315fe` and `cmd/corvint/harness_context.go:73-74@70282d2c`) before
-  `compileProof` applies its own independent revision and dirty-set re-verification
-  (`cmd/corvint/prove.go:633@7ad2b2af`, `cmd/corvint/prove.go:654-655@38c3dce4`, `cmd/corvint/prove.go:676-677@61b1bb0c`) and reads every cited blob at the
-  re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
+  verb's name. `corvint prove --task`'s project-operations query mode (the `prove` command was removed
+  by decision 0594) compiled its packet through the identical `standaloneQueryContext` build before
+  `compileProof` applied its own independent revision and dirty-set re-verification and read every
+  cited blob at the re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
   `IDX-SNAP-V0-002` and `IDX-SNAP-V0-006` already bound, and is covered by this clause on the same
   terms as `corvint query`. `corvint prove --checkpoint` is not covered: it never reaches this
   build, and `FPK-V0-024` (`docs/specs/falsifiable-packet-v0.md:635`) separately requires it to

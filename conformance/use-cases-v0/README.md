@@ -10,9 +10,9 @@ Success means the closed ledger and every populated evidence envelope are intern
 content-addressed. It does not mean an `UNPROVEN` use case is delivered, nor independently establish
 the truth or quality of a receipt subject. The canonical `/1` ledger has twenty-two rows.
 The three narrowly scoped daily-workflow jobs (decision 0332) each hold one receipt from each of
-the six evidence classes under `receipts/` (ticket V1-0011). Only `UC-TASK-ORIENTATION` is
-`verified`/`VERIFIED`; ticket V1-0341 returned the other two to `experimental`/`UNPROVEN`, so
-twenty-one rows are `UNPROVEN`. On a `verified` row the runner derives each dogfood `PASS` from
+the six evidence classes under `receipts/` (ticket V1-0011). Decision 0594 retired `UC-EVIDENCE-CARRYING-COMPLETION` (no receipts, `specified`) and removed the
+hostile-test receipt of `UC-TASK-ORIENTATION`, now `experimental`/`UNPROVEN`; all twenty-two rows are
+`UNPROVEN` (ticket V1-0341 had already returned the other two to `experimental`). On a `verified` row the runner derives each dogfood `PASS` from
 the retained tool packet or `corvint-dogfood-change/0` report, not from the attested token
 (`UCV0-014`, proposed).
 The reader still accepts the exact historical nineteen-row `/0` profile. Old readers reject `/1`;

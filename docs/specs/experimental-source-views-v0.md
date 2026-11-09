@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Drafted: 2026-09-06
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 deleted the source-view adapter this prototype specified; the kept cmd/corvint/source_handoff.go holds only bounded Git helpers and implements none of ESV-V0 (756d3670 is the last tree with it). The body below is historical.
 Implementation: `cmd/corvint/source_handoff.go` (`corvint adapter source-view`, `corvint adapter claude-source-handoff`, dispatched from `cmd/corvint/host_adapter.go`); `cmd/corvint/context_summary.go` (`corvint context --summary`, `corvint context --expand`, parsed in `cmd/corvint/taskcontext.go`; decision 0364)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/DOGFOOD.md`.
 The owner requested this private development prototype; this proposal does not accept new intent.

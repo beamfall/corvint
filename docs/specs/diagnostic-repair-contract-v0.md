@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-12
 Requirement prefix: `DRC-V0`
 Intent status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12)
-Delivery status: implemented: envelope, fix registry, screen/bound, the seven-site working-tree impact conversion with its additive CLI envelope, thirty further refusal sites across twenty codes, repair-stop and the coverage ratchet at thirty-seven sites
+Delivery status: implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites
 Authoritative inputs: `../../AGENTS.md` invariants 2, 4 and 5, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `self-observation-ledger-v0.md` `SOL-V0-007` (the one write a refusal is already allowed to make),
 and `../agent-memory/fixes.md` (the refuse-without-naming-the-repair entries that motivated this
@@ -15,8 +15,8 @@ independent convergence on Corvint invariant 2; no code, schema, or text was tak
 
 ## Agent digest
 - Claim: A repairable Corvint refusal names its subject, its measured evidence, and a closed list of permitted repairs instead of free prose.
-- Status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12) / implemented: envelope, fix registry, screen/bound, the seven-site working-tree impact conversion with its additive CLI envelope, thirty further refusal sites across twenty codes, repair-stop and the coverage ratchet at thirty-seven sites
-- Exists: the `internal/diagnostic` envelope, screen/bound, `RepairStop` and coverage ratchet (`make diagnostic-coverage-check`), `docs/specs/FIX-REGISTRY.tsv`, the seven converted `unsupported-working-tree-impact-*` sites (`internal/worktreeimpact/diagnostics.go`) and their additive CLI envelope (`cmd/corvint/diagnostic_envelope.go`), and thirty further converted sites (`cmd/corvint/diagnostic_refusals.go`, `internal/touchsurprise/diagnostics.go`) covering the root, platform, impact budget option, impact path suffix, batch snapshot, affected, prove, checkpoint object-format, attestation key and envelope, CEM map, prove-observe document and touch-set surprise refusals; every other refusal still carries a stable code plus prose (`internal/lrf/types.go:119@0c6a5ab9`, `cmd/corvint/batch.go:190`).
+- Status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12) / implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites
+- Exists: the `internal/diagnostic` envelope, screen/bound, `RepairStop` and coverage ratchet (`make diagnostic-coverage-check`), `docs/specs/FIX-REGISTRY.tsv`, the additive CLI envelope (`cmd/corvint/diagnostic_envelope.go`), and the converted refusal sites in `cmd/corvint/diagnostic_refusals.go` that remain after decision 0594 (the working-tree impact, `internal/touchsurprise` and `prove` family sites were deleted); every other refusal still carries a stable code plus prose.
 - Blocked on: nothing; accepted by decision 0201.
 - Read next: Requirements; Trust boundary, limits, and failure modes.
 
@@ -24,9 +24,9 @@ independent convergence on Corvint invariant 2; no code, schema, or text was tak
 
 A Corvint refusal is currently a stable machine-readable code and a sentence of English. The code
 says which rule fired; the sentence is the only place the refused input and the available repair
-appear, and it is prose an agent must guess at. `internal/worktreeimpact/compiler.go:127` is the
-good case: it names the unsupported input and two exact repairs, in prose. `cmd/corvint/local_completion.go:294@f35c3997`
-is the bad case: it emits the code as both code and message, so the caller learns that something was
+appear, and it is prose an agent must guess at. The removed working-tree impact compiler was the
+good case: it names the unsupported input and two exact repairs, in prose. The removed local-completion command
+was the bad case: it emits the code as both code and message, so the caller learns that something was
 refused and nothing else. Between those two shapes there is no contract, so a caller cannot tell a
 refusal it can repair from one it cannot, and cannot tell whether it has exhausted the repairs or
 merely failed to imagine one.
@@ -50,12 +50,10 @@ changes no refusal decision, no threshold, and no code spelling.
 
 ## Verified current state
 
-Refusals are a `{code, message}` pair. `internal/lrf/types.go:119@0c6a5ab9` defines the two-field error type
-directly; `internal/doccompiler/errors.go:12` and `internal/worktreeimpact/compiler.go:536` are
+Refusals are a `{code, message}` pair. The removed `internal/lrf` defined the two-field error type
+directly; `internal/doccompiler/errors.go:12` is a
 per-package `failure` constructors of the same shape. The CLI serializes that pair as
-`{"ok": false, "error": {"code": ..., "message": ...}}` (`cmd/corvint/batch.go:190`,
-`cmd/corvint/source_handoff.go:222`), and at least one site emits the code in both fields
-(`cmd/corvint/local_completion.go:294@f35c3997`). No site carries a subject field, a measured-evidence
+`{"ok": false, "error": {"code": ..., "message": ...}}` (as the removed batch and source-handoff commands did), and at least one site emitted the code in both fields. No site carries a subject field, a measured-evidence
 field, or an enumerated repair set, and no registry of admissible repairs exists. The
 `unsupported-*` code family is the one part already load-bearing beyond display: `SOL-V0-007` writes
 those codes to the self-observation ledger.
@@ -292,10 +290,8 @@ use the change as cover for a lower number.
 
 `subject` is a typed `kind`/`value` pair rather than one string. The bare string was the cheaper
 option and was set aside on evidence. One file refuses four different sorts of thing: an argument
-whose count is wrong at `internal/worktreeimpact/compiler.go:90`, one supplied path at
-`internal/worktreeimpact/compiler.go:116`, a missing captured revision index at
-`internal/worktreeimpact/compiler.go:84`, and a module that is not slash-qualified at
-`internal/worktreeimpact/compiler.go:96`. Two more sorts appear in the doc compiler: a document read
+whose count is wrong, one supplied path, a missing captured revision index, and a module that is
+not slash-qualified (all in the removed working-tree impact compiler). Two more sorts appear in the doc compiler: a document read
 as authority at `internal/doccompiler/build.go:158` and a host facility at
 `internal/doccompiler/build.go:32`. One string can hold any of those only by encoding its own sort
 inside the text, which is the parsing `DRC-V0-012` forbids. The revision-alongside-a-path worry

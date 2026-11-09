@@ -362,7 +362,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return doccorpus.Encode(a)
 	}
-	if o.op == "discover-playwright" {
+	if o.op == "discover-playwright" || o.op == "witness-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
 	}
 	if o.op == "discover-legacy" {

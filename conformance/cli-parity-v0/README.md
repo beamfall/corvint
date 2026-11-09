@@ -445,7 +445,7 @@ unconstrained — so neither is a parity case.
 
 ## `lrf` error-path bytes are outside byte parity by spec
 
-`docs/specs/lexical-relevance-floor-v0.md:314-320` constrains structural failures to preserve their
+`docs/specs/lexical-relevance-floor-v0.md` constrains structural failures to preserve their
 **error code** and exit `2`, and states that I/O and operational aborts carry "no conformance claim
 about stderr bytes". Measured 2026-08-28, Go and Python agree on code and exit status but differ in
 message text on at least three error paths: a missing `--cem` file (Go `map-unavailable` with the

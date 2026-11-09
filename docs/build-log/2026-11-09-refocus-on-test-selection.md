@@ -42,7 +42,9 @@ settled.
   - The `corvint skill-export` group with `internal/skillexport`.
   - `tools/docs-blinded-task`.
   - `corvint docs corpus` tests and fixtures that needed the cut corpus index or CEM stable
-    fixtures. The `docs corpus cem` and `cem-stable` verbs still exist without them.
+    fixtures.
+  - The `docs corpus cem` and `cem-stable` verbs, which projected the corpus into a CEM that
+    no kept command produces or checks. `docs corpus witness-playwright` stays.
 - **Process (RETIRE-PROCESS).**
   - The CEM, dogfood, OCM, frontier, witness, LRF, authority, lease, step, work, obligations,
     observations, self, prove, delta and gate command families, with their packages.

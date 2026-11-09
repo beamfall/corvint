@@ -34,6 +34,7 @@ func TestDocsCorpusLocalInputPathRefusals(t *testing.T) {
 		{"absolute adapter input", "--input", "got an absolute path", []string{"docs", "corpus", "behavior-adapter", "--input", filepath.Join(root, "request.json")}},
 		{"parent adapter previous", "--previous", "got a parent traversal", []string{"docs", "corpus", "behavior-adapter", "--input", "request.json", "--previous", "../result.json"}},
 		{"root retirement", "--retirement", "got the root itself", []string{"docs", "corpus", "info", "--artifact", "corpus.json", "--retirement", "."}},
+		{"absolute witness report", "--report", "got an absolute path", []string{"docs", "corpus", "witness-playwright", "--input", "evidence/request.json", "--receipt-input", "receipt", "--report", filepath.Join(root, "evidence", "report.json")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			code, out, stderr := corpusCLI(t, root, tc.args...)

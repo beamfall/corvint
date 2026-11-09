@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-04
 Requirement prefix: `CRR-V0`
-Intent status: accepted (decision 0052)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 (the test-selection refocus) deleted `tools/cem-trial` (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Revision: 15 (2026-09-12), full manifest replay citation repinned to its test declaration
 Authoritative inputs: `ROADMAP.md:343-348` (AT-10), `docs/specs/compat-trial-v0.md`
 (`CTR-V0-001..010` accepted by decision 0052; `CTR-V0-011/012` retain proposed status),
@@ -786,7 +788,7 @@ those two packages, this file, and its `docs/specs/README.md` and `docs/specs/IN
 then regenerating the requirement index
 with `script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv`. That regeneration is a
 mandatory part of *every* edit to this file, not of rollback alone, because each clause's line
-number is recorded there and `Makefile:380@6169baf3`'s `spec-requirements-check` compares it byte for byte.
+number is recorded there and `Makefile:422@6169baf3`'s `spec-requirements-check` compares it byte for byte.
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.

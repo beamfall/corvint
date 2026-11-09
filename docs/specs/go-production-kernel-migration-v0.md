@@ -282,7 +282,7 @@ requirements below have evidence. File existence is not parity.
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:323,335@fcf14b13`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/diagnostic_refusals.go:84@00cef16c`, `cmd/corvint/diagnostic_refusals.go:146@c843893b`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -539,7 +539,7 @@ requirements below have evidence. File existence is not parity.
   silent approximation is not. This clause governs OCM claim verification only. The TCQ and
   frontier surfaces reach the same verifier through their own contract, where `TCQ-V0-047` requires
   a per-edge `unsupported-python-grammar` abstention instead of a command-level refusal. That path
-  is repaired: `verifyUniverseClaims` (`internal/lrfrepo/universe.go:178`) verifies claim shape
+  is repaired: `verifyUniverseClaims` (in the retired `internal/lrfrepo`) verifies claim shape
   without the approximate grammar and emits per-edge `PythonClaimEvidence`, and
   `internal/tcq/associate.go` reports the grammar reason ahead of the anchor-profile reason
   (decision 0050 wave, 2026-09-04); `conformance/divergence-register.md` DR-0014 carries the
@@ -589,15 +589,6 @@ which is the whole of what the row asserts.
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `impact-range-drift` | `internal/contextindex/range_impact.go:303@288fb87b` | "changed Go path does not match the captured target blob: <value>" for Go; "changed syntax path does not match the captured target blob: <value>" for the proposed Ruby/JS/TS extension |
-| `invalid-working-tree-impact-limit` | `internal/worktreeimpact/compiler.go:87` | "working-tree impact limit must be an integer from 1 to 50" |
-| `invalid-working-tree-impact-path` | `internal/worktreeimpact/compiler.go:135` | "working-tree impact path must be valid UTF-8 with 1 to 1024 characters" |
-| `invalid-working-tree-impact-paths` | `internal/worktreeimpact/compiler.go:90` | "working-tree impact requires 1 to 100 paths" |
-| `invalid-working-tree-impact-source` | `internal/worktreeimpact/compiler.go:195` | "working-tree target is not valid Go syntax: <value>" |
-| `stale-working-tree-impact` | `internal/worktreeimpact/compiler.go:161` | "working-tree repository root changed while opening" |
-| `unsafe-working-tree-impact-file` | `internal/worktreeimpact/compiler.go:218` | "cannot open contained working-tree target: <value>" |
-| `unsafe-working-tree-impact-root` | `internal/worktreeimpact/compiler.go:152` | "working-tree impact repository root must be a non-symlink directory" |
-| `working-tree-impact-output-failed` | `internal/worktreeimpact/compiler.go:337` | "cannot bind mixed-worktree status" |
-| `working-tree-impact-too-large` | `internal/worktreeimpact/compiler.go:66` | "working-tree impact targets exceed 64000000-byte aggregate bound" |
 
 ### Performance and packaging
 

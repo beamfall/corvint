@@ -27,6 +27,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"compact-provider":    {required: []string{"--input"}}, // DCX-V1-531
 	"estate":              {required: []string{"--input"}}, // DCI-V1-001
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
+	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
 	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema", "--repository"}}, // DCX-V1-399, DCX-V1-478, DCX-V1-560, DCP-V1-604
@@ -62,7 +63,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--exclude-kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--profile-sha256", "--verify-rederive", "--timings", "--workspace", "--no-workspace", "--repo"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--exclude-kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--profile-sha256", "--verify-rederive", "--timings", "--workspace", "--no-workspace", "--repo"}
 
 // corpusWorkspaceOptional is the workspace option set every operation admits (DCP-V1-604).
 var corpusWorkspaceOptional = []string{"--workspace", "--no-workspace", "--repo"}

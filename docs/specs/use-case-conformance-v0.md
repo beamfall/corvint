@@ -11,7 +11,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
 - Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); UCV0-020 experimental under the standing lane auto-accept (2026-10-30; V1-3229); experimental
-- Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION` is `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` returned to `experimental`/`UNPROVEN` (V1-0341); the other nineteen jobs stay `specified`/`UNPROVEN`.
+- Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; decision 0594 removed the hostile-test receipt of `UC-TASK-ORIENTATION`, so it is `experimental`/`UNPROVEN` (it was `verified`/`VERIFIED` for releases including decision 0387, decision 0389); `UC-CHANGE-CONSEQUENCE` is `experimental`/`UNPROVEN` (V1-0341); `UC-EVIDENCE-CARRYING-COMPLETION` is retired to `specified`/`UNPROVEN` with no receipts (decision 0594); the other twenty jobs stay `specified`/`UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
 

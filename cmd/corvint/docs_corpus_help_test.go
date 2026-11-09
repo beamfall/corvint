@@ -23,7 +23,7 @@ func corpusHelpRun(t *testing.T, args ...string) string {
 // issue805CorpusOperations is every operation parseCorpusInvocation admits.
 var issue805CorpusOperations = []string{
 	"manifest", "build", "render", "maintain", "behavior-adapter", "behavior-provider", "compact-provider", "estate",
-	"discover-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "audit-sample", "audit-report", "delta", "carry-forward", "discover-tests", "extract", "patterns", "info", "validate", "inventory", "search", "get",
+	"discover-playwright", "witness-playwright", "discover-legacy", "import-cases", "search-cases", "eval", "audit-sample", "audit-report", "delta", "carry-forward", "discover-tests", "extract", "patterns", "info", "validate", "inventory", "search", "get",
 	"trace", "related", "journey", "stability", "locate", "coverage", "gaps", "concept", "claims",
 	"flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent",
 }
@@ -64,6 +64,7 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 	t.Parallel()
 	cases := map[string][]string{
 		"discover-playwright": {"--migration", "--config", "--playwright-list", "--receipt"},
+		"witness-playwright":  {"--input", "--receipt-input", "--report"},
 		"behavior-adapter":    {"--input", "--previous", "--check"},
 		"search":              {"--artifact", "--query", "--limit", "--offset", "--retirement"},
 		"maintain":            {"--artifact", "--page", "--apply"},
@@ -79,6 +80,7 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 	}
 	rootRelative := map[string][]string{
 		"discover-playwright": {"--migration", "--playwright-list", "--receipt"},
+		"witness-playwright":  {"--input", "--report"},
 		"behavior-adapter":    {"--input", "--previous"},
 		"search":              {"--artifact", "--retirement"},
 		"maintain":            {"--artifact"},
@@ -136,9 +138,9 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		stderr.String() != "{\"code\": \"invalid-arguments\", \"error\": \"unsupported corpus option\", \"ok\": false}\n" {
 		t.Errorf("unknown operation --help: exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
 	}
-	discover := corpusHelpRun(t, "docs", "corpus", "discover-playwright", "--help")
-	if !strings.Contains(discover, "discover-playwright --receipt reads the file unchanged") || !strings.Contains(discover, "corvint-js-test-provider e2e") {
-		t.Errorf("discover-playwright help drops the DCP-V1-053 receipt producer:\n%s", discover)
+	witness := corpusHelpRun(t, "docs", "corpus", "witness-playwright", "--help")
+	if !strings.Contains(witness, "names a\nREQUEST.json input, not a file") || !strings.Contains(witness, "corvint-js-test-provider e2e") {
+		t.Errorf("witness-playwright help drops the DCP-V1-053 receipt producer:\n%s", witness)
 	}
 	// A --help after a value-taking option's value, or after a no-value option, is still help.
 	if got := corpusHelpRun(t, "docs", "corpus", "behavior-adapter", "--input", "x.json", "--check", "--help"); got != corpusHelpRun(t, "docs", "corpus", "behavior-adapter", "--help") {

@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Accepted: 2026-08-23
-Intent status: accepted
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
 Retirement note: decision 0594 (2026-11-09) deleted the `migrate` command group and
 `internal/tracemigraterepo`; trace migration requirements are retired.
 Authoritative inputs: the 2026-08-23 owner delegation; `docs/DOGFOOD.md`;
