@@ -143,3 +143,13 @@ func TestTSPV07330MissingGuardKeepsTheReport_TSPV07330(t *testing.T) {
 		t.Fatalf("missing guard = %v %q, want a change with an unreadable: input", res.GithubChange, res.GithubInputs)
 	}
 }
+
+// TSP-V0-7330: a result whose guard could not run is not recorded in the cache.
+func TestUnreadableGuardResultIsNotCached(t *testing.T) {
+	if cacheable(Result{GithubChange: true, GithubInputs: []string{"unreadable: sh not found"}}) {
+		t.Fatal("an unreadable: guard result is cacheable, want it measured again next run")
+	}
+	if !cacheable(Result{GithubChange: true, GithubInputs: []string{".github/workflows/ci.yml"}}) || !cacheable(Result{}) {
+		t.Fatal("a guard result that ran is not cacheable")
+	}
+}
