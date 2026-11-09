@@ -628,7 +628,7 @@ func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
 		t.Fatal("flows coverage is now in a declared table; pick another tree-only subcommand")
 	}
 	inv, catalog, readme := load(t)
-	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "identity") {
+	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "server-errors") {
 		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
 	}
 	dropped := replaceOnce(t, catalog, "include `coverage`, ", "include ")

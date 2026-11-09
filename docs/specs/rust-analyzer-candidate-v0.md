@@ -46,7 +46,8 @@ generic request envelope, the generic eight-field fact shape, and the frozen fou
 digest verbatim**. It adds no request field, no fact field, and no domain separator of its own, so it
 alters no existing family bytes and introduces no new cryptographic surface. Its success and
 rejection frames are byte-identical in shape to the `go` vectors frozen in
-`internal/analyzercap/candidate_profile_vectors_test.go`.
+`internal/analyzercap/candidate_profile_vectors_test.go` (deleted by decision 0594; read at
+`4663b4e2`).
 
 - `RAC-002`: facts have exactly one input witness, so `related_handle` is always `-` and its evidence
 digest slot is `-`. A fact is one **observation**: the same observation made twice in one input —

@@ -3565,8 +3565,6 @@
       "operations": [
         "baseline",
         "compare",
-        "fresh",
-        "identity",
         "redundancy",
         "response-wait",
         "reusable",
@@ -3578,13 +3576,6 @@
         "runs compare": [
           "--baseline",
           "--candidate"
-        ],
-        "runs fresh": [
-          "--new",
-          "--old"
-        ],
-        "runs identity": [
-          "--config"
         ],
         "runs redundancy": [
           "--runs"
@@ -3608,16 +3599,9 @@
       },
       "flags": [
         "--allow-unobserved",
-        "--app-root",
-        "--artifact-digest",
         "--base",
         "--baseline",
         "--candidate",
-        "--cite",
-        "--closure-digests",
-        "--compute-closures",
-        "--config",
-        "--fresh",
         "--full",
         "--identity",
         "--identity-sidecars",
@@ -3628,12 +3612,9 @@
         "--max-age",
         "--method",
         "--min-runs",
-        "--new",
-        "--old",
         "--own",
         "--pool-by",
         "--prior",
-        "--project-test-dir",
         "--repeat-each",
         "--requests",
         "--rev",
@@ -3643,8 +3624,6 @@
         "--since",
         "--summary",
         "--support-path",
-        "--test-dir",
-        "--test-match",
         "--timeout-ms",
         "--url-contains",
         "--wait-start",
@@ -3652,10 +3631,8 @@
         "--window-ms"
       ],
       "schemaIds": [
-        "corvint-evidence-reach/0",
         "corvint-run-baseline/0",
         "corvint-run-identity-sidecar/0",
-        "corvint-run-identity/0",
         "corvint-test-closure/0",
         "server-error-log/0"
       ],
@@ -3668,7 +3645,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Reads only the named regular files (relative to --root when given; at most 64 per option, 64 MiB each; a baseline 16 MiB) and, for fresh, --fresh and baseline, bounded Git reads of the repository at --root (identity: of the named checkouts); writes nothing and uses no network."
+        "Reads only the named regular files (relative to --root when given; at most 64 per option, 64 MiB each; a baseline 16 MiB) and, for baseline, bounded Git reads of the repository at --root; writes nothing and uses no network."
       ],
       "unknowns": [
         {

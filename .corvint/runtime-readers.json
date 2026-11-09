@@ -26,10 +26,6 @@
       "reason": "Deferred CEM intent declarations, read by the CEM workflow through the directory path and existing repository readers; never executed or imported."
     },
     {
-      "path": ".corvint/evidence-reach.json",
-      "reason": "evidence-reach declaration; read through path literals by cmd/corvint runs, internal/evidencereach and tools/declaration-compat-check, and by the root-locating repository tests the unbounded-reader rule selects; never loaded by a computed name or a build or CI driver (V1-3480, AFP-V0-2404)"
-    },
-    {
       "path": ".corvint/existence-readers.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },

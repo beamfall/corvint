@@ -768,7 +768,7 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
 - **AFP-V0-2404:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-3480) This repository's `.corvint/runtime-readers.json` (AFP-V0-602) SHALL declare
   `LICENSING.md`, `protocol/` and each Corvint declaration that is neither self-classifying nor a
-  driver input: `.corvint/evidence-reach.json`, `existence-readers.json`,
+  driver input (`.corvint/evidence-reach.json` until decision 0594 removed it on 2026-11-09), `existence-readers.json`,
   `gated-root-locators.json`, `runtime-edges.json`, `shell-foreign-callers.json`,
   `shell-read-scopes.json`, `shell-test-inputs.json`, `test-binary-consumers.json`,
   `test-binary-execs.json`, `test-nested-sandboxes.json`, `test-read-scope-literals.json`,
