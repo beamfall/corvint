@@ -192,31 +192,6 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 				return root, func() int { return runHarnessEventInProcess(t, root, "stop", `{}`) }
 			},
 		},
-		{
-			name: "lrf refuses the cem/1.0 fixture without writing (CEM-V1-210)",
-			setup: func(t *testing.T) (string, func() int) {
-				fixture := newLRFFixture(t)
-				return fixture.root, func() int {
-					code, _, _ := runCLI(t, "--root", fixture.root, "lrf", "--cem", fixture.mapPath,
-						"--expected-base", fixture.base, "--target", fixture.target)
-					return code
-				}
-			},
-			wantExit: 2,
-		},
-		{
-			name: "cem export writes only the bundle outside the worktree",
-			setup: func(t *testing.T) (string, func() int) {
-				fixture := newLRFFixture(t)
-				bind := commitExportMap(t, fixture)
-				output := filepath.Join(t.TempDir(), "bundle")
-				return fixture.root, func() int {
-					code, _, _ := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-						"--expected-base", fixture.base, "--target", bind, "--artifacts", fixture.root, "--output", output)
-					return code
-				}
-			},
-		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

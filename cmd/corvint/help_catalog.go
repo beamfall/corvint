@@ -34,13 +34,9 @@ func capabilityRegistry() capcatalog.Registry {
 	registry.Topics["docs"] = strings.Join(docsTopics, "\n")
 	registry.NestedOperations["docs"] = map[string][]string{"corpus": corpus}
 	registry.Operations["docs"] = slices.Clone(docsSubcommands)
-	registry.Operations["lease"] = slices.Clone(leaseActions)
 	registry.Operations["flows"] = flowscmd.Subcommands()
 	for _, nested := range nestedHelpTopics {
 		registry.NestedHelpTopics = append(registry.NestedHelpTopics, nested[0])
-	}
-	for action := range cemHelpActions {
-		registry.NestedHelpTopics = append(registry.NestedHelpTopics, "cem "+action)
 	}
 	for command, choices := range helpSubcommands {
 		for choice := range choices {

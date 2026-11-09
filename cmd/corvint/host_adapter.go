@@ -656,23 +656,10 @@ func normalizeAdapterInput(host, event string, payload map[string]any, root stri
 	return result, ""
 }
 
+// invokeDogfoodEvent reports the retired local-completion workflow (decision
+// 0594): no hook event reaches it any more.
 func invokeDogfoodEvent(ctx context.Context, root, host, event string, input map[string]any, budget int) (map[string]any, string) {
-	defer trace.StartRegion(ctx, "hook.local-completion").End()
-	raw, err := json.Marshal(input)
-	if err != nil {
-		return nil, "invalid-input"
-	}
-	args := []string{"--host", host, "--host-version", dogfoodHostVersions[host], "--surface", "plugin", "--adapter-version", adapterWireVersion, "--event", event, "--input", "-", "--budget-bytes", fmt.Sprint(budget)}
-	var stdout bytes.Buffer
-	var stderr adapterErrorTail
-	if status := runLocalCompletionEvent(ctx, root, args, bytes.NewReader(raw), &stdout, &stderr); status != 0 {
-		return nil, adapterRejectedReason(stderr.Bytes())
-	}
-	var result map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
-		return nil, "malformed-corvint-output"
-	}
-	return result, ""
+	return nil, "local-completion-retired"
 }
 
 // renderAdapterResult renders a dogfood-event receipt as native hook output. A context event
@@ -1462,10 +1449,5 @@ const otherSessionMsg = "Corvint local completion is not evaluated for this sess
 // otherSessionNotice renders a released Stop's owner key, when valid, as a
 // fixed notice with that owner's keyed status argv (LCP-V0-008).
 func otherSessionNotice(root string, completion map[string]any) map[string]any {
-	owner, _ := completion["owner"].(string)
-	if !dogfoodSessionPattern.MatchString(owner) {
-		return map[string]any{}
-	}
-	status, _ := json.Marshal([]string{"corvint", "--root", root, "dogfood", "status", "--session-key", owner})
-	return map[string]any{"systemMessage": otherSessionMsg + string(status)}
+	return map[string]any{} // the dogfood status command was retired by decision 0594
 }

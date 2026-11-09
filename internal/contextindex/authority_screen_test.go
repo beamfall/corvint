@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
 // TestHiddenUnicodeClassesAreExactlyTheSpecSets is TCP-V0-055: every code
@@ -406,20 +405,5 @@ func TestScreenPathDowngradesAnUnreadableRow(t *testing.T) {
 	}
 	if TrustClass(DowngradedAuthority) != TrustRepositoryContent {
 		t.Fatalf("TrustClass(%s) = %s", DowngradedAuthority, TrustClass(DowngradedAuthority))
-	}
-}
-
-// TestCEMGoverningInstructionRuleMatchesThePacket: cem status names the same
-// governing instruction files the packet reserves (CEM-V1-270, TCP-V0-057).
-func TestCEMGoverningInstructionRuleMatchesThePacket(t *testing.T) {
-	t.Parallel()
-	for _, candidate := range []string{
-		"AGENTS.md", "pkg/AGENTS.md", "Claude.md", "GEMINI.md", ".github/copilot-instructions.md", "copilot-instructions.md",
-		".github/instructions/go.instructions.md", ".github/instructions/go.md", "docs/instructions/go.instructions.md",
-		"AGENTS.txt", "README.md", "docs/specs/task-context-packet-v0.md", "AGENTS.override.md",
-	} {
-		if got, want := workflow.GoverningInstructionPath(candidate), documentKind(candidate) == "instructions"; got != want {
-			t.Fatalf("%s: cem rule %v, packet rule %v", candidate, got, want)
-		}
 	}
 }
