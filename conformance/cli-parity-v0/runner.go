@@ -156,7 +156,7 @@ func replay(ctx context.Context, options replayOptions) error {
 	}
 	if replayErr == nil && options.Only == "" {
 		for _, command := range manifest.Commands {
-			if command.Status == "UNSUPPORTED" || command.Status == "NOT_RUN" || command.Status == "PARTIAL" {
+			if command.Status == "UNSUPPORTED" || command.Status == "NOT_RUN" || command.Status == "PARTIAL" || command.Status == "RETIRED" {
 				fmt.Fprintf(options.Output, "%s command:%s reason=%s\n", command.Status, command.Command, command.Reason)
 			}
 		}
@@ -1002,6 +1002,9 @@ func retiredRefusalCount(refusals []refusalCase) int {
 func identityRenameCount(cases []parityCase) int {
 	count := 0
 	for _, item := range cases {
+		if item.Retired != nil {
+			continue
+		}
 		if item.IdentityRenameDivergence != nil {
 			count++
 		}

@@ -243,7 +243,7 @@ Every row names the test that evidences it; `make diagnostic-coverage-check` run
 | DRC-V0-007 | the CLI emission path writes stderr only; the ledger append stays `observeUnsupported` (`SOL-V0-007`) | `TestDiagnosticEmissionDoesNotMutate` |
 | DRC-V0-008 | `Refusal.Bounded` (`internal/diagnostic/bound.go`): `secretscreen.Screen`, control escape, 512-byte rune-boundary cut that never splits a `\uXXXX` escape, 16-pair evidence bound | `TestDiagnosticValuesScreenedAndBounded`, `TestDiagnosticValueCutKeepsControlEscapesWhole` |
 | DRC-V0-009 | `diagnostic.RepairStop` (`internal/diagnostic/repair.go`), a pure stop rule an adapter may call | `TestRepairLoopTerminates` |
-| DRC-V0-010 | CLI refusal exit 2 with `ok: false` and empty stdout; the prior index snapshot is untouched; `addDiagnosticRowMembers` (`cmd/corvint/diagnostic_envelope.go`) on a `batch` operation row | `TestRefusalIsNeverSuccess`; `TestConvertedRefusalDiagnostics`; `TestImpactPathSuffixDiagnosticReachesEveryLayer` |
+| DRC-V0-010 | CLI refusal exit 2 with `ok: false` and empty stdout; the prior index snapshot is untouched; `addDiagnosticRowMembers` (`cmd/corvint/diagnostic_envelope.go`) on a `batch` operation row | `TestRefusalIsNeverSuccess`; `TestConvertedRefusalDiagnostics`; `TestImpactPathSuffixDiagnosticReachesEveryLayer` (removed) |
 | DRC-V0-011, DRC-V0-012 | `script/check-diagnostic-coverage.sh` (`make diagnostic-coverage-check`, a `gate` prerequisite), `script/diagnostic-coverage.count` (24), `cmd/corvint/diagnostic_refusals.go` (twenty-two), `internal/contextindex/diagnostics.go` (two) | `TestDiagnosticCoverageRatchet`; `TestConvertedRefusalDiagnostics` |
 
 ## Rollout, rollback, and drift

@@ -85,14 +85,56 @@ func TestDocsShimDoesNotForwardHelpOrNativeFlags(t *testing.T) {
 	}
 }
 
-// A missing corvint-docs is the named NOT_INSTALLED gap, exit 2, on both forwarded shapes.
+// A missing corvint-docs is the named NOT_INSTALLED gap, exit 2, on both forwarded shapes, and
+// names the form the user ran.
 func TestDocsShimReportsNotInstalled(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	for _, args := range [][]string{{"docs", "corpus", "info"}, {"impact", "--corpus=corpus.json", "a.go"}} {
+	for _, test := range []struct {
+		args  []string
+		names string
+	}{
+		{[]string{"docs", "corpus", "info"}, "corvint docs is served"},
+		{[]string{"impact", "--corpus=corpus.json", "a.go"}, "corvint --corpus is served"},
+		{[]string{"affected", "--corpus-depth", "2"}, "corvint --corpus-depth is served"},
+	} {
+		args := test.args
 		var stdout, stderr bytes.Buffer
 		code := run(args, strings.NewReader(""), &stdout, &stderr)
-		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") {
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") || !strings.Contains(stderr.String(), test.names) {
 			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, &stdout, &stderr)
 		}
+	}
+}
+
+// DIRTY-CACHE-016: the docs group refuses --require-clean in the shim, before it looks for
+// corvint-docs, and names the flag; an option value after `--` is not the flag.
+func TestDocsShimRefusesRequireClean(t *testing.T) {
+	capture := fakeDocsApp(t)
+	for _, args := range [][]string{{"docs", "nav", "--require-clean"}, {"--root", "r", "docs", "corpus", "info", "--require-clean=true"}} {
+		var stdout, stderr bytes.Buffer
+		code := run(args, strings.NewReader(""), &stdout, &stderr)
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "--require-clean") {
+			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, &stdout, &stderr)
+		}
+		if _, err := os.Stat(capture); err == nil {
+			t.Errorf("%q reached corvint-docs", args)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"docs", "nav", "--", "--require-clean"}, strings.NewReader(""), &stdout, &stderr); code != 3 {
+		t.Errorf("an operand after -- was refused: exit %d stderr %q", code, &stderr)
+	}
+}
+
+// A corvint-docs killed by a signal exits 128+N with a diagnostic, not 255.
+func TestDocsShimMapsSignalExit(t *testing.T) {
+	capture := fakeDocsApp(t)
+	script := filepath.Join(filepath.Dir(capture), "corvint-docs")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nkill -TERM $$\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr); code != 128+15 || !strings.Contains(stderr.String(), "killed by signal") {
+		t.Errorf("exit %d stderr %q; want 143 and a signal diagnostic", code, &stderr)
 	}
 }

@@ -117,6 +117,18 @@ arguments, and requires only `git` and `perl` on `PATH`.
   requires failed the index check whenever the trace row cited the next commit's test, so lanes
   broke the order or squashed. Non-goal: proving the test asserts the requirement. Rollback: drop
   the option and the hint.
+- `TTG-V0-951`: (experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)
+  A spec whose first 40 lines hold a `Delivery status: retired` header line MUST NOT be checked.
+  Its body is kept as a record of removed code, so its rows name tests that left with that code.
+  The gate MUST print the number of specs it skipped this way. Failure mode: a spec retired by
+  mistake loses the check until its header is corrected. Non-goal: reading any other status word.
+- `TTG-V0-952`: (experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)
+  In a spec that is not retired, a matched name whose following text, after an optional closing
+  backtick and spaces or tabs, begins with the literal text `(removed)` records a test removed with
+  its code. It MUST pass while no tracked test file declares the name, MUST be counted in the
+  gate's output, and MUST fail, naming the row, while the name is declared. Failure mode: a row
+  keeps the marker after its requirement gains a new test under another name; the row then names
+  no live evidence, which the marker count keeps visible. Non-goal: proving the test once existed.
 
 ## Non-goals and simpler baseline
 
@@ -170,6 +182,8 @@ but not after a heading at or above the opening depth.
 | TTG-V0-011 | `script/check-traceability-tests_test.sh` qualified fixture: `toolgroup.TestValidity` and `(*v).TestRun` pass, a bare undeclared name of that word on the same row is still reported (the fixture fails on the base checker) |
 | TTG-V0-012 | `script/check-traceability-tests_test.sh` untracked and unstaged-edit fixtures: each failure names the working-tree file and `git add`; a never-declared name carries no hint; staging resolves the row (the fixture fails on the base checker) |
 | TTG-V0-917 | `script/check-traceability-tests_test.sh` prose fixture: `` `TestLine` (not a test) `` and `TestCol (not a test)` pass, the same word unmarked on the next row is reported, and the marked word is not (the fixture fails on the base checker) |
+| TTG-V0-951 | `script/check-traceability-tests_test.sh` retired fixture: a spec with the retired header and an undeclared name passes and is counted; the same body under `Delivery status: implemented` fails |
+| TTG-V0-952 | `script/check-traceability-tests_test.sh` removed fixture: an undeclared name marked `(removed)` passes and is counted; a declared name with the marker fails naming the row |
 | TTG-V0-950 | `script/check-traceability-tests_test.sh` spec-first fixture: the spec-only index check fails with the range hint, `--range BASE..HEAD` passes once the next commit adds the test and fails for a range that ends before it, and a never-landing test is named once at its first citing commit |
 
 ## Traceability
@@ -185,6 +199,8 @@ but not after a heading at or above the opening depth.
 | TTG-V0-012 | `unstaged_hint` in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 | TTG-V0-917 | the `(not a test)` skip in the per-line match loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 | TTG-V0-950 | the `--range` option and the per-commit loop in `script/check-traceability-tests.sh`; `TRACE_RANGE` in `Makefile` | `script/check-traceability-tests_test.sh` |
+| TTG-V0-951 | the retired-header skip at the top of the per-spec loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
+| TTG-V0-952 | the `(removed)` branch in the per-line match loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 
 ## Rollout, rollback, and drift
 
@@ -200,6 +216,9 @@ Roll back TTG-V0-917 by removing the `(not a test)` skip and its fixture; marked
 again and need rephrasing.
 Roll back TTG-V0-950 by removing `--range`, `TRACE_RANGE` and the hint; a spec-first commit can
 then use `(PLANNED)` until its test lands.
+Roll back TTG-V0-951 and TTG-V0-952 by removing the retired-header skip, the `(removed)` branch
+and their fixtures; every row naming a test removed under decision 0594 then fails again and must
+be rewritten without the name.
 
 ## Unresolved
 

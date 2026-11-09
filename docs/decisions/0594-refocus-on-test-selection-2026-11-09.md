@@ -22,9 +22,9 @@
 - Retires: every spec whose only implementation this change deletes. Each such spec carries a
   status line naming this decision and keeps its body and requirement IDs as history. Live specs
   that named a removed surface are amended in place. `docs/specs/README.md` lists both.
-- Keeps: the `corvint` command groups adopt, affected, cem (item 4), changes, diagnostic, help, impact, index,
-  init, profile, repository, runs, runtime, signals, source, taskcontext, test, tests, version,
-  workspace and worktree, with docs, flows and how (item 3); every `corvint-analyzer-*`, `corvint-*-test-provider` and
+- Keeps: the `corvint` top-level verbs adopt, affected, cem (item 4), context, feature, features,
+  help, impact, index, init, mcp, overview, review, runs, test, test-evidence, test-plan,
+  test-validity and tests, with docs, flows and how (item 3); every `corvint-analyzer-*`, `corvint-*-test-provider` and
   `corvint-test-runner`; the release support binaries; `corvint-mcp`, `corvint-test-validity-mcp`,
   `corvint-docs-mcp` and `corvint-web-flows`; and every package those reach through kept code.
 

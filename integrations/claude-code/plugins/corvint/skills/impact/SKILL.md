@@ -15,8 +15,7 @@ Run Corvint's read-only impact analysis for `$ARGUMENTS` in the current Git repo
 - A commit: resolve it to a full commit ID with `git rev-parse` and run
   `corvint impact --base FULL_COMMIT_ID --limit 20`. This needs a clean worktree whose `HEAD`
   ends the range.
-- Paths: run `corvint impact PATH... --limit 10`. Add `--working-tree-untracked` only for paths the
-  user identified as untracked.
+- Paths: run `corvint impact PATH... --limit 10`.
 
 Report the result for a person, not as raw JSON:
 

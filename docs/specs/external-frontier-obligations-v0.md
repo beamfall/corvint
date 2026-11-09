@@ -148,13 +148,13 @@ this document, its index rows, and decision 0313. No other surface changes in ei
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EFO-V0-001` | `parseObligationsInvocation`, `readObligationsInput` in `cmd/corvint/obligations.go` | `TestObligationsArguments`, `TestObligationsCommandRefusesRetiredMap`; V1-3017 bounded input read: `TestObligationsInputReadIsBounded` |
-| `EFO-V0-002` | `Obligations`, `joinImpact` in `internal/extevidence/obligations.go` | `TestCEMV1210FrozenObligationsAdmitNoMap` |
-| `EFO-V0-003`, `EFO-V0-007` | `StableObligations` in `internal/extevidence/obligations_stable.go`, `digest` in `internal/extevidence/obligations.go` | `TestCEMV1130StableObligationsAccepts`, `TestObligationsCommandRefusesRetiredMap` |
-| `EFO-V0-004`, `EFO-V0-005` | `associate`, `fromRow`, `toMap` in `internal/extevidence/obligations.go` | `TestObligationsHunkAssociations` |
-| `EFO-V0-006` | `providerSummary`, `obligationsState`, `associate` in `internal/extevidence/obligations.go` | `TestObligationsExplicitUnknowns` |
-| `EFO-V0-008` | `boundAssociations`, `associationKey` in `internal/extevidence/obligations.go` | `TestObligationsDeterministicAndBounded` |
-| `EFO-V0-009` | `toMap`, `obligationsUntrusted` in `internal/extevidence/obligations.go` | `TestObligationsPrivate` |
+| `EFO-V0-001` | `parseObligationsInvocation`, `readObligationsInput` in `cmd/corvint/obligations.go` | `TestObligationsArguments` (removed), `TestObligationsCommandRefusesRetiredMap` (removed); V1-3017 bounded input read: `TestObligationsInputReadIsBounded` (removed) |
+| `EFO-V0-002` | `Obligations`, `joinImpact` in `internal/extevidence/obligations.go` | `TestCEMV1210FrozenObligationsAdmitNoMap` (removed) |
+| `EFO-V0-003`, `EFO-V0-007` | `StableObligations` in `internal/extevidence/obligations_stable.go`, `digest` in `internal/extevidence/obligations.go` | `TestCEMV1130StableObligationsAccepts` (removed), `TestObligationsCommandRefusesRetiredMap` (removed) |
+| `EFO-V0-004`, `EFO-V0-005` | `associate`, `fromRow`, `toMap` in `internal/extevidence/obligations.go` | `TestObligationsHunkAssociations` (removed) |
+| `EFO-V0-006` | `providerSummary`, `obligationsState`, `associate` in `internal/extevidence/obligations.go` | `TestObligationsExplicitUnknowns` (removed) |
+| `EFO-V0-008` | `boundAssociations`, `associationKey` in `internal/extevidence/obligations.go` | `TestObligationsDeterministicAndBounded` (removed) |
+| `EFO-V0-009` | `toMap`, `obligationsUntrusted` in `internal/extevidence/obligations.go` | `TestObligationsPrivate` (removed) |
 
 ## Unresolved decisions and promotion or kill criteria
 

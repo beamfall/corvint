@@ -275,14 +275,14 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-012 | unchanged behavior | existing runner, registry and selection tests |
 | LGP-V0-013, 014 | manifest `Coverage` and `Mutation` lists; ruby `Coverage` is `linecov-ruby` (`internal/rubylinecov`) | `TestManifestConformance_LGPV0008`, `make plugin-test PLUGIN=ruby` |
 | LGP-V0-015, 017, 018 | manifest `Dialects`, `Dependencies`, `SubPlugin.Suffixes` | `TestDialectsAndDependencies_LGPV0015`, `TestValidateRefusesAnUndeclaredPiece_LGPV0007` |
-| LGP-V0-016 | `contextindex.ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
+| LGP-V0-016 | `contextindex.ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` (removed) |
 | LGP-V0-019 | ratchet in `langplugin_test.go` | `TestCoreNameLiterals_LGPV0009` |
 | LGP-V0-020, 021 | `langplugin.Dirs`, `tools/plugin-dirs`, `make plugin-test` | `TestPluginIsolation_LGPV0020`, per-plugin subtests |
 | LGP-V0-022 | unchanged behavior | existing tests |
 | LGP-V0-023 | `internal/langplugin/dialect` | `TestPluginIsolation_LGPV0020`, `TestRegistersDeclaredDialects_LGPV0025`, `TestRegisterRefusesIncompleteHooks_LGPV0023` |
 | LGP-V0-024 | `decl.Rule`, `langplugin.Validate`, rule switches in `internal/contextindex` | `TestManifestsValidate_LGPV0007`, existing impact tests |
 | LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
-| LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` |
+| LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` (removed) |
 | LGP-V0-027 | `contextindex/dialect_hooks.go`, ratchet | `TestCoreNameLiterals_LGPV0009`, existing tests |
 
 ## Boundaries and rollback

@@ -1108,8 +1108,10 @@ Verification options:
                        extractor reads. An inert rule's hunk is reported
                        declared-inert in pathPolicyHunks, citing the policy
                        file and line, and counted in counts.declaredInert, not
-                       against --max-unknown; a data rule's hunk stays unknown
-                       and names its readers. A code path or a supported or
+                       against --max-unknown; a data rule's hunk stays unknown.
+                       This binary installs no data-reader finder, so a data
+                       row reports data-reader-not-produced and names no
+                       readers. A code path or a supported or
                        mechanical hunk is never classified, and the map bytes
                        are unchanged. Example: corvint cem status --map
                        .corvint/change.cem.json --expected-base B --target T
