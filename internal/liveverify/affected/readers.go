@@ -80,6 +80,9 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 		}
 		goUnit := strings.HasPrefix(id, "go:")
 		for j, dirtyPath := range dirty {
+			if !graph.RecordEntryAllows(id, dirtyPath) {
+				continue
+			}
 			if !namesAny(tokens[i], split[j], goUnit && !resolvedEvidence(dirtyPath)) {
 				continue
 			}
@@ -162,6 +165,9 @@ func (graph *Graph) globRead(id string, dirty []string) (dirtyPath, glob string,
 		directory = relativeDirectory(files[0])
 	}
 	for _, dirtyPath := range dirty {
+		if !graph.RecordEntryAllows(id, dirtyPath) {
+			continue
+		}
 		if unit.ReadScoped && !graph.inReadScope(directory, unit, dirtyPath) {
 			continue
 		}
@@ -417,6 +423,9 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 		}
 		directory := relativeDirectory(files[0])
 		for _, dirtyPath := range dirty {
+			if !graph.RecordEntryAllows(id, dirtyPath) {
+				continue
+			}
 			bears := unit.ReadScoped && graph.inReadScope(directory, unit, dirtyPath)
 			if dirtyPath == ReadScopesPath && graph.priorReadScopes != nil {
 				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))

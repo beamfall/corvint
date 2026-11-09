@@ -177,6 +177,12 @@ AFP-V0-2740	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2741	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;	standing	2026-11-06; V1-4931
 AFP-V0-2742	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4932;	standing	2026-11-06; V1-4932
 AFP-V0-2743	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
+AFP-V0-3420	docs/specs/affected-plan-selection-v0.md	(experimental; owner-directed V1-4933 / V1-4544, 2026-11-08;	unrecorded	-
+AFP-V0-3421	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) A record scope SHALL narrow only with a matching	unrecorded	-
+AFP-V0-3422	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) The narrowing SHALL require Git `A` status from a	unrecorded	-
+AFP-V0-3423	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) `gate-affected-select` SHALL re-observe the same	unrecorded	-
+AFP-V0-3424	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933; extends AFP-V0-2745) The existing	unrecorded	-
+AFP-V0-3425	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) Acceptance SHALL retain a regression failure with	unrecorded	-
 AFP-V0-2744	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
 AFP-V0-2745	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933)	standing	2026-11-06; V1-4933
 AFP-V0-2746	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
