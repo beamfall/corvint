@@ -81,7 +81,7 @@ func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
 // catch-all at 16 shards, where every currently committed split is admitted.
 func TestSTRV0008BalancedCommittedTables(t *testing.T) {
 	files, universe := repositoryPartition(t)
-	assertBalancedPlacement(t, files, universe, "github.com/Beamfall/corvint/internal/tasks/store",
+	assertBalancedPlacement(t, files, universe, "github.com/Beamfall/corvint/cmd/corvint",
 		map[string][]string{"committed universe": universe}, []int{16})
 }
 
