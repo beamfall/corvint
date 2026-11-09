@@ -561,3 +561,19 @@ func TestLinecovMissRunsOnlyOwnMainPushes(t *testing.T) {
 		}
 	}
 }
+
+// The miss confirmation reruns suspects on the same host as the shards: Go on the product's fixed
+// PATH, the pinned ripgrep and the Git fixture identity. A drifted copy would fail a base rerun and
+// leave a real miss unconfirmed, so the step must match the shard step byte for byte.
+func TestLinecovMissProvisionsShardHostTools(t *testing.T) {
+	const name = "Provision the host tools the product's fixed PATH resolves"
+	miss := stepBlock(t, readWorkflow(t, "linecov-miss.yml"), name)
+	shard := stepBlock(t, jobBlock(t, readWorkflow(t, "ci.yml"), "go-product-shard"), name)
+	if miss != shard {
+		t.Fatalf("the miss workflow provisions its host unlike the shards:\n%s\nwant\n%s", miss, shard)
+	}
+	workflow := readWorkflow(t, "linecov-miss.yml")
+	if strings.Index(workflow, "      - name: "+name) > strings.Index(workflow, "      - name: Find suspected misses") {
+		t.Fatal("host tools must be provisioned before any suspect is discovered or rerun")
+	}
+}

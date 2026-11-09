@@ -61,7 +61,10 @@ resolved) was enforced only by the orchestrator remembering to check it.
   shifted or moved hunk refuses carry. Exclude only
   `.corvint/change.cem.json` and `.corvint/changes/*.cem.json` (direct children); a rename from
   a non-evidence path is not excluded. Carry only when the canonical sets are byte-identical
-  and `compare/R...H` reports `ahead` or `identical`. A failed base/compare read, missing files
+  and `compare/R...H` reports `ahead` or `identical`. A patch omits the file mode, so carry also
+  SHALL require the GraphQL `Commit.file(path:).mode` of every canonical filename and
+  previous_filename to match at R and H (an absent path reads as null); a failed mode read or an
+  answer without one mode per path refuses carry. A failed base/compare read, missing files
   array, either diff compare reporting 300 or more files (before exclusions), pagination or
   truncation, or any non-excluded file without a string patch SHALL refuse carry. A score other
   than exactly `5/5` or non-ancestor R also refuses carry. Refusals retain `pending` and the
@@ -95,4 +98,4 @@ Drop `greptile-gate` from the main ruleset's required status checks, then delete
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | GRG-V0-001 | the `gate` job of `.github/workflows/greptile-gate.yml` | `TestGRGV0001GreptileGatePostsSuccessOnlyFor5Of5OnHead` in `tools/ci-reuse-plan/greptile_gate_workflow_test.go` (26 cases including 8 merge-queue cases and 4 V1-5096 waiver-authority cases; a mutation accepting `0/5` fails it, and so do dropping the pending-first post, the merge-group refresh of either commit, or the statuses pagination) and `TestGRGV0001GreptileGateSerializesRunsPerPR` (per-PR concurrency key without cancellation, and 6 resolve-step cases; a mutation to `cancel-in-progress: true` fails it); GitHub's concurrency scheduling itself is not exercisable locally; a read-only dry run against PRs 112, 115 and 118 matched their Greptile summaries; hosted run and required-check enforcement `NOT_OBSERVED` until merged |
-| GRG-V0-002 | metadata-only normalized comparisons in the `gate` job | `TestGRGV0002CarryOnlyUnchangedPRDiff` exercises carry and refusal cases on both PR and merge-group events, including changed lines, missing patches, failed reads, non-5/5 scores, evidence-only changes, ancestry, pagination, the 300-file limit and unresolved threads; identical-diff cases fail against the unmodified workflow; hosted carry `NOT_OBSERVED` |
+| GRG-V0-002 | metadata-only normalized comparisons in the `gate` job | `TestGRGV0002CarryOnlyUnchangedPRDiff` exercises carry and refusal cases on both PR and merge-group events, including changed lines, missing patches, failed reads, non-5/5 scores, evidence-only changes, ancestry, pagination, the 300-file limit, unresolved threads, and a file mode that differs at R and H or cannot be read in full; identical-diff cases fail against the unmodified workflow; hosted carry `NOT_OBSERVED` |
