@@ -338,6 +338,16 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint affected cache` |  | `corvint affected cache` | `corvint affected cache --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint affected discovery` |  | `corvint affected discovery --playwright-config PATH --playwright-list FILE` | `corvint affected discovery --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint affected jobs` |  | `corvint affected jobs --base FULL_COMMIT_ID` | `corvint affected jobs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem` | Change Evidence Map producer and verifier | `corvint cem begin --patch PATCH --output MAP` | `corvint cem --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem begin` | Change Evidence Map begin action | `corvint cem begin --patch PATCH --output MAP` | `corvint cem begin --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem cite` | Change Evidence Map cite action | `corvint cem cite --map MAP --hunk SELECTOR --evidence-path PATH --bytes START:END --relation RELATION` | `corvint cem cite --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem cover` | Change Evidence Map cover action | `corvint cem cover --map MAP --coverprofile PATH --test-run ID` | `corvint cem cover --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem mark` | Change Evidence Map mark action | `corvint cem mark --map MAP --hunk SELECTOR --disposition unknown --reason REASON` | `corvint cem mark --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem prepare` | Change Evidence Map prepare action | `corvint cem prepare --base REV --target REV` | `corvint cem prepare --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem report` | Change Evidence Map report action | `corvint cem report --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem report --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem status` | Change Evidence Map status action | `corvint cem status --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem verify` | Change Evidence Map verify action | `corvint cem verify --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint cem verify-stable` | Change Evidence Map verify-stable action | `corvint cem verify-stable --repository PATH --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem verify-stable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint context` | Compile the task-context packet: the files to read for one task | `corvint context --task TEXT` | `corvint context --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs` | Experimental source documentation orientation | `corvint docs citations check` | `corvint docs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs citations` |  | `corvint docs citations check` | `corvint docs citations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |

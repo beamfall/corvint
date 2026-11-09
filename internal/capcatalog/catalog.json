@@ -34,6 +34,15 @@
     "corvint-version/1"
   ],
   "nestedHelpTopics": [
+    "cem begin",
+    "cem cite",
+    "cem cover",
+    "cem mark",
+    "cem prepare",
+    "cem report",
+    "cem status",
+    "cem verify",
+    "cem verify-stable",
     "docs corpus",
     "docs flows",
     "docs maintain"
@@ -243,6 +252,168 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        }
+      ]
+    },
+    {
+      "name": "cem",
+      "helpTopic": "corvint help cem",
+      "purpose": "Change Evidence Map tool",
+      "maturity": "core",
+      "owningSpec": null,
+      "freezeContract": "CCF-V1",
+      "operations": [
+        "begin",
+        "cite",
+        "cover",
+        "mark",
+        "prepare",
+        "report",
+        "status",
+        "verify",
+        "verify-stable"
+      ],
+      "nestedOperations": {},
+      "requiredFlags": {
+        "cem begin": [
+          "--output",
+          "--patch"
+        ],
+        "cem cite": [
+          "--evidence-path",
+          "--hunk",
+          "--map",
+          "--relation"
+        ],
+        "cem cover": [
+          "--coverprofile",
+          "--map",
+          "--test-run"
+        ],
+        "cem mark": [
+          "--disposition",
+          "--hunk",
+          "--map",
+          "--reason"
+        ],
+        "cem prepare": [
+          "--base",
+          "--target"
+        ],
+        "cem report": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--target"
+        ],
+        "cem status": [
+          "--map"
+        ],
+        "cem verify": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--target"
+        ],
+        "cem verify-stable": [
+          "--artifacts",
+          "--expected-base",
+          "--map",
+          "--repository",
+          "--target"
+        ]
+      },
+      "flags": [
+        "--artifacts",
+        "--base",
+        "--bytes",
+        "--citation",
+        "--coverprofile",
+        "--disposition",
+        "--evidence-path",
+        "--expected-base",
+        "--expected-hunk-digest",
+        "--format",
+        "--guarding-tests",
+        "--hunk",
+        "--hunk-revert",
+        "--lines",
+        "--map",
+        "--max-mechanical",
+        "--max-unknown",
+        "--no-workspace",
+        "--non-regular",
+        "--output",
+        "--paired",
+        "--paired-from",
+        "--paired-output",
+        "--paired-range",
+        "--paired-root",
+        "--patch",
+        "--path-policy",
+        "--preview",
+        "--range",
+        "--range-root",
+        "--reason",
+        "--relation",
+        "--replace",
+        "--repository",
+        "--scaled-operations",
+        "--spec",
+        "--states-output",
+        "--target",
+        "--test-run",
+        "--trusted-keys",
+        "--workspace"
+      ],
+      "schemaIds": [
+        "cem-coverage-states/1",
+        "cem-guarding-tests/0",
+        "cem-hunk-revert/0",
+        "cem-hunk-state/1",
+        "cem-non-regular/1",
+        "cem-paired-evidence/1",
+        "cem-path-policy/1",
+        "cem-stable-verification/1",
+        "cem/0.1",
+        "cem/0.2",
+        "cem/0.3",
+        "cem/1.0",
+        "corvint-trusted-keys/1"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [],
+      "writes": "local-state",
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "prepare Derive the canonical base-to-target patch and write or resume the cem/1.0 candidate at .corvint/change.cem.json.",
+        "With --paired-output, --paired-range and --paired-root (all three, additive profile cem-paired-evidence/1, CAX-V0-032) the evidence is read at HEAD of the second repository at --paired-root, both range ends are resolved to full commit IDs (BASE must be an ancestor of HEAD), and the citation is added to the separate document DOC bound to the map's change; the map is never written, so --output is refused.",
+        "--replace --expected-hunk-digest DIGEST (given together) first drops the hunk's earlier citations, only while DIGEST is the hunk's current cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch and nothing is written, and every other hunk is kept (CEM-V1-694).",
+        "report writes $GIT_DIR/corvint/cem-review.md unless --output names a repository-relative path or an absolute one outside the repository.",
+        "report --preview returns the same Markdown in the envelope and writes nothing (mutates false); it takes neither --output nor --format json.",
+        "Any language's line coverage works once written in that line format (\"mode: set\" then \"PATH:L.C,L.C STATEMENTS COUNT\" per span; PATH is the hunk path or ends in \"/\" plus it).",
+        "--states-output PATH also writes the additive cem-coverage-states/1 document (CAX-V0-010): per hunk, in map order, covered, uncovered or not-instrumented, bound to the written map's SHA-256; the map bytes are unchanged by it.",
+        "It sets no tier and writes nothing.",
+        "The map binds the repository by object IDs; the read is bounded, a symlinked map is refused, and only report writes (its review file, never over the map).",
+        "cite, mark and cover read an out-of-tree --map under the same rules only with a repository-relative --output, because Core writes a map only under the repository's lock and never in place outside it (CEM-V1-647); every other action takes MAP repository-relative only."
+      ],
+      "unknowns": [
+        {
+          "field": "owningSpec",
+          "reason": "Core verbs name no per-verb spec in the root help; freezeContract names the compatibility freeze"
+        },
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
         }
       ]
     },
@@ -1978,6 +2149,7 @@
       "adopt",
       "feature",
       "impact",
+      "cem",
       "context",
       "affected",
       "index",

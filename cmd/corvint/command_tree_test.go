@@ -20,7 +20,7 @@ func TestCAPV0042EveryTreeNodeAnswersHelp(t *testing.T) {
 	if problems := clitree.Problems(tree); len(problems) > 0 {
 		t.Fatalf("tree problems: %v", problems)
 	}
-	if len(tree.Nodes) < 146 {
+	if len(tree.Nodes) < 156 {
 		t.Fatalf("tree has %d nodes", len(tree.Nodes))
 	}
 	for _, node := range tree.Nodes {

@@ -46,8 +46,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   authority outranks the ticket's earlier seven-verb assumption (AGENTS.md invariant 3). A change to the
   set changes this requirement and the `frozenCoreVerbs` list in the same change. `feature` and
   `dogfood-ocm` are not Core.
-  Amended by decision 0594: `prove`, `cem`, `ocm`, `frontier` and `dogfood` are retired; the
-  remaining verbs keep this contract.
+  Amended by decision 0594: `prove`, `ocm`, `frontier` and `dogfood` are retired; the
+  remaining verbs, including `cem` (its `status` and `verify` modes), keep this contract.
   Amended by decision 0594 (2026-11-09): `query` is removed from Corvint and leaves the Core set;
   its `query --task` modes and goldens are retired with it.
 - **CCF-V1-002:** Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout

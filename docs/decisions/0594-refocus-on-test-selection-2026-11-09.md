@@ -22,7 +22,7 @@
 - Retires: every spec whose only implementation this change deletes. Each such spec carries a
   status line naming this decision and keeps its body and requirement IDs as history. Live specs
   that named a removed surface are amended in place. `docs/specs/README.md` lists both.
-- Keeps: the `corvint` command groups adopt, affected, changes, diagnostic, help, impact, index,
+- Keeps: the `corvint` command groups adopt, affected, cem (item 4), changes, diagnostic, help, impact, index,
   init, profile, repository, runs, runtime, signals, source, taskcontext, test, tests, version,
   workspace and worktree, with docs, flows and how (item 3); every `corvint-analyzer-*`, `corvint-*-test-provider` and
   `corvint-test-runner`; the release support binaries; `corvint-mcp`, `corvint-test-validity-mcp`,
@@ -57,7 +57,12 @@ CUT, RETIRE, EXTRACT or CARVE by whether it serves selection for a diff.
    import documentation packages. The corpus servers stay cut under item 2.
 4. **RETIRE-PROCESS.** The CEM and dogfood ceremony that bound every Corvint change to a sealed
    evidence map leaves, with its command families, make targets, scripts and repository metadata.
-   Changes are verified by affected-test selection, focused tests, review and CI.
+   Changes are verified by affected-test selection, focused tests, review and CI. The product
+   commands that create and check a change evidence map stay (owner, 2026-11-09: "isn't it
+   still useful?", then "do it"): `corvint cem` keeps begin, prepare, cite, mark, cover,
+   status, verify, report and verify-stable, on `internal/cem`. Its anchor, provenance,
+   discriminate, export, defer, bundle and gate-verdict actions leave, because they need
+   removed packages.
 5. **EXTRACT.** Corvint Tasks (`internal/tasks/**`, `internal/taskman`, `cmd/corvint-tasks`,
    `cmd/corvint-work-queue` and their guides) moves to `beamfall/corvint-tasks`, imported from
    this repository at `4663b4e2b`. Corvint no longer builds or bundles `corvint-tasks`; the

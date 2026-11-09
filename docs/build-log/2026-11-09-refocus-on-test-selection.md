@@ -46,10 +46,13 @@ settled.
   - The `docs corpus cem` and `cem-stable` verbs, which projected the corpus into a CEM that
     no kept command produces or checks. `docs corpus witness-playwright` stays.
 - **Process (RETIRE-PROCESS).**
-  - The CEM, dogfood, OCM, frontier, witness, LRF, authority, lease, step, work, obligations,
+  - The dogfood, OCM, frontier, witness, LRF, authority, lease, step, work, obligations,
     observations, self, prove, delta and gate command families, with their packages.
-  - `internal/cem` keeps only `cemcode`, `coverprofile`, `gitauth`, `gitrun`, `patch`, `sim`,
-    `verify` and `wire`.
+  - The `corvint cem` actions anchor, provenance, discriminate, export, defer, bundle and
+    gate-verdict, with `report --ocm` and `--max-deferred-intents`. They need removed packages
+    (`gitnotes`, `cemdiscriminate`, `receiptbundle`, `taskman`, `lrfrepo`).
+  - `internal/cem` keeps `cemcode`, `cli`, `coverprofile`, `gitauth`, `gitrun`, `mdreport`,
+    `patch`, `publish`, `sim`, `verify`, `wire`, `witnesspaths` and `workflow`.
   - Every `dogfood-*` make target except `dogfood-merge-base`, plus the dogfood and CEM scripts
     and `.corvint/cem-lineage.tsv`.
   - `docs/DOGFOOD.md` is now a retirement stub, because retained skills and checks still cite
@@ -85,6 +88,13 @@ settled.
   `corvint.impact`, `corvint.status` and `corvint.help`, the opt-in `flows` profile and the
   test-validity, test-evidence, docs and corpus groups; `corvint-docs-mcp` and
   `corvint-test-validity-mcp` stay. Task tools belong to the Tasks repository.
+
+- **CEM create and verify (amendment, same day).** The first build removed every `corvint cem`
+  action with the dogfood ceremony. The owner asked whether a change evidence map is still
+  useful as a product, so `corvint cem` begin, prepare, cite, mark, cover, status, verify,
+  report and verify-stable were restored from the base (about 6,300 lines). The data-reader
+  hook is not restored, so `--path-policy base` data rows report `data-reader-not-produced`.
+  Binding Corvint's own changes to a sealed CEM stays retired.
 
 - **Discovery adapter.** `cmd/corvint-cli` and `internal/cliprofile` provide CAP-V0-9300
   discovery for the 16 protocol-only analyzers that stay. Cutting them would hide KEEP roots.

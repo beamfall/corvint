@@ -14,6 +14,7 @@ import (
 // repositories instead (WSD-V0-146).
 var workspaceRemedies = map[string]string{
 	"review": "review one repository per --root; cross-repository review is not delivered (V1-2910)",
+	"cem":    "a Change Evidence Map cites one repository; run cem per --root; cross-repository citation is not delivered (V1-2910)",
 }
 
 // stripWorkspaceFlags removes --workspace FILE (or --workspace=FILE) and --no-workspace from args.

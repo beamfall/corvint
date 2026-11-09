@@ -17,6 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -640,7 +641,7 @@ var (
 	// the invalid-choice message never understates the binary. The leading run
 	// keeps the Python oracle's argparse declaration order; verbs this binary
 	// adds are appended in the order rootHelp documents them.
-	topLevelCommands = []string{"init", "adopt", "feature", "impact", "context",
+	topLevelCommands = []string{"init", "adopt", "feature", "impact", "cem", "context",
 		"affected", "index", "docs",
 		"test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "runs", "test", "tests", "mcp", "how"}
 )
@@ -696,6 +697,20 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	if mcpAfterGlobalRoot(arguments) {
 		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
 		return 2
+	}
+	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {
+		return code
+	}
+	// The cem actions after the closed verifier argv read one repository (WSD-V0-146).
+	if root, _, rest, isCEM, err := parseCEMInvocation(arguments); isCEM && err == nil {
+		if _, help, _ := parseHelpInvocation(arguments); !help {
+			guarded, err := guardWorkspace("cem", root, rest, true)
+			if err != nil {
+				emitError(stderr, err)
+				return 2
+			}
+			arguments = append(arguments[:len(arguments)-len(rest):len(arguments)-len(rest)], guarded...)
+		}
 	}
 	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
 		return exit
@@ -781,6 +796,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if code, handled := runTwoRootImpactInvocation(ctx, arguments, stdout, stderr); handled {
 			return code
+		}
+		if root, callerRoot, rest, isCEM, cemErr := parseCEMInvocation(arguments); isCEM {
+			if cemErr != nil {
+				emitError(stderr, cemErr)
+				return 2
+			}
+			return cemcli.RunWithCallerRoot(ctx, root, callerRoot, rest, stdout, recordingStderr(root, stderr))
 		}
 	}
 	options, err := parse(arguments)
@@ -960,6 +982,57 @@ func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) 
 		return 2
 	}
 	return 0
+}
+
+// runCEMInvocation runs the cem command that owns its whole argv before the
+// general router: the stable verifier.
+func runCEMInvocation(ctx context.Context, args []string, stdout, stderr io.Writer) (int, bool) {
+	// A help request for the action prints its help before the closed argv
+	// parser would refuse it (V1-2109).
+	if topic, requested, err := parseHelpInvocation(args); requested && err == nil && topic == cemActionHelpPrefix+"verify-stable" {
+		if _, err := io.WriteString(stdout, helpText(topic)); err != nil {
+			return 1, true
+		}
+		return 0, true
+	}
+	return cemcli.RunStableInvocation(ctx, args, stdout, stderr)
+}
+
+// parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
+// symlink-resolved for 0.x reads; an empty --root is the working directory.
+// callerRoot is the --root value byte for byte, even empty, or the working
+// directory when --root is omitted, for stable admission (CEM-V1-017).
+func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []string, isCEM bool, err error) {
+	index := 0
+	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
+		value := ""
+		if arguments[index] == "--root" {
+			if !rootPreambleValue(arguments, index+1) {
+				return "", "", nil, false, nil
+			}
+			value = arguments[index+1]
+			index += 2
+		} else {
+			value = strings.TrimPrefix(arguments[index], "--root=")
+			index++
+		}
+		root = value
+	}
+	if index >= len(arguments) || arguments[index] != "cem" {
+		return "", "", nil, false, nil
+	}
+	callerRoot = root
+	if root == "" {
+		if root, err = os.Getwd(); err != nil {
+			return "", "", nil, true, argumentError("cannot resolve current directory")
+		}
+		if index == 0 { // only an omitted --root names the working directory
+			callerRoot = root
+		}
+	} else if root, err = normalizeRoot(root); err != nil {
+		return "", "", nil, true, err
+	}
+	return root, callerRoot, arguments[index+1:], true, nil
 }
 
 func readInputBounded(ctx context.Context, stdin io.Reader, limit int64) ([]byte, error) {
