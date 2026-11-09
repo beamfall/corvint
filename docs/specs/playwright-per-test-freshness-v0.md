@@ -14,7 +14,7 @@ owner message `approved` on 2026-10-02 for plan SHA-256
 ## Agent digest
 - Claim: A bounded source-direct Playwright profile observes source/server/runtime identity and joins every planned native control attempt to every baseline repeat.
 - Status: proposed technical contract; owner approved the implementation plan; experimental. Child V1-0556 is integrated and natively completed. Parent complete-attempt source review passed; final parent qualification and delivery remain separate.
-- Exists: separate native freshness profile and request/assessment /1; actual stable assertion/control acceptance, stale product/test/imported-source controls, closed native joins and bounded dependency readers. Old /0 remains unchanged.
+- Exists: separate native freshness profile and request/assessment /1; actual stable assertion/control acceptance, stale product/test/imported-source controls, closed native joins and bounded dependency readers. Old /0 remains unchanged. Its acceptance consumer in `internal/testacceptance` was deleted with the E2E proof lab (decision 0593; read it at b1a117eb).
 - Blocked on: parent V1-0541 final clean-bound standalone N2/N32 checks, CEM/OCM and integration/native completion. Reviewed complete-attempt survival joins do not themselves qualify flaky/order execution.
 - Read next: Requirements; Source-direct observation; Control join; Qualification and rollback.
 

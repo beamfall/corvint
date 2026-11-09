@@ -806,9 +806,8 @@ and `capabilityHelpText` calls and the root usage words in `cmd/corvint/help.go`
 entries, and the `docs/CAPABILITIES.md` pointer; no stored state depends on them.
 To roll back only CAP-V0-030 to CAP-V0-032, delete `internal/capcatalog/workflow.go` and its
 test, the `Workflows` fields of `Registry` and `Catalog` and the `workflows` derivation entry,
-`cmd/corvint/help_e2e_workflow.go` and its test, the registry line and the `flows appmap build`
-help topic in `cmd/corvint/help.go`, then regenerate the catalog. `corvint-test` reads the chain
-from the catalog, so CCE-V0-118 is rolled back with it.
+`cmd/corvint/help_appmap_workflow.go` and its test, the registry line and the `flows appmap build`
+help topic in `cmd/corvint/help.go`, then regenerate the catalog.
 To roll back only CAP-V0-040 to CAP-V0-050, delete `internal/clitree`, `internal/capcatalog/trees/`,
 `CLI-RATCHET.tsv`, `tools/capabilities-check/trees.go` and `entrypoint.go` with their tests and
 calls in `run`, `cmd/corvint/command_tree.go`, `internal/tasks/cli/command_tree.go`, the
@@ -852,21 +851,21 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-027 | `internal/capcatalog/AGENT-GUIDE.md` goals 8 to 11, `guideCommandLines` | `TestCAPV0027GuideTeachesDeliveredCapabilities`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog`; live runs recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-help-guide-noncapabilities.md` |
 | CAP-V0-028 | `internal/capcatalog/AGENT-GUIDE.md` Non-capabilities, `NONCAPABILITY-STATUS.tsv` | `TestCAPV0028DeliveredItemsLeftTheNonCapabilities` |
 | CAP-V0-029 | `capcatalog.Guide` (embedded), `NONCAPABILITY-STATUS.tsv` row | `TestCAPV0029GuideIsNotAnArchiveMember`, `TestCAPV0017HelpGuideServesTheShippedGuide` |
-| CAP-V0-030 | `capcatalog.Workflow`, `Catalog.Workflows`, `cmd/corvint/help_e2e_workflow.go` (`e2eAdoptionWorkflow`), `capabilityRegistry`, `internal/capcatalog/catalog.json` | `TestCAPV0030HelpJSONCarriesTheE2EWorkflow`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| CAP-V0-030 | `capcatalog.Workflow`, `Catalog.Workflows`, `cmd/corvint/help_appmap_workflow.go` (`appmapAdoptionWorkflow`), `capabilityRegistry`, `internal/capcatalog/catalog.json` | `TestCAPV0030HelpJSONCarriesTheAppmapWorkflow`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | CAP-V0-031 | `capcatalog.BuildWorkflow`, `stepSections`, `stepRequiredFlags`, `StepHelp`, `GuideProblems` (workflow schemas) | `TestCAPV0031WorkflowDerivedFromStepHelp`, `TestCAPV0031StepHelpRendersTheStep`, `TestCAPV0018ShippedGuideMatchesTheLiveCatalog` |
-| CAP-V0-032 | `e2eAdoptionWorkflow` step `Requires` | `TestCAPV0032ShippedWorkflowRequiresEarlierSteps` |
-| CAP-V0-040 | `clitree.Builder`, `cmd/corvint/command_tree.go` (`buildCommandTree`, `helpTopics`), `internal/tasks/cli/command_tree.go`, `cmd/corvint-test/help.go` (`commandHelpText`, `commandTree`) | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli), `TestCAPV0042EveryNodeAnswersHelp` (cmd/corvint-test) |
+| CAP-V0-032 | `appmapAdoptionWorkflow` step `Requires` | `TestCAPV0032ShippedWorkflowRequiresEarlierSteps` |
+| CAP-V0-040 | `clitree.Builder`, `cmd/corvint/command_tree.go` (`buildCommandTree`, `helpTopics`), `internal/tasks/cli/command_tree.go` | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli); the `corvint-test` tree left with decision 0593 |
 | CAP-V0-041 | `clitree.ScanDirs`, `argumentSlice` | `TestCAPV0041ScanFindsDispatch` |
-| CAP-V0-042 | `nodeHelpTopic`, `nodeHelpText`, `parentTopicPointer`, `clitree.Render`, `clitree.Find`, `clitree.LeadingWords`, corvint-test `helpRequest`, tasks command help | `TestCAPV0042FindRenderAndLeadingWords`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli), `TestCAPV0042EveryNodeAnswersHelp` (built `corvint-test` binary), `TestCCEV0118SubcommandHelp` |
+| CAP-V0-042 | `nodeHelpTopic`, `nodeHelpText`, `parentTopicPointer`, `clitree.Render`, `clitree.Find`, `clitree.LeadingWords`, tasks command help | `TestCAPV0042FindRenderAndLeadingWords`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli); the `corvint-test` cases left with decision 0593 |
 | CAP-V0-043 | `commandTreeInternal` (three binaries), `Tree.Words`, `Tree.AllFlags` | `TestCAPV0043WordsAndFlagsVocabulary`, `TestCAPV0047RepositoryCommandTreesMatchDispatch` |
 | CAP-V0-044 | `clitree.MinimalExample`, `helpExampleTrailer`, `treeHelp` | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli) |
-| CAP-V0-045 | `commandTreeRefs`, `capcatalog.CommandTreeRef`, `internal/capcatalog/trees/*.json`, `make capability-catalog` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0045TreeSnapshotIsCurrent`, `TestCAPV0046HelpJSONIsTheTree` |
-| CAP-V0-046 | `help --tree` topic, `CommandTreeJSON`, corvint-test `helpRequest` and `rootHelp` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree`, `TestCAPV0045TreeSnapshotIsCurrent` |
+| CAP-V0-045 | `commandTreeRefs`, `capcatalog.CommandTreeRef`, `internal/capcatalog/trees/*.json`, `make capability-catalog` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` |
+| CAP-V0-046 | `help --tree` topic, `CommandTreeJSON` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` |
 | CAP-V0-047 | `CheckTrees`, `treeDrift`, `clitree.Problems`, `servesMCP` | `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0047SyntheticDriftFails`, `TestCAPV0047NewMCPServerToolNeedsRow` |
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
-| CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`), `cmd/corvint-test` (`helpRequest`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint; independent command subtests, timings in `docs/build-log/2026-11-05-slow-test-speedups.md`), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (internal/tasks/cli) and `TestCAPV0045TreeSnapshotIsCurrent` (cmd/corvint-test) |
+| CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint; independent command subtests, timings in `docs/build-log/2026-11-05-slow-test-speedups.md`), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (internal/tasks/cli) |
 | CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) |
 | CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |

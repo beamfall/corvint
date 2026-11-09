@@ -1,10 +1,6 @@
 {
   "profile": "corvint-test-read-scope-trees/0",
   "trees": {
-    "cmd/corvint-test": {
-      "cmd/": "cmd/corvint-test/fold_test.go builds a package held in a variable (buildCompanion) and howaccept_test.go runs go list -deps over target variables (../corvint, ../corvint-corpus-mcp); the check models neither (AFP-V0-3011 (3)), and the measured run read six cmd/ packages",
-      "internal/": "cmd/corvint-test/fold_test.go buildCompanion builds four companion packages held in its pkg parameter (foldGoldens passes ../corvint-test-runner, ../corvint-behavior-falsify, ../corvint-tests-accept and ../corvint-playwright-minimize), which the check does not model, so their import closures below internal/ cannot be declared as checked entries (AFP-V0-3011 (3))"
-    },
     "conformance/cli-errors-v0": {
       "cmd/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal (AFP-V0-3011 (3))",
       "internal/": "conformance/cli-errors-v0/contract_test.go builds every catalog binary package (contracts[name].pkg), a list derived from the capability catalog rather than a literal, so the import closures below internal/ are not modelled (AFP-V0-3011 (3))"

@@ -60,7 +60,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   then a manifest declares only the six.
 - `LGP-V0-003`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Owned
   directories are disjoint across plugins and each exists. A directory several languages use
-  (`internal/analyzernativebridge`, `internal/extmutate`, `internal/linecov`) is owned by none and
+  (`internal/analyzernativebridge`, `internal/linecov`) is owned by none and
   appears only in sub-plugin paths, each of which exists.
 - `LGP-V0-004`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) Each
   declared analyzer is a `cmd/<name>` binary, declared by exactly one plugin, and every
@@ -113,8 +113,8 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   language's `coverage` absence in the same change, rather than adding a separate per-language
   path that core names.
 - `LGP-V0-014`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4404) A mutation
-  tool is a `mutation` sub-plugin: `mutate-go`, `pymutate`, `rbmutate`, and `extmutate` (shared by
-  Ruby and TypeScript). A new test provider likewise registers as a `test-provider` sub-plugin.
+  tool is a `mutation` sub-plugin: `mutate-go`, `pymutate`, and `rbmutate`; TypeScript declares Mutation absent
+  since decision 0593 deleted `extmutate`. A new test provider likewise registers as a `test-provider` sub-plugin.
 
 - `LGP-V0-015`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A manifest
   declares the core readings that apply to its sources as `Dialects`, each a kind, a dialect name
@@ -143,7 +143,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   (TSA-V0-141) read these maps instead of naming the packages, with unchanged results.
 - `LGP-V0-018`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) A mutation
   sub-plugin that Corvint runs in process declares the source `Suffixes` it mutates
-  (`mutate-go` `.go`, `pymutate` `.py`, `rbmutate` `.rb`); `extmutate` declares none.
+  (`mutate-go` `.go`, `pymutate` `.py`, `rbmutate` `.rb`).
   `langplugin.MutationLanguage(path)` returns the plugin whose engine mutates the path's suffix, and
   `corvint prove` reads it instead of its own suffix switch.
 - `LGP-V0-019`: (accepted under the owner's standing auto-accept (2026-11-03); V1-4405) The ratchet

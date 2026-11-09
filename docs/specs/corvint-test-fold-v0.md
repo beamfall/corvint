@@ -3,15 +3,19 @@
 Owner: Russell Lewis
 Date: 2026-10-22
 Requirement prefix: `CTF-V0`
-Intent status: accepted (owner, 2026-10-22)
-Delivery status: experimental
+Intent status: accepted (owner, 2026-10-22); retired except CTF-V0-010 by decision 0593
+Delivery status: retired
+Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `cmd/corvint-test` and the
+folded shims with the E2E proof lab (b1a117eb is the last tree with them). `corvint-test-runner`
+stands alone again. `CTF-V0-010` stays in force: core links no `internal/testrunner/cli`. The rest
+of the body is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner decision of 2026-10-22 accepting the V1-1667 fold with its own acceptance criteria (recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-cce-1022k.md`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-17-binary-boundary-audit.md` (the fold proposal); `AGENTS.md` invariants 3, 7 and 8; `docs/specs/core-compatibility-freeze-v1.md` (CCF-V1-001, CCF-V1-002); `docs/specs/change-compiled-e2e-v0.md` (Binary boundary).
 
 ## Agent digest
 - Claim: Test-executing companions fold into `corvint-test` groups, one move each, with output documents byte-identical and every old name still answering.
-- Status: accepted (owner, 2026-10-22); experimental; CTF-V0-001..010 accepted under the standing auto-accept (2026-10-11). Groups 1 to 4 (`runner`, `falsify`, `minimize`, `accept`) have moved behind byte-identical goldens; groups 5 and 6 have not.
-- Exists: `cmd/corvint-test` groups `e2e` (CCE-V0), `runner`, `falsify`, `minimize` and `accept` (entries `internal/testrunner/cli`, `internal/behaviorfalsify/cli`, `internal/playwrightminimize/cli`, `internal/testacceptance/cli`); the four old companions are shims. Unmoved: core `corvint test-validity negate` and `corvint test`.
-- Blocked on: for group 5, an owner decision on where `corvint-test negate` takes its worktree root: core reads the global `--root` and its negate parser refuses `--root` by name, so the moved command must either read only the working directory or gain a root option, and CTF-V0-003 forbids gaining a flag (lane cce2-1022u, 2026-10-22). Group 6 (core `test`) also needs the `make gate-affected` script and the CI shadow step moved first; `.github/` changes are owner-posted.
+- Status: accepted (owner, 2026-10-22); retired except CTF-V0-010 by decision 0593 / retired
+- Exists: `CTF-V0-010` guard `TestCTFV0007CoreLinksNoFoldedGroup`; `cmd/corvint-test` and the shims were deleted (read them at b1a117eb).
+- Blocked on: nothing; retired by decision 0593.
 - Read next: Fold map; Requirements; Rollback.
 
 ## User and measurable job
@@ -125,11 +129,11 @@ command.
 | Requirement | Evidence |
 |---|---|
 | `CTF-V0-001` | Each group's goldens committed before its move: group 1 at `85bc22089`, group 2 at `868affc59`, group 3 at `44cbf177a`, group 4 at `721706587` |
-| `CTF-V0-002` | `cmd/corvint-test/fold_test.go` `TestCTFV0002RunnerFoldGoldens` (`testdata/fold/runner.json`, 13 cases) and `TestCTFV0002FalsifyFoldGoldens` (`testdata/fold/falsify.json`, 16 cases including offline `verify-receipt` over a committed receipt) and `TestCTFV0002MinimizeFoldGoldens` (`testdata/fold/minimize.json`, 13 refusal and help cases; its plan needs pinned live evidence) and `TestCTFV0002AcceptFoldGoldens` (`testdata/fold/accept.json`, 19 cases including the offline `plan` over a fixture repository committed per run, its digest checked against that run's request), each recorded from the old binary and run against old and new invocations; the new invocation's help cases compare against its command-tree help (`helpRequest`, CAP-V0-042) |
+| `CTF-V0-002` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted; evidence at b1a117eb) |
 | `CTF-V0-003` | The same goldens: the `runners`, `profiles`, `plan` (groups 1 and 4) and `verify-receipt` documents compare byte for byte, profile IDs included; the flag sets moved unchanged |
-| `CTF-V0-004` | `cmd/corvint-test-runner`, `cmd/corvint-behavior-falsify`, `cmd/corvint-playwright-minimize` and `cmd/corvint-tests-accept` are shims over the shared `cli` entries; their existing tests pass unchanged; the golden tests run the old names |
-| `CTF-V0-006` | `cmd/corvint-test/fold_test.go` `TestCTFV0006AcceptWorkerReentersCorvintTest`: an approved `corvint-test accept accept` over the fixture re-enters the built binary as `corvint-test accept worker`, and no run reads `worker-incomplete` (it does when the re-entry is `worker`). Live NEA-V0-002 (`TestNEAV0002ActualBrowserAssessment`, Playwright 1.64.0, Node 22.23.2) was run through the shim and failed identically before (`721706587`) and after the move with a bare `provider-infrastructure` on that host (lane cce2-1022u). On 2026-10-25 (lane cce-live-1025, V1-2431) it PASSES re-entering `corvint-test accept worker` (`CORVINT_ACCEPTANCE_COMPANION=corvint-test`; Playwright 1.64.0, runner Node v24.11.1, headless shell 1248): blocked, rejected, rejected; controls killed, survived, killed; no provider reasons. The 10-22 cause was not recoverable because the reason was bare; each run now names it (NEA-V0-011) |
-| `CTF-V0-007` | `cmd/corvint-test/fold_test.go` `TestCTFV0007FoldedGroupBoundary`; `internal/closureguard/companion_test.go` `TestCTFV0007CoreLinksNoFoldedGroup` |
+| `CTF-V0-004` | retired by decision 0593 (the shims and `cmd/corvint-test` deleted; evidence at b1a117eb) |
+| `CTF-V0-006` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted; evidence at b1a117eb) |
+| `CTF-V0-007` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted) |
 | `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
 | `CTF-V0-010` | `TestCTFV0007CoreLinksNoFoldedGroup` (core links no group entry) |
 

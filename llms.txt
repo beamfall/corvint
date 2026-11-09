@@ -60,8 +60,6 @@
   ([snapshot](internal/capcatalog/trees/corvint-ruby-test-provider.json))
 - `corvint-tasks help --json`: the task store CLI's tree
   ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
-- `corvint-test help --json`: the test companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-test.json))
 - `corvint-update help --json`: the official release updater's tree
   ([snapshot](internal/capcatalog/trees/corvint-update.json))
 - `corvint-work-queue help --json`: the read-only work-queue observation producer's tree
@@ -71,7 +69,7 @@
 
 - [README quickstart](README.md#try-it-in-sixty-seconds) and [Install](docs/INSTALL.md)
 - [MCP server](docs/MCP-SERVER.md) and [Tasks for external agents](docs/TASKS-EXTERNAL-AGENTS.md)
-- [Change-compiled E2E adoption](docs/E2E-ADOPTION.md)
+- [Application map adoption](docs/APPLICATION-MAP.md)
 - [Adopting a legacy repository](docs/LEGACY-ADOPTION.md)
 - [Spec toolchain integration](docs/SPEC-TOOLCHAIN-INTEGRATION.md)
 - [Host adapters and skills](integrations/README.md)
@@ -99,7 +97,6 @@
 - `corvint-cli --binary corvint-analyzer-sql-native help --json`: [corvint-analyzer-sql-native](internal/capcatalog/trees/corvint-analyzer-sql-native.json)
 - `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
 - `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
-- `corvint-cli --binary corvint-behavior-falsify help --json`: [corvint-behavior-falsify](internal/capcatalog/trees/corvint-behavior-falsify.json)
 - `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
 - `corvint-cem-experiments help --json`: [corvint-cem-experiments](internal/capcatalog/trees/corvint-cem-experiments.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
@@ -118,7 +115,6 @@
 - `corvint-js-test-provider help --json`: [corvint-js-test-provider](internal/capcatalog/trees/corvint-js-test-provider.json)
 - `corvint-lsp help --json`: [corvint-lsp](internal/capcatalog/trees/corvint-lsp.json)
 - `corvint-mcp help --json`: [corvint-mcp](internal/capcatalog/trees/corvint-mcp.json)
-- `corvint-cli --binary corvint-playwright-minimize help --json`: [corvint-playwright-minimize](internal/capcatalog/trees/corvint-playwright-minimize.json)
 - `corvint-postmerge-connect help --json`: [corvint-postmerge-connect](internal/capcatalog/trees/corvint-postmerge-connect.json)
 - `corvint-postmerge-host-launcher help --json`: [corvint-postmerge-host-launcher](internal/capcatalog/trees/corvint-postmerge-host-launcher.json)
 - `corvint-postmerge-metrics help --json`: [corvint-postmerge-metrics](internal/capcatalog/trees/corvint-postmerge-metrics.json)
@@ -132,8 +128,6 @@
 - `corvint-tasks help --json`: [corvint-tasks](internal/capcatalog/trees/corvint-tasks.json)
 - `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
 - `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
-- `corvint-test help --json`: [corvint-test](internal/capcatalog/trees/corvint-test.json)
-- `corvint-cli --binary corvint-tests-accept help --json`: [corvint-tests-accept](internal/capcatalog/trees/corvint-tests-accept.json)
 - `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
 - `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
 - `corvint-work-queue help --json`: [corvint-work-queue](internal/capcatalog/trees/corvint-work-queue.json)

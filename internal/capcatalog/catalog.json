@@ -57,7 +57,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "ecd8883f0d7b4f9b654297ac89bbcea72d503199b758790ba0e2208eead474c4"
+    "sha256": "1d4cc0cfbfbfbcc8783f5f2bf705426bb3ecccc0ae24125f382a87fa500a383c"
   },
   "commands": [
     {
@@ -1410,7 +1410,6 @@
         "--line-index",
         "--line-test-timeout",
         "--list",
-        "--manifest-repo",
         "--no-cache",
         "--ownership-audit",
         "--path",
@@ -1423,8 +1422,6 @@
         "--playwright-ungrepped-list",
         "--provider",
         "--provider-command",
-        "--repo",
-        "--repo-revision",
         "--reporter",
         "--repository",
         "--repository-base",
@@ -1479,7 +1476,7 @@
         "affected cache (experimental) reports the default cache's location, state (PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON object, or with --format doctor-plugin as one AFFECTED_CACHE item for a corvint-tasks doctor plugin; it creates and writes nothing.",
         "It refuses a dirty worktree, builds the graph without the cache, writes nothing, and exits 0 when no path is unowned, 1 when some path is, and 2 on an error.",
         "affected jobs (experimental, AFP-V0-2340 to AFP-V0-2346) evaluates the project-owned input declaration of non-test CI jobs (--declaration, default .corvint/ci-job-inputs.json, corvint-ci-job-inputs/0) over the range --base..HEAD and the dirty worktree, and writes one corvint-ci-job-plan/0: per job RUN or SKIP with its reason and witnesses.",
-        "In a private shared clone it runs affected on every change, appmap-impact and e2e-compile (the corvint-test companion) where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
+        "In a private shared clone it runs affected on every change and appmap-impact where configured, treats each test whose outcome changed or is new as one that had to run, and writes a corvint-affected-audit/1 report: per change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses, recall, precision, fallback and elapsed time; per selector micro recall and precision and a 95% one-sided Clopper-Pearson bound on the per-change miss rate.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
       "unknowns": [
@@ -4119,23 +4116,16 @@
   ],
   "workflows": [
     {
-      "name": "change-compiled-e2e",
-      "summary": "compile and prove change-scoped Playwright scenarios from a committed application-map manifest and admitted test blocks",
+      "name": "application-map",
+      "summary": "write an application-map manifest and compile it into an application map at one revision",
       "maturity": "experimental",
       "specs": [
-        "AMAP-V0",
-        "CCE-V0"
+        "AMAP-V0"
       ],
-      "guide": "docs/E2E-ADOPTION.md",
+      "guide": "docs/APPLICATION-MAP.md",
       "chain": [
         "manifest",
-        "appmap-build",
-        "commit-manifest",
-        "e2e-catalog",
-        "e2e-obligations",
-        "e2e-compile",
-        "e2e-prove",
-        "e2e-shadow"
+        "appmap-build"
       ],
       "steps": [
         {
@@ -4161,7 +4151,7 @@
             "manifest is hand-written; no command generates it."
           ],
           "commit": [
-            "appmap.json at the repository root (the e2e default --manifest), with at least: schema",
+            "appmap.json at the repository root, with at least: schema",
             "\"application-map-manifest/0\"; app matching ^[a-z0-9][a-z0-9._-]{0,63}$; 1 to 64 routers, each",
             "a path and a dialect (ui-router-states/0, rails-routes/0 or react-router/0); and tests with",
             "root, specs and page_objects, every directory under tests.root. Add flows, a directory of",
@@ -4223,14 +4213,13 @@
           ],
           "produces": [
             "application-map/0 on stdout. Read it to check the routes, screens, flows and page objects the",
-            "manifest declares, and fix the manifest until no unknown is unexpected. The e2e commands",
-            "rebuild the map themselves; do not commit this output."
+            "manifest declares, and fix the manifest until no unknown is unexpected. Do not commit this",
+            "output."
           ],
           "options": [
             "--manifest FILE                 tracked manifest path inside the root (required)",
             "--revision REV                  revision to compile (default HEAD)",
-            "--repo ALIAS=ABSOLUTE_ROOT      a second checkout holding the tests (AMAP-V0-017, repeatable);",
-            "                                the corvint-test e2e commands take the same three root flags",
+            "--repo ALIAS=ABSOLUTE_ROOT      a second checkout holding the tests (AMAP-V0-017, repeatable)",
             "--manifest-repo ALIAS           the aliased root holding the manifest",
             "--repo-revision ALIAS=REV       read that root at REV instead of its HEAD (AMAP-V0-200, repeatable)",
             "--workspace FILE                read the three root flags from a corvint-workspace/0 file (WSD-V0)",
@@ -4244,422 +4233,6 @@
           ],
           "example": [
             "corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json"
-          ]
-        },
-        {
-          "order": 3,
-          "id": "commit-manifest",
-          "optional": false,
-          "command": null,
-          "helpTopic": null,
-          "summary": "Commit the appmap.json that built cleanly at every revision the e2e commands read.",
-          "requires": [
-            "appmap-build"
-          ],
-          "usage": [],
-          "requiredFlags": [],
-          "flags": [],
-          "schemaIds": [
-            "e2e-acceptances/0",
-            "e2e-block-declarations/0"
-          ],
-          "inputs": [
-            "The manifest that flows appmap build compiled without an unexpected unknown."
-          ],
-          "commit": [
-            "appmap.json, its routers, flows and tests at --rev (catalog, harvest) and at --head",
-            "(obligations, compile, prove). --base may predate the manifest: a base without it compares",
-            "nothing; a base with a manifest that does not build refuses e2e-map-unavailable. Optional",
-            ".corvint/e2e-blocks.json (e2e-block-declarations/0: inputs, fixtures and the environment that",
-            "serves the application) and .corvint/e2e-acceptances.json (e2e-acceptances/0) are read at the",
-            "same revision."
-          ],
-          "produces": [
-            "A revision the e2e commands can read."
-          ],
-          "options": [],
-          "example": []
-        },
-        {
-          "order": 4,
-          "id": "e2e-catalog",
-          "optional": false,
-          "command": "corvint-test e2e catalog",
-          "helpTopic": "corvint-test e2e catalog --help",
-          "summary": "List the admitted test blocks at one revision (experimental, CCE-V0).",
-          "requires": [
-            "commit-manifest"
-          ],
-          "usage": [
-            "corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
-            "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
-            "    [--workspace FILE | --no-workspace]"
-          ],
-          "requiredFlags": [
-            "--rev"
-          ],
-          "flags": [
-            "--manifest",
-            "--manifest-repo",
-            "--no-workspace",
-            "--out",
-            "--repo",
-            "--repo-revision",
-            "--rev",
-            "--root",
-            "--workspace"
-          ],
-          "schemaIds": [
-            "application-flow-intent/1",
-            "application-map-manifest/0",
-            "application-map/0",
-            "e2e-block-catalog/0"
-          ],
-          "inputs": [
-            "--rev REV is required. --root is the repository (default .), --manifest the committed",
-            "application-map-manifest/0 path (default appmap.json). It is the manifest, not a built",
-            "application-map/0: the command builds the map at --rev itself, so do not pass or commit the",
-            "output of flows appmap build.",
-            "For a two-repository layout, each --repo names an aliased root, --manifest-repo the alias",
-            "holding the manifest and --repo-revision a root's pinned commit (CCE-V0-130..136).",
-            "--workspace FILE, or a discovered ROOT/.corvint/workspace.json, supplies the same three flags",
-            "(WSD-V0); --no-workspace skips discovery."
-          ],
-          "commit": [
-            "At --rev: the manifest, its page-object files (page-object blocks), routers (path blocks) and",
-            "flows outcomes with a matcher, locator and non-empty value (outcome blocks); optionally",
-            ".corvint/e2e-blocks.json for input and fixture blocks and .corvint/e2e-acceptances.json for",
-            "harvested blocks. Outcome blocks, and so any REACHED obligation later, need the manifest's",
-            "flows directory of application-flow-intent/1 files; with none, the catalog has no",
-            "outcome blocks (only page-object, path and declared blocks) and obligations read UNKNOWN or",
-            "INCOMPLETE."
-          ],
-          "produces": [
-            "e2e-block-catalog/0 on stdout, or at --out (a file outside the repository). A manifest that is",
-            "missing or does not build refuses e2e-map-unavailable; exit 1."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e catalog --root . --rev HEAD"
-          ]
-        },
-        {
-          "order": 5,
-          "id": "e2e-harvest",
-          "optional": true,
-          "command": "corvint-test e2e harvest",
-          "helpTopic": "corvint-test e2e harvest --help",
-          "summary": "Propose blocks from the existing Playwright suite (optional, experimental, CCE-V0).",
-          "requires": [
-            "e2e-catalog"
-          ],
-          "usage": [
-            "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]",
-            "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
-            "    [--workspace FILE | --no-workspace]"
-          ],
-          "requiredFlags": [
-            "--rev"
-          ],
-          "flags": [
-            "--manifest",
-            "--manifest-repo",
-            "--no-workspace",
-            "--out",
-            "--repo",
-            "--repo-revision",
-            "--rev",
-            "--root",
-            "--source",
-            "--workspace"
-          ],
-          "schemaIds": [
-            "e2e-acceptances/0",
-            "e2e-block-proposals/0"
-          ],
-          "inputs": [
-            "--rev REV is required. Every tracked *.spec.* and *.test.* file at --rev is read for literal",
-            "getByTestId assertions and page.goto navigations; the map at --manifest only binds proposals to",
-            "flows and screens, and without it every proposal is unbound. Each --source directory is read",
-            "into the site-knowledge IR at the map revision, which binds a line the map places on no flow",
-            "or screen to the screen its test is on there (CCE-V0-310)."
-          ],
-          "commit": [
-            "Nothing new to run it. To admit a proposal, commit its ID with a reason in",
-            ".corvint/e2e-acceptances.json (e2e-acceptances/0); the catalog admits it at that revision."
-          ],
-          "produces": [
-            "e2e-block-proposals/0 on stdout, or at --out (outside the repository). A proposal is never a",
-            "block until accepted."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e harvest --root . --rev HEAD --out /tmp/e2e-proposals.json"
-          ]
-        },
-        {
-          "order": 6,
-          "id": "e2e-obligations",
-          "optional": false,
-          "command": "corvint-test e2e obligations",
-          "helpTopic": "corvint-test e2e obligations --help",
-          "summary": "Derive the change's E2E obligations between two revisions (experimental, CCE-V0).",
-          "requires": [
-            "e2e-catalog"
-          ],
-          "usage": [
-            "corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--out FILE]",
-            "    [--coverage FILE] [--ledger FILE] [--module-graph]",
-            "    [--endpoint-source DIR]... [--rails-routes FILE]... [--openapi FILE]...",
-            "    [--remedy-summary [--remedy-commits N]]",
-            "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
-            "    [--workspace FILE | --no-workspace]"
-          ],
-          "requiredFlags": [
-            "--base",
-            "--head"
-          ],
-          "flags": [
-            "--base",
-            "--coverage",
-            "--endpoint-source",
-            "--head",
-            "--ledger",
-            "--manifest",
-            "--manifest-repo",
-            "--module-graph",
-            "--no-workspace",
-            "--openapi",
-            "--out",
-            "--rails-routes",
-            "--remedy-commits",
-            "--remedy-summary",
-            "--repo",
-            "--repo-revision",
-            "--root",
-            "--workspace"
-          ],
-          "schemaIds": [
-            "application-edge-ledger/0",
-            "e2e-obligations/0",
-            "e2e-remedy-summary/0",
-            "e2e-runtime-coverage/0",
-            "rails-routes/0"
-          ],
-          "inputs": [
-            "--base and --head are the change's revisions. --coverage (e2e-runtime-coverage/0 from prove",
-            "--record-coverage), --ledger (application-edge-ledger/0) and --module-graph change how reach",
-            "is computed (CCE-V0-045, CCE-V0-103, CCE-V0-054). --endpoint-source with --rails-routes",
-            "(rails-routes/0) or --openapi joins server endpoints to client calls, so a changed controller or endpoint",
-            "declaration reaches the calling screens; the join's own unknowns stay unknown spans",
-            "(CCE-V0-152, AMAP-V0-220). Each unknown span carries a remedy: the",
-            "declaration key and inferred candidates that would bound it, or the stated uncertainty",
-            "(CCE-V0-150). --remedy-summary instead evaluates the newest --remedy-commits (default 20,",
-            "at most 50) first-parent commits of base..head against their parents and writes",
-            "e2e-remedy-summary/0, ranking the remedies that alone bound the most merges (CCE-V0-151)."
-          ],
-          "commit": [
-            "The manifest at --head; the catalog's blocks at --head."
-          ],
-          "produces": [
-            "e2e-obligations/0 on stdout, or at --out (outside the repository). Gate CI on the top-level",
-            ".state (REACHED, NONE or UNKNOWN), never on the exit code: an emitted document exits 0 even",
-            "when .state reads UNKNOWN (CCE-V0-023 is not built). Only the top-level .state reads UNKNOWN."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e obligations --root . --base origin/main --head HEAD"
-          ]
-        },
-        {
-          "order": 7,
-          "id": "e2e-compile",
-          "optional": false,
-          "command": "corvint-test e2e compile",
-          "helpTopic": "corvint-test e2e compile --help",
-          "summary": "Compile one Playwright scenario per discharged obligation (experimental, CCE-V0).",
-          "requires": [
-            "e2e-obligations"
-          ],
-          "usage": [
-            "corvint-test e2e compile --base REV --head REV --out DIR [--root DIR] [--manifest FILE]",
-            "    [--coverage FILE] [--ledger FILE] [--module-graph]",
-            "    [--endpoint-source DIR]... [--rails-routes FILE]... [--openapi FILE]...",
-            "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
-            "    [--workspace FILE | --no-workspace]"
-          ],
-          "requiredFlags": [
-            "--base",
-            "--head",
-            "--out"
-          ],
-          "flags": [
-            "--base",
-            "--coverage",
-            "--endpoint-source",
-            "--head",
-            "--ledger",
-            "--manifest",
-            "--manifest-repo",
-            "--module-graph",
-            "--no-workspace",
-            "--openapi",
-            "--out",
-            "--rails-routes",
-            "--repo",
-            "--repo-revision",
-            "--root",
-            "--workspace"
-          ],
-          "schemaIds": [
-            "application-edge-ledger/0",
-            "e2e-compile/0",
-            "e2e-runtime-coverage/0",
-            "rails-routes/0"
-          ],
-          "inputs": [
-            "The obligations inputs (--coverage e2e-runtime-coverage/0, --ledger application-edge-ledger/0,",
-            "--module-graph, the --endpoint-source join over rails-routes/0 or OpenAPI), plus --out: an existing directory outside the repository."
-          ],
-          "commit": [
-            "Nothing beyond the obligations step."
-          ],
-          "produces": [
-            "Scenario spec files under --out and e2e-compile/0 on stdout. Read .state: INCOMPLETE",
-            "names the missing blocks, UNKNOWN what could not be decided, and the document still exits 0",
-            "(CCE-V0-023 is not built). Do not gate CI on the exit code."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e compile --root . --base origin/main --head HEAD --out /tmp/e2e-compiled"
-          ]
-        },
-        {
-          "order": 8,
-          "id": "e2e-prove",
-          "optional": false,
-          "command": "corvint-test e2e prove",
-          "helpTopic": "corvint-test e2e prove --help",
-          "summary": "Run the compiled scenarios, or one hosted test, against base and head (experimental, CCE-V0).",
-          "requires": [
-            "e2e-compile"
-          ],
-          "usage": [
-            "corvint-test e2e prove --base REV --head REV --out DIR [--node-bin FILE] [--node-modules DIR]",
-            "    [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph]",
-            "    [--repeats N] [--package-json FILE] [--lockfile FILE] [--record-coverage]",
-            "    [--oracle-acceptance FILE]",
-            "    [--endpoint-source DIR]... [--rails-routes FILE]... [--openapi FILE]...",
-            "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
-            "    [--workspace FILE | --no-workspace]",
-            "corvint-test e2e prove --base REV --head REV --out DIR [--node-bin FILE] [--node-modules DIR]",
-            "    --hosted-test FILE [--hosted-title TITLE] [--root DIR] [--repeats N] [--package-json FILE]",
-            "    [--lockfile FILE] [--record-coverage] [--oracle-acceptance FILE] [--no-workspace]"
-          ],
-          "requiredFlags": [
-            "--base",
-            "--head",
-            "--out"
-          ],
-          "flags": [
-            "--base",
-            "--coverage",
-            "--endpoint-source",
-            "--head",
-            "--hosted-test",
-            "--hosted-title",
-            "--ledger",
-            "--lockfile",
-            "--manifest",
-            "--manifest-repo",
-            "--module-graph",
-            "--no-workspace",
-            "--node-bin",
-            "--node-modules",
-            "--openapi",
-            "--oracle-acceptance",
-            "--out",
-            "--package-json",
-            "--rails-routes",
-            "--record-coverage",
-            "--repeats",
-            "--repo",
-            "--repo-revision",
-            "--root",
-            "--workspace"
-          ],
-          "schemaIds": [
-            "application-edge-ledger/0",
-            "e2e-oracle-acceptance/0",
-            "e2e-prove/0",
-            "e2e-runtime-coverage/0",
-            "rails-routes/0"
-          ],
-          "inputs": [
-            "--out is an existing directory outside the repository. Both toolchain inputs are required, by",
-            "flag or environment: --node-bin (CORVINT_E2E_NODE_BIN) is the absolute path of the node binary",
-            "with npx beside it, and --node-modules (CORVINT_PLAYWRIGHT_MODULES) an absolute node_modules",
-            "holding @playwright/test. --hosted-test proves one existing hosted Playwright test file as",
-            "given, without compiling; it takes no --coverage or --ledger. --coverage",
-            "(e2e-runtime-coverage/0), --ledger (application-edge-ledger/0), --module-graph and the",
-            "--endpoint-source join (rails-routes/0 or OpenAPI) are as in obligations; --oracle-acceptance is an e2e-oracle-acceptance/0 document outside the repository."
-          ],
-          "commit": [
-            "At --head: the page-object and fixture files, their relative imports, the runner configuration,",
-            "package.json and the lockfile; .corvint/e2e-blocks.json environment to serve the application",
-            "(without it each side is served statically)."
-          ],
-          "produces": [
-            "e2e-prove/0 at --out/e2e-prove.json and on stdout, the scenarios under --out, and with",
-            "--record-coverage e2e-runtime-coverage/0 beside it. Read each verdict: an emitted proof exits",
-            "0 whatever its verdicts, and a refusal exits 1."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e prove --root . --base origin/main --head HEAD --out /tmp/e2e-proof \\",
-            "    --node-bin \"$(command -v node)\" --node-modules \"$PWD/node_modules\""
-          ]
-        },
-        {
-          "order": 9,
-          "id": "e2e-shadow",
-          "optional": false,
-          "command": "corvint-test e2e shadow",
-          "helpTopic": "corvint-test e2e shadow --help",
-          "summary": "Score a frozen window of recorded proofs against the hosted suite (experimental, CCE-V0).",
-          "requires": [
-            "e2e-prove"
-          ],
-          "usage": [
-            "corvint-test e2e shadow --window FILE [--root DIR] [--manifest FILE] [--out FILE]"
-          ],
-          "requiredFlags": [
-            "--window"
-          ],
-          "flags": [
-            "--manifest",
-            "--out",
-            "--root",
-            "--window"
-          ],
-          "schemaIds": [
-            "e2e-shadow-window/0",
-            "e2e-shadow/0"
-          ],
-          "inputs": [
-            "--window is an e2e-shadow-window/0 document of recorded prove results and hosted runs whose",
-            "registration pins the mutation operators, seed, catalog digest and compiler version before the",
-            "first run. Shadow runs neither side."
-          ],
-          "commit": [
-            "Nothing; the window is recorded evidence, kept outside the repository."
-          ],
-          "produces": [
-            "e2e-shadow/0 on stdout, or at --out (outside the repository)."
-          ],
-          "options": [],
-          "example": [
-            "corvint-test e2e shadow --window /tmp/e2e-shadow-window.json"
           ]
         }
       ]
@@ -4843,11 +4416,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-analyzer-swift.json"
     },
     {
-      "binary": "corvint-behavior-falsify",
-      "command": "corvint-cli --binary corvint-behavior-falsify help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-behavior-falsify.json"
-    },
-    {
       "binary": "corvint-cem-candidate",
       "command": "corvint-cem-candidate help --json",
       "snapshot": "internal/capcatalog/trees/corvint-cem-candidate.json"
@@ -4938,11 +4506,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-mcp.json"
     },
     {
-      "binary": "corvint-playwright-minimize",
-      "command": "corvint-cli --binary corvint-playwright-minimize help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-playwright-minimize.json"
-    },
-    {
       "binary": "corvint-postmerge-connect",
       "command": "corvint-postmerge-connect help --json",
       "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
@@ -5006,16 +4569,6 @@
       "binary": "corvint-test-validity-mcp",
       "command": "corvint-test-validity-mcp help --json",
       "snapshot": "internal/capcatalog/trees/corvint-test-validity-mcp.json"
-    },
-    {
-      "binary": "corvint-test",
-      "command": "corvint-test help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-test.json"
-    },
-    {
-      "binary": "corvint-tests-accept",
-      "command": "corvint-cli --binary corvint-tests-accept help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-tests-accept.json"
     },
     {
       "binary": "corvint-update",

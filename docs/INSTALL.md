@@ -18,7 +18,7 @@ and 1 MiB per output stream, and retains failed native streams/status inside its
 
 With the pinned Go toolchain, run `make install-local` from the source checkout. It builds every
 native `cmd/` executable from that tree and installs them into `~/.local/bin`, including
-`corvint-test`, all provider tools and `corvint-tasks`. Override the destination with
+all provider tools and `corvint-tasks`. Override the destination with
 `make install-local LOCAL_BIN_DIR=/absolute/bin` and add that directory to `PATH`. Existing
 binaries are replaced atomically with one bounded rollback copy per tool. Historical `.bak-*`
 files made by other installers are not owned or removed by this command. Core and companions

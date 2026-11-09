@@ -6,10 +6,8 @@ import (
 	json "encoding/json/v2"
 	"encoding/xml"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
-	"maps"
 	"math"
 	"os"
 	"os/exec"
@@ -23,7 +21,6 @@ import (
 	"github.com/Beamfall/corvint/internal/appmap"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 // The `affected audit` wire and bounds (AFP-V0-445, AFP-V0-447).
@@ -44,10 +41,9 @@ const (
 const (
 	auditSelectorAffected = "affected"
 	auditSelectorAppmap   = "appmap-impact"
-	auditSelectorE2E      = "e2e-compile"
 )
 
-var affectedAuditSelectorNames = []string{auditSelectorAffected, auditSelectorAppmap, auditSelectorE2E}
+var affectedAuditSelectorNames = []string{auditSelectorAffected, auditSelectorAppmap}
 
 // Per-change, per-selector verdicts and scopes (AFP-V0-447).
 const (
@@ -82,24 +78,11 @@ type affectedAuditInChg struct {
 	Changed    string                 `json:"changed,omitzero"`
 	PathPrefix string                 `json:"path_prefix,omitzero"`
 	Appmap     *affectedAuditInAppmap `json:"appmap,omitzero"`
-	E2E        *affectedAuditInE2E    `json:"e2e,omitzero"`
 }
 
 type affectedAuditInAppmap struct {
 	Map    string `json:"map"`
 	Ledger string `json:"ledger,omitzero"`
-}
-
-// affectedAuditInE2E names the e2e manifest and, for a second (tests) repository, the
-// aliased roots e2e-compile reads, as its --manifest-repo, --repo and --repo-revision flags
-// (AFP-V0-490).
-type affectedAuditInE2E struct {
-	Manifest      string            `json:"manifest"`
-	ManifestRepo  string            `json:"manifest_repo,omitzero"`
-	Repos         map[string]string `json:"repos,omitzero"`
-	RepoRevisions map[string]string `json:"repo_revisions,omitzero"`
-
-	rootArgs []string // the validated flags, in alias order
 }
 
 // affectedAuditReport is the corvint-affected-audit/1 document.
@@ -152,7 +135,6 @@ type affectedAuditSelection struct {
 	SelectedTests        int                   `json:"selected_tests"`
 	SelectionSize        int                   `json:"selection_size"`
 	SelectorState        string                `json:"selector_state,omitzero"`
-	Roots                []appmap.RootPin      `json:"roots,omitzero"`
 	TruePositives        int                   `json:"true_positives"`
 	UnknownReasons       []string              `json:"unknown_reasons"`
 	UnobservedUnselected []affectedAuditID     `json:"unobserved_unselected"`
@@ -280,62 +262,10 @@ func validateAffectedAuditChange(change *affectedAuditInChg) error {
 		(change.Baseline != "" && change.Changed != "" && (change.Format == "junit" || change.Format == "playwright-json"))
 	if change.ID == "" || !validGitObjectID(change.Base) || !materialized || !outcomes ||
 		(change.PathPrefix != "" && !affected.ValidRelativePath(change.PathPrefix)) ||
-		(change.Appmap != nil && change.Appmap.Map == "") ||
-		(change.E2E != nil && !affected.ValidRelativePath(change.E2E.Manifest)) {
-		return affectedAuditError("--changes: change %q needs a unique id, a full base commit id, kind replay with a full head commit id, revert with the full commit id to revert on base, or mutant with a diff file applied on base; outcomes as format junit or playwright-json with baseline and changed files, or none (observation UNKNOWN); an optional repository-relative path_prefix; an optional appmap {map, ledger}; and an optional e2e {manifest, manifest_repo, repos, repo_revisions} with a repository-relative manifest", change.ID)
-	}
-	if change.E2E != nil {
-		arguments, err := affectedAuditE2ERootArgs(*change.E2E)
-		if err != nil {
-			return affectedAuditError("--changes: change %q e2e: %v", change.ID, err)
-		}
-		change.E2E.rootArgs = arguments
+		(change.Appmap != nil && change.Appmap.Map == "") {
+		return affectedAuditError("--changes: change %q needs a unique id, a full base commit id, kind replay with a full head commit id, revert with the full commit id to revert on base, or mutant with a diff file applied on base; outcomes as format junit or playwright-json with baseline and changed files, or none (observation UNKNOWN); an optional repository-relative path_prefix; and an optional appmap {map, ledger}", change.ID)
 	}
 	return nil
-}
-
-// affectedAuditE2ERootArgs turns a change's e2e two-repository inputs into the e2e-compile
-// --repo, --manifest-repo and --repo-revision flags, parsed by the same flag binding the
-// companion uses, and refuses what that run would otherwise turn into an UNKNOWN: a root that
-// is not absolute and clean, a revision that is not a full commit id, and a manifest_repo or
-// repo_revisions alias without a repos entry (AFP-V0-490, AFP-V0-491).
-func affectedAuditE2ERootArgs(e2e affectedAuditInE2E) ([]string, error) {
-	var arguments []string
-	for _, alias := range slices.Sorted(maps.Keys(e2e.Repos)) {
-		if !rootalias.Valid(alias) {
-			// A key holding "=" would re-split into another alias and root once joined.
-			return nil, fmt.Errorf("repos alias %q is invalid", alias)
-		}
-		if !rootalias.ValidRoot(e2e.Repos[alias]) {
-			return nil, fmt.Errorf("repos %q must be an absolute, clean path", alias)
-		}
-		arguments = append(arguments, "--repo", alias+"="+e2e.Repos[alias])
-	}
-	if e2e.ManifestRepo != "" {
-		if e2e.Repos[e2e.ManifestRepo] == "" {
-			return nil, fmt.Errorf("manifest_repo %q names no repos alias", e2e.ManifestRepo)
-		}
-		arguments = append(arguments, "--manifest-repo", e2e.ManifestRepo)
-	}
-	for _, alias := range slices.Sorted(maps.Keys(e2e.RepoRevisions)) {
-		if !rootalias.Valid(alias) {
-			return nil, fmt.Errorf("repo_revisions alias %q is invalid", alias)
-		}
-		if !validGitObjectID(e2e.RepoRevisions[alias]) {
-			return nil, fmt.Errorf("repo_revisions %q must be a full lowercase commit id", alias)
-		}
-		arguments = append(arguments, "--repo-revision", alias+"="+e2e.RepoRevisions[alias])
-	}
-	flags := flag.NewFlagSet("affected audit e2e", flag.ContinueOnError)
-	flags.SetOutput(io.Discard)
-	roots := appmap.BindRootFlags(flags)
-	if err := flags.Parse(arguments); err != nil {
-		return nil, err
-	}
-	if err := roots.Check(); err != nil {
-		return nil, err
-	}
-	return arguments, nil
 }
 
 func compileAffectedAudit(ctx context.Context, invocation affectedInvocation) (affectedAuditReport, error) {
@@ -364,19 +294,8 @@ func compileAffectedAudit(ctx context.Context, invocation affectedInvocation) (a
 		if err := validateAffectedAuditChange(change); err != nil {
 			return affectedAuditReport{}, err
 		}
-		if change.E2E != nil {
-			// The compile runs on a clone, so the companion's own --root collision check cannot
-			// see the audited repository; refuse it here, through symlinks too (AFP-V0-491).
-			audited, err := os.Stat(invocation.Root)
-			for _, alias := range slices.Sorted(maps.Keys(change.E2E.Repos)) {
-				if info, statErr := os.Stat(change.E2E.Repos[alias]); err == nil && statErr == nil && os.SameFile(audited, info) {
-					return affectedAuditReport{}, affectedAuditError("--changes: change %q e2e: repos %q is the audited repository", change.ID, alias)
-				}
-			}
-		}
 		seen[change.ID] = true
 		configured[auditSelectorAppmap] = configured[auditSelectorAppmap] || change.Appmap != nil
-		configured[auditSelectorE2E] = configured[auditSelectorE2E] || change.E2E != nil
 	}
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
@@ -417,7 +336,6 @@ type affectedAuditPick struct {
 	size     int
 	state    string
 	unknown  []string
-	roots    []appmap.RootPin // the aliased roots e2e-compile read, with their revisions (AFP-V0-492)
 }
 
 func (pick affectedAuditPick) selects(id affectedAuditID) bool {
@@ -482,11 +400,6 @@ func auditAffectedChange(ctx context.Context, gitExecutable, root, directory str
 		atHead, err := affectedAuditTrackedFiles(ctx, gitExecutable, clone, head)
 		if err != nil {
 			return affectedAuditChange{}, affectedAuditError("change %q: %v", change.ID, err)
-		}
-		if change.E2E != nil && len(change.E2E.Repos) > 0 {
-			// A test may live in a second repository read at one revision for base and head, so
-			// the application's tracked files are no evidence it was removed (AFP-V0-493).
-			atBase, atHead = nil, nil
 		}
 		audited.Observation = observeAffectedAuditChange(baseline, changed, atBase, atHead)
 	}
@@ -669,81 +582,8 @@ func pickAffectedAuditSelector(ctx context.Context, name, clone, directory strin
 			pick.unknown = append(pick.unknown, unknown.Reason)
 		}
 		return pick, "", nil
-	default:
-		if change.E2E == nil {
-			return affectedAuditPick{}, "the change configures no e2e manifest", nil
-		}
-		return pickAffectedAuditE2E(ctx, clone, change, head)
 	}
-}
-
-// affectedAuditE2ECompiler finds the corvint-test companion beside this
-// executable, else on PATH. e2e-compile runs out of process so the core
-// binary does not link the CCE environment's net/http (invariant 7).
-func affectedAuditE2ECompiler() (string, error) {
-	if self, err := os.Executable(); err == nil {
-		sibling := filepath.Join(filepath.Dir(self), "corvint-test"+filepath.Ext(self))
-		if info, err := os.Stat(sibling); err == nil && info.Mode().IsRegular() {
-			return sibling, nil
-		}
-	}
-	return exec.LookPath("corvint-test")
-}
-
-// affectedAuditCompileReport is the part of the corvint-test e2e compile
-// report (CCE-V0-005) the audit scores.
-type affectedAuditCompileReport struct {
-	Roots   []appmap.RootPin `json:"roots"`
-	State   string           `json:"state"`
-	Unknown []struct {
-		Reason string `json:"reason"`
-	} `json:"unknown"`
-	Scenarios []struct {
-		Placement string `json:"placement"`
-	} `json:"scenarios"`
-	Truncated int `json:"truncated"`
-}
-
-// pickAffectedAuditE2E runs `corvint-test e2e compile` on the clone, writing
-// its scenarios to scratch beside the clone. It never falls back: an unknown
-// span is listed, and a test outside the compiled scenarios that had to run
-// is a miss.
-func pickAffectedAuditE2E(ctx context.Context, clone string, change affectedAuditInChg, head string) (affectedAuditPick, string, error) {
-	compiler, err := affectedAuditE2ECompiler()
-	if err != nil {
-		return affectedAuditPick{}, "", &gokernel.Error{Code: "e2e-compiler-unavailable", Message: "corvint-test is neither beside corvint nor on PATH"}
-	}
-	out := filepath.Join(filepath.Dir(clone), "e2e-compiled")
-	if err := os.Mkdir(out, 0o700); err != nil {
-		return affectedAuditPick{}, "", &gokernel.Error{Code: "e2e-compile-failed", Message: "cannot create the scenario scratch directory: " + err.Error()}
-	}
-	var stdout, stderr bytes.Buffer
-	arguments := append([]string{"e2e", "compile", "--root", clone, "--base", change.Base, "--head", head,
-		"--manifest", change.E2E.Manifest, "--out", out}, change.E2E.rootArgs...)
-	command := exec.CommandContext(ctx, compiler, arguments...)
-	command.Stdout, command.Stderr = &stdout, &stderr
-	if err := command.Run(); err != nil {
-		return affectedAuditPick{}, "", &gokernel.Error{Code: "e2e-compile-failed", Message: strings.TrimSpace(stderr.String())}
-	}
-	var compiled affectedAuditCompileReport
-	if err := json.Unmarshal(stdout.Bytes(), &compiled); err != nil {
-		return affectedAuditPick{}, "", &gokernel.Error{Code: "e2e-compile-failed", Message: "unreadable e2e compile report: " + err.Error()}
-	}
-	if compiled.Truncated != 0 {
-		// A trimmed list is not the selection; it is never scored as one.
-		return affectedAuditPick{}, "", &gokernel.Error{Code: "e2e-compile-failed", Message: fmt.Sprintf("the e2e compile report dropped %d scenarios", compiled.Truncated)}
-	}
-	pick := affectedAuditPick{files: map[string]bool{}, state: compiled.State, roots: compiled.Roots}
-	for _, scenario := range compiled.Scenarios {
-		if scenario.Placement != "" {
-			pick.files[scenario.Placement] = true
-			pick.size++
-		}
-	}
-	for _, unknown := range compiled.Unknown {
-		pick.unknown = append(pick.unknown, unknown.Reason)
-	}
-	return pick, "", nil
+	return affectedAuditPick{}, "", affectedAuditError("unknown selector %q", name)
 }
 
 func affectedAuditRatio(numerator, denominator int) string {
@@ -772,7 +612,7 @@ func scoreAffectedAuditSelector(name string, pick affectedAuditPick, reason stri
 		scored.Scope, scored.Verdict = auditScopeError, auditVerdictUnknown
 		return scored
 	}
-	scored.Fallback, scored.SelectionSize, scored.SelectorState, scored.Roots = pick.fallback, pick.size, pick.state, pick.roots
+	scored.Fallback, scored.SelectionSize, scored.SelectorState = pick.fallback, pick.size, pick.state
 	scored.Scope = auditScopeBounded
 	if pick.fallback {
 		scored.Scope = auditScopeFallback

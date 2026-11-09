@@ -1,5 +1,5 @@
-// Package cli is the runner companion's command entry, shared by the `corvint-test-runner` shim
-// and the `corvint-test runner` group (CTF-V0-004). Trusted test code runs locally; its receipts
+// Package cli is the runner companion's command entry behind the `corvint-test-runner` shim
+// (CTF-V0-004). Trusted test code runs locally; its receipts
 // attest observed bytes, not complete dependencies.
 package cli
 
@@ -25,9 +25,9 @@ const PlanProfile = tr.PlanProfile
 type plan = tr.PlanDocument
 type receipt = tr.ReceiptDocument
 
-// Command runs the runner companion under the invocation name prog: `corvint-test-runner` for the
-// old companion shim, `corvint-test runner` for the group (CTF-V0-004). Only diagnostics and help
-// name prog; output documents do not depend on it (CTF-V0-002, CTF-V0-007).
+// Command runs the runner companion under the invocation name prog, `corvint-test-runner`
+// (CTF-V0-004). Only diagnostics and help name prog; output documents do not depend on it
+// (CTF-V0-002, CTF-V0-007).
 func Command(ctx context.Context, prog string, args []string, out, errout io.Writer) int {
 	usage := fmt.Sprintf(usageFormat, prog)
 	if len(args) == 0 {

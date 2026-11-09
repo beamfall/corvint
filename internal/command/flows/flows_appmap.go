@@ -52,8 +52,7 @@ source verbs also take --workspace FILE or read --root/.corvint/workspace.json (
 root reads it from that root. Flags parse in any order (how's after GOAL too); a refusal names the
 flag that failed.
 
-corvint flows appmap build --help prints the manifest's minimum members, what each step commits
-and the change-compiled E2E chain to corvint-test e2e (guide docs/E2E-ADOPTION.md).
+corvint flows appmap build --help names the manifest's minimum members (docs/APPLICATION-MAP.md).
 
 Navigation edge ledger (experimental, ANL-V0):
   corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]

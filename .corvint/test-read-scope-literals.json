@@ -23,7 +23,6 @@
       "cmd/corvint-analyzer-sql-native": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-analyzer-structured-data": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-analyzer-swift": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "cmd/corvint-behavior-falsify": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-cem-candidate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-cem-experiments": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-companion-release": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -41,7 +40,6 @@
       "cmd/corvint-js-test-provider": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-lsp": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-mcp": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "cmd/corvint-playwright-minimize": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-postmerge-connect": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-postmerge-host-launcher": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-postmerge-metrics": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -53,10 +51,8 @@
       "cmd/corvint-remote-provider": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-ruby-test-provider": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-tasks": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "cmd/corvint-test": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-test-runner": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-test-validity-mcp": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "cmd/corvint-tests-accept": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-update": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-web-flows": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "cmd/corvint-work-queue": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -109,8 +105,6 @@
       "internal/attest": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/authorityevent": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/authoritystore": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/behaviorfalsify": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/behaviorfalsify/cli": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/betarung": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/breakagemap": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/capcatalog": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -132,7 +126,6 @@
       "internal/cemcandidate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/cemchain": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/cemdiscriminate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/changee2e": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/changewitness": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/clitree": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/clitree/clitreetest": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -168,7 +161,6 @@
       "internal/evidencereach": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/execfile": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/extevidence": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/extmutate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/flowcoverage": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/flowcoverage/testfixture": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/flowdocs": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -251,8 +243,6 @@
       "internal/perfbudget": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/perfbudget/cmd/perf-budget": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/plansnapshot": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/playwrightminimize": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/playwrightminimize/cli": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/playwrightruns": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/postmergeconnector": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/postmergehost": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -286,7 +276,6 @@
       "internal/semescalate": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/sessiontest": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/sharedpath": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/skhproof": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/skillexport": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/slotlearn": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/specindex": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -328,8 +317,6 @@
       "internal/tasks/wire": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/tasks/worktrail": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/tcq": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/testacceptance": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/testacceptance/cli": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/testevidence": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/testplan": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/testplatform": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
@@ -428,10 +415,6 @@
       "artifacts/runner-plan-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
       "artifacts/runner-receipt-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read"
     },
-    "internal/changee2e": {
-      "docs/specs/application-map-v0.md": "named inside the expected e2e-map-unavailable refusal text; the test reads no file",
-      "docs/E2E-ADOPTION.md": "named inside the expected e2e-map-unavailable refusal text; the test reads no file"
-    },
     "internal/doccorpus": {
       ".github/workflows/ci.yml": "a path written into a temporary fixture repository the inventory rules read; the repository's own workflows are not read"
     },
@@ -457,9 +440,6 @@
     },
     "internal/observations": {
       "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"
-    },
-    "internal/playwrightminimize": {
-      "internal/jstestprovider/testdata/application-attestation": "read only by the live Docker qualification, which skips unless CORVINT_MINIMIZER_LIVE_QUALIFICATION=1 and never runs in the confined shard"
     },
     "internal/specindex": {
       "cmd/corvint/main.go": "a read-scope control path passed to the InReadScope predicate; the file is never read"
