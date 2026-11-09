@@ -389,7 +389,9 @@ const covdataBatch = 64
 func quoteOutput(output string) string {
 	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
 	for i, l := range lines {
-		lines[i] = "  | " + l
+		// test2json starts a frame at the \x16 marker wherever it falls
+		// in a line, so the indent alone does not hide a framed line.
+		lines[i] = "  | " + strings.ReplaceAll(l, "\x16", "")
 	}
 	return "\n" + strings.Join(lines, "\n")
 }
