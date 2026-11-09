@@ -56,7 +56,9 @@ run_gate
 expect_line 'gate-affected: no dirty or committed path; no Go package to test'
 if has_line go-test; then fail "a clean tree ran go test"; fi
 
-printf '\n// edited\n' >> "$repository/core/core.go"
+# An exported code edit reaches the importers; a comment-only edit
+# (AFP-V0-3321) or an unused unexported addition stays in its own package.
+sed 's/const Value = 1/const Value = 2/' "$repository/core/core.go" > "$test_root/core.go" && mv -f "$test_root/core.go" "$repository/core/core.go"
 run_gate
 expect_line 'gate-affected: selected example.com/fixture/core'
 expect_line 'gate-affected: selected example.com/fixture/leaf'
