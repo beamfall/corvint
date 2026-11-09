@@ -58,7 +58,7 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 	graph, module := repositoryNarrowingGraph(t)
 	narrowed := []string{
 		"internal/perfbudget", "conformance/cli-parity-v0",
-		"conformance/mcp-2026-07-28", "internal/jstestprovider", "internal/tasks/ticket",
+		"conformance/mcp-2026-07-28", "internal/jstestprovider",
 		"protocol/integrations", "tools/ci-forward-row", "tools/requirement-id-collisions",
 		"shell:script/gate-affected_test.sh", "shell:script/dogfood-change_test.sh",
 		"shell:script/vscode-check-install_test.sh", "shell:script/check-install-lifecycle_test.sh",
@@ -94,7 +94,6 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	for _, test := range []struct{ dirty, unit string }{
 		{"docs/specs/mcp-server-2026-07-28-v0.md", "conformance/mcp-2026-07-28"},
-		{"internal/taskman/testdata/issue502-optional-keys-record.json", "internal/tasks/ticket"},
 		{".github/forward-rows/failed.jq", "tools/ci-forward-row"},
 		{".github/cishards/package-costs.json", "internal/perfbudget"},
 		{"integrations/opencode/README.md", "internal/opencodequalification"},
@@ -117,8 +116,7 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 // whose only toolchain is make over the Makefile leave a spec edit's and a
 // REQUIREMENTS.tsv edit's plans, stay selected for a Makefile edit, and the
 // test that sources a filtered copy of the heavy runner from its temporary directory stays an
-// unbounded reader (V1-4283 declared qualify-tasks-basic_test.sh, the earlier
-// control, under AFP-V0-2955).
+// unbounded reader.
 func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	declared := []string{
@@ -136,24 +134,11 @@ func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
 		if _, selected := units["shell:script/lane-scripts_test.sh"]; !selected {
 			t.Errorf("%s: shell:script/lane-scripts_test.sh not selected; it stays an unbounded reader", dirty)
 		}
-		if kind, selected := units["shell:script/qualify-tasks-basic_test.sh"]; selected {
-			t.Errorf("%s: shell:script/qualify-tasks-basic_test.sh selected as %s; its declared read scope is cmd/corvint-tasks, internal, go.mod and go.sum (AFP-V0-2955)", dirty, kind)
-		}
 	}
 	units := selectedUnits(graph, module, "Makefile")
 	for _, unit := range declared {
 		if _, selected := units[unit]; !selected {
 			t.Errorf("Makefile: declared reader %s not selected", unit)
 		}
-	}
-}
-
-// V1-4043: Core import additions select the repository-wide import-direction guard.
-func TestNewCoreImportSelectsTasksBoundary(t *testing.T) {
-	testsupport.RequireLiveTier(t)
-	graph, module := repositoryNarrowingGraph(t)
-	units := selectedUnits(graph, module, "internal/mcp/newbridge/bridge.go")
-	if _, ok := units["internal/tasks"]; !ok {
-		t.Fatalf("TestImportDirection is absent: %v", units)
 	}
 }

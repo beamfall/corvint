@@ -42,7 +42,7 @@ func TestCEMV1648ProveCEMRefusesAPairedChange(t *testing.T) {
 }
 
 // TestCEMV1648MapReadingSurfacesRefuseAPairedChange: the closed parsers of
-// `cem verify-stable`, `cem bundle` and `cem gate-verdict` refuse each
+// `cem verify-stable` and `cem bundle` refuse each
 // paired-change flag, spaced or in = form, with the CEM-V1-648 reason, each in
 // its own envelope (V1-2943).
 func TestCEMV1648MapReadingSurfacesRefuseAPairedChange(t *testing.T) {
@@ -60,11 +60,6 @@ func TestCEMV1648MapReadingSurfacesRefuseAPairedChange(t *testing.T) {
 			stdout, stderr, code = runProveArguments(t, arguments...)
 			var refusal struct{ Code, Error string }
 			if code != 2 || len(stdout) != 0 || json.Unmarshal([]byte(stderr), &refusal) != nil || refusal.Code != "invalid-arguments" || refusal.Error != want {
-				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", arguments, code, stdout, stderr)
-			}
-			arguments = append([]string{"--root", root, "cem", "gate-verdict", "--base", "a"}, form...)
-			stdout, stderr, code = runProveArguments(t, arguments...)
-			if code != 2 || len(stdout) != 0 || stderr != "corvint: cem gate-verdict: "+cemGateVerdictInvalidArguments+": "+want+"\n" {
 				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", arguments, code, stdout, stderr)
 			}
 		}

@@ -75,12 +75,8 @@ func TestCLIProfile9300EveryNode(t *testing.T) {
 			}
 		})
 	}
-	for _, binary := range []string{"corvint", "corvint-tasks"} {
-		word := "contxt"
-		if binary == "corvint-tasks" {
-			word = "tikcet"
-		}
-		code, out, errout := launch(t, adapter, t.TempDir(), "--binary", binary, word)
+	for _, binary := range []string{"corvint"} {
+		code, out, errout := launch(t, adapter, t.TempDir(), "--binary", binary, "contxt")
 		if code != 2 || out != "" || !strings.Contains(errout, "did you mean") {
 			t.Fatalf("suggestion: %d %q %q", code, out, errout)
 		}

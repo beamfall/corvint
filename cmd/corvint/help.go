@@ -15,7 +15,7 @@ var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
 	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true, "defer": true, "verify-stable": true, "gate-verdict": true,
+	"anchor": true, "provenance": true, "export": true, "defer": true, "verify-stable": true,
 	"bundle": true,
 }
 
@@ -1836,8 +1836,8 @@ Map paths:
   ancestor that cannot be resolved is refused as bundle-path-unresolved,
   naming the path.
 
-Workspace: a CEM cites one repository. Every action but verify-stable,
-gate-verdict and bundle refuses --workspace FILE, or a discovered
+Workspace: a CEM cites one repository. Every action but verify-stable
+and bundle refuses --workspace FILE, or a discovered
 --root/.corvint/workspace.json without --no-workspace, as
 workspace-unsupported naming the ignored aliases.
 
@@ -1846,7 +1846,7 @@ whole-repository patch itself excluding exactly .corvint/change.cem.json. A
 retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its
 migration fix. All commands are local-only; reports can disclose repository
 information and stay local by default.
-` + cemGateVerdictHelp
+`
 
 const ocmHelp = `Prepare, close, or verify an Obligation Closure Map and its bound CEM.
 

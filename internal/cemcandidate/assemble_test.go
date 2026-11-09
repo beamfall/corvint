@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	cw "github.com/Beamfall/corvint/internal/cem/wire"
-	tw "github.com/Beamfall/corvint/internal/tasks/wire"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -85,19 +84,15 @@ func fixture(t *testing.T, format string) (Request, string) {
 	hunk := original["hunks"].([]any)[0].(map[string]any)["id"].(string)
 	evidence := original["evidence"].([]any)[0].(map[string]any)["id"].(string)
 	dir := realTemp(t)
-	ticket, e := tw.ParseTicketID("test", "ticket:example:main:TEST-1")
-	if e != nil {
-		t.Fatal(e)
-	}
-	id := tw.CriterionIdentity{ExecutableSHA256: tw.Digest(strings.Repeat("a", 64)), Version: "test", Build: "0"}
-	c := tw.CriterionCapture{Producer: id, Policy: "opaque manufactured policy", Ticket: "opaque manufactured ticket", Queue: "opaque manufactured queue", Attempt: "opaque manufactured attempt", ClaimedTicket: "opaque manufactured claimed ticket"}
-	capture := tw.EncodeFile(c.Value())
-	digest := tw.Digest(strings.Repeat("b", 64))
-	binding := tw.CriterionBinding{Snapshot: tw.CriterionSnapshot{HeadSeq: "1", HeadReceiptSHA256: digest, IntentTreeSHA256: digest, PrimaryWorktreeSHA256: digest}, TicketID: ticket, AcceptanceRevision: "1", AcceptanceCriteria: []string{"observed behavior"}, AttemptID: "attempt:example:main:0123456789abcdef0123456789abcdef", Generation: "1", Phase: "build", BaseCommit: base, PolicySHA256: digest, PolicyContentIDSHA256: digest, ConfigSHA256: digest, RuntimeID: "external-agent", LeaseExpiresAt: "2026-01-01T01:00:00Z"}
-	v := tw.CriterionVerification{Producer: id, Verifier: id, CaptureSHA256: tw.Sum(capture), Binding: binding}
+	// Capture and verification stay opaque to assembly (nativeCaptureSemanticVerification
+	// is NOT_OBSERVED); the Tasks wire that produced them left with Corvint Tasks (0594).
+	ticket := "ticket:example:main:TEST-1"
+	attempt := "attempt:example:main:0123456789abcdef0123456789abcdef"
+	capture := []byte("{\"profile\":\"manufactured-capture-not-native-authority\"}\n")
+	verification := []byte("{\"profile\":\"manufactured-verification-not-native-authority\"}\n")
 	plan := tr.PlanDocument{Profile: "corvint-test-runner-plan/0", Request: tr.Request{Runner: "go-test", Root: repo, InputFiles: map[string]string{"app.txt": tr.Digest([]byte("after\n"))}}, Invocation: tr.Invocation{Argv: []string{"not-executed"}}}
 	receipt := tr.ReceiptDocument{Profile: "corvint-test-runner-receipt/0", PlanSha256: tr.Identity(plan), Execution: tr.Execution{Profile: "corvint-test-runner-execution/0", Runner: plan.Request.Runner, InputSha256: tr.Identity(plan.Request.InputFiles), InvocationSha256: tr.Identity(plan.Invocation), ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}, Observation: tr.Observation{Runner: plan.Request.Runner, Complete: false, Tests: []tr.Test{{ID: "fixture", State: tr.Unknown}}}, Error: "manufactured observation"}
-	r := Request{Profile: Profile, Repository: repo, ExpectedBase: base, Target: target, TicketID: ticket.Raw, AttemptID: binding.AttemptID, SourceMap: save(t, filepath.Join(dir, "source.json"), encode(t, m)), Capture: save(t, filepath.Join(dir, "capture.json"), capture), Verification: save(t, filepath.Join(dir, "verification.json"), tw.EncodeFile(v.Value())), RunnerPlan: save(t, filepath.Join(dir, "plan.json"), encode(t, plan)), RunnerReceipt: save(t, filepath.Join(dir, "receipt.json"), encode(t, receipt)), Links: []Link{{CriterionIndex: 0, HunkIDs: []string{hunk}, EvidenceIDs: []string{evidence}}}}
+	r := Request{Profile: Profile, Repository: repo, ExpectedBase: base, Target: target, TicketID: ticket, AttemptID: attempt, SourceMap: save(t, filepath.Join(dir, "source.json"), encode(t, m)), Capture: save(t, filepath.Join(dir, "capture.json"), capture), Verification: save(t, filepath.Join(dir, "verification.json"), verification), RunnerPlan: save(t, filepath.Join(dir, "plan.json"), encode(t, plan)), RunnerReceipt: save(t, filepath.Join(dir, "receipt.json"), encode(t, receipt)), Links: []Link{{CriterionIndex: 0, HunkIDs: []string{hunk}, EvidenceIDs: []string{evidence}}}}
 	return r, filepath.Join(realTemp(t), "bundle")
 }
 
