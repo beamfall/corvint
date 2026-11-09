@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 	"github.com/Beamfall/corvint/internal/execfile"
 )
 
@@ -338,7 +338,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	committed, err := companionrelease.ReadStableReleaseDeclaration(raw)
+	committed, err := corerelease.ReadStableReleaseDeclaration(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 			t.Fatalf("output lacks %q:\n%s", want, out.String())
 		}
 	}
-	narrow := companionrelease.StableReleaseDeclaration{Profile: companionrelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
+	narrow := corerelease.StableReleaseDeclaration{Profile: corerelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
 	out.Reset()
 	if code, _ := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "release-external-incomplete") {
 		t.Fatalf("self-observed run exit %d, want 3 at external: %s", code, out.String())

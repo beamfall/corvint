@@ -27,7 +27,7 @@
 // With --readiness PATH, the command also judges release readiness
 // (CEM-V1-600..603): PATH names a cem-release-readiness/1 declaration in the
 // same committed tree, every accepted stable result line both binaries
-// produced is read by internal/companionrelease as the exact cem/1.0 stable
+// produced is read by internal/corerelease as the exact cem/1.0 stable
 // result, and each declared runner, platform and external row must be
 // observed PASSED. The command observes only its own suite rows and the one
 // platform both binaries were built for; a binary-level repository-envelope
@@ -67,7 +67,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 )
 
 const (
@@ -140,12 +140,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
 		return 1
 	}
-	var declaration companionrelease.StableReleaseDeclaration
+	var declaration corerelease.StableReleaseDeclaration
 	var declarationRaw []byte
 	if *readiness != "" {
 		declarationRaw, err = os.ReadFile(filepath.Join(src, filepath.FromSlash(*readiness)))
 		if err == nil {
-			declaration, err = companionrelease.ReadStableReleaseDeclaration(declarationRaw)
+			declaration, err = corerelease.ReadStableReleaseDeclaration(declarationRaw)
 		}
 		if err != nil {
 			fmt.Fprintln(stderr, "cem-release-suites: refused: readiness declaration:", err)
@@ -241,7 +241,7 @@ func observedRows(platform string, envelope map[string]string) (runner, platform
 // judgeReadiness prints every declared row's observed outcome and the
 // readiness verdict: exit 0 when ready, 3 when refused (CEM-V1-603), with the
 // refusal's text.
-func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]byte, runner, platforms, external map[string]string, stdout io.Writer) (int, string) {
+func judgeReadiness(d corerelease.StableReleaseDeclaration, accepted [][]byte, runner, platforms, external map[string]string, stdout io.Writer) (int, string) {
 	for _, class := range []struct {
 		name     string
 		rows     []string
@@ -255,7 +255,7 @@ func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]by
 			fmt.Fprintf(stdout, "cem-release-suites: readiness: %s %s %s\n", class.name, row, outcome)
 		}
 	}
-	if err := companionrelease.StableReleaseReadiness(d, accepted, runner, platforms, external); err != nil {
+	if err := corerelease.StableReleaseReadiness(d, accepted, runner, platforms, external); err != nil {
 		fmt.Fprintf(stdout, "cem-release-suites: readiness: REFUSED (%d accepted stable results read): %v\n", len(accepted), err)
 		return 3, err.Error()
 	}

@@ -258,7 +258,7 @@
       "summary": "release candidates, gates, post-merge and update",
       "prefixes": [
         "internal/betarung",
-        "internal/companionrelease",
+        "internal/corerelease",
         "internal/migrationratchet",
         "internal/releasecandidate",
         "internal/releasegate",

@@ -135,7 +135,7 @@ command.
 | `CTF-V0-004` | retired by decision 0593 (the shims and `cmd/corvint-test` deleted; evidence at b1a117eb) |
 | `CTF-V0-006` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted; evidence at b1a117eb) |
 | `CTF-V0-007` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted) |
-| `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
+| `CTF-V0-008` | retired by decision 0594 with the companion bundle (`internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames`; 1a838f144 is the last tree with it) |
 | `CTF-V0-010` | `TestCTFV0007CoreLinksNoFoldedGroup` (core links no group entry) |
 
 `CTF-V0-005` and `CTF-V0-009` have no evidence yet: they bind groups 5 and 6, which have not
