@@ -42,6 +42,14 @@ ACX-V0-750	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP
 ACX-V0-751	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
 ACX-V0-752	docs/specs/affected-cli-consistency-v0.md	(experimental, amending ACX-V0-851, under the owner's standing lane	standing	-
 ACX-V0-904	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-11-01;	standing	2026-11-01
+AEO-V0-001	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) The `aff	standing	2026-10-11; V1-5181
+AEO-V0-002	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) Each cas	standing	2026-10-11; V1-5181
+AEO-V0-003	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) Missing	standing	2026-10-11; V1-5181
+AEO-V0-004	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) Opt-in m	standing	2026-10-11; V1-5181
+AEO-V0-005	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) Output S	standing	2026-10-11; V1-5181
+AEO-V0-006	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) The chec	standing	2026-10-11; V1-5181
+AEO-V0-007	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) Fast CI	standing	2026-10-11; V1-5181
+AEO-V0-008	docs/specs/affected-edit-oracle-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5181) The date	standing	2026-10-11; V1-5181
 AFP-V0-181	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
 AFP-V0-182	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
 AFP-V0-183	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
@@ -105,6 +113,11 @@ AFP-V0-2342	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's
 AFP-V0-2343	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1099)	standing	2026-10-11; V1-1099
 AFP-V0-2344	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1099;	standing	2026-10-11; V1-1099
 AFP-V0-2346	docs/specs/affected-plan-reuse-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); amended	standing	2026-10-11; 2026-11-04; V1-1099
+AFP-V0-3330	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
+AFP-V0-3331	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
+AFP-V0-3332	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
+AFP-V0-3333	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
+AFP-V0-3334	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5178)	standing	2026-10-11; V1-5178
 AFP-V0-9012	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5018)	standing	2026-10-11; V1-5018
 AFP-V0-9013	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4941)	standing	2026-10-11; V1-4941
 AFP-V0-9014	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
@@ -157,6 +170,12 @@ AFP-V0-3010	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-3011	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-3150	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-3151	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-3300	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) Every entry in	unrecorded	-
+AFP-V0-3301	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) A trees-file value	unrecorded	-
+AFP-V0-3302	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) `test-read-scopes-check` SHALL	unrecorded	-
+AFP-V0-3303	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) Observed graph units and their	unrecorded	-
+AFP-V0-3304	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) When the trees declaration	unrecorded	-
+AFP-V0-3305	docs/specs/affected-plan-selection-v0.md	(experimental; owner-requested V1-5174) Declaration narrowing SHALL	unrecorded	-
 AFP-V0-2240	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2241	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 AFP-V0-2242	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
@@ -171,6 +190,12 @@ AFP-V0-2740	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-2741	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4931;	standing	2026-11-06; V1-4931
 AFP-V0-2742	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4932;	standing	2026-11-06; V1-4932
 AFP-V0-2743	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
+AFP-V0-3420	docs/specs/affected-plan-selection-v0.md	(experimental; owner-directed V1-4933 / V1-4544, 2026-11-08;	unrecorded	-
+AFP-V0-3421	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) A record scope SHALL narrow only with a matching	unrecorded	-
+AFP-V0-3422	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) The narrowing SHALL require Git `A` status from a	unrecorded	-
+AFP-V0-3423	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) `gate-affected-select` SHALL re-observe the same	unrecorded	-
+AFP-V0-3424	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933; extends AFP-V0-2745) The existing	unrecorded	-
+AFP-V0-3425	docs/specs/affected-plan-selection-v0.md	(experimental; V1-4933) Acceptance SHALL retain a regression failure with	unrecorded	-
 AFP-V0-2744	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
 AFP-V0-2745	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933)	standing	2026-11-06; V1-4933
 AFP-V0-2746	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;	standing	2026-11-06; V1-4933
@@ -236,6 +261,16 @@ AFP-V0-9011	docs/specs/affected-plan-selection-v0.md	(experimental under the own
 AFP-V0-3350	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-5177, 2026-11-08)	unrecorded	-
 AFP-V0-3351	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-5177, 2026-11-08)	unrecorded	-
 AFP-V0-3352	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-5177, 2026-11-08)	unrecorded	-
+AFP-V0-9600	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
+AFP-V0-3320	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3321	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3322	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3323	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3324	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3325	docs/specs/affected-plan-selection-v0.md	(owner-requested V1-5176, 2026-11-08)	unrecorded	-
+AFP-V0-3340	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08) `HEAVY_REMOTE_ENV` is	unrecorded	-
+AFP-V0-3341	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08; amends AFP-V0-2953/2955 and	unrecorded	-
+AFP-V0-3342	docs/specs/affected-plan-selection-v0.md	(experimental, owner-requested V1-3360, 2026-11-08) Repository assertions and	unrecorded	-
 AFP-V0-9628	docs/specs/affected-plan-selection-v0.md	**Parsed-reference floor and complete-parse narrowing.** (experimental,	unrecorded	-
 AFP-V0-9320	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
 AFP-V0-9321	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4710)	standing	2026-10-11; V1-4710
@@ -245,6 +280,11 @@ AFP-V0-9451	docs/specs/affected-plan-selection-v0.md	Experimental under the owne
 AFP-V0-9400	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4973, V1-5034)	standing	2026-10-11; V1-4973; V1-5034
 AFP-V0-9401	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A litera	standing	2026-10-11; V1-5033
 AFP-V0-9402	docs/specs/affected-plan-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5033) A reache	standing	2026-10-11; V1-5033
+AFP-V0-3360	docs/specs/affected-plan-selection-v0.md	(experimental; owner direction 2026-11-08, V1-5180)	unrecorded	-
+AFP-V0-3361	docs/specs/affected-plan-selection-v0.md	(experimental; owner direction 2026-11-08, V1-5180)	unrecorded	-
+AFP-V0-3362	docs/specs/affected-plan-selection-v0.md	(experimental; owner direction 2026-11-08, V1-5180)	unrecorded	-
+AFP-V0-3363	docs/specs/affected-plan-selection-v0.md	(experimental; owner direction 2026-11-08, V1-5180)	unrecorded	-
+AFP-V0-3364	docs/specs/affected-plan-selection-v0.md	(experimental; owner direction 2026-11-08, V1-5180)	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -8210,6 +8250,7 @@ TSP-V0-946	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-947	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3587,	standing	2026-10-11; V1-3587
 TSP-V0-785	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)	standing	2026-10-11; V1-2892
+TSP-V0-7330	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane	standing	-
 TSP-V0-820	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-950	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-951	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167

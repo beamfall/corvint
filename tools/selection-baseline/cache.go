@@ -25,7 +25,7 @@ import (
 // to the same bytes) reads the recorded Result instead of replaying the change.
 // A miss, an unreadable record or any doubt replays; the cache never narrows.
 const (
-	cacheSchema     = "corvint-selection-baseline-cache/1"
+	cacheSchema     = "corvint-selection-baseline-cache/2"
 	cacheMaxRecords = 512
 )
 
@@ -41,7 +41,7 @@ type cacheRecord struct {
 }
 
 // openCache returns the run's cache, or nil and the reason it is off.
-func openCache(ctx context.Context, root, corvint, selector string, costs []byte) (*resultCache, string) {
+func openCache(ctx context.Context, root, corvint, selector string, costs, guard []byte) (*resultCache, string) {
 	if os.Getenv("SELECTION_BASELINE_CACHE") == "off" || os.Getenv("CORVINT_GATE_LEDGER") == "off" {
 		return nil, "SELECTION_BASELINE_CACHE=off or CORVINT_GATE_LEDGER=off"
 	}
@@ -74,6 +74,8 @@ func openCache(ctx context.Context, root, corvint, selector string, costs []byte
 	}
 	// The exact cost bytes replay parsed, never a second read of the file.
 	fmt.Fprintf(h, "costs %x\n", sha256.Sum256(costs))
+	// TSP-V0-7330: the exact guard bytes replay runs decide each change's CI scope.
+	fmt.Fprintf(h, "guard %x\n", sha256.Sum256(guard))
 	module, err := moduleOf(filepath.Join(root, "go.mod"))
 	if err != nil {
 		return nil, err.Error()

@@ -52,6 +52,7 @@ func cacheFixture(t *testing.T) (root, corvint, selector, count string, set chan
 	}
 	writeFile(filepath.Join(root, "go.mod"), "module example.com/fixture\n\ngo 1.27\n", 0o644)
 	writeFile(filepath.Join(root, ".github", "cishards", "package-costs.json"), `{"milliseconds":{"example.com/fixture/x":30,"example.com/fixture/y":70}}`+"\n", 0o644)
+	writeFile(filepath.Join(root, ".github", "forward-rows", "github-guard.sh"), "echo 0\n", 0o644)
 	gitIn("init", "-q", "-b", "main")
 	gitIn("add", "-A")
 	gitIn("commit", "-qm", "base")
@@ -124,7 +125,7 @@ func TestResultCacheEqualsReplay_ASCV0778(t *testing.T) {
 	if got := invocations(t, count); !reflect.DeepEqual(got, []string{"--version"}) {
 		t.Fatalf("warm run replayed: %q", got)
 	}
-	cache, off := openCache(ctx, root, corvint, selector, []byte(mustReadFile(t, filepath.Join(root, ".github", "cishards", "package-costs.json"))))
+	cache, off := openCache(ctx, root, corvint, selector, []byte(mustReadFile(t, filepath.Join(root, ".github", "cishards", "package-costs.json"))), []byte("echo 0\n"))
 	if cache == nil || len(hex.EncodeToString(cache.stamp)) != 64 {
 		t.Fatalf("no cache key: %s", off)
 	}
@@ -251,7 +252,7 @@ func TestResultCacheKeysTheCostBytesReplayRead_ASCV0778(t *testing.T) {
 	b := []byte(`{"milliseconds":{"example.com/fixture/x":99}}` + "\n")
 	stamp := func(costs []byte) string {
 		t.Helper()
-		cache, off := openCache(ctx, root, corvint, selector, costs)
+		cache, off := openCache(ctx, root, corvint, selector, costs, []byte("echo 0\n"))
 		if cache == nil {
 			t.Fatalf("cache off: %s", off)
 		}

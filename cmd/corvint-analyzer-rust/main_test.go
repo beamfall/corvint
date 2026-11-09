@@ -2,19 +2,15 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 // TestVersionReceiptNamesUnsupportedCEMOCM pins RAC-010: the receipt must state
@@ -105,73 +101,6 @@ func TestWriteErrorIsReported(t *testing.T) {
 type failingWriter struct{}
 
 func (failingWriter) Write([]byte) (int, error) { return 0, os.ErrClosed }
-
-// TestCoreHasNoDependencyEdge is the containment proof: Core must not reach this
-// unregistered candidate, so the family cannot become selectable by accident.
-func TestCoreHasNoDependencyEdge(t *testing.T) {
-	root := moduleRoot(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint")
-	command.Dir = root
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
-	output, err := command.Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
-		}
-		t.Fatal(err)
-	}
-	for _, banned := range []string{"internal/analyzerrust", "cmd/corvint-analyzer-rust"} {
-		if strings.Contains(string(output), banned) {
-			t.Errorf("Core reaches %s; the candidate must stay unreachable from Core", banned)
-		}
-	}
-}
-
-// TestCandidateClosureIsSelfContained pins that the executable reaches only its
-// own package, which is what keeps its ACP-009 measurement stable.
-func TestCandidateClosureIsSelfContained(t *testing.T) {
-	root := moduleRoot(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint-analyzer-rust")
-	command.Dir = root
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
-	output, err := command.Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
-		}
-		t.Fatal(err)
-	}
-	firstParty := []string{}
-	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
-		if strings.HasPrefix(line, "github.com/Beamfall/corvint") {
-			firstParty = append(firstParty, line)
-		}
-	}
-	want := []string{
-		"github.com/Beamfall/corvint/internal/analyzerrust",
-		"github.com/Beamfall/corvint/cmd/corvint-analyzer-rust",
-	}
-	if len(firstParty) != len(want) {
-		t.Fatalf("first-party closure=%v want=%v", firstParty, want)
-	}
-	for _, expected := range want {
-		found := false
-		for _, actual := range firstParty {
-			if actual == expected {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("closure missing %s: %v", expected, firstParty)
-		}
-	}
-}
 
 // TestNoAmbientCapabilityImports is the containment guard. It asserts the exact
 // import set of every production file rather than scanning for substrings: the

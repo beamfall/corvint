@@ -16,13 +16,11 @@ import (
 
 // TestRepositoryScriptsAreBoundedSources_V14283 checks this repository's
 // scripts and commands against AFP-V0-2951 to AFP-V0-2955 as the review fix
-// left them. heavy.sh stays a dynamic source through its environment-named
-// `. "${ENVFILE/#\~/$HOME}"` (AFP-V0-2953), but a copy without that one line
-// is bounded, so the lane's other heavy.sh fixes (the variable renames, the
-// lexer's test-expression split, the constructed-name short-circuit) hold;
+// left them. AFP-V0-3340/3341 now bounds heavy.sh's host-only environment
+// source; mutating its realpath guard must restore dynamic-source protection.
 // dogfood-finish.sh links its same-valued `$repo` source (AFP-V0-2954);
 // qualify-tasks-basic_test.sh is read-scoped and dogfood-cache_test.sh, which
-// reaches heavy.sh, is not (AFP-V0-2955); the
+// reaches heavy.sh, keeps its own toolchain floor (AFP-V0-3342); the
 // commands whose os.Getwd escapes locate the root for the units that run them
 // (AFP-V0-2951); and literals with no output-only evidence keep rule (d)
 // (AFP-V0-2952). Reverting any one fix fails the matching assertion.
@@ -39,14 +37,14 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	for _, unit := range shellUnits.Units {
 		byID[unit.ID] = unit
 	}
-	if unit := byID["shell:script/heavy.sh"]; unit.UnboundedReads != shell.UnboundedDynamicSource || !unit.LocatesRoot {
-		t.Errorf("heavy.sh: the environment-named source lost its dynamic-source protection: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
+	if unit := byID["shell:script/heavy.sh"]; unit.UnboundedReads != "" || unit.LocatesRoot {
+		t.Errorf("heavy.sh: the checked host-only source is unbounded: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
 	}
 	body, err := os.ReadFile(filepath.Join(root, "script", "heavy.sh"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	const environmentSource = `[[ -n $ENVFILE ]] && { . "${ENVFILE/#\~/$HOME}" || infra "env file $ENVFILE failed"; }`
+	const environmentSource = `realpath(shift @ARGV)`
 	if strings.Count(string(body), environmentSource) != 1 {
 		t.Fatalf("heavy.sh: want exactly one environment-named source line %q", environmentSource)
 	}
@@ -54,7 +52,7 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(copied, "script"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(copied, "script", "heavy.sh"), []byte(strings.Replace(string(body), environmentSource, ":", 1)), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(copied, "script", "heavy.sh"), []byte(strings.Replace(string(body), environmentSource, "shift @ARGV", 1)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	copyUnits, err := shell.New().Units(context.Background(), copied)
@@ -62,8 +60,8 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, unit := range copyUnits.Units {
-		if unit.ID == "shell:script/heavy.sh" && (unit.UnboundedReads != "" || unit.LocatesRoot) {
-			t.Errorf("heavy.sh without its environment-named source: another dynamic source is back: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
+		if unit.ID == "shell:script/heavy.sh" && (unit.UnboundedReads != shell.UnboundedDynamicSource || !unit.LocatesRoot) {
+			t.Errorf("heavy.sh without its realpath guard: dynamic source protection lost: %q locatesRoot=%v", unit.UnboundedReads, unit.LocatesRoot)
 		}
 	}
 	if unit := byID["shell:script/dogfood-finish.sh"]; unit.UnboundedReads != "" || unit.LocatesRoot || !slices.Contains(unit.Imports, "shell:script/dogfood-build-corvint.sh") {
@@ -72,11 +70,10 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	if unit := byID["shell:script/qualify-tasks-basic_test.sh"]; !unit.ReadScoped || unit.UnboundedReads != "" {
 		t.Errorf("qualify-tasks-basic_test.sh: not read-scoped: %+v", unit)
 	}
-	// dogfood-cache_test.sh names the dogfood wrappers, whose chain reaches
-	// heavy.sh's environment-named source, so TSP-V0-950 admits no scope for
-	// it and it stays on the floor.
-	if unit := byID["shell:script/dogfood-cache_test.sh"]; unit.ReadScoped || unit.UnboundedReads == "" {
-		t.Errorf("dogfood-cache_test.sh: a test that reaches a dynamic source is read-scoped or bounded: %+v", unit)
+	// AFP-V0-3342: heavy.sh is now bounded, but dogfood-cache_test.sh still
+	// runs a toolchain and has no read-scope declaration of its own.
+	if unit := byID["shell:script/dogfood-cache_test.sh"]; unit.ReadScoped || unit.UnboundedReads != shell.UnboundedRunsToolchain {
+		t.Errorf("dogfood-cache_test.sh: its own toolchain floor changed: %+v", unit)
 	}
 	// lane-scripts_test.sh stays on the floor with its recorded reason: it
 	// sources a sed-filtered copy of heavy.sh from its temporary directory.

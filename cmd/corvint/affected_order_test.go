@@ -47,7 +47,7 @@ func TestFailFastOrderPutsRecentFailuresFirst_AFPV02487(t *testing.T) {
 	t.Parallel()
 	const core, mid = "go:example.com/owned/x/a/core", "go:example.com/owned/x/b/mid"
 	root, _ := testSelectionFixture(t, "")
-	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
+	cemWrite(t, root, "x/a/core/core.go", "package core\n\nfunc Value() int { return 2 }\n")
 
 	// No receipt: NOT_OBSERVED, plan order.
 	receipt, _, stderr, code := runAffectedCLI(t, root, "--fail-fast-order")
@@ -175,7 +175,7 @@ func TestFailFastOrderUnlistableDirectoryIsUnreadable_AFPV02487(t *testing.T) {
 	}
 	const core, mid = "go:example.com/owned/x/a/core", "go:example.com/owned/x/b/mid"
 	root, _ := testSelectionFixture(t, "")
-	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
+	cemWrite(t, root, "x/a/core/core.go", "package core\n\nfunc Value() int { return 2 }\n")
 	writeFailFastReceipt(t, root, "test-run.json", sessiontest.Outcome{Outcome: sessiontest.OutcomeFail, Unit: mid})
 	directory := filepath.Join(root, ".git", "corvint")
 	if err := os.Chmod(directory, 0o000); err != nil {

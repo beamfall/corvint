@@ -230,20 +230,11 @@ func foldGoldens(t *testing.T, group, oldPkg string) {
 	}
 }
 
-// CTF-V0-007, CTF-V0-010: the folded group entries are not linked into core `corvint`, each group
-// is named in the companion usage, and its sources never use the bare `corvint-test:` prefix of
-// core `corvint test` diagnostics nor name `corvint` as an executable.
+// CTF-V0-007, CTF-V0-010: each folded group is named in the companion usage, and its sources never
+// use the bare `corvint-test:` prefix of core `corvint test` diagnostics nor name `corvint` as an
+// executable. internal/closureguard's TestCTFV0007CoreLinksNoFoldedGroup checks that core
+// `corvint` links no group entry (V1-5071).
 func TestCTFV0007FoldedGroupBoundary(t *testing.T) {
-	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, dep := range strings.Fields(string(out)) {
-		if strings.HasSuffix(dep, "/internal/testrunner/cli") || strings.HasSuffix(dep, "/internal/behaviorfalsify/cli") ||
-			strings.HasSuffix(dep, "/internal/playwrightminimize/cli") || strings.HasSuffix(dep, "/internal/testacceptance/cli") {
-			t.Fatalf("core corvint imports %s", dep)
-		}
-	}
 	for _, group := range []string{"corvint-test runner <command>", "corvint-test falsify <plan|", "corvint-test minimize <plan|", "corvint-test accept plan|accept"} {
 		if !strings.Contains(usage, group) {
 			t.Fatalf("usage does not name %q: %q", group, usage)

@@ -2,7 +2,6 @@ package console
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/execfile"
 )
@@ -802,37 +800,6 @@ func TestConsoleListingPanes(t *testing.T) {
 			t.Error("the page does not say a result file states no evidence class of its own")
 		}
 	})
-}
-
-// TestConsoleNotLinkedIntoDefaultBinary pins LAC-V0-001: the default local
-// product is one native-Go binary with no UI. A loopback bind and
-// statelessness test alone would still pass if cmd/corvint linked this
-// package, so this checks the dependency edge directly.
-func TestConsoleNotLinkedIntoDefaultBinary(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller unavailable")
-	}
-	root, err := filepath.Abs(filepath.Join(filepath.Dir(file), "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, "go", "list", "-deps", "./cmd/corvint")
-	command.Dir = root
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
-	output, err := command.Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
-		}
-		t.Fatal(err)
-	}
-	if strings.Contains(string(output), "internal/console") {
-		t.Error("cmd/corvint reaches internal/console; the default binary must not link the console")
-	}
 }
 
 func TestConsoleRefusesAggregateDogfoodProfile(t *testing.T) {

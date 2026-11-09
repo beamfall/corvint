@@ -552,8 +552,12 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 		// qualified.go narrows Select's set with the whole affected engine and is
 		// tested in internal/gateselect; the fixture's wrapper calls Select, so
 		// the ledger tests see the unnarrowed superset.
-		if !strings.HasSuffix(source, "_test.go") && filepath.Base(source) != "qualified.go" {
-			names = append(names, "gateselect/"+filepath.Base(source))
+		// recordadditions.go re-observes record-entry additions with the same
+		// engine; the fixture's changes add no record entry, where it allows
+		// every reader, so an allow-all stub keeps that behavior (AFP-V0-3423).
+		base := filepath.Base(source)
+		if !strings.HasSuffix(source, "_test.go") && base != "qualified.go" && base != "recordadditions.go" {
+			names = append(names, "gateselect/"+base)
 		}
 	}
 	inModule := regexp.MustCompile(`"github.com/Beamfall/corvint/([^"]+)"`)
@@ -569,6 +573,9 @@ func selectorFixtureSources(internal string) (map[string]string, error) {
 			}
 		}
 		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
+	}
+	if _, err := os.Stat(filepath.Join(internal, "gateselect", "recordadditions.go")); err == nil {
+		files["internal/gateselect/recordadditions.go"] = "package gateselect\n\nfunc recordAdditionAllows(Receipt, string, string) func(string, string) bool {\n\treturn func(string, string) bool { return true }\n}\n"
 	}
 	return files, nil
 }

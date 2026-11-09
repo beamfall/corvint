@@ -608,7 +608,7 @@ non-goal of this slice; untracked support files change behaviour without changin
 names; a modified submodule refuses rather than hashing its pointer.
 Served digest (PWR-V0-054..057): a `--served-digest-url` fetch is a non-goal of this slice and remains
 open, because the core binary's network boundary (invariant 7, guarded by
-`cmd/corvint/core_network_boundary_test.go`, V1-1670) admits no HTTP client reachable from a core
+`internal/closureguard/network_test.go`, V1-1670) admits no HTTP client reachable from a core
 command; the operator obtains the digest and passes `--artifact-digest`. The digest is not verified
 against the target, so a wrong value is taken as declared; a missing digest is uncertainty
 (`UNKNOWN` / `SERVED_DIGEST_UNKNOWN`), never a pass. `runs baseline diff` does not yet compare served
