@@ -304,6 +304,8 @@ func TestGRGV0002CarryOnlyUnchangedPRDiff(t *testing.T) {
 		old, head                   any
 		score, ancestry, fail, want string
 		unresolved, total           int
+		reviewedMode, headMode      string
+		shortModes                  bool
 	}{
 		"identical diff":             {old: pages(code), head: pages(code), want: "success"},
 		"hunk numbers only":          {old: pages(code), head: pages(shifted), want: "pending"},
@@ -334,6 +336,10 @@ func TestGRGV0002CarryOnlyUnchangedPRDiff(t *testing.T) {
 		"evidence lookalike":         {old: pages(code), head: pages(code, file{"status": "added", "filename": ".corvint/changes/nested/code.cem.json"})},                              //corvint:fixture-path
 		"source renamed to evidence": {old: pages(code), head: pages(code, file{"status": "renamed", "filename": ".corvint/changes/seal.cem.json", "previous_filename": "secret.go"})}, //corvint:fixture-path
 		"file order":                 {old: pages(code, file{"status": "added", "filename": "a.go", "patch": "+a"}), head: pages(file{"status": "added", "filename": "a.go", "patch": "+a"}, code), want: "success"},
+		"executable bit dropped":     {old: pages(code), head: pages(code), reviewedMode: "100755", headMode: "100644"},
+		"executable bit added":       {old: pages(code), head: pages(code), headMode: "100755"},
+		"mode read fails":            {old: pages(code), head: pages(code), fail: "modes"},
+		"modes answer short":         {old: pages(code), head: pages(code), shortModes: true},
 	} {
 		for _, event := range []string{"pull_request_target", "merge_group"} {
 			t.Run(name+"/"+event, func(t *testing.T) {
@@ -347,6 +353,16 @@ func TestGRGV0002CarryOnlyUnchangedPRDiff(t *testing.T) {
 				}
 				if want == "" {
 					want = "pending"
+				}
+				reviewedMode, headMode, short := tc.reviewedMode, tc.headMode, ""
+				if reviewedMode == "" {
+					reviewedMode = "100644"
+				}
+				if headMode == "" {
+					headMode = "100644"
+				}
+				if tc.shortModes {
+					short = "1"
 				}
 				fixtures := map[string]any{
 					"pull.json": map[string]any{"state": "open", "head": map[string]any{"sha": head}, "base": map[string]any{"ref": "release/main"}},
@@ -375,6 +391,12 @@ case " $* " in
   *" -X POST "*) echo "$*" >>"$STUB_DIR/posts.log"; exit 0 ;;
   *mergeQueueEntry*) exit 0 ;;
   *reviewThreads*) printf '%s %s\n' "$TOTAL" "$UNRESOLVED"; exit 0 ;;
+  *"file(path:"*)
+    [ "$FAIL" != modes ] || exit 1
+    n=$(printf '%s\n' "$*" | grep -o 'f[0-9]*:file(' | wc -l)
+    [ -z "$SHORT_MODES" ] || n=$((n - 1))
+    case " $* " in *"$REVIEWED"*) m=$REVIEWED_MODE ;; *"$HEAD"*) m=$HEAD_MODE ;; *) exit 22 ;; esac
+    exec jq -cn --argjson n "$n" --arg m "$m" '[range($n) | $m]' ;;
   *"repos/$REPO/pulls/$PR "*)
     case "$last" in *base*) [ "$FAIL" != base ] || exit 22 ;; esac
     exec jq -r "$last" "$STUB_DIR/pull.json" ;;
@@ -399,6 +421,7 @@ cat "$STUB_DIR/$f"
 				cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "STUB_DIR="+dir,
 					"REPO=beamfall/corvint", "PR=153", "EVENT="+event, "GROUP_SHA="+group, "HEAD="+head, "REVIEWED="+reviewed,
 					"TOTAL="+strconv.Itoa(tc.total), "UNRESOLVED="+strconv.Itoa(tc.unresolved), "FAIL="+tc.fail,
+					"REVIEWED_MODE="+reviewedMode, "HEAD_MODE="+headMode, "SHORT_MODES="+short,
 					"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub", "WAIVER_APPROVERS=Russe11")
 				out, err := cmd.CombinedOutput()
 				if err != nil {
@@ -438,6 +461,15 @@ cat "$STUB_DIR/$f"
 				}
 				if want == "success" && strings.Count(string(reads), "/compare/") != 3 {
 					t.Errorf("carry did not read all three comparisons: %s", reads)
+				}
+				modeReads := 0
+				for _, l := range strings.Split(string(reads), "\n") {
+					if strings.Contains(l, "file(path:") {
+						modeReads++
+					}
+				}
+				if want == "success" && modeReads != 2 {
+					t.Errorf("carry did not read file modes at both commits: %s", reads)
 				}
 			})
 		}

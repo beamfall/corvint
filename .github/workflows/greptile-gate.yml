@@ -191,8 +191,18 @@ jobs:
                     .patch]
                 end) | sort'
           }
+          # A patch does not carry the file mode, so a later commit could drop a reviewed script's
+          # executable bit unseen. Read each PR path's mode at one commit from GitHub metadata; null
+          # is an absent path. Any read error, or an answer short of one mode per path, refuses.
+          file_modes() {
+            local query
+            query=$(jq -rn --arg c "$1" --argjson p "$2" '"query($o:String!,$n:String!){repository(owner:$o,name:$n){object(expression:\($c | tojson)){... on Commit{" + ([$p | to_entries[] | "f\(.key):file(path:\(.value | tojson)){mode}"] | join(" ")) + "}}}}"') || return 1
+            # shellcheck disable=SC2016
+            gh api graphql -f query="$query" -f o="${REPO%%/*}" -f n="${REPO#*/}" \
+              --jq '.data.repository.object // error("missing commit") | [to_entries[] | {k: (.key | ltrimstr("f") | tonumber), m: (.value.mode // null)}] | sort_by(.k) | map(.m)'
+          }
           carries_review() {
-            local base_ref ancestry reviewed_diff head_diff
+            local base_ref ancestry reviewed_diff head_diff paths reviewed_modes head_modes
             [ "$score" = "5/5" ] && [ -n "$reviewed" ] || return 1
             base_ref=$(gh api "repos/$REPO/pulls/$PR" --jq '.base.ref // ""') || return 1
             [ -n "$base_ref" ] || return 1
@@ -201,7 +211,13 @@ jobs:
             case "$ancestry" in ahead|identical) ;; *) return 1 ;; esac
             reviewed_diff=$(normalized_diff "$reviewed") || return 1
             head_diff=$(normalized_diff "$head") || return 1
-            [ "$reviewed_diff" = "$head_diff" ]
+            [ "$reviewed_diff" = "$head_diff" ] || return 1
+            paths=$(printf '%s\n' "$head_diff" | jq -ce '[.[] | .[1], .[2] | select(. != null)] | unique') || return 1
+            [ "$paths" != "[]" ] || return 0
+            reviewed_modes=$(file_modes "$reviewed" "$paths") || return 1
+            head_modes=$(file_modes "$head" "$paths") || return 1
+            jq -ne --argjson p "$paths" --argjson r "$reviewed_modes" --argjson h "$head_modes" \
+              '($r | length) == ($p | length) and $r == $h' > /dev/null
           }
           carried=false
           if [ "$reviewed" != "$head" ] && carries_review; then
