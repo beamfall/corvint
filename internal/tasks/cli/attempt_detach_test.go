@@ -49,10 +49,18 @@ func TestATRV0009_DetachedSupervisorHelper(t *testing.T) {
 	}
 	startMS, _ := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_START_MS"))
 	logBytes, _ := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_LOG_BYTES"))
-	if startMS > 0 || logBytes > 0 {
+	// An attach's liveness probe holding running shared just as the child
+	// takes it (V1-5187): the hold starts before the child's attempt and
+	// ends after the given milliseconds.
+	probeDir := os.Getenv("CORVINT_TEST_LEASE_DETACH_PROBE_DIR")
+	probeMS, _ := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_PROBE_MS"))
+	if startMS > 0 || logBytes > 0 || probeDir != "" {
 		cli.SetLeaseDetachChildStarting(func(stderr io.Writer) {
 			_, _ = stderr.Write(bytes.Repeat([]byte("x"), logBytes))
 			time.Sleep(time.Duration(startMS) * time.Millisecond)
+			if probeDir != "" {
+				holdRunningShared(stderr, filepath.Join(probeDir, "running"), time.Duration(probeMS)*time.Millisecond)
+			}
 		})
 	}
 	cli.SetDetachExecutable(os.Args[0], detachHelperPrefix...)
@@ -74,6 +82,20 @@ func TestATRV0009_DetachedSupervisorHelper(t *testing.T) {
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
 	os.Exit(code)
+}
+
+// holdRunningShared takes the lock file p shared on its own descriptor, as
+// an attach's liveness probe does, and releases it after d.
+func holdRunningShared(stderr io.Writer, p string, d time.Duration) {
+	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE, 0o600)
+	if err == nil {
+		err = syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB)
+	}
+	if err != nil {
+		_, _ = stderr.Write([]byte("probe hold: " + err.Error() + "\n"))
+		return
+	}
+	time.AfterFunc(d, func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() })
 }
 
 // detachedEnv makes a detached launcher re-run this test binary as its

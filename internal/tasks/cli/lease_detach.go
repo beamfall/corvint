@@ -77,6 +77,11 @@ var (
 	leaseDetachPoll = 200 * time.Millisecond
 	// leaseDetachLockBound bounds the wait for another caller's launch.
 	leaseDetachLockBound = 10 * time.Second
+	// leaseDetachRunBound bounds a starting child's wait for its running
+	// lock. An attach's liveness probe holds that lock shared for an
+	// instant, so a child refused once retries until the bound before it
+	// concludes another child runs the record (ATR-V0-021, V1-5187).
+	leaseDetachRunBound = 2 * time.Second
 	// leaseDetachStartBound is the startup window in which a recorded child
 	// whose identity cannot be confirmed is still taken as starting
 	// (ATR-V0-027).
@@ -538,8 +543,10 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	leaseDetachChildStarting(env.Stderr)
 	// One child at a time runs a record, and none after a kept result:
 	// a launcher whose caller died before recording this child may have
-	// started another.
-	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), 0)
+	// started another. An attach's liveness probe takes running shared for
+	// an instant; refused once, the child waits it out within
+	// leaseDetachRunBound instead of ending without a result (V1-5187).
+	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), leaseDetachRunBound)
 	if err != nil {
 		return 1
 	}
