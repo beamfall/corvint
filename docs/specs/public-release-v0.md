@@ -135,7 +135,7 @@ The proposed delivery sequence and acceptance criteria are in
 - `PUB-V0-001`: The current version tuple MUST move together to `1.0.0-rc.3`, including native
   version output, archive smoke expectations, VS Code exact admission and live fixtures.
   Historical benchmark and release evidence MUST retain its original version identities.
-- `PUB-V0-002`: The existing native CLI archive gate MUST remain independent. An optional
+- `PUB-V0-002`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) The existing native CLI archive gate MUST remain independent. An optional
   companion bundle MUST contain separately built `corvint-console`, `corvint-dashboard-snapshot`
   and `corvint-tasks` binaries plus the separately installable workflow binaries `corvint-mcp`,
   `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, and
@@ -229,7 +229,7 @@ The proposed delivery sequence and acceptance criteria are in
   retaining each selected path's exact bytes/blob identity and the source commit/tree identities.
   Root LICENSE, LICENSE-APACHE-2.0, LICENSING.md and PROVENANCE.md and any notices within
   selected package directories remain unchanged; archive inclusion does not widen import authority.
-- `PUB-V0-013`: Each of the nine bundled binaries (`corvint`, `corvint-console`,
+- `PUB-V0-013`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) Each of the nine bundled binaries (`corvint`, `corvint-console`,
   `corvint-dashboard-snapshot`, `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`,
   `corvint-js-test-provider`, `corvint-go-test-provider`, `corvint-tasks`) MUST be built from its module's `PUB-V0-012` exported tree,
   written to a fresh scratch directory and re-verified there (exactly the exported file set, each
@@ -270,7 +270,7 @@ The proposed delivery sequence and acceptance criteria are in
   case-fold-colliding path. Their recorded tree digests and every VSIX digest/path/source reference
   MUST verify against the outer archive before its manifest is accepted. OpenCode's external
   dependency and host are not bundled; no raw package is a transformed or qualified marketplace.
-- `PUB-V0-015`: An installed smoke test MUST run against the exact extracted bundle bytes before
+- `PUB-V0-015`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-dashboard-snapshot`) An installed smoke test MUST run against the exact extracted bundle bytes before
   the bundle is atomically retained and before any report calls the build qualified: `corvint-tasks`
   version/help/init plus a create-then-refine ticket mutation against a real `.taskman` store, the
   console's board and ticket-detail pages over real loopback HTTP, `corvint-dashboard-snapshot`

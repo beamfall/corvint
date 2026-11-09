@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Requested: 2026-08-23
-Intent status: proposed (owner requested the product outcome)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-dashboard-snapshot` and `internal/dashboard` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md`, `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/live-proof-carrying-verification-v0.md`,
 `docs/specs/pulse-snapshot-lease-v0.md`,
@@ -12,9 +13,9 @@ Authoritative inputs: `AGENTS.md`, `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: A local read-only dashboard may present independent evidence axes without becoming repository, execution, or promotion authority.
-- Status: proposed (owner requested the product outcome)/experimental
-- Exists: `internal/dashboard` and an experimental P0 CLI snapshot; no qualified graphical dashboard exists.
-- Blocked on: owner acceptance, a UI shape brief, policy amendments, and a frozen browser/platform matrix for P1.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-dashboard-snapshot` and `internal/dashboard` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: User and measurable job; Verified current state and gap; Independent truth axes.
 
 ## User and measurable job
@@ -1672,14 +1673,8 @@ visualization itself is a Corvint breakthrough.
 
 ## Traceability
 
-| Requirement group | Delivery | First authoritative evidence |
-|---|---:|---|
-| `LOD-V0-001..006` P0 proof snapshot | not-started | independent canonical vectors, hash preimage, rooted-source adversarial corpus; `TestVerifyCanonicalRejectsSelfRehashedZeroMaxBytesObservation`; `TestScanTraceStoreIgnoresBackslashNonCandidateName`; `TestSourceIssueCodeMustBelongToAdapterRegistry`; `TestQualifyTraceIgnoresRepositoryGrafts`; `TestAccuracyDashboardCorpusIgnoresRepositoryGrafts`; `TestAuthorityCapsMalformedGitTranscriptAllocation` |
-| `LOD-V0-007..013` P0 metrics | not-started | planted trace corpus with independent field-by-field recomputation and unavailable-source vectors; `TestStoreChangedEmitsUnobservedMemberUniverse`; `TestConfiguredBucketWithoutCompleteBytesHasNullBytes`; `TestInvalidScanRejectsObservedTraceUsage` |
-| `LOD-V0-014..018` P1 local security/privacy | blocked | owner gates, exact HTTP adversarial suite, no-egress/disclosure audit |
-| `LOD-V0-019..024` bounds/lifecycle/UI | P0 not-started; P1 blocked | P0 bounds/nonmutation, then qualified lifecycle/browser/accessibility matrix; `TestOverflowProbeAllowanceIsKeyedAndCappedPerWholeScanAttempt`; `TestScanTraceStoreUnstableMemberDoesNotSpendOtherMembersOverflowProbes`; `TestCompileSnapshotRetriesWithAttemptScopedProbesAndCumulativeSourceLedger`; `TestScanReportsExactTraceStoreBounds`; `TestScanCapsTraceRowAllocationBeforeParsing` |
-| `LOD-V0-025..028` collection/rollout | not-started | Corvint-first then Beamfall-second preregistered trial |
-| `LOD-V0-029..034` roadmap join (experimental) | experimental, unaccepted | `internal/dashboard/roadmap` unit tests and the real seeded-planning-store integration test |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/local-observability-dashboard-v0.md`.
 
 ## Unresolved decisions and hard blocks
 

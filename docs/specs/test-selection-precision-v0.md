@@ -448,7 +448,7 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   a dogfood document) and SHALL fail when the declaration drops that read. Rollback: delete the test
   with TSP-V0-900's declarations.
 - **TSP-V0-902:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
-  V1-3788, V1-3616) The plans TSP-V0-900 leaves wide SHALL stay sound; they are recorded, not
+  V1-3788, V1-3616; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/console`, `internal/postmergehost`, `internal/postmergeworkflow`) The plans TSP-V0-900 leaves wide SHALL stay sound; they are recorded, not
   narrowed, and each still names its unknowns. The spec-edit plan's 19 unbounded readers cannot be
   read-scoped: units that open `/` (the dashboard walks, `internal/console`, `internal/lspstdio`,
   `internal/postmergehost`, `internal/postmergeworkflow`), run Git on the real checkout

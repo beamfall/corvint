@@ -175,7 +175,6 @@ Each MCP server is a local stdio process bound to one repository root and is rea
 | `corvint-mcp` | `corvint.query`, `corvint.impact`, `corvint.status` and `corvint.help`; with `--tool-profile task-review`, also `corvint.context` and a non-publishing `corvint.cem.report` preview |
 | `corvint-docs-mcp` | `corvint.docs_draft` drafts source-pinned documentation; `corvint.docs_consume` rechecks a draft against source |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
-| `corvint-corpus-mcp` | Experimental, source-only read tools over one [documentation corpus](docs/DOCUMENTATION-CORPUS.md) artifact |
 
 `corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the others with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
 

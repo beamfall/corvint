@@ -158,14 +158,12 @@ archive builder and install steps live there.
 
 ## Optional workflow bundle
 
-The planned, separately assembled **macOS arm64** workflow bundle will contain ten native binaries:
-`corvint`, `corvint-console`, `corvint-dashboard-snapshot`, `corvint-tasks`, `corvint-mcp`, `corvint-docs-mcp`,
+The planned, separately assembled **macOS arm64** workflow bundle will contain eight native binaries:
+`corvint`, `corvint-tasks`, `corvint-mcp`, `corvint-docs-mcp`,
 `corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
 `corvint-ruby-test-provider` (profile `corvint-companion-bundle/3`, `CRB-V0-020`; its smoke checks only
 the usage line, RSpec execution is not qualified); a VS Code VSIX;
 and raw Codex, Claude Code, Gemini CLI and OpenCode integration trees marked `FALLBACK`.
-`corvint-corpus-mcp` is deliberately excluded: it is source-only and experimental, not part of this
-distributable set (see [agent-facing servers](../README.md#mcp-servers-and-agent-adapters)).
 The host applications and their external dependencies are not bundled. Install it only when the
 exact release's attached evidence qualifies the archive and the workflow you intend to use.
 
@@ -255,22 +253,11 @@ The watch is experimental. A source-built watch/update/MCP check has passed; con
 release's installed qualification evidence for packaged status. The read-only docs MCP tools do
 not trigger maintenance.
 
-### Tickets and local console
+### Tickets
 
 `corvint-tasks` provides the local ticket store and roadmap as a separate companion binary built in
-tree from `cmd/corvint-tasks`. The optional console combines ticket,
-specification and evidence views; it has no autonomous agent dispatch. Start it explicitly using
-absolute paths to the extracted companions:
-
-```sh
-/path/to/bundle/bin/corvint-console --repo /absolute/path/to/repo \
-  --tasks /path/to/bundle/bin/corvint-tasks \
-  --snapshot /path/to/bundle/bin/corvint-dashboard-snapshot
-```
-
-Open its loopback address, default `http://127.0.0.1:7777`, in your browser. Stop it with Ctrl-C.
-It installs no background service. Consult the bundle manifest and exact release evidence before
-relying on a browser/platform tuple.
+tree from `cmd/corvint-tasks`. The local console and dashboard snapshot companions were removed by
+decision 0594.
 
 ### Work queue adoption
 

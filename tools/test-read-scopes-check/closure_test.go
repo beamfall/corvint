@@ -19,7 +19,7 @@ import (
 // AFP-V0-3150: a declaration that lists the import closure of a literal target
 // in place of the whole tree cannot fall below that closure silently. The
 // fixture reader lists and builds ./cmd/app from the root, as
-// cmd/corvint-analyzer-rust and cmd/corvint-corpus-mcp do; dropping one closure
+// cmd/corvint-analyzer-rust does; dropping one closure
 // entry, or the target gaining an import, fails the check naming the
 // directory, and a directory outside the closure is never reported.
 func TestClosureDeclarationCannotFallBelowItsClosure_AFP_V0_3150(t *testing.T) {

@@ -2912,7 +2912,7 @@ relabeled. `MIGRATION.json` is digest-pinned and is not edited here.
 - `CEM-V1-163`: (accepted by decision 0546, 2026-10-20) A `cem-stable` refusal MUST exit 2 with no stdout and the code
   `corpus-stable-refused`. A partial binding MUST be an argument error. The 0.x `cem` operation MUST
   keep refusing a `cem/1.0` map.
-- `CEM-V1-164`: (accepted by decision 0546, 2026-10-20) `corvint-console -stable-artifact-root DIR` MUST select the chain pane's verified
+- `CEM-V1-164`: (accepted by decision 0546, 2026-10-20; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`) `corvint-console -stable-artifact-root DIR` MUST select the chain pane's verified
   mode. The pane runs the stable verifier over the specs repository, with the request's `base` as
   expected base, the sealed map's bind commit as target and the operator's artifact root. It MUST
   draw a `cem/1.0` chain only on an `ACCEPT` whose map digest is the SHA-256 of the sealed bytes. The
@@ -2942,7 +2942,7 @@ relabeled. `MIGRATION.json` is digest-pinned and is not edited here.
   Amended by V1-0632 (`CEM-V1-295..299`): the capsule now admits an exact `cem/1.0` map whose base
   is the enrolled base, derives its object demand from it and leaves verification to the stable
   verifier over the published evidence view; `capsule CEM base` remains the stale-base refusal.
-- `CEM-V1-168`: (accepted by decision 0546, 2026-10-20) The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
+- `CEM-V1-168`: (accepted by decision 0546, 2026-10-20; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-dashboard-snapshot`) The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
   `corvint-dashboard-snapshot --cem-ocm-profile` naming `cem/1.0` MUST be
   `DASHBOARD_INVALID_ARGUMENT`, with no stdout, before any path opens. The `cem-ocm-bundle-v0`
   registration MUST keep only its 0.x profiles.
@@ -4376,7 +4376,7 @@ refuses without losing evidence. This amends `CEM-V1-167` and the failure mode t
 families without a stable path. The frozen `corvint-dashboard-snapshot/0` schema, its hash-pinned
 registry and the retired bundle flags (`CEM-V1-168`, `CEM-V1-217`) are unchanged.
 
-- `CEM-V1-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632)
+- `CEM-V1-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-dashboard-snapshot`)
   `corvint-dashboard-snapshot cem-stable --root R --cem C --ocm O --expected-base B --target T
   --artifact-root A` MUST admit the map through `lrfrepo.VerifyStableUniverse` and, on success,
   write one `corvint-dashboard-cem-stable/0` document to stdout with exit 0. It carries the input

@@ -31,7 +31,7 @@ const (
 
 	// IdentityRemedy is the one per-run instruction for a report that declares no identity inputs
 	// (PWR-V0-051).
-	IdentityRemedy = "declare config.metadata.corvintRunIdentity: embed the corvintRunIdentity member printed by corvint runs identity --config FILE (PWR-V0-046)"
+	IdentityRemedy = "declare config.metadata.corvintRunIdentity (PWR-V0-046) or bind an identity sidecar with --identity REPORT=FILE (PWR-V0-065)"
 )
 
 // expectedFailSuggestions are the alternatives to an expected-fail annotation that does not
@@ -545,7 +545,7 @@ func servedDigestState(run *Run, all []*Run) string {
 
 // missingInputs names which declared identity inputs a test lacks, so an adopter can see why it
 // did not pool: a declared report without testFileBlobs[file] usually names a file under a
-// project testDir that `runs identity` was not told about (PWR-V0-053).
+// project testDir the identity declaration did not cover (PWR-V0-053).
 func missingInputs(run *Run, t Test, closure bool) []string {
 	missing := []string{}
 	if !run.InputsDeclared {

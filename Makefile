@@ -669,15 +669,8 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
-	$(call capcatalog_write,./cmd/corvint-corpus-republish help --json,internal/capcatalog/trees/corvint-corpus-republish.json)
-	$(call capcatalog_write,./cmd/corvint-dashboard-snapshot help --json,internal/capcatalog/trees/corvint-dashboard-snapshot.json)
-	$(call capcatalog_write,./cmd/corvint-gateway help --json,internal/capcatalog/trees/corvint-gateway.json)
 	$(call capcatalog_write,./cmd/corvint-go-test-provider help --json,internal/capcatalog/trees/corvint-go-test-provider.json)
-	$(call capcatalog_write,./cmd/corvint-intake help --json,internal/capcatalog/trees/corvint-intake.json)
 	$(call capcatalog_write,./cmd/corvint-js-test-provider help --json,internal/capcatalog/trees/corvint-js-test-provider.json)
-	$(call capcatalog_write,./cmd/corvint-postmerge-connect help --json,internal/capcatalog/trees/corvint-postmerge-connect.json)
-	$(call capcatalog_write,./cmd/corvint-postmerge-metrics help --json,internal/capcatalog/trees/corvint-postmerge-metrics.json)
-	$(call capcatalog_write,./cmd/corvint-postmerge-workflow help --json,internal/capcatalog/trees/corvint-postmerge-workflow.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
@@ -1706,9 +1699,8 @@ windows-vet: go-version ## Vet test files for GOOS=windows
 	cd interop/cem01-go && $(WINDOWS_VET_ENV) go vet ./...
 
 # Read-latency and memory budgets over a generated realistic-size fixture (PRB-V0-029,
-# docs/specs/performance-profiling-and-read-budget-v0.md). It builds corvint and
-# corvint-corpus-mcp, generates the fixture in a temporary directory (minutes, several GiB of
-# memory) and measures six scenarios. The harness exits 1 when an enforced ceiling is exceeded or
+# docs/specs/performance-profiling-and-read-budget-v0.md). It builds corvint, generates the
+# fixture in a temporary directory (minutes, several GiB of memory) and measures its scenarios. The harness exits 1 when an enforced ceiling is exceeded or
 # unknown (unless the run is NOT_JUDGED, below) and 2 when it cannot run; it is run as a built binary, not `go run`, so make's
 # "Error 1" or "Error 2" line keeps the two apart. The #1598 and #1601 targets report as pending. PERF_BUDGET_ARGS passes options, for example
 # --fixture DIR to reuse a fixture or --scale smoke. A contended host, or one without a load

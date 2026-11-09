@@ -43,7 +43,6 @@ benchmarks/results/*.partial.json
 # Locally built binaries at the repository root. Build outputs, not sources.
 /corvint
 /corvint
-/corvint-console
 /corvint-tasks
 /corvint-companion-release
 /test-read-scopes-check

@@ -413,7 +413,7 @@ receipts, cancellation, process cleanup, and all remaining promotion gates apply
 The [official 2025-11-25 lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
 is the negotiation reference; the additional closed admission rules below are local profile bounds.
 
-- `MCPV0-021`: All four existing MCP commands MUST accept at most one
+- `MCPV0-021`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) All four existing MCP commands MUST accept at most one
   `--protocol-version VERSION` selector, where VERSION is exactly `2026-07-28` or `2025-11-25`.
   Omission selects the unchanged modern profile. Missing, duplicate, unknown selectors and a
   selector combined with `--version` MUST fail before repository startup. Existing required root
@@ -765,7 +765,7 @@ Each row cites the first emitting site and states only the condition checked the
   concurrent context calls. Rollback: remove the deferred `Release` and `detachedContext` from
   `callContext`; the mapping is then pinned until process exit, as before.
 - `MCPV0-100`: (owner directive through the orchestrator, 2026-10-23; gh#1588; amends `MCPV0-008`
-  and decision 0103) Every `corvint-mcp` profile (default, `task-review`, `task-review-lsp` and
+  and decision 0103; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every `corvint-mcp` profile (default, `task-review`, `task-review-lsp` and
   `flows`, under either protocol version) MUST advertise one more read-only tool, `corvint.help`,
   under the `MCPV0-007` descriptor rules. Its closed arguments are `{}` or `{"topic": "catalog" |
   "guide"}`; omission means `catalog` (amended by `MCPV0-953`: omission means `guide`, and
@@ -811,7 +811,7 @@ Each row cites the first emitting site and states only the condition checked the
   beside `corvint.docs_consume` and `corvint.docs_draft`, so its `tools/list` holds three tools,
   under either protocol version. A call MUST answer as `MCPV0-104` describes. Falsifier: a
   `tools/list` without the tool, or a descriptor or result that differs from the shared one.
-- `MCPV0-102`: (owner request, 2026-10-23; extends `MCPV0-100`) `corvint-corpus-mcp` MUST
+- `MCPV0-102`: (owner request, 2026-10-23; extends `MCPV0-100`; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) `corvint-corpus-mcp` MUST
   advertise `corvint.help` with exactly the `MCPV0-100` descriptor in every argv configuration,
   beside the tools the artifact's capabilities and the `--map`, `--consolidation` and
   `--legacy-cases` selectors list, under either protocol version. A call MUST answer as
@@ -924,7 +924,7 @@ Each row cites the first emitting site and states only the condition checked the
   `0.1.0-experimental`, a missing expected tool reported compatible, or an undeclared launch whose
   status bytes change. Rollback: pass the empty version from `cmd/corvint/mcp.go`, drop
   `internal/mcp/cli/plugin.go` and the `.mcp.json` `env`.
-- `MCPV0-952`: (experimental under the standing lane auto-accept; V1-3703) Every `-32602
+- `MCPV0-952`: (experimental under the standing lane auto-accept; V1-3703; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every `-32602
   Invalid params` that `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` or
   `corvint-corpus-mcp` answers MUST carry `data` with a closed `reason` and the offending `field`
   (a dotted path such as `arguments.paths[1]` or `_meta.io.modelcontextprotocol/protocolVersion`),

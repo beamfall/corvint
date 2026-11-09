@@ -270,3 +270,77 @@ func runsCommitCount(ctx context.Context, root, from, to string) *int {
 	}
 	return &n
 }
+
+// reasonTestRootUnresolved is the reason when a test file cannot be located in the repository
+// (PWR-V0-036).
+const reasonTestRootUnresolved = "TEST_ROOT_UNRESOLVED"
+
+// runTestRoot is the repository-relative directory a report's rootDir-relative test files are
+// under: its declared testRootPath, else its config.rootDir under the repository top level.
+// located is false when neither resolves inside the repository.
+func runTestRoot(ctx context.Context, root string, run *playwrightruns.Run) (prefix string, located bool) {
+	switch rel := run.TestRootPath; {
+	case rel == ".":
+		return "", true
+	case rel != "":
+		return rel, cleanRepositoryPath(rel)
+	case run.RootDir != "":
+		toplevel, err := sourceGitText(ctx, root, 8192, "rev-parse", "--show-toplevel")
+		if err == nil {
+			return repositoryRelative(toplevel, run.RootDir)
+		}
+	}
+	return "", false
+}
+
+// locatableTestFile reports whether a report's rootDir-relative test file name may be joined to
+// the test root. It is checked before the join, so an absolute, escaping or volume-qualified name
+// (backslash forms arrive slash-normalized by the reader) is never laundered into the root.
+func locatableTestFile(name string) bool {
+	if len(name) >= 2 && name[1] == ':' {
+		return false
+	}
+	return cleanRepositoryPath(name)
+}
+
+// cleanRepositoryPath reports whether p is a clean repository-relative slash path of at most
+// 1024 bytes (the rule internal/evidencereach applied before decision 0594 removed it).
+func cleanRepositoryPath(p string) bool {
+	if p == "" || len(p) > 1024 || strings.ContainsAny(p, "\\\x00") || strings.HasPrefix(p, "/") {
+		return false
+	}
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+// repositoryRelative is dir as a slash path relative to the repository top level, "" for the top
+// level itself; ok is false when either is unknown or dir lies outside the repository.
+func repositoryRelative(toplevel, dir string) (string, bool) {
+	if toplevel == "" || !filepath.IsAbs(filepath.FromSlash(dir)) {
+		return "", false
+	}
+	top, err := filepath.EvalSymlinks(toplevel)
+	if err != nil {
+		return "", false
+	}
+	target := filepath.FromSlash(dir)
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		target = resolved
+	}
+	rel, err := filepath.Rel(top, target)
+	if err != nil {
+		return "", false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return "", true
+	}
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return "", false
+	}
+	return rel, true
+}
