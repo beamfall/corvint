@@ -209,6 +209,7 @@
     "github.com/Beamfall/corvint/internal/stepnegation": 1365,
     "github.com/Beamfall/corvint/internal/swiftimpact": 1111,
     "github.com/Beamfall/corvint/internal/taskprojection": 1015,
+    "github.com/Beamfall/corvint/internal/tasks/store": 1424351,
     "github.com/Beamfall/corvint/internal/tcq": 1383,
     "github.com/Beamfall/corvint/internal/testacceptance": 66499,
     "github.com/Beamfall/corvint/internal/testacceptance/cli": 1,
