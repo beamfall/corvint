@@ -149,7 +149,7 @@ func TestUnreadableGuardResultIsNotCached(t *testing.T) {
 	if cacheable(Result{GithubChange: true, GithubInputs: []string{"unreadable: sh not found"}}) {
 		t.Fatal("an unreadable: guard result is cacheable, want it measured again next run")
 	}
-	if !cacheable(Result{GithubChange: true, GithubInputs: []string{".github/workflows/ci.yml"}}) || !cacheable(Result{}) {
+	if !cacheable(Result{GithubChange: true, GithubInputs: []string{".github/workflows/ci.yml"}}) || !cacheable(Result{}) { //corvint:fixture-path
 		t.Fatal("a guard result that ran is not cacheable")
 	}
 }
