@@ -64,13 +64,13 @@ cache succeeded and was removed. No dependency or package files were changed.
 - Heavy commands explicitly set `HEAVY_REMOTE_HOST=` and
   `HEAVY_LOCAL_REASON='V1-5102 worktree-only verification; no network writes'` to avoid the host's
   configured remote offload. Go is `go1.27.3`. No repository-wide gate was requested or run.
-- `AFP-V0-5102` was verified unused by a scoped `git grep` before definition. The owning
-  `affected-plan-v0.md` is already at the generator's 256-obligation ceiling: adding this ID
-  makes 257 and `make spec-requirements` refuses. A separate section outside `## Requirements`
-  also refuses, correctly; no gate was weakened. A companion spec needs a scope expansion from
-  the owner. Both `make spec-requirements` and `make spec-requirements-check` failed on
-  that ceiling; the generated files remain unchanged. This local commit is not gate-complete
-  and must not be treated as ready to land until the spec scope is resolved.
+- Follow-up from `b03c13f3f4a70c591717b0cedbbacfe4c2cb0d2a`: the owner authorized a companion
+  spec to resolve the 257-obligation failure. `affected-plan-v0.md` is restored byte-for-byte
+  to the parent of that commit, returning it to its original 256 obligations. The V1-5102
+  contract now lives in `ci-control-plane-early-post-v0.md` as `CCEP-V0-001`, with the requested
+  proposed intent status. The requested `git grep -n 'CCP-V0-'` was not empty: that prefix
+  already belongs to `cem-completeness-profile-v0.md`. `git grep -n 'CCEP-V0-'` returned no
+  matches before the new definition. Registration, citations and generated indexes use CCEP.
 - Normal staging fails because the sandbox cannot create
   `/Users/russelllewis/projects/corvint/.git/worktrees/wt-5102/index.lock` (`Operation not
   permitted`). A private snapshot index/object directory was used only to exercise the spec
@@ -96,3 +96,47 @@ writes were excluded by the explicit command/file scope. No release was installe
 
 Rollback is a revert of this scoped change, restoring the completed-CI-only path without
 changing required checks, rulesets, action pins or the waiver approver list.
+
+## Follow-up security review (2026-11-08)
+
+The review found missing-input fallback and malformed pagination acceptance. The trusted
+script now validates event identity, repository, head SHA, PR number, token and run URL before
+API reads. Only a workflow_run event can use the PR lookup fallback. Pagination must have the
+expected page count, 100 entries in each nonfinal page, the exact final count, and nonempty
+unique filenames; a duplicate cannot conceal an omitted workflow file. Renamed-from names
+must also be nonempty when present. These refusals occur before waiver evaluation or POST.
+
+The existing no-checkout/no-action job, read-only permissions plus statuses/write, env-only
+event inputs and immediate head/base/count revalidation remain intact. No untrusted PR title,
+body or branch is interpolated into run text. Valid multi-page listings and workflow_run waiver
+reruns remain supported. The other three job blocks are unchanged.
+
+The original focused suite passed before editing. Added regressions then failed on the old
+workflow, observing unwanted POST attempts for malformed pages and missing inputs, before the
+workflow repair. Fixtures validate JSON and the successful single/multi-page path; call traces
+prove injected API failures are reached and no status is posted. Input guards are separately
+checked to make zero API calls. No independent agent review or hosted writes were performed,
+as explicitly requested.
+
+Follow-up verification:
+
+- PASS: `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run
+  'V15102|V15096|AFPV0079|AFPV0855|CCPV0' ./tools/ci-reuse-plan/` (8.828s package time).
+- PASS: `GOTOOLCHAIN=local go vet ./tools/ci-reuse-plan/` and
+  `actionlint .github/workflows/ci-control-plane.yml`.
+- PASS: stage `docs/specs`, `make spec-requirements`, stage `docs/specs` again, then
+  `make spec-requirements-check`. Initial attempts hit transient `index.lock` permission
+  refusals, and the first companion digest needed the repository's no-blank-line format;
+  both were resolved before the passing run. The actual worktree index holds the generated
+  README, INDEX and REQUIREMENTS files; no private index was used for this follow-up.
+- All heavy checks used `HEAVY_REMOTE_HOST=` and the existing worktree-only local reason.
+  The spec check's `nice` call warned `Operation not permitted`; both test commands completed
+  successfully. No full gate, hosted execution, network write or Tasks command was run.
+- The final Corvint affected receipt retains `scope=UNKNOWN`, 283 selected, 621 excluded and
+  67 `LANGUAGE_FRONTIER` unknowns. Core remains build 136; the official update check again
+  reported freshness `UNKNOWN` because sandbox process-group quiescence could not be proved.
+  No update was installed and no available-version claim is made.
+
+Remaining limits: hosted early timing/fork execution and live status writes are NOT_OBSERVED;
+GitHub revalidation and POST are not atomic. Local tests establish the refusal and exact-head
+behavior, not a hosted timing guarantee. The requested commit carries no publication or merge.

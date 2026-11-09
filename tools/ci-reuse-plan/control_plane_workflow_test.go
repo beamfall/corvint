@@ -13,7 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
-// AFP-V0-5102: the trusted metadata job starts on PR activity without a CI dependency.
+// CCEP-V0-001: the trusted metadata job starts on PR activity without a CI dependency.
 func TestV15102ControlPlaneStartsOnPRActivity(t *testing.T) {
 	w := readWorkflow(t, "ci-control-plane.yml")
 	for _, line := range []string{
@@ -54,7 +54,7 @@ func TestV15102ControlPlaneStartsOnPRActivity(t *testing.T) {
 	}
 }
 
-// Execute the actual trusted script with JSON API responses. Each negative case first has a
+// CCEP-V0-001: execute the actual trusted script with JSON API responses. Each negative case first has a
 // passing complete fixture; the call trace proves the intended failure/revalidation was reached.
 func TestV15102ControlPlaneMetadataBoundToHead(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the control-plane step runs under bash with a gh spy")
@@ -67,7 +67,7 @@ func TestV15102ControlPlaneMetadataBoundToHead(t *testing.T) {
 		return fmt.Sprintf(`{"state":%q,"head":{"sha":%q},"base":{"sha":%q},"changed_files":%d}`, state, head, base, count)
 	}
 	good := pr(runHead, "base", "open", 2)
-	clean := `[[{"filename":"README.md"}],[{"filename":"docs/x.md"}]]`
+	clean := `[[{"filename":"README.md"},{"filename":"docs/x.md"}]]`
 	workflow := `[[{"filename":"README.md"},{"filename":".github/workflows/ci.yml"}]]`
 	waiver := `[{"context":"ci-control-plane-waiver","state":"success","creator":{"login":"Russe11"}}]`
 	var cappedFiles []map[string]string
@@ -81,6 +81,7 @@ func TestV15102ControlPlaneMetadataBoundToHead(t *testing.T) {
 	type fixture struct {
 		before, after, files, statuses, fail string
 		fallback                             bool
+		env                                  map[string]string
 		want, last                           string
 	}
 	baseline := fixture{before: good, after: good, files: clean, statuses: "[]", want: "success", last: "post"}
@@ -136,19 +137,22 @@ esac
 		if err := os.WriteFile(script, []byte(runScript(t, jobBlock(t, readWorkflow(t, "ci-control-plane.yml"), "control-plane"))), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		fallback, number := "no", "1144"
+		fallback, number, event := "no", "1144", "pull_request_target"
 		if f.fallback {
-			fallback, number = "yes", ""
+			fallback, number, event = "yes", "", "workflow_run"
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
 			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+runHead, "PR_NUMBER="+number,
-			"FALLBACK="+fallback, "FAIL_AT="+f.fail, "WAIVER_APPROVERS=Russe11", "GH_TOKEN=stub",
+			"EVENT_NAME="+event, "FALLBACK="+fallback, "FAIL_AT="+f.fail, "WAIVER_APPROVERS=Russe11", "GH_TOKEN=stub",
 			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1")
+		for key, value := range f.env {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
 		out, err := cmd.CombinedOutput()
 		posts, _ := os.ReadFile(filepath.Join(dir, "posts"))
 		calls, _ := os.ReadFile(filepath.Join(dir, "calls"))
-		if !strings.HasSuffix(string(calls), f.last+"\n") {
+		if (f.last == "" && len(calls) != 0) || (f.last != "" && !strings.HasSuffix(string(calls), f.last+"\n")) {
 			t.Errorf("calls %q: want last %s; output %s", calls, f.last, out)
 		}
 		if f.want == "" {
@@ -166,6 +170,25 @@ esac
 			t.Errorf("no revalidation immediately before post: %s", calls)
 		}
 	}
+	multiJSON, err := json.Marshal([]any{cappedFiles[:100], cappedFiles[100:101]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("complete multiple pages", func(t *testing.T) {
+		f := baseline
+		f.before, f.after, f.files = pr(runHead, "base", "open", 101), pr(runHead, "base", "open", 101), string(multiJSON)
+		run(t, f)
+	})
+	shortJSON, err := json.Marshal([]any{cappedFiles[:99], cappedFiles[99:101]})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("short nonfinal page with matching total and page count", func(t *testing.T) {
+		f := baseline
+		f.before, f.after, f.files = pr(runHead, "base", "open", 101), pr(runHead, "base", "open", 101), string(shortJSON)
+		f.want, f.last = "", "files"
+		run(t, f)
+	})
 	// Prove the fixture/encoding works before any injected failure.
 	t.Run("complete clean listing", func(t *testing.T) { run(t, baseline) })
 	for _, tc := range []struct {
@@ -195,6 +218,29 @@ esac
 			f.want, f.last = "", "before"
 		}},
 		{"over 3000 files", func(f *fixture) { f.before = pr(runHead, "base", "open", 3001); f.want, f.last = "", "before" }},
+		{"short nonfinal page", func(f *fixture) {
+			f.files = `[[{"filename":"README.md"}],[{"filename":"docs/x.md"}]]`
+			f.want, f.last = "", "files"
+		}},
+		{"empty extra page", func(f *fixture) {
+			f.files = `[[{"filename":"README.md"},{"filename":"docs/x.md"}],[]]`
+			f.want, f.last = "", "files"
+		}},
+		{"duplicate masks omitted file", func(f *fixture) {
+			f.files = `[[{"filename":"README.md"},{"filename":"README.md"}]]`
+			f.want, f.last = "", "files"
+		}},
+		{"empty file name", func(f *fixture) {
+			f.files = `[[{"filename":"README.md"},{"filename":""}]]`
+			f.want, f.last = "", "files"
+		}},
+		{"missing metadata", func(f *fixture) { f.before = `{}`; f.want, f.last = "", "before" }},
+		{"missing count", func(f *fixture) {
+			f.before = strings.ReplaceAll(good, `,"changed_files":2`, "")
+			f.want, f.last = "", "before"
+		}},
+		{"missing base", func(f *fixture) { f.before = pr(runHead, "", "open", 2); f.want, f.last = "", "before" }},
+		{"lookup fails", func(f *fixture) { f.fallback = true; f.fail, f.want, f.last = "lookup", "", "lookup" }},
 		{"incomplete pages", func(f *fixture) { f.files = `[[{"filename":"README.md"}]]`; f.want, f.last = "", "files" }},
 		{"listing reaches API cap", func(f *fixture) { f.files = string(cappedJSON); f.want, f.last = "", "files" }},
 		{"missing file name", func(f *fixture) { f.files = `[[{"filename":"README.md"},{}]]`; f.want, f.last = "", "files" }},
@@ -204,6 +250,20 @@ esac
 		{"waiver call fails", func(f *fixture) { f.files = workflow; f.fail, f.want, f.last = "statuses", "", "statuses" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) { f := baseline; tc.change(&f); run(t, f) })
+	}
+	for _, key := range []string{"HEAD", "REPO", "PR_NUMBER", "GH_TOKEN", "RUN_URL", "EVENT_NAME"} {
+		t.Run("missing input "+key, func(t *testing.T) {
+			f := baseline
+			f.env, f.want, f.last = map[string]string{key: ""}, "", ""
+			run(t, f)
+		})
+	}
+	for key, value := range map[string]string{"HEAD": `bad"head`, "REPO": "../other/repo", "PR_NUMBER": "../1", "EVENT_NAME": "push"} {
+		t.Run("malformed input "+key, func(t *testing.T) {
+			f := baseline
+			f.env, f.want, f.last = map[string]string{key: value}, "", ""
+			run(t, f)
+		})
 	}
 }
 
@@ -264,7 +324,7 @@ esac
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head,
+			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "EVENT_NAME=workflow_run",
 			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub", "WAIVER_APPROVERS=Russe11")
 		err := cmd.Run()
 		posts, _ := os.ReadFile(filepath.Join(dir, "posts.log"))
