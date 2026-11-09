@@ -771,3 +771,12 @@ func TestMergeEqualsWholeBuild(t *testing.T) {
 		t.Error("differing blobs merged")
 	}
 }
+
+// TestQuoteOutputDropsFrameMarkers: a quoted test log carries no \x16 frame
+// marker, which test2json honours mid-line and would read as a result.
+func TestQuoteOutputDropsFrameMarkers(t *testing.T) {
+	got := quoteOutput("\x16=== RUN   TestFail\n\x16--- FAIL: TestFail (0.00s)\n")
+	if strings.Contains(got, "\x16") || !strings.Contains(got, "  | === RUN   TestFail") {
+		t.Fatalf("quoted = %q", got)
+	}
+}

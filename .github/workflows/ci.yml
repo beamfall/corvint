@@ -679,7 +679,7 @@ jobs:
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd
-      - name: Build protected test read-scope wrapper independently of PR module directives
+      - name: Build protected test read-scope wrapper for the shadow sizing plan
         # The shadow plan's --confine argument; the plan runs nothing under it (--dry-run).
         working-directory: source
         run: |
@@ -806,23 +806,25 @@ jobs:
     # The gate's output is fixed before any repository test runs, and no tests-step output is
     # read. Matrix outputs are last-writer-wins, so each name is non-empty in one shard only; a
     # missing or overwritten value records no tree, and the queue runs FULL.
+    # GLS-V0-042: a shard whose line-level step said NARROWED, fixed before any test runs, names
+    # no tested tree either, even when its tests step kept the lists.
     outputs:
-      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
-      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full0: ${{ strategy.job-index == 0 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full1: ${{ strategy.job-index == 1 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full2: ${{ strategy.job-index == 2 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full3: ${{ strategy.job-index == 3 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full4: ${{ strategy.job-index == 4 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full5: ${{ strategy.job-index == 5 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full6: ${{ strategy.job-index == 6 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full7: ${{ strategy.job-index == 7 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full8: ${{ strategy.job-index == 8 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full9: ${{ strategy.job-index == 9 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full10: ${{ strategy.job-index == 10 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full11: ${{ strategy.job-index == 11 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full12: ${{ strategy.job-index == 12 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full13: ${{ strategy.job-index == 13 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full14: ${{ strategy.job-index == 14 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
+      full15: ${{ strategy.job-index == 15 && steps.tests.outcome == 'success' && steps.narrow.outputs.mode != 'NARROWED' && steps.linecov.outputs.mode != 'NARROWED' && 'FULL' || '' }}
     env:
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
@@ -1291,6 +1293,112 @@ jobs:
           path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
           if-no-files-found: error
           retention-days: 90
+      - name: Line-level selection (GLS-V0-040..043; narrows only while CORVINT_LINECOV_NARROWING is on)
+        # GLS-V0-041: the newest linecov-index of main whose commit is an ancestor of the base,
+        # planned by corvint affected --line-index and linecov built from the newest commit of main
+        # the base descends from, never from the tested tree, under the shard's -race build. mode
+        # NARROWED lets the tests step below narrow this shard's lists; SHADOW plans and reports
+        # only (the variable is off, the selector is unqualified, or a fork pull request); any other
+        # outcome, or a failure of this step, leaves the lists as the static plan made them
+        # (GLS-V0-043). It never runs a test of the tested tree.
+        id: linecov
+        if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TESTED_MERGE: ${{ github.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+          SHARD: ${{ strategy.job-index }}
+          SWITCH: ${{ vars.CORVINT_LINECOV_NARROWING }}
+          ON_MAIN: ${{ (github.event_name == 'merge_group' && github.event.merge_group.base_ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        run: |
+          d="$RUNNER_TEMP/linecov-narrow"
+          mkdir -p "$d"
+          mode=SHADOW
+          if [ "$SWITCH" = on ] && [ "$ON_MAIN" = true ]; then mode=NARROWED; fi
+          stop() {
+            echo "GLS-V0-043 shard $SHARD: line-level selection off: $1" | tee -a "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$1" > "$d/reason"
+            echo "mode=FALLBACK" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then base=$QUEUE_BASE; else base=$(git rev-parse --verify "$TESTED_MERGE^1") || stop "the tested merge has no first parent"; fi
+          tools=$(git merge-base "$base" refs/remotes/origin/main 2> /dev/null) || stop "base $base shares no commit with main"
+          printf 'run %s\nevent %s\nbase %s\nhead %s\n' "$GITHUB_RUN_ID" "$GITHUB_EVENT_NAME" "$base" "$TESTED_MERGE" > "$d/meta"
+          # GLS-V0-047: the durable kill ref outlives artifact retention. Only
+          # an explicit 404 means absent; authentication/server errors abstain.
+          if kill_ref=$(gh api "repos/$REPO/git/ref/tags/linecov-kill-go" 2> /dev/null); then
+            stop "refs/tags/linecov-kill-go is in effect (LPCV-V0-020); the owner deletes it after repair and requalification"
+          else
+            [ "$(jq -r '.status // empty' <<< "$kill_ref")" = 404 ] || stop "the persistent linecov kill switch is unreadable"
+          fi
+          # Preserve pre-migration kills while their evidence is retained.
+          kills=$(gh api "repos/$REPO/actions/artifacts?name=linecov-kill-go&per_page=100" --jq '[.artifacts[] | select(.expired | not)] | length') ||
+            stop "the linecov-kill-go listing is unreadable"
+          [ "$kills" = 0 ] || stop "a linecov-kill-go artifact is in effect (LPCV-V0-020); the owner deletes it after repair and requalification"
+          git worktree add -q --detach "$RUNNER_TEMP/linecov-src" "$tools" || stop "main commit $tools cannot be checked out"
+          if ! (cd "$RUNNER_TEMP/linecov-src" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov &&
+            go build -trimpath -buildvcs=true -o "$RUNNER_TEMP/linecov-corvint" ./cmd/corvint); then
+            git worktree remove --force "$RUNNER_TEMP/linecov-src"
+            stop "linecov or corvint does not build at main commit $tools"
+          fi
+          # GLS-V0-034: only a qualified selector may exclude; an unqualified one plans in shadow.
+          # The record is checked under the runner the shard and the index name: these build
+          # settings and the test-confine wrapper (GLS-V0-009); without -exec the identity differs.
+          if ! git show "$tools:.github/linecov/qualification.json" > "$d/qualification.json" 2> /dev/null ||
+            ! (cd "$RUNNER_TEMP/linecov-src" && GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov" qualified -exec "$RUNNER_TEMP/test-confine" -root . -record "$d/qualification.json" -rev "$tools") > "$d/qualified" 2>&1; then
+            if [ "$mode" = NARROWED ]; then
+              mode=SHADOW
+              echo "GLS-V0-043 shard $SHARD: the selector at $tools is not qualified ($(tail -n 1 "$d/qualified" 2> /dev/null)); planning in shadow" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          git worktree remove --force "$RUNNER_TEMP/linecov-src"
+          # GLS-V0-041: newest first, the first index of main whose commit the base descends from.
+          gh api "repos/$REPO/actions/artifacts?name=linecov-index&per_page=100" \
+            --jq '.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main") | "\(.workflow_run.id) \(.workflow_run.head_sha)"' > "$d/indexes" ||
+            stop "the linecov-index listing is unreadable"
+          run="" commit=""
+          while read -r id sha; do
+            if git merge-base --is-ancestor "$sha" "$base" 2> /dev/null; then run=$id commit=$sha; break; fi
+          done < "$d/indexes"
+          [ -n "$run" ] || stop "no unexpired linecov-index of main is an ancestor of base $base"
+          gh run download "$run" -R "$REPO" -n linecov-index -D "$RUNNER_TEMP/linecov-index" || stop "index run $run cannot be downloaded"
+          [ "$(cat "$RUNNER_TEMP/linecov-index/commit" 2> /dev/null)" = "$commit" ] || stop "index run $run names another commit than $commit"
+          # The shard's go test runs with -race, CGO_ENABLED=1, -json, -timeout 50m and the
+          # test-confine wrapper, as the index's runner names them (GLS-V0-009, GLS-V0-041): its
+          # build settings, its test runtime and its exec wrapper. The index workflow collects
+          # under the same wrapper and deadline, so the identities can match.
+          if ! GOFLAGS=-race CGO_ENABLED=1 "$RUNNER_TEMP/linecov-corvint" --root "$PWD" affected --base "$base" \
+            --line-index "$RUNNER_TEMP/linecov-index/linecov.idx" --line-test-timeout 50m \
+            --line-exec "$RUNNER_TEMP/test-confine" > "$d/affected.json" 2> "$d/affected.err"; then
+            stop "corvint affected --line-index refused: $(tail -n 1 "$d/affected.err")"
+          fi
+          jq -e '.lineSelection' "$d/affected.json" > "$d/selection.json" || stop "the receipt has no lineSelection"
+          jq -r --arg shard "$SHARD" --arg run "$run" --arg commit "$commit" \
+            '"GLS-V0-044 shard \($shard) (index run \($run) at \($commit)): \(.state)\(if .reason then " " + .reason else "" end); units \(.counts.units): whole \(.counts.unitsWhole), tests \(.counts.unitsTests), compile \(.counts.unitsCompile), excluded \(.counts.unitsExcluded); tests kept by coverage \(.counts.testsKeptByCoverage), by fallback \(.counts.testsKeptByFallback), left out \(.counts.testsExcluded); load \(.loadMillis) ms, select \(.selectMillis) ms"' \
+            "$d/selection.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          state=$(jq -r '.state' "$d/selection.json")
+          case "$state" in
+            NARROWED) ;;
+            SHADOW) mode=SHADOW ;;
+            *) stop "the selection is $state $(jq -r '.reason // empty' "$d/selection.json")" ;;
+          esac
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+      - name: Retain the line selection proof before narrowing (GLS-V0-043)
+        id: linecov-record
+        if: steps.linecov.outcome == 'success' && steps.linecov.outputs.mode == 'NARROWED'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-proof-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/linecov-narrow/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
       - name: Go tests (full until matching shadow qualification)
         id: tests
         # DOCS (DCI-V0) and REUSE (AFP-V0-024) are the only modes that omit this invocation.
@@ -1307,6 +1415,9 @@ jobs:
           # when its record was retained (AFP-V0-099). Anything else runs the whole shard.
           NARROW_MODE: ${{ steps.narrow.outputs.mode }}
           NARROW_RECORDED: ${{ steps.narrow-record.outcome }}
+          # GLS-V0-040: NARROWED rewrites this shard's lists by the line-level selection, SHADOW
+          # only records what it would keep; anything else keeps the lists.
+          LINECOV_MODE: ${{ steps.linecov.outcome == 'success' && (steps.linecov.outputs.mode != 'NARROWED' || steps.linecov-record.outcome == 'success') && steps.linecov.outputs.mode || 'FALLBACK' }}
           # AFP-V0-441: the bound on the one rerun of a failed shard's invocations, all together.
           RERUN_MINUTES: "15"
           # AFP-V0-540 (V1-2890, V1-4728): a pull-request shard runs up to 4 test binaries at
@@ -1390,17 +1501,41 @@ jobs:
               echo "::warning::shard $SHARD: the narrowing record or its executed list is missing, unreadable or disagrees; running the whole shard"
             fi
           fi
+          # GLS-V0-042: the line-level selection narrows these lists last. It may only drop a whole
+          # package or turn one into a -run slice of itself; a slice of a split package passes
+          # unchanged. Any other result, or any failure, keeps the lists (GLS-V0-043).
+          line_narrowed=""
+          ln="$RUNNER_TEMP/linecov-narrow"
+          if { [ "$LINECOV_MODE" = NARROWED ] || [ "$LINECOV_MODE" = SHADOW ]; } && [ -s "$ln/selection.json" ]; then
+            # shellcheck disable=SC2086 # one package per line
+            if printf '%s\n' $packages | sed '/^$/d' > "$ln/before-packages" && printf '%s\n' "$slices" | sed '/^$/d' > "$ln/before-slices" &&
+              "$RUNNER_TEMP/linecov" ci -selection "$ln/selection.json" -packages "$ln/before-packages" -slices "$ln/before-slices" -out "$ln/after" &&
+              jq -e --arg mode "$LINECOV_MODE" '.state == "NARROWED" or ($mode == "SHADOW" and .state == "SHADOW")' "$ln/after/plan.json" > /dev/null &&
+              awk -v before="$ln/before-packages" -v splitfile="$ln/before-slices" '
+                BEGIN { while ((getline l < before) > 0) whole[l] = 1; while ((getline l < splitfile) > 0) slice[l] = 1 }
+                FILENAME ~ /packages$/ { if (!($0 in whole)) bad = 1; next }
+                $0 in slice { next }
+                NF != 3 || $1 != "-run" || !($3 in whole) || $2 !~ /^\^(\$|\((Test|Example|Fuzz)[A-Za-z0-9_]*([|](Test|Example|Fuzz)[A-Za-z0-9_]*)*\)\$)$/ { bad = 1 }
+                END { exit bad }' "$ln/after/packages" "$ln/after/slices"; then
+              echo "GLS-V0-044 shard $SHARD ($LINECOV_MODE): packages $(wc -l < "$ln/before-packages") -> $(sed '/^$/d' "$ln/after/packages" | wc -l), slices $(wc -l < "$ln/before-slices") -> $(sed '/^$/d' "$ln/after/slices" | wc -l), excluded $(jq '.excluded | length' "$ln/after/plan.json")"
+              if [ "$LINECOV_MODE" = NARROWED ]; then
+                packages=$(sed '/^$/d' "$ln/after/packages")
+                slices=$(sed '/^$/d' "$ln/after/slices")
+                line_narrowed=1
+                printf 'NARROWED\n' > "$ln/applied"
+                echo "linecov=NARROWED" >> "$GITHUB_OUTPUT"
+              fi
+            else
+              echo "::warning::shard $SHARD: the line-level rewrite failed or left its bounds; the lists stay as planned (GLS-V0-043)"
+            fi
+          fi
           [ "$placement" = BALANCED ] || chosen=/dev/null
           mkdir -p "$RUNNER_TEMP/ci-coverage"
           jq -n -c --arg runId "${GITHUB_RUN_ID:-}" --arg runAttempt "${GITHUB_RUN_ATTEMPT:-}" --arg shard "$SHARD" --arg shards "$SHARDS" \
-            --arg placement "$placement" --rawfile selected "$chosen" \
+            --arg placement "$placement" --rawfile selected "$chosen" --arg lineNarrowed "$line_narrowed" \
             '{profile: "corvint-pr-coverage/0", runId: $runId, runAttempt: $runAttempt, shard: ($shard | tonumber), shards: ($shards | tonumber),
-              placement: $placement, selected: [$selected | split("\n")[] | select(length > 0)]}' \
+              placement: $placement, selected: [$selected | split("\n")[] | select(length > 0)], lineNarrowed: ($lineNarrowed == "1")}' \
             > "$RUNNER_TEMP/ci-coverage/coverage.json"
-          # LPCV-V0-959: the report-only line-level shadow below reads the lists this shard runs.
-          # shellcheck disable=SC2086 # one package per line
-          { mkdir -p "$RUNNER_TEMP/linecov-shadow" && printf '%s\n' $packages > "$RUNNER_TEMP/linecov-shadow/packages" &&
-            printf '%s\n' "$slices" | sed '/^$/d' > "$RUNNER_TEMP/linecov-shadow/slices"; } || true
           if [ -z "$packages" ] && [ -z "$slices" ]; then
             echo "Complete-universe shard $SHARD has no packages."
             exit 0
@@ -1536,7 +1671,7 @@ jobs:
             # package and its FAIL lines in the job summary; advisory, it never changes the status.
             [ "$status" = 0 ] || sh .github/forward-rows/failed.sh "$capture" "$status" || true
             [ "$status" = 0 ] || exit "$status"
-            [ -n "$flaky" ] || [ -n "$narrowed" ] || echo "costs=1" >> "$GITHUB_OUTPUT" || true
+            [ -n "$flaky" ] || [ -n "$narrowed" ] || [ -n "$line_narrowed" ] || echo "costs=1" >> "$GITHUB_OUTPUT" || true
           else
             echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
             run_tests
@@ -1545,6 +1680,9 @@ jobs:
           # after every shard passed in full. A narrowed shard (AFP-V0-099) stops that job.
           if [ -n "$narrowed" ]; then
             echo "AFP-V0-098: selected packages passed; the full suite runs in the merge queue"
+          fi
+          if [ -n "$line_narrowed" ]; then
+            echo "GLS-V0-042: the line-selected tests passed; this shard names no tested tree"
           fi
       - name: Retain the shard coverage marker (AFP-V0-591)
         # go-product reads every shard's marker. It is not continue-on-error and overwrites the
@@ -1560,62 +1698,28 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 14
-      - name: Line-level selection shadow (LPCV-V0-959, report only)
-        # LPCV-V0-959 stays report-only until shadow qualification: this step plans what the
-        # linecov index of main would keep of this shard's lists and narrows nothing. It builds
-        # linecov from the change base, which must be on main, never from the tested checkout,
-        # so it runs whether or not the narrowing switches are on. Any failure (no index yet, an
-        # index older than the merge base, another runner) only reports.
-        id: linecov-shadow
-        if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.tests.outcome != 'skipped'
-        continue-on-error: true
-        timeout-minutes: 10
-        working-directory: source
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TESTED_MERGE: ${{ github.sha }}
-          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
-          SHARD: ${{ strategy.job-index }}
-        run: |
-          shadow=$RUNNER_TEMP/linecov-shadow
-          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then base=$QUEUE_BASE; else base=$(git rev-parse --verify "$TESTED_MERGE^1"); fi
-          if [ ! -f "$shadow/packages" ] || ! git merge-base --is-ancestor "$base" refs/remotes/origin/main 2> /dev/null; then
-            echo "LPCV-V0-959 shadow: no shard lists, or base $base is not on main; nothing to report" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          git worktree add -q --detach "$RUNNER_TEMP/linecov-src" "$base"
-          if [ ! -d "$RUNNER_TEMP/linecov-src/tools/linecov" ]; then
-            echo "LPCV-V0-959 shadow: base $base has no linecov" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          (cd "$RUNNER_TEMP/linecov-src" && go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov)
-          git worktree remove --force "$RUNNER_TEMP/linecov-src"
-          # The newest unexpired index published from main, including one a run with a failed
-          # collection shard still merged from its other parts.
-          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=linecov-index&per_page=100" \
-            --jq '[.artifacts[] | select(.expired | not) | select(.workflow_run.head_branch == "main")] | .[0].workflow_run.id // empty')
-          if [ -z "$run" ]; then
-            echo "LPCV-V0-959 shadow: no linecov-index published from main yet" | tee -a "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          gh run download "$run" -R "$GITHUB_REPOSITORY" -n linecov-index -D "$RUNNER_TEMP/linecov-index"
-          GOFLAGS=-race "$RUNNER_TEMP/linecov" ci -root . -index "$RUNNER_TEMP/linecov-index/linecov.idx" -base "$base" \
-            -packages "$shadow/packages" -slices "$shadow/slices" -out "$shadow/out"
-          count() { sed '/^$/d' "$1" | wc -l | tr -d ' '; }
-          reason=$(jq -r '.Reason // empty' "$shadow/out/plan.json")
-          echo "LPCV-V0-959 shadow shard $SHARD (index run $run, base $base): packages $(count "$shadow/packages") -> $(count "$shadow/out/packages"), slices $(count "$shadow/slices") -> $(count "$shadow/out/slices")${reason:+, kept whole: $reason}" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Retain the line-level selection shadow
-        # Feeds the LPCV-V0-959 shadow qualification and the LPCV-V0-020 miss detector.
-        if: always() && steps.linecov-shadow.outcome != 'skipped'
+      - name: Retain the line-level selection (GLS-V0-044)
+        # The selection, the lists before and after and the reason of every planned shard feed the
+        # GLS-V0-046 miss detector and the shadow measurement.
+        id: linecov-evidence
+        if: always() && steps.linecov.outcome != 'skipped'
         continue-on-error: true
         timeout-minutes: 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: linecov-shadow-${{ strategy.job-index }}
-          path: ${{ runner.temp }}/linecov-shadow/
-          if-no-files-found: ignore
+          name: linecov-narrow-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/linecov-narrow/
+          if-no-files-found: error
           overwrite: true
           retention-days: 14
+      - name: Require completed evidence for a narrowed shard (GLS-V0-044)
+        # The earlier proof predates after/plan.json and applied; only this upload lets the
+        # miss detector recover what the shard actually left out. Full and shadow shards abstain.
+        if: always() && steps.tests.outputs.linecov == 'NARROWED' && steps.linecov-evidence.outcome != 'success'
+        run: |
+          echo "::error::GLS-V0-044: the narrowed shard's completed linecov evidence was not retained"
+          echo "GLS-V0-044: the narrowed shard failed because its completed linecov-narrow evidence was not retained" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
       - name: Retain package outcomes for the advisory cost-drift report
         # AFP-V0-040: only a complete full shard whose tests passed keeps its outcomes, and
         # AFP-V0-422: only on the hosted image, because self-hosted timings are not cloud timings.
@@ -1808,8 +1912,9 @@ jobs:
   ci-tested-tree-record:
     # AFP-V0-170 (V1-2271): the only evidence the AFP-V0-024/046 reuse decision accepts. In a
     # pull-request or merge-queue run, after every go-product shard passed with its complete
-    # package set (not DOCS, not REUSE, and no shard narrowed: the verdict is not MET, or every
-    # shard's own full<index> output says FULL, V1-3051), it
+    # package set (not DOCS, not REUSE, and no shard narrowed: every shard's own full<index>
+    # output says FULL, V1-3051, under any narrowing verdict, since the GLS-V0-042 line-level
+    # step narrows a shard whatever the AFP-V0-098 verdict is), it
     # prints the tested tree, the tested commit, its second parent and the shard count as one
     # fixed line to this job's own log. It runs no repository code (checkout, git and printf
     # only) and persists no credentials, so no test, build step or fork pull request in another
@@ -1817,7 +1922,7 @@ jobs:
     # which is part of the tree a reusing commit must equal, changes what it prints. Any
     # mismatch prints no record, and the reusing run runs FULL; this job never fails CI.
     needs: [docs-plan, narrowing-verdict, go-product-shard]
-    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && (needs.narrowing-verdict.outputs.verdict != 'MET' || (needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success' && ((needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL' && needs.go-product-shard.outputs.full8 == 'FULL' && needs.go-product-shard.outputs.full9 == 'FULL' && needs.go-product-shard.outputs.full10 == 'FULL' && needs.go-product-shard.outputs.full11 == 'FULL' && needs.go-product-shard.outputs.full12 == 'FULL' && needs.go-product-shard.outputs.full13 == 'FULL' && needs.go-product-shard.outputs.full14 == 'FULL' && needs.go-product-shard.outputs.full15 == 'FULL')) && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:

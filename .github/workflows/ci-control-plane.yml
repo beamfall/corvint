@@ -1,6 +1,7 @@
 name: CI control plane
 
-# Runs from the default branch after each PR CI run (decisions 0320 and 0390, AFP-V0-016). A
+# Runs trusted default-branch code on PR activity (CCEP-V0-001), with completed CI runs as a
+# fallback and waiver rerun path (decisions 0320 and 0390, AFP-V0-016). A
 # pull_request workflow runs the PR's own copy of ci.yml, so a PR could set its own narrowing pins.
 # This check reads only GitHub metadata, never checks out or runs PR code, and posts
 # `ci-control-plane` on the PR head: failure when the PR changes anything under `.github/`, success
@@ -32,6 +33,9 @@ name: CI control plane
 # a cancelled pull-request run whose payload lists pull requests, none at its head, starts no job.
 
 on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -47,9 +51,9 @@ jobs:
     # was superseded by a newer push and would post nothing, so it does not claim a runner. An
     # empty list (always so for a fork pull request) still starts the job, and the step's own
     # open pull-request lookup decides whether anything is posted.
-    if: github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion != 'cancelled' || toJSON(github.event.workflow_run.pull_requests) == '[]' || contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha))
+    if: github.event_name == 'pull_request_target' || (github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion != 'cancelled' || toJSON(github.event.workflow_run.pull_requests) == '[]' || contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)))
     concurrency:
-      group: ci-control-plane-pull_request-${{ github.event.workflow_run.head_sha }}
+      group: ci-control-plane-pull_request-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
       cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -58,35 +62,65 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          HEAD: ${{ github.event.workflow_run.head_sha }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           # Logins whose ci-control-plane-waiver status waives the check; must equal greptile-gate.yml.
           WAIVER_APPROVERS: "Russe11"
         run: |
           set -euo pipefail
-          prs=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
-            --jq ".[] | select(.head.sha == \"$HEAD\") | .number")
+          # Validate before any API call; absent PR activity inputs cannot become a fallback.
+          : "${GH_TOKEN:?missing token}" "${RUN_URL:?missing run URL}"
+          [[ "${REPO:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || exit 1
+          [[ "${HEAD:-}" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          case "${EVENT_NAME:-}" in
+            pull_request_target)
+              [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]] || exit 1
+              prs=$PR_NUMBER ;;
+            workflow_run)
+              # The fallback also works for fork runs with no PR payload.
+              prs=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+                --jq ".[] | select(.head.sha == \"$HEAD\") | .number") ;;
+            *) exit 1 ;;
+          esac
           if [ -z "$prs" ]; then
             echo "ci-control-plane: no open PR at $HEAD; no status posted"
             exit 0
           fi
           while read -r number; do
-            changed=$(gh api "repos/$REPO/pulls/$number" --jq .changed_files)
+            [[ "$number" =~ ^[1-9][0-9]*$ ]] || exit 1
+            # The files endpoint takes a PR number, not a SHA. Fence pagination with current
+            # head/base reads; a superseded or closed PR must never authorize this head.
+            pr=$(gh api "repos/$REPO/pulls/$number")
+            if ! jq -e --arg head "$HEAD" '.state == "open" and .head.sha == $head' <<<"$pr" >/dev/null; then
+              echo "ci-control-plane: #$number is no longer open at $HEAD; no status posted"
+              continue
+            fi
+            base=$(jq -er '.base.sha | select(type == "string" and length > 0)' <<<"$pr")
+            changed=$(jq -er '.changed_files | select(type == "number" and . >= 0 and . == floor)' <<<"$pr")
+            # At the API ceiling, completeness cannot be proved. Even a waiver cannot turn
+            # an incomplete or failed listing into success; set -e leaves no new status.
+            if [ "$changed" -ge 3000 ]; then
+              echo "ci-control-plane: files API limit reached; no status posted"
+              exit 1
+            fi
+            files=$(gh api --paginate --slurp "repos/$REPO/pulls/$number/files?per_page=100")
+            jq -e --argjson changed "$changed" '
+              type == "array" and length == ([1, (($changed + 99) / 100 | floor)] | max) and
+              all(.[]; type == "array") and
+              all(to_entries[]; (.value | length) == ([100, $changed - (.key * 100)] | min)) and
+              ([.[][]] | length == $changed and length < 3000 and
+                (map(.filename) | unique | length) == $changed and
+                all(.[]; (.filename | type == "string" and length > 0) and
+                  (.previous_filename == null or (.previous_filename | type == "string" and length > 0))))
+            ' <<<"$files" >/dev/null
             state=success
             description="PR changes nothing under .github/"
-            # The files API lists at most 3000 files; a larger PR cannot be proved clean.
-            if [ "$changed" -gt 3000 ]; then
+            if jq -e 'any(.[][]; (.filename | startswith(".github/")) or
+                ((.previous_filename // "") | startswith(".github/")))' <<<"$files" >/dev/null; then
               state=failure
-              description="PR changes more files than the files API lists"
-            else
-              # A failed listing stops the job, so no status is posted and the merge stays blocked.
-              files=$(gh api --paginate "repos/$REPO/pulls/$number/files?per_page=100" \
-                --jq '.[] | .filename, (.previous_filename // empty)')
-              touched=$(grep -c '^\.github/' <<<"$files" || true)
-              if [ "$touched" -gt 0 ]; then
-                state=failure
-                description="PR changes $touched path(s) under .github/; merge needs an approver ci-control-plane-waiver status on this SHA"
-              fi
+              description="PR changes .github/; merge needs an approver ci-control-plane-waiver status on this SHA"
             fi
             if [ "$state" = failure ]; then
               # V1-5096 (replaces AFP-V0-171's user-success keep): an owner waiver is the newest
@@ -95,7 +129,9 @@ jobs:
               # posts the success itself; anything else withdraws. Any other writer's status is
               # ignored. A failed listing stops the job, so nothing is posted and the merge stays blocked.
               case "$WAIVER_APPROVERS" in ''|*[!A-Za-z0-9\ -]*) echo "ci-control-plane: bad WAIVER_APPROVERS"; exit 1 ;; esac
-              approvers=$(printf '%s' "$WAIVER_APPROVERS" | tr 'A-Z' 'a-z' | jq -Rc 'split(" ") | map(select(. != ""))')
+              approvers=$(printf '%s' "$WAIVER_APPROVERS" | jq -Rc 'ascii_downcase | split(" ") | map(select(. != ""))')
+              # $l is a jq variable, not shell interpolation.
+              # shellcheck disable=SC2016
               waiver=$(gh api --paginate "repos/$REPO/commits/$HEAD/statuses?per_page=100" \
                 --jq '.[] | select(.context == "ci-control-plane-waiver") | select((.creator.login // "" | ascii_downcase) as $l | '"$approvers"' | index($l)) | "\(.state) \(.creator.login)"' | sed -n 1p)
               if [ "${waiver%% *}" = success ]; then
@@ -104,6 +140,13 @@ jobs:
               fi
             fi
             echo "ci-control-plane: #$number $state: $description"
+            current=$(gh api "repos/$REPO/pulls/$number")
+            if ! jq -e --arg head "$HEAD" --arg base "$base" --argjson changed "$changed" '
+              .state == "open" and .head.sha == $head and .base.sha == $base and .changed_files == $changed
+            ' <<<"$current" >/dev/null; then
+              echo "ci-control-plane: #$number changed during inspection; no status posted"
+              continue
+            fi
             gh api -X POST "repos/$REPO/statuses/$HEAD" -f state="$state" \
               -f context=ci-control-plane -f description="$description" -f target_url="$RUN_URL" >/dev/null
           done <<<"$prs"
