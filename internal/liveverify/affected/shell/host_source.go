@@ -129,6 +129,15 @@ func hostTrapAllowed(parsed script, args []string) bool {
 		// Other forms may expand while installing the handler.
 		return false
 	}
+	// Inspect the entire action before parsing: parameter expansions and
+	// redirections can hide executable words, even as arguments to ':' or
+	// inside a single-quoted action that expands only when the trap runs.
+	action = strings.ReplaceAll(action, "\\\n", "")
+	if strings.Contains(action, "$(") || strings.Contains(action, "`") ||
+		strings.Contains(action, "<(") || strings.Contains(action, ">(") ||
+		hostTrapExpandedParameterWord.MatchString(action) {
+		return false
+	}
 	handler := parse(action)
 	if len(handler.definitions) != 0 {
 		return false
@@ -136,7 +145,7 @@ func hostTrapAllowed(parsed script, args []string) bool {
 	for _, cmd := range handler.commands {
 		plain := plainWords(cmd.words)
 		for _, word := range plain {
-			if assignment.MatchString(word) || strings.ContainsAny(word, "`") {
+			if assignment.MatchString(word) {
 				return false
 			}
 		}
@@ -155,7 +164,7 @@ func hostTrapAllowed(parsed script, args []string) bool {
 			args := plain[1:]
 			for len(args) >= 2 && unquote(args[0]) == "-C" {
 				// Unquoted expansion (and even quoted $@) can inject global
-				// options. Admit literal paths or heavy.sh's single-word form.
+				// options. Admit literal paths or the host runner's single-word form.
 				if args[1] != `"${clone:-/nonexistent}"` && !hostTrapGitDirectory.MatchString(unquote(args[1])) {
 					return false
 				}
@@ -180,3 +189,8 @@ var hostTrapInert = map[string]bool{
 
 // hostTrapGitDirectory excludes expansions, globbing and shell metacharacters.
 var hostTrapGitDirectory = regexp.MustCompile(`^[A-Za-z0-9_./+-]+$`)
+
+// hostTrapExpandedParameterWord conservatively refuses an expansion in an
+// operator's word, including nested parameter expansions. Literal defaults
+// remain allowed; command and arithmetic substitutions are refused separately.
+var hostTrapExpandedParameterWord = regexp.MustCompile(`\$\{[^}]*[-+=?][^}]*\$`)
