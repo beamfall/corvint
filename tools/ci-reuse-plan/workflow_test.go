@@ -181,7 +181,7 @@ func statusJobRuns(t *testing.T, w, job string, run map[string]any) bool {
 	if m == nil {
 		t.Fatalf("%s has no single-line if", job)
 	}
-	clause := regexp.MustCompile(`^github\.event\.workflow_run\.(event|conclusion) (==|!=) '([a-z_]+)'$`)
+	clause := regexp.MustCompile(`^github\.event\.workflow_run\.(event|conclusion|head_branch) (==|!=) '([a-z_]+)'$`)
 	const emptyList = "toJSON(github.event.workflow_run.pull_requests) == '[]'"
 	const listedHead = "contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)"
 	prs, _ := run["pull_requests"].([]any)
@@ -223,6 +223,8 @@ func statusJobRuns(t *testing.T, w, job string, run map[string]any) bool {
 			return eval(expr[1 : len(expr)-1])
 		}
 		switch expr {
+		case "github.event_name == 'pull_request_target'":
+			return run["event_name"] == "pull_request_target"
 		case emptyList:
 			b, err := json.Marshal(run["pull_requests"])
 			if err != nil {
@@ -256,7 +258,11 @@ func TestAFPV0079ControlPlaneReportsEveryCompletedRun(t *testing.T) {
 	jobs := map[string]string{"pull_request": "control-plane", "merge_group": "merge-group"}
 	for event, job := range jobs {
 		b := jobBlock(t, w, job)
-		wantLine(t, job, b, "      group: ci-control-plane-"+event+"-${{ github.event.workflow_run.head_sha }}")
+		headExpr := "github.event.workflow_run.head_sha"
+		if job == "control-plane" {
+			headExpr = "github.event.pull_request.head.sha || " + headExpr
+		}
+		wantLine(t, job, b, "      group: ci-control-plane-"+event+"-${{ "+headExpr+" }}")
 		wantLine(t, job, b, "      cancel-in-progress: true")
 		// The run's head listed, an empty list (a fork), and only a newer head listed.
 		lists := map[string][]string{"listed": {runHead}, "empty": nil, "superseded": {strings.Repeat("a", 40)}}
@@ -320,8 +326,8 @@ shift
 case " $* " in
   *" -X POST "*) echo "$*" >>"$STUB_DIR/posts.log"; exit 0 ;;
   *"repos/$REPO/pulls?state=open&per_page=100"*) echo 1144 ;;
-  *"repos/$REPO/pulls/1144/files?per_page=100"*) printf 'README.md\ndocs/x.md\n' ;;
-  *"repos/$REPO/pulls/1144 "*) echo 2 ;;
+  *"repos/$REPO/pulls/1144/files?per_page=100"*) printf '[[{"filename":"README.md"},{"filename":"docs/x.md"}]]\n' ;;
+  *"repos/$REPO/pulls/1144 "*) printf '{"state":"open","head":{"sha":"%s"},"base":{"sha":"base"},"changed_files":2}\n' "$HEAD" ;;
   *) exit 22 ;;
 esac
 `
@@ -330,7 +336,7 @@ esac
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "BRANCH="+tc.branch,
+			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "BRANCH="+tc.branch, "EVENT_NAME=workflow_run",
 			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("%s step: %v\n%s", tc.job, err, out)

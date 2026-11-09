@@ -4671,5 +4671,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/ci-control-plane-early-post-v0.md",
+    "title": "CI Control Plane Early Post V0",
+    "reqPrefix": "CCEP-V0",
+    "intent": "proposed (owner instruction 2026-11-08: ci related tickets should be fixed asap, always; V1-5102)",
+    "delivery": "experimental",
+    "claim": "Post the required CI control-plane status on trusted PR activity without waiting for CI completion.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
