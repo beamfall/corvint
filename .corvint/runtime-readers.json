@@ -46,6 +46,10 @@
       "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
     },
     {
+      "path": ".corvint/non-source-paths.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
       "path": ".corvint/record-entry-read-scopes.json",
       "reason": "record-entry read-scope declaration (AFP-V0-3420, AFP-V0-3421); read by the affected planner and the gate selector through path literals and by tools/unbounded-readers; a change alters which added CEM or build-log entries narrow later plans, not what any test runs (V1-4933)"
     },
