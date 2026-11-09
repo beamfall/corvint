@@ -242,6 +242,12 @@ func scopeEntryHolds(entry, name string) bool {
 }
 
 func (graph *Graph) inReadScope(directory string, unit Unit, name string) bool {
+	// Shell tests need not read all their siblings, so a shell unit outside the
+	// root has no implicit directory: only the adapter's entries apply
+	// (AFP-V0-3330). Legacy shell declarations carry that directory explicitly.
+	if strings.HasPrefix(unit.ID, "shell:") && directory != "." {
+		directory = ""
+	}
 	if name == ReadScopesPath || name == ReadScopeTreesPath || directory == "." || name == directory || strings.HasPrefix(name, directory+"/") {
 		return true
 	}
