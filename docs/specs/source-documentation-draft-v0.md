@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Drafted: 2026-09-05
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted the `docs draft`, `docs
 consume`, `docs maintain` and `docs citations` commands, `corvint-docs-mcp`, `internal/docmaintain`
 and `internal/doccitations`; `internal/doccompiler` and the `corvint-mcp` docs profile remain only

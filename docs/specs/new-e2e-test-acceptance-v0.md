@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-30
 Intent status: retired 2026-11-09 (decision 0593)
 Delivery status: retired
+Retirement base: b1a117eb129687f9555fa0c826fadfa0627afe3b
 Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `cmd/corvint-tests-accept` and
 `internal/testacceptance` with the E2E proof lab (b1a117eb is the last tree with them). The body
 below is historical and its requirement IDs stay for traceability.
