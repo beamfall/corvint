@@ -8,9 +8,17 @@ import (
 	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
+var cemHelpActions = map[string]bool{
+	"begin": true, "prepare": true, "cite": true, "mark": true,
+	"status": true, "verify": true, "report": true,
+	"cover": true, "verify-stable": true,
+}
+
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
 // command that is neither one of them nor --help is an invalid choice argparse reports before help.
-var helpSubcommands = map[string]map[string]bool{}
+var helpSubcommands = map[string]map[string]bool{
+	"cem": cemHelpActions,
+}
 
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
@@ -54,7 +62,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 			directTopic = nestedHelpTopic(command, subcommand)
 		}
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = nestedHelpTopic(rest[1], rest[2])
+		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
@@ -131,6 +139,9 @@ func commandHelpTopic(rest []string) string {
 		return flowsAppmapBuildHelpTopic
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
 		return ""
+	case rest[0] == "cem" && len(rest) > 1 && choices[rest[1]]:
+		// One cem action's help, not the whole family's (CEM-V1-340).
+		return cemActionHelpPrefix + rest[1]
 	}
 	return topic
 }
@@ -190,6 +201,9 @@ func helpText(topic string) string {
 
 // topicText is a help topic's authored text, the source the command tree derives from.
 func topicText(topic string) string {
+	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
+		return cemActionHelp(action)
+	}
 	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
 		return docsCorpusOperationHelp(operation)
 	}
@@ -212,6 +226,8 @@ func topicText(topic string) string {
 		return impactHelp
 	case "feature":
 		return featureHelp
+	case "cem":
+		return cemHelp
 	case "features", "overview", "review":
 		return repositoryGuidanceHelp
 	case "affected":
@@ -264,6 +280,7 @@ Commands:
     context  task-context packet: files to read
     impact  path or range impact
     affected  affected-test plan
+    cem  Change Evidence Map tool
   Experimental, context and review:
     feature  one declared feature's context (GPK-V0)
     features | overview | review  inferred repository guidance (RGV-V0)
@@ -294,6 +311,7 @@ Support boundary:
   state. impact, feature, docs and index best-effort append a bounded row to
   the self-observation ledger (.corvint/self-observations.jsonl) on an
   unsupported-* failure; a ledger storage failure never alters the response.
+  cem begin, prepare, cite and mark write local CEM artifacts; cem report,
   index, and docs flows and maintain write local state (COMMAND --help).
 `
 
@@ -986,6 +1004,186 @@ ranges.
 Every profile uses only revision-tracked evidence. All profiles are read-only,
 local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
+`
+
+const cemHelp = `Change Evidence Map producer and verifier.
+
+Usage:
+  corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV]
+    [--spec cem/1.0]
+  corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace]
+    [--spec cem/1.0] [--non-regular unknown] [--path-policy base]
+  corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
+    (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
+    [--replace --expected-hunk-digest DIGEST]
+  corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
+    (--bytes START:END | --lines START:END) --relation RELATION
+    --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS
+  corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
+    --disposition unknown|mechanical --reason REASON [--output MAP]
+    [--expected-hunk-digest DIGEST]
+  corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem status --map MAP --paired DOC --paired-root ABS
+  corvint [--root PATH] cem verify --map MAP --expected-base REV --target REV
+    --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --expected-base REV --target REV
+    --artifacts DIR [--output REPORT | --preview] [OPTIONS]
+  corvint [--root PATH] cem report --map MAP --format json --expected-base REV
+    --target REV --artifacts DIR [OPTIONS]
+  corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP] [--states-output PATH]
+  corvint [--root PATH] cem verify-stable --repository PATH --map MAP
+    --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
+    [--non-regular unknown]
+
+Actions:
+  begin    Build a cem/1.0 producer map from exact out-of-band patch bytes.
+  prepare  Derive the canonical base-to-target patch and write or resume the
+           cem/1.0 candidate at .corvint/change.cem.json. Commit the candidate,
+           then run the returned verification action; it passes --artifacts
+           with the absolute repository root.
+  cite     Compile a byte or one-based line span of base evidence into the
+           normative span and attach it to one hunk with a typed relation.
+           --relation accepts: call-site, decision, dependency, implementation,
+           incident, specification, test-claim.
+           Normative definitions: docs/CHANGE-EVIDENCE-MAP.md#supported.
+           With --paired-output, --paired-range and --paired-root (all three,
+           additive profile cem-paired-evidence/1, CAX-V0-032) the evidence
+           is read at HEAD of the second repository at --paired-root, both
+           range ends are resolved to full commit IDs (BASE must be an
+           ancestor of HEAD), and the citation is added to the separate
+           document DOC bound to the map's change; the map is never written,
+           so --output is refused.
+           --replace --expected-hunk-digest DIGEST (given together) first drops
+           the hunk's earlier citations, only while DIGEST is the hunk's current
+           cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch
+           and nothing is written, and every other hunk is kept (CEM-V1-694).
+  mark     Record an explicit unknown or byte-verifiable mechanical disposition.
+           --expected-hunk-digest DIGEST refuses the mark unless DIGEST is the
+           hunk's current digest (CEM-V1-695).
+  status   Local completion check; verify is the equivalent machine/CI surface;
+           report renders the optional human view. All three verify identically.
+           report writes $GIT_DIR/corvint/cem-review.md unless --output names
+           a repository-relative path or an absolute one outside the repository.
+           report --preview returns the same Markdown in the envelope and writes
+           nothing (mutates false); it takes neither --output nor --format json.
+           status --paired DOC --paired-root ABS (CAX-V0-033) instead checks
+           that cem-paired-evidence/1 document: it binds the map, the pinned
+           range still resolves, and every citation's blob and span digest
+           match at its head; any drift refuses evidence-drift.
+  cover    Record a patch coverage witness on every hunk from one local
+           coverprofile named by --test-run; the map stays cem/1.0. Any
+           language's line coverage works once written in that line format
+           ("mode: set" then "PATH:L.C,L.C STATEMENTS COUNT" per span; PATH is
+           the hunk path or ends in "/" plus it). The witness is coverage only,
+           not an execution or discrimination witness. A hunk whose path the
+           profile never names is uncovered in the map and counted apart as
+           notInstrumented (with notInstrumentedHunks) in the result.
+           --states-output PATH also writes the additive
+           cem-coverage-states/1 document (CAX-V0-010): per hunk, in map
+           order, covered, uncovered or not-instrumented, bound to the
+           written map's SHA-256; the map bytes are unchanged by it.
+           Corvint ships no converter from other coverage formats.
+  verify-stable
+           Verify a cem/1.0 map against the absolute --repository and the
+           artifact bytes under --artifacts; prints one
+           cem-stable-verification/1 JSON result. --trusted-keys FILE is the
+           consumer's absolute corvint-trusted-keys/1 file
+           {"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,
+           "ed25519PublicKey":B64}]}: only a keyid it names can raise the
+           authentication axis to VERIFIED (UNTRUSTED_KEY otherwise). A key
+           the map or its artifacts carry is never trusted, and a valid
+           signature never raises executionAtCommit.
+
+Verification options:
+  --expected-base REV  Independent expected base. Required.
+  --target REV         Verification target. Required.
+  --patch PATH         Refused: the verifier derives the canonical patch itself.
+  --max-unknown N      Policy ceiling on unknown hunks.
+  --max-mechanical N   Policy ceiling on mechanical hunks.
+  --citation           status adds the map's citation class beside the result;
+                       an accepted result always carries its citation block.
+  --scaled-operations  status only, opt-in: raise the stable verifier's Git
+                       operation bound from the cem/1.0 protocol's fixed 1,024
+                       to 1,024 plus 4 per hunk and evidence record; every
+                       other bound is unchanged.
+  --non-regular unknown
+                       prepare, status, verify and verify-stable, opt-in
+                       additive profile cem-non-regular/1 (CAX-V0-020): a
+                       changed path that is not a regular file (a symbolic
+                       link or gitlink) is left
+                       out of the mapped patch, never read or followed, and
+                       reported in nonRegular beside the result as an explicit
+                       unknown that status counts and --max-unknown include.
+                       Without it such a path refuses unsupported-tree-mode.
+                       The map pins the regular-only patch, so a reader must
+                       opt in too; a plain cem/1.0 reader refuses it
+                       patch-digest-mismatch. verify-stable then prints
+                       {nonRegular, nonRegularProfile, stableVerification}.
+  --path-policy base   prepare and status, opt-in additive profile
+                       cem-path-policy/1 (CAX-V0-060): read the witness path
+                       policy .corvint/witness-paths.json from the base tree
+                       only and classify each unknown hunk on a path no
+                       extractor reads. An inert rule's hunk is reported
+                       declared-inert in pathPolicyHunks, citing the policy
+                       file and line, and counted in counts.declaredInert, not
+                       against --max-unknown; a data rule's hunk stays unknown
+                       and names its readers. A code path or a supported or
+                       mechanical hunk is never classified, and the map bytes
+                       are unchanged. Example: corvint cem status --map
+                       .corvint/change.cem.json --expected-base B --target T
+                       --artifacts DIR --max-unknown 0 --path-policy base
+  --guarding-tests     verify only, opt-in: after an ACCEPT, search the base
+                       tests of each uncited Go source hunk's directory (or,
+                       when it has none, of up to 16 direct importers) for one
+                       that passes at the target and fails with only that hunk
+                       reverted in a disposable export; adds the guardingTests
+                       report (cem-guarding-tests/0) with citation-plan rows. It
+                       sets no tier and writes nothing. Bounds: 300 s per go
+                       test run, 1200 s in total. It executes the target's own
+                       tests UNCONFINED, with the caller's privileges; a TMPDIR
+                       inside the repository is refused. Not with --hunk-revert;
+                       status and report refuse it.
+  --artifacts DIR      Required: the artifact root the stable verifier reads;
+                       status also applies the ceilings to an accepted map.
+  --hunk-revert        verify only, opt-in: after an ACCEPT, reverse-apply each
+                       test-cited Go source hunk in a disposable export of the
+                       target and re-run its named tests; adds the hunkRevert
+                       report (cem-hunk-revert/0), and only a consumer-observed
+                       failure counts as held; every hunk it did not attempt
+                       is listed in notAttempted with its reason. Bounds: 300 s per go test run,
+                       1200 s in total (reasons timeout, total-limit). It
+                       executes the target's own tests UNCONFINED: no sandbox,
+                       with the caller's privileges; use it only on a target
+                       you trust. status and report refuse it.
+
+Map paths:
+  status and report read --map MAP repository-relative, or as an
+  absolute path outside the repository and its Git directories (for example a
+  map copied out of the repository); an absolute path inside them is refused,
+  so name it repository-relative. The map binds the repository by object IDs;
+  the read is bounded, a symlinked map is refused, and only report writes (its
+  review file, never over the map). verify also accepts an absolute in-repository
+  map. verify-stable accepts either form, resolving a relative --map against
+  --repository (CEM-V1-7400). cite, mark and cover read an
+  out-of-tree --map under the same rules only with a repository-relative
+  --output, because Core writes a map only under the repository's lock and
+  never in place outside it (CEM-V1-647); every other action takes MAP
+  repository-relative only.
+  No action takes a paired change: --range, --range-root and --paired-from
+  are refused with the reason, because a cem/1.0 map binds one repository's
+  base and target (CEM-V1-648).
+
+Workspace: a CEM cites one repository. Every action but verify-stable
+refuses --workspace FILE, or a discovered
+--root/.corvint/workspace.json without --no-workspace, as
+workspace-unsupported naming the ignored aliases.
+
+cem/1.0 is the only wire. Verification derives the canonical
+whole-repository patch itself excluding exactly .corvint/change.cem.json. A
+retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its
+migration fix. All commands are local-only; reports can disclose repository
+information and stay local by default.
 `
 
 // cpuProfileHelpNote documents the CORVINT_CPUPROFILE and CORVINT_MEMPROFILE env knobs

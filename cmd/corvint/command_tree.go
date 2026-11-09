@@ -43,6 +43,15 @@ func helpTopics() []string {
 		topic, _ := publicHelpTopic(command)
 		topics = append(topics, topic)
 	}
+	for _, action := range slices.Sorted(func(yield func(string) bool) {
+		for action := range cemHelpActions {
+			if !yield(action) {
+				return
+			}
+		}
+	}) {
+		topics = append(topics, cemActionHelpPrefix+action)
+	}
 	topics = append(topics, "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
@@ -52,6 +61,9 @@ func helpTopics() []string {
 
 // helpTopicPath is the command path a help topic documents.
 func helpTopicPath(topic string) []string {
+	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
+		return []string{"cem", action}
+	}
 	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
 		return []string{"docs", "corpus", operation}
 	}

@@ -29,6 +29,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"mcp":           {args: []string{"mcp"}, noRoot: true},
 	"context":       {args: []string{"context", "--task", "change main"}},
 	"index":         {args: []string{"index"}},
+	"cem":           {args: []string{"cem", "status", "--map", "change.cem.json"}},
 	"docs":          {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
 	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
