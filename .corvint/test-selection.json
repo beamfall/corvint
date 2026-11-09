@@ -843,12 +843,6 @@
       ]
     },
     {
-      "paths": "internal/betarung/admissions.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/browsercov/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -915,12 +909,6 @@
       ]
     },
     {
-      "paths": "internal/frictionmetric/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/gokernel/host-schema.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -981,12 +969,6 @@
       ]
     },
     {
-      "paths": "internal/mcp/cli/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/mcp/corpusbridge/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -994,18 +976,6 @@
     },
     {
       "paths": "internal/nativelinecov/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/obscorpus/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/opencodequalification/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -1438,12 +1408,6 @@
     },
     {
       "paths": "tools/lsp-editors/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/native-hook-observer/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]

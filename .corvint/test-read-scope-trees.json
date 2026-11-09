@@ -20,50 +20,6 @@
       "cmd/": "internal/langplugin/langplugin_test.go lists cmd/ (os.ReadDir) so every corvint-analyzer-* directory belongs to a language plugin (AFP-V0-3011 (1))",
       "internal/": "internal/langplugin/langplugin_test.go lists internal/liveverify/affected, walks each plugin directory, and follows imports by globbing *.go of each imported package, which can reach any package below internal/ (AFP-V0-3011 (1))"
     },
-    "internal/obscorpus": {
-      "benchmarks/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under benchmarks/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      },
-      "cmd/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under cmd/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      },
-      "conformance/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under conformance/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      },
-      "experiments/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under experiments/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      },
-      "internal/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under internal/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      },
-      "tools/": {
-        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under tools/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
-        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
-        "samples": [
-          "\"github.com/Beamfall/corvint/internal/obscorpus\""
-        ]
-      }
-    },
     "internal/proctrace": {
       "internal/": "internal/proctrace/trace_test.go TestRSPV0020ImportDirection runs go list with a {{.Deps}} template over ../../cmd/corvint, whose whole dependency closure the check does not model without -deps (AFP-V0-3011 (3))"
     },
