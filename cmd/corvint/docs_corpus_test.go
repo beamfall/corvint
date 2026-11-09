@@ -295,9 +295,6 @@ func TestCorpusNativeOptionIsolation(t *testing.T) {
 		for _, args := range [][]string{
 			{"query", "--task", "--corpus"},
 			{"query", "--task", "--corpus=corpus.json"},
-			{"work", "plan-fixture", "--executor", "--corpus=fixture.json"},
-			{"work", "plan-fixture", "--observations", "--corpus=fixture.json"},
-			{"work", "init", "--repository", "--corpus=fixture.json"},
 		} {
 			var out, stderr bytes.Buffer
 			_, handled := runCorpusIntegration(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &out, &stderr)

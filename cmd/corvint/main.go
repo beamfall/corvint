@@ -1401,43 +1401,6 @@ func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) 
 	return 0
 }
 
-// parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
-// symlink-resolved for 0.x reads; an empty --root is the working directory.
-// callerRoot is the --root value byte for byte, even empty, or the working
-// directory when --root is omitted, for stable admission (CEM-V1-017).
-func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []string, isCEM bool, err error) {
-	index := 0
-	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
-		value := ""
-		if arguments[index] == "--root" {
-			if !rootPreambleValue(arguments, index+1) {
-				return "", "", nil, false, nil
-			}
-			value = arguments[index+1]
-			index += 2
-		} else {
-			value = strings.TrimPrefix(arguments[index], "--root=")
-			index++
-		}
-		root = value
-	}
-	if index >= len(arguments) || arguments[index] != "cem" {
-		return "", "", nil, false, nil
-	}
-	callerRoot = root
-	if root == "" {
-		if root, err = os.Getwd(); err != nil {
-			return "", "", nil, true, argumentError("cannot resolve current directory")
-		}
-		if index == 0 { // only an omitted --root names the working directory
-			callerRoot = root
-		}
-	} else if root, err = normalizeRoot(root); err != nil {
-		return "", "", nil, true, err
-	}
-	return root, callerRoot, arguments[index+1:], true, nil
-}
-
 func readInput(ctx context.Context, stdin io.Reader) ([]byte, error) {
 	return readInputBounded(ctx, stdin, gokernel.MaxInputBytes)
 }

@@ -72,16 +72,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	command := original[pos]
-	allowed := command == "query" || command == "context" || command == "impact" || command == "affected" || command == "test-validity" || command == "work" || command == "cem"
-	if command == "work" {
-		allowed = pos+1 < len(original) && (original[pos+1] == "observe" || original[pos+1] == "propose-wave")
-	}
-	if command == "cem" {
-		allowed = pos+1 < len(original) && (original[pos+1] == "status" || original[pos+1] == "verify" || original[pos+1] == "report")
-	}
-	if command == "cem" && flagValue(original, "--output") != "" {
-		allowed = false
-	}
+	allowed := command == "query" || command == "context" || command == "impact" || command == "affected" || command == "test-validity"
 	if !allowed {
 		emitError(stderr, argumentError("--corpus is supported only on native evidence reads"))
 		return 2, true
@@ -252,16 +243,6 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		}
 		section["observations"] = linked
 		section["observation_limitations"] = []string{"only an exact explicitly supplied receipt is joined; discovery and missing matches remain unlinked"}
-	}
-	if command == "cem" {
-		mapPath := flagValue(original, "--map")
-		data, readErr := doccorpus.ReadFile(root, mapPath)
-		if readErr != nil {
-			emitCorpusError(stderr, readErr)
-			return 2, true
-		}
-		emitCorpusError(stderr, doccorpus.RefuseCEMProjection(data))
-		return 2, true
 	}
 	encoded, err := doccorpus.Encode(section)
 	if err != nil {
