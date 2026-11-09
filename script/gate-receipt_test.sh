@@ -194,7 +194,7 @@ $(GATE_STEPS):
 gate:
 	@echo record >> "$(ORDER_LOG)"
 MK
-# The gate steps' own prerequisites (host-adapter-node-test, which needs node, and the rest of
+# The gate steps' own prerequisites (lane-scripts-test, which needs perl, and the rest of
 # their closure) get an empty recipe too, so the probe runs no real recipe on any host
 # (scripts-w5 friction, 2026-11-01).
 make -pq -C "$source_root" -f "$source_root/Makefile" gate 2>/dev/null | awk '
@@ -253,7 +253,9 @@ chmod +x "$probe/script/gate-receipt" "$probe/bin/go" "$probe/bin/node"
 cat > "$probe/override.mk" <<'MK'
 gate-receipt-clear:
 	@:
-host-adapter-node-test go-test:
+lane-screen-test:
+	@:
+lane-scripts-test go-test:
 	@echo "$@:$${CORVINT_REQUIRE_NODE:-optional}" >> "$(PROBE_LOG)"
 	@$(MAKE) -s -f override.mk child
 child:
@@ -261,13 +263,13 @@ child:
 MK
 probe_make() {
     (cd "$probe" && PATH="$probe/bin" PROBE_LOG="$probe/log" \
-        "$probe/bin/make" -s -f Makefile -f override.mk GATE_STEPS=host-adapter-node-test \
+        "$probe/bin/make" -s -f Makefile -f override.mk GATE_STEPS=lane-scripts-test \
         HEAVY_NICE_PREFIX= "$@") > "$test_root/probe.out" 2>&1
 }
 for mode in off on; do
     rm -f "$probe/log"
     probe_make CORVINT_GATE_LEDGER="$mode" CORVINT_REQUIRE_NODE= gate || fail "mandatory Node probe $mode: $(cat "$test_root/probe.out")"
-    [ "$(cat "$probe/log")" = "host-adapter-node-test:1
+    [ "$(cat "$probe/log")" = "lane-scripts-test:1
 child:1
 receipt" ] || fail "gate lost mandatory Node through $mode prerequisites or recursion: $(cat "$probe/log")"
 done

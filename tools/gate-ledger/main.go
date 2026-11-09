@@ -71,8 +71,6 @@ var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
 // the whole worktree; `never` always runs. A step absent here always runs and is
 // never recorded (GL-V0-003).
 var scopes = map[string][]string{
-	"host-adapter-test":             {treeScope},
-	"host-adapter-node-test":        {treeScope},
 	"go-version":                    {},
 	unresolved:                      {treeScope},
 	"go-vet":                        {"*.go", "*.s", "*.c", "*.h"},
