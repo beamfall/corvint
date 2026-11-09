@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/docsenvelope"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func repositoryRoot(t *testing.T) string {
@@ -55,7 +56,7 @@ case "$input" in
 esac
 `
 	executable = filepath.Join(dir, "corvint-docs")
-	if err := os.WriteFile(executable, []byte(strings.ReplaceAll(script, "$CAPTURE", capture)), 0o755); err != nil {
+	if err := execfile.WriteFile(executable,[]byte(strings.ReplaceAll(script, "$CAPTURE", capture)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return executable, capture
