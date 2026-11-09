@@ -1,6 +1,6 @@
 {
   "name": "corvint",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Revision-pinned impact analysis from Corvint for Codex",
   "author": {
     "name": "Russell Lewis"
