@@ -1385,7 +1385,7 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 	}
 	// A narrowed shard narrows only after its record was retained and names no tested tree.
 	for _, want := range []string{`{ [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; } && [ "$NARROW_MODE" = NARROWED ] && [ "$NARROW_RECORDED" = success ]`,
-		"name: ci-narrowing-${{ strategy.job-index }}", `if [ -n "$narrowed" ]; then`, `[ -n "$narrowed" ] || echo "costs=1"`} {
+		"name: ci-narrowing-${{ strategy.job-index }}", `if [ -n "$narrowed" ]; then`, `[ -n "$narrowed" ] || [ -n "$line_narrowed" ] || echo "costs=1"`} {
 		if !strings.Contains(ci, want) {
 			t.Fatalf("ci.yml lacks %q", want)
 		}
@@ -1576,8 +1576,9 @@ var actionsWrite = regexp.MustCompile(`(?m)^\s*actions:\s*write\s*(#.*)?$`)
 
 // CIN-V0-2303 (V1-4445): cache-prune runs when each CodeQL default-setup run on main completes,
 // keeps its hourly schedule as the backstop and a manual dispatch, and its job runs for a
-// workflow_run only when that run is this repository's own dynamic CodeQL run on main. No other
-// workflow grants actions: write; the matcher itself is checked on a planted grant first.
+// workflow_run only when that run is this repository's own dynamic CodeQL run on main. Only
+// merge-queue-cleanup.yml (CIN-V0-5018, pinned by tools/ci-reuse-plan) also grants actions: write;
+// the matcher itself is checked on a planted grant first.
 func TestCINV02303CachePruneFollowsCodeQL(t *testing.T) {
 	b, err := os.ReadFile("../../.github/workflows/cache-prune.yml")
 	if err != nil {
@@ -1612,8 +1613,8 @@ func TestCINV02303CachePruneFollowsCodeQL(t *testing.T) {
 			granted = append(granted, e.Name())
 		}
 	}
-	if fmt.Sprint(granted) != "[cache-prune.yml]" {
-		t.Fatalf("workflows granting actions: write = %v, want only cache-prune.yml", granted)
+	if fmt.Sprint(granted) != "[cache-prune.yml merge-queue-cleanup.yml]" {
+		t.Fatalf("workflows granting actions: write = %v, want only cache-prune.yml and merge-queue-cleanup.yml", granted)
 	}
 }
 

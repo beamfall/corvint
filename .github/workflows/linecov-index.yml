@@ -2,10 +2,15 @@ name: Linecov index
 
 # LPCV-V0-950/959 (V1-4366): collect the line-level coverage index of main for CI test
 # selection. Each shard runs `linecov collect` over its part of the packages under the go-product
-# shard's build settings (GOFLAGS=-race, CGO_ENABLED=1), so the index's runner identity equals the
-# one the CI shards select under; the merge job unions the parts into the `linecov-index`
+# shard's build settings (GOFLAGS=-race, CGO_ENABLED=1), test runtime (-json verbose, -timeout
+# 50m) and test-confine exec wrapper with CORVINT_CONFINE_ROOT, so the index's runner identity
+# equals the one the CI shards select under (GLS-V0-009, GLS-V0-041), and the records bind the
+# inherited environment the runner gives every job (GLS-V0-017); the merge job unions the parts into the `linecov-index`
 # artifact. A failed or missing part only leaves its packages unrecorded, which the selection
 # runs whole (LPCV-V0-962). Not a required check; nothing here narrows a shard.
+# GLS-V0-045: 16 shards, each collector deleting a test binary once its package ran, so a
+# hosted runner's disk holds at most a few binaries; three of eight larger shards died on
+# 2026-11-03 (run 41663066310).
 on:
   schedule:
     - cron: "17 */6 * * *"
@@ -25,7 +30,7 @@ env:
   GOWORK: "off"
   GOFLAGS: ""
   CGO_ENABLED: "1"
-  SHARDS: "8"
+  SHARDS: "16"
 
 jobs:
   collect:
@@ -35,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -76,6 +81,20 @@ jobs:
           cp .github/cishards/cmd/main.go "$d/cmd/"
           printf 'module github.com/Beamfall/corvint/.github/cishards\n\ngo 1.27.3\n' > "$d/go.mod"
           (cd "$d" && GOENV=off go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-shards" ./cmd)
+      - name: Build the protected test read-scope wrapper as the CI shards do
+        working-directory: source
+        run: |
+          # AFP-V0-023, GLS-V0-041: the same test-confine build as ci.yml, so the collected
+          # records show what the tests do under confinement and the identity's exec= matches.
+          d="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$d/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
+          "$RUNNER_TEMP/test-confine" -probe
       - name: Collect this shard's packages
         working-directory: source
         env:
@@ -99,8 +118,10 @@ jobs:
           fi
           echo "shard $SHARD collects $(tr , '\n' <<< "$dirs" | wc -l) package(s)"
           mkdir -p "$RUNNER_TEMP/part"
-          GOFLAGS=-race "$RUNNER_TEMP/linecov" collect -root . -packages "$dirs" -parallel "$(nproc)" \
-            -out "$RUNNER_TEMP/part/part-$SHARD.idx"
+          mkdir -p "$RUNNER_TEMP/linecov-work"
+          CORVINT_CONFINE_ROOT="$PWD" GOFLAGS=-race "$RUNNER_TEMP/linecov" collect -root . -packages "$dirs" -parallel "$(nproc)" \
+            -test-timeout 50m -exec "$RUNNER_TEMP/test-confine" \
+            -work "$RUNNER_TEMP/linecov-work" -out "$RUNNER_TEMP/part/part-$SHARD.idx"
       - name: Retain this shard's part
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
