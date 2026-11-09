@@ -2,7 +2,6 @@
   "profile": "corvint-unbounded-reader-set/0",
   "units": [
     "cmd/corvint",
-    "conformance/dashboard-snapshot-v0",
     "conformance/interactive-alpha/fixture/e2e.spec.js",
     "conformance/release-artifact-v0",
     "internal/analyzerhtmlcss",
@@ -11,7 +10,6 @@
     "internal/companionrelease/currentproof",
     "internal/console",
     "internal/contextindex",
-    "internal/dashboard/repository",
     "internal/doccorpus/selfcorpus",
     "internal/liveverify/affected",
     "internal/liveverify/affected/golang",
@@ -40,7 +38,6 @@
   ],
   "reasons": {
     "cmd/corvint": "DTL-V0-008 (2026-11-03): the old filesystem-root cause is resolved by internal/flowdocs/files.go openDirectory and TestAFPV0361_OpenDirectoryNeverReadsFilesystemRoot. Remaining permanent floor under AFP-V0-023: core_network_boundary_test.go runs go list -deps over the actual command closure, affected_audit_test.go builds the sibling command with VCS stamping, and host_adapter_javascript_test.go locates the repository; Git metadata and root listings cannot be granted by declared read scopes. Converting these to disposable source copies needs complete closure parity and a passing confined package run; neither has been produced, so keep the floor and claim no saving.",
-    "conformance/dashboard-snapshot-v0": "the test opens the filesystem root / and builds cmd/corvint-dashboard-snapshot over its import closure; the wrapper cannot grant /; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
     "conformance/interactive-alpha/fixture/e2e.spec.js": "AFP-V0-2991 (V1-4983, 2026-11-07): rule (d) follows execution edges; chain internal/console > cmd/corvint-console > conformance/interactive-alpha/fixture/e2e.spec.js; cause: internal/console/code.go carries the literal \"--show-toplevel\". The spec runs the command's binary through a declared runtime edge (.corvint/runtime-edges.json, AFP-V0-819); a TypeScript test unit cannot declare an AFP-V0-023 read scope.",
     "conformance/release-artifact-v0": "the tests run git rev-parse on the repository and read .agent-evidence/ through it, and AFP-V0-023 never grants .git; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container; accepted as a floor member 2026-10-31 (V1-2292): non-test publication_status.go locates the root with os.Getwd for the PUB-V0-021 host proof, which needs the clean checkout, and the remaining tests read the committed Makefile and .agent-evidence through ../..; the package is a main package with no importing dependents, so the floor costs only its own tests; also TestCorvintHostArchivePartialProof, opted in on Darwin arm64 with CORVINT_HOST_ARCHIVE_PROOF=1, archives the enclosing checkout's clean HEAD through git and builds all of cmd/corvint from it, and AFP-V0-023 never grants .git; the planner does not condition a read scope on that variable, so a declaration would let a change confined to cmd/corvint exclude the package; the remaining tests read committed release declarations through ../..; kept as a floor member 2026-11-04 (rescue-c review, orchestrator-made fail-closed decision) in place of the 2026-11-01 V1-0643 declaration; the package is a main package with no importing dependents, so the floor costs only its own tests",
     "internal/analyzerhtmlcss": "TestTypedFactOrderingWorstCaseRatchet reads a pinned revision through git and skips when git fails, and AFP-V0-023 never grants .git",
@@ -49,7 +46,6 @@
     "internal/companionrelease/currentproof": "the deliberate root-locator for the companionrelease proofs over this checkout's committed Git content (TestCurrentExportedTasksSmokeGenerator, TestCurrentTasksSourceArchiveBuildsOffline and the opt-in TestCurrentExportedTasksAndVSIX): it resolves HEAD and exports the repository through git, and AFP-V0-023 never grants .git; split out of internal/companionrelease on 2026-11-01 (V1-0643, PUB-V0-670) behind the root-parameter ProveCurrent* functions, so internal/companionrelease declares a bounded read scope and leaves this floor; no package imports it, so the floor costs only its own three tests",
     "internal/console": "the tests list the repository root, resolve it through git and open the filesystem root /; the wrapper grants neither / nor .git; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
     "internal/contextindex": "TestGoImportsDifferentialAgainstScanner walks every Go file under the repository root; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container: the tests list the repository root, read .git and open the filesystem root / (4328 opens)",
-    "internal/dashboard/repository": "the tests open the filesystem root / while resolving the repository authority, which the wrapper cannot grant; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
     "internal/doccorpus/selfcorpus": "self_test.go indexes this checkout through git (HEAD and the object store), and AFP-V0-023 never grants .git; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
     "internal/liveverify/affected": "TestIncrementalSelectionMeetsTheLiveBudget and TestSelectionOnTheLiveDirtyWorktree build the unit graph over the whole repository; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container: they list the repository root and read .git",
     "internal/liveverify/affected/golang": "groundtruth_test.go:35 builds the Go unit graph over the whole repository and compares it with go list: it lists the root, reads .git and opens the filesystem root /, none of which the wrapper grants; observed 2026-10-06 (V1-0868) by strace of the unconfined tests in a golang:1.27.1 Linux container",
