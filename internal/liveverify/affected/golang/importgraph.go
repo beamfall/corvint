@@ -510,7 +510,9 @@ func literalEnvironment(expression ast.Expr, imports map[string]string) bool {
 	}
 	for _, entry := range entries {
 		value, ok := literalString(entry)
-		if !ok || (value != emptyFlagsReset && strings.HasPrefix(value, "GOFLAGS=")) || strings.HasPrefix(value, "GOENV=") {
+		name, _, _ := strings.Cut(value, "=")
+		// Windows folds environment names; only the exact reset is safe.
+		if !ok || (value != emptyFlagsReset && strings.EqualFold(name, "GOFLAGS")) || strings.EqualFold(name, "GOENV") {
 			return false
 		}
 	}
@@ -560,6 +562,7 @@ func goEnvironmentUnproven(files []string, bodies map[string][]byte) bool {
 }
 
 func mentionsGoEnvironment(text []byte) bool {
+	text = bytes.ToUpper(text)
 	return bytes.Contains(text, []byte("GOFLAGS")) || bytes.Contains(text, []byte("GOENV"))
 }
 

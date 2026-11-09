@@ -53,6 +53,14 @@ func TestClosureGuardShapeIsProven_AFP_V0_9600(t *testing.T) {
 		// An empty flags reset only removes ambient flags (an inherited
 		// -overlay or -e), so it stays proven; any other value does not.
 		{"empty GOFLAGS reset", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="`) + guardEnv("TestB", "b", `"GOFLAGS=", "GOWORK=off"`), false, false},
+		// AFP-V0-9600: Windows environment names are case-insensitive;
+		// only the exact uppercase reset may appear in a proven reader.
+		{"lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags=-f={{.Doc}}"`), true, false},
+		{"mixed-case GoFlags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "GoFlags=-f={{.Doc}}"`), true, false},
+		{"lowercase goenv after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goenv=custom.env"`), true, false},
+		{"lowercase empty goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "goflags="`), true, false},
+		{"escaped lowercase goflags after reset", guardEnv("TestA", "a", `"GOFLAGS=", "\x67oflags=-f={{.Doc}}"`), true, false},
+		{"mixed-case name outside Env assignment", guardEnv("TestA", "a", `"GOFLAGS="`) + "var flags = \"GoFlags\"\n", true, false},
 		{"non-empty GOFLAGS literal", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS=-mod=mod"`), true, false},
 		{"dynamic GOFLAGS value", guardEnv("TestA", "a", `"GOTOOLCHAIN=local", "GOFLAGS="+os.Getenv("PROBE_FLAGS")`), true, false},
 		{"empty GOFLAGS reset outside an Env assignment", guardEnv("TestA", "a", `"GOTOOLCHAIN=local"`) + "var flags = []string{\"GOFLAGS=\"}\n", true, false},
