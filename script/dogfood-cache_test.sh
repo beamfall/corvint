@@ -822,7 +822,9 @@ EOF
   mkdir -p tools/verify-syntax-check "$root/caller/rel" && : > tools/verify-syntax-check/main.go && : > "$TEST_VERIFY_LOG"
   printf 'go version\n' > "$root/caller/rel/verify.txt"
   (cd "$root/caller" && PATH="$root/envbin:$PATH" DOGFOOD_FINISH_PREFLIGHT=1 bash "$root/repo/script/dogfood-finish.sh" "$base" "$root/closeout-cites.tsv" "$root/closeout-cites.tsv" rel/verify.txt passed) > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
-  [[ $(cat "$TEST_VERIFY_LOG") == "$root/caller/rel/verify.txt" ]] || { cat "$TEST_VERIFY_LOG" "$root/output" >&2; exit 1; }
+  # The caller's $PWD is the logical path, which drops the // that mktemp leaves under a TMPDIR
+  # ending in / (macOS), so the want is that same spelling.
+  [[ $(cat "$TEST_VERIFY_LOG") == "$(cd "$root/caller" && pwd)/rel/verify.txt" ]] || { cat "$TEST_VERIFY_LOG" "$root/output" >&2; exit 1; }
   /bin/rm -rf tools/verify-syntax-check .corvint/change.cem.json
 ) || { printf 'DWC-V0-757 static check reuse: FAIL\n' >&2; exit 1; }
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'
