@@ -552,7 +552,13 @@ func TestWorkspaceInputsFailClosed(t *testing.T) {
 	}
 	writeFixture(t, root, "go.work", "go 1.27\nuse .\ngodebug panicnil=0\n")
 	commitAll(t, root, "root workspace")
-	env := append(fixtureEnv(), "GOWORK="+filepath.Join(root, "go.work"))
+	// Observe pins the symlink-resolved root (macOS TempDir sits under /var -> /private/var), and
+	// GOWORK must name that root's go.work, so the fixture names it by the resolved path.
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := append(fixtureEnv(), "GOWORK="+filepath.Join(resolved, "go.work"))
 	observeWorkspace := func() (*Snapshot, Identity) {
 		t.Helper()
 		snapshot, err := Observe(context.Background(), ObserveOptions{Root: root, Env: env})
