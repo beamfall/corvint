@@ -2153,6 +2153,9 @@ CIN-V0-4753	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs;
 CIN-V0-4754	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
 CIN-V0-4755	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
 CIN-V0-4756	docs/specs/ci-narrowing-v0.md	(owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1	owner	2026-11-06; V1-4750
+CIN-V0-5017	docs/specs/ci-narrowing-v0.md	The four advisory `go-macos-shard` partitions SHALL use `max-parallel: 2`.	unrecorded	-
+CIN-V0-5018	docs/specs/ci-narrowing-v0.md	The default-branch `merge-queue-cleanup.yml` SHALL run on main pushes, queue	unrecorded	-
+CIN-V0-5019	docs/specs/ci-narrowing-v0.md	This capacity change SHALL preserve required-status contexts (`go-product`,	unrecorded	-
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-

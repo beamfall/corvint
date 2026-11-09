@@ -172,12 +172,14 @@ jobs:
 
   go-macos-shard:
     # CIN-V0-4625 / V1-4732: independent advisory Darwin selection. No CI dependency.
+    # CIN-V0-5017 (V1-5017): verified DOCS needs no macOS allocation. Unknown/failed
+    # classifiers run all four partitions, at most two at once on the five-slot plan.
     needs: [cadence-plan, docs-plan, narrowing-verdict]
-    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS') }}
     continue-on-error: true
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 2
       matrix:
         shard: [0, 1, 2, 3]
     runs-on: macos-15
@@ -333,7 +335,7 @@ jobs:
 
   go-macos:
     # Stable advisory check name; no required CI job waits for this workflow.
-    needs: [cadence-plan, go-macos-shard]
+    needs: [cadence-plan, docs-plan, go-macos-shard]
     if: ${{ always() }}
     continue-on-error: true
     runs-on: ubuntu-24.04
@@ -342,13 +344,16 @@ jobs:
       - name: Report the routine-change cadence
         if: needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER'
         run: echo 'go-macos shards NOT_RUN under CI cadence DEFER (CIN-V0-4754); the nightly macOS gate runs them.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Report verified documentation-only selection
+        if: needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode == 'DOCS'
+        run: echo 'go-macos shards NOT_RUN; trusted docs-plan verified DOCS (CIN-V0-5017).' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER'
+        if: (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')
         with:
           pattern: macos-selection-shard-*
           path: ${{ runner.temp }}/macos-shards
       - name: Check all four advisory shard outcomes
-        if: needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER'
+        if: (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')
         env:
           SHARD_RESULT: ${{ needs.go-macos-shard.result }}
         run: |
