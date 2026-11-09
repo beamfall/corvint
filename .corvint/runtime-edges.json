@@ -7,16 +7,6 @@
       "reason": "select_test.py dynamically loads darwin_select.py with importlib.util.spec_from_file_location; the native Darwin inventory and narrowing tests exercise this helper (AZU-V0-9920)."
     },
     {
-      "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
-      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-console",
-      "reason": "The installed interactive-alpha proof (internal/companionrelease, roadmap-proof.mjs) runs this Playwright spec against the console corvint-console serves (V1-3571)."
-    },
-    {
-      "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
-      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
-      "reason": "The installed interactive-alpha proof runs this Playwright spec over the roadmap corvint-dashboard-snapshot renders (V1-3571)."
-    },
-    {
       "tests": "internal/doccorpus/testdata/behavior-events/live-1.61.1/tests/",
       "runs": "typescript:internal/doccorpus/testdata/behavior-events/live-1.61.1/server.cjs",
       "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/doccorpus/behavior-events.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."

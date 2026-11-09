@@ -3,8 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `LAC-V0`
-Intent status: accepted (decision 0081)
-Delivery status: experimental (S1, S2 ticket verbs, S3, and the chain pane)
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-console` and `internal/console` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `../../AGENTS.md` invariants 4, 7 and 8, `../PRODUCT.md`,
 `local-observability-dashboard-v0.md` (the six evidence axes and the P1 gate this document answers),
 `../plans/AGENT-TASK-MANAGER-2026-09-04.md`, `corvint-taskman` `docs/SPEC.md` at commit `7bc52a2cf8953931764c57c09fd1b55ec9762e96`
@@ -13,9 +14,9 @@ rendered artifact's own owning specification.
 
 ## Agent digest
 - Claim: A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.
-- Status: accepted (decision 0081)/experimental (S1, S2 ticket verbs, S3, and the chain pane)
-- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..037). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
-- Blocked on: nothing for S1/S2/S3 or the chain pane. U4 — the operator-time measurement against the CLI baseline — still has no instrument.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-console` and `internal/console` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Human intent and scope; Requirements; Trust boundary, limits, and failure modes.
 
 ## Human intent and scope
@@ -383,30 +384,8 @@ measurement outside this package, and the operator-time comparison of U4, which 
 
 ## Traceability
 
-| Requirement | Implementation | Test |
-|---|---|---|
-| LAC-V0-001..005 | `cmd/corvint-console/main.go`, `internal/console/server.go` | `TestConsoleBoundary` |
-| LAC-V0-006..011 | `internal/console/axes.go`, `internal/console/taskman.go` | `TestConsoleAxisPassthrough` |
-| LAC-V0-012..015 | `internal/console/ticket.go`, `internal/console/server.go` | `TestConsoleMutationDelegation` |
-| LAC-V0-016..020 | `internal/console/board.go`, `internal/console/views.go`, `internal/console/code.go`, `internal/console/spec.go` | `TestConsoleRendering`, `TestReadDirtyCheckUsesLiteralPathspec`, `TestHeadKeepsFirstDirtyPath`, `TestReadLabelsUnobservedWorktree` |
-| LAC-V0-021 | `internal/console/server.go` | `TestBrowserBoundaryBeforeTools` |
-| LAC-V0-022 | `internal/console/process.go`, `internal/console/taskman.go` | `TestConsoleExitClassification`, `TestConsoleOverflowCannotAcceptOKEnvelope`, `TestConsoleProcessLifecycle` |
-| LAC-V0-023 | `internal/console/server.go`, `internal/console/process.go` | `TestConsoleHTTPProcessCleanup` |
-| LAC-V0-024 | `internal/console/code.go` | `TestBrowserGitReadsDoNotRunFiltersOrRedirect` |
-| LAC-V0-025 | `internal/console/forms.go`, `internal/console/ticket.go`, `internal/console/views.go` | `TestStructuredForms`, `TestFormLimitsMatchATM`, `TestATMCanonicalFormEscapes` |
-| LAC-V0-026 | `internal/console/views.go`, `internal/console/taskman.go` | `TestConsoleBoundary`, `TestConsoleRendering` |
-| LAC-V0-006..011 and LAC-V0-022 on the S3 panes | `internal/console/evidence.go` | `TestConsoleEvidencePane` |
-| LAC-V0-008 on a stale requirement row | `internal/console/spec.go` (`line`) | `TestSpecLookupReportsLineOutsideFile` |
-| LAC-V0-008 on an absent local artifact | `internal/console/dogfood.go` | `TestConsoleDogfoodPane` |
-| LAC-V0-019, LAC-V0-020 on committed directories | `internal/console/code.go` (`Worktree.List`) | `TestConsoleListingPanes` |
-| LAC-V0-018 on a committed symlink | `internal/console/spec.go` (`readBounded`), `internal/console/dogfood.go` (`ReadDogfood`) | `TestReadBoundedRefusesSymlink`, `TestSpecLookupRefusesSymlinkedParent` |
-| LAC-V0-027 | `internal/console/roadmap.go`, `internal/console/views.go` | `TestRoadmapGroupingAndBlockers`, `TestRoadmapGateResultsNotObserved` |
-| LAC-V0-028 | `internal/console/forms.go`, `internal/console/ticket.go`, `internal/console/server.go`, `internal/console/views.go` | `TestTicketPageOffersOnePrioritizeForm`, `TestSetDependenciesStaleRevisionRefusalKeepsEntries`, `TestSetDependenciesCycleRefusalKeepsEntries`, `TestDependenciesPayloadCanonicalJSON`, `TestDependenciesFormKeepsGateObligation` |
-| LAC-V0-029 | `internal/console/roadmap.go`, `internal/console/views.go` | `TestRoadmapPageFallback`, `TestRoadmapPageOffsetCannotOverflow` |
-| LAC-V0-030 | `internal/console/links.go`, `internal/console/server.go`, `internal/console/views.go` | `TestConsoleRequirementCodeLinks`, `TestConsoleTruncatedSpecIsPartialNotAbsent` |
-| LAC-V0-031 | `cmd/corvint-console/main.go`, `internal/console/code.go` (`RequireToplevel`) | `TestConsoleRootMustBeGitToplevel` |
-| LAC-V0-032 | `internal/console/server.go`, `internal/console/render.go`, `internal/console/views.go` | `TestRoadmapSafeAutoRecheck` |
-| LAC-V0-033..036 | `internal/console/chain.go`, `internal/console/server.go`, `internal/console/views.go`, `internal/console/render.go` | `TestConsoleChainComplete`, `TestConsoleChainGaps`, `TestConsoleChainTextMatchDecoy`, `TestConsoleChainHostileContent`, `TestConsoleChainKeyboardNavigation` |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/local-admin-console-v0.md`.
 
 Current executable compatibility is owned by CRB-V0-015. The console accepts explicit `--tasks`
 and the legacy `--atm` fallback with equality/conflict/empty handling before any child starts. Its

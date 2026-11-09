@@ -137,7 +137,7 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 // not edited.
 const catalogDriftHint = "; the embedded catalog is stale: run `make capability-catalog` and commit internal/capcatalog/"
 
-// MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
+// MCPV0-105: the corvint.help answer that corvint-docs-mcp
 // and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
 // CLI's own stdout byte for byte, for both topics, in structuredContent. Each
 // server's wire test holds its answer equal to bridge.HelpToolResult's.

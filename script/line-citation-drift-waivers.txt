@@ -12,8 +12,12 @@ docs/decisions/0170-local-completion-intents-pin-at-enrollment-head-2026-09-12.m
 #
 # decision 0158 (off-limits document; its three citations below drifted by one line each):
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/worksource/git.go:191
-docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/dashboard/roadmap/atm.go:131
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/localcompletion/storage.go:429
+# decision 0594 de-cited 0158's deleted dashboard/console rows; that edit surfaced three older
+# blank-line drifts in the same table, waived here rather than rewriting the decision body:
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/gokernel/repository.go:198
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:422
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	conformance/release-artifact-v0/archive_run.go:456
 #
 # decision 0522 (existing decision bodies stay unedited): install.go:109 changed only its pinned
 # toolchain literal go1.27.1 -> go1.27.2; the exact-banner sentences in 0375 and 0384 still hold.

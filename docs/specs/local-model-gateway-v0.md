@@ -3,17 +3,18 @@
 Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `LMG-V0`
-Intent status: experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the invariant-7 carve-out is pending owner decision (V1-4037)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-gateway` and `internal/modelgateway` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `local-admin-console-v0.md` (the
 loopback-only, operator-started precedent, decision 0081), native tickets V1-4021, V1-4031 to
 V1-4033, V1-4035, V1-4037 and V1-4055.
 
 ## Agent digest
 - Claim: A loopback-only, operator-started proxy for the Messages API can record per-request token usage and fold oversized Bash output deterministically.
-- Status: experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the invariant-7 carve-out is pending owner decision (V1-4037) / experimental
-- Exists: `cmd/corvint-gateway` (`serve`, `report`) and `internal/modelgateway` (`Proxy`, `Folder`, usage ledger, `CacheBreaks`, `FilterSession`); tests named for each requirement.
-- Blocked on: savings are unmeasured until the paired trial (V1-4032); acceptance of the carve-out (V1-4037).
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-gateway` and `internal/modelgateway` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Trust boundary and failure modes; Rollback.
 
 ## Intent and scope
@@ -153,18 +154,8 @@ operator can add the archive directory to the session's allowed directories.
 
 ## Acceptance evidence and traceability
 
-| Requirement | Evidence |
-|---|---|
-| LMG-V0-001, LMG-V0-002 | `TestLMGV0002RefusesNonLoopback`, `TestLMGV0002UpstreamScheme` |
-| LMG-V0-003 | `TestLMGV0003PassthroughByteForByte`, `TestLMGV0003StreamsAndNoRedirect`, `TestLMGV0005FoldSplicesOnlyFoldedText`, `TestLMGV0009TruncatedStreamAborts` |
-| LMG-V0-004 | `TestLMGV0004LedgerFromStream`, `TestLMGV0004LedgerFromJSON`, `TestLMGV0004MultiLineEventsAndGzip` |
-| LMG-V0-005 to LMG-V0-008 | `TestLMGV0005FoldIsDeterministic`, `TestLMGV0005FoldSplicesOnlyFoldedText`, `TestLMGV0006OnlyBashResultsFold`, `TestLMGV0007GoTestNoiseAndWindows`, `TestLMGV0007LongLineCutOnRuneBoundary`, `TestLMGV0008ArchiveReplacesStaleEntry`, `TestLMGV0008ArchiveFailureForwardsUnfolded` |
-| LMG-V0-009 | `TestLMGV0009MalformedBodyPassesThrough`, `TestLMGV0009OversizeRefused`, `TestLMGV0009TruncatedStreamAborts` |
-| LMG-V0-010 | `TestLMGV0010Report` |
-| LMG-V0-011 | `TestLMGV0011LedgerPrefixKeys` |
-| LMG-V0-012 | `TestLMGV0012CacheBreaks` |
-| LMG-V0-013 | `TestLMGV0013ClaudeSessionKey` |
-| LMG-V0-014 | `TestLMGV0014FilterSession`, `TestLMGV0014ReportSession` |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/local-model-gateway-v0.md`.
 
 Live qualification (V1-4021): a Claude Code print-mode run with `ANTHROPIC_BASE_URL` pointing at
 the gateway succeeds and writes ledger lines; recorded in the delivering build-log entry.

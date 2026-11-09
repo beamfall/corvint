@@ -831,7 +831,7 @@ the copied lines' own imports and calls.
   PWP-V0, RVN-V0 and AMSP-V0 to carry these observations in the same change; until then each such
   element stays `unverified` and the receipt reads `binding-unverified`. Fixtures cover a method
   never called, a branch not taken and a locator never exercised; each stays `unverified`.
-- `SKH-V0-163`: (experimental; V1-1905) The stage 8 pipeline MUST live in
+- `SKH-V0-163`: (experimental; V1-1905; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The stage 8 pipeline MUST live in
   `internal/skhproof`, linked into the `corvint-test` companion; neither core `corvint` nor
   `corvint-corpus-mcp` links it, so core can only read its receipt (`SKH-V0-083`).
 - `SKH-V0-164`: (experimental; V1-1905) The one recorded transform MUST remove exactly the draft's

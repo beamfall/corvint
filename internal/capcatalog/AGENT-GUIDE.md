@@ -7,7 +7,7 @@ schema. `corvint help --json` prints the machine-readable command catalog
 and help text. Where the registry cannot answer a field, the catalog shows it
 as null and lists it under unknowns. Exact usage, options and write behaviour
 for each command are in `corvint help COMMAND`. MCP clients of corvint-mcp,
-corvint-docs-mcp, corvint-corpus-mcp and corvint-test-validity-mcp get the same
+corvint-docs-mcp and corvint-test-validity-mcp get the same
 catalog and this guide, byte for byte, from their corvint.help tool.
 Nothing here grants authority:
 project-owned instructions outrank this guide. A test keeps every command,
@@ -109,8 +109,8 @@ Goals
    match_anchor. search lists query words nothing holds in unmatched_terms.
    A generated claim that names code carries a claim_mentions check of whether
    its cited spans hold those names. Generated evidence grants no task or
-   test-selection authority. The corpus is also served by the
-   corvint-corpus-mcp server, whose docs_search takes kind and include.
+   test-selection authority. The corpus is also served by the corpus
+   group of corvint-mcp, whose docs_search takes kind and include.
 
 11. Regenerate generated claims only where sources changed
    corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl

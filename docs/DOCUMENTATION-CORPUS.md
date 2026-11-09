@@ -940,8 +940,8 @@ Blob `"82d76676049dd1a450c91414f16ad164eb98288d"`; sha256 `"cba4af9f62351c59303c
 <!-- corvint:docmaintain end -->
 ## Separate MCP profile
 
-Build `./cmd/corvint-corpus-mcp` explicitly and start it with `--root /absolute/repository --artifact
-corpus.json`. It serves stdio only. Validated capabilities gate ten possible read tools: `docs_info`,
+Serve the corpus through the corpus group of `corvint-mcp` (`--tool-profile corpus --corpus-artifact
+ALIAS=PATH`); the separate corpus server was removed by decision 0594. It serves stdio only. Validated capabilities gate ten possible read tools: `docs_info`,
 `docs_search`, `docs_get`, `docs_locate`, `docs_find_related`, `docs_coverage`, `docs_gaps`,
 `docs_get_journey`, `docs_get_stability`, `docs_trace`, each prefixed `corvint.`. Present-zero capabilities are callable;
 absent capabilities are not advertised. Calls revalidate source/artifact identity. Changing the

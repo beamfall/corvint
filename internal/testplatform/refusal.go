@@ -36,7 +36,6 @@ var PlatformRefusals = []PlatformRefusal{
 	{"nonblocking confined shard reads unsupported on this platform", "internal/contextindex/blob_shards_open_unsupported.go"},
 	{"confined shard publication unsupported on this platform", "internal/contextindex/blob_shards_open_unsupported.go"},
 	{"git index stat routing is unsupported on this platform", "internal/contextindex/index_stat_other.go"},
-	{"file-transport-platform-unsupported", "internal/postmergeconnector/files_other.go"},
 	{"unsupported executable platform", "internal/analyzerexec/platform_other.go"},
 	{"receipt reads are unsupported on this platform", "internal/testvaliditydoc/platform.go"},
 	{"docs corpus reads are unsupported on this platform", "internal/doccorpus/encoding.go"},

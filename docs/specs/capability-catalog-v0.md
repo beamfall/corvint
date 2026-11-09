@@ -497,7 +497,7 @@ cannot silently go missing or outlive its command.
   corvint's `help --tree` spelling; `help --json` stays. Non-goals: nested-operation slices, paging
   the full catalog. Falsifier: a command whose slice exceeds the bound, a slice whose entry differs
   from the catalog's other than the omitted statements, or a `--tree` that differs from `--json`.
-- `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499) Every companion
+- `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-corpus-mcp`, `corvint-dashboard-snapshot`) Every companion
   binary a release ships beside `corvint` and `corvint-tasks` (`corvint-console`, `corvint-update`,
   `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-corpus-mcp`,
   `corvint-dashboard-snapshot`, `corvint-web-flows`) MUST answer, through `internal/companioncli`,
@@ -519,7 +519,7 @@ cannot silently go missing or outlive its command.
   independent `0.1.0-experimental` release line except for native analyzers.
   The two version forms retain their shape.
 - `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended by
-  ACX-V0-904) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
+  ACX-V0-904; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
   and exit 2 before it reads a repository or listens; `corvint-update` MUST refuse an action other
   than `check`, `apply` or `rollback` (including none) with exit 2 before it reads state, an unknown
   operation word with the shared ACX-V0-904 envelope, which names `corvint-update --help`, and any
@@ -582,7 +582,7 @@ cannot silently go missing or outlive its command.
   a verb is accepted there and ignored, as before. Rollback: restore the two ratchet rows and the
   ceiling of 52, delete the two snapshots, their `commandTreeRefs`, `llms.txt`, Makefile and
   Command trees entries, the two `help.go` files and `clitree.Answer`.
-- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-intake`, `corvint-postmerge-connect`, `corvint-postmerge-metrics`, `corvint-postmerge-workflow`)
   Every ratchet binary whose dispatch code matches a subcommand word MUST ship a command tree:
   `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-go-test-provider`,
   `corvint-intake`, `corvint-js-test-provider`, `corvint-postmerge-connect`,

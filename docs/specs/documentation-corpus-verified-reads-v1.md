@@ -282,7 +282,7 @@ proposed, experimental; GitHub #1598.
   `TestDCRV1431StreamedReadReusesBlocks`, `TestDCRV1431StreamedLongValue`,
   `TestDCRV1431OpenReadFile`, `TestDCRV1431StreamedTruncationAtWindowEnd`,
   `TestDCRV1431CorpusRefusalJoinsFreshness`, `TestDCRV1414ParallelDecodeMatchesClosedDecode`, `TestDCRV1413CorpusReadsWithoutRederivation`.
-- `DCR-V1-432`: Every remaining reader of a retained artifact either takes the verified read of
+- `DCR-V1-432`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/corpusindex`, `internal/corpusrepublish`) Every remaining reader of a retained artifact either takes the verified read of
   `DCR-V1-410` or rederives for a recorded reason (the `delta` exception of `DCR-V1-410` is
   amended by `DCR-V1-460`, not here):
   - a native read joined with `--corpus=FILE` (`query`, `context`, `impact`, `affected`,

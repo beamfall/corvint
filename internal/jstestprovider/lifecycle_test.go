@@ -21,7 +21,7 @@ import (
 )
 
 // serverFixture is the pidfile shell-child pattern from
-// internal/console/lifecycle_test.go's ownedFixture, adapted to stand in for
+// the former internal/console ownedFixture (deleted by decision 0594), adapted to stand in for
 // the app server RunE2E owns: it backgrounds one long-lived "descendant"
 // (standing in for a node http server or a browser process), records that
 // descendant's pid, and answers SIGINT/SIGTERM the way a well-behaved

@@ -315,7 +315,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   explicit non-loopback exposure requires `--allow-remote` and an operator-owned external TLS/auth
   boundary. Shutdown retires the listener and in-flight requests. Local conformance is not external
   deployment/authentication/security/interoperability qualification; those axes stay NOT_OBSERVED.
-- `DCP-V1-043`: The `corvint-corpus-parity` companion is qualified through its own command boundary.
+- `DCP-V1-043`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-parity`) The `corvint-corpus-parity` companion is qualified through its own command boundary.
   Every read, producer, open, query, comparison or encoding failure exits nonzero with empty stdout
   and a stderr diagnostic; no failure may exit zero with an absent or partial artifact. Two command
   builds from identical inputs emit byte-identical indexed artifacts; query emits the trust-enveloped
@@ -697,7 +697,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   sha256 and case count), `state` `found` or `none-found`, and the cases whose searched text was
   bounded. A `none-found` therefore states what was searched and what was not read. Expected results
   are not searched, and the receipt says so.
-- `DCP-V1-077`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #812)) The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read-only
+- `DCP-V1-077`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #812); amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The separate `corvint-corpus-mcp`, started with `--legacy-cases`, lists the read-only
   tool `corvint.docs_search_cases` with the closed arguments `format`, `input`, `query` and
   `limit`. The tool returns the CLI's exact `search-cases` bytes framed as untrusted repository
   data, with the receipt as structured content. Without the flag, the tool list is unchanged.
@@ -1115,7 +1115,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `gaps` and `coverage` receipts keep their bytes. Incremental warm reuse falls back to a full
   import for a shard that carries supplied gaps.
 - `DCP-V1-205`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1256;
-  V1-1997)) `corvint-corpus-mcp --artifact` also accepts an absolute path below `--root`. The
+  V1-1997); amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) `corvint-corpus-mcp --artifact` also accepts an absolute path below `--root`. The
   server rewrites it to the equivalent root-relative path before startup, so the session opens the
   same file through the same bounded reader and serves the same bytes as the relative spelling. A
   relative value is unchanged. Each `--map` takes the same rewrite before its planner loads it
@@ -1127,12 +1127,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   of the artifact path. The bounded reader still refuses a root-relative path that escapes the
   root through a symlink.
 - `DCP-V1-207`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1256;
-  V1-1997)) An absolute `--artifact` that is not strictly below `--root` (outside it, or the root
+  V1-1997); amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) An absolute `--artifact` that is not strictly below `--root` (outside it, or the root
   itself) exits 2 before any read with `corvint-corpus-mcp: --artifact: absolute path is not below
   --root`, not the generic `repository unavailable` refusal; such a `--map` exits 2 with
   `corvint-corpus-mcp: --map: absolute path is not below --root` (V1-1998). The `corvint docs corpus` CLI keeps
   its `DCP-V1-054` refusal of absolute local input paths; this requirement does not change it.
-- `DCP-V1-242`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1228) A relative
+- `DCP-V1-242`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1228; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) A relative
   `corvint-corpus-mcp --artifact` that breaks a `DCP-V1-054` local input path rule exits 2 before any
   read with `corvint-corpus-mcp: --artifact: local input paths must be canonical and relative to
   --root (<rule>)`, naming the argument and the rule, not the generic `repository unavailable`
@@ -1505,7 +1505,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   detail, in subject ID order and paged; an `intent` with an id answers as before. A present but
   empty id is refused. Acceptance: `TestDCPV1319IntentListing`,
   `TestDCPV1318StatusAndIntentListingCLIParity`.
-- `DCP-V1-320`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-2329, V1-2371) The
+- `DCP-V1-320`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1570; V1-2329, V1-2371; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-http`) The
   `corvint-corpus-http-refusal/1` `trust_envelope` and the corpus MCP tool-failure envelope carry
   `verified_at: null` and the limitation `verified_at is null: the request was refused; no
   verification is recorded`, as every answered envelope does under `DCP-V1-283`. Acceptance:
@@ -1635,7 +1635,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   paging, zero for a kind with none. Without `kind` the receipt is unchanged. Acceptance:
   `TestDCPV1284GapsKindFilter`.
 - `DCP-V1-285`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1493;
-  V1-2330) `corvint-corpus-mcp --outcome-log FILE` is off by default and, when given, records
+  V1-2330; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) `corvint-corpus-mcp --outcome-log FILE` is off by default and, when given, records
   every `tools/call` in `corvint-corpus-outcomes/1`: the configured artifact digest, the UTC
   window of recorded calls, and per tool name the call count, outcome counts (`answered`, a
   receipt miss kind `no-match`, `empty`, `evidence-not-found`, `page-exhausted` or
@@ -1646,7 +1646,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   restart continues a log for the same artifact; a foreign, malformed, inconsistent or oversized
   (1 MiB) log refuses startup. Acceptance: `TestDCPV1285OutcomeLogAggregatesWithoutRequestText`.
 - `DCP-V1-286`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1493;
-  V1-2330) `corvint-corpus-mcp --outcome-summary FILE [--floor FLOOR]` prints the answered share
+  V1-2330; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) `corvint-corpus-mcp --outcome-summary FILE [--floor FLOOR]` prints the answered share
   overall and per tool. FLOOR is JSON `{"answered_share", "tolerance", "tools"?}` with shares in
   [0, 1]; the command exits 1 naming each regression when the overall or a floored tool's answered
   share is below its floor minus the tolerance, or that scope has no recorded call, and exits 2 for
@@ -2027,7 +2027,7 @@ they map to the `info` result plus the embedded manifest, to `freshness` (`fresh
   untracked file, therefore forces a new overlay. A probe modified inside the 2-second racy window
   gets a key no later observation equals. An artifact without probes keeps the prior key.
   Acceptance: `TestDCPV1577ProbeChangesObservation`.
-- `DCP-V1-578`: (proposed; GitHub #1836; V1-2730) The `info` and `validate` result lists
+- `DCP-V1-578`: (proposed; GitHub #1836; V1-2730; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-republish`) The `info` and `validate` result lists
   `inputs_as_of` when any input declares `as_of`. Each entry has `path`, `revision`, `purpose`,
   `as_of`, `state`, an optional `live` position, `lag` and `lag_unit` when measurable, and
   `reason`. A republish (`corvint-corpus-republish`) can be chosen from that list. Wiring that tool
@@ -2105,7 +2105,7 @@ declaration (`docs/specs/workspace-declaration-v0.md`, `workspace.Load`) rather 
   `TestDCPV1604DocsCorpusWorkspaceManifest`, `TestDCPV1604DocsCorpusWorkspaceTraceAndGaps` and
   `TestDocsCorpusOperationFlagMatrix` (`cmd/corvint`).
 
-- `DCP-V1-606`: (proposed; V1-3006; experimental under the standing lane auto-accept) The
+- `DCP-V1-606`: (proposed; V1-3006; experimental under the standing lane auto-accept; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-http`) The
   companions' artifact and request reads (`corpusindex.ReadFile` and `ReadFileContext`) MUST
   refuse a path that is not a regular file from its metadata before opening it, open without
   blocking (`O_NONBLOCK` on Darwin and Linux) and require the opened descriptor to be that regular
@@ -2167,7 +2167,7 @@ counts as a path, here and for `docs_claims` (`DCP-V1-313`). A locate query rank
   subject's line anchors in anchor order, each as `{repository, path, start_line, end_line,
   symbol?}`. An anchor without a line span is not listed. Every other receipt omits the member and
   keeps its bytes.
-- `DCP-V1-652`: (proposed; GitHub #1973; V1-3071; experimental under the standing lane auto-accept)
+- `DCP-V1-652`: (proposed; GitHub #1973; V1-3071; experimental under the standing lane auto-accept; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`)
   Started without `--protocol-version`, `corvint-corpus-mcp` speaks 2026-07-28. It answers a
   2025-11-25 `initialize` with `-32602`, the unsupported-version code a 2025-11-25 client expects,
   not `-32601`. The message names the version it speaks and the flag
@@ -2186,7 +2186,7 @@ counts as a path, here and for `docs_claims` (`DCP-V1-313`). A locate query rank
   `TestDCPV1650DocsLocateQuery` (`internal/mcp/corpusbridge`),
   `TestDCPV1652LegacyInitializeNamesVersionAndFlag` (`internal/mcp/server`) and
   `TestDCPV1652LegacyInitializeWithoutFlagNamesIt` (`cmd/corvint-corpus-mcp`).
-- `DCP-V1-653`: (proposed; GitHub #1977; V1-3080; experimental under the standing lane auto-accept)
+- `DCP-V1-653`: (proposed; GitHub #1977; V1-3080; experimental under the standing lane auto-accept; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`)
   Amending `DCP-V1-016` for `corvint.docs_search` only: `corvint-corpus-mcp` answers it with the
   compact receipt by default, in both the structured content and the framed text. The receipt is
   derived from the full receipt by `DCP-V1-654` and `DCP-V1-655` and carries
@@ -2199,7 +2199,7 @@ counts as a path, here and for `docs_claims` (`DCP-V1-313`). A locate query rank
   serves them. Amending `DCP-V1-328`, the `docs_search` `include` argument is a non-empty,
   duplicate-free list of `claims` and `capabilities`. `capabilities` keeps the member in a compact
   receipt; the corpus query sees `include ["claims"]` only when `claims` is listed.
-- `DCP-V1-655`: (proposed; GitHub #1977; V1-3080; experimental under the standing lane auto-accept)
+- `DCP-V1-655`: (proposed; GitHub #1977; V1-3080; experimental under the standing lane auto-accept; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`)
   A compact receipt has a top-level `anchors` table. It lists each distinct anchor once, by exact
   member equality, in first-seen order over `citations`, each result's `evidence.anchors`, the
   trust envelope's `citations`, then `result_ranks` in result id order (`match_anchor`,

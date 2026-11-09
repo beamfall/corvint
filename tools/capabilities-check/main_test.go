@@ -74,7 +74,7 @@ func TestCAPV0002RepositoryCatalogMatchesInventory(t *testing.T) {
 // that silently returns nothing cannot pass the gate.
 func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	inv, _, _ := load(t)
-	if len(inv.Commands) < 40 || len(inv.Binaries) < 40 || len(inv.Tools) < 30 {
+	if len(inv.Commands) < 40 || len(inv.Binaries) < 20 || len(inv.Tools) < 30 {
 		t.Fatalf("inventory too small: %d commands, %d binaries, %d tools", len(inv.Commands), len(inv.Binaries), len(inv.Tools))
 	}
 	for _, c := range []string{"init", "context", "harness event", "delta"} {
@@ -100,7 +100,7 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 			t.Errorf("binary %q not collected", b)
 		}
 	}
-	for _, tool := range []string{"corvint.query", "corvint.cem.report", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace", "corvint.map_plan"} {
+	for _, tool := range []string{"corvint.query", "corvint.cem.report", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
 		if !contains(inv.Tools, tool) {
 			t.Errorf("MCP tool %q not collected", tool)
 		}

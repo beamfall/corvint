@@ -38,10 +38,7 @@ func TestRepositoryBuiltReaderDeclarations_AFPV0873(t *testing.T) {
 		t.Fatal(err)
 	}
 	for pkg, built := range map[string][]string{
-		"internal/perfbudget": {"./cmd/corvint", "./cmd/corvint-corpus-mcp"},
-		// AFP-V0-3361: the producer runs only over disposable fixtures;
-		// its complete current build closure remains a real repository read.
-		"conformance/dashboard-snapshot-v0": {"./cmd/corvint-dashboard-snapshot"},
+		"internal/perfbudget": {"./cmd/corvint"},
 	} {
 		entries := declared.Packages[pkg]
 		if len(entries) == 0 {

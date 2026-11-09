@@ -863,7 +863,7 @@ outside every other read of `main_test.go`. The two requirements below replace t
   of this repository's targets are identical for linux, darwin and windows (measured), and a target
   whose closure differs by platform declares the union.
 - **AFP-V0-3151:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-4993 review round 1; applies AFP-V0-3150 to this repository's declaration) The packages whose
+  V1-4993 review round 1; applies AFP-V0-3150 to this repository's declaration; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The packages whose
   only remaining reason to keep `internal/` was a modelled closure SHALL declare their closures:
   `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `conformance/cli-parity-v0`,
   `conformance/mcp-2026-07-28`, `conformance/mcp-test-validity-v0`,
@@ -2704,7 +2704,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
 
 ### Fixture-only dashboard readers (V1-5180)
 
-- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180)
+- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/dashboard`)
   `internal/dashboard/repository.openDirectory` SHALL open the first absolute path component
   directly instead of reading the filesystem root merely to traverse it. Before binding it,
   the opener SHALL refuse a symlink or non-directory; the opened descriptor and a second
@@ -2712,7 +2712,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
   components retain the existing descriptor-relative no-follow walk. An explicit request for
   the filesystem root SHALL still require reading that root. This removes the fixture tests'
   confinement blocker without granting any extra repository reads.
-- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180)
+- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/dashboard`, `conformance/dashboard-snapshot-v0`, `corvint-dashboard-snapshot`)
   The existing `.corvint/test-read-scopes.json` SHALL bound `internal/dashboard/repository` to
   its implicit own subtree and `go.mod`, used to build its own standard-library-only process
   fixture; it SHALL bound `conformance/dashboard-snapshot-v0` to its implicit own subtree,

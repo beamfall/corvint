@@ -19,8 +19,6 @@
     "internal/cemcandidate -> internal/testrunner",
     "internal/cemdiscriminate -> internal/liveverify/mutate",
     "internal/cemdiscriminate -> internal/liveverify/rbmutate",
-    "internal/corpusindex -> internal/doccorpus",
-    "internal/corpusrepublish -> internal/postmergeconnector",
     "internal/delta -> internal/doccorpus",
     "internal/delta -> internal/extevidence",
     "internal/delta -> internal/flowdocs",

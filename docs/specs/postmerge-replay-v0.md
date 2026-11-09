@@ -2,17 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-workflow` and `internal/postmergeworkflow` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human issue https://github.com/beamfall/corvint/issues/395,
 native V1-0542 revision 5; decision 0373; `AGENTS.md`; contracts `postmerge-connectors-v0.md`
 (issue #392) and the documented `corvint delta` record of issue #389.
 
 ## Agent digest
 - Claim: An optional companion runs a pinned local adapter twice and compares typed historical expectations through the actual recording connector.
-- Status: proposed/experimental harness; whole-workflow qualification `NOT_OBSERVED`.
-- Exists: `internal/postmergeworkflow/`, `cmd/corvint-postmerge-workflow/`.
-- Blocked on: actual delta/scope/validation stage integration and CI host containment evidence; the author and draft stages replay with outward writes recorded, not performed (`PMR-V0-940`..`943`, V1-0805).
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-postmerge-workflow` and `internal/postmergeworkflow` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Trust and limits; Acceptance and rollback.
 
 On 2026-10-05 the owner accepted the delivered scope of #395 and closed it (and parent #388) with the
@@ -157,22 +158,8 @@ snapshot and its digest; adapter stdin contains only identity and digests.
 Run `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/postmergeworkflow ./cmd/corvint-postmerge-workflow`
 and focused vet. The conformance helper is explicitly synthetic and never a historical human label.
 
-| Requirements | Evidence |
-|---|---|
-| PMR-V0-001 | `TestClosedJSON`, `TestPinsAndSelector`, `TestReplayBlocks` |
-| PMR-V0-002 | `TestPinsAndSelector`, actual disposable Git commits in `setup` |
-| PMR-V0-003 | `TestHumanRegistryCannotSelfPromote`, `TestReplayMismatchBasis` |
-| PMR-V0-004 | `TestReplayActualRecording`, `TestCancellationRetiresDescendant` (Darwin/Linux) |
-| PMR-V0-005 | `TestReplayBlocks`, `TestReplayDeferredAuthoringStages`; positive author/scope/validation NOT_PRODUCED |
-| PMR-V0-006 | `TestReplayActualRecording`, `TestReplayTwiceIdenticalRecording`, nondeterministic case of `TestReplayBlocks` |
-| PMR-V0-007 | `TestReplayMismatchBasis`, `TestReplaySeparatesHumanVerifiedMismatches`, `TestReplayDeferredAuthoringStages` |
-| PMR-V0-008 | `TestCLIReplay`; full integration and whole-workflow acceptance NOT_PRODUCED |
-| PMR-V0-940 | `TestReplayAuthorAndDraftStages`, `TestReplayAuthoredBlocks` |
-| PMR-V0-941 | `TestReplayAuthorAndDraftStages` (recording holds `upsert-draft-change`, product unchanged), `TestReplayAuthoredBlocks` |
-| PMR-V0-942 | `TestReplayAuthorAndDraftStages` |
-| PMR-V0-943 | `TestHistoricalReplayCampaign`; results recorded by V1-0805, mismatches retained |
-| PMR-V0-009 | Adapter protocol in `TestAdapterHelper`; actual `corvint delta` integration NOT_PRODUCED (issue #389 not on base) |
-| PMR-V0-960 | `TestPMRV0960EncodeIDRoundTrip` (`internal/postmergeworkflow/id.go`); `corvint-postmerge-workflow encode-id` |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/postmerge-replay-v0.md`.
 
 ## Non-goals and rollback
 

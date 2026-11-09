@@ -2533,7 +2533,7 @@ and container qualification; full fallback remains available.
   these readers that opens `/`, or a declared package whose confined CI run fails on a read outside
   its scope. Rollback: revert the readers to `os.OpenRoot("/")` and `O_RDONLY` and restore the
   ratchet units and scopes.
-- **AFP-V0-156:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2162))
+- **AFP-V0-156:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2162); amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/postmergeconnector`)
   A root check that only needs to prove a directory is the top of a Git worktree MUST NOT name the
   repository-root locator option of AFP-V0-012 rule (d). It MUST run `git rev-parse
   --is-inside-work-tree --show-prefix` in the directory and accept exactly `true`, newline, empty
@@ -4890,7 +4890,7 @@ selected package unrun. The full fallback is unchanged.
   selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
   names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
 - **AFP-V0-725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571;
-  amending `AFP-V0-446` and `AFP-V0-818`) A located, unpinned TypeScript
+  amending `AFP-V0-446` and `AFP-V0-818`; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) A located, unpinned TypeScript
   `typescript:e2e-runtime-dependency` site whose file a unit under a `testdata` directory owns
   SHALL be that unit's own frontier, under the same conditions (i) and (ii) of `AFP-V0-446` and
   with the same promotion back to the plugin when no Go unit hosts the directory, unless an
@@ -5739,7 +5739,7 @@ one-line spec, `REQUIREMENTS.tsv` or Makefile edit selected about 70 units, 42 o
 unbounded floor that every change selects, though most of those packages read only Go source.
 
 - **AFP-V0-873:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
-  V1-3587, V1-3788) `internal/perfbudget` and `internal/opencodequalification`, whose tests
+  V1-3587, V1-3788; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`, `internal/postmergehost`, `internal/postmergeworkflow`, `conformance/dashboard-snapshot-v0`) `internal/perfbudget` and `internal/opencodequalification`, whose tests
   `go build` repository binaries (`./cmd/corvint`, `./cmd/corvint-corpus-mcp`,
   `./tools/qualify-opencode`), SHALL carry AFP-V0-023 declarations that name `go.mod`, `go.sum`
   and directory entries covering every non-standard directory of those builds' import closure,

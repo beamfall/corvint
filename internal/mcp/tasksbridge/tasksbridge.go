@@ -63,7 +63,7 @@ type Group struct {
 }
 
 // Locate resolves corvint-tasks as the Corvint companion binaries are
-// resolved (cmd/corvint-console): beside the running executable, after
+// resolved: beside the running executable, after
 // symlinks, and then on PATH. It returns "" when neither has it, and a call
 // then fails CodeBinaryUnavailable instead of running Tasks in process.
 func Locate() string {
