@@ -3550,6 +3550,7 @@
       "cmd/",
       "docs/LANE-ORCHESTRATION.md",
       "internal/",
+      "internal/dogfoodflow/",
       "script/",
       "tools/"
     ],
