@@ -113,7 +113,7 @@ takeover outcome is deferred post-1.0 (amendment 2026-10-21).
 Companion packaging alone does not qualify a capability. Companion list:
 
 - Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
-- MCP servers: `corvint-mcp`, `corvint-test-validity-mcp` (decision 0594 retired `corvint-docs-mcp`).
+- MCP servers: `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`.
 - Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, the experimental
   `corvint-ruby-test-provider`, and `corvint test-validity`.
 - Automatic documentation: `corvint docs` drafting, watch and apply.
@@ -177,11 +177,11 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint work`, `observations`, `prove-observe`, internal `dogfood-observe` | experimental | Observation ledgers; never inputs to ranking or authority (invariant 4). |
 | `corvint features`, `overview`, `review` | experimental | First-use guidance already labelled experimental (`PUB-V0-017`). |
 | `corvint flows` | required 1.0 companion (decisions 0385, 0426) | Flow map, gaps, impact, safe navigation (`flows navigate`) and evidence-bound docs (`flows docs`, `flows docs maintain`) (`AFU-V1`); `flows docs maintain` follows the experimental `flow-document-maintenance-v0.md` contract (decision 0451). Exact-candidate qualification remains required. |
-| `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads` (decision 0594 retired `skill-export`) | experimental | Help text already labels them experimental. |
+| `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads`, `skill-export` | experimental | Help text already labels them experimental. |
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
 | `corvint-tasks` | companion | Native task store with its own qualification, built and released from `beamfall/corvint-tasks` and no longer bundled with Core (decision 0594). The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is a stable 1.0 requirement again (amendment 2026-10-22); no takeover claim until its production completion and owner switch are retained. |
-| `corvint-mcp` (decision 0594 retired `corvint-docs-mcp`) | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
+| `corvint-mcp`, `corvint-docs-mcp` | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
 | `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2` or `/3`, not Core. |
 | `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
@@ -189,7 +189,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-companion-release`, `corvint-public-release-check` | retired 2026-11-09 (decision 0594) | Deleted with the companion bundle; the Core source archive and stable readers moved to `internal/corerelease`. |
 | `corvint-release-gate`, `corvint-pulse` | retired 2026-11-06 (V1-4747 AC3) | Deleted: no caller. `internal/releasegate` stays for the hostile-regression row. |
 | `corvint-test`, `corvint-tests-accept`, `corvint-behavior-falsify`, `corvint-playwright-minimize` | retired 2026-11-09 (decision 0593) | Deleted with the E2E proof lab. |
-| `corvint-work-queue` (decision 0594 retired `corvint-web-flows`) | experimental | Prototypes with proposed or experimental specs. |
+| `corvint-web-flows`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-console`, `corvint-dashboard-snapshot`, `corvint-gateway`, `corvint-intake`, `corvint-remote-provider`, `corvint-corpus-*`, `corvint-postmerge-*` | retired 2026-11-09 (decision 0594) | Deleted with the hosted surfaces. |
 | `corvint-analyzer-*` external analyzer binaries and `corvint-go-toolchain-receipt` | deferred | Analyzer candidate profiles are deferred; Core analysis is the in-binary kernel. |
 | `corvint-analyzer-structured-data` | rejected | Its candidate spec is rejected as specified. |

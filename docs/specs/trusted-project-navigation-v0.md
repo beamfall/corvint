@@ -1,15 +1,11 @@
 # Trusted Project Navigation V0
 
-Intent status: retired 2026-11-09 (decision 0594)
-Delivery status: retired
-Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
-Retirement note: decision 0594 (the test-selection refocus) deleted the `docs nav --trusted-project`
-command (4663b4e2b is the last tree with them). The body below is historical and its requirement IDs
-stay for traceability.
+Intent status: accepted (owner approval, 2026-09-28)
+Delivery status: experimental
 
 ## Agent digest
 - Claim: Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.
-- Status: retired 2026-11-09 (decision 0594) / retired
+- Status: accepted (owner approval, 2026-09-28) / experimental.
 - Exists: separate `corvint docs nav --trusted-project` profile; no change to admitted plan-only or capsule execution.
 - Blocked on: no blocked requirement in this profile; capsule, site-build and offline qualification remain separate.
 - Read next: Requirements; Wire and execution; Acceptance and rollback.
