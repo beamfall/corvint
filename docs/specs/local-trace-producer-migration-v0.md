@@ -14,7 +14,7 @@ Authoritative inputs: the 2026-08-23 owner delegation; `docs/DOGFOOD.md`;
 
 ## Agent digest
 - Claim: Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally.
-- Status: accepted/experimental; LTPM-V0-011 accepted and implemented experimentally 2026-09-01; LTPM-V0-012 accepted by the owner and implemented experimentally 2026-09-27; LTPM-V0-015/016 (trace producer provenance) owner-selected 2026-10-04, decision 0429, implemented experimentally
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the trace producer, bounded legacy reader, explicit migration contract, and exact dogfood changed-path admission.
 - Blocked on: independent migration qualification and promotion; automatic migration remains unauthorized.
 - Read next: User and measurable job; Verified current state; Public commands.
