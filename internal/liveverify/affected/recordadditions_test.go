@@ -28,7 +28,7 @@ func recordWrite(t *testing.T, root, name, body string) {
 
 func recordGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -70,7 +70,7 @@ func recordFixture(t *testing.T) (string, string, *Graph) {
 		units = append(units, unit)
 	}
 	for _, name := range []string{"batch-precheck", "dogfood-cache", "check-line-citations", "gen-documentation-paths", "gen-spec-requirements", "lane-scripts", "requirement-id-collisions", "listing"} {
-		unit := Unit{ID: "shell:" + name, Tests: []string{"script/" + name + "_test.sh"}, PathTokens: []string{SealedChangesDirectory, BuildLogDirectory}}
+		unit := Unit{ID: "shell:" + name, Tests: []string{"fixture-scripts/" + name + "_test.sh"}, PathTokens: []string{SealedChangesDirectory, BuildLogDirectory}}
 		body, reads := "#!/bin/sh\nprintf '%s' 'docs/build-log/' '.corvint/changes/'\n", []string{}
 		if name == "listing" {
 			body = "#!/bin/sh\nfind docs/build-log -name '*.md'\n"
