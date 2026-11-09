@@ -69,6 +69,7 @@ func TestDTLV0017ReplayBytesIndependentOfWorkers(t *testing.T) {
 	git("init", "-q")
 	write("go.mod", "module m\n", 0600)
 	write(".github/cishards/package-costs.json", `{"milliseconds":{"m/a":30,"m/b":70}}`, 0600) //corvint:fixture-path
+	write(".github/forward-rows/github-guard.sh", "echo 0\n", 0600)                            //corvint:fixture-path
 	write("pkg", "a\n", 0600)
 	git("add", ".")
 	git("commit", "-qm", "base")
