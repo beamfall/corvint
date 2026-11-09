@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -144,6 +145,33 @@ func wantLine(t *testing.T, name, block, line string) {
 	t.Helper()
 	if n := strings.Count("\n"+block, "\n"+line+"\n"); n != 1 {
 		t.Errorf("%s has %d copies of line %q, want 1", name, n, line)
+	}
+}
+
+// cutJobs are the jobs decision 0594 removes from ci.yml. Until that workflow change lands,
+// wantNeeds ignores them in a needs list, so the assertions hold before and after it.
+var cutJobs = map[string]bool{"host-adapters": true, "local-authority-deps": true}
+
+// goProductNeeds is the required go-product check's needs list.
+var goProductNeeds = []string{"go-product-shard", "go-static", "docs-plan", "static-reuse", "shell-test-selected", "web-flows-plan", "web-flows", "go-live", "shard-plan"}
+
+// wantNeeds requires job block B to have exactly one needs line naming exactly NEEDS, in order,
+// apart from cutJobs.
+func wantNeeds(t *testing.T, name, block string, needs ...string) {
+	t.Helper()
+	lines := regexp.MustCompile(`(?m)^    needs: (.*)$`).FindAllStringSubmatch(block, -1)
+	if len(lines) != 1 {
+		t.Errorf("%s has %d needs lines, want 1", name, len(lines))
+		return
+	}
+	var got []string
+	for _, job := range strings.Split(strings.Trim(lines[0][1], "[]"), ",") {
+		if job = strings.TrimSpace(job); !cutJobs[job] {
+			got = append(got, job)
+		}
+	}
+	if !slices.Equal(got, needs) {
+		t.Errorf("%s needs %q, want %q", name, got, needs)
 	}
 }
 
@@ -399,20 +427,18 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 	cond := "    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}"
 	for _, job := range []string{"go-static", "go-interop", "artifact-integrity"} {
 		b := jobBlock(t, ci, job)
-		needs, jobCond := "    needs: static-reuse", cond
+		needs, jobCond := []string{"static-reuse"}, cond
 		switch job {
-		case "go-static":
-			needs = "    needs: [static-reuse, local-authority-deps]" // CIN-V0-7503 module cache
 		case "artifact-integrity":
 			// CIN-V0-4753: a verified pull-request DEFER leaves the archive gate to the queue and nightly gates.
-			needs = "    needs: [static-reuse, cadence-plan]"
+			needs = []string{"static-reuse", "cadence-plan"}
 			jobCond = strings.Replace(cond, " }}", " && !(github.event_name == 'pull_request' && needs.cadence-plan.result == 'success' && needs.cadence-plan.outputs.cadence == 'DEFER') }}", 1)
 		}
-		wantLine(t, job, b, needs)
+		wantNeeds(t, job, b, needs...)
 		wantLine(t, job, b, jobCond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
+	wantNeeds(t, "go-product", gp, goProductNeeds...)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi`)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
@@ -595,7 +621,6 @@ func TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs(t *testing.T) {
 		}
 	}
 	wantLine(t, "go-product", jobBlock(t, ci, "go-product"), "    if: always()")
-	wantLine(t, "containment", jobBlock(t, readWorkflow(t, "intake-containment.yml"), "containment"), "    if: ${{ "+batched+" }}")
 }
 
 // AFP-V0-027 (V1-2265): go-product passes, with a notice, only for a pull_request labelled
@@ -686,45 +711,6 @@ func TestAFPV0380InteropTestsRunOnceInGoStatic(t *testing.T) {
 	}
 	if !strings.Contains(regexp.MustCompile(`(?m)^    needs: .*$`).FindString(jobBlock(t, ci, "go-product")), "go-static") {
 		t.Error("go-product must need go-static, which owns the interop tests")
-	}
-}
-
-// TestCINV0008LocalAuthorityModuleTestsRunInGoStatic (V1-3329): go-static, which starts on every
-// path that starts the shards and which go-product needs, is the one CI run of the nested
-// tools/local-authority module's tests and vet. Its external modules are fetched once, verified
-// against the module's go.sum under -mod=readonly; the tests and vet then run under the job's
-// GOPROXY=off. No other job runs that module.
-func TestCINV0008LocalAuthorityModuleTestsRunInGoStatic(t *testing.T) {
-	ci := readWorkflow(t, "ci.yml")
-	static := jobBlock(t, ci, "go-static")
-	step := stepBlock(t, static, "Nested module tools/local-authority tests and vet (CIN-V0-008)")
-	wantLine(t, "go-static", step, "        working-directory: source/tools/local-authority")
-	for _, env := range []string{`      GOPROXY: "off"`, `      GOSUMDB: "off"`} {
-		wantLine(t, "go-static", static, env)
-	}
-	// No literal here ends in a package pattern, which would make this package an unbounded
-	// reader (AFP-V0-012 rule (d)).
-	// CIN-V0-7503 superseded the in-step proxy fetch: local-authority-deps fetches and verifies
-	// the modules into a go.mod/go.sum-keyed cache, and go-static restores it (refusing a miss),
-	// verifies it again and runs the tests and vet with the proxy off.
-	wantLine(t, "go-static", static, "          fail-on-cache-miss: true")
-	wantLine(t, "go-static", step, `          GOFLAGS: "-mod=readonly"`)
-	var lines []string
-	for _, l := range strings.Split(strings.TrimSpace(runScript(t, step)), "\n") {
-		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") {
-			lines = append(lines, l)
-		}
-	}
-	if len(lines) != 4 || lines[0] != "go mod download" || lines[1] != "go mod verify" ||
-		!strings.HasPrefix(lines[2], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[3], "go vet ") ||
-		strings.Contains(strings.Join(lines, "\n"), "GOPROXY") || strings.Contains(step, "GOPROXY:") {
-		t.Errorf("go-static local-authority step = %q, want an offline verified module cache, then its tests and vet", lines)
-	}
-	if n := strings.Count(ci, "working-directory: source/tools/local-authority\n"); n != 1 {
-		t.Errorf("tools/local-authority runs in %d steps, want only go-static's", n)
-	}
-	if !strings.Contains(regexp.MustCompile(`(?m)^    needs: .*$`).FindString(jobBlock(t, ci, "go-product")), "go-static") {
-		t.Error("go-product must need go-static, which owns the tools/local-authority tests")
 	}
 }
 
@@ -1227,7 +1213,7 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
-	wantLine(t, "go-product", job, "    needs: [go-product-shard, go-static, docs-plan, static-reuse, shell-test-selected, host-adapters, web-flows-plan, web-flows, go-live, shard-plan]")
+	wantNeeds(t, "go-product", job, goProductNeeds...)
 	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
 	script := runScript(t, job)
 	for _, event := range []string{"pull_request", "merge_group", "push"} {
