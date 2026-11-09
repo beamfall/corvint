@@ -1,0 +1,1943 @@
+{
+  "profile": "affected-edit-oracle/0",
+  "cases": [
+    {
+      "id": "beamfall-api",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "exported-api",
+      "edit": {
+        "path": "internal/serverrole/serverrole.go",
+        "operation": "replace-literal",
+        "content": "func (r Role) GuardAuthority(face Face, _ ...bool)",
+        "before": "func (r Role) GuardAuthority(face Face)"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/core/cmd/beamfall",
+        "go:github.com/beamfall/core/internal/app",
+        "go:github.com/beamfall/core/internal/apptest",
+        "go:github.com/beamfall/core/internal/artwork",
+        "go:github.com/beamfall/core/internal/auth",
+        "go:github.com/beamfall/core/internal/beam",
+        "go:github.com/beamfall/core/internal/capabilities",
+        "go:github.com/beamfall/core/internal/compat",
+        "go:github.com/beamfall/core/internal/conductor",
+        "go:github.com/beamfall/core/internal/config",
+        "go:github.com/beamfall/core/internal/conformance",
+        "go:github.com/beamfall/core/internal/decodeverify",
+        "go:github.com/beamfall/core/internal/filmtvintegration",
+        "go:github.com/beamfall/core/internal/genassets",
+        "go:github.com/beamfall/core/internal/graph",
+        "go:github.com/beamfall/core/internal/identify",
+        "go:github.com/beamfall/core/internal/ingest",
+        "go:github.com/beamfall/core/internal/integrationhost",
+        "go:github.com/beamfall/core/internal/ioe2e",
+        "go:github.com/beamfall/core/internal/jobs",
+        "go:github.com/beamfall/core/internal/manifest",
+        "go:github.com/beamfall/core/internal/mediahttp",
+        "go:github.com/beamfall/core/internal/migrate",
+        "go:github.com/beamfall/core/internal/moderation",
+        "go:github.com/beamfall/core/internal/nodehost",
+        "go:github.com/beamfall/core/internal/offlinepack",
+        "go:github.com/beamfall/core/internal/pairing",
+        "go:github.com/beamfall/core/internal/photoexport",
+        "go:github.com/beamfall/core/internal/playback",
+        "go:github.com/beamfall/core/internal/proxytee",
+        "go:github.com/beamfall/core/internal/qbittorrent",
+        "go:github.com/beamfall/core/internal/remoteaccess",
+        "go:github.com/beamfall/core/internal/scan",
+        "go:github.com/beamfall/core/internal/schedule",
+        "go:github.com/beamfall/core/internal/server",
+        "go:github.com/beamfall/core/internal/serverrole",
+        "go:github.com/beamfall/core/internal/skipdetect",
+        "go:github.com/beamfall/core/internal/store",
+        "go:github.com/beamfall/core/internal/store/migrate/catalog",
+        "go:github.com/beamfall/core/internal/streamtoken",
+        "go:github.com/beamfall/core/internal/watcher",
+        "go:github.com/beamfall/core/internal/webhook",
+        "go:github.com/beamfall/core/internal/workflow/convert",
+        "go:github.com/beamfall/core/tools/wire-contract",
+        "go:github.com/beamfall/core/tools/wire-contract/contract"
+      ],
+      "maySelect": [],
+      "why": "Changes an exported type/signature while keeping ordinary calls valid. The defining tests and source-derived same-module importer test packages must compile against the new API. Cross-repository consumers are outside this single-repo plan."
+    },
+    {
+      "id": "beamfall-body",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/serverrole/serverrole.go",
+        "operation": "replace-literal",
+        "content": "return (r == Attached)",
+        "before": "return r == Attached"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/core/internal/serverrole"
+      ],
+      "maySelect": [
+        "go:github.com/beamfall/core/cmd/beamfall",
+        "go:github.com/beamfall/core/internal/app",
+        "go:github.com/beamfall/core/internal/apptest",
+        "go:github.com/beamfall/core/internal/artwork",
+        "go:github.com/beamfall/core/internal/auth",
+        "go:github.com/beamfall/core/internal/beam",
+        "go:github.com/beamfall/core/internal/capabilities",
+        "go:github.com/beamfall/core/internal/compat",
+        "go:github.com/beamfall/core/internal/conductor",
+        "go:github.com/beamfall/core/internal/config",
+        "go:github.com/beamfall/core/internal/conformance",
+        "go:github.com/beamfall/core/internal/decodeverify",
+        "go:github.com/beamfall/core/internal/filmtvintegration",
+        "go:github.com/beamfall/core/internal/genassets",
+        "go:github.com/beamfall/core/internal/graph",
+        "go:github.com/beamfall/core/internal/identify",
+        "go:github.com/beamfall/core/internal/ingest",
+        "go:github.com/beamfall/core/internal/integrationhost",
+        "go:github.com/beamfall/core/internal/ioe2e",
+        "go:github.com/beamfall/core/internal/jobs",
+        "go:github.com/beamfall/core/internal/manifest",
+        "go:github.com/beamfall/core/internal/mediahttp",
+        "go:github.com/beamfall/core/internal/migrate",
+        "go:github.com/beamfall/core/internal/moderation",
+        "go:github.com/beamfall/core/internal/nodehost",
+        "go:github.com/beamfall/core/internal/offlinepack",
+        "go:github.com/beamfall/core/internal/pairing",
+        "go:github.com/beamfall/core/internal/photoexport",
+        "go:github.com/beamfall/core/internal/playback",
+        "go:github.com/beamfall/core/internal/proxytee",
+        "go:github.com/beamfall/core/internal/qbittorrent",
+        "go:github.com/beamfall/core/internal/remoteaccess",
+        "go:github.com/beamfall/core/internal/scan",
+        "go:github.com/beamfall/core/internal/schedule",
+        "go:github.com/beamfall/core/internal/server",
+        "go:github.com/beamfall/core/internal/skipdetect",
+        "go:github.com/beamfall/core/internal/store",
+        "go:github.com/beamfall/core/internal/store/migrate/catalog",
+        "go:github.com/beamfall/core/internal/streamtoken",
+        "go:github.com/beamfall/core/internal/watcher",
+        "go:github.com/beamfall/core/internal/webhook",
+        "go:github.com/beamfall/core/internal/workflow/convert",
+        "go:github.com/beamfall/core/tools/wire-contract",
+        "go:github.com/beamfall/core/tools/wire-contract/contract"
+      ],
+      "why": "internal/serverrole/serverrole.go implements behavior asserted by ^TestZeroRoleIsMainAndAllowsEveryFace$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/serverrole/serverrole.go",
+          "operation": "replace-literal",
+          "content": "return r != Attached",
+          "before": "return r == Attached"
+        },
+        "commands": [
+          {
+            "argv": [
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestZeroRoleIsMainAndAllowsEveryFace$",
+              "./internal/serverrole"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beamfall-build-log",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "build-log",
+      "edit": {
+        "path": "docs/build-log/2026-11-08-oracle-probe.md",
+        "operation": "add-file",
+        "content": "# Controlled oracle probe\n\nNo executable changes.\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an unreferenced dated evidence note, not code or an accepted spec. No runtime test reads this new note."
+    },
+    {
+      "id": "beamfall-cem",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "cem",
+      "edit": {
+        "path": ".corvint/changes/oracle-probe.cem.json",
+        "operation": "add-file",
+        "content": "{\"artifacts\":[],\"baseRevision\":\"dfc2b35a76c03910e95e316f2a10d59aa69a25a7\",\"criterionBindings\":[],\"criterionLinks\":[],\"evidence\":[{\"blobOid\":\"e02a31354062a7ed697eba7c309868650776a7aa\",\"id\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"path\":\".corvint/unbounded-readers.json\",\"span\":{\"end\":7772,\"start\":7414},\"spanSha256\":\"cdb32730e8838e17ef52392031c0470926a98ca85f9bd9b9a5a312fa08ba96fa\"}],\"excludedPath\":\".corvint/change.cem.json\",\"hunks\":[{\"basis\":[{\"evidenceId\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"relation\":\"dependency\"}],\"disposition\":\"supported\",\"id\":\"hunk:sha256:9dd83ab084a33718beaeed053b001058234dbc4f5724423a382fd38853044fdb\",\"newRange\":{\"count\":6,\"start\":526},\"oldRange\":{\"count\":14,\"start\":526},\"path\":\".corvint/test-read-scopes.json\",\"reason\":\"evidence-backed\"}],\"patchSha256\":\"405f81c90fc18476212f49ce04839ccda1c21eb2d1a896d6e96a8cf5a137014e\",\"runnerReceipts\":[],\"spec\":\"cem/1.0\"}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Copies a sealed cem/1.0 artifact from Corvint 447bdcbd (.corvint/changes/01772d4f...). It is historical evidence, not new authority or runtime input; the copy makes no binding claim in the destination repo."
+    },
+    {
+      "id": "beamfall-cloud-api",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "exported-api",
+      "edit": {
+        "path": "internal/push/payload.go",
+        "operation": "replace-literal",
+        "content": "func NewPayload(typ Type, eventID string, _ ...bool)",
+        "before": "func NewPayload(typ Type, eventID string)"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/cloud/internal/push"
+      ],
+      "maySelect": [],
+      "why": "Changes an exported type/signature while keeping ordinary calls valid. The defining tests and source-derived same-module importer test packages must compile against the new API. Cross-repository consumers are outside this single-repo plan."
+    },
+    {
+      "id": "beamfall-cloud-body",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/push/payload.go",
+        "operation": "replace-literal",
+        "content": "strings.TrimSpace((eventID))",
+        "before": "strings.TrimSpace(eventID)"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/cloud/internal/push"
+      ],
+      "maySelect": [],
+      "why": "internal/push/payload.go implements behavior asserted by ^TestPayloadContainsOnlyTypeAndOpaqueEventID$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/push/payload.go",
+          "operation": "replace-literal",
+          "content": "strings.TrimSpace(\"broken\")",
+          "before": "strings.TrimSpace(eventID)"
+        },
+        "commands": [
+          {
+            "argv": [
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestPayloadContainsOnlyTypeAndOpaqueEventID$",
+              "./internal/push"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beamfall-cloud-build-log",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "build-log",
+      "edit": {
+        "path": "docs/build-log/2026-11-08-oracle-probe.md",
+        "operation": "add-file",
+        "content": "# Controlled oracle probe\n\nNo executable changes.\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an unreferenced dated evidence note, not code or an accepted spec. No runtime test reads this new note."
+    },
+    {
+      "id": "beamfall-cloud-cem",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "cem",
+      "edit": {
+        "path": ".corvint/changes/oracle-probe.cem.json",
+        "operation": "add-file",
+        "content": "{\"artifacts\":[],\"baseRevision\":\"dfc2b35a76c03910e95e316f2a10d59aa69a25a7\",\"criterionBindings\":[],\"criterionLinks\":[],\"evidence\":[{\"blobOid\":\"e02a31354062a7ed697eba7c309868650776a7aa\",\"id\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"path\":\".corvint/unbounded-readers.json\",\"span\":{\"end\":7772,\"start\":7414},\"spanSha256\":\"cdb32730e8838e17ef52392031c0470926a98ca85f9bd9b9a5a312fa08ba96fa\"}],\"excludedPath\":\".corvint/change.cem.json\",\"hunks\":[{\"basis\":[{\"evidenceId\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"relation\":\"dependency\"}],\"disposition\":\"supported\",\"id\":\"hunk:sha256:9dd83ab084a33718beaeed053b001058234dbc4f5724423a382fd38853044fdb\",\"newRange\":{\"count\":6,\"start\":526},\"oldRange\":{\"count\":14,\"start\":526},\"path\":\".corvint/test-read-scopes.json\",\"reason\":\"evidence-backed\"}],\"patchSha256\":\"405f81c90fc18476212f49ce04839ccda1c21eb2d1a896d6e96a8cf5a137014e\",\"runnerReceipts\":[],\"spec\":\"cem/1.0\"}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Copies a sealed cem/1.0 artifact from Corvint 447bdcbd (.corvint/changes/01772d4f...). It is historical evidence, not new authority or runtime input; the copy makes no binding claim in the destination repo."
+    },
+    {
+      "id": "beamfall-cloud-comment",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "comment-only",
+      "edit": {
+        "path": "internal/push/payload.go",
+        "operation": "append-line",
+        "content": "// Controlled oracle comment: no executable token changes."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an inert trailing comment to a leaf source file. No executable semantics change; broad compile/import selections are measured as OVER."
+    },
+    {
+      "id": "beamfall-cloud-config",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "unrelated-config",
+      "edit": {
+        "path": "oracle-unrelated-config.json",
+        "operation": "add-file",
+        "content": "{\"oracleProbe\":true}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "New root JSON has no imports, declared reader or runtime registration. It is intentionally unrelated to every test."
+    },
+    {
+      "id": "beamfall-cloud-data",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "testdata",
+      "edit": {
+        "path": "internal/discoverfeed/ingestion/testdata/podcast-index-trending.json",
+        "operation": "append-line",
+        "content": " "
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/cloud/internal/discoverfeed/ingestion"
+      ],
+      "maySelect": [],
+      "why": "internal/discoverfeed/ingestion/testdata/podcast-index-trending.json is an on-disk input consumed by go:github.com/beamfall/cloud/internal/discoverfeed/ingestion; byte-level fixture readers are affected even when JSON whitespace preserves decoded values."
+    },
+    {
+      "id": "beamfall-cloud-delete-data",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "delete-file",
+      "edit": {
+        "path": "README.md",
+        "operation": "delete-file"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Removing project documentation affects documentation/read-contract checks, but not runtime behavior. Explicit source readers are allowed only by case-specific IDs; none are asserted without evidence."
+    },
+    {
+      "id": "beamfall-cloud-empty",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "empty",
+      "edit": {
+        "path": "",
+        "operation": "none"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "An allow-empty commit changes no input, so no test is affected; zero allowances."
+    },
+    {
+      "id": "beamfall-cloud-go-mod",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "go-mod",
+      "edit": {
+        "path": "go.mod",
+        "operation": "append-line",
+        "content": "// Controlled oracle module comment."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Only a comment changes; module identity, Go version, requires and replacements are identical. Semantic dependency tests need no rerun."
+    },
+    {
+      "id": "beamfall-cloud-make",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "make-recipe",
+      "edit": {
+        "path": "Makefile",
+        "operation": "replace-literal",
+        "content": "\tgo test -count=1 ./internal/workflowtest # controlled oracle probe",
+        "before": "\tgo test -count=1 ./internal/workflowtest"
+      },
+      "mustSelect": [
+        "driver:make:Makefile#workflow-contract-check"
+      ],
+      "maySelect": [],
+      "why": "Changes one recipe line of workflow-contract-check. Only that target and actual callers/readers can depend on it; unrelated targets should remain excluded."
+    },
+    {
+      "id": "beamfall-cloud-new-test",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "new-test",
+      "edit": {
+        "path": "internal/push/oracle_added_test.go",
+        "operation": "add-file",
+        "content": "package push\nimport \"testing\"\nfunc TestOracleAdded(t *testing.T) {}\n"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/cloud/internal/push"
+      ],
+      "maySelect": [],
+      "why": "A new test in an existing package must run that package; no production API or importer changed."
+    },
+    {
+      "id": "beamfall-cloud-readme",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "readme",
+      "edit": {
+        "path": "README.md",
+        "operation": "append-line",
+        "content": "<!-- Controlled oracle documentation probe. -->"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds only an inert Markdown comment. Existing commands, links and examples remain unchanged; no runtime behavior depends on the comment."
+    },
+    {
+      "id": "beamfall-cloud-shell",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "shell",
+      "edit": {
+        "path": "script/check-docker-go-pin.sh",
+        "operation": "append-line",
+        "content": ": \"controlled oracle probe\""
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds a no-op command to script/check-docker-go-pin.sh; its direct sibling shell test is required when present. No other shell implementation is changed."
+    },
+    {
+      "id": "beamfall-cloud-workflow",
+      "repo": "beamfall-workspace/beamfall-cloud",
+      "baseSha": "a8119da3c900b010bb73a9568485d588985d9da8",
+      "editClass": "workflow-step",
+      "edit": {
+        "path": ".github/workflows/gate.yml",
+        "operation": "replace-literal",
+        "content": "        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 # controlled oracle probe",
+        "before": "        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1"
+      },
+      "mustSelect": [
+        "driver:ci:.github/workflows/gate.yml#gate"
+      ],
+      "maySelect": [],
+      "why": "Edits the literal run step in job gate; that job is the changed execution unit. Other independent jobs have unchanged steps."
+    },
+    {
+      "id": "beamfall-comment",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "comment-only",
+      "edit": {
+        "path": "internal/serverrole/serverrole.go",
+        "operation": "append-line",
+        "content": "// Controlled oracle comment: no executable token changes."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an inert trailing comment to a leaf source file. No executable semantics change; broad compile/import selections are measured as OVER."
+    },
+    {
+      "id": "beamfall-config",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "unrelated-config",
+      "edit": {
+        "path": "oracle-unrelated-config.json",
+        "operation": "add-file",
+        "content": "{\"oracleProbe\":true}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "New root JSON has no imports, declared reader or runtime registration. It is intentionally unrelated to every test."
+    },
+    {
+      "id": "beamfall-data",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "testdata",
+      "edit": {
+        "path": "internal/capabilities/testdata/manifest-duplicate-id.json",
+        "operation": "append-line",
+        "content": " "
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/core/internal/capabilities"
+      ],
+      "maySelect": [],
+      "why": "internal/capabilities/testdata/manifest-duplicate-id.json is an on-disk input consumed by go:github.com/beamfall/core/internal/capabilities; byte-level fixture readers are affected even when JSON whitespace preserves decoded values."
+    },
+    {
+      "id": "beamfall-delete-data",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "delete-file",
+      "edit": {
+        "path": "README.md",
+        "operation": "delete-file"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Removing project documentation affects documentation/read-contract checks, but not runtime behavior. Explicit source readers are allowed only by case-specific IDs; none are asserted without evidence."
+    },
+    {
+      "id": "beamfall-empty",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "empty",
+      "edit": {
+        "path": "",
+        "operation": "none"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "An allow-empty commit changes no input, so no test is affected; zero allowances."
+    },
+    {
+      "id": "beamfall-go-mod",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "go-mod",
+      "edit": {
+        "path": "go.mod",
+        "operation": "append-line",
+        "content": "// Controlled oracle module comment."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Only a comment changes; module identity, Go version, requires and replacements are identical. Semantic dependency tests need no rerun."
+    },
+    {
+      "id": "beamfall-make",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "make-recipe",
+      "edit": {
+        "path": "Makefile",
+        "operation": "replace-literal",
+        "content": "\t@GATE_WORKER_REAPS_DESCENDANTS=1 tools/gate/gate-entry.sh # controlled oracle probe",
+        "before": "\t@GATE_WORKER_REAPS_DESCENDANTS=1 tools/gate/gate-entry.sh"
+      },
+      "mustSelect": [
+        "driver:make:Makefile#gate"
+      ],
+      "maySelect": [],
+      "why": "Changes one recipe line of gate. Only that target and actual callers/readers can depend on it; unrelated targets should remain excluded."
+    },
+    {
+      "id": "beamfall-new-test",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "new-test",
+      "edit": {
+        "path": "internal/serverrole/oracle_added_test.go",
+        "operation": "add-file",
+        "content": "package serverrole\nimport \"testing\"\nfunc TestOracleAdded(t *testing.T) {}\n"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/core/internal/serverrole"
+      ],
+      "maySelect": [],
+      "why": "A new test in an existing package must run that package; no production API or importer changed."
+    },
+    {
+      "id": "beamfall-plugin-sdk-api",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "exported-api",
+      "edit": {
+        "path": "locale.go",
+        "operation": "replace-literal",
+        "content": "func L(value string, _ ...bool)",
+        "before": "func L(value string)"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/plugin-sdk",
+        "go:github.com/beamfall/plugin-sdk/compatibility",
+        "go:github.com/beamfall/plugin-sdk/sdktest"
+      ],
+      "maySelect": [],
+      "why": "Changes an exported type/signature while keeping ordinary calls valid. The defining tests and source-derived same-module importer test packages must compile against the new API. Cross-repository consumers are outside this single-repo plan."
+    },
+    {
+      "id": "beamfall-plugin-sdk-body",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "body",
+      "edit": {
+        "path": "locale.go",
+        "operation": "replace-literal",
+        "content": "LocaleString{\"en\": (value)}",
+        "before": "LocaleString{\"en\": value}"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/plugin-sdk"
+      ],
+      "maySelect": [
+        "go:github.com/beamfall/plugin-sdk/compatibility",
+        "go:github.com/beamfall/plugin-sdk/sdktest"
+      ],
+      "why": "locale.go implements behavior asserted by ^TestL$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "locale.go",
+          "operation": "replace-literal",
+          "content": "LocaleString{\"en\": \"broken\"}",
+          "before": "LocaleString{\"en\": value}"
+        },
+        "commands": [
+          {
+            "argv": [
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestL$",
+              "."
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beamfall-plugin-sdk-build-log",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "build-log",
+      "edit": {
+        "path": "docs/build-log/2026-11-08-oracle-probe.md",
+        "operation": "add-file",
+        "content": "# Controlled oracle probe\n\nNo executable changes.\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an unreferenced dated evidence note, not code or an accepted spec. No runtime test reads this new note."
+    },
+    {
+      "id": "beamfall-plugin-sdk-cem",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "cem",
+      "edit": {
+        "path": ".corvint/changes/oracle-probe.cem.json",
+        "operation": "add-file",
+        "content": "{\"artifacts\":[],\"baseRevision\":\"dfc2b35a76c03910e95e316f2a10d59aa69a25a7\",\"criterionBindings\":[],\"criterionLinks\":[],\"evidence\":[{\"blobOid\":\"e02a31354062a7ed697eba7c309868650776a7aa\",\"id\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"path\":\".corvint/unbounded-readers.json\",\"span\":{\"end\":7772,\"start\":7414},\"spanSha256\":\"cdb32730e8838e17ef52392031c0470926a98ca85f9bd9b9a5a312fa08ba96fa\"}],\"excludedPath\":\".corvint/change.cem.json\",\"hunks\":[{\"basis\":[{\"evidenceId\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"relation\":\"dependency\"}],\"disposition\":\"supported\",\"id\":\"hunk:sha256:9dd83ab084a33718beaeed053b001058234dbc4f5724423a382fd38853044fdb\",\"newRange\":{\"count\":6,\"start\":526},\"oldRange\":{\"count\":14,\"start\":526},\"path\":\".corvint/test-read-scopes.json\",\"reason\":\"evidence-backed\"}],\"patchSha256\":\"405f81c90fc18476212f49ce04839ccda1c21eb2d1a896d6e96a8cf5a137014e\",\"runnerReceipts\":[],\"spec\":\"cem/1.0\"}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Copies a sealed cem/1.0 artifact from Corvint 447bdcbd (.corvint/changes/01772d4f...). It is historical evidence, not new authority or runtime input; the copy makes no binding claim in the destination repo."
+    },
+    {
+      "id": "beamfall-plugin-sdk-comment",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "comment-only",
+      "edit": {
+        "path": "locale.go",
+        "operation": "append-line",
+        "content": "// Controlled oracle comment: no executable token changes."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an inert trailing comment to a leaf source file. No executable semantics change; broad compile/import selections are measured as OVER."
+    },
+    {
+      "id": "beamfall-plugin-sdk-config",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "unrelated-config",
+      "edit": {
+        "path": "oracle-unrelated-config.json",
+        "operation": "add-file",
+        "content": "{\"oracleProbe\":true}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "New root JSON has no imports, declared reader or runtime registration. It is intentionally unrelated to every test."
+    },
+    {
+      "id": "beamfall-plugin-sdk-data",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "testdata",
+      "edit": {
+        "path": "catalogindex/testdata/catalog-index.v1.json",
+        "operation": "append-line",
+        "content": " "
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/plugin-sdk/catalogindex"
+      ],
+      "maySelect": [],
+      "why": "catalogindex/testdata/catalog-index.v1.json is an on-disk input consumed by go:github.com/beamfall/plugin-sdk/catalogindex; byte-level fixture readers are affected even when JSON whitespace preserves decoded values."
+    },
+    {
+      "id": "beamfall-plugin-sdk-delete-data",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "delete-file",
+      "edit": {
+        "path": "README.md",
+        "operation": "delete-file"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Removing project documentation affects documentation/read-contract checks, but not runtime behavior. Explicit source readers are allowed only by case-specific IDs; none are asserted without evidence."
+    },
+    {
+      "id": "beamfall-plugin-sdk-empty",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "empty",
+      "edit": {
+        "path": "",
+        "operation": "none"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "An allow-empty commit changes no input, so no test is affected; zero allowances."
+    },
+    {
+      "id": "beamfall-plugin-sdk-go-mod",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "go-mod",
+      "edit": {
+        "path": "go.mod",
+        "operation": "append-line",
+        "content": "// Controlled oracle module comment."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Only a comment changes; module identity, Go version, requires and replacements are identical. Semantic dependency tests need no rerun."
+    },
+    {
+      "id": "beamfall-plugin-sdk-new-test",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "new-test",
+      "edit": {
+        "path": "oracle_added_test.go",
+        "operation": "add-file",
+        "content": "package sdk\nimport \"testing\"\nfunc TestOracleAdded(t *testing.T) {}\n"
+      },
+      "mustSelect": [
+        "go:github.com/beamfall/plugin-sdk"
+      ],
+      "maySelect": [],
+      "why": "A new test in an existing package must run that package; no production API or importer changed."
+    },
+    {
+      "id": "beamfall-plugin-sdk-readme",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "readme",
+      "edit": {
+        "path": "README.md",
+        "operation": "append-line",
+        "content": "<!-- Controlled oracle documentation probe. -->"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds only an inert Markdown comment. Existing commands, links and examples remain unchanged; no runtime behavior depends on the comment."
+    },
+    {
+      "id": "beamfall-plugin-sdk-shell",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "shell",
+      "edit": {
+        "path": "script/gate.sh",
+        "operation": "append-line",
+        "content": ": \"controlled oracle probe\""
+      },
+      "mustSelect": [
+        "shell:script/gate_test.sh"
+      ],
+      "maySelect": [],
+      "why": "Adds a no-op command to script/gate.sh; its direct sibling shell test is required when present. No other shell implementation is changed."
+    },
+    {
+      "id": "beamfall-plugin-sdk-workflow",
+      "repo": "beamfall-workspace/beamfall-plugin-sdk",
+      "baseSha": "8f63b914a73c2051923906831fbe5257fed8e798",
+      "editClass": "workflow-step",
+      "edit": {
+        "path": ".github/workflows/conformance.yml",
+        "operation": "replace-literal",
+        "content": "      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1\n        with:\n          persist-credentials: false\n      - name: Remove checkout Git configuration\n        run: rm -f .git/config # controlled oracle probe",
+        "before": "      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1\n        with:\n          persist-credentials: false\n      - name: Remove checkout Git configuration\n        run: rm -f .git/config"
+      },
+      "mustSelect": [
+        "driver:ci:.github/workflows/conformance.yml#conformance"
+      ],
+      "maySelect": [],
+      "why": "Edits the literal run step in job conformance; that job is the changed execution unit. Other independent jobs have unchanged steps."
+    },
+    {
+      "id": "beamfall-readme",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "readme",
+      "edit": {
+        "path": "README.md",
+        "operation": "append-line",
+        "content": "<!-- Controlled oracle documentation probe. -->"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds only an inert Markdown comment. Existing commands, links and examples remain unchanged; no runtime behavior depends on the comment."
+    },
+    {
+      "id": "beamfall-shell",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "shell",
+      "edit": {
+        "path": "script/app-store-firewall-static-check.sh",
+        "operation": "append-line",
+        "content": ": \"controlled oracle probe\""
+      },
+      "mustSelect": [
+        "shell:script/app-store-firewall-static-check_test.sh"
+      ],
+      "maySelect": [],
+      "why": "Adds a no-op command to script/app-store-firewall-static-check.sh; its direct sibling shell test is required when present. No other shell implementation is changed."
+    },
+    {
+      "id": "beamfall-ts-leaf",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "typescript-leaf",
+      "edit": {
+        "path": "internal/web/app/src/areas/console/adminEpoch.ts",
+        "operation": "append-line",
+        "content": "// Controlled oracle TS leaf comment."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "No TS token changes: only a comment is appended to the console epoch helper."
+    },
+    {
+      "id": "beamfall-web-api",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "exported-api",
+      "edit": {
+        "path": "src/app/tv/keymap.ts",
+        "operation": "replace-literal",
+        "content": "export function actionForKey(key: string, _oracle?: boolean)",
+        "before": "export function actionForKey(key: string)"
+      },
+      "mustSelect": [
+        "typescript:vitest:src/app/tv/keymap.test.ts"
+      ],
+      "maySelect": [
+        "typescript:playwright:test/tv-shell.e2e.ts"
+      ],
+      "why": "The exported keyboard mapper gains an optional parameter. Its direct unit test exercises the API; broader browser consumers are permitted only by enumerated IDs."
+    },
+    {
+      "id": "beamfall-web-body",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "body",
+      "edit": {
+        "path": "ui-catalog/semantics.ts",
+        "operation": "replace-literal",
+        "content": "return (entry.phaseId === \"ga\") ? \"Start free trial\" : \"Join the beta\";",
+        "before": "return entry.phaseId === \"ga\" ? \"Start free trial\" : \"Join the beta\";"
+      },
+      "mustSelect": [
+        "typescript:vitest:ui-catalog/semantics.test.ts"
+      ],
+      "maySelect": [],
+      "why": "semantics.test.ts imports and asserts expectedEnglishHomeCta for beta and GA. The file is a test unit under the root Vitest configuration; this mutation executes its dependency-free Node assertions directly.",
+      "mutation": {
+        "edit": {
+          "path": "ui-catalog/semantics.ts",
+          "operation": "replace-literal",
+          "content": "return entry.phaseId === \"ga\" ? \"BROKEN\" : \"Join the beta\";",
+          "before": "return entry.phaseId === \"ga\" ? \"Start free trial\" : \"Join the beta\";"
+        },
+        "commands": [
+          {
+            "argv": [
+              "node",
+              "--experimental-strip-types",
+              "ui-catalog/semantics.test.ts"
+            ],
+            "format": "node-assert",
+            "unitId": "typescript:vitest:ui-catalog/semantics.test.ts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "beamfall-web-build-log",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "build-log",
+      "edit": {
+        "path": "docs/build-log/2026-11-08-oracle-probe.md",
+        "operation": "add-file",
+        "content": "# Controlled oracle probe\n\nNo executable changes.\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an unreferenced dated evidence note, not code or an accepted spec. No runtime test reads this new note."
+    },
+    {
+      "id": "beamfall-web-cem",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "cem",
+      "edit": {
+        "path": ".corvint/changes/oracle-probe.cem.json",
+        "operation": "add-file",
+        "content": "{\"artifacts\":[],\"baseRevision\":\"dfc2b35a76c03910e95e316f2a10d59aa69a25a7\",\"criterionBindings\":[],\"criterionLinks\":[],\"evidence\":[{\"blobOid\":\"e02a31354062a7ed697eba7c309868650776a7aa\",\"id\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"path\":\".corvint/unbounded-readers.json\",\"span\":{\"end\":7772,\"start\":7414},\"spanSha256\":\"cdb32730e8838e17ef52392031c0470926a98ca85f9bd9b9a5a312fa08ba96fa\"}],\"excludedPath\":\".corvint/change.cem.json\",\"hunks\":[{\"basis\":[{\"evidenceId\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"relation\":\"dependency\"}],\"disposition\":\"supported\",\"id\":\"hunk:sha256:9dd83ab084a33718beaeed053b001058234dbc4f5724423a382fd38853044fdb\",\"newRange\":{\"count\":6,\"start\":526},\"oldRange\":{\"count\":14,\"start\":526},\"path\":\".corvint/test-read-scopes.json\",\"reason\":\"evidence-backed\"}],\"patchSha256\":\"405f81c90fc18476212f49ce04839ccda1c21eb2d1a896d6e96a8cf5a137014e\",\"runnerReceipts\":[],\"spec\":\"cem/1.0\"}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Copies a sealed cem/1.0 artifact from Corvint 447bdcbd (.corvint/changes/01772d4f...). It is historical evidence, not new authority or runtime input; the copy makes no binding claim in the destination repo."
+    },
+    {
+      "id": "beamfall-web-comment",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "comment-only",
+      "edit": {
+        "path": "src/app/tv/keymap.ts",
+        "operation": "append-line",
+        "content": "// Controlled oracle comment: no executable token changes."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an inert trailing comment to a leaf source file. No executable semantics change; broad compile/import selections are measured as OVER."
+    },
+    {
+      "id": "beamfall-web-config",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "unrelated-config",
+      "edit": {
+        "path": "oracle-unrelated-config.json",
+        "operation": "add-file",
+        "content": "{\"oracleProbe\":true}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "New root JSON has no imports, declared reader or runtime registration. It is intentionally unrelated to every test."
+    },
+    {
+      "id": "beamfall-web-data",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "testdata",
+      "edit": {
+        "path": "test/fixtures/beamfall-tokens.json",
+        "operation": "append-line",
+        "content": " "
+      },
+      "mustSelect": [
+        "typescript:vitest:test/tokenContract.test.ts"
+      ],
+      "maySelect": [],
+      "why": "test/fixtures/beamfall-tokens.json is an on-disk input consumed by typescript:vitest:test/tokenContract.test.ts; byte-level fixture readers are affected even when JSON whitespace preserves decoded values."
+    },
+    {
+      "id": "beamfall-web-delete-data",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "delete-file",
+      "edit": {
+        "path": "README.md",
+        "operation": "delete-file"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Removing project documentation affects documentation/read-contract checks, but not runtime behavior. Explicit source readers are allowed only by case-specific IDs; none are asserted without evidence."
+    },
+    {
+      "id": "beamfall-web-empty",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "empty",
+      "edit": {
+        "path": "",
+        "operation": "none"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "An allow-empty commit changes no input, so no test is affected; zero allowances."
+    },
+    {
+      "id": "beamfall-web-make",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "make-recipe",
+      "edit": {
+        "path": "Makefile",
+        "operation": "replace-literal",
+        "content": "\tnpm run gate # controlled oracle probe",
+        "before": "\tnpm run gate"
+      },
+      "mustSelect": [
+        "driver:make:Makefile#gate"
+      ],
+      "maySelect": [],
+      "why": "Changes one recipe line of gate. Only that target and actual callers/readers can depend on it; unrelated targets should remain excluded."
+    },
+    {
+      "id": "beamfall-web-new-test",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "new-test",
+      "edit": {
+        "path": "src/app/tv/oracle_added.test.ts",
+        "operation": "add-file",
+        "content": "import { it, expect } from \"vitest\";\nit(\"oracle\", () => expect(1).toBe(1));\n"
+      },
+      "mustSelect": [
+        "typescript:vitest:src/app/tv/oracle_added.test.ts"
+      ],
+      "maySelect": [],
+      "why": "This new independent Vitest unit must be selected; it has no consumers."
+    },
+    {
+      "id": "beamfall-web-readme",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "readme",
+      "edit": {
+        "path": "README.md",
+        "operation": "append-line",
+        "content": "<!-- Controlled oracle documentation probe. -->"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds only an inert Markdown comment. Existing commands, links and examples remain unchanged; no runtime behavior depends on the comment."
+    },
+    {
+      "id": "beamfall-web-shell",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "shell",
+      "edit": {
+        "path": "script/check-baseline-drift.sh",
+        "operation": "append-line",
+        "content": ": \"controlled oracle probe\""
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds a no-op command to script/check-baseline-drift.sh; its direct sibling shell test is required when present. No other shell implementation is changed."
+    },
+    {
+      "id": "beamfall-web-ts-leaf",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "typescript-leaf",
+      "edit": {
+        "path": "src/app/tv/keymap.ts",
+        "operation": "replace-literal",
+        "content": "ArrowUp: { kind: 'move', direction: 'down' }",
+        "before": "ArrowUp: { kind: 'move', direction: 'up' }"
+      },
+      "mustSelect": [
+        "typescript:vitest:src/app/tv/keymap.test.ts"
+      ],
+      "maySelect": [],
+      "why": "keymap.test.ts directly asserts ArrowUp maps to up. This body edit changes that exact observable behavior."
+    },
+    {
+      "id": "beamfall-web-workflow",
+      "repo": "beamfall-workspace/beamfall-web",
+      "baseSha": "c1cd05fa57be28013f973b47e2692deab33a7d4f",
+      "editClass": "workflow-step",
+      "edit": {
+        "path": ".github/workflows/gate.yml",
+        "operation": "replace-literal",
+        "content": "          path: beamfall\n\n      - name: Set up Node\n        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4\n        with:\n          # Pinned to package.json \"engines.node\".\n          node-version: \"24.18.0\"\n          cache: npm\n\n      - name: Install dependencies\n        run: npm ci # controlled oracle probe",
+        "before": "          path: beamfall\n\n      - name: Set up Node\n        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4\n        with:\n          # Pinned to package.json \"engines.node\".\n          node-version: \"24.18.0\"\n          cache: npm\n\n      - name: Install dependencies\n        run: npm ci"
+      },
+      "mustSelect": [
+        "driver:ci:.github/workflows/gate.yml#gate"
+      ],
+      "maySelect": [],
+      "why": "Edits the literal run step in job gate; that job is the changed execution unit. Other independent jobs have unchanged steps."
+    },
+    {
+      "id": "beamfall-workflow",
+      "repo": "beamfall-workspace/beamfall",
+      "baseSha": "45d0511ca65997c69480c82998cf1ff5f8060ebc",
+      "editClass": "workflow-step",
+      "edit": {
+        "path": ".github/workflows/gate.yml",
+        "operation": "replace-literal",
+        "content": "        run: sh .github/check-trust-docs.sh # controlled oracle probe",
+        "before": "        run: sh .github/check-trust-docs.sh"
+      },
+      "mustSelect": [
+        "driver:ci:.github/workflows/gate.yml#gate"
+      ],
+      "maySelect": [],
+      "why": "Edits the literal run step in job gate; that job is the changed execution unit. Other independent jobs have unchanged steps."
+    },
+    {
+      "id": "corvint-api",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "exported-api",
+      "edit": {
+        "path": "internal/runtimeenv/environment.go",
+        "operation": "replace-literal",
+        "content": "type Lookup = func(string) (string, bool)",
+        "before": "type Lookup func(string) (string, bool)"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/benchmarks/runner",
+        "go:github.com/Beamfall/corvint/benchmarks/selfuse-batch",
+        "go:github.com/Beamfall/corvint/cmd/corvint",
+        "go:github.com/Beamfall/corvint/cmd/corvint-companion-release",
+        "go:github.com/Beamfall/corvint/cmd/corvint-console",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-http",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-parity",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-republish",
+        "go:github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+        "go:github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-lsp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-playwright-minimize",
+        "go:github.com/Beamfall/corvint/cmd/corvint-postmerge-workflow",
+        "go:github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+        "go:github.com/Beamfall/corvint/cmd/corvint-readiness-record",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-runner",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+        "go:github.com/Beamfall/corvint/cmd/corvint-work-queue",
+        "go:github.com/Beamfall/corvint/conformance/human-documentation-compiler-v0",
+        "go:github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "go:github.com/Beamfall/corvint/conformance/use-cases-v0",
+        "go:github.com/Beamfall/corvint/conformance/work-queue-v0",
+        "go:github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+        "go:github.com/Beamfall/corvint/internal/appflows",
+        "go:github.com/Beamfall/corvint/internal/appflows/e2erunner",
+        "go:github.com/Beamfall/corvint/internal/appmap",
+        "go:github.com/Beamfall/corvint/internal/breakagemap",
+        "go:github.com/Beamfall/corvint/internal/cem/workflow",
+        "go:github.com/Beamfall/corvint/internal/cemchain",
+        "go:github.com/Beamfall/corvint/internal/changee2e",
+        "go:github.com/Beamfall/corvint/internal/command/breakage",
+        "go:github.com/Beamfall/corvint/internal/command/flows",
+        "go:github.com/Beamfall/corvint/internal/compactionkernel",
+        "go:github.com/Beamfall/corvint/internal/companionrelease",
+        "go:github.com/Beamfall/corvint/internal/companionrelease/currentproof",
+        "go:github.com/Beamfall/corvint/internal/console",
+        "go:github.com/Beamfall/corvint/internal/contextindex",
+        "go:github.com/Beamfall/corvint/internal/corpusindex",
+        "go:github.com/Beamfall/corvint/internal/corpusrepublish",
+        "go:github.com/Beamfall/corvint/internal/corpusserve",
+        "go:github.com/Beamfall/corvint/internal/dashboard/adapters",
+        "go:github.com/Beamfall/corvint/internal/dashboard/repository",
+        "go:github.com/Beamfall/corvint/internal/delta",
+        "go:github.com/Beamfall/corvint/internal/disagree",
+        "go:github.com/Beamfall/corvint/internal/doccompiler",
+        "go:github.com/Beamfall/corvint/internal/doccorpus",
+        "go:github.com/Beamfall/corvint/internal/doccorpus/selfcorpus",
+        "go:github.com/Beamfall/corvint/internal/docmaintain",
+        "go:github.com/Beamfall/corvint/internal/docviews",
+        "go:github.com/Beamfall/corvint/internal/dogfoodflow",
+        "go:github.com/Beamfall/corvint/internal/evalrepo",
+        "go:github.com/Beamfall/corvint/internal/extevidence",
+        "go:github.com/Beamfall/corvint/internal/flowcoverage",
+        "go:github.com/Beamfall/corvint/internal/flowdocs",
+        "go:github.com/Beamfall/corvint/internal/funclink",
+        "go:github.com/Beamfall/corvint/internal/gitnotes",
+        "go:github.com/Beamfall/corvint/internal/jstestprovider/externallive",
+        "go:github.com/Beamfall/corvint/internal/localcompletion",
+        "go:github.com/Beamfall/corvint/internal/lspevidence",
+        "go:github.com/Beamfall/corvint/internal/lspstdio",
+        "go:github.com/Beamfall/corvint/internal/mcp/bridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/cli",
+        "go:github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/docsbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/tasksbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+        "go:github.com/Beamfall/corvint/internal/necessity",
+        "go:github.com/Beamfall/corvint/internal/outcomecal",
+        "go:github.com/Beamfall/corvint/internal/perfbudget",
+        "go:github.com/Beamfall/corvint/internal/perfbudget/cmd/perf-budget",
+        "go:github.com/Beamfall/corvint/internal/playwrightminimize",
+        "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+        "go:github.com/Beamfall/corvint/internal/procprofile",
+        "go:github.com/Beamfall/corvint/internal/releasecandidate",
+        "go:github.com/Beamfall/corvint/internal/requestpath",
+        "go:github.com/Beamfall/corvint/internal/revieworder",
+        "go:github.com/Beamfall/corvint/internal/rubyprofile",
+        "go:github.com/Beamfall/corvint/internal/runtimeenv",
+        "go:github.com/Beamfall/corvint/internal/skhproof",
+        "go:github.com/Beamfall/corvint/internal/skillexport",
+        "go:github.com/Beamfall/corvint/internal/slotlearn",
+        "go:github.com/Beamfall/corvint/internal/swiftimpact",
+        "go:github.com/Beamfall/corvint/internal/taskman",
+        "go:github.com/Beamfall/corvint/internal/tasks/cli",
+        "go:github.com/Beamfall/corvint/internal/tasks/scale",
+        "go:github.com/Beamfall/corvint/internal/tasks/scopes",
+        "go:github.com/Beamfall/corvint/internal/tasks/similar",
+        "go:github.com/Beamfall/corvint/internal/tasks/store",
+        "go:github.com/Beamfall/corvint/internal/testplan",
+        "go:github.com/Beamfall/corvint/internal/testplatform",
+        "go:github.com/Beamfall/corvint/internal/testrunner/registry",
+        "go:github.com/Beamfall/corvint/internal/testsource",
+        "go:github.com/Beamfall/corvint/internal/touchsurprise",
+        "go:github.com/Beamfall/corvint/internal/trace",
+        "go:github.com/Beamfall/corvint/internal/tracemigraterepo",
+        "go:github.com/Beamfall/corvint/internal/tracerecordrepo",
+        "go:github.com/Beamfall/corvint/internal/witness",
+        "go:github.com/Beamfall/corvint/internal/workqueue",
+        "go:github.com/Beamfall/corvint/internal/worksource",
+        "go:github.com/Beamfall/corvint/internal/worktreeimpact",
+        "go:github.com/Beamfall/corvint/tools/capabilities-check",
+        "go:github.com/Beamfall/corvint/tools/cem-release-suites",
+        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
+        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
+        "go:github.com/Beamfall/corvint/tools/runner-plugin"
+      ],
+      "maySelect": [],
+      "why": "Changes an exported type/signature while keeping ordinary calls valid. The defining tests and source-derived same-module importer test packages must compile against the new API. Cross-repository consumers are outside this single-repo plan."
+    },
+    {
+      "id": "corvint-body-archivepath",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/archivepath/archivepath.go",
+        "operation": "replace-literal",
+        "content": "!(filepath.IsLocal(native))",
+        "before": "!filepath.IsLocal(native)"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/internal/archivepath"
+      ],
+      "maySelect": [
+        "go:github.com/Beamfall/corvint/cmd/corvint",
+        "go:github.com/Beamfall/corvint/cmd/corvint-companion-release",
+        "go:github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+        "go:github.com/Beamfall/corvint/cmd/corvint-readiness-record",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test",
+        "go:github.com/Beamfall/corvint/cmd/corvint-update",
+        "go:github.com/Beamfall/corvint/internal/changee2e",
+        "go:github.com/Beamfall/corvint/internal/companionrelease",
+        "go:github.com/Beamfall/corvint/internal/companionrelease/currentproof",
+        "go:github.com/Beamfall/corvint/internal/releasecandidate",
+        "go:github.com/Beamfall/corvint/internal/update",
+        "go:github.com/Beamfall/corvint/tools/cem-release-suites",
+        "go:github.com/Beamfall/corvint/tools/compat-trial"
+      ],
+      "why": "internal/archivepath/archivepath.go implements behavior asserted by ^TestV13179JoinKeepsLocalMembers$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/archivepath/archivepath.go",
+          "operation": "replace-literal",
+          "content": "filepath.IsLocal(native)",
+          "before": "!filepath.IsLocal(native)"
+        },
+        "commands": [
+          {
+            "argv": [
+              "script/heavy.sh",
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestV13179JoinKeepsLocalMembers$",
+              "./internal/archivepath"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "corvint-body-jsonend",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/jsonend/jsonend.go",
+        "operation": "replace-literal",
+        "content": "(errors.Is(err, io.EOF))",
+        "before": "errors.Is(err, io.EOF)"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/internal/jsonend"
+      ],
+      "maySelect": [
+        "go:github.com/Beamfall/corvint/cmd/corvint",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-lsp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-postmerge-workflow",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-runner",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+        "go:github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "go:github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+        "go:github.com/Beamfall/corvint/internal/appflows",
+        "go:github.com/Beamfall/corvint/internal/appflows/e2erunner",
+        "go:github.com/Beamfall/corvint/internal/appmap",
+        "go:github.com/Beamfall/corvint/internal/breakagemap",
+        "go:github.com/Beamfall/corvint/internal/cem/witnesspaths",
+        "go:github.com/Beamfall/corvint/internal/changee2e",
+        "go:github.com/Beamfall/corvint/internal/command/breakage",
+        "go:github.com/Beamfall/corvint/internal/command/flows",
+        "go:github.com/Beamfall/corvint/internal/compactionkernel",
+        "go:github.com/Beamfall/corvint/internal/contextindex",
+        "go:github.com/Beamfall/corvint/internal/delta",
+        "go:github.com/Beamfall/corvint/internal/doccorpus",
+        "go:github.com/Beamfall/corvint/internal/extevidence",
+        "go:github.com/Beamfall/corvint/internal/flowcoverage",
+        "go:github.com/Beamfall/corvint/internal/funclink",
+        "go:github.com/Beamfall/corvint/internal/gateagreement",
+        "go:github.com/Beamfall/corvint/internal/gitnotes",
+        "go:github.com/Beamfall/corvint/internal/jstestprovider/externallive",
+        "go:github.com/Beamfall/corvint/internal/langplugin",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected",
+        "go:github.com/Beamfall/corvint/internal/liveverify/rbmutate",
+        "go:github.com/Beamfall/corvint/internal/lspevidence",
+        "go:github.com/Beamfall/corvint/internal/lspstdio",
+        "go:github.com/Beamfall/corvint/internal/mcp/bridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/cli",
+        "go:github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/docsbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/tasksbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+        "go:github.com/Beamfall/corvint/internal/perfbudget/cmd/perf-budget",
+        "go:github.com/Beamfall/corvint/internal/playwrightruns",
+        "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+        "go:github.com/Beamfall/corvint/internal/repro",
+        "go:github.com/Beamfall/corvint/internal/requestpath",
+        "go:github.com/Beamfall/corvint/internal/revieworder",
+        "go:github.com/Beamfall/corvint/internal/runnerprotocol",
+        "go:github.com/Beamfall/corvint/internal/sessiontest",
+        "go:github.com/Beamfall/corvint/internal/shaderrunner",
+        "go:github.com/Beamfall/corvint/internal/sharedpath",
+        "go:github.com/Beamfall/corvint/internal/skhproof",
+        "go:github.com/Beamfall/corvint/internal/testplan",
+        "go:github.com/Beamfall/corvint/internal/testrunner/golang",
+        "go:github.com/Beamfall/corvint/internal/testrunner/registry",
+        "go:github.com/Beamfall/corvint/internal/testrunner/swiftselection",
+        "go:github.com/Beamfall/corvint/internal/testsource",
+        "go:github.com/Beamfall/corvint/internal/workspace",
+        "go:github.com/Beamfall/corvint/tools/beamfall-shadow",
+        "go:github.com/Beamfall/corvint/tools/capabilities-check",
+        "go:github.com/Beamfall/corvint/tools/cem-release-suites",
+        "go:github.com/Beamfall/corvint/tools/ci-shard-costs",
+        "go:github.com/Beamfall/corvint/tools/runner-plugin",
+        "go:github.com/Beamfall/corvint/tools/test-commands-check",
+        "go:github.com/Beamfall/corvint/tools/test-commands-run"
+      ],
+      "why": "internal/jsonend/jsonend.go implements behavior asserted by ^TestDoneRefusesTrailingDelimitersMoreAccepts$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/jsonend/jsonend.go",
+          "operation": "replace-literal",
+          "content": "!errors.Is(err, io.EOF)",
+          "before": "errors.Is(err, io.EOF)"
+        },
+        "commands": [
+          {
+            "argv": [
+              "script/heavy.sh",
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestDoneRefusesTrailingDelimitersMoreAccepts$",
+              "./internal/jsonend"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "corvint-body-runtimeenv",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/runtimeenv/environment.go",
+        "operation": "replace-literal",
+        "content": "\"CORVINT_\" + (suffix)",
+        "before": "\"CORVINT_\" + suffix"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/internal/runtimeenv"
+      ],
+      "maySelect": [
+        "go:github.com/Beamfall/corvint/benchmarks/runner",
+        "go:github.com/Beamfall/corvint/benchmarks/selfuse-batch",
+        "go:github.com/Beamfall/corvint/cmd/corvint",
+        "go:github.com/Beamfall/corvint/cmd/corvint-companion-release",
+        "go:github.com/Beamfall/corvint/cmd/corvint-console",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-http",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-parity",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-republish",
+        "go:github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+        "go:github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-lsp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-playwright-minimize",
+        "go:github.com/Beamfall/corvint/cmd/corvint-postmerge-workflow",
+        "go:github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+        "go:github.com/Beamfall/corvint/cmd/corvint-readiness-record",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-runner",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+        "go:github.com/Beamfall/corvint/cmd/corvint-work-queue",
+        "go:github.com/Beamfall/corvint/conformance/human-documentation-compiler-v0",
+        "go:github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "go:github.com/Beamfall/corvint/conformance/use-cases-v0",
+        "go:github.com/Beamfall/corvint/conformance/work-queue-v0",
+        "go:github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+        "go:github.com/Beamfall/corvint/internal/appflows",
+        "go:github.com/Beamfall/corvint/internal/appflows/e2erunner",
+        "go:github.com/Beamfall/corvint/internal/appmap",
+        "go:github.com/Beamfall/corvint/internal/breakagemap",
+        "go:github.com/Beamfall/corvint/internal/cem/workflow",
+        "go:github.com/Beamfall/corvint/internal/cemchain",
+        "go:github.com/Beamfall/corvint/internal/changee2e",
+        "go:github.com/Beamfall/corvint/internal/command/breakage",
+        "go:github.com/Beamfall/corvint/internal/command/flows",
+        "go:github.com/Beamfall/corvint/internal/compactionkernel",
+        "go:github.com/Beamfall/corvint/internal/companionrelease",
+        "go:github.com/Beamfall/corvint/internal/companionrelease/currentproof",
+        "go:github.com/Beamfall/corvint/internal/console",
+        "go:github.com/Beamfall/corvint/internal/contextindex",
+        "go:github.com/Beamfall/corvint/internal/corpusindex",
+        "go:github.com/Beamfall/corvint/internal/corpusrepublish",
+        "go:github.com/Beamfall/corvint/internal/corpusserve",
+        "go:github.com/Beamfall/corvint/internal/dashboard/adapters",
+        "go:github.com/Beamfall/corvint/internal/dashboard/repository",
+        "go:github.com/Beamfall/corvint/internal/delta",
+        "go:github.com/Beamfall/corvint/internal/disagree",
+        "go:github.com/Beamfall/corvint/internal/doccompiler",
+        "go:github.com/Beamfall/corvint/internal/doccorpus",
+        "go:github.com/Beamfall/corvint/internal/doccorpus/selfcorpus",
+        "go:github.com/Beamfall/corvint/internal/docmaintain",
+        "go:github.com/Beamfall/corvint/internal/docviews",
+        "go:github.com/Beamfall/corvint/internal/dogfoodflow",
+        "go:github.com/Beamfall/corvint/internal/evalrepo",
+        "go:github.com/Beamfall/corvint/internal/extevidence",
+        "go:github.com/Beamfall/corvint/internal/flowcoverage",
+        "go:github.com/Beamfall/corvint/internal/flowdocs",
+        "go:github.com/Beamfall/corvint/internal/funclink",
+        "go:github.com/Beamfall/corvint/internal/gitnotes",
+        "go:github.com/Beamfall/corvint/internal/jstestprovider/externallive",
+        "go:github.com/Beamfall/corvint/internal/localcompletion",
+        "go:github.com/Beamfall/corvint/internal/lspevidence",
+        "go:github.com/Beamfall/corvint/internal/lspstdio",
+        "go:github.com/Beamfall/corvint/internal/mcp/bridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/cli",
+        "go:github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/docsbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/tasksbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+        "go:github.com/Beamfall/corvint/internal/necessity",
+        "go:github.com/Beamfall/corvint/internal/outcomecal",
+        "go:github.com/Beamfall/corvint/internal/perfbudget",
+        "go:github.com/Beamfall/corvint/internal/perfbudget/cmd/perf-budget",
+        "go:github.com/Beamfall/corvint/internal/playwrightminimize",
+        "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+        "go:github.com/Beamfall/corvint/internal/procprofile",
+        "go:github.com/Beamfall/corvint/internal/releasecandidate",
+        "go:github.com/Beamfall/corvint/internal/requestpath",
+        "go:github.com/Beamfall/corvint/internal/revieworder",
+        "go:github.com/Beamfall/corvint/internal/rubyprofile",
+        "go:github.com/Beamfall/corvint/internal/skhproof",
+        "go:github.com/Beamfall/corvint/internal/skillexport",
+        "go:github.com/Beamfall/corvint/internal/slotlearn",
+        "go:github.com/Beamfall/corvint/internal/swiftimpact",
+        "go:github.com/Beamfall/corvint/internal/taskman",
+        "go:github.com/Beamfall/corvint/internal/tasks/cli",
+        "go:github.com/Beamfall/corvint/internal/tasks/scale",
+        "go:github.com/Beamfall/corvint/internal/tasks/scopes",
+        "go:github.com/Beamfall/corvint/internal/tasks/similar",
+        "go:github.com/Beamfall/corvint/internal/tasks/store",
+        "go:github.com/Beamfall/corvint/internal/testplan",
+        "go:github.com/Beamfall/corvint/internal/testplatform",
+        "go:github.com/Beamfall/corvint/internal/testrunner/registry",
+        "go:github.com/Beamfall/corvint/internal/testsource",
+        "go:github.com/Beamfall/corvint/internal/touchsurprise",
+        "go:github.com/Beamfall/corvint/internal/trace",
+        "go:github.com/Beamfall/corvint/internal/tracemigraterepo",
+        "go:github.com/Beamfall/corvint/internal/tracerecordrepo",
+        "go:github.com/Beamfall/corvint/internal/witness",
+        "go:github.com/Beamfall/corvint/internal/workqueue",
+        "go:github.com/Beamfall/corvint/internal/worksource",
+        "go:github.com/Beamfall/corvint/internal/worktreeimpact",
+        "go:github.com/Beamfall/corvint/tools/capabilities-check",
+        "go:github.com/Beamfall/corvint/tools/cem-release-suites",
+        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
+        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
+        "go:github.com/Beamfall/corvint/tools/runner-plugin"
+      ],
+      "why": "internal/runtimeenv/environment.go implements behavior asserted by ^TestResolveNamespace$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/runtimeenv/environment.go",
+          "operation": "replace-literal",
+          "content": "\"WRONG_\" + suffix",
+          "before": "\"CORVINT_\" + suffix"
+        },
+        "commands": [
+          {
+            "argv": [
+              "script/heavy.sh",
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestResolveNamespace$",
+              "./internal/runtimeenv"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "corvint-body-taskprojection",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "body",
+      "edit": {
+        "path": "internal/taskprojection/taskprojection.go",
+        "operation": "replace-literal",
+        "content": "(len(paths)) == 0",
+        "before": "len(paths) == 0"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/internal/taskprojection"
+      ],
+      "maySelect": [
+        "go:github.com/Beamfall/corvint/benchmarks/runner",
+        "go:github.com/Beamfall/corvint/benchmarks/selfuse-batch",
+        "go:github.com/Beamfall/corvint/cmd/corvint",
+        "go:github.com/Beamfall/corvint/cmd/corvint-companion-release",
+        "go:github.com/Beamfall/corvint/cmd/corvint-console",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-http",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-parity",
+        "go:github.com/Beamfall/corvint/cmd/corvint-corpus-republish",
+        "go:github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+        "go:github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-go-test-provider",
+        "go:github.com/Beamfall/corvint/cmd/corvint-lsp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-playwright-minimize",
+        "go:github.com/Beamfall/corvint/cmd/corvint-postmerge-workflow",
+        "go:github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+        "go:github.com/Beamfall/corvint/cmd/corvint-readiness-record",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-runner",
+        "go:github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+        "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+        "go:github.com/Beamfall/corvint/cmd/corvint-work-queue",
+        "go:github.com/Beamfall/corvint/conformance/human-documentation-compiler-v0",
+        "go:github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "go:github.com/Beamfall/corvint/conformance/use-cases-v0",
+        "go:github.com/Beamfall/corvint/conformance/work-queue-v0",
+        "go:github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+        "go:github.com/Beamfall/corvint/internal/appflows",
+        "go:github.com/Beamfall/corvint/internal/appflows/e2erunner",
+        "go:github.com/Beamfall/corvint/internal/appmap",
+        "go:github.com/Beamfall/corvint/internal/breakagemap",
+        "go:github.com/Beamfall/corvint/internal/cem/workflow",
+        "go:github.com/Beamfall/corvint/internal/cemchain",
+        "go:github.com/Beamfall/corvint/internal/changee2e",
+        "go:github.com/Beamfall/corvint/internal/command/breakage",
+        "go:github.com/Beamfall/corvint/internal/command/flows",
+        "go:github.com/Beamfall/corvint/internal/compactionkernel",
+        "go:github.com/Beamfall/corvint/internal/companionrelease",
+        "go:github.com/Beamfall/corvint/internal/companionrelease/currentproof",
+        "go:github.com/Beamfall/corvint/internal/console",
+        "go:github.com/Beamfall/corvint/internal/contextindex",
+        "go:github.com/Beamfall/corvint/internal/corpusindex",
+        "go:github.com/Beamfall/corvint/internal/corpusrepublish",
+        "go:github.com/Beamfall/corvint/internal/corpusserve",
+        "go:github.com/Beamfall/corvint/internal/dashboard/adapters",
+        "go:github.com/Beamfall/corvint/internal/dashboard/repository",
+        "go:github.com/Beamfall/corvint/internal/delta",
+        "go:github.com/Beamfall/corvint/internal/disagree",
+        "go:github.com/Beamfall/corvint/internal/doccompiler",
+        "go:github.com/Beamfall/corvint/internal/doccorpus",
+        "go:github.com/Beamfall/corvint/internal/doccorpus/selfcorpus",
+        "go:github.com/Beamfall/corvint/internal/docmaintain",
+        "go:github.com/Beamfall/corvint/internal/docviews",
+        "go:github.com/Beamfall/corvint/internal/dogfoodflow",
+        "go:github.com/Beamfall/corvint/internal/evalrepo",
+        "go:github.com/Beamfall/corvint/internal/extevidence",
+        "go:github.com/Beamfall/corvint/internal/flowcoverage",
+        "go:github.com/Beamfall/corvint/internal/flowdocs",
+        "go:github.com/Beamfall/corvint/internal/funclink",
+        "go:github.com/Beamfall/corvint/internal/gateselect",
+        "go:github.com/Beamfall/corvint/internal/gitnotes",
+        "go:github.com/Beamfall/corvint/internal/jobinputs",
+        "go:github.com/Beamfall/corvint/internal/jstestprovider",
+        "go:github.com/Beamfall/corvint/internal/jstestprovider/externallive",
+        "go:github.com/Beamfall/corvint/internal/langplugin",
+        "go:github.com/Beamfall/corvint/internal/langplugin/runnernames",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/cfamily",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/dotnet",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/golang",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/java",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/kotlin",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/languages",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/python",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/ruby",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/rust",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/shell",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/swift",
+        "go:github.com/Beamfall/corvint/internal/liveverify/affected/typescript",
+        "go:github.com/Beamfall/corvint/internal/liveverify/parentverify",
+        "go:github.com/Beamfall/corvint/internal/liveverify/rbmutate",
+        "go:github.com/Beamfall/corvint/internal/localcompletion",
+        "go:github.com/Beamfall/corvint/internal/lspevidence",
+        "go:github.com/Beamfall/corvint/internal/lspstdio",
+        "go:github.com/Beamfall/corvint/internal/mcp/bridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/cli",
+        "go:github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/docsbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/tasksbridge",
+        "go:github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+        "go:github.com/Beamfall/corvint/internal/necessity",
+        "go:github.com/Beamfall/corvint/internal/outcomecal",
+        "go:github.com/Beamfall/corvint/internal/perfbudget",
+        "go:github.com/Beamfall/corvint/internal/perfbudget/cmd/perf-budget",
+        "go:github.com/Beamfall/corvint/internal/plansnapshot",
+        "go:github.com/Beamfall/corvint/internal/playwrightminimize",
+        "go:github.com/Beamfall/corvint/internal/postmergeworkflow",
+        "go:github.com/Beamfall/corvint/internal/releasecandidate",
+        "go:github.com/Beamfall/corvint/internal/requestpath",
+        "go:github.com/Beamfall/corvint/internal/revieworder",
+        "go:github.com/Beamfall/corvint/internal/rubyprofile",
+        "go:github.com/Beamfall/corvint/internal/runidentity",
+        "go:github.com/Beamfall/corvint/internal/runnerpolicy",
+        "go:github.com/Beamfall/corvint/internal/runnerprotocol",
+        "go:github.com/Beamfall/corvint/internal/runnerqualification",
+        "go:github.com/Beamfall/corvint/internal/runnerselection",
+        "go:github.com/Beamfall/corvint/internal/sessiontest",
+        "go:github.com/Beamfall/corvint/internal/shaderrunner",
+        "go:github.com/Beamfall/corvint/internal/skhproof",
+        "go:github.com/Beamfall/corvint/internal/skillexport",
+        "go:github.com/Beamfall/corvint/internal/slotlearn",
+        "go:github.com/Beamfall/corvint/internal/specindex",
+        "go:github.com/Beamfall/corvint/internal/swiftimpact",
+        "go:github.com/Beamfall/corvint/internal/taskman",
+        "go:github.com/Beamfall/corvint/internal/tasks/cli",
+        "go:github.com/Beamfall/corvint/internal/tasks/scale",
+        "go:github.com/Beamfall/corvint/internal/tasks/scopes",
+        "go:github.com/Beamfall/corvint/internal/tasks/similar",
+        "go:github.com/Beamfall/corvint/internal/tasks/store",
+        "go:github.com/Beamfall/corvint/internal/testplan",
+        "go:github.com/Beamfall/corvint/internal/testplatform",
+        "go:github.com/Beamfall/corvint/internal/testreuse",
+        "go:github.com/Beamfall/corvint/internal/testrunner/golang",
+        "go:github.com/Beamfall/corvint/internal/testrunner/registry",
+        "go:github.com/Beamfall/corvint/internal/testrunner/swiftselection",
+        "go:github.com/Beamfall/corvint/internal/testsource",
+        "go:github.com/Beamfall/corvint/internal/touchsurprise",
+        "go:github.com/Beamfall/corvint/internal/trace",
+        "go:github.com/Beamfall/corvint/internal/tracemigraterepo",
+        "go:github.com/Beamfall/corvint/internal/tracerecordrepo",
+        "go:github.com/Beamfall/corvint/internal/witness",
+        "go:github.com/Beamfall/corvint/internal/workqueue",
+        "go:github.com/Beamfall/corvint/internal/worksource",
+        "go:github.com/Beamfall/corvint/internal/worktreeimpact",
+        "go:github.com/Beamfall/corvint/tools/capabilities-check",
+        "go:github.com/Beamfall/corvint/tools/cem-release-suites",
+        "go:github.com/Beamfall/corvint/tools/ci-shard-costs",
+        "go:github.com/Beamfall/corvint/tools/gate-affected-select",
+        "go:github.com/Beamfall/corvint/tools/heading-nav-bench",
+        "go:github.com/Beamfall/corvint/tools/retrieval-bench",
+        "go:github.com/Beamfall/corvint/tools/runner-plugin",
+        "go:github.com/Beamfall/corvint/tools/runner-qualification",
+        "go:github.com/Beamfall/corvint/tools/selection-baseline",
+        "go:github.com/Beamfall/corvint/tools/shell-test-select",
+        "go:github.com/Beamfall/corvint/tools/test-commands-check",
+        "go:github.com/Beamfall/corvint/tools/test-commands-run",
+        "go:github.com/Beamfall/corvint/tools/test-read-scopes-check",
+        "go:github.com/Beamfall/corvint/tools/unbounded-readers"
+      ],
+      "why": "internal/taskprojection/taskprojection.go implements behavior asserted by ^TestOnlyProjection$ in its own package. Same-module importers may run because they compile/use that package; their IDs come from pinned source imports, not planner selections.",
+      "mutation": {
+        "edit": {
+          "path": "internal/taskprojection/taskprojection.go",
+          "operation": "replace-literal",
+          "content": "len(paths) != 0",
+          "before": "len(paths) == 0"
+        },
+        "commands": [
+          {
+            "argv": [
+              "script/heavy.sh",
+              "env",
+              "GOTOOLCHAIN=local",
+              "go",
+              "test",
+              "-json",
+              "-count=1",
+              "-timeout",
+              "90s",
+              "-run",
+              "^TestOnlyProjection$",
+              "./internal/taskprojection"
+            ],
+            "format": "go-json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "corvint-build-log",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "build-log",
+      "edit": {
+        "path": "docs/build-log/2026-11-08-oracle-probe.md",
+        "operation": "add-file",
+        "content": "# Controlled oracle probe\n\nNo executable changes.\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an unreferenced dated evidence note, not code or an accepted spec. No runtime test reads this new note."
+    },
+    {
+      "id": "corvint-cem",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "cem",
+      "edit": {
+        "path": ".corvint/changes/oracle-probe.cem.json",
+        "operation": "add-file",
+        "content": "{\"artifacts\":[],\"baseRevision\":\"dfc2b35a76c03910e95e316f2a10d59aa69a25a7\",\"criterionBindings\":[],\"criterionLinks\":[],\"evidence\":[{\"blobOid\":\"e02a31354062a7ed697eba7c309868650776a7aa\",\"id\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"path\":\".corvint/unbounded-readers.json\",\"span\":{\"end\":7772,\"start\":7414},\"spanSha256\":\"cdb32730e8838e17ef52392031c0470926a98ca85f9bd9b9a5a312fa08ba96fa\"}],\"excludedPath\":\".corvint/change.cem.json\",\"hunks\":[{\"basis\":[{\"evidenceId\":\"evidence:sha256:4982d6d1ce7fe8d4d7ca2abca6d93c73e151bac6d5afe0a5a7cb7d24b343f183\",\"relation\":\"dependency\"}],\"disposition\":\"supported\",\"id\":\"hunk:sha256:9dd83ab084a33718beaeed053b001058234dbc4f5724423a382fd38853044fdb\",\"newRange\":{\"count\":6,\"start\":526},\"oldRange\":{\"count\":14,\"start\":526},\"path\":\".corvint/test-read-scopes.json\",\"reason\":\"evidence-backed\"}],\"patchSha256\":\"405f81c90fc18476212f49ce04839ccda1c21eb2d1a896d6e96a8cf5a137014e\",\"runnerReceipts\":[],\"spec\":\"cem/1.0\"}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Copies a sealed cem/1.0 artifact from Corvint 447bdcbd (.corvint/changes/01772d4f...). It is historical evidence, not new authority or runtime input; the copy makes no binding claim in the destination repo."
+    },
+    {
+      "id": "corvint-comment",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "comment-only",
+      "edit": {
+        "path": "internal/runtimeenv/environment.go",
+        "operation": "append-line",
+        "content": "// Controlled oracle comment: no executable token changes."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds an inert trailing comment to a leaf source file. No executable semantics change; broad compile/import selections are measured as OVER."
+    },
+    {
+      "id": "corvint-config",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "unrelated-config",
+      "edit": {
+        "path": "oracle-unrelated-config.json",
+        "operation": "add-file",
+        "content": "{\"oracleProbe\":true}\n"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "New root JSON has no imports, declared reader or runtime registration. It is intentionally unrelated to every test."
+    },
+    {
+      "id": "corvint-data",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "testdata",
+      "edit": {
+        "path": "tools/gotest-evidence/testdata/count2.json",
+        "operation": "append-line",
+        "content": " "
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/tools/gotest-evidence"
+      ],
+      "maySelect": [],
+      "why": "tools/gotest-evidence/testdata/count2.json is an on-disk input consumed by go:github.com/Beamfall/corvint/tools/gotest-evidence; byte-level fixture readers are affected even when JSON whitespace preserves decoded values."
+    },
+    {
+      "id": "corvint-delete-data",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "delete-file",
+      "edit": {
+        "path": "README.md",
+        "operation": "delete-file"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Removing project documentation affects documentation/read-contract checks, but not runtime behavior. Explicit source readers are allowed only by case-specific IDs; none are asserted without evidence."
+    },
+    {
+      "id": "corvint-empty",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "empty",
+      "edit": {
+        "path": "",
+        "operation": "none"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "An allow-empty commit changes no input, so no test is affected; zero allowances."
+    },
+    {
+      "id": "corvint-go-mod",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "go-mod",
+      "edit": {
+        "path": "go.mod",
+        "operation": "append-line",
+        "content": "// Controlled oracle module comment."
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Only a comment changes; module identity, Go version, requires and replacements are identical. Semantic dependency tests need no rerun."
+    },
+    {
+      "id": "corvint-make",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "make-recipe",
+      "edit": {
+        "path": "Makefile",
+        "operation": "replace-literal",
+        "content": "\t@printf 'usage: make <target> [BASE=<rev>]  (BASE=%s)\\n\\n' \"$$HELP_BASE\" # controlled oracle probe",
+        "before": "\t@printf 'usage: make <target> [BASE=<rev>]  (BASE=%s)\\n\\n' \"$$HELP_BASE\""
+      },
+      "mustSelect": [
+        "driver:make:Makefile#help"
+      ],
+      "maySelect": [],
+      "why": "Changes one recipe line of help. Only that target and actual callers/readers can depend on it; unrelated targets should remain excluded."
+    },
+    {
+      "id": "corvint-new-test",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "new-test",
+      "edit": {
+        "path": "internal/runtimeenv/oracle_added_test.go",
+        "operation": "add-file",
+        "content": "package runtimeenv\nimport \"testing\"\nfunc TestOracleAdded(t *testing.T) {}\n"
+      },
+      "mustSelect": [
+        "go:github.com/Beamfall/corvint/internal/runtimeenv"
+      ],
+      "maySelect": [],
+      "why": "A new test in an existing package must run that package; no production API or importer changed."
+    },
+    {
+      "id": "corvint-readme",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "readme",
+      "edit": {
+        "path": "README.md",
+        "operation": "append-line",
+        "content": "<!-- Controlled oracle documentation probe. -->"
+      },
+      "mustSelect": [],
+      "maySelect": [],
+      "why": "Adds only an inert Markdown comment. Existing commands, links and examples remain unchanged; no runtime behavior depends on the comment."
+    },
+    {
+      "id": "corvint-shell",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "shell",
+      "edit": {
+        "path": "script/adopter-ci-advisory.sh",
+        "operation": "append-line",
+        "content": ": \"controlled oracle probe\""
+      },
+      "mustSelect": [
+        "shell:script/adopter-ci-advisory_test.sh"
+      ],
+      "maySelect": [],
+      "why": "Adds a no-op command to script/adopter-ci-advisory.sh; its direct sibling shell test is required when present. No other shell implementation is changed."
+    },
+    {
+      "id": "corvint-ts-leaf",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "typescript-leaf",
+      "edit": {
+        "path": "extensions/vscode/src/json.ts",
+        "operation": "replace-literal",
+        "content": "const DEFAULT_MAX_DEPTH = 33;",
+        "before": "const DEFAULT_MAX_DEPTH = 32;"
+      },
+      "mustSelect": [
+        "typescript:node-test:extensions/vscode/test/model-json.test.ts"
+      ],
+      "maySelect": [],
+      "why": "model-json.test.ts imports parseBoundedJson and checks depth bounds. Changing its default depth reaches that test; other importers may be measured as extra consumers pending tighter expectations."
+    },
+    {
+      "id": "corvint-workflow",
+      "repo": "corvint",
+      "baseSha": "447bdcbd5963683f5f2b4934a45b8f48fc6742a3",
+      "editClass": "workflow-step",
+      "edit": {
+        "path": ".github/workflows/ci.yml",
+        "operation": "replace-literal",
+        "content": "        run: bash .github/gate-reuse/find.sh # controlled oracle probe",
+        "before": "        run: bash .github/gate-reuse/find.sh"
+      },
+      "mustSelect": [
+        "driver:ci:.github/workflows/ci.yml#doc-gates-reuse"
+      ],
+      "maySelect": [],
+      "why": "Edits the literal run step in job doc-gates-reuse; that job is the changed execution unit. Other independent jobs have unchanged steps."
+    }
+  ]
+}
