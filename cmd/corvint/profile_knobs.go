@@ -37,7 +37,7 @@ var profileKnobWorkers = []string{"dogfood-outcome-worker", "dogfood-verifier-wo
 var profileKnobPlumbing = []string{"native-hook", "authority-event", "qualified-event"}
 
 // profileKnobServers are the MCP server binaries whose entry points apply the same bracket.
-var profileKnobServers = []string{"corvint-corpus-mcp", "corvint-docs-mcp", "corvint-mcp", "corvint-test-validity-mcp"}
+var profileKnobServers = []string{"corvint-corpus-mcp", "corvint-mcp", "corvint-test-validity-mcp"}
 
 // profileKnobCatalog is the `profiling` member of `corvint help --json` (PRB-V0-009): which
 // commands and servers honour the knobs, derived from the same command list the dispatcher

@@ -107,7 +107,6 @@
 - `corvint-corpus-parity help --json`: [corvint-corpus-parity](internal/capcatalog/trees/corvint-corpus-parity.json)
 - `corvint-corpus-republish help --json`: [corvint-corpus-republish](internal/capcatalog/trees/corvint-corpus-republish.json)
 - `corvint-dashboard-snapshot help --json`: [corvint-dashboard-snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json)
-- `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
 - `corvint-gateway help --json`: [corvint-gateway](internal/capcatalog/trees/corvint-gateway.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
 - `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)

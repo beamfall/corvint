@@ -62,13 +62,6 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 			args: func(root string) []string { return []string{"--root", root, "index", "--if-stale"} },
 		},
 		{
-			name: "docs",
-			root: docsRepository,
-			args: func(root string) []string {
-				return []string{"--root", root, "docs", "draft", "--source", "owner.md", "--package", "cache"}
-			},
-		},
-		{
 			name: "taskman fixture",
 			root: func(t *testing.T) string {
 				previous := taskmanPreview

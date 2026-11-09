@@ -80,8 +80,7 @@ with the code.
 | Change Evidence Map | Every diff hunk bound to cited evidence, an explicit unknown or a checked exception; CI verifies it with no LLM | `corvint cem prepare --base BASE_SHA --target HEAD_SHA` | core |
 | Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
 | Tasks | A local ticket store with roadmap, claims, gates and audited completion | `corvint-tasks queue status` | experimental |
-| Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
-| Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
+| Application map | A checked map of a web application that E2E-safe test selection reads | `corvint flows appmap build --manifest appmap.json --revision HEAD` | experimental |
 | Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint mcp --root /abs/repo --tool-profile task-review` | experimental |
 | Obligation closure and review order | Declared obligations linked to test claims, then a deterministic review queue | `corvint ocm prepare --target HEAD_SHA --intent docs/specs/my-spec.md` | core |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
@@ -190,7 +189,6 @@ Each MCP server is a local stdio process bound to one repository root and is rea
 | Server | Tools |
 |---|---|
 | `corvint-mcp` | `corvint.query`, `corvint.impact`, `corvint.status` and `corvint.help`; with `--tool-profile task-review`, also `corvint.context` and a non-publishing `corvint.cem.report` preview |
-| `corvint-docs-mcp` | `corvint.docs_draft` drafts source-pinned documentation; `corvint.docs_consume` rechecks a draft against source |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 | `corvint-corpus-mcp` | Experimental, source-only read tools over one [documentation corpus](docs/DOCUMENTATION-CORPUS.md) artifact |
 
