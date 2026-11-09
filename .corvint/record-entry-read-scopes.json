@@ -61,7 +61,7 @@
     "go:github.com/Beamfall/corvint/internal/tasks/cli": {
       "reads": [],
       "reason": "internal/tasks/cli/exact_paths_compiled_test.go passes fixed names and the directory as ticket scopes; progress_test.go writes dated entries under fixture root. No test reads this checkout's build-log entries.",
-      "sourceSha256": "ea81408ffee9568019c5acd682c1cc9321fb3bc113fb4db5c28db6570d34b063"
+      "sourceSha256": "1192ab247adcd211e8dbc9299f6b36939fe57411b68ec22ff30f60fb1304815f"
     },
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
@@ -76,7 +76,7 @@
     "shell:script/dogfood-cache_test.sh": {
       "reads": [],
       "reason": "script/dogfood-cache_test.sh creates root with mktemp and moves generated CEMs in the scratch repo. Its find cleanup enumerates only that scratch root; copied Makefile/script behavior is exercised there.",
-      "sourceSha256": "c3904f17e741e9d9ecf5dec76619f7de0bc2561d7a90b4c082238916b6937f50"
+      "sourceSha256": "3b3ee6340e5b3bf3949446bf0616f2abb8e41fa63b86f5bf5d099256008f7c96"
     },
     "shell:script/gen-documentation-paths_test.sh": {
       "reads": [],
@@ -96,7 +96,7 @@
     "shell:script/requirement-id-collisions_test.sh": {
       "reads": [],
       "reason": "script/requirement-id-collisions_test.sh creates repo/docs/build-log/2026-11-01-prose.md and runs git grep against that scratch repo. Its expected diagnostic names a directory without reading the source checkout.",
-      "sourceSha256": "1f344308c0d9d6f4b9fe949f4a7a263a85d65a9bd0be5cedba22d02fbcf41cd7"
+      "sourceSha256": "3a23092790ab23818919679e31c51d5525cd0ab850e059d8ac3a8f2cabaea3d1"
     }
   }
 }
