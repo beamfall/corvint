@@ -20,6 +20,8 @@ const nodeHelpPrefix = "node:"
 var commandTreeInternal = []clitree.Internal{
 	{Word: "pre-compact", Reason: "claude-code EVENT value of adapter"},
 	{Word: "post-compact", Reason: "claude-code EVENT value of adapter"},
+	{Word: "audit", Reason: "spaced spelling of docs corpus audit-sample and audit-report"},
+	{Word: "sample", Reason: "spaced spelling of docs corpus audit-sample"},
 }
 
 // commandTreeRefs are the command trees `corvint help --json` links: corvint's own and each
@@ -45,13 +47,25 @@ func helpTopics() []string {
 			topics = append(topics, topic)
 		}
 	}
-	topics = append(topics, "harness-event", flowsAppmapBuildHelpTopic)
+	topics = append(topics, "harness-event", "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
+	for _, operation := range corpusOperations {
+		topics = append(topics, "docs-corpus-"+operation.name)
+	}
 	return topics
 }
 
 // helpTopicPath is the command path a help topic documents.
 func helpTopicPath(topic string) []string {
+	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
+		return []string{"docs", "corpus", operation}
+	}
 	switch topic {
+	case "docs-corpus":
+		return []string{"docs", "corpus"}
+	case "docs-flows":
+		return []string{"docs", "flows"}
+	case "docs-maintain":
+		return []string{"docs", "maintain"}
 	case "harness-event":
 		return []string{"harness", "event"}
 	case flowsAppmapBuildHelpTopic:

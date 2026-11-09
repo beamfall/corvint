@@ -397,7 +397,13 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	guide := Guide()
 	goals, _, _ := strings.Cut(guide, "\nNon-capabilities\n")
 	for _, example := range []string{
-		"\n   corvint flows appmap build --manifest appmap.json --revision HEAD\n",
+		"\n   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
+		" --coverage-artifact lcov=trace.lcov > run.jsonl\n",
+		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
+		"trace.lcov must hold\n   that test's coverage only, and --test-key names the test's key in run.jsonl",
+		"\n   corvint docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
+		"\n   corvint docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
+		"\n   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
 	} {
 		if !strings.Contains(goals, example) {
 			t.Fatalf("the guide goals lack the example %q", example)
@@ -410,12 +416,12 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	if problems := GuideProblems(catalog, goals+"\nNon-capabilities\n\n- A. Tracking #1.\n"); len(problems) != 0 {
 		t.Fatalf("goal examples drifted from the catalog: %v", problems)
 	}
-	// A quoted " > " must not cut the checked command line, so an option
-	// after it is still checked against the catalog.
-	if !slices.Contains(guideCommandLines("  corvint flows appmap build --manifest \"a > b\" --revision HEAD\n"), "corvint flows appmap build --manifest \"a > b\" --revision HEAD") {
-		t.Fatal("a command line with a quoted redirection must be checked whole")
+	// The quoted go test key's " > " must not cut the checked command line,
+	// so an option after it is still checked against the catalog.
+	if !slices.Contains(guideCommandLines(goals), "corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"") {
+		t.Fatal("the ingest-coverage example must be checked whole, with its --test-key")
 	}
-	if problems := GuideProblems(catalog, "  corvint flows appmap build --manifest \"a > b\" --no-such-option\n\nNon-capabilities\n\n- A. Tracking #1.\n"); !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "--no-such-option") }) {
+	if problems := GuideProblems(catalog, "  corvint flows ingest-coverage --test-key \"a > b\" --no-such-option\n\nNon-capabilities\n\n- A. Tracking #1.\n"); !slices.ContainsFunc(problems, func(p string) bool { return strings.Contains(p, "--no-such-option") }) {
 		t.Fatalf("an option after a quoted redirection must be checked: %v", problems)
 	}
 }

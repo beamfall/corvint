@@ -849,7 +849,7 @@ var (
 	topLevelCommands = []string{"init", "adopt", "query", "feature", "impact", "eval",
 		"harness", "context", "adapter",
 		"affected",
-		"index", "batch", "depsource", "necessity", "surprise", "answerability",
+		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
 		"kernel", "calibrate", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "breakage", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
 )
 
@@ -923,6 +923,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, err)
 		return 2
 	}
+	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
+		return exit
+	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
 		if root, rest, handled, err := parseGraphInvocation(arguments); handled {
 			if err != nil {
@@ -933,6 +936,34 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, adapterStdout(stdout, stderr))
+		}
+		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
+			if corpusErr != nil {
+				emitError(stderr, corpusErr)
+				return 2
+			}
+			return runCorpus(ctx, options, stdout, stderr)
+		}
+		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
+			if maintainErr != nil {
+				emitError(stderr, maintainErr)
+				return 2
+			}
+			return runDocsMaintain(ctx, options, stdout, stderr)
+		}
+		if options, handled, err := parseDocsFlowsInvocation(arguments); handled {
+			if err != nil {
+				emitError(stderr, err)
+				return 2
+			}
+			return runDocsFlows(ctx, options, stdout, stderr)
+		}
+		if options, isDocs, docsErr := parseDocsInvocation(arguments); isDocs {
+			if docsErr != nil {
+				emitError(stderr, docsErr)
+				return 2
+			}
+			return runDocs(ctx, options, stdin, stdout, stderr)
 		}
 		if _, isDepsource, depsourceErr := parseDepsourceInvocation(arguments); isDepsource {
 			if depsourceErr != nil {
