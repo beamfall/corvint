@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestCompare_AEO_V0_003_005(t *testing.T) {
@@ -54,7 +56,7 @@ func TestSyntheticClone_AEO_V0_001_002_003_004(t *testing.T) {
 	clones := t.TempDir()
 	write := func(name, body string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(source, name), []byte(body), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(source, name), []byte(body), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -86,7 +88,7 @@ if [ -n "$changed" ]; then
 fi
 printf '{"ok":true,"plan":{"selected":%s,"unknown":[]},"summary":{"line":"fixture"}}\n' "$selected"
 `
-	if err = os.WriteFile(fake, []byte(body), 0700); err != nil {
+	if err = execfile.WriteFile(fake, []byte(body), 0700); err != nil {
 		t.Fatal(err)
 	}
 	tc := testCase{ID: "tiny", Repo: "corvint", BaseSHA: pin, EditClass: "body", Edit: edit{Path: "leaf.go", Operation: "replace-literal", Before: "return 1", Content: "return (1)"}, MustSelect: []string{"go:oracle.invalid/leaf"}, MaySelect: []string{}, Why: "Value is asserted by TestValue."}
@@ -109,7 +111,7 @@ printf '{"ok":true,"plan":{"selected":%s,"unknown":[]},"summary":{"line":"fixtur
 		t.Fatalf("empty: %+v", r)
 	}
 	// The same real killed mutation must be unsafe when the planner drops its unit.
-	if err = os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' '{\"ok\":true,\"plan\":{\"selected\":[],\"unknown\":[]},\"summary\":{\"line\":\"dropped\"}}'\n"), 0700); err != nil {
+	if err = execfile.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' '{\"ok\":true,\"plan\":{\"selected\":[],\"unknown\":[]},\"summary\":{\"line\":\"dropped\"}}'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	r = executeCase(ctx, cfg, tc)
@@ -129,7 +131,7 @@ printf '{"ok":true,"plan":{"selected":%s,"unknown":[]},"summary":{"line":"fixtur
 	if r = executeCase(ctx, bad, empty); r.Status != "ERROR" || !strings.Contains(r.Error, "outside source") {
 		t.Fatalf("source clone parent accepted: %+v", r)
 	}
-	if err = os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' '{\"ok\":true,\"plan\":{\"unknown\":[]},\"summary\":{\"line\":\"missing selected\"}}'\n"), 0700); err != nil {
+	if err = execfile.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' '{\"ok\":true,\"plan\":{\"unknown\":[]},\"summary\":{\"line\":\"missing selected\"}}'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if r = executeCase(ctx, cfg, empty); r.Status != "ERROR" {
