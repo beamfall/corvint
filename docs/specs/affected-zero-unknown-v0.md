@@ -580,7 +580,7 @@ governs every narrowing above.
   its tests without removing any existing reader, executor, import or embed selection. Owner paths
   SHALL remain unowned for frontier bearing. The exact parser-owned control declarations SHALL count as declared ownership in the audit,
   even when frozen selection rules retain uncertainty for a reader of the declaration. No such
-  audit claim may remove a selection or a plan unknown. The maintained ownership baseline SHALL be empty;
+  audit claim may remove a selection or a plan unknown; only an AZU-V0-8910 runtime-readers entry does. The maintained ownership baseline SHALL be empty;
   a new tracked path outside all claims SHALL fail the ownership gate. Declarations include
   `.github/forward-rows/tiers.jq` and `script/ci-least-privilege-exceptions.tsv`.
 - **AZU-V0-8901:** **Constructed foreign callers.** The shell caller completeness guard SHALL reject
@@ -653,11 +653,26 @@ lanes and external full-suite/mutation observations at every historical revision
   and committed application-flow goldens SHALL remain unchanged for such trees.
   The default provider registry SHALL retain its already-frozen driver namespace even without
   driver files; optional-provider parity SHALL not remove that historical namespace.
+- **AZU-V0-8910:** **Declared control declarations (V1-3480).** (experimental under the owner's
+  standing lane auto-accept (2026-10-11); V1-3480.) `.corvint/runtime-readers.json` MAY name, as an
+  exact file entry, each parser-owned control declaration: `.corvint/documentation-paths.json`,
+  `.corvint/runtime-readers.json`, `.corvint/non-source-paths.json`,
+  `.corvint/unbounded-reader-exclusions.json` and `.corvint/test-selection.json`. A directory entry
+  that holds one, `.corvint/`, and every other AFP-V0-602 refusal SHALL stay refused, and a
+  non-source entry SHALL still refuse each of them. A dirty declared control declaration SHALL be a
+  `DECLARED_RUNTIME_READERS` path: every unit whose path literal, read scope or unbounded read
+  reaches it SHALL stay selected, and an edit to any of them except
+  `.corvint/unbounded-reader-exclusions.json` SHALL select the AZU-V0-9900 ratchet. Its
+  `UNOWNED_DIRTY_PATH` entry and every frontier entry that bore only on it SHALL be removed. An
+  undeclared control declaration and any other new `.corvint/` file SHALL keep
+  `UNOWNED_DIRTY_PATH` (V1-3354). Falsifier: an edit to `.corvint/test-selection.json` alone in this
+  repository yields scope `UNKNOWN`, drops one of its path-literal readers, or omits the ratchet.
+  Rollback: delete the five entries; the planner then keeps AZU-V0-8900's conservative unknown.
 
 - **AZU-V0-9900: Ownership ratchet selection (V1-4729, owner lane charter 2026-11-05).**
   An addition, deletion or rename of a tracked path, or an edit to
-  `.corvint/documentation-paths.json`, `.corvint/runtime-readers.json` or
-  `.corvint/non-source-paths.json`, SHALL select `TestOwnershipAuditRatchet_AZU_V0_002`
+  `.corvint/documentation-paths.json`, `.corvint/runtime-readers.json`,
+  `.corvint/non-source-paths.json` or `.corvint/test-selection.json` (AZU-V0-8910), SHALL select `TestOwnershipAuditRatchet_AZU_V0_002`
   when its test file exists in the observed graph. `affected` SHALL name that test and the
   triggering path; `test --dry-run` SHALL carry the same reason, including during FULL fallback.
   FULL removes narrowing patterns while retaining explanatory reasons. Index membership used
