@@ -81,7 +81,7 @@ func TestClosureDeclarationCannotFallBelowItsClosure_AFP_V0_3150(t *testing.T) {
 // declares the closures of the two targets its tests list, not internal/, so
 // the planner selects it through DECLARED_READ_SCOPE for an edit inside the
 // cmd/corvint closure (no missed test) and not for one below
-// internal/tasks/journal/, which no read of its tests reaches (the review
+// internal/archivepath/, which no read of its tests reaches (the review
 // round 1 example).
 func TestClosureReaderIsNotSelectedOutsideItsClosure_AFP_V0_3151(t *testing.T) {
 	root, err := filepath.Abs(up + up)
@@ -93,7 +93,7 @@ func TestClosureReaderIsNotSelectedOutsideItsClosure_AFP_V0_3151(t *testing.T) {
 		dirty string
 		want  bool
 	}{
-		{"internal/tasks/journal/anchor.go", false},
+		{"internal/archivepath/archivepath.go", false},
 		{"internal/cem/verify/guards.go", true},
 	}
 	for _, c := range cases {

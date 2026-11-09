@@ -1259,7 +1259,7 @@ Common refusals and their recovery:
 | line-citation or use-case receipt drift after an edit | `make repin`; `script/repin-use-case-receipts.sh`; commit the repins with the edit that moved the text (step 4) |
 | `sealed-cem-in-change` | drop the seal from the diff, or for a batch of sealed leaves follow DOGFOOD "Integrating sealed branches" |
 | `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
-| `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
+| `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, or a corvint-tasks duplicate refusal | orchestrator-owned; report the exact line, do not work around it |
 
 Drift. `make flow-guide-check` (a doc gate, ASD-V0-996) checks this section and the repository
 skill `.claude/skills/corvint-lane-flow/SKILL.md` against the real CLI: every `corvint`,
