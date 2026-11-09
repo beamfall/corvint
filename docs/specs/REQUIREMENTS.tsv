@@ -1603,12 +1603,12 @@ CEM-V1-368	docs/specs/cem-stable-v1.md	The `cem-stable-review/0` projection MUST
 CEM-V1-369	docs/specs/cem-stable-v1.md	(accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) The struct	owner	2026-10-21; decision 0551; V1-2327
 CEM-V1-370	docs/specs/cem-stable-v1.md	(accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) A Go relea	owner	2026-10-21; decision 0551; V1-2327
 CEM-V1-371	docs/specs/cem-stable-v1.md	(accepted by the owner in chat on 2026-10-21, decision 0551; V1-2327) Both stabl	owner	2026-10-21; decision 0551; V1-2327
-CEM-V1-569	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.ValidateStableReleaseEvidence` MUST read	unrecorded	-
+CEM-V1-569	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `corerelease.ValidateStableReleaseEvidence` MUST read	unrecorded	-
 CEM-V1-570	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The reader MUST refuse with class `stable-result-authority`	unrecorded	-
 CEM-V1-571	docs/specs/cem-stable-v1.md	(proposed; V1-2323) Runner, platform and external outcomes are release evidence	unrecorded	-
 CEM-V1-572	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `make cem-release-suites CORVINT_RELEASE_BIN=... CEM01_RELEA	unrecorded	-
-CEM-V1-600	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.ReadStableReleaseDeclaration` MUST read a	unrecorded	-
-CEM-V1-601	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `companionrelease.StableReleaseReadiness` MUST refuse with	unrecorded	-
+CEM-V1-600	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `corerelease.ReadStableReleaseDeclaration` MUST read a	unrecorded	-
+CEM-V1-601	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `corerelease.StableReleaseReadiness` MUST refuse with	unrecorded	-
 CEM-V1-602	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `tools/cem-release-suites --readiness PATH` MUST collect	unrecorded	-
 CEM-V1-603	docs/specs/cem-stable-v1.md	(proposed; V1-2323) The `--readiness` path MUST be repository-relative and is	unrecorded	-
 CEM-V1-604	docs/specs/cem-stable-v1.md	(proposed; V1-2323) `MIGRATION.json` addition A02 MUST leave `OPEN` with a statu	unrecorded	-
@@ -2581,7 +2581,7 @@ ASD-V0-821	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-822	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4064; amends `	standing	2026-11-01; V1-4064
 ASD-V0-823	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4063; amends `	standing	2026-11-01; V1-4063
 ASD-V0-824	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4063; amends `	standing	2026-11-01; V1-4063
-ASD-V0-825	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4069; amends `	standing	2026-11-01; V1-4069
+ASD-V0-825	docs/specs/corvint-self-development-v0.md	(retired by decision 0594, 2026-11-09: the companion-release build tests it skip	unrecorded	-
 ASD-V0-840	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3922; refines	standing	2026-11-01; V1-3922
 ASD-V0-841	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3924; refines	standing	2026-11-01; V1-3924
 ASD-V0-842	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3960; refines	standing	2026-11-01; V1-3960
@@ -6661,7 +6661,7 @@ UPD-V0-014	docs/specs/operator-update-v0.md	(accepted under the owner's standing
 UPD-V0-015	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3011, V1-3012)	standing	2026-10-11; V1-3011; V1-3012
 UPD-V0-016	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3013) `check`	standing	2026-10-11; V1-3013
 UPD-V0-017	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3014) A Tasks	standing	2026-10-11; V1-3014
-UPD-V0-367	docs/specs/operator-update-v0.md	(proposed (V1-3184)) Core and Tasks are checked from one official source, the	unrecorded	-
+UPD-V0-367	docs/specs/operator-update-v0.md	(proposed (V1-3184); amended by decision 0594) Core and Tasks are each checked f	unrecorded	-
 UPD-V0-368	docs/specs/operator-update-v0.md	(proposed (V1-3184)) `--github-token-env NAME` MAY authenticate release reads wi	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
@@ -7106,7 +7106,7 @@ PUB-V0-009	docs/specs/public-release-v0.md	Automatic documentation MUST maintain
 PUB-V0-010	docs/specs/public-release-v0.md	Task manager MUST expose a roadmap of its existing tickets with milestones,	unrecorded	-
 PUB-V0-011	docs/specs/public-release-v0.md	`cmd/corvint-companion-release` (package `internal/companionrelease`) MUST imple	unrecorded	-
 PUB-V0-012	docs/specs/public-release-v0.md	Source used for the bundle's source archives MUST be read twice by independent	unrecorded	-
-PUB-V0-013	docs/specs/public-release-v0.md	(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which r	unrecorded	-
+PUB-V0-013	docs/specs/public-release-v0.md	Each of the nine bundled binaries (`corvint`, `corvint-console`,	unrecorded	-
 PUB-V0-014	docs/specs/public-release-v0.md	Each component's source archive and the assembled bundle archive MUST each be	unrecorded	-
 PUB-V0-015	docs/specs/public-release-v0.md	(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which r	unrecorded	-
 PUB-V0-016	docs/specs/public-release-v0.md	The interactive alpha qualification MUST freeze fixture source, dependencies,	unrecorded	-

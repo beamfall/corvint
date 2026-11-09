@@ -39,7 +39,7 @@ var profileKnobWorkers = []string{}
 var profileKnobPlumbing = []string{}
 
 // profileKnobServers are the MCP server binaries whose entry points apply the same bracket.
-var profileKnobServers = []string{"corvint-docs-mcp", "corvint-mcp", "corvint-test-validity-mcp"}
+var profileKnobServers = []string{"corvint-docs-mcp", "corvint-test-validity-mcp"}
 
 // profileKnobCatalog is the `profiling` member of `corvint help --json` (PRB-V0-009): which
 // commands and servers honour the knobs, derived from the same command list the dispatcher

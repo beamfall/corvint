@@ -22,13 +22,11 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"build":               {optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCX-V1-346, DCX-V1-352, DCX-V1-495
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
-	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
 	"behavior-adapter":    {required: []string{"--input"}, optional: []string{"--previous", "--check"}},
 	"behavior-provider":   {required: []string{"--input"}},
 	"compact-provider":    {required: []string{"--input"}}, // DCX-V1-531
 	"estate":              {required: []string{"--input"}}, // DCI-V1-001
 	"discover-playwright": {required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
-	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"discover-tests":      {required: []string{"--runner", "--revision", "--path"}},
 	"extract":             {required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema", "--repository"}}, // DCX-V1-399, DCX-V1-478, DCX-V1-560, DCP-V1-604
@@ -63,8 +61,8 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 }
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
-	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--exclude-kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--profile-sha256", "--verify-rederive", "--timings", "--workspace", "--no-workspace", "--repo"}
+	"--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
+	"--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include", "--cases", "--baseline", "--seed", "--size", "--stratify", "--sample", "--repository", "--kind", "--exclude-kind", "--caller-revision", "--max-unresolved-mention-rate", "--max-pattern-rate", "--profile", "--profile-sha256", "--verify-rederive", "--timings", "--workspace", "--no-workspace", "--repo"}
 
 // corpusWorkspaceOptional is the workspace option set every operation admits (DCP-V1-604).
 var corpusWorkspaceOptional = []string{"--workspace", "--no-workspace", "--repo"}

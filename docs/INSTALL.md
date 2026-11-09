@@ -128,21 +128,6 @@ branch overlap hints. Replace `FULL_BASE_SHA` with the full ancestor commit imme
 the changes. These commands refuse dirty trees, do not execute suggested next calls, and do not
 close review or test obligations. See the [guidance contract](specs/repository-guidance-v0.md).
 
-The former `examples/cem/recipes/` Bash recipes (`CEM-PILOT-024`..`027` in
-[the pilot kit](specs/cem-pilot-kit.md)) were removed with `cem/0.x` by V1-1278 S3 and remain in
-Git history. For a whole change, run `impact`, `affected` and `context` over a `BASE..HEAD` range,
-then `cem prepare`, `status`, `report` and `review`; `corvint cem verify-stable` or the portable
-[`interop/cem01-go`](../interop/cem01-go/README.md) verifier checks a committed `cem/1.0` map.
-
-For a committed change, the daily change-evidence loop binds task context, impact, a CEM, the
-owning-spec OCMs, a frontier, checks, review and the retained outcome in one ordered sequence: see
-the [daily adopter path](DOGFOOD.md#daily-adopter-path). It lists each input's exact format, the
-refusals that are expected before the CEM is committed, and the reason every fail-closed outcome
-prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinators build
-`./cmd/corvint` and run only in a Corvint source checkout; another repository runs the same
-`corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
-passing loop is structural closure, not proof that the change is correct.
-
 Read commands do not change repository or trace state, with two bounded private exceptions under
 `.corvint/`: `self-observations.jsonl` (an `unsupported-*` refusal may append one row) and
 `unplanned-reads.jsonl` (host-adapter hooks append only while the operator marker
@@ -207,7 +192,7 @@ for each desired server:
 
 | Executable | Tools |
 |---|---|
-| `corvint-mcp` | Read-only context, Go impact and repository status |
+| `corvint-mcp` | Impact, status and help; opt-in flows, test-evidence, test-validity and documentation groups |
 | `corvint-docs-mcp` | `corvint.docs_draft` and `corvint.docs_consume` |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 
@@ -256,39 +241,9 @@ not trigger maintenance.
 
 ### Work queue adoption
 
-`corvint work observe` needs a committed queue policy, worklist, and adapter. Create them once per
-repository and explicitly bind the installed executable. `~/.local/bin`, `/opt/homebrew/bin`, and
-`/usr/local/bin` are supported when the selected path is canonical and safe:
-
-```sh
-corvint work init --repository NAME --corvint-executable "$(command -v corvint)"
-git add .corvint && git commit -m "Adopt the Corvint work queue"
-corvint work observe
-corvint work propose-wave --envelope capacity.json --limit 4
-```
-
-`init` refuses if any of the three files already exists. Add tickets to `.corvint/worklist.json`
-(`{"profile":"corvint-worklist/0","tickets":[{"id":…,"title":…,"body":…,"touchPaths":[…]}]}`)
-and commit before observing. The capacity envelope names `capacity:NAME:worklist:agent`, the
-capability `capability:NAME:worklist:agent`, and `repo:NAME`. Neither command dispatches, leases,
-merges, or runs anything. Init rejects relative paths, symlinks, unsafe or writable parent
-components, repository-local executables, missing files, and non-Corvint builds. It records the
-executable path, SHA-256, version/build, and source identity in the adapter; observation executes only
-the verified private exact-byte materialization under a closed environment, never ambient `PATH`.
-
-After replacing or moving Corvint, explicitly regenerate that reviewed binding and commit it:
-
-```sh
-corvint work rebind --corvint-executable "$(command -v corvint)"
-git add .corvint/work-queue-adapter && git commit -m "Rebind Corvint work-queue executable"
-```
-
-| What you see | Cause |
-|---|---|
-| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, uncommitted worktree changes, or the bound executable path/bytes/version/build/source identity changed; review and commit an explicit `work rebind` |
-| `ERROR` / `ADAPTER_FAILED` | the canonical bound adapter exited, timed out, or exceeded an output bound |
-| observation `STALE`, empty proposal | the worklist or commit changed while observing |
-| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: the reviewed binding detects drift, while Darwin cannot claim VPO-V0-024 exact-object execution and the other local axes stay unknown |
+The work queue moved with Corvint Tasks to
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594); its adoption
+steps live there.
 
 ## Optional operator updater
 
@@ -335,7 +290,7 @@ See [Operator update V0](specs/operator-update-v0.md) for the requirements and e
 
 ## Upgrade, retry and remove
 
-Install a new version into a new directory. Stop active console/provider processes and let the MCP
+Install a new version into a new directory. Stop active provider processes and let the MCP
 client close its children; disable editor live tests before changing tools. Keep the previous
 directory and any ticket data, verify the new archive and version, then update your PATH and
 absolute editor/MCP paths. Re-select and pin the editor executable when its identity changes.
@@ -352,7 +307,7 @@ repeat checksum verification before executing anything. For an interrupted test 
 cleanup, inspect its incomplete/cancelled state, then save again or restart the explicit session.
 Never treat a stale prior pass as the current run's result.
 
-To uninstall, disable live tests, close the console and MCP children, uninstall the Corvint VSIX,
+To uninstall, disable live tests, close MCP children, uninstall the Corvint VSIX,
 remove the Corvint entries you added to host configuration and PATH, then remove your extracted
 tool directory or copied executables. Preserve repository files, ticket stores and retained
 `.corvint` evidence unless you separately intend to delete them. No system service needs removal.

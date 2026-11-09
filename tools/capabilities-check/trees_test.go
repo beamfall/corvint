@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"slices"
 	"strings"
@@ -26,7 +27,7 @@ func TestCAPV0047RepositoryCommandTreesMatchDispatch(t *testing.T) {
 	for _, tree := range trees {
 		nodes[tree.Binary] = len(tree.Nodes)
 	}
-	for binary, least := range map[string]int{"corvint": 200} {
+	for binary, least := range map[string]int{"corvint": 140} {
 		if nodes[binary] < least {
 			t.Errorf("%s tree has %d nodes, want at least %d", binary, nodes[binary], least)
 		}
@@ -176,6 +177,24 @@ func TestCAPV0047SyntheticDriftFails(t *testing.T) {
 	}
 }
 
+// TestCAPV0047NewMCPServerToolNeedsRow proves a binary that answers tools/list is scanned for tool
+// names whatever its name, so its new tool fails the gate until the catalog has its row.
+func TestCAPV0047NewMCPServerToolNeedsRow(t *testing.T) {
+	for _, method := range []string{`"tools/list"`, "`tools/list`"} {
+		root := t.TempDir()
+		files := syntheticRepository()
+		files["cmd/corvint-serve/main.go"] = "package main\n\nconst method = " + method + "\nconst tool = \"corvint.brand_new\"\n"
+		writeFiles(t, root, files)
+		var stdout, stderr bytes.Buffer
+		if code := run(root, &stdout, &stderr); code != 1 {
+			t.Fatalf("%s: exit %d, stderr %q", method, code, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), `missing mcp-tools "corvint.brand_new"`) {
+			t.Fatalf("%s: stderr %q", method, stderr.String())
+		}
+	}
+}
+
 // TestCAPV0049LLMsEntryPointLinksEveryView proves the root llms.txt names the catalog page, the
 // command catalog, the guide and every command tree, and that the check fails when it is missing
 // or a new tree is not linked (CAP-V0-049).
@@ -284,5 +303,16 @@ func guarded(args []string) { if len(args)>1 || args[0]=="alpha" { switch args[1
 	found := treeFindings(t, syntheticTreeRepository(t, dispatch), []string{"corvint-x"})
 	if slices.Contains(found["subcommand-unlisted"], "corvint-x alpha help") {
 		t.Fatalf("disjunction invented a fixed prefix: %v", found)
+	}
+}
+
+func TestCAPV07700MCPNamespaceDoesNotHideTool(t *testing.T) {
+	root := t.TempDir()
+	files := syntheticRepository()
+	files["cmd/corvint-serve/main.go"] = "package main\nconst method=\"tools/list\"\nvar tool=map[string]any{\"name\":\"auxiliary_ping\",\"inputSchema\":map[string]any{}}\n"
+	writeFiles(t, root, files)
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), `missing mcp-tools "auxiliary_ping"`) {
+		t.Fatalf("unlisted non-corvint tool: %d %s", code, stderr.String())
 	}
 }

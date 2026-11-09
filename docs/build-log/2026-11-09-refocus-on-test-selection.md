@@ -1,6 +1,6 @@
 # Decision 0594: Corvint refocuses on test selection
 
-Owner decision 2026-11-09; base `4663b4e2b`, integration branch `claude/bigcut`. The change was
+Owner decision 2026-11-09; base `4663b4e2b`, integration branch `claude/bigcut-keepdocs`. The change was
 built in five lanes (context, hosted and other, docs, process, tasks) plus a release-tooling
 pass, merged into one branch. Each lane kept its own notes. This entry records what the
 integration reviewer needs: what left, what stayed and why, the open calls and how they were
@@ -8,7 +8,21 @@ settled.
 
 ## What left
 
-- **Context (CUT-CONTEXT).** CONTEXT_LANE_PLACEHOLDER
+- **Context (CUT-CONTEXT).**
+  - Commands: `query`, `eval`, `harness`, `changes`, the working-tree impact mode and the
+    context-injection modes of `context`.
+  - Retrieval, learning and evaluation packages: the retrieval half of `internal/contextindex`,
+    `contextsummary`, `slotlearn`, `outcomecal`, `necessity`, `touchsurprise`, `semescalate`,
+    `disagree`, `obscorpus`, `frictionmetric`, `evalrepo`, `repro`, `betarung`, `funclink`,
+    `depsource`, `compactionkernel`, `worktreeimpact`, `sharedpath` and `upgradechanges`.
+  - The editor server: `cmd/corvint-lsp` with `internal/lspstdio`, `lspprovider`,
+    `lspevidence`, `lspsnapshot` and `goplsclient`.
+  - Host adapters: the Claude Code and Codex lifecycle hook adapters, the Gemini, OpenCode and
+    Pi integrations, `internal/opencodequalification`, `tools/native-hook-observer`,
+    `tools/qualify-opencode` and `conformance/{host-lifecycle-v1,opencode-native-v1,harness-event-v0,beta-rung-v0}`.
+  - MCP tools that read the removed packages: `corvint.query`, `corvint.context`, the
+    task-review tools, the LSP profile and `corvint.graph.imports`. The lane first removed
+    every MCP server; the amendment below restored the servers without these tools.
 - **Hosted (CUT-HOSTED).**
   - Console and dashboard: `internal/console`, `internal/dashboard`, `cmd/corvint-console`,
     `cmd/corvint-dashboard-snapshot`.
@@ -64,6 +78,11 @@ settled.
   product goal, so those cuts were reverted on `claude/bigcut-keepdocs` and their spec
   retirements undone. They stay in this repository because they read the selection index. A
   follow-up splits them into a `corvint-docs` binary behind an import rule.
+
+- **MCP servers (amendment, same day).** Each product owns its tools. `corvint-mcp` serves
+  `corvint.impact`, `corvint.status` and `corvint.help`, the opt-in `flows` profile and the
+  test-validity, test-evidence, docs and corpus groups; `corvint-docs-mcp` and
+  `corvint-test-validity-mcp` stay. Task tools belong to the Tasks repository.
 
 - **Discovery adapter.** `cmd/corvint-cli` and `internal/cliprofile` provide CAP-V0-9300
   discovery for the 16 protocol-only analyzers that stay. Cutting them would hide KEEP roots.

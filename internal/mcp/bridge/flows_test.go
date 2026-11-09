@@ -147,17 +147,11 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 		if callErr != nil {
 			t.Fatal(callErr)
 		}
-		review, reviewErr := newTaskReview(clone)
-		if reviewErr != nil {
-			t.Fatal(reviewErr)
-		}
-		task := `{"task":"orient contributor roadmap ticket workflow"}`
 		for _, call := range []struct {
 			registry        *Registry
 			tool, arguments string
 		}{
-			{registry, ToolQuery, task}, {registry, ToolImpact, `{"paths":["internal/widget/widget.go"]}`},
-			{registry, ToolStatus, `{}`}, {review, ToolContext, task},
+			{registry, ToolImpact, `{"paths":["internal/widget/widget.go"]}`}, {registry, ToolStatus, `{}`},
 			{registry, ToolFlowsMap, `{"flows":"flows"}`}, {registry, ToolFlowsGaps, `{"flows":"flows"}`},
 			{registry, ToolFlowsImpact, `{"flows":"flows","base":"` + base + `"}`}, {registry, ToolFlowsNavigate, `{"flows":"flows"}`},
 		} {

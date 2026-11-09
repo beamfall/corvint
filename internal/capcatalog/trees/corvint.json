@@ -13,14 +13,6 @@
   ],
   "internalEntryPoints": [
     {
-      "word": "pre-compact",
-      "reason": "claude-code EVENT value of adapter"
-    },
-    {
-      "word": "post-compact",
-      "reason": "claude-code EVENT value of adapter"
-    },
-    {
       "word": "audit",
       "reason": "spaced spelling of docs corpus audit-sample and audit-report"
     },
@@ -30,221 +22,6 @@
     }
   ],
   "nodes": [
-    {
-      "path": [
-        "adapter"
-      ],
-      "command": "corvint adapter",
-      "summary": "Run one bounded native host adapter",
-      "usage": [
-        "corvint adapter claude-code EVENT",
-        "corvint adapter claude-source-handoff --packet-out FILE",
-        "corvint adapter codex",
-        "corvint adapter done-list [--root PATH] [--base FULL_SHA] [--mutate]",
-        "corvint adapter pi EVENT",
-        "corvint adapter pi-tool context",
-        "corvint adapter pi-tool expand",
-        "corvint adapter pi-tool record",
-        "corvint adapter source-view [--root PATH] --packet FILE --packet-sha256 SHA256 [--result N] [--evidence N] [--commit SHA] [--lines START:END] [--requirement ID] [--max-bytes N]"
-      ],
-      "flags": [
-        "--base",
-        "--commit",
-        "--evidence",
-        "--lines",
-        "--max-bytes",
-        "--mutate",
-        "--packet",
-        "--packet-out",
-        "--packet-sha256",
-        "--requirement",
-        "--result",
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint adapter claude-code EVENT",
-      "help": "corvint adapter --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "claude-code"
-      ],
-      "command": "corvint adapter claude-code",
-      "summary": "",
-      "usage": [
-        "corvint adapter claude-code EVENT"
-      ],
-      "flags": [],
-      "required": [
-        "EVENT"
-      ],
-      "example": "corvint adapter claude-code EVENT",
-      "help": "corvint adapter claude-code --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "claude-source-handoff"
-      ],
-      "command": "corvint adapter claude-source-handoff",
-      "summary": "",
-      "usage": [
-        "corvint adapter claude-source-handoff --packet-out FILE"
-      ],
-      "flags": [
-        "--packet-out"
-      ],
-      "required": [
-        "--packet-out FILE"
-      ],
-      "example": "corvint adapter claude-source-handoff --packet-out FILE",
-      "help": "corvint adapter claude-source-handoff --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "codex"
-      ],
-      "command": "corvint adapter codex",
-      "summary": "",
-      "usage": [
-        "corvint adapter codex"
-      ],
-      "flags": [],
-      "required": [],
-      "example": "corvint adapter codex",
-      "help": "corvint adapter codex --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "done-list"
-      ],
-      "command": "corvint adapter done-list",
-      "summary": "",
-      "usage": [
-        "corvint adapter done-list [--root PATH] [--base FULL_SHA] [--mutate]"
-      ],
-      "flags": [
-        "--base",
-        "--mutate",
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint adapter done-list",
-      "help": "corvint adapter done-list --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "pi"
-      ],
-      "command": "corvint adapter pi",
-      "summary": "",
-      "usage": [
-        "corvint adapter pi EVENT"
-      ],
-      "flags": [],
-      "required": [
-        "EVENT"
-      ],
-      "example": "corvint adapter pi EVENT",
-      "help": "corvint adapter pi --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "pi-tool"
-      ],
-      "command": "corvint adapter pi-tool",
-      "summary": "",
-      "usage": [
-        "corvint adapter pi-tool context",
-        "corvint adapter pi-tool expand",
-        "corvint adapter pi-tool record"
-      ],
-      "flags": [],
-      "required": [],
-      "example": "corvint adapter pi-tool context",
-      "help": "corvint adapter pi-tool --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "pi-tool",
-        "context"
-      ],
-      "command": "corvint adapter pi-tool context",
-      "summary": "",
-      "usage": [
-        "corvint adapter pi-tool context"
-      ],
-      "flags": [],
-      "required": [],
-      "example": "corvint adapter pi-tool context",
-      "help": "corvint adapter pi-tool context --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "pi-tool",
-        "expand"
-      ],
-      "command": "corvint adapter pi-tool expand",
-      "summary": "",
-      "usage": [
-        "corvint adapter pi-tool expand"
-      ],
-      "flags": [],
-      "required": [],
-      "example": "corvint adapter pi-tool expand",
-      "help": "corvint adapter pi-tool expand --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "pi-tool",
-        "record"
-      ],
-      "command": "corvint adapter pi-tool record",
-      "summary": "",
-      "usage": [
-        "corvint adapter pi-tool record"
-      ],
-      "flags": [],
-      "required": [],
-      "example": "corvint adapter pi-tool record",
-      "help": "corvint adapter pi-tool record --help"
-    },
-    {
-      "path": [
-        "adapter",
-        "source-view"
-      ],
-      "command": "corvint adapter source-view",
-      "summary": "",
-      "usage": [
-        "corvint adapter source-view [--root PATH] --packet FILE --packet-sha256 SHA256 [--result N] [--evidence N] [--commit SHA] [--lines START:END] [--requirement ID] [--max-bytes N]"
-      ],
-      "flags": [
-        "--commit",
-        "--evidence",
-        "--lines",
-        "--max-bytes",
-        "--packet",
-        "--packet-sha256",
-        "--requirement",
-        "--result",
-        "--root"
-      ],
-      "required": [
-        "--packet FILE",
-        "--packet-sha256 SHA256"
-      ],
-      "example": "corvint adapter source-view --packet FILE --packet-sha256 SHA256",
-      "help": "corvint adapter source-view --help"
-    },
     {
       "path": [
         "adopt"
@@ -406,318 +183,28 @@
     },
     {
       "path": [
-        "answerability"
-      ],
-      "command": "corvint answerability",
-      "summary": "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON",
-      "usage": [
-        "corvint [--root PATH] answerability --task TEXT [--subject PATH] [--limit N]"
-      ],
-      "flags": [
-        "--limit",
-        "--root",
-        "--subject",
-        "--task"
-      ],
-      "required": [
-        "--task TEXT"
-      ],
-      "example": "corvint answerability --task TEXT",
-      "help": "corvint answerability --help"
-    },
-    {
-      "path": [
-        "batch"
-      ],
-      "command": "corvint batch",
-      "summary": "Answer several independent read requests from one loaded index snapshot",
-      "usage": [
-        "corvint [--root PATH] batch < REQUEST"
-      ],
-      "flags": [
-        "--root"
-      ],
-      "required": [
-        "REQUEST"
-      ],
-      "example": "corvint batch < REQUEST",
-      "help": "corvint batch --help"
-    },
-    {
-      "path": [
-        "breakage"
-      ],
-      "command": "corvint breakage",
-      "summary": "Inspect an experimental declared cross-repository API relationship map",
-      "usage": [
-        "corvint [--root PATH] breakage --manifest FILE --api REPO:PATH:SYMBOL --repository REPO=CHECKOUT [--repository OTHER=CHECKOUT] [--base FULL_COMMIT]"
-      ],
-      "flags": [
-        "--api",
-        "--base",
-        "--manifest",
-        "--repository",
-        "--root"
-      ],
-      "required": [
-        "--manifest FILE",
-        "--api REPO:PATH:SYMBOL",
-        "--repository REPO=CHECKOUT"
-      ],
-      "example": "corvint breakage --manifest FILE --api REPO:PATH:SYMBOL --repository REPO=CHECKOUT",
-      "help": "corvint breakage --help"
-    },
-    {
-      "path": [
-        "breakage",
-        "manifest"
-      ],
-      "command": "corvint breakage manifest",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] breakage manifest --repository REPO=CHECKOUT[@COMMIT] --source REPO:PATH[:START-END] [--source ...] [--provider-skeleton]"
-      ],
-      "flags": [
-        "--provider-skeleton",
-        "--repository",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--repository",
-        "--source"
-      ],
-      "example": "corvint breakage manifest --repository REPO=CHECKOUT[@COMMIT] --source REPO:PATH[:START-END]",
-      "help": "corvint breakage manifest --help"
-    },
-    {
-      "path": [
-        "calibrate"
-      ],
-      "command": "corvint calibrate",
-      "summary": "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text",
-      "usage": [
-        "corvint [--root PATH] calibrate [--since REV | --window N] [--exclude-producer NAME]... [--format json|table]"
-      ],
-      "flags": [
-        "--exclude-producer",
-        "--format",
-        "--root",
-        "--since",
-        "--window"
-      ],
-      "required": [],
-      "example": "corvint calibrate",
-      "help": "corvint calibrate --help"
-    },
-    {
-      "path": [
-        "changes"
-      ],
-      "command": "corvint changes",
-      "summary": "Inspect an experimental offline upgrade checklist (UCL1142-V0)",
-      "usage": [
-        "corvint [--root SOURCE] changes --from BUILD_SHA --to BUILD_SHA [--refs-file FILE ...] [--issue-state-file FILE]"
-      ],
-      "flags": [
-        "--from",
-        "--issue-state-file",
-        "--refs-file",
-        "--root",
-        "--to"
-      ],
-      "required": [
-        "--from BUILD_SHA",
-        "--to BUILD_SHA"
-      ],
-      "example": "corvint changes --from BUILD_SHA --to BUILD_SHA",
-      "help": "corvint changes --help"
-    },
-    {
-      "path": [
-        "changes",
-        "behind"
-      ],
-      "command": "corvint changes behind",
-      "summary": "",
-      "usage": [
-        "corvint [--root SOURCE] changes behind --base REF [--head REV] [--config FILE] [--ticket ID --stale-hours N] [--format json|doctor-plugin]"
-      ],
-      "flags": [
-        "--base",
-        "--config",
-        "--format",
-        "--head",
-        "--root",
-        "--stale-hours",
-        "--ticket"
-      ],
-      "required": [
-        "--base REF"
-      ],
-      "example": "corvint changes behind --base REF",
-      "help": "corvint changes behind --help"
-    },
-    {
-      "path": [
-        "changes",
-        "check-shared"
-      ],
-      "command": "corvint changes check-shared",
-      "summary": "",
-      "usage": [
-        "corvint [--root SOURCE] changes check-shared --base REV [--head REV] [--config FILE] [--notes FILE]"
-      ],
-      "flags": [
-        "--base",
-        "--config",
-        "--head",
-        "--notes",
-        "--root"
-      ],
-      "required": [
-        "--base REV"
-      ],
-      "example": "corvint changes check-shared --base REV",
-      "help": "corvint changes check-shared --help"
-    },
-    {
-      "path": [
-        "changes",
-        "split-shared"
-      ],
-      "command": "corvint changes split-shared",
-      "summary": "",
-      "usage": [
-        "corvint [--root SOURCE] changes split-shared --base REV --branch NAME [--apply --expect-head SHA] [--config FILE]"
-      ],
-      "flags": [
-        "--apply",
-        "--base",
-        "--branch",
-        "--config",
-        "--expect-head",
-        "--root"
-      ],
-      "required": [
-        "--base REV",
-        "--branch NAME"
-      ],
-      "example": "corvint changes split-shared --base REV --branch NAME",
-      "help": "corvint changes split-shared --help"
-    },
-    {
-      "path": [
         "context"
       ],
       "command": "corvint context",
       "summary": "Compile the task-context packet: the files to read for one task",
       "usage": [
-        "corvint [--root PATH] context --task TASK --limit 5",
-        "corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] [--lsp gopls|off]",
+        "corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]",
         "corvint [--root PATH] context --task TEXT --subject PATH --instruction-host HOST --instruction-host-version VERSION --instruction-cwd DIR --instruction-profile default",
-        "corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)",
-        "corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] --summary [--summary-bytes N]",
-        "corvint [--root PATH] context --expand HANDLE [--max-bytes N]"
+        "corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)"
       ],
       "flags": [
-        "--expand",
         "--instruction-cwd",
         "--instruction-host",
         "--instruction-host-version",
         "--instruction-profile",
         "--limit",
-        "--lsp",
-        "--max-bytes",
         "--root",
         "--subject",
-        "--summary",
-        "--summary-bytes",
         "--task"
       ],
       "required": [],
-      "example": "corvint context --task TASK --limit 5",
+      "example": "corvint context --task TEXT",
       "help": "corvint context --help"
-    },
-    {
-      "path": [
-        "context",
-        "defs"
-      ],
-      "command": "corvint context defs",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] context defs IDENTIFIER [--limit N]"
-      ],
-      "flags": [
-        "--limit",
-        "--root"
-      ],
-      "required": [
-        "IDENTIFIER"
-      ],
-      "example": "corvint context defs IDENTIFIER",
-      "help": "corvint context defs --help"
-    },
-    {
-      "path": [
-        "context",
-        "grep"
-      ],
-      "command": "corvint context grep",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] context grep TERM... [--limit N]"
-      ],
-      "flags": [
-        "--limit",
-        "--root"
-      ],
-      "required": [
-        "TERM..."
-      ],
-      "example": "corvint context grep TERM...",
-      "help": "corvint context grep --help"
-    },
-    {
-      "path": [
-        "context",
-        "refs"
-      ],
-      "command": "corvint context refs",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] context refs IDENTIFIER [--limit N]"
-      ],
-      "flags": [
-        "--limit",
-        "--root"
-      ],
-      "required": [
-        "IDENTIFIER"
-      ],
-      "example": "corvint context refs IDENTIFIER",
-      "help": "corvint context refs --help"
-    },
-    {
-      "path": [
-        "depsource"
-      ],
-      "command": "corvint depsource",
-      "summary": "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON",
-      "usage": [
-        "corvint [--root PATH] depsource MODULE [--file PATH] [--limit N]"
-      ],
-      "flags": [
-        "--file",
-        "--limit",
-        "--root"
-      ],
-      "required": [
-        "MODULE"
-      ],
-      "example": "corvint depsource MODULE",
-      "help": "corvint depsource --help"
     },
     {
       "path": [
@@ -740,8 +227,6 @@
         "corvint [--root PATH] docs corpus build --manifest INPUT.json",
         "corvint [--root PATH] docs corpus build [--manifest INPUT.json] [--artifact CORPUS.json] [--max-unresolved-mention-rate R] [--max-pattern-rate R|NAME=R[,NAME=R]] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus carry-forward --previous CORPUS.json --provider PROVIDER [--artifact CORPUS.json] [--manifest INPUT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
-        "corvint [--root PATH] docs corpus cem --artifact CORPUS.json --cem CEM.json [--id ID] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
-        "corvint [--root PATH] docs corpus cem-stable --artifact CORPUS.json --cem CEM.json --expected-base FULL_COMMIT --target FULL_COMMIT --stable-artifact-root DIR [--id ID] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus claims --artifact CORPUS.json [--path PATH] [--query TEXT] [--state blocked|ready|proven|partial|not-demonstrable|disputed|obsolete|not-established|unknown] [--qualifier provisional|classification-only] [--run RUN] [--kind KIND[,KIND]] [--exclude-kind] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus compact-provider --input PROVIDER.json",
         "corvint [--root PATH] docs corpus compact-provider --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
@@ -788,8 +273,6 @@
         "corvint [--root PATH] docs corpus trace --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus validate --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
-        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
-        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
@@ -811,7 +294,6 @@
         "--baseline",
         "--caller-revision",
         "--cases",
-        "--cem",
         "--check",
         "--config",
         "--content",
@@ -819,7 +301,6 @@
         "--dry-run",
         "--enable",
         "--exclude-kind",
-        "--expected-base",
         "--flows",
         "--format",
         "--id",
@@ -854,9 +335,7 @@
         "--qualifier",
         "--query",
         "--receipt",
-        "--receipt-input",
         "--repo",
-        "--report",
         "--repository",
         "--request",
         "--retirement",
@@ -871,10 +350,8 @@
         "--seed",
         "--size",
         "--source",
-        "--stable-artifact-root",
         "--state",
         "--stratify",
-        "--target",
         "--task",
         "--timestamp",
         "--timings",
@@ -1131,66 +608,6 @@
       ],
       "example": "corvint docs corpus carry-forward --previous CORPUS.json --provider PROVIDER",
       "help": "corvint docs corpus carry-forward --help"
-    },
-    {
-      "path": [
-        "docs",
-        "corpus",
-        "cem"
-      ],
-      "command": "corvint docs corpus cem",
-      "summary": "Experimental documentation corpus: emit CEM citation arguments and a corpus/CEM binding sidecar",
-      "usage": [
-        "corvint [--root PATH] docs corpus cem --artifact CORPUS.json --cem CEM.json [--id ID] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
-      ],
-      "flags": [
-        "--artifact",
-        "--cem",
-        "--id",
-        "--no-workspace",
-        "--repo",
-        "--root",
-        "--workspace"
-      ],
-      "required": [
-        "--artifact CORPUS.json",
-        "--cem CEM.json"
-      ],
-      "example": "corvint docs corpus cem --artifact CORPUS.json --cem CEM.json",
-      "help": "corvint docs corpus cem --help"
-    },
-    {
-      "path": [
-        "docs",
-        "corpus",
-        "cem-stable"
-      ],
-      "command": "corvint docs corpus cem-stable",
-      "summary": "Experimental documentation corpus: project claims through a verified cem/1.0 map; read-only, refuses any other outcome",
-      "usage": [
-        "corvint [--root PATH] docs corpus cem-stable --artifact CORPUS.json --cem CEM.json --expected-base FULL_COMMIT --target FULL_COMMIT --stable-artifact-root DIR [--id ID] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
-      ],
-      "flags": [
-        "--artifact",
-        "--cem",
-        "--expected-base",
-        "--id",
-        "--no-workspace",
-        "--repo",
-        "--root",
-        "--stable-artifact-root",
-        "--target",
-        "--workspace"
-      ],
-      "required": [
-        "--artifact CORPUS.json",
-        "--cem CEM.json",
-        "--expected-base FULL_COMMIT",
-        "--target FULL_COMMIT",
-        "--stable-artifact-root DIR"
-      ],
-      "example": "corvint docs corpus cem-stable --artifact CORPUS.json --cem CEM.json --expected-base FULL_COMMIT --target FULL_COMMIT --stable-artifact-root DIR",
-      "help": "corvint docs corpus cem-stable --help"
     },
     {
       "path": [
@@ -2231,35 +1648,6 @@
     {
       "path": [
         "docs",
-        "corpus",
-        "witness-playwright"
-      ],
-      "command": "corvint docs corpus witness-playwright",
-      "summary": "Experimental documentation corpus: import qualified Playwright witnesses from a committed receipt and report",
-      "usage": [
-        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
-        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
-      ],
-      "flags": [
-        "--input",
-        "--no-workspace",
-        "--receipt-input",
-        "--repo",
-        "--report",
-        "--root",
-        "--workspace"
-      ],
-      "required": [
-        "--input REQUEST.json",
-        "--receipt-input ID",
-        "--report REPORT.json"
-      ],
-      "example": "corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
-      "help": "corvint docs corpus witness-playwright --help"
-    },
-    {
-      "path": [
-        "docs",
         "draft"
       ],
       "command": "corvint docs draft",
@@ -2432,33 +1820,6 @@
       ],
       "example": "corvint docs nav --trusted-project --request FILE",
       "help": "corvint docs nav --help"
-    },
-    {
-      "path": [
-        "eval"
-      ],
-      "command": "corvint eval",
-      "summary": "Evaluate a frozen retrieval corpus through the native candidate",
-      "usage": [
-        "corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...",
-        "corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]",
-        "corvint [--root PATH] eval --reset-slot-weights",
-        "corvint [--root PATH] eval --friction FILE",
-        "corvint eval --reset-slot-weights restores the default order."
-      ],
-      "flags": [
-        "--admit",
-        "--exclude-producer",
-        "--friction",
-        "--goldens",
-        "--learn-slot-weights",
-        "--reset-slot-weights",
-        "--root",
-        "--trace-fixture"
-      ],
-      "required": [],
-      "example": "corvint eval",
-      "help": "corvint eval --help"
     },
     {
       "path": [
@@ -3668,102 +3029,6 @@
     },
     {
       "path": [
-        "graph"
-      ],
-      "command": "corvint graph",
-      "summary": "Export every resolved indexed file import as deterministic graph-imports/1 JSONL",
-      "usage": [
-        "corvint [--root DIR] graph imports --revision FULL_COMMIT [--kinds KINDS] [--format jsonl]"
-      ],
-      "flags": [
-        "--format",
-        "--kinds",
-        "--revision",
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint graph imports --revision FULL_COMMIT",
-      "help": "corvint graph --help"
-    },
-    {
-      "path": [
-        "graph",
-        "imports"
-      ],
-      "command": "corvint graph imports",
-      "summary": "",
-      "usage": [
-        "corvint [--root DIR] graph imports --revision FULL_COMMIT [--kinds KINDS] [--format jsonl]"
-      ],
-      "flags": [
-        "--format",
-        "--kinds",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--revision FULL_COMMIT"
-      ],
-      "example": "corvint graph imports --revision FULL_COMMIT",
-      "help": "corvint graph imports --help"
-    },
-    {
-      "path": [
-        "harness"
-      ],
-      "command": "corvint harness",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input - [--budget-bytes N]"
-      ],
-      "flags": [
-        "--adapter-version",
-        "--budget-bytes",
-        "--event",
-        "--host",
-        "--host-version",
-        "--input",
-        "--root",
-        "--surface"
-      ],
-      "required": [],
-      "example": "corvint harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input -",
-      "help": "corvint harness --help"
-    },
-    {
-      "path": [
-        "harness",
-        "event"
-      ],
-      "command": "corvint harness event",
-      "summary": "Compile one experimental agent-harness lifecycle event",
-      "usage": [
-        "corvint [--root PATH] harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input - [--budget-bytes N]"
-      ],
-      "flags": [
-        "--adapter-version",
-        "--budget-bytes",
-        "--event",
-        "--host",
-        "--host-version",
-        "--input",
-        "--root",
-        "--surface"
-      ],
-      "required": [
-        "--host HOST",
-        "--host-version VERSION",
-        "--surface SURFACE",
-        "--adapter-version VERSION",
-        "--event EVENT",
-        "--input",
-        "-"
-      ],
-      "example": "corvint harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input -",
-      "help": "corvint harness event --help"
-    },
-    {
-      "path": [
         "how"
       ],
       "command": "corvint how",
@@ -3798,7 +3063,6 @@
       "usage": [
         "corvint [--root PATH] impact [--limit N] [--provider FILE]... [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]... [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...",
         "corvint [--root PATH] impact --capabilities",
-        "corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...",
         "corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N] [--range-profile expanded-256]",
         "corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE --base COMMIT [--manifest-repo ALIAS] [--at REV] [--test-at REV] [--ledger FILE]"
       ],
@@ -3821,8 +3085,7 @@
         "--require-clean",
         "--root",
         "--test-at",
-        "--test-root",
-        "--working-tree-untracked"
+        "--test-root"
       ],
       "required": [],
       "example": "corvint impact PATH...",
@@ -3867,42 +3130,6 @@
     },
     {
       "path": [
-        "kernel"
-      ],
-      "command": "corvint kernel",
-      "summary": "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text",
-      "usage": [
-        "corvint [--root PATH] kernel [--requirements IDS]"
-      ],
-      "flags": [
-        "--requirements",
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint kernel",
-      "help": "corvint kernel --help"
-    },
-    {
-      "path": [
-        "kernel",
-        "verify"
-      ],
-      "command": "corvint kernel verify",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] kernel verify < SUMMARY"
-      ],
-      "flags": [
-        "--root"
-      ],
-      "required": [
-        "SUMMARY"
-      ],
-      "example": "corvint kernel verify < SUMMARY",
-      "help": "corvint kernel verify --help"
-    },
-    {
-      "path": [
         "mcp"
       ],
       "command": "corvint mcp",
@@ -3928,27 +3155,6 @@
     },
     {
       "path": [
-        "necessity"
-      ],
-      "command": "corvint necessity",
-      "summary": "Label every file the task-context packet included by counterfactual removal",
-      "usage": [
-        "corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]"
-      ],
-      "flags": [
-        "--limit",
-        "--root",
-        "--subject",
-        "--task"
-      ],
-      "required": [
-        "--task TEXT"
-      ],
-      "example": "corvint necessity --task TEXT",
-      "help": "corvint necessity --help"
-    },
-    {
-      "path": [
         "overview"
       ],
       "command": "corvint overview",
@@ -3962,97 +3168,6 @@
       "required": [],
       "example": "corvint overview",
       "help": "corvint overview --help"
-    },
-    {
-      "path": [
-        "query"
-      ],
-      "command": "corvint query",
-      "summary": "Compile experimental repository context or the authority-start receipt",
-      "usage": [
-        "corvint [--root PATH] query --task TASK [--limit N] [--budget-bytes N]"
-      ],
-      "flags": [
-        "--budget-bytes",
-        "--limit",
-        "--root",
-        "--task"
-      ],
-      "required": [
-        "--task TASK"
-      ],
-      "example": "corvint query --task TASK",
-      "help": "corvint query --help"
-    },
-    {
-      "path": [
-        "repro"
-      ],
-      "command": "corvint repro",
-      "summary": "Record a corvint invocation as a reproduction bundle, or replay one (RPB-V0, experimental)",
-      "usage": [
-        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ...",
-        "corvint [--root PATH] repro run BUNDLE"
-      ],
-      "flags": [
-        "--expect-exit",
-        "--expect-same-stdout",
-        "--expect-stderr-contains",
-        "--expect-stdout-contains",
-        "--expect-stdout-not-contains",
-        "--input",
-        "--output",
-        "--root"
-      ],
-      "required": [],
-      "example": "corvint repro record --output FILE -- ARGUMENT",
-      "help": "corvint repro --help"
-    },
-    {
-      "path": [
-        "repro",
-        "record"
-      ],
-      "command": "corvint repro record",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ..."
-      ],
-      "flags": [
-        "--expect-exit",
-        "--expect-same-stdout",
-        "--expect-stderr-contains",
-        "--expect-stdout-contains",
-        "--expect-stdout-not-contains",
-        "--input",
-        "--output",
-        "--root"
-      ],
-      "required": [
-        "--output FILE",
-        "-- ARGUMENT"
-      ],
-      "example": "corvint repro record --output FILE -- ARGUMENT",
-      "help": "corvint repro record --help"
-    },
-    {
-      "path": [
-        "repro",
-        "run"
-      ],
-      "command": "corvint repro run",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] repro run BUNDLE"
-      ],
-      "flags": [
-        "--root"
-      ],
-      "required": [
-        "BUNDLE"
-      ],
-      "example": "corvint repro run BUNDLE",
-      "help": "corvint repro run --help"
     },
     {
       "path": [
@@ -4360,31 +3475,6 @@
       ],
       "example": "corvint runs stability --runs FILE[,FILE...]",
       "help": "corvint runs stability --help"
-    },
-    {
-      "path": [
-        "surprise"
-      ],
-      "command": "corvint surprise",
-      "summary": "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON",
-      "usage": [
-        "corvint [--root PATH] surprise --task TEXT --base REV --target REV [--subject PATH] [--limit N]"
-      ],
-      "flags": [
-        "--base",
-        "--limit",
-        "--root",
-        "--subject",
-        "--target",
-        "--task"
-      ],
-      "required": [
-        "--task TEXT",
-        "--base REV",
-        "--target REV"
-      ],
-      "example": "corvint surprise --task TEXT --base REV --target REV",
-      "help": "corvint surprise --help"
     },
     {
       "path": [

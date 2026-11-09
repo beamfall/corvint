@@ -88,7 +88,7 @@ func TestMMRV0012ToolProfileList(t *testing.T) {
 	for value, want := range map[string][]string{
 		"flows":                     {"flows"},
 		"docs":                      {"", "docs"},
-		"task-review,docs,corpus":   {"task-review", "docs", "corpus"},
+		"flows,docs,corpus":         {"flows", "docs", "corpus"},
 		"test-validity,flows":       {"flows", "test-validity"},
 		"corpus,test-validity,docs": {"", "corpus", "test-validity", "docs"},
 	} {
@@ -112,8 +112,8 @@ func TestMMRV0012ToolProfileList(t *testing.T) {
 		}
 	}
 	// Code tools stay served beside the groups, and no group duplicates a name.
-	tools := toolNames(listedTools(t, []string{"--root", root, "--tool-profile", "task-review,test-validity,docs"}))
-	code := toolNames(listedTools(t, []string{"--root", root, "--tool-profile", "task-review"}))
+	tools := toolNames(listedTools(t, []string{"--root", root, "--tool-profile", "flows,test-validity,docs"}))
+	code := toolNames(listedTools(t, []string{"--root", root, "--tool-profile", "flows"}))
 	want := slices.Sorted(slices.Values(append(slices.Clone(code), "corvint.docs_consume", "corvint.docs_draft", "corvint.test_validity")))
 	if !slices.Equal(tools, want) {
 		t.Fatalf("tools=%q want=%q", tools, want)
@@ -145,7 +145,7 @@ func TestMMRV0013UnionAcrossFollowedRoots(t *testing.T) {
 	skipUnqualifiedStatus(t)
 	app, e2e := groupsFixture(t)
 	arguments := []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--follow-ref", "e2e=integration",
-		"--tool-profile", "task-review,test-validity,docs,corpus", "--corpus-artifact", "app=corpus.json"}
+		"--tool-profile", "test-validity,docs,corpus", "--corpus-artifact", "app=corpus.json"}
 	responses := multiRootSession(t, arguments,
 		map[string]any{"id": 1, "method": "tools/list"},
 		toolCall(2, "corvint.test_validity", map[string]any{"repository": "e2e"}),
@@ -155,7 +155,7 @@ func TestMMRV0013UnionAcrossFollowedRoots(t *testing.T) {
 		toolCall(6, "corvint.test_validity", map[string]any{"repository": "missing"}),
 		toolCall(7, "corvint.test_validity", map[string]any{}),
 	)
-	code := toolNames(listedTools(t, []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--tool-profile", "task-review"}))
+	code := toolNames(listedTools(t, []string{"--root", "app=" + app, "--root", "e2e=" + e2e}))
 	var names []string
 	for _, raw := range resultOf(t, responses["1"])["tools"].([]any) {
 		tool := raw.(map[string]any)
@@ -613,7 +613,7 @@ func TestMMRV0017UndeclaredCorpusToolNeverBindsFollowedRef(t *testing.T) {
 	}
 	writeCorpusArtifact(t, worktree, "corpus.json")
 	pinned := headRevision(t, worktree)
-	arguments := []string{"--root", worktree, "--follow-ref", "integration", "--tool-profile", "task-review,corpus", "--corpus-artifact", "corpus.json"}
+	arguments := []string{"--root", worktree, "--follow-ref", "integration", "--tool-profile", "corpus", "--corpus-artifact", "corpus.json"}
 	undeclared := "corvint.docs_get_journey"
 	if slices.Contains(toolNames(listedTools(t, arguments)), undeclared) {
 		t.Fatalf("fixture artifact declares %s", undeclared)

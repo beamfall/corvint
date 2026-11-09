@@ -14,6 +14,8 @@
     management, and "if there are other ways this could be extracted into new repos that is
     fine". The owner then approved the layout in items 1, 3 and 5 below ("Yes, amend and
     rebuild").
+  - Owner chat, 2026-11-09, on repository layout: "I'd like it to be optimized for development,
+    test and release speed", then "Yes, layers" to the layout in item 8.
 - Amends: decision 0593 (the rest of the inventory is now accepted); the owner acceptances that
   put the cut surfaces in 1.0; `AGENTS.md` product invariants 4, 7 and 8 and the dogfood contract
   where they name a removed surface.
@@ -69,6 +71,22 @@ CUT, RETIRE, EXTRACT or CARVE by whether it serves selection for a diff.
 7. The `.github` changes (jobs, `.github/cishards` entries and workflow tests for the removed
    surfaces) go in a separate change, because `github-split-check` (`ASD-V0-706`) refuses a range
    that mixes `.github` with code.
+8. **Layout direction: layers, not more repositories.** The engine stays one repository,
+   `beamfall/corvint`, organised as layers with an enforced import direction; Tasks stays in
+   `beamfall/corvint-tasks`; `protocol/**` may later move to its own repository. A separate
+   repository per layer was rejected, because every change to the shared layer would then need
+   a tag and a version-bump change in each consumer. The layers are:
+   - shared: Git pinning, the index, flows and E2E mapping, CLI and MCP plumbing (library only);
+   - analyzers: one layer, pluggable per language, one binary each;
+   - tests: selection, running and review (`corvint`);
+   - docs: generation and corpus reads (`corvint-docs`, item 3);
+   - release tooling, which serves the others and is not shipped.
+
+   Shared imports no other layer, and analyzers, tests and docs do not import each other. This
+   item records direction only and changes no code. Follow-up tickets measure per-layer test
+   time and cross-layer imports first, then enforce the import rule, split the `cmd/corvint`
+   test package, shard CI by layer and release each binary independently. `AGENTS.md`
+   invariant 7 is reworded in the change that ships the first separate product binary.
 
 ## Rollback
 

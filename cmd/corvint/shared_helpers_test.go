@@ -12,8 +12,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // cemGit runs git on the fixture with the host's config files masked rather
@@ -112,20 +110,6 @@ func candidateCommand(arguments ...string) *exec.Cmd {
 	command := exec.Command(os.Args[0], append([]string{"-test.run=^TestCandidateHelperProcess$", "--"}, arguments...)...)
 	command.Env = append(os.Environ(), "CORVINT_HELPER_PROCESS=1")
 	return command
-}
-
-func checkpointGitWrapper(t *testing.T, body string) []string {
-	t.Helper()
-	realGit, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	directory := t.TempDir()
-	wrapper := "#!/bin/sh\n" + body + "\nexec " + shellQuote(realGit) + " \"$@\"\n"
-	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(wrapper), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return []string{"PATH=" + directory + string(os.PathListSeparator) + os.Getenv("PATH")}
 }
 
 func shellQuote(value string) string {

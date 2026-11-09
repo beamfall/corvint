@@ -14,14 +14,12 @@ type MCPTool struct {
 // checker compares its names with offline descriptors and the source inventory.
 func MCPTools() []MCPTool {
 	return []MCPTool{
-		{"corvint.cem.report", "corvint-mcp task-review, task-review-lsp", "Read a CEM report"},
-		{"corvint.context", "corvint-mcp task-review, task-review-lsp", "Same packet as corvint context"},
 		{"corvint.docs_claims", "corvint-mcp --tool-profile corpus", "Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run; each claim carries a claim_kind, filterable by kind / exclude_kind, and run records rank below behavioural claims ([DCS-V1-591..593](specs/documentation-corpus-search-ranking-v1.md))"},
 		{"corvint.docs_concept", "corvint-mcp --tool-profile corpus", "One concept's record"},
-		{"corvint.docs_consume", "corvint-docs-mcp", "Recheck a draft's exact bytes against source"},
+		{"corvint.docs_consume", "corvint-docs-mcp, corvint-mcp --tool-profile docs", "Recheck a draft's exact bytes against source"},
 		{"corvint.docs_coverage", "corvint-mcp --tool-profile corpus", "Coverage counts per outcome"},
 		{"corvint.docs_dependencies", "corvint-mcp --tool-profile corpus", "Dependencies of a subject"},
-		{"corvint.docs_draft", "corvint-docs-mcp", "Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019)"},
+		{"corvint.docs_draft", "corvint-docs-mcp, corvint-mcp --tool-profile docs", "Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019)"},
 		{"corvint.docs_find_related", "corvint-mcp --tool-profile corpus", "Related subjects"},
 		{"corvint.docs_flow", "corvint-mcp --tool-profile corpus", "One documented flow"},
 		{"corvint.docs_gaps", "corvint-mcp --tool-profile corpus", "Producer gap claims"},
@@ -43,12 +41,10 @@ func MCPTools() []MCPTool {
 		{"corvint.flows.impact", "corvint-mcp flows", "Flows a change reaches"},
 		{"corvint.flows.map", "corvint-mcp flows", "Application flow map"},
 		{"corvint.flows.navigate", "corvint-mcp flows", "Navigation within the flow map"},
-		{"corvint.graph.imports", "corvint-mcp --tool-profile import-graph", "Pinned whole-tree import JSONL pages; required full revision, optional kinds and offset; concatenate jsonl following nextOffset until done"},
 		{"corvint.help", "corvint-mcp (all profiles), corvint-docs-mcp, corvint-test-validity-mcp", "Same bytes as corvint help guide (default), corvint help --json COMMAND (command) or corvint help --json (topic catalog)"},
 		{"corvint.impact", "corvint-mcp (all profiles)", "Same receipt as corvint impact, path requests for Go, Ruby, JS and TS"},
-		{"corvint.query", "corvint-mcp (all profiles)", "Same receipt as corvint query"},
 		{"corvint.status", "corvint-mcp (all profiles)", "Repository status receipt"},
 		{"corvint.test_evidence", "corvint-mcp --tool-profile test-evidence", "Same read-only path, range, test and explanation projection as corvint test-evidence"},
-		{"corvint.test_validity", "corvint-test-validity-mcp", "Five-axis projection of retained test evidence"},
+		{"corvint.test_validity", "corvint-test-validity-mcp, corvint-mcp --tool-profile test-validity", "Five-axis projection of retained test evidence"},
 	}
 }

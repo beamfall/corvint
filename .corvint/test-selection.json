@@ -393,6 +393,18 @@
       ]
     },
     {
+      "paths": "conformance/mcp-2026-07-28/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/mcp-test-validity-v0/cases.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "conformance/perf-v0/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -676,6 +688,12 @@
     },
     {
       "paths": "internal/liveverify/gotest/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "internal/mcp/cli/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]

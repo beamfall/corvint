@@ -44,8 +44,7 @@ func TestMCPV0038IndexDeadlineHasDistinctCode(t *testing.T) {
 				return nil, test.err
 			}
 			operations.build = build
-			operations.buildQuery = func(ctx context.Context, root, _ string) (*contextindex.Index, error) { return build(ctx, root) }
-			_, callErr := registryWithOperations(registry, operations).Call(ctx, ToolQuery, []byte(`{"task":"orient contributor roadmap ticket workflow"}`))
+			_, callErr := registryWithOperations(registry, operations).Call(ctx, ToolImpact, []byte(`{"paths":["internal/widget/widget.go"]}`))
 			if callErr == nil || callErr.Code != test.want {
 				t.Fatalf("index refusal = %#v, want %s", callErr, test.want)
 			}

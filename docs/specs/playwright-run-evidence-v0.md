@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-11
 Intent status: accepted (decision 0520; V1-1230, V1-1229)
-Delivery status: experimental; amended 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. PWR-V0-036, 038, 039, 046..050, 052, 054, 071..073, 178 and 186 are retired (bodies and IDs kept); PWR-V0-040, 051, 053, 177 and 183..185 are amended in place. The readers still consume an embedded or sidecar declaration a project produces itself.
+Delivery status: experimental; amended 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. Each retired or amended requirement says so on its own definition line (bodies and IDs kept). The readers still consume an embedded or sidecar declaration a project produces itself.
 Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; GitHub
 #809 (repeat-each) and #810 (shards) for PWR-V0-011..023, agent-drafted and accepted under the
 owner's standing auto-accept (2026-10-11) after independent review; V1-1578 / GitHub #1021 (result

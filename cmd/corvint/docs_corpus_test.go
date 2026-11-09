@@ -191,7 +191,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		root := taskContextRepository(t)
 		rev := cemGit(t, root, "rev-parse", "HEAD")
 		writeCorpusFixture(t, root, rev, "cache")
-		commands := [][]string{{"query", "--task", "Split implementation"}, {"context", "--task", "Split implementation", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
+		commands := [][]string{{"context", "--task", "Split implementation", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
 		for _, args := range commands {
 			t.Run(args[0], func(t *testing.T) {
 				code, base, stderr := corpusCLI(t, root, args...)
@@ -293,11 +293,9 @@ func TestCorpusNativeOptionIsolation(t *testing.T) {
 	t.Run("DCP-V1-012 DCP-V1-018 options", func(t *testing.T) {
 		root := taskContextRepository(t)
 		for _, args := range [][]string{
-			{"query", "--task", "--corpus"},
-			{"query", "--task", "--corpus=corpus.json"},
-			{"work", "plan-fixture", "--executor", "--corpus=fixture.json"},
-			{"work", "plan-fixture", "--observations", "--corpus=fixture.json"},
-			{"work", "init", "--repository", "--corpus=fixture.json"},
+			{"context", "--task", "--corpus"},
+			{"context", "--task", "--corpus=corpus.json"},
+			{"affected", "--repository", "--corpus=fixture.json"},
 		} {
 			var out, stderr bytes.Buffer
 			_, handled := runCorpusIntegration(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &out, &stderr)
@@ -325,10 +323,7 @@ func TestCorpusImpactNativePathSelection(t *testing.T) {
 		cemGit(t, root, "add", "cache/demux.go")
 		cemGit(t, root, "commit", "-qm", "changed implementation")
 		writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
-		for _, args := range [][]string{{"impact", "--base", base}, {"impact", "--", "cache/demux.go"}, {"impact", "--working-tree-untracked", "cache/new.go"}} {
-			if args[1] == "--working-tree-untracked" {
-				cemWrite(t, root, "cache/new.go", "package cache\nfunc New() {}\n")
-			}
+		for _, args := range [][]string{{"impact", "--base", base}, {"impact", "--", "cache/demux.go"}} {
 			// Place the additive flag before the native positional delimiter.
 			invocation := append([]string{args[0], "--corpus=corpus.json"}, args[1:]...)
 			code, out, stderr := corpusCLI(t, root, invocation...)
@@ -344,12 +339,6 @@ func TestCorpusImpactNativePathSelection(t *testing.T) {
 			}
 			if err := json.Unmarshal([]byte(out), &result); err != nil {
 				t.Fatal(err)
-			}
-			if args[1] == "--working-tree-untracked" {
-				if !strings.Contains(out, "no documented subject for cache/new.go") {
-					t.Fatal("untracked path was lost")
-				}
-				continue
 			}
 			if len(result.Documentation.Impact.Subjects) == 0 {
 				t.Fatalf("native paths did not join: %v %s", args, out)
@@ -391,7 +380,7 @@ func TestCorpusRootPreambleRefusesOptionLikeValue(t *testing.T) {
 func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
-	args := []string{"--root", root, "query", "--corpus=corpus.json"}
+	args := []string{"--root", root, "context", "--corpus=corpus.json"}
 	var baseline, baselineErr bytes.Buffer
 	if code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &baseline, &baselineErr); !handled || code == 0 {
 		t.Fatalf("native relay baseline: handled=%v code=%d stderr=%q", handled, code, baselineErr.String())
@@ -448,7 +437,7 @@ func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
 		if err = json.Unmarshal([]byte(out), &receipt); err != nil || len(receipt.Results) != 1 || receipt.Offset != 1 || receipt.Omitted == 0 {
 			t.Fatal("missing page metadata", err)
 		}
-		for _, args := range [][]string{{"query", "--task", "Split"}, {"context", "--task", "Split", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
+		for _, args := range [][]string{{"context", "--task", "Split", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
 			code, base, stderr := corpusCLI(t, root, args...)
 			if code != 0 {
 				t.Fatal(stderr)

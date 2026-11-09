@@ -119,7 +119,7 @@ func TestCaseInventoryIsClosed(t *testing.T) {
 		"discover-exact", "discover-closed-params", "per-request-meta", "unsupported-version", "removed-methods",
 		"tool-catalogue", "resource-omission", "unknown-tool", "closed-tool-schema",
 		"impact-limit-integer-schema", "repository-filter-no-execution", "effective-worktree-root-binding",
-		"optional-empty-status-arguments", "required-query-impact-arguments",
+		"optional-empty-status-arguments", "required-impact-arguments",
 		"duplicate-key", "nested-duplicate-key", "invalid-utf8", "malformed-json",
 		"invalid-jsonrpc-envelope", "batch-rejected", "oversize-frame", "exact-limit-frame", "crlf-frame", "depth-overflow",
 		"cancel-structural", "progress-execution-not-observed", "logging-opt-in", "roots-no-server-call",
@@ -287,7 +287,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 		t.Fatalf("tool ttlMs=%#v", result["ttlMs"])
 	}
 	tools, ok := result["tools"].([]any)
-	if !ok || len(tools) != 4 {
+	if !ok || len(tools) != 3 {
 		t.Fatalf("tools=%#v", result["tools"])
 	}
 	names := make([]string, 0, len(tools))
@@ -311,7 +311,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 			t.Fatalf("tool %s annotations=%s", name, canonicalJSON(annotations))
 		}
 	}
-	if want := []string{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"corvint.help", "corvint.impact", "corvint.status"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("tool order/names=%v want=%v", names, want)
 	}
 	assertServerInfo(t, result)
@@ -342,9 +342,6 @@ func TestOptionalArgumentsOnlyForEmptyStatusSchema(t *testing.T) {
 	if status["isError"] == true || status["resultType"] != "complete" {
 		t.Fatalf("status without arguments=%s", canonicalJSON(status))
 	}
-	assertErrorCode(t, client.call(t, 59, "tools/call", map[string]any{
-		"_meta": requestMeta(), "name": "corvint.query",
-	}), -32602)
 	assertErrorCode(t, client.call(t, 60, "tools/call", map[string]any{
 		"_meta": requestMeta(), "name": "corvint.impact",
 	}), -32602)
@@ -535,7 +532,7 @@ func TestImpactLimitMatchesAdvertisedIntegerSchema(t *testing.T) {
 }
 
 func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
-	readToolsRefuseExecutableConfigAndWorktreeRedirects(t, nil, []string{"corvint.status", "corvint.impact", "corvint.query"})
+	readToolsRefuseExecutableConfigAndWorktreeRedirects(t, nil, []string{"corvint.status", "corvint.impact"})
 }
 
 // readToolsRefuseExecutableConfigAndWorktreeRedirects starts the server with
@@ -596,11 +593,6 @@ func readToolArguments(t *testing.T, root, tool string) map[string]any {
 	switch tool {
 	case "corvint.impact":
 		return map[string]any{"paths": []any{"pkg/value.go"}}
-	case "corvint.query", "corvint.context":
-		return map[string]any{"task": "orient contributor roadmap ticket workflow"}
-	case "corvint.cem.report":
-		head := gitOutput(t, root, "rev-parse", "HEAD")
-		return map[string]any{"map": ".corvint/change.cem.json", "expectedBase": head, "target": head}
 	}
 	return map[string]any{}
 }
@@ -625,20 +617,12 @@ func TestReadOnlyCallsBindRevisionAndDoNotLeak(t *testing.T) {
 	}))
 	assertToolReceipt(t, impact, revision, secret, sourceSecret)
 
-	query := successResult(t, client.call(t, 82, "tools/call", map[string]any{
-		"_meta": requestMeta(), "name": "corvint.query",
-		"arguments": map[string]any{
-			"task": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
-		},
-	}))
-	assertToolReceipt(t, query, revision, secret, sourceSecret)
-
 	assertErrorCode(t, client.call(t, 83, "tools/call", map[string]any{
 		"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{"extra": secret},
 	}), -32602)
 	assertErrorCode(t, client.call(t, 84, "tools/call", map[string]any{
-		"_meta": requestMeta(), "name": "corvint.query",
-		"arguments": map[string]any{"task": "Identify the active work queue", "limit": json.Number("1")},
+		"_meta": requestMeta(), "name": "corvint.impact",
+		"arguments": map[string]any{"paths": []any{"pkg/value.go"}, "task": "Identify the active work queue"},
 	}), -32602)
 	if after := treeDigest(t, root); before != after {
 		t.Fatalf("read-only MCP calls mutated repository: before=%s after=%s", before, after)

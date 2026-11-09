@@ -45,8 +45,7 @@ func (rule PathRule) Pattern() string {
 }
 
 // SubjectPathRule is a repository-relative path that may end in a slash, as
-// corvint.context's subject and the docs tools' paths take it; impactPathRule
-// adds the impact path suffixes.
+// the docs tools' paths take it; impactPathRule adds the impact path suffixes.
 var (
 	SubjectPathRule = PathRule{Excluded: `\n\r`, TrailingSlash: true}
 	impactPathRule  = PathRule{Excluded: `\n\r`, Suffixes: []string{"go", "rb", "js", "jsx", "mjs", "cjs", "ts", "tsx"}}

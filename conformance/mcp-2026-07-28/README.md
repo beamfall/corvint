@@ -22,8 +22,8 @@ The runner builds `./cmd/corvint-mcp`, launches it as
 delimited JSON-RPC on stdin/stdout. It verifies:
 
 - exact discovery/version metadata and truthful tools-only capabilities;
-- deterministic, closed tool catalogues for `corvint.help`, `corvint.query`,
-  `corvint.impact`, and `corvint.status`, with no resources or unimplemented tools;
+- deterministic, closed tool catalogues for `corvint.help`, `corvint.impact`,
+  and `corvint.status`, with no resources or unimplemented tools;
 - stateless per-request metadata and unsupported-version errors;
 - rejection of removed legacy methods;
 - strict duplicate-key, invalid-UTF-8, malformed-JSON, 1 MiB frame, and depth-64
@@ -68,50 +68,17 @@ when Git does not resolve. `TestGitPlantedOnPathAfterStartNeverRuns` plants a
 also observes the refusal to start without Git. This closes the former
 `INHERITED_KERNEL_GIT_PATH_NOT_PINNED` blocker.
 
-## Task-review profile `/1`
+## Retired task-review profile `/1`
 
-`cases-task-review.json` is the closed inventory of the opt-in descendant
-profile `corvint-mcp-2026-07-28-conformance/1` (decision 0374). Its parent is
-`/0`, which is unchanged: without the selector the server lists exactly the three
-tools above. The runner launches
-`corvint-mcp --root ABSOLUTE_CLEAN_ROOT --tool-profile task-review`, which also
-advertises `corvint.context` and `corvint.cem.report` (`MCPV0-024..026`).
+Decision 0594 removed the opt-in `task-review` descendant profile
+`corvint-mcp-2026-07-28-conformance/1` with `corvint.query`, `corvint.context`
+and `corvint.cem.report`; `--tool-profile task-review` now exits 2 like any
+unknown value, and its case inventory was removed with it. Profile `/0` is
+unchanged apart from the removed `corvint.query` tool.
 
-The selector case runs the binary with a missing, unknown, differently cased or
-duplicate value, the `--tool-profile=task-review` spelling, and the selector
-beside `--version`; each exits 2 with no stdout before repository startup. The
-default-profile case lists three tools and requires `-32602` for a call to
-either task-review tool. The catalogue case requires the five closed,
-read-only descriptors in order. The legacy case composes the selector with
-`--protocol-version 2025-11-25` in both argument orders and calls
-`corvint.context` through the legacy lifecycle.
-
-The read-only case compares a digest of the whole root, `.git` included,
-before and after both calls, requires the bound envelope and receipt, and
-requires that `.git/corvint/cem-review.md` was never written. The rejection
-case sends malformed task, subject, limit, map, revision and ceiling arguments
-and requires `-32602`. The escape case links the map, and separately its parent
-directory, to a file outside the root. It requires `cem-map-unavailable`
-without the outside path in the result and requires both trees to be
-unchanged. The envelope case plants a hunk path carrying the envelope
-terminator and requires `corvint-envelope-terminator-collision`, then renders
-a 1,500-hunk report and requires `ABSTAINED`/`OUTPUT_BUDGET_EXCEEDED` with a
-null receipt. The filter case repeats the executable-config and worktree
-redirect refusals for both tools. `TestTaskReviewCEMReportNeverRunsPlantedGit`
-plants Git on `PATH` after start and calls `corvint.cem.report` on a missing
-and a present map. With `CORVINT_MCP_OFFICIAL_SCHEMA` set,
-`TestTaskReviewTrafficMatchesOfficialSchema` checks the five-tool list and the
-success, tool-error and `-32602` shapes of both tools against the pinned
-schema.
-
-Negative controls, each run once and then reverted. On 2026-09-23, without the
-start-time Git pin, `TestGitPlantedOnPathAfterStartNeverRuns` fails because the
-planted Git ran, and with the report tool publishing instead of previewing,
-`TestContextAndCEMReportAreBoundReadOnlyAndFramed` fails on the written report.
-On 2026-09-24, with the registry advertising every tool regardless of the
-selector, `TestToolCatalogueAndResourceOmission`,
-`TestTaskReviewDefaultProfileUnchanged` and `TestTaskReviewLegacyProtocol`
-fail. The suites were green again after each control was reverted.
+Negative control, run once on 2026-09-23 and reverted: without the start-time
+Git pin, `TestGitPlantedOnPathAfterStartNeverRuns` fails because the planted
+Git ran. The suite was green again after the control was reverted.
 
 ## Reason-class profile `/2`
 
@@ -124,7 +91,7 @@ the `--error-profile=reason-class` spelling, and beside `--version`; each exits
 default server returns exactly the `corvint-mcp-tool-error/0` object and a
 server started with `--error-profile reason-class` returns exactly the
 `corvint-mcp-tool-error/1` object with `reasonClass` `git-filter` or
-`worktree-config`, for status, impact and query. A real split index returns
+`worktree-config`, for status and impact. A real split index returns
 `split-index` (V1-0256), and a corrupt index, which Git's own index probe
 refuses before the status refusal classifies it, returns `unclassified`. Negative control, run once on 2026-09-24 and reverted: emitting
 `/1` without the selector fails `TestReasonClassToolErrorOverRefusedRepositories`.

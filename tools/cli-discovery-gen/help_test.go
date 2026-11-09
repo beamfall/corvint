@@ -11,7 +11,6 @@ import (
 func TestCAPV07700RootInputs(t *testing.T) {
 	t.Chdir("../..")
 	for binary, want := range map[string][]string{
-		"corvint-public-release-check": {"--bundle-dir DIR", "--source-root DIR", "--scratch DIR", "--output FILE", "--npm-cache DIR", "--browser-cache DIR", "--node FILE", "--python FILE", "--python-sha256 SHA256", "--expected-commit SHA", "--expected-tree SHA"},
 		"corvint-release-candidate":    {"--core-dir DIR", "--source-root DIR", "--scratch DIR", "--output-parent DIR", "--version VERSION"},
 		"corvint-release-install":      {"--candidate DIR", "--store DIR"},
 		"corvint-readiness-record":     {"--candidate DIR", "--source-root DIR", "--evidence-file FILE", "--output FILE"},

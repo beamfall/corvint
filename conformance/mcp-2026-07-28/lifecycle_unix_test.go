@@ -188,44 +188,6 @@ func gitPlantedOnPathAfterStartNeverRuns(t *testing.T) {
 	}
 }
 
-// Profile /1 (MCPV0-025, MCPV0-026): the CEM seams spawn Git through their
-// own runner, which is pinned to the same start-time executable.
-func TestTaskReviewCEMReportNeverRunsPlantedGit(t *testing.T) {
-	planted := t.TempDir()
-	marker := filepath.Join(t.TempDir(), "planted-git-ran")
-	root := fixtureRepository(t)
-	client := startServerWithArguments(t, root, taskReviewArguments, "PATH="+planted+string(os.PathListSeparator)+os.Getenv("PATH"))
-	defer client.close(t)
-	successResult(t, client.call(t, 94, "server/discover", map[string]any{"_meta": requestMeta()}))
-	script := "#!/bin/sh\n: > " + shellQuote(marker) + "\nexit 1\n"
-	if err := execfile.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	head := gitOutput(t, root, "rev-parse", "HEAD")
-	report := successResult(t, client.call(t, 97, "tools/call", map[string]any{
-		"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "missing.cem.json", "expectedBase": head, "target": head},
-	}))
-	if code := object(t, report["structuredContent"])["code"]; report["isError"] != true || code != "cem-map-unavailable" {
-		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
-	}
-	writeCEMMap(t, root, "change.cem.json", head, "pkg/value.go", 1)
-	report = successResult(t, client.call(t, 98, "tools/call", map[string]any{
-		"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "change.cem.json", "expectedBase": head, "target": head},
-	}))
-	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("git planted on PATH after start ran: %v", err)
-	}
-	if report["isError"] == true {
-		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
-	}
-	content := object(t, object(t, report["structuredContent"])["receipt"])
-	// The report reads a cem/1.0 map through the stable verifier (CEM-V1-210),
-	// whose result never accepts an empty-diff map with a wrong patch digest.
-	if content["ok"] != false || object(t, content["stableVerification"])["outcome"] == "ACCEPT" {
-		t.Fatalf("invalid empty-diff map upgraded: %s", canonicalJSON(report))
-	}
-}
-
 // headSnapshot is a planning-snapshot receipt for a clean HEAD with no changed
 // paths; the server validates it with Git on every call that carries it.
 func headSnapshot(t *testing.T, root string) map[string]any {

@@ -29,22 +29,18 @@ const (
 
 // ratchetBaseline is every binary the ratchet held when it was introduced (V1-2685). A row must
 // name one of them, so the ratchet cannot trade a binary that gained its tree for a new binary
-// without one. Rows leave the file; names never join this list.
+// without one. Rows leave the file; names never join this list. Binaries removed by decision 0594
+// left it.
 var ratchetBaseline = strings.Fields(`
 corvint-analyzer-c-jni corvint-analyzer-dotnet corvint-analyzer-go corvint-analyzer-html-css
 corvint-analyzer-java corvint-analyzer-js corvint-analyzer-kotlin-android
 corvint-analyzer-objective-c corvint-analyzer-python corvint-analyzer-ruby corvint-analyzer-rust
 corvint-analyzer-shader corvint-analyzer-shell corvint-analyzer-sql-native
-corvint-analyzer-structured-data corvint-analyzer-swift corvint-behavior-falsify
-corvint-cem-candidate corvint-cem-experiments corvint-companion-release corvint-console
-corvint-corpus-http corvint-corpus-mcp corvint-corpus-parity corvint-corpus-republish
-corvint-dashboard-snapshot corvint-docs-mcp corvint-go-test-provider
-corvint-go-toolchain-receipt corvint-intake corvint-js-test-provider corvint-lsp corvint-mcp
-corvint-playwright-minimize corvint-postmerge-connect corvint-postmerge-host-launcher
-corvint-postmerge-metrics corvint-postmerge-workflow corvint-public-release-check
+corvint-analyzer-structured-data corvint-analyzer-swift corvint-docs-mcp
+corvint-go-test-provider corvint-go-toolchain-receipt corvint-js-test-provider corvint-mcp
 corvint-readiness-record corvint-release-candidate corvint-release-install
-corvint-remote-provider corvint-ruby-test-provider corvint-test-runner corvint-test-validity-mcp
-corvint-tests-accept corvint-update corvint-web-flows corvint-work-queue
+corvint-ruby-test-provider corvint-test-runner corvint-test-validity-mcp corvint-update
+corvint-web-flows
 `)
 
 // CheckTrees is the command-tree half of the drift gate (CAP-V0-043, CAP-V0-047, CAP-V0-048).

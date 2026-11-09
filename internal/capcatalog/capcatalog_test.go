@@ -149,8 +149,8 @@ func TestCAPV0017RequiredFlagsAreDerivedFromUsageForms(t *testing.T) {
 	}
 }
 
-// The shipped catalog requires the verification options of cem verify, so the
-// guide's example must carry them (gh#1590 review).
+// The shipped catalog requires the options of runs response-wait, so a guide
+// example must carry them (gh#1590 review).
 func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	t.Parallel()
 	var catalog Catalog
@@ -160,9 +160,9 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	if problems := GuideProblems(catalog, Guide()); len(problems) != 0 {
 		t.Fatalf("shipped guide problems: %v", problems)
 	}
-	problems := GuideProblems(catalog, "  corvint cem verify --map .corvint/change.cem.json\n"+Guide())
-	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --expected-base of cem verify") {
-		t.Fatalf("a cem verify example with only --map: problems = %v", problems)
+	problems := GuideProblems(catalog, "  corvint runs response-wait --log server.log\n"+Guide())
+	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --timeout-ms of runs response-wait") {
+		t.Fatalf("a runs response-wait example with only --log: problems = %v", problems)
 	}
 	// CAP-V0-018 against the shipped catalog: the --root preamble and nested
 	// help topics are checked, not skipped.
@@ -171,7 +171,7 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 			t.Fatalf("drift %q problems = %v", drift, problems)
 		}
 	}
-	if problems := GuideProblems(catalog, "  `corvint help docs corpus`\n  `corvint help cem verify`\n  corvint --root /repo witness --base FULL\n"+Guide()); len(problems) != 0 {
+	if problems := GuideProblems(catalog, "  `corvint help docs corpus`\n  `corvint help docs maintain`\n  corvint --root /repo affected --base FULL\n"+Guide()); len(problems) != 0 {
 		t.Fatalf("catalogued nested topics and a --root preamble: problems = %v", problems)
 	}
 }

@@ -79,7 +79,7 @@ func TestMCPV0095MixedBindingIsCountAndDigestOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, call := range []struct{ tool, arguments string }{{ToolStatus, `{}`}, {ToolQuery, `{"task":"orient contributor roadmap ticket workflow"}`}} {
+	for _, call := range []struct{ tool, arguments string }{{ToolStatus, `{}`}, {ToolImpact, `{"paths":["internal/widget/widget.go"]}`}} {
 		result, callErr := registry.Call(context.Background(), call.tool, []byte(call.arguments))
 		if callErr != nil || result.Repository == nil || result.Repository.WorktreeState != "MIXED" || result.Repository.DirtyPathCount != 1 {
 			t.Fatalf("%s: %+v %v", call.tool, result, callErr)

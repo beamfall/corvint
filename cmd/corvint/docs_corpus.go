@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner, schema string
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, retirement, runner, schema string
 	// cases and baseline are the eval case file and ratchet receipt (DCP-V1-250, DCP-V1-254).
 	cases, baseline string
 	// repository is the locate and recommend-tests qualifier: a declared repository's root-commit
@@ -44,9 +43,7 @@ type corpusOptions struct {
 	// kind is the docs gaps kind filter as a comma-separated list (DCP-V1-321).
 	kind string
 	// excludeKind is the corpus claims kind exclusion as a comma-separated list (DCS-V1-592).
-	excludeKind string
-	// stable is the cem-stable verifier binding; its artifact root is not a --root-relative input.
-	stable       doccorpus.StableCEMInputs
+	excludeKind  string
 	playwright   playwrightCorpusOptions
 	legacyCases  legacyCasesCorpusOptions
 	audit        corpusAuditOptions
@@ -70,9 +67,8 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider, "--caller-revision": &o.callerRevision, "--kind": &o.kind, "--exclude-kind": &o.excludeKind, "--uncovered": &o.uncovered, "--anchorless": &o.anchorless, "--workspace": &o.workspaceFile, "--repo": new(string),
-		"--max-unresolved-mention-rate": &o.maxMentionRate, "--max-pattern-rate": &o.maxPatternRate,
-		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include, "--cases": &o.cases, "--baseline": &o.baseline, "--repository": &o.repository, "--state": &o.state, "--qualifier": &o.qualifier, "--run": &o.run, "--provider": &o.provider, "--caller-revision": &o.callerRevision, "--kind": &o.kind, "--exclude-kind": &o.excludeKind, "--uncovered": &o.uncovered, "--anchorless": &o.anchorless, "--workspace": &o.workspaceFile, "--repo": new(string),
+		"--max-unresolved-mention-rate": &o.maxMentionRate, "--max-pattern-rate": &o.maxPatternRate}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
 	o.audit.addFlags(flags)
@@ -366,7 +362,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return doccorpus.Encode(a)
 	}
-	if o.op == "discover-playwright" || o.op == "witness-playwright" {
+	if o.op == "discover-playwright" {
 		return compilePlaywrightCorpus(ctx, o)
 	}
 	if o.op == "discover-legacy" {
@@ -511,16 +507,6 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if o.apply {
 		return nil, argumentError("--apply requires corpus maintain")
 	}
-	if o.op == "cem-stable" {
-		return compileStableCorpusCEM(ctx, o, a)
-	}
-	if o.op == "cem" {
-		data, err := doccorpus.ReadFile(o.root, o.cem)
-		if err != nil {
-			return nil, err
-		}
-		return nil, doccorpus.RefuseCEMProjection(data)
-	}
 	// DCP-V1-313, DCP-V1-318: corpus claims takes exactly one of --path, --query or --state;
 	// --qualifier and --run refine --state.
 	if o.op == "claims" {
@@ -597,7 +583,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 // than auditing, rendering, maintaining or projecting the artifact.
 func corpusQueryOperation(op string) bool {
 	switch op {
-	case "audit-sample", "audit-report", "render", "maintain", "cem-stable", "cem":
+	case "audit-sample", "audit-report", "render", "maintain":
 		return false
 	}
 	return true
@@ -642,25 +628,4 @@ func (l *corpusLiveRead) join() {
 	if l.done != nil {
 		<-l.done
 	}
-}
-
-// compileStableCorpusCEM is the explicit cem/1.0 documentation projection
-// (CEM-V1-162, CEM-V1-163). The repository is --root; the map is admitted only
-// on a stable verifier ACCEPT, and a refusal exits 2 with no stdout, so the
-// 0.x `cem` operation is never relabelled stable.
-func compileStableCorpusCEM(ctx context.Context, o corpusOptions, a *doccorpus.Artifact) ([]byte, error) {
-	data, err := doccorpus.ReadFile(o.root, o.cem)
-	if err != nil {
-		return nil, err
-	}
-	inputs := o.stable
-	inputs.Repository = o.root
-	if inputs.ArtifactRoot, err = filepath.Abs(inputs.ArtifactRoot); err != nil {
-		return nil, argumentError("cannot resolve --stable-artifact-root")
-	}
-	receipt, err := doccorpus.StableCEMProjection(ctx, a, data, o.id, inputs)
-	if err != nil {
-		return nil, err
-	}
-	return doccorpus.Encode(receipt)
 }

@@ -15,15 +15,14 @@
     {
       "path": [],
       "command": "corvint-mcp",
-      "summary": "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]\n       corvint-mcp --root ABSOLUTE_ROOT --tool-profile import-graph\n       corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF\n       corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]\n       corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]\n       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH] [--tasks-role AGENT|OPERATOR|OWNER]\n       corvint-mcp --version\nA local stdio MCP server, read-only except the tasks group. Each --root must be an absolute path to a Git worktree.\nOne plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\nThe import-graph profile adds corvint.graph.imports; calls require a full commit revision.\n--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\nwith aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n--tool-profile LIST is a comma list of at most one of task-review, task-review-lsp, flows or import-graph\nand the groups test-validity, test-evidence, docs and corpus; corpus needs --corpus-artifact, a path relative\nto the root (ALIAS=PATH with aliased roots). Without --tool-profile the default tools are listed.\nExample: corvint-mcp --root /absolute/repo --tool-profile import-graph",
+      "summary": "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25]\n       corvint-mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]\n       corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF\n       corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]\n       corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]\n       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]\n       corvint-mcp --version\nA local read-only stdio MCP server. Each --root must be an absolute path to a Git worktree.\nOne plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\n--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\nwith aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n--tool-profile LIST is a comma list of the profile flows\nand the groups test-validity, test-evidence, docs and corpus; corpus needs --corpus-artifact, a path relative\nto the root (ALIAS=PATH with aliased roots). Without --tool-profile the default tools are listed.\nExample: corvint-mcp --root /absolute/repo --tool-profile flows",
       "usage": [
         "corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25] [--error-profile] [--help] [-h]",
         "corvint-mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]",
-        "corvint-mcp --root ABSOLUTE_ROOT --tool-profile import-graph",
         "corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF",
         "corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]",
         "corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]",
-        "corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH] [--tasks-role AGENT|OPERATOR|OWNER]",
+        "corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]",
         "corvint-mcp --version"
       ],
       "flags": [
@@ -33,7 +32,6 @@
         "--help",
         "--protocol-version",
         "--root",
-        "--tasks-role",
         "--tool-profile",
         "--version",
         "--workspace",

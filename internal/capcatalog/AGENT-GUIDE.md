@@ -56,30 +56,25 @@ Goals
    the full suite; a standalone tool outside that closure is only listed in
    plan.declaration.outOfClosure.
 
-5. Find the parts of a change that no test witnesses
-   corvint witness --base FULL_COMMIT_ID --json
-   Output: the conservative unwitnessed report (corvint-witness-stable/0 when
-   --stable-artifact-root verifies a cem/1.0 map). It never invents a witness.
-
-6. Check whether tests can prove anything
+5. Check whether tests can prove anything
    corvint test-validity --static spec/models
    Output: corvint-test-validity/0, one projection per test. Hygiene comes from
    the source. Execution, freshness and strength stay NOT_OBSERVED.
    corvint tests validity --files spec/models/user_spec.rb
    Output: corvint-test-source-validity/0, the findings for each file.
 
-7. Lint the test lines changed on a branch
+6. Lint the test lines changed on a branch
    corvint tests lint --base FULL_COMMIT_ID --json
    Exits 0 when clean or advisory only, 1 on findings, 2 on error.
 
-8. Discover tests statically from committed files
+7. Discover tests statically from committed files
    corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path e2e/checkout.spec.ts
    Output: corvint-test-discovery/1 with trust generated: each example's title
    path, tags, expectations, navigations, reached modules and hooks, each
    anchored to the committed blob, and unknowns with reasons. --runner rspec
    reads RSpec files. It runs nothing.
 
-9. Turn per-test coverage into tested_by evidence
+8. Turn per-test coverage into tested_by evidence
    Step 1: record the test run and pin the coverage file it wrote:
    corvint flows ingest --format go-test-json --from go-test.json --run-id run-1 --runner-version 1.0.0 --source-commit FULL_COMMIT --source-tree FULL_TREE --source-clean --build-artifact-digest SHA256 --environment-id ci --environment-digest SHA256 --fixture-id none --fixture-digest SHA256 --cleanup done --coverage-artifact lcov=trace.lcov > run.jsonl
    Output: test-run-evidence/0 JSONL on stdout.
@@ -93,7 +88,7 @@ Goals
    Coverage from another commit, a dirty tree or an unbound run is not joined.
    --format also takes v8, istanbul and rspec. It only reads.
 
-10. Build and query a documentation corpus
+9. Build and query a documentation corpus
    corvint docs corpus manifest --revision FULL_COMMIT --scope docs --timestamp 2026-10-23T00:00:00Z > manifest.json
    corvint docs corpus build --manifest manifest.json > corpus.json
    corvint docs corpus search --artifact corpus.json --query "retry policy" --kind symbol --include claims
@@ -109,32 +104,20 @@ Goals
    match_anchor. search lists query words nothing holds in unmatched_terms.
    A generated claim that names code carries a claim_mentions check of whether
    its cited spans hold those names. Generated evidence grants no task or
-   test-selection authority. The corpus is also served by the
-   corvint-corpus-mcp server, whose docs_search takes kind and include.
+   test-selection authority. The corpus is also served by corvint-mcp
+   --tool-profile corpus, whose corvint.docs_search takes kind and include.
 
-11. Regenerate generated claims only where sources changed
+10. Regenerate generated claims only where sources changed
    corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl
    Output: a header line, then every worklist entry once: carry-forward, moved,
    changed, removed, unresolved or uncovered. Without --format jsonl it pages
    one receipt. A record whose span hash is not confirmed is never carried.
 
-12. Bind a change to its evidence and verify it
-   corvint cem prepare --base FULL_COMMIT_ID --target HEAD
-   Commit the candidate, then run the verification action that prepare
-   returns. It has this shape, naming the commit that holds the candidate and
-   the absolute repository root:
-   corvint cem verify --map .corvint/change.cem.json --expected-base FULL_COMMIT_ID --target FULL_TARGET_COMMIT_ID --artifacts ABSOLUTE_REPOSITORY_ROOT
-   Output: a cem/1.0 candidate map, then its verification.
-
-13. Review a verified change in a fixed order
-   corvint frontier --cem MAP --ocm MAP --expected-base FULL_COMMIT_ID --target HEAD --json
-   Output: the deterministic Change Frontier review queue.
-
-14. Identify the installed binary
+11. Identify the installed binary
    corvint --version --json
    Output: corvint-version/1.
 
-15. Adopt an application map (experimental)
+12. Adopt an application map (experimental)
    corvint flows appmap build --manifest appmap.json --revision HEAD
    Output: application-map/0, which checks the committed hand-written
    manifest. The workflows member of `corvint help --json` lists each step's
