@@ -12,8 +12,8 @@ Roles. The **orchestrator** owns the Tasks store (claims, heartbeats, gates, com
 admission, CI and merge-queue waits, the idle watchdog and checkout cleanup. A **builder lane** owns
 one branch: spec, implementation, focused checks, one dogfood finish, one push and one PR. A lane
 writes no Tasks store state: it reports ticket state as `Corvint-Ticket` commit trailers from
-`corvint-tasks work start|deliver|block` (read-only; [TASKS-EXTERNAL-AGENTS](TASKS-EXTERNAL-AGENTS.md)
-"Report lane work with commit trailers"), and the orchestrator ingests them with `work
+`corvint-tasks work start|deliver|block` (read-only; the corvint-tasks external-agent guide,
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), "Report lane work with commit trailers"), and the orchestrator ingests them with `work
 close-merged` after the merge (TAW-V0-017). A lane never writes to Tasks itself (no `claim`,
 `submit`, `complete` or ticket mutation), never edits `.taskman/` or `.github/`, never starts
 background jobs or subagents, and never touches another lane's checkout. Reading is allowed
@@ -617,13 +617,14 @@ whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 t
 commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
 real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
 alerts file that the session's Monitor tails. Without `--act` it only reports. The first pass that
-sees `MERGED` also runs the post-merge Tasks reconcile (`script/tasks-reconcile.sh`, closeout-debt
+sees `MERGED` also runs the post-merge Tasks reconcile (`LANDING_RECONCILE`, the corvint-tasks closeout-debt reconcile;
+unset, the pass is SKIPPED; closeout-debt
 proposing each `batch-close`) once per PR and prints `RECONCILE status=N log=FILE`; debt or a
 refusal adds a `reconcile=` line to the same alerts file, so the Tasks backlog cannot drift from
 main unseen (ASD-V0-1922, V1-3496). It applies a proposal only with `--act` and the operator's
 `RECONCILE_APPLY`. Every applied proposal must have its evidence commit on `origin/main`.
 A merged PR observed with `--no-reconcile` retains a SKIPPED report and alert, naming
-`make tasks-reconcile` as recovery (TCD-V0-2210, TCD-V0-2211).
+the corvint-tasks reconcile as recovery (TCD-V0-2210, TCD-V0-2211).
 
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
@@ -1127,7 +1128,7 @@ commit in its own pull request (it touches only `.taskman/`, so it narrows like 
 
 ```sh
 git worktree add --detach ../carry origin/main
-script/tasks-carry-projection.sh --commit ../carry    # on the host that owns the store
+# carry-projection moved to beamfall/corvint-tasks (decision 0594); run its script there
 ```
 
 It replaces `.taskman/queue.json`, `policy.json`, `tickets/` and `releases/` with the store's,
