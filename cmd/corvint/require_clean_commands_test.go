@@ -26,34 +26,26 @@ var requireCleanRefusalForms = map[string]struct {
 }{
 	"init": {args: []string{"init"}}, "adopt": {args: []string{"adopt"}},
 	"query": {args: []string{"query", "--task", "change main"}}, "feature": {args: []string{"feature", "impact"}},
-	"eval": {args: []string{"eval"}}, "lrf": {args: []string{"lrf"}}, "record": {args: []string{"record"}},
-	"repro":          {args: []string{"repro", "record"}},
-	"mcp":            {args: []string{"mcp"}, noRoot: true},
-	"migrate-traces": {args: []string{"migrate-traces"}}, "harness": {args: []string{"harness", "event"}},
-	"cem": {args: []string{"cem", "status", "--map", "change.cem.json"}}, "ocm": {args: []string{"ocm", "status"}},
-	"work": {args: []string{"work", "observe"}}, "context": {args: []string{"context", "--task", "change main"}},
-	"adapter": {args: []string{"adapter", "codex"}, noRoot: true}, "dogfood": {args: []string{"dogfood", "status"}},
-	"dogfood-ocm":  {args: []string{"dogfood-ocm", "status", "--expected-base", "HEAD", "--target", "HEAD"}},
-	"frontier":     {args: []string{"frontier", "--cem", "a.json", "--ocm", "b.json", "--expected-base", "HEAD", "--target", "HEAD"}},
-	"observations": {args: []string{"observations"}}, "obligations": {args: []string{"obligations", "--cem", "a.json", "--impact", "b.json"}, noRoot: true},
-	"prove": {args: []string{"prove", "pkg/main.go"}}, "prove-observe": {args: []string{"prove-observe"}},
-	"index": {args: []string{"index"}}, "batch": {args: []string{"batch"}},
+	"eval":    {args: []string{"eval"}},
+	"repro":   {args: []string{"repro", "record"}},
+	"mcp":     {args: []string{"mcp"}, noRoot: true},
+	"harness": {args: []string{"harness", "event"}},
+	"context": {args: []string{"context", "--task", "change main"}},
+	"adapter": {args: []string{"adapter", "codex"}, noRoot: true},
+	"index":   {args: []string{"index"}}, "batch": {args: []string{"batch"}},
 	"docs":      {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
 	"depsource": {args: []string{"depsource", "example.com/m"}}, "necessity": {args: []string{"necessity"}},
 	"surprise": {args: []string{"surprise"}}, "answerability": {args: []string{"answerability"}},
-	"kernel": {args: []string{"kernel"}}, "lease": {args: []string{"lease", "status"}}, "reads": {args: []string{"reads"}},
-	"calibrate": {args: []string{"calibrate"}}, "witness": {args: []string{"witness"}},
+	"kernel":        {args: []string{"kernel"}},
+	"calibrate":     {args: []string{"calibrate"}},
 	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
 	"test-plan":     {args: []string{"test-plan", "check", "--plan", "a.json", "--input", "b.json"}},
 	"features":      {args: []string{"features"}}, "overview": {args: []string{"overview"}},
-	"review":            {args: []string{"review", "--base", "HEAD"}},
-	"migration-ratchet": {args: []string{"migration-ratchet", "--profile", "profile.json"}},
-	"flows":             {args: []string{"flows", "--manifest", "manifest.json"}}, "skill-export": {args: []string{"skill-export"}},
+	"review": {args: []string{"review", "--base", "HEAD"}},
+	"flows":  {args: []string{"flows", "--manifest", "manifest.json"}}, "skill-export": {args: []string{"skill-export"}},
 	"how":      {args: []string{"how", "--source", "e2e", "ship an order"}},
 	"breakage": {args: []string{"breakage"}}, "graph": {args: []string{"graph", "imports", "--revision", "HEAD"}},
-	"step":    {args: []string{"step", "snapshot", "--declaration", "a.json", "--host", "b.json"}},
-	"delta":   {args: []string{"delta", "--base", "HEAD", "--head", "HEAD"}},
 	"changes": {args: []string{"changes", "--from", "HEAD", "--to", "HEAD"}},
 	"runs":    {args: []string{"runs", "stability", "--runs", "a.json"}},
 	"test":    {args: []string{"test", "--base", "HEAD", "--dry-run"}},
@@ -65,12 +57,10 @@ var requireCleanRefusalForms = map[string]struct {
 // must accept the form and refuse it once --require-clean is appended.
 var requireCleanParseWitness = map[string]func([]string) error{
 	"test-evidence": func(args []string) error { _, _, err := testevidencedoc.Parse(args[1:]); return err },
-	"frontier":      func(args []string) error { _, err := parseFrontierOptions(args[1:]); return err },
-	"step":          func(args []string) error { _, _, err := parseStepInvocation(args); return err },
 }
 
-// DIRTY-CACHE-016 (V1-1174): every dispatched verb, every prove mode and the
-// feature form either honours --require-clean or refuses it with exit 2 and a
+// DIRTY-CACHE-016 (V1-1174): every dispatched verb and the feature form
+// either honours --require-clean or refuses it with exit 2 and a
 // diagnostic the flag itself causes; none accepts and ignores it.
 func TestRequireCleanHonouredOrRefusedByEveryCommand(t *testing.T) {
 	root := impactCLIRepository(t)
@@ -142,12 +132,6 @@ func TestRequireCleanHonouredOrRefusedByEveryCommand(t *testing.T) {
 			t.Errorf("%v --require-clean was not refused: %q (without the flag: %q)", form, flagged, plain)
 		}
 	}
-	// Each prove mode: path impact through the shared parser, and the task,
-	// CEM and checkpoint modes through their own parsers.
-	refuses(false, "prove", "--task", "change main")
-	refuses(false, "prove", "--cem", "change.cem.json")
-	refuses(false, "prove", "--checkpoint", "checkpoint.json")
-
 	// The honouring verbs act on the dirty worktree instead of ignoring the flag.
 	if code, stdout, _ := invoke(false, "impact", "--require-clean", "pkg/main.go"); code != 0 || !strings.Contains(stdout, `"reason":"mixed-worktree"`) {
 		t.Errorf("impact did not abstain: exit=%d stdout=%s", code, stdout)

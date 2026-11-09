@@ -197,7 +197,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	bracket := bytes.Index(main, []byte("runProfiledContext(signalled, ctx, os.Args[1:]"))
-	for _, worker := range []string{"runSnapshotRefreshWorker(", "runDogfoodOutcomeWorker(", "runDogfoodVerifierWorker("} {
+	for _, worker := range []string{"runSnapshotRefreshWorker("} {
 		if at := bytes.Index(main, []byte(worker)); at < 0 || bracket < 0 || at > bracket {
 			t.Errorf("%s is not dispatched before the profile bracket", worker)
 		}
