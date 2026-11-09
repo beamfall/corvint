@@ -1,13 +1,13 @@
 name: Greptile gate
 
 # GRG-V0-001: posts the `greptile-gate` commit status on an open pull request's head. The main
-# ruleset requires it, so a PR merges only after Greptile has reviewed that exact head at 5/5
-# confidence with no unresolved Greptile review thread. Greptile posts no check of its own, and
+# ruleset requires it, so a PR merges only after Greptile has reviewed that head at 5/5
+# confidence (or GRG-V0-002 proves the PR diff unchanged) with no unresolved Greptile thread. Greptile posts no check of its own, and
 # an armed PR otherwise merges on green CI whatever its score (#100 and #117 merged at 4/5).
 #
 # The gate reads only GitHub metadata, never checks out or runs PR code: pull_request_target and
 # issue_comment run this file from the default branch. It runs when a head is pushed (no Greptile
-# review of the new head yet, so `pending`), when Greptile creates or edits its summary comment,
+# review of the new head yet, so `pending` unless GRG-V0-002 carries it), on summary comment edits,
 # and on workflow_dispatch with a PR number, which re-reads the state after review threads are
 # resolved (resolving a thread raises no workflow event).
 #
@@ -120,6 +120,8 @@ jobs:
           if [ "$EVENT" = merge_group ]; then
             target="$target $GROUP_SHA"
           else
+            # GraphQL variables are literal; gh supplies them via -f/-F.
+            # shellcheck disable=SC2016
             if ! queued=$(gh api graphql \
               -f query='query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){mergeQueueEntry{headCommit{oid}}}}}' \
               -f o="${REPO%%/*}" -f n="${REPO#*/}" -F p="$PR" \
@@ -140,7 +142,11 @@ jobs:
           # any other writer, including a `greptile-gate` success, are ignored. The listing is newest
           # first across every context, so read every page.
           case "$WAIVER_APPROVERS" in ''|*[!A-Za-z0-9\ -]*) post pending "bad WAIVER_APPROVERS"; exit 1 ;; esac
+          # GitHub logins are ASCII, as validated above.
+          # shellcheck disable=SC2018,SC2019
           approvers=$(printf '%s' "$WAIVER_APPROVERS" | tr 'A-Z' 'a-z' | jq -Rc 'split(" ") | map(select(. != ""))')
+          # $l belongs to jq, not the shell.
+          # shellcheck disable=SC2016
           if ! waiver=$(gh api --paginate "repos/$REPO/commits/$head/statuses?per_page=100" \
             --jq '.[] | select(.context == "greptile-gate-waiver") | select((.creator.login // "" | ascii_downcase) as $l | '"$approvers"' | index($l)) | "\(.state) \(.creator.login)"' | sed -n 1p); then
             post pending "cannot read the greptile-gate-waiver statuses of $short; re-run the gate"
@@ -158,15 +164,54 @@ jobs:
             | jq -rs 'sort_by(.u) | last | .b // ""')
           score=$(printf '%s\n' "$summary" | grep -oE 'Confidence Score: [0-5]/5' | head -n 1 | grep -oE '[0-5]/5' || true)
           reviewed=$(printf '%s\n' "$summary" | grep -E 'Last reviewed commit' | grep -oE '/commit/[0-9a-f]{40}' | tail -n 1 | sed 's#^/commit/##' || true)
+          # shellcheck disable=SC2016
           threads=$(gh api graphql \
             -f query='query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){reviewThreads(first:100){totalCount nodes{isResolved comments(first:1){nodes{author{login}}}}}}}}' \
             -f o="${REPO%%/*}" -f n="${REPO#*/}" -F p="$PR" \
             --jq '.data.repository.pullRequest.reviewThreads | "\(.totalCount) \([.nodes[] | select(.isResolved | not) | select((.comments.nodes[0].author.login // "") | startswith("greptile-apps"))] | length)"')
+          # GRG-V0-002: compare PR-authored diffs from GitHub metadata, never PR code. Every patch
+          # byte is significant, hunk coordinates included: a base change that shifts a PR hunk,
+          # or an edit moved between identical contexts, refuses the carry.
+          normalized_diff() {
+            local pages
+            pages=$(gh api --paginate --slurp "repos/$REPO/compare/$base_ref...$1") || return 1
+            printf '%s\n' "$pages" | jq -ce '
+              def evidence: . == ".corvint/change.cem.json" or
+                test("^\\.corvint/changes/[^/]+\\.cem\\.json$");
+              if type != "array" or length != 1 then error("paginated compare") else .[0] end |
+              if (.files | type) != "array" or (.files | length) >= 300 or .truncated == true
+                then error("incomplete compare files") else .files end |
+              map(select(((.filename | evidence) and
+                ((.previous_filename // .filename) | evidence)) | not)) |
+              map(if (.patch | type) != "string" or (.filename | type) != "string" or
+                  (.status | type) != "string" or
+                  (.previous_filename != null and (.previous_filename | type) != "string")
+                then error("missing file metadata or patch") else
+                  [.status, .filename, .previous_filename,
+                    .patch]
+                end) | sort'
+          }
+          carries_review() {
+            local base_ref ancestry reviewed_diff head_diff
+            [ "$score" = "5/5" ] && [ -n "$reviewed" ] || return 1
+            base_ref=$(gh api "repos/$REPO/pulls/$PR" --jq '.base.ref // ""') || return 1
+            [ -n "$base_ref" ] || return 1
+            base_ref=$(printf '%s' "$base_ref" | jq -sRr @uri) || return 1
+            ancestry=$(gh api "repos/$REPO/compare/$reviewed...$head" --jq '.status') || return 1
+            case "$ancestry" in ahead|identical) ;; *) return 1 ;; esac
+            reviewed_diff=$(normalized_diff "$reviewed") || return 1
+            head_diff=$(normalized_diff "$head") || return 1
+            [ "$reviewed_diff" = "$head_diff" ]
+          }
+          carried=false
+          if [ "$reviewed" != "$head" ] && carries_review; then
+            carried=true
+          fi
           total=${threads% *}
           unresolved=${threads#* }
           if [ -z "$summary" ]; then
             state=pending; description="waiting for a Greptile review of $short"
-          elif [ "$reviewed" != "$head" ]; then
+          elif [ "$reviewed" != "$head" ] && [ "$carried" != true ]; then
             state=pending; description="Greptile reviewed ${reviewed:0:9}${reviewed:+, }not head $short; ask @greptileai to re-review"
           elif [ -z "$score" ]; then
             state=failure; description="cannot read the Greptile confidence score for $short"
@@ -176,6 +221,8 @@ jobs:
             state=failure; description="more than 100 review threads; cannot prove none is unresolved"
           elif [ "$unresolved" -gt 0 ]; then
             state=failure; description="$unresolved unresolved Greptile thread(s) on $short"
+          elif [ "$carried" = true ]; then
+            state=success; description="Greptile 5/5 on ${reviewed:0:9}; head $short adds only base merges and change evidence"
           else
             state=success; description="Greptile 5/5 on $short, no unresolved Greptile thread"
           fi
