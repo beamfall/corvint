@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fakeDocsApp puts a corvint-docs stand-in on PATH that records its argument vector in the file
@@ -22,7 +24,7 @@ func fakeDocsApp(t *testing.T) string {
 	dir := t.TempDir()
 	// Builtins only: PATH holds nothing but this directory.
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_CAPTURE\"\nprintf 'forwarded:'\nwhile IFS= read -r line || [ -n \"$line\" ]; do printf '%s' \"$line\"; done\nprintf 'app stderr\\n' >&2\nexit 3\n"
-	if err := os.WriteFile(filepath.Join(dir, "corvint-docs"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "corvint-docs"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	capture := filepath.Join(dir, "capture")
@@ -130,7 +132,7 @@ func TestDocsShimRefusesRequireClean(t *testing.T) {
 func TestDocsShimMapsSignalExit(t *testing.T) {
 	capture := fakeDocsApp(t)
 	script := filepath.Join(filepath.Dir(capture), "corvint-docs")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nkill -TERM $$\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\nkill -TERM $$\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
