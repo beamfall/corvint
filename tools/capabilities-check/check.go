@@ -145,7 +145,6 @@ var subcommandTables = []struct{ variable, command string }{
 	{"helpSubcommands", ""},
 	{"docsSubcommands", "docs"},
 	{"flowSubcommands", "flows"},
-	{"leaseActions", "lease"},
 }
 
 // parseSubcommands reads each declared table from the non-test Go files of the corvint main
