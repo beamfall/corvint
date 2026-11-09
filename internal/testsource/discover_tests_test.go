@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/lineanchor"
 )
 
 const discoverPlaywrightSpec = `import { test, expect } from './fixtures';
@@ -120,7 +120,7 @@ func discover(t *testing.T, root, runner, commit, path string) TestDiscovery {
 }
 
 func corpusCode(err error, code string) bool {
-	var typed *doccorpus.Error
+	var typed *lineanchor.Error
 	return errors.As(err, &typed) && typed.Code == code
 }
 
@@ -536,7 +536,7 @@ func TestDCXV1376DiscoverTestsUnknowns(t *testing.T) {
 			t.Fatalf("%s unanchorable expectation = %+v unknown %v", c.runner, e.Expectations, w.Unknown)
 		}
 		for _, x := range e.Expectations {
-			if x.Evidence == (doccorpus.Anchor{}) {
+			if x.Evidence == (lineanchor.Anchor{}) {
 				t.Fatalf("%s zero-valued anchor emitted: %+v", c.runner, x)
 			}
 		}
