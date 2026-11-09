@@ -411,10 +411,12 @@ func executeCase(ctx context.Context, cfg config, tc testCase) (r row) {
 			return errors.New("clone parent must be outside source repository")
 		}
 		root := filepath.Join(cloneParent, tc.ID)
-		if _, err := os.Lstat(root); !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("clone destination already exists or is unreadable: %s", root)
+		// Reserve the destination atomically so a concurrent run sharing
+		// --clones can neither reuse nor delete this case's clone.
+		if err := os.Mkdir(root, 0o700); err != nil {
+			return fmt.Errorf("clone destination already exists or is unreadable: %s: %w", root, err)
 		}
-		// A failed clone may still leave a directory; only this fresh case path is owned.
+		// Only the directory this run created is owned and removed.
 		defer func() {
 			if err := os.RemoveAll(root); err != nil {
 				r.Status = "ERROR"
@@ -492,6 +494,11 @@ func testObservations(cmd testCommand, out []byte) (passes int, units, tests []s
 		// kill (AEO-V0-004).
 		if o.Action == "output" && strings.Contains(o.Output, "panic: test timed out after ") {
 			return 0, nil, nil, errors.New("Go test timed out")
+		}
+		// A panicking test binary is a crash, not an observed assertion
+		// failure, so it is a failed measurement rather than a kill.
+		if o.Action == "output" && strings.HasPrefix(o.Output, "panic: ") {
+			return 0, nil, nil, errors.New("Go test panicked")
 		}
 		if o.Test == "" {
 			// A package that fails with no failing test, such as a build
