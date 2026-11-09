@@ -15,6 +15,6 @@
     "rust": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Rust suite; the only Rust sources are internal/liveverify/affected testdata fixtures and the repository has no root Cargo workspace"},
     "shell": ["make", "shell-test"],
     "swift": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Swift suite; the only Swift sources are internal/analyzerswift testdata fixtures and the repository has no root Swift package"},
-    "typescript": ["make", "host-adapter-test"]
+    "typescript": ["make", "cem-release-gate"]
   }
 }
