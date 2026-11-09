@@ -158,7 +158,7 @@ func TestACXV07707ProtocolWire(t *testing.T) {
 	if out, err := init.CombinedOutput(); err != nil {
 		t.Fatalf("RPC fixture: %v %s", err, out)
 	}
-	rpc := exec.Command(filepath.Join(dir, "corvint-test-validity-mcp"), "--root", root)
+	rpc := exec.Command(filepath.Join(dir, "corvint-docs-mcp"), "--root", root)
 	rpc.Stdin = strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"zz-no-such-method"}` + "\n")
 	var rpcOut, rpcErr bytes.Buffer
 	rpc.Stdout = &rpcOut

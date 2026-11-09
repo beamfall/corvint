@@ -130,6 +130,7 @@
         "internal/observedstale",
         "internal/outcomecal",
         "internal/plansnapshot",
+        "internal/requestpath",
         "internal/semescalate",
         "internal/slotlearn",
         "internal/specindex",
@@ -150,8 +151,11 @@
       "layer": 4,
       "summary": "documentation corpus, compiler and flow docs",
       "prefixes": [
+        "internal/doccitations",
         "internal/doccompiler",
         "internal/doccorpus",
+        "internal/docmaintain",
+        "internal/docviews",
         "internal/flowdocs"
       ]
     },

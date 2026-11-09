@@ -495,6 +495,17 @@ docs/specs/snapshot-batch-v0.md	cmd/corvint/harness_context.go:63
 docs/specs/snapshot-batch-v0.md	internal/contextindex/query.go:93
 docs/specs/snapshot-batch-v0.md	internal/gokernel/harness.go:24
 docs/specs/snapshot-batch-v0.md	internal/trace/record.go:31-39
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:107
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:110
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:120
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:124
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:130
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:136
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:153
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:157
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:161
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:219
+docs/specs/source-documentation-draft-v0.md	internal/docmaintain/docmaintain.go:256
 docs/specs/spec-requirement-index-generator-v0.md	Makefile:14
 docs/specs/vscode-extension-v0.md	extensions/vscode/src/extension.ts:192
 docs/specs/vscode-extension-v0.md	extensions/vscode/src/liveTests.ts:58

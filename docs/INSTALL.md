@@ -160,8 +160,8 @@ archive builder and install steps live there.
 
 Decision 0594 retired the companion bundle assembler and its gate, so no workflow bundle is
 currently assembled; this section describes the earlier plan and stays only for bundles already
-retained. The planned, separately assembled **macOS arm64** workflow bundle would contain six native binaries:
-`corvint`, `corvint-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
+retained. The planned, separately assembled **macOS arm64** workflow bundle would contain seven native binaries:
+`corvint`, `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
 `corvint-ruby-test-provider` (profile `corvint-companion-bundle/3`, `CRB-V0-020`; its smoke checks only
 the usage line, RSpec execution is not qualified); a VS Code VSIX;
 and raw Codex, Claude Code, Gemini CLI and OpenCode integration trees marked `FALLBACK`.
@@ -208,6 +208,7 @@ for each desired server:
 | Executable | Tools |
 |---|---|
 | `corvint-mcp` | Read-only context, Go impact and repository status |
+| `corvint-docs-mcp` | `corvint.docs_draft` and `corvint.docs_consume` |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 
 See [MCP setup and protocol admission](MCP-SERVER.md) before configuring a client. These servers
@@ -216,6 +217,42 @@ that protocol. A process is bound to one root; V0 root admission can reject link
 Stop and reconfigure the process to change roots. A missing executable, unsupported root or
 protocol mismatch is a setup failure, not empty evidence.
 
+Source documentation needs a committed owning spec with an admitted Agent digest and an exported
+Go package. Drafts cite source; consumption rechecks the exact draft bytes. Generated prose does
+not accept human intent. The [source documentation contract](specs/source-documentation-draft-v0.md#cli-contract)
+contains a complete CLI draft/consume example and the same MCP tool semantics.
+
+To refresh a source-bound page, use the separate experimental maintenance command:
+
+```sh
+corvint docs maintain --page docs/page.md --source docs/specs/owner.md \
+  --package internal/example --enable --preview
+```
+
+Replace the page, committed owning spec and Go package paths with your project’s paths. Inspect
+the proposed bytes and receipt, then invoke with `--apply` instead of `--preview` to authorize
+one bounded session. It updates only the selected generated block and preserves surrounding
+human prose. A page change detected between that session's read and write refuses with
+`maintenance-conflict`; inspect the new page before retrying. A separate `--apply` invocation
+computes a new preview, so an earlier CLI preview is not a retained approval token.
+
+For automatic refresh on macOS or Linux, run an explicitly bounded foreground watch:
+
+```sh
+corvint docs maintain --page docs/page.md --source docs/specs/owner.md \
+  --package internal/example --enable --apply --watch \
+  --max-writes 20 --max-wall-clock 1h
+```
+
+It applies an eligible block immediately, then checks committed source changes once per second.
+Uncommitted source edits do not trigger updates. Keep the selected page unchanged while the watch
+runs: an outside edit or deletion stops it with `maintenance-conflict`. Ctrl-C stops the session;
+it also stops when either limit is reached. No service is installed. Native Windows refuses watch
+before accessing the page; the one-shot command remains available.
+
+The watch is experimental. A source-built watch/update/MCP check has passed; consult the exact
+release's installed qualification evidence for packaged status. The read-only docs MCP tools do
+not trigger maintenance.
 
 ### Work queue adoption
 

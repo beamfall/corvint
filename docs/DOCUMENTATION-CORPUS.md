@@ -1,8 +1,5 @@
 # Experimental documentation corpus
 
-The `corvint docs corpus` commands were retired by decision 0594. This guide stays only while
-`corvint-corpus-mcp` and the corpus companions still read corpus artifacts; remove it with them.
-
 [Contract](specs/documentation-corpus-v1.md): proposed DCP-V1. Generated documentation retains
 original evidence and explicit unknowns; it does not accept intent or prove behavioral adequacy.
 The default binary needs no service, database or network. The MCP companion is separately built.

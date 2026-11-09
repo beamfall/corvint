@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/procprofile"
 )
 
@@ -20,7 +21,7 @@ func profileKnobLookup(env map[string]string) func(string) (string, bool) {
 	}
 }
 
-// profileCorpusFixture is a one-page committed repository.
+// profileCorpusFixture is a one-page committed repository with a built corpus artifact.
 func profileCorpusFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
@@ -40,6 +41,23 @@ func profileCorpusFixture(t *testing.T) string {
 	git("init", "-q")
 	git("add", "source.md")
 	git("commit", "-qm", "source")
+	m, err := doccorpus.Inventory(context.Background(), root, git("rev-parse", "HEAD"), "source.md", "2026-10-23T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := doccorpus.Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, value := range map[string]any{"corpus.json": a, "manifest.json": m} {
+		data, err := doccorpus.Encode(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	// Keep the worktree clean so reads report fresh and affected --path admits it.
 	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte("corpus.json\nmanifest.json\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -52,10 +70,21 @@ func profileCorpusFixture(t *testing.T) string {
 // the knobs never change a stdout byte or the exit status.
 func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
 	root := profileCorpusFixture(t)
+	corpus := func(op string, extra ...string) []string {
+		return append([]string{"--root", root, "docs", "corpus", op}, extra...)
+	}
 	rows := map[string][]string{
-		"affected --path": {"--root", root, "affected", "--path", "source.md"},
-		"context":         {"--root", root, "context", "--task", "Original source evidence"},
-		"help --json":     {"help", "--json"},
+		"docs corpus build":    corpus("build", "--manifest", "manifest.json"),
+		"docs corpus info":     corpus("info", "--artifact", "corpus.json"),
+		"docs corpus search":   corpus("search", "--artifact", "corpus.json", "--query", "Original"),
+		"docs corpus get":      corpus("get", "--artifact", "corpus.json", "--id", "native:file:source.md"),
+		"docs corpus flow":     corpus("flow", "--artifact", "corpus.json", "--id", "native:file:source.md"),
+		"docs corpus coverage": corpus("coverage", "--artifact", "corpus.json"),
+		"docs corpus locate":   corpus("locate", "--artifact", "corpus.json", "--path", "source.md"),
+		"docs corpus delta":    corpus("delta", "--previous", "corpus.json", "--artifact", "corpus.json"),
+		"affected --path":      {"--root", root, "affected", "--path", "source.md"},
+		"context":              {"--root", root, "context", "--task", "Original source evidence"},
+		"help --json":          {"help", "--json"},
 	}
 	names := make([]string, 0, len(rows))
 	for name := range rows {
@@ -153,7 +182,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if p.Schema != "corvint-profile-knobs/0" || p.Default != "off" || len(p.Knobs) != 2 || p.Knobs[0].Name != "CORVINT_CPUPROFILE" || p.Knobs[1].Name != "CORVINT_MEMPROFILE" || p.Knobs[1].Profile != "heap" {
 		t.Fatalf("profiling member: %+v", p)
 	}
-	if !slices.Equal(p.Commands, topLevelCommands) || !slices.Contains(p.Commands, "flows") || !slices.Contains(p.Commands, "affected") {
+	if !slices.Equal(p.Commands, topLevelCommands) || !slices.Contains(p.Commands, "docs") || !slices.Contains(p.Commands, "affected") {
 		t.Fatalf("commands %v, want every dispatched command %v", p.Commands, topLevelCommands)
 	}
 	if !slices.Equal(p.Plumbing, hookPlumbingVerbs) {

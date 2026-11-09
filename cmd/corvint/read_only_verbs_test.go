@@ -168,6 +168,16 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 			},
 		},
 		{
+			name: "docs drafts the source-derived page",
+			setup: func(t *testing.T) (string, func() int) {
+				root := docsRepository(t)
+				return root, func() int {
+					code, _, _ := runDocsFixture(t, root, "draft", "")
+					return code
+				}
+			},
+		},
+		{
 			name: "harness event session-start appends only the self-observation row",
 			setup: func(t *testing.T) (string, func() int) {
 				root := ledgerIgnoringRepository(t)

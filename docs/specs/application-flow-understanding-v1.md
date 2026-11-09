@@ -1304,7 +1304,7 @@ the moved one; only an equal region moves across paths. Rollback: revert this se
   the corpus primary repository and revision and the generation repository and revision. When the
   corpus declares the generation repository only in `additional_repositories`, the message says so.
   That form is not accepted: the supported corpus has the documented repository at `--revision` as
-  its primary (AFU-V1-047); the flow-documentation guide that stated that shape was retired by decision 0594.
+  its primary (AFU-V1-047), and `docs/FLOW-DOCUMENTATION.md` states that shape.
 
 Acceptance: `TestFlowDocsCorpusRepositoryMismatchIsTypedUpFront` (an evidence-primary corpus that
 declares the application as an additional repository, and a corpus of the application at an older

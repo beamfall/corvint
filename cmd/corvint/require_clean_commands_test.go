@@ -33,6 +33,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"context": {args: []string{"context", "--task", "change main"}},
 	"adapter": {args: []string{"adapter", "codex"}, noRoot: true},
 	"index":   {args: []string{"index"}}, "batch": {args: []string{"batch"}},
+	"docs":      {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
 	"depsource": {args: []string{"depsource", "example.com/m"}}, "necessity": {args: []string{"necessity"}},
 	"surprise": {args: []string{"surprise"}}, "answerability": {args: []string{"answerability"}},
 	"kernel":        {args: []string{"kernel"}},
