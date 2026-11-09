@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/Beamfall/corvint/internal/trace"
-	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -58,32 +56,4 @@ func TestRecordTypedArgvRoundTripAndRefusal(t *testing.T) {
 		}
 
 	})
-}
-
-func TestQueryTypedArgvAdmissionAndBatchDigest(t *testing.T) {
-	t.Parallel()
-	root := queryCLIRepository(t)
-	recorded, err := tracerecordrepo.Record(t.Context(), root, tracerecordrepo.Input{Producer: trace.ProducerCLI, Task: "token parser", ChangedPaths: []string{"internal/parser/token.go"}, Outcome: "passed", VerificationArgv: [][]string{{"printf", "a b", ""}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	before := repositoryBytesDigest(t, root)
-	candidate := runRepositoryQueryProcess(t, root)
-	if candidate.exit != 0 {
-		t.Fatalf("query: %s", candidate.stderr)
-	}
-	context := decodeRepositoryQueryContext(t, candidate.stdout)
-	learning := objectField(t, context, "learning")
-	assertJSONNumber(t, learning, "local_trace_count", 1)
-	assertJSONNumber(t, learning, "matched_local_traces", 1)
-	assertLocalTraceCandidate(t, context, recorded.Record.TraceID, recorded.Record.Revision, "internal/parser/token.go", 260, "changed")
-	if after := repositoryBytesDigest(t, root); after != before {
-		t.Fatal("typed query mutated repository")
-	}
-	record := recorded.Record
-	digest := batchTraceDigest([]trace.Record{record}, "ready")
-	record.TypedVerification[0].Argv[1] = "changed literal"
-	if batchTraceDigest([]trace.Record{record}, "ready") == digest {
-		t.Fatal("batch digest omitted typed verification")
-	}
 }

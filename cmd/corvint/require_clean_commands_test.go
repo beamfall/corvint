@@ -25,39 +25,32 @@ var requireCleanRefusalForms = map[string]struct {
 	noRoot bool
 }{
 	"init": {args: []string{"init"}}, "adopt": {args: []string{"adopt"}},
-	"query": {args: []string{"query", "--task", "change main"}}, "feature": {args: []string{"feature", "impact"}},
-	"eval": {args: []string{"eval"}}, "lrf": {args: []string{"lrf"}}, "record": {args: []string{"record"}},
-	"repro":          {args: []string{"repro", "record"}},
-	"mcp":            {args: []string{"mcp"}, noRoot: true},
-	"migrate-traces": {args: []string{"migrate-traces"}}, "harness": {args: []string{"harness", "event"}},
-	"cem": {args: []string{"cem", "status", "--map", "change.cem.json"}}, "ocm": {args: []string{"ocm", "status"}},
+	"feature": {args: []string{"feature", "impact"}},
+	"lrf":     {args: []string{"lrf"}}, "record": {args: []string{"record"}},
+	"migrate-traces": {args: []string{"migrate-traces"}},
+	"cem":            {args: []string{"cem", "status", "--map", "change.cem.json"}}, "ocm": {args: []string{"ocm", "status"}},
 	"work": {args: []string{"work", "observe"}}, "context": {args: []string{"context", "--task", "change main"}},
-	"adapter": {args: []string{"adapter", "codex"}, noRoot: true}, "dogfood": {args: []string{"dogfood", "status"}},
-	"dogfood-ocm":  {args: []string{"dogfood-ocm", "status", "--expected-base", "HEAD", "--target", "HEAD"}},
 	"frontier":     {args: []string{"frontier", "--cem", "a.json", "--ocm", "b.json", "--expected-base", "HEAD", "--target", "HEAD"}},
 	"observations": {args: []string{"observations"}}, "obligations": {args: []string{"obligations", "--cem", "a.json", "--impact", "b.json"}, noRoot: true},
 	"prove": {args: []string{"prove", "pkg/main.go"}}, "prove-observe": {args: []string{"prove-observe"}},
-	"index": {args: []string{"index"}}, "batch": {args: []string{"batch"}},
-	"docs":      {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
-	"depsource": {args: []string{"depsource", "example.com/m"}}, "necessity": {args: []string{"necessity"}},
-	"surprise": {args: []string{"surprise"}}, "answerability": {args: []string{"answerability"}},
-	"kernel": {args: []string{"kernel"}}, "lease": {args: []string{"lease", "status"}}, "reads": {args: []string{"reads"}},
-	"calibrate": {args: []string{"calibrate"}}, "witness": {args: []string{"witness"}},
+	"index": {args: []string{"index"}},
+	"docs":  {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
+	"lease": {args: []string{"lease", "status"}}, "reads": {args: []string{"reads"}},
+	"witness":       {args: []string{"witness"}},
 	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
 	"test-plan":     {args: []string{"test-plan", "check", "--plan", "a.json", "--input", "b.json"}},
 	"features":      {args: []string{"features"}}, "overview": {args: []string{"overview"}},
 	"review":            {args: []string{"review", "--base", "HEAD"}},
 	"migration-ratchet": {args: []string{"migration-ratchet", "--profile", "profile.json"}},
-	"flows":             {args: []string{"flows", "--manifest", "manifest.json"}}, "skill-export": {args: []string{"skill-export"}},
-	"how":      {args: []string{"how", "--source", "e2e", "ship an order"}},
-	"breakage": {args: []string{"breakage"}}, "graph": {args: []string{"graph", "imports", "--revision", "HEAD"}},
-	"step":    {args: []string{"step", "snapshot", "--declaration", "a.json", "--host", "b.json"}},
-	"delta":   {args: []string{"delta", "--base", "HEAD", "--head", "HEAD"}},
-	"changes": {args: []string{"changes", "--from", "HEAD", "--to", "HEAD"}},
-	"runs":    {args: []string{"runs", "stability", "--runs", "a.json"}},
-	"test":    {args: []string{"test", "--base", "HEAD", "--dry-run"}},
-	"tests":   {args: []string{"tests", "lint", "--base", "HEAD"}},
+	"flows":             {args: []string{"flows", "--manifest", "manifest.json"}},
+	"how":               {args: []string{"how", "--source", "e2e", "ship an order"}},
+	"step":              {args: []string{"step", "snapshot", "--declaration", "a.json", "--host", "b.json"}},
+	"delta":             {args: []string{"delta", "--base", "HEAD", "--head", "HEAD"}},
+	"changes":           {args: []string{"changes", "--from", "HEAD", "--to", "HEAD"}},
+	"runs":              {args: []string{"runs", "stability", "--runs", "a.json"}},
+	"test":              {args: []string{"test", "--base", "HEAD", "--dry-run"}},
+	"tests":             {args: []string{"tests", "lint", "--base", "HEAD"}},
 }
 
 // requireCleanParseWitness covers verbs whose CLI diagnostic names no argv
@@ -122,29 +115,11 @@ func TestRequireCleanHonouredOrRefusedByEveryCommand(t *testing.T) {
 		t.Fatalf("every dispatched verb needs a --require-clean form or an honouring entry:\nlisted %v\nwant   %v", slices.Sorted(slices.Values(listed)), want)
 	}
 	for _, command := range slices.Sorted(maps.Keys(requireCleanRefusalForms)) {
-		if command == "adapter" {
-			continue
-		}
 		form := requireCleanRefusalForms[command]
 		refuses(form.noRoot, slices.Clone(form.args)...)
 	}
-	// The host adapter fails open by contract (exit 0): an unexpected trailing
-	// argument degrades with unsupported-hook-event instead of being ignored.
-	for _, form := range [][]string{requireCleanRefusalForms["adapter"].args, {"adapter", "claude-code", "stop"}} {
-		adapter := func(args []string) string {
-			var stdout bytes.Buffer
-			if code := runContext(context.Background(), args, strings.NewReader("{}"), &stdout, &bytes.Buffer{}); code != 0 {
-				t.Fatalf("%v: exit=%d", args, code)
-			}
-			return stdout.String()
-		}
-		if plain, flagged := adapter(form), adapter(append(slices.Clone(form), "--require-clean")); strings.Contains(plain, "unsupported-hook-event") || !strings.Contains(flagged, "unsupported-hook-event") {
-			t.Errorf("%v --require-clean was not refused: %q (without the flag: %q)", form, flagged, plain)
-		}
-	}
 	// Each prove mode: path impact through the shared parser, and the task,
 	// CEM and checkpoint modes through their own parsers.
-	refuses(false, "prove", "--task", "change main")
 	refuses(false, "prove", "--cem", "change.cem.json")
 	refuses(false, "prove", "--checkpoint", "checkpoint.json")
 

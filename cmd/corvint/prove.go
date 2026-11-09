@@ -360,9 +360,6 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	if parsed.impactProfile != "" {
 		return parsed, true, argumentError("prove does not support --range-profile")
 	}
-	if parsed.impactWorktree {
-		return parsed, true, argumentError("prove judges tracked paths only: --working-tree-untracked is not supported")
-	}
 	if err := proveUnsupportedOption(parsed); err != nil {
 		return parsed, true, err
 	}
@@ -1112,9 +1109,6 @@ func cemState(verification map[string]any, summary proveSummary) string {
 // provePacket compiles the wrapped command's packet on its ordinary read path,
 // without the ledger observation the plain commands make on failure.
 func provePacket(ctx context.Context, options options) (map[string]any, error) {
-	if options.proveMode == "query" {
-		return standaloneQueryContext(ctx, options)
-	}
 	if options.proveMode == "change" {
 		index, err := snapshotOrBuild(ctx, options.root)
 		if err != nil {

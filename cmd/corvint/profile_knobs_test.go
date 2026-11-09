@@ -192,28 +192,13 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if !slices.Equal(p.NotHonoured.Entries, profileKnobWorkers) || p.NotHonoured.Reason == "" {
 		t.Fatalf("not_honoured %+v", p.NotHonoured)
 	}
-	main, err := os.ReadFile("main.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bracket := bytes.Index(main, []byte("runProfiledContext(signalled, ctx, os.Args[1:]"))
-	for _, worker := range []string{"runSnapshotRefreshWorker(", "runDogfoodOutcomeWorker(", "runDogfoodVerifierWorker("} {
-		if at := bytes.Index(main, []byte(worker)); at < 0 || bracket < 0 || at > bracket {
-			t.Errorf("%s is not dispatched before the profile bracket", worker)
-		}
-	}
 	servers, err := filepath.Glob(filepath.Join("..", "corvint-*-mcp"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// corvint-mcp's entry point moved to internal/mcp/cli so `corvint mcp` shares it (AHI-373).
-	servers = append(servers, filepath.Join("..", "..", "internal", "mcp", "cli"))
 	want := []string{}
 	for _, dir := range servers {
 		name, call := filepath.Base(dir), "os.Exit(runProfiled("
-		if name == "cli" {
-			name, call = "corvint-mcp", "return runProfiled("
-		}
 		want = append(want, name)
 		source, err := os.ReadFile(filepath.Join(dir, "main.go"))
 		if err != nil {

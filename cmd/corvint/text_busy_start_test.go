@@ -5,7 +5,6 @@ package main
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"syscall"
 	"testing"
 	"time"
@@ -18,22 +17,6 @@ import (
 // for far more than that schedule's ~375 ms before its own exec closes it
 // (V1-3619, ASD-V0-927).
 var copiedBinaryTextBusyBudget = 10 * time.Second
-
-// startCopiedBinary starts a fresh command from build, retrying a start that
-// fails with ETXTBSY until copiedBinaryTextBusyBudget elapses. Test helpers
-// copy or build a binary and then exec it while other parallel tests fork;
-// such a fork can hold the new file's write descriptor until its own exec
-// closes it, so a start can fail "text file busy" on Linux although nothing
-// started. Every test helper that execs a binary it just wrote starts it here
-// (ASD-V0-106, V1-3175, ASD-V0-927).
-func startCopiedBinary(build func() *exec.Cmd) (*exec.Cmd, error) {
-	var command *exec.Cmd
-	err := retryTextBusyStart(copiedBinaryTextBusyBudget, func() error {
-		command = build()
-		return command.Start()
-	})
-	return command, err
-}
 
 // retryTextBusyStart calls start until it returns anything but ETXTBSY or
 // budget elapses, backing off from 5 ms to at most 200 ms between attempts.

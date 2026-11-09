@@ -65,39 +65,29 @@ func TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin(t *testing.T)
 	}{
 		{"flag", []string{"--help"}, rootHelp},
 		{"command", []string{"help"}, rootHelp},
-		{"query flag", []string{"query", "--help"}, helpText("query")},
-		{"query command", []string{"help", "query"}, helpText("query")},
+		{"context flag", []string{"context", "--help"}, helpText("context")},
+		{"context command", []string{"help", "context"}, helpText("context")},
 		{"impact flag", []string{"impact", "--help"}, helpText("impact")},
 		{"impact command", []string{"help", "impact"}, helpText("impact")},
 		{name: "ASD-V0-009 feature flag without repository access", args: []string{"--root", "/definitely/not/a/repository", "feature", "--help"}, want: helpText("feature")},
 		{name: "ASD-V0-009 feature command without repository access", args: []string{"--root", "/definitely/not/a/repository", "help", "feature"}, want: helpText("feature")},
-		{name: "ASD-V0-009 eval flag without repository access", args: []string{"--root", "/definitely/not/a/repository", "eval", "--help"}, want: helpText("eval")},
-		{name: "ASD-V0-009 eval command without repository access", args: []string{"--root", "/definitely/not/a/repository", "help", "eval"}, want: helpText("eval")},
 		{"lrf flag", []string{"lrf", "--help"}, helpText("lrf")},
 		{"lrf command", []string{"help", "lrf"}, helpText("lrf")},
 		{name: "GPK-V0-002 ocm help parity", args: []string{"ocm", "--help"}, want: helpText("ocm")},
 		{"ocm command", []string{"help", "ocm"}, helpText("ocm")},
 		{"frontier flag", []string{"frontier", "--help"}, helpText("frontier")},
 		{"frontier command", []string{"help", "frontier"}, helpText("frontier")},
-		{"event flag", []string{"harness", "event", "--help"}, helpText("harness-event")},
-		{"event command", []string{"help", "harness", "event"}, helpText("harness-event")},
 		{"CEM-V1-340 cem prepare flag", []string{"cem", "prepare", "--help"}, helpText(cemActionHelpPrefix + "prepare")},
 		{"cem flag", []string{"cem", "--help"}, helpText("cem")},
-		{"harness flag", []string{"harness", "--help"}, helpText("harness-event")},
-		{"harness command", []string{"help", "harness"}, helpText("harness-event")},
 		{"WQO-V0-032 work flag is help, not command input", []string{"work", "--help"}, helpText("work")},
 		{"work command", []string{"help", "work"}, helpText("work")},
 		{"prove-observe flag", []string{"prove-observe", "--help"}, helpText("prove-observe")},
 		{"prove-observe command", []string{"help", "prove-observe"}, helpText("prove-observe")},
-		{"adapter flag", []string{"adapter", "--help"}, helpText("adapter")},
-		{"adapter command", []string{"help", "adapter"}, helpText("adapter")},
-		{"dogfood OCM flag", []string{"dogfood-ocm", "--help"}, helpText("dogfood-ocm")},
-		{"dogfood OCM command", []string{"help", "dogfood-ocm"}, helpText("dogfood-ocm")},
 		{"witness flag", []string{"witness", "--help"}, helpText("witness")},
 		{"witness command", []string{"help", "witness"}, helpText("witness")},
 		{"LPCV-V0-051 test-validity flag", []string{"test-validity", "--help"}, helpText("test-validity")},
 		{"test-validity command", []string{"help", "test-validity"}, helpText("test-validity")},
-		{"invalid root is not opened", []string{"--root", "/definitely/not/a/repository", "query", "--help"}, helpText("query")},
+		{"invalid root is not opened", []string{"--root", "/definitely/not/a/repository", "context", "--help"}, helpText("context")},
 		{"inline root is not opened", []string{"--root=/definitely/not/a/repository", "impact", "--help"}, helpText("impact")},
 	}
 	for _, test := range tests {
@@ -125,17 +115,16 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 			args []string
 			want string
 		}{
-			{[]string{"query", "--task", "x", "--help"}, helpText("query")},
-			{[]string{"query", "--help", "--task", "x"}, helpText("query")},
-			{[]string{"query", "--limit", "-1", "--help"}, helpText("query")},
+			{[]string{"context", "--task", "x", "--help"}, helpText("context")},
+			{[]string{"context", "--help", "--task", "x"}, helpText("context")},
+			{[]string{"context", "--limit", "-1", "--help"}, helpText("context")},
 			{[]string{"context", "--task", "x", "--subject", "a.go", "--help"}, helpText("context")},
 			{[]string{"impact", "path/a.go", "--help"}, helpText("impact")},
 			{[]string{"prove", "--task", "x", "--help"}, helpText("prove")},
 			{[]string{"index", "--if-stale", "--help"}, helpText("index")},
 			{[]string{"cem", "begin", "--patch", "p", "--help"}, helpText(cemActionHelpPrefix + "begin")},
-			{[]string{"harness", "event", "--host", "codex", "--help"}, helpText("harness-event")},
 			{[]string{"docs", "maintain", "--page", "p", "--help"}, helpText("docs-maintain")},
-			{[]string{"--help", "query"}, rootHelp},
+			{[]string{"--help", "context"}, rootHelp},
 		} {
 			args := append(append([]string{}, invalidRoot...), test.args...)
 			reader := &forbiddenHelpReader{}
@@ -147,9 +136,9 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 	})
 	t.Run("GPK-V0-062 --help as an option value, after --, or after an invalid choice is not help", func(t *testing.T) {
 		for _, args := range [][]string{
-			{"query", "--task", "--help"},
-			{"query", "--task=--help"},
-			{"query", "--task", "x", "--", "--help"},
+			{"context", "--task", "--help"},
+			{"context", "--task=--help"},
+			{"context", "--task", "x", "--", "--help"},
 			{"impact", "--", "--help"},
 			{"cem", "bogus", "--help"},
 		} {
@@ -199,22 +188,6 @@ func TestRootPreambleFollowsArgparseOptionLikeClassification(t *testing.T) {
 			if exit := run(args, strings.NewReader(""), &stdout, &stderr); exit != 2 || !strings.Contains(stderr.String(), "missing value for --root") || stdout.Len() != 0 {
 				t.Errorf("args=%q exit=%d stdout=%q stderr=%q", args, exit, &stdout, &stderr)
 			}
-		}
-	}
-	for _, test := range []struct {
-		args      []string
-		wantRoot  string
-		wantIndex int
-	}{
-		{[]string{"--root=-x", "calibrate"}, "-x", 1},
-		{[]string{"--root", "-", "calibrate"}, "-", 2},
-		{[]string{"--root", "-5", "calibrate"}, "-5", 2},
-		{[]string{"--root", "--", "calibrate"}, "--", 2},
-		{[]string{"--root", "a", "--root", "--task"}, "a", 2},
-		{[]string{"--root"}, "", 0},
-	} {
-		if root, index := calibrateRoot(test.args); root != test.wantRoot || index != test.wantIndex {
-			t.Errorf("calibrateRoot(%q) = %q, %d; want %q, %d", test.args, root, index, test.wantRoot, test.wantIndex)
 		}
 	}
 }
@@ -275,12 +248,6 @@ func TestNativeVerbOptionValuesFollowArgparseOptionLikeClassification(t *testing
 			}
 			return errorOf(parseWorkOptions([]string{"propose-wave", "--limit", "1", "--envelope", v}))
 		}},
-		{"local-completion", "local-completion-option-value-required", func(v string, inline bool) error {
-			if inline {
-				return errorOf(localCompletionFlags([]string{"begin", "--plan=" + v}))
-			}
-			return errorOf(localCompletionFlags([]string{"begin", "--plan", v}))
-		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			for _, value := range []string{"-x", "--help", "-h"} {
@@ -308,10 +275,9 @@ func TestHFlagAliasesHelpFlag(t *testing.T) {
 		want string
 	}{
 		{"root", []string{"-h"}, rootHelp},
-		{"command", []string{"query", "-h"}, helpText("query")},
-		{"anywhere before --", []string{"query", "--task", "x", "-h"}, helpText("query")},
+		{"command", []string{"context", "-h"}, helpText("context")},
+		{"anywhere before --", []string{"context", "--task", "x", "-h"}, helpText("context")},
 		{"nested cem action", []string{"cem", "begin", "--patch", "p", "-h"}, helpText(cemActionHelpPrefix + "begin")},
-		{"harness event", []string{"harness", "event", "--host", "codex", "-h"}, helpText("harness-event")},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reader := &forbiddenHelpReader{}
@@ -342,7 +308,7 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	})
 	commands := strings.SplitN(rootHelp, "\nCommands:\n", 2)[1]
 	commands, _, _ = strings.Cut(commands, "\nGlobal options:")
-	for _, command := range []string{"adapter", "witness"} {
+	for _, command := range []string{"witness"} {
 		if !strings.Contains("\n"+commands, "\n    "+command+" ") {
 			t.Errorf("root help command list omits %q", command)
 		}
@@ -443,41 +409,7 @@ func TestOCMHelpExposesNativeWorkflowAndMutationBoundary(t *testing.T) {
 	}
 }
 
-func TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles(t *testing.T) {
-	t.Parallel()
-	t.Run("EAF-V0-005", func(t *testing.T) {
-		text := helpText("query")
-		for _, required := range []string{
-			authorityStartPrompt,
-			"Required UTF-8 task",
-			"up\n               to three advisory learned paths",
-			"default: 10; range: 1-50",
-			"BuildEval -> EvalQuery",
-			"Repository and agent-tooling tasks",
-			"Darwin or Linux",
-			"root AGENTS.md",
-			"--budget-bytes",
-			"read-only and local-only",
-			"Recovery for unsupported-query-trace-state",
-			"Keep the trace store and original task unchanged",
-			"context --task TASK --limit 5",
-			"Never delete traces, dirty the worktree, or rewrite the task",
-			// GPK-V0-960 (V1-3663): the packet revision is labelled a tree id.
-			"revision and freshness.revision are the Git tree id",
-			"not a commit id, so they never\n  equal learning.history_tip",
-			"the two\n  differing is not staleness (GPK-V0-960)",
-		} {
-			if !strings.Contains(text, required) {
-				t.Fatalf("query help does not contain %q:\n%s", required, text)
-			}
-		}
-		if strings.Count(text, authorityStartPrompt) != 1 {
-			t.Fatalf("frozen prompt count=%d", strings.Count(text, authorityStartPrompt))
-		}
-	})
-}
-
-func TestImpactAndHarnessHelpExposeActualLimitsAndUnsupportedProfiles(t *testing.T) {
+func TestImpactHelpExposesActualLimitsAndUnsupportedProfiles(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
 		"default: 10; range: 1-50",
@@ -485,31 +417,12 @@ func TestImpactAndHarnessHelpExposeActualLimitsAndUnsupportedProfiles(t *testing
 		"at most 100 paths by default (256 only for the\n  explicit expanded range profile) and 1024 characters per path.",
 		"1,000,000 bytes per source and 128 MiB in total",
 		"Mixed-worktree freshness is disclosed",
-		"--working-tree-untracked",
-		"default profile is unchanged",
-		"stable twice-read bytes",
-		"observed, not immutable Git",
-		"64,000,000 bytes",
+		"Every profile uses only revision-tracked evidence",
 		"admitted but lacking a reverse-import rule",
 		"unsupported-impact-path-suffix",
-		"untracked-path impact is implemented for .go files only",
-		"before repository eligibility",
 	} {
 		if !strings.Contains(impactHelp, required) {
 			t.Fatalf("impact help does not contain %q", required)
-		}
-	}
-	for _, required := range []string{
-		"claude-code, codex, gemini-cli, or opencode",
-		"file-change, post-tool, session-end, session-start,",
-		"default: 8000; range: 4096-1000000 bytes",
-		"Input is limited to 131072 bytes",
-		"user-prompt, file-change, and compact\nsession-start additionally build a repository index",
-		"user-prompt shares query's BuildEval -> EvalQuery repository path",
-		"corvint-harness-event/0 FALLBACK",
-	} {
-		if !strings.Contains(harnessEventHelp, required) {
-			t.Fatalf("harness help does not contain %q", required)
 		}
 	}
 }

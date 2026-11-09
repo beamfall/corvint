@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -123,26 +122,11 @@ func TestImpactRejectsUnsupportedInputsWithoutReadingStdin(t *testing.T) {
 	}
 }
 
-func TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027(t *testing.T) {
+func TestImpactDisclosesUnruledAdmittedSuffix_GPKV0027(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
 	changed := addTrackedRustImpactFixture(t, root)
 	standalone := standaloneContextMember(t, root, "impact", changed)
-
-	var stdout, stderr bytes.Buffer
-	input := strings.NewReader(`{"paths":["` + changed + `"]}`)
-	if code := runContext(context.Background(), cliArguments(root, "file-change"), input, &stdout, &stderr); code != 0 {
-		t.Fatalf("harness exit=%d stdout=%s stderr=%s", code, &stdout, &stderr)
-	}
-	var harness struct {
-		Context json.RawMessage `json:"context"`
-	}
-	if err := json.Unmarshal(stdout.Bytes(), &harness); err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(standalone, harness.Context) {
-		t.Fatalf("context differs\nimpact  = %s\nharness = %s", standalone, harness.Context)
-	}
 	if !bytes.Contains(standalone, []byte("not computed by the impact profile")) {
 		t.Fatalf("impact context lacks profile disclosure: %s", standalone)
 	}
@@ -264,64 +248,19 @@ func TestImpactLeavesRepositoryBytesUnchanged(t *testing.T) {
 	}
 }
 
-func TestWorkingTreeImpactIsExplicitAndDoesNotBroadenDefaultAuthority(t *testing.T) {
+func TestImpactRefusesUntrackedPaths(t *testing.T) {
 	t.Parallel()
 	root := impactCLIRepository(t)
 	untracked := "pkg/untracked.go"
 	if err := os.WriteFile(filepath.Join(root, untracked), []byte("package main\n\nimport \"fmt\"\n\nfunc Untracked() { fmt.Println(StableValue()) }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	var defaultStdout, defaultStderr bytes.Buffer
-	if exit := run([]string{"--root", root, "impact", untracked, "--limit", "10"}, &forbiddenImpactReader{}, &defaultStdout, &defaultStderr); exit != 2 {
-		t.Fatalf("default exit=%d stdout=%q stderr=%q", exit, &defaultStdout, &defaultStderr)
-	}
-	if defaultStdout.Len() != 0 || !strings.Contains(defaultStderr.String(), "not tracked at revision") {
-		t.Fatalf("default stdout=%q stderr=%q", &defaultStdout, &defaultStderr)
-	}
-
-	before := repositoryBytesDigest(t, root)
 	var stdout, stderr bytes.Buffer
-	exit := run([]string{"--root", root, "impact", "--working-tree-untracked", untracked, "--limit", "10"}, &forbiddenImpactReader{}, &stdout, &stderr)
-	if exit != 0 || stderr.Len() != 0 {
+	if exit := run([]string{"--root", root, "impact", untracked, "--limit", "10"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
 	}
-	if !bytes.Contains(stdout.Bytes(), []byte(`"profile":"corvint-working-tree-impact/0"`)) ||
-		!bytes.Contains(stdout.Bytes(), []byte(`"revision_membership":"absent"`)) ||
-		!bytes.Contains(stdout.Bytes(), []byte(`"state":"WORKTREE_EVIDENCE"`)) {
-		t.Fatalf("stdout=%s", &stdout)
-	}
-	if after := repositoryBytesDigest(t, root); before != after {
-		t.Fatal("explicit working-tree impact changed repository bytes")
-	}
-
-	stdout.Reset()
-	stderr.Reset()
-	exit = run([]string{"--root", root, "impact", "--working-tree-untracked", "pkg/main.go"}, &forbiddenImpactReader{}, &stdout, &stderr)
-	if exit != 2 || !strings.Contains(stderr.String(), "only paths absent from the captured revision") {
-		t.Fatalf("tracked opt-in exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
-	}
-}
-
-func TestWorkingTreeImpactRejectsPathNormalizationAndFlagValues(t *testing.T) {
-	t.Parallel()
-	root := impactCLIRepository(t)
-	for _, arguments := range [][]string{
-		{"--root", root, "impact", "--working-tree-untracked=value", "pkg/new.go"},
-		{"--root", root, "impact", "--working-tree-untracked", "--working-tree-untracked", "pkg/new.go"},
-	} {
-		var stdout, stderr bytes.Buffer
-		if exit := run(arguments, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "does not accept a value or repetition") {
-			t.Fatalf("args=%v exit=%d stdout=%q stderr=%q", arguments, exit, &stdout, &stderr)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(root, "pkg", "new.go"), []byte("package main\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	exit := run([]string{"--root", root, "impact", "pkg/./new.go", "--working-tree-untracked"}, &forbiddenImpactReader{}, &stdout, &stderr)
-	if exit != 2 || !strings.Contains(stderr.String(), "must be normalized and repository-relative") {
-		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "not tracked at revision") {
+		t.Fatalf("stdout=%q stderr=%q", &stdout, &stderr)
 	}
 }
 
@@ -378,7 +317,6 @@ func TestCommittedRangeImpactRejectsAmbiguousCLIForms(t *testing.T) {
 	for _, arguments := range [][]string{
 		{"--root", root, "impact", "--base", base, "pkg/main.go"},
 		{"--root", root, "impact", "--base", base, "--base", base},
-		{"--root", root, "impact", "--base", base, "--working-tree-untracked"},
 	} {
 		var stdout, stderr bytes.Buffer
 		if exit := run(arguments, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "invalid-arguments"`) {

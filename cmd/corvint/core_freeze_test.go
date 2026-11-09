@@ -20,11 +20,11 @@ import (
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
-var frozenCoreVerbs = []string{"init", "adopt", "index", "query", "context", "impact", "affected", "prove", "cem", "ocm", "frontier", "dogfood"}
+var frozenCoreVerbs = []string{"init", "adopt", "index", "context", "impact", "affected", "prove", "cem", "ocm", "frontier"}
 
 // hookPlumbingVerbs are the CCF-V1-003 adapter plumbing verbs runContext dispatches before the
-// topLevelCommands check; they are undocumented, absent from root help and outside the freeze.
-var hookPlumbingVerbs = []string{"native-hook", "authority-event", "qualified-event"}
+// topLevelCommands check. Decision 0594 removed the last of them with the host adapters.
+var hookPlumbingVerbs = []string{}
 
 // absentMember marks a wanted member that the frozen document must not carry.
 type absentMember struct{}
@@ -146,17 +146,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			}
 			return []string{"--root", root, "index", "--if-stale"}
 		}, 0, map[string]any{"state": "fresh", "ok": absentMember{}, "profile": absentMember{}, "command": absentMember{}}},
-		{"query repository task", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "query", "--task", task}
-		}, 0,
-			map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query"}},
-		{"query authority start", func(t *testing.T) []string {
-			return []string{"--root", queryCLIRepository(t), "query", "--task", authorityStartPrompt, "--limit", "1"}
-		}, 0, map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query", "context.intent.id": "project-operations"}},
-		{"query excluded sources", func(t *testing.T) []string {
-			return []string{"--root", coreFreezeCommit(t, impactCLIRepository(t), excluded), "query", "--task", task}
-		}, 0,
-			map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query"}},
 		{"context task", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "context", "--task", task}
 		}, 0,
@@ -191,11 +180,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			root := impactCLIRepository(t)
 			return []string{"--root", root, "impact", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "impact", "context.profile": "corvint-range-impact/0"}},
-		{"impact untracked working tree", func(t *testing.T) []string {
-			root := impactCLIRepository(t)
-			writeFixtureFile(t, root, "pkg/extra.go", "package main\n")
-			return []string{"--root", root, "impact", "--working-tree-untracked", "pkg/extra.go"}
-		}, 0, map[string]any{"tool": "impact", "context.profile": "corvint-working-tree-impact/0"}},
 		{"affected worktree", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "affected"} }, 0,
 			map[string]any{"tool": "affected", "profile": "affected-plan/1"}},
 		{"affected committed range", func(t *testing.T) []string {
@@ -208,10 +192,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			root := impactCLIRepository(t)
 			return []string{"--root", root, "affected", "--full", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "affected", "profile": "affected-plan/0"}},
-		{"prove task", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "prove", "--task", task}
-		}, 0,
-			map[string]any{"tool": "prove", "profile": "falsifiable-packet/0"}},
 		{"prove path", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "prove", "pkg/main.go"} }, 0,
 			map[string]any{"tool": "prove", "profile": "falsifiable-packet/0"}},
 		{"prove committed range", func(t *testing.T) []string {
@@ -226,9 +206,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			map[string]any{"tool": "ocm-status", "verification.spec": "ocm/0.1-experimental"}},
 		{"ocm verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "verify") }, 0,
 			map[string]any{"tool": "ocm-verify", "verification.spec": "ocm/0.1-experimental"}},
-		{"dogfood status retained outcome", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
-		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
 	register := observeCoreEnumerations(t, len(cases))
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
@@ -374,7 +351,6 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 		{"init", "init with an unrecognized argument", func(root string) []string { return []string{"--root", root, "init", "--bogus"} }, "invalid-arguments", ""},
 		{"adopt", "adopt with an unrecognized argument", func(root string) []string { return []string{"--root", root, "adopt", "--bogus"} }, "invalid-arguments", ""},
 		{"index", "index with an unrecognized argument", func(root string) []string { return []string{"--root", root, "index", "--bogus"} }, "invalid-arguments", ""},
-		{"query", "query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments", ""},
 		{"context", "context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments", ""},
 		{"impact", "impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, "", ""},
 		{"affected", "affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments", ""},
@@ -382,9 +358,6 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 		{"cem", "cem status without a map", func(root string) []string { return []string{"--root", root, "cem", "status"} }, "invalid-arguments", ""},
 		{"ocm", "ocm status without a map", func(root string) []string { return []string{"--root", root, "ocm", "status"} }, "invalid-arguments", ""},
 		{"frontier", "frontier without its maps", func(root string) []string { return []string{"--root", root, "frontier", "--json"} }, "invalid-frontier-input", "frontier-error/0"},
-		{"dogfood", "dogfood status with a malformed session key", func(root string) []string {
-			return []string{"--root", root, "dogfood", "status", "--session-key", "k"}
-		}, "invalid-session-key", ""},
 	}
 	covered := []string{}
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
@@ -495,8 +468,8 @@ func coreRootRefusal(t *testing.T, directory string, arguments ...string) map[st
 // coreRootRefusingVerbs are the Core modes that read the repository at the working directory
 // when --root is omitted.
 var coreRootRefusingVerbs = [][]string{
-	{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
-	{"affected"}, {"prove", "pkg/main.go"}, {"dogfood", "status", "--session-key", strings.Repeat("a", 64)},
+	{"index"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
+	{"affected"}, {"prove", "pkg/main.go"},
 }
 
 // TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike pins CCF-V1-004: with --root omitted,
@@ -562,7 +535,7 @@ func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "add", "main.go")
-	for _, arguments := range [][]string{{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "main.go"}, {"prove", "main.go"}} {
+	for _, arguments := range [][]string{{"index"}, {"context", "--task", "fix login"}, {"impact", "main.go"}, {"prove", "main.go"}} {
 		t.Run(arguments[0], func(t *testing.T) {
 			t.Parallel()
 			code, stdout, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...)
@@ -637,7 +610,7 @@ func checkPromisorObjectRefusals(t *testing.T) {
 		root               string
 		objects, arguments []string
 	}{
-		{sparse, outsideCone, []string{"index"}}, {sparse, outsideCone, []string{"query", "--task", "fix login"}},
+		{sparse, outsideCone, []string{"index"}},
 		{sparse, outsideCone, []string{"context", "--task", "fix login"}}, {sparse, outsideCone, []string{"impact", "pkg/main.go"}},
 		{sparse, outsideCone, []string{"prove", "pkg/main.go"}},
 		{full, baseBlob, []string{"impact", "--base", base}}, {full, baseBlob, []string{"prove", "--base", base}},
@@ -860,8 +833,9 @@ var preDispatchVerb = regexp.MustCompile(`arguments\[0\] == "([a-z][a-z-]*)"`)
 
 // TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp pins CCF-V1-003 and CCF-V1-008: the verbs
 // runContext compares literally are either listed in topLevelCommands, and so labelled in root
-// help, or exactly the three hook-plumbing verbs, which stay out of root help and outside the freeze.
-// A fourth verb dispatched this way fails here until it is listed or deliberately pinned.
+// help, or exactly the pinned hook-plumbing verbs (none since decision 0594), which stay out of root
+// help and outside the freeze. Any other verb dispatched this way fails here until it is listed or
+// deliberately pinned.
 func TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp(t *testing.T) {
 	t.Parallel()
 	source, err := os.ReadFile("main.go")
@@ -999,7 +973,7 @@ func TestCoreEnumerationCoverageNeedsEveryMode(t *testing.T) {
 // provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
 // it (accepted 2026-09-26, decision 0422; from decision 0398): `prove` embeds the query or impact
 // packet unchanged as `packet`.
-var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
+var provePacketTools = map[string]string{"impact": "impact", "range-impact": "impact"}
 
 // modeRan records that one declared frozen mode observed its document.
 func (observer *coreEnumerationObserver) modeRan() {
