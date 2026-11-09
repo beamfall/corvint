@@ -774,7 +774,10 @@ and container qualification; full fallback remains available.
   `ENTRY` is a canonical relative path, optionally ending in one `/` to name a subtree, never `.git`
   or below it, strictly ascending within its package. The declaration states that the package's
   test processes read nothing under the repository root except its own directory subtree and the
-  declared entries. The planner (`readScoped`/`readScope` unit members, part of the AFP-V0-005
+  declared entries. An entry naming a whole top-level directory selects the package for every edit
+  under that tree, so it needs a recorded reason (AFP-V0-3010), and this repository keeps one only
+  for a read no literal bounds, narrowing the rest to the measured reads, a literal target's import
+  closure included (AFP-V0-3011, AFP-V0-3150; all in `affected-plan-selection-v0.md`, V1-4993). The planner (`readScoped`/`readScope` unit members, part of the AFP-V0-005
   projection) and the AFP-V0-012 selector MUST then leave that package out of rule (d), whatever
   makes it unbounded, and select it, with witness `DECLARED_READ_SCOPE` or the selector line
   `declared <pkg> <- <path>`, when a dirty path is in its subtree, equals or lies under an entry,
@@ -962,7 +965,9 @@ and container qualification; full fallback remains available.
   package directory, below it, or under a declared directory entry (a directory above an entry is not
   enough, since `go list` reads the directory's own files); otherwise the check exits 1 naming the
   package, the test file and the directory, and a pattern that names no repository directory, or a
-  `go list` that fails, exits 2 with go's stderr.
+  `go list` that fails, exits 2 with go's stderr. (9) (V1-4993) An entry naming a whole top-level
+  directory exits 1 unless `.corvint/test-read-scope-trees.json` records why the tree stays
+  (AFP-V0-3010, in `affected-plan-selection-v0.md`).
   Non-goals: it does not prove a read: a literal built at run time, a path read through a variable
   joined onto a non-literal root, an environment value or a file a helper package opens is invisible to
   it, and the Landlock wrapper (`.github/testconfine`) stays the enforcement; it never edits the

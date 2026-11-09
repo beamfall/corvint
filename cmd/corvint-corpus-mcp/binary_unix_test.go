@@ -21,20 +21,28 @@ func TestCorpusSeparateCLIMCPBinaries(t *testing.T) {
 			t.Fatal(err)
 		}
 		binaries := t.TempDir()
-		execute := func(dir string, input []byte, args ...string) []byte {
+		runSpec := func(spec procgroup.Spec) []byte {
 			t.Helper()
-			executable, err := exec.LookPath(args[0])
+			executable, err := exec.LookPath(spec.Argv[0])
 			if err != nil {
 				t.Fatal(err)
 			}
-			args[0] = executable
-			result := procgroup.Run(t.Context(), procgroup.Spec{Argv: args, Dir: dir, Env: os.Environ(), Stdin: input, Timeout: 3 * time.Minute, OutputLimit: 4 << 20})
+			spec.Argv[0] = executable
+			spec.Env, spec.Timeout, spec.OutputLimit = os.Environ(), 3*time.Minute, 4<<20
+			result := procgroup.Run(t.Context(), spec)
 			if result.Err != nil || result.ExitStatus != 0 || !result.OwnedProcessGroupCleanup {
-				t.Fatalf("%v: %+v %s", args, result, string(result.Stderr))
+				t.Fatalf("%v: %+v %s", spec.Argv, result, string(result.Stderr))
 			}
 			return result.Stdout
 		}
-		execute(repository, nil, "go", "build", "-o", binaries, "./cmd/corvint", "./cmd/corvint-corpus-mcp")
+		execute := func(dir string, input []byte, args ...string) []byte {
+			t.Helper()
+			return runSpec(procgroup.Spec{Argv: args, Dir: dir, Stdin: input})
+		}
+		// The build's literal targets sit in a procgroup.Spec literal, which
+		// tools/test-read-scopes-check models, so the declared import closure of
+		// both stays checked (AFP-V0-3151).
+		runSpec(procgroup.Spec{Argv: []string{"go", "build", "-o", binaries, "./cmd/corvint", "./cmd/corvint-corpus-mcp"}, Dir: repository})
 		root, _ := corpusServerFixture(t, "# Binary interoperability\n\nOriginal shared evidence.\n")
 		cli := filepath.Join(binaries, "corvint")
 		revision := strings.TrimSpace(string(execute(root, nil, "git", "rev-parse", "HEAD")))
