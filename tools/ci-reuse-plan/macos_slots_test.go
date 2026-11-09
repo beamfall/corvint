@@ -184,3 +184,53 @@ fi
 		})
 	}
 }
+
+// TestCINV05018CancelFailureContinues proves one refused cancel (the run
+// finished meanwhile) leaves the sweep running for later candidates.
+func TestCINV05018CancelFailureContinues(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "cleanup uses bash, jq and a gh spy")
+	if _, err := exec.LookPath("jq"); err != nil {
+		t.Fatal(err)
+	}
+	script := runScript(t, jobBlock(t, readWorkflow(t, "merge-queue-cleanup.yml"), "cancel-stale"))
+	d := t.TempDir()
+	stub := `#!/bin/bash
+set -eu
+[ "$1" = api ] || exit 90
+shift
+if [ "$1" = --method ]; then
+  case "$3" in
+  repos/owner/repo/actions/runs/123/cancel) exit 1 ;;
+  repos/owner/repo/actions/runs/124/cancel) echo 124 >> "$FIXTURE/cancelled"; exit 0 ;;
+  *) exit 91 ;;
+  esac
+fi
+if [ "$1" = --paginate ]; then
+  if [ "$2" = "repos/owner/repo/actions/workflows/ci.yml/runs?event=merge_group&status=in_progress&per_page=100" ]; then
+    echo '{"workflow_runs":[{"id":123,"event":"merge_group"},{"id":124,"event":"merge_group"}]}'
+  else
+    echo '{"workflow_runs":[]}'
+  fi
+elif [ "$1" = repos/owner/repo/actions/runs/123 ] || [ "$1" = repos/owner/repo/actions/runs/124 ]; then
+  printf '{"id":%s,"path":".github/workflows/ci.yml","event":"merge_group","status":"in_progress","head_branch":"gh-readonly-queue/main/pr-1-a"}' "${1##*/}"
+elif [ "$1" = repos/owner/repo/git/matching-refs/heads%2Fgh-readonly-queue%2Fmain%2Fpr-1-a ]; then
+  echo '[]'
+else
+  exit 95
+fi
+`
+	if err := execfile.WriteFile(filepath.Join(d, "gh"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("bash", "--noprofile", "--norc", "-c", script)
+	cmd.Env = append(os.Environ(), "PATH="+d+string(os.PathListSeparator)+os.Getenv("PATH"), "FIXTURE="+d,
+		"REPO=owner/repo", "GH_TOKEN=unused-spy-only", "GITHUB_STEP_SUMMARY="+filepath.Join(d, "summary"))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sweep stopped: %v; output: %s", err, out)
+	}
+	cancelled, _ := os.ReadFile(filepath.Join(d, "cancelled"))
+	if string(cancelled) != "124\n" || !strings.Contains(string(out), "Cannot cancel run 123") {
+		t.Fatalf("cancelled %q; output: %s", cancelled, out)
+	}
+}
