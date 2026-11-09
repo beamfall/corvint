@@ -35,8 +35,7 @@
 # mechanical repins (host package version bumps, moved line citations, use-case receipts); a repin
 # that changed a file fails the run, naming the files to commit. The other steps are
 # capabilities-check and capability-catalog-check (go-product runs both as tests),
-# host-adapter-node-test (the node half of host-adapter-test, which no PR CI job runs; ASD-V0-044,
-# V1-3062), the `gofmt -l` sets of the go-static and go-interop jobs, and `batch-drift`: one `go test -count=1 -run` over the union of DRIFT_TESTS
+# the `gofmt -l` sets of the go-static and go-interop jobs, and `batch-drift`: one `go test -count=1 -run` over the union of DRIFT_TESTS
 # in every package at once, through script/heavy.sh, so one offload covers them (ASD-V0-034).
 # BATCH_PRECHECK_GO_WRAPPER, when set, wraps every make and go run step the same way (ASD-V0-941).
 # DRIFT_TESTS is a maintained list, not a selection: `corvint test --dry-run` over a batch diff
@@ -63,7 +62,7 @@
 # GOCACHE, so the catalog check reuses its compiled test binaries.
 #
 # Steps run BATCH_PRECHECK_JOBS (default 4) at a time, longest first, except SERIAL_TARGETS
-# (host-adapter-node-test), which run alone afterwards (ASD-V0-047, V1-3142). Each prints one line when it
+# (lane-scripts-test), which run alone afterwards (ASD-V0-047, ASD-V0-640). Each prints one line when it
 # ends; then a table in step order with each step's seconds, the summed and wall seconds, and the
 # last 40 output lines of each failure. A run that passes every step on a checkout with no tracked
 # change, no untracked, unignored file and no ignored file a go test can read as package input
@@ -89,20 +88,9 @@
 # that cannot be checked out and a failed mechanical repin, stays an introduced FAIL. A run with a
 # base-present WARN writes no receipt, since not every step passed.
 #
-# Missing node (ASD-V0-973, V1-3801, V1-3241): when BATCH_PRECHECK_NODE (default node) is not on
-# PATH, host-adapter-node-test does not run; its row prints NOT_AVAILABLE with the reason, it counts
-# as neither passed nor failed, and a receipt otherwise written records it as a trailing
-# `not-run TARGET REASON` line, which --verify-receipt accepts and prints. A host with node runs it.
-#
-# Unattributed failures (ASD-V0-110, V1-4153): a step with declared inputs (UNATTRIBUTED_INPUTS:
-# host-adapter-node-test reads integrations/, its Makefile recipe, cmd/corvint/pi_adapter.go,
-# docs/specs/pi-workflow-v0.md and conformance/) that fails at HEAD, not the same way at REV, and
-# whose inputs the diff since REV (tracked changes plus untracked, unignored files, compared as
-# NUL-delimited paths) does not touch runs the same bytes at both commits, so the change cannot have
-# caused it. A parent-relative path literal in the recipe's test files or the JavaScript beside them
-# that resolves outside those inputs makes coverage uncertain and keeps the introduced FAIL.
-# It prints `WARN NAME unattributed: ...` with the 1-minute load, never `introduced`, and is not
-# counted; like a base-present WARN it writes no receipt, so the step is rerun at a lower load.
+# Not-run steps (ASD-V0-973): a print-only step whose output is `NOT_RUN: REASON` counts as neither
+# passed nor failed, and a receipt otherwise written records it as a trailing
+# `not-run TARGET REASON` line, which --verify-receipt accepts and prints.
 #
 # Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
 # the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
@@ -162,10 +150,9 @@ need_gocache() {
   exit 3
 }
 
-# Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
-# half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062), and the live test tier,
-# which PR shards skip, so a broken live test fails before the merge queue (AFP-V0-2702, V1-4923).
-EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test live-test)
+# Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the live
+# test tier, which PR shards skip, so a broken live test fails before the merge queue (AFP-V0-2702, V1-4923).
+EXTRA_TARGETS=(capability-catalog-check capabilities-check capability-catalog-test live-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
 # AGENTS.md) and top-level docs (CAPABILITIES.md, APPLICATION-MAP.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
@@ -176,19 +163,12 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
 lane_skipped=0
 planner=${BATCH_PRECHECK_PLANNER-corvint}
-node_tool=${BATCH_PRECHECK_NODE:-node}
-# Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
-# (ASD-V0-047, V1-3142).
-SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
+# Steps with wall-clock bounds run alone after the parallel steps (ASD-V0-047, ASD-V0-640).
+SERIAL_TARGETS=(lane-scripts-test)
 # What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
 # Makefile, docs/DOGFOOD.md and benchmarks/retained-data.tsv (the ASD-V0-646 group). Its groups run in sequence and share fixtures, so the step runs the
 # whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
 LST_INPUTS='^(script/|Makefile$|docs/(DOGFOOD|CAPABILITIES)\.md$|internal/capcatalog/|benchmarks/retained-data\.tsv$)'
-# Every input of a step whose result the diff can change only through these paths (ASD-V0-110):
-# a failure with none of them changed since the base is unattributed, not introduced. The node
-# tests also read cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md and conformance/; the
-# coverage scan in `unattributed` keeps the FAIL when a scanned file reaches any other path.
-UNATTRIBUTED_INPUTS=('make host-adapter-node-test|integrations/ Makefile cmd/corvint/pi_adapter.go docs/specs/pi-workflow-v0.md conformance/')
 # "<dir>|<gofmt -l arguments>": go-static runs from the root, go-interop from interop/cem01-go.
 GOFMT_SETS=(
   ".|cmd internal tools .github/cishards .github/testconfine"
@@ -211,11 +191,8 @@ else
     "./cmd/corvint TestAFUV1040SelectionCorpusReport @go"
     "./cmd/corvint TestCoreVerbsEmitTheFrozenProfiles @go docs/specs/core-compatibility-freeze-v1.md"
     "./cmd/corvint TestAffectedReceiptMembersAreClosedAndByteStable @go"
-    "./cmd/corvint TestMCPV0100HelpToolMatchesTheCLI @go"
-    "./cmd/corvint TestMCPV0105CompanionHelpMatchesTheCLI @go"
     "./tools/gate-ledger TestGoTestKeys @prebind"
     "./tools/capabilities-check TestCAPV0005RoutingPointersNameTheCatalog @go AGENTS.md README.md docs/README.md docs/AGENT-ROUTES.md integrations/ protocol/integrations/"
-    "./internal/lrfrepo Test[A-Za-z0-9]*Specs?Enumerat @prebind"
     "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
     "./tools/ci-forward-row Test .github/"
   )
@@ -223,7 +200,8 @@ fi
 
 # ASD-V0-2472 (V1-4525): the doc-gates step whose name carries `(CIN-V0-2304` is CI-only: it needs
 # the pull request's base and head, RUNNER_TEMP and a claude/batch-* head ref; its local twin was
-# retired by decision 0594. The sync check accepts that step only while its run
+# retired by decision 0594. The step itself leaves ci.yml under decision 0594; until then the
+# sync check accepts it only while its run
 # body, each line trimmed, is exactly the text below. Any other body fails closed, and so do these
 # lines under another step name. Change the step and this copy in one commit.
 IFS= read -r -d '' CI_ONLY_BATCH_CHECK << 'EOF' || true
@@ -296,50 +274,16 @@ doc_gate_commands() {
       /^[[:space:]]*(- )?(shell|working-directory):/ { unparsed($0) }'
 }
 
-# CIN-V0-2304: retain the exact-body local mirror for an anonymous inline step.
-# Named CI-only steps use ASD-V0-2472 and are never derived as local commands;
-# the same body under another name fails closed.
-batch_cem_body() {
-  cat <<'EOF'
-set -eu
-case "$EVENT_NAME:$HEAD_REF" in
-pull_request:claude/batch-*) ;;
-*) echo "not a batch pull request; skipped"; exit 0 ;;
-esac
-base=$(git merge-base "$PR_BASE" "$PR_HEAD")
-git worktree add --detach "$RUNNER_TEMP/trusted" "$PR_BASE"
-(cd "$RUNNER_TEMP/trusted" && GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-trusted" ./cmd/corvint)
-git worktree add --detach "$RUNNER_TEMP/batch-head" "$PR_HEAD"
-cd "$RUNNER_TEMP/batch-head"
-test "$(git rev-parse HEAD)" = "$PR_HEAD"
-"$RUNNER_TEMP/corvint-trusted" dogfood batch-check --verifier "$RUNNER_TEMP/corvint-trusted" "$base"
-EOF
-}
-
-# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE", "batchcem<TAB>"
-# or "unknown<TAB>COMMAND" per doc-gates
+# doc_gates prints "make<TAB>TARGET", "gorun<TAB>PACKAGE" or "unknown<TAB>COMMAND" per doc-gates
 # command; a make option other than -s/-k/--silent/--no-print-directory, a VAR=value, a target that
 # is not a plain name and a package that is not a plain ./path are unknown, so no shell syntax from
 # ci.yml ever reaches a step. The CI-only step prints one "cionly<TAB>CIN-V0-2304" row while its body
 # matches CI_ONLY_BATCH_CHECK and one "cionly-drift<TAB>CIN-V0-2304" row otherwise (ASD-V0-2472).
 doc_gates() {
-  local cmd words w targets ok body next i ci_only=
+  local cmd words w targets ok ci_only=
   while IFS= read -r cmd; do
     if [[ $cmd == $'\034'* ]]; then
       ci_only+="${cmd#$'\034'}"$'\n'
-      continue
-    fi
-    if [[ $cmd == 'set -eu' ]]; then
-      body=$cmd
-      for ((i=1; i<12; i++)); do
-        IFS= read -r next || break
-        body=$body$'\n'$next
-      done
-      if [[ $body == "$(batch_cem_body)" ]]; then
-        printf 'batchcem\t\n'
-      else
-        while IFS= read -r next; do printf 'unknown\t%s\n' "$next"; done <<< "$body"
-      fi
       continue
     fi
     if [[ $cmd == $'\t'* ]]; then
@@ -886,8 +830,6 @@ steps() {
   for t in "${EXTRA_TARGETS[@]}"; do
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
       printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "skipped: $cat_skip"
-    elif [[ $t == host-adapter-node-test ]] && ! command -v "$node_tool" > /dev/null 2>&1; then
-      printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "NOT_AVAILABLE: $node_tool is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it"
     else
       printf 'make %s\t%senv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$go_wrap" "$gocache" "$t"
     fi
@@ -939,7 +881,6 @@ doc_gate_rows() {
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
         fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
-      batchcem) printf 'batch-cem-check\tenv %s EVENT_NAME=%q HEAD_REF=%q bash -c %q\n' "${envs[*]-}" "${EVENT_NAME-}" "${HEAD_REF-}" "$(batch_cem_body)" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
@@ -1304,85 +1245,6 @@ at_base() {
   [[ -s $baselog.head ]] || return 1
   comm -23 "$baselog.head" "$baselog.base" > "$baselog.new" || return 1
   [[ ! -s $baselog.new ]]
-}
-
-# covered PATH TOKENS succeeds when repository path PATH is one of TOKENS or lies under a TOKEN
-# ending in `/` (ASD-V0-110).
-covered() {
-  local tok
-  for tok in $2; do
-    if [[ $tok == */ ]]; then [[ $1 == "$tok"* || $1 == "${tok%/}" ]] && return 0; else [[ $1 == "$tok" ]] && return 0; fi
-  done
-  return 1
-}
-
-# normpath DIR REL prints DIR/REL with `.` and `..` segments resolved, relative to the root, or
-# fails when it leaves the repository; the root itself prints as `.`.
-normpath() {
-  local -a out=() segs
-  local seg
-  IFS=/ read -ra segs <<< "$1/$2"
-  for seg in "${segs[@]}"; do
-    case $seg in
-      '' | .) ;;
-      ..) ((${#out[@]})) || return 1; unset 'out[${#out[@]}-1]' ;;
-      *) out+=("$seg") ;;
-    esac
-  done
-  local IFS=/
-  ((${#out[@]})) && printf '%s' "${out[*]}" || printf .
-}
-
-# inputs_cover NAME TOKENS succeeds when every parent-relative path literal (`..`, `../x`) in the
-# test files step NAME's recipe runs, and in the tracked non-test JavaScript under their
-# directories, resolves inside TOKENS (ASD-V0-110). A recipe that names no tracked test file, a
-# literal reaching the root or outside the repository, any other uncovered path, or a module
-# outside the scanned directories is uncertain dependency coverage.
-inputs_cover() {
-  local target=${1#make } files run dirs rest f lit q rel
-  q=\'
-  files=$(awk -v t="$target:" '$1 == t { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
-    grep -oE 'integrations/[^[:space:]]+\.test\.mjs' | sort -u)
-  [[ -n $files ]] || return 1
-  # shellcheck disable=SC2086 # the recipe's globs expand as make would expand them.
-  run=$(git -c core.quotePath=false ls-files -- $files 2> /dev/null) && [[ -n $run ]] || return 1
-  dirs=$(sed 's|/[^/]*$|/|' <<< "$run" | sort -u)
-  # shellcheck disable=SC2046 # one pathspec pair per directory; directory names hold no spaces.
-  rest=$(git -c core.quotePath=false ls-files -- $(sed 's|$|*.js|; p; s|\.js$|.mjs|' <<< "$dirs") 2> /dev/null) || return 1
-  rest=$(grep -v '\.test\.mjs$' <<< "$rest")
-  while IFS= read -r f; do
-    [[ -n $f ]] || continue
-    [[ -f $f ]] || return 1
-    while IFS= read -r lit; do
-      lit=${lit:1:${#lit}-2}
-      rel=$(normpath "${f%/*}" "$lit") || return 1
-      covered "$rel" "$2" || return 1
-      # A module outside the scanned directories may read further paths.
-      if [[ $rel == *.js || $rel == *.mjs ]] && ! covered "$rel" "$dirs"; then return 1; fi
-    done < <(grep -oE "[\"$q\`]\.\.(/[^\"$q\`[:space:]]*)?[\"$q\`]" "$f")
-  done <<< "$run"$'\n'"$rest"
-  return 0
-}
-
-# unattributed NAME prints the declared inputs of step NAME and succeeds when the diff since the
-# base (tracked changes and untracked, unignored files, read NUL-delimited so quoted names compare
-# as paths) touches none of them and the coverage scan finds no other input (ASD-V0-110). A step
-# without declared inputs, uncertain coverage or any git error fails, so its failure stays introduced.
-unattributed() {
-  local entry step inputs p
-  for entry in "${UNATTRIBUTED_INPUTS[@]}"; do
-    step=${entry%%|*}
-    [[ $step == "$1" ]] || continue
-    inputs=${entry#*|}
-    { git diff --name-only -z --no-renames "$base" -- && git ls-files -z -o --exclude-standard; } > "$dir/unattributed.paths" 2> /dev/null || return 1
-    while IFS= read -r -d '' p; do
-      covered "$p" "$inputs" && return 1
-    done < "$dir/unattributed.paths"
-    inputs_cover "$step" "$inputs" || return 1
-    printf '%s' "$inputs"
-    return 0
-  done
-  return 1
 }
 
 dir=
@@ -1821,11 +1683,6 @@ if [[ -n $base ]]; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
-    elif [[ -z $baseerr ]] && inputs=$(unattributed "$name"); then
-      : > "$dir/$i.warn"
-      printf 'batch-precheck: WARN %s (%ss) unattributed: fails at HEAD, not the same way at %s, but the diff changes none of its inputs (%s), so the change cannot have caused it; host load %s: rerun it at a lower load\n' \
-        "$name" "$secs" "$base" "${inputs// /, }" "$(cut -d ' ' -f 1 /proc/loadavg 2> /dev/null || sysctl -n vm.loadavg 2> /dev/null | awk '{ print $2 }' || printf unknown)"
-      tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
     else
       printf 'batch-precheck: FAIL %s (%ss) introduced: %s\n' "$name" "$secs" "${baseerr:-not present at $base}"
     fi
@@ -1834,20 +1691,16 @@ fi
 
 pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0 notrun=()
 # row NAME RCFILE [CMD] prints one table row; a step that left no rc file failed. A reused ledger
-# pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_AVAILABLE
-# prints NOT_AVAILABLE and counts as not run (ASD-V0-973).
+# pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_RUN
+# prints NOT_RUN and counts as not run (ASD-V0-973).
 row() {
-  local rc secs flag why= deferred=
+  local rc secs flag deferred=
   read -r rc secs flag < "$2" 2> /dev/null || { rc=1 secs=0 flag=; }
   summed=$((summed + secs))
-  [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && why=$(sed -n '1s/^NOT_AVAILABLE: //p' "${2%.rc}.log" 2> /dev/null)
   [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && deferred=$(sed -n '1s/^NOT_RUN: //p' "${2%.rc}.log" 2> /dev/null)
   if [[ -n $deferred ]]; then
     notrun+=("${1#make } $deferred")
     printf 'batch-precheck: | NOT_RUN | %5ss | %s: %s\n' "$secs" "$1" "$deferred"
-  elif [[ -n $why ]]; then
-    notrun+=("${1#make } $why")
-    printf 'batch-precheck: | NOT_AVAILABLE | %5ss | %s: %s\n' "$secs" "$1" "$why"
   elif [[ $rc == 0 && $flag == flaky ]]; then
     pass=$((pass + 1))
     printf 'batch-precheck: | FLAKY | %5ss | %s\n' "$secs" "$1"
