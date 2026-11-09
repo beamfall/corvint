@@ -179,10 +179,12 @@ case $command in
     used_refs=$("$here/requirement-id-collisions.sh" --block "$prefix" 0 9999 --base "$sha") || status=$?
     ((status <= 1)) || exit "$status"
     reservations=$(rows) || exit 2
-    found=$(printf '%s\n' "$used_base" "$used_refs" | awk -v prefix="$prefix" -v size="$size" -v owner="$owner" -v ledger="$reservations" '
+    # The ledger rows travel through the environment: BWK awk (macOS) refuses a
+    # newline inside an -v value.
+    found=$(printf '%s\n' "$used_base" "$used_refs" | ledger="$reservations" awk -v prefix="$prefix" -v size="$size" -v owner="$owner" '
       function stem(p) { sub(/-V[0-9]+$/, "", p); return p }
       BEGIN {
-        n = split(ledger, lines, "\n")
+        n = split(ENVIRON["ledger"], lines, "\n")
         for (i = 1; i <= n; i++) {
           split(lines[i], row, "\t")
           if (row[4] == owner) continue
