@@ -48,7 +48,7 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 | Adapters | `corvint-mcp`, `corvint-lsp`, test-validity MCP | bridges call apps through envelopes |
 | Plugins | analyzers; test providers only if measured (V1-4824) | registries (V1-4818); `corvint-plugin/1` (V1-4819) |
 | Release/update (in manifest) | `corvint-update`, `corvint-release-install` | none |
-| Developer tooling (not in manifest, under `tools/`) | release-candidate, public-release-check, companion-release, readiness-record, go-toolchain-receipt, cem-experiments | none |
+| Developer tooling (not in manifest, under `tools/`) | release-candidate (Core-only), readiness-record, go-toolchain-receipt (decision 0594 deleted public-release-check, companion-release and cem-experiments) | none |
 
 ## Requirements
 

@@ -170,7 +170,7 @@ handback. Full repository and external interoperability qualification are outsid
 | DTL-V0-008 | .corvint/unbounded-readers.json | Source audit in docs/build-log/2026-11-03-dogtools.md; confined admission NOT_PRODUCED |
 | DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON |
 | DTL-V0-010 | .github/testconfine/cmd/main.go; lane guide | TestDTLV0010MissingRootNamesRecovery in .github/testconfine/cmd/main_test.go; retained uncommitted path controls |
-| DTL-V0-011 | internal/companionrelease/export.go | TestDTLV0011StderrOnce |
+| DTL-V0-011 | internal/corerelease/export.go (moved from internal/companionrelease by decision 0594) | TestDTLV0011StderrOnce |
 | DTL-V0-012 | script/tracked-ignored-check.sh; Makefile | TestDTLV0012TrackedIgnoredFault |
 | DTL-V0-013 | internal/liveverify/affected/source.go | TestDTLV0013MapFSBounded; TestDTLV0013BuildMapFS; TestDTLV0013FakeLanguageBuildCached |
 | DTL-V0-014 | script/heavy.sh; lane-binary-check.sh; lane-stage-inputs.sh | TestDTLV0014DiskHeadroom; TestDTLV0014ScratchRootRecovery; TestDTLV0014RelativeScratchRootTerminates; lane admission fixtures |
