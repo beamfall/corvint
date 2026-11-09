@@ -119,18 +119,6 @@
         "script/gate-receipt"
       ]
     },
-    "script/qualify-tasks-basic_test.sh": {
-      "reads": [
-        "cmd/corvint-tasks/",
-        "go.mod",
-        "go.sum",
-        "internal/"
-      ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283).",
-      "localReads": [
-        "script/qualify-tasks-basic.sh"
-      ]
-    },
     "script/repin_test.sh": {
       "reads": [
         "Makefile"

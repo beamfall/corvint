@@ -176,9 +176,9 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 # recipe itself, the CI shard costs and the fixed change set; it replays fixed historical commits,
 # so nothing else changes its result (ASD-V0-944, V1-3550).
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
-# What the @own companion-release builds read beyond the Go module: their package, the Tasks
-# command they archive and its external-agent fixtures and guide (ASD-V0-825, V1-4069).
-COMPANION_INPUTS=(internal/companionrelease/ cmd/corvint-tasks/ internal/tasks/cli/testdata/external-agents/ docs/TASKS-EXTERNAL-AGENTS.md go.mod go.sum)
+# What the @own companion-release builds read beyond the Go module: their package (ASD-V0-825,
+# V1-4069). The Tasks command, fixtures and guide left with decision 0594.
+COMPANION_INPUTS=(internal/companionrelease/ go.mod go.sum)
 lane_skipped=0
 planner=${BATCH_PRECHECK_PLANNER-corvint}
 node_tool=${BATCH_PRECHECK_NODE:-node}
@@ -221,10 +221,6 @@ else
     "./tools/gate-ledger TestGoTestKeys @prebind"
     "./tools/capabilities-check TestCAPV0005RoutingPointersNameTheCatalog @go AGENTS.md README.md docs/README.md docs/AGENT-ROUTES.md integrations/ protocol/integrations/"
     "./internal/lrfrepo Test[A-Za-z0-9]*Specs?Enumerat @prebind"
-    "./internal/tasks TestImportDirection @go @prebind"
-    "./internal/tasks/store TestCALV0070_ @prebind"
-    "./internal/tasks/journal TestCALV0070_ @prebind"
-    "./internal/tasks/safeopen TestCALV0070_ @prebind"
     "./conformance/cli-errors-v0 TestCLIErrorContracts_ACXV0859 @own cmd/ internal/capcatalog/"
     "./tools/ci-forward-row Test .github/"
     "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
