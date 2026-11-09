@@ -200,6 +200,10 @@ func TestObservations_AEO_V0_004(t *testing.T) {
 	if _, _, _, err := testObservations(cmd, []byte("{\"Action\":\"fail\",\"Package\":\"p\",\"Test\":\"TestA/sub\"}\n{\"Action\":\"output\",\"Package\":\"p\",\"Test\":\"TestA\",\"Output\":\"panic: test timed out after 1m30s\\n\"}\n")); err == nil {
 		t.Fatal("timed-out run counted as a kill")
 	}
+	// A panic that fails the named test is a crash, not an assertion kill.
+	if _, _, _, err := testObservations(cmd, []byte("{\"Action\":\"output\",\"Package\":\"p\",\"Test\":\"TestA\",\"Output\":\"panic: runtime error: index out of range\\n\"}\n{\"Action\":\"fail\",\"Package\":\"p\",\"Test\":\"TestA\"}\n")); err == nil {
+		t.Fatal("panicking run counted as a kill")
+	}
 	_, units, _, err = testObservations(testCommand{Format: "node-assert", UnitID: "typescript:test"}, []byte("Error [ERR_ASSERTION]: mismatch"))
 	if err != nil || !reflect.DeepEqual(units, []string{"typescript:test"}) {
 		t.Fatal("node assertion missing")
