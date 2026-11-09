@@ -39,7 +39,7 @@
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
       "reason": "script/batch-precheck_test.sh creates all build-log and sealed-CEM entries under crepo, srepo or rrepo scratch repositories, then invokes copied scripts or stubs there. It reads no record entries from source_root.",
-      "sourceSha256": "811e7792573f9dfd2824d44ca27839398dc5548e03de97fcd4413dc8f055b8de"
+      "sourceSha256": "9a0d60fe529f7e33a954a32aa071d1000849a49dc7410cead4990bab4932381a"
     },
     "shell:script/check-line-citations_test.sh": {
       "reads": [],
