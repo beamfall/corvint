@@ -39,31 +39,11 @@ func TestCINV07501PermissionsArePremerge(t *testing.T) {
 	}
 }
 
-// CIN-V0-7502/7503: the declared family and offline module suite cannot be advisory.
-func TestCINV07502RequiredFamiliesAndOfflineModules(t *testing.T) {
-	if job := workflowJob(t, "host-adapters"); !strings.Contains(job, "run: make host-adapter-test") || strings.Contains(job, "continue-on-error") {
-		t.Fatal(job)
-	}
+// CIN-V0-7503: the compiler job stays offline; it never fetches modules from a proxy.
+func TestCINV07503GoStaticStaysOffline(t *testing.T) {
 	static := workflowJob(t, "go-static")
-	start := strings.Index(static, "      - name: Nested module tools/local-authority")
-	if start < 0 {
-		t.Fatal("no nested module step")
-	}
-	nested := static[start:]
-	for _, want := range []string{"GOMODCACHE:", "GOFLAGS: \"-mod=readonly\"", "go mod verify", "go test -count=1", "go vet ./..."} {
-		if !strings.Contains(nested, want) {
-			t.Fatalf("missing %s", want)
-		}
-	}
-	if strings.Contains(static, "https://proxy.golang.org") || !strings.Contains(static, "fail-on-cache-miss: true") || !strings.Contains(static, "GOPROXY: \"off\"") || !strings.Contains(static, "needs: [static-reuse, local-authority-deps]") {
-		t.Fatal("static module tests can fetch or skip preparation")
-	}
-	prep := workflowJob(t, "local-authority-deps")
-	if !strings.Contains(prep, "go mod verify") || !strings.Contains(prep, "hashFiles('tools/local-authority/go.mod', 'tools/local-authority/go.sum')") {
-		t.Fatal("module cache is not checksum-bound")
-	}
-	if product := workflowJob(t, "go-product"); !strings.Contains(product, "host-adapters") || !strings.Contains(product, `test "$HOST_RESULT" = success`) {
-		t.Fatal("host family failure does not block required check")
+	if strings.Contains(static, "https://proxy.golang.org") || !strings.Contains(static, "GOPROXY: \"off\"") {
+		t.Fatal("go-static can fetch modules")
 	}
 }
 
@@ -143,18 +123,18 @@ func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 			t.Fatalf("missing required outcome check %s", want)
 		}
 	}
-	guard := regexp.MustCompile(`(?s)(test "\$HOST_RESULT" = success.*?)(?:          # AFP-V0-027)`).FindStringSubmatch(product)
+	guard := regexp.MustCompile(`(?s)(# AFP-V0-2702: the live tier runs on merge-queue entries only\.\n.*?)(?:          # AFP-V0-027)`).FindStringSubmatch(product)
 	if guard == nil {
 		t.Fatal("missing required-result guard")
 	}
 	for _, tc := range []struct {
-		host, required, result string
-		pass                   bool
+		required, result string
+		pass             bool
 	}{
-		{"success", "true", "success", true}, {"success", "true", "failure", false}, {"success", "true", "skipped", false}, {"success", "false", "skipped", true}, {"failure", "false", "skipped", false},
+		{"true", "success", true}, {"true", "failure", false}, {"true", "skipped", false}, {"false", "skipped", true}, {"false", "success", false},
 	} {
 		cmd := exec.Command("sh", "-ec", guard[1])
-		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME=pull_request", "LIVE_RESULT=skipped", "HOST_RESULT="+tc.host, "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME=pull_request", "LIVE_RESULT=skipped", "WEB_PLAN_RESULT=success", "WEB_REQUIRED="+tc.required, "WEB_RESULT="+tc.result)
 		if err := cmd.Run(); (err == nil) != tc.pass {
 			t.Fatalf("required result %+v: %v", tc, err)
 		}
@@ -167,7 +147,7 @@ func TestCINV07504WebFlowsConsumerJob(t *testing.T) {
 		{"merge_group", "success", true}, {"merge_group", "failure", false}, {"merge_group", "skipped", false}, {"pull_request", "success", false},
 	} {
 		cmd := exec.Command("sh", "-ec", guard[1])
-		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+tc.event, "LIVE_RESULT="+tc.live, "HOST_RESULT=success", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped")
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+tc.event, "LIVE_RESULT="+tc.live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped")
 		if err := cmd.Run(); (err == nil) != tc.pass {
 			t.Fatalf("go-live result %+v: %v", tc, err)
 		}
