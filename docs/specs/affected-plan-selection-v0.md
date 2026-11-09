@@ -5,6 +5,8 @@ Date: 2026-11-01
 Requirement prefix: `AFP-V0`
 Intent status: per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09). It deleted the `flows impact` verb (4663b4e2b is the
+last tree with them); requirements naming them are historical, the rest are unchanged.
 
 ## Agent digest
 - Claim: Affected plans name timeouts and deletions, narrow fixture and go-list reads, retain runtime-rooted Go readers, match CI, and honour owners and must-run tests.

@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-11-07
 Intent status: accepted (decision 0592: owner 2026-11-07 for its §1-§2; §3-§7 orchestrator-made under the 2026-11-02 delegation, owner may override)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09). It deleted the `flows test-evidence` verb (4663b4e2b is
+the last tree with them); requirements naming them are historical, the rest are unchanged.
 Authoritative inputs: owner chat of 2026-11-07 (always run only the required minimum tests, "it
 should be perfect"; Go, other languages and E2E, "beamfall support basically"; "each langauge and
 runner should be a plugin so other langauges and runners can be easily added"; "Yes, both forms":
