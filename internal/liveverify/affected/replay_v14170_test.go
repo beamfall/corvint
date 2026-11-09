@@ -9,14 +9,11 @@ import (
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
-// TestHeavyShEditKeepsShellReaders_V14170: the shell units
-// analyzer-schema_test.sh and codex-review_test.sh run script/heavy.sh through
-// a variable (`heavy=${...-script/heavy.sh}` run in a `sh -c` string, and
-// `${heavy:+"$heavy" ...}` with a `$(dirname "$0")` default). heavy.sh sources
-// a computed path, so both are unbounded readers, as
-// .corvint/unbounded-readers.json records: they stay selected for a
-// heavy.sh edit and for an unrelated one (AFP-V0-553). Before AFP-V0-553
-// neither invocation was an edge, and an unrelated edit dropped both.
+// TestHeavyShEditKeepsShellReaders_V14170 retains the invocation edges from
+// analyzer-schema_test.sh and codex-review_test.sh to script/heavy.sh, even
+// through their computed wrapper paths (AFP-V0-553). AFP-V0-3340/3341 now
+// proves heavy.sh's host-only environment source bounded, so these readers
+// remain selected for a heavy.sh edit but not for an unrelated docs edit.
 func TestHeavyShEditKeepsShellReaders_V14170(t *testing.T) {
 	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
@@ -31,8 +28,8 @@ func TestHeavyShEditKeepsShellReaders_V14170(t *testing.T) {
 			for _, selection := range plan.Selected {
 				selected = selected || selection.UnitID == unit
 			}
-			if !selected {
-				t.Errorf("%s is not selected for a %s edit; scope %s", unit, dirty, plan.Scope)
+			if want := dirty == "script/heavy.sh"; selected != want {
+				t.Errorf("%s selected=%v for a %s edit, want %v; scope %s", unit, selected, dirty, want, plan.Scope)
 			}
 		}
 	}
