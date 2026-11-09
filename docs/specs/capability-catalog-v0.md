@@ -499,8 +499,8 @@ cannot silently go missing or outlive its command.
   from the catalog's other than the omitted statements, or a `--tree` that differs from `--json`.
 - `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-corpus-mcp`, `corvint-dashboard-snapshot`) Every companion
   binary a release ships beside `corvint` and `corvint-tasks` (`corvint-console`, `corvint-update`,
-  `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-corpus-mcp`,
-  `corvint-dashboard-snapshot`, `corvint-web-flows`) MUST answer, through `internal/companioncli`,
+  `corvint-mcp`, `corvint-test-validity-mcp`, `corvint-corpus-mcp`, `corvint-dashboard-snapshot`;
+  decision 0594 retired `corvint-docs-mcp` and `corvint-web-flows`) MUST answer, through `internal/companioncli`,
   before it parses anything else: `--help`, `-h` and `help` with one usage text starting
   `usage: BINARY` and naming an `Example: BINARY ...`; `help --json` with
   `corvint-companion-help/0` `{binary, version, usage[]}`, the usage lines; `--version` with the one

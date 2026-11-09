@@ -46,8 +46,6 @@ func (i bundleInventory) name(legacy string) string {
 		return "corvint-dashboard-snapshot"
 	case "corvint-mcp":
 		return "corvint-mcp"
-	case "corvint-docs-mcp":
-		return "corvint-docs-mcp"
 	case "corvint-test-validity-mcp":
 		return "corvint-test-validity-mcp"
 	case "corvint-js-test-provider":

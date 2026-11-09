@@ -310,7 +310,7 @@ func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 	}
 	app, e2e := groupsFixture(t)
 	binaries := t.TempDir()
-	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-test-validity-mcp", "../../../cmd/corvint-docs-mcp")
+	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-test-validity-mcp")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v: %s", err, output)
 	}
@@ -323,9 +323,6 @@ func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 		{"corvint-test-validity-mcp", e2e, "e2e", "corvint.test_validity", map[string]any{"discover": true}},
 		{"corvint-test-validity-mcp", app, "app", "corvint.test_validity", map[string]any{"receipt": "absent.json"}},
 		{"corvint-test-validity-mcp", app, "app", "corvint.test_validity", map[string]any{"unknown": true}},
-		{"corvint-docs-mcp", app, "app", "corvint.docs_draft", map[string]any{"source": "owner.md", "package": "cache"}},
-		{"corvint-docs-mcp", app, "app", "corvint.docs_draft", map[string]any{"source": "absent.md", "package": "cache"}},
-		{"corvint-docs-mcp", e2e, "e2e", "corvint.docs_draft", map[string]any{"source": "AGENTS.md", "package": "absent"}},
 	}
 	unified := []map[string]any{}
 	for index, call := range calls {

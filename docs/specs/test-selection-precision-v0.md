@@ -5,6 +5,8 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09). It deleted the `corvint-web-flows` companion (4663b4e2b
+is the last tree with them); requirements naming them are historical, the rest are unchanged.
 Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-785: V1-4109; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825; TSP-V0-830: V1-3763, V1-3587, V1-3788, V1-3755; TSP-V0-831: V1-4254; TSP-V0-980: V1-4357. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.

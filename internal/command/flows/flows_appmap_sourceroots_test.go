@@ -11,11 +11,7 @@ import (
 func TestSKHV0189SourceVerbsTakeRepo(t *testing.T) {
 	root, filename := railsCLIRepo(t, false)
 	other := t.TempDir()
-	for _, verb := range []string{"refs", "pageobjects", "steps", "setup", "links", "infer", "how"} {
-		tail := []string{}
-		if verb == "how" {
-			tail = []string{"ship an order"}
-		}
+	for _, verb := range []string{"refs", "pageobjects", "steps", "setup", "links"} {
 		for _, tc := range []struct {
 			code string
 			args []string
@@ -25,7 +21,7 @@ func TestSKHV0189SourceVerbsTakeRepo(t *testing.T) {
 			{"appmap-root-unavailable", []string{"--map", filename, "--source", "tests:e2e", "--repo", "tests=" + other}},
 			{"appmap-root-unavailable", []string{"--map", filename, "--source", "tests:e2e"}},
 		} {
-			code, out, diag := runFlowsCLI(root, append(append([]string{"appmap", verb}, tc.args...), tail...)...)
+			code, out, diag := runFlowsCLI(root, append([]string{"appmap", verb}, tc.args...)...)
 			if code != 2 || out != "" || !strings.Contains(diag, tc.code) {
 				t.Fatalf("%s %v: %d %s %s", verb, tc.args, code, out, diag)
 			}

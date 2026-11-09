@@ -79,7 +79,6 @@
 - `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
 - `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
-- `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
 - `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)
 - `corvint-js-test-provider help --json`: [corvint-js-test-provider](internal/capcatalog/trees/corvint-js-test-provider.json)
@@ -93,6 +92,5 @@
 - `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
 - `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
 - `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
-- `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
 - `corvint help --tree`: [corvint](internal/capcatalog/trees/corvint.json)
 <!-- /cli-tree-links -->

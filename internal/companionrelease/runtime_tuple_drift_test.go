@@ -84,13 +84,9 @@ func TestV12690DeclaredRuntimeTupleDrift(t *testing.T) {
 	if m := jstestprovider.AdmittedRuntimeTupleMismatch(jstestprovider.ExternalProfile, declaredPlaywrightVersion, requiredNodeVersion, jstestprovider.BrowserSourceBundled); m != nil {
 		t.Fatalf("declared tuple is not an admitted row: %+v", m)
 	}
-	checkLockedTuple(t, "tools/web-flows/package-lock.json", "playwright", "playwright", "playwright-core")
 	checkLockedTuple(t, "conformance/interactive-alpha/fixture/package-lock.json", "@playwright/test", "@playwright/test", "playwright", "playwright-core")
 	contains := map[string][]string{
-		"tools/web-flows/package.json":                       {`"playwright": "` + declaredPlaywrightVersion + `"`},
 		"conformance/interactive-alpha/fixture/package.json": {`"@playwright/test": "` + declaredPlaywrightVersion + `"`},
-		"tools/web-flows/navigation.mjs":                     {`e.playwrightVersion!=='` + declaredPlaywrightVersion + `'`},
-		"tools/web-flows/observe.mjs":                        {`e.playwrightVersion!=='` + declaredPlaywrightVersion + `'`},
 		"conformance/interactive-alpha/core-process.mjs": {
 			`version === '` + declaredPlaywrightVersion + `', 'unsupported core Playwright version'`,
 			`entry.revision === '` + declaredHeadlessRevision + `' && entry.browserVersion === '` + declaredHeadlessBrowser + `'`,

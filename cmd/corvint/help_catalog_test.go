@@ -54,9 +54,6 @@ func TestCAPV0015HelpJSONListsEveryDispatchedCommand(t *testing.T) {
 		!strings.Contains(strings.Join(affected.SchemaIDs, " "), "affected-plan/1") {
 		t.Fatalf("affected entry is not derived from its help: %+v", affected)
 	}
-	if docs := byName["docs"]; len(docs.NestedOperations["corpus"]) != len(corpusOperations) || docs.Writes == nil || *docs.Writes != "mode-dependent" {
-		t.Fatalf("docs entry lacks the corpus operation table or its write class: %+v", docs)
-	}
 	if impact := byName["impact"]; impact.Writes == nil || *impact.Writes != "none" || impact.SelfObservationLedger != "best-effort-append" {
 		t.Fatalf("impact write class is not the root support boundary's: %+v", impact)
 	}
@@ -137,8 +134,8 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 // not edited.
 const catalogDriftHint = "; the embedded catalog is stale: run `make capability-catalog` and commit internal/capcatalog/"
 
-// MCPV0-105: the corvint.help answer that corvint-docs-mcp
-// and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
+// MCPV0-105: the corvint.help answer that corvint-test-validity-mcp
+// returns through bridge.HelpToolResult carries the
 // CLI's own stdout byte for byte, for both topics, in structuredContent. Each
 // server's wire test holds its answer equal to bridge.HelpToolResult's.
 func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {

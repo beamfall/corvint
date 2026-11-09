@@ -140,7 +140,7 @@ func TestCoreBundleProfileRoundTrip(t *testing.T) {
 		if err := v.Extract(dest); err != nil {
 			t.Fatal(err)
 		}
-		if len(v.Manifest.Components) != 9 || len(v.Manifest.Artifacts) != 5 {
+		if len(v.Manifest.Components) != 8 || len(v.Manifest.Artifacts) != 5 {
 			t.Fatal("wrong inventory")
 		}
 		body, err := os.ReadFile(filepath.Join(dest, "MANIFEST.json"))

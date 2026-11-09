@@ -33,15 +33,14 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Check native criterion capture | separately built `corvint-tasks criterion-binding capture` / offline `criterion-binding verify` | Native Tasks owns complete record/coherence validation; Core uses only wire projections through independently pinned bounded read calls. Historical validity is separate from current applicability. See [boundary contract](specs/tasks-criterion-binding-v0.md); installed versions lacking these experimental verbs remain unsupported. |
 | Verify a CEM1 reference candidate | separately built standalone Go consumer `verify-candidate --repository DIR --map FILE --expected-base FULL_OID --target FULL_OID --artifacts DIR` | Exact `cem/1.0-experimental.1` only; independent immutable Git derivation and opaque artifact-byte integrity. All eight authority/source/discrimination/external limits remain NOT_OBSERVED. Go >=1.24 source-build floor; no default producer or legacy dispatch migration. See [public candidate algorithms](../protocol/cem-1.0/ALGORITHMS.md). |
 | Resume a caller-owned checkpoint | `prove --checkpoint FILE` | Revalidate actual existing `corvint-checkpoint/0` handles against current Git. No automatic writer, invented checkpoint, or claim of full conversation recovery. |
-| Draft/consume source documentation | `docs draft`; `docs consume` using actual emitted stdin bytes | Producer `corvint-source-documentation-draft/0`, consumer `corvint-documentation-consumption/0`. Require admitted committed owner Agent digest and exported Go package declarations. Source rederivation does not accept generated intent or deliver HDC. |
 | Expand source-view experiment evidence | opt-in `adapter source-view` / `adapter claude-source-handoff` | Only tasks owning the experiment use its exact packet/digest/selectors. Normal work reads original cited immutable source. No default host wrapper or usefulness claim. |
 | Select backlog work or propose a wave | `script/corvint-work-queue`; `work observe` / `work propose-wave` | Validate current queue evidence, then inspect shadow proposals and conflicts. Existing coordinator owns claims and dispatch; observation authorizes neither. |
 | Inspect native fixture planning | `work plan-fixture --executor ABSOLUTE_FILE --observations FILE` | Explicit native fixture only; fixed read commands and immutable source/snapshot bindings. Trusted-local reservation/history observations; no admission or production qualification. See [NTP](specs/native-taskman-planning-v0.md). |
 | Bind and review a change | keyed `dogfood` workflow plus `cem` / every scoped `ocm` | Reuse the existing frozen plan, selected-check observations and exact report-set acknowledgment. Inspect citation meaning, unknowns and check adequacy. |
 | Inspect unresolved review obligations | `frontier --cem MAP --ocm MAP --expected-base BASE --target TARGET --json`; `lrf` where relevant | Before acknowledgment inspect each relevant bound scope. Valid exit 1 means an open advisory queue; distinguish it from invalid input. `frontier/0` cannot close authority or make local policy satisfied. |
-| Read test dependency evidence | `test-evidence PATH [--lines START:END] --revision COMMIT`, `test-evidence --test TEST`, or `test-evidence --explain TEST --base COMMIT`; `flows test-evidence --flows DIR` joins AFU links; MCP group `test-evidence` exposes `corvint.test_evidence` | RSP-V0-051; reads existing records only. UNKNOWN names unavailable inventory, run context or freshness; absent admitted qualification is FULL unqualified. No collection or authority promotion. |
+| Read test dependency evidence | `test-evidence PATH [--lines START:END] --revision COMMIT`, `test-evidence --test TEST`, or `test-evidence --explain TEST --base COMMIT`; MCP group `test-evidence` exposes `corvint.test_evidence` | RSP-V0-051; reads existing records only. UNKNOWN names unavailable inventory, run context or freshness; absent admitted qualification is FULL unqualified. No collection or authority promotion. |
 | Use a live Go provider | separate `corvint-go-test-provider --experimental --trusted-local --authority-bundle FILE` | Only an actual admitted parent-verifier attachment qualifies the route. Missing attachment is unavailable; ordinary selected tests still run. Protected runner/LPCV qualification is separate. |
-| Inspect web flows and test gaps | `flows --manifest FILE [--evidence FILE]`; separate opt-in `corvint-web-flows` | Experimental declared-flow reports, literal assertion candidates and guided DOM observations. Read commands never launch the provider; unknown inventory, unexplored controls, stale evidence and backend contradictions remain visible. See [application flows](specs/application-flow-understanding-v0.md) and [provider usage](../tools/web-flows/README.md). |
+| Build the application map for E2E selection | `flows appmap ...` | Experimental map that E2E-safe test selection reads; see [application map](APPLICATION-MAP.md). Other flows verbs and `corvint-web-flows` were retired by decision 0594. |
 | Record outcome or inspect learning | existing `dogfood finish`; supported trace-aware query; explicit `migrate-traces` | Do not duplicate finish's outcome. Migration apply requires explicit scope. Preserve trace refusal/learned-path counts; a mechanism or scoring change needs the registered two-arm LTA gate, not every record row. |
 | Investigate repeated friction | `observations`; explicitly scoped `prove-observe` | Bounded private counts never rank evidence or confer authority. No transcript scan, invented usage or background monitor. |
 | Change retrieval, learning or a profile | owning frozen `eval --goldens FILE` / registered benchmark engine arms | Pin engine, corpus, fixture and output identities; retain losing arms. No blind-v4 access or broad campaign for a prose-only change. Current eval supports an explicit trace-fixture arm, not unrestricted persisted trace replay. |
@@ -77,27 +76,9 @@ a command actually ran for this task at the identified root/revision; an example
 gate does not establish host adoption. This is caller assessment, not a new ledger, universal
 planner, strict LCP field, authenticated record or feature-use percentage.
 
-For the optional [documentation corpus route](DOCUMENTATION-CORPUS.md), inventory a committed
-slice, build a corpus and retain an actual search/trace receipt. Use explicit corpus evidence on native
-reads only where applicable; unsupported providers and absent journeys remain visible. The separate
-MCP server and generated-block writes require their own explicit invocation.
-The experimental behavior-provider profile additionally retains exact flow/test/project joins and
-ordered runtime witnesses; `docs corpus behavior-adapter` can produce and reconcile that profile
-from caller-mapped inventories without changing its legacy wire member or authority. The separate
-For issue 339, use the explicit adoption `/2` corpus and `docs corpus inventory --offset` to inspect
-large supplied-record imports and restricted severity-only summaries; this does not accept imported intent.
-The `docs corpus behavior-provider` route emits bounded `/2` multi-repository declarations for corpus
-ingestion; unavailable external bytes and runtime qualification stay explicit gaps. Its reviewed
-documentation projection is normative: source/test proposals cannot rewrite stable variation IDs or
-their preconditions, actions, facts and outcomes. Missing consumer fixtures, semantic joins or runtime
-evidence preserve gaps and unconditional full-suite fallback. See the
-behavior-contract and behavior-provider adapter sections of `docs/specs/documentation-corpus-v1.md`.
-The separate stability profile retains independent repetitions, nested Playwright retries and manual
-reruns with raw denominators, cleanup and exact declared-versus-observed execution topology. It never
-upgrades behavior coverage, adequacy or parity.
+The `docs` and `skill-export` command groups and `corvint-docs-mcp` were retired by decision 0594.
+Until the corpus companions are removed, `corvint-corpus-mcp` reads an existing corpus artifact only.
 
-For the optional documentation route, retain producer output and feed those exact bytes to the
-consumer; its [source contract](specs/source-documentation-draft-v0.md) gives the admitted example.
 For mutation, evaluation, migration, signing, provider and service routes, obey the existing scope,
 permission, frozen-input and cleanup boundaries. Optional unavailability never licenses fake input,
 weakened policy or erasing user work.
@@ -127,23 +108,6 @@ make no savings claim. Native host use in another checkout stays `NOT_OBSERVED` 
 Update this guide's affected route/status and its relevant evidence in the same future feature
 change. Rollback removes these routing additions without weakening the existing completion policy,
 removing old traces, or reclassifying a failed or unqualified experiment.
-
-For owner-trusted MkDocs navigation work, use the separate explicit `docs nav --trusted-project`
-profile and retain the real pinned loader/reload artifact. See
-[Trusted Project Navigation V0](specs/trusted-project-navigation-v0.md). This does not authorize
-execution through ordinary docs reads or qualify the HDC capsule, site build or offline behavior.
-
-For issue338 source-derived documentation, use `docs flows generate`, retain the emitted generation
-manifest, then use `docs flows check` for read-only per-item span drift and byte regeneration checks.
-Commit provider bytes only at the caller's explicit boundary and use `docs flows finalize` before
-corpus build/Open. This route produces generated lexical observations; existing accepted-outcome
-AFU docs and original Playwright witnesses keep their separate meaning. See [flow generation](FLOW-DOCUMENTATION.md).
-
-For a complete accepted flow-variation denominator and original `/3` receipts, use the bounded
-[flow coverage route](FLOW-COVERAGE.md): `flows coverage --denominator FILE --receipts FILE`.
-Its global verdict is fail-closed even when paging; byte-bound PROVEN does not attest deployed lineage.
-Only explicit `--write-back FRESH_DIR` writes documentation, while `--check DIR` remains read-only.
-
 
 Pi integration changes use `docs/specs/pi-workflow-v0.md`, AHI-024/025 and LCP-V0-008/009.
 Retain closed native read/receipt evidence and run the focused Pi units, actual pinned

@@ -5,6 +5,8 @@ Date: 2026-10-23
 Requirement prefix: `PRB-V0`
 Intent status: accepted (owner standing auto-accept 2026-10-11)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09). It deleted `corvint-docs-mcp` (4663b4e2b is the last
+tree with them); requirements naming them are historical, the rest are unchanged.
 Authoritative inputs: GitHub #1600 and #1602; GitHub #1598 and #1601 (the latency targets the
 budgets encode); GitHub #1406 (host-latency limits need a baseline and a contention record);
 `docs/specs/corvint-rebrand-v0.md` `CRB-V0-018` (exact runtime settings);

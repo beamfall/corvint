@@ -855,8 +855,8 @@ var (
 	topLevelCommands = []string{"init", "adopt", "query", "feature", "impact", "eval", "lrf",
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
-		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp", "how"}
+		"index", "batch", "depsource", "necessity", "surprise", "answerability",
+		"kernel", "lease", "reads", "calibrate", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
 )
 
 func knownHost(value string) bool {
@@ -943,9 +943,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			arguments = append(arguments[:len(arguments)-len(rest):len(arguments)-len(rest)], guarded...)
 		}
 	}
-	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
-		return exit
-	}
 	if len(arguments) > 0 && arguments[0] == "native-hook" {
 		return runNativeHook(ctx, arguments[1:], stdin, stdout, stderr)
 	}
@@ -976,34 +973,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, adapterStdout(stdout, stderr))
-		}
-		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
-			if corpusErr != nil {
-				emitError(stderr, corpusErr)
-				return 2
-			}
-			return runCorpus(ctx, options, stdout, stderr)
-		}
-		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
-			if maintainErr != nil {
-				emitError(stderr, maintainErr)
-				return 2
-			}
-			return runDocsMaintain(ctx, options, stdout, stderr)
-		}
-		if options, handled, err := parseDocsFlowsInvocation(arguments); handled {
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			return runDocsFlows(ctx, options, stdout, stderr)
-		}
-		if options, isDocs, docsErr := parseDocsInvocation(arguments); isDocs {
-			if docsErr != nil {
-				emitError(stderr, docsErr)
-				return 2
-			}
-			return runDocs(ctx, options, stdin, stdout, stderr)
 		}
 		if options, handled, err := parseStepInvocation(arguments); handled {
 			if err != nil {
@@ -1084,9 +1053,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if calibrateInvoked(arguments) {
 			return runCalibrate(ctx, arguments, stdout, stderr)
-		}
-		if skillExportInvoked(arguments) {
-			return runSkillExport(ctx, arguments, stdout, stderr)
 		}
 		if options, isProve, proveErr := parseProveBundleInvocation(arguments); isProve {
 			if proveErr != nil {
