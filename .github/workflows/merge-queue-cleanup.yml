@@ -70,7 +70,12 @@ jobs:
                 ' "$work/refs" > /dev/null; then
                   continue
                 fi
-                gh api --method POST "repos/$REPO/actions/runs/$id/cancel"
+                # The run can finish between the read and the cancel; one refused
+                # cancel must not strand the remaining stale runs.
+                if ! gh api --method POST "repos/$REPO/actions/runs/$id/cancel" > /dev/null; then
+                  echo "::warning::Cannot cancel run $id; continuing."
+                  continue
+                fi
                 echo "Cancelled stale merge-group run $id: $ref is absent." >> "$GITHUB_STEP_SUMMARY"
               done < "$work/ids"
             done
