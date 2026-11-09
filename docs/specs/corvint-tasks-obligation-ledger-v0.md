@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-08
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket

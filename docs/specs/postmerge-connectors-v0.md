@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-30
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-connect` and `internal/postmergeconnector` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human request https://github.com/beamfall/corvint/issues/392;
 decision 0373; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `AGENTS.md`.

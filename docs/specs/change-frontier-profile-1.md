@@ -7,6 +7,7 @@ the change rather than making it.
 Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the CEM 0.2 inputs below are historical and any `frontier/1` implementation would need a `cem/1.0` input (`docs/specs/cem-stable-v1.md`) under its own accepted profile.
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted the `frontier` command group and
 its `internal/frontier*` packages, so this profile cannot start (4663b4e2b is the last tree with
 them). The body below is historical and its requirement IDs stay for traceability.

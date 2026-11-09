@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-08-25
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `internal/analyzercap` and `internal/analyzerexec` as unreached code (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/ARCHITECTURE.md`, `docs/EXTENSION-ECOSYSTEM.md`, and
