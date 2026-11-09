@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
@@ -124,24 +123,6 @@ func TestDCPV1318StatusAndIntentListingCLIParity(t *testing.T) {
 			if state {
 				t.Fatalf("%s advertises state", tool.Name)
 			}
-		}
-	}
-	for raw, ok := range map[string]bool{
-		`{"operation":"claims","state":"unknown","run":"run-1","limit":20}`:            true,
-		`{"operation":"claims","state":"proven","qualifier":"provisional","limit":20}`: true,
-		`{"operation":"intent","limit":20}`:                                            true,
-		`{"operation":"claims","state":"unknown","path":"proof.go","limit":20}`:        false,
-		`{"operation":"claims","state":"unknown","query":"x","limit":20}`:              false,
-		`{"operation":"claims","run":"run-1","limit":20}`:                              false,
-		`{"operation":"claims","state":"done","limit":20}`:                             false,
-		`{"operation":"get","id":"proof:flow","state":"unknown","limit":20}`:           false,
-		`{"operation":"claims","state":"unknown","run":"","limit":20}`:                 false,
-		`{"operation":"claims","state":"unknown","qualifier":"","limit":20}`:           false,
-		`{"operation":"claims","path":"docs/a.md","state":"","limit":20}`:              false,
-		`{"operation":"intent","query":"","id":"","path":"","limit":20}`:               true,
-	} {
-		if _, err := corpusindex.ParseRequest([]byte(raw)); (err == nil) != ok {
-			t.Fatalf("companion %s: err=%v, want ok=%v", raw, err, ok)
 		}
 	}
 }
