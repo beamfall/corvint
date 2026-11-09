@@ -34,10 +34,6 @@
   [MCP setup](docs/MCP-SERVER.md) describe profiles and refusals.
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
-- `corvint-cem-candidate help --json`: the CEM candidate companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-cem-candidate.json))
-- `corvint-cem-experiments help --json`: the CEM criterion experiment companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-cem-experiments.json))
 - `corvint-corpus-republish help --json`: the trusted-local corpus republish companion's tree
   ([snapshot](internal/capcatalog/trees/corvint-corpus-republish.json))
 - `corvint-dashboard-snapshot help --json`: the dashboard snapshot compiler's tree
@@ -97,8 +93,6 @@
 - `corvint-cli --binary corvint-analyzer-sql-native help --json`: [corvint-analyzer-sql-native](internal/capcatalog/trees/corvint-analyzer-sql-native.json)
 - `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
 - `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
-- `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
-- `corvint-cem-experiments help --json`: [corvint-cem-experiments](internal/capcatalog/trees/corvint-cem-experiments.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
 - `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
 - `corvint-console help --json`: [corvint-console](internal/capcatalog/trees/corvint-console.json)

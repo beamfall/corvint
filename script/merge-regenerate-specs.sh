@@ -7,8 +7,7 @@
 # lanes each add requirement rows, it resolves it inside the merge: it keeps HEAD's side, runs
 # `script/gen-spec-requirements.sh --write` over the merged, staged specs (which rewrites and stages
 # REQUIREMENTS.tsv, INDEX.json and README.md) and commits the merge with --cleanup=strip, so
-# `make dogfood-batch-check` derives it as `regenerated-specs` (DWC-V0-001) instead of failing
-# merge-resolution-unbound, and no branch is rewritten afterwards.
+# the merge stays a plain two-parent merge and no branch is rewritten afterwards.
 # Any other conflict stays in progress for the operator: it lists the paths and exits 1. A merge
 # without conflicts commits as plain `git merge --no-ff`. Exit 2 on a usage error or a checkout
 # with tracked changes.

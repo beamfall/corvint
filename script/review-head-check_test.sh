@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # ASD-V0-1021..1024 (V1-3959, V1-3668): script/review-head-check.sh classifies a pinned review's
 # findings against a moved lane head, passes a head that changed only .corvint/, refuses an unpinned
-# review and a reviewed head the lane head does not contain; script/dogfood-seal.sh with
-# DOGFOOD_REVIEW refuses a stale review before its check runs. Fixture repositories only.
+# review and a reviewed head the lane head does not contain. Fixture repositories only.
 set -uo pipefail
 export LC_ALL=C
 
@@ -82,84 +81,6 @@ out=$(check "$tmp/dirty.txt" "$reviewed"); rc=$?
 [[ $rc == 2 && $out == *'REFUSE reviewed-head-not-ancestor'* ]] || fail "not an ancestor: rc=$rc out=$out"
 out=$(check "$tmp/missing.txt"); rc=$?
 [[ $rc == 2 && $out == *'REFUSE unreadable-review'* ]] || fail "missing review: rc=$rc out=$out"
-
-# ASD-V0-1024: dogfood-seal.sh with DOGFOOD_REVIEW runs the check first and refuses a moved head
-# before dogfood-check runs; a current review lets the stub check run.
-seal=$tmp/sealrepo
-git init -q "$seal" && mkdir "$seal/script"
-/bin/cp -f "$here/dogfood-seal.sh" "$here/review-head-check.sh" "$seal/script/"
-printf '#!/usr/bin/env bash\necho check-ran >> "%s/check.log"\nexit 7\n' "$tmp" > "$seal/script/dogfood-check.sh"
-chmod 0755 "$seal/script/"*.sh
-printf 'x\n' > "$seal/f" && git -C "$seal" add -A && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m one
-printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$(git -C "$seal" rev-parse HEAD)" > "$tmp/seal-review.txt"
-printf 'y\n' > "$seal/f" && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -am two
-: > "$tmp/check.log"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/seal-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 2 && $out == *'dogfood-seal: REFUSE review-not-current'* && ! -s $tmp/check.log ]] ||
-  fail "seal with a stale review: rc=$rc out=$out check=$(cat "$tmp/check.log")"
-printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$(git -C "$seal" rev-parse HEAD)" > "$tmp/seal-review.txt"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/seal-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 7 && $out == *'review-head-check: CURRENT'* && $(cat "$tmp/check.log") == check-ran ]] ||
-  fail "seal with a current review: rc=$rc out=$out"
-: > "$tmp/check.log"
-out=$(cd "$seal" && script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 7 && $out == *'dogfood-seal: NOTE review-before-seal NOT_OBSERVED'* ]] || fail "seal without a review: rc=$rc out=$out"
-
-# DWC-V0-046: an orchestrator's external report binds exact HEAD plus verdict.
-sealhead=$(git -C "$seal" rev-parse HEAD)
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review report.\n' "$sealhead" > "$tmp/external-review.txt"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 7 && $out == *"review-before-seal OBSERVED"* && $out == *"reviewed-head=$sealhead"* && $out == *'verdict=PASS'* ]] || fail "external review: rc=$rc out=$out"
-printf 'dogfood-review: reviewed-head=%s verdict=FAIL\n' "$sealhead" > "$tmp/external-review.txt"
-: > "$tmp/check.log"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 2 && ! -s $tmp/check.log ]] || fail "nonpassing external review ran check: $out"
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\n' "$(git -C "$seal" rev-parse HEAD~1)" > "$tmp/external-review.txt"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-[[ $rc == 2 && $out == *'external-review-head-mismatch'* && ! -s $tmp/check.log ]] || fail "wrong external head: $out"
-# DWC-V0-046 review fix: a prose mention of the key is neither a second header nor a switch to
-# the external format, in an external report or in a legacy one.
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\nThe parser recognizes `dogfood-review:` headers.\n' "$sealhead" > "$tmp/prose-review.txt"
-out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
-[[ $rc == 0 && $out == "review-head-check: CURRENT reviewed=$sealhead head=$sealhead verdict=PASS" ]] || fail "external report with a prose mention: rc=$rc out=$out"
-printf 'codex-review: reviewed-head=%s tree=x dirty=no\nThe parser recognizes `dogfood-review:` headers.\n' "$sealhead" > "$tmp/prose-review.txt"
-out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
-[[ $rc == 0 && $out == "review-head-check: CURRENT reviewed=$sealhead head=$sealhead" ]] || fail "legacy report with a prose mention: rc=$rc out=$out"
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\ndogfood-review: reviewed-head=%s verdict=PASS\n' "$sealhead" "$sealhead" > "$tmp/prose-review.txt"
-out=$(cd "$seal" && "$script" "$tmp/prose-review.txt" 2>&1); rc=$?
-[[ $rc == 2 && $out == *'invalid-external-review'* ]] || fail "two header declarations accepted: rc=$rc out=$out"
-# Finish a fixture seal, asserting durable review evidence and a rename-only tree.
-mkdir -p "$seal/.corvint"
-printf 'bound evidence\n' > "$seal/.corvint/change.cem.json"
-git -C "$seal" add -A && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m bind
-sealhead=$(git -C "$seal" rev-parse HEAD)
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review.\n' "$sealhead" > "$tmp/external-review.txt"
-printf '#!/usr/bin/env bash\nexit 0\n' > "$seal/script/dogfood-check.sh"
-# Restore the stub in the tracked tree so the seal stays rename-only.
-git -C "$seal" add script/dogfood-check.sh && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m check-stub
-sealhead=$(git -C "$seal" rev-parse HEAD)
-printf 'dogfood-review: reviewed-head=%s verdict=PASS\nExternal review.\n' "$sealhead" > "$tmp/external-review.txt"
-# P2-1 / DWC-V0-046: an external header wrapping legacy output records only
-# the validated external head, even when the nested pin names another commit.
-printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$(git -C "$seal" rev-parse HEAD~1)" >> "$tmp/external-review.txt"
-out=$(cd "$seal" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t DOGFOOD_REVIEW=$tmp/external-review.txt script/dogfood-seal.sh HEAD~1 2>&1); rc=$?
-message=$(git -C "$seal" log -1 --format=%B)
-changes=$(git -C "$seal" diff --name-status -M HEAD^ HEAD)
-[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"review-before-seal OBSERVED"* && $message == *"reviewed-head=$sealhead"* && $message == *'verdict=PASS' && $(printf '%s\n' "$message" | wc -l) -eq 3 && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "durable external review seal: rc=$rc out=$out message=$message changes=$changes"
-
-# DWC-V0-046: legacy reports allow a metadata-only descendant but carry no verdict.
-legacyhead=$(git -C "$seal" rev-parse HEAD)
-printf 'bound again\n' > "$seal/.corvint/change.cem.json"
-git -C "$seal" add .corvint/change.cem.json && git -C "$seal" -c user.name=t -c user.email=t@t commit -q -m rebind
-bindhead=$(git -C "$seal" rev-parse HEAD)
-printf 'codex-review: reviewed-head=%s tree=x dirty=no\n' "$legacyhead" > "$tmp/legacy-review.txt"
-cat "$tmp/legacy-review.txt" "$tmp/legacy-review.txt" > "$tmp/duplicate-legacy.txt"
-out=$(cd "$seal" && DOGFOOD_REVIEW=$tmp/duplicate-legacy.txt script/dogfood-seal.sh "$legacyhead" 2>&1); rc=$?
-[[ $rc == 2 && $out == *'invalid-legacy-review duplicate pins'* && $(git -C "$seal" rev-parse HEAD) == "$bindhead" ]] || fail "duplicate legacy pins: rc=$rc out=$out"
-out=$(cd "$seal" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t DOGFOOD_REVIEW=$tmp/legacy-review.txt script/dogfood-seal.sh "$legacyhead" 2>&1); rc=$?
-message=$(git -C "$seal" log -1 --format=%B)
-changes=$(git -C "$seal" diff --name-status -M HEAD^ HEAD)
-[[ $rc == 0 && $out == *'dogfood-seal: PASS'* && $message == *"reviewed-head=$legacyhead"* && $message == *'verdict=NOT_OBSERVED' && $(printf '%s\n' "$message" | wc -l) -eq 3 && $changes == R100$'\t'*.cem.json$'\t'*.cem.json ]] || fail "legacy descendant seal: rc=$rc out=$out message=$message changes=$changes"
 
 [[ $failed == 0 ]] || exit 1
 echo "review-head-check_test.sh: ok"

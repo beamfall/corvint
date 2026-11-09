@@ -599,7 +599,7 @@ func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
 	if !strings.HasPrefix(got, "usage: make <target> [BASE=<rev>]  (BASE=origin/main)\n") {
 		t.Fatalf("bare make did not print the help header with BASE=origin/main:\n%s", got)
 	}
-	for _, target := range []string{"help", "gate", "doc-gates", "dogfood-change", "windows-vet"} {
+	for _, target := range []string{"help", "gate", "doc-gates", "windows-vet"} {
 		if !regexp.MustCompile(`(?m)^  ` + regexp.QuoteMeta(target) + ` +\S`).MatchString(got) {
 			t.Errorf("help does not list %s:\n%s", target, got)
 		}
