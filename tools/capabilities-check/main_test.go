@@ -321,8 +321,8 @@ func TestCAPV0005RoutingPointersNameTheCatalog(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if skills < 10 {
-		t.Fatalf("found %d shipped skill files, want at least 10", skills)
+	if skills < 5 {
+		t.Fatalf("found %d shipped skill files, want at least 5", skills)
 	}
 }
 
@@ -336,7 +336,7 @@ func TestCAPV0006CheckIsReadOnly(t *testing.T) {
 	if code := run(root, &stdout, &stderr); code != 0 {
 		t.Fatalf("synthetic repository: exit %d, stderr %q", code, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "ok (1 commands, 2 binaries, 1 MCP tools)") {
+	if !strings.Contains(stdout.String(), "ok (1 commands, 2 binaries)") {
 		t.Fatalf("synthetic repository: stdout %q", stdout.String())
 	}
 	if after := snapshotTree(t, root); after != before {

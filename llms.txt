@@ -4,10 +4,9 @@
 > change reaches (`corvint impact`), which tests the change needs (`corvint affected`), and what
 > each diff hunk rests on (Change Evidence Map, `cem/1.0`). Every answer names its Git blob,
 > authority and reason, and missing evidence is reported as unknown. Corvint Tasks
-> (`corvint-tasks`) is a local ticket queue with claims and gated completion, and stdio MCP
-> servers and host adapters expose the same receipts to agents. It is one local native-Go binary
-> with no account or network dependency. This file is the single entry point for an
-> LLM that has never seen Corvint. Every command, flag and MCP tool is reachable from the links
+> (`corvint-tasks`) is a local ticket queue with claims and gated completion. It is one local
+> native-Go binary with no account or network dependency. This file is the single entry point for an
+> LLM that has never seen Corvint. Every command and flag is reachable from the links
 > below, and `tools/capabilities-check` fails the tests when a new one ships without its help and
 > catalog entry (CAP-V0-040 to CAP-V0-050).
 
@@ -17,7 +16,7 @@
   every shipped binary, including native protocol analyzers; `help --json` exposes its tree,
   `--version --json` its common release version. Native invocation retains its original wire.
 - [Capability catalog](docs/CAPABILITIES.md): every `corvint` command, every binary built from
-  `cmd/` and every MCP tool, with the smallest call, maturity and refusals
+  `cmd/`, with the smallest call, maturity and refusals
 - `corvint help guide`: the task-indexed guide with runnable examples and the tracked
   non-capabilities ([source](internal/capcatalog/AGENT-GUIDE.md))
 - `corvint help`: the compact verb index; `corvint COMMAND --help` (or `-h`) at any depth prints
@@ -27,11 +26,6 @@
 
 - `corvint help --json`: the `corvint-capability-catalog/0` command catalog
   ([snapshot](internal/capcatalog/catalog.json)); its `commandTrees` member links every command tree
-- `corvint help --json` also carries `mcpTools`: every inventoried tool's name,
-  server/profile availability and summary, checked against the source inventory.
-  Live `tools/list` supplies argument schemas and actual configured availability.
-  The [MCP tool catalog](docs/CAPABILITIES.md#mcp-tools) and
-  [MCP setup](docs/MCP-SERVER.md) describe profiles and refusals.
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
 - `corvint-cem-candidate help --json`: the CEM candidate companion's tree
@@ -68,11 +62,11 @@
 ## Adoption
 
 - [README quickstart](README.md#try-it-in-sixty-seconds) and [Install](docs/INSTALL.md)
-- [MCP server](docs/MCP-SERVER.md) and [Tasks for external agents](docs/TASKS-EXTERNAL-AGENTS.md)
+- [Tasks for external agents](docs/TASKS-EXTERNAL-AGENTS.md)
 - [Application map adoption](docs/APPLICATION-MAP.md)
 - [Adopting a legacy repository](docs/LEGACY-ADOPTION.md)
 - [Spec toolchain integration](docs/SPEC-TOOLCHAIN-INTEGRATION.md)
-- [Host adapters and skills](integrations/README.md)
+- [Agent plugins and skills](integrations/README.md)
 
 ## Optional
 
@@ -103,11 +97,9 @@
 - `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
 - `corvint-console help --json`: [corvint-console](internal/capcatalog/trees/corvint-console.json)
 - `corvint-corpus-http help --json`: [corvint-corpus-http](internal/capcatalog/trees/corvint-corpus-http.json)
-- `corvint-corpus-mcp help --json`: [corvint-corpus-mcp](internal/capcatalog/trees/corvint-corpus-mcp.json)
 - `corvint-corpus-parity help --json`: [corvint-corpus-parity](internal/capcatalog/trees/corvint-corpus-parity.json)
 - `corvint-corpus-republish help --json`: [corvint-corpus-republish](internal/capcatalog/trees/corvint-corpus-republish.json)
 - `corvint-dashboard-snapshot help --json`: [corvint-dashboard-snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json)
-- `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
 - `corvint-gateway help --json`: [corvint-gateway](internal/capcatalog/trees/corvint-gateway.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
 - `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)

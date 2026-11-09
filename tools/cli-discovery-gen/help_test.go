@@ -17,7 +17,6 @@ func TestCAPV07700RootInputs(t *testing.T) {
 		"corvint-readiness-record":        {"--candidate DIR", "--source-root DIR", "--evidence-file FILE", "--output FILE"},
 		"corvint-go-toolchain-receipt":    {"GOROOT"},
 		"corvint-remote-provider":         {"--allow-network", "--config FILE"},
-		"corvint-mcp":                     {"--root ABSOLUTE_ROOT"},
 		"corvint-corpus-http":             {"--index FILE", "--sha256 SHA256"},
 		"corvint-corpus-parity":           {"--index FILE", "--sha256 SHA256", "--request FILE"},
 		"corvint-postmerge-host-launcher": {"--profile FILE", "--profile-sha256 SHA256", "--request FILE", "--request-sha256 SHA256", "--out DIR"},
