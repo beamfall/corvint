@@ -93,6 +93,7 @@ func TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137(t *testing.T) {
 			"internal/doccorpus/d.go":              "package doccorpus\n",
 			"internal/doccorpus/inventory_test.go": test,
 			".corvint/test-read-scopes.json":       `{"profile":"corvint-test-read-scopes/0","packages":{"internal/doccorpus":["docs/"]}}`,
+			treesPath:                              `{"profile":"corvint-test-read-scope-trees/0","trees":{"internal/doccorpus":{"docs/":"internal/doccorpus/inventory_test.go walks docs/"}}}`,
 		}
 		if c.other != "" {
 			files["internal/doccorpus/other_test.go"] = c.other
