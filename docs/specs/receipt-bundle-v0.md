@@ -3,8 +3,11 @@
 Owner: Russell Lewis
 Date: 2026-09-23
 Requirement prefix: `RCB-V0`
-Intent status: accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/receiptbundle` and the
+`cem export` command (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2, 4 and 7, ticket V1-0197 (filed from the
 owner's review of external agent-governance tooling, accepted for 1.0), `cem-0.2-canonical-binding.md`
 for the CEM, `corvint-witness-v0.md` for the witness report, `../DOGFOOD.md` for the dogfood
@@ -14,7 +17,7 @@ reader this slice sits beside.
 
 ## Agent digest
 - Claim: `corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.
-- Status: accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations) / experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/receiptbundle`, `cmd/corvint/cem_export.go`, the `cem export` read-only case. The offline shell verifier `script/verify-receipt-bundle.sh` was deleted with cem/0.x (V1-1278, RCB-V0-006 amendment).
 - Blocked on: nothing for intent; the owner confirmed both ticket deviations (decision 0376). Signing, publication, archives and governance adapters are non-goals.
 - Read next: Ticket deviations (owner-confirmed); RCB-V0-002 (manifest), RCB-V0-004 (inclusion) and RCB-V0-005 (output); Failure modes.

@@ -4,7 +4,7 @@
 # Merges sealed lane branches into the checked-out batch branch in one pass, with no per-lane rebind
 # or reseal at each new batch tip (ASD-V0-785..786, NEW-D1; docs/LANE-ORCHESTRATION.md section 16).
 # Each lane is sealed against its own base first, in parallel (DCW-V0-044). For each BRANCH, in
-# order, the merge tree is derived the way `corvint dogfood batch-check` rederives it (DCW-V0-039,
+# order, the merge tree is derived the way the retired dogfood batch-check rederived it (DCW-V0-039,
 # DCW-V0-073): `git merge-tree --write-tree` in a private bare repository that applies none of this
 # repository's configuration, attributes, hooks or merge drivers, writing its objects into this
 # repository's object store.
@@ -207,6 +207,5 @@ fi
 for item in ${owed[@]+"${owed[@]}"}; do
   note "NEXT $item"
 done
-note "NEXT check: make dogfood-batch-check BASE=$base"
 say "manifest $manifest"
 exit 0

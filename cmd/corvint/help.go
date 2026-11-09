@@ -11,21 +11,10 @@ import (
 
 const authorityStartPrompt = "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
 
-var cemHelpActions = map[string]bool{
-	"begin": true, "prepare": true, "cite": true, "mark": true,
-	"status": true, "verify": true, "report": true,
-	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true, "defer": true, "verify-stable": true,
-	"bundle": true,
-}
-
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
 // command that is neither one of them nor --help is an invalid choice argparse reports before help.
 var helpSubcommands = map[string]map[string]bool{
-	"cem":     cemHelpActions,
-	"ocm":     {"prepare": true, "link": true, "mark": true, "status": true, "verify": true, "report": true},
 	"harness": {"event": true},
-	"step":    {"snapshot": true, "verify": true, "env-check": true},
 	"graph":   {"imports": true},
 }
 
@@ -71,7 +60,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 			directTopic = nestedHelpTopic(command, subcommand)
 		}
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
+		directTopic = nestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
@@ -140,9 +129,6 @@ func commandHelpTopic(rest []string) string {
 		return flowsAppmapBuildHelpTopic
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
 		return ""
-	case rest[0] == "cem" && len(rest) > 1 && choices[rest[1]]:
-		// One cem action's help, not the whole family's (CEM-V1-340).
-		return cemActionHelpPrefix + rest[1]
 	}
 	return topic
 }
@@ -158,7 +144,7 @@ func helpFlagRequested(tokens []string, topic string) bool {
 			return false
 		case token == "--help", token == "-h":
 			return true
-		case !argparseOptionLike(token), strings.Contains(token, "="), helpBooleanFlags[token], topic == "prove" && token == "--attack-tests":
+		case !argparseOptionLike(token), strings.Contains(token, "="), helpBooleanFlags[token]:
 			continue
 		case index+1 < len(tokens) && !argparseOptionLike(tokens[index+1]):
 			index++
@@ -205,9 +191,6 @@ func helpText(topic string) string {
 
 // topicText is a help topic's authored text, the source the command tree derives from.
 func topicText(topic string) string {
-	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
-		return cemActionHelp(action)
-	}
 	switch topic {
 	case flowsAppmapBuildHelpTopic:
 		return flowsAppmapBuildHelp()
@@ -217,8 +200,6 @@ func topicText(topic string) string {
 		return rootHelp
 	case "query":
 		return fmt.Sprintf(queryHelpFormat, authorityStartPrompt)
-	case "delta":
-		return deltaHelp
 	case "graph":
 		return graphImportsHelp
 	case "impact":
@@ -227,32 +208,12 @@ func topicText(topic string) string {
 		return featureHelp
 	case "eval":
 		return evalHelp
-	case "cem":
-		return cemHelp
-	case "ocm":
-		return ocmHelp
-	case "lrf":
-		return lrfHelp
-	case "frontier":
-		return frontierHelp
-	case "record":
-		return recordHelp
-	case "migrate-traces":
-		return migrateTracesHelp
-	case "migration-ratchet":
-		return migrationRatchetHelp
-	case "observations":
-		return observationsHelp
 	case "features", "overview", "review":
 		return repositoryGuidanceHelp
 	case "affected":
 		return affectedHelp
-	case "obligations":
-		return obligationsHelp
 	case "flows":
 		return flowsHelp
-	case "step":
-		return stepHelp
 	case "changes":
 		return changesHelp
 	case "runs":
@@ -277,36 +238,20 @@ func topicText(topic string) string {
 		return depsourceHelp
 	case "kernel":
 		return kernelHelp
-	case "lease":
-		return leaseHelp
-	case "reads":
-		return readsHelp
 	case "calibrate":
 		return calibrateHelp
-	case "prove":
-		return proveHelp
 	case "context":
 		return taskContextHelp + contextLookupHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
-	case "dogfood":
-		return localCompletionHelp
 	case "batch":
 		return batchHelp
 	case "init", "adopt":
 		return activationHelp
 	case "harness-event":
 		return harnessEventHelp
-	case "work":
-		return workHelp
-	case "prove-observe":
-		return proveObserveHelp
 	case "adapter":
 		return adapterHelp
-	case "dogfood-ocm":
-		return dogfoodOCMHelp
-	case "witness":
-		return witnessHelp
 	case "test-evidence":
 		return testEvidenceHelp
 	case "test-validity":
@@ -338,11 +283,6 @@ Commands:
     context  task-context packet: files to read
     impact  path, untracked or range impact
     affected  affected-test plan
-    prove  packet with falsifier verdicts
-    cem  Change Evidence Map tool
-    ocm  Obligation Closure Map tool
-    frontier  Change Frontier review queue
-    dogfood  evidence: change, check, seal, batch-check
   Experimental, context and review:
     feature  one declared feature's context (GPK-V0)
     features | overview | review  inferred repository guidance (RGV-V0)
@@ -350,10 +290,6 @@ Commands:
     batch  batched query, context, impact (SBQ-V0)
     depsource  cite pinned Go module source (DSE-V0)
     breakage  cross-repository API relations (BKM-V0)
-    witness  unwitnessed surface of a range (AGW-V0)
-    obligations  CEM external-obligations sidecar (EFO-V0)
-    step  declared authoring scope receipts (ASS-V0)
-    delta  source-free record of one change (DLT-V0)
   Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
@@ -367,11 +303,6 @@ Commands:
     harness event  one agent lifecycle event (AHI)
     adapter  one native host adapter (AHI)
     mcp  local read-only stdio MCP server (AHI)
-    work  queue observation or shadow wave (WQO-V0)
-    lease  local scope lease over paths (SCL-V0)
-    reads  opt-in unplanned-read digest (URE-V0)
-    record  record one local task outcome (LTPM-V0)
-    observations  self-observation digest (SOL-V0)
   Experimental, lab (research metrics):
     eval  evaluate a frozen corpus (REC-V0)
     necessity  label packet file necessity (NEC-V0)
@@ -390,26 +321,19 @@ Support boundary:
   Internal and historical verbs stay callable but unlisted (corvint help --json).
   Local-only; no network or telemetry. init, adopt, query, feature and impact are
   qualified on Darwin and Linux only.
-  init, adopt, query, impact, docs, harness, and lrf read without mutating
-  repository or trace state. impact, feature, docs, harness event, ocm, lrf, cem,
-  dogfood-ocm, witness, index, calibrate, frontier, and record best-effort append a
-  bounded row to the self-observation ledger (.corvint/self-observations.jsonl)
-  on an unsupported-* failure (harness event also on success); a ledger storage
-  failure never alters the response. cem begin, prepare, cite and mark write local
-  CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
-  flows and maintain write local state (COMMAND --help).
+  init, adopt, query, impact, docs, and harness read without mutating
+  repository or trace state. impact, feature, docs, harness event, index and
+  calibrate best-effort append a bounded row to the self-observation ledger
+  (.corvint/self-observations.jsonl) on an unsupported-* failure (harness event
+  also on success); a ledger storage failure never alters the response. index,
+  and docs flows and maintain write local state (COMMAND --help).
 `
 
 // hiddenCommands are the dispatched internal or historical verbs that root help leaves out of
 // its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
 // it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
 var hiddenCommands = map[string]string{
-	"changes":           "offline upgrade checklist (UCL1142-V0)",
-	"dogfood-ocm":       "verify dogfood OCM maps (OCM-V0)",
-	"lrf":               "lexical relevance floor, historical only (LRF-V0)",
-	"migrate-traces":    "plan or apply trace migration (LTPM-V0)",
-	"migration-ratchet": "compare migration evidence (MER-V0)",
-	"prove-observe":     "record prove verdict counts (SOL-V0)",
+	"changes": "offline upgrade checklist (UCL1142-V0)",
 }
 
 // hiddenHelpNote ends the help topic of each hiddenCommands verb.
@@ -440,121 +364,6 @@ Events:
   pi EVENT           file-change, post-tool, session-end, session-start, stop,
                      user-prompt
 An unaccepted EVENT degrades with unsupported-hook-event and names the accepted ones.
-`
-
-const dogfoodOCMHelp = `Verify the private ordered set of dogfood OCM maps.
-
-Usage:
-  corvint [--root PATH] dogfood-ocm status --expected-base REV --target REV
-
-Freshly verifies the bounded intent manifest and every per-scope OCM map against
-the same CEM and revisions, then prints the fail-closed aggregate JSON result.
-It does not mutate repository or trace state.
-`
-
-const witnessHelp = `Compile the unwitnessed surface of one committed range.
-
-Usage:
-  corvint [--root PATH] witness --base REV [--head REV] [--cem MAP]
-      [--stable-artifact-root DIR] [--evidence FILE]...
-      [--evidence-in-repo PATH]... [--json] [--check[=admitted|=candidate]]
-  corvint [--root PATH] witness --range app=BASE..HEAD --range tests=BASE..HEAD
-      [--range-root NAME=PATH]... [--evidence FILE]... [--evidence-in-repo PATH]...
-      [--json] [--check[=admitted|=candidate]]
-  corvint [--root PATH] witness --paired-from REV --range-root app=PATH
-      [--range-root tests=PATH] [--evidence FILE]... [--evidence-in-repo PATH]...
-      [--json] [--check[=admitted|=candidate]]
-
-Builds the committed index, compares the range beginning at --base, and prints
-the conservative unwitnessed report. It does not mutate repository or trace
-state and never invents a witness. REV is any revision Git resolves to a
-commit (a branch, tag, HEAD~3, or an object ID); the report carries the full
-commit object ID. A --head other than the checked-out HEAD is a historical
-head: its index is built from the Git object store at that commit, the
-worktree is not read, and the range reports headBinding COMMIT-PINNED. A head
---base is not an ancestor of, or whose objects are missing, refuses.
-
---evidence FILE (repeatable, at most 8) reads one corvint-test-validity/0 or
-provider document (at most 4 MiB). A Playwright receipt, RSpec provider
-document or corvint-go-test-run/0 document (corvint-go-test-provider test-run)
-that ran clean on exactly the head commit and tree, with file digests or blob
-IDs matching the head blobs, attaches a CALLER_REPORTED witness to each
-obligation at its test's anchor, imported, spec or declaring files; such a witness never
-closes, and a NOT_RUN obligation stays NOT_RUN. Any other document of a kind
-those readers know is an UNBOUND source that attaches nothing; an unreadable or
-undecodable one, or valid JSON of an unrecognized provider kind, exits 2. --evidence-in-repo PATH (repeatable; at most 8 with --evidence) reads the
-same documents by a path relative to the checkout root: an absolute path, a
-.. component, or a symbolic link that resolves outside the checkout exits 2
-with the reason named. The summary separates open obligations with a candidate witness from open
-obligations with none.
-
-A changed path the range engine refuses on its own (an unsafe name, a
-deletion, binary content, a mode change, and similar) is a NOT_RUN obligation
-with reason ADMISSION_REFUSED_<RULE> and the rest of the range is analysed;
-admission is then PARTIAL. Past the 100-path bound, the paths after the first
-100 in path order are each refused alone as PATH_BOUND, and a path whose hunks
-would cross the hunk or target-line bound as HUNK_BOUND or TARGET_LINE_BOUND.
-The admission packet holds at most 50 ranked results, so in a range of more
-than 50 analysable paths an admitted path ranked out of it is a NOT_RUN
-obligation with reason ADMISSION_PACKET_BOUND, admission is PARTIAL and its
-detail names the omitted paths and the bound; split the range to analyse them.
-A repository-level refusal, or a range of more than 1000 changed paths,
-refuses the whole range.
-
-Exit 0 prints the report, whatever it says. With --check the report is printed
-and the exit is 1 when admission is not COMPUTED or any obligation is not
-closed; no V0 authority closes, so this exits 1 for any obligation.
---check=admitted exits 1 only when admission is not COMPUTED, the closure is
-neither COMPUTED nor EMPTY, or any obligation is NOT_RUN; --check=candidate also exits 1 when any open obligation
-has no candidate witness. Neither mode closes or proves anything. Refused
-input exits 2 with no stdout.
-
-A path no extractor reads (Markdown, JSON, YAML, ...) is NOT_RUN as
-LANGUAGE_COVERAGE_NONE unless the base tree commits .corvint/witness-paths.json
-(profile corvint-witness-paths/0), whose rules classify globs in file order:
-an inert path is EXEMPT (DECLARED_INERT) with no test obligation; a data path is
-admitted text-only when a reader is declared in the rule or found quoting its
-path, and stays NOT_RUN as DATA_READER_MISSING otherwise. Each classified
-obligation names the declaring file and line; an invalid policy applies no
-rule. Read from the base, a policy never exempts the range that edits it.
-For example:
-  {"profile":"corvint-witness-paths/0","rules":[
-    {"glob":"docs/**/*.md","class":"inert"},
-    {"glob":"**/testdata/*.json","class":"data","readers":["pkg/a/a_test.go"]}]}
-
-A cem/1.0 map is applied only when --stable-artifact-root is given and the
-stable verifier accepts it against --base and the checked-out HEAD; the report
-then uses corvint-witness-stable/0. Any other stable outcome, a cem/1.0 map
-without the flag, or the flag over a map that is not cem/1.0 exits 2 with no
-stdout.
-
---range app=BASE..HEAD --range tests=BASE..HEAD compiles an application range
-and a tests range as one change (corvint-witness-paired/0), each in --root or
-its --range-root checkout. The report names both ranges and sums both; either
-range that does not resolve exits 2 naming it. Evidence binds to the tests
-head; a Playwright receipt whose application attestation names the app head
-commit and tree, clean and unchanged, and whose imported app files match the
-app head blobs also cites app obligations as cross-range CALLER_REPORTED
-witnesses. --base, --head, --cem and --stable-artifact-root are refused.
-
-A workspace declaration (--workspace FILE, or --root/.corvint/workspace.json)
-is not read: --workspace refuses as workspace-unsupported naming the ignored
-aliases, and so does a discovered one for a single-range witness unless
---no-workspace; a paired witness names its repositories with --range.
-
-Merged history records a pairing with a trailer on the tests-repository commit,
-Paired-Range: <name>=<repo>@<base>..<head>. Only --paired-from REV reads it:
-the tests range is REV's only parent to REV (in --root or its --range-root
-tests checkout), and the app range is the trailer's <base>..<head> in the
---range-root app checkout, which the caller must name because <repo> is a
-label, never a path; without it the trailer is still read and the refusal
-names <repo>. The report gains a pairing member naming REV, <repo> and
-the trailer. A commit without exactly one parent, no trailer, two, a name
-other than app, a value that is not full object IDs, a Paired-Range line
-outside the trailer block, an ID the app checkout lacks, or a <base> that is
-not an ancestor of <head> (stale) exits 2 with no stdout; --range, --base,
---head, --cem and --stable-artifact-root are refused with it. Explicit
---range flags read no trailer.
 `
 
 const testValidityHelp = `Project test-level results through the shared test-validity shape.
@@ -624,42 +433,6 @@ watch refuses before any run (exit 2, no stdout), as does a selection that
 matches no test or several. Incomplete cleanup or a retention failure exits 1
 after the document. Results are diagnostic: no strength axis joins them until
 the live matrix is qualified. Experimental.
-`
-
-const workHelp = `Validate a repository queue observation or compile a non-operative shadow wave.
-
-Usage:
-  corvint [--root PATH] work observe
-  corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
-  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
-  corvint [--root PATH] work adapter snapshot|details|verify
-
-observe and propose-wave print one work-command-result/0 document on stdout.
-Neither claims, leases, dispatches, edits, or closes work; a proposal authorizes
-nothing. Malformed command input yields state ERROR with MALFORMED_INPUT. Both
-need the three adoption files below committed in a clean worktree; otherwise they
-yield SOURCE_UNQUALIFIED and stderr names the reason.
-
-init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
-executable .corvint/work-queue-adapter for the operator to review and commit; it
-refuses when any exists or the Corvint executable, after resolving symlinks, is
-not a safe canonical external file. rebind updates only that adapter after path,
-SHA-256, version/build and source identity change; review and commit it.
-Observation verifies the binding and uses no ambient PATH search. adapter prints
-one document for the qualified committed worklist.
-`
-
-const proveObserveHelp = `Record one prove document's verdict counts in the local self-observation ledger.
-
-Usage:
-  corvint [--root PATH] prove-observe < PROOF
-
-Reads one falsifiable-packet/0 document from stdin (at most 8 MiB), recounts
-proof.rows, and appends one proof row carrying only those counts to
-.corvint/self-observations.jsonl. It prints nothing on success. Any other,
-oversized, or inconsistent document exits 2 with invalid-proof-document and
-leaves the ledger unchanged.
 `
 
 const featureHelp = `Compile the implemented experimental feature context slice.
@@ -740,83 +513,6 @@ ignored paths, declared test commands), each with its evidence and a suggested
 fix. It writes nothing.
 `
 
-const recordHelp = `Record one explicit local task outcome.
-
-Usage:
-  corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
-    (--verify COMMAND | --verify-argv-json JSON_ARRAY) --outcome (passed | failed | blocked)
-
---opened, --changed, --verify, and --verify-argv-json are repeatable; --opened defaults to empty.
---verify alone retains schema 1. Adding an argv array writes typed schema 2;
-arguments retain literal spaces, JSON and operators and are never executed.
-Each argv has 1..32 strings, at most 512 characters per argument and 4096
-canonical JSON bytes; credentials and control characters refuse. Mixed inputs
-share the 50-entry bound. Older binaries cannot read a mixed-version store.
-The repository must be clean, every path must be a safe source at HEAD, and
-verification commands are secret-screened and shell-bounded. The command
-atomically writes one local trace row and is idempotent by trace id.
-`
-
-const migrateTracesHelp = `Plan or apply legacy tree-trace migration.
-
-Usage:
-  corvint [--root PATH] migrate-traces --dry-run
-  corvint [--root PATH] migrate-traces --apply --plan-digest LOWERCASE_SHA256
-
-Exactly one of --dry-run and --apply is required. Dry-run validates the complete
-bounded trace store and writes nothing. Apply requires the exact unchanged
-dry-run digest, publishes canonical commit traces and byte-preserved quarantine
-copies, then removes verified legacy candidates. A trace whose commit still
-exists but is no longer reachable from HEAD (after an amend or rebase) is listed
-in stranded_revisions and moved, byte-preserved, into the same quarantine. The
-command is local-only.
-`
-
-const migrationRatchetHelp = `Compare two immutable migration-evidence snapshots.
-
-Usage:
-  corvint migration-ratchet --profile FILE [--advisory] [--compare VERDICTS.json --log FILE.jsonl]
-    [--log FILE.jsonl] [--label NAME]
-  corvint migration-ratchet schema
-  corvint migration-ratchet seal (--profile FILE | --snapshot FILE)
-  corvint [--root PATH] migration-ratchet span-digest --revision FULL_COMMIT --path PATH --lines START:END
-
-The comparison writes a deterministic corvint-migration-evidence-ratchet-receipt/1 JSON receipt.
-Exit 0 is pass, exit 1 is fail or unknown, and exit 2 is refused input.
-schema prints every accepted field, record kind, policy acceptance, refusal pattern, the
-canonical digest encoding and a sealed example profile that passes.
-seal prints the input with every self-digest and canonical order filled; it never changes
-content digests, states, links or a migration rule's reviewed artifact bindings.
-span-digest prints the Git blob and SHA-256 of one line span at an immutable commit, for a
-sub-file test-execution content_sha256. Every form is read-only. Owning contract: MER-V0.
-
---advisory exits 0 where the ratchet would exit 1; refused input still exits 2. --log appends one
-corvint-gate-agreement/0 JSONL record per run, and --compare (needs --log) compares the ratchet's
-findings with a corvint-gate-verdicts/0 caller verdict file. Each finding is keyed as a rule on a
-test ID: a policy failure CODE:ID as rule CODE on test ID (rule CODE alone without an ID), a
-removal as rule removal:KIND on the baseline test ID, a regressing state change as rule
-state-regression:KIND on the candidate test ID, and a broken reverse link as rule
-broken-reverse-link:KIND on the candidate (else baseline) test ID; an excepted delta abstains.
---label NAME (once) is copied to each record's label, so logs of several callers can be split.
-"corvint tests agreement --log FILE" summarises the agreement per rule (GVA-V0).
-Example: corvint migration-ratchet --profile p.json --advisory --compare v.json --log /tmp/a.jsonl
-`
-
-const observationsHelp = `Read the bounded local self-observation digest.
-
-Usage:
-  corvint [--root PATH] observations [--limit N]
-
-The command reads .corvint/self-observations.jsonl and writes a maximum of 120
-proposal lines to stdout. It never creates, rotates, or files observations.
-When prove-observe has recorded proofs, the digest opens with the
-repository's falsification rate (FALSIFICATION) and one FALSIFIER line per
-falsifier: judged rows are PASS or FAIL, failed rows are FAIL. Host adapter
-degradations are tallied as ADAPTER-DEGRADATION lines by host/event/code,
-counting retained hour windows with the newest window; an out-of-project
-post-tool target is a correct exclusion and is tallied as ADAPTER-EXCLUSION.
-`
-
 const flowsHelp = `Build and read the experimental application map that E2E-safe test selection uses.
 
 Usage:
@@ -824,44 +520,6 @@ Usage:
 
 appmap is the only flows subcommand; the others were retired by decision 0594.
 ` + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp
-
-const obligationsHelp = `Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map.
-
-Usage:
-  corvint obligations --cem FILE --impact FILE [--limit N] --repository DIR
-      --expected-base REV --target REV --stable-artifact-root DIR
-      [--allow-absent-sidecar] [--intent-overlay FILE]
-
-Reads one cem/1.0 map and one saved corvint impact --provider receipt, admits
-the map only through the stable verifier's ACCEPT with the exact committed
-sidecar, joins every map hunk to the receipt's context.external rows by path,
-and writes one external-frontier-obligations-stable/0 document to stdout bound
-to the accepted map, patch and target. Each hunk row lists associations of kind
-entity, obligation, test, or unknown; every non-unknown association carries its
-provider evidence reference, EEP path verification, and provider freshness, and
-none states that the record justifies the hunk. Declared criterion links are
-listed in their own criteria member and state no satisfaction. --limit bounds
-the associations per hunk (default 64); omitted rows are counted.
---allow-absent-sidecar also admits an accepted map that is not committed at
-the target (an out-of-tree, read-only review); the document then carries
-binding.sidecar ABSENT and binds the map by its digest alone. A mismatched
-committed sidecar still refuses.
---intent-overlay FILE (experimental, CEM-V1-642) reads a reviewer-supplied
-Markdown intent from an absolute path outside the repository and its Git
-directory (a symlinked, missing or oversized file refuses) and adds an advisory
-reviewer_overlay member listing its requirement IDs, each UNKNOWN. The overlay
-is not project authority and never changes the state, hunks, providers,
-criteria, id or exit status.
-
-The retired external-frontier-obligations/0 form is no longer produced: a
-retired cem/0.x map refuses with unsupported-spec and its recovery line, and any
-other input without the four stable flags refuses with
-invalid-obligations-input.
-
-Exit status: 0 with the sidecar on stdout; 2 with an error envelope on stderr
-for an argument error, an unreadable or oversized input, a retired cem/0.x map,
-a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
-`
 
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
@@ -1276,599 +934,6 @@ environment, 10s wall time, 1 MiB stdout, every failure one closed provider
 row. It counts toward the same 4-provider bound as --provider.
 `
 
-const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.
-
-Usage:
-  corvint [--root PATH] prove --task TEXT [--limit N] [--budget-bytes N]
-  corvint [--root PATH] prove [--limit N] [--mutate] PATH...
-  corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
-  corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
-    [--attest | --attest-key PEM]
-    [--attest-cem-v2 | --attest-cem-v3 [--artifacts ABS] [--max-unknown N] [--max-mechanical N]
-    [--paired-evidence DOC]]
-  corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
-    [--cem MAP] [--artifacts ABS] [--target REV]
-
-Checkpoint mode:
-  corvint [--root PATH] prove --checkpoint FILE
-
-Read a caller-owned canonical corvint-checkpoint/0 JSON document (at most 256
-KiB, 256 handles and 256 critical selectors). Compare handles against the
-current Git tree and rehydrate eligible critical selectors by identity. FILE
-may be outside the repository. This mode is exclusive with --task, --cem,
---base and --mutate. It writes no repository, index, session or ledger state.
-Stored task prose and verification rows are caller-attributed prior observations;
-they are echoed unchanged, never executed or promoted to current evidence.
-An unchanged handle confirms Git content only, not task correctness or that
-anyone read it. Check exit status: a transport failure can leave partial output.
-
-The packet modes compile the same document as query (with --task), impact (with
-paths), or cem verify (with --cem), embeds it unchanged, and writes one
-falsifiable-packet/0 document to stdout with one verdict per row under
-proof.rows. falsifier names the mechanical check that would fail if the row
-were wrong: history-consistent for citation checks;
-reference-resolves for Go, Python, JavaScript, and TypeScript import rows and
-Go and web same-package reference rows; verifier-accepts for supported and
-mechanical CEM hunks;
-test-kills-mutant for same-package Go test rows; none for advisory history or
-an explicit unknown. falsified is PASS, FAIL, or NOT_RUN. Every check asks Git,
-a parser over the committed blob, the frozen CEM verifier, or the test itself,
-never the index that made the row. The history-consistent claim is:
-the cited blob and line still exist at the packet revision; this is a check of the citation, not evidence that the row is relevant
-A READY packet whose only falsifier-bearing rows are syntax rows checked by
-history-consistent reports state CITED.
-reference-resolves parses both sides: an import spec with the claimed path on
-the cited line, or an identifier with the claimed name on the cited line plus
-a top-level declaration of it in the declaring blob. verifier-accepts passes
-when the verifier accepts the map and the hunk's evidence is stable or
-relocated at the target; a rejected map fails every claim row and reports
-state REJECTED. A dirty path is NOT_RUN. A result is proven only when every
-falsifier-bearing row passes; an accepted document with no proven result
-reports state UNPROVEN. CEM mode refuses --base and --working-tree-untracked;
-the separate committed-range change mode below accepts --base.
-
-Change mode (--base) compiles the same document as impact --base for the
-committed range FULL_COMMIT_ID..HEAD and adds one affected-test row per test
-the affected-plan selector reaches from the range's changed paths, claiming
-that test covers the changed path that reached its unit; proof.affected
-carries the plan's graph digest, scope, selected count, and unknown count.
-Go _test.go rows and pytest test_*.py or *_test.py rows get test-kills-mutant
-when the changed path is source of the same language; every other row gets
-none. Each row keeps its own verdict in proof.counts, but the summary counts
-affected-test rows per changed path: proof.affected.paths lists, for every
-changed path a row claims, the tests whose row passed (covered_by), the FAIL
-rows (reached_not_covering), and the NOT_RUN rows (not_run); a path counts
-once as proven when covered_by is non-empty, failed when it is empty with a
-FAIL row, unproven otherwise. --base with paths or --working-tree-untracked
-is refused.
-
-Explicit Go test attack (experimental):
-  corvint [--root PATH] prove --base FULL_COMMIT_ID --mutate --attack-tests
-
-Continue through the bounded selected mutant set (at most eight per row), even
-when an earlier mutant was killed. Each Go mutation row adds attack counts and
-surviving mutant locations bound to the committed blob. COMPLETED means only
-that this selected set was judged, never exhaustive mutation or adequate tests.
-PARTIAL retains observed counts and survivors when the budget runs out; missing
-sandbox, baseline failure, no mutable lines and unsupported languages remain
-NOT_RUN with their reasons. The existing falsified verdict keeps its meaning:
-a PASS can coexist with survivors. Only changed lines are mutated, with the
-same row and invocation deadlines, sandbox and temporary-copy cleanup. This
-flag requires --base and --mutate and never runs automatically from a hook.
-
-Named Ruby source (experimental):
-  corvint [--root PATH] prove [--base FULL_COMMIT_ID] --mutate
-    --mutate-source PATH.rb[:START-END[,START-END...]]
-    --mutate-example SPEC_spec.rb:LINE[:LINE...] [--mutate-example ...]
-
-Mutate a named .rb source, changed or not, against the cited RSpec examples
-(at most 4 spec files, 16 lines each, 16 spans). Each spec file becomes one
-named-source-test row judged like an RSpec row, but every run passes
-SPEC:LINE:LINE so only the cited examples run. Mutants stay inside the given
-spans, else the whole file under the twelve-mutant cap; the mutation record
-names the basis (line_basis caller-spans or whole-file) and the selector
-(target). In impact mode the source is added to the paths.
-
-Containerised Ruby runner (experimental):
-  corvint [--root PATH] prove ... --mutate --mutate-runner FILE
-
-FILE is a corvint-rbmutate-container/0 declaration: executable and
-executableSha256 (the pinned container CLI), execPrefix (its words up to and
-including the rspec command, naming {run}), container (where {run} is
-mounted) and workspace (an existing host directory the runtime can mount,
-neither inside nor containing the repository).
-Every Ruby mutation run then goes through the corvint-test-runner rspec
-profile instead of the host sandbox: the baseline and each mutant get a fresh
-disposable copy of the export under the workspace, removed afterwards, and
-each receipt carries its own admitted runner_receipt. A run whose report that
-runner does not admit earns no verdict (report_error names why). The container
-is the isolation; Corvint does not pin its image or network beyond the prefix.
-
-test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
-change modes only). Every mutation row of one invocation shares a
-thirty-minute budget beside the ten-minute row budget; rows are judged in
-document order and a row reached after it is spent is NOT_RUN with the
-detail "invocation mutation budget exhausted before this row". --mutate exports the packet revision once into a temporary directory
-and judges every test row on that copy: it runs the cited test file as a
-baseline, applies up to eight single-operator mutants to the changed file one
-at a time, and stops at the first kill: PASS when a
-mutant dies, FAIL when every mutant survives, NOT_RUN with a detail line when
-nothing was mutable, the ten-minute budget ran out, the baseline failed, or
-dependencies were unavailable offline. A Python row is judged the same way by
-python3 -m pytest -q -x on the cited test functions, with one-line token
-rewrite mutants that Python must first parse; without python3 or pytest the
-row stays NOT_RUN with the reason. An RSpec row (a *_spec.rb file claiming a
-changed .rb source) is judged by bundle exec rspec, or rspec on PATH, against
-up to twelve relational, arithmetic, integer-constant and condition-negation
-mutants of the changed lines; every mutant runs, and the row carries a
-mutation record with each mutant's verdict and RSpec receipt. Without a
-runner, or with a baseline that does not pass, the row stays NOT_RUN with an
-UNSUPPORTED witness naming why. Every cited test runs inside a host
-sandbox (macOS sandbox-exec, Linux bwrap) that denies network access, signals
-to outside processes, and every write except to a scratch directory emptied
-before each run and the invocation's build cache; the exported revision is
-read-only to the tests, and each run's process group is killed afterwards. A
-run that ends without go test's, pytest's or RSpec's own failure report is an error,
-never a kill. A host without a sandbox runs no test and the row stays NOT_RUN. The
-repository is never written.
-
---attest (cem mode) emits an in-toto Statement v1 whose predicate is the
-document and whose subjects are the map's sha256 and the target commit. A
-repository-relative map is named by its path; an absolute map outside the
-repository is named external:<sha256 of its bytes>, so the signed bytes carry
-no host path (CEM-V1-641).
---attest-key PEM implies --attest and signs the statement into a DSSE envelope
-with the Ed25519 PKCS#8 private key at PEM; the key is only ever read, and a
-missing or malformed key exits 2 with attest-key-unavailable. Without
---mutate the command runs no test; it never writes.
-
-Experimental, not a stable contract: --attest-cem-v2 (cem mode) implies --attest
-and prints a second line after the unchanged statement or envelope, signed with
-the same key when --attest-key is given. It takes a cem/1.0 stable map only
-(else attest-cem-v2-requires-stable-map), runs the stable verifier with
-full-OID --expected-base and --target and the --artifacts root, and only for an accepted map (else attest-cem-v2-not-accepted)
-prints cem/v2: subjects are the map then each declared artifact, and the
-predicate binds baseRevision, patchSha256 and the target commit and tree.
---max-unknown N and --max-mechanical N are the cem status policy ceilings: an
-accepted map over either exits 2 with attest-cem-v2-policy-exceeded and
-attests nothing. --attest-cem-v3 is the same with the additive cem/v3
-predicate (cem-additive-profiles-v0, CAX-V0-001): it adds counts {total,
-supported, unknown, mechanical} and ceilings naming exactly the applied
---max-unknown and --max-mechanical; a cem/v2-only verifier refuses it by
-type, and the verifier below compares its counts with --cem MAP.
---paired-evidence DOC (cem/v3 only, CAX-V0-034) also signs pairedRange: the
-name, baseRevision and headRevision of a cem-paired-evidence/1 document bound
-to the map, and the SHA-256 of its bytes; the verifier reports it.
-A verifier PASS row means the cited evidence is present at
-the target; it is not a test execution.
-The retired cem/0 and cem/v1 statements are no longer produced or verified.
---verify-cem-attestation ENVELOPE checks a cem/v2 envelope offline against the
-Ed25519 PKIX key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied);
---artifacts ABS and --target REV check the artifact and target subjects.
-It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
-attest-verification-failed, attest-cem-mismatch, attest-cem-subject-mismatch,
-attest-cem-target-mismatch, or map-unavailable.
-
-Experimental failure bundles (decision 0361):
-  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
-  corvint [--root PATH] prove --replay-bundle FILE
-
---export-bundle prints one historical corvint-failure-bundle/0 JSON document
-to stdout, never a file: the exact arguments, HEAD commit, tree and cited blob
-ids, the engine version and profile, the checkpoint bytes, and the original
-receipt or refusal. It needs a clean worktree and refuses secret-shaped text
-(bundle-secret-detected) and bundles over 8 MiB. --replay-bundle reruns it on
-this checkout and prints a historical corvint-failure-replay/0 report,
-reproduced (exit 0) or diverged (exit 1), or exits 2 with invalid-bundle,
-unsupported-version, tampered, missing-input, incompatible-engine,
-missing-git-object, drift, or mixed-worktree. Neither is a fresh proof.
-
-proof.ledger is the repository's falsification rate: the share of judged
-rows (PASS or FAIL) that failed, over every proof recorded with
-prove-observe, which reads a prove document on stdin and appends only its
-verdict counts to .corvint/self-observations.jsonl. The block is read from
-the ledger, never written by prove, carries no authority, and is absent
-until a proof has been recorded; corvint observations prints the same rate
-per falsifier.
-`
-
-const lrfHelp = `Verify repository authority and apply the lexical relevance floor.
-
-Usage:
-  corvint [--root PATH] lrf --cem MAP [--ocm MAP] [--patch PATCH]
-    [--expected-base REV] [--target REV]
-
-Options:
-  --cem MAP           Required map, read from a bounded regular file.
-  --ocm MAP           Optional OCM; not read, since no map is admitted.
-  --patch PATCH       Not read, since no map is admitted.
-  --expected-base REV Not read, since no map is admitted.
-  --target REV        Not read, since no map is admitted.
-
-lrf/0 is frozen over the retired cem/0.x maps and evaluates no cem/1.0 map, so
-the command admits no map: a retired cem/0.x map refuses with unsupported-spec
-and its recovery line, and a cem/1.0 map refuses with unsupported-spec, both
-with no LRF stdout and exit 2. A missing or unreadable --cem also exits 2. The
-command is read-only and local-only.
-`
-
-const frontierHelp = `Compile the deterministic Change Frontier V0 review queue.
-
-Usage:
-  corvint [--root PATH] frontier --cem MAP --ocm MAP --expected-base REV
-    --target REV [--artifacts DIR]
-    [--command FILE --observation FILE --report FILE] [--json]
-
-Options:
-  --cem MAP           Required verified cem/1.0 artifact. A retired cem/0.x
-                      map refuses with unsupported-spec (exit 2).
-  --ocm MAP           Required canonical ocm/0.1-experimental artifact bound to it.
-  --expected-base REV Independent expected base revision; never inferred.
-  --target REV        Independent target revision; never inferred.
-  --artifacts DIR     Required for a cem/1.0 map, refused with any other: the
-                      artifact root the stable verifier reads (no default).
-                      A cem/1.0 map yields the frontier-stable-view/0 view,
-                      whose state is always NOT_PRODUCED (exit 1).
-  --command FILE      Canonical test command, for dynamic test mode.
-  --observation FILE  Canonical test observation, for dynamic test mode.
-  --report FILE       Raw JUnit report, for dynamic test mode.
-  --json              Emit the canonical frontier-stable-view/0 document instead
-                      of the human rendering. Both render one computation.
-
-The three dynamic options are all-or-none. Supplying none records test mode
-STATIC; supplying all three records DYNAMIC_CALLER_REPORTED, which raises no
-authority: caller-reported evidence never closes an item. Any partial
-combination is refused.
-
-Exit codes are a result, not a severity: 0 is a valid empty frontier, 1 is a
-valid open frontier carrying at least one item, and 2 is operational failure
-with no frontier document on stdout and one bounded error object on stderr.
-Exit 1 is success.
-
-Each emitted item asserts only that no qualifying relation was accepted for its
-named obligation after deterministic verification of the declared inputs and
-profiles. It is not proof that evidence does not exist, that code is wrong,
-that a test lacks behavioral coverage, that a capability is impossible, or that
-the repository was exhaustively searched. The command is read-only, local-only,
-and makes no model, network, or service call. It carries no stop decision and
-no hook authority.
-`
-
-const cemHelp = `Change Evidence Map producer and verifier.
-
-Usage:
-  corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV]
-    [--spec cem/1.0]
-  corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace]
-    [--spec cem/1.0] [--non-regular unknown] [--path-policy base]
-  corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
-    (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
-    [--replace --expected-hunk-digest DIGEST]
-  corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
-    (--bytes START:END | --lines START:END) --relation RELATION
-    --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS
-  corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
-    --disposition unknown|mechanical --reason REASON [--output MAP]
-    [--expected-hunk-digest DIGEST]
-  corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
-    --artifacts DIR [OPTIONS]
-  corvint [--root PATH] cem status --map MAP --paired DOC --paired-root ABS
-  corvint [--root PATH] cem verify --map MAP --expected-base REV --target REV
-    --artifacts DIR [OPTIONS]
-  corvint [--root PATH] cem report --map MAP --expected-base REV --target REV
-    --artifacts DIR [--output REPORT | --preview] [OPTIONS]
-  corvint [--root PATH] cem report --map MAP --format json --expected-base REV
-    --target REV --artifacts DIR [--ocm OCM] [OPTIONS]
-  corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP] [--states-output PATH]
-  corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
-    [--max-mutants N] [--wall-time DURATION]
-    [--same-change-test SELECTOR=PATH[,SELECTOR=PATH...]] [--output MAP]
-  corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]
-  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]
-  corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
-    --artifacts DIR --output DIR
-  corvint [--root PATH] cem defer --map MAP --intent PATH --reason TEXT
-  corvint [--root PATH] cem verify-stable --repository PATH --map MAP
-    --expected-base REV --target REV --artifacts DIR [--trusted-keys FILE]
-    [--non-regular unknown]
-  corvint cem bundle --request FILE --out DIR
-
-Actions:
-  begin    Build a cem/1.0 producer map from exact out-of-band patch bytes.
-  prepare  Derive the canonical base-to-target patch and write or resume the
-           cem/1.0 candidate at .corvint/change.cem.json. Commit the candidate,
-           then run the returned verification action; it passes --artifacts
-           with the absolute repository root.
-  cite     Compile a byte or one-based line span of base evidence into the
-           normative span and attach it to one hunk with a typed relation.
-           --relation accepts: call-site, decision, dependency, implementation,
-           incident, specification, test-claim.
-           Normative definitions: docs/CHANGE-EVIDENCE-MAP.md#supported.
-           With --paired-output, --paired-range and --paired-root (all three,
-           additive profile cem-paired-evidence/1, CAX-V0-032) the evidence
-           is read at HEAD of the second repository at --paired-root, both
-           range ends are resolved to full commit IDs (BASE must be an
-           ancestor of HEAD), and the citation is added to the separate
-           document DOC bound to the map's change; the map is never written,
-           so --output is refused.
-           --replace --expected-hunk-digest DIGEST (given together) first drops
-           the hunk's earlier citations, only while DIGEST is the hunk's current
-           cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch
-           and nothing is written, and every other hunk is kept (CEM-V1-694).
-           dogfood change prints the digest in its recites-cited-hunk fix line.
-  mark     Record an explicit unknown or byte-verifiable mechanical disposition.
-           --expected-hunk-digest DIGEST refuses the mark unless DIGEST is the
-           hunk's current digest (CEM-V1-695).
-  status   Local completion check; verify is the equivalent machine/CI surface;
-           report renders the optional human view. All three verify identically.
-           report writes $GIT_DIR/corvint/cem-review.md unless --output names
-           a repository-relative path or an absolute one outside the repository.
-           report --preview returns the same Markdown in the envelope and writes
-           nothing (mutates false); it takes neither --output nor --format json.
-           status --paired DOC --paired-root ABS (CAX-V0-033) instead checks
-           that cem-paired-evidence/1 document: it binds the map, the pinned
-           range still resolves, and every citation's blob and span digest
-           match at its head; any drift refuses evidence-drift.
-  cover    Record a patch coverage witness on every hunk from one local
-           coverprofile named by --test-run; the map stays cem/1.0. Any
-           language's line coverage works once written in that line format
-           ("mode: set" then "PATH:L.C,L.C STATEMENTS COUNT" per span; PATH is
-           the hunk path or ends in "/" plus it). The witness is coverage only,
-           not an execution or discrimination witness. A hunk whose path the
-           profile never names is uncovered in the map and counted apart as
-           notInstrumented (with notInstrumentedHunks) in the result.
-           --states-output PATH also writes the additive
-           cem-coverage-states/1 document (CAX-V0-010): per hunk, in map
-           order, covered, uncovered or not-instrumented, bound to the
-           written map's SHA-256; the map bytes are unchanged by it.
-           Corvint ships no converter from other coverage formats.
-  discriminate
-           Mutate the map's changed Go hunks (at most --max-hunks hunks and
-           --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
-           against the _test.go files their test claims cite, and its Ruby
-           hunks against the cited _spec.rb files under RSpec (experimental,
-           TCQ-V0-066; bundle exec rspec beside a Gemfile, else rspec on
-           PATH), and record a
-           discriminates / survived / not-run witness pinned to --target and
-           the test selection digest. The review projection shows each
-           hunk's state; the run never fails the build. Every arm follows
-           one runner contract (experimental, TCQ-V0-067..070): only a
-           parsed failing test kills; a mutant that does not build or load,
-           or a timeout, is neither. --same-change-test (experimental,
-           TCQ-V0-071) adds a test file the change itself adds to that hunk's
-           run: it is not evidence and is never cited; only the observed run
-           can witness the hunk, and the witness detail names the test.
-           SELECTOR is the one-based ordinal or full hunk ID cite --hunk
-           takes (TCQ-V0-093).
-           The copy reproduces a tracked symlink that stays inside the tree;
-           one that would leave it, or that the host cannot create, fails
-           the run, and the result then names runnerUnavailable
-           sandbox-unpack-symlink (TCQ-V0-092).
-           Toolchain prerequisites, never installed: git and the host
-           sandbox (bwrap on Linux, sandbox-exec on macOS); go on PATH for
-           Go hunks; for Ruby hunks ruby with rspec on PATH, or bundle on
-           PATH with the Gemfile's gems already installed. An absent or
-           unstartable one leaves its hunks not-run with a detail naming
-           the cause (runner-not-found or bundle-unavailable), the probed
-           command and its exit status, and the result names
-           runnerUnavailable with runnerUnavailableHunks (TCQ-V0-094).
-  anchor   (experimental) Write a pointer to the map committed at HEAD as the
-           refs/notes/corvint note of REV (default HEAD); refuses a dirty or
-           uncommitted map, a map not describing REV's patch, a different note.
-           With --artifacts DIR, also verify the map against REV as cem verify
-           does and append its verdictSha256 to REV's append-only
-           refs/notes/corvint-verdicts ledger; a different verdict for the
-           same map and REV is refused, an identical one writes nothing.
-  provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
-           note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
-           --notes-tip OID (or --verdicts-tip OID), rollback when OID is not an
-           ancestor of its ref; --verdicts lists REV's verdict ledger records.
-  export   (read-only) Verify the cem/1.0 map as cem verify does (with
-           --artifacts) and require the target to commit it, then copy the map
-           as cem.json and each declared artifact under artifacts/ into the new
-           absolute directory DIR outside every worktree, with a
-           corvint-cem-stable-bundle/1 manifest. The directory can move and
-           still verify with cem verify-stable --map DIR/cem.json
-           --artifacts DIR/artifacts.
-  defer    (experimental, CEM-V1-643..646) Record that the change defers the
-           intent scope PATH, with a one-line --reason of 1..200 bytes, as the
-           tracked file .corvint/deferred-intents/<SHA-256>.json the change
-           creates (at most 4 intents, merged into the change's one record).
-           It names PATH's base blob (or null when absent at the map's base)
-           and its obligation count. Commit the record with the change so the
-           map's hunks and patchSha256 bind it; it is never a map member.
-  bundle   Assemble a cem/1.0 stable bundle for an existing base..target
-           without committing the map or writing the repository. --request
-           FILE is a cem-stable-plain-assembly/1 request that names the
-           repository, both revisions, the cem prepare/cite map (built in a
-           disposable clone) and the runner plan and receipt by path and
-           SHA-256; --out DIR is a new absolute directory outside the
-           repository. It writes DIR/stable.json and DIR/artifacts/, checks
-           the map with the stable verifier first, and prints the assembly
-           result with its cem verify-stable next action. It takes no --root.
-  verify-stable
-           Verify a cem/1.0 map against the absolute --repository and the
-           artifact bytes under --artifacts; prints one
-           cem-stable-verification/1 JSON result. --trusted-keys FILE is the
-           consumer's absolute corvint-trusted-keys/1 file
-           {"profile":"corvint-trusted-keys/1","keys":[{"keyid":K,
-           "ed25519PublicKey":B64}]}: only a keyid it names can raise the
-           authentication axis to VERIFIED (UNTRUSTED_KEY otherwise). A key
-           the map or its artifacts carry is never trusted, and a valid
-           signature never raises executionAtCommit.
-
-Verification options:
-  --expected-base REV  Independent expected base. Required.
-  --target REV         Verification target. Required.
-  --patch PATH         Refused: the verifier derives the canonical patch itself.
-  --max-unknown N      Policy ceiling on unknown hunks.
-  --max-mechanical N   Policy ceiling on mechanical hunks.
-  --max-deferred-intents N
-                       status and report: admit at most N recorded deferred
-                       intent scopes (default 0). An accepted map whose hunks
-                       create a .corvint/deferred-intents/ record adds
-                       deferredIntents beside the result; a record over the
-                       bound or failing its checks exits 1 with state
-                       unchanged. verify refuses it.
-  --citation           status adds the map's citation class beside the result;
-                       an accepted result always carries its citation block.
-  --scaled-operations  status only, opt-in: raise the stable verifier's Git
-                       operation bound from the cem/1.0 protocol's fixed 1,024
-                       to 1,024 plus 4 per hunk and evidence record; every
-                       other bound is unchanged. The dogfood flow retries with
-                       it after unsupported-resource-limit.
-  --non-regular unknown
-                       prepare, status, verify and verify-stable, opt-in
-                       additive profile cem-non-regular/1 (CAX-V0-020): a
-                       changed path that is not a regular file (a symbolic
-                       link or gitlink) is left
-                       out of the mapped patch, never read or followed, and
-                       reported in nonRegular beside the result as an explicit
-                       unknown that status counts and --max-unknown include.
-                       Without it such a path refuses unsupported-tree-mode.
-                       The map pins the regular-only patch, so a reader must
-                       opt in too; a plain cem/1.0 reader refuses it
-                       patch-digest-mismatch. verify-stable then prints
-                       {nonRegular, nonRegularProfile, stableVerification}.
-  --path-policy base   prepare and status, opt-in additive profile
-                       cem-path-policy/1 (CAX-V0-060): read the witness path
-                       policy .corvint/witness-paths.json from the base tree
-                       only and classify each unknown hunk on a path no
-                       extractor reads. An inert rule's hunk is reported
-                       declared-inert in pathPolicyHunks, citing the policy
-                       file and line, and counted in counts.declaredInert, not
-                       against --max-unknown; a data rule's hunk stays unknown
-                       and names its readers. A code path or a supported or
-                       mechanical hunk is never classified, and the map bytes
-                       are unchanged. Example: corvint cem status --map
-                       .corvint/change.cem.json --expected-base B --target T
-                       --artifacts DIR --max-unknown 0 --path-policy base
-  --guarding-tests     verify only, opt-in: after an ACCEPT, search the base
-                       tests of each uncited Go source hunk's directory (or,
-                       when it has none, of up to 16 direct importers) for one
-                       that passes at the target and fails with only that hunk
-                       reverted in a disposable export; adds the guardingTests
-                       report (cem-guarding-tests/0) with citation-plan rows. It
-                       sets no tier and writes nothing. Bounds: 300 s per go
-                       test run, 1200 s in total. It executes the target's own
-                       tests UNCONFINED, with the caller's privileges; a TMPDIR
-                       inside the repository is refused. Not with --hunk-revert;
-                       status and report refuse it.
-  --artifacts DIR      Required: the artifact root the stable verifier reads;
-                       status also applies the ceilings to an accepted map.
-  --hunk-revert        verify only, opt-in: after an ACCEPT, reverse-apply each
-                       test-cited Go source hunk in a disposable export of the
-                       target and re-run its named tests; adds the hunkRevert
-                       report (cem-hunk-revert/0), and only a consumer-observed
-                       failure counts as held; every hunk it did not attempt
-                       is listed in notAttempted with its reason. Bounds: 300 s per go test run,
-                       1200 s in total (reasons timeout, total-limit). It
-                       executes the target's own tests UNCONFINED: no sandbox,
-                       with the caller's privileges; use it only on a target
-                       you trust. status and report refuse it.
-
-Map paths:
-  status and report read --map MAP repository-relative, or as an
-  absolute path outside the repository and its Git directories (for example an
-  assembled or exported bundle's map); an absolute path inside them is refused,
-  so name it repository-relative. The map binds the repository by object IDs;
-  the read is bounded, a symlinked map is refused, and only report writes (its
-  review file, never over the map). verify also accepts an absolute in-repository
-  map. verify-stable accepts either form, resolving a relative --map against
-  --repository (CEM-V1-7400);
-  prove --cem and --verify-cem-attestation --cem read MAP the same way, naming
-  an out-of-tree map external:<sha256 of its bytes> in both statements, never
-  its host path (CEM-V1-641). cite, mark, cover and discriminate read an
-  out-of-tree --map under the same rules only with a repository-relative
-  --output, because Core writes a map only under the repository's lock and
-  never in place outside it (CEM-V1-647); every other action takes MAP
-  repository-relative only. anchor and its
-  --artifacts verdict ledger read the map committed at HEAD under MAP, so an
-  out-of-tree map must be committed in the product repository before it can
-  be anchored; there is no out-of-tree anchor or verdict-ledger mode yet.
-  No action takes a paired change: --range, --range-root and --paired-from
-  are refused with the reason, because a cem/1.0 map binds one repository's
-  base and target; pair the ranges with corvint witness (CEM-V1-648).
-  prove --cem and --verify-cem-attestation --cem refuse them with the same
-  reason.
-  bundle takes absolute clean paths only: --request, --out and every
-  request path. Each path's ancestor directories, and the whole repository
-  path, are resolved to their real paths first, so a macOS $TMPDIR path
-  under /var is read as /private/var,
-  and the result and next action name the resolved paths. A final path
-  element that is a symlink is still refused (candidate-input), and an
-  ancestor that cannot be resolved is refused as bundle-path-unresolved,
-  naming the path.
-
-Workspace: a CEM cites one repository. Every action but verify-stable
-and bundle refuses --workspace FILE, or a discovered
---root/.corvint/workspace.json without --no-workspace, as
-workspace-unsupported naming the ignored aliases.
-
-cem/1.0 is the only wire. Verification derives the canonical
-whole-repository patch itself excluding exactly .corvint/change.cem.json. A
-retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its
-migration fix. All commands are local-only; reports can disclose repository
-information and stay local by default.
-`
-
-const ocmHelp = `Prepare, close, or verify an Obligation Closure Map and its bound CEM.
-
-Usage:
-  corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]
-  corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL
-    --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR
-    [--claim SELECTOR...] [--accumulate] --expected-base REV --target REV
-    [OPTIONS]
-  corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL
-    --reason REASON [--output MAP]
-  corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV
-    [OPTIONS]
-  corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV
-    [OPTIONS]
-  corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV
-    [--output REPORT] [OPTIONS]
-
-Options:
-  --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
-  --intent-form FORM  Experimental prepare intent form: requirements (default),
-                      adr-decisions, roadmap-acceptance, openspec-spec,
-                      openspec-delta, speckit-spec, or requirements-subset.
-  --intent-requirements IDS
-                      Experimental prepare only, required with
-                      requirements-subset: comma-separated requirement IDs
-                      (1 to 256) of the intent's Requirements section.
-  --max-unknown N     Optional non-negative unknown-obligation ceiling.
-  --expected-base REV Independent expected base; required for the cem/1.0 map.
-  --target REV        Independent target; required for the cem/1.0 map.
-  --replace           prepare only: replace an existing map that binds a
-                      different target, intent or CEM (otherwise refused
-                      with map-outdated) or that no longer verifies. The
-                      replaced map's links, marks and assessments are
-                      discarded, not carried over; copy the map aside first
-                      to keep that review.
-  --accumulate        link only: union the obligation's earlier hunks and
-                      claims with the new ones. Without it a link replaces
-                      only the claims on its own --test-path and keeps
-                      those on every other test path.
-
-report writes by default to .git/corvint/ocm-review.md, private Git metadata
-that never dirties the worktree. An explicit --output must be a normalized,
-repository-relative path inside the repository root that names no .git
-segment; an absolute path such as /tmp/report.md is refused with
-unsupported-ocm-output-path. A report written inside the worktree is a visible
-untracked file, which blocks clean-worktree admission (for example frozen
-selected-check verification) until it is moved or removed.
-
-The bound CEM must be a cem/1.0 map; a retired cem/0.x map refuses with
-unsupported-spec and its recovery line.
-
-prepare, link, and mark publish one source-body-free 0600 local map atomically.
-link verifies the OCM and bound CEM before mutation. status and verify are
-read-only. report publishes one source-body-free 0600 local report atomically
-only after a passing verification and policy verdict.
-`
-
 const queryHelpFormat = `Compile experimental repository context or the authority-start receipt.
 
 Usage:
@@ -2115,193 +1180,6 @@ bounded local self-observation row, and local-only, and
 emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.
 ` + cpuProfileHelpNote
 
-const localCompletionHelp = `Coordinate an explicitly enrolled local change workflow.
-
-Usage:
-  corvint [--root PATH] dogfood begin --plan FILE [--session-key HASH]
-  corvint [--root PATH] dogfood status [--session-key HASH]
-  corvint [--root PATH] dogfood verify --check ID [--session-key HASH]
-  corvint [--root PATH] dogfood finish [--session-key HASH]
-  corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
-  corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
-  corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]
-  corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]
-  corvint [--root PATH] dogfood export --output FILE [--session-key HASH]
-  corvint [--root PATH] dogfood import --input FILE [--session-key HASH]
-  corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
-  corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
-  corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]
-  corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH
-  corvint [--root PATH] dogfood change [--corvint-bin PATH] BASE
-  corvint [--root PATH] dogfood check [--base-verifier PATH] [--tree-verifier PATH]
-    [--override-verifier PATH] BASE
-  corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
-    [--override-verifier PATH] BASE
-  corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--seal yes|no]
-    [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
-    [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]
-  corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
-    [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
-  corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM]
-    [--intents-draft FILE] BASE
-  corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
-    [--draft DRAFT] BASE
-  corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
-
-A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
-and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
-characters; by default the host session environment is hashed. Only one session
-may own an active workflow in a worktree.
-
-verify executes selected argv and retains actual observations. finish validates
-bound CEM/OCM evidence and produces reports to inspect. review acknowledges that
-exact report set. A subsequent finish materializes the selected-check outcome,
-runs the strict dogfood check and records satisfaction only on success.
-
-Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
-non-success. Local satisfaction is caller-owned workflow evidence, never execution
-attestation or Frontier closure. Native event is a separate bounded adapter profile.
-
-hold records a coordinator's preservation hold on the active enrollment, under
-which cancel refuses enrollment-preservation-hold; begin the new base in a
-distinct checkout instead, or release it with --release-authorization TEXT, which
-is kept as a record (LCP-V0-880, LCP-V0-881).
-
-export writes the enrollment, its session files and the artifacts it names to a
-new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the
-Git directory before a worktree is archived. import restores it into a worktree
-at that exact commit and tree with no state for the key, relocating its saved
-paths; it never replaces an enrollment or invents satisfaction (LCP-V0-883..885).
-
-handoff is read-only. Without --receipt it emits a receipt naming the session key,
-root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
-degradations. With --receipt FILE (that emitted document) it re-resolves the same
-packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
-root, revision, enrollment, anchor and packet drift and withholds the recompiled
-packet. The receipt grants no authority. --task-state FILE emits a bounded bundle
-carrying inert caller scope, decisions, review feedback, unknowns and next actions.
---bundle FILE verifies that bundle using the explicitly selected original session
-key and withholds both packet and task state on drift; it never executes next actions.
-
-change, check and seal run the daily path of docs/DOGFOOD.md in the current Git
-repository, which needs no Corvint script, VERSION file or source tree. change
-writes the private evidence under the Git directory and .corvint/change.cem.json
-and .corvint/dogfood-report.json; check verifies the committed binding; seal
-checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json. Steps and
-verifiers run as this executable unless an option names another one; this binary
-never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
-DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
-DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
-For seal, DOGFOOD_REVIEW=FILE attaches an external report (at most 1 MiB) with
-one header: dogfood-review: reviewed-head=FULL_SHA verdict=PASS. It must name
-exact pre-seal HEAD; a malformed, nonpassing or different-head report refuses.
-The seal records its path, digest, verdict and head; absent review stays
-NOT_OBSERVED. Example: DOGFOOD_REVIEW=/tmp/review.txt corvint dogfood seal BASE.
-Existing pinned reviewer output also works with metadata-only descendants.
-DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
-citations of each named, already cited hunk, and only those; the digest is the one
-the citation-plan-recites-cited-hunk fix line prints, so a stale one cites
-nothing (DCW-V0-390..392). For check and
-seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status output
-differs from the base verifier's by construction: admitted only when HEAD's
-docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
-tree verifier in both roles and records base-independence=NOT_PROVED with both
-stdout digests, or base=NOT_PRODUCED and its refusal code when the base verifier
-refuses the read. The root, the current directory unless --root names one, must be
-the worktree top level.
-
-finish-lane runs the bind loop on a committed change: prepare, bind with the
---citations plan, commit .corvint/change.cem.json as "chore: bind change evidence",
-rebind, check and seal (default --seal yes); --seal no stops at the checked bind
-commit without sealing. Example: corvint dogfood finish-lane --base BASE --citations FILE --seal no.
-One stdout line per step is followed by every NOT_PRODUCED row and
-the check's SUMMARY and verdict. It stops at the first failing step with that
-step's own reason and fix line; rerun from a bind commit continues at rebind.
-Prepare also cites each plan row against the prepared map without writing it,
-so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and
-so does an intents manifest or a plan the bind would refuse before any cite:
-invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379). It
-never pushes. --citations, --intents, --verify and --outcome take precedence over
-DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
-(DCW-V0-060..062).
-
-inputs-check runs only finish-lane's input checks and prepare pass, naming the
-offending input file and row or line, then removes the prepared map: it binds,
-commits and seals nothing. make dogfood-closeout runs it before any bind work
-(DCW-V0-380); a finish-lane run with the same base, HEAD, inputs and binary
-reuses its prepare pass instead of preparing again (DCW-V0-887).
-
-batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
-sealed change the range adds, verifies each sealed CEM against its own base, and
-re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
-
-propose-citations is read-only. It prints, on stdout, one draft citation row per
-owed hunk: a stable BASE span naming the hunk path, its basename of at least 6
-bytes, or defining an ID the hunk adds or names (DWC-V0-926). Same-file nearest
-stable lines remain marked proposals; seal and repin rows cite their contracts.
-Bare Markdown headings and unsupported cross-file guesses are never drafted (DWC-V0-927).
-For spec amendments, prefer the stable governing BASE definition, including a
-continuation without its ID. Unanchored same-file proposals are marked; rewritten
-definitions remain governing-ID review notes (DWC-V0-928). JSON, .agent-evidence/ and one-line files are never drafted.
-Same-change intent is not BASE evidence (DCW-V0-440); a refined BASE requirement
-can be proposed only when its span also anchors this hunk. With no usable map
-(missing, unreadable or for another BASE) it drafts one row per hunk of the
-canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
-(DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write
-it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
-
---refresh PLAN carries an earlier plan forward after a later edit, amend or
-renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
-written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
-and content (else the same path and BASE range), and every re-keyed or dropped row
-is noted on stderr, a re-keyed unknown row's NOTE marked stale for review when
-its hunk's content changed (DCW-V0-884, DCW-V0-842); a plan drafted at another
-BASE is re-pinned to the BASE lines holding the same text, and a new hunk of a file
-whose other hunks carry a citation is proposed that citation, carried forward
-(DCW-V0-842); only the remaining hunks are drafted afresh. Without a
-citation-plan binding, ordinal rows resolve through the one sealed CEM of
-BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
-(DCW-V0-885). The bind refuses a
-stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
-For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
-
---intents-draft FILE also writes the draft DOGFOOD_INTENTS_FILE, its only write
-(DCW-V0-711): each Markdown file the change adds or modifies that derives as an
-intent at HEAD, sorted one per line, else #no-intent-declared. A file whose
-edits only repin citations, or an intent over one OCM map's obligation bound, is
-left out, the latter named in a NOTE; review the draft before use.
-
---from-cem CEM seeds the same refresh from a sealed CEM instead of a plan, such as
-.corvint/changes/COMMIT.cem.json after a mainline merge (DCW-V0-843): each of its
-hunks becomes a cite row per basis, its byte span read as BASE lines at the CEM's
-base, or an unknown row with the CEM's reason. It cannot be combined with --refresh
-(refresh-source-conflict), and an unreadable CEM is refused from-cem-unreadable.
-
-record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed
-claims in --claims FILE, the only file it writes: each row is kept with its hunk's
-path, content and BASE range and the hash of the BASE text it cites. A cite row of
---draft DRAFT, or of the earlier claims file, that the plan dropped is kept as a
-tombstone and never drafted again (CKC-V0-003, CKC-V0-007). --refresh FILE given
-a claims file compiles each claim onto the one current hunk with the same path,
-content and BASE range, relocated by its unique BASE text when BASE moved, and
-prints an ordinary hunk-ID plan; a duplicate, split, merged, changed or unlocated
-edit is drafted afresh with a REASSESS note naming its earlier rows (CKC-V0-004,
-CKC-V0-005).
-
-prechange records the agent pre-change receipts before the first edit, while
-HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context
---task into prechange-context.json (orientation only; it satisfies no slot),
-query --task into prechange-query.json and, with PATH, impact PATH... into
-prechange-impact.json, all under the Git directory's corvint/, then
-prechange-binding.json naming BASE, its tree, the Git directory, the task and
-each receipt's digest. --task defaults to DOGFOOD_TASK. It refuses
-prechange-after-change once the change began, and prechange-receipt-exists
-rather than overwrite a receipt it did not write. Each later dogfood change
-notes the bound receipts as OBSERVED, or why one is not (DCW-V0-881).
-For example, run corvint dogfood prechange --task "Fix the parser" BASE internal/parse/parse.go.
-`
-
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`
 // in the `[--root PATH]` preamble (GPK-V0-064, decision 0181): it must exist and must not be
 // option-like under argparseOptionLike. A literal `--` keeps its prior treatment as a value.
@@ -2399,45 +1277,4 @@ each EEP /3 endpoint span on the selected source line by line; a selected API wi
 resolved Go or JS/TS declaration otherwise reports only whole-file identity.
 Provider records may be EEP /1, /2 or /3 (endpoint span/symbol).
 Owning experimental contract: BKM-V0.
-`
-
-const stepHelp = `Observe experimental authoring step scope locally.
-
-Usage:
-  corvint [--root PATH] step snapshot --declaration FILE --host FILE
-  corvint [--root PATH] step verify --declaration FILE --host FILE --before FILE
-  corvint [--root PATH] step env-check --declaration FILE --host FILE
-
-All input files are bounded regular single-link files outside author/read-only
-checkouts and Git authority. A host-owned complete before-state is required for
-verify; actual post-state is recaptured. Git is externally pinned by path/hash.
-Outputs bind commit/tree, dirty/index/admin state and literal scope findings.
-Guards override writes. Optional environment observations contain key/classes
-only. No values are read. Exit 0 is PASS, 1 is observed violation, 2 is unavailable,
-unsupported or malformed evidence. An incomplete post-state retains completed
-component findings with no whole post-state digest. Oversized records refuse.
-
-Native observation supports Darwin/Linux descriptors; qualification is per OS.
-This command writes only stdout and fixed errors, never repository/index/trace
-state. Host assertions remain unauthenticated. Receipts do not prove confinement,
-concurrency, transient writes, ACL/xattr/timestamps or credential isolation, and
-never stop a job or authorize execution. Proposed contract: ASS-V0.
-`
-
-const deltaHelp = `Experimental immutable change record (corvint-delta/0).
-
-Usage:
-  corvint [--root PATH] delta --base FULL_SHA --head FULL_SHA
-    [--previous-generation FILE] [--provider FILE] [--checkout ID=PATH]
-    [--work-key-pattern PATTERN]
-
-Base and head must be full lowercase commit OIDs. Provider and checkout may repeat;
-provider inputs are bounded local records, with no command or network redispatch.
-A previous generation is a repository/base-bound docs flows manifest. Work keys
-are opaque commit-metadata identifiers; commit prose and source content are excluded.
-
-Prints deterministic canonical JSON without state, object, ref or index writes.
-Incomplete coverage retains uncertainty and runFullSuite. Lexical documentation
-and assertion denominators do not establish runtime coverage. This profile remains
-proposed and experimental pending acceptance and integration evidence.
 `

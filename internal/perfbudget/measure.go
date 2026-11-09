@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
-
 )
 
 // Sample is one measured wall time and the peak resident set of the process that served it.

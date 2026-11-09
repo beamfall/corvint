@@ -33,8 +33,6 @@
   [MCP setup](docs/MCP-SERVER.md) describe profiles and refusals.
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
-- `corvint-cem-candidate help --json`: the CEM candidate companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-cem-candidate.json))
 - `corvint-go-test-provider help --json`: the Go live-test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-go-test-provider.json))
 - `corvint-js-test-provider help --json`: the JavaScript test provider's tree
@@ -76,7 +74,6 @@
 - `corvint-cli --binary corvint-analyzer-sql-native help --json`: [corvint-analyzer-sql-native](internal/capcatalog/trees/corvint-analyzer-sql-native.json)
 - `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
 - `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
-- `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
 - `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)

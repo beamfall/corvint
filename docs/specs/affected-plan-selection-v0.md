@@ -2723,6 +2723,8 @@ this lane's allowed paths. These facts and the pending integration checks are re
   grants `docs/build-log/` or `.corvint/changes/`. Both entries SHALL leave the unbounded-reader
   ratchet record. No new scope grammar, runtime-command exemption or record-path exclusion is
   introduced.
+  Amended by decision 0594: `conformance/dashboard-snapshot-v0` and its producer were removed, so
+  only the `internal/dashboard/repository` scope remains.
 - **AFP-V0-3362:** (experimental; owner direction 2026-11-08, V1-5180)
   A repository regression SHALL exclude both declared readers for an unrelated build-log or
   CEM entry and retain them for their real fixture, source and build inputs. A dependency-closure
@@ -2745,6 +2747,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
   changing the reporter SHALL still select the target, and the actual writer SHALL retain
   its unresolved execution closure. Independent computed-invocation reasons remain selected.
   The caller/mention completeness gate remains mandatory.
+  Retired by decision 0594: both dogfood scripts were removed, so the declaration row is gone.
 
 ## Non-goals
 

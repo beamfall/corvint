@@ -19,10 +19,10 @@ func TestRepositoryInboundCallers_AZU_V0_8901(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixturePlan := affected.Select(graph, []string{"script/dogfood-change.sh"})
+	fixturePlan := affected.Select(graph, []string{"script/dogfood-merge-base.sh"})
 	foundFixtureReader := false
 	for _, s := range fixturePlan.Selected {
-		if s.UnitID == "shell:script/dogfood-change_test.sh" {
+		if s.UnitID == "shell:script/dogfood-merge-base_test.sh" {
 			foundFixtureReader = true
 		}
 	}

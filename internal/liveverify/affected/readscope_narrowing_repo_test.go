@@ -60,7 +60,7 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 		"internal/perfbudget", "conformance/cli-parity-v0",
 		"conformance/mcp-2026-07-28", "internal/jstestprovider",
 		"protocol/integrations", "tools/ci-forward-row", "tools/requirement-id-collisions",
-		"shell:script/gate-affected_test.sh", "shell:script/dogfood-change_test.sh",
+		"shell:script/gate-affected_test.sh",
 		"shell:script/vscode-check-install_test.sh", "shell:script/check-install-lifecycle_test.sh",
 	}
 	for _, test := range []struct {
@@ -68,10 +68,10 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 		narrowed []string
 		readers  []string
 	}{
-		{"docs/specs/test-selection-precision-v0.md", narrowed, []string{"internal/specindex", "internal/lrfrepo"}},
-		{"docs/specs/source-documentation-draft-v0.md", narrowed, []string{"internal/lrfrepo"}},
+		{"docs/specs/test-selection-precision-v0.md", narrowed, []string{"internal/specindex"}},
+		{"docs/specs/source-documentation-draft-v0.md", narrowed, []string{"internal/specindex"}},
 		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/compactionkernel",
-			"internal/sharedpath", "script/spec-coverage-audit"}, narrowed...), []string{"internal/lrfrepo"}},
+			"internal/sharedpath", "script/spec-coverage-audit"}, narrowed...), []string{"internal/specindex"}},
 	} {
 		units := selectedUnits(graph, module, test.dirty)
 		for _, unit := range test.narrowed {
@@ -98,12 +98,10 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 		{".github/cishards/package-costs.json", "internal/perfbudget"},
 		{"integrations/opencode/README.md", "internal/opencodequalification"},
 		{"examples/evidence-provider/v0/main.go", "examples/evidence-provider/v0/conformance"},
-		{"Makefile", "shell:script/dogfood-cache_test.sh"},
 		{"Makefile", "shell:script/core-n1-replay-default_test.sh"},
 		{"Makefile", "shell:script/spec-requirements-conflict_test.sh"},
 		{"extensions/vscode/biome.json", "shell:script/vscode-check-install_test.sh"},
 		{"tools/gate-affected-select/main.go", "shell:script/gate-affected_test.sh"},
-		{"docs/DOGFOOD.md", "shell:script/dogfood-change_test.sh"},
 	} {
 		if _, selected := selectedUnits(graph, module, test.dirty)[test.unit]; !selected {
 			t.Errorf("%s: declared reader %s not selected", test.dirty, test.unit)

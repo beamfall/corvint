@@ -5,7 +5,6 @@ package bridge
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/flowcoverage/testfixture"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -159,7 +157,7 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 			tool, arguments string
 		}{
 			{registry, ToolQuery, task}, {registry, ToolImpact, `{"paths":["internal/widget/widget.go"]}`},
-			{registry, ToolStatus, `{}`}, {review, ToolContext, task}, {review, ToolCEMReport, cemArguments(t, clone)},
+			{registry, ToolStatus, `{}`}, {review, ToolContext, task},
 			{registry, ToolFlowsMap, `{"flows":"flows"}`}, {registry, ToolFlowsGaps, `{"flows":"flows"}`},
 			{registry, ToolFlowsImpact, `{"flows":"flows","base":"` + base + `"}`}, {registry, ToolFlowsNavigate, `{"flows":"flows"}`},
 		} {
@@ -241,112 +239,5 @@ func TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching(t *testing
 				t.Fatalf("drops guard %v: control coverage over a clone holding every HEAD blob did not serve READY: %#v %#v", dropsLazyFetchGuard, callErr, result)
 			}
 		}
-	}
-}
-
-// V1-1039: corvint.cem.report over a full blob:none clone whose CEM map is present in the
-// worktree, with every HEAD blob local and only the cited base blob left on the promisor remote,
-// gets past the map read to the stable verifier, whose result is UNSUPPORTED with code
-// repository-object-unavailable (the cem/1.0 map of CEM-V1-214; CEM-V1-211), without reaching the
-// remote, also through a Git that ignores GIT_NO_LAZY_FETCH (invariant 4, MCPV0-017). A clone
-// without the filter accepts the same map and artifacts, so the refusal is the missing blob's. The
-// remote's upload-pack touches a sentinel first, so a fetch attempt leaves it even though the
-// removed source cannot serve one; a final lazy cat-file with the file transport allowed shows the
-// sentinel records one. It sets PATH, so it is not parallel.
-func TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching(t *testing.T) {
-	realGit, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, base, target := cemRepository(t)
-	mapBytes, err := os.ReadFile(filepath.Join(source, ".corvint", "change.cem.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	artifacts := map[string]string{}
-	if err := filepath.WalkDir(filepath.Join(source, "artifacts"), func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil || !entry.Type().IsRegular() {
-			return walkErr
-		}
-		data, err := os.ReadFile(path)
-		relative, _ := filepath.Rel(filepath.Join(source, "artifacts"), path)
-		artifacts[relative] = string(data)
-		return err
-	}); err != nil || len(artifacts) == 0 {
-		t.Fatalf("fixture artifacts: %v", err)
-	}
-	baseBlob := strings.TrimSpace(string(gitOutput(t, source, "rev-parse", base+":src/app.txt")))
-	gitOutput(t, source, "config", "uploadpack.allowFilter", "true")
-	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
-	clone := func(flags ...string) string {
-		root, err := filepath.EvalSymlinks(t.TempDir())
-		if err != nil {
-			t.Fatal(err)
-		}
-		gitOutput(t, source, append(append([]string{"clone", "-q", "-c", "protocol.file.allow=always"}, flags...), "file://"+source, root)...)
-		gitOutput(t, root, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
-		writeFile(t, filepath.Join(root, ".corvint", "change.cem.json"), string(mapBytes))
-		for path, data := range artifacts {
-			writeFile(t, filepath.Join(root, "artifacts", path), data)
-		}
-		return root
-	}
-	partial, complete := clone("--filter=blob:none"), clone()
-	if err := os.RemoveAll(source); err != nil {
-		t.Fatal(err)
-	}
-	present := func(root, object string) bool {
-		command := exec.Command("git", "-C", root, "cat-file", "-e", object)
-		command.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=")
-		return command.Run() == nil
-	}
-	if present(partial, baseBlob) || !present(complete, baseBlob) || !present(partial, target+":src/app.txt") {
-		t.Fatal("fixture: the partial clone must lack only the base blob and the complete clone must hold it")
-	}
-	arguments := []byte(`{"map":".corvint/change.cem.json","artifacts":"artifacts","expectedBase":"` + base + `","target":"` + target + `"}`)
-	for _, dropsLazyFetchGuard := range []bool{false, true} {
-		if dropsLazyFetchGuard {
-			shim := t.TempDir()
-			writeFile(t, filepath.Join(shim, "git"), "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '"+realGit+"' \"$@\"\n")
-			if err := os.Chmod(filepath.Join(shim, "git"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
-		}
-		for _, test := range []struct {
-			name, root string
-			refused    bool
-		}{{"complete", complete, false}, {"partial", partial, true}} {
-			registry, err := newTaskReview(test.root)
-			if err != nil {
-				t.Fatal(err)
-			}
-			before := rootDigest(t, test.root)
-			result, callErr := registry.Call(liftedProbeContext(), ToolCEMReport, arguments)
-			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
-				t.Fatalf("drops guard %v: cem.report over the %s clone reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, test.name, err)
-			}
-			if after := rootDigest(t, test.root); after != before {
-				t.Fatalf("drops guard %v: cem.report over the %s clone changed repository bytes", dropsLazyFetchGuard, test.name)
-			}
-			// The stable verifier names the missing object inside its result, so the refusal is
-			// shown to be the missing blob and not a map, artifact or other Git failure.
-			verification, _ := json.Marshal(result.Receipt["stableVerification"])
-			var stable struct{ Outcome, Code string }
-			_ = json.Unmarshal(verification, &stable)
-			if test.refused && (callErr != nil || result.State != "READY" || result.Receipt["ok"] != false ||
-				stable.Outcome != "UNSUPPORTED" || stable.Code != cemcode.RepositoryObjectUnavailable) {
-				t.Fatalf("drops guard %v: cem.report with a missing cited blob = %#v %+v %#v, want UNSUPPORTED %s", dropsLazyFetchGuard, callErr, stable, result.State, cemcode.RepositoryObjectUnavailable)
-			}
-			if !test.refused && (callErr != nil || result.State != "READY" || result.Receipt["tool"] != "cem-report" || stable.Outcome != "ACCEPT") {
-				t.Fatalf("drops guard %v: control cem.report over the complete clone = %#v %#v, want READY", dropsLazyFetchGuard, callErr, result)
-			}
-		}
-	}
-	lazy := exec.Command("git", "-C", partial, "cat-file", "-p", baseBlob)
-	lazy.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=0")
-	_ = lazy.Run()
-	if _, err := os.Stat(sentinel); err != nil {
-		t.Fatalf("a lazy fetch with the file transport allowed left no sentinel, so the sentinel proves nothing: %v", err)
 	}
 }

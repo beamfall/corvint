@@ -2,15 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-10-27
-Intent status: experimental under the standing lane auto-accept (2026-10-27; V1-2841)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the `gate` command group and
+`internal/gateagreement` (4663b4e2b is the last tree with them). The body below is historical and
+its requirement IDs stay for traceability.
 Authoritative inputs: V1-2841 / GitHub #1903 owner request, agent-drafted;
 `test-source-analysis-v0.md` (`tests lint`, `tests duplicates`); `migration-evidence-ratchet-v0.md`
 (`migration-ratchet`); AGENTS.md invariants 2, 3, 4 and 8.
 
 ## Agent digest
 - Claim: Gate-shaped commands run advisory, compare findings with caller verdicts, log one agreement record per run and summarise agreement per rule.
-- Status: experimental under the standing lane auto-accept (2026-10-27; V1-2841)/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/gateagreement`, `cmd/corvint/gate_agreement.go`, `--advisory`, `--compare` and `--log` on `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity` and `corvint migration-ratchet`, and `corvint tests agreement`.
 - Blocked on: other gate-shaped commands (`tests citations`, `cem gate`) are not wired; real adopter runs are NOT_RUN.
 - Read next: Requirements; Failure modes; Traceability.

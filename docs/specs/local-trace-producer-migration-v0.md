@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Accepted: 2026-08-23
 Intent status: accepted
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the `migrate` command group and
+`internal/tracemigraterepo`; trace migration requirements are retired.
 Authoritative inputs: the 2026-08-23 owner delegation; `docs/DOGFOOD.md`;
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`; frozen
 `docs/specs/local-observability-dashboard-v0.md` at SHA-256

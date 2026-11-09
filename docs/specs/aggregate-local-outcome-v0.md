@@ -3,6 +3,8 @@
 Owner: repository owner. Proposed build slice: V1-0611. Date: 2026-10-02.
 Intent status: proposed
 Delivery status: experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete
+Retirement note: decision 0594 (2026-11-09) deleted `internal/dogfoodflow`,
+`internal/dogfoodoperation` and `internal/localcompletion`; requirements naming them are retired.
 Human job: finish a complete explicitly enrolled change whose current-path admission exceeds the
 legacy learning recorder's 200-path limit, retaining all evidence and refusing partial completion.
 

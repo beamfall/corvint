@@ -12,6 +12,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -507,6 +508,10 @@ func dogfoodSites(root string, repo *repository) ([]site, error) {
 	fileSet := token.NewFileSet()
 	dir := filepath.Join(root, filepath.FromSlash(dogfoodDir))
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		// internal/dogfoodflow was retired by decision 0594; the surface reports zero sites.
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}

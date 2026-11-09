@@ -5,6 +5,8 @@ Date: 2026-09-19
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
 Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted the `taskman` and `work` command groups
+(`cmd/corvint/taskman_fixture.go`); `internal/taskman` leaves with Corvint Tasks.
 Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 

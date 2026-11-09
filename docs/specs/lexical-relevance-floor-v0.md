@@ -3,14 +3,17 @@
 Owner: Russell Lewis
 Frozen: 2026-08-22
 Amended: 2026-08-30 (30-case conformance plan alignment); 2026-10-13 (V1-1278 S3, `CEM-V1-225`: decision 0525 removed `cem/0.x`, so the CEM 0.1 and 0.2 sentences below describe the retired wire and are historical, and `lrf/0` evaluates no map, `CEM-V1-210`)
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the `lrf` command group,
+`internal/lrf`, `internal/lrfrepo` and `conformance/lrf-v0` (4663b4e2b is the last tree with them).
+The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/ocm-v0-dogfood.md`,
 `docs/specs/change-frontier-v0.md`
 
 ## Agent digest
 - Claim: Lexical Relevance Floor qualifies bounded lexical proximity without treating it as semantic evidence or obligation closure.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/lrf`, `internal/lrfrepo`, and `conformance/lrf-v0` experimental surfaces.
 - Blocked on: a stable LRF evaluation (the frozen 41-case `lrf/0` corpus was retired by `CEM-V1-217`; `conformance/lrf-v0/retired.json` records it) and independent evidence beyond structural self-use.
 - Read next: User and job; Verified current state; Definitions.

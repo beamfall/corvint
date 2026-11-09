@@ -1,6 +1,5 @@
 # BASE defaults to origin/main, the base every branch is cut from (ACX-V0-857, V1-3734).
 BASE ?= origin/main
-DOGFOOD_GOCACHE := $(or $(CORVINT_GOCACHE),$(GOCACHE),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache)
 # ASD-V0-914 (V1-3796): the default cache sits under TMPDIR (trailing slash dropped), else /tmp, so a
 # lane that points TMPDIR at a roomy scratch volume does not fill a small /tmp.
 CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache
@@ -49,13 +48,9 @@ pi-protected-build:
 .PHONY: pi-protected-test
 pi-protected-test: pi-protected-build
 	node --test integrations/pi-protected/*.test.mjs
-	cd tools/local-authority && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...
 
 # gate is the reproducible verification gate: it must pass from a fresh clone with no private
-# .corvint/ state. dogfood-check is a separate authoring-time discipline step (AGENTS.md), run
-# explicitly with BASE=<sha> after committing the change and its CEM (docs/DOGFOOD.md); it is
-# not a gate prerequisite because it depends on
-# untracked, gitignored .corvint/ artifacts that a clean checkout never has.
+# .corvint/ state.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
 # One step per line (V1-3470, STR-V0-920): the first five run first in this order; the rest
 # stay sorted, so lanes adding different steps insert at different lines and merge cleanly.
@@ -76,8 +71,6 @@ GATE_STEPS = \
   batch-precheck-test \
   binary-blobs-check \
   capability-catalog-test \
-  cem-base-retention-check \
-  cem-base-retention-test \
   changed-checks-test \
   ci-least-privilege-check \
   ci-least-privilege-test \
@@ -89,10 +82,6 @@ GATE_STEPS = \
   diagnostic-coverage-check \
   documentation-paths-check \
   documentation-paths-test \
-  dogfood-bin-reuse-test \
-  dogfood-cache-test \
-  dogfood-change-test \
-  dogfood-closeout-repin-test \
   dogfood-merge-base-test \
   eol-policy-check \
   eol-policy-test \
@@ -123,7 +112,6 @@ GATE_STEPS = \
   mkfifo-build-tags-check \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
-  pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-checklist-test \
@@ -198,7 +186,7 @@ host-adapter-node-test:
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
-	CORVINT_REQUIRE_NODE=1 GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
+	CORVINT_REQUIRE_NODE=1 GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestCodexHostAdapter|TestHostAdapter|TestPi)'
 
 .PHONY: go-version
 go-version:
@@ -377,8 +365,6 @@ spec-requirements: ## Regenerate docs/specs/REQUIREMENTS.tsv from the staged spe
 	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
 	@SPEC_REQUIREMENTS_BASE="$(if $(filter command line environment environment override,$(origin BASE)),$(BASE),)" SPEC_CAPACITY_MARGIN="$(SPEC_CAPACITY_MARGIN)" script/gen-spec-requirements.sh --write
-	@test -d internal/lrfrepo || exit 0; out=$$(script/heavy.sh $(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
-	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
 
 # SRG-V0-744: check staged specs before lane closeout and batch integration.
 SPEC_CAPACITY_MARGIN ?= 8
@@ -415,14 +401,11 @@ repin: ## Apply the mechanical repins an output-neutral edit needs
 	@script/repin.sh --base "$(REPIN_BASE)"
 
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
-# ASD-V0-615 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
-# gates, not only batch-precheck's drift tests, catch a requirement edit that drifts a pin.
 .PHONY: spec-requirements-check
 spec-requirements-check: spec-readme-check
 	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
-	$(DOC_GATE_LIGHT_GO_TEST) -run '^(TestSpecsStayWithinTheOCMObligationBound$$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -480,17 +463,6 @@ traceability-tests-test:
 .PHONY: decision-numbers-check
 decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
-
-# cem-base-retention-check (decision 0588, V1-3758) refuses a tracked .corvint/changes map whose
-# baseRevision origin/main does not reach unless .corvint/cem-lineage.tsv labels it; with no
-# origin/main (a shallow clone) it prints that it was skipped. cem-base-retention-test is its fixture test.
-.PHONY: cem-base-retention-check
-cem-base-retention-check:
-	@script/check-cem-base-retained.sh
-
-.PHONY: cem-base-retention-test
-cem-base-retention-test:
-	@script/check-cem-base-retained_test.sh
 
 .PHONY: decision-numbers-test
 decision-numbers-test:
@@ -668,7 +640,6 @@ capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || 
 capability-catalog: ## Regenerate the capability catalog after help usage changes
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
-	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
 	$(call capcatalog_write,./cmd/corvint-go-test-provider help --json,internal/capcatalog/trees/corvint-go-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-js-test-provider help --json,internal/capcatalog/trees/corvint-js-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
@@ -942,7 +913,7 @@ scratch-sweep-test:
 repin-test:
 	@script/repin_test.sh
 
-# DCW-V0-811: the grep -P stand-in the dogfood shell tests use on a host without ripgrep.
+# DCW-V0-811: the grep -P stand-in the shell tests use on a host without ripgrep.
 .PHONY: rg-fallback-test
 rg-fallback-test:
 	@script/test-rg-fallback_test.sh
@@ -952,12 +923,6 @@ rg-fallback-test:
 .PHONY: pre-push-windows-vet-test
 pre-push-windows-vet-test:
 	@script/pre-push-windows-vet_test.sh
-
-# pre-push-dogfood-seal-test pushes through script/pre-push-dogfood-seal.sh, the installable Git
-# pre-push hook that refuses a branch whose commits no sealed CEM binds (DCW-V0-348, V1-2805).
-.PHONY: pre-push-dogfood-seal-test
-pre-push-dogfood-seal-test:
-	@script/pre-push-dogfood-seal_test.sh
 
 # batch-precheck runs, in a few minutes, every generated-artifact drift, catalog and import-direction
 # check batch CI runs: the doc-gates steps it derives from ci.yml, after the mechanical repins; gofmt;
@@ -972,8 +937,8 @@ pre-push-dogfood-seal-test:
 # environment and declared inputs are unchanged since a ledger pass prints REUSE instead of rerunning
 # (ASD-V0-042, V1-2985; CORVINT_GATE_LEDGER=off reruns every step).
 # batch-review-packet BASE=<sha> [HEAD=<rev>] prints the bounded, read-only batch reviewer input for
-# the checked-out merged range: the reviewed revision, lane overlap, corvint impact and dogfood
-# batch-check (ASD-V0-043, V1-2986).
+# the checked-out merged range: the reviewed revision, lane overlap and corvint impact
+# (ASD-V0-043, V1-2986).
 # ASD-V0-1991: public batch entry points clear inherited lane-closeout authority. Only the two
 # closeout recipes below opt in inline, invoking the script directly rather than this target.
 .PHONY: batch-precheck
@@ -1168,13 +1133,13 @@ core-n1-replay:
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
 	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)$$' ./cmd/corvint
 
-# Dogfood targets never use the file default `BASE ?= origin/main` (a moving ref, not a pinned sha):
+# BASE-taking targets never use the file default `BASE ?= origin/main` (a moving ref, not a pinned sha):
 # BASE must come from the command line or the environment, or the target refuses before any work
-# (ASD-V0-019, V1-1755). dogfood-finish passes the empty value on so its one-line refusal names it.
+# (ASD-V0-019, V1-1755).
 # DWC-V0-7601 (V1-4721): BASE=merge-forward is the merged mainline commit of the lane's newest
 # merge-forward (script/dogfood-merge-base.sh), derived once. A refused lookup stops make before any
-# target runs: an empty DOGFOOD_BASE reads as an omitted BASE, so dogfood-check would check the
-# bound base and the batch prechecks would run with no base. The helper prints only a SHA, so the
+# target runs: an empty DOGFOOD_BASE reads as an omitted BASE, so the batch prechecks would run
+# with no base. The helper prints only a SHA, so the
 # empty output is the refusal (make 3.81 has no .SHELLSTATUS).
 DOGFOOD_MERGE_FORWARD_BASE := $(if $(filter merge-forward,$(BASE)),$(shell script/dogfood-merge-base.sh))
 ifneq ($(filter merge-forward,$(BASE)),)
@@ -1183,76 +1148,7 @@ $(error BASE=merge-forward refused: script/dogfood-merge-base.sh derived no BASE
 endif
 endif
 DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(if $(filter merge-forward,$(BASE)),$(DOGFOOD_MERGE_FORWARD_BASE),$(BASE)))
-DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (origin/main) is not used by dogfood targets
-
-.PHONY: dogfood-change
-# With TASK= and PATHS= it first records the agent pre-change receipts, as dogfood-prechange does (DCW-V0-621).
-# A pass that only awaits the commit of its own sidecar prints PENDING and exits 3; make reports
-# that expected step as success (DCW-V0-2143).
-dogfood-change: ## Collect dogfood pre-change context (needs BASE=<full sha>)
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(if $(PATHS),DOGFOOD_TASK="$(TASK)" DOGFOOD_PRECHANGE_PATHS="$(PATHS)") $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"; \
-	  rc=$$?; test "$$rc" -ne 3 || exit 0; exit "$$rc"
-
-# Record the agent pre-change receipts at BASE before the first edit (DCW-V0-880): TASK is the task
-# text, PATHS the tracked files the change intends to touch.
-.PHONY: dogfood-prechange
-dogfood-prechange:
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_TASK="$(TASK)" $(HEAVY_NICE_PREFIX) script/dogfood-prechange.sh "$(DOGFOOD_BASE)" $(PATHS)
-
-# Without BASE, dogfood-check takes the base of the CEM committed at HEAD, and the script refuses
-# naming BASE when none is bound (ASD-V0-085, V1-3172).
-.PHONY: dogfood-check
-dogfood-check: ## Check the bound CEM (needs BASE=<full sha>)
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-check.sh $(if $(DOGFOOD_BASE),"$(DOGFOOD_BASE)",--bound-base)
-
-# DCW-V0-2142 (V1-4442): the one rebind step after a reset dropped an unpushed bind or seal commit:
-# quarantine the stranded traces `make dogfood-inputs-check` notes, with this tree's build.
-.PHONY: dogfood-retire-traces
-dogfood-retire-traces: ## Quarantine traces of commits HEAD no longer reaches (after a reset)
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-retire-traces.sh
-
-.PHONY: dogfood-seal
-dogfood-seal: ## Seal the checked CEM (needs BASE=<full sha>)
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(DOGFOOD_BASE)"
-
-# Each input reaches the wrapper as one single-quoted word, whatever bytes its path holds.
-dogfood_finish_quote = '$(subst ','\'',$(1))'
-
-# script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
-# VERIFY and OUTCOME (ASD-V0-015). The first, unadmitted line runs that refusal alone
-# (DOGFOOD_FINISH_INPUTS_ONLY=1), so a missing input is named before heavy.sh queues on host load
-# (ICL-V0-030).
-.PHONY: dogfood-finish
-dogfood-finish:
-	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
-		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
-		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
-		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
-		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-
-# dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first
-# line prints a hint for a script/*_test.sh added since BASE that is not registered (ASD-V0-569). In a
-# repository that carries script/repin-use-case-receipts.sh and its ledger it first refuses a stale
-# use-case receipt, naming it, which the seal and CI would otherwise refuse later (DWC-V0-3725,
-# V1-4163). Its next, unadmitted line runs the static input pre-check (DCW-V0-731); the last admits
-# on heavy.sh's light pool (ASD-V0-732). SEAL reaches it only so a dogfood-closeout SEAL=0 retry
-# keeps SEAL=0 (DTL-V0-004); the pre-flight itself never seals.
-.PHONY: dogfood-inputs-check
-dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
-	@if [ -x script/register-shell-test.sh ]; then script/register-shell-test.sh --hint $(call dogfood_finish_quote,$(DOGFOOD_BASE)); fi
-	@[ ! -x script/repin-use-case-receipts.sh ] || [ ! -f conformance/use-cases-v0/ledger.json ] || receipts=$$(script/repin-use-case-receipts.sh --check 2>&1) || { printf '%s\n' "$$receipts" >&2; \
-		printf 'dogfood-inputs-check: stale use-case receipt: run script/repin-use-case-receipts.sh, commit the repin, then rerun (DWC-V0-3725)\n' >&2; exit 1; }
-	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
-		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
-		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT_LIGHT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
-		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
-		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
+DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (origin/main) is not used by BASE-taking targets
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
@@ -1342,110 +1238,6 @@ doc-gates: spec-status-check ## Run the documentation gates
 	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going -j$(DOC_GATE_JOBS) $(addprefix doc-gate/,$(DOC_GATE_TARGETS))
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
-# dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
-# pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
-# batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
-# before any bind or seal; and dogfood-finish with the same variables. The batch-precheck for the
-# receipt of the sealed head is its own command, dogfood-closeout-precheck, so the closeout fits one
-# lane command budget and a post-seal timeout no longer reads as a failed seal (DCW-V0-923, V1-3850);
-# it selects against the head the last passing receipt names, so a step the bind and seal commits
-# cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
-# batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
-# precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
-# on the sealed head (ASD-V0-837, V1-3550); it runs only the @prebind ones, which cannot read it, so
-# their failure stops the closeout before the bind, and the second precheck carries their passes
-# while the evidence plan still binds them (ICL-V0-020, ICL-V0-021).
-# dogfood-finish reuses the pre-flight's prepare, so cem prepare runs once (ICL-V0-010).
-.PHONY: dogfood-closeout
-# DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
-# refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
-# ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
-# DWC-V0-745 (V1-3837): a phase line after each stage says the closeout continues, so a precheck
-# ending on a base-present "no receipt" line, then minutes of bind, check and seal, does not read as
-# a stop. DWC-V0-746 (V1-4072): the head before the bind is recorded, so that when the separate
-# dogfood-closeout-precheck (DCW-V0-923) refuses, script/dogfood-closeout-unwind.sh can drop the
-# bind and seal commits again.
-# ASD-V0-567 (V1-4114, V1-3477): each step prints its number, name, result and wall time on one
-# line, a failed step prints `dogfood-closeout: FAILED step N/5 NAME rc=RC after Ss` and the exact
-# command that resumes at that step, and CLOSEOUT_FROM=N skips the steps before N, so a closeout cut
-# by a tool timeout resumes where it stopped. ASD-V0-568 (V1-4101): the repin step commits a
-# mechanical repin and refreshes the plan before the pre-flight, whose line-citation and use-case
-# receipt checks need current pins, and batch-precheck read them; the pre-flight then checks the
-# refreshed plan. When the repin is enabled, the missing-input refusal runs alone first
-# (DOGFOOD_STATIC_PRECHECK=0 stops the wrapper after it), so a closeout missing an input commits no
-# repin. DTL-V0-004: a SEAL=0 closeout keeps SEAL=0 in its resume command. The resume command is
-# printed by printf as one single-quoted word, so a value holding a double quote or a backtick prints
-# as given and never runs (ASD-V0-567).
-# ASD-V0-3730: only a fresh run (CLOSEOUT_FROM=1) records the start head: it empties the record after
-# step 1, so the cheap static checks still run first (ASD-V0-2010), and writes HEAD before step 5. A resumed run keeps a record it finds, so a CLOSEOUT_FROM=5 resume
-# after a bind commit still unwinds to the head before that bind; it writes one only where none exists.
-CLOSEOUT_FROM ?= 1
-closeout_start = "$$(git rev-parse --git-path dogfood-closeout-start)"
-# The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
-DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
-closeout_seal = $(if $(filter x0x,x$(SEAL)x),SEAL=0 ,$(if $(SEAL),SEAL=$(call dogfood_finish_quote,$(SEAL)) ))
-closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(closeout_seal)CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
-closeout_inputs_present = [ -z $(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) ] || DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_STATIC_PRECHECK=0 DOGFOOD_FINISH_PREFLIGHT=1 \
-	DOGFOOD_FINISH_SEAL=$(call dogfood_finish_quote,$(or $(SEAL),1)) DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
-	$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) $(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
-closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
-	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
-	if [ $$rc -ne 0 ]; then echo "dogfood-closeout: FAILED step $(1)/5 $(2) rc=$$rc after $${secs}s" >&2; \
-	printf 'resume: %s\n' $(call dogfood_finish_quote,$(call closeout_resume,$(1))) >&2; exit $$rc; fi; \
-	echo "dogfood-closeout: step $(1)/5 $(2) ok after $${secs}s" >&2; fi
-dogfood-closeout: export LANE = 1
-dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
-dogfood-closeout:
-	@$(call closeout_step,1,static-checks,$(MAKE) --no-print-directory spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))")
-	@[ 1 -lt $(CLOSEOUT_FROM) ] || : > $(closeout_start)
-	@$(call closeout_step,2,repin,$(closeout_inputs_present) && DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
-	@$(call closeout_step,3,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
-	@[ 3 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
-	@$(call closeout_step,4,batch-precheck,BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)'))
-	@[ 4 -lt $(CLOSEOUT_FROM) ] || printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
-	@[ 1 -lt $(CLOSEOUT_FROM) ] && [ -s $(closeout_start) ] && printf 'dogfood-closeout: resume keeps the start head %s the first run recorded (ASD-V0-3730)\n' "$$(cat $(closeout_start))" >&2 || git rev-parse HEAD > $(closeout_start)
-	@$(call closeout_step,5,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)
-	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
-
-# DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
-# A rerun after a timeout reuses the gate ledger's per-step results (ASD-V0-042), and a receipt that
-# already names the clean HEAD runs nothing (ASD-V0-943). DWC-V0-746 (V1-4072): a refusal unwinds the
-# bind and seal commits to the head dogfood-closeout recorded; DWC-V0-758: the last line says whether
-# the sealed head has a precheck receipt.
-.PHONY: dogfood-closeout-precheck
-dogfood-closeout-precheck: export LANE = 1
-dogfood-closeout-precheck:
-	@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)') || { script/dogfood-closeout-unwind.sh "$$(cat "$$(git rev-parse --git-path dogfood-closeout-start)" 2> /dev/null)"; exit 1; }
-	@printf 'dogfood-closeout: DONE sealed head %s %s\n' "$$(git rev-parse HEAD)" "$$(script/batch-precheck.sh --verify-receipt HEAD > /dev/null 2>&1 && echo 'has a precheck receipt' || echo 'has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines')"
-
-.PHONY: dogfood-batch-check
-dogfood-batch-check:
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(DOGFOOD_BASE)"
-
-.PHONY: dogfood-bind-range
-dogfood-bind-range:
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@test -n "$(TARGET)" || { echo "TARGET is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
-
-.PHONY: dogfood-bind-range-test
-dogfood-bind-range-test:
-	@script/dogfood-bind-range_test.sh
-
-# The dogfood wrapper fixtures run in the gate and CI's shell job (ASD-V0-091, V1-3250).
-.PHONY: dogfood-cache-test
-dogfood-cache-test:
-	@script/dogfood-cache_test.sh
-
-.PHONY: dogfood-bin-reuse-test
-dogfood-bin-reuse-test:
-	@script/dogfood-bin-reuse_test.sh
-
-.PHONY: dogfood-closeout-repin-test
-dogfood-closeout-repin-test:
-	@script/dogfood-closeout-repin_test.sh
-
 .PHONY: dogfood-merge-base-test
 dogfood-merge-base-test:
 	@script/dogfood-merge-base_test.sh
@@ -1492,12 +1284,6 @@ requirement-next-id:
 .PHONY: requirement-id-collisions
 requirement-id-collisions:
 	@script/requirement-id-collisions.sh $(if $(REF),--base "$(REF)")
-
-# ASD-V0-955 (V1-1629): per-lane dogfood-change run counts from the repository-wide ledger, for the
-# batch measurement; run on each lane host before lane-clean.sh, for example SINCE=2026-11-01.
-.PHONY: dogfood-change-runs
-dogfood-change-runs:
-	@script/dogfood-change-runs.sh $(if $(SINCE),"$(SINCE)")
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018) and the .github split
 # check (ASD-V0-706); no Go build.
@@ -1553,10 +1339,6 @@ test-run-pattern-test:
 .PHONY: companion-release-gate-test
 companion-release-gate-test:
 	@script/corvint-companion-release-gate_test.sh
-
-.PHONY: dogfood-change-test
-dogfood-change-test:
-	@script/dogfood-change_test.sh
 
 .PHONY: runtime-environment-test
 runtime-environment-test:
@@ -1628,17 +1410,12 @@ shell-test: \
   batch-assemble-test \
   batch-precheck-test \
   capability-catalog-test \
-  cem-base-retention-test \
   changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
   decision-numbers-test \
   documentation-paths-test \
-  dogfood-bin-reuse-test \
-  dogfood-cache-test \
-  dogfood-change-test \
-  dogfood-closeout-repin-test \
   dogfood-merge-base-test \
   eol-policy-test \
   error-code-ownership-test \
@@ -1658,7 +1435,6 @@ shell-test: \
   merge-drivers-test \
   mkfifo-build-tags-test \
   no-python-runtime-dependency-test \
-  pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
   release-checklist-test \
@@ -1713,19 +1489,19 @@ perf-budget: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$tmp/perf-budget" ./internal/perfbudget/cmd/perf-budget && \
 	"$$tmp/perf-budget" $(if $(filter 1,$(PERF_BUDGET_REQUIRE_JUDGEMENT)),--require-judgement) $(PERF_BUDGET_ARGS)
 
-# AHI-199 (V1-2440): heavy targets (GO_TEST_COMMAND, the ledger/% gate steps, dogfood-change/check)
+# AHI-199 (V1-2440): heavy targets (GO_TEST_COMMAND, the ledger/% gate steps)
 # run below interactive priority so hook adapters keep their CPU share under lane test load. The
 # STR-V0-006-pinned go-test and ledger/go-test recipes stay unprefixed; script/heavy.sh lowers them.
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
-# ASD-V0-930 (V1-3626): the heavy non-test targets (build, doc-gates, batch-precheck,
-# dogfood-inputs-check, dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
+# ASD-V0-930 (V1-3626): the heavy non-test targets (build, doc-gates, batch-precheck)
+# take a slot of the same host-wide
 # script/heavy.sh queue as go test; steps they run through heavy.sh nest without a second slot
 # (ASD-V0-931). --admit-only: a slot only, no offload or argument rules. Empty under CI, and
 # HEAVY_ADMIT= opts out.
 HEAVY_ADMIT ?= $(if $(CI),,script/heavy.sh --admit-only)
-# ASD-V0-732 (NEW-B6): short, bounded targets (dogfood-inputs-check and the doc gates that run a
-# few named tests) admit on heavy.sh's light pool under its run-time cap (ASD-V0-731) instead of
+# ASD-V0-732 (NEW-B6): short, bounded targets (the doc gates that run a few named
+# tests) admit on heavy.sh's light pool under its run-time cap (ASD-V0-731) instead of
 # queueing behind long test runs. Empty under CI; HEAVY_CLASS=heavy make TARGET runs one as heavy.
 HEAVY_LIGHT_ENV = $(if $(CI),,HEAVY_CLASS=$(or $(HEAVY_CLASS),light))
 HEAVY_ADMIT_LIGHT ?= $(if $(strip $(HEAVY_ADMIT)),$(HEAVY_LIGHT_ENV) $(HEAVY_ADMIT))

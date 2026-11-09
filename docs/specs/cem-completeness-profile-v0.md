@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-10-28
 Intent status: experimental under the standing lane auto-accept (2026-10-28; V1-2947)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the `cem` command group that produced this
+profile; the verifier in `internal/cem/verify` stays.
 Authoritative inputs: V1-2947 owner request (astra audit section 8), agent-drafted; V1-2962 /
 GitHub #1948 for `CCP-V0-010`; `cem-stable-v1.md` (`CEM-V1-017`, `CEM-V1-034`, `CEM-V1-145`,
 `CEM-V1-310`, `CEM-V1-633..635` and "Omission soundness limits"); `protocol/cem-completeness-1/`;
