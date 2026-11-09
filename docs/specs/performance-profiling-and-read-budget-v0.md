@@ -279,12 +279,11 @@ query, the lifecycle hook or a Go or TypeScript affected plan reached users unme
 - `PRB-V0-057`: After the seven scenarios of `PRB-V0-050`, the harness MUST measure, in order,
   over the fixture's code repository: `index-cold-build` (`index`, every sample after removing the
   repository's index snapshots, no unmeasured run); `index-warm-build` (`index --if-stale` against
-  a matching snapshot); `context-query` (`context --task <fixed task> --subject <Go path> --lsp
-  off`); `lifecycle-hook` (the Claude Code `UserPromptSubmit` adapter, `adapter claude-code
-  user-prompt`, with the host's event payload on stdin and `CLAUDE_PROJECT_DIR` set to the
-  repository); `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript
-  source). Each of the last five takes one unmeasured run. The budgets file MUST bound exactly the
-  thirteen scenarios in that order.
+  a matching snapshot); `context-query` (`context --task <fixed task> --subject <Go path>`);
+  `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript source). Each of
+  the last four takes one unmeasured run. The budgets file MUST bound exactly the ten scenarios in
+  that order. (Amended 2026-11-09 by decision 0594: the corpus MCP pair, the `lifecycle-hook`
+  adapter scenario and `--lsp off` left with the surfaces they measured.)
 - `PRB-V0-058`: The fixture MUST generate the code repository deterministically (generator
   `corvint-perf-budget-fixture/2`; the app and Ruby repositories are unchanged): `GoPackages` Go
   packages and `TSModules` TypeScript modules whose imports form a binary tree, a test file per Go
@@ -334,8 +333,8 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
 - `PRB-V0-970`: `perf-budget --scenario ID`, repeatable, MUST measure and judge only the named
   `ScenarioIDs` scenarios (the two MCP scenarios are measured together and only the named ones
   are reported); the report lists them as `selected`, its checks cover only them, and an unknown or
-  repeated ID exits 2 before anything runs. A filter that selects `context-query` or
-  `lifecycle-hook` without either index scenario MUST first build the code repository's index
+  repeated ID exits 2 before anything runs. A filter that selects `context-query`
+  without either index scenario MUST first build the code repository's index
   snapshot once, unmeasured, as the index scenarios leave it in a whole run. Without `--scenario` the run is unchanged. With
   `--record-baseline`, a filtered run MUST replace only the selected scenarios' measurements in the
   existing baseline, each carrying `PRB-V0-053` provenance (the run's start time, its clean
@@ -495,7 +494,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-026` | `internal/perfbudget/measure.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-027` | `internal/perfbudget/rusage_unix.go`, `internal/perfbudget/rusage_other.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-028` | `internal/perfbudget/host.go` | `TestPRBV0024HarnessSmokeRun`, `TestPRBV0031CommittedBudgets` |
-| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget`, `internal/perfbudget/harness.go`, `internal/perfbudget/process.go` | `TestPRBV0029HarnessCannotRunExitsTwo`, `TestPRBV0029UnstartableMCPExitsTwo`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget`, `internal/perfbudget/harness.go`, `internal/perfbudget/process.go` | `TestPRBV0029HarnessCannotRunExitsTwo`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-030` | `internal/perfbudget/budget.go` | `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-031` | `internal/perfbudget/budgets.json` | `TestPRBV0031CommittedBudgets` |
 | `PRB-V0-032` | `internal/perfbudget/budgets.json`, `internal/perfbudget/budget.go` | `TestPRBV0031CommittedBudgets`, `TestPRBV0030BudgetsValidation` |

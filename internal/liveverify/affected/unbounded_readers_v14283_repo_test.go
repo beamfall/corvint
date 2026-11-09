@@ -76,7 +76,7 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 		byID[unit.ID] = unit
 	}
 	const module = "go:github.com/Beamfall/corvint/"
-	for _, command := range []string{"cmd/corvint", "benchmarks/runner", "tools/gate-ledger", "tools/test-commands-run"} {
+	for _, command := range []string{"cmd/corvint", "tools/gate-ledger", "tools/test-commands-run"} {
 		unit, ok := byID[module+command]
 		if !ok {
 			t.Fatalf("%s: no Go unit", command)

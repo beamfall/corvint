@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
-
-	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 func TestMain(m *testing.M) {
@@ -262,70 +260,5 @@ func TestOutputAndDirtyTruth(t *testing.T) {
 	a := standaloneArgv("corvint", "root", object{"verb": "impact", "paths": []any{"code.go"}, "limit": 5})
 	if !reflect.DeepEqual(a, []string{"corvint", "--root", "root", "impact", "--limit", "5", "code.go"}) {
 		t.Fatal(a)
-	}
-}
-
-func TestRealNativeBatchFallbackAndReadOnlyParity(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "corvint")
-	build := exec.Command("go", "build", "-o", bin, "../../cmd/corvint")
-	if raw, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v %s", err, raw)
-	}
-	for _, state := range []string{"indexed", "absent", "stale"} {
-		t.Run(state, func(t *testing.T) {
-			root, plan := fixture(t, "normal")
-			command := func(args ...string) []byte {
-				cmd := exec.Command(bin, append([]string{"--root", root}, args...)...)
-				raw, err := cmd.CombinedOutput()
-				if err != nil {
-					t.Fatalf("%v: %v %s", args, err, raw)
-				}
-				return raw
-			}
-			if state != "absent" {
-				command("index")
-			}
-			if state == "stale" {
-				must(true, os.WriteFile(filepath.Join(root, "extra.go"), []byte("package fixture\nfunc Extra() {}\n"), 0600))
-				for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "move"}} {
-					if raw, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
-						t.Fatalf("git: %v %s", err, raw)
-					}
-				}
-			}
-			out := filepath.Join(t.TempDir(), "result")
-			r := investigate(context.Background(), options{root: root, plan: plan, out: out, corvint: bin, mode: "batch", timeout: 15 * time.Second, limit: captureLimit})
-			if r["ok"] != true || obj(r["mutation_check"])["unchanged"] != true {
-				t.Fatal(r)
-			}
-			wantRoute, wantProcesses := "batch", 1
-			if state != "indexed" {
-				wantRoute, wantProcesses = "fallback", 4
-			}
-			if obj(r["measurement"])["corvint_processes"] != wantProcesses {
-				t.Fatal(r)
-			}
-			views := obj(parse(must(os.ReadFile(plan))))["views"].([]any)
-			for i, op := range r["operations"].([]any) {
-				v := obj(views[i])
-				argv := standaloneArgv(bin, root, v)
-				raw, err := exec.Command(argv[0], argv[1:]...).Output()
-				if err != nil {
-					t.Fatal(err)
-				}
-				packet := obj(parse(raw))
-				if str(v["verb"]) != "context" {
-					packet = obj(packet["context"])
-				}
-				if obj(op)["route"] != wantRoute || !reflect.DeepEqual(obj(parse(serialize(obj(op)["context"]))), packet) {
-					t.Fatalf("route/parity: %v", op)
-				}
-			}
-			if state == "absent" {
-				if _, err := os.Stat(contextindex.SnapshotDirectory(root)); !os.IsNotExist(err) {
-					t.Fatal("read created index", err)
-				}
-			}
-		})
 	}
 }

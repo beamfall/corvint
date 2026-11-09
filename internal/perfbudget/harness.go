@@ -169,15 +169,15 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	search := []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "search", "--artifact", fixture.Current, "--query", fixture.SearchQuery}
 	selected := func(id string) bool { return len(o.Selected) == 0 || slices.Contains(o.Selected, id) }
 	r.Selected = slices.Clone(o.Selected)
-	// context-query and lifecycle-hook measure reads over an existing index snapshot, which the
-	// index scenarios leave behind in a whole run; a filtered run that skips them builds it once,
-	// unmeasured, first (PRB-V0-970).
+	// context-query measures reads over an existing index snapshot, which the index scenarios
+	// leave behind in a whole run; a filtered run that skips them builds it once, unmeasured,
+	// first (PRB-V0-970).
 	indexed := false
 	for _, id := range ScenarioIDs {
 		if !selected(id) {
 			continue
 		}
-		if (id == "context-query" || id == "lifecycle-hook") && !indexed {
+		if id == "context-query" && !indexed {
 			progress("setup: index snapshot for " + id)
 			if _, err := runOnce(ctx, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "index", "--if-stale"}, nil); err != nil {
 				return nil, fmt.Errorf("index setup for %s: %w", id, err)
@@ -209,9 +209,7 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 			// A matching snapshot exists: the freshness check every hook and packet verb pays.
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "index", "--if-stale"}, samples[id], 1, nil)
 		case "context-query":
-			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "context", "--task", fixture.ContextTask, "--subject", fixture.GoPath, "--lsp", "off"}, samples[id], 1, nil)
-		case "lifecycle-hook":
-			m, err = measureHook(ctx, id, o.Corvint, fixture, samples[id])
+			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "context", "--task", fixture.ContextTask, "--subject", fixture.GoPath}, samples[id], 1, nil)
 		case "affected-go":
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "affected", "--path", fixture.GoPath}, samples[id], 1, nil)
 		case "affected-ts":
@@ -259,18 +257,6 @@ func unenforced(checks []Check) (pending, advisory []Check) {
 // returned as the harness's *StartError.
 func measureCLI(ctx context.Context, id, dir string, argv []string, samples, warmups int, before func() error) (ScenarioMeasured, error) {
 	return measureCLIInput(ctx, id, dir, argv, samples, warmups, before, nil)
-}
-
-// measureHook times the Claude Code UserPromptSubmit lifecycle hook over the code repository: the
-// host's event payload on stdin, the project directory in the host's variable, and the hook's
-// own adapter argv (PRB-V0-057). One unmeasured warmup lets the hook find the index snapshot.
-func measureHook(ctx context.Context, id, corvint string, f *Fixture, samples int) (ScenarioMeasured, error) {
-	payload, err := json.Marshal(map[string]any{"session_id": "corvint-perf-budget", "cwd": f.Code, "hook_event_name": "UserPromptSubmit", "prompt": f.ContextTask})
-	if err != nil {
-		return ScenarioMeasured{}, err
-	}
-	in := &input{stdin: payload, env: []string{"CLAUDE_PROJECT_DIR=" + f.Code}}
-	return measureCLIInput(ctx, id, f.Code, []string{corvint, "adapter", "claude-code", "user-prompt"}, samples, 1, nil, in)
 }
 
 // removeIndexState removes the index snapshots of root: the shared store under the Git common
