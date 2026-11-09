@@ -20,6 +20,8 @@ Evidence:
 
 - `TestTSPV07330GuardDecidesTheGithubScope_TSPV07330` covers stub guards printing `0`, `1` with
   inputs, unreadable output, a lone `1`, empty output, exit 3 and a missing guard.
+- `TestTSPV07330MissingGuardKeepsTheReport_TSPV07330` replays without a guard: the report survives
+  and the change records an `unreadable:` input.
 - `TestTSPV07330RealGuardNarrowsAnUnguardedWorkflow_TSPV07330` runs the repository's real guard
   over a temporary repository: another workflow narrows; a `forward-rows` script change returns
   true and names that input.
