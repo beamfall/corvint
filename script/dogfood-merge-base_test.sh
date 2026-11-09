@@ -68,7 +68,7 @@ git commit -q -m bind
 # under make -k gate, GNU make 4.3 passes w in MAKEFLAGS, and the Entering directory line it then
 # prints would replace the probe's output. It also drops any BASE that a calling make passes down.
 probe() {
-  env -u BASE -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u SPEC_REQUIREMENTS_BASE make -s HEAVY_ADMIT= HEAVY_NICE=0 "$@"
+  (unset BASE MAKEFLAGS MFLAGS MAKELEVEL SPEC_REQUIREMENTS_BASE; make -s HEAVY_ADMIT= HEAVY_NICE=0 "$@")
 }
 printf 'include %s/Makefile\nprobe:\n\t@printf "%%s\\n" "$(DOGFOOD_BASE)"\n' "$source_root" > "$root/probe.mk"
 mkdir -p script
