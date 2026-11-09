@@ -2135,7 +2135,11 @@ one list, so a later class cannot reopen it.
   options and SHALL be refused. All other global options (including `-c`, `--config-env` and
   `--exec-path`) and subcommands SHALL be refused. Every other external command, including command
   runners such as `bash`, `sh` and `env`, SHALL be refused rather than unwrapped. Trap strings are
-  otherwise unparsed, and DEBUG, RETURN and ERR handlers run between ordinary commands. It SHALL
+  otherwise unparsed. Before parsing a handler, the analyzer SHALL refuse command substitution
+  (`$(` or backtick), process substitution (`<(` or `>(`), arithmetic expansion, and parameter
+  operator words containing `$` or backtick. This check includes arguments to inert builtins and
+  single-quoted raw actions; literal parameter defaults remain permitted. DEBUG, RETURN and ERR
+  handlers run between ordinary commands. It SHALL
   also reject any mention of
   `command_not_found_handle`, which `command -p` still runs when perl is missing; and any mention
   of a `PERL`-prefixed variable longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other
