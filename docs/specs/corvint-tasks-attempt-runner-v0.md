@@ -91,7 +91,7 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
   under ATR-V0-059, including when a child exits without a kept result. Retained result bytes
   MUST remain exact. Test: `TestATRV08207_DetachedTransportCarriesDrainNotice`; the original
   `TestATRV0059_ClaimCarriesDrainNotice` remains enabled. This fixes the missing notice in the
-  hosted LOST envelope; the original child's exit cause remains unknown. Rollback: remove
+  hosted LOST envelope; the original child's exit cause is explained under ATR-V0-8208. Rollback: remove
   transport notice decoration; no stored result is rewritten.
 - `ATR-V0-8208`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4638)
   The hosted detached-child integration test MAY be quarantined while its child's exit without
@@ -99,7 +99,11 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
   `CORVINT_TEST_V1_4638=1`. All deterministic join and process ownership checks remain enabled;
   quarantine is not repair or evidence of a clean next weekly hosted report. Remove it only
   after the original failure is explained and qualified. Test:
-  `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (explicit opt-in).
+  `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck`. V1-5187 explained the failure: the
+  child tried `running` once without waiting, and an attach's liveness probe holding it shared
+  for an instant made the child exit without a result, reported `LOST`; the child now retries
+  `running` (ATR-V0-021, `TestATRV0021_ChildWaitsOutAnAttachProbe`). The quarantine is removed
+  after Linux `-race -count=30` runs; the next weekly hosted report remains NOT_OBSERVED.
 
 - `ATR-V0-001`: `corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before the first `--`, and MUST then accept exactly `--attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] -- COMMAND...`. Unknown, repeated or program-mode flags, a missing delimiter or command, a timeout outside 1..86270 seconds, lease minutes outside 5..1440 (default 60) or an attempt of another queue are usage refusals before any effect. The command's argv is executed directly without a shell, in the caller's working directory, with the caller's stdin and environment. Program mode is unchanged.
 - `ATR-V0-002`: Before launch the runner MUST heartbeat the attempt, then renew it only when the current lease does not cover the timeout plus the 10-second cleanup bound plus a 120-second scheduling and writer margin, using the larger of the requested minutes and the minutes that coverage needs. It MUST NOT shorten a longer lease, and it MUST refuse when the lease still does not cover timeout plus cleanup. A refused heartbeat or renewal starts nothing and records no outcome.
@@ -176,8 +180,10 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   `lock` file, bounded at 10 seconds (`LOCK_TIMEOUT` past it); with the lock held it starts a child
   only when no `result.json` exists and no child is live. A child is live while it holds the
   exclusive `running` lock, which it takes before running and keeps until it exits, or, before
-  that, while its recorded child is not proven ended (ATR-V0-027). A child that cannot take
-  `running`, or finds `result.json` once it has it, exits without running. The same request id with another command, holder or argument digest is refused
+  that, while its recorded child is not proven ended (ATR-V0-027). An attach's liveness probe
+  takes `running` shared for an instant, so a child retries `running` for up to 2 seconds before
+  it concludes another child holds it (V1-5187). A child that cannot take `running` within that
+  bound, or finds `result.json` once it has it, exits without running. The same request id with another command, holder or argument digest is refused
   `REQUEST_ID_CONFLICT` without a start; so is an attach naming another command or holder. A
   child that ended without a result is reported by attach as `REFUSED` `SUPERVISOR_LOST`, state
   `LOST`, not retryable; a repeated `--detach` then starts a new child under the same request id,
@@ -2718,7 +2724,7 @@ receipt or wire shape changes.
 | ATR-V0-014 | `internal/tasks/cli/attempt_detach_other.go`, `internal/tasks/cli/attempt_detach.go` (`launch`, `attemptAttach`) | NOT_PRODUCED: no test runs on a platform without new-session support; `GOOS=windows go vet` only |
 | ATR-V0-015 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRuns`, `runEnded`), `internal/tasks/cli/attempt_detach.go` (`superviseRun`, `replayRun`), `internal/tasks/store/attempt_run.go` (`AttemptRecords`) | TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts, TestATRV0015_AttachOfARunRetiredMidReadIsMissing |
 | ATR-V0-020 | `internal/tasks/cli/lease_detach.go`, `internal/tasks/cli/lease_detach_unix.go`, `internal/tasks/cli/lease_detach_other.go` | `TestATRV0021_DetachedClaimSurvivesKilledCaller`, `TestATRV0026_WithoutDetachNothingChanges` (`internal/tasks/cli`) |
-| ATR-V0-021 | `internal/tasks/cli/lease_detach.go` | `TestATRV0021_DetachedClaimSurvivesKilledCaller`, `TestATRV0021_LostChildRestartsWithoutASecondClaim` (`internal/tasks/cli`) |
+| ATR-V0-021 | `internal/tasks/cli/lease_detach.go` | `TestATRV0021_DetachedClaimSurvivesKilledCaller`, `TestATRV0021_LostChildRestartsWithoutASecondClaim`, `TestATRV0021_ChildWaitsOutAnAttachProbe` (`internal/tasks/cli`) |
 | ATR-V0-022 | `internal/tasks/cli/lease_detach.go` | `TestATRV0022_RefusalIsReturnedVerbatim`, `TestATRV0021_DetachedClaimSurvivesKilledCaller` (`internal/tasks/cli`) |
 | ATR-V0-023 | `internal/tasks/cli/lease_detach.go` | `TestATRV0023_CeilingEndsTheDetachedClaim` (`internal/tasks/cli`) |
 | ATR-V0-024 | `internal/tasks/cli/lease_detach.go` | `TestATRV0024_WaitReturnsWithinItsBound` (`internal/tasks/cli`) |

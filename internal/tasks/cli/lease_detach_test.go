@@ -310,6 +310,21 @@ func TestATRV0026_WithoutDetachNothingChanges(t *testing.T) {
 	}
 }
 
+// TestATRV0021_ChildWaitsOutAnAttachProbe: an attach's liveness probe takes
+// the running lock shared for an instant; a child whose own attempt lands
+// inside that instant waits it out and keeps its result instead of ending
+// without one, which attach would report SUPERVISOR_LOST (ATR-V0-021,
+// V1-5187). The child holds running shared for 300 ms before its attempt.
+func TestATRV0021_ChildWaitsOutAnAttachProbe(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_PROBE_DIR", cli.LeaseDetachDir(repo, "claim-probed"))
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_PROBE_MS", "300")
+	x := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-probed", "--detach", "--wait", "60")
+	if x.code != 0 || hasCode(x.res, wire.CodeSupervisorLost) || field(x.res.Items[0], "attemptId").Str == "" {
+		t.Fatalf("a probed child did not keep its claim: code %d %s", x.code, x.stdout)
+	}
+}
+
 // TestATRV0027_StartingChildIsNeverLost: a child still starting, before it
 // holds its running lock, whose identity the launcher and attach cannot read
 // is PENDING, never LOST, inside the startup window, and then commits; a
