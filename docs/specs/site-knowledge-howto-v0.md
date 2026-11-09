@@ -5,7 +5,9 @@ Date: 2026-10-19
 Intent status: retired 2026-11-09 (decision 0593)
 Delivery status: retired
 Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `internal/skhproof` and the
-`corvint-test howto` route with the E2E proof lab (b1a117eb is the last tree with them). The body
+`corvint-test howto` route with the E2E proof lab (b1a117eb is the last tree with them). The
+mining stages stay in `internal/appmap` behind `corvint flows appmap pageobjects`, `steps`,
+`setup`, `links`, `infer` and `how`, with their tests; only the live-proof stage left. The body
 below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: the owner's intent of 2026-10-19, quoted verbatim below (native ticket
 V1-1897); the stage tickets V1-1898..V1-1905; `AGENTS.md` (product invariants 1..8);
@@ -15,7 +17,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
 - Status: retired 2026-11-09 (decision 0593) / retired
-- Exists: nothing; `internal/skhproof` and the `corvint-test howto` route were deleted (read them at b1a117eb).
+- Exists: the mining stages in `internal/appmap` (`corvint flows appmap pageobjects`, `steps`, `setup`, `links`, `infer`, `how`) and their tests; the live-proof stage (`internal/skhproof`, `corvint-test howto`) was deleted (read it at b1a117eb).
 - Blocked on: nothing; retired by decision 0593.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
 
