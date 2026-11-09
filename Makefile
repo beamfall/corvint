@@ -646,9 +646,9 @@ test-commands-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-commands-check >/dev/null
 
 # capabilities-check fails when docs/CAPABILITIES.md or the README capability table drifts from the
-# commands, cmd/ binaries and MCP tools in the code (CAP-V0-003, docs/specs/capability-catalog-v0.md).
+# commands and cmd/ binaries in the code (CAP-V0-003, docs/specs/capability-catalog-v0.md).
 # go test ./tools/capabilities-check runs the same check, so it is not a separate GATE_STEPS step.
-# It is a doc gate (ASD-V0-846, V1-2432), so a new command, binary or MCP tool without a catalog row
+# It is a doc gate (ASD-V0-846, V1-2432), so a new command or binary without a catalog row
 # fails make doc-gates and batch-precheck before push, not only the full go test sweep in CI.
 .PHONY: capabilities-check
 capabilities-check:
@@ -870,14 +870,6 @@ long-lines-check:
 
 # ASD-V0-574 (V1-2178): no tracked Python signal handler raises InterruptedError, which the code
 # around an interrupted call can catch and retry; handlers raise SystemExit or KeyboardInterrupt.
-# ASD-V0-575 (V1-4139): mcp-tools-list-goldens rewrites internal/mcp/cli/testdata/tools-list-*.golden.jsonl
-# from the server after a deliberate tools/list change; the same tests compare them otherwise.
-.PHONY: mcp-tools-list-goldens
-mcp-tools-list-goldens:
-	@env $(MCP_TOOLS_LIST_UPDATE)=1 $(GO_TEST_COMMAND) -run '^(TestAFUV1034FlowsToolProfile|TestMMRV0012GroupsToolsListGolden)$$' ./internal/mcp/cli
-	@git status --short -- internal/mcp/cli/testdata
-MCP_TOOLS_LIST_UPDATE = CORVINT_UPDATE_TOOLS_LIST_GOLDENS
-
 .PHONY: py-signal-lint
 py-signal-lint:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/py-signal-lint
