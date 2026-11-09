@@ -5873,26 +5873,17 @@
         "corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...] [--own PATH[,PATH...]] [--base REV] [--max-age N] [--identity REPORT=FILE...] [--identity-sidecars]",
         "corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...] --isolated FILE[,FILE...] [--allow-unobserved] [--identity REPORT=FILE...] [--identity-sidecars]",
         "corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,FILE...] [--identity REPORT=FILE...] [--identity-sidecars]",
-        "corvint [--root PATH] runs fresh --old REV --new REV [--cite PATH[,PATH...]] [--summary]",
-        "corvint [--root PATH] runs identity --config FILE [--test-dir DIR] [--app-root DIR] [--test-match REGEXP] [--project-test-dir DIR[:REGEXP]...] [--artifact-digest VALUE] [--closure-digests FILE] [--compute-closures]",
         "corvint [--root PATH] runs redundancy --runs FILE[,FILE...] [--since TIME] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]",
         "corvint [--root PATH] runs response-wait --log FILE --url-contains S [--method M] --wait-start RFC3339 --timeout-ms N",
-        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--fresh] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]",
+        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]",
         "corvint [--root PATH] runs server-errors --runs FILE[,FILE...] --server-log FILE [--requests FILE] [--support-path P[,P...]] [--window-ms N]",
         "corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-runs N] [--last N [--window all|completed]] [--pool-by inputs|closure] [--identity REPORT=FILE...] [--identity-sidecars]"
       ],
       "flags": [
         "--allow-unobserved",
-        "--app-root",
-        "--artifact-digest",
         "--base",
         "--baseline",
         "--candidate",
-        "--cite",
-        "--closure-digests",
-        "--compute-closures",
-        "--config",
-        "--fresh",
         "--full",
         "--identity",
         "--identity-sidecars",
@@ -5902,12 +5893,9 @@
         "--max-age",
         "--method",
         "--min-runs",
-        "--new",
-        "--old",
         "--own",
         "--pool-by",
         "--prior",
-        "--project-test-dir",
         "--requests",
         "--rev",
         "--root",
@@ -5917,8 +5905,6 @@
         "--since",
         "--summary",
         "--support-path",
-        "--test-dir",
-        "--test-match",
         "--timeout-ms",
         "--url-contains",
         "--wait-start",
@@ -6041,57 +6027,6 @@
     {
       "path": [
         "runs",
-        "fresh"
-      ],
-      "command": "corvint runs fresh",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] runs fresh --old REV --new REV [--cite PATH[,PATH...]] [--summary]"
-      ],
-      "flags": [
-        "--cite",
-        "--new",
-        "--old",
-        "--root",
-        "--summary"
-      ],
-      "required": [
-        "--old REV",
-        "--new REV"
-      ],
-      "example": "corvint runs fresh --old REV --new REV",
-      "help": "corvint runs fresh --help"
-    },
-    {
-      "path": [
-        "runs",
-        "identity"
-      ],
-      "command": "corvint runs identity",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] runs identity --config FILE [--test-dir DIR] [--app-root DIR] [--test-match REGEXP] [--project-test-dir DIR[:REGEXP]...] [--artifact-digest VALUE] [--closure-digests FILE] [--compute-closures]"
-      ],
-      "flags": [
-        "--app-root",
-        "--artifact-digest",
-        "--closure-digests",
-        "--compute-closures",
-        "--config",
-        "--project-test-dir",
-        "--root",
-        "--test-dir",
-        "--test-match"
-      ],
-      "required": [
-        "--config FILE"
-      ],
-      "example": "corvint runs identity --config FILE",
-      "help": "corvint runs identity --help"
-    },
-    {
-      "path": [
-        "runs",
         "redundancy"
       ],
       "command": "corvint runs redundancy",
@@ -6148,10 +6083,9 @@
       "command": "corvint runs reusable",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--fresh] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]"
+        "corvint [--root PATH] runs reusable --selection FILE [--prior FILE[,FILE...]] [--summary] [--identity REPORT=FILE...] [--identity-sidecars]"
       ],
       "flags": [
-        "--fresh",
         "--identity",
         "--identity-sidecars",
         "--prior",

@@ -101,7 +101,8 @@ target exited 2 at the Core-base build: `no required module provides package
 github.com/corvint-context/corvint/experimental/analyzers/sqlnative`. The scratch commit was then reset and
 the file deleted.
 
-ACP-009's per-executable check (`internal/analyzercap/source_ceiling_test.go`) measures a different
+ACP-009's per-executable check (`internal/analyzercap/source_ceiling_test.go`, deleted by decision
+0594 on 2026-11-09; read at `4663b4e2`) measured a different
 file set: the host build closure of `cmd/corvint-analyzer-sql-native` (4 production files, excluding
 `read_linux.go` and `read_windows.go` on darwin). On darwin it measured 63,126 bytes against 65,536 after the
 shrink, inside its 4,096-byte warning band but passing. `SNR-V0-005` counts every non-test `.go` file

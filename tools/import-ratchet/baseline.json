@@ -58,7 +58,6 @@
     "internal/lspstdio -> internal/mcp/bridge",
     "internal/plansnapshot -> internal/liveverify/affected",
     "internal/requestpath -> internal/appmap",
-    "internal/runidentity -> internal/liveverify/affected/typescript",
     "internal/swiftimpact -> internal/contextindex",
     "internal/swiftimpact -> internal/liveverify/affected",
     "internal/swiftimpact -> internal/liveverify/affected/swift",
