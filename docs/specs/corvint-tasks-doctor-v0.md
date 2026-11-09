@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-046 (the padded-journal fixture builder, re-homed from CAL-V0-360) accepted under the same standing auto-accept (V1-2137)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner request [issue 715](https://github.com/beamfall/corvint/issues/715);
 the pure-read rule TM-V0-008 and the shared journal audit CAL-V0-061; the attempt and pool
 afterimage profiles in `internal/tasks/snapshot`; the detached run records of
@@ -17,7 +18,7 @@ recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b
 
 ## Agent digest
 - Claim: `corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.
-- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-046 (the padded-journal fixture builder, re-homed from CAL-V0-360) accepted under the same standing auto-accept (V1-2137); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: built-in PARKED_WITH_OPEN_ITEMS (configured dispatchers' parked tickets with open obligation items, TOL-V0-125), NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE (detached-run supervisors only) detectors; RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from configured dispatchers' queue observations; QUEUE_LOCK_HELD, SLOW_QUEUE_COMMAND, NO_COMPLETIONS and FD_PRESSURE; HOST_RETRY_STORM, HOST_ERRORS and EARLY_REFUSAL from configured dispatchers' worker logs; dispatcher work-state health with WORK_STATE_FAILING; a `--config` file of thresholds; a notify hook on `--refresh` with NOTIFY_FAILED; bounded plugins with PLUGIN_FAILED; `--refresh` atomic cache; `--line` lock-free cache read.
 - Blocked on: PREFLIGHT_FAILURE waits for #713's recorded preflight evidence; the Linux process walk and `/proc` lock probes are unqualified (parser tests only); darwin names a lock holder only approximately (TQD-V0-021).
 - Read next: Requirements; Detectors; Failure modes; Traceability.

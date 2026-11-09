@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1593; GitHub #1036)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: GitHub issue beamfall/corvint#1036 and native ticket V1-1593 ("defects register
 for suspected product and environment faults found during test work"), the
 [obligation ledger contract](corvint-tasks-obligation-ledger-v0.md) (DEFECT and BLOCKED obligation
@@ -12,7 +13,7 @@ states, expected-fail annotations, `preflight`), decision 0397, and the in-tree 
 
 ## Agent digest
 - Claim: A local append-only register records product and environment defects; preflight checks that obligations and expected failures cite known, live product defects.
-- Status: TDR-V0-001..010 accepted under the owner's standing auto-accept (2026-10-11) (V1-1593; GitHub #1036); experimental; implemented with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the `internal/tasks/defects` register, the optional policy `defects {prefix, path}`, `corvint-tasks defects add|update|list`, and the preflight `DEFECT_UNKNOWN`, `DEFECT_NOT_A_BUG` and `DEFECT_ENVIRONMENT` findings.
 - Blocked on: nothing for V0; harvesting defects from test reports is a residual (see Non-goals).
 - Read next: Requirements; Failure modes; Traceability.
