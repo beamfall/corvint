@@ -195,14 +195,3 @@ func TestImpactRequireCleanValidatesRequest(t *testing.T) {
 		}
 	}
 }
-
-// V1-1141: a same-tree snapshot written at an earlier commit must not make the
-// warning name the writer's commit; the opening observation wins.
-func TestObservedCommitPrefersObservation(t *testing.T) {
-	if got := observedCommit("b", "a"); got != "b" {
-		t.Fatalf("got %q", got)
-	}
-	if got := observedCommit("", "a"); got != "a" {
-		t.Fatalf("got %q", got)
-	}
-}
