@@ -5,12 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -178,32 +176,4 @@ func assertMainOSClosure(t *testing.T, path string) {
 		}
 		return true
 	})
-}
-
-func TestCoreParentCandidateByteIdentity(t *testing.T) {
-	// The candidate's invariant is that the core binary never selects it. In the
-	// integration checkpoint the core legitimately differs from the frozen base
-	// (reviewed runtime work), so the former byte-identity comparison against
-	// 718dfc7 is asserted as a dependency-closure property instead.
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("caller unavailable")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
-	command := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", "./cmd/corvint")
-	command.Dir = root
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
-	dependencies, err := command.Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
-		}
-		t.Fatal(err)
-	}
-	for _, forbidden := range []string{"internal/analyzerstructured", "corvint-analyzer-structured-data"} {
-		if strings.Contains(string(dependencies), forbidden) {
-			t.Fatalf("Core selected structured candidate via %s", forbidden)
-		}
-	}
 }

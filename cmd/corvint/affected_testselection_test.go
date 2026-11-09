@@ -65,7 +65,7 @@ const ownedAndMustRun = `{"profile":"corvint-test-selection/0",` +
 func TestMustRunAndOwnerAreTierZero_AFPV02485(t *testing.T) {
 	t.Parallel()
 	root, _ := testSelectionFixture(t, ownedAndMustRun)
-	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
+	cemWrite(t, root, "x/a/core/core.go", "package core\n\nfunc Value() int { return 2 }\n")
 	appendFile(t, filepath.Join(root, "docs", "contract.json"), "\n")
 	receipt, _, stderr, code := runAffectedCLI(t, root)
 	if code != 0 {
@@ -161,7 +161,7 @@ func TestDeclaredOwnerUnitRunsWhole_AFPV02485(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			root, base := testSelectionFixture(t, test.declaration)
-			appendFile(t, filepath.Join(root, "x", "c", "smoke", "smoke_test.go"), "\n// edited\n")
+			cemWrite(t, root, "x/c/smoke/smoke_test.go", "package smoke\n\nimport \"testing\"\n\nfunc TestReady(t *testing.T) { if !Ready() { t.Fatal(\"not ready\") } }\n")
 			receipt, graph, err := compileAffectedGraph(context.Background(), affectedInvocation{Root: root, Base: base})
 			if err != nil {
 				t.Fatal(err)
@@ -192,7 +192,7 @@ func TestMustRunUnitRunsWhole_AFPV02485(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			root, base := testSelectionFixture(t, test.declaration)
-			appendFile(t, filepath.Join(root, "x", "c", "smoke", "smoke_test.go"), "\n// edited\n")
+			cemWrite(t, root, "x/c/smoke/smoke_test.go", "package smoke\n\nimport \"testing\"\n\nfunc TestReady(t *testing.T) { if !Ready() { t.Fatal(\"not ready\") } }\n")
 			receipt, graph, err := compileAffectedGraph(context.Background(), affectedInvocation{Root: root, Base: base})
 			if err != nil {
 				t.Fatal(err)

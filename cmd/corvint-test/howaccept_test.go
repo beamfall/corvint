@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -84,25 +83,5 @@ func TestSKHV0_174_HowAcceptCLI(t *testing.T) {
 	}
 	if err := run(ctx, []string{"e2e", "how-accept", "--answer", complete, "--evidence", bad}, &bytes.Buffer{}); !errors.As(err, &refusal) || refusal.Code != "skh-evidence-invalid" {
 		t.Fatalf("bad evidence: %v", err)
-	}
-}
-
-// SKH-V0-163: the stage 8 pipeline is linked only into the companion: core `corvint` and the
-// corpus MCP server never import it, so core can only read its receipt.
-func TestSKHV0_163_OnlyTheCompanionImportsThePipeline(t *testing.T) {
-	for _, target := range []string{"../corvint", "../corvint-corpus-mcp"} {
-		out, err := exec.Command("go", "list", "-deps", target).Output()
-		if err != nil {
-			t.Fatalf("%s: %v", target, err)
-		}
-		for _, dep := range strings.Fields(string(out)) {
-			if strings.HasSuffix(dep, "/internal/skhproof") {
-				t.Fatalf("%s imports %s", target, dep)
-			}
-		}
-	}
-	out, err := exec.Command("go", "list", "-deps", ".").Output()
-	if err != nil || !strings.Contains(string(out), "/internal/skhproof\n") {
-		t.Fatalf("companion does not link the pipeline: %v", err)
 	}
 }

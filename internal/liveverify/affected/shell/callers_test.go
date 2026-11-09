@@ -173,3 +173,27 @@ func TestForeignCallerDecoderTypeDiagnostics_AZU_V0_8904(t *testing.T) {
 		}
 	}
 }
+
+// V1-4989: a declaration past 64 KiB reads, and one over the 256 KiB bound is
+// refused with an error naming the file and the bound.
+func TestForeignCallerDeclarationBound_V14989(t *testing.T) {
+	for _, tc := range []struct {
+		size int
+		want string
+	}{
+		{size: 100 << 10},
+		{size: affected.MaxShellForeignCallerBytes + 1, want: affected.ShellForeignCallersPath + " is over its 262144-byte bound"},
+	} {
+		root := t.TempDir()
+		write(t, root, "run.sh", "#!/bin/sh\n")
+		body := `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run.sh":{"callers":["Makefile"],"reason":"r"}}}`
+		write(t, root, affected.ShellForeignCallersPath, body+strings.Repeat(" ", tc.size-len(body)))
+		err := CheckForeignCallers(affected.DiskSourceContext(context.Background(), root))
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%d-byte declaration refused: %v", tc.size, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%d-byte declaration: error %v, want it to contain %q", tc.size, err, tc.want)
+		}
+	}
+}

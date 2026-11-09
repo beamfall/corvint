@@ -25,12 +25,48 @@
       "internal/": "internal/langplugin/langplugin_test.go lists internal/liveverify/affected, walks each plugin directory, and follows imports by globbing *.go of each imported package, which can reach any package below internal/ (AFP-V0-3011 (1))"
     },
     "internal/obscorpus": {
-      "benchmarks/": "internal/obscorpus/obscorpus_test.go walks every production Go file under benchmarks/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
-      "cmd/": "internal/obscorpus/obscorpus_test.go walks every production Go file under cmd/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
-      "conformance/": "internal/obscorpus/obscorpus_test.go walks every production Go file under conformance/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
-      "experiments/": "internal/obscorpus/obscorpus_test.go walks every production Go file under experiments/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
-      "internal/": "internal/obscorpus/obscorpus_test.go walks every production Go file under internal/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read",
-      "tools/": "internal/obscorpus/obscorpus_test.go walks every production Go file under tools/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read"
+      "benchmarks/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under benchmarks/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      "cmd/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under cmd/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      "conformance/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under conformance/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      "experiments/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under experiments/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      "internal/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under internal/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      },
+      "tools/": {
+        "reason": "internal/obscorpus/obscorpus_test.go walks every production Go file under tools/ (productionFiles over a literal tree list) to refuse any import of obscorpus outside its own package, so the whole tree is the measured read; selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "github\\.com/Beamfall/corvint/internal/obscorpus",
+        "samples": [
+          "\"github.com/Beamfall/corvint/internal/obscorpus\""
+        ]
+      }
     },
     "internal/proctrace": {
       "internal/": "internal/proctrace/trace_test.go TestRSPV0020ImportDirection runs go list with a {{.Deps}} template over ../../cmd/corvint, whose whole dependency closure the check does not model without -deps (AFP-V0-3011 (3))"
@@ -53,17 +89,71 @@
       "tools/": "tools/corvint-pr-tests/main_test.go copies a source tree with filepath.WalkDir and runs go test ./... through the command helper, which reads packages below tools/ (AFP-V0-3011 (1), (3))"
     },
     "tools/fixture-maintenance-check": {
-      "cmd/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks cmd/ (AFP-V0-3011 (1))",
-      "conformance/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks conformance/ (AFP-V0-3011 (1))",
-      "internal/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks internal/ (AFP-V0-3011 (1))",
-      "interop/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks interop/ (AFP-V0-3011 (1))",
-      "tools/": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks tools/ (AFP-V0-3011 (1))"
+      "cmd/": {
+        "reason": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks cmd/ (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      "conformance/": {
+        "reason": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks conformance/ (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      "internal/": {
+        "reason": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks internal/ (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      "interop/": {
+        "reason": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks interop/ (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      },
+      "tools/": {
+        "reason": "tools/fixture-maintenance-check/guard_test.go TestRepositoryGitFixturesDisableDetachedMaintenance walks tools/ (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "git",
+        "samples": [
+          "if !strings.Contains(string(source), \"git\") {"
+        ]
+      }
     },
     "tools/flow-guide-check": {
-      "cmd/": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1))",
-      "internal/": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1))",
+      "cmd/": {
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk cmd/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      },
+      "internal/": {
+        "reason": "tools/flow-guide-check/main.go sourceText and unclassifiedCounts walk internal/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      },
       "script/": "tools/flow-guide-check/main.go globs script/*.sh, walks script/ (sourceText) and stats each script/ span of the guide (AFP-V0-3011 (1), (2))",
-      "tools/": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1))"
+      "tools/": {
+        "reason": "tools/flow-guide-check/main.go sourceText walks tools/, and the repository tests run the check (AFP-V0-3011 (1)); selection is filtered by the declared content predicate and guard-derived samples (AFP-V0-3300 to AFP-V0-3302)",
+        "contentPredicate": "[rR]efuse|[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+",
+        "samples": [
+          "return refuse(\"work-not-found\")",
+          "return RefusePending()",
+          "UNKNOWN_GATE"
+        ]
+      }
     },
     "tools/test-commands-check": {
       "script/": "tools/test-commands-check/main_test.go globs script/*_test.sh and runs script/*.sh helpers that source their siblings (AFP-V0-3011 (1), (4))"

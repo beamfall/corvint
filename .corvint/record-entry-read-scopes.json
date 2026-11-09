@@ -1,0 +1,102 @@
+{
+  "profile": "corvint-record-entry-read-scopes/0",
+  "units": {
+    "go:github.com/Beamfall/corvint/conformance/use-cases-v0": {
+      "inputs": [
+        "conformance/use-cases-v0/ledger.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood/86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59.cem.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood/prechange-impact.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract/clauses.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood/prechange-impact.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
+        "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59.cem.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/dogfood-report.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract/clauses.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood/dogfood-report.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/hostile-tests.json",
+        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e.cem.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/prechange-query.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract/clauses.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood/prechange-query.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/hostile-tests.json",
+        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
+        "conformance/use-cases-v0/testdata/ledger-v0.json"
+      ],
+      "reads": [
+        ".corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json"
+      ],
+      "reason": "conformance/use-cases-v0/main_test.go testUCV0ProfileMigration validates the fixed ledger; validator.read follows its pinned receipt subjects, including only the listed sealed CEM. The ledger and receipt JSON inputs are included in the source binding.",
+      "sourceSha256": "d18451c880e43600680ee324731b5ee30fbd58424bcc10d1249cd50de726eb78"
+    },
+    "go:github.com/Beamfall/corvint/internal/cem/corpusbinding": {
+      "reads": [
+        ".corvint/changes/"
+      ],
+      "reason": "internal/cem/corpusbinding/binding_test.go verifyCorpus calls os.ReadDir(changes) and reads every .cem.json; history_fixture_controls_test.go also enumerates the committed corpus.",
+      "sourceSha256": "bd5a7497e0a5b1c4d4257c435650b802470c40e743f21af93bbc970cb2f786af"
+    },
+    "go:github.com/Beamfall/corvint/internal/cem/wire": {
+      "reads": [
+        ".corvint/changes/"
+      ],
+      "reason": "internal/cem/wire/corpus_test.go corpusFailures calls os.ReadDir(dir) and parses every .cem.json; firstSealed also depends on directory order.",
+      "sourceSha256": "8e61e70f44147c655ffebb27d0cf17b88ad5db26b723eb16516172211a0cde09"
+    },
+    "go:github.com/Beamfall/corvint/internal/cemchain": {
+      "reads": [],
+      "reason": "internal/cemchain/chain_test.go TestCEMChain uses code.root, an isolated Git fixture, for MkdirAll and git mv of its generated sealed CEM; the directory tokens do not read this checkout.",
+      "sourceSha256": "fe2b330636b88ad1e8d49c0a94f4196d2f45637d1477ba3647f40065c0fa5979"
+    },
+    "go:github.com/Beamfall/corvint/internal/tasks/cli": {
+      "reads": [],
+      "reason": "internal/tasks/cli/exact_paths_compiled_test.go passes fixed names and the directory as ticket scopes; progress_test.go writes dated entries under fixture root. No test reads this checkout's build-log entries.",
+      "sourceSha256": "ea81408ffee9568019c5acd682c1cc9321fb3bc113fb4db5c28db6570d34b063"
+    },
+    "shell:script/batch-precheck_test.sh": {
+      "reads": [],
+      "reason": "script/batch-precheck_test.sh creates all build-log and sealed-CEM entries under crepo, srepo or rrepo scratch repositories, then invokes copied scripts or stubs there. It reads no record entries from source_root.",
+      "sourceSha256": "a3b3935435659850a6da77c3d62e42ff608a0b933ffb2aff5d67cb04510b0d0d"
+    },
+    "shell:script/check-line-citations_test.sh": {
+      "reads": [],
+      "reason": "script/check-line-citations_test.sh case 51d creates docs/build-log/example.md in merge_root and verifies that copied citation tooling excludes that fixture path. Other cases use test_root.",
+      "sourceSha256": "e8dfcc675224c9b85b9b58b613750506568dd1183fdbf91f64d9c3426a7b4a74"
+    },
+    "shell:script/dogfood-cache_test.sh": {
+      "reads": [],
+      "reason": "script/dogfood-cache_test.sh creates root with mktemp and moves generated CEMs in the scratch repo. Its find cleanup enumerates only that scratch root; copied Makefile/script behavior is exercised there.",
+      "sourceSha256": "c3904f17e741e9d9ecf5dec76619f7de0bc2561d7a90b4c082238916b6937f50"
+    },
+    "shell:script/gen-documentation-paths_test.sh": {
+      "reads": [],
+      "reason": "script/gen-documentation-paths_test.sh compares a fixed JSON directory name against generation in test_root. gen-documentation-paths.sh filters git ls-files to top-level docs/*.md before appending constant directory names, so new build-log entries cannot change the result.",
+      "sourceSha256": "916495b40318aec93985e968d29dfb3d656bfb2f081c81e72d9a22bff819d390"
+    },
+    "shell:script/gen-spec-requirements_test.sh": {
+      "reads": [],
+      "reason": "script/gen-spec-requirements_test.sh uses docs/build-log in expected intent-status prose inside scratch spec/index fixtures. It does not read this checkout's log directory.",
+      "sourceSha256": "758fab5b224c16a464d5709d23fdfe91c09563129483b6f6fdf786a2d4916d8e"
+    },
+    "shell:script/lane-scripts_test.sh": {
+      "reads": [],
+      "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages and creates the record-only fixture in rr and dispatch fixtures in ld; these are scratch repositories, not this checkout's records.",
+      "sourceSha256": "5612a3e98ea9fb9fa1b8c349f51e6c2f13e140ea32a770340044be486f6ceb43"
+    },
+    "shell:script/requirement-id-collisions_test.sh": {
+      "reads": [],
+      "reason": "script/requirement-id-collisions_test.sh creates repo/docs/build-log/2026-11-01-prose.md and runs git grep against that scratch repo. Its expected diagnostic names a directory without reading the source checkout.",
+      "sourceSha256": "1f344308c0d9d6f4b9fe949f4a7a263a85d65a9bd0be5cedba22d02fbcf41cd7"
+    }
+  }
+}
