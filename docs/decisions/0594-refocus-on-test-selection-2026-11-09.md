@@ -9,6 +9,11 @@
     ceremony", "Extract Tasks" and "CARVE splits".
   - This accepts the inventory's product sentence that decision 0593 left as a proposal: given a
     diff, Corvint names exactly the tests that must run and why, and proves none were missed.
+  - Owner chat, 2026-11-09, amendment before the change was published: Corvint must still do
+    documentation ("mcp, auto docs generation, flows, E2E mapping"), testing and task
+    management, and "if there are other ways this could be extracted into new repos that is
+    fine". The owner then approved the layout in items 1, 3 and 5 below ("Yes, amend and
+    rebuild").
 - Amends: decision 0593 (the rest of the inventory is now accepted); the owner acceptances that
   put the cut surfaces in 1.0; `AGENTS.md` product invariants 4, 7 and 8 and the dogfood contract
   where they name a removed surface.
@@ -17,9 +22,9 @@
   that named a removed surface are amended in place. `docs/specs/README.md` lists both.
 - Keeps: the `corvint` command groups adopt, affected, changes, diagnostic, help, impact, index,
   init, profile, repository, runs, runtime, signals, source, taskcontext, test, tests, version,
-  workspace and worktree; every `corvint-analyzer-*`, `corvint-*-test-provider` and
-  `corvint-test-runner`; the release support binaries; `corvint flows appmap` (`AMAP-V0`), which
-  E2E-safe selection reads; and every package those reach through kept code.
+  workspace and worktree, with docs, flows and how (item 3); every `corvint-analyzer-*`, `corvint-*-test-provider` and
+  `corvint-test-runner`; the release support binaries; `corvint-mcp`, `corvint-test-validity-mcp`,
+  `corvint-docs-mcp` and `corvint-web-flows`; and every package those reach through kept code.
 
 ## Context
 
@@ -32,24 +37,31 @@ CUT, RETIRE, EXTRACT or CARVE by whether it serves selection for a diff.
 ## Decision
 
 1. **CUT-CONTEXT.** Context injection and its delivery surfaces leave: the context, query and
-   review-pack command families, the MCP servers and MCP tool catalog, the LSP server, the
-   OpenCode qualifier, the native hook observer and the evaluation runner that only scored context
-   (decision log: `docs/build-log/2026-11-09-refocus-on-test-selection.md`).
+   review-pack command families, the MCP context and query tools, the LSP server, the OpenCode
+   qualifier, the native hook observer and the evaluation runner that only scored context
+   (decision log: `docs/build-log/2026-11-09-refocus-on-test-selection.md`). MCP itself stays:
+   each product owns its tools, and `corvint-mcp` serves impact, test validity, help and status.
 2. **CUT-HOSTED.** The hosted and service surfaces leave: the local console, dashboard snapshot,
    post-merge host, workflow, proof, connector and metrics, the corpus index, HTTP, parity and
    republish servers, intake, gateway and remote provider, with their protocols and conformance
    suites.
-3. **CUT-OTHER.** The documentation surfaces leave: the `corvint docs` and `corvint skill-export`
-   groups, `corvint-docs-mcp`, `corvint-web-flows` and every `corvint flows` verb except
-   `appmap`, with `requestpath`, `docmaintain`, `docviews`, `doccitations` and `skillexport`.
-   Orphan packages that no kept binary reaches leave with them.
+3. **CUT-OTHER.** `corvint skill-export` with `skillexport` leaves, and orphan packages that no
+   kept binary reaches leave with it. Documentation and flows stay as a product: the
+   `corvint docs` group (generation, corpus and maintenance), every `corvint flows` verb,
+   `corvint how`, `corvint-docs-mcp` and `corvint-web-flows`, with `requestpath`, `docmaintain`,
+   `docviews` and `doccitations`. They stay in this repository, because flows and E2E mapping
+   read the same index that selection reads. A follow-up moves the documentation verbs and
+   tools into a separate `corvint-docs` binary here, behind a rule that core packages do not
+   import documentation packages. The corpus servers stay cut under item 2.
 4. **RETIRE-PROCESS.** The CEM and dogfood ceremony that bound every Corvint change to a sealed
    evidence map leaves, with its command families, make targets, scripts and repository metadata.
    Changes are verified by affected-test selection, focused tests, review and CI.
 5. **EXTRACT.** Corvint Tasks (`internal/tasks/**`, `internal/taskman`, `cmd/corvint-tasks`,
    `cmd/corvint-work-queue` and their guides) moves to `beamfall/corvint-tasks`, imported from
    this repository at `4663b4e2b`. Corvint no longer builds or bundles `corvint-tasks`; the
-   repository keeps using an installed `corvint-tasks` for its own `.taskman/` store.
+   repository keeps using an installed `corvint-tasks` for its own `.taskman/` store. Tasks
+   owns its MCP tools. Before this change merges, the core directories that still import
+   Tasks packages are checked and severed or moved.
 6. **CARVE.** Where a kept package imported a cut one, the edge is severed in the kept package:
    `internal/lineanchor` takes the line anchors test discovery needed from `doccorpus`, and
    `cmd/corvint/runs_baseline.go` keeps its own clean-path check instead of importing

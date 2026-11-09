@@ -25,12 +25,10 @@ settled.
   - `corvint runs fresh`, `runs identity` and `runs reusable --fresh`, which now refuse with
     `runs-invalid-arguments`.
 - **Docs (CUT-OTHER).**
-  - The `corvint docs` and `corvint skill-export` groups and every `corvint flows` verb except
-    `appmap`.
-  - `cmd/corvint-docs-mcp`, `cmd/corvint-web-flows` with `tools/web-flows`, and
-    `tools/docs-blinded-task`.
-  - Packages `requestpath`, `docmaintain`, `docviews`, `doccitations` and `skillexport`.
-  - `docs/FLOW-DOCUMENTATION.md`.
+  - The `corvint skill-export` group with `internal/skillexport`.
+  - `tools/docs-blinded-task`.
+  - `corvint docs corpus` tests and fixtures that needed the cut corpus index or CEM stable
+    fixtures. The `docs corpus cem` and `cem-stable` verbs still exist without them.
 - **Process (RETIRE-PROCESS).**
   - The CEM, dogfood, OCM, frontier, witness, LRF, authority, lease, step, work, obligations,
     observations, self, prove, delta and gate command families, with their packages.
@@ -59,6 +57,13 @@ settled.
     compatibility.
 
 ## What stayed and why
+
+- **Documentation and flows (amendment, same day).** The first build cut the `corvint docs`
+  group, every flows verb except `appmap`, `corvint-docs-mcp` and `corvint-web-flows`. The
+  owner then restated that documentation (MCP, generated docs, flows, E2E mapping) is a
+  product goal, so those cuts were reverted on `claude/bigcut-keepdocs` and their spec
+  retirements undone. They stay in this repository because they read the selection index. A
+  follow-up splits them into a `corvint-docs` binary behind an import rule.
 
 - **Discovery adapter.** `cmd/corvint-cli` and `internal/cliprofile` provide CAP-V0-9300
   discovery for the 16 protocol-only analyzers that stay. Cutting them would hide KEEP roots.
