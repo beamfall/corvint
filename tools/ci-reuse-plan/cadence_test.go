@@ -67,7 +67,8 @@ func (r *cadenceRepo) commit(msg string) string {
 func (r *cadenceRepo) pr(edit func()) (base, head, target string) {
 	r.t.Helper()
 	base = r.git("rev-parse", "main")
-	r.git("checkout", "-q", "-b", "head", base)
+	// A branch named head aliases HEAD on case-insensitive macOS filesystems.
+	r.git("checkout", "-q", "-b", "pr-topic", base)
 	edit()
 	head = r.commit("head")
 	r.git("checkout", "-q", "--detach", base)
@@ -140,6 +141,13 @@ func TestCINV04750CadenceClassifier(t *testing.T) {
 		{"platform suffix", "FULL", "NONE", "unclassified:internal/foo/foo_darwin_test.go", func(r *cadenceRepo) {
 			r.write("internal/foo/foo_darwin_test.go", "package foo\n")
 		}},
+		// CIN-V0-5017: the reused cadence classifier must keep these Darwin inputs FULL.
+		{"Darwin production", "FULL", "NONE", "unclassified:internal/foo/foo_darwin.go", func(r *cadenceRepo) { r.write("internal/foo/foo_darwin.go", "package foo\n") }},
+		{"shared Unix production", "FULL", "NONE", "unclassified:internal/foo/foo_unix.go", func(r *cadenceRepo) { r.write("internal/foo/foo_unix.go", "package foo\n") }},
+		{"shared Unix test", "FULL", "NONE", "unclassified:internal/foo/foo_unix_test.go", func(r *cadenceRepo) { r.write("internal/foo/foo_unix_test.go", "package foo\n") }},
+		{"Darwin build tag", "FULL", "NONE", "unclassified:internal/foo/c_test.go", func(r *cadenceRepo) { r.write("internal/foo/c_test.go", "//go:build darwin\n\npackage foo\n") }},
+		{"macOS script", "FULL", "NONE", "unclassified:.github/macos/shard.py", func(r *cadenceRepo) { r.write(".github/macos/shard.py", "# changed\n") }},
+		{"shard workflow", "FULL", "NONE", "unclassified:.github/workflows/go-macos.yml", func(r *cadenceRepo) { r.write(".github/workflows/go-macos.yml", "# changed\n") }},
 		{"arch suffix", "FULL", "NONE", "unclassified:internal/foo/foo_arm64_test.go", func(r *cadenceRepo) {
 			r.write("internal/foo/foo_arm64_test.go", "package foo\n")
 		}},
@@ -374,9 +382,9 @@ func TestCINV04753CadenceWorkflowWiring(t *testing.T) {
 	}
 	wantLine(t, "docs-plan", jobBlock(t, mac, "docs-plan"), "    if: ${{ !cancelled() && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}")
 	wantLine(t, "go-macos-shard", jobBlock(t, mac, "go-macos-shard"),
-		"    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') }}")
-	if strings.Count(jobBlock(t, mac, "go-macos"), "        if: needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER'\n") != 2 {
-		t.Error("the go-macos aggregator must check every shard unless the cadence verifiably deferred them")
+		"    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' && (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS') }}")
+	if strings.Count(jobBlock(t, mac, "go-macos"), "        if: (needs.cadence-plan.result != 'success' || needs.cadence-plan.outputs.cadence != 'DEFER') && (needs.docs-plan.result != 'success' || needs.docs-plan.outputs.mode != 'DOCS')\n") != 2 {
+		t.Error("the go-macos aggregator must check every shard unless cadence or docs verifiably skipped them")
 	}
 	// The Makefile guard reads only the step-level variable, and the nightly gates run the replay.
 	mk, err := os.ReadFile("../../Makefile")

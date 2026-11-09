@@ -1,0 +1,287 @@
+name: Linecov miss
+
+# GLS-V0-046/047 (LPCV-V0-957): when a full push run of main fails, every failed top-level test
+# that a merge-queue run of a commit merged since the last green full run left out by line
+# coverage is a suspected miss. It is confirmed only when, under the runner the narrowed selection's
+# index names (the shard's -race build, test-confine wrapper and test deadline), the test passes at
+# that entry's base and fails twice at its merge commit; a confirmed
+# miss creates refs/tags/linecov-kill-go, which stops coverage exclusion until the owner deletes it
+# (LPCV-V0-020). A suspected miss is reported and never kills. It runs only commits of main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  CGO_ENABLED: "1"
+
+jobs:
+  miss:
+    # Only this repository's own pushes to main reach the checkout below: a protected main holds
+    # merged, reviewed commits, and a run from any other repository is refused before checkout.
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-24.04
+    # Confirmation reruns under the recorded 50m test deadline (GLS-V0-046); the confirm step
+    # stops starting suspects it cannot finish, which leaves them suspected, never confirmed.
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Provision the host tools the product's fixed PATH resolves
+        if: runner.environment != 'self-hosted'
+        # Child processes run under worksource.PlatformPath, which reaches Go through
+        # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
+        # and the Git fixtures commit under the global identity. Automatic maintenance is off so
+        # no detached `git maintenance` outlives a fixture commit and races its TempDir cleanup.
+        # V1-1095: rg is the official ripgrep release binary, pinned by the SHA-256 that the
+        # release publishes (https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-ci-critical-path.md), not an apt install;
+        # a checksum mismatch fails the step before anything is extracted.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)
+          test "$rg_found" = /usr/local/bin/rg
+          case "$("$rg_found" --version | head -n 1)" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *) echo "::error::$rg_found is not ripgrep $RG_VERSION"; exit 1 ;;
+          esac
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+          git --version
+      - name: Find suspected misses (GLS-V0-046)
+        id: suspects
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MAX_COMMITS: "100"
+        run: |
+          d="$RUNNER_TEMP/linecov-miss"
+          mkdir -p "$d/failed" "$d/runs"
+          say() { printf '%s\n' "$1" | tee -a "$GITHUB_STEP_SUMMARY"; }
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/linecov" ./tools/linecov
+          if ! gh run download "$RUN_ID" -R "$REPO" --pattern 'ci-failed-push-*' -D "$d/failed" > /dev/null 2>&1; then
+            say "GLS-V0-046: run $RUN_ID retained no ci-failed-push artifact; its failed tests are unknown, so no miss is suspected"
+            exit 0
+          fi
+          mapfile -t failed < <(find "$d/failed" -name failed.json -type f | sort)
+          [ ${#failed[@]} -gt 0 ] || { say "GLS-V0-046: no failed.json in run $RUN_ID"; exit 0; }
+          green=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?branch=main&event=push&status=success&per_page=50" \
+            --jq "[.workflow_runs[] | select(.id < $RUN_ID) | .head_sha] | first // empty") || green=""
+          [ -n "$green" ] || { say "GLS-V0-046: no earlier green full run of main; no miss is suspected"; exit 0; }
+          git merge-base --is-ancestor "$green" "$HEAD_SHA" || { say "GLS-V0-046: green run is outside the main lineage"; exit 0; }
+          commits=$(git rev-list --first-parent --ancestry-path "$green..$HEAD_SHA" --max-count=101) || commits=unbounded
+          [ "$commits" != unbounded ] && [ "$(wc -w <<< "$commits")" -le "$MAX_COMMITS" ] || { say "GLS-V0-046: the main range is unreadable or exceeds $MAX_COMMITS commits"; exit 0; }
+          args=()
+          for f in "${failed[@]}"; do args+=(-failed "$f"); done
+          n=0
+          for c in $commits; do
+            runs=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$c&event=merge_group&per_page=20" --jq '.workflow_runs[].id' 2> /dev/null) || runs=""
+            # Direct PR merges can have a different synthetic tested commit. Find their runs,
+            # retaining them as suspected until the exact base and final tree are verified.
+            heads=$(gh api "repos/$REPO/commits/$c/pulls?per_page=100" --jq ".[] | select(.merged_at != null and .merge_commit_sha == \"$c\") | .head.sha" 2> /dev/null) || heads=""
+            for h in $heads; do
+              prruns=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$h&event=pull_request&per_page=20" --jq '.workflow_runs[].id' 2> /dev/null) || prruns=""
+              runs="$runs $prruns"
+            done
+            for run in $(tr ' ' '\n' <<< "$runs" | sed '/^$/d' | sort -u); do
+              n=$((n + 1))
+              # Actual application and split-package placement differ by shard. Read every
+              # retained shard, rather than treating a report-only selection as an exclusion.
+              for shard in $(seq 0 15); do
+                out="$d/runs/$c-$run-$shard"
+                mkdir -p "$out"
+                if gh run download "$run" -R "$REPO" -n "linecov-narrow-$shard" -D "$out" > /dev/null 2>&1 &&
+                  [ -s "$out/selection.json" ] && [ -s "$out/meta" ]; then
+                  printf 'merged %s\n' "$c" >> "$out/meta"
+                  args+=(-run "$out")
+                fi
+              done
+            done
+          done
+          "$RUNNER_TEMP/linecov" miss "${args[@]}" > "$d/suspects.json"
+          count=$(jq length "$d/suspects.json")
+          say "GLS-V0-046: run $RUN_ID at $HEAD_SHA, $n merge-queue run(s) since green $green: $count suspected miss(es)"
+          jq -r '.[] | "- \(.package).\(.test), left out (\(.mode)) by run \(.run) for \(.base)..\(.head)"' "$d/suspects.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+      - name: Build the protected test read-scope wrapper as the CI shards do
+        if: steps.suspects.outputs.count != '' && steps.suspects.outputs.count != '0'
+        working-directory: source
+        run: |
+          # AFP-V0-023, GLS-V0-046: the same test-confine build as ci.yml's shards, so a rerun
+          # executes under the wrapper the narrowed selection's runner identity hashes (exec=).
+          d="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$d/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          declared=$([ -f .corvint/test-read-scopes.json ] && echo 1 || true)
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
+          if [ -n "$declared" ]; then
+            "$RUNNER_TEMP/test-confine" -probe
+          fi
+      - name: Confirm each suspected miss by reruns (GLS-V0-046)
+        id: confirm
+        if: steps.suspects.outputs.count != '' && steps.suspects.outputs.count != '0'
+        working-directory: source
+        timeout-minutes: 300
+        env:
+          MAX_SUSPECTS: "5"
+          BUDGET_SECONDS: "17400"
+        run: |
+          d="$RUNNER_TEMP/linecov-miss"
+          module=$(go list -m)
+          : > "$d/confirmed.jsonl"
+          : > "$d/fetch-errors"
+          unset GOMAXPROCS GOGC GOMEMLIMIT GORACE
+          go_version=$(GOFLAGS=-race go env GOVERSION)
+          test "$go_version" = "go1.27.3"
+          # GLS-V0-046, GLS-V0-009: a rerun reproduces the runner the narrowed selection's
+          # index names, which the shard ran under: this -race build, the test-confine wrapper
+          # and the recorded test deadline. Every part but the deadline must equal this step's;
+          # a suspect whose runner differs or names no deadline stays suspected.
+          wrapper_id="sha256:$(sha256sum "$RUNNER_TEMP/test-confine" | cut -d' ' -f1)"
+          arch_vars=(GO386 GOAMD64 GOARM GOARM64 GOFIPS140 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM) # linecov.ArchFeatureVars
+          mapfile -t arch_values < <(GOFLAGS=-race go env "${arch_vars[@]}")
+          arch=""
+          for i in "${!arch_vars[@]}"; do
+            [ -z "${arch_values[i]:-}" ] || arch="${arch:+$arch }${arch_vars[i]}=${arch_values[i]}"
+          done
+          runner_prefix="$go_version $(GOFLAGS=-race go env GOOS GOARCH | paste -sd' ' -) arch=\"$arch\" cgo=1 goflags=\"-race\" goexperiment=\"$(GOFLAGS=-race go env GOEXPERIMENT)\" runtime=\"\" exec=\"$wrapper_id\" test=\"-test.paniconexit0 -test.v=test2json -test.timeout="
+          reproducible() { # sets deadline and seconds from the runner $1, or fails
+            local rest=${1#"$runner_prefix"} re='^(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?" atomic$'
+            [ "$rest" != "$1" ] && [ "${rest%%\"*}" != "" ] && [[ "$rest" =~ $re ]] || return 1
+            deadline=${rest%%\"*}
+            seconds=$((10#${BASH_REMATCH[2]:-0} * 3600 + 10#${BASH_REMATCH[4]:-0} * 60 + 10#${BASH_REMATCH[6]:-0}))
+          }
+          rerun() { # one observed pass/fail of the named test, never a compile error
+            local pattern="^$3\$" status=0 capture="$d/rerun-$4.json"
+            [ "$3" = "(outside every test)" ] && pattern="."
+            # The shard's invocation (ci.yml run_slice), confined to this worktree.
+            (cd "$1" && CORVINT_CONFINE_ROOT="$PWD" GOFLAGS=-race go test -exec "$RUNNER_TEMP/test-confine" -json -count=1 -timeout "$deadline" -run "$pattern" "./$2") > "$capture" 2>&1 || status=$?
+            # Package failures omit Test. Require the exact package's execution
+            # start and terminal result, and reject compiler/setup diagnostics.
+            # Named tests still require that exact Test; a package fail cannot
+            # stand in for another test's failure.
+            local action=fail package="$module"
+            [ "$2" = . ] || package="$module/$2"
+            if [ "$4" = base ]; then
+              [ "$status" = 0 ] || return 1
+              action=pass
+            else
+              [ "$status" != 0 ] || return 1
+            fi
+            jq -s -e --arg t "$3" --arg pkg "$package" --arg action "$action" '
+              all(.[]; .Action != "build-fail" and
+                ((.Output // "") | test("\\[(build|setup) failed\\]") | not)) and
+              (if $t == "(outside every test)" then
+                any(.[]; .Package == $pkg and .Action == "start") and
+                any(.[]; .Package == $pkg and (.Test // "") == "" and .Action == $action)
+              else
+                any(.[]; .Package == $pkg and .Test == $t and .Action == $action)
+              end)' "$capture" > /dev/null
+          }
+          jq -c ".[:$MAX_SUSPECTS][]" "$d/suspects.json" | while read -r s; do
+            pkg=$(jq -r .package <<< "$s") test=$(jq -r .test <<< "$s") base=$(jq -r .base <<< "$s") head=$(jq -r .head <<< "$s") merged=$(jq -r .merged <<< "$s") runner=$(jq -r '.runner // ""' <<< "$s")
+            dir=${pkg#"$module"/}
+            [ "$pkg" = "$module" ] && dir=.
+            verdict=suspected
+            # A rerun under another runner, or one cut short by the job, confirms nothing.
+            # Confirmation is about this exact landed change. A later failure or a PR whose
+            # final merge differs from its tested base/tree cannot confirm this exclusion.
+            if ! reproducible "$runner"; then
+              verdict="suspected (its recorded runner is not reproducible here: $runner)"
+            elif [ $((SECONDS + 3 * seconds + 900)) -gt "$BUDGET_SECONDS" ]; then
+              verdict="suspected (no time left for three reruns under its $deadline deadline)"
+            # A direct PR merge can test a synthetic commit absent from main's history.
+            # Fetch the recorded SHA, never the PR's current (possibly changed) merge ref.
+            elif ! git fetch --no-tags origin "$head"; then
+              echo "::error::GLS-V0-046: could not fetch recorded tested commit $head for $pkg.$test"
+              printf '%s\n' "$head" >> "$d/fetch-errors"
+              verdict="suspected (failed to fetch recorded tested commit $head)"
+            elif [ "$(git rev-parse "$merged^1" 2> /dev/null)" = "$base" ] &&
+              [ "$(git rev-parse "$merged^{tree}" 2> /dev/null)" = "$(git rev-parse "$head^{tree}" 2> /dev/null)" ] &&
+              git worktree add -q --detach "$RUNNER_TEMP/at-base" "$base" && git worktree add -q --detach "$RUNNER_TEMP/at-head" "$merged"; then
+              if rerun "$RUNNER_TEMP/at-base" "$dir" "$test" base && rerun "$RUNNER_TEMP/at-head" "$dir" "$test" head1 && rerun "$RUNNER_TEMP/at-head" "$dir" "$test" head2; then
+                verdict=confirmed
+              fi
+            fi
+            git worktree remove --force "$RUNNER_TEMP/at-base" 2> /dev/null || true
+            git worktree remove --force "$RUNNER_TEMP/at-head" 2> /dev/null || true
+            echo "GLS-V0-046: $pkg.$test ($base..$merged): $verdict" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ "$verdict" = confirmed ]; then
+              jq -c . <<< "$s" >> "$d/confirmed.jsonl" # carries the reproduced runner
+            fi
+          done
+          if [ -s "$d/confirmed.jsonl" ]; then
+            mkdir -p "$d/kill"
+            jq -s '{profile: "linecov-kill/1", family: "go", misses: .}' "$d/confirmed.jsonl" > "$d/kill/kill.json"
+            echo "confirmed=1" >> "$GITHUB_OUTPUT"
+          fi
+          # Preserve confirmations and their kill switch even if another suspect cannot be fetched.
+          if [ -s "$d/fetch-errors" ]; then exit 1; fi
+      - name: Retain the suspected misses
+        if: always() && steps.suspects.outputs.count != '' && steps.suspects.outputs.count != '0'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-suspected-miss
+          path: ${{ runner.temp }}/linecov-miss/suspects.json
+          retention-days: 30
+      - name: Persist coverage exclusion kill switch (GLS-V0-047, LPCV-V0-020)
+        if: always() && steps.confirm.outputs.confirmed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # This lightweight ref has no retention expiry. Existing markers are
+          # preserved, including concurrent confirmations. Only the owner may
+          # delete it after repair and requalification.
+          if ! gh api --method POST "repos/$REPO/git/refs" -f ref=refs/tags/linecov-kill-go -f sha="$HEAD_SHA"; then
+            gh api "repos/$REPO/git/ref/tags/linecov-kill-go" --jq '.ref' | grep -Fx refs/tags/linecov-kill-go
+          fi
+      - name: Retain confirmed miss details
+        if: always() && steps.confirm.outputs.confirmed == '1'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linecov-kill-go
+          path: ${{ runner.temp }}/linecov-miss/kill/kill.json
+          retention-days: 90
+      - name: Fail on a confirmed miss
+        if: steps.confirm.outputs.confirmed == '1'
+        run: |
+          echo "::error::GLS-V0-047: a confirmed line-coverage miss disabled coverage exclusion for the Go family; repair it, requalify (linecov qualify), then delete refs/tags/linecov-kill-go and any retained linecov-kill-go artifact"
+          exit 1

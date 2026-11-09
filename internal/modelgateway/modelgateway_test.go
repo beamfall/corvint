@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -279,7 +280,13 @@ func newGateway(t *testing.T, folder *Folder, handler func(w http.ResponseWriter
 	var ledger bytes.Buffer
 	proxy := NewProxy(target, folder, &ledger)
 	clock := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
-	proxy.Now = func() time.Time { clock = clock.Add(250 * time.Millisecond); return clock }
+	var clockMu sync.Mutex // handlers run concurrently
+	proxy.Now = func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		clock = clock.Add(250 * time.Millisecond)
+		return clock
+	}
 	gateway := httptest.NewServer(proxy)
 	t.Cleanup(gateway.Close)
 	return gateway, &ledger, seen
