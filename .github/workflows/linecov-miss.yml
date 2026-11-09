@@ -70,9 +70,11 @@ jobs:
           sudo ln -s "$(go env GOROOT)" /usr/local/go
           test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
-          # V1-5188: a restored release tarball skips the network; either way the pinned
-          # checksum below is verified before anything is extracted.
-          if [ -f "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" ]; then
+          # V1-5188: a restored release tarball that matches the pin skips the network; a
+          # missing or damaged one falls back to a download, and the pinned checksum below is
+          # verified again before anything is extracted.
+          if [ -f "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" ] &&
+            echo "$RG_SHA256  $RUNNER_TEMP/rg-release/$rg_name.tar.gz" | sha256sum --check --status --strict; then
             cp "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" "$RUNNER_TEMP/$rg_name.tar.gz"
           else
             curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
