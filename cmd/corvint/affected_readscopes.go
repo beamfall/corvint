@@ -3,17 +3,20 @@ package main
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
-// affectedReadScopeChanges binds AFP-V0-3300/3301 selection inputs to the
+// affectedReadScopeChanges binds AFP-V0-3300/3301/3304 selection inputs to the
 // immutable measured commit and the planned tree. Git admission stays at the
 // CLI boundary, so merely using the affected graph needs no Git object reader.
 func affectedReadScopeChanges(ctx context.Context, in affectedPlanInputs, graph *affected.Graph, dirty []string) *affected.Graph {
-	needed := false
+	// Declaration edits also need the base when all current entries are
+	// legacy strings, removed, or invalid (AFP-V0-3304/3305).
+	needed := slices.Contains(dirty, affected.ReadScopeTreesPath)
 	for _, id := range graph.UnitIDs() {
 		unit, _ := graph.Unit(id)
 		if len(unit.ReadScopeTrees) != 0 {

@@ -65,7 +65,7 @@ Lane selmin (2026-11-07; V1-5029, V1-5026, V1-5030) adds AFP-V0-9009 to AFP-V0-9
 here for the same reason; see build-log entry `2026-11-07-selmin`.
 Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
 for the same reason; see build-log entry `2026-11-07-rscope`.
-V1-5174 (2026-11-08) adds AFP-V0-3300 through AFP-V0-3303 for predicate and listing-only tree scopes.
+V1-5174 (2026-11-08) adds AFP-V0-3300 through AFP-V0-3305 for predicate, listing-only tree scopes and per-unit declaration comparison.
 
 ## User and current state
 
@@ -863,12 +863,28 @@ outside every other read of `main_test.go`. The two requirements below replace t
   `corvint-affected-graph-cache/2` so older entries rebuild. A metadata-only change MUST NOT
   reuse a stale graph. BASE/HEAD content and listings are per-plan inputs and SHALL NOT survive
   in the reusable graph cache. Edits of either declaration retain selection: the string-only
-  file keeps its existing package comparison; the trees file selects declared scopes even when
-  its metadata is missing or invalid. Every other reader, including old binaries, confinement,
+  file keeps its existing package comparison; the trees file compares package entries under AFP-V0-3304 and selects declared scopes when
+  its metadata is missing or invalid under AFP-V0-3305. Every other reader, including old binaries, confinement,
   CI selection, test reuse and gate-ledger, SHALL consume the unchanged string-only file and
   retain its conservative whole-tree superset without reader changes. Witnesses name the actual
   bearing entry or edited declaration. `declaration-compat-check` SHALL accept the trees file's
   string/object value alternatives, reject unknown object members and preserve top-level checks.
+
+- **AFP-V0-3304:** (experimental; owner-requested V1-5174) When the trees declaration
+  is dirty, selection SHALL compare each Go unit's parsed package/tree entries at the immutable
+  comparison commit (explicit base, otherwise HEAD) with the planned tree. Added, removed or
+  changed entries, including reasons, predicates, samples and listing markers, select that unit
+  with `DECLARED_READ_SCOPE`. JSON whitespace and object key order, and edits to other units'
+  entries, SHALL NOT select it through the declaration edit. Explicit reads of the declaration
+  and other dependency witnesses remain effective. A changed string-only declaration keeps
+  AFP-V0-050 selection independently. Comparison data SHALL remain per-plan input, outside the
+  reusable graph cache; the trees content digest and read stamp SHALL remain cache inputs.
+- **AFP-V0-3305:** (experimental; owner-requested V1-5174) Declaration narrowing SHALL
+  require both trees files to be readable and valid under `corvint-test-read-scope-trees/0`.
+  A missing, unreadable, malformed or unsupported-profile file on either side, an unknown
+  comparison base, or a sparse checkout SHALL retain the existing selection of all read-scoped
+  units on a trees-file edit. No missing prior file may be interpreted as an empty declaration.
+  Legacy reason-only declarations SHALL receive the same comparison and fallback as objects.
 
 - **AFP-V0-2240:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-4437; round 8) `internal/gateselect`'s rule (c), in `Select`, `SelectStructural` and the
@@ -2612,6 +2628,8 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-3301 | direct-child snapshots in `readscope_tree.go` | `TestListingOnlyTransitions_AFP_V0_3301`; conversion audit in `../build-log/2026-11-08-tree-scope-predicates.md` |
 | AFP-V0-3302 | `ReadScopeTree.Validate`, `ParseReadScopeTrees` and `readTrees` | `TestTreeScopeSamplesAndReasons_AFP_V0_3302` in `tools/test-read-scopes-check` |
 | AFP-V0-3303 | graph/digest/cache, trees-file inputs and string-only declaration compatibility | `TestTreeScopeCacheAndDeclarationIdentity_AFP_V0_3303`, `TestTreeMetadataValuesKeepStringScopes_AFP_V0_3303`; focused vet and before/after planner measurements in `../build-log/2026-11-08-tree-scope-predicates.md` |
+| AFP-V0-3304 | per-plan parsed trees comparison in `readscope_tree.go`, `scopedReadersOf`, CLI base admission | `TestTreeDeclarationChanges_AFPV03304`, `TestAffectedTreeDeclarationBase_AFPV03304`; declaration-edit measurements in `../build-log/2026-11-08-tree-scope-predicates.md` |
+| AFP-V0-3305 | conservative declaration endpoint admission | `TestTreeDeclarationChanges_AFPV03304`, `TestTreeDeclarationUnreadable_AFPV03305`, `TestAffectedTreeDeclarationBase_AFPV03304` |
 | AFP-V0-9012 | bounded hidden-directory discovery reused from `claude/selbatch` in `golang/golang.go`; FULL argv, universe and receipt check in `tools/corvint-pr-tests/universe.go`, `main.go`, `run_result.go`; the shard-0 hidden run in `.github/workflows/ci.yml` is pending the separate follow-up `.github` PR (the github-split-check gate refuses a mixed `.github`+code range) | `TestHiddenGoSelection_AFPV09012`, `TestHiddenGoExecution_AFPV09012`, `TestHiddenUnrepresentableNames_AZU_V0_005`, `TestHiddenPackageDirs_AFPV09012`, `TestWriteSortedPackages_AFPV09012` (`--mode packages` output order), `TestFullExecutionHiddenAndSymlinked_AFPV09012`, `TestFullSourceDriftHidden_AFPV09012`, `TestFullShardedRaceOnly_AFPV09012`, `TestShardedSourceDrift_AFPV0022`, `TestContainerRunResult`; the workflow-placement evidence (the `TestAFPV0098SupersetGuardSidecar` subtest "AFP-V0-9012 shard 0 runs hidden packages outside placement", with a race-only package and a discovery-failure case) is pending and lands with that follow-up PR's `ci.yml` change |
 | AFP-V0-9013 | `seed` guards `goReadData` with `unownedUnknown`; existing `fixtureOnlyClaim`, Go selector and session unknown allowlist | `TestUnindexedFixtureSession_AFPV09013` |
 | AFP-V0-9014 | existing dependency closure and `testSourceSlice` | `TestCoreFreezeDigestSelection_AFPV09014` |

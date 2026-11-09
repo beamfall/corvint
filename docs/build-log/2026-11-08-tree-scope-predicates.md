@@ -151,3 +151,57 @@ the owner's single-local-commit repair scope. Dogfood status also refused ambigu
 session identities without an enrollment key. No lifecycle completion is claimed.
 Rollback replaces metadata objects in the trees file with their reason strings; the main
 read-scope declaration stays string-only and conservative.
+
+## Declaration-edit precision repair (AFP-V0-3304/3305)
+
+The owner measured 529 selected units, including 238 `DECLARED_READ_SCOPE` units, from
+appending a newline to the trees declaration. The planner now compares each Go package's
+parsed tree entries at the immutable comparison base with the planned tree. Both endpoints
+must parse under the supported profile; missing, unreadable, malformed, version-mismatched
+or unknown inputs retain conservative selection. Comparison inputs stay outside the graph
+cache; the existing trees-file content key is unchanged. The CLI loads the base even when
+current entries have no predicates. Explicit declaration readers and string-only declaration
+changes retain their existing selection. Rollback reverts this comparison to unconditional
+selection on trees-file edits without changing either declaration format.
+
+Measurements use separate original/fixed branch-built binaries against the same detached
+probe worktree of `37bd335501832b8c5fb6cbacb6e9f433ce6f923e`, each invoking
+`affected --base HEAD~1 --format json`. The newline probe is `a163725e1`; its successor
+`eba15adf3` changes only `tools/fixture-maintenance-check`'s `cmd/` predicate from `git` to
+`git|svn`. Exact `summary.line` results:
+
+| Probe | Before | After |
+| --- | --- | --- |
+| Newline | `scope=UNKNOWN dirty=1 selected=529 excluded=366 unknown=4 LANGUAGE_FRONTIER=4` | `scope=UNKNOWN dirty=1 selected=291 excluded=604 unknown=4 LANGUAGE_FRONTIER=4` |
+| One predicate | `scope=UNKNOWN dirty=1 selected=529 excluded=366 unknown=4 LANGUAGE_FRONTIER=4` | `scope=UNKNOWN dirty=1 selected=292 excluded=603 unknown=4 LANGUAGE_FRONTIER=4` |
+
+The scratch detached worktree was removed after measurement.
+`DECLARED_READ_SCOPE` counts are respectively 238 → 0 and 238 → 1. The sole predicate
+selection is `go:github.com/Beamfall/corvint/tools/fixture-maintenance-check`. The four retained
+unknowns are driver unparsable-file, Python conditional-import and dynamic-import, and shell
+foreign-invocation-unmodelled. This is selection precision evidence, not a claim of bounded
+coverage or measured test-runtime savings.
+
+Verification (Go 1.27.3):
+
+- PASS: requested affected-package `Tree|ReadScope|AFPV033` tests, full
+  `tools/test-read-scopes-check` tests, and vet on affected and `cmd/corvint`.
+- PASS: CLI `TestAffectedTreeDeclarationBase_AFPV03304`, covering immutable explicit base,
+  implicit HEAD, reason-only declarations and missing prior metadata.
+- FAIL as required before the fix: `TestTreeDeclarationChanges_AFPV03304/whitespace`
+  selected both fixture units instead of none. Repeated after temporarily restoring all three
+  production files from HEAD; the same assertion failed, then all edits were restored.
+- PASS: staged spec regeneration and `spec-requirements-check`, `make changed-checks`,
+  and diff whitespace checks. AFP-V0-3304/3305 were unused before this change. Initial
+  staging/generator attempts hit `index.lock: Operation not permitted`; explicit staging
+  and rerunning generation resolved them.
+
+The initial spec check unintentionally inherited the machine's WSL offload configuration for
+`internal/specindex`, contrary to the owner's local-only/no-network-write instruction. This
+was reported immediately on discovery; the check was repeated with `HEAVY_REMOTE=0`. Other
+requested tests were explicitly local. No Tasks commands, subagents, push or publication were
+run. Direct code/diff review replaces independent delegation under the explicit no-subagent
+scope. Exhaustive gates and multi-commit CEM/seal closeout remain outside this local repair.
+Installed Core is build 137 (`447bdcbd5963`); official freshness remains UNKNOWN because the
+updater's version smoke could not prove process-group cleanup in this sandbox. Usage/billing
+telemetry remains NOT_OBSERVED. No tool installation or qualification is claimed.

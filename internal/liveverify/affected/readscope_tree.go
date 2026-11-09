@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"maps"
 	"path"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -156,6 +157,9 @@ func (rule ReadScopeTree) Validate() error {
 type readScopeInputs struct {
 	content map[string]DriverRevision
 	listing map[string]bool // present only when both direct-child listings are known
+	// Both maps are present only when both declarations parse under the
+	// supported profile. They are comparison inputs, never cached graph state.
+	priorTrees, trees map[string]map[string]ReadScopeTreeValue
 }
 
 // WithReadScopeSources observes each required file or listing once. No
@@ -169,6 +173,13 @@ func (graph *Graph) WithReadScopeSources(base, head *Source, dirty []string) *Gr
 	}
 	listed, read := map[string]bool{}, map[string]bool{}
 	dirty = NormalizePaths(dirty)
+	if slices.Contains(dirty, ReadScopeTreesPath) {
+		before, _ := readScopeTrees(base)
+		after, _ := readScopeTrees(head)
+		if before != nil && after != nil {
+			inputs.priorTrees, inputs.trees = before, after
+		}
+	}
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		for _, rule := range unit.ReadScopeTrees {
@@ -198,6 +209,17 @@ func (graph *Graph) WithReadScopeSources(base, head *Source, dirty []string) *Gr
 		}
 	}
 	return &copied
+}
+
+// treeDeclarationChanged compares parsed entries, including legacy reasons,
+// independently of JSON whitespace and object key order (AFP-V0-3304).
+// Unknown endpoints retain the existing conservative rule (AFP-V0-3305).
+func (graph *Graph) treeDeclarationChanged(id, directory string, unit Unit) bool {
+	inputs := graph.readScopeInputs
+	if inputs == nil || inputs.priorTrees == nil {
+		return unit.ReadScoped
+	}
+	return strings.HasPrefix(id, "go:") && !reflect.DeepEqual(inputs.priorTrees[directory], inputs.trees[directory])
 }
 
 func sameReadScopeListing(before, after []fs.DirEntry) bool {

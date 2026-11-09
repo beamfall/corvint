@@ -403,7 +403,7 @@ func gatedLocatorsChanged(normalized []string) []Unknown {
 func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) {
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil) {
+		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil && (graph.readScopeInputs == nil || graph.readScopeInputs.priorTrees == nil)) {
 			continue
 		}
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
@@ -415,6 +415,9 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 			bears := unit.ReadScoped && graph.inReadScope(directory, unit, dirtyPath)
 			if dirtyPath == ReadScopesPath && graph.priorReadScopes != nil {
 				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
+			}
+			if dirtyPath == ReadScopeTreesPath {
+				bears = graph.treeDeclarationChanged(id, directory, unit) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
 			}
 			if bears {
 				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: graph.treeReadScopeCause(id, directory, unit, dirtyPath)}

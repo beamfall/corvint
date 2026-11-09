@@ -304,3 +304,113 @@ func TestTreeMetadataFailureKeepsPlainScopes_AFP_V0_3300(t *testing.T) {
 		t.Fatal("unreadable metadata excluded guard")
 	}
 }
+
+// AFP-V0-3304/3305 compare each parsed package declaration, with unknown
+// endpoints retaining the conservative selection of all declared units.
+func TestTreeDeclarationChanges_AFPV03304(t *testing.T) {
+	const entry = `{"reason":"guard reads cmd/","contentPredicate":"forbidden","samples":["forbidden"]}`
+	const original = `{"profile":"corvint-test-read-scope-trees/0","trees":{"guard":{"cmd/":` + entry + `},"other":{"cmd/":"other reads cmd/"}}}`
+	const guardOnly = `{"profile":"corvint-test-read-scope-trees/0","trees":{"guard":{"cmd/":` + entry + `}}}`
+	const otherID = "go:example.test/scopes/other"
+	for _, c := range []struct {
+		name, before, after        string
+		want                       []string
+		unknownBase, scopesChanged bool
+	}{
+		{name: "whitespace", before: original, after: original + "\n"},
+		{name: "key order", before: original, after: `{"trees":{"other":{"cmd/":"other reads cmd/"},"guard":{"cmd/":{"samples":["forbidden"],"contentPredicate":"forbidden","reason":"guard reads cmd/"}}},"profile":"corvint-test-read-scope-trees/0"}`},
+		{name: "one predicate", before: original, after: strings.Replace(original, `"contentPredicate":"forbidden"`, `"contentPredicate":"forbidden|new"`, 1), want: []string{treeGuardID}},
+		{name: "one reason", before: original, after: strings.Replace(original, "other reads cmd/", "other guard reads cmd/", 1), want: []string{otherID}},
+		{name: "added unit entry", before: guardOnly, after: original, want: []string{otherID}},
+		{name: "removed unit entry", before: original, after: guardOnly, want: []string{otherID}},
+		{name: "malformed prior", before: "{", after: original, want: []string{treeGuardID, otherID}},
+		{name: "malformed current", before: original, after: "{", want: []string{treeGuardID, otherID}},
+		{name: "missing prior", after: original, want: []string{treeGuardID, otherID}},
+		{name: "missing current", before: original, want: []string{treeGuardID, otherID}},
+		{name: "prior version", before: strings.Replace(original, "trees/0", "trees/1", 1), after: original, want: []string{treeGuardID, otherID}},
+		{name: "current version", before: original, after: strings.Replace(original, "trees/0", "trees/1", 1), want: []string{treeGuardID, otherID}},
+		{name: "unknown base", before: original, after: original, unknownBase: true, want: []string{treeGuardID, otherID}},
+		{name: "plain declaration changed", before: original, after: original, scopesChanged: true, want: []string{otherID}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			fixture := treeGuardFiles(entry)
+			fixture["other/other_test.go"] = &fstest.MapFile{Data: []byte("package other\n")}
+			fixture[affected.ReadScopesPath].Data = []byte(`{"profile":"corvint-test-read-scopes/0","packages":{"guard":["cmd/"],"other":["cmd/"]}}`)
+			if _, err := affected.ParseReadScopeTrees([]byte(original)); err != nil {
+				t.Fatalf("invalid baseline fixture: %v", err)
+			}
+			if c.after == "" {
+				delete(fixture, affected.ReadScopeTreesPath)
+			} else {
+				fixture[affected.ReadScopeTreesPath].Data = []byte(c.after)
+			}
+			graph, err := affected.BuildFS(fixture, golang.New())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, id := range []string{treeGuardID, otherID} {
+				unit, ok := graph.Unit(id)
+				if !ok || !unit.ReadScoped {
+					t.Fatalf("fixture unit %s is not read-scoped: %+v", id, unit)
+				}
+			}
+			base := fstest.MapFS{}
+			if c.before != "" {
+				base[affected.ReadScopeTreesPath] = &fstest.MapFile{Data: []byte(c.before)}
+			}
+			prior := affected.FSSource(base)
+			if c.unknownBase {
+				prior = nil
+			}
+			dirty := []string{affected.ReadScopeTreesPath}
+			if c.scopesChanged {
+				dirty = append(dirty, affected.ReadScopesPath)
+				graph = graph.WithReadScopeBase(map[string][]string{"guard": {"cmd/"}, "other": {"docs/"}})
+			}
+			graph = graph.WithReadScopeSources(prior, affected.FSSource(fixture), dirty)
+			var selected []string
+			for _, selection := range affected.Select(graph, dirty).Selected {
+				if selection.Witness.Kind != affected.WitnessDeclaredReadScope {
+					t.Fatalf("unexpected witness: %+v", selection)
+				}
+				selected = append(selected, selection.UnitID)
+			}
+			if !slices.Equal(selected, c.want) {
+				t.Fatalf("DECLARED_READ_SCOPE units=%v, want %v", selected, c.want)
+			}
+		})
+	}
+}
+
+func TestTreeDeclarationUnreadable_AFPV03305(t *testing.T) {
+	const entry = `{"reason":"guard reads cmd/","listingOnly":true}`
+	files := treeGuardFiles(entry)
+	graph := treeGuardGraph(t, entry)
+	dirty := []string{affected.ReadScopeTreesPath}
+	known := graph.WithReadScopeSources(affected.FSSource(files), affected.FSSource(files), dirty)
+	if treeGuardSelected(known, dirty...) {
+		t.Fatal("identical valid fixture must exclude before injection")
+	}
+	for _, side := range []string{"base", "head"} {
+		t.Run(side, func(t *testing.T) {
+			reached := false
+			base, head := fs.FS(files), fs.FS(files)
+			failure := deniedScopeFS{files, &reached, affected.ReadScopeTreesPath}
+			if side == "base" {
+				base = failure
+			} else {
+				head = failure
+			}
+			injected := known.WithReadScopeSources(affected.FSSource(base), affected.FSSource(head), dirty)
+			if !reached {
+				t.Fatal("declaration read failure was not reached")
+			}
+			if !treeGuardSelected(injected, dirty...) {
+				t.Fatal("unreadable declaration reused the known comparison")
+			}
+		})
+	}
+	if !treeGuardSelected(known.WithReadScopeSources(nil, nil, dirty), dirty...) {
+		t.Fatal("unknown base reused the prior plan's comparison")
+	}
+}
