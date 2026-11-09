@@ -67,8 +67,8 @@ func TestDeclaredControlDeclarationOwnsEdit_AZU_V0_8910(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := Select(graph, []string{DeclaredSelectionPath})
-	if slices.ContainsFunc(plan.Unknown, func(u Unknown) bool { return u.Reason == UnknownUnownedDirtyPath }) {
-		t.Fatalf("declared control declaration left unowned: %+v", plan.Unknown)
+	if len(plan.Unknown) != 0 || plan.Scope != ScopeBounded {
+		t.Fatalf("declared control declaration left uncertainty: scope=%s unknown=%+v", plan.Scope, plan.Unknown)
 	}
 	if !slices.Equal(groupPaths(plan, ClassDeclaredRuntimeReaders), []string{DeclaredSelectionPath}) {
 		t.Fatalf("declared control declaration not classified: %+v", plan.NonSource)
@@ -79,10 +79,10 @@ func TestDeclaredControlDeclarationOwnsEdit_AZU_V0_8910(t *testing.T) {
 	if !selected("g:planner") || !selected("g:audit") || selected("g:other") {
 		t.Fatalf("selection: %+v", plan.Selected)
 	}
-	if got := Select(graph, []string{".corvint/new-unclaimed.dat"}); !slices.ContainsFunc(got.Unknown, func(u Unknown) bool {
+	if got := Select(graph, []string{".corvint/new-unclaimed.dat"}); got.Scope != ScopeUnknown || !slices.ContainsFunc(got.Unknown, func(u Unknown) bool {
 		return u.Reason == UnknownUnownedDirtyPath && u.Detail == ".corvint/new-unclaimed.dat"
 	}) {
-		t.Fatalf("undeclared .corvint file was owned: %+v", got.Unknown)
+		t.Fatalf("undeclared .corvint file was owned: scope=%s unknown=%+v", got.Scope, got.Unknown)
 	}
 
 	refused := map[string]map[string]string{
