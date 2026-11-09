@@ -80,4 +80,3 @@ func TestBuildCancellationKillsGitDescendants(t *testing.T) {
 	}
 	t.Fatalf("Git descendant %d survived cancellation", pid)
 }
-
