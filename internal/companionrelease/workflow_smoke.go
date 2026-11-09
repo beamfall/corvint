@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 var mcpMeta = map[string]any{"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": map[string]any{}}
@@ -20,8 +21,10 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 	for _, name := range []string{"corvint-mcp", "corvint-docs-mcp", "corvint-test-validity-mcp"} {
 		bin := filepath.Join(extracted, "bin", inventory.name(name))
 		out, _, err := runCaptured(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, bin, "--version")
-		if err == nil && strings.TrimSpace(string(out)) != inventory.name(name)+" 0.1.0-experimental" {
-			err = fmt.Errorf("version %q, want %q", strings.TrimSpace(string(out)), inventory.name(name)+" 0.1.0-experimental")
+		// --version reports the common companion release line (CAP-V0-7702); the
+		// MCP serverInfo version below keeps 0.1.0-experimental (MCPV0-951).
+		if want := inventory.name(name) + " " + versionline.Development; err == nil && strings.TrimSpace(string(out)) != want {
+			err = fmt.Errorf("version %q, want %q", strings.TrimSpace(string(out)), want)
 		}
 		steps = append(steps, step(name+"-version", err, strings.TrimSpace(string(out))))
 		if err != nil {
