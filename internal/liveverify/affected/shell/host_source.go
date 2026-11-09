@@ -134,7 +134,8 @@ func hostTrapAllowed(parsed script, args []string) bool {
 	// inside a single-quoted action that expands only when the trap runs.
 	action = strings.ReplaceAll(action, "\\\n", "")
 	if strings.Contains(action, "$(") || strings.Contains(action, "`") ||
-		strings.Contains(action, "<(") || strings.Contains(action, ">(") ||
+		// An input redirection is a read the reader index never records.
+		strings.Contains(action, "<") || strings.Contains(action, ">(") ||
 		hostTrapExpandedParameterWord.MatchString(action) {
 		return false
 	}
