@@ -57,10 +57,6 @@ jobs:
       cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-      statuses: write
     steps:
       - name: Report whether the PR changes the trusted CI definition
         env:
