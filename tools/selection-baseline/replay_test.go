@@ -73,6 +73,7 @@ func TestBaselineReplayParallelBytesASDV0925(t *testing.T) {
 	root := t.TempDir()
 	baselineFile(t, root, "go.mod", "module m\n")
 	baselineFile(t, root, ".github/cishards/package-costs.json", `{"milliseconds":{"m/a":1}}`)
+	baselineFile(t, root, ".github/forward-rows/github-guard.sh", "echo 0\n")
 	baselineGit(t, root, "init", "-q")
 	baselineGit(t, root, "add", ".")
 	baselineGit(t, root, "commit", "-qm", "base")
