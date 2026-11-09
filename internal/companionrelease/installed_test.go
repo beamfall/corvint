@@ -201,4 +201,3 @@ func TestSelectProfileRequiresOnePassingRecord(t *testing.T) {
 		t.Fatal("failed profile accepted")
 	}
 }
-

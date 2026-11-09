@@ -18,7 +18,7 @@ import (
 // (CAP-V0-700).
 var contractCompanions = []string{
 	"corvint-console", "corvint-corpus-mcp", "corvint-dashboard-snapshot",
-	"corvint-mcp", "corvint-test-validity-mcp", "corvint-update", "corvint-web-flows",
+	"corvint-mcp", "corvint-test-validity-mcp", "corvint-update",
 }
 
 // treeCompanions answer the help forms from their command tree (CAP-V0-972) and
