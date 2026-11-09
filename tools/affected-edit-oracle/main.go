@@ -315,12 +315,12 @@ func command(ctx context.Context, root string, timeout time.Duration, argv ...st
 	// Ambient Git pointers must not redirect a clone operation to the source index.
 	for _, v := range os.Environ() {
 		key, _, _ := strings.Cut(v, "=")
-		if strings.HasPrefix(key, "GIT_") || slices.Contains([]string{"GOFLAGS", "GOWORK", "GOTOOLCHAIN", "LC_ALL", "HEAVY_REMOTE", "HEAVY_LOCAL_REASON", "HEAVY_REMOTE_HOST", "HEAVY_REMOTE_HOSTS", "HEAVY_NICE", "HEAVY_SELECTION", "HEAVY_SELECTION_REASON"}, key) {
+		if strings.HasPrefix(key, "GIT_") || slices.Contains([]string{"GOFLAGS", "GOPROXY", "GOWORK", "GOTOOLCHAIN", "LC_ALL", "HEAVY_REMOTE", "HEAVY_LOCAL_REASON", "HEAVY_REMOTE_HOST", "HEAVY_REMOTE_HOSTS", "HEAVY_NICE", "HEAVY_SELECTION", "HEAVY_SELECTION_REASON"}, key) {
 			continue
 		}
 		c.Env = append(c.Env, v)
 	}
-	c.Env = append(c.Env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_TERMINAL_PROMPT=0", "GIT_AUTHOR_DATE=2026-11-08T00:00:00Z", "GIT_COMMITTER_DATE=2026-11-08T00:00:00Z", "LC_ALL=C", "GOTOOLCHAIN=local", "GOWORK=off", "HEAVY_REMOTE=0", "HEAVY_LOCAL_REASON=owner forbids network writes; local controlled experiment", "HEAVY_REMOTE_HOST=", "HEAVY_REMOTE_HOSTS=", "HEAVY_NICE=0", "HEAVY_SELECTION=manual", "HEAVY_SELECTION_REASON=controlled edit oracle single-package mutation")
+	c.Env = append(c.Env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_TERMINAL_PROMPT=0", "GIT_AUTHOR_DATE=2026-11-08T00:00:00Z", "GIT_COMMITTER_DATE=2026-11-08T00:00:00Z", "LC_ALL=C", "GOTOOLCHAIN=local", "GOWORK=off", "GOPROXY=off", "HEAVY_REMOTE=0", "HEAVY_LOCAL_REASON=owner forbids network writes; local controlled experiment", "HEAVY_REMOTE_HOST=", "HEAVY_REMOTE_HOSTS=", "HEAVY_NICE=0", "HEAVY_SELECTION=manual", "HEAVY_SELECTION_REASON=controlled edit oracle single-package mutation")
 	var out capture
 	c.Stdout = &out
 	c.Stderr = &out
@@ -466,7 +466,7 @@ func executeCase(ctx context.Context, cfg config, tc testCase) (r row) {
 	return r
 }
 
-type observation struct{ Action, Package, Test string }
+type observation struct{ Action, Package, Test, Output string }
 
 func testObservations(cmd testCommand, out []byte) (passes int, units, tests []string, err error) {
 	if cmd.Format == "node-assert" {
@@ -485,6 +485,12 @@ func testObservations(cmd testCommand, out []byte) (passes int, units, tests []s
 		var o observation
 		if json.Unmarshal(line, &o) != nil {
 			return 0, nil, nil, errors.New("malformed Go test event")
+		}
+		// A test binary that times out exits 1 like an assertion failure, and
+		// any subtest failure printed before the timeout is not a qualified
+		// kill (AEO-V0-004).
+		if o.Action == "output" && strings.Contains(o.Output, "panic: test timed out after ") {
+			return 0, nil, nil, errors.New("Go test timed out")
 		}
 		if o.Test == "" {
 			continue

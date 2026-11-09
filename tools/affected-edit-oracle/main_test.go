@@ -188,6 +188,10 @@ func TestObservations_AEO_V0_004(t *testing.T) {
 	if err != nil || passes != 1 || !reflect.DeepEqual(units, []string{"go:p"}) || !reflect.DeepEqual(tests, []string{"go:p#TestB"}) {
 		t.Fatalf("events: %d %v %v %v", passes, units, tests, err)
 	}
+	// A subtest failure followed by a binary timeout is not a qualified kill.
+	if _, _, _, err := testObservations(cmd, []byte("{\"Action\":\"fail\",\"Package\":\"p\",\"Test\":\"TestA/sub\"}\n{\"Action\":\"output\",\"Package\":\"p\",\"Test\":\"TestA\",\"Output\":\"panic: test timed out after 1m30s\\n\"}\n")); err == nil {
+		t.Fatal("timed-out run counted as a kill")
+	}
 	_, units, _, err = testObservations(testCommand{Format: "node-assert", UnitID: "typescript:test"}, []byte("Error [ERR_ASSERTION]: mismatch"))
 	if err != nil || !reflect.DeepEqual(units, []string{"typescript:test"}) {
 		t.Fatal("node assertion missing")
