@@ -22,7 +22,7 @@ func TestTSPV07330GuardDecidesTheGithubScope_TSPV07330(t *testing.T) {
 		inputs     []string
 	}{
 		{"no input", "echo 0\n", false, nil},
-		{"inputs", "printf '1\\n.github/forward-rows/narrow.sh\\n'\n", true, []string{".github/forward-rows/narrow.sh"}},
+		{"inputs", "printf '1\\n.github/forward-rows/narrow.sh\\n'\n", true, []string{".github/forward-rows/narrow.sh"}}, //corvint:fixture-path
 		{"unreadable", "printf 'unreadable\\nno base\\n'\n", true, []string{"unreadable: unreadable; no base"}},
 		{"one without inputs", "echo 1\n", true, []string{"unreadable: 1"}},
 		{"empty", ":\n", true, []string{"unreadable: "}},
@@ -93,7 +93,7 @@ func TestTSPV07330RealGuardNarrowsAnUnguardedWorkflow_TSPV07330(t *testing.T) {
 	if changed, inputs := githubGuard(ctx, repo, guard, base, other); changed {
 		t.Fatalf("an unguarded workflow forced FULL: %q", inputs)
 	}
-	if changed, inputs := githubGuard(ctx, repo, guard, other, narrow); !changed || !reflect.DeepEqual(inputs, []string{".github/forward-rows/narrow.sh"}) {
+	if changed, inputs := githubGuard(ctx, repo, guard, other, narrow); !changed || !reflect.DeepEqual(inputs, []string{".github/forward-rows/narrow.sh"}) { //corvint:fixture-path
 		t.Fatalf("a narrowing script = %v %q, want FULL naming it", changed, inputs)
 	}
 }
