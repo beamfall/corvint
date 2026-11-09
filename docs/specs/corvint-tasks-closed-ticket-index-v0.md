@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-10-31
-Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: native ticket V1-3459; `TM-V0-008` (snapshot reads) and `TM-V0-005`
 (dependency structure) of the Corvint Tasks contract; AGENTS.md invariant 4 (reads do not
 mutate); the design record `docs/build-log/2026-10-31-archive-speed-w1.md`.
@@ -11,7 +12,7 @@ Native tickets: V1-3459; V1-3473 (fixture mutations) and V1-3474 (index build to
 
 ## Agent digest
 - Claim: OPEN-path reads take closed tickets' digests and summaries from a derived stat-keyed index, so their cost barely grows with the closed set.
-- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459); implemented and tested in tree.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`).
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Rollback.

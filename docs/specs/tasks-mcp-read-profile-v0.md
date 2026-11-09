@@ -3,8 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `TMR-V0`
-Intent status: experimental under the standing lane auto-accept (V1-3707, 2026-11-01)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: AGENTS.md invariants 4 and 7; `mcp-server-2026-07-28-v0.md` (`MCPV0-007`,
 `MCPV0-820`, `MCPV0-952`, `MCPV0-953`); `agent-harness-integration-v0.md` `AHI-004`; the Corvint
 Tasks CLI read verbs `queue status`, `roadmap`, `ticket search`, `ticket show` and `receipt audit`
@@ -12,7 +13,7 @@ Tasks CLI read verbs `queue status`, `roadmap`, `ticket search`, `ticket show` a
 
 ## Agent digest
 - Claim: The `corvint mcp` tasks group: five typed, paged read-only tools that run the installed `corvint-tasks` read verbs and return their envelopes.
-- Status: experimental under the standing lane auto-accept (V1-3707, 2026-11-01) / experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/mcp/tasksread` (`Group`, `New`, the five tools), the `tasks` group token in `internal/mcp/cli`.
 - Blocked on: no host plugin selects the group yet; the write profile is out of scope (see Non-goals).
 - Read next: Requirements; Non-goals and failure modes.

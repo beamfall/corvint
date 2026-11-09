@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-11-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: the agent-filed native tickets V1-3945 (no read says where a ticket's
 delivery stands: OPEN covers unclaimed, delivered-on-a-lane and merged-awaiting-closeout alike) and
@@ -14,7 +15,7 @@ the [agent lease contract](corvint-tasks-agent-leases-v0.md) and the reads of
 
 ## Agent digest
 - Claim: Show, search, roadmap and release readiness report one derived delivery lifecycle per ticket, with evidence from status, holds, attempts, progress and Git.
-- Status: intent proposed; delivery experimental: the derivation, the batched Git observation and the four reads exist with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: package `internal/tasks/lifecycle`, `store.ObserveDeliveries`, member `lifecycle` in show, search and roadmap rows, `ticket search --lifecycle`, facet `byLifecycle`, release readiness `memberCounts.byLifecycle` and `release readiness --lifecycle`.
 - Blocked on: owner acceptance; durable qualification.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
