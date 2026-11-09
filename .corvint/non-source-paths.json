@@ -22,6 +22,10 @@
       "reason": "retained native runner qualification output (AZU-V0-002); no build executes it; literal, enclosing-directory, declared and unbounded readers remain selected"
     },
     {
+      "path": "tools/affected-edit-oracle/testdata/corpus.json",
+      "reason": "versioned controlled-edit corpus (AZU-V0-002, AEO-V0-001), read by tools/affected-edit-oracle main and TestCorpus; no build executes it; enclosing-package, literal, declared and unbounded readers remain selected"
+    },
+    {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated help snapshot (AZU-V0-002), read by tools/linecov TestCommandTreeSnapshot; enclosing-package, literal, declared and unbounded readers remain selected"
     },

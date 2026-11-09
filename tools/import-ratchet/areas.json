@@ -327,6 +327,7 @@
         "examples",
         "experimental",
         "integrations",
+        "internal/closureguard",
         "script",
         "tools"
       ]

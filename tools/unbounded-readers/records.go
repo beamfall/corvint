@@ -71,20 +71,47 @@ func readRecordReaders(root string) (map[string]map[string]string, error) {
 // AFP-V0-025 ratchet treats a stale entry. A walker of a record directory
 // fails whether or not the record lists it (AFP-V0-2747): no selector selects
 // it for a new entry, so a record entry would only hide a reader.
-func checkRecordReaders(graph *affected.Graph, recorded map[string]map[string]string, stderr io.Writer) bool {
+func checkRecordReaders(root string, graph *affected.Graph, recorded map[string]map[string]string, stderr io.Writer) bool {
 	ok := true
-	directories := func(ids []string) map[string]bool {
+	// AFP-V0-3424: an addition-only scope is admitted only at its reviewed
+	// source bytes. A new file in an old unit invalidates the declaration too.
+	scoped := map[string]bool{}
+	scopes, err := affected.ReadRecordEntryScopes(root)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fmt.Fprintf(stderr, "unbounded-readers: %s: %v\n", affected.RecordEntryScopesPath, err)
+		ok = false
+	}
+	for id, scope := range scopes {
+		unit, found := graph.Unit(id)
+		digest, err := affected.RecordEntrySourceDigest(root, unit, scope.Inputs...)
+		if !found || err != nil || digest != scope.SourceSHA256 {
+			fmt.Fprintf(stderr, "unbounded-readers: %s has a stale or unknown record-entry read scope; audit its reads and source binding in %s\n", id, affected.RecordEntryScopesPath)
+			ok = false
+			continue
+		}
+		scoped[id] = true
+	}
+	directories := func(ids []string, omitScoped bool) map[string]bool {
 		out := map[string]bool{}
 		for _, id := range ids {
+			if omitScoped && scoped[id] {
+				continue
+			}
 			if unit, found := graph.Unit(id); found && len(unit.Tests) > 0 {
-				out[path.Dir(unit.Tests[0])] = true
+				name := path.Dir(unit.Tests[0])
+				if strings.HasPrefix(id, "shell:") {
+					name = unit.Tests[0]
+				}
+				out[name] = true
 			}
 		}
 		return out
 	}
 	for _, directory := range recordDirectories {
 		found, walking := graph.RecordReaders(directory)
-		readers, walkers := directories(found), directories(walking)
+		// Addition-only scopes filter existing reader matches; they cannot
+		// make an ancestor-only walker selectable. Keep every walker refused.
+		readers, walkers := directories(found, true), directories(walking, false)
 		if len(walkers) > 0 {
 			ok = false
 			fmt.Fprintf(stderr, "unbounded-readers: %v name %s's parent directory by a path literal, join no literal that reaches %s, and declare no read scope, so a walk or a name computed at run time could read every new entry while no selector selects them for one (AFP-V0-2747); a record entry cannot admit them. Declare each package's reads in %s (AFP-V0-023), with %s when its tests really read the directory, or mark a fixture literal with %s.\n",

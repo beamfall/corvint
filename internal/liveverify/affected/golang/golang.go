@@ -778,6 +778,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		return join
 	})
 	comparisonOnly, joined, components := comparisonOnlyLocators(body, aliases, joins)
+	metadata := testMetadataLiterals(body, imports)
 	var scan fileScan
 	// A bounded join's root-anchored token names what the join reads
 	// (AFP-V0-2950); it is no literal, so no fixture marker applies to it.
@@ -819,7 +820,7 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 			continue
 		}
 		value, err := strconv.Unquote(text)
-		if err != nil || components[source.Offset(position)] {
+		if err != nil || components[source.Offset(position)] || metadata[source.Offset(position)] {
 			continue
 		}
 		start := len(scan.tokens)

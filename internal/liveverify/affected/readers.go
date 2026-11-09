@@ -80,6 +80,9 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 		}
 		goUnit := strings.HasPrefix(id, "go:")
 		for j, dirtyPath := range dirty {
+			if !graph.RecordEntryAllows(id, dirtyPath) {
+				continue
+			}
 			if !namesAny(tokens[i], split[j], goUnit && !resolvedEvidence(dirtyPath)) {
 				continue
 			}
@@ -162,7 +165,10 @@ func (graph *Graph) globRead(id string, dirty []string) (dirtyPath, glob string,
 		directory = relativeDirectory(files[0])
 	}
 	for _, dirtyPath := range dirty {
-		if unit.ReadScoped && !InReadScope(directory, unit.ReadScope, dirtyPath) {
+		if !graph.RecordEntryAllows(id, dirtyPath) {
+			continue
+		}
+		if unit.ReadScoped && !graph.inReadScope(directory, unit, dirtyPath) {
 			continue
 		}
 		parts := strings.Split(dirtyPath, "/")
@@ -200,7 +206,8 @@ func globMatches(glob string, parts []string) bool {
 
 // testlessReaderUsers carries each path-literal or path-glob reader that has
 // no test of its own, and that names an unowned dirty path or one whose owner
-// is untested, to the units that can exercise it (AFP-V0-495, AZU-V0-006): its
+// is untested, or a comment-only path omitted from compilation seeds
+// (AFP-V0-3322), to the units that can exercise it (AFP-V0-495, AZU-V0-006): its
 // reverse dependents, the units whose code runs a reached command's binary and
 // theirs (AFP-V0-2992), and their test-only users and test-only runners, less a
 // unit whose declared read scope excludes the path, witnessed by the chain from
@@ -208,7 +215,7 @@ func globMatches(glob string, parts []string) bool {
 // callers (AZU-V0-005). A testless unit whose declared read scope holds such a
 // path, other than through the declaration itself, is carried the same way
 // (AZU-V0-006). A reader with its own tests stays untraversed (AFP-V0-021), as
-// does one that names only owned paths, whose change already reaches its
+// does one that names only other owned paths, whose change already reaches its
 // importers through their edges (a runner config's test-match literal, say). An
 // untested owner's importers need not include a reader's callers: walk those
 // callers before claiming a coverage gap. A test-less reader would otherwise drop it
@@ -219,7 +226,11 @@ func globMatches(glob string, parts []string) bool {
 func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []string, followed map[string]bool) map[string]bool {
 	testless := func(id string) bool {
 		witness := reached[id]
-		return (witness.Kind == WitnessPathLiteralReader || witness.Kind == WitnessPathGlobReader) && witness.ViaLength() == 1 && witness.viaHead() == id && len(graph.units[id].Tests) == 0
+		// A comment-only owner's direct witness has not traversed its
+		// callers. Let the independent readers scan below establish any
+		// self-read before deciding those callers can be omitted.
+		reader := witness.Kind == WitnessPathLiteralReader || witness.Kind == WitnessPathGlobReader || witness.Kind == WitnessDirectSource && graph.goCommentOnly[witness.DirtyPath]
+		return reader && witness.ViaLength() == 1 && witness.viaHead() == id && len(graph.units[id].Tests) == 0
 	}
 	found := false
 	for id := range reached {
@@ -229,7 +240,7 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 	}
 	paths := make([]string, 0, len(dirty))
 	for _, path := range dirty {
-		if owner, owned := graph.owner[path]; !owned || graph.untested(owner) || strings.HasPrefix(owner, "go:") && hiddenPackagePath(path) {
+		if owner, owned := graph.owner[path]; !owned || graph.untested(owner) || graph.goCommentOnly[path] || strings.HasPrefix(owner, "go:") && hiddenPackagePath(path) {
 			paths = append(paths, path)
 		}
 	}
@@ -292,7 +303,7 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 func (graph *Graph) scopeExcludes(id, dirtyPath string) bool {
 	unit := graph.units[id]
 	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
-	return unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath)
+	return unit.ReadScoped && len(files) != 0 && !graph.inReadScope(relativeDirectory(files[0]), unit, dirtyPath)
 }
 
 // unboundedReadersOf selects, on any dirty path, each unit not already reached
@@ -403,7 +414,7 @@ func gatedLocatorsChanged(normalized []string) []Unknown {
 func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) {
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil) {
+		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil && (graph.readScopeInputs == nil || graph.readScopeInputs.priorTrees == nil)) {
 			continue
 		}
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
@@ -412,12 +423,18 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 		}
 		directory := relativeDirectory(files[0])
 		for _, dirtyPath := range dirty {
-			bears := unit.ReadScoped && InReadScope(directory, unit.ReadScope, dirtyPath)
+			if !graph.RecordEntryAllows(id, dirtyPath) {
+				continue
+			}
+			bears := unit.ReadScoped && graph.inReadScope(directory, unit, dirtyPath)
 			if dirtyPath == ReadScopesPath && graph.priorReadScopes != nil {
 				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
 			}
+			if dirtyPath == ReadScopeTreesPath {
+				bears = graph.treeDeclarationChanged(id, directory, unit) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
+			}
 			if bears {
-				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: readScopeCause(id, directory, unit.ReadScope, dirtyPath)}
+				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: graph.treeReadScopeCause(id, directory, unit, dirtyPath)}
 				break
 			}
 		}
@@ -533,7 +550,7 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 func (graph *Graph) resolves(id, dirtyPath string) bool {
 	unit := graph.units[id]
 	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
-	if unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath) {
+	if unit.ReadScoped && len(files) != 0 && !graph.inReadScope(relativeDirectory(files[0]), unit, dirtyPath) {
 		return false
 	}
 	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {

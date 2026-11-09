@@ -77,3 +77,39 @@ func TestAffectedAdditiveReadScopeEditSelectsOnlyTheNewPackage_AFPV0050(t *testi
 		t.Fatalf("changed key selected %v by declaration, want %v", declared, want)
 	}
 }
+
+// AFP-V0-3304/3305: even without predicate objects, declaration comparison
+// uses the requested immutable base, and a missing base file stays unknown.
+func TestAffectedTreeDeclarationBase_AFPV03304(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	const declaration = `{"profile":"corvint-test-read-scope-trees/0","trees":{"core":{"docs/":"core reads docs/"},"solo":{"docs/":"solo reads docs/"}}}`
+	writeAffectedFiles(t, root, map[string]string{
+		affected.ReadScopesPath: `{"profile":"corvint-test-read-scopes/0","packages":{"core":["docs/"],"solo":["docs/"]}}`,
+	})
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "plain scopes")
+	missing := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	writeAffectedFiles(t, root, map[string]string{affected.ReadScopeTreesPath: declaration})
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "tree declarations")
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	writeAffectedFiles(t, root, map[string]string{affected.ReadScopeTreesPath: declaration + "\n"})
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "whitespace")
+	_, declared := affectedSelectionsByWitness(t, root, "--base", base)
+	if len(declared) != 0 {
+		t.Fatalf("whitespace selected %v", declared)
+	}
+	_, declared = affectedSelectionsByWitness(t, root, "--base", missing)
+	if want := []string{"go:example.com/fixture/core", "go:example.com/fixture/solo"}; !slices.Equal(declared, want) {
+		t.Fatalf("missing base file selected %v, want %v", declared, want)
+	}
+	writeAffectedFiles(t, root, map[string]string{affected.ReadScopeTreesPath: strings.Replace(declaration, "solo reads docs/", "solo changed", 1)})
+	for _, options := range [][]string{nil, {"--base", base}} {
+		_, declared = affectedSelectionsByWitness(t, root, options...)
+		if want := []string{"go:example.com/fixture/solo"}; !slices.Equal(declared, want) {
+			t.Fatalf("options %v selected %v, want %v", options, declared, want)
+		}
+	}
+}

@@ -1053,7 +1053,7 @@ func TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(corePath, append(body, []byte("\n// committed edit\n")...), 0o644); err != nil {
+		if err := os.WriteFile(corePath, bytes.Replace(body, []byte("const Value = 1"), []byte("const Value = 2"), 1), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		affectedGit(t, root, "commit", "-qam", "edit core")
