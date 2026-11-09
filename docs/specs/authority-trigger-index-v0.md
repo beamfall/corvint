@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `ATI-V0`
-Intent status: accepted (owner instruction 2026-09-07)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2, 3, 4 and 7,
 `documentation-citation-gate-v0.md` DCG-V0-007..009 (the anchor this index reuses),
 `go-production-kernel-migration-v0.md` GPK-V0-002 (the parity lock that keeps this off the harness
@@ -12,7 +14,7 @@ surface), and `../agent-memory/ideas.md` heading '2026-09-07 omp'.
 
 ## Agent digest
 - Claim: A changed path names every project-owned authority document that already cites it, with a freshness verdict on each citation.
-- Status: accepted (owner instruction 2026-09-07) / implemented
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/contextindex/authority_trigger.go`, `corvint context authority <path>...`.
 - Blocked on: emission through `harness event file-change`, which GPK-V0-002 pins byte-for-byte against the Python oracle (ATI-V0-012).
 - Read next: Requirements; Non-goals; Unresolved.

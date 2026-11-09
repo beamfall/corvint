@@ -1,11 +1,9 @@
 # Corvint Tasks attempt runner V0
 
-Owner: Russell Lewis
-Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
+Owner: Russell Lewis; date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
-Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
-Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability. Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d.
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
 owner requests [issue 1005](https://github.com/beamfall/corvint/issues/1005) and [issue 1007](https://github.com/beamfall/corvint/issues/1007) and native tickets V1-1547 and V1-1549 (ATR-V0-020..039);

@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-24
 Requirement prefix: `HLQ-V1`
-Intent status: accepted
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: ticket V1-0016, `agent-harness-integration-v0.md` (`AHI-002`, `AHI-003`,
 `AHI-004`, `AHI-006`, `AHI-007`, `AHI-009`, `AHI-010`), `core-compatibility-freeze-v1.md`
 (`CCF-V1-001`, `CCF-V1-002`), `PRS-V1-006` in `corvint-1.0-product-and-release-v1.md` as ratified by
@@ -12,7 +14,7 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 
 ## Agent digest
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
-- Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with the corvint `1.0.0-rc.1` candidate build, and the Claude Code tuple (2.1.293, adapter 0.3.1) also PASSES with the published `1.0.0-rc.2` build; reports retained (see Results)
 - Blocked on: linux tuples are NOT_RUN; live dispatch is qualified only for OpenCode 2.2.0 on darwin/arm64 (`HLQ-V1-012`), Claude Code and Codex live dispatch NOT_RUN; each result is stale at the next release (`HLQ-V1-008`), so the CLI and Codex tuples are unqualified for `1.0.0-rc.2` until rerun against its build
 - Read next: Requirements; Results; Known gaps

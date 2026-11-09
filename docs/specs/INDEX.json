@@ -210,8 +210,7 @@
     "closableToday": false,
     "implementation": [
       "internal/appmap",
-      "cmd/corvint",
-      "cmd/corvint-corpus-mcp"
+      "cmd/corvint"
     ]
   },
   {
@@ -252,8 +251,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testplan",
-      "cmd/corvint",
-      "cmd/corvint-corpus-mcp"
+      "cmd/corvint"
     ]
   },
   {
@@ -328,8 +326,8 @@
     "path": "docs/specs/authority-trigger-index-v0.md",
     "title": "Authority trigger index V0",
     "reqPrefix": "ATI-V0",
-    "intent": "accepted (owner instruction 2026-09-07)",
-    "delivery": "implemented",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "A changed path names every project-owned authority document that already cites it, with a freshness verdict on each citation.",
     "dependsOn": [
       "docs/specs/documentation-citation-gate-v0.md",
@@ -337,10 +335,7 @@
     ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": [
-      "internal/contextindex/authority_trigger.go",
-      "cmd/corvint/context_lookup.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/beamfall-shadow-dogfood-v1.md",
@@ -670,8 +665,6 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "cmd/corvint-console",
-      "cmd/corvint-dashboard-snapshot",
       "cmd/corvint-mcp",
       "cmd/corvint-docs-mcp",
       "cmd/corvint-test-validity-mcp",
@@ -681,8 +674,7 @@
       "Makefile",
       "integrations",
       "extensions/vscode",
-      "extensions/vscode/media/corvint.svg",
-      "internal/console"
+      "extensions/vscode/media/corvint.svg"
     ]
   },
   {
@@ -701,7 +693,6 @@
     "implementation": [
       "docs/SELF-DEVELOPMENT.md",
       "integrations/codex/plugins/corvint/skills/corvint/SKILL.md",
-      "integrations/claude-code/plugins/corvint/skills/context/SKILL.md",
       "cmd/corvint/help.go"
     ]
   },
@@ -1036,9 +1027,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/breakagemap",
-      "internal/command/breakage",
-      "cmd/corvint/breakage.go"
+      "internal/breakagemap"
     ]
   },
   {
@@ -1128,8 +1117,6 @@
     "closableToday": false,
     "implementation": [
       "internal/diagnostic",
-      "internal/worktreeimpact",
-      "internal/touchsurprise",
       "cmd/corvint"
     ]
   },
@@ -1224,12 +1211,7 @@
     "implementation": [
       "internal/doccorpus",
       "cmd/corvint",
-      "internal/mcp/corpusbridge",
-      "cmd/corvint-corpus-mcp",
-      "internal/corpusindex",
-      "internal/corpusserve",
-      "cmd/corvint-corpus-parity",
-      "cmd/corvint-corpus-http"
+      "internal/mcp/corpusbridge"
     ]
   },
   {
@@ -1316,8 +1298,7 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "internal/contextindex/range_impact.go",
-      "script/dogfood-change.sh"
+      "internal/contextindex/range_impact.go"
     ]
   },
   {
@@ -1351,8 +1332,7 @@
     "closableToday": false,
     "implementation": [
       "internal/secretscreen",
-      "internal/liveverify/mutate",
-      "cmd/corvint/prove_checkpoint.go"
+      "internal/liveverify/mutate"
     ]
   },
   {
@@ -1445,8 +1425,7 @@
     "implementation": [
       "cmd/corvint",
       "examples/evidence-provider/v0",
-      "internal/extevidence",
-      "internal/lspprovider"
+      "internal/extevidence"
     ]
   },
   {
@@ -1697,8 +1676,6 @@
       "internal/contextindex",
       "internal/genesis",
       "internal/gokernel",
-      "internal/lrfrepo",
-      "internal/worktreeimpact",
       "conformance/cli-parity-v0",
       "interop/cem01-go"
     ]
@@ -1707,19 +1684,15 @@
     "path": "docs/specs/gopls-client-session-v0.md",
     "title": "Gopls client session V0",
     "reqPrefix": "GCS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "An optional local gopls session observes definitions only between caller-owned synchronized overlays with explicit lifecycle and bounds.",
     "dependsOn": [
       "docs/specs/external-evidence-provider-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/goplsclient/client.go",
-      "internal/goplsclient/client_test.go",
-      "internal/goplsclient/lifecycle_unix_test.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/harness-authority-relation-v0.md",
@@ -1754,8 +1727,8 @@
     "path": "docs/specs/host-lifecycle-qualification-v1.md",
     "title": "Host Lifecycle Qualification V1",
     "reqPrefix": "HLQ-V1",
-    "intent": "accepted",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -1764,9 +1737,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "conformance/host-lifecycle-v1"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/human-documentation-compiler-v0.md",
@@ -1884,12 +1855,9 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/evalrepo",
       "internal/trace",
       "internal/tracerecordrepo",
       "internal/secretscreen",
-      "internal/skillexport",
-      "internal/slotlearn",
       "internal/contextindex",
       "cmd/corvint"
     ]
@@ -1963,13 +1931,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/localcompletion",
-      "cmd/corvint/local_completion.go",
-      "cmd/corvint/local_completion_event.go",
-      "cmd/corvint/host_adapter.go",
-      "internal/contextindex/local_completion_context.go",
-      "integrations/codex/plugins/corvint/hooks/hooks.json",
-      "integrations/claude-code/plugins/corvint/hooks/hooks.json"
+      "internal/contextindex/local_completion_context.go"
     ]
   },
   {
@@ -2027,8 +1989,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio",
       "internal/gitstatus"
     ]
   },
@@ -2036,8 +1996,8 @@
     "path": "docs/specs/lsp-editor-definition-v0.md",
     "title": "LSP Editor Definition V0",
     "reqPrefix": "LED-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Explicitly configured editor sessions can request definitions between synchronized open Go overlays through a local gopls process.",
     "dependsOn": [
       "docs/specs/lsp-snapshot-overlay-v0.md",
@@ -2046,10 +2006,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio/semantic.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/lsp-editor-qualification-v0.md",
@@ -2081,8 +2038,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "benchmarks/lsp-quality",
-      "benchmarks/lsp_quality_freeze_test.go",
       "script/measure-lsp-quality.py"
     ]
   },
@@ -2090,30 +2045,25 @@
     "path": "docs/specs/lsp-snapshot-overlay-v0.md",
     "title": "LSP Snapshot Overlay V0",
     "reqPrefix": "LSO-V0",
-    "intent": "proposed technical contract; owner accepted agent and optional editor direction",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Experimental in-memory snapshots separate syntactic Git identity from bounded session overlays.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/lspsnapshot"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/lsp-stdio-experiment-v0.md",
     "title": "LSP Stdio Experiment V0",
     "reqPrefix": "LSE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "An explicitly experimental optional native-Go stdio companion exercises bounded framing and lifecycle without semantic capabilities.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -2224,8 +2174,8 @@
     "path": "docs/specs/native-observer-prearm-v0.md",
     "title": "Native observer pre-arm V0",
     "reqPrefix": "NPO-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "An explicit idle pre-arm observer produces bounded setup and compared completed receipt projections without granting host authority.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -2233,9 +2183,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "tools/native-hook-observer/client.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/native-taskman-planning-v0.md",
@@ -2258,31 +2206,27 @@
     "path": "docs/specs/necessity-labels-v0.md",
     "title": "Necessity Labels V0",
     "reqPrefix": "NEC-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "`corvint necessity` labels each packet file `load-bearing` or `supporting` by removing it from an index copy and recompiling the packet.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/necessity"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/observation-corpus-authority-v0.md",
     "title": "Observation Corpus Authority V0",
     "reqPrefix": "OCA-V0",
-    "intent": "accepted (decision 0047, 2026-09-04)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Bounded harness observations and sealed labelled-corpus results cannot turn missing evidence into authority.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/obscorpus"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/ocm-intent-forms-v0.md",
@@ -2368,24 +2312,22 @@
     "path": "docs/specs/outcome-calibration-v0.md",
     "title": "Outcome Calibration V0",
     "reqPrefix": "OCL-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "`corvint calibrate` reports, read-only, how recorded outcomes line up with the packet stance before them, and proposes a threshold it never applies.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/outcomecal"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/pi-workflow-v0.md",
     "title": "Pi Workflow V0",
     "reqPrefix": "PWV-V0",
-    "intent": "accepted direction (owner instruction “do it. parallel”, 2026-09-29)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -2395,9 +2337,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "integrations/pi"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
@@ -2631,8 +2571,8 @@
     "path": "docs/specs/protected-pi-runtime-v0.md",
     "title": "Protected Pi Runtime V0",
     "reqPrefix": "PPI-V0",
-    "intent": "accepted direction (owner approval, 2026-09-22); technical details experimental",
-    "delivery": "experimental; no protected installation or native qualification",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -2641,15 +2581,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "integrations/pi-protected/runtime.ts",
-      "integrations/pi-protected/build.mjs",
-      "integrations/pi-protected/settings.mjs",
-      "integrations/pi-protected/qualified-runner.mjs",
-      "internal/authoritystore/pi.go",
-      "cmd/corvint/qualified_lifecycle.go",
-      "tools/local-authority/pi_release.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/public-release-v0.md",
@@ -2795,34 +2727,29 @@
     "path": "docs/specs/retrieval-eval-comparability-v0.md",
     "title": "Retrieval evaluation comparability V0",
     "reqPrefix": "REC-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "The offline retrieval benchmark reports dev and held-out splits beside the full set, recall at fixed byte budgets, and an explicit downstream-outcome slot.",
     "dependsOn": [
       "docs/specs/learned-trace-admission-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/evalrepo",
-      "benchmarks/runner"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/retriever-disagreement-v0.md",
     "title": "Retriever Disagreement V0",
     "reqPrefix": "RDS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "The agreement of two independent retrieval channels is a cheap local answerability proposal; it changes no threshold, no packet, and no stored state.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/disagree"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/revision-cache-dirty-worktree-v0.md",
@@ -2835,8 +2762,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/contextindex",
-      "internal/worktreeimpact"
+      "internal/contextindex"
     ]
   },
   {
@@ -2980,17 +2906,15 @@
     "path": "docs/specs/semantic-escalation-gate-v0.md",
     "title": "Semantic Escalation Gate V0",
     "reqPrefix": "SEG",
-    "intent": "accepted (decision 0047, 2026-09-04)",
-    "delivery": "experimental (deterministic gate slice; no provider, calibration, or kill gate)",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Models may propose evidence for named semantic gaps only through bounded calls and independent registered verifiers.",
     "dependsOn": [
       "docs/specs/genesis-backfill.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/semescalate"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/session-context-dividend-v0.md",
@@ -3220,8 +3144,7 @@
     "closableToday": false,
     "implementation": [
       "internal/contextindex",
-      "cmd/corvint",
-      "internal/lspprovider"
+      "cmd/corvint"
     ]
   },
   {
@@ -3251,7 +3174,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/prove_attack.go",
       "internal/liveverify/mutate"
     ]
   },
@@ -3277,17 +3199,15 @@
     "path": "docs/specs/touch-set-surprise-v0.md",
     "title": "Touch Set Surprise V0",
     "reqPrefix": "TSS-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "`corvint surprise` measures, for one completed task, the share of the committed change's paths the task-context packet and its impact expansion never named.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/touchsurprise"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/traceability-test-gate-v0.md",
@@ -3493,9 +3413,6 @@
     "closableToday": false,
     "implementation": [
       "internal/tracerecordrepo",
-      "internal/dogfoodflow",
-      "internal/dogfoodoperation",
-      "internal/localcompletion",
       "internal/cem/gitrun",
       "internal/contextindex",
       "internal/groupreap",
@@ -3586,7 +3503,6 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "internal/cemcandidate",
       "internal/groupreap",
       "interop/cem01-go",
       "protocol/cem-1.0"
@@ -3636,7 +3552,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/upgradechanges",
       "cmd/corvint"
     ]
   },
@@ -3887,7 +3802,6 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "cmd/corvint-corpus-mcp",
       "cmd/corvint-docs-mcp",
       "cmd/corvint-mcp",
       "cmd/corvint-test-validity-mcp",
@@ -4402,10 +4316,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint-corpus-mcp",
       "internal/jstestprovider",
-      "cmd/corvint-js-test-provider",
-      "internal/modelgateway"
+      "cmd/corvint-js-test-provider"
     ]
   },
   {
