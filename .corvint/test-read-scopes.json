@@ -3563,12 +3563,12 @@
     ],
     "tools/heading-nav-bench": [],
     "tools/linecov": [],
+    "tools/plugin-dirs": [],
     "tools/merge-drivers": [
       ".gitattributes",
       "Makefile",
       "script/gen-spec-requirements.sh"
     ],
-    "tools/plugin-dirs": [],
     "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/runner-plugin": [],
