@@ -15,7 +15,7 @@ import (
 // Literal migration expectations are independent of the production selector.
 var currentFixtureNames = map[string]string{
 	"corvint": "corvint", "corvint-console": "corvint-console", "corvint-dashboard-snapshot": "corvint-dashboard-snapshot",
-	"corvint-mcp": "corvint-mcp", "corvint-docs-mcp": "corvint-docs-mcp", "corvint-test-validity-mcp": "corvint-test-validity-mcp",
+	"corvint-mcp": "corvint-mcp", "corvint-test-validity-mcp": "corvint-test-validity-mcp",
 	"corvint-js-test-provider": "corvint-js-test-provider", "corvint-go-test-provider": "corvint-go-test-provider", "atm": "corvint-tasks",
 }
 

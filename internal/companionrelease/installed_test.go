@@ -202,27 +202,3 @@ func TestSelectProfileRequiresOnePassingRecord(t *testing.T) {
 	}
 }
 
-func TestInstalledEvidenceSerializationPreservesRawBytes(t *testing.T) {
-	t.Parallel()
-	raw := "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n"
-	report := InstalledReport{Docs: []InstalledEvidence{{Name: "mcp.json", SHA256: sha256Hex([]byte(raw)), Raw: raw}}}
-	body, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := validateSerializedEvidence(body); err != nil {
-		t.Fatal(err)
-	}
-	var decoded InstalledReport
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		t.Fatal(err)
-	}
-	if decoded.Docs[0].Raw != raw {
-		t.Fatal("raw frame changed across result serialization")
-	}
-	decoded.Docs[0].Raw += " "
-	tampered, _ := json.Marshal(decoded)
-	if err := validateSerializedEvidence(tampered); err == nil {
-		t.Fatal("tampered retained frame accepted")
-	}
-}

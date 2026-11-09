@@ -10,7 +10,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/docmaintain"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -173,13 +172,6 @@ func ValidateCoreInstalledReport(body []byte) error {
 	if e = validateCoreProviders(providers); e != nil {
 		return e
 	}
-	docs, e := evidenceMap(report.Docs, coreDocsNames)
-	if e != nil {
-		return e
-	}
-	if e = validateCoreDocs(docs); e != nil {
-		return e
-	}
 	roadmap, e := evidenceMap(report.Roadmap, coreRoadmapNames)
 	if e != nil {
 		return e
@@ -226,7 +218,7 @@ func validateCoreIdentity(i coreIdentity, r CoreInstalledReport) error {
 			return fmt.Errorf("core identity digest missing")
 		}
 	}
-	want := []string{"bin/corvint", "bin/corvint-console", "bin/corvint-dashboard-snapshot", "bin/corvint-docs-mcp", "bin/corvint-go-test-provider", "bin/corvint-js-test-provider", "bin/corvint-mcp", "bin/corvint-tasks", "bin/corvint-test-validity-mcp"}
+	want := []string{"bin/corvint", "bin/corvint-console", "bin/corvint-dashboard-snapshot", "bin/corvint-go-test-provider", "bin/corvint-js-test-provider", "bin/corvint-mcp", "bin/corvint-tasks", "bin/corvint-test-validity-mcp"}
 	var got []string
 	for _, b := range i.Binaries {
 		if !coreDigest.MatchString(b.SHA256) {
@@ -277,7 +269,7 @@ func validateCoreIdentity(i coreIdentity, r CoreInstalledReport) error {
 			return fmt.Errorf("JS fixture binding missing")
 		}
 	}
-	if !sameCoreNames(got, []string{"js-unit", "js-e2e", "go", "docs", "planning"}) {
+	if !sameCoreNames(got, []string{"js-unit", "js-e2e", "go", "planning"}) {
 		return fmt.Errorf("fixture inventory differs")
 	}
 	return nil
@@ -607,64 +599,6 @@ func validateCoreCatalogue(discover, list, server string, tools []string) error 
 	}
 	if !sameCoreNames(names, tools) {
 		return fmt.Errorf("MCP tool inventory differs")
-	}
-	return nil
-}
-func validateCoreDocs(rows map[string]InstalledEvidence) error {
-	var watch docmaintain.WatchReceipt
-	if e := decodeCoreClosed([]byte(rows["watch-receipt.json"].Raw), &watch); e != nil {
-		return e
-	}
-	if watch.Profile != "corvint-docmaintain-watch/0" || watch.Writes != 2 || watch.StoppedReason != "max-writes" || watch.OmittedSummaries != 0 {
-		return fmt.Errorf("automatic docs watch not observed")
-	}
-	if e := validateCoreCatalogue(rows["mcp-discover.json"].Raw, rows["mcp-list.json"].Raw, "corvint-docs-mcp", []string{"corvint.docs_consume", "corvint.docs_draft", "corvint.help"}); e != nil {
-		return e
-	}
-	draft, e := nativeMCP(rows["mcp-draft.json"].Raw)
-	if e != nil {
-		return e
-	}
-	consume, e := nativeMCP(rows["mcp-consume.json"].Raw)
-	if e != nil {
-		return e
-	}
-	if !rawFalse(draft["isError"]) || !rawFalse(consume["isError"]) {
-		return fmt.Errorf("docs MCP failed")
-	}
-	d, e := coreObject(draft["structuredContent"], "behavior commit derivation limitations markdown markdown_sha256 mutates package schema source state tool tree")
-	if e != nil {
-		return e
-	}
-	c, e := coreObject(consume["structuredContent"], "behavior commit derivation draft_sha256 limitations profile results state task tree validation")
-	if e != nil {
-		return e
-	}
-	markdown := rawString(d["markdown"])
-	if markdown == "" || sha256Hex([]byte(markdown)) != rawString(d["markdown_sha256"]) || rawString(c["draft_sha256"]) != rawString(d["markdown_sha256"]) || rawString(c["validation"]) != "SOURCE_REDERIVED" || !rawFalse(d["mutates"]) {
-		return fmt.Errorf("docs original draft/consume binding differs")
-	}
-	var conflict struct {
-		Profile        string `json:"profile"`
-		Status         string `json:"status"`
-		HumanBefore    string `json:"humanBeforeSha256"`
-		HumanAfter     string `json:"humanAfterSha256"`
-		EligibleCommit string `json:"eligibleCommit"`
-		Exit           int    `json:"refusalExitCode"`
-		Receipt        string `json:"refusalReceipt"`
-	}
-	if e = decodeCoreClosed([]byte(rows["conflict-receipt.json"].Raw), &conflict); e != nil {
-		return e
-	}
-	if conflict.Profile != "corvint-core-docs-conflict/0" || conflict.Status != "PASS" || conflict.Exit != 2 || !coreDigest.MatchString(conflict.HumanBefore) || conflict.HumanBefore != conflict.HumanAfter || !coreGitID.MatchString(conflict.EligibleCommit) {
-		return fmt.Errorf("human docs conflict not preserved")
-	}
-	var refused docmaintain.WatchReceipt
-	if e = decodeCoreClosed([]byte(conflict.Receipt), &refused); e != nil {
-		return e
-	}
-	if refused.Profile != watch.Profile || refused.StoppedReason != "maintenance-conflict" || refused.Writes != 1 {
-		return fmt.Errorf("native docs refusal differs")
 	}
 	return nil
 }

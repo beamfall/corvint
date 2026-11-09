@@ -185,7 +185,7 @@ func VerifyRetainedBundle(directory string) (*VerifiedRetainedBundle, error) {
 
 func validateSmokeInventory(steps []SmokeStep, inventory bundleInventory) error {
 	want := map[string]bool{}
-	for _, name := range []string{"atm-version", "atm-help", "corvint-mcp-version", "corvint-docs-mcp-version", "corvint-test-validity-mcp-version", "corvint-mcp-discover-list-status", "corvint-docs-mcp-draft-consume", "corvint-test-validity-mcp-list", "corvint-js-test-provider-help", "corvint-go-test-provider-help", "atm-init", "atm-ticket-create", "atm-ticket-refine", "corvint-dashboard-snapshot", "console-listen", "console-board", "console-detail", "console-create-form", "console-refuse-cross-origin", "console-refuse-missing-token", "console-refusal-no-store-effect", "console-detail-controls", "console-edit", "console-evidence", "console-requirement-links", "console-code-links", "console-link-gaps", "console-stop-no-descendants"} {
+	for _, name := range []string{"atm-version", "atm-help", "corvint-mcp-version", "corvint-test-validity-mcp-version", "corvint-mcp-discover-list-status", "corvint-test-validity-mcp-list", "corvint-js-test-provider-help", "corvint-go-test-provider-help", "atm-init", "atm-ticket-create", "atm-ticket-refine", "corvint-dashboard-snapshot", "console-listen", "console-board", "console-detail", "console-create-form", "console-refuse-cross-origin", "console-refuse-missing-token", "console-refusal-no-store-effect", "console-detail-controls", "console-edit", "console-evidence", "console-requirement-links", "console-code-links", "console-link-gaps", "console-stop-no-descendants"} {
 		want[name] = true
 	}
 	if inventory.ruby {
@@ -298,8 +298,6 @@ func validateSmokeComponent(step SmokeStep, manifest BundleManifest) error {
 		wantName = "corvint-dashboard-snapshot"
 	case step.Name == "corvint-mcp-discover-list-status" || step.Name == "corvint-mcp-version":
 		wantName = "corvint-mcp"
-	case step.Name == "corvint-docs-mcp-draft-consume" || step.Name == "corvint-docs-mcp-version":
-		wantName = "corvint-docs-mcp"
 	case step.Name == "corvint-test-validity-mcp-list" || step.Name == "corvint-test-validity-mcp-version":
 		wantName = "corvint-test-validity-mcp"
 	case step.Name == "corvint-js-test-provider-help":
@@ -382,7 +380,7 @@ func validateClosedManifest(entries []ArchiveEntry, manifest BundleManifest) err
 	if manifest.Target != supportedTarget {
 		return fmt.Errorf("manifest target %q is not %s", manifest.Target, supportedTarget)
 	}
-	wantComponents := map[string]string{"corvint": "corvint", "corvint-console": "corvint", "corvint-dashboard-snapshot": "corvint", "corvint-mcp": "corvint", "corvint-docs-mcp": "corvint", "corvint-test-validity-mcp": "corvint", "corvint-js-test-provider": "corvint", "corvint-go-test-provider": "corvint", "atm": "corvint-taskman"}
+	wantComponents := map[string]string{"corvint": "corvint", "corvint-console": "corvint", "corvint-dashboard-snapshot": "corvint", "corvint-mcp": "corvint", "corvint-test-validity-mcp": "corvint", "corvint-js-test-provider": "corvint", "corvint-go-test-provider": "corvint", "atm": "corvint-taskman"}
 	if inventory.ruby {
 		wantComponents["corvint-ruby-test-provider"] = "corvint"
 	}

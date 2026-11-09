@@ -20,7 +20,7 @@ func TestRubyProviderBundleProfileThree(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(v.Manifest.Profile) != `"corvint-companion-bundle/3"` || len(v.Manifest.Components) != 10 || len(v.SmokeSteps) != 34 {
+		if string(v.Manifest.Profile) != `"corvint-companion-bundle/3"` || len(v.Manifest.Components) != 9 || len(v.SmokeSteps) != 32 {
 			t.Fatalf("wrong /3 inventory: %s %d components %d steps", v.Manifest.Profile, len(v.Manifest.Components), len(v.SmokeSteps))
 		}
 		var sums string
@@ -123,12 +123,12 @@ func TestRubyProviderBundleProfileThree(t *testing.T) {
 	})
 	t.Run("CRB-V0-020 installed identity closed per profile", func(t *testing.T) {
 		digest := strings.Repeat("a", 64)
-		nine := []string{"bin/corvint", "bin/corvint-console", "bin/corvint-dashboard-snapshot", "bin/corvint-docs-mcp", "bin/corvint-go-test-provider", "bin/corvint-js-test-provider", "bin/corvint-mcp", "bin/corvint-tasks", "bin/corvint-test-validity-mcp"}
+		eight := []string{"bin/corvint", "bin/corvint-console", "bin/corvint-dashboard-snapshot", "bin/corvint-go-test-provider", "bin/corvint-js-test-provider", "bin/corvint-mcp", "bin/corvint-tasks", "bin/corvint-test-validity-mcp"}
 		for name, binaries := range map[string][]string{
-			"/2 nine":  nine,
-			"/3 ten":   append(append([]string(nil), nine...), "bin/corvint-ruby-test-provider"),
-			"extra":    append(append([]string(nil), nine...), "bin/other"),
-			"no tasks": append(append([]string(nil), nine[:7]...), "bin/corvint-test-validity-mcp", "bin/corvint-ruby-test-provider"),
+			"/2 eight": eight,
+			"/3 ten":   append(append([]string(nil), eight...), "bin/corvint-ruby-test-provider"),
+			"extra":    append(append([]string(nil), eight...), "bin/other"),
+			"no tasks": append(append([]string(nil), eight[:6]...), "bin/corvint-test-validity-mcp", "bin/corvint-ruby-test-provider"),
 		} {
 			t.Run(name, func(t *testing.T) {
 				i := coreIdentity{Profile: "corvint-core-installed-identity/0", UnchangedAfter: true, ArchiveSHA256: digest, SourceCommit: strings.Repeat("b", 40), SourceTree: strings.Repeat("c", 40), TasksCommit: strings.Repeat("d", 40),

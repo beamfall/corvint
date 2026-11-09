@@ -47,7 +47,6 @@ type CoreInstalledReport struct {
 	Providers    []InstalledEvidence  `json:"providers"`
 	Console      []InstalledEvidence  `json:"console"`
 	Roadmap      []InstalledEvidence  `json:"roadmap"`
-	Docs         []InstalledEvidence  `json:"docs"`
 	Stages       []CoreInstalledStage `json:"stages"`
 }
 type coreNamedDigest struct {
@@ -111,8 +110,7 @@ type coreAuthority struct {
 	TimeoutMilliseconds  int64    `json:"timeoutMilliseconds"`
 }
 
-var coreStageNames = []string{"offline-dependencies", "providers", "provider-interruption", "docs", "planning", "console"}
-var coreDocsNames = []string{"watch-receipt.json", "mcp-discover.json", "mcp-list.json", "mcp-draft.json", "mcp-consume.json", "conflict-receipt.json"}
+var coreStageNames = []string{"offline-dependencies", "providers", "provider-interruption", "planning", "console"}
 var coreRoadmapNames = []string{"tasks-seed-first", "tasks-seed-replay", "tasks-roadmap", "tasks-ticket-details", "tasks-no-dispatch"}
 
 func coreProviderNames() []string {
@@ -375,26 +373,6 @@ func RunCoreInstalledQualification(ctx context.Context, opts CoreInstalledOption
 		}
 		identity.Fixtures = append(identity.Fixtures, f)
 	}
-	docsOut := filepath.Join(opts.Scratch, "docs-proof")
-	if e = os.Mkdir(docsOut, 0700); e != nil {
-		return report, e
-	}
-	if e = runOK("docs", sourceRoot, 3*time.Minute, opts.PythonPath, filepath.Join(sourceRoot, "internal/docmaintain/testdata/watch_mcp_proof.py"), "--core", "--corvint", filepath.Join(bundleRoot, "bin/corvint"), "--docs-mcp", filepath.Join(bundleRoot, "bin/corvint-docs-mcp"), "--output-root", docsOut); e != nil {
-		return report, e
-	}
-	docsDirs, e := os.ReadDir(docsOut)
-	if e != nil || len(docsDirs) != 1 || !docsDirs[0].IsDir() {
-		return report, fmt.Errorf("docs proof fixture inventory differs")
-	}
-	docsFixture := filepath.Join(docsOut, docsDirs[0].Name())
-	if report.Docs, e = readCoreEvidence(docsFixture, coreDocsNames, true); e != nil {
-		return report, e
-	}
-	var docsIdentity coreFixture
-	if e = readCoreJSON(filepath.Join(docsFixture, "fixture-identity.json"), &docsIdentity); e != nil {
-		return report, e
-	}
-	identity.Fixtures = append(identity.Fixtures, docsIdentity)
 	planning := filepath.Join(opts.Scratch, "planning")
 	planningOut := filepath.Join(evidenceRoot, "planning")
 	if e = runOK("planning", sourceRoot, 3*time.Minute, opts.NodePath, filepath.Join(sourceRoot, "conformance/interactive-alpha/core-planning-proof.mjs"), filepath.Join(bundleRoot, "bin/corvint-tasks"), sourceRoot, planning, planningOut); e != nil {
