@@ -1385,7 +1385,7 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 	}
 	// A narrowed shard narrows only after its record was retained and names no tested tree.
 	for _, want := range []string{`{ [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; } && [ "$NARROW_MODE" = NARROWED ] && [ "$NARROW_RECORDED" = success ]`,
-		"name: ci-narrowing-${{ strategy.job-index }}", `if [ -n "$narrowed" ]; then`, `[ -n "$narrowed" ] || echo "costs=1"`} {
+		"name: ci-narrowing-${{ strategy.job-index }}", `if [ -n "$narrowed" ]; then`, `[ -n "$narrowed" ] || [ -n "$line_narrowed" ] || echo "costs=1"`} {
 		if !strings.Contains(ci, want) {
 			t.Fatalf("ci.yml lacks %q", want)
 		}
