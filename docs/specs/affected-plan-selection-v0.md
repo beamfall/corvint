@@ -83,6 +83,55 @@ measure. None of them drops a unit the change can reach.
 
 ## Requirements
 
+### Audited shell sibling reads (V1-5178)
+
+- **AFP-V0-3330:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Amend TSP-V0-950: a shell read-scope entry MAY carry `localReads`, an optional
+  sorted unique array of repository-relative read-scope entries under the test's
+  directory, bounded by the same 256-entry limit as `reads`. An explicit empty
+  array declares no sibling reads; omission retains the entire own-directory
+  scope. The test itself always remains in scope. Invalid entries refuse the
+  declaration with the existing invalid-scope frontier. Root-level tests retain
+  their conservative whole-tree scope. The project must audit each narrowed
+  declaration against the actual test and its executed/copied helpers. This is
+  declared authority, not a new static proof of arbitrary shell behavior.
+- **AFP-V0-3331:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Apply the complete shell scope consistently to declared, literal, glob and
+  transitive reader selection, without changing Go's implicit package subtree.
+  An enumerating test without an audited local declaration remains selected for
+  a sibling data edit. Keep explicitly named helpers, source changes, external
+  declared reads, and declaration-change uncertainty. Do not infer an empty
+  local scope from absence of a matching token or from a filename suffix.
+- **AFP-V0-3332:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  Shell literal read operands SHALL retain the pre-lane bare-utility rules for
+  `cp`, `mv` and `mkdir`. Qualified or computed commands SHALL preserve every
+  operand: a basename does not prove standard utility behavior. Preserve source
+  operands, target-directory options, ambiguous arity and recursive source reads;
+  unresolved computed paths remain conservative. No file-specific exclusion or
+  relaxed Go token matching is authorized by this change.
+
+
+- **AFP-V0-3333:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  A complete simple shell wildcard path MAY retain its wildcard through
+  reader selection alongside its conservative directory fragments. Matched names
+  can feed derived read paths, so a pattern SHALL NOT replace those tokens. Admit
+  only slash-qualified components made of literal path characters and `*`,
+  optionally following one leading plain root-variable expansion. Match at
+  any depth because the root is unresolved. Keep unrestricted `*` enumeration;
+  parent climbs, globstars, escapes, other expansions, shell pattern extensions
+  and heredoc bodies retain the existing conservative relation. Count patterns
+  against the existing token bound and retain its frontier if exceeded.
+- **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
+  A direct string literal argument to a diagnostic method of a syntactically
+  resolved `*testing.T` parameter is output metadata, not a path read. The same
+  applies to `Run`'s direct literal name only when its literal callback's test
+  parameter is used exclusively for diagnostics, `Helper`, or `Parallel`.
+  Resolve lexical bindings and the exact testing import, including aliases;
+  custom or shadowed receivers, unparsed code, nested read expressions, and
+  callbacks observing or escaping their handles retain all path tokens. This
+  amends AFP-V0-2203 only for these proven metadata sinks; preserve real tokens
+  elsewhere in the same file and all root-locating calls.
+
 ### Unindexed paths and frozen digest consumers (selwide)
 
 - **AFP-V0-9012:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5018)
@@ -2929,6 +2978,19 @@ per-unit audit, measurements and qualification limits.
 `TestUnboundedLedgerMention_AFPV03364` in `internal/liveverify/affected` checks AFP-V0-3364
 against the real graph and the unchanged caller/mention completeness gate.
 
+AFP-V0-3330/3331: `TestShellDataReaders_AFPV03330`,
+`TestRepositoryShellDataReaders_AFPV03330` and
+`TestShellLocalReadScopeValidation_AFPV03330` cover explicit/empty/omitted/invalid
+local declarations, actual audited source paths, and fail-closed enumeration.
+AFP-V0-3332: `TestShellCopyDestinationReaders_AFPV03332` retains real copy inputs;
+`TestShellQualifiedUtilityReaders_AFPV03332` retains computed/project wrapper inputs.
+AFP-V0-3333: `TestShellGlobDataReaders_AFPV03333` retains matching files and
+unsupported patterns; `TestShellDerivedGlobReaders_AFPV03333` retains data reads
+derived from wildcard matches. AFP-V0-3334: `TestTestMetadataReaders_AFPV03334` retains
+name-derived reads, escaped handles, shadowed receivers and nested reads.
+The per-unit diagnosis, source audit and measured plans are recorded in
+`docs/build-log/2026-11-08-tsv-readers.md`.
+
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
 `TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
@@ -3112,6 +3174,11 @@ Restore the reporter to the writer's callers to roll back AFP-V0-3364; this wide
 For AFP-V0-3420 through AFP-V0-3425, remove the record-entry read-scope declaration
 to restore conservative readers immediately; then remove the addition-only guards and
 status observation. Do not remove the record-reader ratchet.
+
+For AFP-V0-3330 through AFP-V0-3334, remove the optional `localReads` members
+before restoring the legacy shell adapter and reader rules; restore the Go
+metadata and shell wildcard token behavior. No persistent format migration is
+required. Missing or invalid declarations keep broad selection/uncertainty.
 
 For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
 its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"slices"
 	"strings"
 	"unicode"
@@ -42,6 +43,9 @@ const (
 type ReadScope struct {
 	Reads  []string `json:"reads"`
 	Reason string   `json:"reason"`
+	// LocalReads, when present, replaces the implicit own-directory scope.
+	// Empty means no sibling reads; omission preserves the conservative default.
+	LocalReads *[]string `json:"localReads,omitempty"`
 }
 
 type readScopesFile struct {
@@ -77,6 +81,16 @@ func readShellReadScopes(root *affected.Source) (map[string]ReadScope, error) {
 		for _, read := range entry.Reads {
 			if !affected.ValidReadScopeEntry(read) {
 				return nil, fmt.Errorf("%s: test %q read %q", affected.ShellReadScopesPath, test, read)
+			}
+		}
+		if entry.LocalReads != nil {
+			if len(*entry.LocalReads) > maxShellReadScopeReads || !sortedUnique(*entry.LocalReads) {
+				return nil, fmt.Errorf("%s: test %q localReads must be sorted unique entries", affected.ShellReadScopesPath, test)
+			}
+			for _, read := range *entry.LocalReads {
+				if !affected.ValidReadScopeEntry(read) || !strings.HasPrefix(read, path.Dir(test)+"/") {
+					return nil, fmt.Errorf("%s: test %q local read %q is outside its directory", affected.ShellReadScopesPath, test, read)
+				}
 			}
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxShellReadScopeReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
@@ -130,7 +144,20 @@ func applyShellReadScopes(root *affected.Source, units []affected.Unit, toolchai
 	}
 	for test, index := range indexes {
 		units[index].UnboundedReads = ""
-		units[index].ReadScoped, units[index].ReadScope = true, append([]string{}, declared[test].Reads...)
+		scope := append([]string{}, declared[test].Reads...)
+		if local := declared[test].LocalReads; local != nil {
+			scope = append(scope, (*local)...)
+			scope = append(scope, test)
+		} else {
+			directory := path.Dir(test)
+			if directory == "." {
+				// A root-level test retains the legacy whole-tree scope.
+				units[index].ReadScoped, units[index].ReadScope = true, scope
+				continue
+			}
+			scope = append(scope, directory+"/")
+		}
+		units[index].ReadScoped, units[index].ReadScope = true, sortedUniqueStrings(scope)
 	}
 }
 
