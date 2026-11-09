@@ -10,9 +10,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/versionline"
 )
+
+// maxMCPFrameBytes bounds one newline-delimited MCP response frame (the MCP V0 message limit).
+const maxMCPFrameBytes = 1 << 20
 
 var mcpMeta = map[string]any{"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": map[string]any{}}
 
@@ -199,7 +201,7 @@ func decodeMCPResponse(out []byte, requestID any) (map[string]any, error) {
 		return nil, fmt.Errorf("MCP emitted non-single-line envelope")
 	}
 	frame := out[:len(out)-1]
-	if len(frame) > protocol.MaxMessageBytes || !utf8.Valid(frame) {
+	if len(frame) > maxMCPFrameBytes || !utf8.Valid(frame) {
 		return nil, fmt.Errorf("MCP emitted invalid or oversized UTF-8 envelope")
 	}
 	var response map[string]any

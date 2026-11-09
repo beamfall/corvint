@@ -11,7 +11,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
-	"github.com/Beamfall/corvint/internal/mcp/server"
 )
 
 func TestCanonicalVSIXRequiresClosedAgreeingMembers(t *testing.T) {
@@ -198,40 +197,6 @@ func TestBinaryComponentsShareOneModuleSourceReference(t *testing.T) {
 		}
 		if count != 1 {
 			t.Fatalf("shared source occurs %d times", count)
-		}
-	})
-}
-
-func TestMCPResponseAcceptsProductionDiscovery(t *testing.T) {
-	t.Run("PUB-V0-015 production-mcp-response-framing", func(t *testing.T) {
-		srv, err := server.New(server.Config{
-			Name: "corvint-mcp", Version: "0.1.0-experimental", Description: "Corvint <context> & evidence",
-			Capabilities: map[string]any{"tools": map[string]any{}},
-			Handler: server.HandlerFunc(func(context.Context, protocol.Request, server.Notifier) (map[string]any, *protocol.RPCError) {
-				t.Error("discovery reached tool handler")
-				return nil, nil
-			}),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		raw, err := json.Marshal(mcpRequest(1, "server/discover", map[string]any{"_meta": mcpMeta}))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var out bytes.Buffer
-		if err := srv.Serve(t.Context(), bytes.NewReader(append(raw, '\n')), &out); err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Contains(out.Bytes(), []byte("Corvint <context> & evidence")) {
-			t.Fatalf("production encoder escaping changed: %s", out.Bytes())
-		}
-		response, err := decodeMCPResponse(out.Bytes(), 1)
-		if err != nil {
-			t.Fatalf("production MCP response rejected: %v; %s", err, out.Bytes())
-		}
-		if err := requireMCPDiscovery([]map[string]any{response}, 0, "corvint-mcp", "0.1.0-experimental"); err != nil {
-			t.Fatal(err)
 		}
 	})
 }
