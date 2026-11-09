@@ -3267,6 +3267,7 @@
     "internal/worktreeimpact": [],
     "protocol/integrations": [],
     "script/spec-coverage-audit": [],
+    "tools/affected-edit-oracle": [],
     "tools/beamfall-shadow": [
       "go.mod"
     ],
