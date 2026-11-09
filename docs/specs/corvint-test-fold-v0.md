@@ -5,6 +5,7 @@ Date: 2026-10-22
 Requirement prefix: `CTF-V0`
 Intent status: accepted (owner, 2026-10-22); retired except CTF-V0-010 by decision 0593
 Delivery status: retired
+Retirement base: b1a117eb129687f9555fa0c826fadfa0627afe3b
 Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `cmd/corvint-test` and the
 folded shims with the E2E proof lab (b1a117eb is the last tree with them). `corvint-test-runner`
 stands alone again. `CTF-V0-010` stays in force: core links no `internal/testrunner/cli`. The rest

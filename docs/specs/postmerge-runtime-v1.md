@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-02
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-workflow` and `internal/postmergeworkflow` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human issue #395 and native V1-0542 AC4; unchanged accepted /1 fork in owner-acceptance-20261001.json with its five pinned artifacts; Gate A current-review and R1 partial-slice PASS; existing PMR-V0/PMC-V0/CVI-V0/ASS-V0/NEA-V0/PCH-V0 contracts. The complete R1 wire was registered before implementation at corrected seed `30dac48f1c4ef290d161544af14f995b113c95a8`; this is proposed intent, not whole-workflow acceptance.
 

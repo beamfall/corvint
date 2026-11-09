@@ -5,6 +5,7 @@ Date: 2026-11-02
 Requirement prefix: `DWC-V0`
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood workflow it extends
 (4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
 for traceability.

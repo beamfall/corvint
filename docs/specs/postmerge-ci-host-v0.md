@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-01
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `protocol/postmerge-host`, `internal/postmergehost` and `cmd/corvint-postmerge-host-launcher` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-postmerge-host-launcher` and
 `internal/postmergehost`; `protocol/postmerge-host` stays only as a published schema.
