@@ -420,23 +420,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint breakage` | Inspect an experimental declared cross-repository API relationship map | `corvint breakage --manifest FILE --api REPO:PATH:SYMBOL --repository REPO=CHECKOUT` | `corvint breakage --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint breakage manifest` |  | `corvint breakage manifest --repository REPO=CHECKOUT[@COMMIT] --source REPO:PATH[:START-END]` | `corvint breakage manifest --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint calibrate` | Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text | `corvint calibrate` | `corvint calibrate --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem` | Change Evidence Map producer and verifier | `corvint cem anchor --map MAP` | `corvint cem --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem anchor` | Change Evidence Map anchor action | `corvint cem anchor --map MAP` | `corvint cem anchor --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem begin` | Change Evidence Map begin action | `corvint cem begin --patch PATCH --output MAP` | `corvint cem begin --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem bundle` | Change Evidence Map bundle action | `corvint cem bundle --request FILE --out DIR` | `corvint cem bundle --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem cite` | Change Evidence Map cite action | `corvint cem cite --map MAP --hunk SELECTOR --evidence-path PATH --bytes START:END --relation RELATION` | `corvint cem cite --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem cover` | Change Evidence Map cover action | `corvint cem cover --map MAP --coverprofile PATH --test-run ID` | `corvint cem cover --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem defer` | Change Evidence Map defer action | `corvint cem defer --map MAP --intent PATH --reason TEXT` | `corvint cem defer --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem discriminate` | Change Evidence Map discriminate action | `corvint cem discriminate --map MAP --target REV` | `corvint cem discriminate --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem export` | Change Evidence Map export action | `corvint cem export --map MAP --expected-base REV --target REV --artifacts DIR --output DIR` | `corvint cem export --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem gate-verdict` | Change Evidence Map gate-verdict action | `corvint cem gate-verdict --base OID --candidate OID --predicate touched-anchored --touch-paths JSON --portable-consumer PATH` | `corvint cem gate-verdict --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem mark` | Change Evidence Map mark action | `corvint cem mark --map MAP --hunk SELECTOR --disposition unknown --reason REASON` | `corvint cem mark --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem prepare` | Change Evidence Map prepare action | `corvint cem prepare --base REV --target REV` | `corvint cem prepare --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem provenance` | Change Evidence Map provenance action | `corvint cem provenance --commit REV` | `corvint cem provenance --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem report` | Change Evidence Map report action | `corvint cem report --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem report --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem status` | Change Evidence Map status action | `corvint cem status --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem verify` | Change Evidence Map verify action | `corvint cem verify --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint cem verify-stable` | Change Evidence Map verify-stable action | `corvint cem verify-stable --repository PATH --map MAP --expected-base REV --target REV --artifacts DIR` | `corvint cem verify-stable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint changes` | Inspect an experimental offline upgrade checklist (UCL1142-V0) | `corvint changes --from BUILD_SHA --to BUILD_SHA` | `corvint changes --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint changes behind` |  | `corvint changes behind --base REF` | `corvint changes behind --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint changes check-shared` |  | `corvint changes check-shared --base REV` | `corvint changes check-shared --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -445,7 +428,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint context defs` |  | `corvint context defs IDENTIFIER` | `corvint context defs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint context grep` |  | `corvint context grep TERM...` | `corvint context grep --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint context refs` |  | `corvint context refs IDENTIFIER` | `corvint context refs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint delta` | Experimental immutable change record (corvint-delta/0) | `corvint delta --base FULL_SHA --head FULL_SHA` | `corvint delta --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint depsource` | Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON | `corvint depsource MODULE` | `corvint depsource --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs` | Experimental source documentation orientation | `corvint docs citations check` | `corvint docs --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs citations` |  | `corvint docs citations check` | `corvint docs citations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -502,28 +484,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint docs flows generate` |  | `corvint docs flows generate` | `corvint docs flows generate --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs maintain` | Experimental automatic maintenance of one human documentation page | `corvint docs maintain --page PATH` | `corvint docs maintain --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint docs nav` |  | `corvint docs nav --trusted-project --request FILE` | `corvint docs nav --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood` | Coordinate an explicitly enrolled local change workflow | `corvint dogfood batch-check BASE` | `corvint dogfood --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood batch-check` |  | `corvint dogfood batch-check BASE` | `corvint dogfood batch-check --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood begin` |  | `corvint dogfood begin --plan FILE` | `corvint dogfood begin --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood cancel` |  | `corvint dogfood cancel` | `corvint dogfood cancel --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood change` |  | `corvint dogfood change BASE` | `corvint dogfood change --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood check` |  | `corvint dogfood check BASE` | `corvint dogfood check --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood export` |  | `corvint dogfood export --output FILE` | `corvint dogfood export --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood finish` |  | `corvint dogfood finish` | `corvint dogfood finish --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood finish-lane` |  | `corvint dogfood finish-lane --base BASE --citations FILE` | `corvint dogfood finish-lane --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood handoff` |  | `corvint dogfood handoff` | `corvint dogfood handoff --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood hold` |  | `corvint dogfood hold --reason TEXT` | `corvint dogfood hold --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood import` |  | `corvint dogfood import --input FILE` | `corvint dogfood import --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood inputs-check` |  | `corvint dogfood inputs-check --base BASE --citations FILE` | `corvint dogfood inputs-check --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood prechange` |  | `corvint dogfood prechange BASE` | `corvint dogfood prechange --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood propose-citations` |  | `corvint dogfood propose-citations BASE` | `corvint dogfood propose-citations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood record-claims` |  | `corvint dogfood record-claims --plan PLAN --claims FILE BASE` | `corvint dogfood record-claims --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood review` |  | `corvint dogfood review --report-set DIGEST` | `corvint dogfood review --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood seal` |  | `corvint dogfood seal BASE` | `corvint dogfood seal --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood status` |  | `corvint dogfood status` | `corvint dogfood status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood verify` |  | `corvint dogfood verify --check ID` | `corvint dogfood verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood-ocm` | Verify the private ordered set of dogfood OCM maps | `corvint dogfood-ocm status --expected-base REV --target REV` | `corvint dogfood-ocm --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint dogfood-ocm status` |  | `corvint dogfood-ocm status --expected-base REV --target REV` | `corvint dogfood-ocm status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint eval` | Evaluate a frozen retrieval corpus through the native candidate | `corvint eval` | `corvint eval --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint feature` | Compile the implemented experimental feature context slice | `corvint feature FEATURE_ID` | `corvint feature --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint features` | Experimental inferred repository guidance: features, overview and review | `corvint features` | `corvint features --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -569,7 +529,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint flows request-path` |  | `corvint flows request-path --file PATH --route 'METHOD /path'` | `corvint flows request-path --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint flows stability` |  | `corvint flows stability --registry FILE` | `corvint flows stability --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint flows test-evidence` |  | `corvint flows test-evidence --flows DIR PATH` | `corvint flows test-evidence --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint frontier` | Compile the deterministic Change Frontier V0 review queue | `corvint frontier --cem MAP --ocm MAP --expected-base REV --target REV` | `corvint frontier --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint graph` | Export every resolved indexed file import as deterministic graph-imports/1 JSONL | `corvint graph imports --revision FULL_COMMIT` | `corvint graph --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint graph imports` |  | `corvint graph imports --revision FULL_COMMIT` | `corvint graph imports --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint harness` |  | `corvint harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input -` | `corvint harness --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -580,37 +539,10 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint init` | Compile one bounded mechanical repository inventory | `corvint init` | `corvint init --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint kernel` | Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text | `corvint kernel` | `corvint kernel --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint kernel verify` |  | `corvint kernel verify < SUMMARY` | `corvint kernel verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease` | Scope lease (experimental, SCL-V0 proposed), JSON | `corvint lease acquire --holder NAME --ttl DURATION` | `corvint lease --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease acquire` |  | `corvint lease acquire --holder NAME --ttl DURATION` | `corvint lease acquire --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease list` |  | `corvint lease list` | `corvint lease list --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease release` |  | `corvint lease release --holder NAME --id ID` | `corvint lease release --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease renew` |  | `corvint lease renew --holder NAME --id ID --ttl DURATION` | `corvint lease renew --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lease status` |  | `corvint lease status --id ID` | `corvint lease status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint lrf` | Verify repository authority and apply the lexical relevance floor | `corvint lrf --cem MAP` | `corvint lrf --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint mcp` | Serve the local read-only stdio MCP server (AHI-373, experimental) | `corvint mcp --root ABSOLUTE_ROOT` | `corvint mcp --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint migrate-traces` | Plan or apply legacy tree-trace migration | `corvint migrate-traces --dry-run` | `corvint migrate-traces --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint migration-ratchet` | Compare two immutable migration-evidence snapshots | `corvint migration-ratchet --profile FILE` | `corvint migration-ratchet --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint migration-ratchet schema` |  | `corvint migration-ratchet schema` | `corvint migration-ratchet schema --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint migration-ratchet seal` |  | `corvint migration-ratchet seal --profile FILE` | `corvint migration-ratchet seal --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint migration-ratchet span-digest` |  | `corvint migration-ratchet span-digest --revision FULL_COMMIT --path PATH --lines START:END` | `corvint migration-ratchet span-digest --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint necessity` | Label every file the task-context packet included by counterfactual removal | `corvint necessity --task TEXT` | `corvint necessity --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint obligations` | Compose the external-frontier-obligations-stable/0 sidecar for one cem/1.0 map | `corvint obligations --cem FILE --impact FILE --repository DIR --expected-base REV --target REV --stable-artifact-root DIR` | `corvint obligations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint observations` | Read the bounded local self-observation digest | `corvint observations` | `corvint observations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm` | Prepare, close, or verify an Obligation Closure Map and its bound CEM | `corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR --expected-base REV --target REV` | `corvint ocm --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm link` |  | `corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR --expected-base REV --target REV` | `corvint ocm link --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm mark` |  | `corvint ocm mark --map MAP --obligation ID_OR_ORDINAL --reason REASON` | `corvint ocm mark --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm prepare` |  | `corvint ocm prepare --target REV --intent PATH` | `corvint ocm prepare --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm report` |  | `corvint ocm report --map MAP --expected-base REV --target REV` | `corvint ocm report --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm status` |  | `corvint ocm status --map MAP --expected-base REV --target REV` | `corvint ocm status --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint ocm verify` |  | `corvint ocm verify --map MAP --expected-base REV --target REV` | `corvint ocm verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint overview` | Experimental inferred repository guidance: features, overview and review | `corvint overview` | `corvint overview --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint prove` | Compile the falsifiable context packet for a task, a change, or a CEM map | `corvint prove --task TEXT` | `corvint prove --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint prove-observe` | Record one prove document's verdict counts in the local self-observation ledger | `corvint prove-observe < PROOF` | `corvint prove-observe --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint query` | Compile experimental repository context or the authority-start receipt | `corvint query --task TASK` | `corvint query --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint reads` | Unplanned reads (experimental, URE-V0 proposed), JSON | `corvint reads` | `corvint reads --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint reads disable` |  | `corvint reads disable` | `corvint reads disable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint reads enable` |  | `corvint reads enable` | `corvint reads enable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint record` | Record one explicit local task outcome | `corvint record --task TASK --changed PATH --verify COMMAND --outcome <passed&#124;failed&#124;blocked>` | `corvint record --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint repro` | Record a corvint invocation as a reproduction bundle, or replay one (RPB-V0, experimental) | `corvint repro record --output FILE -- ARGUMENT` | `corvint repro --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint repro record` |  | `corvint repro record --output FILE -- ARGUMENT` | `corvint repro record --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint repro run` |  | `corvint repro run BUNDLE` | `corvint repro run --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -625,11 +557,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint runs reusable` |  | `corvint runs reusable --selection FILE` | `corvint runs reusable --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint runs server-errors` |  | `corvint runs server-errors --runs FILE[,FILE...] --server-log FILE` | `corvint runs server-errors --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint runs stability` |  | `corvint runs stability --runs FILE[,FILE...]` | `corvint runs stability --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint skill-export` | Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only | `corvint skill-export --out DIR` | `corvint skill-export --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint step` | Observe experimental authoring step scope locally | `corvint step env-check --declaration FILE --host FILE` | `corvint step --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint step env-check` |  | `corvint step env-check --declaration FILE --host FILE` | `corvint step env-check --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint step snapshot` |  | `corvint step snapshot --declaration FILE --host FILE` | `corvint step snapshot --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint step verify` |  | `corvint step verify --declaration FILE --host FILE --before FILE` | `corvint step verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint surprise` | Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON | `corvint surprise --task TEXT --base REV --target REV` | `corvint surprise --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint test` | Run the affected test set (experimental, STR-V0) | `corvint test --base FULL_COMMIT_ID` | `corvint test --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint test reuse` |  | `corvint test reuse decide --argv WORDS` | `corvint test reuse --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -645,8 +572,7 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint test-plan prefixes` |  | `corvint test-plan prefixes --map FILE` | `corvint test-plan prefixes --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint test-validity` | Project test-level results through the shared test-validity shape | `corvint test-validity` | `corvint test-validity --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint test-validity negate` |  | `corvint test-validity negate --provider ABSOLUTE_FILE --spec S --test T --step TITLE` | `corvint test-validity negate --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint tests` | Read committed JS/TS and RSpec test sources (experimental, TSA-V0) | `corvint tests agreement --log FILE` | `corvint tests --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint tests agreement` |  | `corvint tests agreement --log FILE` | `corvint tests agreement --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
+| `corvint tests` | Read committed JS/TS and RSpec test sources (experimental, TSA-V0) | `corvint tests citations --docs PATH[,PATH...]` | `corvint tests --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint tests citations` |  | `corvint tests citations --docs PATH[,PATH...]` | `corvint tests citations --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint tests duplicates` |  | `corvint tests duplicates` | `corvint tests duplicates --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint tests env` |  | `corvint tests env --profile NAME` | `corvint tests env --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
@@ -657,16 +583,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint tests teardown` |  | `corvint tests teardown --files PATH[,PATH...] --declaration PATH` | `corvint tests teardown --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint tests unselected` |  | `corvint tests unselected` | `corvint tests unselected --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint tests validity` |  | `corvint tests validity --files PATH[,PATH...]` | `corvint tests validity --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint witness` | Compile the unwitnessed surface of one committed range | `corvint witness --base REV` | `corvint witness --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work` | Validate a repository queue observation or compile a non-operative shadow wave | `corvint work adapter details` | `corvint work --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work adapter` |  | `corvint work adapter details` | `corvint work adapter --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work adapter details` |  | `corvint work adapter details` | `corvint work adapter details --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work adapter snapshot` |  | `corvint work adapter snapshot` | `corvint work adapter snapshot --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work adapter verify` |  | `corvint work adapter verify` | `corvint work adapter verify --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work init` |  | `corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE` | `corvint work init --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work observe` |  | `corvint work observe` | `corvint work observe --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work propose-wave` |  | `corvint work propose-wave --envelope PATH --limit N` | `corvint work propose-wave --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
-| `corvint work rebind` |  | `corvint work rebind --corvint-executable ABSOLUTE_FILE` | `corvint work rebind --help`; [corvint](../internal/capcatalog/trees/corvint.json) |
 | `corvint-analyzer-c-jni` | Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout. | `corvint-analyzer-c-jni < REQUEST.json` | `corvint-cli --binary corvint-analyzer-c-jni --help`; [corvint-analyzer-c-jni](../internal/capcatalog/trees/corvint-analyzer-c-jni.json) |
 | `corvint-analyzer-c-jni help` | Show command help or the offline machine catalog. | `corvint-cli --binary corvint-analyzer-c-jni help --json` | `corvint-cli --binary corvint-analyzer-c-jni help --help`; [corvint-analyzer-c-jni](../internal/capcatalog/trees/corvint-analyzer-c-jni.json) |
 | `corvint-analyzer-dotnet` | Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout. | `corvint-analyzer-dotnet < REQUEST.json` | `corvint-cli --binary corvint-analyzer-dotnet --help`; [corvint-analyzer-dotnet](../internal/capcatalog/trees/corvint-analyzer-dotnet.json) |
@@ -699,9 +615,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-analyzer-structured-data help` | Show command help or the offline machine catalog. | `corvint-cli --binary corvint-analyzer-structured-data help --json` | `corvint-cli --binary corvint-analyzer-structured-data help --help`; [corvint-analyzer-structured-data](../internal/capcatalog/trees/corvint-analyzer-structured-data.json) |
 | `corvint-analyzer-swift` | Experimental local JSON protocol companion; reads one request on stdin and writes its response on stdout. | `corvint-analyzer-swift < REQUEST.json` | `corvint-cli --binary corvint-analyzer-swift --help`; [corvint-analyzer-swift](../internal/capcatalog/trees/corvint-analyzer-swift.json) |
 | `corvint-analyzer-swift help` | Show command help or the offline machine catalog. | `corvint-cli --binary corvint-analyzer-swift help --json` | `corvint-cli --binary corvint-analyzer-swift help --help`; [corvint-analyzer-swift](../internal/capcatalog/trees/corvint-analyzer-swift.json) |
-| `corvint-cem-candidate assemble` | Check a closed candidate assembly request; retired and cem/1.0 sources refuse without writing | `corvint-cem-candidate assemble --experimental --request FILE --out-dir DIR` | `corvint-cem-candidate assemble --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
-| `corvint-cem-candidate assemble-stable` | Assemble a cem/1.0 stable bundle from a plain or Tasks-bound request and print its re-verify argv | `corvint-cem-candidate assemble-stable --experimental --request FILE --out-dir DIR` | `corvint-cem-candidate assemble-stable --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
-| `corvint-cem-candidate verify` | Verify a cem/1.0-experimental.1 candidate map against independently supplied revisions | `corvint-cem-candidate verify --experimental --repository REPO --map FILE --expected-base OID --target OID --artifacts DIR` | `corvint-cem-candidate verify --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
 | `corvint-cli` | usage: corvint-cli --binary BINARY [ARGS...] | `corvint-cli --binary BINARY` | `corvint-cli --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
 | `corvint-cli help` | Show command help or the offline machine catalog. | `corvint-cli help --json` | `corvint-cli help --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
 | `corvint-docs-mcp` | usage: corvint-docs-mcp --root ROOT [--protocol-version 2026-07-28&#124;2025-11-25] | `corvint-docs-mcp --root ROOT` | `corvint-docs-mcp --help`; [corvint-docs-mcp](../internal/capcatalog/trees/corvint-docs-mcp.json) |

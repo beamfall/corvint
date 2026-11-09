@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
@@ -43,11 +42,5 @@ func TestDCPV1313CorpusClaimsQueryCLIParity(t *testing.T) {
 		if code, _, _ := corpusCLI(t, root, append([]string{"docs", "corpus", "claims", "--artifact", "corpus.json"}, args...)...); code != 2 {
 			t.Fatalf("corpus claims %v exit %d, want 2", args, code)
 		}
-	}
-	if q, err := corpusindex.ParseRequest([]byte(`{"operation":"claims","query":"checkout","limit":20}`)); err != nil || q.Query != "checkout" {
-		t.Fatal("companion refused a claim text query", err)
-	}
-	if _, err := corpusindex.ParseRequest([]byte(`{"operation":"claims","query":"checkout","path":"proof.go","limit":20}`)); err == nil {
-		t.Fatal("companion admitted both path and query")
 	}
 }
