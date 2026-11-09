@@ -62,6 +62,8 @@ trap 'heavy_abort 129' HUP
 		{"trap-git-config-env", "trap 'git --config-env=x=y update-ref -d r' EXIT\n" + source, false},
 		{"trap-git-exec-path", "trap 'git --exec-path=/x update-ref -d r' EXIT\n" + source, false},
 		{"trap-git-config-command", "trap 'git -C /x config x y' EXIT\n" + source, false},
+		{"trap-git-stdin-file", "trap 'git update-ref --stdin < \"$REF_COMMANDS\"' EXIT\n" + source, false},
+		{"trap-git-heredoc", "trap 'git update-ref --stdin <<E' EXIT\n" + source, false},
 		{"trap-git-expanded-dir", "trap 'git -C $dir update-ref -d r' EXIT\n" + source, false},
 		{"trap-git-expanded-array", `trap 'git -C "$@" update-ref -d r' EXIT
 ` + source, false},

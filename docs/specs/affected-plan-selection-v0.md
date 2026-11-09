@@ -2542,7 +2542,8 @@ or graph-cache schema change is required.
   `--exec-path`) and subcommands SHALL be refused. Every other external command, including command
   runners such as `bash`, `sh` and `env`, SHALL be refused rather than unwrapped. Trap strings are
   otherwise unparsed. Before parsing a handler, the analyzer SHALL refuse command substitution
-  (`$(` or backtick), process substitution (`<(` or `>(`), arithmetic expansion, and parameter
+  (`$(` or backtick), process substitution (`<(` or `>(`), any input redirection (`<`, whose file
+  read the reader index never records), arithmetic expansion, and parameter
   operator words containing `$` or backtick. This check includes arguments to inert builtins and
   single-quoted raw actions; literal parameter defaults remain permitted. DEBUG, RETURN and ERR
   handlers run between ordinary commands. It SHALL
