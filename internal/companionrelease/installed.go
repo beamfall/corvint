@@ -42,7 +42,6 @@ type InstalledReport struct {
 	PythonSHA256 string              `json:"pythonSha256"`
 	EditorHost   json.RawMessage     `json:"editorHost"`
 	Roadmap      json.RawMessage     `json:"roadmap"`
-	Docs         []InstalledEvidence `json:"docs"`
 	Stages       []InstalledStage    `json:"stages"`
 }
 
@@ -57,8 +56,8 @@ type InstalledStage struct {
 	OutputSHA256 string `json:"outputSha256"`
 }
 
-// RunInstalledQualification executes the installed browser/editor, automatic
-// docs, and planning demonstrations only from a verified retained bundle and
+// RunInstalledQualification executes the installed browser/editor and
+// planning demonstrations only from a verified retained bundle and
 // its retained Corvint source. It writes one result after every child and the
 // owned scratch tree have been cleaned up.
 func RunInstalledQualification(ctx context.Context, opts InstalledOptions) (report InstalledReport, err error) {
@@ -104,9 +103,6 @@ func RunInstalledQualification(ctx context.Context, opts InstalledOptions) (repo
 		return report, err
 	}
 	body = append(body, '\n')
-	if err := validateSerializedEvidence(body); err != nil {
-		return report, err
-	}
 	if err := writeExclusiveAtomic(opts.OutputPath, body); err != nil {
 		return report, err
 	}
@@ -212,32 +208,6 @@ func runInstalledInScratch(ctx context.Context, opts InstalledOptions, verified 
 	if err := run("installed-vscode-interruption", sourceRoot, 4*time.Minute, opts.NodePath, harness, "--interrupt-witness"); err != nil {
 		return err
 	}
-	docsOut := filepath.Join(opts.Scratch, "docs-proof")
-	if err := os.Mkdir(docsOut, 0o700); err != nil {
-		return err
-	}
-	docsDriver := filepath.Join(sourceRoot, "internal/docmaintain/testdata/watch_mcp_proof.py")
-	if err := run("automatic-docs-mcp", sourceRoot, 3*time.Minute, opts.PythonPath, docsDriver, "--corvint", filepath.Join(bundleRoot, inventory.binary("corvint")), "--docs-mcp", filepath.Join(bundleRoot, inventory.binary("corvint-docs-mcp")), "--output-root", docsOut); err != nil {
-		return err
-	}
-	docsFixtures, err := os.ReadDir(docsOut)
-	if err != nil || len(docsFixtures) != 1 || !docsFixtures[0].IsDir() || docsFixtures[0].Type()&os.ModeSymlink != 0 {
-		return fmt.Errorf("automatic docs proof did not retain one real fixture directory")
-	}
-	docsFixture := filepath.Join(docsOut, docsFixtures[0].Name())
-	for _, name := range []string{"watch-receipt.json", "mcp-discover.json", "mcp-list.json", "mcp-draft.json", "mcp-consume.json"} {
-		body, readErr := readBoundedRegular(filepath.Join(docsFixture, name), installedStageOutputLimit)
-		if readErr != nil {
-			return fmt.Errorf("retain docs evidence %s: %w", name, readErr)
-		}
-		if _, parseErr := wire.Parse(body); parseErr != nil {
-			return fmt.Errorf("docs evidence %s: %w", name, parseErr)
-		}
-		if bytes.Contains(body, []byte(opts.Scratch)) {
-			return fmt.Errorf("docs evidence %s exposes scratch path", name)
-		}
-		report.Docs = append(report.Docs, InstalledEvidence{Name: name, SHA256: sha256Hex(body), Raw: string(body)})
-	}
 	planning := filepath.Join(opts.Scratch, "planning")
 	seed := filepath.Join(sourceRoot, "script/seed-planning-store.sh")
 	if err := run("planning-seed", sourceRoot, 2*time.Minute, "/bin/sh", seed, filepath.Join(bundleRoot, inventory.binary("atm")), planning); err != nil {
@@ -284,21 +254,6 @@ func runInstalledInScratch(ctx context.Context, opts InstalledOptions, verified 
 		return err
 	}
 	return rehashRetained(verified)
-}
-
-func validateSerializedEvidence(body []byte) error {
-	var decoded struct {
-		Docs []InstalledEvidence `json:"docs"`
-	}
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return err
-	}
-	for _, evidence := range decoded.Docs {
-		if sha256Hex([]byte(evidence.Raw)) != evidence.SHA256 {
-			return fmt.Errorf("serialized docs evidence %s differs from retained digest", evidence.Name)
-		}
-	}
-	return nil
 }
 
 func selectProfile(output []byte, profile string) (json.RawMessage, error) {

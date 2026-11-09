@@ -10,15 +10,17 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/versionline"
 )
+
+// maxMCPFrameBytes bounds one newline-delimited MCP response frame (the MCP V0 message limit).
+const maxMCPFrameBytes = 1 << 20
 
 var mcpMeta = map[string]any{"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": map[string]any{}}
 
 func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, inventory bundleInventory) ([]SmokeStep, error) {
 	var steps []SmokeStep
-	for _, name := range []string{"corvint-mcp", "corvint-docs-mcp", "corvint-test-validity-mcp"} {
+	for _, name := range []string{"corvint-mcp", "corvint-test-validity-mcp"} {
 		bin := filepath.Join(extracted, "bin", inventory.name(name))
 		out, _, err := runCaptured(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, bin, "--version")
 		// --version reports the common companion release line (CAP-V0-7702); the
@@ -46,38 +48,6 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 		err = requireMCPSuccess(mainResponses, 2)
 	}
 	steps = append(steps, step("corvint-mcp-discover-list-status", err, "server/discover, 4 tools, corvint.status"))
-	if err != nil {
-		return steps, err
-	}
-
-	docsRoot := filepath.Join(scratch, "docs-mcp-repo")
-	if err = initDocsSmokeRepo(ctx, docsRoot); err != nil {
-		return append(steps, step("corvint-docs-mcp-fixture", err, "")), err
-	}
-	draftResponses, err := runMCP(ctx, filepath.Join(extracted, "bin", inventory.name("corvint-docs-mcp")), docsRoot, scratch,
-		mcpRequest(1, "server/discover", map[string]any{"_meta": mcpMeta}),
-		mcpRequest(2, "tools/list", map[string]any{"_meta": mcpMeta}),
-		mcpRequest(3, "tools/call", map[string]any{"_meta": mcpMeta, "name": "corvint.docs_draft", "arguments": map[string]any{"source": "owner.md", "package": "cache"}}))
-	var markdown string
-	if err == nil {
-		err = requireMCPDiscovery(draftResponses, 0, inventory.name("corvint-docs-mcp"), "0.1.0-experimental")
-	}
-	if err == nil {
-		err = requireMCPTools(draftResponses, 1, []string{"corvint.docs_consume", "corvint.docs_draft", "corvint.help"})
-	}
-	if err == nil {
-		markdown, err = mcpStructuredString(draftResponses, 2, "markdown")
-	}
-	if err == nil {
-		consume, runErr := runMCP(ctx, filepath.Join(extracted, "bin", inventory.name("corvint-docs-mcp")), docsRoot, scratch,
-			mcpRequest(4, "tools/call", map[string]any{"_meta": mcpMeta, "name": "corvint.docs_consume", "arguments": map[string]any{"source": "owner.md", "package": "cache", "task": "Split", "draft": markdown}}))
-		if runErr != nil {
-			err = runErr
-		} else {
-			err = requireMCPSuccess(consume, 0)
-		}
-	}
-	steps = append(steps, step("corvint-docs-mcp-draft-consume", err, "exact draft bytes consumed"))
 	if err != nil {
 		return steps, err
 	}
@@ -199,7 +169,7 @@ func decodeMCPResponse(out []byte, requestID any) (map[string]any, error) {
 		return nil, fmt.Errorf("MCP emitted non-single-line envelope")
 	}
 	frame := out[:len(out)-1]
-	if len(frame) > protocol.MaxMessageBytes || !utf8.Valid(frame) {
+	if len(frame) > maxMCPFrameBytes || !utf8.Valid(frame) {
 		return nil, fmt.Errorf("MCP emitted invalid or oversized UTF-8 envelope")
 	}
 	var response map[string]any
@@ -252,36 +222,6 @@ func requireMCPSuccess(responses []map[string]any, index int) error {
 	return nil
 }
 
-func mcpStructuredString(responses []map[string]any, index int, key string) (string, error) {
-	if err := requireMCPSuccess(responses, index); err != nil {
-		return "", err
-	}
-	result := responses[index]["result"].(map[string]any)
-	structured, _ := result["structuredContent"].(map[string]any)
-	value, _ := structured[key].(string)
-	if value == "" {
-		return "", fmt.Errorf("MCP result lacks %s", key)
-	}
-	return value, nil
-}
-
-func initDocsSmokeRepo(ctx context.Context, root string) error {
-	files := map[string]string{"go.mod": "module example.test/companion-docs\n\ngo 1.27.3\n", "cache/demux.go": "package cache\n\nfunc Split(key string) string { return key }\n", "owner.md": "# Cache\nDelivery status: experimental\n\n## Agent digest\n- Claim: splits keys\n- Blocked on: behavior validation\n\n## Requirements\nNever promote drafts.\n"}
-	if err := writeFiles(root, files, 0o600); err != nil {
-		return err
-	}
-	gitPath, err := lookGit()
-	if err != nil {
-		return err
-	}
-	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=Corvint Smoke", "-c", "user.email=smoke@corvint.invalid", "commit", "-qm", "fixture"}} {
-		if _, _, err := runCaptured(ctx, root, closedGitEnv(root), subprocessTimeout, append([]string{gitPath}, args...)...); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []ComponentManifest, extracted string, inventory bundleInventory) {
 	byName := make(map[string]ComponentManifest, len(components))
 	for _, component := range components {
@@ -296,8 +236,6 @@ func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []Comp
 			name = "corvint-console"
 		case strings.HasPrefix(steps[i].Name, "corvint-dashboard-snapshot"):
 			name = "corvint-dashboard-snapshot"
-		case strings.HasPrefix(steps[i].Name, "corvint-docs-mcp"):
-			name = "corvint-docs-mcp"
 		case strings.HasPrefix(steps[i].Name, "corvint-test-validity-mcp"):
 			name = "corvint-test-validity-mcp"
 		case strings.HasPrefix(steps[i].Name, "corvint-js-test-provider"):

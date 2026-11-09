@@ -112,19 +112,6 @@ func TestCoreNativeWitnessReplay(t *testing.T) {
 	if err := validateCoreProviders(providers); err != nil {
 		t.Fatal(err)
 	}
-	docs := map[string]InstalledEvidence{}
-	for _, name := range coreDocsNames {
-		docs[name] = read("docs", strings.TrimSuffix(name, ".json"))
-	}
-	if err := validateCoreDocs(docs); err != nil {
-		t.Fatal(err)
-	}
-	bad := docs["mcp-draft.json"]
-	bad.Raw = strings.Replace(bad.Raw, `"isError":false`, `"isError":null`, 1)
-	docs["mcp-draft.json"] = bad
-	if err := validateCoreDocs(docs); err == nil {
-		t.Fatal("native isError:null accepted")
-	}
 	roadmap := map[string]InstalledEvidence{}
 	for _, name := range coreRoadmapNames {
 		roadmap[name] = read("planning", name)

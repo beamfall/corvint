@@ -17,7 +17,7 @@ import (
 // contractCompanions are the binaries a release ships beside corvint and corvint-tasks
 // (CAP-V0-700).
 var contractCompanions = []string{
-	"corvint-console", "corvint-corpus-mcp", "corvint-dashboard-snapshot", "corvint-docs-mcp",
+	"corvint-console", "corvint-corpus-mcp", "corvint-dashboard-snapshot",
 	"corvint-mcp", "corvint-test-validity-mcp", "corvint-update", "corvint-web-flows",
 }
 
