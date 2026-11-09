@@ -203,7 +203,7 @@ func TestAFPV0441WorkflowBindings(t *testing.T) {
 		`if [ "$status" != 0 ] && [ -n "$outcomes_ok" ] && sh .github/forward-rows/flaky.sh "$outcomes_dir" "$capture" &&`,
 		`echo "flaky=1" >> "$GITHUB_OUTPUT"; then`,
 		`[ "$status" = 0 ] || exit "$status"`,
-		`[ -n "$flaky" ] || [ -n "$narrowed" ] || echo "costs=1" >> "$GITHUB_OUTPUT" || true`,
+		`[ -n "$flaky" ] || [ -n "$narrowed" ] || [ -n "$line_narrowed" ] || echo "costs=1" >> "$GITHUB_OUTPUT" || true`,
 		`if: always() && steps.tests.outputs.flaky == '1'`,
 		`name: ci-flaky-${{ github.event_name }}-${{ strategy.job-index }}`,
 		`path: ${{ runner.temp }}/forward-outcomes/flaky.json`,

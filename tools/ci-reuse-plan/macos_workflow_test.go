@@ -7,6 +7,14 @@ import (
 	"testing"
 )
 
+// CIN-V0-5017 (V1-5017): four advisory partitions may occupy only two hosted slots.
+func TestCINV05017MacOSSlotCap(t *testing.T) {
+	b := jobBlock(t, readWorkflow(t, "go-macos.yml"), "go-macos-shard")
+	wantLine(t, "go-macos-shard", b, "      max-parallel: 2")
+	wantLine(t, "go-macos-shard", b, "        shard: [0, 1, 2, 3]")
+	wantLine(t, "go-macos-shard", b, "    continue-on-error: true")
+}
+
 // CIN-V0-4625 / V1-4732: neither required jobs nor workflow completion may wait
 // for advisory Darwin coverage. The control plane still triggers only on CI.
 func TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph(t *testing.T) {
@@ -28,14 +36,14 @@ func TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph(t *testing.T) {
 		t.Fatal("Darwin workflow must start independently of CI completion")
 	}
 	b := jobBlock(t, w, "go-macos")
-	wantLine(t, "go-macos", b, "    needs: [cadence-plan, go-macos-shard]")
+	wantLine(t, "go-macos", b, "    needs: [cadence-plan, docs-plan, go-macos-shard]")
 	wantLine(t, "go-macos", b, "    continue-on-error: true")
 	b = jobBlock(t, w, "go-macos-shard")
 	for _, line := range []string{
 		"    needs: [cadence-plan, docs-plan, narrowing-verdict]",
 		"    continue-on-error: true",
 		"      fail-fast: false",
-		"      max-parallel: 4",
+		"      max-parallel: 2",
 		"        shard: [0, 1, 2, 3]",
 		"    runs-on: macos-15",
 		"          name: macos-selection",

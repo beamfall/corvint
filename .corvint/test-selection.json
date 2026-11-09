@@ -26,6 +26,13 @@
       ]
     },
     {
+      "paths": ".github/linecov/qualification.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go",
+        "tools/linecov/qualified_workflow_test.go"
+      ]
+    },
+    {
       "paths": ".github/nightly-signal/body.jq",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
