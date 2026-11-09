@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
@@ -195,9 +195,9 @@ func aggregateRuns(root, readiness string, paths []string, outcome, ciUnobservab
 		return 1
 	}
 	declarationRaw, err := gitCommand(root, "cat-file", "blob", "--end-of-options", revision+":"+readiness).Output()
-	var declaration companionrelease.StableReleaseDeclaration
+	var declaration corerelease.StableReleaseDeclaration
 	if err == nil {
-		declaration, err = companionrelease.ReadStableReleaseDeclaration(declarationRaw)
+		declaration, err = corerelease.ReadStableReleaseDeclaration(declarationRaw)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "cem-release-suites: refused: readiness declaration %s at %s: %v\n", readiness, revision, err)
@@ -227,7 +227,7 @@ func aggregateRuns(root, readiness string, paths []string, outcome, ciUnobservab
 // (strict), and otherwise the named rows, which must be distinct and exactly
 // the declaration's external rows, so the caller can never exclude a runner
 // or platform row nor silently drop a newly declared external one.
-func ciUnobservableRows(value string, d companionrelease.StableReleaseDeclaration) ([]string, error) {
+func ciUnobservableRows(value string, d corerelease.StableReleaseDeclaration) ([]string, error) {
 	if value == "" {
 		return nil, nil
 	}
@@ -258,7 +258,7 @@ func ciUnobservableRows(value string, d companionrelease.StableReleaseDeclaratio
 // nonzero exit, is returned unchanged. Each attested row is printed as a known
 // blocker and stays NOT_OBSERVED; nothing here marks a row PASSED.
 func ciScopeExit(code int, reason string, attested []string, external map[string]string, stdout io.Writer) int {
-	if code != 3 || !strings.HasPrefix(reason, companionrelease.StableRefusalExternal+":") {
+	if code != 3 || !strings.HasPrefix(reason, corerelease.StableRefusalExternal+":") {
 		return code
 	}
 	for _, row := range attested {
@@ -281,11 +281,11 @@ func writeOutcome(path, revision, declarationSha string, records []string, code 
 	if path == "" {
 		return code
 	}
-	verdict := companionrelease.StableGateReady
+	verdict := corerelease.StableGateReady
 	if code != 0 {
-		verdict = companionrelease.StableGateRefused
+		verdict = corerelease.StableGateRefused
 	}
-	raw, err := companionrelease.EncodeStableGateOutcome(companionrelease.StableGateOutcome{Profile: companionrelease.StableGateOutcomeProfile, Revision: revision, DeclarationSha256: declarationSha, Records: records, Verdict: verdict, Reason: reason})
+	raw, err := corerelease.EncodeStableGateOutcome(corerelease.StableGateOutcome{Profile: corerelease.StableGateOutcomeProfile, Revision: revision, DeclarationSha256: declarationSha, Records: records, Verdict: verdict, Reason: reason})
 	if err == nil {
 		err = writeNew(path, raw)
 	}

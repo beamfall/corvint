@@ -74,9 +74,10 @@ say otherwise.
 
 ### Qualified local candidate and versioned install
 
-`corvint-release-candidate` closes the verified core and companion outputs into
-`corvint-v<version>-qualified`. Omit `-companion-dir` to close only the core gate output and the
-source root's Corvint source into a Core-only `corvint-v<version>-core` candidate. Verify its
+`corvint-release-candidate` closes the verified core gate output and the source root's Corvint
+source into a Core-only `corvint-v<version>-core` candidate. The combined
+`corvint-v<version>-qualified` candidate and its `-companion-dir` input were retired with the
+companion bundle by decision 0594. Verify its
 top-level `SHA256SUMS`, then read `MANIFEST.json` and `QUALIFICATION.json`; `NOT_RUN` is never a
 platform pass. The candidate is local evidence, not a tag, signature, upload, publication or
 promotion.
@@ -84,7 +85,6 @@ promotion.
 ```sh
 go run ./cmd/corvint-release-candidate \
   -core-dir /absolute/core-gate-output \
-  -companion-dir /absolute/companion-retained-output \
   -source-root /absolute/corvint-checkout \
   -scratch /absolute/private-scratch \
   -output-parent /absolute/candidates \
@@ -158,7 +158,9 @@ archive builder and install steps live there.
 
 ## Optional workflow bundle
 
-The planned, separately assembled **macOS arm64** workflow bundle will contain six native binaries:
+Decision 0594 retired the companion bundle assembler and its gate, so no workflow bundle is
+currently assembled; this section describes the earlier plan and stays only for bundles already
+retained. The planned, separately assembled **macOS arm64** workflow bundle would contain six native binaries:
 `corvint`, `corvint-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
 `corvint-ruby-test-provider` (profile `corvint-companion-bundle/3`, `CRB-V0-020`; its smoke checks only
 the usage line, RSpec execution is not qualified); a VS Code VSIX;
@@ -166,8 +168,8 @@ and raw Codex, Claude Code, Gemini CLI and OpenCode integration trees marked `FA
 The host applications and their external dependencies are not bundled. Install it only when the
 exact release's attached evidence qualifies the archive and the workflow you intend to use.
 
-The companion gate names archives `corvint-companion-<corvint-commit-prefix>-<taskman-commit-prefix>-darwin-arm64-<UTC-timestamp>.tar.gz`
-and supplies an adjacent `.tar.gz.sha256` file. Use the actual retained filename, verify that
+The retired companion gate named archives `corvint-companion-<corvint-commit-prefix>-<taskman-commit-prefix>-darwin-arm64-<UTC-timestamp>.tar.gz`
+and supplied an adjacent `.tar.gz.sha256` file. Use the actual retained filename, verify that
 checksum, extract into a fresh directory, and follow its `README.md`, `MANIFEST.json` and internal
 `SHA256SUMS`. Retain the whole directory so companion paths, source archives and notices remain
 together. Extraction does not install a VSIX or configure an agent host.
@@ -280,8 +282,9 @@ and for the checkout you run it from when that checkout is already indexed. The 
 not undo the switch. Other checkouts, and any Core binary copied into place by hand, still need
 an explicit `corvint index --if-stale`.
 
-Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately from the one
-official source, the GitHub releases of `beamfall/corvint`. RC (`vX.Y.Z-rc.N`) and developer Tasks
+Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately, each from its own
+official source: Core from the GitHub releases of `beamfall/corvint` and Tasks from those of
+`beamfall/corvint-tasks`, since Core no longer bundles Tasks (decision 0594). RC (`vX.Y.Z-rc.N`) and developer Tasks
 releases are published as prereleases and are admitted, so checking them never waits for a stable
 release. Every result names `source` and `channel`; when no release can be selected, freshness
 stays `UNKNOWN` and `unknownReason` says why and what would resolve it (for example, that the

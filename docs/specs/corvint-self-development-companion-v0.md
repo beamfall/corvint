@@ -46,7 +46,7 @@ completion is implied by local structural evidence.
 | `CSD-V0-7514` | `script/batch-precheck.sh`, fixture-based `script/capability-catalog_test.sh`; `TestCINV07505RepositoryCIRoutes`. |
 | `CSD-V0-7515` | `docs/AGENT-ROUTES.md` historical evidence route. Archive access returned HTTP 404 on 2026-11-04; original issue title/body and other unrecovered texts remain BLOCKED until access is granted; the pk-ci build log retains the locally recoverable B3 values and issue-to-commit mapping. |
 | `CSD-V0-7516` | `script/adopter-ci-advisory_test.sh` doubled-separator stand-in and full recursive advisory fixture. |
-| `CSD-V0-7517` | `script/corvint-companion-release-gate`, its shell test's delayed ps probe with a TERM-ignoring child. |
+| `CSD-V0-7517` | retired by decision 0594 with `script/corvint-companion-release-gate` and its shell test's delayed ps probe (1a838f144 is the last tree with them). |
 | `CSD-V0-7518` | `internal/testsupport/refusedaddr_unix.go`, `refusedaddr_other.go`; `TestASDV0919RefusedLoopbackAddrRefusesAtOnce`. |
 
 ## Limits and rollback

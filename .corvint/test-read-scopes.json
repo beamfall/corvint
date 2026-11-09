@@ -487,9 +487,6 @@
       "internal/companioncli/",
       "internal/versionline/"
     ],
-    "cmd/corvint-companion-release": [
-      "script/corvint-companion-release-gate"
-    ],
     "cmd/corvint-go-test-provider": [
       "conformance/go-live-test-v0/",
       "go.mod",
@@ -531,7 +528,6 @@
       "internal/capcatalog/trees/corvint-js-test-provider.json"
     ],
     "cmd/corvint-lsp": [],
-    "cmd/corvint-public-release-check": [],
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-ruby-test-provider": [
       "internal/capcatalog/trees/corvint-ruby-test-provider.json"
@@ -1233,31 +1229,7 @@
       "internal/appmap/testdata/"
     ],
     "internal/compactionkernel": [],
-    "internal/companionrelease": [
-      ".gitattributes",
-      ".github/cishards/",
-      ".gitignore",
-      "LICENSE",
-      "LICENSE-APACHE-2.0",
-      "LICENSING.md",
-      "PROVENANCE.md",
-      "cmd/",
-      "cmd/corvint-js-test-provider/",
-      "cmd/corvint-mcp/",
-      "cmd/corvint-ruby-test-provider/",
-      "cmd/corvint-test-validity-mcp/",
-      "cmd/corvint-update/",
-      "cmd/corvint/",
-      "conformance/interactive-alpha/core-process.mjs",
-      "conformance/interactive-alpha/core-provider-proof.mjs",
-      "conformance/interactive-alpha/fixture/package-lock.json",
-      "conformance/interactive-alpha/fixture/package.json",
-      "docs/specs/public-release-v0.md",
-      "extensions/vscode/",
-      "extensions/vscode/test/installed/index.cjs",
-      "extensions/vscode/test/installed/run.mjs",
-      "go.mod",
-      "internal/",
+    "internal/corerelease": [
       "protocol/cem-1.0/stable/MIGRATION.json",
       "protocol/cem-1.0/stable/neutral-criterion/results/accept.json",
       "tools/cem-release-suites/READINESS.json"

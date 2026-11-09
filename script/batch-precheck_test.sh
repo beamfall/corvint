@@ -180,8 +180,7 @@ grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/ou
 (cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
 grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
   fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
-grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
-  grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
+grep -qx 'batch-drift TestCLIErrorContracts_ACXV0859' "$tmp/out" || fail "the @own drift test is not its own step: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 grep -qx 'batch-cem-check' "$tmp/out" && fail "CI-only batch CEM step was derived locally: $(cat "$tmp/out")"
 
@@ -2151,8 +2150,8 @@ BATCH_PRECHECK_SKIP_DRIFT=1 prun && fail "a failing pre-bind entry passed the pr
 row_is FAIL 'batch-drift (pre-bind, 2 packages)'
 grep -q 'batch-drift (skipped before the bind)' "$tmp/out" && fail "a skip row with nothing held: $(cat "$tmp/out")"
 [[ -f $prec ]] && fail "a failed pre-bind run left a record: $(cat "$prec")"
-# ASD-V0-825 (V1-4069): in explicit lane-closeout mode an @own entry runs only when a companion
-# input changed; its receipt is marked, and a batch since-receipt run does not narrow from it.
+# ASD-V0-825 (V1-4069), companion skip retired by decision 0594: a lane closeout runs the @own entry;
+# its receipt is still marked, and a batch since-receipt run does not narrow from it.
 odrift='./golden TestGoldenDrift @go
 ./golden TestFreeze @own @go'
 orun() { (unset GOFLAGS; cd "$rrepo" && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$odrift "$pre" "$@") > "$tmp/out" 2>&1; }
@@ -2161,25 +2160,18 @@ git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'lane go change'
 ohead=$(git -C "$rrepo" rev-parse HEAD)
 pbase=$rbase plan "$frontier" golden
 LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
-grep -qx "batch-precheck:   skipped ./golden TestFreeze (lane closeout: no companion input changed since $rbase; the batch precheck runs it, ASD-V0-825)" "$tmp/out" ||
-  fail "the lane run did not skip the @own entry: $(cat "$tmp/out")"
-grep -q '| batch-drift TestFreeze$' "$tmp/out" && fail "the lane run ran the @own entry: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (1 packages, 1 of 2 tests)'
+grep -q 'no companion input changed' "$tmp/out" && fail "the lane run skipped the @own entry: $(cat "$tmp/out")"
+row_is PASS 'batch-drift TestFreeze'
 olane="$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt).lane"
 [[ $(cat "$olane" 2> /dev/null) == "$ohead" ]] || fail "the lane receipt carries no .lane mark for $ohead"
-# The batch run (no LANE) runs the @own entry and does not narrow from the lane receipt.
+# The batch run (no LANE) does not narrow from the lane receipt.
 mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$ohead.cem.json"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal lane change evidence'
 BATCH_PRECHECK_SINCE_RECEIPT=1 orun --base "$rbase" || fail "batch run over a lane receipt failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)$' "$tmp/out" ||
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check (ASD-V0-1990)$' "$tmp/out" ||
   fail "a batch run narrowed from a lane receipt: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 [[ ! -e $olane ]] || fail "a batch receipt kept the .lane mark"
-# A changed companion input runs the @own entry in a lane closeout too.
-mkdir -p "$rrepo/internal/companionrelease" && printf 'x\n' > "$rrepo/internal/companionrelease/note.txt"
-LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
-row_is PASS 'batch-drift TestFreeze'
-/bin/rm -rf "$rrepo/internal"
 
 
 fi
