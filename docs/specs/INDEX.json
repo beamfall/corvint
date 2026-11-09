@@ -4671,5 +4671,22 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/affected-edit-oracle-v0.md",
+    "title": "Affected Edit Oracle V0",
+    "reqPrefix": "AEO-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "A pinned controlled-edit corpus measures affected-plan recall and over-selection, with opt-in observed mutation killers.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md",
+      "docs/specs/affected-zero-unknown-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "tools/affected-edit-oracle"
+    ]
   }
 ]
