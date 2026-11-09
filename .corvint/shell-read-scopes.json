@@ -5,7 +5,8 @@
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it runs make -f Makefile capability-catalog in a scratch directory with a stub generator standing in for go run; the Makefile includes no file (TSP-V0-830)."
+      "reason": "Outside script/, it runs make -f Makefile capability-catalog in a scratch directory with a stub generator standing in for go run; the Makefile includes no file (TSP-V0-830).",
+      "localReads": []
     },
     "script/check-install-lifecycle_test.sh": {
       "reads": [
@@ -15,7 +16,10 @@
         "go.sum",
         "internal/"
       ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint twice from the checkout, which compiles cmd/corvint, .github/cishards and internal/ packages under go.mod and go.sum; the lifecycle runs in a temporary directory (V1-3616)."
+      "reason": "Outside script/, it runs go build ./cmd/corvint twice from the checkout, which compiles cmd/corvint, .github/cishards and internal/ packages under go.mod and go.sum; the lifecycle runs in a temporary directory (V1-3616).",
+      "localReads": [
+        "script/check-install-lifecycle.sh"
+      ]
     },
     "script/check-sql-native-ratchets_test.sh": {
       "reads": [
@@ -32,13 +36,19 @@
         "internal/toolchainreceipt/",
         "internal/versionline/"
       ],
-      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 builds cmd/corvint-go-toolchain-receipt, compiling internal/toolchainreceipt and its offline CLI help, framing and release metadata closure (TSP-V0-951, CAP-V0-7700, V1-2167)."
+      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 builds cmd/corvint-go-toolchain-receipt, compiling internal/toolchainreceipt and its offline CLI help, framing and release metadata closure (TSP-V0-951, CAP-V0-7700, V1-2167).",
+      "localReads": [
+        "script/check-sql-native-ratchets.sh"
+      ]
     },
     "script/core-n1-replay-default_test.sh": {
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it copies the Makefile into a temporary repository and runs make core-n1-replay there with a go shim; the Makefile includes nothing (V1-3788)."
+      "reason": "Outside script/, it copies the Makefile into a temporary repository and runs make core-n1-replay there with a go shim; the Makefile includes nothing (V1-3788).",
+      "localReads": [
+        "script/select-previous-release.sh"
+      ]
     },
     "script/dogfood-bind-range_test.sh": {
       "reads": [
@@ -67,7 +77,10 @@
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it runs make -f on a probe makefile in a temporary repository that includes the Makefile, whose parse runs only the copied script/dogfood-merge-base.sh; the Makefile includes nothing (DWC-V0-7601)."
+      "reason": "Outside script/, it runs make -f on a probe makefile in a temporary repository that includes the Makefile, whose parse runs only the copied script/dogfood-merge-base.sh; the Makefile includes nothing (DWC-V0-7601).",
+      "localReads": [
+        "script/dogfood-merge-base.sh"
+      ]
     },
     "script/gate-affected-corvint_test.sh": {
       "reads": [
@@ -77,7 +90,10 @@
         "go.sum",
         "internal/"
       ],
-      "reason": "Outside script/, it and script/gate-affected-corvint.sh run go build ./cmd/corvint from the checkout; the go test runs happen in a temporary two-package module (V1-3616)."
+      "reason": "Outside script/, it and script/gate-affected-corvint.sh run go build ./cmd/corvint from the checkout; the go test runs happen in a temporary two-package module (V1-3616).",
+      "localReads": [
+        "script/gate-affected-corvint.sh"
+      ]
     },
     "script/gate-affected_test.sh": {
       "reads": [
@@ -88,13 +104,20 @@
         "internal/",
         "tools/gate-affected-select/"
       ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint, copies internal/liveverify/affected/testdata/fixture, and script/gate-affected.sh runs go run ./tools/gate-affected-select, whose only non-standard packages are under internal/ (V1-3616)."
+      "reason": "Outside script/, it runs go build ./cmd/corvint, copies internal/liveverify/affected/testdata/fixture, and script/gate-affected.sh runs go run ./tools/gate-affected-select, whose only non-standard packages are under internal/ (V1-3616).",
+      "localReads": [
+        "script/gate-affected.sh"
+      ]
     },
     "script/gate-receipt_test.sh": {
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830)."
+      "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830).",
+      "localReads": [
+        "script/dogfood-merge-base.sh",
+        "script/gate-receipt"
+      ]
     },
     "script/qualify-tasks-basic_test.sh": {
       "reads": [
@@ -103,26 +126,36 @@
         "go.sum",
         "internal/"
       ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283)."
+      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283).",
+      "localReads": [
+        "script/qualify-tasks-basic.sh"
+      ]
     },
     "script/repin_test.sh": {
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it runs make -n repin, which parses only the Makefile; the Makefile includes no file (TSP-V0-830)."
+      "reason": "Outside script/, it runs make -n repin, which parses only the Makefile; the Makefile includes no file (TSP-V0-830).",
+      "localReads": []
     },
     "script/spec-requirements-conflict_test.sh": {
       "reads": [
         "Makefile"
       ],
-      "reason": "Outside script/, it runs the checkout Makefile with make -f against a temporary fixture repository (-C), so recipes run there; the Makefile includes nothing (V1-3788)."
+      "reason": "Outside script/, it runs the checkout Makefile with make -f against a temporary fixture repository (-C), so recipes run there; the Makefile includes nothing (V1-3788).",
+      "localReads": [
+        "script/gen-spec-requirements.sh",
+        "script/repin-use-case-receipts.sh",
+        "script/spec-requirements-resolve.sh"
+      ]
     },
     "script/vscode-check-install_test.sh": {
       "reads": [
         "conformance/test-validity-v0/",
         "extensions/vscode/"
       ],
-      "reason": "Outside script/, it copies the tracked files of extensions/vscode and conformance/test-validity-v0 into a temporary directory and runs npm check there (V1-3616)."
+      "reason": "Outside script/, it copies the tracked files of extensions/vscode and conformance/test-validity-v0 into a temporary directory and runs npm check there (V1-3616).",
+      "localReads": []
     }
   }
 }

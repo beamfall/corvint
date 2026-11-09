@@ -36,7 +36,7 @@
       "head": "bb943b524e700840ec0ba78a36563087a1b45671",
       "pr": 4,
       "recorded": {
-        "ciScope": "FULL",
+        "ciScope": "NARROW",
         "verdict": "run"
       }
     },
@@ -47,7 +47,7 @@
       "head": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
       "pr": 6,
       "recorded": {
-        "ciScope": "FULL",
+        "ciScope": "NARROW",
         "verdict": "run"
       }
     },
@@ -549,8 +549,8 @@
       "head": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
       "pr": 41,
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -571,8 +571,8 @@
       "head": "6d4713fb8b5d05201ea0c26483e5f0e230ee4c78",
       "pr": 43,
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -604,8 +604,8 @@
       "head": "55f5a9fd74a4e0e0d3fcc72d5837a2a90fba1520",
       "pr": 46,
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -637,8 +637,8 @@
         }
       ],
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -681,8 +681,8 @@
         }
       ],
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -698,8 +698,8 @@
         }
       ],
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {
@@ -735,8 +735,8 @@
         }
       ],
       "recorded": {
-        "ciScope": "FULL",
-        "verdict": "FALLBACK"
+        "ciScope": "NARROW",
+        "verdict": "run"
       }
     },
     {

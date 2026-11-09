@@ -284,10 +284,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		word, args := commandWord(plainWords(commands[index].words))
 		switch {
 		case word == "source" || word == ".":
-			// A source no literal or fresh directory resolves is dynamic,
+			// A source no literal, fresh directory or checked host guard resolves is dynamic,
 			// an environment-named one (`. "$ENVFILE"`) included: nothing in
 			// the file bounds what the caller's value names (AFP-V0-2953).
-			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) {
+			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) && !hostEnvironmentSource(resolve, parsed, text, index) {
 				dynamic = true
 			}
 		case word == "load" && loads:
@@ -339,8 +339,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		unit.LocatesRoot = !test
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens := pathTokens(parsed, tempRoots(resolve, parsed, text))
-	if len(tokens) > maxPathTokens {
+	tokens, globs := pathTokens(parsed, tempRoots(resolve, parsed, text))
+	unit.PathGlobs = sortedKeys(globs)
+	if len(tokens)+len(globs) > maxPathTokens {
+		unit.PathGlobs = nil
 		unit.PathTokensBounded = true
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
@@ -1227,8 +1229,8 @@ func underTempRoot(value string, roots map[string]bool) bool {
 // follows the expansion of a temp root (tempRoots) names a file below a
 // directory the script created, never a repository path, so it adds no
 // token (AFP-V0-2204); a path with `..` after the root keeps its tokens.
-func pathTokens(parsed script, temp map[string]bool) map[string]bool {
-	tokens := map[string]bool{}
+func pathTokens(parsed script, temp map[string]bool) (map[string]bool, map[string]bool) {
+	tokens, globs := map[string]bool{}, map[string]bool{}
 	add := func(text string) {
 		if len(temp) != 0 {
 			text = tempExpansion.ReplaceAllStringFunc(text, func(match string) string {
@@ -1247,13 +1249,81 @@ func pathTokens(parsed script, temp map[string]bool) map[string]bool {
 	}
 	for _, cmd := range parsed.commands {
 		for _, word := range readWords(cmd.words) {
+			if glob, ok := literalPathGlob(word); ok && !tempRootedWord(word, temp) {
+				globs[glob] = true
+			}
+			// Matched names can feed derived reads (for example, replacing
+			// _test.sh with .tsv), so the glob cannot replace broad tokens.
 			add(word)
 		}
 	}
 	for _, body := range parsed.data {
 		add(body)
 	}
-	return tokens
+	return tokens, globs
+}
+
+// tempRootedWord reports a word that starts with an expansion of a private
+// temporary root (for example "$tmp/script/*.tsv" after tmp=$(mktemp -d)).
+// Its suffix names paths under that root, not repository paths, so it must
+// not become a repository glob. A parent climb keeps the conservative glob.
+func tempRootedWord(word string, temp map[string]bool) bool {
+	if len(temp) == 0 {
+		return false
+	}
+	value := unquote(word)
+	match := tempExpansion.FindStringSubmatch(value)
+	if match == nil || !strings.HasPrefix(value, "$") || strings.Index(value, match[0]) != 0 || !temp[match[1]+match[2]] {
+		return false
+	}
+	return !slices.Contains(strings.Split(value[len(match[0])-len(match[3]):], "/"), "..")
+}
+
+// literalPathGlob records a complete, simple wildcard path alongside its
+// conservative directory tokens (AFP-V0-3333).
+// An unknown leading root is allowed, so the pattern is unanchored. Other
+// substitutions, escapes, parent climbs, globstars and shell pattern extensions
+// keep the conservative token relation. Heredocs are not narrowed here.
+func literalPathGlob(word string) (string, bool) {
+	if strings.Contains(word, "\\") {
+		return "", false
+	}
+	value := unquote(word)
+	if strings.HasPrefix(value, "$") {
+		match := tempExpansion.FindStringSubmatchIndex(value)
+		// Strip only the variable, not its literal suffix. Parameter operators
+		// or a second expansion leave non-path bytes and are rejected below.
+		if match == nil || match[0] != 0 {
+			return "", false
+		}
+		end := match[1]
+		if match[6] >= 0 {
+			end = match[6]
+		}
+		value = value[end:]
+		if !strings.HasPrefix(value, "/") {
+			return "", false
+		}
+	}
+	value = strings.TrimPrefix(value, "/")
+	if !pathShaped(value) || !strings.Contains(value, "*") || strings.Contains(value, "**") {
+		return "", false
+	}
+	for _, c := range value {
+		if !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~@+/-*", c) {
+			return "", false
+		}
+	}
+	parts := strings.Split(value, "/")
+	if len(parts) < 2 {
+		return "", false
+	}
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return "", false
+		}
+	}
+	return value, true
 }
 
 // readWords lists the words of one command through which a dirty path can
@@ -1284,6 +1354,8 @@ func readWords(words []string) []string {
 		}
 	}
 	name, operands := commandWord(plainWords(words))
+	// Qualified and computed commands may be wrappers that read every operand;
+	// their basename alone does not establish standard utility semantics.
 	switch name {
 	case "mkdir":
 		for _, operand := range dropFlags(operands) {

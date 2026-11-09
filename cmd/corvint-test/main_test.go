@@ -193,23 +193,11 @@ func TestCCEV0103LedgerFlag(t *testing.T) {
 	}
 }
 
-// CCE-V0-015: core `corvint` never imports the companion or its package; the companion never
-// names `corvint` as an executable, and its diagnostics stay disjoint from core `corvint test`'s
-// `corvint-test:` prefix.
+// CCE-V0-015: the companion never names `corvint` as an executable, and its diagnostics stay
+// disjoint from core `corvint test`'s `corvint-test:` prefix. internal/closureguard's
+// TestCCEV0015CoreLinksNoCompanion checks that core `corvint` never imports the companion or its
+// package (V1-5071).
 func TestCCEV0015CoreBoundary(t *testing.T) {
-	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
-	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			t.Fatalf("%v: %s", err, ee.Stderr)
-		}
-		t.Fatal(err)
-	}
-	for _, dep := range strings.Fields(string(out)) {
-		if strings.HasSuffix(dep, "/internal/changee2e") || strings.HasSuffix(dep, "/cmd/corvint-test") {
-			t.Fatalf("core corvint imports %s", dep)
-		}
-	}
 	srcs, _ := filepath.Glob("../../internal/changee2e/*.go")
 	srcs = append(srcs, "main.go")
 	corvintArgv := regexp.MustCompile(`"corvint"|"corvint\s|/corvint"`)

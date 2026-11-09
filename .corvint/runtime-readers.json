@@ -46,6 +46,10 @@
       "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
     },
     {
+      "path": ".corvint/record-entry-read-scopes.json",
+      "reason": "record-entry read-scope declaration (AFP-V0-3420, AFP-V0-3421); read by the affected planner and the gate selector through path literals and by tools/unbounded-readers; a change alters which added CEM or build-log entries narrow later plans, not what any test runs (V1-4933)"
+    },
+    {
       "path": ".corvint/record-readers.json",
       "reason": "record-directory reader ratchet record (AFP-V0-2745); read through path literals by tools/unbounded-readers and tools/declaration-compat-check and by the root-locating repository tests the unbounded-reader rule selects; never a selection input or loaded by a computed name or a build or CI driver"
     },

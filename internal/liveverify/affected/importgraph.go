@@ -110,6 +110,21 @@ var goToolSources = []string{".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".h
 // content its build (Stale, Export) depends on. It is "" when dirty holds
 // none.
 func (graph *Graph) SourcePath(dirty []string) string {
+	embedding := graph.embeddingDirectories()
+	first := ""
+	for _, relative := range dirty {
+		source := strings.HasSuffix(relative, ".go") || slices.ContainsFunc(goToolSources, func(suffix string) bool { return strings.HasSuffix(relative, suffix) })
+		source = source || underEmbedding(embedding, relative)
+		if source && (first == "" || relative < first) {
+			first = relative
+		}
+	}
+	return first
+}
+
+// embeddingDirectories lists the directory of each Go unit carrying a
+// //go:embed directive: any file below one may be embedded.
+func (graph *Graph) embeddingDirectories() []string {
 	var embedding []string
 	for _, id := range graph.order {
 		unit := graph.units[id]
@@ -117,17 +132,13 @@ func (graph *Graph) SourcePath(dirty []string) string {
 			embedding = append(embedding, relativeDirectory(files[0]))
 		}
 	}
-	first := ""
-	for _, relative := range dirty {
-		source := strings.HasSuffix(relative, ".go") || slices.ContainsFunc(goToolSources, func(suffix string) bool { return strings.HasSuffix(relative, suffix) })
-		for _, directory := range embedding {
-			source = source || directory == "." || strings.HasPrefix(relative, directory+"/")
-		}
-		if source && (first == "" || relative < first) {
-			first = relative
-		}
-	}
-	return first
+	return embedding
+}
+
+func underEmbedding(embedding []string, relative string) bool {
+	return slices.ContainsFunc(embedding, func(directory string) bool {
+		return directory == "." || strings.HasPrefix(relative, directory+"/")
+	})
 }
 
 // unknownImportSets is the ImportSetChanges the selector assumes without a
@@ -199,7 +210,32 @@ func (graph *Graph) importGraphReadersOf(reached map[string]Witness, normalized 
 	}
 	changes := graph.importSets
 	if changes == nil {
-		changes = graph.unknownImportSets(normalized)
+		changes = graph.unknownImportSets(graph.compilingPaths(normalized))
+	} else if len(graph.goCommentOnly) != 0 {
+		// The comparison belongs to the plan, so never mutate a shared input.
+		filtered := *changes
+		filtered.Changed = maps.Clone(changes.Changed)
+		for id, relative := range filtered.Changed {
+			if graph.goCommentOnly[relative] {
+				delete(filtered.Changed, id)
+				// ImportSetRecords attributes a package header change to
+				// its first dirty path, which may be a comment-only sibling
+				// of the file that actually changed the header.
+				for _, candidate := range graph.compilingPaths(normalized) {
+					if strings.HasSuffix(candidate, ".go") && relativeDirectory(candidate) == relativeDirectory(relative) {
+						filtered.Changed[id] = candidate
+						break
+					}
+				}
+			}
+		}
+		if graph.goCommentOnly[filtered.Source] {
+			filtered.Source = graph.SourcePath(graph.compilingPaths(normalized))
+		}
+		if graph.goCommentOnly[filtered.Module] {
+			filtered.Module = ""
+		}
+		changes = &filtered
 	}
 	if len(changes.Changed) == 0 && changes.Source == "" && changes.Module == "" {
 		return

@@ -43,7 +43,7 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 	} {
 		affectedGit(t, root, arguments...)
 	}
-	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
+	cemWrite(t, root, "x/a/core/core.go", "package core\n\nfunc Value() int { return 2 }\n")
 
 	receipt, _, stderr, code := runAffectedCLI(t, root)
 	if code != 0 {

@@ -22,7 +22,7 @@ func recordEntrySuffix(record string) (string, bool) {
 	return "", false
 }
 
-// RecordReaders returns, in graph order, the Go units with tests and no
+// RecordReaders returns, in graph order, the Go and shell units with tests and no
 // declared read scope that read new entries of the record directory record
 // (SealedChangesDirectory or BuildLogDirectory), and the walkers of it, for
 // the AFP-V0-2745 ratchet (tools/unbounded-readers).
@@ -53,7 +53,8 @@ func (graph *Graph) RecordReaders(record string) (readers, walkers []string) {
 	tokens := graph.pathTokens()
 	for i, id := range graph.order {
 		unit := graph.units[id]
-		if !strings.HasPrefix(id, "go:") || len(unit.Tests) == 0 || unit.ReadScoped {
+		goUnit := strings.HasPrefix(id, "go:")
+		if (!goUnit && !strings.HasPrefix(id, "shell:")) || len(unit.Tests) == 0 || unit.ReadScoped {
 			continue
 		}
 		// Every probe is tried: a read through one probe must not hide
@@ -61,9 +62,9 @@ func (graph *Graph) RecordReaders(record string) (readers, walkers []string) {
 		reads, walks := false, false
 		for _, probe := range recordProbes(record, suffix, unit) {
 			// Go units match at any depth except CEM evidence, as the planner does.
-			if namesAny(tokens[i], strings.Split(probe, "/"), !resolvedEvidence(probe)) {
+			if namesAny(tokens[i], strings.Split(probe, "/"), goUnit && !resolvedEvidence(probe)) {
 				reads = reads || graph.resolves(id, probe)
-				walks = walks || graph.namesRecordAncestor(id, probe, record)
+				walks = walks || goUnit && graph.namesRecordAncestor(id, probe, record)
 			}
 			if !reads {
 				_, _, reads = graph.globRead(id, []string{probe})

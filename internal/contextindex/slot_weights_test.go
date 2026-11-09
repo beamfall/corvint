@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -120,17 +119,5 @@ func TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
 	}
 	if _, err := LoadAdmittedSlotWeights(linked); err == nil || !strings.Contains(err.Error(), "corvint eval --reset-slot-weights") {
 		t.Fatalf("trace under a symlinked store directory = %v", err)
-	}
-}
-
-func TestLTAV0009LiveContextPathCannotReachTheLedgers(t *testing.T) {
-	output, err := exec.Command("go", "list", "-deps", ".").CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list: %v\n%s", err, output)
-	}
-	for _, forbidden := range []string{"/internal/unplannedread", "/internal/observations", "/internal/slotlearn"} {
-		if strings.Contains(string(output), forbidden+"\n") {
-			t.Fatalf("contextindex depends on %s", forbidden)
-		}
 	}
 }

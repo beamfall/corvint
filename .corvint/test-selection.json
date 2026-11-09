@@ -1305,6 +1305,12 @@
       ]
     },
     {
+      "paths": "tools/affected-edit-oracle/README.md",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "tools/affected-zero-unknown-replay/README.md",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"

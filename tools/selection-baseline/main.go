@@ -12,9 +12,10 @@
 // (DIR's index, worktrees and refs are not written), checks out each head
 // detached and clean, and runs `BIN affected --base BASE`, the selector on that
 // plan, and `BIN test --base BASE --dry-run --manifest M`. A change narrows in CI
-// when the selector's verdict is `run` or `NOTHING` and no `.github/` path
-// changed, the rules the CI PR tier applies (AFP-V0-098, AFP-V0-933); any other
-// verdict is FULL. A failing package of a narrowed change that the verdict does
+// when the selector's verdict is `run` or `NOTHING` and the range changes no
+// trusted narrowing input under `.github/`, the rules the CI PR tier applies
+// (AFP-V0-098, AFP-V0-2720): DIR's own .github/forward-rows/github-guard.sh
+// decides, as CI's trusted copy does (TSP-V0-7330); any other verdict is FULL. A failing package of a narrowed change that the verdict does
 // not name is a miss. Costs are each selected package's share of the summed
 // milliseconds in DIR's .github/cishards/package-costs.json.
 //
@@ -156,6 +157,7 @@ type Result struct {
 	Verdict        string         `json:"verdict"`
 	VerdictReason  string         `json:"verdictReason,omitempty"`
 	GithubChange   bool           `json:"githubChange"`
+	GithubInputs   []string       `json:"githubInputs,omitempty"`
 	CIScope        string         `json:"ciScope"`
 	Packages       []string       `json:"packages"`
 	PackageShare   float64        `json:"packageShare"`
@@ -360,7 +362,11 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	measured := make([]Result, len(set.Changes))
 	errs := make([]error, len(set.Changes))
 	// ASC-V0-778: a change whose record matches its exact inputs is read, not replayed.
-	cache, off := openCache(ctx, root, corvint, selector, costsData)
+	// TSP-V0-7330: the guard is DIR's trusted copy, read once; its bytes join the cache key.
+	// A guard that cannot be read is left out of tmp, so every change records an `unreadable:`
+	// input and runs FULL, and the report still explains why (an absent and an empty guard both do).
+	guardData, guardErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(guardPath)))
+	cache, off := openCache(ctx, root, corvint, selector, costsData, guardData)
 	keys := make([]string, len(set.Changes))
 	var pending []int
 	for i, c := range set.Changes {
@@ -384,6 +390,12 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 			return r, err
 		}
 		defer os.RemoveAll(tmp)
+		guard := filepath.Join(tmp, "github-guard.sh")
+		if guardErr == nil {
+			if err := os.WriteFile(guard, guardData, 0o600); err != nil {
+				return r, err
+			}
+		}
 		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
 		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
 		jobs := replayJobs(len(pending))
@@ -403,8 +415,8 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 				defer wg.Done()
 				clone := <-clones
 				defer func() { clones <- clone }()
-				measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
-				if errs[i] == nil && cache != nil {
+				measured[i], errs[i] = measure(ctx, clone, tmp, guard, module, corvint, selector, c, costs)
+				if errs[i] == nil && cache != nil && cacheable(measured[i]) {
 					if err := cache.store(keys[i], measured[i]); err != nil {
 						fmt.Fprintf(os.Stderr, "selection-baseline: result cache record for %s not written: %v\n", c.ID, err)
 					}
@@ -459,7 +471,7 @@ func defaultReplayJobs(n, cpus int, override string) int {
 	return max(1, min(jobs, n))
 }
 
-func measure(ctx context.Context, clone, tmp, module, corvint, selector string, c change, costs map[string]float64) (Result, error) {
+func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector string, c change, costs map[string]float64) (Result, error) {
 	res := Result{ID: c.ID, Kind: c.Kind, Base: c.Base, Head: c.Head, PR: c.PR, Failures: c.Failures}
 	if _, err := run(ctx, clone, "git", "checkout", "--quiet", "--force", "--detach", c.Head); err != nil {
 		return res, err
@@ -496,15 +508,7 @@ func measure(ctx context.Context, clone, tmp, module, corvint, selector string, 
 		return res, fmt.Errorf("manifest: %w", err)
 	}
 	m.nested = nestedModuleUnits(clone, module, m.Excluded)
-	diff, err := run(ctx, clone, "git", "diff", "--name-only", "--no-renames", "-z", c.Base, c.Head)
-	if err != nil {
-		return res, err
-	}
-	for _, name := range strings.Split(diff, "\x00") {
-		if strings.HasPrefix(name, ".github/") {
-			res.GithubChange = true
-		}
-	}
+	res.GithubChange, res.GithubInputs = githubGuard(ctx, clone, guard, c.Base, c.Head)
 	fillPlan(&res, p)
 	fillVerdict(&res, audit, costs)
 	fillManifest(&res, m)
@@ -580,8 +584,42 @@ func fillVerdict(res *Result, audit string, costs map[string]float64) {
 	}
 }
 
-// CIScope is the CI PR tier's decision: a `.github/` change or any verdict
-// other than `run` or `NOTHING` runs FULL.
+// guardPath is the CI narrowing guard (AFP-V0-2720), read from DIR, never from a replayed head.
+const guardPath = ".github/forward-rows/github-guard.sh"
+
+// githubGuard runs the guard over base..head in clone (TSP-V0-7330). Its first line `0` is no
+// narrowing input changed; `1` is a changed input, named by the lines after it; anything else,
+// or a guard that cannot run, fails closed as a change, as narrow.sh records it.
+// cacheable reports whether a measured result may be recorded in the result
+// cache (TSP-V0-7330). A guard that could not run (an `unreadable:` input: no
+// shell, no temporary directory, an unreadable guard) depends on conditions
+// the cache key does not hold, so its FULL verdict stays in this report only
+// and the next run measures the change again.
+func cacheable(res Result) bool {
+	for _, input := range res.GithubInputs {
+		if strings.HasPrefix(input, "unreadable:") {
+			return false
+		}
+	}
+	return true
+}
+
+func githubGuard(ctx context.Context, clone, guard, base, head string) (bool, []string) {
+	out, err := run(ctx, clone, "sh", guard, base, head)
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	switch {
+	case err != nil:
+		return true, []string{"unreadable: " + err.Error()}
+	case lines[0] == "0" && len(lines) == 1:
+		return false, nil
+	case lines[0] == "1" && len(lines) > 1:
+		return true, lines[1:]
+	}
+	return true, []string{"unreadable: " + strings.Join(lines, "; ")}
+}
+
+// CIScope is the CI PR tier's decision: a change to a guarded `.github/` narrowing
+// input or any verdict other than `run` or `NOTHING` runs FULL.
 func CIScope(verdict string, githubChange bool) string {
 	switch {
 	case githubChange:
