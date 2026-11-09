@@ -5,7 +5,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -90,21 +89,11 @@ func TestDocsCorpusPlaywrightProducersCLI(t *testing.T) {
 			t.Fatalf("%d %q %s", code, out, stderr)
 		}
 	})
-	t.Run("DCP-V1-049 witness-playwright requires its inputs and refuses an unretained receipt", func(t *testing.T) {
+	t.Run("DCP-V1-049 discover-playwright requires its inputs", func(t *testing.T) {
 		root, _ := playwrightCorpusRepository(t)
-		for _, args := range [][]string{
-			{"witness-playwright", "--input", "request.json", "--report", "evidence/report.json"},
-			{"witness-playwright", "--input", "request.json", "--receipt-input", "receipt", "--report", "evidence/report.json", "--previous", "x.json"},
-			{"discover-playwright", "--migration", "evidence/migration.json", "--config", "playwright.config.ts"},
-		} {
-			if code, _, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, args...)...); code != 2 {
-				t.Fatalf("%v admitted", args)
-			}
-		}
-		cemWrite(t, root, "request.json", `{"schema":"corvint-behavior-adapter-request/1"}`)
-		code, out, stderr := corpusCLI(t, root, "docs", "corpus", "witness-playwright", "--input", "request.json", "--receipt-input", "receipt", "--report", "evidence/report.json")
-		if code != 2 || out != "" || stderr == "" {
-			t.Fatalf("%d %q %s", code, out, stderr)
+		args := []string{"discover-playwright", "--migration", "evidence/migration.json", "--config", "playwright.config.ts"}
+		if code, _, _ := corpusCLI(t, root, append([]string{"docs", "corpus"}, args...)...); code != 2 {
+			t.Fatalf("%v admitted", args)
 		}
 	})
 }
@@ -112,10 +101,9 @@ func TestDocsCorpusPlaywrightProducersCLI(t *testing.T) {
 // DCP-V1-053: the docs help names corvint-js-test-provider e2e --external-server as the qualified
 // receipt producer, and its end-to-end example runs: the provider's canonical stdout encoding
 // (jstestprovider.EncodeQualified, the bytes e2e --external-server prints and --retain keeps) is
-// accepted unchanged by discover-playwright --receipt, and witness-playwright takes the receipt
-// as a named request input. The witness join itself is TestPlaywrightWitnessImporter's.
+// accepted unchanged by discover-playwright --receipt.
 func TestDocsHelpNamesPlaywrightReceiptProducer(t *testing.T) {
-	for _, want := range []string{"DCP-V1-053", "corvint-js-test-provider e2e\n--external-server", ".corvint/test-evidence/", "Managed-server e2e output is not a qualified receipt", "names a\nREQUEST.json input, not a file", "commit the receipt bytes unchanged"} {
+	for _, want := range []string{"DCP-V1-053", "corvint-js-test-provider e2e\n--external-server", ".corvint/test-evidence/", "Managed-server e2e output is not a qualified receipt"} {
 		if !strings.Contains(docsHelp, want) {
 			t.Errorf("docs help omits %q", want)
 		}
@@ -151,50 +139,10 @@ func TestDocsHelpNamesPlaywrightReceiptProducer(t *testing.T) {
 			if code != 0 || err != nil || out != string(want) || !strings.Contains(out, adopted) {
 				t.Fatalf("example discover-playwright: %d %v %s\n%s", code, err, stderr, out)
 			}
-		case "witness-playwright":
-			// The example's request is the caller's; absent here, the read refuses only after
-			// every argument was admitted.
-			if code != 2 || !strings.Contains(stderr, "corpus-input-unavailable") {
-				t.Fatalf("example witness-playwright arguments refused: %d %s", code, stderr)
-			}
 		}
 		ran[fields[3]] = true
 	}
-	if !ran["discover-playwright"] || !ran["witness-playwright"] {
-		t.Fatalf("help example lacks the discovery or witness step: %v", ran)
-	}
-}
-
-// DCP-V1-080: docs help and the witness-playwright topic state the annotation contract the
-// importer enforces: every annotation type, every event key, every kind and navigation value,
-// the missing-annotation order and the shipped producer. The lists come from the code, so the
-// help cannot drift from it silently.
-func TestDocsHelpNamesBehaviorAnnotationContract(t *testing.T) {
-	t.Parallel()
-	want := []string{"DCP-V1-080", "DCP-V1-081", "DCP-V1-082", "at most 4096 events", "exactly one, after the cleanup ran: passed",
-		"in the order events, cleanup, fixture, role", "internal/doccorpus/behavior-events.cjs", "Playwright behavior witness walkthrough",
-		doccorpus.PlaywrightEventAnnotation, doccorpus.PlaywrightCleanupAnnotation, doccorpus.PlaywrightFixtureAnnotation, doccorpus.PlaywrightRoleAnnotation,
-		"page | assertion | negative-control", "main-frame | frame | redirect | popup |\n                            setup"}
-	event := reflect.TypeFor[doccorpus.BehaviorEvent]()
-	for index := range event.NumField() {
-		want = append(want, event.Field(index).Tag.Get("json"))
-	}
-	for _, reason := range []string{"events-unobserved", "event-malformed", "cleanup-unobserved", "cleanup-failed", "fixture-role-mismatch"} {
-		want = append(want, reason)
-	}
-	topic := docsCorpusOperationHelp("witness-playwright")
-	for _, text := range want {
-		if !strings.Contains(docsHelp, text) || !strings.Contains(topic, text) {
-			t.Errorf("docs help or witness-playwright help omits %q", text)
-		}
-	}
-	if strings.Join(doccorpus.PlaywrightMissingAnnotationTypes, ", ") != "events, cleanup, fixture, role" {
-		t.Errorf("missing-annotation order %v differs from the help", doccorpus.PlaywrightMissingAnnotationTypes)
-	}
-	if strings.Contains(docsCorpusOperationHelp("discover-playwright"), "DCP-V1-080") {
-		t.Error("discover-playwright help carries the witness annotation contract")
-	}
-	if _, err := os.Stat(filepath.Join("..", "..", "internal", "doccorpus", "behavior-events.cjs")); err != nil {
-		t.Errorf("help names a producer that is not shipped: %v", err)
+	if !ran["discover-playwright"] {
+		t.Fatalf("help example lacks the discovery step: %v", ran)
 	}
 }

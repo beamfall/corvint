@@ -1009,8 +1009,8 @@
     "path": "docs/specs/cross-audience-truth-nondivergence-v0.md",
     "title": "Human Documentation Compiler downstream profile: Cross-Audience Truth Nondivergence V0",
     "reqPrefix": "CATN-V0",
-    "intent": "retired 2026-11-09 (decision 0594)",
-    "delivery": "retired",
+    "intent": "proposed",
+    "delivery": "experimental pure-core slice",
     "claim": "One evidence ledger must compile consistent expert, executive, and operator views without audience-specific factual divergence.",
     "dependsOn": [
       "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -1212,7 +1212,7 @@
     "title": "Revision-pinned documentation corpus V1",
     "reqPrefix": "DCP-V1",
     "intent": "proposed",
-    "delivery": "experimental; retirement note: decision 0594 (2026-11-09). The `corvint docs corpus` commands were deleted (4663b4e2b is the last tree with them); `internal/doccorpus` and `corvint-corpus-mcp` remain only until their own removal. Requirements naming the CLI are historical.",
+    "delivery": "experimental",
     "claim": "A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.",
     "dependsOn": [
       "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -1558,8 +1558,8 @@
     "path": "docs/specs/flow-document-maintenance-v0.md",
     "title": "Flow Document Maintenance V0",
     "reqPrefix": "FDM-V0",
-    "intent": "retired 2026-11-09 (decision 0594)",
-    "delivery": "retired",
+    "intent": "accepted (decision 0451; V1-0465)",
+    "delivery": "experimental",
     "claim": "Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md"
@@ -1918,7 +1918,7 @@
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
     "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)",
-    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091); retirement note: decision 0594 (2026-11-09). It deleted the `docs corpus` commands, `docs corpus discover-playwright` among them (4663b4e2b is the last tree with them); requirements naming them are historical, the rest are unchanged.",
+    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
       "docs/specs/applied-intelligence-breakthroughs-v0.md",
@@ -3049,8 +3049,8 @@
     "path": "docs/specs/source-documentation-draft-v0.md",
     "title": "Source Documentation Draft V0",
     "reqPrefix": "SDD-V0",
-    "intent": "retired 2026-11-09 (decision 0594)",
-    "delivery": "retired",
+    "intent": "proposed",
+    "delivery": "experimental",
     "claim": "Corvint drafts source-pinned Markdown from owner prose and indexed symbol-extracted declarations, then consumes its bytes after original-source rederivation.",
     "dependsOn": [],
     "supersededBy": null,
@@ -3309,8 +3309,8 @@
     "path": "docs/specs/trusted-project-navigation-v0.md",
     "title": "Trusted Project Navigation V0",
     "reqPrefix": "TPN-V0",
-    "intent": "retired 2026-11-09 (decision 0594)",
-    "delivery": "retired",
+    "intent": "accepted (owner approval, 2026-09-28)",
+    "delivery": "experimental",
     "claim": "Explicitly trusted pinned MkDocs validates exact navigation proposals in an isolated committed-source copy.",
     "dependsOn": [
       "docs/specs/human-documentation-compiler-v0.md"
@@ -3596,8 +3596,8 @@
     "path": "docs/specs/application-flow-navigation-execution-v0.md",
     "title": "Application Flow Navigation Execution V0",
     "reqPrefix": "NEX-V0",
-    "intent": "retired 2026-11-09 (decision 0594)",
-    "delivery": "retired",
+    "intent": "accepted technical profile under AFU-V1-029 (decision 0455; V1-0252)",
+    "delivery": "experimental; qualification pending",
     "claim": "An explicit companion can execute a bounded UI navigation packet against an owned cooperative local fixture.",
     "dependsOn": [
       "docs/specs/application-flow-understanding-v1.md"
@@ -3645,7 +3645,7 @@
     "title": "Playwright Run Evidence V0",
     "reqPrefix": "PWR-V0",
     "intent": "accepted (decision 0520; V1-1230, V1-1229)",
-    "delivery": "experimental",
+    "delivery": "experimental; amended 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. Each retired or amended requirement says so on its own definition line (bodies and IDs kept). The readers still consume an embedded or sidecar declaration a project produces itself.",
     "claim": "A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.",
     "dependsOn": [],
     "supersededBy": null,

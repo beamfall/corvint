@@ -29,7 +29,6 @@ func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
 		{"DiscoverRequest", "DiscoverResultResponse", "server/discover", map[string]any{"_meta": requestMeta()}},
 		{"ListToolsRequest", "ListToolsResultResponse", "tools/list", map[string]any{"_meta": requestMeta()}},
 		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{}}},
-		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.query", "arguments": map[string]any{"task": "Identify the active work queue"}}},
 		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"pkg/value.go"}}}},
 		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"../escape.go"}}}},
 		{"JSONRPCRequest", "JSONRPCErrorResponse", "corvint/unknown", map[string]any{"_meta": requestMeta()}},

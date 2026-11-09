@@ -18,8 +18,8 @@ func (w *stdoutBrokenPipeWriter) Write(raw []byte) (int, error) {
 }
 
 // TestStdoutWriteFailureReportsOutputFailedNotBareExitOne covers the
-// docs/agent-memory/bugs.md 2026-09-13 entry: affected, context lookup,
-// task-context, both runIndex branches, and docs used to `return 1` with no
+// docs/agent-memory/bugs.md 2026-09-13 entry: affected, task-context,
+// both runIndex branches, and docs used to `return 1` with no
 // stderr envelope when the success-path stdout write failed, unlike every
 // other verb's output-failed/exit-2 pattern (kernel.go:139-141,
 // answerability.go:118-120).
@@ -34,11 +34,6 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 			name: "affected",
 			root: affectedFixtureRepository,
 			args: func(root string) []string { return []string{"--root", root, "affected"} },
-		},
-		{
-			name: "context lookup",
-			root: taskContextRepository,
-			args: func(root string) []string { return []string{"--root", root, "context", "refs", "Split"} },
 		},
 		{
 			name: "task context",

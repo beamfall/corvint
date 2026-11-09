@@ -44,7 +44,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
 - The version string is the `PUB-V0-001` tuple constant `version` in `cmd/corvint/main.go` and the build
-  stamp is `var build = "0"` (`cmd/corvint/main.go:1854@e7212353`), set by `-ldflags -X main.build=N`.
+  stamp is `var build = "0"` (`cmd/corvint/main.go:1170@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:180@1161e39d`).
@@ -181,8 +181,8 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:49@9ea4ec57` |
 | SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:46@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
-| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:231@4e378161` |
-| SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
+| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:223@4e378161` |
+| SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:176@b2b8420d` |
 | SOP-V0-007 | hostile wrapper case 2 (exact delegated argv, one `go` per row), case 3 (skipped test NOT_RUN, run passes), case 4 (row NOT_RUN), case 5 (`--- FAIL` names the test, exit 1) |
 | SOP-V0-008 | hostile wrapper case 1 (`git grep` of every listed `func Test...(` in tracked `_test.go`; every category listed) |
 | SOP-V0-009 | hostile wrapper cases 1 and 2 (NOT_COVERED rows present in `--list` and in a run) |
@@ -196,12 +196,12 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | Category | Package | Tests |
 |---|---|---|
 | hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:198@5817975f`, `internal/genesis/repository_test.go:210@a2e88456`, `internal/genesis/repository_test.go:248@a1e12d68` |
-| hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:115@671cf1e3` |
+| hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:62@671cf1e3` |
 | paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:143@e18871cf` |
 | paths | `internal/corerelease` | `internal/corerelease/export_test.go:25@5a46f5ad` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:478@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:616@22f1c7f2`, `internal/contextindex/snapshot_test.go:666@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:396@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:590@22f1c7f2`, `internal/contextindex/snapshot_test.go:640@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` |
 | case-folds | `internal/corerelease` | `internal/corerelease/export_test.go:174@5a46f5ad`, `internal/corerelease/export_test.go:447@5a46f5ad` |
@@ -213,11 +213,11 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:460@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:240@eab69ef3` |
-| interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:37@5098dd43` |
+| interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:34@5098dd43` |
 | interruption-cleanup | `internal/trace` | `internal/trace/store_test.go:498@139a1f88` |
 | secret-screening | `internal/secretscreen` | `internal/secretscreen/secretscreen_test.go:35@ac274de5`, `internal/secretscreen/secretscreen_test.go:200@c325b643` |
 | secret-screening | `internal/trace` | `internal/trace/record_test.go:283@382ada39` |
-| corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:206@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:274@f88f0dea` |
+| corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:176@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:274@f88f0dea` |
 | memory | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:15@e9500863` |
 | case-folds-context-index | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:43@4e6c4427` (skips, so NOT_RUN, on a case-sensitive filesystem) |
 | memory-resident | — | NOT_COVERED: no regression bounds whole-process resident memory or git child memory; the memory row bounds the Go heap one index build allocates |

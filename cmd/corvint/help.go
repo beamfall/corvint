@@ -8,12 +8,9 @@ import (
 	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
-const authorityStartPrompt = "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
-
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
 // command that is neither one of them nor --help is an invalid choice argparse reports before help.
-var helpSubcommands = map[string]map[string]bool{
-}
+var helpSubcommands = map[string]map[string]bool{}
 
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
@@ -225,6 +222,8 @@ func topicText(topic string) string {
 		return flowscmd.HowHelp
 	case "runs":
 		return runsHelp
+	case "mcp":
+		return mcpHelp
 	case "test":
 		return testHelp
 	case "tests":
@@ -279,6 +278,7 @@ Commands:
     flows  application flows and assertions (AFU-V0)
     how  how do I GOAL: alias of flows appmap how (SKH-V0)
   Experimental, agent hosts and local records:
+    mcp  local read-only stdio MCP server (AHI)
 
 Global options:
   --root PATH  Repository root (default: current directory).
@@ -300,8 +300,7 @@ Support boundary:
 // hiddenCommands are the dispatched internal or historical verbs that root help leaves out of
 // its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
 // it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
-var hiddenCommands = map[string]string{
-}
+var hiddenCommands = map[string]string{}
 
 // hiddenHelpNote ends the help topic of each hiddenCommands verb.
 const hiddenHelpNote = "\nUnlisted in root help: an internal or historical verb that stays callable.\n"
@@ -844,55 +843,6 @@ stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings
 whose first element is an absolute executable path, no shell, scrubbed
 environment, 10s wall time, 1 MiB stdout, every failure one closed provider
 row. It counts toward the same 4-provider bound as --provider.
-`
-
-const queryHelpFormat = `Compile experimental repository context or the authority-start receipt.
-
-Usage:
-  corvint [--root PATH] query --task TASK [--limit N] [--budget-bytes N]
-
-Parity-qualified prompt (exact bytes):
-  %q
-
-Options:
-  --task TASK  Required UTF-8 task, 1-8000 characters. Project-operations tasks
-               use the authority-start profile: the instruction result, then up
-               to three advisory learned paths when the limit leaves room.
-               Repository and agent-tooling tasks use the same
-               BuildEval -> EvalQuery path as harness user-prompt.
-  --limit N    Maximum results (default: 10; range: 1-50).
-  --budget-bytes N  Optional packet budget (range: 1024-1000000 bytes).
-  --worktree-overlay  Experimental opt-in (DIRTY-CACHE-940..942): read tracked
-               dirty paths from the worktree over the HEAD snapshot. Their
-               results are advisory, low confidence and cite the worktree blob
-               id; freshness scope is git+worktree-overlay. Writes nothing.
-
-Requirements:
-  Darwin or Linux and a Git repository accepted by the bounded Go index. The
-  authority-start profile additionally requires one uniquely highest-ranked
-  regular root AGENTS.md encoded as UTF-8 with LF line endings, and either no
-  local trace directory or a mixed worktree, where trace learning is blocked.
-  Repository tasks rank the full eval evidence tables and preserve explicit
-  budget, freshness, omission, and uncertainty fields.
-
-The command is read-only and local-only. It emits one canonical JSON receipt on
-stdout. Unsupported profiles emit one structured error on stderr and exit 2.
-
-Receipt fields:
-  revision and freshness.revision are the Git tree id of the captured
-  content (HEAD^{tree} for a clean worktree), not a commit id, so they never
-  equal learning.history_tip, the commit Git history was read from; the two
-  differing is not staleness (GPK-V0-960). Bind evidence by comparing revision
-  with a commit's tree (git rev-parse COMMIT^{tree}), then each blob.
-
-Recovery for unsupported-query-trace-state:
-  Keep the trace store and original task unchanged. Read the repository's
-  governing instructions and its declared evidence routes. For separate file
-  discovery, use the same task with:
-    corvint [--root PATH] context --task TASK --limit 5
-  That experimental packet does not turn the failed authority-start query into
-  a success or establish complete evidence. Retain its omissions and uncertainty.
-  Never delete traces, dirty the worktree, or rewrite the task to evade admission.
 `
 
 const impactHelp = `Compile experimental impact evidence for index-admitted paths.

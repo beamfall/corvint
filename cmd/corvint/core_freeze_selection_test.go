@@ -23,7 +23,7 @@ func TestTSPV0961CoreVerbChangeKeepsFrozenProfileTest(t *testing.T) {
 		t.Fatal(err)
 	}
 	checked := 0
-	for _, name := range []string{"affected.go", "prove.go", "ocm.go", "frontier.go"} {
+	for _, name := range []string{"affected.go", "taskcontext.go", "index_snapshot.go"} {
 		rel := "cmd/corvint/" + name
 		src, err := os.ReadFile(name)
 		if err != nil {

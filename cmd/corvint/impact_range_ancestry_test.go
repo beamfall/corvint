@@ -33,7 +33,7 @@ func TestImpactRangeRefusesGraftedAncestry_EEPV0770(t *testing.T) {
 		t.Fatalf("plain checkout: exit %d %s", code, stderr)
 	}
 	undo := ancestrytest.Graft(t, root, "HEAD")
-	for _, command := range []string{"impact", "prove"} {
+	for _, command := range []string{"impact"} {
 		code, _, stderr := runCLI(t, "--root", root, command, "--base", base)
 		if code != 2 || !strings.Contains(stderr, `"code": "unsupported-impact-range"`) || !strings.Contains(stderr, "--base ancestry cannot be trusted: checkout rewrites ancestry with info/grafts") {
 			t.Errorf("grafted %s: exit %d %s", command, code, stderr)

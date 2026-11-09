@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -167,102 +166,6 @@ func TestEmitEscapesNonASCIIWithoutChangingReceiptCanonicalization(t *testing.T)
 	}
 }
 
-func TestObservationsCommandIsStdoutOnly(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	directory := filepath.Join(root, ".corvint")
-	if err := os.Mkdir(directory, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	ledger := filepath.Join(directory, "self-observations.jsonl")
-	row := []byte(`{"kind":"event","event":"session-start","latencyMs":4}` + "\n")
-	if err := os.WriteFile(ledger, row, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	before, err := os.ReadFile(ledger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"--root", root, "observations", "--limit", "1"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
-		t.Fatalf("exit=%d stderr=%s", code, &stderr)
-	}
-	after, err := os.ReadFile(ledger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(before, after) || stderr.Len() != 0 || stdout.Len() == 0 {
-		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
-	}
-}
-
-func TestDogfoodObserveWritesOnlyBoundedStepOutcome(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var stdout, stderr bytes.Buffer
-	arguments := []string{"--root", root, "dogfood-observe", "--step", "cem-status", "--status", "NOT_PRODUCED", "--reason", "not-ready"}
-	if code := run(arguments, strings.NewReader(""), &stdout, &stderr); code != 0 {
-		t.Fatalf("exit=%d stderr=%s", code, &stderr)
-	}
-	if stdout.Len() != 0 || stderr.Len() != 0 {
-		t.Fatalf("stdout=%q stderr=%q", &stdout, &stderr)
-	}
-	data, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var row map[string]any
-	if err := json.Unmarshal(bytes.TrimSpace(data), &row); err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]string{"kind": "dogfood-step", "step": "cem-status", "status": "NOT_PRODUCED", "reason": "not-ready"}
-	if len(row) != len(want) {
-		t.Fatalf("row carries unexpected fields: %#v", row)
-	}
-	for key, value := range want {
-		if row[key] != value {
-			t.Fatalf("%s=%v, want %q", key, row[key], value)
-		}
-	}
-}
-
-func TestDogfoodObserveRejectsUnboundedOrSensitiveFields(t *testing.T) {
-	t.Parallel()
-	for _, test := range []struct {
-		name  string
-		field string
-		value string
-	}{
-		{name: "path step", field: "--step", value: "script/dogfood-change.sh"},
-		{name: "command reason", field: "--reason", value: "make gate"},
-		{name: "oversized reason", field: "--reason", value: strings.Repeat("x", 97)},
-		{name: "invalid status", field: "--status", value: "FAILED"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			root := cliRepository(t)
-			if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			arguments := []string{"--root", root, "dogfood-observe", "--step", "cem-status", "--status", "PRODUCED", "--reason", "none"}
-			for index, argument := range arguments {
-				if argument == test.field {
-					arguments[index+1] = test.value
-				}
-			}
-			var stdout, stderr bytes.Buffer
-			if code := run(arguments, strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 || stderr.Len() == 0 {
-				t.Fatalf("exit=%d stdout=%q stderr=%q", code, &stdout, &stderr)
-			}
-			if _, err := os.Stat(filepath.Join(root, ".corvint", "self-observations.jsonl")); !os.IsNotExist(err) {
-				t.Fatalf("invalid observation wrote ledger: %v", err)
-			}
-		})
-	}
-}
-
 func TestNonQueryUnsupportedFailureStillObserves(t *testing.T) {
 	t.Parallel()
 	root := cliRepository(t)
@@ -357,8 +260,7 @@ func TestRepositoryFailureEnvelopeCarriesItsCode(t *testing.T) {
 func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 	t.Parallel()
 	// GPK-V0-059: the migration base's argparse verbs lead, and no verb repeats.
-	oracleVerbs := []string{"init", "adopt", "feature", "impact", "lrf",
-		"record", "migrate-traces", "cem", "ocm", "work"}
+	oracleVerbs := []string{"init", "adopt", "feature", "impact"}
 	if !slices.Equal(topLevelCommands[:len(oracleVerbs)], oracleVerbs) {
 		t.Fatalf("leading verbs = %q, want %q", topLevelCommands[:len(oracleVerbs)], oracleVerbs)
 	}

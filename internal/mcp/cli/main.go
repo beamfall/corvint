@@ -64,9 +64,9 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"       corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF\n" +
 	"       corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]\n" +
 	"       corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]\n" +
-	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH] [--tasks-role AGENT|OPERATOR|OWNER]\n" +
+	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]\n" +
 	"       corvint-mcp --version\n" +
-	"A local stdio MCP server, read-only except the tasks group. Each --root must be an absolute path to a Git worktree.\n" +
+	"A local read-only stdio MCP server. Each --root must be an absolute path to a Git worktree.\n" +
 	"One plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\n" +
 	"--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\n" +
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +

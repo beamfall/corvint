@@ -689,9 +689,12 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	arguments, err := withHeadAlias(arguments)
-	if err != nil {
-		emitError(stderr, err)
+	// mcp runs first: every argument after the verb is the server's, and no other parser may read it (AHI-373).
+	if len(arguments) > 0 && arguments[0] == "mcp" {
+		return runMCP(ctx, arguments[1:], stdin, stdout, stderr)
+	}
+	if mcpAfterGlobalRoot(arguments) {
+		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
 		return 2
 	}
 	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {

@@ -1,8 +1,8 @@
 # Corvint
 
 > Corvint gives a coding agent Git-pinned evidence about a repository: what governs it, what a
-> change reaches (`corvint impact`), which tests the change needs (`corvint affected`), and what
-> each diff hunk rests on (Change Evidence Map, `cem/1.0`). Every answer names its Git blob,
+> change reaches (`corvint impact`) and which tests the change needs (`corvint affected`).
+> Every answer names its Git blob,
 > authority and reason, and missing evidence is reported as unknown. Stdio MCP
 > servers expose the same receipts to agents. It is one local native-Go binary
 > with no account or network dependency. This file is the single entry point for an
@@ -16,7 +16,7 @@
   every shipped binary, including native protocol analyzers; `help --json` exposes its tree,
   `--version --json` its common release version. Native invocation retains its original wire.
 - [Capability catalog](docs/CAPABILITIES.md): every `corvint` command, every binary built from
-  `cmd/`, with the smallest call, maturity and refusals
+  `cmd/` and every MCP tool, with the smallest call, maturity and refusals
 - `corvint help guide`: the task-indexed guide with runnable examples and the tracked
   non-capabilities ([source](internal/capcatalog/AGENT-GUIDE.md))
 - `corvint help`: the compact verb index; `corvint COMMAND --help` (or `-h`) at any depth prints
@@ -70,14 +70,17 @@
 - `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
 - `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
+- `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
 - `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)
 - `corvint-js-test-provider help --json`: [corvint-js-test-provider](internal/capcatalog/trees/corvint-js-test-provider.json)
+- `corvint-mcp help --json`: [corvint-mcp](internal/capcatalog/trees/corvint-mcp.json)
 - `corvint-readiness-record help --json`: [corvint-readiness-record](internal/capcatalog/trees/corvint-readiness-record.json)
 - `corvint-release-candidate help --json`: [corvint-release-candidate](internal/capcatalog/trees/corvint-release-candidate.json)
 - `corvint-release-install help --json`: [corvint-release-install](internal/capcatalog/trees/corvint-release-install.json)
 - `corvint-ruby-test-provider help --json`: [corvint-ruby-test-provider](internal/capcatalog/trees/corvint-ruby-test-provider.json)
 - `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
+- `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
 - `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
 - `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
 - `corvint help --tree`: [corvint](internal/capcatalog/trees/corvint.json)

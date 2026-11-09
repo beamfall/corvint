@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-// WSD-V0-146 (#1933): witness, review and cem read one repository. A named workspace refuses as
+// WSD-V0-146 (#1933): review reads one repository. A named workspace refuses as
 // workspace-unsupported naming the verb, the ignored aliases and the remedy; so does a discovered
-// one unless --no-workspace, except for a paired witness, whose --range flags name each repository.
+// one unless --no-workspace.
 func TestWSDV0146SingleRootVerbsRefuseWorkspace(t *testing.T) {
 	root, tests := t.TempDir(), t.TempDir()
 	for _, dir := range []string{root, tests} {
@@ -44,9 +44,7 @@ func TestWSDV0146SingleRootVerbsRefuseWorkspace(t *testing.T) {
 		return code, diag.String()
 	}
 	verbs := map[string][]string{
-		"witness": {"witness", "--base", base},
-		"review":  {"review", "--base", base},
-		"cem":     {"cem", "status"},
+		"review": {"review", "--base", base},
 	}
 	for verb, args := range verbs {
 		code, diag := run(append(args, "--workspace", named)...)
@@ -81,12 +79,5 @@ func TestWSDV0146SingleRootVerbsRefuseWorkspace(t *testing.T) {
 		if code, diag = run(append(args, "--no-workspace")...); code != before[verb] || strings.Contains(diag, "workspace-") {
 			t.Fatalf("%s --no-workspace: %d (want %d) %s", verb, code, before[verb], diag)
 		}
-	}
-	paired := []string{"witness", "--range", "app=" + base + ".." + base, "--range", "tests=" + head(tests) + ".." + head(tests), "--range-root", "tests=" + tests}
-	if _, diag := run(paired...); strings.Contains(diag, "workspace-") {
-		t.Fatalf("paired witness refused a discovered workspace: %s", diag)
-	}
-	if code, diag := run(append(paired, "--workspace", named)...); code != 2 || !strings.Contains(diag, "workspace-unsupported") {
-		t.Fatalf("paired witness --workspace: %d %s", code, diag)
 	}
 }

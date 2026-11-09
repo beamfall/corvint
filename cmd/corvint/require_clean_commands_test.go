@@ -25,11 +25,11 @@ var requireCleanRefusalForms = map[string]struct {
 	noRoot bool
 }{
 	"init": {args: []string{"init"}}, "adopt": {args: []string{"adopt"}},
-	"feature": {args: []string{"feature", "impact"}},
-	"mcp":     {args: []string{"mcp"}, noRoot: true},
-	"context": {args: []string{"context", "--task", "change main"}},
-	"index":   {args: []string{"index"}},
-	"docs":    {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
+	"feature":       {args: []string{"feature", "impact"}},
+	"mcp":           {args: []string{"mcp"}, noRoot: true},
+	"context":       {args: []string{"context", "--task", "change main"}},
+	"index":         {args: []string{"index"}},
+	"docs":          {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
 	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
 	"test-plan":     {args: []string{"test-plan", "check", "--plan", "a.json", "--input", "b.json"}},

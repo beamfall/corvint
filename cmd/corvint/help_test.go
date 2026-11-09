@@ -105,7 +105,6 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 			{"context", "--task=--help"},
 			{"context", "--task", "x", "--", "--help"},
 			{"impact", "--", "--help"},
-			{"cem", "bogus", "--help"},
 		} {
 			if topic, requested, err := parseHelpInvocation(args); requested || err != nil {
 				t.Fatalf("args=%q topic=%q requested=%v err=%v", args, topic, requested, err)

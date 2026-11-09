@@ -63,7 +63,7 @@ func (unreadableHelpInput) Read([]byte) (int, error) { panic("help read stdin") 
 // binaries a hand-maintained test list remembers. Process conformance remains in
 // conformance/cli-errors-v0; this focused test also checks every field at depth.
 func TestCAPV08800EveryInventoryNodeAnswersHelp(t *testing.T) {
-	inv, err := Collect(helpPath, mainPath, cmdPath)
+	inv, err := Collect(helpPath, mainPath, cmdPath, mcpPath)
 	if err != nil {
 		t.Fatal(err)
 	}

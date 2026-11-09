@@ -32,31 +32,6 @@ func TestEveryVerbHelpFollowsTheHouseFormat(t *testing.T) {
 	}
 }
 
-// TestHiddenVerbsStayCallableButUnlisted pins CCF-V1-008 as amended by V1-3730: each hidden
-// verb is dispatched, absent from the root-help verb index, and its own help says it is unlisted.
-func TestHiddenVerbsStayCallableButUnlisted(t *testing.T) {
-	t.Parallel()
-	want := []string{"dogfood-ocm", "lrf", "migrate-traces", "migration-ratchet", "prove-observe"}
-	if len(hiddenCommands) != len(want) {
-		t.Fatalf("hiddenCommands has %d verbs, want %q", len(hiddenCommands), want)
-	}
-	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	for _, verb := range want {
-		if _, ok := hiddenCommands[verb]; !ok {
-			t.Errorf("verb %q is not hidden", verb)
-		}
-		if _, dispatched := publicHelpTopic(verb); !dispatched {
-			t.Errorf("hidden verb %q is no longer dispatched", verb)
-		}
-		if strings.Contains(commands, "    "+verb+" ") || strings.Contains(commands, "| "+verb+" ") {
-			t.Errorf("hidden verb %q is listed in root help", verb)
-		}
-		if !strings.HasSuffix(helpText(verb), hiddenHelpNote) {
-			t.Errorf("hidden verb %q help does not say it is unlisted", verb)
-		}
-	}
-}
-
 // TestInitIsDocumentedAsAnAliasOfAdopt pins V1-3730: root help and the shared activation help
 // name init as an alias of adopt, and both verbs share one help topic.
 func TestInitIsDocumentedAsAnAliasOfAdopt(t *testing.T) {

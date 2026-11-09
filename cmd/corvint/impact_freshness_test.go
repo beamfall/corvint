@@ -107,17 +107,6 @@ func TestImpactRequireCleanArguments(t *testing.T) {
 	}
 }
 
-// V1-1141: prove embeds ordinary impact and has no strict abstention form, so
-// it refuses --require-clean instead of ignoring it.
-func TestProveRefusesRequireClean(t *testing.T) {
-	t.Parallel()
-	root := impactCLIRepository(t)
-	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "prove", "pkg/main.go", "--require-clean"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "prove does not support --require-clean") {
-		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
-	}
-}
-
 // DIRTY-CACHE-017: Tasks store projection dirt alone is source-clean, so
 // impact neither warns nor abstains under --require-clean, and stays read-only.
 func TestImpactTaskStoreProjectionDirtIsSourceCleanCLI(t *testing.T) {

@@ -32,16 +32,11 @@ const (
 	resultSchema    = "corvint-mcp-bridge-result/0"
 	maxArgumentSize = 512 * 1024
 	maxResultBytes  = 384 * 1024
-	maxQueryRunes   = 2_000
 	maxImpactPaths  = 100
 	maxPathRunes    = 1_024
 	maxImpactLimit  = 50
 	maxMCPLineBytes = 1 << 20
 	mcpFrameReserve = 8 * 1024
-
-	maxContextTaskBytes = 32_000
-	maxContextLimit     = 50
-	defaultContextLimit = 20
 )
 
 type ToolDescriptor struct {
@@ -167,8 +162,6 @@ func (result Result) CanonicalJSON() ([]byte, *Error) {
 // full rows travel in structuredContent (MCPV0-033, proposed).
 const TextSummaryProfile = "corvint-mcp-text-summary/0"
 
-const unsupportedQueryIntent = "UNSUPPORTED_QUERY_INTENT"
-
 // TextJSON returns the canonical bytes for the MCP text content block. A
 // receipt carrying a results list is summarized: each row keeps only kind, id
 // and score, and the object names TextSummaryProfile, while every other member,
@@ -236,7 +229,7 @@ type Registry struct {
 	flows        bool
 }
 
-// New binds the default V0 registry: exactly query, impact, and status.
+// New binds the default V0 registry: exactly help, impact, and status.
 func New(root string) (*Registry, error) {
 	if !validRoot(root) {
 		return nil, failure("invalid-root")
@@ -275,8 +268,8 @@ func (registry *Registry) advertises(name string) bool {
 }
 
 // Tools is the exact delivered surface of the registry's profile. Standalone
-// evidence and dashboard snapshot tools are omitted; query and impact receipts
-// carry their evidence.
+// evidence and dashboard snapshot tools are omitted; impact receipts carry
+// their evidence.
 func (registry *Registry) Tools() []ToolDescriptor {
 	if registry == nil {
 		return nil
@@ -292,9 +285,6 @@ func (registry *Registry) Tools() []ToolDescriptor {
 }
 
 func (registry *Registry) allTools() []ToolDescriptor {
-	// Byte bounds are advertised as code-point bounds divided by UTFMax, and
-	// the task pattern excludes U+0085 (Go trims it, ECMA \s does not), so
-	// every schema-valid argument is also runtime-valid.
 	return append([]ToolDescriptor{
 		helpDescriptor(),
 		{
@@ -403,7 +393,7 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 	if !nativePlatformQualified(registry.operations.platform) {
 		return abstained(ToolImpact, "UNSUPPORTED_PLATFORM", nil), nil
 	}
-	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot, "")
+	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot)
 	if bridgeErr != nil {
 		if repositoryDrift(bridgeErr) {
 			return abstained(ToolImpact, "REPOSITORY_STATE_UNSTABLE", nil), nil
@@ -528,18 +518,6 @@ func decodeClosed(arguments []byte, target any) error {
 	return json.Unmarshal(arguments, target, json.RejectUnknownMembers(true))
 }
 
-func validTask(task string) bool {
-	if strings.TrimSpace(task) == "" || utf8.RuneCountInString(task) > maxQueryRunes {
-		return false
-	}
-	for _, character := range task {
-		if character < 0x20 || character > 0x7e {
-			return false
-		}
-	}
-	return true
-}
-
 func validImpact(input impactInput) bool {
 	if len(input.Paths) == 0 || len(input.Paths) > maxImpactPaths {
 		return false
@@ -641,7 +619,7 @@ func readAnnotations() ToolAnnotations {
 func validResult(result Result) bool {
 	if result.Schema != resultSchema || result.Mutates ||
 		!knownTool(result.Tool) ||
-		// Only the object-only graph read leaves the checkout unobserved.
+		// No delivered read leaves the checkout unobserved.
 		(result.Repository != nil && result.Repository.WorktreeState == "NOT_OBSERVED") ||
 		(result.State != "READY" && result.State != "ABSTAINED") ||
 		(result.EpistemicClass != "OBSERVED" && result.EpistemicClass != "NOT_OBSERVED") ||
@@ -706,11 +684,7 @@ func validReceiptBinding(result Result) bool {
 	}
 	mode, modeOK := result.Receipt["mode"].(string)
 	revision, revisionOK := result.Receipt["revision"].(string)
-	wantMode := "query"
-	if result.Tool == ToolImpact {
-		wantMode = "impact"
-	}
-	return modeOK && revisionOK && mode == wantMode && revision == result.Repository.TreeRevision
+	return modeOK && revisionOK && mode == "impact" && revision == result.Repository.TreeRevision
 }
 
 func lowerHex(value string, length int) bool {
@@ -794,7 +768,7 @@ func snapshotSchema() map[string]any {
 	}, []any{"schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"})
 }
 
-func (registry *Registry) planningSnapshot(ctx context.Context, raw []byte, task string) (repositorySnapshot, *plansnapshot.Receipt, *Error) {
+func (registry *Registry) planningSnapshot(ctx context.Context, raw []byte) (repositorySnapshot, *plansnapshot.Receipt, *Error) {
 	if len(raw) == 0 {
 		snapshot, err := registry.snapshot(ctx)
 		return snapshot, nil, err

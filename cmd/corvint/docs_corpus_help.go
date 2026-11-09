@@ -35,14 +35,11 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "build", purpose: "build the immutable corpus artifact from a manifest, or rebuild an artifact from the manifest it embeds", optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}},
 		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
 		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
-		{name: "cem", purpose: "emit CEM citation arguments and a corpus/CEM binding sidecar", required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
-		{name: "cem-stable", purpose: "project claims through a verified cem/1.0 map; read-only, refuses any other outcome", required: []string{"--artifact", "--cem", "--expected-base", "--target", "--stable-artifact-root"}, optional: []string{"--id"}},
 		{name: "behavior-adapter", purpose: "map a behavior-adapter request to a provider bundle, or --check it", required: []string{"--input"}, optional: []string{"--previous", "--check"}},
 		{name: "behavior-provider", purpose: "build a corvint-corpus-behavior-provider/2 declaration from a request", required: []string{"--input"}},
 		{name: "estate", purpose: "reconcile the repository inventories of several verified corpora by exact name (corvint-corpus-estate/1)", required: []string{"--input"}},
 		{name: "compact-provider", purpose: "rewrite a corvint-corpus-adoption-provider/1 record or shard as its compact /2 encoding", required: []string{"--input"}},
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
-		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "discover-tests", purpose: "read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs", required: []string{"--runner", "--revision", "--path"}},
 		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema", "--repository"}},
@@ -109,7 +106,7 @@ func (operation corpusOperation) admits(flag string) bool {
 
 // corpusLocalInputFlags are the options whose value is a local input file: a canonical path
 // relative to --root that sits under it (DCP-V1-054).
-var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--cem", "--retirement", "--migration", "--playwright-list", "--receipt", "--report", "--cases", "--baseline", "--sample"}
+var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--retirement", "--migration", "--playwright-list", "--receipt", "--cases", "--baseline", "--sample"}
 
 var corpusFlagHelp = map[string][2]string{
 	"--revision":                    {"FULL_COMMIT", "source revision the manifest pins"},
@@ -120,7 +117,6 @@ var corpusFlagHelp = map[string][2]string{
 	"--artifact":                    {"CORPUS.json", "corpus artifact from docs corpus build"},
 	"--page":                        {"PAGE.md", "human page holding generated blocks"},
 	"--apply":                       {"", "write the page; without it the change is only previewed"},
-	"--cem":                         {"CEM.json", "change evidence map"},
 	"--id":                          {"ID", "subject or claim ID"},
 	"--input":                       {"REQUEST.json", "request file"},
 	"--previous":                    {"RESULT.json", "previous result; the new result reports the delta from it"},
@@ -129,8 +125,6 @@ var corpusFlagHelp = map[string][2]string{
 	"--config":                      {"PATH", "Playwright config file"},
 	"--playwright-list":             {"LIST.json", "Playwright --list JSON output"},
 	"--receipt":                     {"RECEIPT.json", "qualified Playwright receipt, read unchanged"},
-	"--receipt-input":               {"ID", "REQUEST.json input naming the committed receipt; not a file"},
-	"--report":                      {"REPORT.json", "caller-run Playwright JSON report"},
 	"--format":                      {"testrail-json|csv", "test-management export format"},
 	"--content":                     {"ids-paths-titles|full", "case text kept; full is local_only (default ids-paths-titles)"},
 	"--query":                       {"TEXT", "search text"},
@@ -152,9 +146,6 @@ var corpusFlagHelp = map[string][2]string{
 	"--verify-rederive":             {"", "rederive the artifact from its pinned inputs before answering, as validate does"},
 	"--timings":                     {"", "write the read phase durations to stderr; stdout is unchanged"},
 	"--runner":                      {"jasmine|mocha", "legacy test runner"},
-	"--expected-base":               {"FULL_COMMIT", "base the cem/1.0 map must bind"},
-	"--target":                      {"FULL_COMMIT", "target commit holding the map as its sidecar"},
-	"--stable-artifact-root":        {"DIR", "directory holding the map's referenced artifacts"},
 	"--cases":                       {"CASES.json", "caller-owned " + corpusbridge.EvalCasesSchema + " case file"},
 	"--baseline":                    {"RECEIPT.json", "earlier eval receipt; every regressed case is listed and exits 1"},
 	"--seed":                        {"N", "sample seed, 0.." + strconv.FormatUint(doccorpus.MaxAuditSeed, 10) + "; the same seed, artifact and options give the same sample"},
@@ -256,11 +247,8 @@ func docsCorpusOperationHelp(name string) string {
 			"--root: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused).\n")
 	}
 	text.WriteString(docsCorpusHelpTrailer)
-	if name == "discover-playwright" || name == "witness-playwright" {
+	if name == "discover-playwright" {
 		text.WriteString("\n" + playwrightReceiptHelp)
-	}
-	if name == "witness-playwright" {
-		text.WriteString("\n" + behaviorAnnotationHelp)
 	}
 	if name == "import-cases" || name == "search-cases" {
 		text.WriteString("\n" + legacyCasesHelp)

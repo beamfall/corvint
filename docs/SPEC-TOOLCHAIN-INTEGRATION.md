@@ -27,7 +27,7 @@ That is a genuine complement rather than an overlap, and it is the whole opportu
 This is not caution. Corvint's arithmetic refuses it, and the refusal is already written down.
 
 A caller's own report of what it executed is `CALLER_REPORTED`, and `CF-V0-014`
-(`docs/specs/change-frontier-v0.md:198-202@c291e702`) states that signatures, clean-target statements,
+(`docs/specs/change-frontier-v0.md:193-197@c291e702`) states that signatures, clean-target statements,
 passing rows, and exit zero **cannot upgrade that authority**. If Corvint drives spec -> code -> tested,
 Corvint *is* the caller. Every test it ran to satisfy an obligation it generated from a spec it parsed
 would enter its own ledger at the weakest authority class and close nothing. Corvint would produce a
@@ -127,8 +127,8 @@ The implemented advisory queue does not supply that host authority.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:1113@982aa756`), in the frontier spec
-(`docs/specs/change-frontier-v0.md:249-250@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
+(`internal/mcp/bridge/bridge.go:626@982aa756`), in the frontier spec
+(`docs/specs/change-frontier-v0.md:244-245@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one
 casing, one owner — before the adapter, not after.
