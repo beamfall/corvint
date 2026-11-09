@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-19
 Intent status: proposed
-Delivery status: experimental; retirement note: decision 0594 (2026-11-09). The `corvint docs corpus` commands were deleted (4663b4e2b is the last tree with them); `internal/doccorpus` and `corvint-corpus-mcp` remain only until their own removal. Requirements naming the CLI are historical.
+Delivery status: experimental
 Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvint/issues/31),
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and

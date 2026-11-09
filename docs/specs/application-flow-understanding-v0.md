@@ -4,10 +4,6 @@ Owner: Russell Lewis
 Date: 2026-09-22  
 Intent status: proposed  
 Delivery status: experimental  
-Retirement note: decision 0594 (2026-11-09). Every `corvint flows` verb except `appmap` and the
-`corvint-web-flows` companion were deleted (4663b4e2b is the last tree with them);
-`internal/appflows` stays only as the application map's reader. The requirements of the deleted
-verbs are historical.  
 Repository baseline: `cd9fec9ae5ed8199ee3c844884ca4212d3e4031c`
 
 ## Agent digest

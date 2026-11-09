@@ -2,12 +2,8 @@
 
 Owner: Russell Lewis
 Drafted: 2026-08-30
-Intent status: retired 2026-11-09 (decision 0594)
-Delivery status: retired
-Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
-Retirement note: decision 0594 (the test-selection refocus) deleted `internal/docviews` (4663b4e2b
-is the last tree with them). The body below is historical and its requirement IDs stay for
-traceability.
+Intent status: proposed
+Delivery status: experimental pure-core slice
 Status note: downstream profile of `human-documentation-compiler-v0.md`; frozen until HDC emits one
 real implementation plan.
 Implementation: `internal/docviews`
@@ -17,7 +13,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 
 ## Agent digest
 - Claim: One evidence ledger must compile consistent expert, executive, and operator views without audience-specific factual divergence.
-- Status: retired 2026-11-09 (decision 0594) / retired
+- Status: proposed/experimental pure-core slice
 - Exists: `internal/docviews` deterministic compilation and verification.
 - Blocked on: a real Human Documentation Compiler implementation plan and downstream qualification.
 - Read next: Product claim and measurable job; Existing contracts and ownership; Requirements.

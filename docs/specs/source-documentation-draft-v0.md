@@ -2,20 +2,14 @@
 
 Owner: Russell Lewis
 Drafted: 2026-09-05
-Intent status: retired 2026-11-09 (decision 0594)
-Delivery status: retired
-Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
-Retirement note: decision 0594 (the test-selection refocus) deleted the `docs draft`, `docs
-consume`, `docs maintain` and `docs citations` commands, `corvint-docs-mcp`, `internal/docmaintain`
-and `internal/doccitations`; `internal/doccompiler` and the `corvint-mcp` docs profile remain only
-until the MCP cut removes them (4663b4e2b is the last tree with them). The body below is historical
-and its requirement IDs stay for traceability.
+Intent status: proposed
+Delivery status: experimental
 Implementation: `internal/doccompiler/draft.go`, `cmd/corvint/docs.go`, `internal/docmaintain`, `cmd/corvint/docs_maintain.go`
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `ROADMAP.md` AT-15
 
 ## Agent digest
 - Claim: Corvint drafts source-pinned Markdown from owner prose and indexed symbol-extracted declarations, then consumes its bytes after original-source rederivation.
-- Status: retired 2026-11-09 (decision 0594) / retired
+- Status: proposed/experimental
 - Exists: bounded CLI draft/consume and explicitly enabled foreground maintenance development slice.
 - Blocked on: owner acceptance and independent outcome validation; full AT-15 maintenance and HDC qualification remain open.
 - Read next: Requirements; CLI contract; Acceptance and rollback.

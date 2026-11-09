@@ -4,8 +4,6 @@
 - Date: 2026-08-23
 - Intent status: accepted
 - Delivery status: experimental
-- Retirement note: decision 0594 (2026-11-09). It deleted the `docs maintain` command (4663b4e2b is
-  the last tree with them); requirements naming them are historical, the rest are unchanged.
 - Retirement note: decision 0594 (2026-11-09) deleted `internal/lrfrepo`; requirements naming the
   LRF/OCM spec pins are retired.
 - Authoritative inputs: `AGENTS.md`, `ROADMAP.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`,

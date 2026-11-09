@@ -4,10 +4,6 @@ Owner: Russell Lewis
 Date: 2026-09-24
 Intent status: accepted (decision 0385)
 Delivery status: partially delivered; original issue-175 flows qualified locally
-Retirement note: decision 0594 (2026-11-09). Every `corvint flows` verb except `appmap` and the
-`corvint-web-flows` companion were deleted (4663b4e2b is the last tree with them);
-`internal/appflows` stays only as the application map's reader. The requirements of the deleted
-verbs are historical.
 Authoritative inputs: owner request [issue 175](https://github.com/beamfall/corvint/issues/175) and
 the owner's additions of 2026-09-24 (mapping E2E tests to code changes, an agent that can navigate
 and use a website, documentation proven accurate by the same evidence), `AGENTS.md`,

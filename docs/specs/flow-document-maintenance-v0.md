@@ -2,19 +2,14 @@
 
 Owner: Russell Lewis
 Drafted: 2026-09-28
-Intent status: retired 2026-11-09 (decision 0594)
-Delivery status: retired
-Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
-Retirement note: decision 0594 (the test-selection refocus) deleted the `flows docs` command;
-`internal/appflows/docs_maintain.go` and `internal/doccorpus/apply_pair.go` remain only until those
-packages are pruned (4663b4e2b is the last tree with them). The body below is historical and its
-requirement IDs stay for traceability.
+Intent status: accepted (decision 0451; V1-0465)
+Delivery status: experimental
 Implementation: `internal/appflows/docs_maintain.go`, `internal/doccorpus/apply_pair.go`, `internal/command/flows/flows_docs.go`
 Authoritative inputs: `docs/specs/application-flow-understanding-v1.md` AFU-V1-030..033 and AFU-V1-036..038; owner-approved V1-0465 bounded maintenance plan.
 
 ## Agent digest
 - Claim: Explicit flow-document maintenance conditionally publishes a generated page and claims pair with digest-bound previews and committed provenance receipts.
-- Status: retired 2026-11-09 (decision 0594) / retired
+- Status: accepted (decision 0451; V1-0465)/experimental
 - Exists: additive preview/apply command, committed receipt and explicit legacy adoption, retained original inodes on replacement.
 - Blocked on: independent review and release-boundary qualification (owner acceptance recorded by decision 0451); no general narrative or API inference.
 - Read next: Requirements; CLI and failure model; Acceptance and rollback.
