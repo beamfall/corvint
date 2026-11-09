@@ -85,6 +85,50 @@ func TestDeclaredControlDeclarationOwnsEdit_AZU_V0_8910(t *testing.T) {
 		t.Fatalf("undeclared .corvint file was owned: scope=%s unknown=%+v", got.Scope, got.Unknown)
 	}
 
+	// Every parser-owned control accepted as an exact entry owns its edit and
+	// keeps its own literal reader; each except the unbounded-reader
+	// exclusions also selects the ownership audit (AZU-V0-8910, AZU-V0-9900).
+	controls := []string{DocumentationPathsPath, NonSourcePathsPath, RuntimeReadersPath, DeclaredSelectionPath, UnboundedReaderExclusionsPath}
+	readers := fake{name: "g", units: []Unit{
+		{ID: "g:audit", Sources: []string{"audit.g"}, Tests: []string{OwnershipAuditTestPath}},
+		{ID: "g:other", Sources: []string{"other.g"}, Tests: []string{"other_test.g"}},
+	}}
+	entries := ""
+	for index, control := range controls {
+		readers.units = append(readers.units, Unit{ID: "g:reader" + control, Sources: []string{"reader" + string(rune('a'+index)) + ".g"}, Tests: []string{"reader" + string(rune('a'+index)) + "_test.g"}, PathTokens: []string{control}})
+	}
+	sorted := slices.Clone(controls)
+	slices.Sort(sorted)
+	for index, control := range sorted {
+		if index > 0 {
+			entries += ","
+		}
+		entries += `{"path":"` + control + `","reason":"parsed by the planner through a path literal"}`
+	}
+	allRoot := t.TempDir()
+	write(t, allRoot, map[string]string{RuntimeReadersPath: `{"profile":"corvint-runtime-readers/0","entries":[` + entries + `]}`})
+	allGraph, err := Build(context.Background(), allRoot, readers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, control := range controls {
+		t.Run(control, func(t *testing.T) {
+			plan := Select(allGraph, []string{control})
+			if len(plan.Unknown) != 0 || plan.Scope != ScopeBounded {
+				t.Fatalf("left uncertainty: scope=%s unknown=%+v", plan.Scope, plan.Unknown)
+			}
+			if !slices.Equal(groupPaths(plan, ClassDeclaredRuntimeReaders), []string{control}) {
+				t.Fatalf("not classified: %+v", plan.NonSource)
+			}
+			has := func(id string) bool {
+				return slices.ContainsFunc(plan.Selected, func(s Selection) bool { return s.UnitID == id })
+			}
+			if !has("g:reader"+control) || has("g:audit") == (control == UnboundedReaderExclusionsPath) || has("g:other") {
+				t.Fatalf("selection: %+v", plan.Selected)
+			}
+		})
+	}
+
 	refused := map[string]map[string]string{
 		"directory entry":  {RuntimeReadersPath: `{"profile":"corvint-runtime-readers/0","entries":[{"path":".corvint/","reason":"too broad"}]}`},
 		"non-source claim": {NonSourcePathsPath: `{"profile":"corvint-non-source-paths/0","entries":[{"path":"` + DeclaredSelectionPath + `","reason":"not output"}]}`},
