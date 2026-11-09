@@ -670,7 +670,7 @@ Blob `"c09942da5fcbddd5524e93676257f07f5a9c7862"`; sha256 `"d1430ba39296f7ae3429
 Lines 30–35:
 
     // Selector names one (owner Markdown source, Go package directory) pair, the
-    // same shape corvint.docs_draft accepts (docsbridge.draftInput).
+    // same shape corvint.docs_draft accepts (docstools.draftInput).
     type Selector struct {
     	Source  string
     	Package string

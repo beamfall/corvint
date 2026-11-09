@@ -208,7 +208,7 @@ const docsCorpusHelpTrailer = "Generated evidence grants no task or test-selecti
 // docsCorpusHelp is the `help docs corpus` topic: every operation with its one-line purpose.
 func docsCorpusHelp() string {
 	var text strings.Builder
-	text.WriteString("Experimental documentation corpus profile\n\nUsage:\n  corvint [--root PATH] docs corpus OPERATION [OPTIONS]\n  corvint docs corpus OPERATION --help\n\nOperations:\n")
+	text.WriteString("Experimental documentation corpus profile\n\nUsage:\n  corvint-docs [--root PATH] docs corpus OPERATION [OPTIONS]\n  corvint-docs docs corpus OPERATION --help\n\nOperations:\n")
 	for _, operation := range corpusOperations {
 		text.WriteString("  " + operation.name + "  " + operation.purpose + "\n")
 	}
@@ -225,7 +225,7 @@ func docsCorpusOperationHelp(name string) string {
 	if !ok {
 		panic("unknown corpus help topic")
 	}
-	usage := []string{"corvint [--root PATH] docs corpus " + operation.name}
+	usage := []string{"corvint-docs [--root PATH] docs corpus " + operation.name}
 	for _, flag := range operation.required {
 		usage = append(usage, corpusOperationFlagUsage(name, flag))
 	}

@@ -25,15 +25,6 @@ func capabilityRegistry() capcatalog.Registry {
 		topic, _ := publicHelpTopic(command)
 		registry.Topics[command] = helpText(topic)
 	}
-	corpus := make([]string, 0, len(corpusOperations))
-	docsTopics := []string{registry.Topics["docs"], helpText("docs-corpus"), helpText("docs-flows"), helpText("docs-maintain")}
-	for _, operation := range corpusOperations {
-		corpus = append(corpus, operation.name)
-		docsTopics = append(docsTopics, docsCorpusOperationHelp(operation.name))
-	}
-	registry.Topics["docs"] = strings.Join(docsTopics, "\n")
-	registry.NestedOperations["docs"] = map[string][]string{"corpus": corpus}
-	registry.Operations["docs"] = slices.Clone(docsSubcommands)
 	registry.Operations["flows"] = flowscmd.Subcommands()
 	for _, nested := range nestedHelpTopics {
 		registry.NestedHelpTopics = append(registry.NestedHelpTopics, nested[0])

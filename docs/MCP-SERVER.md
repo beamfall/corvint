@@ -72,7 +72,7 @@ $ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profi
 | `flows` | `corvint.flows.coverage`, `corvint.flows.gaps`, `corvint.flows.impact`, `corvint.flows.map` and `corvint.flows.navigate` |
 | `test-validity` | `corvint.test_validity` |
 | `test-evidence` | `corvint.test_evidence` |
-| `docs` | `corvint.docs_draft` and `corvint.docs_consume` |
+| `docs` | `corvint.docs_draft` and `corvint.docs_consume`; each call runs the `corvint-docs` executable beside the server or on PATH (its `docs-tool` verb, decision 0594), and a missing one answers a `not-installed` tool error |
 | `corpus` | The `corvint.docs_*` corpus tools the artifact supports; needs `--corpus-artifact [ALIAS=]PATH`, a path relative to the root |
 
 An unknown entry, a repeated selector, or the selector with `--version` exits 2 before the

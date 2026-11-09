@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/docsenvelope"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -128,7 +132,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		}
 	}
 	var captured corpusCapture
-	exit := runContext(ctx, original, stdin, &captured, stderr)
+	exit := runCoreRead(ctx, original, stdin, &captured, stderr)
 	if exit != 0 {
 		// The native command already wrote its own error envelope to stderr; a
 		// failed copy of its (usually empty) stdout here must not append a
@@ -149,8 +153,8 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 	query := flagValue(original, "--task")
 	if command == "context" {
 		// TCP-V0-062: a positional task searches the corpus exactly as --task does.
-		if options, ok, err := parseTaskContextInvocation(original); ok && err == nil {
-			query = options.task
+		if task := contextPositionalTask(original[pos+1:]); task != "" {
+			query = task
 		}
 	}
 	request := doccorpus.Request{Operation: "info"}
@@ -289,4 +293,53 @@ func corpusNativeValueFlag(flag string) bool {
 		return true
 	}
 	return false
+}
+
+// locateCore finds the corvint executable; tests point it at a freshly built one.
+var locateCore = func() (string, error) { return docsenvelope.Locate(docsenvelope.CoreBinary) }
+
+// runCoreRead runs the native read in the corvint executable beside this one or on PATH, with
+// the original argument vector and this process's stdin, and captures its stdout (CMS-V0-003:
+// the app is an untrusted caller of the core's command line and passes it no authority). The
+// core's own stderr envelope passes through; its exit status is returned unchanged.
+func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	executable, err := locateCore()
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: docsenvelope.NotInstalledCode, Message: docsenvelope.NotInstalledMessage(docsenvelope.CoreBinary, "--corpus")})
+		return 2
+	}
+	command := exec.CommandContext(ctx, executable, args...)
+	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
+	command.WaitDelay = 5 * time.Second
+	err = command.Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return 0
+	case errors.As(err, &exit):
+		return exit.ExitCode()
+	case ctx.Err() != nil:
+		emitError(stderr, &gokernel.Error{Code: "cancelled", Message: "the core read was interrupted"})
+	default:
+		// The bounded capture refused more output, or the process could not start.
+		emitError(stderr, argumentError("corpus native result exceeds bound"))
+	}
+	return 2
+}
+
+// contextPositionalTask is the positional TEXT of `context (--task TEXT | TEXT) [OPTIONS]`
+// (TCP-V0-062): the first token that is neither an option nor an option's value. Every context
+// option but --worktree-overlay takes one value.
+func contextPositionalTask(rest []string) string {
+	for index := 0; index < len(rest); index++ {
+		token := rest[index]
+		switch {
+		case !argparseOptionLike(token):
+			return token
+		case token == "--worktree-overlay", strings.Contains(token, "="):
+		case index+1 < len(rest) && !argparseOptionLike(rest[index+1]):
+			index++
+		}
+	}
+	return ""
 }

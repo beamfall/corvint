@@ -267,7 +267,7 @@ func TestDocsCLIEncodedConsumeResultIsBounded(t *testing.T) {
 
 func TestDocsRootHelpDisclosesLedgerException(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(strings.Join(strings.Fields(rootHelp), " "), "impact, feature, docs and index best-effort append") {
+	if !strings.Contains(strings.Join(strings.Fields(rootHelp), " "), "docs draft and docs consume best-effort append") {
 		t.Fatal("root help omits docs unsupported-error ledger exception")
 	}
 }
@@ -438,7 +438,7 @@ func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
 		return code, stderr.String()
 	}
 	for _, name := range docsSubcommands {
-		if !strings.Contains(usage, "corvint [--root PATH] docs "+name+" ") || !strings.Contains(maturity, name+",") && !strings.Contains(maturity, name+")") {
+		if !strings.Contains(usage, "corvint-docs [--root PATH] docs "+name+" ") || !strings.Contains(maturity, name+",") && !strings.Contains(maturity, name+")") {
 			t.Errorf("docs usage omits %q or its maturity:\n%s", name, usage)
 		}
 		code, stderr := invoke(name, "--zz-not-a-flag")
@@ -450,7 +450,7 @@ func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
 	// dispatches above, so a subcommand cannot be documented without dispatching or vice versa.
 	usageNames := map[string]bool{}
 	for _, line := range strings.Split(usage, "\n") {
-		if rest, ok := strings.CutPrefix(line, "  corvint [--root PATH] docs "); ok {
+		if rest, ok := strings.CutPrefix(line, "  corvint-docs [--root PATH] docs "); ok {
 			name, _, _ := strings.Cut(rest, " ")
 			usageNames[name] = true
 			if !slices.Contains(docsSubcommands, name) {

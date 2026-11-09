@@ -183,7 +183,7 @@ func maintainReceiptObject(result *docmaintain.Result) map[string]any {
 const docsMaintainHelp = `Experimental automatic maintenance of one human documentation page
 
 Usage:
-  corvint [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
+  corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply)
     [--max-writes N] [--max-wall-clock DURATION] [--watch]
 
 An explicitly enabled, bounded local session that refreshes exactly one

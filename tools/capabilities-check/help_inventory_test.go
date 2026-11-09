@@ -148,7 +148,7 @@ func TestCAPV08800HelpTableOmissionFails(t *testing.T) {
 func TestCAPV08800DeepUnknownChild(t *testing.T) {
 	for _, flag := range []string{"--help", "-h"} {
 		for _, unknown := range []bool{false, true} {
-			args := []string{"--binary", "corvint", "docs", "corpus"}
+			args := []string{"--binary", "corvint", "flows", "appmap"}
 			if unknown {
 				args = append(args, "zz-unknown")
 			}
@@ -159,7 +159,7 @@ func TestCAPV08800DeepUnknownChild(t *testing.T) {
 				if code != 2 || out.Len() != 0 || !strings.Contains(errout.String(), `"code":"unknown-verb"`) {
 					t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
 				}
-			} else if code != 0 || !strings.Contains(out.String(), "corvint docs corpus") || errout.Len() != 0 {
+			} else if code != 0 || !strings.Contains(out.String(), "corvint flows appmap") || errout.Len() != 0 {
 				t.Fatalf("%v: exit=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
 			}
 		}

@@ -68,11 +68,13 @@ Goals
    Exits 0 when clean or advisory only, 1 on findings, 2 on error.
 
 7. Discover tests statically from committed files
-   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path e2e/checkout.spec.ts
-   Output: corvint-test-discovery/1 with trust generated: each example's title
+   corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path e2e/checkout.spec.ts
+   Output: a generated-trust test discovery document: each example's title
    path, tags, expectations, navigations, reached modules and hooks, each
    anchored to the committed blob, and unknowns with reasons. --runner rspec
-   reads RSpec files. It runs nothing.
+   reads RSpec files. It runs nothing. Every docs verb lives in the
+   corvint-docs app (decision 0594); corvint docs ... forwards to it unchanged,
+   and corvint-docs help --json catalogues its subcommands and options.
 
 8. Turn per-test coverage into tested_by evidence
    Step 1: record the test run and pin the coverage file it wrote:
@@ -89,11 +91,11 @@ Goals
    --format also takes v8, istanbul and rspec. It only reads.
 
 9. Build and query a documentation corpus
-   corvint docs corpus manifest --revision FULL_COMMIT --scope docs --timestamp 2026-10-23T00:00:00Z > manifest.json
-   corvint docs corpus build --manifest manifest.json > corpus.json
-   corvint docs corpus search --artifact corpus.json --query "retry policy" --kind symbol --include claims
-   corvint docs corpus claims --artifact corpus.json --query "retry policy"
-   corvint docs corpus claims --artifact corpus.json --path internal/upload/retry.go
+   corvint-docs docs corpus manifest --revision FULL_COMMIT --scope docs --timestamp 2026-10-23T00:00:00Z > manifest.json
+   corvint-docs docs corpus build --manifest manifest.json > corpus.json
+   corvint-docs docs corpus search --artifact corpus.json --query "retry policy" --kind symbol --include claims
+   corvint-docs docs corpus claims --artifact corpus.json --query "retry policy"
+   corvint-docs docs corpus claims --artifact corpus.json --path internal/upload/retry.go
    Output: bounded JSON. search ranks subjects by field-weighted text; --kind
    keeps some subject kinds and --include claims adds claim hits to them, not
    a claims-only filter, naming each hit's kind in result_kinds. With claims a
@@ -108,7 +110,7 @@ Goals
    --tool-profile corpus, whose corvint.docs_search takes kind and include.
 
 10. Regenerate generated claims only where sources changed
-   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl
+   corvint-docs docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl
    Output: a header line, then every worklist entry once: carry-forward, moved,
    changed, removed, unresolved or uncovered. Without --format jsonl it pages
    one receipt. A record whose span hash is not confirmed is never carried.

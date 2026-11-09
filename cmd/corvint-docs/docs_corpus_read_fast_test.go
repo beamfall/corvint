@@ -122,6 +122,7 @@ func TestDCRV1413CorpusReadsWithoutRederivation(t *testing.T) {
 // corpus through the verified read (DCR-V1-432); the delta current side is DCR-V1-460's. No read
 // writes a file, persisted index or sidecar beside the artifact (DCR-V1-433).
 func TestDCRV1432JoinedCorpusReusesVerifiedArtifact(t *testing.T) {
+	useCoreBinary(t)
 	defer doccorpus.TrustUnattestedBuilderForTest()()
 	root := taskContextRepository(t)
 	rev := cemGit(t, root, "rev-parse", "HEAD")

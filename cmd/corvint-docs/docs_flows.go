@@ -157,9 +157,9 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 const docsFlowsHelp = `Generate bounded source-derived flow documentation (generated trust).
 
 Usage:
-  corvint [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]
-  corvint [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]
-  corvint [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH
+  corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]
+  corvint-docs [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]
+  corvint-docs [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH
 
 Generate exclusively writes a new output directory: eight Markdown pages per flow,
 provider.json and generation.json. Ruby/Rails, JS/TS, React JSX and literal Angular
