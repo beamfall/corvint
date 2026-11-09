@@ -1518,6 +1518,7 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
+		graph = graph.WithGoChanges(golang.GoChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 		// The driver claimant diffs each dirty make file or workflow against
 		// the measured commit, so a hunk seeds its own target or job
 		// (AZU-V0-001).
@@ -2315,6 +2316,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		// The snapshot pins its base, so the plan compares import sets as
 		// a --base plan does (AFP-V0-2202, AFP-V0-9011).
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, invocation.Root, root, snapshot.Base, graph, snapshot.Paths))
+		graph = graph.WithGoChanges(golang.GoChangesAt(ctx, invocation.Root, root, snapshot.Base, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
 		receipt = affectedReceipt{TestCounts: affectedTestCounts(root, plan), Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
