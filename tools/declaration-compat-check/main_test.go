@@ -180,3 +180,43 @@ func TestTreeMetadataValuesKeepStringScopes_AFP_V0_3303(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-710, AFP-V0-3420: register the new declaration without exempting
+// either its top-level members or its per-unit closed shape from pin checks.
+func TestRecordEntryDeclarationClosedPositions_AFPV0710(t *testing.T) {
+	const name = ".corvint/record-entry-read-scopes.json"
+	original := `{"profile":"corvint-record-entry-read-scopes/0","units":{"go:example.test/m/reader":{"sourceSha256":"` + strings.Repeat("a", 64) + `","reads":["docs/build-log/"],"reason":"lists entries"}}}` //corvint:fixture-path
+	for _, tc := range []struct {
+		name, body, position string
+		absentAtPin          bool
+	}{
+		{"new declaration", original, "", true},
+		{"known members", original, "", false},
+		{"top-level member", strings.Replace(original, `"profile":`, `"extra":true,"profile":`, 1), "the top level", false},
+		{"unit member", strings.Replace(original, `"reason":`, `"extra":true,"reason":`, 1), "/units/*", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			git(t, root, "init", "-q")
+			writeFile(t, root, ".github/workflows/ci.yml", "env:\n")
+			if !tc.absentAtPin {
+				writeFile(t, root, name, original)
+			}
+			git(t, root, "add", ".")
+			git(t, root, "commit", "-qm", "pin")
+			pinned := git(t, root, "rev-parse", "HEAD")
+			writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+pinned+"\"\n")
+			writeFile(t, root, name, tc.body)
+			git(t, root, "add", name)
+			var stdout, stderr bytes.Buffer
+			code := run(root, ".github/workflows/ci.yml", &stdout, &stderr)
+			if tc.position == "" {
+				if code != 0 {
+					t.Fatalf("registered declaration refused: code=%d stderr=%s", code, &stderr)
+				}
+			} else if code != 1 || !strings.Contains(stderr.String(), name+` at `+tc.position+`: member "extra" is absent at pin `+pinned) {
+				t.Fatalf("closed member not checked: code=%d stderr=%s", code, &stderr)
+			}
+		})
+	}
+}

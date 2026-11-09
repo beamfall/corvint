@@ -301,7 +301,7 @@ func run(root string, stdout, stderr io.Writer) int {
 			affected.ShellReadScopesPath, reason, recordPath)
 	}
 	// AFP-V0-2745: the record directory readers are a second set on the same graph.
-	if !checkRecordReaders(graph, records, stderr) || !out.OK {
+	if !checkRecordReaders(root, graph, records, stderr) || !out.OK {
 		return 1
 	}
 	return 0

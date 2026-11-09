@@ -1516,6 +1516,9 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 		graph = graph.WithSparseCheckout()
 	}
 	if in.additive {
+		if in.tree == in.repository {
+			graph = graph.WithRecordEntryBase(ctx, in.gitExecutable, in.repository, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed)
+		}
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), graph, changed))
 		graph = graph.WithGoChanges(golang.GoChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))

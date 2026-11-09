@@ -1142,6 +1142,56 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   keep their rules. Falsifier: a test outside the plan whose outcome a new record entry changes.
   Acceptance: `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743`.
   Rollback: drop the record branch of `resolves`.
+- **AFP-V0-3420:** (experimental; owner-directed V1-4933 / V1-4544, 2026-11-08;
+  refines AFP-V0-2743 for additions) An added record entry SHALL select a literal, glob or
+  declared directory reader only when its tests read that exact filename or enumerate entries
+  (`ReadDir`, `Glob`, `Walk`, `DirFS`, `ls`, `find`, `git ls-files`) and their result can depend
+  on the set of entries. Enumeration filtered to fixed names is an exact-file read. Unknown
+  readers remain selected. The reviewed declaration `.corvint/record-entry-read-scopes.json`
+  SHALL have the closed profile `corvint-record-entry-read-scopes/0` and a `units` map keyed by
+  full Go or shell unit ID. Each scope has `sourceSha256`, a sorted unique `reads` list, a
+  nonblank code-citing `reason`, and optional sorted unique `inputs` for data supplying names.
+  A read is an exact record filename or either record directory; an empty list declares no
+  repository record reads (fixture paths and expected text). The declaration is bounded to
+  1 MiB, 256 units, 256 reads and 4096 inputs per unit. It does not infer absence of reads
+  from a missing enumeration token. The real corpusbinding and wire corpus enumerators remain
+  selected; fixture-only cemchain and shell readers can be excluded.
+- **AFP-V0-3421:** (experimental; V1-4933) A record scope SHALL narrow only with a matching
+  SHA-256 over the sorted unique source/test/input filenames and their complete bytes, using
+  domain `corvint-record-entry-sources/0` followed by LF and, per file, decimal name-byte length,
+  `:`, name, `:`, decimal content-byte length, `:`, content. Every file must be a regular bounded
+  source (at most `MaxSourceBytes`), total bytes at most 32 MiB, inventory at most 4096 files;
+  Go syntax must parse. Added test files, changed bound data, stale digests, missing files,
+  invalid/unknown declaration members, truncated path tokens and any unparseable input SHALL
+  retain readers. Scope authors must bind data that supplies filenames, including the use-case
+  ledger and receipts. A changed declaration SHALL not narrow its own change.
+- **AFP-V0-3422:** (experimental; V1-4933) The narrowing SHALL require Git `A` status from a
+  bounded NUL-delimited no-renames diff against the immutable measured base, restricted to the
+  record directories. Modified, deleted, untracked, unknown-status, path-probe and materialized
+  snapshot inputs SHALL keep the existing selection. Malformed status or failed observation
+  SHALL admit no exclusions. The inputs are per-change observations, never graph-cache state.
+  Other selection causes, including ownership, imports and unbounded reads, remain unchanged.
+- **AFP-V0-3423:** (experimental; V1-4933) `gate-affected-select` SHALL re-observe the same
+  addition and source-scope evidence before narrowing its literal or declared readers, in both
+  structural and qualified selection. It SHALL not trust a receipt-supplied exclusion. Its
+  path-only bounds, lacking a measured status, remain conservative. Acceptance compares both
+  selectors on added and modified CEM and build-log entries, exact names, listing consumers,
+  fixed siblings and unknown readers.
+- **AFP-V0-3424:** (experimental; V1-4933; extends AFP-V0-2745) The existing
+  `unbounded-readers-check` record-reader ratchet SHALL include shell test units, keyed by test
+  filename, as well as Go packages. A new literal/glob record-directory reader without a
+  general read scope, a current addition-only read scope or an existing explicitly reasoned
+  baseline entry SHALL fail. A stale addition-only source binding SHALL also fail rather than
+  silently restoring perpetual over-selection. The ratchet remains independent of selection:
+  its baseline record grants no exclusion. Acceptance introduces new Go and shell readers,
+  admits their audited scopes, then changes source and requires refusal.
+  Ancestor-only walkers SHALL remain refused under AFP-V0-2747 even with a current
+  addition-only scope: that scope filters existing reader matches and does not create them.
+- **AFP-V0-3425:** (experimental; V1-4933) Acceptance SHALL retain a regression failure with
+  the prior implementation and a before/after CLI measurement on identical record additions:
+  a copied sealed CEM under a new 40-hex name and one new dated build-log entry. Report
+  `summary.line`, all selected units, and code citations for retained directory enumerators.
+  A copied CEM is a selection probe, not a claim that the corpus-binding tests pass it.
 - **AFP-V0-2744:** (experimental under the owner's standing lane auto-accept (2026-11-06); V1-4933;
   CI selector rule (c), CIN-V0-860, AFP-V0-012) `gate-affected-select` SHALL apply AFP-V0-2743 to
   its own rule (c): a record entry's readers are `resolvingReaders`, whose resolution must lie at
@@ -2984,6 +3034,12 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2740 | `deletedFixture`, `fixtureSubtree` in `internal/liveverify/affected/deletedfixtures.go`, the call in `seed` and the unowned-path listing in `participants` (`select.go`) | `TestDeletedFixtureIsFixtureData_AFPV2740` in `internal/liveverify/affected/deletedfixtures_test.go` (no unknown, hosting package and literal reader selected; seven kept cases; fails with the call removed); `TestDeletedFixtureStaysUnownedForOtherPlugins_AFPV2740` there (a deleted Python fixture still bears a third plugin's path-open entry; fails with `participants` reading `claimantsOf` alone); the PR #114 replay in build-log entry `2026-11-06-selgo` |
 | AFP-V0-2741 | the shared plan; rules (b) and (c) of `internal/gateselect` unchanged | the PR #114 replay in build-log entry `2026-11-06-selgo` (driver and shadow narrow, shadow a subset of the driver) |
 | AFP-V0-2742 | the module branch of `Build` and `ModuleCheck` in `internal/sessiontest/plan.go`; the `UnobservedModule` comment in `internal/gateselect/allowlist.go` | `TestCIProfileNamesTheNestedModuleSuite_AFPV2742` in `internal/sessiontest/module_ci_afpv2742_test.go` (fails with the profile condition restored); the amended ci case of `TestSTRV0064NestedModuleUnit`; `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982`; the PR #105 replay |
+| AFP-V0-3420 | `recordadditions.go`, the record-entry scope declaration, and reader guards | `TestAddedRecordEntryReaders_AFPV3420`; retained corpus enumeration citations in `2026-11-08-record-entry-readers` |
+| AFP-V0-3421 | `ReadRecordEntryScopes`, `RecordEntrySourceDigest`, `WithRecordEntryBase` | `TestAddedRecordEntryUnknownFailsClosed_AFPV3421`; stale binding ratchet control |
+| AFP-V0-3422 | `AddedRecordEntries`, `addedRecordEntries`, `RecordEntryAllows` and `planAffectedGraph` | `TestAddedRecordEntryReaders_AFPV3420` M/D controls; unknown/untracked controls |
+| AFP-V0-3423 | `internal/gateselect/recordadditions.go` and literal/declared selection guards | `TestAddedRecordEntryBothSelectors_AFPV3423` |
+| AFP-V0-3424 | `Graph.RecordReaders`, `tools/unbounded-readers/records.go` | `TestAddedRecordEntryReadScopeRatchet_AFPV3424`, `TestRecordEntryShellReaderRatchet_AFPV3424`, `TestRecordEntryScopeCannotAdmitWalker_AFPV3424` |
+| AFP-V0-3425 | CLI probe retained in the build log | baseline/candidate `summary.line` and selected-unit comparison; fail-before ratchet control |
 | AFP-V0-2743 | `recordDirectory`, `resolvesRecord`, `BuildLogDirectory` and the record branch of `resolves` in `internal/liveverify/affected/readers.go` | `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743` and `TestRecordDirectory_AFPV2743` in `internal/liveverify/affected/records_test.go` (both fault injections fail it); the PR #106 replay |
 | AFP-V0-2744 | `recordDirectory`, `resolvedReaders` in `internal/gateselect/select.go`; `resolvesRecord` and the record branch of `resolvingReaders` in `internal/gateselect/readers.go` | `TestRecordEntryReadersResolveToTheDirectory_AFPV2744` in `internal/gateselect/records_afpv2744_test.go` (both fault injections fail it); the amended `TestSelectPackagesNarrowsSealedChangeEvidenceReaders`; the PR #106 replay |
 | AFP-V0-2745 | `Graph.RecordReaders`, `namesRecordAncestor` in `internal/liveverify/affected/recordreaders.go`; `tools/unbounded-readers/records.go` and its call in `run`; `.corvint/record-readers.json` and its `notPlanner` entry in `tools/declaration-compat-check` | `TestAFPV2745RecordDirectoryReadersRatchet` in `tools/unbounded-readers/records_test.go`; the `RecordReaders` cases of `TestRecordEntriesSelectOnlyTheirReaders_AFPV2743`; `make unbounded-readers-check` on the repository |
@@ -3052,6 +3108,10 @@ unbounded-ratchet entries, then restore the original filesystem-root opener. Rev
 opener while retaining the declarations would reintroduce confinement failures. No wire or
 stored-receipt migration is involved.
 Restore the reporter to the writer's callers to roll back AFP-V0-3364; this widens selection.
+
+For AFP-V0-3420 through AFP-V0-3425, remove the record-entry read-scope declaration
+to restore conservative readers immediately; then remove the addition-only guards and
+status observation. Do not remove the record-reader ratchet.
 
 For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
 its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and

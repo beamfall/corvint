@@ -143,6 +143,10 @@ type Graph struct {
 	// Ownership inputs are measured per plan, never cached as graph state.
 	ownershipChanges []string
 	committedPaths   map[string]bool
+	// Addition-only record scopes are measured inputs, like priorReadScopes;
+	// never store a Git status or a source-scope binding in the graph cache.
+	addedRecords      []string
+	recordEntryScopes map[string][]string
 }
 
 // WithReadScopeBase returns a copy of graph whose selection compares an edit
