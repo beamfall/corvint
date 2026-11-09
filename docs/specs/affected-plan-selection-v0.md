@@ -2146,6 +2146,9 @@ adequacy, remove unknowns, or narrow any independent byte-read witness.
   Every byte-read route still receives the complete dirty set: `PATH_LITERAL_READER`,
   `PATH_GLOB_READER`, `DECLARED_READ_SCOPE`, `UNBOUNDED_READER`, driver readers and their
   existing reader-dependent rules, including a testless package reading its own source.
+  A testless independent literal or glob reader of a comment-only path still carries
+  its callers transitively even when the owning package has tests: removing compilation
+  seeds cannot remove the tests that exercise those source-byte reads.
   Unproven `go list` observers marked `ImportGraphReadsFiles` may read package documentation:
   keep them through an explicit `UNBOUNDED_READER` source-comment cause rather than an
   `IMPORT_GRAPH_READER` edge, preserving AFP-V0-9010's byte-reader safety.
@@ -2172,8 +2175,11 @@ adequacy, remove unknowns, or narrow any independent byte-read witness.
   A seeded unit every dirty input of which is an admitted `COMMENT_ONLY` path compiles
   identically under AFP-V0-3320 and AFP-V0-3324, so it is excluded from the
   `NO_SELECTABLE_TEST` coverage-gap check (neither `unknown` nor `uncovered`) and cannot
-  make the scope `UNKNOWN` on that ground. Any other dirty input the unit owns, such as a
-  code edit beside the comment, restores the check unchanged.
+  make the scope `UNKNOWN` on that ground. Any other dirty input reaching the unit,
+  through ownership or any Go structural rule, restores the check unchanged. This includes
+  added, deleted and renamed files and enclosing data inputs, even when the retained
+  seed witness names a comment-only sibling; every input must be an admitted edit of an
+  existing file before the check can be skipped.
 
 Failure modes: token comparison alone misses compiler/tool directives and cgo code;
 protected raw lines and attachment checks prevent this. Ignoring positions would hide line
