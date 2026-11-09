@@ -2600,6 +2600,48 @@ would violate an existing assertion, and integration into the trusted CI caller 
 this lane's allowed paths. These facts and the pending integration checks are recorded in
 `docs/build-log/2026-11-08-avdrv.md`; no runtime-edge compatibility relaxation is claimed.
 
+### Fixture-only dashboard readers (V1-5180)
+
+- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180)
+  `internal/dashboard/repository.openDirectory` SHALL open the first absolute path component
+  directly instead of reading the filesystem root merely to traverse it. Before binding it,
+  the opener SHALL refuse a symlink or non-directory; the opened descriptor and a second
+  no-follow observation SHALL identify the same directory as the first observation. Remaining
+  components retain the existing descriptor-relative no-follow walk. An explicit request for
+  the filesystem root SHALL still require reading that root. This removes the fixture tests'
+  confinement blocker without granting any extra repository reads.
+- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180)
+  The existing `.corvint/test-read-scopes.json` SHALL bound `internal/dashboard/repository` to
+  its implicit own subtree and `go.mod`, used to build its own standard-library-only process
+  fixture; it SHALL bound `conformance/dashboard-snapshot-v0` to its implicit own subtree,
+  `internal/secretscreen/testdata/parity.json`, `go.mod`, `go.sum` and the complete non-standard
+  import closure of the `cmd/corvint-dashboard-snapshot` producer its tests build. Neither scope
+  grants `docs/build-log/` or `.corvint/changes/`. Both entries SHALL leave the unbounded-reader
+  ratchet record. No new scope grammar, runtime-command exemption or record-path exclusion is
+  introduced.
+- **AFP-V0-3362:** (experimental; owner direction 2026-11-08, V1-5180)
+  A repository regression SHALL exclude both declared readers for an unrelated build-log or
+  CEM entry and retain them for their real fixture, source and build inputs. A dependency-closure
+  check SHALL fail when the producer gains a repository build dependency outside its declared
+  set. Unresolved shell execution closures and tracked-tree readers SHALL remain selected for
+  the build-log probe. The existing ratchet SHALL continue refusing an added undeclared
+  unbounded reader, including a shell declaration that hides an unresolved source.
+- **AFP-V0-3363:** (experimental; owner direction 2026-11-08, V1-5180)
+  The lane's evidence SHALL audit every original unbounded witness against its source and
+  distinguish a bounded test read from a command's runtime reads. A test-only declaration SHALL
+  NOT bound `go run`; a command-line input, environment-named source, unknown execution edge or
+  unsupported confinement proof SHALL retain selection. Before/after evidence SHALL use the
+  same two added record paths, report `summary.line` and counts by unit prefix and witness kind,
+  and retain the computed-driver reason histogram and its unchanged uncertainty.
+- **AFP-V0-3364:** (experimental; owner direction 2026-11-08, V1-5180)
+  In the existing shell foreign-caller declaration, `script/dogfood-change-runs.sh` SHALL be
+  a non-executing mention of `script/dogfood-change.sh`, not its caller: the reporter names
+  the writer only in a comment and reads the Git common directory's run ledger with `awk`.
+  An unrelated build-log entry SHALL NOT select the reporting target through that comment;
+  changing the reporter SHALL still select the target, and the actual writer SHALL retain
+  its unresolved execution closure. Independent computed-invocation reasons remain selected.
+  The caller/mention completeness gate remains mandatory.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -2826,6 +2868,17 @@ AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSo
 and `TestTestEmbedGraphCacheRejectsOldProfile_AFPV03352`. The before/after regression and
 V1-5176 integration evidence are retained in `../build-log/2026-11-08-test-only-embeds.md`.
 
+V1-5180: `TestBoundedDirectoryOpen_AFPV03360` and
+`TestBoundedDirectoryOpenRejectsReplacement_AFPV03360` in `internal/dashboard/repository`
+cover AFP-V0-3360; `TestUnboundedDashboardScopes_AFPV03360` and
+`TestRepositoryBuiltReaderDeclarations_AFPV0873` in `internal/liveverify/affected` cover
+AFP-V0-3361 and AFP-V0-3362. The existing `tools/unbounded-readers` negative controls
+`TestAFPV0025RatchetFailsOffTheRecordedSet` and `TestInvalidShellReadScopeEntryRefused_TSP_V0_831`
+retain the refusal boundary. `../build-log/2026-11-08-unbounded.md` records AFP-V0-3363's
+per-unit audit, measurements and qualification limits.
+`TestUnboundedLedgerMention_AFPV03364` in `internal/liveverify/affected` checks AFP-V0-3364
+against the real graph and the unchanged caller/mention completeness gate.
+
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
 `TestDriverNarrowingRequiresCompleteParse_AFP_V0_9628` covers parsed-reference retention in
@@ -2993,6 +3046,12 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 For AFP-V0-3350 to AFP-V0-3352, revert the test-scoped fields, collector, reader selection
 and resolved-index additions together. Retain the cache-profile bump or clear derived
 cache entries before reusing an older observer; reverting restores the known under-selection.
+
+For AFP-V0-3360 to AFP-V0-3364, first remove the two new read-scope entries and restore their
+unbounded-ratchet entries, then restore the original filesystem-root opener. Reverting the
+opener while retaining the declarations would reintroduce confinement failures. No wire or
+stored-receipt migration is involved.
+Restore the reporter to the writer's callers to roll back AFP-V0-3364; this widens selection.
 
 For AFP-V0-9628, reverting the redesign restores the unsound round-1 occurrence counter and
 its four round-2 regressions. Prefer disabling narrowing while preserving parsed-reference and
