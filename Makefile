@@ -1286,6 +1286,16 @@ seed-planning-store-test:
 vscode-check-install-test:
 	@script/vscode-check-install_test.sh
 
+# typescript-test runs the repository's TypeScript suite, the VS Code extension's tests. It installs
+# the locked dependencies first when extensions/vscode/node_modules is absent. host-adapter-test is
+# the name the declaration .github/cishards/test-commands.json still uses for the TypeScript family;
+# it stays as an alias until that declaration names typescript-test.
+.PHONY: typescript-test host-adapter-test
+typescript-test:
+	test -d extensions/vscode/node_modules || npm --prefix extensions/vscode ci --ignore-scripts --no-audit --no-fund
+	npm --prefix extensions/vscode test
+host-adapter-test: typescript-test
+
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
 # top-level test exactly once (ASD-V0-026, tools/test-shards). Reference splits:
