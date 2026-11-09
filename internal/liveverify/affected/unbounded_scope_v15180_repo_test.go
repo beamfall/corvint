@@ -23,10 +23,12 @@ func TestUnboundedDashboardScopes_AFPV03360(t *testing.T) {
 			}
 		}
 		// No blanket build-log exclusion: these inspect the tracked tree
-		// or run an unresolved runtime closure and must remain selected.
-		// CEM sidecars already have a separate repository-owned exclusion.
+		// and must remain selected. CEM sidecars already have a separate
+		// repository-owned exclusion. (The offload runner's ENVFILE source
+		// is host-only since AFP-V0-3340/3341, so its callers no longer
+		// carry a dynamic-source closure into the tree.)
 		if dirty == "docs/build-log/2026-11-09-probe.md" { //corvint:fixture-path
-			for _, id := range []string{"internal/doccorpus/selfcorpus", "tools/test-read-scopes-check", "shell:script/analyzer-schema_test.sh"} {
+			for _, id := range []string{"internal/doccorpus/selfcorpus", "tools/test-read-scopes-check"} {
 				if _, ok := selected[id]; !ok {
 					t.Errorf("%s: unresolved/whole-tree reader %s lost", dirty, id)
 				}
