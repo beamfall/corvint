@@ -40,8 +40,10 @@ func TestV15102ControlPlaneStartsOnPRActivity(t *testing.T) {
 	if !strings.Contains(b, "if: github.event_name == 'pull_request_target' || (") {
 		t.Error("metadata job does not start independently on pull_request_target")
 	}
-	if !strings.Contains(b, "    permissions:\n      contents: read\n      pull-requests: read\n      statuses: write\n    steps:") {
-		t.Error("metadata job must declare exactly its three minimal permissions")
+	// The job inherits exactly the three workflow-level permissions that the
+	// least-privilege exception row declares (ARTIFACT-V0-008).
+	if strings.Contains(b, "    permissions:") || !strings.Contains(w, "\npermissions:\n  contents: read\n  pull-requests: read\n  statuses: write\n\n") {
+		t.Error("metadata job must inherit exactly the three minimal workflow-level permissions")
 	}
 	if strings.Contains(runScript(t, b), "${{") {
 		t.Error("GitHub expressions must enter the shell through env, never run text")
