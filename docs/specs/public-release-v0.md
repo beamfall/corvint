@@ -559,7 +559,7 @@ eligibleCommit,refusalExitCode,refusalReceipt`; preserve exact native WatchRecei
 stopped_reason,complete,summaries,omitted_summaries; profile corvint-docmaintain-watch/0,
 stopped_reason maintenance-conflict, refusalExitCode2, writes unchanged after human edit. Each summary has
 commit,tree,source_digest,page_digest,status. Human digests equal, eligible new commit real.
-Source: internal/docmaintain/watch.go:21 and cmd/corvint/docs_maintain.go:213.
+Source: internal/docmaintain/watch.go:21 and cmd/corvint-docs/docs_maintain.go:213.
 
 Roadmap exact names: `tasks-seed-first,tasks-seed-replay,tasks-roadmap,tasks-ticket-details,
 tasks-no-dispatch`. Seed script currently emits text, so seed rows use new closed

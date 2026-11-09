@@ -20,7 +20,8 @@ func TestCAPV0042EveryTreeNodeAnswersHelp(t *testing.T) {
 	if problems := clitree.Problems(tree); len(problems) > 0 {
 		t.Fatalf("tree problems: %v", problems)
 	}
-	if len(tree.Nodes) < 156 {
+	// 94 after the docs group became a one-node shim onto corvint-docs (decision 0594 item 3), plus cem.
+	if len(tree.Nodes) < 94 {
 		t.Fatalf("tree has %d nodes", len(tree.Nodes))
 	}
 	for _, node := range tree.Nodes {

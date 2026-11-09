@@ -856,7 +856,7 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `internal/mcp/cli/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
-| AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
+| AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint-docs/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-126..127 | experimental under the standing lane auto-accept (V1-2788, GitHub #1888): `internal/appflows/input.go` (`decode`, `maskFlowTierKeys`, the distinct Decode refusals), `internal/appflows/selection.go` (`Refusal`, `selectionInputError`, `selectionRefusalSubject`); `TestAFUV1126FlowTierIdentifierKeyIsNotSecret`, `TestAFUV1126E2ESafeFlowTierPasswordKey`, `TestAFUV1127ProviderUnavailableNamesRefusal`, `TestAFUV1024E2ESafeRefusesMalformedInput` |
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
 | AFU-V1-251..252 | experimental under the standing lane auto-accept (V1-2924, GitHub #1930): `internal/appflows/import.go` (`mergeProjects`, `disjointProjects`, `dropCollisions`), `internal/appflows/query.go` (`variationGaps`); `TestAFUV1251PlaywrightListMergesProjects`, `TestAFUV1252NoTestNamesInferredLinks`, `TestAFUV1FlowsQueryGoldens` |
@@ -1523,7 +1523,7 @@ Non-goals: raising the limit; typing the declared-inventory bounds (`in-scope de
 16384`, `flow inventory must declare 1 to 256 flows`), which keep `flowdocs-refused`.
 
 Failure modes: the CLI's `docs flows` error path lifts this code, like `flowdocs-generator-stale`,
-to its own stderr wire `code` (`cmd/corvint/docs_flows.go`); any other `doccorpus.Error` still
+to its own stderr wire `code` (`cmd/corvint-docs/docs_flows.go`); any other `doccorpus.Error` still
 reaches stderr as `internal-error`. Counting past the limit extracts every in-scope source file once,
 as a generation under the limit already does, but skips anchor and symbol lookup for candidates
 past the limit. Rollback: revert this section,

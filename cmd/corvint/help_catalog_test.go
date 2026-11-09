@@ -51,8 +51,9 @@ func TestCAPV0015HelpJSONListsEveryDispatchedCommand(t *testing.T) {
 		!strings.Contains(strings.Join(affected.SchemaIDs, " "), "affected-plan/1") {
 		t.Fatalf("affected entry is not derived from its help: %+v", affected)
 	}
-	if docs := byName["docs"]; len(docs.NestedOperations["corpus"]) != len(corpusOperations) || docs.Writes == nil || *docs.Writes != "mode-dependent" {
-		t.Fatalf("docs entry lacks the corpus operation table or its write class: %+v", docs)
+	if docs := byName["docs"]; len(docs.Operations) != 0 || len(docs.NestedOperations) != 0 || docs.Writes == nil || *docs.Writes != "mode-dependent" {
+		// The docs group is an exec-only shim onto corvint-docs (decision 0594): its operations are catalogued by that binary.
+		t.Fatalf("docs entry is not the corvint-docs shim or lacks its write class: %+v", docs)
 	}
 	if impact := byName["impact"]; impact.Writes == nil || *impact.Writes != "none" || impact.SelfObservationLedger != "best-effort-append" {
 		t.Fatalf("impact write class is not the root support boundary's: %+v", impact)

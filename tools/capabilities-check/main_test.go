@@ -377,7 +377,7 @@ func syntheticRepository() map[string]string {
 		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
 			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
 		"cmd/corvint/main.go": "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
-		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\nvar docsSubcommands = []string{}\n" +
+		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\n" +
 			"var flowSubcommands = map[string]bool{}\n",
 		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.impact\"\n",
 		"internal/mcp/tools.go":   "package mcp\n",
@@ -526,7 +526,7 @@ func replaceOnce(t *testing.T, doc []byte, old, new string) []byte {
 // the fix: a subcommand dropped from its verb's row, or one registered in code but never listed.
 func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	for _, verb := range []string{"docs", "flows", "runs", "tests", "test-plan", "affected"} {
+	for _, verb := range []string{"flows", "runs", "tests", "test-plan", "affected"} {
 		if len(inv.Subcommands[verb]) == 0 {
 			t.Errorf("no subcommands collected for %q: %v", verb, inv.Subcommands)
 		}
@@ -550,7 +550,7 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	dir := t.TempDir()
 	src := "package main\n\nvar cemActions = map[string]bool{\"verify\": true}\n" +
 		"var helpSubcommands = map[string]map[string]bool{\"cem\": cemActions, \"ocm\": {\"link\": true}}\n" +
-		"var docsSubcommands = []string{\"nav\"}\nvar flowSubcommands = map[string]func(){\"map\": nil}\n" +
+		"var flowSubcommands = map[string]func(){\"map\": nil}\n" +
 		"func init() { flowSubcommands[\"navigate\"] = nil }\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -562,16 +562,16 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"cem": "verify", "ocm": "link", "docs": "nav", "flows": "map,navigate"}
+	want := map[string]string{"cem": "verify", "ocm": "link", "flows": "map,navigate"}
 	for verb, subs := range want {
 		if strings.Join(got[verb], ",") != subs {
 			t.Errorf("%s: got %v, want %s", verb, got[verb], subs)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "docsSubcommands", "docsVerbs", 1)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "flowSubcommands", "flowVerbs", 1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "docsSubcommands") {
+	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "flowSubcommands") {
 		t.Errorf("renamed table: err %v", err)
 	}
 }

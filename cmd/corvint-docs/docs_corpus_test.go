@@ -187,6 +187,7 @@ func TestBehaviorAdapterCLI(t *testing.T) {
 	})
 }
 func TestCorpusNativeReadIntegrationParity(t *testing.T) {
+	useCoreBinary(t)
 	t.Run("DCP-V1-013 native", func(t *testing.T) {
 		root := taskContextRepository(t)
 		rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -194,7 +195,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 		commands := [][]string{{"context", "--task", "Split implementation", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}}
 		for _, args := range commands {
 			t.Run(args[0], func(t *testing.T) {
-				code, base, stderr := corpusCLI(t, root, args...)
+				code, base, stderr := coreCLI(t, root, args...)
 				if code != 0 {
 					t.Fatalf("native baseline %d: %s", code, stderr)
 				}
@@ -225,6 +226,7 @@ func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 	})
 }
 func TestCorpusNativeReceiptJoin(t *testing.T) {
+	useCoreBinary(t)
 	t.Run("DCP-V1-007 DCP-V1-013 observation", func(t *testing.T) {
 		root := taskContextRepository(t)
 		source := cemGit(t, root, "rev-parse", "HEAD")
@@ -313,6 +315,7 @@ func TestCorpusNativeOptionIsolation(t *testing.T) {
 }
 
 func TestCorpusImpactNativePathSelection(t *testing.T) {
+	useCoreBinary(t)
 	t.Run("DCP-V1-013 native range and flags", func(t *testing.T) {
 		root := taskContextRepository(t)
 		cemWrite(t, root, ".gitignore", "corpus-input.json\ncorpus.json\n")
@@ -378,6 +381,7 @@ func TestCorpusRootPreambleRefusesOptionLikeValue(t *testing.T) {
 // stdout to the real stdout must not append a second `output-failed`
 // envelope on the same stream.
 func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
+	useCoreBinary(t)
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
 	args := []string{"--root", root, "context", "--corpus=corpus.json"}
@@ -403,6 +407,7 @@ func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
 }
 
 func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
+	useCoreBinary(t)
 	t.Run("DCP-V1-036 CLI MCP page parity", func(t *testing.T) {
 		root := taskContextRepository(t)
 		rev := cemGit(t, root, "rev-parse", "HEAD")
@@ -438,7 +443,7 @@ func TestCorpusAdoptionCLIMCPPagination(t *testing.T) {
 			t.Fatal("missing page metadata", err)
 		}
 		for _, args := range [][]string{{"context", "--task", "Split", "--subject", "cache/demux.go"}, {"impact", "cache/demux.go"}, {"affected"}, {"test-validity"}} {
-			code, base, stderr := corpusCLI(t, root, args...)
+			code, base, stderr := coreCLI(t, root, args...)
 			if code != 0 {
 				t.Fatal(stderr)
 			}

@@ -27,7 +27,8 @@ func TestCAPV0047RepositoryCommandTreesMatchDispatch(t *testing.T) {
 	for _, tree := range trees {
 		nodes[tree.Binary] = len(tree.Nodes)
 	}
-	for binary, least := range map[string]int{"corvint": 140} {
+	// corvint lost the docs subtree to corvint-docs (decision 0594 item 3).
+	for binary, least := range map[string]int{"corvint": 94, "corvint-docs": 50} {
 		if nodes[binary] < least {
 			t.Errorf("%s tree has %d nodes, want at least %d", binary, nodes[binary], least)
 		}

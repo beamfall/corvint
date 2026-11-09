@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+// fakeDocsApp puts a corvint-docs stand-in on PATH that records its argument vector in the file
+// CORVINT_TEST_CAPTURE names, echoes stdin to stdout after a marker, writes one stderr line and
+// exits 3. PATH holds nothing else, so an unforwarded invocation cannot reach any real binary.
+func fakeDocsApp(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in is a shell script")
+	}
+	dir := t.TempDir()
+	// Builtins only: PATH holds nothing but this directory.
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_CAPTURE\"\nprintf 'forwarded:'\nwhile IFS= read -r line || [ -n \"$line\" ]; do printf '%s' \"$line\"; done\nprintf 'app stderr\\n' >&2\nexit 3\n"
+	if err := os.WriteFile(filepath.Join(dir, "corvint-docs"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	capture := filepath.Join(dir, "capture")
+	t.Setenv("CORVINT_TEST_CAPTURE", capture)
+	t.Setenv("PATH", dir)
+	return capture
+}
+
+// CMS-V0-003: `corvint docs ...` and `--corpus=FILE` reads are exec-only shims onto corvint-docs
+// with the argument vector, stdin, stdout, stderr and exit status passed through unchanged.
+func TestDocsShimForwardsToCorvintDocs(t *testing.T) {
+	capture := fakeDocsApp(t)
+	for _, args := range [][]string{
+		{"docs", "corpus", "info", "--artifact", "a.json"},
+		{"--root", "/some/where", "docs", "draft", "--source", "o.md", "--package", "p"},
+		{"--root=/some/where", "docs"},
+		{"--root", "r", "impact", "--corpus=corpus.json", "cache/demux.go"},
+		{"affected", "--corpus=corpus.json", "--corpus-depth=2"},
+		{"impact", "--corpus-depth", "2"},
+	} {
+		_ = os.Remove(capture)
+		var stdout, stderr bytes.Buffer
+		code := run(args, strings.NewReader("stdin bytes"), &stdout, &stderr)
+		recorded, err := os.ReadFile(capture)
+		if err != nil {
+			t.Fatalf("%q was not forwarded: exit %d stderr %q", args, code, &stderr)
+		}
+		if got, want := string(recorded), strings.Join(args, "\n")+"\n"; got != want {
+			t.Errorf("%q forwarded as %q", args, got)
+		}
+		if code != 3 || stdout.String() != "forwarded:stdin bytes" || stderr.String() != "app stderr\n" {
+			t.Errorf("%q: exit %d stdout %q stderr %q; want the app's own", args, code, &stdout, &stderr)
+		}
+	}
+}
+
+// Help for the docs group is the shim's own page and never starts the app; an unvalued --corpus
+// stays a native flag; mcp owns every argument after its verb (AHI-373).
+func TestDocsShimDoesNotForwardHelpOrNativeFlags(t *testing.T) {
+	capture := fakeDocsApp(t)
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"docs", "--help"}, docsHelp},
+		{[]string{"docs", "corpus", "search", "--help"}, docsHelp},
+		{[]string{"help", "docs"}, docsHelp},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := run(test.args, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.String() != helpText("docs") || !strings.HasPrefix(stdout.String(), test.want) {
+			t.Errorf("%q: exit %d stdout matches=%v stderr %q", test.args, code, stdout.String() == helpText("docs"), &stderr)
+		}
+	}
+	for _, args := range [][]string{{"impact", "--corpus", "x.json"}, {"mcp", "--corpus=x.json"}} {
+		var stdout, stderr bytes.Buffer
+		run(args, strings.NewReader(""), &stdout, &stderr)
+		if _, err := os.Stat(capture); err == nil {
+			t.Errorf("%q reached corvint-docs", args)
+		}
+	}
+}
+
+// A missing corvint-docs is the named NOT_INSTALLED gap, exit 2, on both forwarded shapes.
+func TestDocsShimReportsNotInstalled(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	for _, args := range [][]string{{"docs", "corpus", "info"}, {"impact", "--corpus=corpus.json", "a.go"}} {
+		var stdout, stderr bytes.Buffer
+		code := run(args, strings.NewReader(""), &stdout, &stderr)
+		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "not-installed"`) || !strings.Contains(stderr.String(), "NOT_INSTALLED") || !strings.Contains(stderr.String(), "corvint-docs") {
+			t.Errorf("%q: exit %d stdout %q stderr %q", args, code, &stdout, &stderr)
+		}
+	}
+}

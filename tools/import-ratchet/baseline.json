@@ -3,12 +3,7 @@
   "edges": [
     "cmd/corvint -> .github/cishards",
     "cmd/corvint -> internal/command/flows",
-    "cmd/corvint -> internal/doccitations",
-    "cmd/corvint -> internal/doccompiler",
-    "cmd/corvint -> internal/doccorpus",
-    "cmd/corvint -> internal/docmaintain",
-    "cmd/corvint -> internal/flowdocs",
-    "cmd/corvint -> internal/mcp/corpusbridge",
+    "cmd/corvint-docs -> internal/testsource",
     "cmd/corvint-docs-mcp -> internal/swiftimpact",
     "cmd/corvint-web-flows -> internal/swiftimpact",
     "internal/appflows -> internal/doccorpus",

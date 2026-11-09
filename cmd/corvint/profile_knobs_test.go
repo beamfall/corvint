@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/procprofile"
 )
 
@@ -21,47 +20,24 @@ func profileKnobLookup(env map[string]string) func(string) (string, bool) {
 	}
 }
 
-// profileCorpusFixture is a one-page committed repository with a built corpus artifact.
-func profileCorpusFixture(t *testing.T) string {
+// profileFixture is a one-page committed repository the named reads run against.
+func profileFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "source.md"), []byte("# Evidence\n\nOriginal source.\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	git := func(args ...string) string {
+	git := func(args ...string) {
 		t.Helper()
 		c := fixtureGitCommand(append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
 		c.Dir = root
-		out, err := c.CombinedOutput()
-		if err != nil {
+		if out, err := c.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
-		return strings.TrimSpace(string(out))
 	}
 	git("init", "-q")
 	git("add", "source.md")
 	git("commit", "-qm", "source")
-	m, err := doccorpus.Inventory(context.Background(), root, git("rev-parse", "HEAD"), "source.md", "2026-10-23T00:00:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := doccorpus.Build(context.Background(), root, m)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name, value := range map[string]any{"corpus.json": a, "manifest.json": m} {
-		data, err := doccorpus.Encode(value)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(root, name), data, 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// Keep the worktree clean so reads report fresh and affected --path admits it.
-	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte("corpus.json\nmanifest.json\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
 	return root
 }
 
@@ -69,22 +45,12 @@ func profileCorpusFixture(t *testing.T) string {
 // the paths the knob already covered, writes both profiles through main's single bracket, and
 // the knobs never change a stdout byte or the exit status.
 func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
-	root := profileCorpusFixture(t)
-	corpus := func(op string, extra ...string) []string {
-		return append([]string{"--root", root, "docs", "corpus", op}, extra...)
-	}
+	// The docs corpus rows moved to cmd/corvint-docs with the verbs (decision 0594).
+	root := profileFixture(t)
 	rows := map[string][]string{
-		"docs corpus build":    corpus("build", "--manifest", "manifest.json"),
-		"docs corpus info":     corpus("info", "--artifact", "corpus.json"),
-		"docs corpus search":   corpus("search", "--artifact", "corpus.json", "--query", "Original"),
-		"docs corpus get":      corpus("get", "--artifact", "corpus.json", "--id", "native:file:source.md"),
-		"docs corpus flow":     corpus("flow", "--artifact", "corpus.json", "--id", "native:file:source.md"),
-		"docs corpus coverage": corpus("coverage", "--artifact", "corpus.json"),
-		"docs corpus locate":   corpus("locate", "--artifact", "corpus.json", "--path", "source.md"),
-		"docs corpus delta":    corpus("delta", "--previous", "corpus.json", "--artifact", "corpus.json"),
-		"affected --path":      {"--root", root, "affected", "--path", "source.md"},
-		"context":              {"--root", root, "context", "--task", "Original source evidence"},
-		"help --json":          {"help", "--json"},
+		"affected --path": {"--root", root, "affected", "--path", "source.md"},
+		"context":         {"--root", root, "context", "--task", "Original source evidence"},
+		"help --json":     {"help", "--json"},
 	}
 	names := make([]string, 0, len(rows))
 	for name := range rows {
@@ -221,7 +187,7 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 // refused before the read runs, so it can neither create an untracked file that turns a clean
 // `affected --path` into a refusal nor truncate a tracked file; the read itself still succeeds.
 func TestPRBV0013ProfileInsideWorktreeRefusesBeforeRead(t *testing.T) {
-	root := profileCorpusFixture(t)
+	root := profileFixture(t)
 	arguments := []string{"--root", root, "affected", "--path", "source.md"}
 	var plain, plainErr bytes.Buffer
 	if code := runProfiledContext(context.Background(), context.Background(), arguments, strings.NewReader(""), &plain, &plainErr, profileKnobLookup(nil)); code != 0 {

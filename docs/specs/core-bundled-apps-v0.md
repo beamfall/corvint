@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-06
 Requirement prefix: `CMS-V0`
 Intent status: accepted (owner, 2026-11-06)
-Delivery status: not-started
+Delivery status: in-progress (docs edges cut, 2026-11-09)
 Authoritative inputs:
 - decision 0591;
 - `AGENTS.md` invariant 7 as amended by 0591;
@@ -14,9 +14,9 @@ Authoritative inputs:
 
 ## Agent digest
 - Claim: Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory.
-- Status: accepted (owner, 2026-11-06) / not-started
-- Exists: one root module; `corvint` links docs, flows and Tasks; 54 `cmd/` entry points.
-- Blocked on: baseline measurements (`CMS-V0-005`, `-006`, `-008`, `-010`, `-011`) before any code moves.
+- Status: accepted (owner, 2026-11-06) / in-progress (docs edges cut, 2026-11-09)
+- Exists: one root module; `corvint docs` and `--corpus=FILE` are exec-only shims onto the `corvint-docs` binary, and `internal/mcp/docsbridge` reaches it through the `docs-tool` envelope (V1-4907, 2026-11-09); `corvint` still links flows; Tasks left with decision 0594.
+- Blocked on: baseline measurements (`CMS-V0-005`, `-006`, `-008`, `-010`, `-011`) before the docs module split (V1-4901) and the remaining extractions.
 - Read next: Requirements; Units and edges to cut; Acceptance and evidence.
 
 ## User job and verified baseline
@@ -43,7 +43,7 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 | Core `corvint` | index, query/context, impact, `affected`/test selection, review, CEM/dogfood evidence, `corvint-test-runner` | n/a (root module) |
 | Kernel (leaf packages) | git runner, `gitprobe`, `gitstatus`, language ID, `execfile`, `procgroup`, `secretscreen`, `analyzerenvelope`, `langplugin`, `protocol/**` | upward imports (V1-4809) |
 | Tasks `corvint-tasks` | `internal/tasks/**`, `taskman`, `taskprojection`, `taskbarrier`, `localcompletion`, `scopelease`, `workqueue`, `worksource`, `corvint-work-queue` | `tasks`→`contextindex` (V1-4810); `cmd/corvint`→`taskman`; `internal/mcp/tasksbridge`, `internal/mcp/tasksread` |
-| Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, `corvint-docs-mcp` (decision 0594 deleted corpus index/serve/republish and `corvint-corpus-*`) | `cmd/corvint`→`doccorpus`/`doccompiler`/`docmaintain`; `internal/mcp/docsbridge` |
+| Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, docstools, `cmd/corvint-docs`, `corvint-docs-mcp` (decision 0594 deleted corpus index/serve/republish and `corvint-corpus-*`) | cut (V1-4907): `cmd/corvint` forwards `docs` and `--corpus=FILE` to `corvint-docs`; `internal/mcp/docsbridge` runs its `docs-tool` verb (`internal/docsenvelope`); still open: `internal/mcp/toolgroup` and `internal/mcp/cli` → `doccorpus`/`corpusbridge` for the corpus tools |
 | Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs (the E2E proof lab left with decision 0593) | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
 | Adapters | `corvint-mcp`, `corvint-lsp`, test-validity MCP | bridges call apps through envelopes |
 | Plugins | analyzers; test providers only if measured (V1-4824) | registries (V1-4818); `corvint-plugin/1` (V1-4819) |
