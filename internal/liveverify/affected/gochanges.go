@@ -43,7 +43,9 @@ func (graph *Graph) WithGoChanges(changes []GoChange) *Graph {
 // proven COMMENT_ONLY file. It compiles identically, so no selectable test
 // can observe a behavior change and the coverage-gap check does not apply
 // (AFP-V0-3325). One code or structural input to the unit restores the check.
-func (graph *Graph) commentOnlyUnit(id string, seed Witness, dirty []string) bool {
+// structure supplies the plan's goStructure result over the compiling dirty
+// paths; the caller computes it at most once per plan.
+func (graph *Graph) commentOnlyUnit(id string, seed Witness, dirty []string, structure func() (changed, traversed, enclosing map[string]Witness)) bool {
 	if !graph.goCommentOnly[seed.DirtyPath] || graph.owner[seed.DirtyPath] != id {
 		return false
 	}
@@ -54,7 +56,7 @@ func (graph *Graph) commentOnlyUnit(id string, seed Witness, dirty []string) boo
 	}
 	// Deleted and renamed-away sources have no current owner. Data paths
 	// can also reach the package structurally without being owned by it.
-	changed, traversed, enclosing := graph.goStructure(graph.compilingPaths(dirty))
+	changed, traversed, enclosing := structure()
 	if _, hit := changed[id]; hit {
 		return false
 	}
