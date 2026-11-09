@@ -21,7 +21,20 @@ import (
 // accepted after the verb (once).
 func TestAFPV0230AbbreviatedBaseAndTrailingRoot(t *testing.T) {
 	root := materializationFixture(t)
-	full := strings.TrimSpace(materializationGit(t, root, "rev-parse", "HEAD"))
+	// The fixture commit carries wall-clock dates, so its id is random and about one run in a
+	// hundred has no hex letter in its first ten digits, where the uppercase case below would
+	// pass unchanged. HEAD is repointed at a commit with fixed dates over the same tree, whose
+	// id is constant.
+	tree := strings.TrimSpace(materializationGit(t, root, "rev-parse", "HEAD^{tree}"))
+	body := filepath.Join(t.TempDir(), "commit")
+	if err := os.WriteFile(body, []byte("tree "+tree+"\nauthor T <t@example.invalid> 0 +0000\ncommitter T <t@example.invalid> 0 +0000\n\nfixture\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	full := strings.TrimSpace(materializationGit(t, root, "hash-object", "-t", "commit", "-w", body))
+	materializationGit(t, root, "update-ref", "HEAD", full)
+	if strings.ToUpper(full[:10]) == full[:10] {
+		t.Fatalf("fixed fixture commit %s has no hex letter in its first ten digits", full)
+	}
 
 	for name, arguments := range map[string][]string{
 		"leading root":  {"--root", root, "affected", "--base", full[:10]},

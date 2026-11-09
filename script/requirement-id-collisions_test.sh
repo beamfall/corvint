@@ -121,7 +121,9 @@ detached=$(g rev-parse HEAD)
 g checkout -q claude/lane-free
 g worktree add -q --detach "$test_root/detached" "$detached"
 dout=$(check --block ASD-V0 050 059) && fail "a block a detached worktree defines passed: $dout"
-case $dout in *"used ASD-V0-055 $test_root/detached ("*) ;; *) fail "the detached worktree was not named: $dout" ;; esac
+# git worktree list names the physical path: no // from a TMPDIR ending in /, no /var symlink (macOS).
+detached_path=$(cd "$test_root/detached" && pwd -P)
+case $dout in *"used ASD-V0-055 $detached_path ("*) ;; *) fail "the detached worktree was not named: $dout" ;; esac
 g worktree remove --force "$test_root/detached"
 case $output in *'free ASD-V0-050..ASD-V0-059 on'*) ;; *) fail "the free block line is missing: $output" ;; esac
 
