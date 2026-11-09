@@ -253,8 +253,8 @@ func addNonRegularCounts(counts map[string]any, nonRegular int) {
 }
 
 // StablePolicyIssues returns the CEM-V1-145 counts and policy issues of a
-// stable map's hunks under limits, for a consumer outside the Core read such
-// as prove --attest-cem-v2 (CEM-V1-638). A map the stable parser refuses is an
+// stable map's hunks under limits, for a consumer outside the Core read
+// (CEM-V1-638). A map the stable parser refuses is an
 // error, never an empty issue list.
 func StablePolicyIssues(raw []byte, limits PolicyLimits) (map[string]any, []any, error) {
 	document, err := wire.ParseStable(raw)
@@ -324,8 +324,8 @@ const (
 // than change; for the change role, class "record" when the hunks name at
 // least one evidence-record path and every other hunk path is a CEM sidecar
 // path, and "change" otherwise; beside the role itself. The record rule is
-// internal/dogfoodflow.RecordChange applied to hunk paths; keep the two in
-// step (CEM-V1-170, DCW-V0-057).
+// the one the retired internal/dogfoodflow.RecordChange applied to hunk paths
+// (CEM-V1-170, DCW-V0-057).
 func StableCitationClass(role string, paths []string) map[string]any {
 	class := StableCitationClassChange
 	switch {

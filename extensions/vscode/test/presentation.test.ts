@@ -19,7 +19,7 @@ test("VSC-V0-078: diagnostics for unopened files never open documents or reject 
     resultState: "CONFLICTED",
   });
   const snapshot: CorvintSnapshot = {
-    snapshotKey: "snapshot", adapterProfile: "unprofiled context schema_version 1", operation: "query",
+    snapshotKey: "snapshot", adapterProfile: "unprofiled context schema_version 1", operation: "impact",
     schemaVersion: 1, revision: "a".repeat(40), state: "READY", freshness: "fresh", worktreeMixedPathCount: 0,
     results: [], evidence: [1, 200, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY].map(evidence),
     uncertainty: [], verification: [],

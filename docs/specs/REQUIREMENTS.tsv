@@ -1771,8 +1771,8 @@ CEM-V1-071	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A
 CEM-V1-072	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A report built over a stable source MUST	owner	decision 0546; 2026-10-20
 CEM-V1-073	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `witnesscollapse.CompileStable` MUST adm	owner	decision 0546; 2026-10-20
 CEM-V1-074	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The 0.x `Compile` MUST keep refusing a s	owner	decision 0546; 2026-10-20
-CEM-V1-075	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `doccorpus.StableCEMProjection` MUST pro	owner	decision 0546; 2026-10-20
-CEM-V1-076	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A wrong base, edited map bytes, a tamper	owner	decision 0546; 2026-10-20
+CEM-V1-075	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20; retired by decision 0594, 2026-11-09, wh	owner	decision 0546; 2026-10-20; decision 0594; 2026-11-09
+CEM-V1-076	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20; retired by decision 0594, 2026-11-09, wi	owner	decision 0546; 2026-10-20; decision 0594; 2026-11-09
 CEM-V1-077	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The console chain pane MUST admit `cem/1	owner	decision 0546; 2026-10-20
 CEM-V1-078	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Each criterion binding, runner receipt (	owner	decision 0546; 2026-10-20
 CEM-V1-079	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The registry stays closed: an unsupporte	owner	decision 0546; 2026-10-20
@@ -8847,14 +8847,14 @@ VSC-V0-041	docs/specs/vscode-extension-v0.md	Pure unit tests MUST cover discover
 VSC-V0-042	docs/specs/vscode-extension-v0.md	Process integration fixtures MUST assert the literal executable path,	unrecorded	-
 VSC-V0-043	docs/specs/vscode-extension-v0.md	`@vscode/test-electron` MUST run pinned supported VS Code versions in distinct	unrecorded	-
 VSC-V0-044	docs/specs/vscode-extension-v0.md	Static gates are lockfile-clean install, lint, TypeScript typecheck, unit tests,	unrecorded	-
-VSC-V0-045	docs/specs/vscode-extension-v0.md	Manual query/impact adds at most 50 ms p95 adapter overhead excluding Corvint ru	unrecorded	-
+VSC-V0-045	docs/specs/vscode-extension-v0.md	Manual impact (query retired by decision 0594) adds at most 50 ms p95 adapter ov	unrecorded	-
 VSC-V0-046	docs/specs/vscode-extension-v0.md	`corvint.transport` is exactly `cli|mcp-stdio` and defaults to `cli`. Transport	unrecorded	-
 VSC-V0-047	docs/specs/vscode-extension-v0.md	`mcp-stdio` requires a non-empty `corvint.mcpExecutablePath`. It is accepted onl	unrecorded	-
-VSC-V0-048	docs/specs/vscode-extension-v0.md	MCP V0 uses local stdio only. One explicit query or impact owns exactly one newl	unrecorded	-
+VSC-V0-048	docs/specs/vscode-extension-v0.md	MCP V0 uses local stdio only. One explicit impact owns exactly one newly	unrecorded	-
 VSC-V0-049	docs/specs/vscode-extension-v0.md	The first request in every MCP process is `server/discover`; the extension never	unrecorded	-
 VSC-V0-050	docs/specs/vscode-extension-v0.md	Discovery MUST be one complete result that lists `2026-07-28` in	unrecorded	-
 VSC-V0-051	docs/specs/vscode-extension-v0.md	After discovery the client fetches `tools/list` in the same process. Discovery M	unrecorded	-
-VSC-V0-052	docs/specs/vscode-extension-v0.md	The MCP tool calls are closed read-only adapters. `corvint.query` receives the e	unrecorded	-
+VSC-V0-052	docs/specs/vscode-extension-v0.md	The MCP tool call is a closed read-only adapter. (The `corvint.query` call with	unrecorded	-
 VSC-V0-053	docs/specs/vscode-extension-v0.md	`tools/call` MUST return one complete result with `resultType:"complete"`,	unrecorded	-
 VSC-V0-054	docs/specs/vscode-extension-v0.md	MCP stdio uses one UTF-8 JSON-RPC object plus LF per frame and rejects batches,	unrecorded	-
 VSC-V0-055	docs/specs/vscode-extension-v0.md	VS Code cancellation, a newer operation, timeout, output overflow, root disposal	unrecorded	-

@@ -23,8 +23,8 @@ var helpSubcommands = map[string]map[string]bool{
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
 var helpBooleanFlags = map[string]bool{
-	"--apply": true, "--attest": true, "--check": true, "--attest-cem-v2": true, "--attest-cem-v3": true, "--dry-run": true, "--enable": true,
-	"--full-receipt": true, "--if-stale": true, "--json": true, "--mutate": true, "--preview": true,
+	"--apply": true, "--check": true, "--dry-run": true, "--enable": true,
+	"--full-receipt": true, "--if-stale": true, "--json": true, "--preview": true,
 	"--replace": true,
 }
 
