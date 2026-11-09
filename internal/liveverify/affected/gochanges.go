@@ -92,7 +92,10 @@ func (graph *Graph) goChanges(dirty []string) []GoChange {
 // Unproven go-list calls can observe source comments (for example .Doc),
 // even when the import graph is unchanged. Keep their independent byte-read
 // uncertainty without traversing the compile/import graph (AFP-V0-3322).
-func (graph *Graph) commentSourceReadersOf(reached map[string]Witness, dirty []string) {
+// A reader without tests observes the source only through its callers, so
+// its importers and binary runners are followed as a test-less literal
+// reader's are (AFP-V0-495, AFP-V0-2992).
+func (graph *Graph) commentSourceReadersOf(reached map[string]Witness, dirty []string, followed map[string]bool) {
 	var source string
 	for _, relative := range dirty {
 		if graph.goCommentOnly[relative] {
@@ -103,14 +106,31 @@ func (graph *Graph) commentSourceReadersOf(reached map[string]Witness, dirty []s
 	if source == "" {
 		return
 	}
+	testless := make(map[string]Witness)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if !unit.ImportGraphReadsFiles || !unit.ImportGraphReadsAll && len(unit.ImportGraphReads) == 0 {
 			continue
 		}
-		addWitness(reached, id, Witness{
+		witness := Witness{
 			Kind: WitnessUnboundedReader, DirtyPath: source, Via: []string{id},
 			Cause: &UnboundedCause{Unit: id, Reads: "unproven go list may observe source comments or package documentation"},
-		})
+		}
+		addWitness(reached, id, witness)
+		if len(unit.Tests) == 0 {
+			testless[id] = witness
+		}
 	}
+	if len(testless) == 0 {
+		return
+	}
+	users := graph.traverse(testless, nil)
+	walked := make(map[string]bool, len(users))
+	for id := range users {
+		followed[id] = true
+		walked[id] = true
+	}
+	graph.testUsersOf(users, nil)
+	graph.testRunnersOf(users, walked)
+	mergeWitnesses(reached, users)
 }
