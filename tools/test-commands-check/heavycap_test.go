@@ -460,6 +460,13 @@ exec env -i PATH="$PATH" HOME="`+root+`" TMPDIR="`+root+`" LC_ALL=C bash -s
 `), 0700); err != nil {
 		t.Fatal(err)
 	}
+	// The receiver bounds its run with timeout(1); hosted macOS runners ship none, so the
+	// fixture supplies a pass-through one where the host lacks it (ASD-V0-2478).
+	if _, err := exec.LookPath("timeout"); err != nil {
+		if err := execfile.WriteFile(filepath.Join(root, "bin", "timeout"), []byte("#!/bin/sh\nshift\nexec \"$@\"\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for key, value := range map[string]string{
 		"HEAVY_REMOTE_HOST": "fixture", "HEAVY_REMOTE_SSH": ssh,
 		"HEAVY_REMOTE_CLONE": clone, "HEAVY_REMOTE_ROOT": filepath.Join(root, "remote"),
