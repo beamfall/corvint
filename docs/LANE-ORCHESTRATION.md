@@ -1145,7 +1145,7 @@ One lane runs this flow, in order; each step names the command and the section t
    its absolute executable path. Use that path for the following reads; rerun it after source edits.
    A build failure stops orientation. Keep the emitted freshness verdict with the task evidence.
    Run `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
-   `corvint context --task "..."`; retain the `query` and `impact` receipts (DOGFOOD section 1).
+   `corvint context --task "..."`; retain the `query` and `impact` receipts.
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
@@ -1192,35 +1192,10 @@ One lane runs this flow, in order; each step names the command and the section t
    catch-up repin commit leaves every earlier commit red for anyone who checks it out or bisects.
    The same holds for a new check (V1-4098, ASD-V0-616): commit the fixes a new rule needs before
    or with the rule, never after, so `make bash32-check` and the other doc gates pass at every
-   commit. `make spec-requirements-check` also runs the internal/lrfrepo spec enumeration pins
-   (V1-3841, ASD-V0-615), and `make test-read-scopes-check` reports every unresolved go target
+   commit. `make test-read-scopes-check` reports every unresolved go target
    and undeclared read in one run (ASD-V0-612), so a lane sees these before batch-precheck does.
-5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
-   `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
-   INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
-   `SEAL=0` on `make dogfood-finish LANE=1` stops after bind, the bind commit, rebind and a passing
-   dogfood-check; the sidecar remains at HEAD and no seal commit is made (DTL-V0-004).
-   The direct CLI equivalent is `corvint dogfood finish-lane --base FULL_SHA --seal no` with the
-   same citation, intent, verify and outcome inputs. The default SEAL=1 still seals. Every rerun
-   or fix hint from such a run keeps SEAL=0 (or `--seal no`), including dogfood-closeout retries.
-   After the last commit, run `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=..
-   INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
-   finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
-   passing `dogfood-inputs-check` and reports the input file paths.
-   Review before the seal, so a change seals once (ASD-V0-1023, V1-3668): review the bind-ready
-   head through `script/codex-review.sh` and save the output; run `script/review-head-check.sh`
-   on it before each fix round and send only OPEN and UNKNOWN findings; review the fixed head
-   again; then bind, check and seal once with `DOGFOOD_REVIEW=review.txt make dogfood-seal
-   BASE=..`. The bind commit changes only `.corvint/`, so a current review passes, and
-   `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
-   before its check runs (ASD-V0-1024).
-   The post-bind rerun of `make dogfood-change` and `make dogfood-check` runs from a clean worktree:
-   one with no change after the bind commit (`git -c core.excludesFile= status --porcelain
-   --untracked-files=all` lists nothing; repository-ignored paths do not count, a global
-   `core.excludesFile` does not apply). The lane's own worktree qualifies as it stands; no fresh checkout is needed, and
-   `dogfood-check` refuses a dirty one naming the path count (DCW-V0-2144). The first
-   `make dogfood-change` with every input ends `PENDING commit-sidecar` and exits 0: commit
-   `.corvint/change.cem.json`, then rerun (DCW-V0-2143).
+5. The dogfood inputs, bind and seal steps were retired by decision 0594; a lane stops at its
+   final commit.
 6. Report using `script/lane-handback.sh template [PREVIOUS] > handback.md`, then fill it and
    run `script/lane-handback.sh lint handback.md [PREVIOUS]` (`DWC-V0-047`). Required fields:
    base, fix head, bind head, sealed head, delivered tickets, superseded tickets and GitHub issues
@@ -1230,34 +1205,15 @@ One lane runs this flow, in order; each step names the command and the section t
    dropped tickets and missing fields. Include per-ticket requirement IDs, tests/results and the
    numbered Friction list with repros (section 11).
 
-   An orchestrator may attach its external review directly with `DOGFOOD_REVIEW=/path/report.txt`
-   (`DWC-V0-046`). The report contains `dogfood-review: reviewed-head=FULL_SHA verdict=PASS`
-   naming the exact pre-seal HEAD. A different head or nonpassing verdict refuses before check;
-   no report keeps `review-before-seal NOT_OBSERVED`. The seal output and commit message retain
-   the reviewed head, report path, SHA-256 and verdict. This records supplied evidence without
-   authenticating reviewer independence. See the input table in `docs/DOGFOOD.md`.
-
 Common refusals and their recovery:
 
 | Refusal | Recovery |
 |---|---|
 | `heavy.sh: REFUSED local-reason-missing` | run on the offload host, or set `HEAVY_LOCAL_REASON='darwin-only: <why>'` for a command that needs this OS |
 | `heavy.sh: REFUSED whole-reason-missing` | use a selective `-run '<selected>'` from `corvint test --base SHA --dry-run`, or set `HEAVY_WHOLE_REASON` with the evidence (Corvint selected the package whole, or UNKNOWN/FALLBACK); `-short` does not clear it |
-| `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
-| `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
-| `NOTE stranded trace` (after a reset dropped an unpushed bind or seal commit) | `make dogfood-retire-traces`, then rerun (DCW-V0-2142) |
-| `dogfood-change: PENDING commit-sidecar` | commit `.corvint/change.cem.json`, then rerun `make dogfood-change` (DCW-V0-2143) |
-| `self-binary-stale` | set `CORVINT_BIN` to a build of this tree, or unset it if set; for the static pre-check, `DOGFOOD_STATIC_PRECHECK=0` (DCW-V0-2140) |
-| `tier-below-anchored` (WARN) | keep the drafted anchoring row beside each requirement row; `corvint dogfood propose-citations BASE --refresh PLAN` restores dropped ones (DCW-V0-2141) |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
-| `dogfood-seal: REFUSE review-not-current` | review HEAD^ (the bind-ready head) through `script/codex-review.sh`, save the output, rerun with `DOGFOOD_REVIEW` set to it |
 | `review-head-check: REFUSE unpinned-review` | run the review through `script/codex-review.sh`, or pass `--reviewed-head REV` with the commit the reviewer read |
-| `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
-| `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
-| `bootstrap-intent-not-unknown` | give the intent spec this change creates no row, or an `unknown` row |
 | line-citation or use-case receipt drift after an edit | `make repin`; `script/repin-use-case-receipts.sh`; commit the repins with the edit that moved the text (step 4) |
-| `sealed-cem-in-change` | drop the seal from the diff, or for a batch of sealed leaves follow DOGFOOD "Integrating sealed branches" |
-| `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
 | `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
 
 Drift. `make flow-guide-check` (a doc gate, ASD-V0-996) checks this section and the repository
@@ -1267,12 +1223,12 @@ script, and every code in the table above must occur in source. A refusal the pr
 therefore fails the gate instead of misleading a lane.
 
 New refusals (ASD-V0-997). The same check gates the refusal sites of `script/*.sh` (`refuse "CODE
-..."`) and `internal/dogfoodflow` (`.fail` and `.refuse`): a site must name its recovery (a `fix:`
+..."`) and, until decision 0594 retired it, `internal/dogfoodflow` (`.fail` and `.refuse`): a site
+must name its recovery (a `fix:`
 line, a valid form such as `want` or `usage:`, a `failRecoveries` default) or have its code in the
 table above. The pairs that did not on 2026-11-01 are listed in
 `tools/flow-guide-check/unhinted-refusals.tsv`, which only shrinks; a new unhinted code fails.
-`go run ./tools/flow-guide-check --audit` prints the counts (ASD-V0-998). A `dogfood check` FAIL
-without its own fix line now prints the code's default recovery.
+`go run ./tools/flow-guide-check --audit` prints the counts (ASD-V0-998).
 
 Lane notes (V1-3610). A lane starts with no seeded sibling hand-over by design: its inputs are the
 charter, the open-friction digest (section 12) and `~/lane-inputs`. The orchestrator names an

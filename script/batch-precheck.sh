@@ -113,8 +113,8 @@
 # outside the ledger, whose key is the tree, not the history.
 #
 # Pre-bind run (ASD-V0-837, V1-3550): BATCH_PRECHECK_SKIP_DRIFT=1 leaves out every batch-drift
-# step and writes no receipt, since not every step ran. dogfood-closeout uses it for its precheck
-# before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
+# step and writes no receipt, since not every step ran. The retired dogfood-closeout used it for its
+# precheck before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
 # as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
 # sealed head runs them, once per closeout.
 # ICL-V0-020 (V1-1629): the pre-bind run still runs the @prebind drift entries, which read Go
@@ -136,8 +136,8 @@
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks. The doc-gates
-# CIN-V0-2304 trusted batch-check step is CI-only (ASD-V0-2472); its local twin is
-# `make dogfood-batch-check`.
+# CIN-V0-2304 trusted batch-check step is CI-only (ASD-V0-2472); its local twin, make
+# dogfood-batch-check, was retired by decision 0594.
 set -uo pipefail
 export LC_ALL=C
 
@@ -233,8 +233,8 @@ else
 fi
 
 # ASD-V0-2472 (V1-4525): the doc-gates step whose name carries `(CIN-V0-2304` is CI-only: it needs
-# the pull request's base and head, RUNNER_TEMP and a claude/batch-* head ref, and its local twin
-# is `make dogfood-batch-check` (DCW-V0-039). The sync check accepts that step only while its run
+# the pull request's base and head, RUNNER_TEMP and a claude/batch-* head ref; its local twin was
+# retired by decision 0594. The sync check accepts that step only while its run
 # body, each line trimmed, is exactly the text below. Any other body fails closed, and so do these
 # lines under another step name. Change the step and this copy in one commit.
 IFS= read -r -d '' CI_ONLY_BATCH_CHECK << 'EOF' || true
@@ -1478,8 +1478,8 @@ cleanup() {
 }
 
 
-# ASD-V0-943 (V1-3550): with BATCH_PRECHECK_SINCE_RECEIPT=1 (the sealed-head run of make
-# dogfood-closeout), a passing receipt for a clean HEAD ends the run, and one for a strict ancestor
+# ASD-V0-943 (V1-3550): with BATCH_PRECHECK_SINCE_RECEIPT=1 (once the sealed-head run of the
+# retired dogfood-closeout), a passing receipt for a clean HEAD ends the run, and one for a strict ancestor
 # R becomes the selection base (since_base): R passed every step, so only the steps R..HEAD can
 # reach run. The base-present rerun and the trailer ranges keep the base given, so a failure R would
 # now also show stays an introduced FAIL. Read before the receipt is removed below; any other state
@@ -1611,7 +1611,7 @@ sealed_names() {
   if ((bad)); then
     ((rm_untracked)) && printf 'sealed-cem-names: recover: rm each named untracked file\n'
     ((rm_tracked)) && printf 'sealed-cem-names: recover: git rm each named tracked file and commit\n'
-    printf 'sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=%s CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. (docs/DOGFOOD.md section 4)\n' "$1"
+    printf 'sealed-cem-names: recover: then recreate the change evidence for this branch against its base %s\n' "$1"
   fi
   return "$bad"
 }

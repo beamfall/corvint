@@ -188,7 +188,6 @@ grep -qx 'batch-cem-check' "$tmp/out" && fail "CI-only batch CEM step was derive
 fi
 if group 1d; then
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
-grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"' || fail "closeout lost its static checks or lane BASE"
 static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
@@ -277,7 +276,6 @@ if group 1c; then
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
 grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
 grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
-grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
 
 # Focused mode for spec-only changes avoids unrelated node/lifecycle fixture groups.
 [[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || finish
@@ -1627,7 +1625,7 @@ srun --base "$sbase"
 grep -q "^  | sealed-cem-names: .corvint/changes/$ghost.cem.json names $ghost, which is not a commit in HEAD's history" "$tmp/out" ||
   fail "refusal does not name the file: $(cat "$tmp/out")"
 grep -q "^  | sealed-cem-names: recover: git rm each named tracked file and commit$" "$tmp/out" &&
-  grep -q "^  | sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=$sbase " "$tmp/out" ||
+  grep -q "^  | sealed-cem-names: recover: then recreate the change evidence for this branch against its base $sbase$" "$tmp/out" ||
   fail "refusal does not name the reseal recovery: $(cat "$tmp/out")"
 grep -q 'rm each named untracked file' "$tmp/out" && fail "an untracked recovery for a committed seal: $(cat "$tmp/out")"
 grep -q "$sbase.cem.json names\|$inherited" "$tmp/out" && fail "a resolvable or base-held seal was refused: $(cat "$tmp/out")"
@@ -1852,13 +1850,6 @@ git clone -q --depth 1 "file://$trepo" "$srepo2" 2> /dev/null || fail "shallow c
 [[ $? == 2 ]] || fail "a shallow --base run did not exit 2: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REFUSE shallow-repository: .* fetch --unshallow origin' "$tmp/out" || fail "shallow refusal: $(cat "$tmp/out")"
 "$script/require-full-history.sh" probe "$trepo" || fail "a full clone was refused"
-# The dogfood range wrappers refuse the same clone before resolving their base.
-mkdir -p "$srepo2/script" && cp "$script/dogfood-change.sh" "$script/dogfood-check.sh" "$script/dogfood-bind-range.sh" "$script/dogfood-build-corvint.sh" "$srepo2/script/" ||
-  fail "copy dogfood wrappers"
-for w in dogfood-change dogfood-check dogfood-bind-range; do
-  "$srepo2/script/$w.sh" HEAD HEAD > "$tmp/out" 2>&1
-  [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
-done
 
 fi
 if group 13b; then
@@ -1969,9 +1960,6 @@ if group 15; then
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-# DWC-V0-746 (V1-4072): the sealed-head run is followed by the unwind on a refusal.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\') || { script/dogfood-closeout-unwind.sh ' ||
-  fail "dogfood-closeout-precheck does not select since the receipt or unwind a refusal (DCW-V0-923, DWC-V0-746)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"
@@ -2198,10 +2186,6 @@ fi
 if group 17; then
 # 17. ASD-V0-1990 (V1-4329): selection-baseline is deferred in both lane closeout passes,
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
-for target in dogfood-closeout dogfood-closeout-precheck; do
-  grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
-  grep -A8 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
-done
 baseline_deferred() {
   grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
     fail "lane deferral not named: $(cat "$tmp/out")"
@@ -2507,7 +2491,5 @@ lane_check || fail "unstaged lane diff refused"
 git -C "$lane_repo" add script
 lane_check || fail "staged lane diff refused"
 (cd "$lane_repo" && "$script/check-lane-script-tests.sh" missing-base) > "$tmp/out" 2>&1 && fail "invalid base admitted"
-grep -q 'check-lane-script-tests.sh' "$script/dogfood-check.sh" || fail "dogfood-check lost lane script preflight"
-grep -q 'script/dogfood-check.sh' "$script/dogfood-seal.sh" || fail "seal lost required check wrapper"
 fi
 finish

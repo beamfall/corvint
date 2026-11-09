@@ -135,12 +135,6 @@
       ]
     },
     {
-      "paths": "cmd/corvint-cem-candidate/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "cmd/corvint-corpus-republish/README.md",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -189,55 +183,7 @@
       ]
     },
     {
-      "paths": "conformance/dashboard-snapshot-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/dashboard-snapshot-v0/cases.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/dashboard-snapshot-v0/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/delta-v0/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "conformance/divergence-register.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/frontier-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/frontier-v0/manifest.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/frontier-v0/vectors/codec.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/frontier-v0/vectors/identity.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -513,24 +459,6 @@
       ]
     },
     {
-      "paths": "conformance/local-authority-v0/results/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/local-authority-v0/templates/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/lrf-v0/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "conformance/mcp-2026-07-28/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -538,54 +466,6 @@
     },
     {
       "paths": "conformance/mcp-test-validity-v0/cases.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/fixtures/cem-and-target-binding/case.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/fixtures/disposition-witnesses/case.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/fixtures/every-unknown-reason/case.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/fixtures/intent-scope-drift/case.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/fixtures/obligation-order-and-set/case.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/manifest.json",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "conformance/ocm-v0/vectors/structural.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -837,12 +717,6 @@
       ]
     },
     {
-      "paths": "internal/attest/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/betarung/admissions.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -861,12 +735,6 @@
       ]
     },
     {
-      "paths": "internal/cem/corpusbinding/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/cem/verify/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -874,12 +742,6 @@
     },
     {
       "paths": "internal/contextindex/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/criterionexperiment/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -898,12 +760,6 @@
     },
     {
       "paths": "internal/doccorpus/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/dogfoodflow/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -975,12 +831,6 @@
       ]
     },
     {
-      "paths": "internal/lrfrepo/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/mcp/cli/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -1018,18 +868,6 @@
     },
     {
       "paths": "internal/playwrightruns/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/postmergehost/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/postmergeworkflow/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -1168,12 +1006,6 @@
     },
     {
       "paths": "internal/testvaliditydoc/externalorigins/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/wp3codec/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -1347,18 +1179,6 @@
       ]
     },
     {
-      "paths": "tools/cem-trial/README.md",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/cem-trial/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "tools/ci-forward-row/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
@@ -1426,12 +1246,6 @@
     },
     {
       "paths": "tools/heading-nav-bench/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "tools/local-authority/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]

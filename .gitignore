@@ -61,11 +61,9 @@ node_modules/
 /beamfall-shadow
 /capabilities-check
 /flow-guide-check
-/cem-citation-baseline
 /cem-release-suites
 /cem-stable-regen
 /cem-structural-closure
-/cem-trial
 /ci-flake-report
 /ci-reuse-plan
 /ci-shard-costs
@@ -75,13 +73,10 @@ node_modules/
 /cw-trial
 /docs-blinded-task
 /docs-ci-plan
-/dogfood-guard-hunks
-/dogfood-inherit-citations
 /gate-affected-select
 /gate-ledger
 /gotest-evidence
 /heading-nav-bench
-/local-authority
 /native-hook-observer
 /paired-trial
 /pi-tui-fixture

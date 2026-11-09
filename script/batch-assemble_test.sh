@@ -76,7 +76,6 @@ grep -q "^batch-assemble: NEXT restore: .* BASE=$head (DCW-V0-073)$" "$tmp/out" 
 grep -q "^batch-assemble: NEXT verify: build and run the affected selection at $head (corvint affected --base $base); " "$tmp/out" ||
   fail 'NEXT verify line'
 grep -q '^batch-assemble: NEXT rebind lane-d: ' "$tmp/out" || fail 'NEXT rebind line for lane-d'
-grep -q "^batch-assemble: NEXT check: make dogfood-batch-check BASE=$base$" "$tmp/out" || fail 'NEXT check line'
 [[ $(grep -c '^batch-assemble: ' "$manifest") == $(grep -c '^batch-assemble: [A-Z][A-Z]* ' "$tmp/out" | tr -d ' ') ]] &&
   grep -q "^batch-assemble: DONE head=$head " "$manifest" || fail 'the manifest must hold every BASE/MERGE/SKIP/DONE/NEXT line'
 [[ ! -e $tmp/driver-ran ]] || fail 'the configured merge driver ran'

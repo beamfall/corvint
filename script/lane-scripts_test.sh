@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Tests for the lane procedure scripts (docs/LANE-ORCHESTRATION.md): heavy.sh (ASD-V0-014, its
 # remote offload ASD-V0-028),
-# the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
+# lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831, ASD-V0-571), lane-binary-check.sh (ASD-V0-755..757),
 # requirement-ids-free.sh (ASD-V0-960),
-# heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
-# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
+# heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833),
+# lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
 # lane-dispatch.sh (ASD-V0-065 to ASD-V0-067), lane-stage-inputs.sh (ASD-V0-742),
 # tasks-carry-projection.sh (ASD-V0-815). No Go build runs. The Python operator tool
 # lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
@@ -32,9 +32,6 @@ export LC_ALL=C
 # (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
 # point them at the caller's repository and its remote instead of the fixtures.
 unset $(git rev-parse --local-env-vars)
-# A closeout exports its entry to nested make targets. Fixtures choose their own entry and
-# preflight mode; inheriting the closeout entry would incorrectly require OUTCOME in inputs-check.
-unset DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_PREFLIGHT
 
 script=$(cd "$(dirname "$0")" && pwd)
 # A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
@@ -616,8 +613,7 @@ HEAVY_NICE=20 "$heavy" true > "$tmp/out" 2> "$tmp/err"
 makefile="$script/../Makefile"
 grep -qx 'HEAVY_NICE ?= 10' "$makefile" || fail "Makefile HEAVY_NICE default is not 10"
 grep -q '^HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),' "$makefile" || fail "Makefile HEAVY_NICE=0 does not opt out"
-for recipe in 'GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) ' '	@$(HEAVY_NICE_PREFIX) env $(GATE_LEDGER) run $* ' \
-  '$(HEAVY_NICE_PREFIX) script/dogfood-change.sh ' '$(HEAVY_NICE_PREFIX) script/dogfood-check.sh '; do
+for recipe in 'GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) ' '	@$(HEAVY_NICE_PREFIX) env $(GATE_LEDGER) run $* '; do
   grep -qF -- "$recipe" "$makefile" || fail "Makefile heavy recipe lacks the nice prefix: $recipe"
 done
 ok
@@ -1339,8 +1335,7 @@ if selected workflow 21; then
 unset HEAVY_LOCK_DIR
 
 # ASD-V0-043 (V1-2986): batch-review-packet.sh prints the reviewed revision, the paths changed by
-# more than one first-parent merge of BASE..HEAD, and corvint impact and dogfood batch-check for the
-# range, each bounded with its exit status; a timeout or missing corvint is named, HEAD must be the
+# more than one first-parent merge of BASE..HEAD, and corvint impact for the range, bounded with its exit status; a timeout or missing corvint is named, HEAD must be the
 # checkout, and the checkout, index and refs are unchanged. corvint is a stub.
 rp=$tmp/review
 mkdir -p "$rp/bin"
@@ -1350,7 +1345,6 @@ cat > "$rp/bin/corvint" << 'CV'
 [[ ${STUB_CORVINT-} == hang ]] && exec sleep 30
 printf 'args: %s\n' "$*"
 [[ " $* " == *" impact "* ]] && printf 'impact line %s\n' 1 2 3 4
-[[ " $* " == *" batch-check "* ]] && { echo 'obligation: unresolved'; exit 3; }
 exit 0
 CV
 chmod +x "$rp/bin/corvint"
@@ -1375,14 +1369,12 @@ m=$(rg rev-list --first-parent --merges "$rbase..$rhead" | cut -c1-12 | tr '\n' 
 [[ $(sed -n '/^## Lane overlap/,/^$/p' <<< "$out" | sed 1d) == "shared.txt merges=2 ${m% }" ]] || fail "packet overlap: $out"
 [[ $out == *"## corvint impact --base $rbase"$'\n'"args: --root "*" impact --base $rbase"$'\n''impact line 1'* ]] &&
   [[ $out == *$'impact line 4\nexit=0\n'* ]] || fail "packet impact section: $out"
-[[ $out == *"args: --root "*" dogfood batch-check --verifier $rp/bin/corvint $rbase"$'\nobligation: unresolved\nexit=3' ]] ||
-  fail "packet batch-check section: $out"
 out=$(BATCH_REVIEW_LINES=2 packet "$rbase" HEAD)
 [[ $out == *$'impact line 1\n... 3 more lines elided (BATCH_REVIEW_LINES=2)\nexit=0'* ]] || fail "packet bound: $out"
 out=$(STUB_CORVINT=hang BATCH_REVIEW_TIMEOUT=1 packet "$rbase")
-[[ $(grep -c '^exit=142 NOT_PRODUCED timeout after 1s' <<< "$out") == 2 ]] || fail "packet timeout: $out"
+[[ $(grep -c '^exit=142 NOT_PRODUCED timeout after 1s' <<< "$out") == 1 ]] || fail "packet timeout: $out"
 out=$(cd "$rp/repo" && CORVINT_BIN=no-such-corvint-stub "$script/batch-review-packet.sh" "$rbase" 2>&1)
-[[ $out == *'corvint=NOT_PRODUCED'* && $(grep -c '^NOT_PRODUCED corvint-unavailable' <<< "$out") == 2 ]] || fail "packet without corvint: $out"
+[[ $out == *'corvint=NOT_PRODUCED'* && $(grep -c '^NOT_PRODUCED corvint-unavailable' <<< "$out") == 1 ]] || fail "packet without corvint: $out"
 out=$(packet "$rbase" lane-a)
 [[ $? == 2 && $out == *'REFUSE head-not-checked-out'* ]] || fail "packet accepted a HEAD other than the checkout: $out"
 out=$(rg checkout -q lane-b; packet "$(rg rev-parse lane-a)"; rg checkout -q main)
@@ -1390,137 +1382,6 @@ out=$(rg checkout -q lane-b; packet "$(rg rev-parse lane-a)"; rg checkout -q mai
 out=$(BATCH_REVIEW_LINES=0 packet "$rbase")
 [[ $? == 2 && $out == *'REFUSE invalid-lines'* ]] || fail "packet accepted BATCH_REVIEW_LINES=0: $out"
 [[ $(rstate) == "$before" ]] || fail "batch-review-packet.sh changed the checkout, index or refs"
-ok
-fi
-if selected workflow 22; then
-
-# ASD-V0-015: every missing input is named at once, before any build.
-# Unset DOGFOOD_FINISH_ENTRY: `make dogfood-closeout` exports it, and batch-precheck runs this suite under it.
-finish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE="$1" "$script/dogfood-finish.sh" "${@:2}" 2>&1); }
-out=$(finish '' '' '')
-[[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
-out=$(finish 1 '' '' '' '' '')
-[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "lane finish refusal: $out"
-# DCW-V0-848 (V1-3836): the pre-flight binds nothing, so LANE=1 inputs-check needs no OUTCOME.
-out=$(DOGFOOD_FINISH_PREFLIGHT=1 finish 1 '' '' '' '' '')
-[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY'$'\n'* ]] || fail "inputs-check required OUTCOME: $out"
-# The dogfood-closeout entry's pre-flight still requires OUTCOME, since its bind follows.
-out=$(cd "$tmp" && env -u CORVINT_BIN DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_ENTRY=dogfood-closeout DOGFOOD_FINISH_LANE=1 "$script/dogfood-finish.sh" '' '' '' '' '' 2>&1)
-[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "closeout pre-flight dropped OUTCOME: $out"
-# ASD-V0-903: a plan needs a row to count as supplied.
-printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
-out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
-[[ $out == *'REFUSE missing-inputs BASE:not-full-sha INTENTS:unreadable VERIFY:unreadable OUTCOME:invalid'* ]] || fail "finish unusable inputs: $out"
-# ASD-V0-120 (V1-3765): a short SHA that resolves is named with its full SHA and the retry command.
-full=$(git -C "$script/.." rev-parse HEAD) && short=${full:0:12}
-out=$(finish 1 "$short" plan.tsv plan.tsv plan.tsv passed)
-[[ $out == *"REFUSE missing-inputs BASE:not-full-sha"* && $out == *"fix: BASE $short resolves to $full; rerun with BASE=$full"* ]] ||
-  fail "finish refusal for a short SHA names no full SHA: $out"
-out=$(finish 1 zzzzzzz plan.tsv plan.tsv plan.tsv passed)
-[[ $out == *'fix: BASE zzzzzzz names no unique commit; resolve one with git rev-parse --verify'* ]] ||
-  fail "finish refusal for an unresolvable BASE names no rev-parse hint: $out"
-: > "$tmp/locked.txt" && chmod 000 "$tmp/locked.txt"
-out=$(finish 1 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa plan.tsv locked.txt locked.txt passed)
-chmod 600 "$tmp/locked.txt"
-[[ $out == *'REFUSE missing-inputs INTENTS:unreadable VERIFY:unreadable'$'\n''fix: '* ]] || fail "finish accepted a file it cannot read: $out"
-[[ $out != *propose-citations* ]] || fail "finish named propose-citations although CITATIONS was usable: $out"
-# ASD-V0-045 (V1-3119): a missing plan names how to draft and pre-check it, and that nothing ran.
-sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
-[[ $out == *'REFUSE missing-inputs CITATIONS'$'\n'* && $out == *"corvint dogfood propose-citations $sha > plan.tsv"* &&
-  $out == *"make dogfood-inputs-check BASE=$sha CITATIONS=plan.tsv"* && $out == *'nothing was built, prepared or bound'* ]] ||
-  fail "finish refusal for a missing plan names no recovery: $out"
-# ASD-V0-961 (V1-3394): the same refusal names the record-only recipe and its DOGFOOD.md section.
-[[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
-  fail "finish refusal for a missing plan names no record-only recipe: $out"
-grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
-# ASD-V0-733 (NEW-B1): a BASE..HEAD that touches a non-record path (a decision included) gets the
-# spec or #no-intent-declared line instead of the record-only recipe; a record range keeps the
-# recipe; the recipe states its precondition. The script reads its own checkout, so a fixture
-# repository holds a copy of it.
-rr=$tmp/record-repo
-rrg() { git -C "$rr" -c user.name=t -c user.email=t@example.invalid "$@"; }
-rfinish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE=1 "$rr/script/dogfood-finish.sh" "$1" '' plan.tsv plan.tsv passed 2>&1); }
-mkdir -p "$rr/script" "$rr/docs/build-log" "$rr/docs/decisions" "$rr/.corvint/changes" && cp "$script/dogfood-finish.sh" "$rr/script/" &&
-  git init -q -b main "$rr" && rrg add script && rrg commit -qm base || fail "record fixture init"
-rbase=$(rrg rev-parse HEAD)
-printf 'entry
-' > "$rr/docs/build-log/2026-01-01-x.md" && printf '{}
-' > "$rr/.corvint/changes/x.cem.json" &&
-  rrg add docs .corvint && rrg commit -qm record || fail "record fixture commit"
-out=$(rfinish "$rbase")
-[[ $out == *'fix: a record-only change'* && $out != *'not record-only'* ]] || fail "finish refusal for a record range dropped the record-only recipe: $out"
-printf 'decision
-' > "$rr/docs/decisions/0001-x.md" && rrg add docs && rrg commit -qm decision || fail "decision fixture commit"
-out=$(rfinish "$rbase")
-[[ $out == *'fix: this change is not record-only (it touches docs/decisions/0001-x.md), so the INTENTS file names the spec with a "## Requirements" heading'*'#no-intent-declared'* &&
-  $out != *'fix: a record-only change'* ]] || fail "finish refusal named the record-only recipe for a change that is not a record: $out"
-grep -q '^out in one try. The recipe applies only when `git diff --name-only "$BASE" HEAD` lists nothing but$' "$script/../docs/DOGFOOD.md" ||
-  fail "docs/DOGFOOD.md record-only recipe states no precondition"
-ok
-fi
-if selected workflow 23; then
-
-# DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
-# regenerating and committing clears it. The fixture has no build helper, so a passing check
-# stops at the missing dogfood-build-corvint.sh instead.
-fx=$tmp/specfix
-mkdir -p "$fx/script" "$fx/docs/specs"
-cp "$script/dogfood-finish.sh" "$script/gen-spec-requirements.sh" "$fx/script/"
-git -C "$fx" init -q -b main
-printf '# One spec\n\nIntent status: proposed\nDelivery status: not-started\n\n## Agent digest\n- Claim: One does the first thing.\n\n- ONE-V0-001: The first clause.\n' > "$fx/docs/specs/one.md"
-printf '[]\n' > "$fx/docs/specs/INDEX.json"
-printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n' > "$fx/docs/specs/README.md"
-fxgit() { git -C "$fx" -c user.name=t -c user.email=t@example.invalid "$@"; }
-fxregen() { (cd "$fx" && git add -A && d=$(mktemp -d "$TMPDIR/specfix.XXXXXX") && script/gen-spec-requirements.sh --all "$d" &&
-  cp "$d/REQUIREMENTS.tsv" "$d/INDEX.json" "$d/README.md" docs/specs/ && /bin/rm -rf "$d" && git add -A); }
-fxregen || fail "spec fixture generation"
-fxgit commit -qm base
-fxbase=$(fxgit rev-parse HEAD)
-printf -- '- ONE-V0-002: The second clause.\n' >> "$fx/docs/specs/one.md"
-fxgit commit -qam 'spec edit only'
-printf '1\tunknown\tinsufficient-evidence\tx\n' > "$fx/plan.tsv"
-out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
-[[ $? == 2 && $out == *'REFUSE spec-requirements-stale docs/specs/REQUIREMENTS.tsv'*'fix: '*'make spec-requirements'* ]] ||
-  fail "finish accepted a stale requirements index: $out"
-fxregen || fail "spec fixture regeneration"
-fxgit commit -qm regenerate
-out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
-[[ $out != *spec-requirements-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused regenerated indexes: $out"
-ok
-fi
-if selected workflow 24; then
-
-# IDX-SNAP-V0-891 (V1-2976): an analyzer input change whose golden output drifted from its pins is
-# refused before any build, naming the bump; with the output matching, finish goes on (and stops at
-# the fixture's missing build helper).
-ax=$tmp/analyzerfix
-mkdir -p "$ax/script" "$ax/internal/contextindex"
-cp "$script/dogfood-finish.sh" "$script/analyzer-schema.sh" "$script/analyzer-inputs.sh" "$ax/script/"
-printf '#!/bin/sh\n' > "$ax/script/repin-use-case-receipts.sh" && chmod +x "$ax/script/repin-use-case-receipts.sh"
-printf 'module example.test/a\n' > "$ax/go.mod"
-printf 'package contextindex\n\nconst analyzerSchemaID = "corvint-analyzer/3"\n' > "$ax/internal/contextindex/analyzer_schema.go"
-printf 'package contextindex\n\nfunc One() {}\n' > "$ax/internal/contextindex/receipt.go"
-printf 'package contextindex\n\nfunc TestAnalyzerSchemaInputs() {\n\tfor _, directory := range []string{"contextindex"} {\n\t}\n}\n\nfunc TestAnalyzerSchemaOutput() {\n\tconst auditedSchema = "corvint-analyzer/3"\n\tconst auditedOutputSHA256 = "%064d"\n\tconst auditedShardSHA256 = "%064d"\n}\n' 0 0 > "$ax/internal/contextindex/analyzer_schema_test.go"
-git -C "$ax" init -q -b main
-axgit() { git -C "$ax" -c user.name=t -c user.email=t@example.invalid "$@"; }
-axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
-axbase=$(axgit rev-parse HEAD)
-printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
-axgit commit -qam 'input edit'
-axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
-# ASD-V0-2130 (V1-3776): show the earlier empty-plan refusal, then give the analyzer
-# fixture a real row so its drift check cannot pass by stopping at ASD-V0-903 instead.
-: > "$ax/plan.tsv"
-out=$(axfinish 1)
-[[ $? == 2 && $out == *'REFUSE missing-inputs CITATIONS:empty'* && $out != *'REFUSE analyzer-schema-stale'* ]] ||
-  fail "finish empty-plan control did not stop before the analyzer check: $out"
-printf '1\tunknown\tinsufficient-evidence\tanalyzer fixture has no historical citation\n' > "$ax/plan.tsv"
-out=$(axfinish 1)
-[[ $? == 2 && $out != *CITATIONS:empty* && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
-  fail "finish did not refuse a drifted analyzer output before the bind: $out"
-out=$(axfinish 0)
-[[ $out != *analyzer-schema-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused a matching analyzer output: $out"
 ok
 fi
 if selected workflow 25; then
@@ -1943,17 +1804,16 @@ grep -Eq '^heavy.sh: slot 1/1 after [1-9]' "$pol/err" || fail "a foreign HEAVY_H
 ok
 fi
 if selected admission 29; then
-# ASD-V0-930: the Makefile admits build, tasks-build, doc-gates, batch-precheck and dogfood-finish
+# ASD-V0-930: the Makefile admits build, tasks-build, doc-gates and batch-precheck
 # through HEAVY_ADMIT, script/heavy.sh by default and empty under CI. Both doc-gates lines carry it: the
 # script/doc-gates-summary.sh make and the conformance/use-cases-v0 run.
 # The probe rule is read from stdin, not --eval, which GNU Make 3.81 (macOS) lacks.
 adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HEAVY_ADMIT)"\n' |
   env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory -f Makefile -f - heavy-admit-show); }
 [[ $(adm) == '[script/heavy.sh --admit-only]' && $(adm CI=true) == '[]' && $(adm HEAVY_ADMIT=) == '[]' ]] || fail "HEAVY_ADMIT default: $(adm) $(adm CI=true)"
-(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -Eq '^(BATCH_PRECHECK_LANE_CLOSEOUT=0 )?WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
-  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] &&
   grep -Eq '^script/doc-gates-summary\.sh echo ([^ ]*/)?make --no-print-directory --keep-going -j[1-9][0-9]* doc-gate/' "$tmp/admit.out" &&
   grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
@@ -2235,51 +2095,6 @@ out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY
 # Its first line pins the reviewed checkout (ASD-V0-1020); the review output follows unchanged.
 [[ $out == 'codex-review: reviewed-head='*$'\n''reviewed:exec -m gpt-6.1-sol -s read-only review the diff; run go test ./internal/x' ]] && grep -q '^heavy.sh: slot 1/' "$to/err" ||
   fail "codex-review through heavy.sh misread its prompt: $out $(cat "$to/err")"
-# ICL-V0-030 (V1-1629): a missing input is refused before admission, so a held slot or host load
-# cannot delay it; the admission wrapper is never invoked and the refusal names every missing input.
-# The pre-flight alone does not require OUTCOME (DCW-V0-848). MAKEFLAGS is cleared so a calling
-# make's command-line BASE (make batch-precheck BASE=...) does not reach the fixture, and
-# DOGFOOD_FINISH_ENTRY is unset because `make dogfood-closeout` exports it and batch-precheck runs
-# this suite under it, where the pre-flight rightly requires OUTCOME as well (DCW-V0-848).
-printf '#!/bin/sh\ntouch "%s/admitted"\n' "$to" > "$to/bin/admit-never" && chmod +x "$to/bin/admit-never" || fail "admit-never stub"
-for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BASE CITATIONS INTENTS VERIFY OUTCOME"; do
-  IFS='|' read -r target want <<< "$c"
-  /bin/rm -f "$to/admitted"
-  (cd "$script/.." && env -u BASE -u CITATIONS -u INTENTS -u VERIFY -u OUTCOME -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY make -s --no-print-directory "$target" LANE=1 HEAVY_ADMIT="$to/bin/admit-never" 2> "$to/early.err")
-  rc=$?
-  ((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q "REFUSE missing-inputs $want\$" "$to/early.err" &&
-    grep -q 'nothing was built, prepared or bound' "$to/early.err" ||
-    fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
-done
-printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
-# Every admitted inputs-check below passes valid INTENTS, VERIFY and OUTCOME, so a caller's LANE=1
-# (a lane closeout, which requires them, ASD-V0-015) cannot refuse the fixture as missing-inputs.
-printf '#no-intent-declared\n' > "$to/intents.txt" && printf 'go version\n' > "$to/verify.txt" || fail "inputs"
-admit_inputs=(INTENTS="$to/intents.txt" VERIFY="$to/verify.txt" OUTCOME=passed)
-# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too, and
-# ASD-V0-732 (NEW-B6): on the light pool, so with the only heavy slot held it is admitted at once
-# (a stub admission wrapper stands in for the preflight build); HEAVY_CLASS=heavy queues it as before.
-printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
-for cls in light heavy; do
-  extra=()
-  [[ $cls == heavy ]] && extra=(HEAVY_CLASS=heavy)
-  (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
-  holder=$!
-  sleep 0.5
-  s0=$SECONDS
-  (cd "$script/.." && env -u HEAVY_CLASS DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check \
-    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/admit.err")
-  rc=$?
-  t=$((SECONDS - s0))
-  wait "$holder"
-  if [[ $cls == light ]]; then
-    ((rc == 0 && t < 2)) && grep -Eq '^heavy.sh: light slot 1/2 after 0s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
-      fail "dogfood-inputs-check was not admitted on the light pool past the occupied heavy slot (rc=$rc, ${t}s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
-  else
-    ((rc == 0 && t >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" ||
-      fail "HEAVY_CLASS=heavy make dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, ${t}s): $(cat "$to/admit.err")"
-  fi
-done
 # ASD-V0-731 (NEW-B6): HEAVY_CLASS=light admits on its own pool at once while every heavy slot is
 # held, queues only behind its own pool, passes the load gate, logs class=light, runs under a hard
 # cap (exit 124, cause=light-cap, one rerun-as-heavy line), nests on an enclosing heavy slot, is
@@ -2439,11 +2254,11 @@ for c in 'HEAVY_CLASS=medium|invalid-class' 'HEAVY_LIGHT_SLOTS=0|invalid-light-s
   out=$(env HEAVY_CLASS=light "$setting" bash -c 'cd "$1" && env PATH="$1/bin:$PATH" HEAVY_LOCK_DIR="$1/slots" HEAVY_SLOTS=1 "$2" true' _ "$to" "$heavy" 2> "$to/err")
   [[ $? == 2 && $out == "heavy.sh: REFUSED $code (exit 2)" ]] || fail "heavy.sh accepted $setting: $out $(cat "$to/err")"
 done
-# ASD-V0-732: the light doc gates and dogfood-inputs-check name the light class, not under CI, and a
+# ASD-V0-732: the light doc gates name the light class, not under CI, and a
 # caller's HEAVY_CLASS=heavy wins.
-lmk() { (cd "$script/.." && env -u CI -u HEAVY_CLASS -u HEAVY_ADMIT "$@" make -n --no-print-directory shell-foreign-callers-check dogfood-inputs-check 2> /dev/null); }
-[[ $(lmk | grep -c 'HEAVY_CLASS=light script/heavy.sh') == 2 && $(lmk CI=true | grep -c 'HEAVY_CLASS=') == 0 &&
-  $(lmk HEAVY_CLASS=heavy | grep -c 'HEAVY_CLASS=heavy script/heavy.sh') == 2 ]] ||
+lmk() { (cd "$script/.." && env -u CI -u HEAVY_CLASS -u HEAVY_ADMIT "$@" make -n --no-print-directory shell-foreign-callers-check 2> /dev/null); }
+[[ $(lmk | grep -c 'HEAVY_CLASS=light script/heavy.sh') == 1 && $(lmk CI=true | grep -c 'HEAVY_CLASS=') == 0 &&
+  $(lmk HEAVY_CLASS=heavy | grep -c 'HEAVY_CLASS=heavy script/heavy.sh') == 1 ]] ||
   fail "the light Makefile targets do not admit through the light class: $(lmk)"
 MAKEFLAGS='n --no-print-directory' tv --admit-only true && ! grep -q 'slot' "$to/err" || fail "a make dry run took a slot: $(cat "$to/err")"
 MAKEFLAGS=' --no-print-directory' tv --admit-only true && grep -q 'slot 1/1' "$to/err" || fail "a long make flag read as a dry run"
@@ -2455,96 +2270,6 @@ grep -q "^# the holder's apostrophe$" "$to/heavy-quote.sh" && bash -n "$to/heavy
   HEAVY_LOCK_DIR=$to/slots bash "$to/heavy-quote.sh" true 2> /dev/null || fail "an apostrophe in the slot_perl body breaks heavy.sh"
 bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" "$script"/lane-*.sh)
 [[ -z $bad ]] || fail "unguarded array expansion (bash 3.2 set -u aborts on an empty one; use \${a[@]+\"\${a[@]}\"}): $bad"
-ok
-fi
-if selected admission 33; then
-# DCW-V0-731 (NEW-B2): with no cached tree build (an empty bin cache), the inputs-only phase runs the
-# static pre-check with an installed corvint that lists --static: its refusal stops make before any
-# admission and names the escape; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
-# a SKIP and the admitted run goes on.
-mkdir -p "$to/static/bin" "$to/static/cache" || fail "static fixture"
-printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/bin/corvint" &&
-  chmod +x "$to/static/bin/corvint" || fail "static corvint stub"
-static_make() {
-  /bin/rm -f "$to/admitted"
-  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
-    CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
-    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/static/err")
-}
-static_make
-rc=$?
-((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
-  grep -q "ran the installed $to/static/bin/corvint, not this tree's build; .*DOGFOOD_STATIC_PRECHECK=0" "$to/static/err" &&
-  grep -q -- '--entry dogfood-inputs-check --static yes$' "$to/static/args" ||
-  fail "the static pre-check did not refuse before admission (rc=$rc): $(cat "$to/static/err" "$to/static/args" 2> /dev/null)"
-static_make DOGFOOD_STATIC_PRECHECK=0
-rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
-  fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
-# V1-4406, V1-4466: a stale installed binary's self-binary-stale refusal is a SKIP, not a refusal.
-printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint: built at old; or unset CORVINT_BIN to use the current-tree build" >&2\nexit 2\n' > "$to/static/bin/corvint"
-static_make
-rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP stale-binary .*: dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q '^dogfood-inputs-check: REFUSE' "$to/static/err" ||
-  fail "a stale installed corvint's self-binary-stale refusal was not a SKIP (rc=$rc): $(cat "$to/static/err")"
-# CORVINT_BIN, given as a bare name on PATH, runs instead of the installed binary.
-mkdir -p "$to/static/override" || fail "override fixture"
-printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/override-args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/override/corvint-tree" &&
-  chmod +x "$to/static/override/corvint-tree" || fail "override stub"
-/bin/rm -f "$to/static/override-args"
-static_make PATH="$to/static/override:$to/static/bin:$PATH" CORVINT_BIN=corvint-tree
-rc=$?
-((rc == 2)) && [[ ! -e $to/admitted ]] && [[ -e $to/static/override-args ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
-  ! grep -q 'ran the installed' "$to/static/err" ||
-  fail "CORVINT_BIN did not run the static pre-check (rc=$rc): $(cat "$to/static/err")"
-# A stale CORVINT_BIN stays a refusal: the admitted run would use that same binary.
-printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\necho "dogfood-inputs-check: REFUSE self-binary-stale corvint-tree: built at old" >&2\nexit 2\n' > "$to/static/override/corvint-tree" || fail "stale override stub"
-static_make PATH="$to/static/override:$to/static/bin:$PATH" CORVINT_BIN=corvint-tree
-rc=$?
-((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE self-binary-stale' "$to/static/err" && ! grep -q 'SKIP stale-binary' "$to/static/err" ||
-  fail "a stale CORVINT_BIN was skipped instead of refused (rc=$rc): $(cat "$to/static/err")"
-# An unresolvable CORVINT_BIN replaces the installed fallback and is named in the SKIP.
-static_make CORVINT_BIN=no-such-corvint-bin
-rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'SKIP no-static-binary .*CORVINT_BIN=no-such-corvint-bin' "$to/static/err" ||
-  fail "an unresolvable CORVINT_BIN did not SKIP (rc=$rc): $(cat "$to/static/err")"
-# DCW-V0-2140 (V1-4406): a set CORVINT_BIN runs the static pre-check instead of the corvint on PATH,
-# and its refusal carries no installed-binary hint.
-printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/cbin-args"\necho "dogfood-inputs-check: REFUSE citation-plan-uniform" >&2\nexit 2\n' "$to" > "$to/static/cbin" &&
-  chmod +x "$to/static/cbin" || fail "static CORVINT_BIN stub"
-/bin/rm -f "$to/static/args"
-static_make CORVINT_BIN="$to/static/cbin"
-rc=$?
-((rc == 2)) && [[ ! -e $to/admitted && ! -e $to/static/args ]] && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" &&
-  ! grep -q 'ran the installed' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
-  fail "the static pre-check did not prefer CORVINT_BIN (rc=$rc): $(cat "$to/static/err")"
-# Review fix: a relative CORVINT_BIN keeps naming the caller's file after the check moves to the root.
-/bin/rm -f "$to/static/cbin-args"
-(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=./cbin \
-  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
-  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
-rc=$?
-((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
-  fail "a relative CORVINT_BIN did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
-# Review fix: so does a PATH-only name found through a relative PATH entry.
-mkdir -p "$to/static/rel" && cp "$to/static/cbin" "$to/static/rel/cbin-rel" || fail "relative PATH fixture"
-/bin/rm -f "$to/static/cbin-args"
-(cd "$to/static" && env -u DOGFOOD_STATIC_PRECHECK PATH="rel:$PATH" DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 CORVINT_BIN=cbin-rel \
-  CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$script/dogfood-finish.sh" "$(git -C "$script/.." rev-parse HEAD)" "$to/plan.tsv" \
-  "$to/intents.txt" "$to/verify.txt" passed 2> "$to/static/err")
-rc=$?
-((rc == 2)) && grep -q '^dogfood-inputs-check: REFUSE citation-plan-uniform$' "$to/static/err" && grep -q -- '--static yes$' "$to/static/cbin-args" ||
-  fail "a PATH-only CORVINT_BIN on a relative PATH entry did not run from the repository root (rc=$rc): $(cat "$to/static/err")"
-printf '#!/bin/sh\nexit 0\n' > "$to/static/cbin"
-static_make CORVINT_BIN="$to/static/cbin"
-rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && grep -q "static pre-check SKIP no-static-binary (neither a cached tree build nor CORVINT_BIN=$to/static/cbin lists --static" "$to/static/err" ||
-  fail "a CORVINT_BIN without --static fell back to PATH or was not a SKIP (rc=$rc): $(cat "$to/static/err")"
-printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
-static_make
-rc=$?
-((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP no-static-binary' "$to/static/err" ||
-  fail "a corvint without --static was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 ok
 fi
 if selected guard 34; then
@@ -2993,31 +2718,6 @@ if selected tools 43; then
 out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
 ok
 fi
-if selected tools 44; then
-
-# ASD-V0-086 (V1-3242): the dogfood wrapper fixtures share one copy step that follows the copied
-# scripts' source/run references, so a new helper a wrapper sources reaches every fixture unedited.
-fsrc=$tmp/fixture-src fdst=$tmp/fixture-dst
-mkdir -p "$fsrc/script" "$fdst"
-printf '#!/usr/bin/env bash\nsource "$repo/script/new-helper.sh" || exit 2\n# script/only-in-comment.sh\n' > "$fsrc/script/dogfood-wrap.sh"
-printf '#!/usr/bin/env bash\n"$repo/script/deep-helper.sh" "$@"\n' > "$fsrc/script/new-helper.sh"
-printf '#!/usr/bin/env bash\n# script/new-helper.sh is mentioned again; the copy is single\n' > "$fsrc/script/deep-helper.sh"
-# shellcheck source=script/dogfood-fixture-scripts.sh
-source "$script/dogfood-fixture-scripts.sh"
-dogfood_fixture_copy "$fsrc" "$fdst" dogfood-wrap.sh || fail "fixture copy refused a complete closure"
-[[ $(cd "$fdst" && /bin/ls | tr '\n' ' ') == 'deep-helper.sh dogfood-wrap.sh new-helper.sh ' ]] ||
-  fail "fixture copy did not follow the sourced helper: $(/bin/ls "$fdst" | tr '\n' ' ')"
-# The real wrappers: every fixture named by a wrapper gets the build helper it sources.
-real=$tmp/fixture-real
-mkdir -p "$real"
-dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dogfood-bind-range.sh ||
-  fail "fixture copy refused the real dogfood wrappers"
-[[ -f $real/dogfood-build-corvint.sh ]] || fail "the real wrapper closure lacks dogfood-build-corvint.sh"
-printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
-out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
-[[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
-ok
-fi
 if selected tools 45; then
 
 # ASD-V0-960 (V1-3472): requirement-ids-free reports each used ID with its first location and exits
@@ -3313,71 +3013,6 @@ attempts=$(cat "$lw"/race.* | sed -n 's/^RERUN run=99 attempt=\([0-9]\)\/3$/\1/p
 mkdir -p "$lw/state/pr-13.tmp"
 out=$(lwr --act 13); rc=$?
 [[ $rc == 2 && -z $out && ! -e $lw/s/calls ]] || fail "unrecorded count still acted: rc=$rc $out $(cat "$lw/err")"
-ok
-fi
-if selected tools 48; then
-
-# ASD-V0-990 (V1-3258): docs/DOGFOOD.md and the Makefile agree on the dogfood-inputs-check variable names. The
-# target reads CITATIONS, INTENTS, VERIFY and OUTCOME, and the Inputs section maps each
-# DOGFOOD_* name to them and shows the same make invocation.
-repo=$(cd "$script/.." && pwd)
-mk=$(sed -n '/^dogfood-inputs-check:/,/^$/p' "$repo/Makefile")
-for v in CITATIONS INTENTS VERIFY OUTCOME; do
-  [[ $mk == *"\$($v)"* ]] || fail "Makefile dogfood-inputs-check does not read \$($v)"
-  grep -q "\`$v=\` (\`DOGFOOD_" "$repo/docs/DOGFOOD.md" || fail "DOGFOOD.md does not map $v= to its DOGFOOD_ name"
-done
-grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed' "$repo/docs/DOGFOOD.md" ||
-  fail "DOGFOOD.md lost the dogfood-inputs-check invocation with the make variable names"
-ok
-fi
-if selected tools 49; then
-
-# DWC-V0-3725 (V1-4163): dogfood-inputs-check runs the use-case receipt check before the pre-flight,
-# so a stale receipt is named there rather than first at the seal. The check's own refusal of a
-# stale receipt is pinned by script/repin-use-case-receipts_test.sh.
-[[ $mk == *'script/repin-use-case-receipts.sh --check'*'stale use-case receipt'*'script/dogfood-finish.sh'* ]] ||
-  fail "Makefile dogfood-inputs-check does not refuse a stale use-case receipt before the pre-flight"
-ok
-
-# ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
-# ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN
-# names a binary whose --version fails, so each run refuses after the appends and before any build.
-mkdir -p "$tmp/dcr" && dcr=$(cd "$tmp/dcr" && pwd -P)
-mkdir -p "$dcr/repo/script" && cp "$script/dogfood-change.sh" "$script/dogfood-build-corvint.sh" "$script/dogfood-change-runs.sh" "$dcr/repo/script/" &&
-  printf '0.0.0\n' > "$dcr/repo/VERSION" && git init -q -b main "$dcr/repo" && git -C "$dcr/repo" add . &&
-  git -C "$dcr/repo" -c user.name=t -c user.email=t@example.invalid commit -qm dcr &&
-  git -C "$dcr/repo" worktree add -q -b lane-a "$dcr/a" && git -C "$dcr/repo" worktree add -q -b lane-b "$dcr/b" || fail "dogfood-change-runs fixture"
-dcr_base=$(git -C "$dcr/repo" rev-parse HEAD) dcr_log=$(git -C "$dcr/repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs-all.tsv
-dcr_run() { (cd "$1" && CORVINT_BIN=/bin/false script/dogfood-change.sh "$dcr_base" > /dev/null 2>&1); }
-dcr_run "$dcr/a"; dcr_run "$dcr/b"; dcr_run "$dcr/b"; dcr_run "$dcr/b"
-[[ $(wc -l < "$(git -C "$dcr/b" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") -eq 3 ]] || fail "dogfood-change-runs per-worktree log (ASD-V0-907) changed"
-git -C "$dcr/repo" worktree remove "$dcr/a" || fail "dogfood-change-runs worktree remove"
-out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2>&1)
-[[ $? == 0 && $out == $'run-count lane-a 1\nrun-count lane-b 3\n'"dogfood-change-runs: lanes=2 median=2 max=3 total=4 since=ALL log=$dcr_log" ]] ||
-  fail "dogfood-change-runs after worktree remove: $out"
-[[ $(cut -f2,4,5 "$dcr_log" | head -1) == "$dcr_base"$'\tlane-a\t'"$dcr/a" ]] || fail "dogfood-change-runs row columns: $(head -1 "$dcr_log")"
-# A detached run counts under its worktree; SINCE leaves out older rows; one lane is its own median.
-git -C "$dcr/b" checkout -q --detach && dcr_run "$dcr/b"
-out=$(cd "$dcr/b" && script/dogfood-change-runs.sh 2>&1)
-[[ $out == *"run-count $dcr/b 1"$'\n'*'lanes=3 median=1 max=3 total=5 '* ]] || fail "dogfood-change-runs detached lane: $out"
-printf '2000-01-01T00:00:00Z\tx\tx\told\t/old\n' >> "$dcr_log"
-out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
-[[ $out != *'run-count old '* && $out == *'lanes=3 '*'since=2001-01-01 '* ]] || fail "dogfood-change-runs SINCE: $out"
-out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2099-01-01T00:00:00Z 2>&1)
-[[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED max=0 total=0 since=2099-01-01T00:00:00Z '* ]] || fail "dogfood-change-runs empty window: $out"
-# A run in the primary checkout, whose git dir is the common dir, is counted once in the shared
-# ledger and keeps its own one-line per-worktree log (review: one file name would double it).
-dcr_run "$dcr/repo"
-[[ $(wc -l < "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") -eq 1 ]] ||
-  fail "dogfood-change-runs primary checkout per-worktree log: $(cat "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv")"
-out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
-[[ $out == *$'run-count main 1\n'* && $out == *'lanes=4 '*'total=6 '* ]] || fail "dogfood-change-runs primary checkout: $out"
-# No ledger yet reads NOT_OBSERVED with exit 0; a malformed SINCE exits 2 naming the input.
-git init -q "$dcr/none" || fail "dogfood-change-runs empty repository"
-out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
-[[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
-out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
-[[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
 ok
 fi
 if selected tools 50; then
@@ -4041,55 +3676,6 @@ for manifest_tmp in "$linked_git" "$common_git" "$np/git-link" "$np/common-link"
   m=$(sed -n 's/^heavy.sh: rerun with Corvint selection .* --dry-run --manifest \([^ ]*\) && .*/\1/p' "$np/err")
   [[ $m == /tmp/corvint-heavy-selection-*.json ]] || fail "heavy.sh suggested an unusable manifest for TMPDIR=$manifest_tmp: $m"
 done
-# DCW-V0-2142 (V1-4442): dogfood-retire-traces applies a stranded-only migrate-traces plan with its
-# own dry-run digest, refuses a plan that also rekeys legacy traces, and reports nothing stranded.
-rt=$tmp/retire-traces
-mkdir -p "$rt" || fail "retire fixture"
-digest=$(printf '%064d' 7)
-cat > "$rt/corvint" << STUB
-#!/bin/sh
-printf '%s\n' "\$*" >> "$rt/calls"
-case "\$1 \$2" in
-  'migrate-traces --dry-run') cat "$rt/plan.json" ;;
-  'migrate-traces --apply') [ -e "$rt/apply-fails" ] && exit 1; echo '{"ok":true}' ;;
-  *) exit 9 ;;
-esac
-STUB
-chmod +x "$rt/corvint" || fail "retire stub"
-retire() { /bin/rm -f "$rt/calls"; out=$(CORVINT_BIN=$rt/corvint "$script/dogfood-retire-traces.sh" "$@" 2>&1); rc=$?; }
-printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
-retire
-((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "nothing stranded: rc=$rc $out"
-printf '{"entries":[],"plan_digest":"%s","stranded_revisions":["%040d","%040d"]}\n' "$digest" 1 2 > "$rt/plan.json"
-retire
-((rc == 0)) && [[ $(grep -c '^dogfood-retire-traces: RETIRE stale trace ' <<< "$out") == 2 && $out == *"--plan-digest $digest (DCW-V0-2142"* &&
-  $(sed -n 2p "$rt/calls") == "migrate-traces --apply --plan-digest $digest" && $out == *'rerun the dogfood command you ran'* ]] || fail "stranded only: rc=$rc $out"
-touch "$rt/apply-fails"
-retire
-((rc == 2)) && [[ $out == *'REFUSE apply-failed'*'fix: rerun make dogfood-retire-traces'* && $out != *'RETIRE'* ]] || fail "failed apply: rc=$rc $out"
-/bin/rm -f "$rt/apply-fails"
-printf '{"entries":[{"x":1}],"plan_digest":"%s","stranded_revisions":["%040d"]}\n' "$digest" 1 > "$rt/plan.json"
-retire
-((rc == 2)) && [[ $out == *'REFUSE plan-rekeys-legacy-traces stranded=1 legacy=1'*"fix: inspect corvint migrate-traces --dry-run, then corvint migrate-traces --apply --plan-digest $digest"* &&
-  $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "legacy plan applied or not refused: rc=$rc $out"
-printf 'not json\n' > "$rt/plan.json"
-retire
-((rc == 2)) && [[ $out == *'REFUSE dry-run-unreadable'*'fix: '* ]] || fail "unreadable plan: rc=$rc $out"
-retire extra
-((rc == 2)) && [[ $out == *'REFUSE bad-arguments'*'usage: '* && ! -e $rt/calls ]] || fail "argument refusal: rc=$rc $out"
-# Review fix: a relative CORVINT_BIN, or a PATH-only name found through a relative PATH entry,
-# names the caller's file even though both invocations run from the repository root.
-printf '{"entries":[],"plan_digest":"%s","stranded_revisions":[]}\n' "$digest" > "$rt/plan.json"
-mkdir -p "$rt/rel" && cp "$rt/corvint" "$rt/rel/corvint-rel" || fail "relative retire fixture"
-/bin/rm -f "$rt/calls"
-out=$(cd "$rt" && CORVINT_BIN=./corvint "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
-((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "relative CORVINT_BIN: rc=$rc $out"
-/bin/rm -f "$rt/calls"
-out=$(cd "$rt" && PATH="rel:$PATH" CORVINT_BIN=corvint-rel "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
-((rc == 0)) && [[ $out == 'dogfood-retire-traces: NOTHING stranded'* && $(cat "$rt/calls") == 'migrate-traces --dry-run' ]] || fail "PATH-only CORVINT_BIN on a relative PATH entry: rc=$rc $out"
-/bin/rm -f "$rt/calls"
-out=$(cd "$rt" && CORVINT_BIN=no-such-corvint-bin "$script/dogfood-retire-traces.sh" 2>&1); rc=$?
-((rc == 2)) && [[ $out == *'REFUSE corvint-bin-not-found'*'fix: '* && ! -e $rt/calls ]] || fail "unresolvable CORVINT_BIN: rc=$rc $out"
 ok
 fi
 
