@@ -336,7 +336,7 @@ esac
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
 		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "BRANCH="+tc.branch,
+			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "BRANCH="+tc.branch, "EVENT_NAME=workflow_run",
 			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("%s step: %v\n%s", tc.job, err, out)
