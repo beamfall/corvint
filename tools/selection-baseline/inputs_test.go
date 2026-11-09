@@ -72,6 +72,7 @@ func TestBaselineInputDecisionASDV0944(t *testing.T) {
 		{"internal/engine/ignored.go", "package engine\n", true, "internal/engine/ignored.go"},
 		{"benchmarks/selection-baseline/changes.json", "{}", true, "changes.json"},
 		{".github/cishards/package-costs.json", "{}", true, "package-costs.json"},
+		{".github/forward-rows/github-guard.sh", "echo 0\n", true, "github-guard.sh"},
 		{"baseline-input/config.txt", "changed", true, "matching reader input baseline-input/config.txt"},
 		{".corvint/test-read-scopes.json", "invalid", true, "unknown read set"}, //corvint:fixture-path
 		{"internal/engine/engine.go", "not Go", true, "compilation closure unavailable"},

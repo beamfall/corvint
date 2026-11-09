@@ -134,24 +134,18 @@ func readTrees(root string) (map[string]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var record struct {
-		Profile string                       `json:"profile"`
-		Trees   map[string]map[string]string `json:"trees"`
+	trees, err := affected.ParseReadScopeTrees(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s: want exactly {profile, trees} with whole top-level trees and reason strings or predicate/listing objects: %w", treesPath, err)
 	}
-	// json/v2 matches member names exactly and refuses a duplicate member or trailing data.
-	bad := len(raw) > maxLiterals || json.Unmarshal(raw, &record, json.RejectUnknownMembers(true)) != nil ||
-		record.Profile != treesProfile || record.Trees == nil
-	for directory, entries := range record.Trees {
-		bad = bad || len(entries) == 0 || directory == "" || path.Clean(directory) != directory || path.IsAbs(directory) ||
-			directory == "." || directory == ".." || strings.HasPrefix(directory, "../")
-		for entry, reason := range entries {
-			bad = bad || !wholeTree(entry) || strings.TrimSpace(reason) == ""
+	reasons := make(map[string]map[string]string, len(trees))
+	for directory, entries := range trees {
+		reasons[directory] = make(map[string]string, len(entries))
+		for entry, value := range entries {
+			reasons[directory][entry] = value.Reason
 		}
 	}
-	if bad {
-		return nil, fmt.Errorf("%s: want exactly {\"profile\":%q,\"trees\":{PACKAGE:{TREE/:REASON}}} with a clean relative package directory, a whole top-level directory entry such as \"internal/\" and a non-empty reason for each", treesPath, treesProfile)
-	}
-	return record.Trees, nil
+	return reasons, nil
 }
 
 // wholeTree reports an AFP-V0-023 entry that names a whole top-level directory,
@@ -1222,6 +1216,7 @@ type unitResult struct {
 func checkUnit(root string, unit affected.Unit, paths map[string]bool, recorded map[string]map[string]string, sandboxes map[string]string, trees map[string]map[string]string, existence []string) unitResult {
 	var result unitResult
 	directory := path.Dir(unit.Tests[0])
+
 	if reason, ok := sandboxes[directory]; ok {
 		result.findings = append(result.findings, finding{pkg: directory, sandbox: reason})
 		return result

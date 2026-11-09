@@ -263,7 +263,7 @@ func decideInputs(paths, dirs, bounds []string, driver, base string) (bool, stri
 	}
 	// These inputs bind the recipe, compiler environment and declared runtime
 	// reads. Reader bounds below also admit any future declared driver input.
-	explicit := []string{"Makefile", "go.mod", "go.sum", "go.work", "go.work.sum", "VERSION", ".corvint/test-read-scopes.json", ".corvint/unbounded-readers.json"}
+	explicit := []string{"Makefile", "go.mod", "go.sum", "go.work", "go.work.sum", "VERSION", ".corvint/test-read-scopes.json", ".corvint/unbounded-readers.json", guardPath}
 	prefixes := append([]string{"benchmarks/selection-baseline/", ".github/cishards/"}, dirs...)
 	sort.Strings(paths)
 	for _, p := range paths {

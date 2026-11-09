@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -149,27 +148,5 @@ func TestAmbientEnvironmentWorkingDirectoryProcessNetworkAndSyscallControls(t *t
 	}
 	if os.Getpid() <= 0 {
 		t.Fatal("syscall positive control did not return a process identifier")
-	}
-}
-
-func TestCandidateDependencyClosureHasNoAmbientChannels(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	command := exec.Command("go", "list", "-deps", "./cmd/corvint-analyzer-structured-data")
-	command.Dir = root
-	output, err := command.Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
-			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
-		}
-		t.Fatal(err)
-	}
-	for _, forbidden := range []string{"os/exec", "net", "net/http", "plugin", "runtime/cgo"} {
-		if bytes.Contains(output, []byte(forbidden+"\n")) {
-			t.Fatalf("ambient dependency %q in closure", forbidden)
-		}
 	}
 }

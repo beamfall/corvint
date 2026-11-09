@@ -30,6 +30,7 @@ var closed = map[string][]string{
 	".corvint/existence-readers.json":           {"", "/entries/*"},
 	".corvint/gated-root-locators.json":         {"", "/packages/*"},
 	".corvint/non-source-paths.json":            {"", "/entries/*"},
+	".corvint/record-entry-read-scopes.json":    {"", "/units/*"},
 	".corvint/runtime-edges.json":               {"", "/edges/*"},
 	".corvint/runtime-readers.json":             {"", "/entries/*"},
 	".corvint/shell-foreign-callers.json":       {"", "/scripts/*"},
@@ -39,7 +40,7 @@ var closed = map[string][]string{
 	".corvint/test-binary-execs.json":           {""},
 	".corvint/test-nested-sandboxes.json":       {""},
 	".corvint/test-read-scope-literals.json":    {""},
-	".corvint/test-read-scope-trees.json":       {""},
+	".corvint/test-read-scope-trees.json":       {"", "/trees/*/*"},
 	".corvint/test-read-scopes.json":            {""},
 	".corvint/test-selection.json":              {"", "/owners/*", "/mustRun/*"},
 	".corvint/unbounded-reader-exclusions.json": {""},
@@ -221,6 +222,11 @@ func check(root, workflowPath string) ([]string, error) {
 			}
 			for _, position := range positions {
 				known := members(then, position)
+				if name == ".corvint/test-read-scope-trees.json" && position == "/trees/*/*" {
+					// Older planners never used these optional values to narrow;
+					// they retain the string-only whole-tree scope instead.
+					known = map[string]bool{"reason": true, "contentPredicate": true, "samples": true, "listingOnly": true}
+				}
 				var added []string
 				for member := range members(now, position) {
 					if !known[member] {

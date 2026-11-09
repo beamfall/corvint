@@ -55,6 +55,7 @@ type affectedCompactReceipt struct {
 type affectedCompactPlan struct {
 	GraphDigest string                     `json:"graphDigest"`
 	Dirty       []string                   `json:"dirty"`
+	GoChanges   []affected.GoChange        `json:"goChanges,omitempty"`
 	Deleted     []string                   `json:"deleted,omitempty"`
 	Scope       string                     `json:"scope"`
 	Selected    []affectedCompactSelection `json:"selected"`
@@ -185,6 +186,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Plan: affectedCompactPlan{
 			GraphDigest:        full.Plan.GraphDigest,
 			Dirty:              full.Plan.Dirty,
+			GoChanges:          full.Plan.GoChanges,
 			Deleted:            full.Plan.Deleted,
 			Scope:              full.Plan.Scope,
 			Selected:           selected,

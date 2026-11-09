@@ -11,10 +11,11 @@ import (
 )
 
 // TestRepositoryImportGraphReaders_V14409_V14362 pins the repository's own
-// `go list` guards (AFP-V0-2200, AFP-V0-2201): internal/swiftimpact lists the
+// `go list` guards (AFP-V0-2200, AFP-V0-2201): internal/closureguard lists the
 // closures of cmd/* binaries it names by computed strings, so it reads the
 // whole module's import graph and an import-set change in any of them, such
-// as dropping cmd/corvint-lsp's link to it, selects it (V1-4409); the
+// as dropping cmd/corvint-lsp's link to swiftimpact, selects it (V1-4409).
+// V1-5071 moved that guard from swiftimpact to closureguard; the
 // all-literal guard in internal/liveverify/provider/interlock lists
 // cmd/corvint's closure, so its literal is an import-graph edge and no
 // longer a command edge that every body edit in that closure follows
@@ -27,9 +28,9 @@ func TestRepositoryImportGraphReaders_V14409_V14362(t *testing.T) {
 		t.Fatal(err)
 	}
 	const module = "go:github.com/Beamfall/corvint/"
-	swift, ok := graph.Unit(module + "internal/swiftimpact")
-	if !ok || !swift.ImportGraphReadsAll || slices.Contains(swift.Execs, module+"cmd/corvint-tasks") {
-		t.Fatalf("internal/swiftimpact: all=%v execs=%v", swift.ImportGraphReadsAll, swift.Execs)
+	guard, ok := graph.Unit(module + "internal/closureguard")
+	if !ok || !guard.ImportGraphReadsAll || slices.Contains(guard.Execs, module+"cmd/corvint-tasks") {
+		t.Fatalf("internal/closureguard: all=%v execs=%v", guard.ImportGraphReadsAll, guard.Execs)
 	}
 	interlock, ok := graph.Unit(module + "internal/liveverify/provider/interlock")
 	if !ok || !slices.Equal(interlock.ImportGraphReads, []string{module + "cmd/corvint"}) || slices.Contains(interlock.Execs, module+"cmd/corvint") {
@@ -39,10 +40,10 @@ func TestRepositoryImportGraphReaders_V14409_V14362(t *testing.T) {
 	changed := graph.WithImportSetChanges(&affected.ImportSetChanges{Changed: map[string]string{module + "cmd/corvint-lsp": lsp}})
 	selected := false
 	for _, selection := range affected.Select(changed, []string{lsp}).Selected {
-		selected = selected || selection.UnitID == module+"internal/swiftimpact" && selection.Witness.Kind == affected.WitnessImportGraphReader
+		selected = selected || selection.UnitID == guard.ID && selection.Witness.Kind == affected.WitnessImportGraphReader
 	}
 	if !selected {
-		t.Error("an import-set change to cmd/corvint-lsp does not select internal/swiftimpact as an import-graph reader")
+		t.Error("an import-set change to cmd/corvint-lsp does not select internal/closureguard as an import-graph reader")
 	}
 	body := graph.WithImportSetChanges(&affected.ImportSetChanges{Changed: map[string]string{}})
 	for _, selection := range affected.Select(body, []string{"internal/necessity/necessity.go"}).Selected { //corvint:fixture-path

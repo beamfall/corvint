@@ -136,7 +136,7 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 		}},
 		{"hostile", "dirty-worktree", "dirty edit selects its dependency closure", func(t *testing.T) {
 			root := consequenceRepository(t)
-			appendFile(t, filepath.Join(root, "core", "core.go"), "\n// dirty\n")
+			cemWrite(t, root, "core/core.go", "package core\n\nfunc Core() int { return 2 }\n")
 			plan := consequencePlan(t, root)["plan"].(map[string]any)
 			selected := string(mustJSON(t, plan["selected"]))
 			if plan["scope"] != "BOUNDED" || !strings.Contains(selected, "go:example.com/g/core") || !strings.Contains(selected, "go:example.com/g/leaf") {
@@ -149,7 +149,7 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			cemWrite(t, root, "util/util.go", "package util\n\nfunc Util() int { return 4 }\n")
 			cemGit(t, root, "add", ".")
 			cemGit(t, root, "commit", "-qm", "util")
-			appendFile(t, filepath.Join(root, "util", "util.go"), "\n// dirty\n")
+			cemWrite(t, root, "util/util.go", "package util\n\nfunc Util() int { return 5 }\n")
 			want := []any{map[string]any{"reason": "NO_SELECTABLE_TEST", "detail": "go:example.com/g/util"}}
 			if plan := consequencePlan(t, root)["plan"].(map[string]any); plan["scope"] != "BOUNDED" || !reflect.DeepEqual(plan["uncovered"], want) || len(plan["unknown"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
 				t.Fatalf("an isolated dirty package without tests must be an exact bounded coverage gap: %s", mustJSON(t, plan))

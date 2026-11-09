@@ -18,7 +18,8 @@ import (
 // comparison unknown, and the plan then counts every dirty Go file as an
 // import-set change, as a `--path` plan does.
 func SelectAt(ctx context.Context, root, head, commit string, graph *affected.Graph, dirty []string) affected.Plan {
-	return affected.Select(graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, root, head, commit, graph, dirty)), dirty)
+	graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, root, head, commit, graph, dirty))
+	return affected.Select(graph.WithGoChanges(golang.GoChangesAt(ctx, root, head, commit, dirty)), dirty)
 }
 
 // SelectBetween is SelectAt over two source trees: base, the tree the change
@@ -32,5 +33,5 @@ func SelectBetween(base, head fs.FS, graph *affected.Graph, dirty []string) affe
 	case base != nil && head != nil:
 		changes = golang.ImportSetRecords(base, head, graph, dirty)
 	}
-	return affected.Select(graph.WithImportSetChanges(changes), dirty)
+	return affected.Select(graph.WithImportSetChanges(changes).WithGoChanges(golang.GoChangeRecords(base, head, dirty)), dirty)
 }

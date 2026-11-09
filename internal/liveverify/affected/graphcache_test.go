@@ -199,10 +199,10 @@ func TestTestEmbedGraphCacheRejectsOldProfile_AFPV03352(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.HasPrefix(body, []byte("corvint-affected-graph-cache/1 ")) {
+	if !bytes.HasPrefix(body, []byte("corvint-affected-graph-cache/3 ")) {
 		t.Fatal("expected new profile before injecting old header")
 	}
-	body = bytes.Replace(body, []byte("corvint-affected-graph-cache/1 "), []byte("corvint-affected-graph-cache/0 "), 1)
+	body = bytes.Replace(body, []byte("corvint-affected-graph-cache/3 "), []byte("corvint-affected-graph-cache/1 "), 1)
 	if err := os.WriteFile(entry, body, 0o600); err != nil {
 		t.Fatal(err)
 	}
