@@ -14,7 +14,7 @@ Authoritative inputs: `AGENTS.md` invariants 1, 2, 4 and 7,
 
 ## Agent digest
 - Claim: `corvint depsource` cites third-party Go module source with the same pinning discipline as repository code, or abstains.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/depsource` and `cmd/corvint/depsource.go` are the whole implementation; nothing preceded this slice.
 - Blocked on: acceptance of the pin-extension in Non-goals and authority; non-Go ecosystems; dogfood receipts.
 - Read next: Pin authority and the proposed extension; Requirements; Failure modes.

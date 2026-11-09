@@ -497,4 +497,3 @@ func TestForbiddenPathScreenIsTheAcceptedSet(t *testing.T) {
 		}
 	}
 }
-

@@ -12,12 +12,12 @@ import (
 )
 
 // codeScenarioIDs are the code-repository scenarios PRB-V0-057 adds after unchanged-delta.
-var codeScenarioIDs = []string{"index-cold-build", "index-warm-build", "context-query", "lifecycle-hook", "affected-go", "affected-ts"}
+var codeScenarioIDs = []string{"index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts"}
 
-// PRB-V0-057: the scenario set ends with the cold and warm index build, the context query, the
-// lifecycle hook, and Go and TypeScript affected plans, after the five earlier scenarios.
+// PRB-V0-057: the scenario set ends with the cold and warm index build, the context query, and Go
+// and TypeScript affected plans, after the five earlier scenarios.
 func TestPRBV0057CodeScenarios(t *testing.T) {
-	if !slices.Equal(ScenarioIDs[5:], codeScenarioIDs) || len(ScenarioIDs) != 11 {
+	if !slices.Equal(ScenarioIDs[5:], codeScenarioIDs) || len(ScenarioIDs) != 10 {
 		t.Fatalf("scenario order %v", ScenarioIDs)
 	}
 	b, err := LoadBudgets("budgets.json")
@@ -31,8 +31,7 @@ func TestPRBV0057CodeScenarios(t *testing.T) {
 	want := map[string][]string{
 		"index-cold-build": {"corvint", "--root", "<fixture>/code-app", "index"},
 		"index-warm-build": {"corvint", "--root", "<fixture>/code-app", "index", "--if-stale"},
-		"context-query":    {"corvint", "--root", "<fixture>/code-app", "context", "--task", codeContextTask, "--subject", codeGoPath, "--lsp", "off"},
-		"lifecycle-hook":   {"corvint", "adapter", "claude-code", "user-prompt"},
+		"context-query":    {"corvint", "--root", "<fixture>/code-app", "context", "--task", codeContextTask, "--subject", codeGoPath},
 		"affected-go":      {"corvint", "--root", "<fixture>/code-app", "affected", "--path", codeGoPath},
 		"affected-ts":      {"corvint", "--root", "<fixture>/code-app", "affected", "--path", codeTSPath},
 	}

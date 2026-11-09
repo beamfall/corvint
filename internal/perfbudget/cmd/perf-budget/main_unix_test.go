@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
-	"github.com/Beamfall/corvint/internal/perfbudget"
 )
 
 // readyWriter collects stderr and cancels the run once a fake build reports its descendant.
@@ -70,61 +68,5 @@ func TestPRBV0037InterruptRetiresBuildDescendants(t *testing.T) {
 	state, _ := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(pid)).Output()
 	if s := strings.TrimSpace(string(state)); s != "" && !strings.HasPrefix(s, "Z") {
 		t.Fatalf("build descendant %d still running (%s) after the harness returned", pid, s)
-	}
-}
-
-// PRB-V0-029 (review of GitHub #1602): a corpus MCP executable that cannot be started is a
-// harness failure, exit 2, not a failed budget report with exit 1.
-func TestPRBV0029UnstartableMCPExitsTwo(t *testing.T) {
-	dir := t.TempDir()
-	corvint := filepath.Join(dir, "corvint")
-	if err := execfile.WriteFile(corvint, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	notExecutable := filepath.Join(dir, "not-executable")
-	if err := os.WriteFile(notExecutable, []byte("#!/bin/sh\nexit 0\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	builder, err := perfbudget.FileSHA256(corvint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A reusable fixture record built by the fake corvint, so the run reaches the MCP scenarios
-	// without generating a fixture; the fake's reads all succeed.
-	fixture := filepath.Join(dir, "fixture")
-	for _, sub := range []string{"app", "ruby-app"} {
-		if err := os.MkdirAll(filepath.Join(fixture, sub), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	record, err := json.Marshal(perfbudget.Fixture{Generator: perfbudget.FixtureGenerator, Scale: perfbudget.Smoke, BuilderSHA256: builder, Previous: "previous.json", Current: "corpus.json", SearchQuery: "q", GetID: "id", RubyPath: "a.rb"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(fixture, "fixture.json"), record, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	budgets, err := perfbudget.LoadBudgets(filepath.Join("..", "..", "budgets.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	budgets.Scale = perfbudget.Smoke.Name
-	for i := range budgets.Scenarios {
-		budgets.Scenarios[i].Samples = 1
-	}
-	encoded, err := json.Marshal(budgets)
-	if err != nil {
-		t.Fatal(err)
-	}
-	budgetsPath := filepath.Join(dir, "budgets.json")
-	if err := os.WriteFile(budgetsPath, encoded, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	for _, mcp := range []string{filepath.Join(dir, "absent"), notExecutable} {
-		var stdout, stderr bytes.Buffer
-		code := run(context.Background(), []string{"--budgets", budgetsPath, "--fixture", fixture, "--corvint", corvint, "--corpus-mcp", mcp}, &stdout, &stderr)
-		if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "perf-budget: cannot start ") {
-			t.Fatalf("--corpus-mcp %s: exit %d stdout %.200q stderr %.400q", filepath.Base(mcp), code, &stdout, &stderr)
-		}
 	}
 }

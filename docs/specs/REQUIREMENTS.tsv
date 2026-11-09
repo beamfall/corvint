@@ -5367,11 +5367,11 @@ GLTP-V0-054	docs/specs/go-live-test-provider-v0.md	`Execute` MUST refuse failed 
 GLTP-V0-045	docs/specs/go-live-test-provider-v0.md	The session polls a bounded, explicitly enumerated file set (`Config.Files`) at	unrecorded	-
 GLTP-V0-046	docs/specs/go-live-test-provider-v0.md	Exactly one run is active at a time. A newer settled identity detected while a r	unrecorded	-
 GLTP-V0-047	docs/specs/go-live-test-provider-v0.md	The batch is every change settled since the last started run: a batch queued	unrecorded	-
+GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which r	unrecorded	-
 GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	The session publishes one JSON line per state transition	unrecorded	-
 GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	Every published event also carries `projection`: one	unrecorded	-
 GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	A terminal event whose run completed — classified `passed` or `failed` before an	unrecorded	-
 GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason	unrecorded	-
-GLTP-V0-048	docs/specs/go-live-test-provider-v0.md	| GLTP-V0-048 contained shared runner boundary | delivered 2026-09-12 (preview t	unrecorded	-
 GOC-V0-001	docs/specs/go-only-cutover-v0.md	The current tree MUST contain no legacy `src/corvint_cli.py` or	unrecorded	-
 GOC-V0-002	docs/specs/go-only-cutover-v0.md	Default Go verification MUST NOT execute, reconstruct from Git, or install the	unrecorded	-
 GOC-V0-003	docs/specs/go-only-cutover-v0.md	Removal of live comparisons MUST preserve unique positive, negative, malformed-i	unrecorded	-

@@ -13,14 +13,12 @@
         "internal/cem/coverprofile",
         "internal/cem/gitauth",
         "internal/cem/gitrun",
-        "internal/cem/witnesspaths",
         "internal/cliconformance",
         "internal/clierror",
         "internal/clitree",
         "internal/diagnostic",
         "internal/execfile",
         "internal/gitancestry",
-        "internal/gitnotes",
         "internal/gitprobe",
         "internal/gitstatus",
         "internal/gokernel",
@@ -40,8 +38,7 @@
         "internal/secretscreen",
         "internal/testsupport",
         "internal/versionline",
-        "internal/workspace",
-        "internal/wp3codec"
+        "internal/workspace"
       ]
     },
     {
@@ -60,8 +57,7 @@
         "internal/cem/patch",
         "internal/cem/wire",
         "internal/langplugin/decl",
-        "internal/taskprojection",
-        "internal/tasks/wire"
+        "internal/taskprojection"
       ]
     },
     {
@@ -99,33 +95,19 @@
       "layer": 3,
       "summary": "context index, trace, frontier, authority and evidence stores",
       "prefixes": [
-        "internal/authorityevent",
-        "internal/authoritystore",
         "internal/capcatalog",
         "internal/contextindex",
-        "internal/delta",
-        "internal/frontier",
-        "internal/frontiernext",
-        "internal/frontiernextrepo",
-        "internal/frontierrepo",
         "internal/genesis",
-        "internal/localauthority",
-        "internal/lrf",
-        "internal/lrfrepo",
         "internal/observations",
         "internal/observedstale",
         "internal/plansnapshot",
         "internal/requestpath",
         "internal/specindex",
         "internal/trace",
-        "internal/tracemigraterepo",
         "internal/tracerecordrepo",
         "internal/tracerepopaths",
         "internal/unplannedread",
-        "internal/untrackedallowance",
-        "internal/witness",
-        "internal/witnesscollapse",
-        "internal/witnesspaths"
+        "internal/untrackedallowance"
       ]
     },
     {
@@ -158,7 +140,6 @@
         "internal/appflows/e2erunner",
         "internal/breakagemap",
         "internal/browsercov",
-        "internal/changewitness",
         "internal/csharpregions",
         "internal/flowcoverage",
         "internal/gateselect",
@@ -179,7 +160,6 @@
         "internal/runnerselection",
         "internal/sessiontest",
         "internal/stepnegation",
-        "internal/stepverify",
         "internal/tcq",
         "internal/testevidence",
         "internal/testevidencedoc",
@@ -197,16 +177,8 @@
       "layer": 5,
       "summary": "change evidence manifests, attestation and receipts",
       "prefixes": [
-        "internal/attest",
         "internal/cem",
-        "internal/cemcandidate",
-        "internal/cemchain",
-        "internal/cemdiscriminate",
-        "internal/criterionexperiment",
-        "internal/extevidence",
-        "internal/gateagreement",
-        "internal/receiptbundle",
-        "internal/revieworder"
+        "internal/extevidence"
       ]
     },
     {
@@ -214,9 +186,6 @@
       "layer": 6,
       "summary": "dogfood flow, operation and friction metrics",
       "prefixes": [
-        "internal/dogfoodflow",
-        "internal/dogfoodocm",
-        "internal/dogfoodoperation",
         "internal/mergedrivers",
         "internal/perfbudget"
       ]
@@ -226,10 +195,6 @@
       "layer": 6,
       "summary": "Tasks companion, task projection and work queues",
       "prefixes": [
-        "internal/localcompletion",
-        "internal/taskbarrier",
-        "internal/taskman",
-        "internal/tasks",
         "internal/worklistadapter",
         "internal/workqueue",
         "internal/worksource"
@@ -241,7 +206,6 @@
       "summary": "release candidates, gates, post-merge and update",
       "prefixes": [
         "internal/corerelease",
-        "internal/migrationratchet",
         "internal/releasecandidate",
         "internal/releasegate",
         "internal/toolchainreceipt",
@@ -278,7 +242,6 @@
         "conformance",
         "examples",
         "experimental",
-        "integrations",
         "internal/closureguard",
         "script",
         "tools"

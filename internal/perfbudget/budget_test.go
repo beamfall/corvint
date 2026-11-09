@@ -671,7 +671,7 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines = nil
-	indexReaders := []string{"context-query", "lifecycle-hook"}
+	indexReaders := []string{"context-query"}
 	r, err = Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: indexReaders, Progress: progress})
 	if err != nil {
 		t.Fatal(err)

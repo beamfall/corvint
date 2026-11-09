@@ -34,8 +34,7 @@ candidate tickets before dispatch (TCD-V0-159..162). `ticket batch-delivered` li
 batch delivered, with the CI evidence a closer feeds to `gate run --ci-run` (TCD-V0-163..164).
 GitHub facts come only from an operator's `gh --json` export file.
 
-V1-2196 removes a rerun from failed-gate closeout. A `focused-docs` or `full-gate` failure showed only
-`GATE_FAILED`, so the closer reran the whole gate to learn which check failed. The captured output
+V1-2196 removes a rerun from failed-gate closeout. A `focused-docs` or `full-gate` failure showed only `GATE_FAILED`, so the closer reran the whole gate to learn which check failed. The captured output
 was already retained as an evidence blob, but no result named it (TCD-V0-165..166).
 
 ## Agent digest

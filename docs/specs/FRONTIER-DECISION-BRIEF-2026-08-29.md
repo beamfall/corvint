@@ -16,7 +16,7 @@ Scope: the "Questions only the repository owner can answer" sections at
 
 ## Agent digest
 - Claim: This non-authoritative brief deduplicates seven owner-only Frontier decisions without ratifying any clause.
-- Status: not-applicable (reading aid; decides nothing)/not-applicable
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: nothing executable — seven deduplicated owner questions and cost evidence only.
 - Blocked on: repository-owner answers to the seven questions.
 - Read next: `change-frontier-profile-1.md`, `change-witness-relation-v0.md`, and `harness-authority-relation-v0.md`.

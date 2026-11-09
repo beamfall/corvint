@@ -72,9 +72,7 @@
     "implementation": [
       "cmd/corvint",
       "internal/gokernel",
-      "internal/repoenvelope",
-      "conformance/harness-event-v0",
-      "integrations/opencode"
+      "internal/repoenvelope"
     ]
   },
   {
@@ -132,10 +130,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/analyzercap",
-      "internal/analyzerexec"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/analyzer-python-native-candidate.md",
@@ -210,8 +205,7 @@
     "closableToday": false,
     "implementation": [
       "internal/appmap",
-      "cmd/corvint",
-      "cmd/corvint-corpus-mcp"
+      "cmd/corvint"
     ]
   },
   {
@@ -252,8 +246,7 @@
     "closableToday": false,
     "implementation": [
       "internal/testplan",
-      "cmd/corvint",
-      "cmd/corvint-corpus-mcp"
+      "cmd/corvint"
     ]
   },
   {
@@ -319,8 +312,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/stepverify",
-      "cmd/corvint/step.go",
       "protocol/step"
     ]
   },
@@ -337,10 +328,7 @@
     ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": [
-      "internal/contextindex/authority_trigger.go",
-      "cmd/corvint/context_lookup.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/beamfall-shadow-dogfood-v1.md",
@@ -416,10 +404,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/criterionexperiment",
-      "cmd/corvint-cem-experiments"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cem-external-interop-v0.md",
@@ -479,7 +464,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "tools/cem-trial",
       "internal/procgroup"
     ]
   },
@@ -515,11 +499,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/frontier",
-      "internal/frontierrepo",
-      "conformance/frontier-v0"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/change-witness-relation-v0.md",
@@ -536,9 +516,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/changewitness"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/compaction-kernel-v0.md",
@@ -552,9 +530,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/compactionkernel"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/compat-replay-runner-v0.md",
@@ -630,9 +606,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/witnesscollapse"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
@@ -670,8 +644,6 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "cmd/corvint-console",
-      "cmd/corvint-dashboard-snapshot",
       "cmd/corvint-mcp",
       "cmd/corvint-docs-mcp",
       "cmd/corvint-test-validity-mcp",
@@ -681,8 +653,7 @@
       "Makefile",
       "integrations",
       "extensions/vscode",
-      "extensions/vscode/media/corvint.svg",
-      "internal/console"
+      "extensions/vscode/media/corvint.svg"
     ]
   },
   {
@@ -701,7 +672,6 @@
     "implementation": [
       "docs/SELF-DEVELOPMENT.md",
       "integrations/codex/plugins/corvint/skills/corvint/SKILL.md",
-      "integrations/claude-code/plugins/corvint/skills/context/SKILL.md",
       "cmd/corvint/help.go"
     ]
   },
@@ -717,17 +687,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/authority",
-      "internal/tasks/cli",
-      "internal/tasks/dispatch",
-      "internal/tasks/snapshot",
-      "internal/tasks/store",
-      "internal/tasks/supervisor",
-      "internal/tasks/ticket",
-      "internal/tasks/transaction",
-      "internal/tasks/wire"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
@@ -742,11 +702,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/groupreap",
-      "internal/tasks/cli",
-      "internal/tasks/store",
-      "internal/tasks/supervisor",
-      "internal/tasks/transaction"
+      "internal/groupreap"
     ]
   },
   {
@@ -761,14 +717,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/intent",
-      "internal/tasks/snapshot",
-      "internal/tasks/transaction",
-      "internal/tasks/store",
-      "internal/tasks/cli",
-      "internal/tasks/dispatch"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-escalations-v0.md",
@@ -782,13 +731,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/mutation",
-      "internal/tasks/snapshot",
-      "internal/tasks/store",
-      "internal/tasks/ticket",
-      "internal/tasks/transaction"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-operator-notes-v0.md",
@@ -802,13 +745,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli/note.go",
-      "internal/tasks/journal/operator_note.go",
-      "internal/tasks/mutation/operator_note.go",
-      "internal/tasks/store/claim_delivery.go",
-      "internal/tasks/ticket/operator_note.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-evidence-attachments-v0.md",
@@ -823,11 +760,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/taskman/decode.go",
-      "internal/tasks/mutation/apply.go",
-      "internal/tasks/ticket/attached_evidence.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
@@ -842,14 +775,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/taskman/know_how.go",
-      "internal/tasks/cli/know_how.go",
-      "internal/tasks/mutation/know_how.go",
-      "internal/tasks/store/know_how.go",
-      "internal/tasks/ticket/know_how.go",
-      "internal/tasks/transaction/model.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-doctor-v0.md",
@@ -866,12 +792,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli/doctor.go",
-      "internal/tasks/cli/doctor_unix.go",
-      "internal/tasks/cli/command_help.go",
-      "internal/tasks/cli/cli.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-obligation-ledger-v0.md",
@@ -890,22 +811,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/taskman/obligations.go",
-      "internal/tasks/cli/obligations.go",
-      "internal/tasks/cli/preflight.go",
-      "internal/tasks/mutation/obligations.go",
-      "internal/tasks/obligation/expected_fail.go",
-      "internal/tasks/obligation/names.go",
-      "internal/tasks/obligation/report.go",
-      "internal/tasks/obligation/source.go",
-      "internal/tasks/store/obligations.go",
-      "internal/tasks/store/preflight.go",
-      "internal/tasks/ticket/obligation_plan.go",
-      "internal/tasks/ticket/obligations.go",
-      "internal/tasks/transaction/obligation_audit.go",
-      "internal/tasks/wire/obligations.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-external-reviews-v0.md",
@@ -919,18 +825,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/snapshot/external_review.go",
-      "internal/tasks/transaction/external_review.go",
-      "internal/tasks/transaction/external_review_read.go",
-      "internal/tasks/dispatch/roster.go",
-      "internal/tasks/dispatch/config.go",
-      "internal/tasks/transaction/external_review_write.go",
-      "internal/tasks/transaction/external_review_audit.go",
-      "internal/tasks/cli/external_review.go",
-      "internal/tasks/cli/plan.go",
-      "internal/tasks/ticket/view.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-intent-worktree-v0.md",
@@ -944,14 +839,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/archive",
-      "internal/tasks/authority",
-      "internal/tasks/cli",
-      "internal/tasks/intent",
-      "internal/tasks/journal",
-      "internal/tasks/store"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-pending-unpause-recovery-v0.md",
@@ -966,10 +854,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/journal",
-      "internal/tasks/store"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-store-init-v0.md",
@@ -981,14 +866,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli",
-      "internal/tasks/importer",
-      "internal/tasks/intent",
-      "internal/tasks/snapshot",
-      "internal/tasks/store",
-      "internal/tasks/transaction"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-witness-v0.md",
@@ -1001,8 +879,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint",
-      "internal/witness"
+      "cmd/corvint"
     ]
   },
   {
@@ -1036,9 +913,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/breakagemap",
-      "internal/command/breakage",
-      "cmd/corvint/breakage.go"
+      "internal/breakagemap"
     ]
   },
   {
@@ -1057,9 +932,7 @@
     "closableToday": false,
     "implementation": [
       "conformance/use-cases-v0",
-      "cmd/corvint",
-      "internal/localcompletion",
-      "internal/dogfoodflow"
+      "cmd/corvint"
     ]
   },
   {
@@ -1090,9 +963,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/depsource"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -1128,8 +999,6 @@
     "closableToday": false,
     "implementation": [
       "internal/diagnostic",
-      "internal/worktreeimpact",
-      "internal/touchsurprise",
       "cmd/corvint"
     ]
   },
@@ -1148,9 +1017,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/authoritystore",
-      "cmd/corvint",
-      "tools/local-authority"
+      "cmd/corvint"
     ]
   },
   {
@@ -1201,10 +1068,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/corpusrepublish",
-      "cmd/corvint-corpus-republish",
-      "internal/doccorpus",
-      "internal/postmergeconnector"
+      "internal/doccorpus"
     ]
   },
   {
@@ -1224,12 +1088,7 @@
     "implementation": [
       "internal/doccorpus",
       "cmd/corvint",
-      "internal/mcp/corpusbridge",
-      "cmd/corvint-corpus-mcp",
-      "internal/corpusindex",
-      "internal/corpusserve",
-      "cmd/corvint-corpus-parity",
-      "cmd/corvint-corpus-http"
+      "internal/mcp/corpusbridge"
     ]
   },
   {
@@ -1245,9 +1104,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/dogfoodflow"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/dotnet-affected-selection-v0.md",
@@ -1316,8 +1173,7 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "internal/contextindex/range_impact.go",
-      "script/dogfood-change.sh"
+      "internal/contextindex/range_impact.go"
     ]
   },
   {
@@ -1331,8 +1187,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/source_handoff.go",
-      "cmd/corvint/context_summary.go"
+      "cmd/corvint/source_handoff.go"
     ]
   },
   {
@@ -1351,8 +1206,7 @@
     "closableToday": false,
     "implementation": [
       "internal/secretscreen",
-      "internal/liveverify/mutate",
-      "cmd/corvint/prove_checkpoint.go"
+      "internal/liveverify/mutate"
     ]
   },
   {
@@ -1384,10 +1238,7 @@
     ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": [
-      "cmd/corvint-remote-provider",
-      "internal/remoteprovider"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/external-evidence-provider-transports-v0.md",
@@ -1423,8 +1274,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/delta.go",
-      "internal/delta",
       "protocol/delta"
     ]
   },
@@ -1445,8 +1294,7 @@
     "implementation": [
       "cmd/corvint",
       "examples/evidence-provider/v0",
-      "internal/extevidence",
-      "internal/lspprovider"
+      "internal/extevidence"
     ]
   },
   {
@@ -1697,8 +1545,6 @@
       "internal/contextindex",
       "internal/genesis",
       "internal/gokernel",
-      "internal/lrfrepo",
-      "internal/worktreeimpact",
       "conformance/cli-parity-v0",
       "interop/cem01-go"
     ]
@@ -1715,11 +1561,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/goplsclient/client.go",
-      "internal/goplsclient/client_test.go",
-      "internal/goplsclient/lifecycle_unix_test.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/harness-authority-relation-v0.md",
@@ -1764,9 +1606,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "conformance/host-lifecycle-v1"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/human-documentation-compiler-v0.md",
@@ -1884,12 +1724,9 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/evalrepo",
       "internal/trace",
       "internal/tracerecordrepo",
       "internal/secretscreen",
-      "internal/skillexport",
-      "internal/slotlearn",
       "internal/contextindex",
       "cmd/corvint"
     ]
@@ -1907,11 +1744,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/lrf",
-      "internal/lrfrepo",
-      "conformance/lrf-v0"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
@@ -1944,10 +1777,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-console",
-      "internal/console"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/local-completion-policy-v0.md",
@@ -1963,13 +1793,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/localcompletion",
-      "cmd/corvint/local_completion.go",
-      "cmd/corvint/local_completion_event.go",
-      "cmd/corvint/host_adapter.go",
-      "internal/contextindex/local_completion_context.go",
-      "integrations/codex/plugins/corvint/hooks/hooks.json",
-      "integrations/claude-code/plugins/corvint/hooks/hooks.json"
+      "internal/contextindex/local_completion_context.go"
     ]
   },
   {
@@ -1987,11 +1811,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/dashboard",
-      "cmd/corvint-dashboard-snapshot",
-      "conformance/dashboard-snapshot-v0"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/local-trace-producer-migration-v0.md",
@@ -2008,7 +1828,6 @@
     "implementation": [
       "internal/trace",
       "internal/tracerecordrepo",
-      "internal/tracemigraterepo",
       "cmd/corvint"
     ]
   },
@@ -2027,8 +1846,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio",
       "internal/gitstatus"
     ]
   },
@@ -2046,10 +1863,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio/semantic.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/lsp-editor-qualification-v0.md",
@@ -2081,8 +1895,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "benchmarks/lsp-quality",
-      "benchmarks/lsp_quality_freeze_test.go",
       "script/measure-lsp-quality.py"
     ]
   },
@@ -2096,9 +1908,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/lspsnapshot"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/lsp-stdio-experiment-v0.md",
@@ -2110,10 +1920,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-lsp",
-      "internal/lspstdio"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
@@ -2182,10 +1989,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/migrationratchet",
-      "cmd/corvint/migration_ratchet.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/native-cem-adapter.md",
@@ -2233,9 +2037,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "tools/native-hook-observer/client.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/native-taskman-planning-v0.md",
@@ -2249,10 +2051,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/taskman",
-      "cmd/corvint/taskman_fixture.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/necessity-labels-v0.md",
@@ -2266,9 +2065,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/necessity"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/observation-corpus-authority-v0.md",
@@ -2280,9 +2077,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/obscorpus"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/ocm-intent-forms-v0.md",
@@ -2296,11 +2091,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/lrfrepo/ocm_forms.go",
-      "internal/lrfrepo/ocm_forms_test.go",
-      "cmd/corvint/ocm.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/ocm-v0-dogfood.md",
@@ -2315,17 +2106,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint/dogfood_ocm.go",
-      "internal/dogfoodocm",
-      "internal/lrfrepo/ocm.go",
-      "internal/dogfoodflow/ocm_coverage.go",
-      "script/dogfood-change.sh",
-      "script/dogfood-check.sh",
-      "script/dogfood-change_test.sh",
-      "internal/dogfoodocm/aggregate_test.go",
-      "internal/lrfrepo/ocm_prepare_test.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/operator-update-v0.md",
@@ -2376,9 +2157,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/outcomecal"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/pi-workflow-v0.md",
@@ -2395,9 +2174,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "integrations/pi"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
@@ -2462,11 +2239,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-postmerge-host-launcher",
-      "internal/postmergehost",
-      "protocol/postmerge-host"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-connectors-v0.md",
@@ -2480,10 +2253,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/postmergeconnector",
-      "cmd/corvint-postmerge-connect"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-replay-v0.md",
@@ -2497,10 +2267,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/postmergeworkflow",
-      "cmd/corvint-postmerge-workflow"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-runtime-v1.md",
@@ -2515,10 +2282,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/postmergeworkflow",
-      "cmd/corvint-postmerge-workflow"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-runtime-v2.md",
@@ -2534,12 +2298,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/postmergeproof",
-      "internal/postmergeconnector",
-      "internal/postmergeworkflow",
-      "cmd/corvint-postmerge-workflow"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/postmerge-metrics-v0.md",
@@ -2553,10 +2312,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/postmergemetrics",
-      "cmd/corvint-postmerge-metrics"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/proof-carrying-context-optimization-v0.md",
@@ -2620,12 +2376,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "tools/local-authority",
-      "internal/localauthority",
-      "internal/authoritystore",
-      "internal/authorityevent"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/protected-pi-runtime-v0.md",
@@ -2641,15 +2392,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "integrations/pi-protected/runtime.ts",
-      "integrations/pi-protected/build.mjs",
-      "integrations/pi-protected/settings.mjs",
-      "integrations/pi-protected/qualified-runner.mjs",
-      "internal/authoritystore/pi.go",
-      "cmd/corvint/qualified_lifecycle.go",
-      "tools/local-authority/pi_release.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/public-release-v0.md",
@@ -2695,11 +2438,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint/qualified_lifecycle.go",
-      "internal/authoritystore/lifecycle.go",
-      "integrations/codex/plugins/corvint/scripts/authority-hook.json"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/receipt-bundle-v0.md",
@@ -2716,12 +2455,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/receiptbundle/receiptbundle.go",
-      "internal/receiptbundle/receiptbundle_test.go",
-      "cmd/corvint/cem_export.go",
-      "cmd/corvint/cem_export_test.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/release-artifact-integrity-v0.md",
@@ -2803,10 +2537,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/evalrepo",
-      "benchmarks/runner"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/retriever-disagreement-v0.md",
@@ -2820,9 +2551,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/disagree"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/revision-cache-dirty-worktree-v0.md",
@@ -2835,8 +2564,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/contextindex",
-      "internal/worktreeimpact"
+      "internal/contextindex"
     ]
   },
   {
@@ -2988,9 +2716,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/semescalate"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/session-context-dividend-v0.md",
@@ -3004,10 +2730,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint/dogfood_handoff.go",
-      "cmd/corvint/dogfood_handoff_bundle.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/shader-glsl-metal-analyzer-candidate-v0.md",
@@ -3220,8 +2943,7 @@
     "closableToday": false,
     "implementation": [
       "internal/contextindex",
-      "cmd/corvint",
-      "internal/lspprovider"
+      "cmd/corvint"
     ]
   },
   {
@@ -3234,9 +2956,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "benchmarks/dogfood-measure"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/test-attack-v0.md",
@@ -3251,7 +2971,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/prove_attack.go",
       "internal/liveverify/mutate"
     ]
   },
@@ -3285,9 +3004,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/touchsurprise"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/traceability-test-gate-v0.md",
@@ -3431,9 +3148,7 @@
     "implementation": [
       "internal/workqueue",
       "cmd/corvint",
-      "cmd/corvint-work-queue",
       "internal/worklistadapter",
-      "script/corvint-work-queue",
       "conformance/work-queue-v0"
     ]
   },
@@ -3447,11 +3162,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "cmd/corvint-intake",
-      "internal/intake",
-      "protocol/intake"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/non-go-impact-v0.md",
@@ -3493,9 +3204,6 @@
     "closableToday": false,
     "implementation": [
       "internal/tracerecordrepo",
-      "internal/dogfoodflow",
-      "internal/dogfoodoperation",
-      "internal/localcompletion",
       "internal/cem/gitrun",
       "internal/contextindex",
       "internal/groupreap",
@@ -3528,10 +3236,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli",
-      "internal/tasks/service"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/tasks-criterion-binding-v0.md",
@@ -3546,14 +3251,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/criterionbinding",
-      "internal/tasks/cli/criterion_binding.go",
-      "internal/criterionexperiment/tasks.go",
-      "internal/taskman/cem_verdict_gate.go",
-      "cmd/corvint/cem_gate_verdict.go",
-      "internal/tasks/store/lease_gate.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/test-runner-execution-v0.md",
@@ -3586,7 +3284,6 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "internal/cemcandidate",
       "internal/groupreap",
       "interop/cem01-go",
       "protocol/cem-1.0"
@@ -3636,7 +3333,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/upgradechanges",
       "cmd/corvint"
     ]
   },
@@ -3645,7 +3341,7 @@
     "title": "Playwright Run Evidence V0",
     "reqPrefix": "PWR-V0",
     "intent": "accepted (decision 0520; V1-1230, V1-1229)",
-    "delivery": "experimental; amended 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. Each retired or amended requirement says so on its own definition line (bodies and IDs kept). The readers still consume an embedded or sidecar declaration a project produces itself.",
+    "delivery": "experimental",
     "claim": "A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.",
     "dependsOn": [],
     "supersededBy": null,
@@ -3711,10 +3407,7 @@
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/cli",
-      "internal/tasks/store"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/test-source-analysis-v0.md",
@@ -3800,13 +3493,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/tasks/store/source_contains.go",
-      "internal/tasks/store/hold_condition.go",
-      "internal/tasks/ticket/hold_condition.go",
-      "internal/tasks/cli/source_contains.go",
-      "internal/tasks/cli/hold_conditions.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/capability-catalog-v0.md",
@@ -3887,7 +3574,6 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
-      "cmd/corvint-corpus-mcp",
       "cmd/corvint-docs-mcp",
       "cmd/corvint-mcp",
       "cmd/corvint-test-validity-mcp",
@@ -3973,11 +3659,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/cemcandidate/bundle.go",
-      "internal/cemcandidate/result.go",
-      "cmd/corvint/cem_gate_verdict.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/lsp-wrapped-backends-v0.md",
@@ -4402,10 +4084,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint-corpus-mcp",
       "internal/jstestprovider",
-      "cmd/corvint-js-test-provider",
-      "internal/modelgateway"
+      "cmd/corvint-js-test-provider"
     ]
   },
   {

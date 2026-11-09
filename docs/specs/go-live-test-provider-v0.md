@@ -1428,7 +1428,7 @@ comment is ignored — and leaves it empty for any form it cannot read. Evidence
 `TestAffectedScopeFallsBackWhenSelectionCannotBeJustified`, `TestAffectedScopeFallsBackForNestedModuleTest`, `TestReadModulePathMatchesGoModEdit`,
 `TestQueuedNarrowSettleKeepsEarlierFallback`, `TestFailedDigestSettleKeepsFallback`.
 
-- **GLTP-V0-048(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/console`) .** Each run is executed via `gorunner.Run` — the same contained runner
+- **GLTP-V0-048.** (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/console`) Each run is executed via `gorunner.Run` — the same contained runner
 `provider.Execute` uses internally for process-group spawn, output-byte capping, and
 cancellation/timeout handling — under the session's configured timeout and output-limit bytes,
 clamped to `gorunner.MaxRunTime`/`gorunner.MaxOutputBytes`. The session does not invoke

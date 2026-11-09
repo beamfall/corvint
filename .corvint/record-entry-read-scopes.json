@@ -13,15 +13,6 @@
         "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood/prechange-impact.json",
         "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
         "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59.cem.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/dogfood-report.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract/clauses.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood/dogfood-report.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/hostile-tests.json",
-        "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e.cem.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/prechange-query.json",
@@ -29,7 +20,6 @@
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract/clauses.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood/prechange-query.json",
-        "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/hostile-tests.json",
         "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
         "conformance/use-cases-v0/testdata/ledger-v0.json"
       ],
@@ -37,7 +27,7 @@
         ".corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json"
       ],
       "reason": "conformance/use-cases-v0/main_test.go testUCV0ProfileMigration validates the fixed ledger; validator.read follows its pinned receipt subjects, including only the listed sealed CEM. The ledger and receipt JSON inputs are included in the source binding.",
-      "sourceSha256": "d18451c880e43600680ee324731b5ee30fbd58424bcc10d1249cd50de726eb78"
+      "sourceSha256": "c09fc0903dad098e6e039e0af776cbb88198beafecd947de0f70d3f414787e75"
     },
     "go:github.com/Beamfall/corvint/internal/cem/wire": {
       "reads": [
@@ -49,12 +39,12 @@
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
       "reason": "script/batch-precheck_test.sh creates all build-log and sealed-CEM entries under crepo, srepo or rrepo scratch repositories, then invokes copied scripts or stubs there. It reads no record entries from source_root.",
-      "sourceSha256": "95cde4a682600d40300b0698b7b9188d49b8669dc9dd3ba61215e3cb9dae8e10"
+      "sourceSha256": "3ffb794b5ca1615c3bf0720cab0de855fef9a0bb81eefc4ee3f30e02a7d7cb6f"
     },
     "shell:script/check-line-citations_test.sh": {
       "reads": [],
       "reason": "script/check-line-citations_test.sh case 51d creates docs/build-log/example.md in merge_root and verifies that copied citation tooling excludes that fixture path. Other cases use test_root.",
-      "sourceSha256": "e8dfcc675224c9b85b9b58b613750506568dd1183fdbf91f64d9c3426a7b4a74"
+      "sourceSha256": "89a12995372639effc7e187c0395ba973bb081a2c5bf48676ae8a74370857bc8"
     },
     "shell:script/gen-documentation-paths_test.sh": {
       "reads": [],
@@ -68,8 +58,8 @@
     },
     "shell:script/lane-scripts_test.sh": {
       "reads": [],
-      "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages and creates the record-only fixture in rr and dispatch fixtures in ld; these are scratch repositories, not this checkout's records.",
-      "sourceSha256": "139bcdace34bfbbe9d4ae682f4bed4f2ebd69ea5baef7da6a7279d9f85dc335a"
+      "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages in the lane-dispatch fixtures it creates in ld, a scratch repository, not this checkout's records.",
+      "sourceSha256": "eecd9c284a5a49aa371a448063db9d803733b7556d550e459aa026fdf061ca67"
     },
     "shell:script/requirement-id-collisions_test.sh": {
       "reads": [],

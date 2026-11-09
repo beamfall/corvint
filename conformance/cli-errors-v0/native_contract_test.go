@@ -31,7 +31,6 @@ type contract struct {
 // envelope (ACX-V0-859).
 var contracts = map[string]contract{
 	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
-	"corvint-cem-candidate":      companion("./cmd/corvint-cem-candidate"),
 	"corvint-go-test-provider":   companion("./cmd/corvint-go-test-provider"),
 	"corvint-js-test-provider":   companion("./cmd/corvint-js-test-provider"),
 	"corvint-ruby-test-provider": companion("./cmd/corvint-ruby-test-provider"),

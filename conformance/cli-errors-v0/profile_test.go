@@ -2,16 +2,11 @@
 package clierrors_test
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
 	"github.com/Beamfall/corvint/internal/clierror"
@@ -99,34 +94,6 @@ func TestCLIProfile9301RootPositionalProcess(t *testing.T) {
 		if code != 0 || out != want || errout != "" {
 			t.Fatalf("profile %s: %d %q %q; want %q", input, code, out, errout, want)
 		}
-	}
-}
-
-// ACX-V0-9301: server execution refuses before native state or listener setup.
-// Holding the requested address also distinguishes a native bind failure from
-// the adapter's offline refusal, without running a background server.
-func TestCLIProfile9301GatewayServeOffline(t *testing.T) {
-	dir, work := binaries(t), t.TempDir()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listener.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, filepath.Join(dir, "corvint-cli"), "--binary", "corvint-gateway", "serve", "--state", filepath.Join(work, "state"), "--addr", listener.Addr().String())
-	cmd.Dir = work
-	var out, errout bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errout
-	err = cmd.Run()
-	exit, ok := err.(*exec.ExitError)
-	var refusal clierror.Envelope
-	if !ok || exit.ExitCode() != 2 || ctx.Err() != nil || out.Len() != 0 || json.Unmarshal(errout.Bytes(), &refusal) != nil || clierror.Validate(refusal) != nil || refusal.Code != "native-protocol-required" || refusal.Details != nil {
-		t.Fatalf("serve: %v stdout=%q stderr=%q", err, out.String(), errout.String())
-	}
-	entries, err := os.ReadDir(work)
-	if err != nil || len(entries) != 0 {
-		t.Fatalf("offline refusal created filesystem state: %v %v", entries, err)
 	}
 }
 
