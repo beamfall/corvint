@@ -307,8 +307,8 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   field, and a `sh -c` or `bash -c` command string held in a variable, which is parsed once for
   each value the file gives it. Any other `$(...)` part stays unknown, so it never reads as a
   literal path. Each form only adds edges. With it, `script/analyzer-schema_test.sh` and
-  `script/codex-review_test.sh` inherit `shell:dynamic-source` from `script/heavy.sh`, as
-  `.corvint/unbounded-readers.json` records, and stay selected for an unrelated edit.
+  `script/codex-review_test.sh` inherited `shell:dynamic-source` from `script/heavy.sh` until AFP-V0-3341 bounded its
+  host-only source, as the historical `.corvint/unbounded-readers.json` recorded; that inheritance no longer holds.
 
 - **AFP-V0-830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3509,
   amending `AFP-V0-160` (6) and `AFP-V0-465`) This repository's `.corvint/documentation-paths.json`
@@ -1339,10 +1339,11 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   followed by `/`, `#` or `%` and a pattern), whether or not the file ever assigns NAME: a file
   that gives the name no value proves nothing about where its caller's value points, and a caller
   that names a repository file (`ENVFILE=lib.sh`) makes the sourcing file read it. Only a literal
-  link (NSA-V0-008, AFP-V0-2954) or a TSP-V0-004 fresh-directory source bounds a source. The first
+  link (NSA-V0-008, AFP-V0-2954), a TSP-V0-004 fresh-directory source or the checked host-only
+  operand of AFP-V0-3341 bounds a source. The first
   version of this requirement admitted such a source when the file never assigned the name and
-  sourced no repository file; the review rejected it, so `script/heavy.sh`, whose remote half
-  sources `"${ENVFILE/#\~/$HOME}"`, stays a dynamic source, and so does every unit that runs it.
+  sourced no repository file; the review rejected it, so the former unguarded `script/heavy.sh` ENVFILE source stayed dynamic until AFP-V0-3340/3341
+  introduced its runtime refusal and checked operand. An unguarded environment source stays dynamic.
 - **AFP-V0-2954:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   amends NSA-V0-008) A variable that leads a `source`, `.`, `load` or run target SHALL resolve as a
   directory form when it is assigned more than once only if every assignment is a plain
@@ -1358,15 +1359,15 @@ narrow it a third time (`docs/build-log/2026-11-07-unbounded-readers-review-fix-
   them, and `.corvint/unbounded-readers.json` SHALL list exactly the units the corrected
   AFP-V0-2950 to AFP-V0-2954 leave on the floor, each with its reason.
   `script/dogfood-cache_test.sh` declares no scope: it names the dogfood wrappers, whose chain
-  reaches `script/heavy.sh`'s environment-named source (AFP-V0-2953), and TSP-V0-950 refuses a
-  declaration over a test that reaches a dynamic source. `script/lane-scripts_test.sh` stays recorded:
+  reached `script/heavy.sh`'s environment-named source (AFP-V0-2953). AFP-V0-3341 now bounds that
+  source; the test still has its own toolchain floor without a read-scope declaration. `script/lane-scripts_test.sh` stays recorded:
   it sources a `sed`-filtered copy of `script/heavy.sh` it writes into its temporary directory,
   a read of its own directory that no proof links (TSP-V0-004 admits no write between the
   `mktemp` and the source), so TSP-V0-950 refuses a declaration over it. `script/heavy.sh` SHALL
   keep its remote half provable under TSP-V0-004 (the payload directory variable is assigned once
   and no other function or embedded program reuses its name) and its toolchain probe a literal
   binary name (`"$sdk/go"`), so the shell plugin links or bounds every source and run target it
-  holds but the environment-named source AFP-V0-2953 keeps dynamic.
+  holds, including the checked host-only source of AFP-V0-3341.
 - **AFP-V0-2956:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4283;
   review fix 2, 2026-11-07; amends AFP-V0-2951) A `go vet` or `go list` whose standard output feeds
   another command SHALL record its package patterns as path imports (execution edges), not build
@@ -2343,6 +2344,70 @@ changing the CI selector, or certifying all comment readers from syntax alone.
 Rollback: remove the comparison attachment to restore full propagation; no store migration
 or graph-cache schema change is required.
 
+### Host-only shell environment source (V1-3360)
+
+- **AFP-V0-3340:** (experimental, owner-requested V1-3360, 2026-11-08) `HEAVY_REMOTE_ENV` is
+  executable host-only configuration. Before sourcing it, `heavy.sh` SHALL resolve its real path
+  on the consuming host and refuse with its infra error (97) if it is not a regular file, cannot
+  be resolved, contains CR/LF, has a link count above 1 (a hard link outside every checkout can
+  name a checkout file, which no path check sees), lies within a Git checkout (including linked worktrees and symlink
+  targets), or lies at/below the caller checkout, remote clone or remote worktree area. The caller
+  checkout SHALL travel in generated metadata; clone and worktree roots SHALL use the remote
+  HOME for tilde expansion and their existing defaults. A missing excluded root has no content to
+  read. An external host file, including a symlink to one and a sibling sharing a checkout path
+  prefix, SHALL still load, preserving exported settings and the existing infra fallback behavior.
+- **AFP-V0-3341:** (experimental, owner-requested V1-3360, 2026-11-08; amends AFP-V0-2953/2955 and
+  TSP-V0-004) The shell analyzer MAY bound exactly the quoted inline Perl realpath/check/print
+  operand retained as `hostEnvironmentOperand` in `internal/liveverify/affected/shell/host_source.go`.
+  The validator SHALL emit only an absolute canonical host-file path, or nothing on refusal;
+  sourcing the empty operand fails. Matching SHALL retain raw quoting and every validation step,
+  require exactly the source verb and operand with no prefix or redirection, outside a command
+  substitution or `sh -c`/`bash -c` command string, reject a redefined `command`, `source` or `.`,
+  and reject alias/hash/enable/eval rewriting. It SHALL also reject, anywhere in the file, any
+  `trap` other than a listing, a reset (`-`), or an EXIT, INT, TERM, HUP or QUIT handler whose text
+  lexes to commands without definitions or assignments that each run a function the file defines,
+  an inert builtin or an exact allowlisted external command: `git`, `rm`, `/bin/rm`, `rmdir` or
+  `/bin/rmdir`. For `git`, the only permitted global options are `-C <dir>` pairs and the subcommand
+  MUST be exactly `update-ref`. Each directory operand SHALL be a literal path containing only
+  letters, digits, `_`, `.`, `/`, `+` or `-` after unquoting, or the exact quoted
+  `"${clone:-/nonexistent}"` form heavy.sh uses; other expansions and globbing could inject global
+  options and SHALL be refused. All other global options (including `-c`, `--config-env` and
+  `--exec-path`) and subcommands SHALL be refused. Every other external command, including command
+  runners such as `bash`, `sh` and `env`, SHALL be refused rather than unwrapped. Trap strings are
+  otherwise unparsed. Before parsing a handler, the analyzer SHALL refuse command substitution
+  (`$(` or backtick), process substitution (`<(` or `>(`), arithmetic expansion, and parameter
+  operator words containing `$` or backtick. This check includes arguments to inert builtins and
+  single-quoted raw actions; literal parameter defaults remain permitted. DEBUG, RETURN and ERR
+  handlers run between ordinary commands. It SHALL
+  also reject any mention of
+  `command_not_found_handle`, which `command -p` still runs when perl is missing; and any mention
+  of a `PERL`-prefixed variable longer than `PERL` (`PERL5LIB`, `PERL5OPT`, `PERLLIB`, other
+  `PERL5*`) or an `LD_`/`DYLD_` loader variable, which could make perl load chosen code. Both mention
+  checks SHALL match the raw text and normalized text: first remove backslash-newline continuations,
+  then delete every single quote, double quote and backslash. Quoting or escaping a name SHALL NOT
+  evade either check. Any other source anywhere in the file (function
+  bodies run in call order, not text order) is admitted only if TSP-V0-004 proves its fresh
+  runtime metadata form. A filename or comment alone
+  SHALL never grant the exemption. Any changed guard or other unresolved source stays
+  `shell:dynamic-source`; unrelated script names with the same proof are admitted. This is a
+  static source-path proof under the existing trusted host tool/runtime-metadata model, not a
+  sandbox for arbitrary host configuration code or concurrent hostile filesystem replacement.
+- **AFP-V0-3342:** (experimental, owner-requested V1-3360, 2026-11-08) Repository assertions and
+  unbounded-reader records SHALL reflect the checked host source, including its hard-link,
+  trap, perl-environment and not-found-handler refusals. Retain independent dynamic
+  sources and toolchain floors. The comment-only `internal/tasks/journal/anchor.go` probe SHALL
+  record the before/after number of `driver:make` units whose witness cause is
+  `shell:script/heavy.sh`, using a baseline binary from `origin/main` and a candidate built outside
+  the checkout. No zero-cause result may be reported as complete affected-plan coverage.
+
+Acceptance: `TestHostEnvironmentSource_AFPV03341`, the repository heavy.sh guard-mutation
+regression `TestRepositoryScriptsAreBoundedSources_V14283`, `script/lane-scripts_test.sh
+--heavy-host-env-only` (successful load before fault injection, remote 97 and no execution side
+effect for caller/clone/worktree files and their symlinks, a file in an unrelated Git checkout
+  outside every excluded root, and a hard link outside every checkout to a checkout file), the unbounded-reader ratchet and
+`docs/build-log/2026-11-08-heavy-envfile-bounded.md`. No wire format or command flag changes.
+Rollback: revert the checked operand and analyzer rule together, restore the conservative floor
+and its declarations. Non-goal: prove what trusted host configuration executes after it loads.
 ### Driver narrowing after the convergence cap (V1-5000)
 
 - **AFP-V0-9628:** **Parsed-reference floor and complete-parse narrowing.** (experimental,

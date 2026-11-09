@@ -284,10 +284,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		word, args := commandWord(plainWords(commands[index].words))
 		switch {
 		case word == "source" || word == ".":
-			// A source no literal or fresh directory resolves is dynamic,
+			// A source no literal, fresh directory or checked host guard resolves is dynamic,
 			// an environment-named one (`. "$ENVFILE"`) included: nothing in
 			// the file bounds what the caller's value names (AFP-V0-2953).
-			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) {
+			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) && !hostEnvironmentSource(resolve, parsed, text, index) {
 				dynamic = true
 			}
 		case word == "load" && loads:
