@@ -119,10 +119,13 @@ type runtimeReadersFile struct {
 // path and each carries a non-empty printable reason. No entry may be
 // `.corvint/`, either declaration file or a directory holding one, anything at
 // or under `.github/`, or a make file, so the declaration can never classify
-// itself or the documentation declaration. A driver input below a declared
-// directory is left unowned per path by runtimeReaderPaths. Another file under
-// `.corvint/` may be declared one by one, as this repository declares its
-// read-scope declaration.
+// itself or the documentation declaration through a directory. An exact entry
+// for a parser-owned control declaration (auditControlDeclaration) is the one
+// exception (AZU-V0-8910): the planner's own readers of it stay selected by
+// their path literal and the ownership audit by ownershipTrigger. A driver
+// input below a declared directory is left unowned per path by
+// runtimeReaderPaths. Another file under `.corvint/` may be declared one by
+// one, as this repository declares its read-scope declaration.
 func readRuntimeReaders(root *Source) ([]RuntimeReader, error) {
 	if root == nil {
 		return nil, nil
@@ -145,7 +148,7 @@ func readRuntimeReaders(root *Source) ([]RuntimeReader, error) {
 	}
 	previous := ""
 	for _, entry := range declared.Entries {
-		if !ValidReadScopeEntry(entry.Path) || entry.Path <= previous || !validRuntimeReaderPath(entry.Path) {
+		if !ValidReadScopeEntry(entry.Path) || entry.Path <= previous || (!validRuntimeReaderPath(entry.Path) && !auditControlDeclaration(entry.Path)) {
 			return nil, fmt.Errorf("%s: path %q", RuntimeReadersPath, entry.Path)
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxRuntimeReaderReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {

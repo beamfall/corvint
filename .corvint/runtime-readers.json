@@ -26,6 +26,10 @@
       "reason": "Deferred CEM intent declarations, read by the CEM workflow through the directory path and existing repository readers; never executed or imported."
     },
     {
+      "path": ".corvint/documentation-paths.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
       "path": ".corvint/evidence-reach.json",
       "reason": "evidence-reach declaration; read through path literals by cmd/corvint runs, internal/evidencereach and tools/declaration-compat-check, and by the root-locating repository tests the unbounded-reader rule selects; never loaded by a computed name or a build or CI driver (V1-3480, AFP-V0-2404)"
     },
@@ -42,12 +46,20 @@
       "reason": "long-line allow list (ASD-V0-573), read through its declared path by script/long-lines-check.sh; never executed or imported."
     },
     {
+      "path": ".corvint/non-source-paths.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
       "path": ".corvint/record-readers.json",
       "reason": "record-directory reader ratchet record (AFP-V0-2745); read through path literals by tools/unbounded-readers and tools/declaration-compat-check and by the root-locating repository tests the unbounded-reader rule selects; never a selection input or loaded by a computed name or a build or CI driver"
     },
     {
       "path": ".corvint/runtime-edges.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
+      "path": ".corvint/runtime-readers.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
       "path": ".corvint/shell-foreign-callers.json",
@@ -84,6 +96,14 @@
     {
       "path": ".corvint/test-read-scopes.json",
       "reason": "read-scope declaration (AFP-V0-023); read by the affected planner, the gate selector and the read-scope tools through path literals and root-locator readers"
+    },
+    {
+      "path": ".corvint/test-selection.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
+      "path": ".corvint/unbounded-reader-exclusions.json",
+      "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
       "path": ".corvint/unbounded-readers.json",
