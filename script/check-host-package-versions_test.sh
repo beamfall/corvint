@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-# AHI-020: fixture histories for Gemini CLI, Pi and OpenCode. The commit that adds a package
+# AHI-020: fixture histories for the Codex and Claude Code packages (the Gemini CLI, Pi and
+# OpenCode packages were removed by decision 0594). The commit that adds a package
 # passes (it bumps and ships in the same commit), a later commit that changes content without
 # touching the version
 # field fails and names the package, and a subsequent commit that bumps the version field
@@ -16,7 +17,7 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-mkdir -p "$test_root/script" "$test_root/integrations/gemini-cli/hooks"
+mkdir -p "$test_root/script" "$test_root/integrations/codex/plugins/corvint/hooks" "$test_root/integrations/codex/plugins/corvint/.codex-plugin"
 cp "$source_root/script/check-host-package-versions.sh" "$test_root/script/"
 
 git -C "$test_root" init -q
@@ -39,32 +40,32 @@ commit() {
 }
 
 # 1. The commit that introduces the package bumps and ships its content together, so it passes.
-cat >"$test_root/integrations/gemini-cli/gemini-extension.json" <<'EOF'
+cat >"$test_root/integrations/codex/plugins/corvint/.codex-plugin/plugin.json" <<'EOF'
 {
   "name": "corvint",
   "version": "0.1.0",
   "description": "fixture"
 }
 EOF
-printf '{"hooks":{}}\n' >"$test_root/integrations/gemini-cli/hooks/hooks.json"
-commit "add gemini-cli package at 0.1.0" 2026-01-01T00:00:00
+printf '{"hooks":{}}\n' >"$test_root/integrations/codex/plugins/corvint/hooks/hooks.json"
+commit "add codex package at 0.1.0" 2026-01-01T00:00:00
 output=$(run) || fail "the introducing commit did not pass: $output"
 test -z "$output" || fail "a passing run printed output: $output"
 
 # 2. A later commit changes shipped content without touching the version field: fails, and
 # names the package and the stale version file.
-printf '{"hooks":{"changed":true}}\n' >"$test_root/integrations/gemini-cli/hooks/hooks.json"
+printf '{"hooks":{"changed":true}}\n' >"$test_root/integrations/codex/plugins/corvint/hooks/hooks.json"
 commit "change hooks.json only" 2026-01-01T00:01:00
 if output=$(run); then
     fail "a content-only change with no version bump passed the gate"
 fi
 case $output in
-    *gemini-cli*gemini-extension.json*) ;;
+    *codex*.codex-plugin/plugin.json*) ;;
     *) fail "the failure did not name the stale package/file: $output" ;;
 esac
 
 # 3. Bumping the version field afterward passes again.
-cat >"$test_root/integrations/gemini-cli/gemini-extension.json" <<'EOF'
+cat >"$test_root/integrations/codex/plugins/corvint/.codex-plugin/plugin.json" <<'EOF'
 {
   "name": "corvint",
   "version": "0.1.1",
@@ -78,11 +79,11 @@ test -z "$output" || fail "a passing run printed output: $output"
 # 4. The shipped set is the package directory, not a list of files known when the gate was
 # written: a newly added shipped file (here a second skill) without a version bump fails, while a
 # README.md edit alone still passes.
-printf '# fixture\n' >"$test_root/integrations/gemini-cli/README.md"
+printf '# fixture\n' >"$test_root/integrations/codex/plugins/corvint/README.md"
 commit "edit README only" 2026-01-01T00:03:00
 output=$(run) || fail "a README.md-only change failed the gate: $output"
-mkdir -p "$test_root/integrations/gemini-cli/skills/added"
-printf 'skill\n' >"$test_root/integrations/gemini-cli/skills/added/SKILL.md"
+mkdir -p "$test_root/integrations/codex/plugins/corvint/skills/added"
+printf 'skill\n' >"$test_root/integrations/codex/plugins/corvint/skills/added/SKILL.md"
 commit "add a skill without a bump" 2026-01-01T00:04:00
 if output=$(run); then
     fail "a newly added shipped file with no version bump passed the gate"
@@ -93,7 +94,7 @@ fi
 # is strictly the later one in history -- committer-second equality must not be read as "the
 # bump covers it". Bump first to clear case 4's stale state, then bump again and change content
 # in one forced committer second.
-cat >"$test_root/integrations/gemini-cli/gemini-extension.json" <<'EOF'
+cat >"$test_root/integrations/codex/plugins/corvint/.codex-plugin/plugin.json" <<'EOF'
 {
   "name": "corvint",
   "version": "0.1.2",
@@ -103,7 +104,7 @@ EOF
 commit "bump to 0.1.2" 2026-01-01T00:05:00
 output=$(run) || fail "the run after clearing the missed bump did not pass: $output"
 
-cat >"$test_root/integrations/gemini-cli/gemini-extension.json" <<'EOF'
+cat >"$test_root/integrations/codex/plugins/corvint/.codex-plugin/plugin.json" <<'EOF'
 {
   "name": "corvint",
   "version": "0.1.3",
@@ -111,71 +112,39 @@ cat >"$test_root/integrations/gemini-cli/gemini-extension.json" <<'EOF'
 }
 EOF
 commit "bump to 0.1.3" 2026-01-01T00:06:00
-printf '{"hooks":{"changed_again":true}}\n' >"$test_root/integrations/gemini-cli/hooks/hooks.json"
+printf '{"hooks":{"changed_again":true}}\n' >"$test_root/integrations/codex/plugins/corvint/hooks/hooks.json"
 commit "change hooks.json in the bump commit's committer second" 2026-01-01T00:06:00
 if output=$(run); then
     fail "a content change sharing the bump commit's committer second passed the gate"
 fi
 
-# Clear the earlier fixture's stale state before exercising the Pi shipped modules.
-printf '{"name":"corvint","version":"0.1.4"}\n' >"$test_root/integrations/gemini-cli/gemini-extension.json"
-mkdir -p "$test_root/integrations/pi"
-printf '{"version":"0.3.0","corvintIntegration":{"adapterVersion":"0.3.0"}}\n' >"$test_root/integrations/pi/package.json"
-printf 'entry\n' >"$test_root/integrations/pi/index.ts"
-commit "introduce Pi fixture" 2026-01-01T00:07:00
-output=$(run) || fail "Pi introduction did not pass: $output"
+# Clear the earlier fixture's stale state before exercising the Claude Code shipped modules.
+printf '{"name":"corvint","version":"0.1.4"}\n' >"$test_root/integrations/codex/plugins/corvint/.codex-plugin/plugin.json"
+mkdir -p "$test_root/integrations/claude-code/plugins/corvint/.claude-plugin" "$test_root/integrations/claude-code/.claude-plugin"
+cc_version() {
+    printf '{"name":"corvint","version":"%s"}\n' "$1" >"$test_root/integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json"
+    printf '{"plugins":[{"name":"corvint","version":"%s"%s}]}\n' "$1" "${2:-}" >"$test_root/integrations/claude-code/.claude-plugin/marketplace.json"
+}
+cc_version 0.3.0
+printf 'entry\n' >"$test_root/integrations/claude-code/plugins/corvint/index.ts"
+commit "introduce Claude Code fixture" 2026-01-01T00:07:00
+output=$(run) || fail "Claude Code introduction did not pass: $output"
 i=0
 for module in process core tasks operations cockpit workflow; do
     i=$((i + 1))
-    printf 'new shipped module\n' >"$test_root/integrations/pi/$module.js"
-    commit "add Pi $module without bump" "2026-01-01T01:0${i}:00"
-    if output=$(run); then fail "Pi $module shipped without a bump"; fi
-    case $output in *pi*package.json*) ;; *) fail "Pi failure not named: $output" ;; esac
-    printf '{"version":"0.3.%s","corvintIntegration":{"adapterVersion":"0.3.%s"}}\n' "$i" "$i" >"$test_root/integrations/pi/package.json"
-    commit "bump Pi after $module" "2026-01-01T02:0${i}:00"
-    output=$(run) || fail "Pi bump did not clear $module: $output"
+    printf 'new shipped module\n' >"$test_root/integrations/claude-code/plugins/corvint/$module.js"
+    commit "add Claude Code $module without bump" "2026-01-01T01:0${i}:00"
+    if output=$(run); then fail "Claude Code $module shipped without a bump"; fi
+    case $output in *claude-code*plugin.json*) ;; *) fail "Claude Code failure not named: $output" ;; esac
+    cc_version "0.3.$i"
+    commit "bump Claude Code after $module" "2026-01-01T02:0${i}:00"
+    output=$(run) || fail "Claude Code bump did not clear $module: $output"
 done
-# AHI-954 / V1-3409: a Pi README-only edit needs no bump, though the files list names README.md.
-printf '# pi fixture\n' >"$test_root/integrations/pi/README.md"
-commit "edit Pi README only" 2026-01-01T03:00:00
-output=$(run) || fail "a Pi README.md-only change failed the gate: $output"
+# AHI-954 / V1-3409: a README-only edit needs no bump.
+printf '# claude-code fixture\n' >"$test_root/integrations/claude-code/plugins/corvint/README.md"
+commit "edit Claude Code README only" 2026-01-01T03:00:00
+output=$(run) || fail "a Claude Code README.md-only change failed the gate: $output"
 
-# AHI-020 / V1-0452: OpenCode's explicit shipped set must cover its package.json files list,
-# including a skills-only addition and an mcp.example.json-only edit.
-mkdir -p "$test_root/integrations/opencode/src"
-cat >"$test_root/integrations/opencode/package.json" <<'EOF'
-{"version":"0.1.0","files":["src","README.md","opencode.example.json","mcp.example.json","skills"]}
-EOF
-printf 'entry\n' >"$test_root/integrations/opencode/src/index.ts"
-printf '{}\n' >"$test_root/integrations/opencode/mcp.example.json"
-commit "introduce OpenCode fixture" 2026-01-02T00:00:00
-output=$(run) || fail "OpenCode introduction did not pass: $output"
-i=0
-for shipped in skills/added/SKILL.md mcp.example.json; do
-    i=$((i + 1))
-    mkdir -p "$test_root/integrations/opencode/$(dirname "$shipped")"
-    printf 'changed shipped content\n' >"$test_root/integrations/opencode/$shipped"
-    commit "change OpenCode $shipped without bump" "2026-01-02T00:${i}0:00"
-    if output=$(run); then fail "OpenCode $shipped shipped without a bump"; fi
-    case $output in
-        *'opencode: integrations/opencode/package.json last bumped'*) ;;
-        *) fail "OpenCode failure not named: $output" ;;
-    esac
-    jq --arg version "0.1.$i" '.version = $version' \
-        "$test_root/integrations/opencode/package.json" >"$test_root/package.json.tmp"
-    mv "$test_root/package.json.tmp" "$test_root/integrations/opencode/package.json"
-    commit "bump OpenCode after $shipped" "2026-01-02T00:${i}1:00"
-    output=$(run) || fail "OpenCode bump did not clear $shipped: $output"
-done
-
-# Files outside the published list do not require a package bump.
-printf 'development-only test\n' >"$test_root/integrations/opencode/fixture.test.ts"
-commit "change unpublished OpenCode test only" 2026-01-02T01:00:00
-output=$(run) || fail "unpublished OpenCode change failed the gate: $output"
-# AHI-954 / V1-3409: an OpenCode README-only edit needs no bump either.
-printf '# opencode fixture\n' >"$test_root/integrations/opencode/README.md"
-commit "edit OpenCode README only" 2026-01-02T01:01:00
-output=$(run) || fail "an OpenCode README.md-only change failed the gate: $output"
 # AHI-020 / V1-2184: the Spec Kit extension reads its version from extension.yml's extension block,
 # and the failure names the bump command (AHI-173).
 mkdir -p "$test_root/protocol/integrations/speckit/corvint/commands"
@@ -227,7 +196,7 @@ commit "change the OpenSpec skill body with a bump" 2026-01-04T00:02:00
 output=$(run) || fail "an OpenSpec body change with its bump did not pass: $output"
 
 # LVT-V0-005 (V1-4252): a version file's history is read in one batch, so twenty more commits that
-# touch Pi's package.json without changing either version field cost no more git spawns, and the
+# touch Claude Code's marketplace.json without changing either version field cost no more git spawns, and the
 # verdict is unchanged: the last bump is still the commit that changed the fields, so the gate
 # passes, and a later shipped change with no bump still fails.
 spawn_dir=$(mktemp -d "${TMPDIR:-/tmp}/corvint-host-package-versions-spawns.XXXXXX")
@@ -236,24 +205,23 @@ real_git=$(command -v git)
 printf '#!/bin/sh\necho git >> "%s/log"\nexec "%s" "$@"\n' "$spawn_dir" "$real_git" > "$spawn_dir/git"
 chmod +x "$spawn_dir/git"
 count_spawns() { : > "$spawn_dir/log"; (cd "$test_root" && PATH="$spawn_dir:$PATH" script/check-host-package-versions.sh > /dev/null 2>&1) || true; grep -c . "$spawn_dir/log"; }
-pi_version=$(jq -r .version "$test_root/integrations/pi/package.json")
+cc=$(jq -r .version "$test_root/integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json")
 i=0
 while [ "$i" -lt 22 ]; do
     i=$((i + 1))
-    printf '{"version":"%s","description":"edit %s","corvintIntegration":{"adapterVersion":"%s"}}\n' "$pi_version" "$i" "$pi_version" \
-        >"$test_root/integrations/pi/package.json"
-    commit "describe Pi $i" "2026-01-05T00:$(printf '%02d' "$i"):00"
+    cc_version "$cc" ",\"description\":\"edit $i\""
+    commit "describe Claude Code $i" "2026-01-05T00:$(printf '%02d' "$i"):00"
     [ "$i" -ne 2 ] || few=$(count_spawns)
 done
-output=$(run) || fail "edits that keep the Pi version did not pass: $output"
+output=$(run) || fail "edits that keep the Claude Code version did not pass: $output"
 many=$(count_spawns)
 [ "$many" = "$few" ] || fail "git spawns grew with the version file's history: $few after two commits, $many after twenty more"
-printf 'changed\n' >"$test_root/integrations/pi/index.ts"
-commit "change Pi shipped content after the description edits" 2026-01-06T00:00:00
-if output=$(run); then fail "a Pi shipped change after twenty unchanged-version commits passed the gate"; fi
+printf 'changed\n' >"$test_root/integrations/claude-code/plugins/corvint/index.ts"
+commit "change Claude Code shipped content after the description edits" 2026-01-06T00:00:00
+if output=$(run); then fail "a Claude Code shipped change after twenty unchanged-version commits passed the gate"; fi
 case $output in
-    *'pi: integrations/pi/package.json last bumped'*) ;;
-    *) fail "the late Pi shipped change was not named: $output" ;;
+    *'claude-code: integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json last bumped'*) ;;
+    *) fail "the late Claude Code shipped change was not named: $output" ;;
 esac
 # Fault injection: a broken batch reader must use the full legacy history algorithm.
 sed '2i\
@@ -263,32 +231,32 @@ mv "$spawn_dir/newgit" "$spawn_dir/git"; chmod +x "$spawn_dir/git"
 if output=$(cd "$test_root" && LANE_BAD_BATCH=1 PATH="$spawn_dir:$PATH" script/check-host-package-versions.sh 2>&1); then
  fail "a broken batch fallback passed an unbumped shipped change"
 fi
-case $output in *'pi: integrations/pi/package.json last bumped'*) ;; *) fail "fallback lost the shipped-change verdict: $output" ;; esac
+case $output in *'claude-code: integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json last bumped'*) ;; *) fail "fallback lost the shipped-change verdict: $output" ;; esac
 # LVT-V0-005: a package whose only shipped path contains a newline still exists,
 # and deletion does not erase its historical shipped change from the absence filter.
 odd_repo=$test_root/odd-history
-mkdir -p "$odd_repo/script" "$odd_repo/integrations/opencode/src"
+mkdir -p "$odd_repo/script" "$odd_repo/integrations/codex/plugins/corvint/src" "$odd_repo/integrations/codex/plugins/corvint/.codex-plugin"
 cp "$source_root/script/check-host-package-versions.sh" "$odd_repo/script/"
 git -C "$odd_repo" init -q
 odd_git() { git -C "$odd_repo" -c user.name=Fixture -c user.email=fixture@example.test "$@"; }
 odd_name=$(printf 'line\nbreak.ts')
-printf '{"version":"0.1.0"}\n' > "$odd_repo/integrations/opencode/package.json"
+printf '{"version":"0.1.0"}\n' > "$odd_repo/integrations/codex/plugins/corvint/.codex-plugin/plugin.json"
 odd_git add -A && odd_git commit -q -m manifest
 (cd "$odd_repo" && script/check-host-package-versions.sh) || fail "an unshipped manifest failed"
-printf 'first\n' > "$odd_repo/integrations/opencode/src/$odd_name"
+printf 'first\n' > "$odd_repo/integrations/codex/plugins/corvint/src/$odd_name"
 odd_git add -A && odd_git commit -q -m unusual-path
 if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then fail "a newline-only shipped path was skipped"; fi
-case $output in *'opencode: integrations/opencode/package.json last bumped'*) ;; *) fail "unusual path failure not named: $output" ;; esac
-odd_git rm -q "integrations/opencode/src/$odd_name" && odd_git commit -q -m delete-unusual-path
+case $output in *'codex: integrations/codex/plugins/corvint/.codex-plugin/plugin.json last bumped'*) ;; *) fail "unusual path failure not named: $output" ;; esac
+odd_git rm -q "integrations/codex/plugins/corvint/src/$odd_name" && odd_git commit -q -m delete-unusual-path
 if output=$(cd "$odd_repo" && script/check-host-package-versions.sh 2>&1); then fail "deleting the only shipped path erased its history"; fi
 # LVT-V0-005: a package whose first shipped file appears only in a merge resolution, while its
 # manifest keeps an unchanged version, still enters the inventory and fails the missing bump.
 merge_repo=$test_root/merge-history
-mkdir -p "$merge_repo/script" "$merge_repo/integrations/opencode"
+mkdir -p "$merge_repo/script" "$merge_repo/integrations/codex/plugins/corvint/.codex-plugin"
 cp "$source_root/script/check-host-package-versions.sh" "$merge_repo/script/"
 git -C "$merge_repo" init -q -b main
 merge_git() { git -C "$merge_repo" -c user.name=Fixture -c user.email=fixture@example.test "$@"; }
-printf '{"version":"0.1.0"}\n' > "$merge_repo/integrations/opencode/package.json"
+printf '{"version":"0.1.0"}\n' > "$merge_repo/integrations/codex/plugins/corvint/.codex-plugin/plugin.json"
 printf 'base\n' > "$merge_repo/notes.txt"
 merge_git add -A && merge_git commit -q -m manifest
 merge_git checkout -q -b side
@@ -298,9 +266,9 @@ merge_git checkout -q main
 printf 'main\n' >> "$merge_repo/notes.txt"
 merge_git add -A && merge_git commit -q -m main
 merge_git merge -q --no-ff --no-commit side
-mkdir -p "$merge_repo/integrations/opencode/src"
-printf 'resolved\n' > "$merge_repo/integrations/opencode/src/index.ts"
+mkdir -p "$merge_repo/integrations/codex/plugins/corvint/src"
+printf 'resolved\n' > "$merge_repo/integrations/codex/plugins/corvint/src/index.ts"
 merge_git add -A && merge_git commit -q -m 'merge side, shipping a resolution-only file'
 if output=$(cd "$merge_repo" && script/check-host-package-versions.sh 2>&1); then fail "a shipped file introduced only by a merge resolution skipped the version check"; fi
-case $output in *'opencode: integrations/opencode/package.json last bumped'*) ;; *) fail "merge-only shipped change not named: $output" ;; esac
-printf 'check-host-package-versions_test: 25 cases passed (%s git spawns)\n'  "$many"
+case $output in *'codex: integrations/codex/plugins/corvint/.codex-plugin/plugin.json last bumped'*) ;; *) fail "merge-only shipped change not named: $output" ;; esac
+printf 'check-host-package-versions_test: 20 cases passed (%s git spawns)\n'  "$many"

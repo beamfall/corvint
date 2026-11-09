@@ -58,7 +58,7 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 	graph, module := repositoryNarrowingGraph(t)
 	narrowed := []string{
 		"internal/perfbudget", "conformance/cli-parity-v0",
-		"conformance/mcp-2026-07-28", "internal/jstestprovider", "internal/tasks/ticket",
+		"internal/jstestprovider", "internal/tasks/ticket",
 		"protocol/integrations", "tools/ci-forward-row", "tools/requirement-id-collisions",
 		"shell:script/gate-affected_test.sh", "shell:script/dogfood-change_test.sh",
 		"shell:script/vscode-check-install_test.sh", "shell:script/check-install-lifecycle_test.sh",
@@ -70,8 +70,8 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 	}{
 		{"docs/specs/test-selection-precision-v0.md", narrowed, []string{"internal/specindex", "internal/lrfrepo"}},
 		{"docs/specs/source-documentation-draft-v0.md", narrowed, []string{"internal/lrfrepo"}},
-		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/compactionkernel", "internal/dashboard/roadmap",
-			"internal/sharedpath", "script/spec-coverage-audit"}, narrowed...), []string{"internal/lrfrepo"}},
+		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/dashboard/roadmap",
+			"script/spec-coverage-audit"}, narrowed...), []string{"internal/lrfrepo"}},
 	} {
 		units := selectedUnits(graph, module, test.dirty)
 		for _, unit := range test.narrowed {
@@ -93,11 +93,9 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	for _, test := range []struct{ dirty, unit string }{
-		{"docs/specs/mcp-server-2026-07-28-v0.md", "conformance/mcp-2026-07-28"},
 		{"internal/taskman/testdata/issue502-optional-keys-record.json", "internal/tasks/ticket"},
 		{".github/forward-rows/failed.jq", "tools/ci-forward-row"},
 		{".github/cishards/package-costs.json", "internal/perfbudget"},
-		{"integrations/opencode/README.md", "internal/opencodequalification"},
 		{"internal/capcatalog/trees/corvint-cem-candidate.json", "cmd/corvint-postmerge-workflow"},
 		{"examples/evidence-provider/v0/main.go", "examples/evidence-provider/v0/conformance"},
 		{"Makefile", "shell:script/dogfood-cache_test.sh"},

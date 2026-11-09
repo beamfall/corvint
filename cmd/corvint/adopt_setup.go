@@ -147,28 +147,19 @@ type setupHookConfig struct {
 }
 
 // setupHookWired reports whether a parsed host file enables a `corvint@`
-// plugin (value exactly true) or runs a `corvint adapter` command hook.
+// plugin (value exactly true). The `corvint adapter` command hooks left with
+// the host adapters (decision 0594).
 func setupHookWired(config setupHookConfig) bool {
 	for plugin, enabled := range config.EnabledPlugins {
 		if strings.HasPrefix(plugin, "corvint@") && string(bytes.TrimSpace(enabled)) == "true" {
 			return true
 		}
 	}
-	for _, matchers := range config.Hooks {
-		for _, matcher := range matchers {
-			for _, hook := range matcher.Hooks {
-				fields := strings.Fields(hook.Command)
-				if hook.Type == "command" && len(fields) >= 2 && filepath.Base(fields[0]) == "corvint" && fields[1] == "adapter" {
-					return true
-				}
-			}
-		}
-	}
 	return false
 }
 
 // setupHookCheck reports whether a repository-scoped host file wires Corvint's
-// hooks: an enabled `corvint@` plugin or a `corvint adapter` command hook.
+// plugin: an enabled `corvint@` plugin.
 func setupHookCheck(root string) setupCheck {
 	check := setupCheck{Class: "hooks", Status: "gap"}
 	for _, name := range setupHookFiles {
@@ -184,7 +175,7 @@ func setupHookCheck(root string) setupCheck {
 			check.Status = "ok"
 			check.Evidence = append(check.Evidence, name+": wires corvint")
 		default:
-			check.Evidence = append(check.Evidence, name+": present, no enabled corvint plugin or corvint adapter hook")
+			check.Evidence = append(check.Evidence, name+": present, no enabled corvint plugin")
 		}
 	}
 	if len(check.Evidence) == 0 {

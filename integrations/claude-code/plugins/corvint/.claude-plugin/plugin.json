@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "corvint",
   "displayName": "Corvint",
-  "version": "0.3.13",
-  "description": "Revision-pinned repository context, impact analysis and affected tests from Corvint, with explicit uncertainty",
+  "version": "0.4.0",
+  "description": "Revision-pinned impact analysis and affected tests from Corvint, with explicit uncertainty",
   "author": {
     "name": "Corvint Project",
     "url": "https://github.com/beamfall/corvint"
@@ -12,27 +12,13 @@
   "repository": "https://github.com/beamfall/corvint",
   "license": "Apache-2.0",
   "keywords": [
-    "context",
     "evidence",
     "git",
     "impact",
     "tests",
     "code-review"
   ],
-  "userConfig": {
-    "stop_done_list": {
-      "type": "boolean",
-      "title": "Stop done-list",
-      "description": "Show what a turn's change still owes (selected tests, unwitnessed commits) when Claude stops. The CORVINT_STOP_DONE_LIST environment variable, when set, takes precedence.",
-      "default": false
-    }
-  },
   "metadata": {
-    "support": "FALLBACK",
-    "adapterVersion": "0.1.0",
-    "adapterProfile": "claude-code-plugin/0",
-    "protocolProfile": "corvint-harness-event/0",
-    "compatibilityFile": "compatibility.json",
-    "localCompletionProfile": "corvint-dogfood-event/0"
+    "support": "FALLBACK"
   }
 }

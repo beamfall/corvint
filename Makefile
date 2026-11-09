@@ -41,26 +41,15 @@ help: ## List the documented targets and the effective BASE (the default goal; r
 build: go-version ## Build the corvint binaries
 	$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
 
-# Optional protected Pi distribution; dependency installation/download is explicit.
-.PHONY: pi-protected-build
-pi-protected-build:
-	bun integrations/pi-protected/build.mjs
-
-.PHONY: pi-protected-test
-pi-protected-test: pi-protected-build
-	node --test integrations/pi-protected/*.test.mjs
-	cd tools/local-authority && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...
-
 # gate is the reproducible verification gate: it must pass from a fresh clone with no private
 # .corvint/ state. dogfood-check is a separate authoring-time discipline step (AGENTS.md), run
 # explicitly with BASE=<sha> after committing the change and its CEM (docs/DOGFOOD.md); it is
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-# One step per line (V1-3470, STR-V0-920): the first five run first in this order; the rest
+# One step per line (V1-3470, STR-V0-920): the first four run first in this order; the rest
 # stay sorted, so lanes adding different steps insert at different lines and merge cleanly.
 GATE_STEPS = \
-  host-adapter-node-test \
   go-version \
   go-test \
   go-vet \
@@ -107,7 +96,6 @@ GATE_STEPS = \
   go-format-test \
   goos-filenames-check \
   goos-filenames-test \
-  hlq-local-test \
   host-package-versions-check \
   host-package-versions-test \
   instruction-conflicts-test \
@@ -187,19 +175,6 @@ ledger/go-test:
 ledger/%:
 	@$(HEAVY_NICE_PREFIX) env $(GATE_LEDGER) run $* -- $(SUB_MAKE) $*
 endif
-
-# Native adapter and opt-in handoff regressions are owned by the reproducible source gate.
-# host-adapter-node-test is its node half; batch-precheck runs it too, so an adapter version or
-# capability-tuple drift fails before merge instead of only in the nightly (ASD-V0-044, V1-3062).
-.PHONY: host-adapter-node-test
-host-adapter-node-test:
-	node --test integrations/opencode/*.test.mjs
-	npm --prefix integrations/pi test
-	npm --prefix integrations/pi-protected test
-
-.PHONY: host-adapter-test
-host-adapter-test: host-adapter-node-test
-	CORVINT_REQUIRE_NODE=1 GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
 .PHONY: go-version
 go-version:
@@ -699,19 +674,16 @@ capability-catalog-check:
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
 # commit that changed any other shipped file in that package. AHI-240: it also verifies that every
-# version location of every package agrees, so a manifest-only bump fails here. AHI-951: every
-# path the Codex plugin manifest declares (skills, mcpServers, hooks) exists.
+# version location of every package agrees, so a manifest-only bump fails here.
 .PHONY: host-package-versions-check
 host-package-versions-check:
 	@script/check-host-package-versions.sh
 	@script/host-package-version.sh verify >/dev/null
-	@script/publish-codex-plugin.sh check integrations/codex/plugins/corvint
 
 .PHONY: host-package-versions-test
 host-package-versions-test:
 	@script/check-host-package-versions_test.sh
 	@script/host-package-version_test.sh
-	@script/publish-codex-plugin_test.sh
 
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
@@ -1099,17 +1071,6 @@ install-lifecycle-test:
 	@script/select-previous-release_test.sh
 	@script/core-n1-source_test.sh
 	@script/core-n1-replay-default_test.sh
-
-# Local host lifecycle qualification (HLQ-V1-056): builds the runner and runs the binary, so its exit
-# code survives (go run collapses exit 2 to 1). Example:
-#   make hlq-local HLQ_ARGS='--host cli --corvint ./corvint --snapshot-dirty'
-.PHONY: hlq-local
-hlq-local:
-	@script/hlq-local.sh $(HLQ_ARGS)
-
-.PHONY: hlq-local-test
-hlq-local-test:
-	@script/hlq-local_test.sh
 
 .PHONY: hostile-regressions-check
 hostile-regressions-check:
@@ -1593,13 +1554,6 @@ runtime-environment-test:
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
 # loaded host exceeds; release-env-compat-test already runs in companion-release-gate-test; and
 # seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
-# Outside the gate: host-adapters-test-test cancels script/host-adapters-test.sh and waits out a
-# 1-second SIGKILL grace for a TERM-ignoring grandchild, a process-timing check a loaded host can
-# disturb (V1-4147).
-.PHONY: host-adapters-test-test
-host-adapters-test-test:
-	@script/host-adapters-test_test.sh
-
 .PHONY: public-release-check-test
 public-release-check-test:
 	@script/public-release-check_test.sh
@@ -1694,7 +1648,6 @@ shell-test: \
   go-cache-trim-test \
   go-format-test \
   goos-filenames-test \
-  hlq-local-test \
   host-package-versions-test \
   instruction-conflicts-test \
   lane-interrupted-test \
