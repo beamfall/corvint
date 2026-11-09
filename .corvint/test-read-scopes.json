@@ -3577,6 +3577,7 @@
     "tools/runner-qualification": [],
     "tools/selection-baseline": [
       ".github/cishards/",
+      ".github/forward-rows/github-guard.sh",
       "benchmarks/selection-baseline/",
       "go.mod"
     ],
