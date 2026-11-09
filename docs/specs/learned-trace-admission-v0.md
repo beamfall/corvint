@@ -5,6 +5,9 @@ Date: 2026-09-05
 Status: accepted
 Intent status: accepted (decision 0058)
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09). LTA-V0-006..008 are retired: the `skill-export` command
+and `internal/skillexport` were deleted (4663b4e2b is the last tree with them). The other
+requirements are unchanged.
 Requirement prefix: `LTA-V0`
 Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-retention-2026-09-05.md`;
 `docs/decisions/0037-release-owner-calls-2026-09-03.md` item 4; AGENTS.md invariant 5;
