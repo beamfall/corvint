@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/execfile"
@@ -149,41 +148,6 @@ func execute(t *testing.T, command *exec.Cmd) processResult {
 	return processResult{exit: exit, stdout: stdout.Bytes(), stderr: stderr.Bytes()}
 }
 
-func cliArguments(root, event string) []string {
-	return []string{
-		"--root", root, "harness", "event", "--host", "codex",
-		"--host-version", "unknown", "--surface", "plugin",
-		"--adapter-version", "0.1.0", "--event", event, "--input", "-",
-	}
-}
-
-func TestRunEmitsOneCanonicalResponse(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	var stdout, stderr bytes.Buffer
-	if code := run(cliArguments(root, "stop"), strings.NewReader(`{"stopHookActive":true}`), &stdout, &stderr); code != 0 {
-		t.Fatalf("exit = %d, stderr = %s", code, &stderr)
-	}
-	if stderr.Len() != 0 || !bytes.HasSuffix(stdout.Bytes(), []byte{'\n'}) || bytes.Count(stdout.Bytes(), []byte{'\n'}) != 1 {
-		t.Fatalf("stdout=%q stderr=%q", &stdout, &stderr)
-	}
-	body := bytes.TrimSuffix(stdout.Bytes(), []byte{'\n'})
-	var value map[string]any
-	if err := json.Unmarshal(body, &value); err != nil {
-		t.Fatal(err)
-	}
-	canonical, err := gokernel.CanonicalJSON(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(body, canonical) {
-		t.Fatalf("noncanonical stdout: %s", body)
-	}
-	if value["support"] != "FALLBACK" || value["profile"] != gokernel.Profile {
-		t.Fatalf("unexpected response: %#v", value)
-	}
-}
-
 func TestEmitEscapesNonASCIIWithoutChangingReceiptCanonicalization(t *testing.T) {
 	t.Parallel()
 	value := map[string]any{"text": "café — 🙂"}
@@ -299,36 +263,6 @@ func TestDogfoodObserveRejectsUnboundedOrSensitiveFields(t *testing.T) {
 	}
 }
 
-func TestStandaloneQueryFailuresDoNotObserveOrMutate(t *testing.T) {
-	t.Parallel()
-	for _, test := range []struct {
-		name string
-		argv []string
-	}{
-		{name: "invalid", argv: []string{"query", "--task", "fix parser", "--limit", "not-an-int"}},
-		{name: "out-of-range", argv: []string{"query", "--task", "use codex agent tooling on private task", "--limit", "51"}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			root := cliRepository(t)
-			if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			before := repositoryBytesDigest(t, root)
-			var stdout, stderr bytes.Buffer
-			arguments := append([]string{"--root", root}, test.argv...)
-			if code := run(arguments, strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
-				t.Fatalf("exit=%d stdout=%s stderr=%s", code, &stdout, &stderr)
-			}
-			if after := repositoryBytesDigest(t, root); before != after {
-				t.Fatal("standalone query failure changed repository or Git bytes")
-			}
-			if _, err := os.Stat(filepath.Join(root, ".corvint")); !os.IsNotExist(err) {
-				t.Fatalf("standalone query wrote observation state: %v", err)
-			}
-		})
-	}
-}
-
 func TestNonQueryUnsupportedFailureStillObserves(t *testing.T) {
 	t.Parallel()
 	root := cliRepository(t)
@@ -345,7 +279,7 @@ func TestNonQueryUnsupportedFailureStillObserves(t *testing.T) {
 	}
 }
 
-// SOL-V0-007 and IDX-SNAP-V0-910: index and calibrate build the
+// SOL-V0-007 and IDX-SNAP-V0-910: index builds the
 // committed index, and a tree listing 135,000,000 source bytes is no longer an
 // aggregate-bound refusal: the build reaches the (here missing) blobs and fails
 // as an ordinary Git read, and the unsupported ledger records nothing.
@@ -359,7 +293,7 @@ func TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910(t *testing.T
  done
  exit 0;; esac`)
 	for _, argv := range [][]string{
-		{"index"}, {"calibrate"},
+		{"index"},
 	} {
 		t.Run(argv[0], func(t *testing.T) {
 			root := cliRepository(t)
@@ -378,233 +312,25 @@ func TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910(t *testing.T
 	}
 }
 
-// user-prompt and file-change are now implemented, so this asserts the surface
-// that genuinely remains unimplemented: a compact session start.
-func TestRunRejectsInvalidHarnessInputWithExitTwoAndNoStdout(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	var stdout, stderr bytes.Buffer
-	code := run(cliArguments(root, "session-start"), strings.NewReader(`{"startSource":"bogus"}`), &stdout, &stderr)
-	if code != 2 || stdout.Len() != 0 {
-		t.Fatalf("exit=%d stdout=%q stderr=%q", code, &stdout, &stderr)
-	}
-	var envelope map[string]any
-	if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil {
+// checkpointGitWrapper returns an environment whose PATH runs body before the real git.
+func checkpointGitWrapper(t *testing.T, body string) []string {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if envelope["code"] != "invalid-harness-input" || envelope["ok"] != false {
-		t.Fatalf("unexpected error: %#v", envelope)
+	directory := t.TempDir()
+	wrapper := "#!/bin/sh\n" + body + "\nexec " + shellQuote(realGit) + " \"$@\"\n"
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(wrapper), 0o755); err != nil {
+		t.Fatal(err)
 	}
+	return []string{"PATH=" + directory + string(os.PathListSeparator) + os.Getenv("PATH")}
 }
 
 func writeFixtureFile(t *testing.T, root, name, content string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestRunContextCancelsAnOpenStdinPipe(t *testing.T) {
-	root := cliRepository(t)
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer writer.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	result := make(chan int, 1)
-	var stdout, stderr bytes.Buffer
-	go func() {
-		result <- runContext(ctx, cliArguments(root, "stop"), reader, &stdout, &stderr)
-	}()
-	cancel()
-	select {
-	case code := <-result:
-		if code != 2 || !bytes.Contains(stderr.Bytes(), []byte(`"code": "harness-input-cancelled"`)) {
-			t.Fatalf("exit=%d stdout=%q stderr=%q", code, &stdout, &stderr)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("cancelled stdin read did not terminate")
-	}
-}
-
-func TestRunUsesLastRepeatedArgumentAndRejectsOversizeInput(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	t.Run("arguments", func(t *testing.T) {
-		arguments := append(cliArguments(root, "session-start"), "--event", "stop")
-		var stdout, stderr bytes.Buffer
-		if code := run(arguments, strings.NewReader(`{}`), &stdout, &stderr); code != 0 {
-			t.Fatalf("exit=%d stderr=%q", code, &stderr)
-		}
-		if !bytes.Contains(stdout.Bytes(), []byte(`"event":"stop"`)) || stderr.Len() != 0 {
-			t.Fatalf("stdout=%q stderr=%q", &stdout, &stderr)
-		}
-	})
-	t.Run("input", func(t *testing.T) {
-		var stdout, stderr bytes.Buffer
-		input := bytes.NewReader(bytes.Repeat([]byte{' '}, gokernel.MaxInputBytes+1))
-		if code := run(cliArguments(root, "stop"), input, &stdout, &stderr); code != 2 {
-			t.Fatalf("exit=%d stderr=%q", code, &stderr)
-		}
-		if !bytes.Contains(stderr.Bytes(), []byte(`"code": "harness-input-too-large"`)) {
-			t.Fatalf("stderr=%q", &stderr)
-		}
-	})
-}
-
-func TestFreshProcessSuccessNativeEnvelopes(t *testing.T) {
-	t.Parallel()
-	root := cliRepository(t)
-	digest := strings.Repeat("a", 64)
-	cases := []struct {
-		event, input string
-	}{
-		{"session-start", `{}`},
-		{"post-tool", `{"changedPaths":["README.md"]}`},
-		{"stop", `{"stopHookActive":true}`},
-		{"session-end", `{"changedPaths":["README.md"],"outcome":"passed","taskSha256":"` + digest + `","verification":[{"commandSha256":"` + digest + `","status":"passed"}]}`},
-	}
-	for _, test := range cases {
-		t.Run(test.event, func(t *testing.T) {
-			arguments := cliArguments(root, test.event)
-			candidate := exec.Command(os.Args[0], append([]string{"-test.run=^TestCandidateHelperProcess$", "--"}, arguments...)...)
-			candidate.Env = append(os.Environ(), "CORVINT_HELPER_PROCESS=1")
-			candidate.Stdin = strings.NewReader(test.input)
-			candidateResult := execute(t, candidate)
-
-			if candidateResult.exit != 0 || len(candidateResult.stderr) != 0 ||
-				!bytes.Contains(candidateResult.stdout, []byte(`"event":"`+test.event+`"`)) {
-				t.Fatalf("fresh-process result=%#v", candidateResult)
-			}
-		})
-	}
-}
-
-func testFreshProcessCLICompatibilityEdgesHaveStableNativeResults(t *testing.T) {
-	root := cliRepository(t)
-	deepInput := `{"unknown":` + strings.Repeat("[", 260) + strings.Repeat("]", 260) + `}`
-	deepDuplicate := `{"unknown":` + strings.Repeat("[", 257) + `{"x":1,"x":2}` + strings.Repeat("]", 257) + `}`
-	veryDeep := strings.Repeat("[", 2_000) + strings.Repeat("]", 2_000)
-	cases := []struct {
-		name  string
-		args  []string
-		input string
-		cwd   string
-		// wantMessage, when set, is the exact stderr envelope "error" text a
-		// boundary/precedence case must produce: proof that a specific check
-		// fired first, not just that the process exited non-zero (GOC-V0-003).
-		wantMessage string
-	}{
-		{
-			name: "semantic-error",
-			args: cliArguments(root, "stop"), input: `{"stopHookActive":1}`,
-		},
-		{
-			name: "repeated-last-wins",
-			args: append(cliArguments(root, "session-start"), "--event", "stop"), input: `{}`,
-		},
-		{
-			name: "default-root",
-			args: cliArguments(root, "session-start")[2:], input: `{}`, cwd: root,
-		},
-		{
-			name: "version",
-			args: []string{"--version"}, input: `{}`,
-		},
-		{
-			name: "equals-options",
-			args: []string{
-				"--root=" + root, "harness", "event", "--host=codex",
-				"--host-version=unknown", "--surface=plugin", "--adapter-version=0.1.0",
-				"--event=stop", "--input=-", "--budget-bytes=8000",
-			},
-			input: `{}`,
-		},
-		{
-			name: "unhashable-start-source",
-			args: cliArguments(root, "session-start"), input: `{"startSource":[]}`,
-		},
-		{
-			name: "unhashable-outcome",
-			args: cliArguments(root, "session-end"), input: `{"outcome":[]}`,
-		},
-		{
-			name:  "unhashable-verification-status",
-			args:  cliArguments(root, "post-tool"),
-			input: `{"verification":[{"commandSha256":"` + strings.Repeat("a", 64) + `","status":[]}]}`,
-		},
-		{
-			name: "malformed-nan-key",
-			args: cliArguments(root, "post-tool"), input: `{NaN:1}`,
-		},
-		{
-			name: "malformed-nan-array",
-			args: cliArguments(root, "post-tool"), input: `[NaN:1]`,
-		},
-		{
-			name: "malformed-nan-key-and-value",
-			args: cliArguments(root, "post-tool"), input: `{NaN:NaN}`,
-		},
-		{
-			name: "semantic-field-with-unpaired-surrogate",
-			args: cliArguments(root, "session-start"), input: `{"startSource":"\ud800"}`,
-		},
-		{
-			name: "bounded-nesting",
-			args: cliArguments(root, "post-tool"), input: deepInput,
-			wantMessage: "harness input exceeds its nesting limit",
-		},
-		{
-			name: "nesting-precedes-duplicate-key",
-			args: cliArguments(root, "post-tool"), input: deepDuplicate,
-			wantMessage: "harness input exceeds its nesting limit",
-		},
-		{
-			name: "nesting-precedes-parser-recursion",
-			args: cliArguments(root, "post-tool"), input: veryDeep,
-			wantMessage: "harness input exceeds its nesting limit",
-		},
-		{
-			name: "utf8-precedes-invalid-constant",
-			args: cliArguments(root, "post-tool"), input: "{\"x\":NaN}\xff",
-			wantMessage: "harness input must be one JSON object",
-		},
-		{
-			name: "utf8-precedes-unpaired-surrogate",
-			args: cliArguments(root, "post-tool"), input: "{\"x\":\"\\ud800\"}\xff",
-			wantMessage: "harness input must be one JSON object",
-		},
-	}
-	for _, test := range cases {
-		t.Run(test.name, func(t *testing.T) {
-			candidate := exec.Command(os.Args[0], append([]string{"-test.run=^TestCandidateHelperProcess$", "--"}, test.args...)...)
-			candidate.Env = append(os.Environ(), "CORVINT_HELPER_PROCESS=1")
-			candidate.Stdin = strings.NewReader(test.input)
-			candidate.Dir = test.cwd
-			candidateResult := execute(t, candidate)
-
-			if candidateResult.exit != 0 && candidateResult.exit != 2 {
-				t.Fatalf("unexpected exit: %#v", candidateResult)
-			}
-			if (candidateResult.exit == 0) == (len(candidateResult.stdout) == 0) {
-				t.Fatalf("invalid success/error stream shape: %#v", candidateResult)
-			}
-			if test.wantMessage != "" {
-				var envelope struct {
-					Error string `json:"error"`
-				}
-				if candidateResult.exit != 2 {
-					t.Fatalf("boundary case must be refused: %#v", candidateResult)
-				}
-				if err := json.Unmarshal(candidateResult.stderr, &envelope); err != nil {
-					t.Fatalf("stderr envelope: %v\n%s", err, candidateResult.stderr)
-				}
-				if envelope.Error != test.wantMessage {
-					t.Fatalf("error precedence: got %q, want %q", envelope.Error, test.wantMessage)
-				}
-			}
-		})
 	}
 }
 
@@ -625,48 +351,14 @@ func TestRepositoryFailureEnvelopeCarriesItsCode(t *testing.T) {
 	}
 }
 
-func TestFreshProcessHostileGitFailuresReturnNativeErrors(t *testing.T) {
-	t.Parallel()
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture uses a POSIX executable script")
-	}
-	root := cliRepository(t)
-	bin := t.TempDir()
-	fakeGit := filepath.Join(bin, "git")
-	cases := []struct{ name, script string }{
-		{"no-stderr-exit", "#!/bin/sh\nexit 7\n"},
-		{
-			"empty-object-format",
-			"#!/bin/sh\nprintf '\\n%s\\n%s\\n' '" + strings.Repeat("a", 40) + "' '" + strings.Repeat("b", 40) + "'\n",
-		},
-	}
-	for _, test := range cases {
-		t.Run(test.name, func(t *testing.T) {
-			if err := execfile.WriteFile(fakeGit, []byte(test.script), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			arguments := cliArguments(root, "session-start")
-			environment := append(os.Environ(), "PATH="+bin)
-			candidate := exec.Command(os.Args[0], append([]string{"-test.run=^TestCandidateHelperProcess$", "--"}, arguments...)...)
-			candidate.Env = append(environment, "CORVINT_HELPER_PROCESS=1")
-			candidate.Stdin = strings.NewReader(`{}`)
-			candidateResult := execute(t, candidate)
-
-			if candidateResult.exit != 2 || len(candidateResult.stdout) != 0 || len(candidateResult.stderr) == 0 {
-				t.Fatalf("hostile Git result=%#v", candidateResult)
-			}
-		})
-	}
-}
-
 // The invalid-choice list is the only place an agent learns which verbs exist,
 // so it must name every verb runContext dispatches and every verb rootHelp
 // documents.
 func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 	t.Parallel()
 	// GPK-V0-059: the migration base's argparse verbs lead, and no verb repeats.
-	oracleVerbs := []string{"init", "adopt", "query", "feature", "impact", "eval", "lrf",
-		"record", "migrate-traces", "harness", "cem", "ocm", "work"}
+	oracleVerbs := []string{"init", "adopt", "feature", "impact", "lrf",
+		"record", "migrate-traces", "cem", "ocm", "work"}
 	if !slices.Equal(topLevelCommands[:len(oracleVerbs)], oracleVerbs) {
 		t.Fatalf("leading verbs = %q, want %q", topLevelCommands[:len(oracleVerbs)], oracleVerbs)
 	}
@@ -717,11 +409,6 @@ func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 			t.Errorf("dispatched command %q has no help topic", command)
 		}
 	}
-}
-
-func TestFreshProcessCLICompatibilityEdgesHaveStableNativeResults(t *testing.T) {
-	t.Parallel()
-	t.Run("GOC-V0-003 independent CLI boundary expectations", testFreshProcessCLICompatibilityEdgesHaveStableNativeResults)
 }
 
 // DRC-V0-910 (V1-2585): the refusal for a Git that cannot start keeps its

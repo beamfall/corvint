@@ -4,7 +4,6 @@ package contextindex
 import (
 	"encoding/json"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,41 +35,6 @@ func TestContextExactHitFallback_TCPV02220(t *testing.T) {
 	}
 	if span := ranker.enclosing(path, 1, 144); span.start != 1 || span.end != 1 || !strings.Contains(span.note, "no indexed enclosing") {
 		t.Fatalf("unowned hit: %#v", span)
-	}
-}
-
-// TCP-V0-2221: transitive normalization is pure even with already merged
-// input, preserves rank order, and precedes line-budget selection.
-func TestContextPrebudgetMerge_TCPV02221(t *testing.T) {
-	a := contextSpan{path: "f", start: 1, end: 4, hitStart: 1, hitEnd: 1, slots: []string{"definition"}}
-	b := contextSpan{path: "f", start: 8, end: 10, hitStart: 8, hitEnd: 8, slots: []string{"lexical"}}
-	c := contextSpan{path: "f", start: 5, end: 7, hitStart: 5, hitEnd: 5, slots: []string{"reference"}}
-	input := []contextSpan{a, {path: "g", start: 1, end: 2}, b, c}
-	before, _ := json.Marshal(input)
-	got := coalesceSpans(input)
-	after, _ := json.Marshal(input)
-	if string(before) != string(after) || len(got) != 2 || got[0].end != 10 || got[1].path != "g" || len(got[0].parts) != 3 {
-		t.Fatalf("normalization: %#v, mutated %v", got, string(before) != string(after))
-	}
-	if !reflect.DeepEqual(got, coalesceSpans(input)) || !reflect.DeepEqual(got, coalesceSpans(got)) {
-		t.Fatal("normalization is not deterministic and idempotent")
-	}
-	// Exercise a preexisting parts slice with spare capacity: appending another
-	// contributor must not overwrite input backing storage.
-	got[0].parts = append(make([]contextSpan, 0, 8), got[0].parts...)
-	before, _ = json.Marshal(got)
-	_ = coalesceSpans(append(slices.Clone(got), contextSpan{path: "f", start: 11, end: 12}))
-	after, _ = json.Marshal(got)
-	if string(before) != string(after) {
-		t.Fatal("normalization mutated premerged input")
-	}
-	index := spanModeFixture(t)
-	t.Setenv("CORVINT_CONTEXT_SPANS", "merged")
-	compiler := newTaskContextCompiler(index, "Why do `AlphaStep` and `BetaStep` disagree?", "")
-	ranker := newSpanRanker(compiler, compiler.compile(20))
-	rows, omitted := ranker.rank(5)
-	if len(rows) != 1 || rows[0].start != 3 || rows[0].end != 6 || len(rows[0].parts) != 2 || omitted != 0 || spanLines(rows) > 5 {
-		t.Fatalf("merge did not precede fallback: %#v omitted %d", rows, omitted)
 	}
 }
 

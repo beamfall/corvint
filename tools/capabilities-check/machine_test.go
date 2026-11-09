@@ -3,8 +3,6 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/Beamfall/corvint/internal/mcp/bridge"
-	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
@@ -23,11 +21,6 @@ func TestCAPV08800MachineCatalogLinks(t *testing.T) {
 		kind string
 	}{
 		{"complete", func(*capcatalog.Catalog) {}, ""},
-		{"missing tool", func(c *capcatalog.Catalog) { c.MCPTools = nil }, "missing"},
-		{"duplicate tool", func(c *capcatalog.Catalog) { c.MCPTools = append(c.MCPTools, c.MCPTools[0]) }, "duplicate"},
-		{"stale tool", func(c *capcatalog.Catalog) { c.MCPTools[0].Name = "corvint.absent" }, "stale"},
-		{"tool without availability", func(c *capcatalog.Catalog) { c.MCPTools[0].Availability = " " }, "malformed"},
-		{"tool without summary", func(c *capcatalog.Catalog) { c.MCPTools[0].Summary = "" }, "malformed"},
 		{"missing node tree", func(c *capcatalog.Catalog) { c.CommandTrees = c.CommandTrees[1:] }, "tree-unlinked"},
 		{"no links", func(c *capcatalog.Catalog) { c.CommandTrees = nil }, "tree-unlinked"},
 		{"duplicate", func(c *capcatalog.Catalog) { c.CommandTrees = append(c.CommandTrees, c.CommandTrees[0]) }, "duplicate"},
@@ -76,10 +69,6 @@ func TestCAPV08800MachineCatalogLinks(t *testing.T) {
 
 func syntheticMachineCatalog(trees ...clitree.Tree) string {
 	catalog := capcatalog.Catalog{Schema: capcatalog.Schema}
-	// A valid fixture includes the checker binary's concrete offline descriptors.
-	for _, name := range offlineToolNames() {
-		catalog.MCPTools = append(catalog.MCPTools, capcatalog.MCPTool{Name: name, Availability: "fixture server", Summary: "Fixture tool"})
-	}
 	for _, tree := range trees {
 		catalog.CommandTrees = append(catalog.CommandTrees, capcatalog.CommandTreeRef{
 			Binary: tree.Binary, Command: tree.HelpJSON, Snapshot: treesDir + "/" + tree.Binary + ".json",
@@ -90,77 +79,4 @@ func syntheticMachineCatalog(trees ...clitree.Tree) string {
 		panic(err)
 	}
 	return string(encoded)
-}
-
-// CAP-V0-8800: a newly declared tool must fail even if no existing catalog row
-// changed, including a name outside the customary corvint namespace.
-func TestCAPV08800NewMCPToolNeedsCatalogEntry(t *testing.T) {
-	files := syntheticRepository()
-	files["cmd/corvint-mcp/new.go"] = `package main
- var added = map[string]any{"name": "other.new_tool", "inputSchema": map[string]any{}}
- `
-	root := t.TempDir()
-	writeFiles(t, root, files)
-	for _, finding := range CheckMachineCatalog(root) {
-		if finding.Kind == "missing" && finding.Section == sectionTools && finding.Name == "other.new_tool" {
-			return
-		}
-	}
-	t.Fatal("new tool without a machine entry was accepted")
-}
-
-// CAP-V0-8800: constant-backed names come from the offline descriptors, not a
-// namespace or literal spelling. Every core tool must survive discovery.
-func TestCAPV08800OfflineDescriptorOmissionFails(t *testing.T) {
-	for _, name := range []string{"corvint.impact", "corvint.query", "corvint.status"} {
-		t.Run(name, func(t *testing.T) {
-			entries := capcatalog.MCPTools()
-			found := false
-			for i, entry := range entries {
-				if entry.Name == name {
-					entries = append(entries[:i], entries[i+1:]...)
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Fatalf("catalog lacks %s", name)
-			}
-			files := syntheticRepository()
-			var catalog capcatalog.Catalog
-			if err := json.Unmarshal([]byte(files[machineCatalogPath]), &catalog); err != nil {
-				t.Fatal(err)
-			}
-			catalog.MCPTools = entries
-			data, err := json.Marshal(catalog)
-			if err != nil {
-				t.Fatal(err)
-			}
-			files[machineCatalogPath] = string(data)
-			root := t.TempDir()
-			writeFiles(t, root, files)
-			findings := CheckMachineCatalog(root)
-			for _, finding := range findings {
-				if finding.Kind == "missing" && finding.Name == name {
-					return
-				}
-			}
-			t.Fatalf("omitted offline descriptor accepted: %s: %v", name, findings)
-		})
-	}
-}
-
-// CAP-V0-8800: an unfamiliar computed name needs no source-parser allowlist.
-// The only admitted membership is an exact concrete descriptor name; an unknown
-// name stays missing even when a familiar namespace entry is present.
-func TestCAPV08800UnknownOfflineDescriptorFailsClosed(t *testing.T) {
-	computedName := func(parts ...string) string { return strings.Join(parts, "_") }
-	descriptor := bridge.ToolDescriptor{Name: computedName("unfamiliar", "computed", "tool")}
-	findings := machineToolFindings([]string{descriptor.Name}, capcatalog.MCPTools())
-	for _, finding := range findings {
-		if finding.Kind == "missing" && finding.Name == descriptor.Name {
-			return
-		}
-	}
-	t.Fatalf("unknown computed descriptor accepted: %v", findings)
 }

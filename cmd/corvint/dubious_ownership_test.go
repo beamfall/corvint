@@ -50,7 +50,7 @@ func TestGPKV0071DubiousOwnershipIsOneCodedRefusal(t *testing.T) {
 	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(strings.ReplaceAll(script, "@ROOT@", root)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, verb := range [][]string{{"index"}, {"query", "--task", "where is a"}, {"impact", "a.go"}, {"context", "a.go"}, {"feature", "a"}, {"affected", "--base", strings.TrimSpace(string(head))}, {"init"}, {"overview"}} {
+	for _, verb := range [][]string{{"index"}, {"impact", "a.go"}, {"context", "a.go"}, {"feature", "a"}, {"affected", "--base", strings.TrimSpace(string(head))}, {"init"}, {"overview"}} {
 		t.Run(verb[0], func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			if code := runContext(context.Background(), append([]string{"--root", root}, verb...), strings.NewReader(""), &stdout, &stderr); code == 0 {

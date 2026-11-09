@@ -1,8 +1,4 @@
 {
   "profile": "corvint-test-binary-execs/0",
-  "packages": {
-    "conformance/host-lifecycle-v1": [
-      "cmd/corvint"
-    ]
-  }
+  "packages": {}
 }

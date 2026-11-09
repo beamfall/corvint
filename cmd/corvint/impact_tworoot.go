@@ -53,12 +53,12 @@ type impactTwoRootAppBinding struct {
 	Dirty  int    `json:"dirty_paths"`
 }
 
-// runEvalOrTwoRootImpact routes `impact --app-root ... --test-root ...` to the two-root impact
-// (ANL-V0-064) and every other invocation to runEvalInvocation unchanged.
-func runEvalOrTwoRootImpact(ctx context.Context, arguments []string, stdout, stderr io.Writer) (int, bool) {
+// runTwoRootImpactInvocation routes `impact --app-root ... --test-root ...` to the two-root
+// impact (ANL-V0-064) and reports every other invocation unhandled.
+func runTwoRootImpactInvocation(ctx context.Context, arguments []string, stdout, stderr io.Writer) (int, bool) {
 	args, ok := twoRootImpactArguments(arguments)
 	if !ok {
-		return runEvalInvocation(ctx, arguments, stdout, stderr)
+		return 0, false
 	}
 	if err := runTwoRootImpact(ctx, args, runtime.GOOS, stdout); err != nil {
 		emitError(stderr, err)

@@ -72,7 +72,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	command := original[pos]
-	allowed := command == "query" || command == "context" || command == "impact" || command == "affected" || command == "test-validity" || command == "work" || command == "cem"
+	allowed := command == "context" || command == "impact" || command == "affected" || command == "test-validity" || command == "work" || command == "cem"
 	if command == "work" {
 		allowed = pos+1 < len(original) && (original[pos+1] == "observe" || original[pos+1] == "propose-wave")
 	}

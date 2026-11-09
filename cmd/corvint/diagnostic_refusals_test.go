@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -86,17 +85,6 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			want := refusalEnvelope("invalid-arguments", "not a Git repository: "+root, subjectOf("value", directory), evidenceOf("root", root), fixesOf("cli.use-git-repository-root"), "")
 			return cliRun(want, "--root", directory, "affected")(t)
 		},
-		"query root without .git": func(t *testing.T) refusalRun {
-			root := resolvedTestRoot(t, t.TempDir())
-			want := refusalEnvelope("invalid-arguments", "not a Git repository: "+root, subjectOf("value", root), evidenceOf(), fixesOf("cli.use-git-repository-root"), "")
-			return cliRun(want, "--root", root, "query", "--task", "where is Split")(t)
-		},
-		"query platform": func(t *testing.T) refusalRun {
-			_, err := parseQueryArgumentsForPlatform(options{}, []string{"--task", "where is Split"}, "windows")
-			var stderr bytes.Buffer
-			emitError(&stderr, err)
-			return refusalRun{exit: 2, stderr: stderr.String(), want: platformEnvelope("unsupported-query-platform", "native Go authority-start query is qualified only on Darwin and Linux")}
-		},
 		"feature platform": func(t *testing.T) refusalRun {
 			_, err := parseFeatureArgumentsForPlatform(options{featureLimit: 10}, []string{"a-first"}, "windows")
 			var stderr bytes.Buffer
@@ -109,8 +97,8 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			return refusalRun{exit: exit, stdout: stdout.String(), stderr: stderr.String(), want: platformEnvelope("unsupported-genesis-platform", "native Go Genesis inventory is qualified only on Darwin and Linux")}
 		},
 		"impact budget option": func(t *testing.T) refusalRun {
-			want := refusalEnvelope("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base or --working-tree-untracked", subjectOf("argument", "--budget-bytes"), evidenceOf(), fixesOf("impact.omit-budget-bytes"), "")
-			return cliRun(want, "--root", impactCLIRepository(t), "impact", "--working-tree-untracked", "--budget-bytes", "2048")(t)
+			want := refusalEnvelope("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base", subjectOf("argument", "--budget-bytes"), evidenceOf(), fixesOf("impact.omit-budget-bytes"), "")
+			return cliRun(want, "--root", impactCLIRepository(t), "impact", "--base", "HEAD", "--budget-bytes", "2048")(t)
 		},
 		"affected without git": func(t *testing.T) refusalRun {
 			stdout, stderr, exit := runCandidateWithEnvironment(t, "", []string{"PATH=" + t.TempDir()}, "--root", affectedFixtureRepository(t), "affected")
@@ -127,19 +115,6 @@ func TestConvertedRefusalDiagnostics(t *testing.T) {
 			affectedGit(t, root, "init", "-q")
 			want := refusalEnvelope("unsupported-affected-revision", "repository has no resolvable HEAD commit", subjectOf("repository-state", "head-commit"), evidenceOf(), fixesOf("git.create-head-commit"), "")
 			return cliRun(want, "--root", root, "affected")(t)
-		},
-		"surprise over a dirty worktree": func(t *testing.T) refusalRun {
-			root := cliRepository(t)
-			if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# edited\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			want := refusalEnvelope("unsupported-surprise-dirty-worktree", "touch-set surprise compares committed revisions only; the worktree has uncommitted changes",
-				subjectOf("repository-state", "tracked-worktree-changes"), evidenceOf("tracked-status-entries", "1"), fixesOf("git.clean-tracked-worktree"), "")
-			return cliRun(want, "--root", root, "surprise", "--task", "t", "--base", "HEAD", "--target", "HEAD")(t)
-		},
-		"surprise unknown revision": func(t *testing.T) refusalRun {
-			want := refusalEnvelope("unsupported-surprise-revision", "revision does not resolve to a commit: no-such-revision", subjectOf("value", "no-such-revision"), evidenceOf(), fixesOf("surprise.use-commit-revision"), "")
-			return cliRun(want, "--root", cliRepository(t), "surprise", "--task", "t", "--base", "no-such-revision", "--target", "HEAD")(t)
 		},
 		"impact platform": func(t *testing.T) refusalRun {
 			_, err := parseImpactArgumentsForPlatform(options{}, []string{"pkg/main.go"}, "windows")

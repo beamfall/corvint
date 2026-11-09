@@ -96,7 +96,6 @@ func TestImpactRequireCleanArguments(t *testing.T) {
 	for _, args := range [][]string{
 		{"--require-clean=true", "pkg/main.go"},
 		{"--require-clean", "--require-clean", "pkg/main.go"},
-		{"--require-clean", "--working-tree-untracked", "pkg/new.go"},
 		{"--require-clean", "--base", strings.Repeat("a", 40)},
 	} {
 		if _, err := parseImpactArgumentsForPlatform(options{impactLimit: 10}, args, "darwin"); err == nil {

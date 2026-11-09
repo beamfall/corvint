@@ -57,27 +57,6 @@ func TestDCWV0075SlowGitOverrunsTheDeadline(t *testing.T) {
 	}
 }
 
-// IDX-SNAP-V0-912: only a context the refresh writer marked drops the shared
-// 30-second deadline, keeping its own; an unmarked context keeps 30 seconds
-// even under a longer parent deadline.
-func TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912(t *testing.T) {
-	parent, cancelParent := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancelParent()
-	ordinary, cancel := withGitDeadline(parent)
-	defer cancel()
-	if deadline, ok := ordinary.Deadline(); !ok || time.Until(deadline) > gitDeadline {
-		t.Fatalf("unmarked deadline %v (%t), want at most %s", deadline, ok, gitDeadline)
-	}
-	writer, cancelWriter := withGitDeadline(WithWriterBounds(parent))
-	defer cancelWriter()
-	parentDeadline, _ := parent.Deadline()
-	if deadline, ok := writer.Deadline(); !ok || !deadline.Equal(parentDeadline) {
-		t.Fatalf("writer deadline %v (%t), want the parent's %v", deadline, ok, parentDeadline)
-	}
-	cancelParent()
-	<-writer.Done()
-}
-
 // DRC-V0-910 (V1-2585): a Git that cannot start keeps the stable public
 // message and names its closed start class: ENOENT for a missing executable,
 // ETXTBSY for one still open for writing (the parallel-test race of

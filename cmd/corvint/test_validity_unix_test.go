@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -16,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
@@ -50,10 +47,10 @@ func TestTestValidityReadsReceiptSymlink(t *testing.T) {
 	}
 }
 
-// LPCV-V0-053/MTV-V0-009: `--root R test-validity --discover` and the MCP
-// tool's `discover` argument emit byte-identical documents, and discovery
-// cannot be combined with a named receipt.
-func TestTestValidityDiscoveryMatchesMCPDocument(t *testing.T) {
+// LPCV-V0-053: `--root R test-validity --discover` names the retained document,
+// and discovery cannot be combined with a named receipt. The MCP twin left with
+// internal/mcp (decision 0594).
+func TestTestValidityDiscoveryNamesRetainedDocument(t *testing.T) {
 	t.Parallel()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -75,22 +72,8 @@ func TestTestValidityDiscoveryMatchesMCPDocument(t *testing.T) {
 	if code := run([]string{"--root", root, "test-validity", "--discover"}, strings.NewReader(""), &stdout, &stderr); code != 0 || stderr.Len() != 0 {
 		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
 	}
-	registry, registryErr := testvaliditybridge.New(root)
-	if registryErr != nil {
-		t.Fatal(registryErr)
-	}
-	structured, _, toolFailure, callErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
-	if toolFailure != nil || callErr != nil {
-		t.Fatalf("failure=%+v err=%v", toolFailure, callErr)
-	}
-	var cliDocument any
-	if err := json.Unmarshal(stdout.Bytes(), &cliDocument); err != nil {
-		t.Fatal(err)
-	}
-	cli, cliErr := gokernel.CanonicalJSON(cliDocument)
-	mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
-	if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) || !bytes.Contains(mcp, []byte(`"evidence":".corvint/test-evidence/run.json"`)) {
-		t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
+	if !bytes.Contains(stdout.Bytes(), []byte(`"evidence":".corvint/test-evidence/run.json"`)) {
+		t.Fatalf("document=%s", stdout.String())
 	}
 	code, out, errText := runTestValidityCLI(t, "--discover", "--receipt", evidence)
 	if code != 2 || out != "" || !strings.Contains(errText, "--discover") {
@@ -147,9 +130,8 @@ func TestTestValidityDiscoverSelectsProducerRetainedDocument(t *testing.T) {
 	}
 }
 
-// LPCVD-V0-001..003 / LPCV-V0-056 / MTV-V0-009: the typed no-evidence reason is the same bytes on
-// the CLI and the MCP discovery surface.
-func TestTestValidityDiscoveryAbstentionMatchesMCPDocument(t *testing.T) {
+// LPCVD-V0-001..003 / LPCV-V0-056: discovery names the typed no-evidence reason and the recovery.
+func TestTestValidityDiscoveryAbstentionNamesTheReason(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]string{
 		"":                 `"reason":"no-retained-evidence"`,
@@ -176,22 +158,9 @@ func TestTestValidityDiscoveryAbstentionMatchesMCPDocument(t *testing.T) {
 		if code := run([]string{"--root", root, "test-validity", "--discover"}, strings.NewReader(""), &stdout, &stderr); code != 0 || stderr.Len() != 0 {
 			t.Fatalf("exit=%d stderr=%s", code, stderr.String())
 		}
-		registry, registryErr := testvaliditybridge.New(root)
-		if registryErr != nil {
-			t.Fatal(registryErr)
-		}
-		structured, _, toolFailure, callErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
-		if toolFailure != nil || callErr != nil {
-			t.Fatalf("failure=%+v err=%v", toolFailure, callErr)
-		}
-		var cliDocument any
-		if err := json.Unmarshal(stdout.Bytes(), &cliDocument); err != nil {
-			t.Fatal(err)
-		}
-		cli, cliErr := gokernel.CanonicalJSON(cliDocument)
-		mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
-		if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) || !bytes.Contains(mcp, []byte(want)) || !bytes.Contains(mcp, []byte(`"expectedEvidencePath":".corvint/test-evidence"`)) || !bytes.Contains(mcp, []byte(`corvint-go-test-provider session --retain`)) {
-			t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
+		document := stdout.Bytes()
+		if !bytes.Contains(document, []byte(want)) || !bytes.Contains(document, []byte(`"expectedEvidencePath":".corvint/test-evidence"`)) || !bytes.Contains(document, []byte(`corvint-go-test-provider session --retain`)) {
+			t.Fatalf("document=%s", document)
 		}
 	}
 }

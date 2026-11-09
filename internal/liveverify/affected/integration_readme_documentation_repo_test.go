@@ -19,7 +19,6 @@ func TestIntegrationReadmesAreDocumentation_AFP_V0_830(t *testing.T) {
 		dirty   string
 		readers []string
 	}{
-		{"integrations/opencode/README.md", []string{"internal/opencodequalification"}},
 		{"integrations/claude-code/README.md", nil},
 		{"integrations/README.md", nil},
 	} {
@@ -56,16 +55,5 @@ func TestIntegrationReadmesAreDocumentation_AFP_V0_830(t *testing.T) {
 		if strings.Contains(unknown.Detail, "README.md") {
 			t.Errorf("Go change plus README: unknown on the README's account: %s %s", unknown.Reason, unknown.Detail)
 		}
-	}
-	// A source file in the same host directory stays source: the declaration
-	// names only the README.
-	plan := affected.Select(graph, []string{"integrations/opencode/src/index.js"})
-	for _, group := range plan.NonSource {
-		if group.Class == "DECLARED_DOCUMENTATION" {
-			t.Errorf("integrations/opencode/src/index.js classified as documentation")
-		}
-	}
-	if len(plan.Selected) == 0 {
-		t.Errorf("integrations/opencode/src/index.js selects nothing")
 	}
 }

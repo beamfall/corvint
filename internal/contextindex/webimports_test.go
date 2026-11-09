@@ -109,8 +109,7 @@ func TestWebImportsEndsLineCommentAtEveryLineTerminator(t *testing.T) {
 // so dropping it would be an under-approximation, the one direction the import
 // table cannot survive (see goImports, parse.go). `import(expression)` names no
 // module the index can know, and contributes nothing rather than guessing.
-// integrations/opencode/src/index.js:272 and
-// conformance/harness-event-v0/capture_opencode.mjs:4 are the two originals.
+// The two originals were OpenCode adapter sources removed by decision 0594.
 func TestWebImportsKeepsLiteralDynamicImportAndDropsComputed(t *testing.T) {
 	literal := "const { hooks } = await import(\"./beta-hooks.js\")\n"
 	assertEdges(t, webEdges(t, "src/index.js", literal), "./beta-hooks.js")

@@ -17,7 +17,7 @@ func TestHeadAliasOnTargetVerbs_ACXV0858(t *testing.T) {
 		{[]string{"--root=/r", "dogfood-ocm", "status", "--head", "H"}, []string{"--root=/r", "dogfood-ocm", "status", "--target", "H"}},
 		{[]string{"ocm", "verify", "--head", "H", "--", "--head"}, []string{"ocm", "verify", "--target", "H", "--", "--head"}},
 		{[]string{"changes", "--head", "H"}, []string{"changes", "--head", "H"}},
-		{[]string{"surprise", "--header", "H"}, []string{"surprise", "--header", "H"}},
+		{[]string{"prove", "--header", "H"}, []string{"prove", "--header", "H"}},
 		{[]string{"--root"}, []string{"--root"}},
 	} {
 		if got, err := withHeadAlias(slices.Clone(c.in)); err != nil || !slices.Equal(got, c.want) {
@@ -27,7 +27,7 @@ func TestHeadAliasOnTargetVerbs_ACXV0858(t *testing.T) {
 	// --head with --target, or --head twice, is refused before any verb
 	// parser could let the last value win; --target alone is the verb's own.
 	for _, in := range [][]string{
-		{"surprise", "--target", "A", "--head", "B"},
+		{"prove", "--target", "A", "--head", "B"},
 		{"lrf", "--head=B", "--target=A"},
 		{"ocm", "verify", "--head", "A", "--head", "B"},
 	} {
@@ -41,7 +41,7 @@ func TestHeadAliasOnTargetVerbs_ACXV0858(t *testing.T) {
 	// Each verb answers --head exactly as it answers --target.
 	root := t.TempDir()
 	for _, args := range [][]string{
-		{"surprise", "--task", "t", "--base", "B"}, {"lrf", "--cem", "c"}, {"obligations"}, {"dogfood-ocm", "status", "--expected-base", "B"},
+		{"lrf", "--cem", "c"}, {"obligations"}, {"dogfood-ocm", "status", "--expected-base", "B"},
 	} {
 		headCode, headOut, headErr := runCLI(t, append(append([]string{"--root", root}, args...), "--head", "zz")...)
 		targetCode, targetOut, targetErr := runCLI(t, append(append([]string{"--root", root}, args...), "--target", "zz")...)
@@ -65,20 +65,16 @@ func TestRangeAndOutputFlagVocabulary_ACXV0858(t *testing.T) {
 	vocabulary := regexp.MustCompile(`--(head|target|revision|rev|base|format|json|summary)\b`)
 	for verb, want := range map[string][]string{
 		"affected":    {"--base", "--format", "--summary"},
-		"calibrate":   {"--format"},
 		"changes":     {"--base", "--format", "--head", "--json"},
-		"context":     {"--json", "--summary"},
+		"context":     {"--json"},
 		"delta":       {"--base", "--head"},
 		"flows":       {"--base", "--format", "--head", "--revision"},
-		"graph":       {"--format", "--revision"},
 		"impact":      {"--base", "--revision"},
 		"lrf":         {"--target"},
 		"obligations": {"--target"},
 		"ocm":         {"--target"},
 		"prove":       {"--base", "--target"},
-		"repro":       {"--json"},
 		"runs":        {"--base", "--rev", "--summary"},
-		"surprise":    {"--base", "--target"},
 		"test-plan":   {"--format", "--revision"},
 		"tests":       {"--base", "--format", "--json", "--rev"},
 		"witness":     {"--base", "--head", "--json"},

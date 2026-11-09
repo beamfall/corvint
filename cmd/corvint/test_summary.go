@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
@@ -151,7 +152,7 @@ func summaryClip(text string, limit int) string {
 		return text
 	}
 	cut := limit - len("...")
-	for cut > 0 && !utf8RuneStart(text[cut]) {
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
 		cut--
 	}
 	return text[:cut] + "..."

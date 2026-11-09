@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -14,8 +13,6 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
 // command that is neither one of them nor --help is an invalid choice argparse reports before help.
 var helpSubcommands = map[string]map[string]bool{
-	"harness": {"event": true},
-	"graph":   {"imports": true},
 }
 
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
@@ -23,7 +20,7 @@ var helpSubcommands = map[string]map[string]bool{
 var helpBooleanFlags = map[string]bool{
 	"--apply": true, "--attest": true, "--check": true, "--attest-cem-v2": true, "--attest-cem-v3": true, "--dry-run": true, "--enable": true,
 	"--full-receipt": true, "--if-stale": true, "--json": true, "--mutate": true, "--preview": true,
-	"--replace": true, "--working-tree-untracked": true,
+	"--replace": true,
 }
 
 // argparseNegativeNumber is argparse's _negative_number_matcher: such a token is a value, not an option.
@@ -87,7 +84,6 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 // nestedHelpTopics are the two-word `corvint help COMMAND SUBCOMMAND` topics, in the order the
 // unknown-topic refusal lists them (DCP-V1-057).
 var nestedHelpTopics = [][2]string{
-	{"harness event", "harness-event"},
 	{"docs corpus", "docs-corpus"},
 	{"docs flows", "docs-flows"},
 	{"docs maintain", "docs-maintain"},
@@ -173,9 +169,6 @@ func argparseOptionLike(token string) bool {
 func publicHelpTopic(command string) (string, bool) {
 	for _, known := range topLevelCommands {
 		if command == known {
-			if command == "harness" {
-				return "harness-event", true
-			}
 			return command, true
 		}
 	}
@@ -218,16 +211,10 @@ func topicText(topic string) string {
 		return docsMaintainHelp
 	case "root":
 		return rootHelp
-	case "query":
-		return fmt.Sprintf(queryHelpFormat, authorityStartPrompt)
-	case "graph":
-		return graphImportsHelp
 	case "impact":
 		return impactHelp
 	case "feature":
 		return featureHelp
-	case "eval":
-		return evalHelp
 	case "features", "overview", "review":
 		return repositoryGuidanceHelp
 	case "affected":
@@ -236,44 +223,18 @@ func topicText(topic string) string {
 		return flowsHelp
 	case "how":
 		return flowscmd.HowHelp
-	case "changes":
-		return changesHelp
 	case "runs":
 		return runsHelp
-	case "repro":
-		return reproHelp
-	case "mcp":
-		return mcpHelp
 	case "test":
 		return testHelp
 	case "tests":
 		return testsHelp
-	case "breakage":
-		return breakageHelp
-	case "necessity":
-		return necessityHelp
-	case "surprise":
-		return surpriseHelp
-	case "answerability":
-		return answerabilityHelp
-	case "depsource":
-		return depsourceHelp
-	case "kernel":
-		return kernelHelp
-	case "calibrate":
-		return calibrateHelp
 	case "context":
-		return taskContextHelp + contextLookupHelp + cpuProfileHelpNote
+		return taskContextHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
-	case "batch":
-		return batchHelp
 	case "init", "adopt":
 		return activationHelp
-	case "harness-event":
-		return harnessEventHelp
-	case "adapter":
-		return adapterHelp
 	case "test-evidence":
 		return testEvidenceHelp
 	case "test-validity":
@@ -301,18 +262,13 @@ Commands:
     init  alias of adopt
     adopt  bounded repository inventory; --setup lists setup gaps
     index  write the index snapshot
-    query  repository context or authority receipt
     context  task-context packet: files to read
-    impact  path, untracked or range impact
+    impact  path or range impact
     affected  affected-test plan
   Experimental, context and review:
     feature  one declared feature's context (GPK-V0)
     features | overview | review  inferred repository guidance (RGV-V0)
-    graph  pinned whole-tree import edges and uncertainty (NGI-V0)
-    batch  batched query, context, impact (SBQ-V0)
     docs  source-derived documentation (SDD-V0)
-    depsource  cite pinned Go module source (DSE-V0)
-    breakage  cross-repository API relations (BKM-V0)
   Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
@@ -322,18 +278,7 @@ Commands:
     runs  Playwright verdicts (PWR-V0)
     flows  application flows and assertions (AFU-V0)
     how  how do I GOAL: alias of flows appmap how (SKH-V0)
-    repro  pinned reproduction bundles (RPB-V0)
   Experimental, agent hosts and local records:
-    harness event  one agent lifecycle event (AHI)
-    adapter  one native host adapter (AHI)
-    mcp  local read-only stdio MCP server (AHI)
-  Experimental, lab (research metrics):
-    eval  evaluate a frozen corpus (REC-V0)
-    necessity  label packet file necessity (NEC-V0)
-    surprise  touched set vs delivered packet (TSS-V0)
-    answerability  retrieval channel agreement (RDS-V0)
-    calibrate  packet stances vs outcomes (OCL-V0)
-    kernel  compaction kernel (CKN-V0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
@@ -343,52 +288,23 @@ Global options:
 Support boundary:
   Experimental verbs carry no stability promise; parentheses name the owning spec.
   Internal and historical verbs stay callable but unlisted (corvint help --json).
-  Local-only; no network or telemetry. init, adopt, query, feature and impact are
+  Local-only; no network or telemetry. init, adopt, feature and impact are
   qualified on Darwin and Linux only.
-  init, adopt, query, impact, docs, and harness read without mutating
-  repository or trace state. impact, feature, docs, harness event, index and
-  calibrate best-effort append a bounded row to the self-observation ledger
-  (.corvint/self-observations.jsonl) on an unsupported-* failure (harness event
-  also on success); a ledger storage failure never alters the response. index,
-  and docs flows and maintain write local state (COMMAND --help).
+  init, adopt, impact and docs read without mutating repository or trace
+  state. impact, feature, docs and index best-effort append a bounded row to
+  the self-observation ledger (.corvint/self-observations.jsonl) on an
+  unsupported-* failure; a ledger storage failure never alters the response.
+  index, and docs flows and maintain write local state (COMMAND --help).
 `
 
 // hiddenCommands are the dispatched internal or historical verbs that root help leaves out of
 // its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
 // it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
 var hiddenCommands = map[string]string{
-	"changes": "offline upgrade checklist (UCL1142-V0)",
 }
 
 // hiddenHelpNote ends the help topic of each hiddenCommands verb.
 const hiddenHelpNote = "\nUnlisted in root help: an internal or historical verb that stays callable.\n"
-
-const adapterHelp = `Run one bounded native host adapter.
-
-Usage:
-  corvint adapter codex
-  corvint adapter claude-code EVENT
-  corvint adapter claude-source-handoff --packet-out FILE
-  corvint adapter source-view [--root PATH] --packet FILE --packet-sha256 SHA256
-    [--result N] [--evidence N] [--commit SHA] [--lines START:END] [--requirement ID] [--max-bytes N]
-  corvint adapter done-list [--root PATH] [--base FULL_SHA] [--mutate]
-  corvint adapter pi EVENT
-  corvint adapter pi-tool context|expand|record
-
-Reads one bounded JSON object from stdin and writes one bounded adapter response;
-done-list reads no stdin. The installed host hooks invoke these commands. Adapter
-responses are local-only and carry no repository authority.
-
-Events:
-  claude-code EVENT  session-start, user-prompt, subagent-start, pre-tool,
-                     file-change, post-tool, stop, stop-done-list, session-end,
-                     pre-compact, post-compact
-  codex              no EVENT argument; reads hook_event_name: SessionStart,
-                     UserPromptSubmit, Stop, SessionEnd (others answer {})
-  pi EVENT           file-change, post-tool, session-end, session-start, stop,
-                     user-prompt
-An unaccepted EVENT degrades with unsupported-hook-event and names the accepted ones.
-`
 
 const testValidityHelp = `Project test-level results through the shared test-validity shape.
 
@@ -480,43 +396,6 @@ refused. Use features to list inferred candidates.
 
 Example:
   corvint feature --limit 1 checkout-flow
-`
-
-const evalHelp = `Evaluate a frozen retrieval corpus through the native candidate.
-
-Usage:
-  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
-  corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]
-  corvint [--root PATH] eval --reset-slot-weights
-  corvint [--root PATH] eval --friction FILE
-
-Without --goldens, use the repository's .corvint/eval.json or
-testing/context-retrieval-goldens.json when available. --trace-fixture adds the
-explicit learned-trace comparison arm; ordinary persisted trace replay is not
-implemented. The command reads without mutating repository or trace state.
-The report counts the traces it read by producer (cli, dogfood, pi-tool, or
-UNKNOWN for rows written before producer provenance); --exclude-producer NAME
-leaves that producer's traces out of the read, repeatable, without changing
-the store or the fixture.
-Select the owning spec's registered development or frozen evaluation inputs;
-never open a sealed holdout or infer promotion from an unregistered run. Preserve
-both arms, failures and unknowns. A routine explicit outcome record does not
-require a new learned-mechanism evaluation.
-
---learn-slot-weights reads the local unplanned-read and self-observation ledgers
-as negative labels, proposes bounded context slot weights and scores them on the
-frozen held-out split. Only with --admit and an improved delta does it write
-.context-corvint/slot-weights.json; --reset-slot-weights removes that file and
-restores the default slot order. These experimental steps (decision 0368) are
-eval's only writes.
-
-Experimental (URE-V0-996..998): --friction FILE takes no other option and
-reports deterministic friction metrics (rereads, unplanned_reads,
-retried_commands, reverted_edits, first_relevant_read_ms) for each session of
-a corvint-friction-sessions/0 record, totals per arm, and precision and recall
-for labelled sessions. Missing inputs are NOT_OBSERVED, never 0. It reads only
-FILE and writes nothing; the metrics are never a ranking or authority input.
-Example: corvint eval --friction internal/frictionmetric/testdata/benchmark.json
 `
 
 const activationHelp = `Compile one bounded mechanical repository inventory.
@@ -1023,7 +902,6 @@ Usage:
     [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
     [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...
   corvint [--root PATH] impact --capabilities
-  corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
   corvint impact --app-root DIR --test-root ALIAS=ABSOLUTE_ROOT --manifest FILE
@@ -1070,7 +948,7 @@ to 8 dirty paths when requested paths are not all dirty. Mutable content remains
 --language-profile non-go-syntax-v0 for versioned structured non-Go unknowns;
 a request naming a Ruby path selects it by default.
 Non-Go range receipts and MCP paths name that experimental profile automatically.
-The path selector cannot be combined with --base or --working-tree-untracked.
+The path selector cannot be combined with --base.
 Other indexed suffixes keep positional evidence and missing-rule uncertainty.
 MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
 A syntax-profile path receipt (explicit, or a Ruby path) is the MCP
@@ -1087,11 +965,7 @@ Options:
   --require-clean            Experimental: on MIXED path impact, emit an empty
                              NEEDS_WIDENING receipt (exit 0), with reason mixed-worktree.
                              Does not run external providers when abstaining.
-                             Unavailable with --base or --working-tree-untracked.
-  --working-tree-untracked   Explicitly select the separate revision-absent
-                             nested-.go evidence profile. It accepts no value;
-                             untracked-path impact is implemented for .go files only,
-                             and that suffix refusal is checked before repository eligibility.
+                             Unavailable with --base.
   --base FULL_COMMIT_ID      Select the separate committed range profile from
                              an immutable base commit to the captured HEAD.
   --range-profile expanded-256
@@ -1159,13 +1033,8 @@ ADR relations only from target lines added or replaced by the diff; and rejects
 delete, type-change, binary, excluded-source, oversized, or drifting
 ranges.
 
-The default profile is unchanged and uses only revision-tracked evidence. The
-explicit working-tree profile accepts only captured mixed-status paths absent
-from that revision; binds contained, single-link regular-file identity and
-stable twice-read bytes; caps target files at 1,000,000 bytes and their aggregate
-at 64,000,000 bytes; parses Go package/import context; and fails closed on path,
-file, status, revision, or read races. Its bytes are observed, not immutable Git
-authority. All profiles are read-only, local-only, and emit canonical JSON.
+Every profile uses only revision-tracked evidence. All profiles are read-only,
+local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
@@ -1185,33 +1054,6 @@ outside every Git worktree and Git directory (PRB-V0-013). Diagnostic only;
 they do not change what is read, returned, or mutated (corvint help --json lists
 the commands and servers).
 `
-
-const harnessEventHelp = `Compile one experimental agent-harness lifecycle event.
-
-Usage:
-  corvint [--root PATH] harness event --host HOST --host-version VERSION
-    --surface SURFACE --adapter-version VERSION --event EVENT --input -
-    [--budget-bytes N]
-
-Required options:
-  --host HOST               claude-code, codex, gemini-cli, or opencode
-  --host-version VERSION    Harness-reported host version token
-  --surface SURFACE         Harness surface token
-  --adapter-version VERSION Adapter version token
-  --event EVENT             file-change, post-tool, session-end, session-start,
-                            stop, or user-prompt
-  --input -                 Read exactly one bounded JSON object from stdin
-
-Optional:
-  --budget-bytes N  Output budget (default: 8000; range: 4096-1000000 bytes).
-
-Input is limited to 131072 bytes. user-prompt, file-change, and compact
-session-start additionally build a repository index to compile their context
-block; user-prompt shares query's BuildEval -> EvalQuery repository path. The
-remaining events do not. The command is read-only apart from that one
-bounded local self-observation row, and local-only, and
-emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.
-` + cpuProfileHelpNote
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`
 // in the `[--root PATH]` preamble (GPK-V0-064, decision 0181): it must exist and must not be

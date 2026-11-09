@@ -31,7 +31,8 @@ func profileKnobError(err error) error {
 
 // profileKnobWorkers are the internal child entry points main runs before the bracket: their
 // startup-only owned-group verification must precede every goroutine, the profiler's included.
-var profileKnobWorkers = []string{"index-refresh-worker (CORVINT_INTERNAL_INDEX_REFRESH)"}
+// Decision 0594 removed the last of them.
+var profileKnobWorkers = []string{}
 
 // profileKnobPlumbing are the hidden plumbing verbs runContext dispatches inside the bracket.
 // None remain: native-hook, authority-event and qualified-event retired with decision 0594.

@@ -3,11 +3,8 @@ package contextindex
 import (
 	"context"
 	"encoding/json"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 	"testing"
 )
 
@@ -100,50 +97,4 @@ func BenchmarkGobOpenRankEmit(b *testing.B) {
 		defer file.Close()
 		return decodeSnapshot(file, identity, receipt.Engine)
 	})
-}
-
-// BenchmarkPackQueryAndEventLoads times the query verbs' load (loadFull) and
-// the file-change event's load (loadEvent), each verifying bodies at open
-// (eager) or on first read (deferred): the open alone, then the open with its
-// consumer (EvalQuery over history, or EvalImpact over the first Go source).
-func BenchmarkPackQueryAndEventLoads(b *testing.B) {
-	built, receipt, identity := packBenchIndex(b)
-	goPaths := slices.Sorted(maps.Keys(built.Sources))
-	goPaths = slices.DeleteFunc(goPaths, func(path string) bool { return !strings.HasSuffix(path, ".go") })
-	query := func(index *Index) (map[string]any, error) {
-		return EvalQuery(context.Background(), index, "snapshot demux split", 20, nil)
-	}
-	impact := func(index *Index) (map[string]any, error) { return EvalImpact(index, goPaths[:1], 20, nil) }
-	arms := []struct {
-		name string
-		load snapshotLoad
-		run  func(*Index) (map[string]any, error)
-	}{
-		{"open-full-eager", loadFull, nil}, {"open-full-deferred", loadContext, nil},
-		{"open-event-eager", loadEvent, nil}, {"open-event-deferred", loadEventDeferred, nil},
-		{"query-eager", loadFull, query}, {"query-deferred", loadContext, query},
-		{"impact-eager", loadEvent, impact}, {"impact-deferred", loadEventDeferred, impact},
-	}
-	for _, arm := range arms {
-		b.Run(arm.name, func(b *testing.B) {
-			b.ReportAllocs()
-			for range b.N {
-				index, err := readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), arm.load)
-				if err != nil {
-					b.Fatal(err)
-				}
-				if arm.run == nil {
-					continue
-				}
-				index.Root, index.DirtyPaths, index.StatusSHA256 = built.Root, built.DirtyPaths, built.StatusSHA256
-				result, err := arm.run(index)
-				if err != nil {
-					b.Fatal(err)
-				}
-				if _, err := json.Marshal(result); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
 }

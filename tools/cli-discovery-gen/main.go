@@ -78,9 +78,6 @@ func must(err error) {
 func rootTree(binary string) clitree.Tree {
 	dir := "cmd/" + binary
 	dirs := []string{dir}
-	if binary == "corvint-mcp" { // This entrypoint delegates its parser and authored usage.
-		dirs = append(dirs, "internal/mcp/cli")
-	}
 	if binary == "corvint-cli" { // Include the adapter's delegated argument parser in the drift gate.
 		dirs = append(dirs, "internal/cliprofile")
 	}

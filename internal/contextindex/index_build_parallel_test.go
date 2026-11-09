@@ -1,9 +1,23 @@
 package contextindex
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
+
+// indexWithSymbolWindows builds the index the way index does for a snapshot,
+// with the term table and its symbol windows attached.
+func indexWithSymbolWindows(t *testing.T, repository string) *Index {
+	t.Helper()
+	index, err := Build(context.Background(), repository)
+	if err != nil {
+		t.Fatalf("Build(%s): %v", repository, err)
+	}
+	index.Vocabulary = index.buildVocabulary()
+	index.Vocabulary.SymbolWindows = index.buildSymbolWindows()
+	return index
+}
 
 // TestGPKV0088SymbolWindowsMatchEachSymbolsTerms pins GPK-V0-088 for the
 // symbol windows: each worker reuses one cleared set across its symbols, so
@@ -11,7 +25,7 @@ import (
 // for that symbol alone. A set carried over between symbols adds the
 // previous window's terms and fails here.
 func TestGPKV0088SymbolWindowsMatchEachSymbolsTerms(t *testing.T) {
-	index := evalIndexWithSymbolWindows(t, evalQueryRepository(t))
+	index := indexWithSymbolWindows(t, evalQueryRepository(t))
 	table := &index.Vocabulary.SymbolWindows
 	got := make([]map[string]struct{}, len(index.Symbols))
 	for key := 0; key < table.keyCount(); key++ {
@@ -53,7 +67,7 @@ func TestGPKV0088SymbolWindowsMatchEachSymbolsTerms(t *testing.T) {
 // postings inverted in parallel, must equal the same phases run one after
 // another.
 func TestGPKV0088ConcurrentCompileMatchesSequentialPhases(t *testing.T) {
-	index := evalIndexWithSymbolWindows(t, evalQueryRepository(t))
+	index := indexWithSymbolWindows(t, evalQueryRepository(t))
 	index.compile()
 	sequential := index.buildVocabulary()
 	sequential.SymbolWindows = index.buildSymbolWindows()

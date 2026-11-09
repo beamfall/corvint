@@ -48,6 +48,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   `dogfood-ocm` are not Core.
   Amended by decision 0594: `prove`, `cem`, `ocm`, `frontier` and `dogfood` are retired; the
   remaining verbs keep this contract.
+  Amended by decision 0594 (2026-11-09): `query` is removed from Corvint and leaves the Core set;
+  its `query --task` modes and goldens are retired with it.
 - **CCF-V1-002:** Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
   with `ok=true` and `mutates=false`, unless its row says otherwise, and the identifiers below, byte
   for byte:
@@ -224,10 +226,9 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
   | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
   | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |
-  | `context.state` | `query`, `impact` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL` | closed | `internal/contextindex/receipt.go:42@744935db`, `internal/worktreeimpact/compiler.go:331@11242995` |
-  | `context.freshness.state` | `query`, `impact` | `fresh`, `mixed-worktree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
-  | `context.freshness.scope` | `query`, `impact` | `git`, `git+working-tree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
-  | `context.abstention.reason` | `query` | `none`, `needs-widening`, `nearest-negative-claim`, `omitted-competing-record`, `below-relevance-floor`, `unindexed-worktree-changes`, `no-relevant-candidates` | open | `internal/contextindex/eval_query.go:303@2e798125` |
+  | `context.state` | `impact` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL` | closed | `internal/contextindex/receipt.go:42@744935db`, `internal/worktreeimpact/compiler.go:331@11242995` |
+  | `context.freshness.state` | `impact` | `fresh`, `mixed-worktree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
+  | `context.freshness.scope` | `impact` | `git`, `git+working-tree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:78@884d7796` |
@@ -235,9 +236,6 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:274@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1791@b984fed9` |
   | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3936@c020e4b8` |
-  | `context.intent.id` | `query` | `repository`, `project-operations`, `agent-tooling` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/query.go:204@56442382` |
-  | `context.intent.confidence` | `query` | `default`, `high` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:414@1f684e46` |
-  | `context.learning.local_trace_state` | `query` | `absent`, `ready`, `blocked-mixed-worktree` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/eval_query.go:64@4b83d4fe` |
   | `context.range.status` | `impact` | `CLEAN`, `UNTRACKED-ALLOWED` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:421@71c6f8b4`, `internal/contextindex/range_impact.go:434@8fd264ef` |
   | `context.omissions.samples[].reason` | `impact` | `non-Go path outside native Go range profile` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:278@7b21b9c6` |
   | `plan.unknown[].reason` | `affected` | `UNINDEXED_SOURCE_PATH`, `UNOWNED_DIRTY_PATH`, `LANGUAGE_FRONTIER`, `NO_SELECTABLE_TEST` | open | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/liveverify/affected/select.go:58@644f277c` |
@@ -250,12 +248,14 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:44@f81f3f8e` |
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:50@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:786@f6741c9b`, `internal/liveverify/affected/select.go:78@884d7796` |
-  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:488@56698a09`, `internal/contextindex/index.go:1423@f6b4c05b`, `internal/contextindex/index.go:1427@14914a09`, `internal/contextindex/index.go:1430@f91f4e9c`, `internal/contextindex/index.go:571@4b59a221`, `internal/contextindex/index.go:772@e27ec283`, `internal/contextindex/index.go:36@b7c4315f` |
+  | `context.exclusions.samples[].reason` | `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:488@56698a09`, `internal/contextindex/index.go:1423@f6b4c05b`, `internal/contextindex/index.go:1427@14914a09`, `internal/contextindex/index.go:1430@f91f4e9c`, `internal/contextindex/index.go:571@4b59a221`, `internal/contextindex/index.go:772@e27ec283`, `internal/contextindex/index.go:36@b7c4315f` |
   | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2699@f3806eef`, `internal/contextindex/taskcontext.go:347@7b32d74a`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
   | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2699@f3806eef`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
   | `coverage.governance_refused[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:101@35a83646`, `internal/contextindex/taskcontext.go:347@7b32d74a`, `internal/contextindex/taskcontext.go:348@4da20476`, `internal/contextindex/taskcontext.go:349@73a4650c` |
   | `coverage.governance_refused[].trust` | `context` | `repository-content`, `external-provider`, `tool-output` | closed | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:101@35a83646`, `internal/contextindex/trust.go:13@b8cc52f2`, `internal/contextindex/trust.go:19@e4aee023`, `internal/contextindex/trust.go:23@e580f876` |
   | `coverage.governance_refused[].warnings[]` | `context` | `hidden-unicode`, `hidden-unicode-unscreened`, `self-modified-authority` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/authority_screen.go:19@6a804eb8`, `internal/contextindex/authority_screen.go:22@184ddd00`, `internal/contextindex/authority_screen.go:25@000b28cc` |
+
+  Amended by decision 0594 (2026-11-09): the `query` verb left Corvint, so its register rows `context.abstention.reason`, `context.intent.id`, `context.intent.confidence`, `context.learning.local_trace_state` are removed and the `query` tool is dropped from the shared `impact` rows.
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state

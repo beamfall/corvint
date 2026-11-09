@@ -92,9 +92,9 @@ case $output in
 esac
 
 # 4. A row whose every test is unreported is NOT_RUN.
-output=$(export STUB_SKIP=TestDogfoodPromptBoundsAndCancellation; run) || fail "an unreported row failed the run: $output"
+output=$(export STUB_SKIP=TestBuildCancellationKillsGitDescendants; run) || fail "an unreported row failed the run: $output"
 case $output in
-  *"category=time package=./internal/contextindex tests=1 pass=0 not_run=1 status=NOT_RUN"*) ;;
+  *"category=interruption-cleanup package=./internal/contextindex tests=1 pass=0 not_run=1 status=NOT_RUN"*) ;;
   *) fail "an unreported row was not NOT_RUN: $output" ;;
 esac
 
