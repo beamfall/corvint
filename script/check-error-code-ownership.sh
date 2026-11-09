@@ -151,7 +151,8 @@ newline='
 while IFS='	' read -r directory calls; do
     files=$(cd "$work/tree" && {
         for file in "$directory"/*.go; do
-            case $file in *_test.go) continue ;; esac
+            # The leading ( keeps bash 3.2 (macOS sh) from closing the $( ) at the pattern's ).
+            case $file in (*_test.go) continue ;; esac
             test ! -f "$file" || printf '%s\n' "$file"
         done
     } | LC_ALL=C sort) || {
