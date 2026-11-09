@@ -262,8 +262,6 @@ func topicText(topic string) string {
 		return flowscmd.HowHelp
 	case "step":
 		return stepHelp
-	case "changes":
-		return changesHelp
 	case "runs":
 		return runsHelp
 	case "test":
@@ -369,7 +367,6 @@ Support boundary:
 // its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
 // it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
 var hiddenCommands = map[string]string{
-	"changes":           "offline upgrade checklist (UCL1142-V0)",
 	"lrf":               "lexical relevance floor, historical only (LRF-V0)",
 	"migrate-traces":    "plan or apply trace migration (LTPM-V0)",
 	"migration-ratchet": "compare migration evidence (MER-V0)",

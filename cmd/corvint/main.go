@@ -825,9 +825,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runAffected(ctx, root, stdout, stderr)
 		}
-		if root, rest, requested := changesInvocation(arguments); requested {
-			return runChanges(ctx, root, rest, stdout, stderr)
-		}
 		if root, rest, requested := runsInvocation(arguments); requested {
 			return runRuns(ctx, root, rest, stdout, stderr)
 		}

@@ -38,7 +38,6 @@
         "internal/runtimeenv",
         "internal/scopelease",
         "internal/secretscreen",
-        "internal/sharedpath",
         "internal/testsupport",
         "internal/versionline",
         "internal/workspace",
@@ -273,8 +272,7 @@
         "internal/mcp",
         "internal/modelgateway",
         "internal/remoteprovider",
-        "internal/skillexport",
-        "internal/upgradechanges"
+        "internal/skillexport"
       ]
     },
     {
