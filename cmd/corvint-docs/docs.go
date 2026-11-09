@@ -266,15 +266,15 @@ var docsSubcommands = []string{"nav", "draft", "consume", "citations", "corpus",
 const docsHelp = `Experimental source documentation orientation.
 
 Usage:
-  corvint [--root PATH] docs nav --trusted-project --request FILE
-  corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
-  corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
-  corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
-  corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
-  corvint [--root PATH] docs citations check [PATH...]
-  corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)
-  corvint [--root PATH] docs maintain --page PATH ...  (corvint help docs maintain)
-  corvint [--root PATH] docs flows generate|check|finalize ...  (corvint help docs flows)
+  corvint-docs [--root PATH] docs nav --trusted-project --request FILE
+  corvint-docs [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
+  corvint-docs [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+  corvint-docs [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+  corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
+  corvint-docs [--root PATH] docs citations check [PATH...]
+  corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)
+  corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)
+  corvint-docs [--root PATH] docs flows generate|check|finalize ...  (corvint-docs help docs flows)
 Maturity: every docs subcommand (nav, draft, consume, citations, corpus, maintain, flows) is experimental.
 
 Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
@@ -326,22 +326,22 @@ Example from a Corvint checkout with committed sources:
 Contract and remaining bounds: docs/specs/source-documentation-draft-v0.md
 
 Separate experimental corpus profile:
-  corvint [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
-  corvint [--root PATH] docs corpus build --manifest INPUT.json
-  corvint [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]
-  corvint [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
-  corvint [--root PATH] docs corpus compact-provider --input PROVIDER.json
-  corvint [--root PATH] docs corpus estate --input ESTATE.json
-  corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
-  corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
-  corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
-  corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
-  corvint [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]
-  corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
-  corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
-  corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
-  corvint [--root PATH] docs corpus render --artifact CORPUS.json
-  corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
+  corvint-docs [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
+  corvint-docs [--root PATH] docs corpus build --manifest INPUT.json
+  corvint-docs [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]
+  corvint-docs [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
+  corvint-docs [--root PATH] docs corpus compact-provider --input PROVIDER.json
+  corvint-docs [--root PATH] docs corpus estate --input ESTATE.json
+  corvint-docs [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
+  corvint-docs [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
+  corvint-docs [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
+  corvint-docs [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
+  corvint-docs [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]
+  corvint-docs [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
+  corvint-docs [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
+  corvint-docs [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
+  corvint-docs [--root PATH] docs corpus render --artifact CORPUS.json
+  corvint-docs [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
 Read operations: info, validate, get/trace/related/journey/stability --id ID, locate --path PATH,
 coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
 Local input files (--manifest, --artifact, --input, --previous, --retirement, --migration,

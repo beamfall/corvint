@@ -56,13 +56,6 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 			},
 			args: func(root string) []string { return []string{"--root", root, "index", "--if-stale"} },
 		},
-		{
-			name: "docs",
-			root: docsRepository,
-			args: func(root string) []string {
-				return []string{"--root", root, "docs", "draft", "--source", "owner.md", "--package", "cache"}
-			},
-		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

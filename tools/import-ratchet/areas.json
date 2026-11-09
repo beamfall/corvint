@@ -18,6 +18,7 @@
         "internal/clierror",
         "internal/clitree",
         "internal/diagnostic",
+        "internal/docsenvelope",
         "internal/execfile",
         "internal/gitancestry",
         "internal/gitnotes",
@@ -28,6 +29,7 @@
         "internal/jsonend",
         "internal/lineanchor",
         "internal/mcp/protocol",
+        "internal/mcp/rootbind",
         "internal/procgroup",
         "internal/procprofile",
         "internal/projectpath",
@@ -137,6 +139,7 @@
         "internal/doccompiler",
         "internal/doccorpus",
         "internal/docmaintain",
+        "internal/docstools",
         "internal/docviews",
         "internal/flowdocs"
       ]

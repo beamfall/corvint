@@ -88,7 +88,7 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 			{[]string{"context", "--task", "x", "--subject", "a.go", "--help"}, helpText("context")},
 			{[]string{"impact", "path/a.go", "--help"}, helpText("impact")},
 			{[]string{"index", "--if-stale", "--help"}, helpText("index")},
-			{[]string{"docs", "maintain", "--page", "p", "--help"}, helpText("docs-maintain")},
+			{[]string{"docs", "maintain", "--page", "p", "--help"}, helpText("docs")},
 			{[]string{"--help", "context"}, rootHelp},
 		} {
 			args := append(append([]string{}, invalidRoot...), test.args...)
@@ -164,30 +164,11 @@ func TestRootPreambleFollowsArgparseOptionLikeClassification(t *testing.T) {
 func TestNativeVerbOptionValuesFollowArgparseOptionLikeClassification(t *testing.T) {
 	t.Parallel()
 	errorOf := func(_ any, err error) error { return err }
-	docs := func(args ...string) error {
-		_, _, err := parseDocsInvocation(append([]string{"docs"}, args...))
-		return err
-	}
-	maintain := func(args ...string) error {
-		_, _, err := parseDocsMaintainInvocation(append([]string{"docs", "maintain"}, args...))
-		return err
-	}
+	// The docs parsers moved to cmd/corvint-docs with their own copy of this pin.
 	for _, test := range []struct {
 		name, missing string
 		parse         func(value string, inline bool) error
 	}{
-		{"docs", "missing docs argument value: --source", func(v string, inline bool) error {
-			if inline {
-				return docs("draft", "--source="+v)
-			}
-			return docs("draft", "--source", v)
-		}},
-		{"docs-maintain", "missing docs maintain argument value: --page", func(v string, inline bool) error {
-			if inline {
-				return maintain("--page=" + v)
-			}
-			return maintain("--page", v)
-		}},
 		{"test-validity", "missing value for --receipt", func(v string, inline bool) error {
 			if inline {
 				return errorOf(parseTestValidityOptions([]string{"--receipt=" + v}))
@@ -360,7 +341,7 @@ func TestUnknownHelpTopicIsConventionalError(t *testing.T) {
 	exit := run([]string{"help", "not-a-command"}, reader, &stdout, &stderr)
 	if exit != 2 || stdout.Len() != 0 || reader.reads != 0 ||
 		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'init', ") ||
-		!strings.HasSuffix(stderr.String(), "'docs maintain')\", \"ok\": false}\n") {
+		!strings.HasSuffix(stderr.String(), "'how')\", \"ok\": false}\n") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q reads=%d", exit, &stdout, &stderr, reader.reads)
 	}
 }

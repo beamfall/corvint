@@ -80,11 +80,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 
 // nestedHelpTopics are the two-word `corvint help COMMAND SUBCOMMAND` topics, in the order the
 // unknown-topic refusal lists them (DCP-V1-057).
-var nestedHelpTopics = [][2]string{
-	{"docs corpus", "docs-corpus"},
-	{"docs flows", "docs-flows"},
-	{"docs maintain", "docs-maintain"},
-}
+var nestedHelpTopics = [][2]string{}
 
 func nestedHelpTopic(command, subcommand string) string {
 	for _, nested := range nestedHelpTopics {
@@ -120,12 +116,6 @@ func commandHelpTopic(rest []string) string {
 	switch {
 	case !known:
 		return ""
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "flows":
-		return "docs-flows"
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "maintain":
-		return "docs-maintain"
-	case len(rest) > 1 && rest[0] == "docs" && rest[1] == "corpus":
-		return corpusHelpTopic(rest[2:])
 	case len(rest) > 2 && rest[0] == "flows" && rest[1] == "appmap" && rest[2] == "build":
 		// The build step's own help: manifest, commit rules and the e2e chain (CCE-V0-118).
 		return flowsAppmapBuildHelpTopic
@@ -190,22 +180,13 @@ func helpText(topic string) string {
 
 // topicText is a help topic's authored text, the source the command tree derives from.
 func topicText(topic string) string {
-	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
-		return docsCorpusOperationHelp(operation)
-	}
 	switch topic {
 	case flowsAppmapBuildHelpTopic:
 		return flowsAppmapBuildHelp()
 	case "catalog-json":
 		return capabilityCatalogJSON()
-	case "docs-corpus":
-		return docsCorpusHelp()
 	case "docs":
-		return docsHelp + "\n" + docsMaintainHelp + "\n" + docsFlowsHelp
-	case "docs-flows":
-		return docsFlowsHelp
-	case "docs-maintain":
-		return docsMaintainHelp
+		return docsHelp
 	case "root":
 		return rootHelp
 	case "impact":

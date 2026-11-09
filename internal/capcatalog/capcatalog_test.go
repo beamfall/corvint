@@ -171,8 +171,8 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 			t.Fatalf("drift %q problems = %v", drift, problems)
 		}
 	}
-	if problems := GuideProblems(catalog, "  `corvint help docs corpus`\n  `corvint help docs maintain`\n  corvint --root /repo affected --base FULL\n"+Guide()); len(problems) != 0 {
-		t.Fatalf("catalogued nested topics and a --root preamble: problems = %v", problems)
+	if problems := GuideProblems(catalog, "  `corvint help flows`\n  corvint --root /repo affected --base FULL\n"+Guide()); len(problems) != 0 {
+		t.Fatalf("a catalogued topic and a --root preamble: problems = %v", problems)
 	}
 }
 
@@ -397,13 +397,13 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	guide := Guide()
 	goals, _, _ := strings.Cut(guide, "\nNon-capabilities\n")
 	for _, example := range []string{
-		"\n   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
+		"\n   corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
 		" --coverage-artifact lcov=trace.lcov > run.jsonl\n",
 		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
 		"trace.lcov must hold\n   that test's coverage only, and --test-key names the test's key in run.jsonl",
-		"\n   corvint docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
-		"\n   corvint docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
-		"\n   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
+		"\n   corvint-docs docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
+		"\n   corvint-docs docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
+		"\n   corvint-docs docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
 	} {
 		if !strings.Contains(goals, example) {
 			t.Fatalf("the guide goals lack the example %q", example)

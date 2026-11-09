@@ -701,33 +701,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return exit
 	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
-		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
-			if corpusErr != nil {
-				emitError(stderr, corpusErr)
-				return 2
-			}
-			return runCorpus(ctx, options, stdout, stderr)
-		}
-		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
-			if maintainErr != nil {
-				emitError(stderr, maintainErr)
-				return 2
-			}
-			return runDocsMaintain(ctx, options, stdout, stderr)
-		}
-		if options, handled, err := parseDocsFlowsInvocation(arguments); handled {
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			return runDocsFlows(ctx, options, stdout, stderr)
-		}
-		if options, isDocs, docsErr := parseDocsInvocation(arguments); isDocs {
-			if docsErr != nil {
-				emitError(stderr, docsErr)
-				return 2
-			}
-			return runDocs(ctx, options, stdin, stdout, stderr)
+		if code, handled := runDocsShim(ctx, arguments, stdin, stdout, stderr); handled {
+			return code
 		}
 		if root, isIndex, indexErr := parseIndexInvocation(arguments); isIndex {
 			if indexErr != nil {

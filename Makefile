@@ -615,6 +615,7 @@ capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || 
 capability-catalog: ## Regenerate the capability catalog after help usage changes
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
+	$(call capcatalog_write,./cmd/corvint-docs help --json,internal/capcatalog/trees/corvint-docs.json)
 	$(call capcatalog_write,./cmd/corvint-go-test-provider help --json,internal/capcatalog/trees/corvint-go-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-js-test-provider help --json,internal/capcatalog/trees/corvint-js-test-provider.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
