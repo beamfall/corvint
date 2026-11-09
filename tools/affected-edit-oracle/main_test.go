@@ -180,9 +180,15 @@ func TestEditValidation_AEO_V0_001_002(t *testing.T) {
 
 func TestObservations_AEO_V0_004(t *testing.T) {
 	cmd := testCommand{Format: "go-json"}
-	_, units, _, err := testObservations(cmd, []byte("{\"Action\":\"fail\",\"Package\":\"bad-build\"}\n"))
-	if err != nil || len(units) != 0 {
-		t.Fatalf("build failure counted as kill %v %v", units, err)
+	// A package failure without a failing test (a build failure) is never a
+	// kill, alone or beside an assertion failure in another package.
+	for _, raw := range []string{
+		"{\"Action\":\"fail\",\"Package\":\"bad-build\"}\n",
+		"{\"Action\":\"fail\",\"Package\":\"p\",\"Test\":\"TestA\"}\n{\"Action\":\"fail\",\"Package\":\"p\"}\n{\"Action\":\"fail\",\"Package\":\"b\"}\n",
+	} {
+		if _, units, _, err := testObservations(cmd, []byte(raw)); err == nil {
+			t.Fatalf("build failure counted as kill %v", units)
+		}
 	}
 	passes, units, tests, err := testObservations(cmd, []byte("admission log\n{\"Action\":\"pass\",\"Package\":\"p\",\"Test\":\"TestA\"}\n{\"Action\":\"fail\",\"Package\":\"p\",\"Test\":\"TestB\"}\n"))
 	if err != nil || passes != 1 || !reflect.DeepEqual(units, []string{"go:p"}) || !reflect.DeepEqual(tests, []string{"go:p#TestB"}) {

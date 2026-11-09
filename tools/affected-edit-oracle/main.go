@@ -478,6 +478,7 @@ func testObservations(cmd testCommand, out []byte) (passes int, units, tests []s
 		return 1, nil, nil, nil
 	}
 	unitSet := map[string]bool{}
+	failedPackages := map[string]bool{}
 	for _, line := range bytes.Split(out, []byte("\n")) {
 		if len(line) == 0 || line[0] != '{' {
 			continue
@@ -493,6 +494,12 @@ func testObservations(cmd testCommand, out []byte) (passes int, units, tests []s
 			return 0, nil, nil, errors.New("Go test timed out")
 		}
 		if o.Test == "" {
+			// A package that fails with no failing test, such as a build
+			// failure in an importer, is not a named kill; report it rather
+			// than letting another package's assertion hide it.
+			if o.Action == "fail" && o.Package != "" {
+				failedPackages[o.Package] = true
+			}
 			continue
 		}
 		if o.Action == "pass" {
@@ -505,6 +512,11 @@ func testObservations(cmd testCommand, out []byte) (passes int, units, tests []s
 			id := "go:" + o.Package
 			unitSet[id] = true
 			tests = append(tests, id+"#"+o.Test)
+		}
+	}
+	for pkg := range failedPackages {
+		if !unitSet["go:"+pkg] {
+			return 0, nil, nil, fmt.Errorf("Go package %s failed without a failing test", pkg)
 		}
 	}
 	for id := range unitSet {
