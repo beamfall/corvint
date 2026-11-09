@@ -64,12 +64,17 @@ printf 'bind\n' > bind.txt
 git add bind.txt
 git commit -q -m bind
 [[ $("$script") == "$main" ]] || fail "$LINENO"
-# make BASE=merge-forward hands the derived SHA to the target.
+# make BASE=merge-forward hands the derived SHA to the target. probe runs make as a top-level make:
+# under make -k gate, GNU make 4.3 passes w in MAKEFLAGS, and the Entering directory line it then
+# prints would replace the probe's output. It also drops any BASE that a calling make passes down.
+probe() {
+  env -u BASE -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u SPEC_REQUIREMENTS_BASE make -s HEAVY_ADMIT= HEAVY_NICE=0 "$@"
+}
 printf 'include %s/Makefile\nprobe:\n\t@printf "%%s\\n" "$(DOGFOOD_BASE)"\n' "$source_root" > "$root/probe.mk"
 mkdir -p script
 cp "$script" script/dogfood-merge-base.sh
-[[ $(make -s -f "$root/probe.mk" probe BASE=merge-forward 2> /dev/null) == "$main" ]] || fail "$LINENO"
-[[ $(make -s -f "$root/probe.mk" probe BASE="$main" 2> /dev/null) == "$main" ]] || fail "$LINENO"
+[[ $(probe -f "$root/probe.mk" probe BASE=merge-forward 2> /dev/null) == "$main" ]] || fail "$LINENO"
+[[ $(probe -f "$root/probe.mk" probe BASE="$main" 2> /dev/null) == "$main" ]] || fail "$LINENO"
 /bin/rm -rf script
 # A merged branch that is not on the mainline is refused.
 git checkout -q -b other "$main~1"
@@ -107,9 +112,6 @@ for stub in script/batch-precheck.sh script/dogfood-check.sh script/gen-spec-req
   chmod +x "$stub"
 done
 export DOGFOOD_MERGE_BASE_TEST_RAN=$root/ran
-probe() {
-  env -u BASE -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u SPEC_REQUIREMENTS_BASE make -s HEAVY_ADMIT= HEAVY_NICE=0 "$@"
-}
 for target in dogfood-check dogfood-closeout-precheck; do
   status=0
   probe -f "$root/probe.mk" "$target" BASE=merge-forward > "$root/out" 2> "$root/err" || status=$?
