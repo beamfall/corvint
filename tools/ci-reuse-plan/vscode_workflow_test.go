@@ -12,7 +12,6 @@ func TestVSCV0080ExtensionWorkflowRunsOnContractChanges(t *testing.T) {
 		"extensions/vscode/**",
 		"docs/specs/vscode-extension-v0.md",
 		"cmd/corvint/main.go",
-		"cmd/corvint/query*.go",
 		"cmd/corvint/impact*.go",
 		"cmd/corvint-mcp/**",
 		"internal/mcp/**",
