@@ -16,9 +16,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/contextsummary"
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -34,11 +31,10 @@ const (
 	ToolQuery  = "corvint.query"
 	ToolImpact = "corvint.impact"
 	ToolStatus = "corvint.status"
-	// ToolContext and ToolCEMReport project `corvint context` and `corvint cem
-	// report` (MCPV0-024, MCPV0-025). Only the opt-in task-review descendant
-	// profile advertises them (MCPV0-026, decision 0374).
-	ToolContext   = "corvint.context"
-	ToolCEMReport = "corvint.cem.report"
+	// ToolContext projects `corvint context` (MCPV0-024). Only the opt-in
+	// task-review descendant profile advertises it (MCPV0-026, decision 0374);
+	// the CEM report tool (MCPV0-025) was retired by decision 0594.
+	ToolContext = "corvint.context"
 
 	resultSchema    = "corvint-mcp-bridge-result/0"
 	maxArgumentSize = 512 * 1024
@@ -104,17 +100,14 @@ type repositoryOperations struct {
 	build      func(context.Context, string) (*contextindex.Index, error)
 	buildQuery func(context.Context, string, string) (*contextindex.Index, error)
 	context    func(context.Context, string, contextInput) (*contextindex.Index, map[string]any, error)
-	// cemReport receives the resolved root and the root as the caller named
-	// it; only a cem/1.0 read admits the latter (MCPV0-036, CEM-V1-017).
-	cemReport func(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error)
-	platform  string
-	probe     func(context.Context, string) (gokernel.Repository, error)
+	platform   string
+	probe      func(context.Context, string) (gokernel.Repository, error)
 }
 
 func productionRepositoryOperations() repositoryOperations {
 	return repositoryOperations{
 		build: contextindex.Build, buildQuery: contextindex.BuildQuery,
-		context: compileContext, cemReport: previewCEMReport,
+		context:  compileContext,
 		platform: runtime.GOOS, probe: gokernel.ProbeRepositoryContext,
 	}
 }
@@ -154,19 +147,6 @@ func compileContextWith(ctx context.Context, root string, input contextInput, lo
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, input.Task, input.Subject, input.Limit, admitted)
 	return index, packet, err
-}
-
-// previewCEMReport is `corvint cem report` rendered without publication. A
-// 0.x map reads the resolved root; a cem/1.0 map is admitted against
-// callerRoot, so a symlinked --root is refused exactly as
-// `cem verify-stable --repository` refuses it (MCPV0-036, CEM-V1-017).
-func previewCEMReport(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error) {
-	session, err := workflow.Open(root)
-	if err != nil {
-		return nil, err
-	}
-	session.SetStableRepository(callerRoot)
-	return session.Read(ctx, workflow.ActionReportPreview, options)
 }
 
 // repositorySnapshot is one immutable context-index capture for a read
@@ -304,7 +284,7 @@ func (failure *Error) Error() string { return failure.Code }
 
 // taskReviewTools exist only in the task-review descendant profile; the
 // default V0 registry neither advertises nor dispatches them (decision 0103).
-var taskReviewTools = map[string]bool{ToolContext: true, ToolCEMReport: true}
+var taskReviewTools = map[string]bool{ToolContext: true}
 
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
@@ -342,7 +322,7 @@ func New(root string) (*Registry, error) {
 }
 
 // NewTaskReview binds the opt-in task-review descendant profile, which adds
-// the context and CEM report tools to the V0 three (MCPV0-026).
+// the context tool to the V0 three (MCPV0-026).
 func newTaskReview(root string) (*Registry, *Error) {
 	registry, err := New(root)
 	if err != nil {
@@ -412,27 +392,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 	// Byte bounds are advertised as code-point bounds divided by UTFMax, and
 	// the task pattern excludes U+0085 (Go trims it, ECMA \s does not), so
 	// every schema-valid argument is also runtime-valid.
-	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
-	ceiling := map[string]any{"type": "integer", "minimum": 0}
-	// The map and the cem/1.0 artifacts directory share one closed
-	// repository-relative path rule (MCPV0-025, MCPV0-036).
-	relativePath := func() map[string]any {
-		return map[string]any{
-			"type": "string", "minLength": 1, "maxLength": wire.MaxPathBytes / utf8.UTFMax,
-			"pattern": PathRule{Excluded: `\x00-\x1f\x7f`, GitSegment: "fold", TrailingSlash: true}.Pattern(), // MCPV0-954
-		}
-	}
 	return append([]ToolDescriptor{
-		{
-			Name:        ToolCEMReport,
-			Description: "Render the CEM reviewer report for a repository-relative canonical map against two full revision IDs, without writing it.",
-			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
-				"map": relativePath(), "artifacts": relativePath(),
-				"expectedBase": oid, "target": oid,
-				"maxUnknown": ceiling, "maxMechanical": ceiling,
-			}, []any{"map", "expectedBase", "target"}),
-		},
 		{
 			Name:        ToolContext,
 			Description: "Compile the task-context packet: the files to read for one task, each with the relation that admitted it.",
@@ -487,7 +447,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 func (registry *Registry) Call(ctx context.Context, name string, arguments []byte) (Result, *Error) {
 	if registry == nil || registry.root == "" || registry.rootIdentity == nil || registry.git == nil ||
 		registry.operations.build == nil || registry.operations.buildQuery == nil || registry.operations.probe == nil ||
-		registry.operations.context == nil || registry.operations.cemReport == nil {
+		registry.operations.context == nil {
 		return Result{}, failure("invalid-registry")
 	}
 	if err := ctx.Err(); err != nil {
@@ -516,8 +476,6 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 		result, callErr = registry.callStatus(ctx, arguments)
 	case ToolContext:
 		result, callErr = registry.callContext(ctx, arguments)
-	case ToolCEMReport:
-		result, callErr = registry.callCEMReport(ctx, arguments)
 	case ToolFlowsMap:
 		result, callErr = registry.callFlowsMap(ctx, arguments)
 	case ToolFlowsGaps:
@@ -765,97 +723,6 @@ func detachedContext(packet map[string]any, binding RepositoryBinding) (map[stri
 	return copied, binding, nil
 }
 
-type cemReportInput struct {
-	Map           string  `json:"map"`
-	Artifacts     *string `json:"artifacts"`
-	ExpectedBase  string  `json:"expectedBase"`
-	Target        string  `json:"target"`
-	MaxUnknown    *int    `json:"maxUnknown"`
-	MaxMechanical *int    `json:"maxMechanical"`
-}
-
-func (registry *Registry) callCEMReport(ctx context.Context, arguments []byte) (Result, *Error) {
-	var input cemReportInput
-	if err := decodeClosed(arguments, &input); err != nil || !validCEMReport(input) {
-		return Result{}, failure("invalid-arguments")
-	}
-	before, err := registry.operations.probe(ctx, registry.root)
-	if err != nil {
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	options := workflow.ReadOptions{
-		MapPath: input.Map, ExpectedBase: input.ExpectedBase, Target: input.Target,
-		Limits: workflow.PolicyLimits{MaxUnknown: input.MaxUnknown, MaxMechanical: input.MaxMechanical},
-	}
-	// MCPV0-036: the stable verifier needs an absolute artifact root; the
-	// caller names it relative to the bound root.
-	if input.Artifacts != nil {
-		options.ArtifactRoot = filepath.Join(registry.callerRoot, filepath.FromSlash(*input.Artifacts))
-		options.ArtifactsGiven = true
-	}
-	receipt, err := registry.operations.cemReport(ctx, registry.root, registry.callerRoot, options)
-	if err != nil {
-		return Result{}, cemFailure(ctx, err)
-	}
-	after, err := registry.operations.probe(ctx, registry.root)
-	if err != nil {
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	if before != after {
-		return abstained(ToolCEMReport, "REPOSITORY_STATE_UNSTABLE", nil), nil
-	}
-	return boundedObserved(ToolCEMReport, bindingFromRepository(after), receipt)
-}
-
-// validCEMPath is the closed repository-relative path rule shared by the map
-// and the artifacts directory: no traversal and no .git segment in any case.
-func validCEMPath(path string) bool {
-	if wire.ValidatePath(path) != nil || !validRelativePath(path, wire.MaxPathBytes) {
-		return false
-	}
-	for _, part := range strings.Split(path, "/") {
-		if strings.EqualFold(part, ".git") {
-			return false
-		}
-	}
-	return true
-}
-
-// cemFailures closes CEM's registered codes onto the bridge's sanitized
-// failure set; an unlisted code is internal-error. A Git read that ran out of
-// its own bound is the MCPV0-038 timeout code (decision 0533); one that
-// exhausted its operation or output bound is the capacity code (V1-1992).
-var cemFailures = map[string]string{
-	cemcode.MapUnavailable: "cem-map-unavailable", cemcode.InvalidArguments: "cem-map-unsupported",
-	cemcode.InvalidJSON: "cem-map-invalid", cemcode.NotAnObject: "cem-map-invalid",
-	cemcode.MissingField: "cem-map-invalid", cemcode.UnknownField: "cem-map-invalid",
-	cemcode.UnsupportedSpec: "cem-map-invalid", cemcode.InvalidField: "cem-map-invalid",
-	cemcode.InvalidExcludedPath: "cem-map-invalid", cemcode.PathTraversal: "cem-map-invalid",
-	cemcode.GitReadFailed: "repository-unavailable", cemcode.GitDiffFailed: "repository-unavailable",
-	cemcode.GitDiffTimeout: "repository-probe-timeout", cemcode.GitStartFailed: "repository-unavailable",
-	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-probe-timeout",
-	cemcode.GitOutputExceeded: "corpus-capacity-exceeded", cemcode.GitBudgetExceeded: "corpus-capacity-exceeded",
-	cemcode.RepositoryObjectUnavailable:     "repository-unavailable",
-	cemcode.UnsupportedObjectAlternates:     "repository-unavailable",
-	cemcode.UnsupportedRepositoryAttributes: "repository-unavailable",
-}
-
-func cemFailure(ctx context.Context, err error) *Error {
-	code := cemcode.CodeOf(err)
-	if ctx.Err() != nil || code == cemcode.GitCancelled {
-		return failure("cancelled")
-	}
-	// MCPV0-037: a cem/1.0 map refused before its verifier ran is named
-	// apart from a malformed or unsupported 0.x map.
-	if workflow.IsStableRefusal(err) {
-		return failure("cem-map-stable-refused")
-	}
-	if mapped, known := cemFailures[code]; known {
-		return failure(mapped)
-	}
-	return failure("internal-error")
-}
-
 func nativePlatformQualified(platform string) bool {
 	return platform == "darwin" || platform == "linux"
 }
@@ -1033,22 +900,7 @@ func validContext(input contextInput) bool {
 	return input.Subject == "" || validRelativePath(input.Subject, maxPathRunes)
 }
 
-// validCEMReport admits a repository-relative map path outside Git metadata
-// and two full object IDs. A symlink at or above the map is refused by the
-// CEM read itself (publish.Root.ReadBounded), as cem-map-unavailable.
-func validCEMReport(input cemReportInput) bool {
-	if !validCEMPath(input.Map) || (input.Artifacts != nil && !validCEMPath(*input.Artifacts)) {
-		return false
-	}
-	if !fullObjectID(input.ExpectedBase) || !fullObjectID(input.Target) {
-		return false
-	}
-	return nonNegative(input.MaxUnknown) && nonNegative(input.MaxMechanical)
-}
-
 func fullObjectID(value string) bool { return lowerHex(value, 40) || lowerHex(value, 64) }
-
-func nonNegative(value *int) bool { return value == nil || *value >= 0 }
 
 // validRelativePath is the impact path rule without the Go suffix.
 func validRelativePath(value string, maxRunes int) bool {
@@ -1137,7 +989,7 @@ func validResult(result Result) bool {
 
 func knownTool(tool string) bool {
 	switch tool {
-	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolCEMReport, ToolHelp, ToolGraphImports:
+	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolHelp, ToolGraphImports:
 		return true
 	}
 	return flowsTools[tool]
@@ -1172,9 +1024,6 @@ func validReceiptBinding(result Result) bool {
 	case ToolContext:
 		revision, revisionOK := result.Receipt["revision"].(string)
 		return result.Receipt["tool"] == "context" && revisionOK && revision == result.Repository.TreeRevision
-	case ToolCEMReport:
-		// A CEM receipt binds to the caller's two object IDs, not the checkout.
-		return result.Receipt["tool"] == "cem-report" && result.Receipt["mutates"] == false
 	}
 	if flowsTools[result.Tool] {
 		return validFlowsReceipt(result)

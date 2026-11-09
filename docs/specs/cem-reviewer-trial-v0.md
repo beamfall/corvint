@@ -3,8 +3,11 @@
 Owner: Russell Lewis
 Date: 2026-09-03
 Requirement prefix: `CRT-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted `tools/cem-trial` and the `cem`
+command group (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 Authoritative inputs: the V4 status record ("Run 30 Beamfall CEM lanes versus 30 controls. Require at
 least 20% fewer missed-evidence findings, at least 70% citable material hunks, and under 5% incorrect
 verifier hard failures"), `benchmarks/README.md` (partitions and the first-observation rule),
@@ -17,7 +20,7 @@ baseline).
 
 ## Agent digest
 - Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
-- Status: proposed/experimental; the owner accepted the 2026-10-01 amendments to CRT-V0-004, CRT-V0-005 (`seeded` arm), CRT-V0-007, CRT-V0-008 and CRT-V0-012 on 2026-10-25 (V1-0836 closeout).
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; added 2026-10-11 (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014); added 2026-10-28 (V1-2948): every summary pairs each arm with the mechanical stem baseline and says plainly when it is not beaten (CRT-V0-017, optional `stem` worklist arm), and scores evidence discovery apart from adjudicated defect detection, which is `NOT_OBSERVED` (CRT-V0-018); the compact CEM worklist arm is not built.
 - Blocked on: an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, run on 2026-10-24 (N 57, valid; neither hypothesis supported; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md`). Since 2026-10-24 (V1-0836) the `treatment` and `seeded` arms build an all-`unknown` cem/1.0 worklist for development and pilot runs (CRT-V0-005), and the ten-pair development run froze the held-out pair count at 57 (CRT-V0-008). Since the 2026-10-24 owner decision a registered run may carry that map (CRT-V0-015). The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
 - Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012..018); Power; Non-goals; Stopping and publication.

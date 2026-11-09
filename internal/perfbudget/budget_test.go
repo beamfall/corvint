@@ -80,9 +80,9 @@ func TestPRBV0031CommittedBudgets(t *testing.T) {
 		pendingOn string
 		profile   string
 	}{
-		"cli-cold-read":  {1000, "GH #1598", ProfileExperimental},
-		"cli-warm-read":  {200, "GH #1598", ProfileExperimental},
-		"affected-path":  {1000, "GH #1601", ProfileCore},
+		"cli-cold-read": {1000, "GH #1598", ProfileExperimental},
+		"cli-warm-read": {200, "GH #1598", ProfileExperimental},
+		"affected-path": {1000, "GH #1601", ProfileCore},
 	}
 	for _, s := range b.Scenarios {
 		target, hasTarget := want[s.ID]

@@ -18,7 +18,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -34,13 +33,8 @@ const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
 type options struct {
-	proveAttackTests bool
-
 	command         string
 	helpTopic       string
-	proveMode       string
-	proveMutate     bool
-	prove           proveOptions
 	root            string
 	host            string
 	hostVersion     string
@@ -852,11 +846,11 @@ var (
 	// the invalid-choice message never understates the binary. The leading run
 	// keeps the Python oracle's argparse declaration order; verbs this binary
 	// adds are appended in the order rootHelp documents them.
-	topLevelCommands = []string{"init", "adopt", "query", "feature", "impact", "eval", "lrf",
-		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
-		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
+	topLevelCommands = []string{"init", "adopt", "query", "feature", "impact", "eval",
+		"harness", "context", "adapter",
+		"affected",
 		"index", "batch", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
+		"kernel", "calibrate", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "breakage", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
 )
 
 func knownHost(value string) bool {
@@ -929,26 +923,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, err)
 		return 2
 	}
-	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {
-		return code
-	}
-	// The cem actions after the closed verifier and gate argv read one repository (WSD-V0-146).
-	if root, _, rest, isCEM, err := parseCEMInvocation(arguments); isCEM && err == nil {
-		if _, help, _ := parseHelpInvocation(arguments); !help {
-			guarded, err := guardWorkspace("cem", root, rest, true)
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			arguments = append(arguments[:len(arguments)-len(rest):len(arguments)-len(rest)], guarded...)
-		}
-	}
-	if len(arguments) > 0 && arguments[0] == "native-hook" {
-		return runNativeHook(ctx, arguments[1:], stdin, stdout, stderr)
-	}
-	if len(arguments) > 0 && (arguments[0] == "authority-event" || arguments[0] == "qualified-event") {
-		return runProtectedEvent(ctx, arguments, stdin, stdout, stderr)
-	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
 		if root, rest, handled, err := parseGraphInvocation(arguments); handled {
 			if err != nil {
@@ -957,58 +931,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runGraphImports(ctx, root, rest, stdout, stderr)
 		}
-		if root, rest, handled, err := parseDeltaInvocation(arguments); handled {
-			if err != nil {
-				fmt.Fprintln(stderr, "delta-invalid-arguments")
-				return 2
-			}
-			return runDelta(ctx, root, rest, stdout, stderr)
-		}
-		if invocation, isRatchet, ratchetErr := parseMigrationRatchetInvocation(arguments); isRatchet {
-			if ratchetErr != nil {
-				emitError(stderr, ratchetErr)
-				return 2
-			}
-			return runMigrationRatchetInvocation(ctx, invocation, stdout, stderr)
-		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, adapterStdout(stdout, stderr))
-		}
-		if options, handled, err := parseStepInvocation(arguments); handled {
-			if err != nil {
-				return stepError(stderr, err)
-			}
-			return runStep(ctx, options, stdout, stderr)
-		}
-		if root, rest, isWork, workErr := parseWorkInvocation(arguments); isWork {
-			if workErr != nil {
-				return emitWorkError(stdout, "MALFORMED_INPUT")
-			}
-			if exit, adopted := runWorkAdoption(ctx, root, rest, stdout, stderr); adopted {
-				return exit
-			}
-			return runWork(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, isLocalCompletion, localCompletionErr := parseLocalCompletionInvocation(arguments); isLocalCompletion {
-			if localCompletionErr != nil {
-				emitError(stderr, localCompletionErr)
-				return 2
-			}
-			return runLocalCompletion(ctx, root, rest, stdin, stdout, stderr)
-		}
-		if root, rest, isDogfoodRecord, dogfoodRecordErr := parseDogfoodRecordInvocation(arguments); isDogfoodRecord {
-			if dogfoodRecordErr != nil {
-				emitError(stderr, dogfoodRecordErr)
-				return 2
-			}
-			return runDogfoodRecord(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, limit, isObservations, observationsErr := parseObservationsInvocation(arguments); isObservations {
-			if observationsErr != nil {
-				emitError(stderr, observationsErr)
-				return 2
-			}
-			return runObservations(ctx, root, limit, stdout, stderr)
 		}
 		if _, isDepsource, depsourceErr := parseDepsourceInvocation(arguments); isDepsource {
 			if depsourceErr != nil {
@@ -1045,21 +969,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runKernel(ctx, kernelRoot, kernelRest, stdin, stdout, stderr)
 		}
-		if isLeaseInvocation(arguments) {
-			return runLease(arguments, stdout, stderr)
-		}
-		if isReadsInvocation(arguments) {
-			return runReads(arguments, stdout, stderr)
-		}
 		if calibrateInvoked(arguments) {
 			return runCalibrate(ctx, arguments, stdout, stderr)
-		}
-		if options, isProve, proveErr := parseProveBundleInvocation(arguments); isProve {
-			if proveErr != nil {
-				emitError(stderr, proveErr)
-				return 2
-			}
-			return runProveBundle(ctx, arguments, options, stdout, stderr)
 		}
 		if root, isIndex, indexErr := parseIndexInvocation(arguments); isIndex {
 			if indexErr != nil {
@@ -1121,13 +1032,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runBreakage(ctx, root, rest, stdout, stderr)
 		}
-		if options, isObligations, obligationsErr := parseObligationsInvocation(arguments); isObligations {
-			if obligationsErr != nil {
-				emitError(stderr, obligationsErr)
-				return 2
-			}
-			return runObligations(options, stdout, stderr)
-		}
 		if root, isBatch, batchErr := parseBatchInvocation(arguments); isBatch {
 			if batchErr != nil {
 				emitError(stderr, batchErr)
@@ -1142,83 +1046,11 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runActivation(ctx, root, activation, rest, stdout, stderr)
 		}
-		if root, rest, isRecord, recordErr := parseRecordInvocation(arguments); isRecord {
-			if recordErr != nil {
-				emitError(stderr, recordErr)
-				return 2
-			}
-			return runRecord(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isMigration, migrationErr := parseMigrateTracesInvocation(arguments); isMigration {
-			if migrationErr != nil {
-				emitError(stderr, migrationErr)
-				return 2
-			}
-			return runMigrateTraces(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, isLRF, lrfErr := parseLRFInvocation(arguments); isLRF {
-			if lrfErr != nil {
-				emitError(stderr, lrfErr)
-				return 2
-			}
-			return runLRF(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		// frontier carries no error out of interception: CF-V0-024 forbids the
-		// message emitError renders, so every frontier failure — argv included —
-		// leaves through the CF-V0-022 envelope inside runFrontier.
-		if parseFrontierNextInvocation(arguments) {
-			return runFrontierNext(arguments[1:], stdout)
-		}
-		if root, rest, isFrontier := parseFrontierInvocation(arguments); isFrontier {
-			return runFrontier(ctx, root, rest, stdout, stderr)
-		}
 		if code, isTestCommand := runTestCommand(ctx, arguments, stdout, stderr); isTestCommand {
 			return code
 		}
-		if root, rest, isWitness, witnessErr := parseWitnessInvocation(arguments); isWitness {
-			if witnessErr != nil {
-				emitError(stderr, witnessErr)
-				return 2
-			}
-			return runWitness(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isOCM, ocmErr := parseOCMInvocation(arguments); isOCM {
-			if ocmErr != nil {
-				emitError(stderr, ocmErr)
-				return 2
-			}
-			return runOCM(ctx, root, rest, stdout, unsupportedRecorder{root: root, stderr: stderr})
-		}
-		if root, rest, isDogfoodOCM, dogfoodOCMErr := parseDogfoodOCMInvocation(arguments); isDogfoodOCM {
-			if dogfoodOCMErr != nil {
-				emitError(stderr, dogfoodOCMErr)
-				return 2
-			}
-			return runDogfoodOCM(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isProveObserve, proveObserveErr := parseProveObserveInvocation(arguments); isProveObserve {
-			if proveObserveErr != nil {
-				emitError(stderr, proveObserveErr)
-				return 2
-			}
-			return runProveObserve(ctx, root, rest, stdin, stderr)
-		}
-		if root, rest, isDogfoodObserve, dogfoodObserveErr := parseDogfoodObserveInvocation(arguments); isDogfoodObserve {
-			if dogfoodObserveErr != nil {
-				emitError(stderr, dogfoodObserveErr)
-				return 2
-			}
-			return runDogfoodObserve(ctx, root, rest, stdout, stderr)
-		}
 		if code, handled := runEvalOrTwoRootImpact(ctx, arguments, stdout, stderr); handled {
 			return code
-		}
-		if root, callerRoot, rest, isCEM, cemErr := parseCEMInvocation(arguments); isCEM {
-			if cemErr != nil {
-				emitError(stderr, cemErr)
-				return 2
-			}
-			return cemcli.RunWithCallerRoot(ctx, root, callerRoot, rest, stdout, recordingStderr(root, stderr))
 		}
 	}
 	options, err := parse(arguments)
@@ -1535,43 +1367,6 @@ func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) 
 	return 0
 }
 
-// parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
-// symlink-resolved for 0.x reads; an empty --root is the working directory.
-// callerRoot is the --root value byte for byte, even empty, or the working
-// directory when --root is omitted, for stable admission (CEM-V1-017).
-func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []string, isCEM bool, err error) {
-	index := 0
-	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
-		value := ""
-		if arguments[index] == "--root" {
-			if !rootPreambleValue(arguments, index+1) {
-				return "", "", nil, false, nil
-			}
-			value = arguments[index+1]
-			index += 2
-		} else {
-			value = strings.TrimPrefix(arguments[index], "--root=")
-			index++
-		}
-		root = value
-	}
-	if index >= len(arguments) || arguments[index] != "cem" {
-		return "", "", nil, false, nil
-	}
-	callerRoot = root
-	if root == "" {
-		if root, err = os.Getwd(); err != nil {
-			return "", "", nil, true, argumentError("cannot resolve current directory")
-		}
-		if index == 0 { // only an omitted --root names the working directory
-			callerRoot = root
-		}
-	} else if root, err = normalizeRoot(root); err != nil {
-		return "", "", nil, true, err
-	}
-	return root, callerRoot, arguments[index+1:], true, nil
-}
-
 func readInput(ctx context.Context, stdin io.Reader) ([]byte, error) {
 	return readInputBounded(ctx, stdin, gokernel.MaxInputBytes)
 }
@@ -1759,14 +1554,6 @@ func main() {
 
 	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
 		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
-	}
-	// Startup-only owned-group verification precedes signal goroutines, Git
-	// resolution and every ordinary Core entrypoint.
-	if len(os.Args) > 1 && os.Args[1] == "dogfood-outcome-worker" {
-		os.Exit(runDogfoodOutcomeWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
-	}
-	if len(os.Args) > 1 && os.Args[1] == "dogfood-verifier-worker" {
-		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
 	signalled, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)

@@ -2,14 +2,17 @@
 
 Owner: Russell Lewis
 Drafted: 2026-08-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/witnesscollapse`
+(4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
+for traceability.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/CHANGE-EVIDENCE-MAP.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Declared common causes may collapse duplicate witness obligations only without strengthening authority or hiding uncertainty.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the bounded contract and deterministic algorithm; no Corvint implementation exists.
 - Blocked on: implementation, conformance, and evidence that declarations are complete enough for use.
 - Read next: User and measurable job; Verified current state; Requirements.

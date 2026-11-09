@@ -5,6 +5,8 @@ Requested: 2026-08-23
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-dashboard-snapshot` and `internal/dashboard` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-dashboard-snapshot` and
+`conformance/dashboard-snapshot-v0`; the snapshot requirements are retired.
 Authoritative inputs: `AGENTS.md`, `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/live-proof-carrying-verification-v0.md`,
 `docs/specs/pulse-snapshot-lease-v0.md`,

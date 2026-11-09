@@ -6,10 +6,6 @@
       "reason": "agent search exclusion globs (ASD-V0-573), read through its declared path by script/agent-grep.sh and script/long-lines-check.sh; never executed or imported."
     },
     {
-      "path": ".corvint/cem-lineage.tsv",
-      "reason": "CEM lineage declaration, read through its declared path by the CEM workflow and existing repository readers; never executed or imported."
-    },
-    {
       "path": ".corvint/change.cem.json",
       "reason": "the shared bind path of the change-evidence map (DOGFOOD.md section 4; V1-3571, AFP-V0-772); written, read and moved into .corvint/changes/ by the CEM and dogfood tools through path literals, never loaded by a computed name or a build or CI driver"
     },

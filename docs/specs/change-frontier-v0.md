@@ -10,24 +10,18 @@ candidate-only/deferred-replay policy on 2026-09-01. Ratification is limited to 
 clauses; every other clause keeps the document's proposed status. Decision 0162 (2026-09-12) adds
 `CF-V0-033`, the repository read-only requirement the already-shipped `corvint frontier` verb and
 `internal/frontier` already satisfy.
-Intent status: proposed overall; accepted clauses/amendments: `CF-V0-004`/`CF-V0-018` unreachability and `CF-V0-030` candidate-only replay policy (2026-09-01), `CF-V0-031`/`CF-V0-032` (2026-08-29; `CF-V0-032` uncertainty wording 2026-09-12, decision 0101), `CF-V0-033` read-only guarantee (2026-09-12, decision 0162)
-Delivery status: experimental (candidate-only; no promotion or outcome claim).
-`CF-V0-030` holds this field at `experimental` candidate-only until implementation, canonical vectors,
-adversarial fixtures, full local gate, and independent review exist.
-As of 2026-08-29 the first three exist -- `internal/frontier` and `internal/wp3codec` implement
-clauses `CF-V0-001..026`, and `conformance/frontier-v0` carries 62 vectors and 28 adversarial fixtures
-authored independently of the implementation under `CF-V0-028`. The remaining local evidence is
-incomplete. The former sealed-cohort outcome gates are withdrawn by decision 0012; a replacement
-third-party-PR replay protocol is deferred until the first release cut and remains `NOT_RUN`. Two
-surfaces are still injected seams rather than Git-backed implementations, so `CF-V0-021` stage 5 is
-partial.
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the `frontier` command group,
+`internal/frontier`, `internal/frontierrepo` and `conformance/frontier-v0` (4663b4e2b is the last
+tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/PRODUCT.md`,
 `docs/specs/cem-0.2-canonical-binding.md`, `docs/specs/ocm-v0-dogfood.md`,
 `docs/specs/lexical-relevance-floor-v0.md`, `docs/specs/test-claim-qualification-v0.md`
 
 ## Agent digest
 - Claim: Change Frontier composes CEM, OCM, LRF, and TCQ into a bounded Git-pinned queue of obligations that still lack accepted witnesses.
-- Status: proposed overall; accepted clauses/amendments: `CF-V0-004`/`CF-V0-018` unreachability and `CF-V0-030` candidate-only replay policy (2026-09-01), `CF-V0-031`/`CF-V0-032` (2026-08-29; `CF-V0-032` uncertainty wording 2026-09-12, decision 0101), `CF-V0-033` read-only guarantee (2026-09-12, decision 0162)/experimental (candidate-only; no promotion or outcome claim).
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/frontier`, `internal/frontierrepo`, and `conformance/frontier-v0`.
 - Blocked on: local implementation/review completion; the third-party-PR replay protocol is deferred to the first release cut and remains `NOT_RUN`.
 - Read next: `change-frontier-profile-1.md` and `verified-absence-frontier-v0.md`.

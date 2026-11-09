@@ -5,6 +5,8 @@ Date: 2026-10-01
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `protocol/postmerge-host`, `internal/postmergehost` and `cmd/corvint-postmerge-host-launcher` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-postmerge-host-launcher` and
+`internal/postmergehost`; `protocol/postmerge-host` stays only as a published schema.
 Authoritative inputs: human request https://github.com/beamfall/corvint/issues/398 (part of #388);
 owner acceptance 2026-10-05 recorded on V1-0545 (rev 17, receipts 2745 and 2746);
 `docs/specs/postmerge-connectors-v0.md`; `docs/specs/authoring-step-scope-v0.md`;

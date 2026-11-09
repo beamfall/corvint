@@ -13,9 +13,7 @@ import (
 // workspaceRemedies names, per verb that reads one repository, how to cover the other declared
 // repositories instead (WSD-V0-146).
 var workspaceRemedies = map[string]string{
-	"witness": "pass --range app=BASE..HEAD --range tests=BASE..HEAD with --range-root NAME=ABSOLUTE_ROOT for a two-repository witness",
-	"review":  "review one repository per --root; cross-repository review is not delivered (V1-2910)",
-	"cem":     "a Change Evidence Map cites one repository; run cem per --root; cross-repository citation is not delivered (V1-2910)",
+	"review": "review one repository per --root; cross-repository review is not delivered (V1-2910)",
 }
 
 // stripWorkspaceFlags removes --workspace FILE (or --workspace=FILE) and --no-workspace from args.

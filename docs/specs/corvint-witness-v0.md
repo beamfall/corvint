@@ -2,12 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-09-12
-Intent status: accepted (decisions 0163 and 0290)
-Delivery status: experimental (checked by `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`)
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the `witness` command group and
+`internal/witness` (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 
 ## Agent digest
 - Claim: corvint witness reports the unwitnessed surface of one committed change range and writes no repository, index, or trace state.
-- Status: accepted (decisions 0163 and 0290)/experimental (checked by `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`)
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `cmd/corvint/witness.go` and `internal/witness` (`Profile = "corvint-witness/0"`).
 - Blocked on: none stated for the read-only clause; the report's closure-authority table stays owned by CF-V0-012/014/031, not restated here.
 - Read next: Scope; Requirements.

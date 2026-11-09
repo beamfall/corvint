@@ -5,6 +5,8 @@ Date: 2026-11-03
 Requirement prefix: `DTL-V0`
 Intent status: accepted
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the dogfood make targets, scripts and
+`internal/dogfoodflow`; requirements naming them are retired, the other lane tooling stays.
 Authoritative inputs: owner dogtools lane charter (2026-11-03); AGENTS.md; immutable-delta-v0.md; daily-change-evidence-workflow-v0.md.
 
 ## Agent digest

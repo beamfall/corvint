@@ -3,13 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-11-02
 Requirement prefix: `DWC-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood workflow it extends
+(4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
+for traceability.
 Authoritative inputs: repository-owner request (V1-1467, V1-4318, V1-4545, V1-4546, V1-4548, V1-4541, V1-4573; V1-2360, V1-3334, V1-3837, V1-3850, V1-3854, V1-3955, V1-4072, V1-4091, V1-4197, V1-4238); `AGENTS.md` invariants 1, 2 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` `DCW-V0-039`, `DCW-V0-401`.
 
 ## Agent digest
 - Claim: Daily-workflow requirements beyond the 256-obligation limit of `daily-change-evidence-workflow-v0.md`, under their own prefix.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/dogfoodflow/regenerated_specs.go`, `merge_drivers.go`, `internal/mergedrivers/`, `tools/merge-drivers/`, `reused_worktree.go`, `rebind.go`, `seal_review.go`, `finishlane.go` intents canonicalization, `script/merge-regenerate-specs.sh`, `script/lane-handback.sh`, `script/dogfood-merge-base.sh` and their focused tests; the `DWC-V0-745` to `DWC-V0-759` closeout and draft work in `Makefile`, `script/dogfood-finish.sh`, `script/dogfood-closeout-unwind.sh`, `internal/dogfoodflow/propose_grep.go`, `propose_entryspan.go`, `verify_syntax.go`, `tools/verify-syntax-check` and `tools/test-read-scopes-check`.
 - Blocked on: Nothing; companion of the daily change-evidence workflow, whose Requirements section is at the 256-obligation limit.
 - Read next: Requirements; Acceptance evidence and rollback.

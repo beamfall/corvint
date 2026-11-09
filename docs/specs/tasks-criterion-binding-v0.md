@@ -5,6 +5,8 @@ Date: 2026-10-01
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
 Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted `internal/criterionexperiment` and the `cem
+gate-verdict` command; the Tasks side leaves with Corvint Tasks.
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 

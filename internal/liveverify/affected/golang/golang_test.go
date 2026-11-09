@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/testsupport"
@@ -686,8 +685,8 @@ func TestFrameMetadataDoesNotReadFiles_AFPV0810(t *testing.T) {
 // an anchored or parent-only token can put it there, is selected; any other
 // path keeps the component-run readers, including the one the sidecar drops.
 func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
-	if affected.ChangeEvidencePath != frontier.ExcludedPath {
-		t.Fatalf("ChangeEvidencePath = %q, want %q", affected.ChangeEvidencePath, frontier.ExcludedPath)
+	if affected.ChangeEvidencePath != ".corvint/change.cem.json" {
+		t.Fatalf("ChangeEvidencePath = %q, want %q", affected.ChangeEvidencePath, ".corvint/change.cem.json")
 	}
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{

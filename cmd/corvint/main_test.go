@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,19 +57,8 @@ func TestCandidateHelperProcess(t *testing.T) {
 	if separator == 0 {
 		os.Exit(125)
 	}
-	ctx := context.Background()
-	if os.Getenv(helperLiftedEventBounds) == "1" {
-		ctx = lifecycleDeadlineContext()
-	}
-	os.Exit(runContext(ctx, os.Args[separator:], os.Stdin, os.Stdout, os.Stderr))
+	os.Exit(runContext(context.Background(), os.Args[separator:], os.Stdin, os.Stdout, os.Stderr))
 }
-
-// helperLiftedEventBounds, set to 1 in a helper process's environment, runs the candidate under
-// lifecycleDeadlineContext: a subprocess test that verifies event semantics rather than latency
-// cannot otherwise reach the context-key seams, and host load expired the 1.6 s event deadline
-// (V1-0969, decision 0082). Only this test file reads it; the production deadline stays pinned by
-// TestDogfoodEventDeadlineBelowDeclaredHostKill.
-const helperLiftedEventBounds = "CORVINT_TEST_HELPER_LIFTED_EVENT_BOUNDS"
 
 func testEnvironment(overrides ...string) []string {
 	replaced := make(map[string]bool, len(overrides))
@@ -166,69 +154,6 @@ func cliArguments(root, event string) []string {
 		"--root", root, "harness", "event", "--host", "codex",
 		"--host-version", "unknown", "--surface", "plugin",
 		"--adapter-version", "0.1.0", "--event", event, "--input", "-",
-	}
-}
-
-func TestAHI001ParseHarnessBudgetBoundary(t *testing.T) {
-	t.Parallel()
-	arguments := cliArguments(".", "stop")[2:]
-	if _, err := parse(append(arguments, "--budget-bytes", fmt.Sprint(gokernel.MinOutputBytes-1))); err == nil {
-		t.Fatalf("budget %d accepted, want rejection", gokernel.MinOutputBytes-1)
-	}
-	parsed, err := parse(append(arguments, "--budget-bytes", fmt.Sprint(gokernel.MinOutputBytes)))
-	if err != nil {
-		t.Fatalf("budget %d rejected: %v", gokernel.MinOutputBytes, err)
-	}
-	if parsed.budgetBytes != gokernel.MinOutputBytes {
-		t.Fatalf("budget = %d, want %d", parsed.budgetBytes, gokernel.MinOutputBytes)
-	}
-}
-
-func TestAHI011HarnessHostChoicesUseEmbeddedSchema(t *testing.T) {
-	t.Parallel()
-	if got, want := harnessHostChoices, gokernel.HarnessHosts(); !slices.Equal(got, want) {
-		t.Fatalf("CLI host choices = %v, embedded schema = %v", got, want)
-	}
-	for _, host := range harnessHostChoices {
-		if !knownHost(host) {
-			t.Fatalf("CLI rejects embedded host %q", host)
-		}
-	}
-}
-
-// LTPM-V0-011, SOL-V0-007: dogfood-record names the verification-syntax code
-// on the wire and, like record, appends exactly one ledger row.
-func TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation(t *testing.T) {
-	t.Parallel()
-	root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
-	base := recordRevision(t, root)
-	writeDogfoodChange(t, root, "internal/example/value.go", "package example\n\nconst Changed = true\n")
-	commitDogfoodChange(t, root, "verify syntax")
-	target := recordRevision(t, root)
-	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".corvint", ".gitignore"), []byte("*\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	arguments := []string{
-		"--root", root, "dogfood-record", "--base", base, "--target", target,
-		"--task", "dogfood task", "--verify", "cmd-a && cmd-b", "--outcome", "passed",
-	}
-
-	result := execute(t, candidateCommand(arguments...))
-	var envelope struct {
-		Code string `json:"code"`
-	}
-	if err := json.Unmarshal(result.stderr, &envelope); err != nil {
-		t.Fatal(err)
-	}
-	if result.exit != 2 || len(result.stdout) != 0 || envelope.Code != "unsupported-verify-syntax" {
-		t.Fatalf("result=%#v code=%q", result, envelope.Code)
-	}
-	ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
-	if want := `{"kind":"unsupported","code":"unsupported-verify-syntax","queryIntent":"unknown"}` + "\n"; err != nil || string(ledger) != want {
-		t.Fatalf("ledger=%q err=%v", ledger, err)
 	}
 }
 
@@ -420,7 +345,7 @@ func TestNonQueryUnsupportedFailureStillObserves(t *testing.T) {
 	}
 }
 
-// SOL-V0-007 and IDX-SNAP-V0-910: witness, index, and calibrate build the
+// SOL-V0-007 and IDX-SNAP-V0-910: index and calibrate build the
 // committed index, and a tree listing 135,000,000 source bytes is no longer an
 // aggregate-bound refusal: the build reaches the (here missing) blobs and fails
 // as an ordinary Git read, and the unsupported ledger records nothing.
@@ -434,15 +359,12 @@ func TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910(t *testing.T
  done
  exit 0;; esac`)
 	for _, argv := range [][]string{
-		{"witness", "--base", ""}, {"index"}, {"calibrate"},
+		{"index"}, {"calibrate"},
 	} {
 		t.Run(argv[0], func(t *testing.T) {
 			root := cliRepository(t)
 			if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
 				t.Fatal(err)
-			}
-			if argv[0] == "witness" {
-				argv[2] = strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
 			}
 			arguments := append([]string{"--root", root}, argv...)
 			_, stderr, code := runCandidateWithEnvironment(t, "", environment, arguments...)
@@ -473,70 +395,6 @@ func TestRunRejectsInvalidHarnessInputWithExitTwoAndNoStdout(t *testing.T) {
 	if envelope["code"] != "invalid-harness-input" || envelope["ok"] != false {
 		t.Fatalf("unexpected error: %#v", envelope)
 	}
-}
-
-// TestFreshProcessCompactStartBytesMatchPythonOracle covers the four rehydration
-// branches a compaction can land in. Each dirties the fixture differently, since
-// the branch is chosen by the shape of the dirty set rather than by the input.
-func TestFreshProcessCompactStartNativeEnvelopes(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name  string
-		dirty func(t *testing.T, root string)
-	}{
-		{"clean", func(*testing.T, string) {}},
-		{"tracked", func(t *testing.T, root string) {
-			writeFixtureFile(t, root, "pkg/sample.go", "package sample\n\n// edited\n")
-		}},
-		{"untracked-only", func(t *testing.T, root string) {
-			writeFixtureFile(t, root, "extra.md", "# extra\n")
-		}},
-		{"mixed", func(t *testing.T, root string) {
-			writeFixtureFile(t, root, "pkg/sample.go", "package sample\n\n// edited\n")
-			writeFixtureFile(t, root, "extra.md", "# extra\n")
-		}},
-		{"over-budget", func(t *testing.T, root string) {
-			for index := 0; index < maxCompactionPaths+1; index++ {
-				writeFixtureFile(t, root, fmt.Sprintf("bulk-%03d.md", index), "# bulk\n")
-			}
-		}},
-	}
-	for _, test := range cases {
-		t.Run(test.name, func(t *testing.T) {
-			root := cliGoModuleRepository(t)
-			test.dirty(t, root)
-			arguments := cliArguments(root, "session-start")
-			candidate := exec.Command(os.Args[0], append([]string{"-test.run=^TestCandidateHelperProcess$", "--"}, arguments...)...)
-			candidate.Env = append(os.Environ(), "CORVINT_HELPER_PROCESS=1")
-			candidate.Stdin = strings.NewReader(`{"startSource":"compact"}`)
-			candidateResult := execute(t, candidate)
-
-			if candidateResult.exit != 0 || len(candidateResult.stderr) != 0 ||
-				!bytes.Contains(candidateResult.stdout, []byte(`"event":"session-start"`)) {
-				t.Fatalf("compact result=%#v", candidateResult)
-			}
-		})
-	}
-}
-
-// cliGoModuleRepository adds the slash-qualified module that the Go impact
-// profile requires, so the rehydration branches that run impact are inside it.
-func cliGoModuleRepository(t *testing.T) string {
-	t.Helper()
-	root := cliRepository(t)
-	writeFixtureFile(t, root, "go.mod", "module example.test/compact\n\ngo 1.27.0\n")
-	if err := os.MkdirAll(filepath.Join(root, "pkg"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeFixtureFile(t, root, "pkg/sample.go", "package sample\n")
-	for _, arguments := range [][]string{{"add", "."}, {"commit", "-qm", "module"}} {
-		command := fixtureGitCommand(arguments...)
-		command.Dir = root
-		if output, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", arguments, err, output)
-		}
-	}
-	return root
 }
 
 func writeFixtureFile(t *testing.T, root, name, content string) {

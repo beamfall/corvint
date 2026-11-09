@@ -2,6 +2,10 @@
 
 Intent status: owner scope accepted; technical contract accepted (decision 0546, 2026-10-20)
 Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded
+Retirement note: decision 0594 (2026-11-09) deleted `internal/cemcandidate`,
+`cmd/corvint-cem-candidate`, the `cem` command group and the CEM workflow packages; `internal/cem`
+keeps only what kept code uses, and `protocol/cem-1.0` and `interop/cem01-go` stay pending an owner
+decision.
 
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; contract accepted (decision 0546), promotion open.
@@ -959,6 +963,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
   unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
   A label is a disclosure and changes no verdict.
+  Retired by decision 0594: `make cem-base-retention-check` and `.corvint/cem-lineage.tsv` left with
+  the dogfood workflow.
 - `CEM-V1-860`: (proposed; V1-0591) Every platform row of the committed release-readiness
   declaration (`tools/cem-release-suites/READINESS.json`, `CEM-V1-600`) MUST have an explicit
   structural-corpus disposition in `protocol/cem-1.0/structural-corpus/QUALIFICATION.json`: either

@@ -556,7 +556,7 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	src := "package main\n\nvar cemActions = map[string]bool{\"verify\": true}\n" +
 		"var helpSubcommands = map[string]map[string]bool{\"cem\": cemActions, \"ocm\": {\"link\": true}}\n" +
 		"var docsSubcommands = []string{\"nav\"}\nvar flowSubcommands = map[string]func(){\"map\": nil}\n" +
-		"func init() { flowSubcommands[\"navigate\"] = nil }\nvar leaseActions = []string{\"list\"}\n"
+		"func init() { flowSubcommands[\"navigate\"] = nil }\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -567,16 +567,16 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"cem": "verify", "ocm": "link", "docs": "nav", "flows": "map,navigate", "lease": "list"}
+	want := map[string]string{"cem": "verify", "ocm": "link", "docs": "nav", "flows": "map,navigate"}
 	for verb, subs := range want {
 		if strings.Join(got[verb], ",") != subs {
 			t.Errorf("%s: got %v, want %s", verb, got[verb], subs)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "leaseActions", "leaseVerbs", 1)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "docsSubcommands", "docsVerbs", 1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "leaseActions") {
+	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "docsSubcommands") {
 		t.Errorf("renamed table: err %v", err)
 	}
 }

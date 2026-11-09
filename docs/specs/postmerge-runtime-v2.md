@@ -5,6 +5,8 @@ Date: 2026-10-03
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
 Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `internal/postmergeproof`, `internal/postmergehost` and `conformance/postmerge-runtime-v2` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-postmerge-workflow`,
+`internal/postmergeworkflow` and `internal/postmergeproof`; requirements naming them are retired.
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
 Only the PMR-V2-006 process verifier and host collector slices are implemented; no /2 workflow
 runtime, host qualification or qualified positive replay is claimed.
