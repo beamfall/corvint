@@ -154,15 +154,18 @@ func addedRecordEntries(raw []byte, dirty []string) []string {
 // Unknown scopes and stale source bindings retain today's selection. A path
 // probe or materialized snapshot must not call this worktree-status method.
 func (graph *Graph) WithRecordEntryBase(ctx context.Context, git, root, base string, dirty []string) *Graph {
+	// Each comparison starts from no exclusion evidence, so a reused graph
+	// never keeps an earlier comparison's additions or scopes.
+	copy := *graph
+	copy.addedRecords, copy.recordEntryScopes = nil, nil
 	added := AddedRecordEntries(ctx, git, root, base, dirty)
 	if len(added) == 0 {
-		return graph
+		return &copy
 	}
 	scopes, err := ReadRecordEntryScopes(root)
 	if err != nil {
-		return graph
+		return &copy
 	}
-	copy := *graph
 	copy.addedRecords = added
 	copy.recordEntryScopes = make(map[string][]string)
 	for id, scope := range scopes {

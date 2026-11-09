@@ -136,6 +136,7 @@ func TestAddedRecordEntryReaders_AFPV3420(t *testing.T) {
 			t.Errorf("added %s: %v; want %v", file, got, want)
 		}
 	}
+	firstBase := base
 	recordGit(t, root, "commit", "-qm", "add records")
 	base = recordGit(t, root, "rev-parse", "HEAD")
 	for _, status := range []string{"M", "D"} {
@@ -147,9 +148,15 @@ func TestAddedRecordEntryReaders_AFPV3420(t *testing.T) {
 			}
 		}
 		measured = graph.WithRecordEntryBase(context.Background(), "git", root, base, dirty)
+		// A graph measured against the record-free base sees additions; reusing
+		// it for the current base must not keep those exclusions.
+		reused := graph.WithRecordEntryBase(context.Background(), "git", root, firstBase, dirty).WithRecordEntryBase(context.Background(), "git", root, base, dirty)
 		for _, name := range dirty {
 			if got, want := recordSelections(measured, name), recordSelections(graph, name); !slices.Equal(got, want) {
 				t.Errorf("%s %s narrowed: %v; want %v", status, name, got, want)
+			}
+			if got, want := recordSelections(reused, name), recordSelections(graph, name); !slices.Equal(got, want) {
+				t.Errorf("reused %s %s narrowed: %v; want %v", status, name, got, want)
 			}
 		}
 	}
