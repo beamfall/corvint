@@ -58,11 +58,6 @@
       "reason": "internal/cemchain/chain_test.go TestCEMChain uses code.root, an isolated Git fixture, for MkdirAll and git mv of its generated sealed CEM; the directory tokens do not read this checkout.",
       "sourceSha256": "fe2b330636b88ad1e8d49c0a94f4196d2f45637d1477ba3647f40065c0fa5979"
     },
-    "go:github.com/Beamfall/corvint/internal/tasks/cli": {
-      "reads": [],
-      "reason": "internal/tasks/cli/exact_paths_compiled_test.go passes fixed names and the directory as ticket scopes; progress_test.go writes dated entries under fixture root. No test reads this checkout's build-log entries.",
-      "sourceSha256": "1192ab247adcd211e8dbc9299f6b36939fe57411b68ec22ff30f60fb1304815f"
-    },
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
       "reason": "script/batch-precheck_test.sh creates all build-log and sealed-CEM entries under crepo, srepo or rrepo scratch repositories, then invokes copied scripts or stubs there. It reads no record entries from source_root.",

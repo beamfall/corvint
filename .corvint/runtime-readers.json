@@ -123,7 +123,7 @@
     },
     {
       "path": "internal/capcatalog/trees/",
-      "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint, internal/tasks/cli and tools/capabilities-check through path literals"
+      "reason": "command-tree snapshots read by internal/capcatalog, cmd/corvint and tools/capabilities-check through path literals"
     },
     {
       "path": "internal/command/flows/testdata/",
@@ -136,14 +136,6 @@
     {
       "path": "internal/runnerselection/testdata/",
       "reason": "runner-selection goldens read by its package tests through path literals or computed golden names (RSP lanes, AZU-V0-002); enclosing-package and literal reader rules keep that selection; never executed by the product"
-    },
-    {
-      "path": "internal/tasks/cli/helptext/archive-restore.txt",
-      "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
-    },
-    {
-      "path": "internal/tasks/cli/helptext/queue-snapshot.txt",
-      "reason": "Tasks command help text embedded by internal/tasks/cli (AFP-V0-9002, AFP-V0-600); its embed dependency selects the package and importers, TestHelpTextProvenance_AFPV09002 reads this exact file, and enclosing-directory, literal, declared and unbounded readers remain selected (AFP-V0-602, AZU-V0-002)"
     },
     {
       "path": "internal/testevidence/testdata/",

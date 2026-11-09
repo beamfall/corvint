@@ -1071,30 +1071,6 @@
       ]
     },
     {
-      "paths": "internal/tasks/cli/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/tasks/similar/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/tasks/testhooks/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
-      "paths": "internal/tasks/ticket/testdata/**",
-      "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
-      ]
-    },
-    {
       "paths": "internal/tcq/testdata/**",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
