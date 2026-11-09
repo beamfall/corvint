@@ -2,8 +2,9 @@
 
 Owner: Russell Lewis
 Date: 2026-10-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: native tickets V1-3193, V1-3189, V1-3190 and V1-3191 (friction filed from
 lane self-use) and V1-0232 (release gate attestations unbound to the policy gate argv), the release mutation contract `taskman-release-mutation/0` (TM-V0-028, TM-V0-029) and
@@ -13,7 +14,7 @@ amendments live here.
 
 ## Agent digest
 - Claim: Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope.
-- Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 are implemented with focused CLI tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field, and the `--admit-under-barrier` claim/widen exemption for one named ticket under an OPERATOR admission barrier, and release attestations of a COMMAND gate bound to the policy gate argv.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.

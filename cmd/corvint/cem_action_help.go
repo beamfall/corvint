@@ -12,10 +12,6 @@ const cemActionHelpPrefix = "cem-"
 // closing wire note. status, verify and report share one Actions paragraph.
 // It returns "" for an action cemHelp does not document.
 func cemActionHelp(action string) string {
-	if action == "gate-verdict" {
-		// Its usage lives in the closing Tasks gate section, not in Usage.
-		return "Change Evidence Map gate-verdict action.\n" + cemGateVerdictHelp + "\nFull command help: corvint cem --help\n"
-	}
 	usage := cemHelpUsage(action)
 	paragraphAction := action
 	if action == "verify" || action == "report" {

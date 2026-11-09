@@ -27,7 +27,7 @@ func TestCAPV0047RepositoryCommandTreesMatchDispatch(t *testing.T) {
 	for _, tree := range trees {
 		nodes[tree.Binary] = len(tree.Nodes)
 	}
-	for binary, least := range map[string]int{"corvint": 200, "corvint-tasks": 150} {
+	for binary, least := range map[string]int{"corvint": 200} {
 		if nodes[binary] < least {
 			t.Errorf("%s tree has %d nodes, want at least %d", binary, nodes[binary], least)
 		}
@@ -270,10 +270,10 @@ func TestCAPV07700NodeCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files["docs/CAPABILITIES.md"] = strings.Replace(string(data), "| `corvint-tasks ticket search` |", "| `corvint-tasks ticket absent` |", 1)
+	files["docs/CAPABILITIES.md"] = strings.Replace(string(data), "| `corvint affected cache` |", "| `corvint affected absent` |", 1)
 	writeFiles(t, root, files)
 	if len(CheckNodeCatalog(root)) == 0 {
-		t.Fatal("an omitted Tasks verb did not fail the gate")
+		t.Fatal("an omitted verb did not fail the gate")
 	}
 }
 

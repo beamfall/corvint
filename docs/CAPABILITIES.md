@@ -23,7 +23,7 @@ unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promot
 
 ## Command trees
 
-Every public command at every depth, including single-mode companion roots and all Tasks verbs,
+Every public command at every depth, including single-mode companion roots,
 ships a `corvint-command-tree/0` catalog with usage, flags, required inputs and an example
 (CAP-V0-7700). Use the printing command in each tree's `helpJson` field;
 `corvint help --json` links every tree. Snapshots live under `internal/capcatalog/trees/`.
@@ -51,7 +51,7 @@ CLI failures use `binary`, `code`, explanatory `error`, `help`, and `ok:false` o
 in `details`. Exit 2 means invalid CLI input; exit 1 means operational refusal; exit 0 means
 success. A documented domain result such as an open frontier keeps its own advisory exit.
 Protocol-only analyzer/MCP traffic keeps its own wire contract. Companions use Core's release
-line and development suffix; `corvint-tasks version` retains its JSON result and build stamp.
+line and development suffix.
 `make install-local LOCAL_BIN_DIR=DIR` installs all native binaries, with one rollback executable
 per destination; put DIR on PATH. Existing foreign `.bak-*` files are not updater-owned and remain
 untouched.
@@ -85,7 +85,6 @@ with a guess. Commands are local-only, with no network or telemetry. `init`, `ad
 | Get advice on a branch | `corvint review --base FULL_SHA`: compact affected advice and overlap with local branches (experimental) |
 | Look up documentation | `corvint docs corpus build --manifest M > corpus.json`, then `corvint docs corpus search --artifact corpus.json --query TERM`, or serve it with `corvint-corpus-mcp` ([guide](DOCUMENTATION-CORPUS.md)) |
 | Inspect application flows | `corvint flows --manifest FILE`, then `flows coverage` and `flows gaps` ([flow coverage](FLOW-COVERAGE.md)) |
-| Work the ticket queue | `corvint-tasks queue status`, `corvint-tasks roadmap`, then claim, submit, gate and complete ([external agents](TASKS-EXTERNAL-AGENTS.md)) |
 | Give an agent host Corvint tools | `corvint mcp --root /abs/repo --tool-profile task-review` over stdio, or install a host plugin ([MCP](MCP-SERVER.md), [extensions](EXTENSION-ECOSYSTEM.md)) |
 | Read retained live-test evidence | `corvint test-validity --discover`, or the `corvint.test_validity` tool of `corvint-test-validity-mcp` |
 | Run this repository's change workflow | `make dogfood-change BASE=FULL_SHA` (it wraps `corvint dogfood change`); then follow [DOGFOOD](DOGFOOD.md) §4 |
@@ -202,8 +201,6 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 | `corvint-corpus-mcp` | agent-facing | Read tools over one documentation corpus artifact | `corvint-corpus-mcp --root /abs/repo --artifact corpus.json` | Capability-gated `corvint.docs_*` tools | experimental | `invalid-root`, `corpus-unavailable`; tools the artifact lacks are not listed | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint-test-validity-mcp` | agent-facing | Retained live-test evidence over MCP | `corvint-test-validity-mcp --root /abs/repo` | `corvint.test_validity` | experimental | Same axes as `corvint test-validity` | [MTV-V0](specs/mcp-test-validity-profile-v0.md) |
 | `corvint-lsp` | agent-facing | Go, TS/JS and Ruby definitions and task context inside an editor | `corvint-lsp --experimental --gopls /abs/gopls --root /abs/repo`; add `--tsserver /abs/bin`, `--ruby-lsp /abs/bin` or `--server SUFFIXES=ABSOLUTE_ARGV` | LSP over stdio; `corvint/context` experimental method | experimental | Non-open targets unavailable; drift refused with `--workspace-drift-guard`; wrapped results are server observations; fake-server tests only | [LSE-V0](specs/lsp-stdio-experiment-v0.md), [LED-V0](specs/lsp-editor-definition-v0.md), [LEC-V0](specs/lsp-editor-context-v0.md), [LWB-V0](specs/lsp-wrapped-backends-v0.md) |
-| `corvint-tasks` | agent-facing | Ticket store, roadmap, claims, gates and completion (`complete --commit REV` resolves a unique commit) | `corvint-tasks queue status` | JSON envelopes per command (`ticket show ID --root DIR` selects a store, TCL-V0-926) | experimental | Closed codes per command (see `corvint-tasks help`) | [Tasks](plans/AGENT-TASK-MANAGER-2026-09-04.md), [external agents](TASKS-EXTERNAL-AGENTS.md) |
-| `corvint-work-queue` | agent-facing | Work-queue adapter snapshot, details and verification | `corvint-work-queue snapshot` | Adapter JSON | experimental | `unsupported operation` for unknown verbs | [WQO-V0](specs/work-queue-observation-v0.md) |
 | `corvint-intake` | agent-facing | Validate a closed-vocabulary change candidate | `corvint-intake validate --root PATH --base FULL_OID --head FULL_OID < candidate.json` | Validation JSON; never grants authority | experimental | Invalid candidates and unbound revisions | [CVI-V0](specs/closed-vocabulary-intake-v0.md) |
 | `corvint-console` | user-facing | Loopback admin console: snapshot, tickets, specs, code | `corvint-console --repo /abs/repo --tasks PATH --snapshot PATH` | Local web UI at 127.0.0.1:7777 | experimental | Non-loopback addresses refused | [LAC-V0](specs/local-admin-console-v0.md) |
 | `corvint-gateway` | user-facing | Loopback Messages API proxy: per-request token ledger and deterministic Bash-output folding | `corvint-gateway serve`, then `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` in the client | Usage ledger `corvint-gateway-usage/0`; `report` summary | experimental | Non-loopback addresses and non-https remote upstreams refused; savings unmeasured | [LMG-V0](specs/local-model-gateway-v0.md) |
@@ -214,7 +211,6 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 | `corvint-corpus-parity` | internal | Compare corpus query results between producers | `corvint-corpus-parity --help` | Parity JSON | experimental | Mismatched inputs | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint-corpus-republish` | user-facing | Rebuild or queue a trusted local corpus republish | `corvint-corpus-republish build --trusted-local --root ROOT --request FILE --policy FILE --expected-policy-sha256 SHA` | Republish receipt | experimental | Missing trust flags or policy digest mismatch | [RCP-V0](specs/corpus-republish-v0.md) |
 | `corvint-cem-candidate` | internal | Assemble or verify a stable CEM candidate | `corvint-cem-candidate verify --experimental ...` | Candidate artifacts | experimental | Missing `--experimental`; verifier rejection | [CEM-V1](specs/cem-stable-v1.md) |
-| `corvint-cem-experiments` | internal | Plan, run and verify CEM criterion experiments | `corvint-cem-experiments plan --experimental ...` | Experiment receipts | experimental | `experiment refused` with a reason | [CEX-V0](specs/cem-criterion-experiments-v0.md) |
 | `corvint-remote-provider` | user-facing | Serve external evidence from a configured remote | `corvint-remote-provider --allow-network --config FILE` | External-evidence provider records | implemented | No network without `--allow-network` | [EEP-REMOTE](specs/external-evidence-provider-remote-v0.md) |
 | `corvint-go-test-provider` | test provider | Foreground Go test session with receipts | `corvint-go-test-provider --experimental --trusted-local ...` | Discovery, plan, run and observation receipts | experimental | `IDENTITY_MISMATCH` and other `go-live-error/0` codes | [GLTP-V0](specs/go-live-test-provider-v0.md) |
 | `corvint-js-test-provider` | test provider | Run Vitest (`unit`) or Playwright (`e2e`) and print a receipt | `corvint-js-test-provider unit --help` | Provider receipt JSON; `--retain` keeps it under `.corvint/test-evidence` | experimental | Infrastructure failures separated from test failures | [JS live tests](specs/js-live-test-provider-v0.md), [PWP-V0](specs/playwright-external-provider-v0.md) |
@@ -314,8 +310,7 @@ metadata) unless started with `--protocol-version 2025-11-25` for an `initialize
 `corvint.status`.
 `--tool-profile task-review` and `task-review-lsp` add `corvint.context` and `corvint.cem.report`. The separate `--tool-profile import-graph` adds `corvint.graph.imports`.
 `--tool-profile flows` adds the five `corvint.flows.*` tools. `corvint-docs-mcp`,
-`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `--tool-profile tasks` adds
-the five read-only `corvint.tasks.*` tools, which run the installed `corvint-tasks` read verbs (`TMR-V0`). `corvint-corpus-mcp` lists only the
+`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `corvint-corpus-mcp` lists only the
 tools that the artifact's capabilities support; `corvint.map_plan` and `corvint.map_knowledge` also
 need `--map`, `corvint.consolidate_tests` needs `--consolidation`, and `corvint.docs_search_cases`
 needs `--legacy-cases`.
@@ -337,11 +332,6 @@ needs `--legacy-cases`.
 | `corvint.flows.navigate` | `corvint-mcp` flows | Navigation within the flow map | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |
 | `corvint.docs_draft` | `corvint-docs-mcp` | Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; `dry_run` previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019) | experimental | Paths outside the root, unsupported sources, languages the index reads only as text (named) | [MCP guide](MCP-SERVER.md) |
 | `corvint.docs_consume` | `corvint-docs-mcp` | Recheck a draft's exact bytes against source | experimental | Drafts that no longer match | [MCP guide](MCP-SERVER.md) |
-| `corvint.tasks.queue_status` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks queue status` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
-| `corvint.tasks.roadmap` | `corvint-mcp --tool-profile tasks` | One `offset`/`limit` page of `corvint-tasks roadmap` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
-| `corvint.tasks.ticket_search` | `corvint-mcp --tool-profile tasks` | One page of `corvint-tasks ticket search` by status, kind, priority, owner, milestone, label or text | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
-| `corvint.tasks.ticket_show` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks ticket show ID` | experimental | An unknown ticket is `CLI_REFUSED` | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
-| `corvint.tasks.receipt_audit` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks receipt audit` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
 | `corvint.test_evidence` | `corvint-mcp --tool-profile test-evidence` | Same read-only path, range, test and explanation projection as `corvint test-evidence` | experimental | UNKNOWN inventory/context/freshness; FULL unqualified; no collection | [RSP-V0-051](specs/runner-selection-plugins-v0.md) |
 | `corvint.test_validity` | `corvint-test-validity-mcp` | Five-axis projection of retained test evidence | experimental | `UNPROVEN`, `STALE`, `NOT_PRODUCED` axes | [MTV-V0](specs/mcp-test-validity-profile-v0.md) |
 | `corvint.docs_inventory` | `corvint-corpus-mcp` (`/2` artifacts) | Page through the corpus inventory | experimental | Capability absent from the artifact | [DCP-V1](specs/documentation-corpus-v1.md) |
@@ -384,53 +374,9 @@ which is deferred from 1.0.
 
 ## Tasks
 
-`corvint-tasks` is the local ticket store and roadmap: tickets, priorities, claims with leases and
-heartbeats, submit, gates, completion, receipts, dispatch and supervision. It is a separate binary,
-never a `corvint` subcommand, and it has its own developer release channel. Start with
-`corvint-tasks help`, `corvint-tasks queue status` and `corvint-tasks roadmap`. Agents follow
-[TASKS-EXTERNAL-AGENTS](TASKS-EXTERNAL-AGENTS.md); supervised and continuous dispatch is in
-[TASKS-SUPERVISION](TASKS-SUPERVISION.md). The `corvint-tasks-*` specs in the
-[spec index](specs/README.md) own each feature.
-
-Before filing, `corvint-tasks ticket similar --text|--payload-stdin` ranks open tickets with the
-context compiler's BM25 and names the matched terms; `ticket create` refuses a likely duplicate
-(`DUPLICATE_ID`) unless `--not-duplicate-of` names it, and refuses touch paths absent from
-`origin/main` unless the body records `Source ref: BRANCH@SHA` or `--creates-paths` is given
-([TCL-V0-743](specs/corvint-tasks-cli-v0.md)); `ticket orphan-lanes` lists lane commits that
-deliver OPEN tickets no batch branch or the integration ref contains ([TCL-V0-744](specs/corvint-tasks-cli-v0.md)); `ticket digest` prints a one-line friction
-digest that `ticket similar --digest FILE` matches without a store; `ticket recur` records a
-recurrence on the existing ticket. `queue snapshot` exports a verified intent snapshot that
-`CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every
-other verb; `receipt audit --worktree DIR` validates that projection against the owning journal
-(and reports divergence for pruned or edited copies); `queue snapshot --worktree DIR` exports a linked or pruned worktree's own store so its
-blockers and dependency closure are validated instead of the primary checkout's; `queue parity
---against FILE` names the tickets a lane host's store lacks or holds stale against an authoritative
-snapshot and refuses `STALE_TICKET` when it is behind (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).
-
-Lane flow (experimental; [TLF-V0](specs/corvint-tasks-lane-flow-v0.md)): `ticket progress` records
-an advisory lane phase (IN_PROGRESS to MERGED_AWAITING_CLOSEOUT, BLOCKED, CLEARED) on a live ticket,
-admitted under an OPERATOR/ADMISSION barrier; `ticket progress --batch` (or `--targets-file FILE`)
-marks many tickets in one invocation with a per-target outcome. `ticket search --phase PHASE|NONE` and
-`roadmap` rows read it, `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned
-commit, and `ticket batch-delivered` and `batch-close` treat a review or merged phase naming the batch
-or a lane PR as a delivery (`source` PROGRESS).
-`ticket effects-proposals` proposes touch paths, labelled "proposal: not authority", for OPEN tickets
-with UNKNOWN effects coverage. `ticket delivery-screen --lane-refs` also scans unmerged local branch
-and worktree heads (DELIVERED_ON_LANE, IN_FLIGHT by progress). The repository check
-`go run ./tools/requirement-id-collisions [--base REF]` reports requirement IDs that two lane heads,
-or a lane head and the base, define differently (exit 1), without writing.
-`ticket split ID --criteria N[,M...] --expected-revision R --request-id Q` moves the named criteria of
-an OPEN or DRAFT ticket to a new child that supersedes it, as a resumable sequence of existing
-receipts (`Q/create`, `Q/child`, `Q/evidence/I`, `Q/refine`, parent last, guarded by the child's state); `--dry-run` prints the plan and
-writes nothing.
-
-The basic external-agent lifecycle (create, plan preview, claim, renew, release, submit, gate run,
-complete, readback and receipt audit on one store) has a named profile,
-[TBS-V1](specs/corvint-tasks-basic-stability-v1.md). It fixes the profile's commands, refusal codes
-and supported tuples. `script/qualify-tasks-basic.sh OUT_DIR` requalifies it from source on a
-disposable non-fixture store. The profile was qualified on darwin/arm64 and linux/amd64
-([evidence](build-log/2026-10-29-tasks-basic-stability.md)). The binary stays experimental until the
-owner accepts the profile.
+Corvint Tasks (`corvint-tasks`, the local ticket store and roadmap) moved to its own repository,
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), with decision 0594. Its guides, specs and release
+channel live there; Corvint itself needs no Tasks binary.
 
 ## Language and path support
 
@@ -777,10 +723,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-cem-candidate assemble` | Check a closed candidate assembly request; retired and cem/1.0 sources refuse without writing | `corvint-cem-candidate assemble --experimental --request FILE --out-dir DIR` | `corvint-cem-candidate assemble --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
 | `corvint-cem-candidate assemble-stable` | Assemble a cem/1.0 stable bundle from a plain or Tasks-bound request and print its re-verify argv | `corvint-cem-candidate assemble-stable --experimental --request FILE --out-dir DIR` | `corvint-cem-candidate assemble-stable --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
 | `corvint-cem-candidate verify` | Verify a cem/1.0-experimental.1 candidate map against independently supplied revisions | `corvint-cem-candidate verify --experimental --repository REPO --map FILE --expected-base OID --target OID --artifacts DIR` | `corvint-cem-candidate verify --help`; [corvint-cem-candidate](../internal/capcatalog/trees/corvint-cem-candidate.json) |
-| `corvint-cem-experiments gate` | Verify an experiment plan and receipt and apply the experiment gate | `corvint-cem-experiments gate --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX` | `corvint-cem-experiments gate --help`; [corvint-cem-experiments](../internal/capcatalog/trees/corvint-cem-experiments.json) |
-| `corvint-cem-experiments plan` | Plan a CEM criterion experiment from a request JSON and print its plan digest | `corvint-cem-experiments plan --request FILE --out DIR --tasks-executable PATH --tasks-sha256 HEX` | `corvint-cem-experiments plan --help`; [corvint-cem-experiments](../internal/capcatalog/trees/corvint-cem-experiments.json) |
-| `corvint-cem-experiments run` | Run the approved experiment plan as trusted local test execution and print its receipt digest | `corvint-cem-experiments run --plan FILE --approve SHA256 --out DIR --experimental --trusted-local --tasks-executable PATH --tasks-sha256 HEX` | `corvint-cem-experiments run --help`; [corvint-cem-experiments](../internal/capcatalog/trees/corvint-cem-experiments.json) |
-| `corvint-cem-experiments verify` | Verify an experiment plan and receipt offline | `corvint-cem-experiments verify --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX` | `corvint-cem-experiments verify --help`; [corvint-cem-experiments](../internal/capcatalog/trees/corvint-cem-experiments.json) |
 | `corvint-cli` | usage: corvint-cli --binary BINARY [ARGS...] | `corvint-cli --binary BINARY` | `corvint-cli --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
 | `corvint-cli help` | Show command help or the offline machine catalog. | `corvint-cli help --json` | `corvint-cli help --help`; [corvint-cli](../internal/capcatalog/trees/corvint-cli.json) |
 | `corvint-companion-release` | usage: corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME [--target GOOS/GOARCH] [--tasks-only] [--npm-cache DIR] | `corvint-companion-release --source-root DIR --scratch DIR --output-parent DIR --bundle-name NAME` | `corvint-companion-release --help`; [corvint-companion-release](../internal/capcatalog/trees/corvint-companion-release.json) |
@@ -837,203 +779,6 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-remote-provider` | usage: corvint-remote-provider --allow-network --config FILE | `corvint-remote-provider --allow-network --config FILE` | `corvint-remote-provider --help`; [corvint-remote-provider](../internal/capcatalog/trees/corvint-remote-provider.json) |
 | `corvint-remote-provider help` | Show command help or the offline machine catalog. | `corvint-remote-provider help --json` | `corvint-remote-provider help --help`; [corvint-remote-provider](../internal/capcatalog/trees/corvint-remote-provider.json) |
 | `corvint-ruby-test-provider rspec` | Run RSpec once with the JSON formatter and print the corvint-ruby-test-provider/0 document | `corvint-ruby-test-provider rspec --dir DIR` | `corvint-ruby-test-provider rspec --help`; [corvint-ruby-test-provider](../internal/capcatalog/trees/corvint-ruby-test-provider.json) |
-| `corvint-tasks admit` |  | `corvint-tasks admit --program ID --config FILE` | `corvint-tasks admit --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks answer` |  | `corvint-tasks answer --program ID --config FILE` | `corvint-tasks answer --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks archive` |  | `corvint-tasks archive export` | `corvint-tasks archive --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks archive export` |  | `corvint-tasks archive export` | `corvint-tasks archive export --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks archive restore` |  | `corvint-tasks archive restore FILE` | `corvint-tasks archive restore --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks archive verify` |  | `corvint-tasks archive verify` | `corvint-tasks archive verify --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks attempt` |  | `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID` | `corvint-tasks attempt --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks attempt heartbeat` |  | `corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID` | `corvint-tasks attempt heartbeat --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks attempt show` |  | `corvint-tasks attempt show <attemptId>` | `corvint-tasks attempt show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks cancel` |  | `corvint-tasks cancel --program ID --config FILE` | `corvint-tasks cancel --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks claim` |  | `corvint-tasks claim --holder LABEL --request-id ID` | `corvint-tasks claim --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks complete` |  | `corvint-tasks complete --attempt ID --generation G --request-id ID --commit REV` | `corvint-tasks complete --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks config` |  | `corvint-tasks config` | `corvint-tasks config --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks criterion-binding` |  | `corvint-tasks criterion-binding capture --ticket ID --attempt ID` | `corvint-tasks criterion-binding --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks criterion-binding capture` |  | `corvint-tasks criterion-binding capture --ticket ID --attempt ID` | `corvint-tasks criterion-binding capture --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks criterion-binding verify` |  | `corvint-tasks criterion-binding verify` | `corvint-tasks criterion-binding verify --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks critical-path` |  | `corvint-tasks critical-path <ticketId&#124;local>` | `corvint-tasks critical-path --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks cutover` |  | `corvint-tasks cutover --decision REF` | `corvint-tasks cutover --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks defects` |  | `corvint-tasks defects add --title TEXT --location TEXT --evidence REF` | `corvint-tasks defects --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks defects add` |  | `corvint-tasks defects add --title TEXT --location TEXT --evidence REF` | `corvint-tasks defects add --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks defects list` |  | `corvint-tasks defects list` | `corvint-tasks defects list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks defects update` |  | `corvint-tasks defects update <defectId>` | `corvint-tasks defects update --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch` |  | `corvint-tasks dispatch --program ID --config FILE` | `corvint-tasks dispatch --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch context-hook` |  | `corvint-tasks dispatch context-hook` | `corvint-tasks dispatch context-hook --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch recover-reader` |  | `corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID` | `corvint-tasks dispatch recover-reader --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch salvage` |  | `corvint-tasks dispatch salvage --program ID --config FILE --attempt ATTEMPT` | `corvint-tasks dispatch salvage --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch status` |  | `corvint-tasks dispatch status --program ID --config FILE` | `corvint-tasks dispatch status --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch unpark` |  | `corvint-tasks dispatch unpark --program ID --config FILE --key TICKET` | `corvint-tasks dispatch unpark --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks dispatch upgrade` |  | `corvint-tasks dispatch upgrade --program ID --config FILE --check NEW_BUILD` | `corvint-tasks dispatch upgrade --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks doctor` |  | `corvint-tasks doctor &#124; corvint-tasks doctor --line &#124; corvint-tasks doctor --rebuild-closed-index` | `corvint-tasks doctor --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks drain` |  | `corvint-tasks drain --program ID --config FILE` | `corvint-tasks drain --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate` |  | `corvint-tasks gate history <ticketId&#124;local> --gate GATE` | `corvint-tasks gate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate history` |  | `corvint-tasks gate history <ticketId&#124;local> --gate GATE` | `corvint-tasks gate history --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate list` |  | `corvint-tasks gate list` | `corvint-tasks gate list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate packet` |  | `corvint-tasks gate packet <ticketId&#124;local>` | `corvint-tasks gate packet --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate record` |  | `corvint-tasks gate record <ticketId&#124;local> --gate GATE --verdict PASS --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID` | `corvint-tasks gate record --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate resubmit` |  | `corvint-tasks gate resubmit <ticketId&#124;local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID` | `corvint-tasks gate resubmit --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate run` |  | `corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE` | `corvint-tasks gate run --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate show` |  | `corvint-tasks gate show <gateId>` | `corvint-tasks gate show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks gate state` |  | `corvint-tasks gate state <ticketId&#124;local>` | `corvint-tasks gate state --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks health` |  | `corvint-tasks health --member ID --request-id ID` | `corvint-tasks health --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks help` |  | `corvint-tasks help` | `corvint-tasks help --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks import` |  | `corvint-tasks import --file PATH` | `corvint-tasks import --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks import amend-map` |  | `corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH` | `corvint-tasks import amend-map --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks init` |  | `corvint-tasks init` | `corvint-tasks init --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks journal` |  | `corvint-tasks journal seal` | `corvint-tasks journal --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks journal seal` |  | `corvint-tasks journal seal` | `corvint-tasks journal seal --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks journal unseal` |  | `corvint-tasks journal unseal` | `corvint-tasks journal unseal --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks lane-leader` |  | `corvint-tasks lane-leader --directory DIR --capsule FILE` | `corvint-tasks lane-leader --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pause` |  | `corvint-tasks pause --request-id ID` | `corvint-tasks pause --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pending` |  | `corvint-tasks pending` | `corvint-tasks pending --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks plan` |  | `corvint-tasks plan batches` | `corvint-tasks plan --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks plan batches` |  | `corvint-tasks plan batches` | `corvint-tasks plan batches --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks plan preview` |  | `corvint-tasks plan preview` | `corvint-tasks plan preview --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks plan record` |  | `corvint-tasks plan record` | `corvint-tasks plan record --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks policy` |  | `corvint-tasks policy show` | `corvint-tasks policy --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks policy show` |  | `corvint-tasks policy show` | `corvint-tasks policy show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks policy update` |  | `corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH` | `corvint-tasks policy update --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool` |  | `corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID` | `corvint-tasks pool --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool acquire` |  | `corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID` | `corvint-tasks pool acquire --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool cleanup` |  | `corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID` | `corvint-tasks pool cleanup --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool confirm-safe` |  | `corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID` | `corvint-tasks pool confirm-safe --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool hold` |  | `corvint-tasks pool hold --pool ID --member ID --holder ID --lease-minutes N --reason TEXT --request-id ID` | `corvint-tasks pool hold --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool hold release` |  | `corvint-tasks pool hold release --member ID --allocation SHA256 --request-id ID` | `corvint-tasks pool hold release --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool hold renew` |  | `corvint-tasks pool hold renew --member ID --allocation SHA256 --lease-minutes N --request-id ID` | `corvint-tasks pool hold renew --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool observe` |  | `corvint-tasks pool observe --member ID --kind health --result FAILED --detail-file FILE --request-id ID` | `corvint-tasks pool observe --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool operate` |  | `corvint-tasks pool operate --pool ID --member ID --operation provision --request-id ID` | `corvint-tasks pool operate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool recover` |  | `corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID` | `corvint-tasks pool recover --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool release` |  | `corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID` | `corvint-tasks pool release --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool status` |  | `corvint-tasks pool status` | `corvint-tasks pool status --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool sweep` |  | `corvint-tasks pool sweep --request-id ID --timeout-seconds N` | `corvint-tasks pool sweep --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks pool wait` |  | `corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID --attempt ID --generation G` | `corvint-tasks pool wait --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks preflight` |  | `corvint-tasks preflight <ticketId&#124;local>` | `corvint-tasks preflight --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks program` |  | `corvint-tasks program cleanup --program ID --config FILE` | `corvint-tasks program --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks program cleanup` |  | `corvint-tasks program cleanup --program ID --config FILE` | `corvint-tasks program cleanup --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks program show` |  | `corvint-tasks program show` | `corvint-tasks program show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks qualify` |  | `corvint-tasks qualify --config FILE --spec PATH --base REV --out DIR --request-id ID` | `corvint-tasks qualify --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks queue` |  | `corvint-tasks queue parity --against FILE` | `corvint-tasks queue --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks queue parity` |  | `corvint-tasks queue parity --against FILE` | `corvint-tasks queue parity --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks queue snapshot` |  | `corvint-tasks queue snapshot` | `corvint-tasks queue snapshot --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks queue status` |  | `corvint-tasks queue status` | `corvint-tasks queue status --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks reap` |  | `corvint-tasks reap --request-id ID` | `corvint-tasks reap --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt` |  | `corvint-tasks receipt audit` | `corvint-tasks receipt --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt audit` |  | `corvint-tasks receipt audit` | `corvint-tasks receipt audit --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt compact` |  | `corvint-tasks receipt compact` | `corvint-tasks receipt compact --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt get` |  | `corvint-tasks receipt get SHA256` | `corvint-tasks receipt get --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt path` |  | `corvint-tasks receipt path SHA256` | `corvint-tasks receipt path --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt prune` |  | `corvint-tasks receipt prune` | `corvint-tasks receipt prune --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt put` |  | `corvint-tasks receipt put FILE` | `corvint-tasks receipt put --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt replay` |  | `corvint-tasks receipt replay` | `corvint-tasks receipt replay --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt retire` |  | `corvint-tasks receipt retire --archive FILE` | `corvint-tasks receipt retire --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt show` |  | `corvint-tasks receipt show` | `corvint-tasks receipt show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks receipt unretire` |  | `corvint-tasks receipt unretire --archive FILE` | `corvint-tasks receipt unretire --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks reconcile` |  | `corvint-tasks reconcile inspect <ticketId>` | `corvint-tasks reconcile --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks reconcile inspect` |  | `corvint-tasks reconcile inspect <ticketId>` | `corvint-tasks reconcile inspect --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks reconcile intent` |  | `corvint-tasks reconcile intent --keep-journal --request-id ID --target TICKET --file FILE` | `corvint-tasks reconcile intent --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release` |  | `corvint-tasks release --attempt ID --generation G --request-id ID` | `corvint-tasks release --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release candidate` |  | `corvint-tasks release candidate --request-id ID --target RELEASE --payload JSON` | `corvint-tasks release candidate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release create` |  | `corvint-tasks release create --request-id ID --target RELEASE --payload JSON` | `corvint-tasks release create --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release list` |  | `corvint-tasks release list` | `corvint-tasks release list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release membership` |  | `corvint-tasks release membership --request-id ID --target RELEASE --expected-revision N --add TICKET` | `corvint-tasks release membership --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release promote` |  | `corvint-tasks release promote --request-id ID --target RELEASE --payload JSON` | `corvint-tasks release promote --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release readiness` |  | `corvint-tasks release readiness RELEASE` | `corvint-tasks release readiness --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release record-gate` |  | `corvint-tasks release record-gate --request-id ID --target RELEASE --payload JSON` | `corvint-tasks release record-gate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release show` |  | `corvint-tasks release show RELEASE` | `corvint-tasks release show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks release update` |  | `corvint-tasks release update --request-id ID --target RELEASE --payload JSON` | `corvint-tasks release update --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks relocate` |  | `corvint-tasks relocate --from OLD --request-id ID` | `corvint-tasks relocate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks renew` |  | `corvint-tasks renew --attempt ID --generation G --request-id ID` | `corvint-tasks renew --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks resume` |  | `corvint-tasks resume --program ID --config FILE` | `corvint-tasks resume --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks retry` |  | `corvint-tasks retry --program ID --config FILE` | `corvint-tasks retry --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks roadmap` |  | `corvint-tasks roadmap` | `corvint-tasks roadmap --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks run` |  | `corvint-tasks run --program ID --config FILE` | `corvint-tasks run --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks run-batch` |  | `corvint-tasks run-batch <ticketId&#124;local> --config FILE --spec PATH --out DIR --request-id ID` | `corvint-tasks run-batch --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service` |  | `corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID` | `corvint-tasks service --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service install` |  | `corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID` | `corvint-tasks service install --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service resume` |  | `corvint-tasks service resume --program ID --request-id ID` | `corvint-tasks service resume --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service run` |  | `corvint-tasks service run --program ID --manifest FILE` | `corvint-tasks service run --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service run-helper` |  | `corvint-tasks service run-helper --program ID --manifest FILE --helper ID` | `corvint-tasks service run-helper --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service status` |  | `corvint-tasks service status --program ID` | `corvint-tasks service status --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service stop` |  | `corvint-tasks service stop --program ID --request-id ID` | `corvint-tasks service stop --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks service uninstall` |  | `corvint-tasks service uninstall --program ID --request-id ID` | `corvint-tasks service uninstall --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks slots` |  | `corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID` | `corvint-tasks slots --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks slots acquire` |  | `corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID` | `corvint-tasks slots acquire --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks slots release` |  | `corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID` | `corvint-tasks slots release --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks source` |  | `corvint-tasks source contains <rev> <commit>` | `corvint-tasks source --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks source contains` |  | `corvint-tasks source contains <rev> <commit>` | `corvint-tasks source contains --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks submit` |  | `corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID` | `corvint-tasks submit --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket` |  | `corvint-tasks ticket answer --target TICKET --text TEXT --request-id ID` | `corvint-tasks ticket --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket answer` |  | `corvint-tasks ticket answer --target TICKET --text TEXT --request-id ID` | `corvint-tasks ticket answer --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket archive` |  | `corvint-tasks ticket archive --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket archive --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket attach-evidence` |  | `corvint-tasks ticket attach-evidence --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket attach-evidence --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket batch-close` |  | `corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE` | `corvint-tasks ticket batch-close --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket batch-delivered` |  | `corvint-tasks ticket batch-delivered --pr N --prs FILE` | `corvint-tasks ticket batch-delivered --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket blockers` |  | `corvint-tasks ticket blockers <ticketId&#124;local>` | `corvint-tasks ticket blockers --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket closeout-debt` |  | `corvint-tasks ticket closeout-debt` | `corvint-tasks ticket closeout-debt --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket complete-manual` |  | `corvint-tasks ticket complete-manual --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket complete-manual --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket create` |  | `corvint-tasks ticket create --request-id ID --payload JSON` | `corvint-tasks ticket create --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket delivery-screen` |  | `corvint-tasks ticket delivery-screen <ticketId&#124;local>...` | `corvint-tasks ticket delivery-screen --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket digest` |  | `corvint-tasks ticket digest` | `corvint-tasks ticket digest --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket effects-proposals` |  | `corvint-tasks ticket effects-proposals` | `corvint-tasks ticket effects-proposals --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket escalate` |  | `corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ --kind decision --question TEXT --request-id ID` | `corvint-tasks ticket escalate --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket escalation` |  | `corvint-tasks ticket escalation history <ticketId&#124;local> <requestId>` | `corvint-tasks ticket escalation --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket escalation history` |  | `corvint-tasks ticket escalation history <ticketId&#124;local> <requestId>` | `corvint-tasks ticket escalation history --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket escalation list` |  | `corvint-tasks ticket escalation list` | `corvint-tasks ticket escalation list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket escalation show` |  | `corvint-tasks ticket escalation show <ticketId&#124;local> <requestId>` | `corvint-tasks ticket escalation show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket export` |  | `corvint-tasks ticket export` | `corvint-tasks ticket export --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket grant-approval` |  | `corvint-tasks ticket grant-approval --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket grant-approval --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket hold` |  | `corvint-tasks ticket hold --request-id ID --payload JSON --target TICKET` | `corvint-tasks ticket hold --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket know-how` |  | `corvint-tasks ticket know-how add <ticketId&#124;local> --request-id ID --expected-revision N --text TEXT --anchor PATH` | `corvint-tasks ticket know-how --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket know-how add` |  | `corvint-tasks ticket know-how add <ticketId&#124;local> --request-id ID --expected-revision N --text TEXT --anchor PATH` | `corvint-tasks ticket know-how add --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket know-how list` |  | `corvint-tasks ticket know-how list` | `corvint-tasks ticket know-how list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket know-how reconfirm` |  | `corvint-tasks ticket know-how reconfirm <ticketId&#124;local> --request-id ID --expected-revision N --note N` | `corvint-tasks ticket know-how reconfirm --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket know-how retract` |  | `corvint-tasks ticket know-how retract <ticketId&#124;local> --request-id ID --expected-revision N --note N --reason TEXT` | `corvint-tasks ticket know-how retract --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket list` |  | `corvint-tasks ticket list` | `corvint-tasks ticket list --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket note` |  | `corvint-tasks ticket note clear <ticketId&#124;local> --request-id ID` | `corvint-tasks ticket note --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket note clear` |  | `corvint-tasks ticket note clear <ticketId&#124;local> --request-id ID` | `corvint-tasks ticket note clear --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket note history` |  | `corvint-tasks ticket note history <ticketId&#124;local>` | `corvint-tasks ticket note history --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket note set` |  | `corvint-tasks ticket note set <ticketId&#124;local>... --request-id ID --text TEXT` | `corvint-tasks ticket note set --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket note show` |  | `corvint-tasks ticket note show <ticketId&#124;local>` | `corvint-tasks ticket note show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations` |  | `corvint-tasks ticket obligations boundary --target <ticketId&#124;local>` | `corvint-tasks ticket obligations --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations boundary` |  | `corvint-tasks ticket obligations boundary --target <ticketId&#124;local>` | `corvint-tasks ticket obligations boundary --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations capability` |  | `corvint-tasks ticket obligations capability --path PATH` | `corvint-tasks ticket obligations capability --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations plan` |  | `corvint-tasks ticket obligations plan --target <ticketId&#124;local> --plan FILE` | `corvint-tasks ticket obligations plan --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations qualify-version` |  | `corvint-tasks ticket obligations qualify-version --print-fixture` | `corvint-tasks ticket obligations qualify-version --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations seed` |  | `corvint-tasks ticket obligations seed --target <ticketId&#124;local> --expected-revision N --request-id ID --payload JSON` | `corvint-tasks ticket obligations seed --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations set` |  | `corvint-tasks ticket obligations set --target <ticketId&#124;local> --expected-revision N --request-id ID --payload JSON` | `corvint-tasks ticket obligations set --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations show` |  | `corvint-tasks ticket obligations show --target <ticketId&#124;local>` | `corvint-tasks ticket obligations show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations witness` |  | `corvint-tasks ticket obligations witness --target <ticketId&#124;local> --expected-revision N --request-id ID --commit OID --from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain]` | `corvint-tasks ticket obligations witness --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket obligations worklist` |  | `corvint-tasks ticket obligations worklist` | `corvint-tasks ticket obligations worklist --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket orphan-lanes` |  | `corvint-tasks ticket orphan-lanes` | `corvint-tasks ticket orphan-lanes --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket prioritize` |  | `corvint-tasks ticket prioritize --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket prioritize --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket progress` |  | `corvint-tasks ticket progress --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket progress --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket recur` |  | `corvint-tasks ticket recur <ticketId&#124;local> --context TEXT --request-id ID` | `corvint-tasks ticket recur --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket refine` |  | `corvint-tasks ticket refine --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket refine --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket release-hold` |  | `corvint-tasks ticket release-hold --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket release-hold --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket reopen` |  | `corvint-tasks ticket reopen --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket reopen --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket restore` |  | `corvint-tasks ticket restore --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket restore --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket revoke-approval` |  | `corvint-tasks ticket revoke-approval --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket revoke-approval --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket search` |  | `corvint-tasks ticket search --all` | `corvint-tasks ticket search --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket set-dependencies` |  | `corvint-tasks ticket set-dependencies --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket set-dependencies --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket set-effects` |  | `corvint-tasks ticket set-effects --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket set-effects --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket set-gates` |  | `corvint-tasks ticket set-gates --request-id ID --payload JSON --target TICKET --expected-revision N` | `corvint-tasks ticket set-gates --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket show` |  | `corvint-tasks ticket show <ticketId&#124;local>` | `corvint-tasks ticket show --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket similar` |  | `corvint-tasks ticket similar --text TEXT` | `corvint-tasks ticket similar --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks ticket split` |  | `corvint-tasks ticket split <ticketId&#124;local> --criteria N[,M...] --expected-revision R --request-id Q` | `corvint-tasks ticket split --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks unpause` |  | `corvint-tasks unpause --request-id ID` | `corvint-tasks unpause --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks version` |  | `corvint-tasks version` | `corvint-tasks version --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks widen` |  | `corvint-tasks widen --attempt ID --generation G --request-id ID --scope PATH...` | `corvint-tasks widen --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work` |  | `corvint-tasks work block TICKET... --reason TEXT` | `corvint-tasks work --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work block` |  | `corvint-tasks work block TICKET... --reason TEXT` | `corvint-tasks work block --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work close-merged` |  | `corvint-tasks work close-merged --integration REF` | `corvint-tasks work close-merged --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work deliver` |  | `corvint-tasks work deliver TICKET...` | `corvint-tasks work deliver --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work finding` |  | `corvint-tasks work finding --payload FILE` | `corvint-tasks work finding --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work release-sync` |  | `corvint-tasks work release-sync --release RELEASE --milestone LABEL --request-id ID` | `corvint-tasks work release-sync --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks work start` |  | `corvint-tasks work start TICKET...` | `corvint-tasks work start --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks worktree` |  | `corvint-tasks worktree ensure <ticketId&#124;local>` | `corvint-tasks worktree --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
-| `corvint-tasks worktree ensure` |  | `corvint-tasks worktree ensure <ticketId&#124;local>` | `corvint-tasks worktree ensure --help`; [corvint-tasks](../internal/capcatalog/trees/corvint-tasks.json) |
 | `corvint-test-runner` | Plan and run pinned test runners (TRE-V0) | `corvint-test-runner plan --executable PATH --executable-sha256 SHA256 --request FILE` | `corvint-cli --binary corvint-test-runner --help`; [corvint-test-runner](../internal/capcatalog/trees/corvint-test-runner.json) |
 | `corvint-test-runner plan` | Derive a runner plan from a bounded request | `corvint-test-runner plan --executable PATH --executable-sha256 SHA256 --request FILE` | `corvint-cli --binary corvint-test-runner plan --help`; [corvint-test-runner](../internal/capcatalog/trees/corvint-test-runner.json) |
 | `corvint-test-runner profiles` | Alias of runners | `corvint-test-runner profiles` | `corvint-cli --binary corvint-test-runner profiles --help`; [corvint-test-runner](../internal/capcatalog/trees/corvint-test-runner.json) |
@@ -1047,7 +792,4 @@ native streams and status are retained in `details`. Protocol traffic uses the n
 | `corvint-update rollback` | Restore the previous binaries the last apply kept | `corvint-update rollback --component core` | `corvint-update rollback --help`; [corvint-update](../internal/capcatalog/trees/corvint-update.json) |
 | `corvint-web-flows` | usage: corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR [--root DIR] [--observe] | `corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR` | `corvint-web-flows --help`; [corvint-web-flows](../internal/capcatalog/trees/corvint-web-flows.json) |
 | `corvint-web-flows help` | Show command help or the offline machine catalog. | `corvint-web-flows help --json` | `corvint-web-flows help --help`; [corvint-web-flows](../internal/capcatalog/trees/corvint-web-flows.json) |
-| `corvint-work-queue details` | Print the canonical details document for the same snapshot | `corvint-work-queue details` | `corvint-work-queue details --help`; [corvint-work-queue](../internal/capcatalog/trees/corvint-work-queue.json) |
-| `corvint-work-queue snapshot` | Print the canonical work-queue snapshot of the repository containing the working directory | `corvint-work-queue snapshot` | `corvint-work-queue snapshot --help`; [corvint-work-queue](../internal/capcatalog/trees/corvint-work-queue.json) |
-| `corvint-work-queue verify` | Print the canonical checkpoint document that verifies the same snapshot | `corvint-work-queue verify` | `corvint-work-queue verify --help`; [corvint-work-queue](../internal/capcatalog/trees/corvint-work-queue.json) |
 <!-- /capability-gate:cli-nodes -->

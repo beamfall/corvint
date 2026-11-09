@@ -19,8 +19,7 @@ import (
 // left them. AFP-V0-3340/3341 now bounds heavy.sh's host-only environment
 // source; mutating its realpath guard must restore dynamic-source protection.
 // dogfood-finish.sh links its same-valued `$repo` source (AFP-V0-2954);
-// qualify-tasks-basic_test.sh is read-scoped and dogfood-cache_test.sh, which
-// reaches heavy.sh, keeps its own toolchain floor (AFP-V0-3342); the
+// dogfood-cache_test.sh, which reaches heavy.sh, keeps its own toolchain floor (AFP-V0-3342); the
 // commands whose os.Getwd escapes locate the root for the units that run them
 // (AFP-V0-2951); and literals with no output-only evidence keep rule (d)
 // (AFP-V0-2952). Reverting any one fix fails the matching assertion.
@@ -67,9 +66,6 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 	if unit := byID["shell:script/dogfood-finish.sh"]; unit.UnboundedReads != "" || unit.LocatesRoot || !slices.Contains(unit.Imports, "shell:script/dogfood-build-corvint.sh") {
 		t.Errorf("dogfood-finish.sh: the same-valued $repo source is not linked or a dynamic source is back: %q %v", unit.UnboundedReads, unit.Imports)
 	}
-	if unit := byID["shell:script/qualify-tasks-basic_test.sh"]; !unit.ReadScoped || unit.UnboundedReads != "" {
-		t.Errorf("qualify-tasks-basic_test.sh: not read-scoped: %+v", unit)
-	}
 	// AFP-V0-3342: heavy.sh is now bounded, but dogfood-cache_test.sh still
 	// runs a toolchain and has no read-scope declaration of its own.
 	if unit := byID["shell:script/dogfood-cache_test.sh"]; unit.ReadScoped || unit.UnboundedReads != shell.UnboundedRunsToolchain {
@@ -89,7 +85,7 @@ func TestRepositoryScriptsAreBoundedSources_V14283(t *testing.T) {
 		byID[unit.ID] = unit
 	}
 	const module = "go:github.com/Beamfall/corvint/"
-	for _, command := range []string{"cmd/corvint", "benchmarks/runner", "cmd/corvint-tasks", "tools/gate-ledger", "tools/test-commands-run"} {
+	for _, command := range []string{"cmd/corvint", "benchmarks/runner", "tools/gate-ledger", "tools/test-commands-run"} {
 		unit, ok := byID[module+command]
 		if !ok {
 			t.Fatalf("%s: no Go unit", command)
