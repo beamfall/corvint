@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Frozen: 2026-09-11
 Requirement prefix: `TSS-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `docs/specs/task-context-packet-v0.md` (the packet whose paths are the
 prediction), `docs/specs/go-production-kernel-migration-v0.md` (`impact` receipts and the sanitized
 Git execution pattern), `docs/specs/snapshot-batch-v0.md` (snapshot load convention), `AGENTS.md`
@@ -12,7 +14,7 @@ invariants 1, 2 and 4.
 
 ## Agent digest
 - Claim: `corvint surprise` measures, for one completed task, the share of the committed change's paths the task-context packet and its impact expansion never named.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/touchsurprise` and `cmd/corvint/surprise.go` with their tests; nothing before this slice.
 - Blocked on: CEM binding as the actual set (V0 reads the committed range alone); a reviewer-trial correlation between this score and reviewer-found misses; any consumer, including `internal/outcomecal`.
 - Read next: Requirements; Non-goals and authority; Failure modes.

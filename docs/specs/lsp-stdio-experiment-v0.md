@@ -2,13 +2,15 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-29
-- Intent status: proposed
-- Delivery status: experimental
+- Intent status: retired 2026-11-09 (decision 0594)
+- Delivery status: retired
+- Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+- Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 - Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, official LSP 3.18 lifecycle and base protocol; owner requested optional editor companion under V1-0481.
 
 ## Agent digest
 - Claim: An explicitly experimental optional native-Go stdio companion exercises bounded framing and lifecycle without semantic capabilities.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: standalone command and deterministic transcript tests.
 - Blocked on: independent review, real-client qualification, snapshot/provider integration and accepted technical contract.
 - Read next: Requirements; Bounds and non-goals; Traceability.

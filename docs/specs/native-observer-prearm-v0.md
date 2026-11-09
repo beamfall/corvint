@@ -2,14 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-09
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: owner's full protected-runner task; `AGENTS.md` experimental prototype
 allowance; `agent-harness-integration-v0.md`; `local-completion-policy-v0.md`.
 
 ## Agent digest
 - Claim: An explicit idle pre-arm observer produces bounded setup and compared completed receipt projections without granting host authority.
-- Status: proposed/experimental; fixture success does not qualify an actual native surface.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: explicit idle join, expected all-event inventory, READY and final completion binding.
 - Blocked on: independent source review, final local evidence, native idle-join feasibility and actual qualification.
 - Read next: Requirements; Inventory profile; Acceptance and rollback.
