@@ -162,7 +162,7 @@ func (graph *Graph) globRead(id string, dirty []string) (dirtyPath, glob string,
 		directory = relativeDirectory(files[0])
 	}
 	for _, dirtyPath := range dirty {
-		if unit.ReadScoped && !InReadScope(directory, unit.ReadScope, dirtyPath) {
+		if unit.ReadScoped && !graph.inReadScope(directory, unit, dirtyPath) {
 			continue
 		}
 		parts := strings.Split(dirtyPath, "/")
@@ -297,7 +297,7 @@ func (graph *Graph) testlessReaderUsers(reached map[string]Witness, dirty []stri
 func (graph *Graph) scopeExcludes(id, dirtyPath string) bool {
 	unit := graph.units[id]
 	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
-	return unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath)
+	return unit.ReadScoped && len(files) != 0 && !graph.inReadScope(relativeDirectory(files[0]), unit, dirtyPath)
 }
 
 // unboundedReadersOf selects, on any dirty path, each unit not already reached
@@ -408,7 +408,7 @@ func gatedLocatorsChanged(normalized []string) []Unknown {
 func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) {
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil) {
+		if _, seen := reached[id]; seen || (!unit.ReadScoped && graph.priorReadScopes == nil && (graph.readScopeInputs == nil || graph.readScopeInputs.priorTrees == nil)) {
 			continue
 		}
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
@@ -417,12 +417,15 @@ func (graph *Graph) scopedReadersOf(reached map[string]Witness, dirty []string) 
 		}
 		directory := relativeDirectory(files[0])
 		for _, dirtyPath := range dirty {
-			bears := unit.ReadScoped && InReadScope(directory, unit.ReadScope, dirtyPath)
+			bears := unit.ReadScoped && graph.inReadScope(directory, unit, dirtyPath)
 			if dirtyPath == ReadScopesPath && graph.priorReadScopes != nil {
 				bears = graph.declarationChanged(id, unit, directory) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
 			}
+			if dirtyPath == ReadScopeTreesPath {
+				bears = graph.treeDeclarationChanged(id, directory, unit) || (unit.ReadScoped && inDeclaredScope(directory, unit.ReadScope, dirtyPath))
+			}
 			if bears {
-				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: readScopeCause(id, directory, unit.ReadScope, dirtyPath)}
+				reached[id] = Witness{Kind: WitnessDeclaredReadScope, DirtyPath: dirtyPath, Via: []string{id}, ReadScope: graph.treeReadScopeCause(id, directory, unit, dirtyPath)}
 				break
 			}
 		}
@@ -538,7 +541,7 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 func (graph *Graph) resolves(id, dirtyPath string) bool {
 	unit := graph.units[id]
 	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
-	if unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath) {
+	if unit.ReadScoped && len(files) != 0 && !graph.inReadScope(relativeDirectory(files[0]), unit, dirtyPath) {
 		return false
 	}
 	if unit.PlacesFileNames && !strings.HasPrefix(id, "go:") && len(files) != 0 {
