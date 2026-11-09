@@ -6,6 +6,7 @@ symbol-resolver boundary (Q1) is decided by
 Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the canonical CEM 0.2 patch named below is historical; the pure evaluator reads no CEM map itself.
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted `internal/changewitness`
 (4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
 for traceability.

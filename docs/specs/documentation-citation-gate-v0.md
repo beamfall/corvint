@@ -302,6 +302,22 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   fails; CI's doc-gates checkout fetches full history. Evidence: case 34 of
   `script/check-line-citations_test.sh` (a committed decision citation survives a move of its
   lines; an edited decision reports it; fails on BASE). Rollback: `lines_for` returns `lines_of`.
+- `DCG-V0-923`: (experimental under decision 0594 (owner, 2026-11-09); V1-5228; refines DCG-V0-800)
+  A `docs/specs/*.md` document whose header (the lines before its first `## ` heading) carries
+  both `Delivery status: retired` and one line `Retirement base: <40 lowercase hex commit>` MUST
+  resolve every citation it holds against that commit's tree, including citations of files the
+  index no longer tracks. A base the clone lacks, and a cited path absent from its tree, keep
+  index resolution. A `Retirement base:` line in a spec whose header is not retired, and a
+  malformed or repeated base line, MUST fail naming the line, and that document keeps the index.
+  Design: a retired spec keeps its body and requirement IDs as history (decisions 0593 and 0594),
+  but the change that retires it deletes or moves the code it cites, which failed about 287
+  retired-spec citations no repin can fix without rewriting history. Unpinned citations need the
+  same inventory rows as before, as decisions do. Non-goals: live specs, and retirements that name
+  no base. Failure modes: a citation already wrong at the base stays wrong and still fails; a
+  wrong base fails the citations it does not hold. Evidence: case 53 of
+  `script/check-line-citations_test.sh` (a retired spec with a base resolves a deleted file; no
+  base, a non-retired spec and an unknown commit keep the index). Rollback: delete the
+  `retirement_base` branch of `lines_for`.
 - `DCG-V0-801`: (experimental under the standing lane auto-accept (V1-3384)) `make repin`
   (`script/repin.sh [--base REF]`) MUST perform every mechanical repin an output-neutral source
   edit needs, in order: `script/analyzer-schema.sh bump`, staging the two analyzer-schema pin files
@@ -579,6 +595,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-800 | `decision_commit`, `lines_at` and `lines_for` in `script/check-line-citations.sh` | case 34 |
 | DCG-V0-801 | `script/repin.sh`, `REPIN_BASE` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34; `script/repin_test.sh` |
+| DCG-V0-923 | `retirement_base` and its branch in `lines_for` in `script/check-line-citations.sh`; the `Retirement base:` header lines of the retired specs | case 53 |
 | DCG-V0-840 | `CHECK_LINE_CITATIONS_REPIN_TOTAL` and the repin report in `script/check-line-citations.sh` | case 37 |
 | DCG-V0-841 | the relocation hint in `script/check-line-citations.sh` | case 32c |
 | DCG-V0-842 | the end of the `--repin` block in `script/check-line-citations.sh` | case 38 |

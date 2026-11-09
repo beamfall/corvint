@@ -5,6 +5,7 @@ Frozen: 2026-08-22
 Amended: 2026-08-30 (30-case conformance plan alignment); 2026-10-13 (V1-1278 S3, `CEM-V1-225`: decision 0525 removed `cem/0.x`, so the CEM 0.1 and 0.2 sentences below describe the retired wire and are historical, and `lrf/0` evaluates no map, `CEM-V1-210`)
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (the test-selection refocus) deleted the `lrf` command group,
 `internal/lrf`, `internal/lrfrepo` and `conformance/lrf-v0` (4663b4e2b is the last tree with them).
 The body below is historical and its requirement IDs stay for traceability.

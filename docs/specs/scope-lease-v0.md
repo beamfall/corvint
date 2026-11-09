@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Frozen: 2026-09-11
 Intent status: retired 2026-11-09 (decision 0594)
 Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
 Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy. The `corvint lease` command and `internal/scopelease` still in this tree are removed by the same decision's process cut. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` (invariant 4), `docs/DOGFOOD.md`, `docs/PRODUCT.md`,
 `docs/agent-memory/fixes.md` (2026-09-08 interleaved-commit entry), `LICENSE`, and `LICENSING.md`
