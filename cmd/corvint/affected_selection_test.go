@@ -26,7 +26,7 @@ func affectedSelectionRepository(t *testing.T) (root, base, record string) {
 	}
 	writeAffectedGateDeclarations(t, root)
 	base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	appendFile(t, filepath.Join(root, "core", "core.go"), "\n// committed edit\n")
+	cemWrite(t, root, "core/core.go", "package core\n\n// Value is the fixture's root-level constant.\nconst Value = 2\n")
 	affectedGit(t, root, "commit", "-qam", "edit core")
 	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 	body := `{"schema":"external-evidence-provider/1","provider":{"id":"mockdocs","revision":"1"},

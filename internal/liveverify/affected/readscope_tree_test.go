@@ -177,10 +177,10 @@ func TestTreeScopeCacheAndDeclarationIdentity_AFP_V0_3303(t *testing.T) {
 	oldWindow := affected.GraphCacheRacyWindow
 	affected.GraphCacheRacyWindow = 0
 	t.Cleanup(func() { affected.GraphCacheRacyWindow = oldWindow })
-	cache := t.TempDir()
-	graph, _, err := affected.BuildCached(context.Background(), root, cache, "tree-scope-test", golang.New())
-	if err != nil {
-		t.Fatal(err)
+	cache := privateCacheDir(t)
+	graph, outcome, err := affected.BuildCached(context.Background(), root, cache, "tree-scope-test", golang.New())
+	if err != nil || !outcome.Stored {
+		t.Fatalf("seed cache: %+v %v", outcome, err)
 	}
 	restored, outcome, err := affected.BuildCached(context.Background(), root, cache, "tree-scope-test", golang.New())
 	if err != nil || !outcome.Hit {
