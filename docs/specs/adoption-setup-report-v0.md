@@ -38,8 +38,9 @@ fix. It extends the existing `adopt` verb instead of adding a parallel `doctor` 
   `CLAUDE.md` or `GEMINI.md` names Corvint (case-insensitive), with per-file evidence.
 - `ADS-V0-005`: the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.json`
   or `.codex/hooks.json`, parsed as JSON, wires Corvint: an `enabledPlugins` key starting
-  `corvint@` whose value is exactly `true`, or a `type: command` hook whose command runs
-  `corvint adapter`. A disabled plugin, a substring match elsewhere and malformed JSON are gaps.
+  `corvint@` whose value is exactly `true`. A `corvint adapter` command hook no longer counts: the
+  host adapters were removed by decision 0594. A disabled plugin, a substring match elsewhere and
+  malformed JSON are gaps.
   The evidence MUST say that user-scope installs are not read.
 - `ADS-V0-006`: the `ignored-paths` check MUST report `gap` for each Corvint private state path
   (`.context-corvint/`, `.corvint/index/`, `.corvint/self-observations.jsonl`,
@@ -101,7 +102,7 @@ instruction-file quality beyond naming Corvint, and no CI or release-channel che
 
 | Requirements | Witness |
 |---|---|
-| ADS-V0-001,003..007 | `TestAdoptSetupReportsEachGapClass`: one fully set-up fixture (READY), a Codex adapter hook, and one fixture per gap class (including a disabled plugin and malformed JSON), with a byte digest of the tree (including `.git`) unchanged across each run |
+| ADS-V0-001,003..007 | `TestAdoptSetupReportsEachGapClass`: one fully set-up fixture (READY) and one fixture per gap class (including a disabled plugin and malformed JSON), with a byte digest of the tree (including `.git`) unchanged across each run |
 | ADS-V0-001,003,006 | `TestAdoptSetupUnobservedChecksCarryAFix` (snapshot probe error, git not on PATH), `TestAdoptSetupUnreadableIgnoreFileIsUnobserved` |
 | ADS-V0-007 | `TestAdoptSetupRejectsFIFOWithoutOpening` |
 | ADS-V0-002 | `TestAdoptSetupRefusesOtherOptions` |

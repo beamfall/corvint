@@ -128,15 +128,6 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 			}
 		}
 	})
-	t.Run("codex adapter hook", func(t *testing.T) {
-		root := setupFixture(t)
-		os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte("{}\n"), 0o644)
-		os.MkdirAll(filepath.Join(root, ".codex"), 0o755)
-		os.WriteFile(filepath.Join(root, ".codex", "hooks.json"), []byte(`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"corvint adapter codex"}]}]}}`), 0o644)
-		if check := runSetup(t, root)["hooks"]; check["status"] != "ok" {
-			t.Fatalf("hooks: %v", check)
-		}
-	})
 	for _, tc := range []struct {
 		class   string
 		break_  func(t *testing.T, root string)
@@ -152,10 +143,10 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 		}, "AGENTS.md: present, does not name corvint"},
 		{"hooks", func(t *testing.T, root string) {
 			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte("{}\n"), 0o644)
-		}, ".claude/settings.json: present, no enabled corvint plugin or corvint adapter hook"},
+		}, ".claude/settings.json: present, no enabled corvint plugin"},
 		{"hooks", func(t *testing.T, root string) {
 			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte(`{"enabledPlugins":{"corvint@corvint":false}}`), 0o644)
-		}, ".claude/settings.json: present, no enabled corvint plugin or corvint adapter hook"},
+		}, ".claude/settings.json: present, no enabled corvint plugin"},
 		{"hooks", func(t *testing.T, root string) {
 			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte(`{"enabledPlugins":{"corvint@corvint":true}`), 0o644)
 		}, ".claude/settings.json: present, not valid JSON"},

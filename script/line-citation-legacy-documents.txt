@@ -1,6 +1,5 @@
 # Closed allowlist of scanned documents present when decision 0154 was accepted.
 README.md
-conformance/beta-rung-v0/README.md
 conformance/cem-0.1/README.md
 conformance/cem-0.2/README.md
 conformance/cli-parity-v0/README.md
@@ -10,7 +9,6 @@ conformance/go-live-test-v0/README.md
 conformance/go-query-start-v0/README.md
 conformance/human-documentation-compiler-v0/README.md
 conformance/lrf-v0/README.md
-conformance/mcp-2026-07-28/README.md
 conformance/perf-v0/README.md
 conformance/release-artifact-v0/README.md
 conformance/tcq-0/README.md
