@@ -650,7 +650,7 @@ var (
 		"record", "migrate-traces", "cem", "ocm", "work", "context",
 		"frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "docs",
-		"lease", "reads", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "step", "delta", "changes", "runs", "test", "tests", "how"}
+		"lease", "reads", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "step", "delta", "runs", "test", "tests", "how"}
 )
 
 func emit(stream io.Writer, value any) error {

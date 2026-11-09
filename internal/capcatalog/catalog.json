@@ -9,7 +9,6 @@
     "globalFlags": "every --option the root help Global options block names, including the --json modifier of --version",
     "globalSchemaIds": "every NAME/VERSION schema identifier the root help Global options block names",
     "maturity": "core under the root help Core header, experimental under the Experimental header",
-    "mcpTools": "authored tool names, server/profile availability and summaries; names are checked against offline descriptors and the supplemental source inventory; tools/list on the configured server remains authoritative for argument schemas and availability",
     "nestedHelpTopics": "the two-word corvint help COMMAND SUBCOMMAND topics the help dispatcher accepts",
     "nestedOperations": "the code-declared operation tables one level below an operation, such as docs corpus",
     "operations": "the code-declared subcommand tables plus the lowercase word after the command in each help usage line",
@@ -52,8 +51,7 @@
     "cem verify-stable",
     "docs corpus",
     "docs flows",
-    "docs maintain",
-    "harness event"
+    "docs maintain"
   ],
   "guide": {
     "topic": "corvint help guide",
@@ -157,53 +155,6 @@
       ]
     },
     {
-      "name": "query",
-      "helpTopic": "corvint help query",
-      "purpose": "repository context or authority receipt",
-      "maturity": "core",
-      "owningSpec": null,
-      "freezeContract": "CCF-V1",
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "query": [
-          "--task"
-        ]
-      },
-      "flags": [
-        "--budget-bytes",
-        "--limit",
-        "--task",
-        "--worktree-overlay"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        2
-      ],
-      "writes": "none",
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Writes nothing.",
-        "The command is read-only and local-only."
-      ],
-      "unknowns": [
-        {
-          "field": "owningSpec",
-          "reason": "Core verbs name no per-verb spec in the root help; freezeContract names the compatibility freeze"
-        },
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        }
-      ]
-    },
-    {
       "name": "feature",
       "helpTopic": "corvint help feature",
       "purpose": "one declared feature's context",
@@ -248,7 +199,7 @@
     {
       "name": "impact",
       "helpTopic": "corvint help impact",
-      "purpose": "path, untracked or range impact",
+      "purpose": "path or range impact",
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
@@ -276,8 +227,7 @@
         "--require-clean",
         "--revision",
         "--test-at",
-        "--test-root",
-        "--working-tree-untracked"
+        "--test-root"
       ],
       "schemaIds": [
         "corvint-impact-capabilities/0",
@@ -308,59 +258,6 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        }
-      ]
-    },
-    {
-      "name": "eval",
-      "helpTopic": "corvint help eval",
-      "purpose": "evaluate a frozen corpus",
-      "maturity": "experimental",
-      "owningSpec": "REC-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--admit",
-        "--exclude-producer",
-        "--friction",
-        "--goldens",
-        "--learn-slot-weights",
-        "--reset-slot-weights",
-        "--trace-fixture"
-      ],
-      "schemaIds": [
-        "corvint-friction-sessions/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "The command reads without mutating repository or trace state.",
-        "The report counts the traces it read by producer (cli, dogfood, pi-tool, or UNKNOWN for rows written before producer provenance); --exclude-producer NAME leaves that producer's traces out of the read, repeatable, without changing the store or the fixture.",
-        "Only with --admit and an improved delta does it write .context-corvint/slot-weights.json; --reset-slot-weights removes that file and restores the default slot order.",
-        "These experimental steps (decision 0368) are eval's only writes.",
-        "It reads only FILE and writes nothing; the metrics are never a ranking or authority input."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
     },
@@ -483,67 +380,6 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Dry-run validates the complete bounded trace store and writes nothing."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        }
-      ]
-    },
-    {
-      "name": "harness",
-      "helpTopic": "corvint help harness",
-      "purpose": "one agent lifecycle event",
-      "maturity": "experimental",
-      "owningSpec": "AHI",
-      "freezeContract": null,
-      "operations": [
-        "event"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "harness event": [
-          "--adapter-version",
-          "--event",
-          "--host",
-          "--host-version",
-          "--input",
-          "--surface"
-        ]
-      },
-      "flags": [
-        "--adapter-version",
-        "--budget-bytes",
-        "--event",
-        "--host",
-        "--host-version",
-        "--input",
-        "--json",
-        "--surface"
-      ],
-      "schemaIds": [
-        "corvint-harness-event/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": "none",
-      "selfObservationLedger": "best-effort-append",
-      "writeStatements": [
-        "The command is read-only apart from that one bounded local self-observation row, and local-only, and emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.",
-        "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
-        "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
-        "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
-        "Diagnostic only; they do not change what is read, returned, or mutated (corvint help --json lists the commands and servers)."
       ],
       "unknowns": [
         {
@@ -957,27 +793,17 @@
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
-      "operations": [
-        "defs",
-        "grep",
-        "refs"
-      ],
+      "operations": [],
       "nestedOperations": {},
       "requiredFlags": {},
       "flags": [
-        "--expand",
         "--instruction-cwd",
         "--instruction-host",
         "--instruction-host-version",
         "--instruction-profile",
         "--json",
         "--limit",
-        "--lsp",
-        "--max-bytes",
-        "--reset-slot-weights",
         "--subject",
-        "--summary",
-        "--summary-bytes",
         "--task",
         "--worktree-overlay"
       ],
@@ -989,8 +815,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Writes nothing; Go-only (task-context-packet-v0, experimental).",
-        "It writes nothing and is refused with --expand.",
-        "Structural lookups (experimental, TCP-V0-017 proposed), read-only, JSON:",
+        "It writes nothing.",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
         "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
         "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
@@ -1001,253 +826,6 @@
           "field": "owningSpec",
           "reason": "Core verbs name no per-verb spec in the root help; freezeContract names the compatibility freeze"
         },
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "adapter",
-      "helpTopic": "corvint help adapter",
-      "purpose": "one native host adapter",
-      "maturity": "experimental",
-      "owningSpec": "AHI",
-      "freezeContract": null,
-      "operations": [
-        "claude-code",
-        "claude-source-handoff",
-        "codex",
-        "done-list",
-        "pi",
-        "pi-tool",
-        "source-view"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "adapter claude-source-handoff": [
-          "--packet-out"
-        ],
-        "adapter source-view": [
-          "--packet",
-          "--packet-sha256"
-        ]
-      },
-      "flags": [
-        "--base",
-        "--commit",
-        "--evidence",
-        "--lines",
-        "--max-bytes",
-        "--mutate",
-        "--packet",
-        "--packet-out",
-        "--packet-sha256",
-        "--requirement",
-        "--result"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Usage: corvint adapter codex corvint adapter claude-code EVENT corvint adapter claude-source-handoff --packet-out FILE corvint adapter source-view [--root PATH] --packet FILE --packet-sha256 SHA256 [--result N] [--evidence N] [--commit SHA] [--lines START:END] [--requirement ID] [--max-bytes N] corvint adapter done-list [--root PATH] [--base FULL_SHA] [--mutate] corvint adapter pi EVENT corvint adapter pi-tool context|expand|record",
-        "Reads one bounded JSON object from stdin and writes one bounded adapter response; done-list reads no stdin."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "dogfood",
-      "helpTopic": "corvint help dogfood",
-      "purpose": "evidence: change, check, seal, batch-check",
-      "maturity": "core",
-      "owningSpec": null,
-      "freezeContract": "CCF-V1",
-      "operations": [
-        "batch-check",
-        "begin",
-        "cancel",
-        "change",
-        "check",
-        "export",
-        "finish",
-        "finish-lane",
-        "handoff",
-        "hold",
-        "import",
-        "inputs-check",
-        "prechange",
-        "propose-citations",
-        "record-claims",
-        "review",
-        "seal",
-        "status",
-        "verify"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "dogfood begin": [
-          "--plan"
-        ],
-        "dogfood export": [
-          "--output"
-        ],
-        "dogfood finish-lane": [
-          "--base",
-          "--citations"
-        ],
-        "dogfood import": [
-          "--input"
-        ],
-        "dogfood inputs-check": [
-          "--base",
-          "--citations"
-        ],
-        "dogfood record-claims": [
-          "--claims",
-          "--plan"
-        ],
-        "dogfood review": [
-          "--report-set"
-        ],
-        "dogfood verify": [
-          "--check"
-        ]
-      },
-      "flags": [
-        "--anchors",
-        "--base",
-        "--base-verifier",
-        "--bundle",
-        "--check",
-        "--citations",
-        "--claims",
-        "--corvint-bin",
-        "--draft",
-        "--from-cem",
-        "--input",
-        "--intents",
-        "--intents-draft",
-        "--outcome",
-        "--output",
-        "--override-verifier",
-        "--plan",
-        "--reason",
-        "--receipt",
-        "--refresh",
-        "--release-authorization",
-        "--report-set",
-        "--seal",
-        "--session-key",
-        "--task",
-        "--task-state",
-        "--tree-verifier",
-        "--verifier",
-        "--verify"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        1
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Status is read-only.",
-        "export writes the enrollment, its session files and the artifacts it names to a new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the Git directory before a worktree is archived.",
-        "handoff is read-only.",
-        "change writes the private evidence under the Git directory and .corvint/change.cem.json and .corvint/dogfood-report.json; check verifies the committed binding; seal checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json.",
-        "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and so does an intents manifest or a plan the bind would refuse before any cite: invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379).",
-        "batch-check is read-only.",
-        "propose-citations is read-only.",
-        "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
-        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr, a re-keyed unknown row's NOTE marked stale for review when its hunk's content changed (DCW-V0-884, DCW-V0-842); a plan drafted at another BASE is re-pinned to the BASE lines holding the same text, and a new hunk of a file whose other hunks carry a citation is proposed that citation, carried forward (DCW-V0-842); only the remaining hunks are drafted afresh.",
-        "--intents-draft FILE also writes the draft DOGFOOD_INTENTS_FILE, its only write (DCW-V0-711): each Markdown file the change adds or modifies that derives as an intent at HEAD, sorted one per line, else #no-intent-declared.",
-        "record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed claims in --claims FILE, the only file it writes: each row is kept with its hunk's path, content and BASE range and the hash of the BASE text it cites.",
-        "It refuses prechange-after-change once the change began, and prechange-receipt-exists rather than overwrite a receipt it did not write."
-      ],
-      "unknowns": [
-        {
-          "field": "owningSpec",
-          "reason": "Core verbs name no per-verb spec in the root help; freezeContract names the compatibility freeze"
-        },
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "dogfood-ocm",
-      "helpTopic": "corvint help dogfood-ocm",
-      "purpose": "verify dogfood OCM maps",
-      "maturity": "experimental",
-      "owningSpec": "OCM-V0",
-      "freezeContract": null,
-      "operations": [
-        "status"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "dogfood-ocm status": [
-          "--expected-base",
-          "--target"
-        ]
-      },
-      "flags": [
-        "--expected-base",
-        "--target"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "best-effort-append",
-      "writeStatements": [
-        "It does not mutate repository or trace state."
-      ],
-      "unknowns": [
         {
           "field": "inputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
@@ -1600,8 +1178,7 @@
         "--replay-bundle",
         "--target",
         "--task",
-        "--verify-cem-attestation",
-        "--working-tree-untracked"
+        "--verify-cem-attestation"
       ],
       "schemaIds": [
         "cem-paired-evidence/1",
@@ -1745,49 +1322,6 @@
         {
           "field": "exitCodesMentioned",
           "reason": "the help text states no exit status"
-        }
-      ]
-    },
-    {
-      "name": "batch",
-      "helpTopic": "corvint help batch",
-      "purpose": "batched query, context, impact",
-      "maturity": "experimental",
-      "owningSpec": "SBQ-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [],
-      "schemaIds": [
-        "snapshot-batch/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Read-only and Go-only (snapshot-batch-v0, experimental).",
-        "Stdout is one line carrying ok, mutates, tool, profile \"snapshot-batch/0\", the snapshot tree and commit, and one operations row per request operation in request order: ok with \"context\", or ok false with \"error\".",
-        "Nothing is written on any path, including the self-observation ledger the standalone impact verb appends to on failure."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
     },
@@ -2193,236 +1727,6 @@
       ]
     },
     {
-      "name": "depsource",
-      "helpTopic": "corvint help depsource",
-      "purpose": "cite pinned Go module source",
-      "maturity": "experimental",
-      "owningSpec": "DSE-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--file",
-        "--limit"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON.",
-        "Never fetches and never writes."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "necessity",
-      "helpTopic": "corvint help necessity",
-      "purpose": "label packet file necessity",
-      "maturity": "experimental",
-      "owningSpec": "NEC-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "necessity": [
-          "--task"
-        ]
-      },
-      "flags": [
-        "--limit",
-        "--subject",
-        "--task"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Read-only (necessity-labels-v0, experimental)."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "surprise",
-      "helpTopic": "corvint help surprise",
-      "purpose": "touched set vs delivered packet",
-      "maturity": "experimental",
-      "owningSpec": "TSS-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "surprise": [
-          "--base",
-          "--target",
-          "--task"
-        ]
-      },
-      "flags": [
-        "--base",
-        "--limit",
-        "--subject",
-        "--target",
-        "--task"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "answerability",
-      "helpTopic": "corvint help answerability",
-      "purpose": "retrieval channel agreement",
-      "maturity": "experimental",
-      "owningSpec": "RDS-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "answerability": [
-          "--task"
-        ]
-      },
-      "flags": [
-        "--limit",
-        "--subject",
-        "--task"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "kernel",
-      "helpTopic": "corvint help kernel",
-      "purpose": "compaction kernel",
-      "maturity": "experimental",
-      "owningSpec": "CKN-V0",
-      "freezeContract": null,
-      "operations": [
-        "verify"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--requirements"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        1
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text.",
-        "Both paths are read-only."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "lease",
       "helpTopic": "corvint help lease",
       "purpose": "local scope lease over paths",
@@ -2503,7 +1807,6 @@
       "nestedOperations": {},
       "requiredFlags": {},
       "flags": [
-        "--learn-slot-weights",
         "--limit"
       ],
       "schemaIds": [],
@@ -2515,51 +1818,6 @@
       "writeStatements": [
         "enable and disable are the only mutations in this verb: they create and remove the opt-in marker .corvint/unplanned-reads.enabled.",
         "The digest itself never writes."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "calibrate",
-      "helpTopic": "corvint help calibrate",
-      "purpose": "packet stances vs outcomes",
-      "maturity": "experimental",
-      "owningSpec": "OCL-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--exclude-producer",
-        "--format",
-        "--since",
-        "--window"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "best-effort-append",
-      "writeStatements": [
-        "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text.",
-        "--exclude-producer NAME Leave out records from cli, dogfood, pi-tool or UNKNOWN (rows written before producer provenance) before selecting; repeatable."
       ],
       "unknowns": [
         {
@@ -3278,111 +2536,6 @@
       ]
     },
     {
-      "name": "skill-export",
-      "helpTopic": "corvint help skill-export",
-      "purpose": "learned traces as SKILL.md",
-      "maturity": "experimental",
-      "owningSpec": "LTA-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "skill-export": [
-          "--out"
-        ]
-      },
-      "flags": [
-        "--out"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only.",
-        "Writes one Agent Skills directory per admitted learned trace (a stored row with outcome passed that the trace reader re-validated) under DIR: DIR/<name>/SKILL.md carries YAML frontmatter (name, description) and a short body; DIR/<name>/references/trace.md carries the full paths and commands.",
-        "It reads the pinned local trace store and the committed index only and never writes repository or trace state."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "breakage",
-      "helpTopic": "corvint help breakage",
-      "purpose": "cross-repository API relations",
-      "maturity": "experimental",
-      "owningSpec": "BKM-V0",
-      "freezeContract": null,
-      "operations": [
-        "manifest"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "breakage": [
-          "--api",
-          "--manifest",
-          "--repository"
-        ],
-        "breakage manifest": [
-          "--repository",
-          "--source"
-        ]
-      },
-      "flags": [
-        "--api",
-        "--base",
-        "--manifest",
-        "--provider-skeleton",
-        "--repository",
-        "--source"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Read-only, local and bounded."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "step",
       "helpTopic": "corvint help step",
       "purpose": "declared authoring scope receipts",
@@ -3490,64 +2643,6 @@
         {
           "field": "exitCodesMentioned",
           "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "changes",
-      "helpTopic": "corvint help changes",
-      "purpose": "offline upgrade checklist",
-      "maturity": "experimental",
-      "owningSpec": "UCL1142-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--apply",
-        "--base",
-        "--branch",
-        "--config",
-        "--expect-head",
-        "--format",
-        "--from",
-        "--head",
-        "--issue-state-file",
-        "--json",
-        "--limit",
-        "--notes",
-        "--plugins",
-        "--refs-file",
-        "--stale-hours",
-        "--state",
-        "--ticket",
-        "--to"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        1
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Reads only local Git merge evidence; never fetches or writes repository state.",
-        "Shared-path change policy (SPC-V0, V1-1591): corvint [--root SOURCE] changes check-shared --base REV [--head REV] [--config FILE] [--notes FILE] corvint [--root SOURCE] changes split-shared --base REV --branch NAME [--apply --expect-head SHA] [--config FILE] check-shared is read-only.",
-        "Shared-path commits a branch is missing (SPC-V0-009..014, V1-1710, V1-1723): corvint [--root SOURCE] changes behind --base REF [--head REV] [--config FILE] [--ticket ID --stale-hours N] [--format json|doctor-plugin] Read-only; never fetches."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
         },
         {
           "field": "writes",
@@ -3910,157 +3005,6 @@
       ]
     },
     {
-      "name": "repro",
-      "helpTopic": "corvint help repro",
-      "purpose": "pinned reproduction bundles",
-      "maturity": "experimental",
-      "owningSpec": "RPB-V0",
-      "freezeContract": null,
-      "operations": [
-        "record",
-        "run"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {
-        "repro record": [
-          "--output"
-        ]
-      },
-      "flags": [
-        "--expect",
-        "--expect-exit",
-        "--expect-same-stdout",
-        "--expect-stderr-contains",
-        "--expect-stdout-contains",
-        "--expect-stdout-not-contains",
-        "--input",
-        "--json",
-        "--output",
-        "--path",
-        "--version"
-      ],
-      "schemaIds": [
-        "corvint-repro-run/0",
-        "corvint-repro/0"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        0,
-        2
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "record runs \"corvint --root PATH ARGUMENT ...\" in this process with empty stdin and writes one corvint-repro/0 JSON bundle to the new file FILE: the recording build's --version --json identity, the arguments, the repository pinned by HEAD commit and tree (the tracked tree must be clean), each --input file pinned by SHA-256, the exit code, the stdout digest and bounded stdout and stderr, and the expectations.",
-        "A replay runs the recorded command, so it writes whatever that command writes."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "graph",
-      "helpTopic": "corvint help graph",
-      "purpose": "pinned whole-tree import edges and uncertainty",
-      "maturity": "experimental",
-      "owningSpec": "NGI-V0",
-      "freezeContract": null,
-      "operations": [
-        "imports"
-      ],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--format",
-        "--kinds",
-        "--revision"
-      ],
-      "schemaIds": [
-        "graph-imports/1"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Read-only: a historical commit works with a dirty worktree and does not move HEAD."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "mcp",
-      "helpTopic": "corvint help mcp",
-      "purpose": "local read-only stdio MCP server",
-      "maturity": "experimental",
-      "owningSpec": "AHI",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--corpus-artifact",
-        "--follow-ref",
-        "--protocol-version",
-        "--tool-profile",
-        "--workspace"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [
-        2
-      ],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "Serve the local read-only stdio MCP server (AHI-373, experimental)."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "how",
       "helpTopic": "corvint help how",
       "purpose": "how do I GOAL: alias of flows appmap how",
@@ -4243,21 +3187,15 @@
     "commands": [
       "init",
       "adopt",
-      "query",
       "feature",
       "impact",
-      "eval",
       "lrf",
       "record",
       "migrate-traces",
-      "harness",
       "cem",
       "ocm",
       "work",
       "context",
-      "adapter",
-      "dogfood",
-      "dogfood-ocm",
       "frontier",
       "observations",
       "affected",
@@ -4265,16 +3203,9 @@
       "prove",
       "prove-observe",
       "index",
-      "batch",
       "docs",
-      "depsource",
-      "necessity",
-      "surprise",
-      "answerability",
-      "kernel",
       "lease",
       "reads",
-      "calibrate",
       "witness",
       "test-evidence",
       "test-validity",
@@ -4284,17 +3215,11 @@
       "review",
       "migration-ratchet",
       "flows",
-      "skill-export",
-      "breakage",
       "step",
       "delta",
-      "changes",
       "runs",
       "test",
       "tests",
-      "repro",
-      "graph",
-      "mcp",
       "how"
     ],
     "default": "off",
@@ -4311,26 +3236,16 @@
       }
     ],
     "not_honoured": {
-      "entries": [
-        "dogfood-outcome-worker",
-        "dogfood-verifier-worker",
-        "index-refresh-worker (CORVINT_INTERNAL_INDEX_REFRESH)"
-      ],
+      "entries": [],
       "reason": "internal child workers whose startup verification precedes every goroutine"
     },
     "pid_placeholder": "{pid}",
-    "plumbing": [
-      "native-hook",
-      "authority-event",
-      "qualified-event"
-    ],
+    "plumbing": [],
     "schema": "corvint-profile-knobs/0",
     "scope": "every command dispatched by the corvint binary, and every listed MCP server, one profile per process",
     "servers": [
       "corvint-corpus-mcp",
-      "corvint-docs-mcp",
-      "corvint-mcp",
-      "corvint-test-validity-mcp"
+      "corvint-docs-mcp"
     ],
     "written": "on process exit, and on SIGINT or SIGTERM"
   },
@@ -4446,11 +3361,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-corpus-http.json"
     },
     {
-      "binary": "corvint-corpus-mcp",
-      "command": "corvint-corpus-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-corpus-mcp.json"
-    },
-    {
       "binary": "corvint-corpus-parity",
       "command": "corvint-corpus-parity help --json",
       "snapshot": "internal/capcatalog/trees/corvint-corpus-parity.json"
@@ -4464,11 +3374,6 @@
       "binary": "corvint-dashboard-snapshot",
       "command": "corvint-dashboard-snapshot help --json",
       "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
-    },
-    {
-      "binary": "corvint-docs-mcp",
-      "command": "corvint-docs-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-docs-mcp.json"
     },
     {
       "binary": "corvint-gateway",
@@ -4494,16 +3399,6 @@
       "binary": "corvint-js-test-provider",
       "command": "corvint-js-test-provider help --json",
       "snapshot": "internal/capcatalog/trees/corvint-js-test-provider.json"
-    },
-    {
-      "binary": "corvint-lsp",
-      "command": "corvint-lsp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-lsp.json"
-    },
-    {
-      "binary": "corvint-mcp",
-      "command": "corvint-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-mcp.json"
     },
     {
       "binary": "corvint-postmerge-connect",
@@ -4566,11 +3461,6 @@
       "snapshot": "internal/capcatalog/trees/corvint-test-runner.json"
     },
     {
-      "binary": "corvint-test-validity-mcp",
-      "command": "corvint-test-validity-mcp help --json",
-      "snapshot": "internal/capcatalog/trees/corvint-test-validity-mcp.json"
-    },
-    {
       "binary": "corvint-update",
       "command": "corvint-update help --json",
       "snapshot": "internal/capcatalog/trees/corvint-update.json"
@@ -4589,263 +3479,6 @@
       "binary": "corvint",
       "command": "corvint help --tree",
       "snapshot": "internal/capcatalog/trees/corvint.json"
-    }
-  ],
-  "mcpTools": [
-    {
-      "name": "corvint.cem.report",
-      "availability": "corvint-mcp task-review, task-review-lsp",
-      "summary": "Read a CEM report"
-    },
-    {
-      "name": "corvint.consolidate_tests",
-      "availability": "corvint-corpus-mcp with --consolidation",
-      "summary": "Test consolidation plan"
-    },
-    {
-      "name": "corvint.context",
-      "availability": "corvint-mcp task-review, task-review-lsp",
-      "summary": "Same packet as corvint context"
-    },
-    {
-      "name": "corvint.docs_claims",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Claims about a path, claims ranked by text, or supplied status claims by state, qualifier and run; each claim carries a claim_kind, filterable by kind / exclude_kind, and run records rank below behavioural claims ([DCS-V1-591..593](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_concept",
-      "availability": "corvint-corpus-mcp",
-      "summary": "One concept's record"
-    },
-    {
-      "name": "corvint.docs_consume",
-      "availability": "corvint-docs-mcp",
-      "summary": "Recheck a draft's exact bytes against source"
-    },
-    {
-      "name": "corvint.docs_coverage",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Coverage counts per outcome"
-    },
-    {
-      "name": "corvint.docs_dependencies",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Dependencies of a subject"
-    },
-    {
-      "name": "corvint.docs_draft",
-      "availability": "corvint-docs-mcp",
-      "summary": "Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; dry_run previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019)"
-    },
-    {
-      "name": "corvint.docs_find_related",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Related subjects"
-    },
-    {
-      "name": "corvint.docs_flow",
-      "availability": "corvint-corpus-mcp",
-      "summary": "One documented flow"
-    },
-    {
-      "name": "corvint.docs_gaps",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Producer gap claims"
-    },
-    {
-      "name": "corvint.docs_get",
-      "availability": "corvint-corpus-mcp",
-      "summary": "One subject and its links, by ID or legacy case ID"
-    },
-    {
-      "name": "corvint.docs_get_journey",
-      "availability": "corvint-corpus-mcp",
-      "summary": "One user journey"
-    },
-    {
-      "name": "corvint.docs_get_stability",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Stability records"
-    },
-    {
-      "name": "corvint.docs_info",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Corpus header, revision and capabilities"
-    },
-    {
-      "name": "corvint.docs_intent",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Intent records of one subject, or every intent comparison"
-    },
-    {
-      "name": "corvint.docs_inventory",
-      "availability": "corvint-corpus-mcp (/2 artifacts)",
-      "summary": "Page through the corpus inventory"
-    },
-    {
-      "name": "corvint.docs_locate",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Where a path is documented, including the subjects documenting it through one documents hop, or module and symbol subjects ranked by a query, with line anchors ([DCS-V1-594](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_navigation",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Navigation structure of one flow id, or of the flows a query selects by name or linked test ([DCS-V1-596..597](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_recommend_tests",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Tests the corpus links to a subject, plus the subjects documenting the path and their test links ([DCS-V1-595](specs/documentation-corpus-search-ranking-v1.md))"
-    },
-    {
-      "name": "corvint.docs_search",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Search the corpus; compact receipt by default, receipt: \"full\" for the full one"
-    },
-    {
-      "name": "corvint.docs_search_cases",
-      "availability": "corvint-corpus-mcp with --legacy-cases",
-      "summary": "Search imported legacy test cases"
-    },
-    {
-      "name": "corvint.docs_trace",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Walk relations to a depth"
-    },
-    {
-      "name": "corvint.docs_validate",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Validate the corpus artifact"
-    },
-    {
-      "name": "corvint.docs_vocabulary",
-      "availability": "corvint-corpus-mcp",
-      "summary": "Corpus vocabulary"
-    },
-    {
-      "name": "corvint.flows.coverage",
-      "availability": "corvint-mcp flows",
-      "summary": "Flow variation coverage"
-    },
-    {
-      "name": "corvint.flows.gaps",
-      "availability": "corvint-mcp flows",
-      "summary": "Flow gaps"
-    },
-    {
-      "name": "corvint.flows.impact",
-      "availability": "corvint-mcp flows",
-      "summary": "Flows a change reaches"
-    },
-    {
-      "name": "corvint.flows.map",
-      "availability": "corvint-mcp flows",
-      "summary": "Application flow map"
-    },
-    {
-      "name": "corvint.flows.navigate",
-      "availability": "corvint-mcp flows",
-      "summary": "Navigation within the flow map"
-    },
-    {
-      "name": "corvint.graph.imports",
-      "availability": "corvint-mcp --tool-profile import-graph",
-      "summary": "Pinned whole-tree import JSONL pages; required full revision, optional kinds and offset; concatenate jsonl following nextOffset until done"
-    },
-    {
-      "name": "corvint.help",
-      "availability": "corvint-mcp (all profiles), corvint-docs-mcp, corvint-corpus-mcp, corvint-test-validity-mcp",
-      "summary": "Same bytes as corvint help guide (default), corvint help --json COMMAND (command) or corvint help --json (topic catalog)"
-    },
-    {
-      "name": "corvint.impact",
-      "availability": "corvint-mcp (all profiles)",
-      "summary": "Same receipt as corvint impact, path requests for Go, Ruby, JS and TS"
-    },
-    {
-      "name": "corvint.map_knowledge",
-      "availability": "corvint-corpus-mcp with --map",
-      "summary": "Site knowledge (page objects, steps, setup, static links, candidate flows) mined from committed E2E sources"
-    },
-    {
-      "name": "corvint.map_plan",
-      "availability": "corvint-corpus-mcp with --map",
-      "summary": "Scenario plan over an application map"
-    },
-    {
-      "name": "corvint.query",
-      "availability": "corvint-mcp (all profiles)",
-      "summary": "Same receipt as corvint query"
-    },
-    {
-      "name": "corvint.status",
-      "availability": "corvint-mcp (all profiles)",
-      "summary": "Repository status receipt"
-    },
-    {
-      "name": "corvint.tasks.queue_status",
-      "availability": "corvint-mcp --tool-profile tasks",
-      "summary": "Same envelope as corvint-tasks queue status"
-    },
-    {
-      "name": "corvint.tasks.receipt_audit",
-      "availability": "corvint-mcp --tool-profile tasks",
-      "summary": "Same envelope as corvint-tasks receipt audit"
-    },
-    {
-      "name": "corvint.tasks.roadmap",
-      "availability": "corvint-mcp --tool-profile tasks",
-      "summary": "One offset/limit page of corvint-tasks roadmap"
-    },
-    {
-      "name": "corvint.tasks.ticket_search",
-      "availability": "corvint-mcp --tool-profile tasks",
-      "summary": "One page of corvint-tasks ticket search by status, kind, priority, owner, milestone, label or text"
-    },
-    {
-      "name": "corvint.tasks.ticket_show",
-      "availability": "corvint-mcp --tool-profile tasks",
-      "summary": "Same envelope as corvint-tasks ticket show ID"
-    },
-    {
-      "name": "corvint.test_evidence",
-      "availability": "corvint-mcp --tool-profile test-evidence",
-      "summary": "Same read-only path, range, test and explanation projection as corvint test-evidence"
-    },
-    {
-      "name": "corvint.test_validity",
-      "availability": "corvint-test-validity-mcp",
-      "summary": "Five-axis projection of retained test evidence"
-    },
-    {
-      "name": "tasks_work_start",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
-      "summary": "Validate lane work and return ticket commit trailers; writes nothing"
-    },
-    {
-      "name": "tasks_work_deliver",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
-      "summary": "Validate lane delivery and return delivered commit trailers; writes nothing"
-    },
-    {
-      "name": "tasks_work_block",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
-      "summary": "Validate a lane block and return blocked commit trailers; writes nothing"
-    },
-    {
-      "name": "tasks_work_finding",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role AGENT (default), OPERATOR or OWNER",
-      "summary": "File or deduplicate findings and record recurrences"
-    },
-    {
-      "name": "tasks_work_close_merged",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only",
-      "summary": "Complete integrated ticket deliveries and record blocks on the store host"
-    },
-    {
-      "name": "tasks_work_release_sync",
-      "availability": "corvint-mcp --tool-profile tasks-work; --tasks-role OPERATOR or OWNER only",
-      "summary": "Synchronize a release's open milestone ticket membership on the store host"
     }
   ]
 }
