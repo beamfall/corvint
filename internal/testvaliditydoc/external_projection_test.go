@@ -10,10 +10,11 @@ import (
 )
 
 // recordedExternal reads the qualified corvint-playwright-external/3 document of one recorded
-// CCE side (CCE-V0-101): a complete external run whose tests all executed.
+// side: a complete external run whose tests all executed. The sides were recorded for CCE-V0-101
+// and moved here when the E2E proof lab left (decision 0593).
 func recordedExternal(t *testing.T, name string) []byte {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "changee2e", "testdata", "recorded", name+".json"))
+	raw, err := os.ReadFile(filepath.Join("testdata", "recorded", name+".json"))
 	if err != nil {
 		t.Fatal(err)
 	}

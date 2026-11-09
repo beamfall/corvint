@@ -58,7 +58,7 @@ func TestTCLV07703CompleteBoundedInstall(t *testing.T) {
 		}
 	}
 	// Validate all inputs before replacing an installed file.
-	if err := os.Remove(filepath.Join(source, "corvint-test")); err != nil {
+	if err := os.Remove(filepath.Join(source, "corvint-test-runner")); err != nil {
 		t.Fatal(err)
 	}
 	c := exec.Command("bash", "../../script/install-local-bin.sh", "--all", source, dest)

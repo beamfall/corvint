@@ -2,17 +2,21 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-015..018, BBF-V0-019..028, BBF-V0-029..033 and BBF-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027, V1-2029)
-- Delivery status: experimental
+- Intent status: retired 2026-11-09 (decision 0593)
+- Delivery status: retired
+- Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted
+  `cmd/corvint-behavior-falsify` and `internal/behaviorfalsify` with the E2E proof lab (b1a117eb is
+  the last tree with them). The body below is historical and its requirement IDs stay for
+  traceability.
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
 `docs/specs/js-live-test-provider-v0.md`.
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-015..018, BBF-V0-019..028, BBF-V0-029..033 and BBF-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027, V1-2029)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
-- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018); an opt-in declared shared-server isolation profile resets and checks a caller-declared loopback server identity around every control (BBF-V0-019..023), and an opt-in runner-neutral profile reruns selected Go test examples under a pinned caller perturbation hook (BBF-V0-024..028), with an RSpec binding whose negative controls ran live through a docker-prefixed RSpec (BBF-V0-029..033).
-- Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
+- Status: retired 2026-11-09 (decision 0593) / retired
+- Exists: nothing; `cmd/corvint-behavior-falsify` and `internal/behaviorfalsify` were deleted (read them at b1a117eb).
+- Blocked on: nothing; retired by decision 0593.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
 ## Affected user and measurable job
@@ -484,24 +488,8 @@ default commands remain unchanged.
 
 ## Traceability
 
-| Requirements | Implementation boundary | Evidence |
-| --- | --- | --- |
-| BBF-V0-001..003 | `internal/behaviorfalsify` planner/types; `cmd/corvint-behavior-falsify` | plan/decode/vocabulary tests |
-| BBF-V0-004, BBF-V0-010 | live hook boundary and `internal/procgroup` integration | disposable-root, staging, cleanup and interruption tests |
-| BBF-V0-005..009 | receipt validator, classifier and aggregate | synthetic falsifier matrix and adversarial receipt tests |
-| BBF-V0-014 | acceptance-safe TMPDIR transport | `TestBBFV0014TempRootTransport`, `TestBBFV0014TempRootInterruptedStaging` |
-| BBF-V0-013 | `internal/behaviorfalsify/receipt.go`; companion `execute-receipt` and `verify-receipt` | offline, tampering, missing evidence, secret and bound tests |
-| BBF-V0-011..012 | conformance fixtures and report limitations | end-to-end synthetic command tests and independent review |
-| BBF-V0-015..016 | `internal/behaviorfalsify` classifier, receipt verifier; `internal/testacceptance` consumer | `TestBBFV0015ApplicationClassification`, `TestBBFV0015PlanMarkerValidation`, `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength` |
-| BBF-V0-017 | `internal/behaviorfalsify/history.go` | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
-| BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
-| BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
-| BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
-| BBF-V0-820 | `internal/behaviorfalsify/goroot_stage.go` (`stageGOROOT`), `profiles.go` (`runProvider`, `runRSpecProvider`) | `TestBBFV0820ToolsRunFromVerifiedCopies` |
-| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit superseded by BBF-V0-820 |
-| BBF-V0-215 | `internal/behaviorfalsify/plan.go` (`repositoryRelative`) | `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost`; native Windows rerun NEEDS-HOST |
-| BBF-V0-217..219 | `internal/behaviorfalsify/authentication.go` (`validateAuthentication`, `AuthenticationMaterial`), `execute.go` (`execute`), `receipt.go` (`ExecuteReceipt`, `VerifyReceipt`) | `TestBBFV0217AuthenticationPlanIsBounded`, `TestBBFV0218AuthenticationDriftAndMaterial`, `TestBBFV0218AuthenticationReceiptBinding`, `TestBBFV0219LegacyWireUnchanged` |
-| BBF-V0-216 | `internal/behaviorfalsify/profiles.go` (`isolationIdentity`, `hookReportedIsolation`, `declaredServer`), `execute.go` (`Execute`), `receipt.go` (`recountReport`) | `TestBBFV0216HookReportedIdentityCapsVerdict` |
+Retired by decision 0593: this table cited tests deleted with the E2E proof lab. Read it
+at the last tree that held them: `git show b1a117eb:docs/specs/browser-behavior-falsification-v0.md`.
 
 ## Unresolved decisions and promotion criteria
 

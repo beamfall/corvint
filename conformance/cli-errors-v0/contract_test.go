@@ -42,10 +42,7 @@ var nativeAnalyzers = map[string]string{
 }
 
 var nativeShims = map[string]string{
-	"corvint-test-runner":         "runner",
-	"corvint-behavior-falsify":    "falsify",
-	"corvint-playwright-minimize": "minimize",
-	"corvint-tests-accept":        "accept",
+	"corvint-test-runner": "runner",
 }
 
 // TestCAPV07700ShippedHelp launches every retained generated-help command node
@@ -205,9 +202,6 @@ commands:
 
 Run "corvint-test-runner <command> --help" for its flags.
 `, ""},
-		"corvint-behavior-falsify":    {1, "", "explicit --experimental required; positional arguments forbidden\n"},
-		"corvint-playwright-minimize": {1, "", "explicit --experimental required; positional arguments forbidden\n"},
-		"corvint-tests-accept":        {2, "", "usage: corvint-tests-accept plan|accept --plan FILE [--approve-plan DIGEST --new PATH... --repeat N --environment LABEL]\n"},
 	}
 	for name, row := range rows {
 		for _, flag := range []string{"--help", "-h"} {

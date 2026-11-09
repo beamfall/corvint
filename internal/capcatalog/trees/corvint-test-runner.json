@@ -12,23 +12,19 @@
   ],
   "internalEntryPoints": [
     {
-      "word": "worker",
-      "reason": "accept worker the accept group re-enters this executable as (CTF-V0-006)"
-    },
-    {
       "word": "-help",
-      "reason": "single-dash help spelling the runner group accepts"
+      "reason": "single-dash help spelling corvint-test-runner accepts"
     },
     {
       "word": "--gradle-user-home",
-      "reason": "argument of the pinned Gradle invocation the runner group compares, not a corvint-test option"
+      "reason": "argument of the pinned Gradle invocation corvint-test-runner compares, not a corvint-test-runner option"
     }
   ],
   "nodes": [
     {
       "path": [],
       "command": "corvint-test-runner",
-      "summary": "Folded corvint-test-runner: plan and run pinned test runners (CTF-V0, TRE-V0)",
+      "summary": "Plan and run pinned test runners (TRE-V0)",
       "usage": [
         "corvint-test-runner plan --executable PATH --executable-sha256 SHA256 --request FILE [--tools FILE] [--out FILE] [--experimental] [--trusted-local]",
         "corvint-test-runner profiles",

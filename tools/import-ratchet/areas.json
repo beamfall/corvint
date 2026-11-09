@@ -180,13 +180,10 @@
       "summary": "test selection, test evidence, coverage and validity",
       "prefixes": [
         "internal/appflows/e2erunner",
-        "internal/behaviorfalsify",
         "internal/breakagemap",
         "internal/browsercov",
-        "internal/changee2e",
         "internal/changewitness",
         "internal/csharpregions",
-        "internal/extmutate",
         "internal/flowcoverage",
         "internal/gateselect",
         "internal/gotestrun",
@@ -196,7 +193,6 @@
         "internal/linecov",
         "internal/liveverify",
         "internal/nativelinecov",
-        "internal/playwrightminimize",
         "internal/playwrightruns",
         "internal/proctrace",
         "internal/repro",
@@ -211,7 +207,6 @@
         "internal/stepnegation",
         "internal/stepverify",
         "internal/tcq",
-        "internal/testacceptance",
         "internal/testevidence",
         "internal/testevidencedoc",
         "internal/testplan",
@@ -238,8 +233,7 @@
         "internal/extevidence",
         "internal/gateagreement",
         "internal/receiptbundle",
-        "internal/revieworder",
-        "internal/skhproof"
+        "internal/revieworder"
       ]
     },
     {
