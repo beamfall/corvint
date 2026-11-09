@@ -522,7 +522,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
-	graph.commentSourceReadersOf(reached, normalized)
+	graph.commentSourceReadersOf(reached, normalized, followed)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)

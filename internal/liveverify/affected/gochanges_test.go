@@ -172,3 +172,29 @@ func TestCommentOnlyCoverageGap_AFP_V0_3325(t *testing.T) {
 		t.Errorf("code edit beside a comment-only file lost its coverage gap: %v", got)
 	}
 }
+
+// AFP-V0-3322: a test-less package whose go list may observe source comments
+// is checked only by its callers' tests, so a comment-only edit still selects
+// its importers and the runners of a binary built from it.
+func TestCommentOnlyTestlessSourceReaderCallers_AFP_V0_3322(t *testing.T) {
+	graph, err := Build(context.Background(), t.TempDir(), fake{name: "go", units: []Unit{
+		{ID: "go:m/lib", Sources: []string{"lib/a.go"}, Tests: []string{"lib/lib_test.go"}},
+		{ID: "go:m/docs", Sources: []string{"docs/docs.go"}, ImportGraphReadsAll: true, ImportGraphReadsFiles: true},
+		{ID: "go:m/user", Sources: []string{"user/user.go"}, Tests: []string{"user/user_test.go"}, Imports: []string{"go:m/docs"}},
+		{ID: "go:m/tool", Sources: []string{"tool/main.go"}, Imports: []string{"go:m/docs"}},
+		{ID: "go:m/runner", Tests: []string{"runner/runner_test.go"}, Execs: []string{"go:m/tool"}, TestOnlyExecs: []string{"go:m/tool"}},
+		{ID: "go:m/other", Sources: []string{"other/other.go"}, Tests: []string{"other/other_test.go"}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := witnesses(Select(graph.WithGoChanges([]GoChange{{Path: "lib/a.go", Kind: GoCommentOnly}}), []string{"lib/a.go"}))
+	for _, id := range []string{"go:m/user", "go:m/runner"} {
+		if witness, selected := got[id]; !selected || witness.DirtyPath != "lib/a.go" {
+			t.Errorf("%s: selected=%v witness=%+v", id, selected, witness)
+		}
+	}
+	if _, selected := got["go:m/other"]; selected {
+		t.Errorf("unrelated package selected: %+v", got)
+	}
+}

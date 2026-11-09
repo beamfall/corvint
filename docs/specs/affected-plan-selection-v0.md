@@ -2456,6 +2456,8 @@ adequacy, remove unknowns, or narrow any independent byte-read witness.
   Unproven `go list` observers marked `ImportGraphReadsFiles` may read package documentation:
   keep them through an explicit `UNBOUNDED_READER` source-comment cause rather than an
   `IMPORT_GRAPH_READER` edge, preserving AFP-V0-9010's byte-reader safety.
+  Such an observer without tests is checked only through its callers, so its importers and
+  the runners of a binary built from it are carried as a testless literal reader's are.
   A `_test.go` file is not classified when its package
   or tests may inspect comments: importing `go/doc`, or `go/ast` together with an
   identifier use of `parser.ParseComments` (including aliases and dot imports) suffices
