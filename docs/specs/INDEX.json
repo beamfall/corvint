@@ -26,8 +26,8 @@
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
     "title": "Frontier decision brief — 2026-08-29",
     "reqPrefix": "",
-    "intent": "not-applicable (reading aid; decides nothing)",
-    "delivery": "not-applicable",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "This non-authoritative brief deduplicates seven owner-only Frontier decisions without ratifying any clause.",
     "dependsOn": [],
     "supersededBy": null,
@@ -61,8 +61,8 @@
     "path": "docs/specs/agent-harness-integration-v0.md",
     "title": "Agent Harness Integration V0",
     "reqPrefix": "AHI",
-    "intent": "accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.8, decisions 0550, 0556, 0558 and 0583); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-174..AHI-179 accepted under the owner's standing auto-accept (2026-10-11) (V1-2346, V1-0453); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440); AHI-372 accepted under the owner's standing auto-accept (2026-10-11) (V1-3086); AHI-522 experimental under the standing lane auto-accept (2026-10-30) (V1-3170); AHI-373 accepted under the owner's standing auto-accept (2026-10-11) (V1-3244); AHI-920 experimental under the standing lane auto-accept (2026-10-31) (V1-3311); AHI-921 experimental under the standing lane auto-accept (2026-10-31) (V1-2735)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.",
     "dependsOn": [
       "docs/specs/cem-0.2-canonical-binding.md"
@@ -544,8 +544,8 @@
     "path": "docs/specs/compaction-kernel-v0.md",
     "title": "Compaction Kernel V0",
     "reqPrefix": "CKN-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "A bounded, pinned kernel block makes \"governing requirements survived compaction\" a checkable property rather than a hope.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
@@ -560,8 +560,8 @@
     "path": "docs/specs/compat-replay-runner-v0.md",
     "title": "Compatibility Replay Runner V0",
     "reqPrefix": "CRR-V0",
-    "intent": "accepted (decision 0052)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Specifies `tools/compat-trial`'s descriptor validation, containment, comparison and status envelope AT-10's runner implements under frozen CTR-V0-001-003/010.",
     "dependsOn": [
       "docs/specs/compat-trial-v0.md"
@@ -576,8 +576,8 @@
     "path": "docs/specs/compat-trial-v0.md",
     "title": "Compatibility Trial V0",
     "reqPrefix": "CTR-V0",
-    "intent": "accepted for CTR-V0-001..010 (decision 0052); CTR-V0-011/012 proposed",
-    "delivery": "not-started",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Freezes the compatibility replay experiment's descriptor, comparison policy, resource profile, labels, baseline and preregistered rules before a runner exists.",
     "dependsOn": [],
     "supersededBy": null,
@@ -1082,8 +1082,8 @@
     "path": "docs/specs/dependency-source-evidence-v0.md",
     "title": "Dependency Source Evidence V0",
     "reqPrefix": "DSE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "`corvint depsource` cites third-party Go module source with the same pinning discipline as repository code, or abstains.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
@@ -1119,7 +1119,7 @@
     "title": "Diagnostic Repair Contract V0",
     "reqPrefix": "DRC-V0",
     "intent": "accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12)",
-    "delivery": "implemented: envelope, fix registry, screen/bound, the seven-site working-tree impact conversion with its additive CLI envelope, thirty further refusal sites across twenty codes, repair-stop and the coverage ratchet at thirty-seven sites",
+    "delivery": "implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites",
     "claim": "A repairable Corvint refusal names its subject, its measured evidence, and a closed list of permitted repairs instead of free prose.",
     "dependsOn": [
       "docs/specs/self-observation-ledger-v0.md"
@@ -1324,8 +1324,8 @@
     "path": "docs/specs/experimental-source-views-v0.md",
     "title": "Experimental caller-selected source views V0",
     "reqPrefix": "ESV-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.",
     "dependsOn": [],
     "supersededBy": null,
@@ -1542,8 +1542,8 @@
     "path": "docs/specs/falsifiable-packet-v0.md",
     "title": "Falsifiable Packet V0",
     "reqPrefix": "FPK-V0",
-    "intent": "accepted (decision 0052)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "`corvint prove` embeds the unchanged query packet and attaches a mechanical falsifier and PASS/FAIL/NOT_RUN verdict beside every evidence row.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md"
@@ -1997,8 +1997,8 @@
     "path": "docs/specs/local-trace-producer-migration-v0.md",
     "title": "Local Trace Producer and Legacy Migration V0",
     "reqPrefix": "LTPM-V0",
-    "intent": "accepted",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-09 (decision 0594)",
+    "delivery": "retired",
     "claim": "Commit-bound production and digest-bound migration preserve trace identity without automatic legacy mutation; LTPM-V0-011 is implemented experimentally.",
     "dependsOn": [
       "docs/specs/local-observability-dashboard-v0.md"

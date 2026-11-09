@@ -273,6 +273,8 @@
         "corvint [--root PATH] docs corpus trace --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus validate --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
@@ -335,7 +337,9 @@
         "--qualifier",
         "--query",
         "--receipt",
+        "--receipt-input",
         "--repo",
+        "--report",
         "--repository",
         "--request",
         "--retirement",
@@ -1644,6 +1648,35 @@
       ],
       "example": "corvint docs corpus vocabulary --artifact CORPUS.json --query TEXT",
       "help": "corvint docs corpus vocabulary --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "witness-playwright"
+      ],
+      "command": "corvint docs corpus witness-playwright",
+      "summary": "Experimental documentation corpus: import qualified Playwright witnesses from a committed receipt and report",
+      "usage": [
+        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+        "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--receipt-input",
+        "--repo",
+        "--report",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--input REQUEST.json",
+        "--receipt-input ID",
+        "--report REPORT.json"
+      ],
+      "example": "corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+      "help": "corvint docs corpus witness-playwright --help"
     },
     {
       "path": [

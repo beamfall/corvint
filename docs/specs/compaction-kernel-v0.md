@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Frozen: 2026-09-11
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/compactionkernel` and its `kernel` command (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md`, `ROADMAP.md`,
 `docs/specs/local-completion-protocol-v0.md`, `docs/specs/task-context-packet-v0.md`,
 `docs/PRODUCT.md`, `docs/DOGFOOD.md`, `LICENSE`, and `LICENSING.md`

@@ -292,7 +292,8 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 - `DCG-V0-800`: (experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)
   A citation in a `docs/decisions/*.md` record whose index copy equals its blob in the newest
   commit that added or modified it MUST be resolved against that commit's tree, not the Git
-  index: the record is written once and cites the code as it stood then. A decision this change
+  index, a file the index no longer tracks included (decision 0594): the record is written
+  once and cites the code as it stood then. A decision this change
   writes or edits, one no commit has written, a cited path absent from that tree, and a clone
   whose history lacks the commit keep index resolution. Design: on 2026-10-31 an output-neutral
   edit of `internal/contextindex/git.go` failed two decision 0158 citations that `--repin` cannot

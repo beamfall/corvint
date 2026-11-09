@@ -5,8 +5,10 @@ is a reading aid for the eleven questions parked in the three frontier drafts, s
 answered in one sitting. It amends no clause, and where it says a clause already settles something it
 cites the clause rather than asserting it.
 
-Intent status: not-applicable (reading aid; decides nothing)
-Delivery status: not-applicable
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 deleted the frontier and witness surfaces this reading aid cites (756d3670 is the last tree with them). It remains a historical reading aid and decides nothing.
 
 Scope: the "Questions only the repository owner can answer" sections at
 `docs/specs/change-frontier-profile-1.md:315`, `docs/specs/change-witness-relation-v0.md:252`, and
@@ -100,7 +102,7 @@ internal to the drafts rather than to the code:
   is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:196-198@2e10e9b5`) — a definition
   line, no end line — and no exported build entry point accepts a revision (`Build(ctx, root)`,
   `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:321,347,445@f678a4bd`;
-  the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:494@33f5b343`). So
+  the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:501@33f5b343`). So
   "reuse the index" would not shorten the work much even if permitted.
 
 **Options.**

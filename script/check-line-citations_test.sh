@@ -967,6 +967,19 @@ stage internal/demo/demo.go
 anchor=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:5)
 cite "$anchor"
 output=$(run) || fail "a committed decision citation needed a repin after its lines moved: $output"
+# A file the record cited and a later change deleted still resolves in the record's commit.
+printf '%s\n' 'package demo' '' 'func Dropped() int { return 9 }' > "$test_root/internal/demo/dropped.go"
+stage internal/demo/dropped.go
+dropped=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/dropped.go:3)
+# shellcheck disable=SC2016
+printf '# Decision 0002\n\nThe record cites `%s`.\n' "$dropped" > "$test_root/docs/decisions/0002-fixture.md"
+stage docs/decisions/0002-fixture.md
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm 'decision citing a file'
+git -C "$test_root" rm -q --cached internal/demo/dropped.go
+rm "$test_root/internal/demo/dropped.go"
+output=$(run) || fail "a committed decision citation of a deleted file failed: $output"
+git -C "$test_root" rm -q --cached docs/decisions/0002-fixture.md
+rm "$test_root/docs/decisions/0002-fixture.md"
 printf 'Edited in this change.\n' >> "$test_root/docs/decisions/0001-fixture.md"
 stage docs/decisions/0001-fixture.md
 rc=0

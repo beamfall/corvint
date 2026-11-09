@@ -161,14 +161,14 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   wire shape, and add no member beyond the `coverage.suppressed_results` (b) requires — (b)'s one
   appended `uncertainty` line is a new element of an existing member, not a new member. `query`
   (`compileReceipt`, `internal/contextindex/query.go:93` authority-start,
-  `internal/contextindex/eval_query.go:323@568d1f5a` repository) carries
+  repository build in `internal/contextindex/eval_query.go`) carries
   `freshness.state` (`receipt.go:65-66`),
   `coverage.{budget_bytes,packet_bytes,within_budget,uncertainty}` (`:490-494`) and `"kind:id"`
   critical selectors over `(kind, id)` (`selector`, `:890`). `impact` (`impact.go:70,233`) carries
   those members with `budget_bytes` JSON `null`, not `0` (`var budgetValue any` unset,
   `receipt.go:486-488`), `within_budget` structurally `true` (`receipt.go:494,503`), and every
   `kind: "path"` result critical (`receipt.go:514-521`), again strings. `context`
-  (`cmd/corvint/batch.go:291-292`; packet
+  (the removed `batch` command; packet
   `taskcontext.go:1445-1457`)
   carries none of `freshness`, `packet_bytes`, `within_budget` or `uncertainty`, and keys critical
   selectors as `{"relation", "path"}` objects (`taskcontext.go:1332`). (b) All coverage counts
@@ -241,7 +241,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   under `delta.ignored`. (e) The verb stays stateless: no possession state crosses requests. (f) The
   batch-level `delta` (`SBQ-V0-004`) carries exactly one `delta.binding`, and determinism and
   replay hold over that binding, a quintuple, not over request bytes: a repository query reads a
-  ledger outside the snapshot (`tracerecordrepo.Read`, `cmd/corvint/harness_context.go:63`) and
+  ledger outside the snapshot (`tracerecordrepo.Read`, in the removed `harness_context.go`) and
   the loader reattaches live dirty state. `delta.binding` MUST carry `tree`, `commit`, `engine`
   (the id `loadSnapshot` computes to name the snapshot file it opens, `snapshot.go:256,281`, a
   digest of the running binary taken with no child process, `snapshot.go:93-105`; two binaries that

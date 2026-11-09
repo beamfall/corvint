@@ -26,11 +26,9 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:522-523@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
-  correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
-  report whose obligations are all unproven (worked example below).
+  (`cmd/corvint/help.go:522-523@d5d6e05c`).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
-  (`cmd/corvint/help.go:418@f1b66bd9`). Fetching the commits a step needs is the runner's job.
+  (`cmd/corvint/help.go:291@306e7664`). Fetching the commits a step needs is the runner's job.
 
 ## Mutation classes (AGENTS.md invariant 4)
 
@@ -49,13 +47,7 @@ The self-observation append happens only when that ledger path is gitignored by 
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
-storage failure never alters the response (`cmd/corvint/help.go:424-425@3c9a8d56`).
-
-The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
-while the operator marker `.corvint/unplanned-reads.enabled` exists
-(`cmd/corvint/host_adapter.go:379@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
-marker only by `corvint reads` (`cmd/corvint/reads.go:92-96@19937f8b`). None of the commands below writes
-either file.
+storage failure never alters the response (`cmd/corvint/help.go:294-296@96bde7a3`).
 
 ## Commands safe as a triggered step
 
@@ -66,18 +58,13 @@ prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
-read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:420-421@a54374e4`, and the
-experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:372-411@b6dd056d`) are not classified here. They need a per-session task, packet or
+read-only (`init`, `adopt` and `docs`) are not classified here. They need a per-session task or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 
 | Step | Class | Exit codes | Output profile (stdout) | Required inputs | 1.0 label |
 |---|---|---|---|---|---|
 | `corvint affected --base BASE` | `R0` | 0 plan written; 2 refusal or error | `affected-plan/0`, one canonical JSON line, `"mutates": false` | full `BASE`; a checkout whose `HEAD` is the change head | Core |
-| `corvint cem verify --map MAP --expected-base BASE --target TARGET --artifacts ROOT` | `R0+SOL` | 0 accepted; 1 rejected (`"ok": false`); 2 refusal or error | JSON with `"tool": "cem-verify"`, `"mutates": false` and the `stableVerification` result; the map must be `cem/1.0` (decision 0525 refuses `cem/0.x` with `unsupported-spec`) | CEM path, full `BASE` and `TARGET`, absolute artifact root | Core |
-| `corvint cem status` (same arguments, plus optional `--max-unknown N`, `--max-mechanical N` and the experimental `--max-deferred-intents N`) | `R0+SOL` | as `cem verify`; an exceeded ceiling or a deferral-record issue exits 1; `"state"` is `accepted`, `rejected` or `unsupported` | JSON with `"tool": "cem-status"`, `"mutates": false` | as `cem verify` | Core |
-| `corvint witness --base BASE [--cem MAP] [--evidence FILE]... [--evidence-in-repo PATH]... [--json] [--check]` | `R0+SOL` | 0 report written, whatever it says; with `--check`, 1 when admission is not `COMPUTED` or any obligation is not closed; 2 refusal or error | `corvint-witness/0` (text headed `WITNESS corvint-witness/0`, or JSON with `--json`) | any `BASE` revision Git resolves to a commit (the report carries the full object ID); optional CEM path; a `--head` other than the checked-out `HEAD` is read from the object store and bound `COMMIT-PINNED` (AGW-V0-007); each `--evidence` test-run document (a Playwright receipt or RSpec provider document) bound to the head tree adds non-closing `CALLER_REPORTED` witnesses and an unreadable one exits 2 (AGW-V0-008, AGW-V0-010); `--evidence-in-repo` names one by a checkout-relative path and refuses an absolute, `..` or link-escaping path with exit 2 (AGW-V0-011) | experimental |
 | `corvint impact --base BASE [--range-profile expanded-256]` | `R0+SOL` | 0 packet written; 2 refusal or error, including a range over capacity (`unsupported-impact-range`) | JSON with `"tool": "impact"`, `"mutates": false`; `context.profile` is `corvint-range-impact/0` | full `BASE`; the default range capacity is 100 paths, 256 with the explicit profile | Core |
 
 Where each row was verified:
@@ -85,22 +72,12 @@ Where each row was verified:
 - `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:860-926@3541f450`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:753-758@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:522@f024c3ab`).
-- `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says
-  `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
-  `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
-  (`cmd/corvint/main.go:1255@760ae507`, `cmd/corvint/main.go:1079-1094@7a65d7e8`).
-- `witness`: profile `internal/witness/witness.go:28@9d3c5f4c`; exits `cmd/corvint/witness.go:276-324@bc64bcb6`;
-  recorder `cmd/corvint/main.go:1217@acb85656`; help "does not mutate repository or trace state"
-  (`cmd/corvint/help.go:496-497@b8d79ae9`). It builds the index in memory when no snapshot exists
-  (`cmd/corvint/index_snapshot.go:106-111@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
-  `cmd/corvint/main.go:1259-1264@53443dcf` and `cmd/corvint/main.go:1295-1383@17c42df8`; envelope
+  as for `affected`; envelope
   `cmd/corvint/main.go:932@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
   the index in memory (`cmd/corvint/main.go:810@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
-- Every exit code in the table was also observed: 0 in the worked example, 1 from `cem verify`
-  with `--target` set to the base, 2 from `affected`, `witness` and `impact` given a short base and
-  from `cem verify` given a missing map.
+- Every exit code in the table was also observed: 0 in the worked example and 2 from `affected` and `impact` given a short base.
 
 ### Runtime and timeout
 
@@ -120,34 +97,6 @@ the process cancels only on `SIGINT` or `SIGTERM` (`cmd/corvint/main.go:1137@543
 (unknown). The automation host must set its own step timeout. No timeout has been qualified; 5
 minutes per step is a suggestion that leaves more than 20 times the loaded measurements as
 headroom, and it is a hang detector, not a budget.
-
-## Not read-only: excluded as triggered read-only steps
-
-| Command | Why it is excluded | Source |
-|---|---|---|
-| `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md` (or to `--output`: repository-relative, or absolute outside the repository), and returns `"mutates": true`. `--preview` (DCW-V0-345) and `--format json` write nothing and return `"mutates": false`. | `internal/cem/workflow/workflow.go:25@c21ea11c`, `internal/cem/workflow/stable_read.go:338-354@19c5c7be` |
-| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:91-111@b2559f0b`, `internal/dogfoodflow/check.go:396-406@ed02dc63`, `Makefile:54-57@6362815e` |
-| `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:47@f8f6aa02`, `script/dogfood-seal.sh:71-74@5c2ac3f4`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:425-427@bfe2edf4` and `corvint cem --help` |
-
-`corvint dogfood check`, and so `script/dogfood-check.sh`, exits 0 on `PASS`, 1 on `FAIL`, 2 on
-`REFUSE` or a Git error, and 129, 130 or 143 on `HUP`, `INT` or `TERM`
-(`cmd/corvint/signals_unix.go:18@1f4cca5e`); `make` reports any non-zero
-recipe exit as 2, which the worked example observed.
-
-**Fresh-clone limitation (V1-0182, by design).** The task-store title of ticket V1-0182 states it
-verbatim: "dogfood-check: in a fresh clone the check fails `dogfood-report-missing` before any
-verifier runs, so a reviewer cannot reproduce the override-verifier comparison". The worked example
-reproduces it: `internal/dogfoodflow/check.go:396-406@ed02dc63` exits 1 with `FAIL dogfood-report-missing` because
-`.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
-fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
-author's dogfood-check verifier comparison. That comparison is author-only evidence
-(`DCW-V0-017`, `docs/DOGFOOD.md` step 11); on a bind commit the failure now also prints a
-`review:` line naming the `cem verify` command a reviewer runs instead. The worked example below
-pins a commit that predates that line.
-
-The former pull-request wrapper `examples/cem/verify-pr.sh` and its `docs/CEM-CI.md` page read
-`cem/0.x` maps only; both were removed with `cem/0.x` by V1-1278 S3 (decision 0525) and remain in
-Git history.
 
 ## Worked example: a fresh clone at a fixed commit
 
@@ -287,87 +236,3 @@ on Linux amd64 against a locally packed archive of a source build at this lane's
 two-commit repository (both advisory steps exited 0), not yet from a sibling repository's hosted
 CI; `script/adopter-ci-advisory_test.sh` covers the refusals.
 
-## Session hooks: `frontier-authority-unavailable`
-
-For an adopter that does not produce Change Evidence Map (CEM) or Obligation Coverage Map (OCM)
-artifacts, this degradation is **expected and benign by itself**, not a fault or a
-misconfiguration. It means the hook cannot claim Frontier authority; it does not mean the query
-failed, tests failed, or the adopter must enable another component. Other errors and missing
-evidence must still be investigated separately.
-
-**Current behavior, verified 2026-10-10 (V1-1143; related V1-0869 and V1-0243):** every successful
-`harness event` receipt starts with this literal string in `degradations`, regardless of whether
-CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harness does not consult
-`internal/frontier`. Stop emits a fixed `UNAVAILABLE` frontier with `shouldContinue: false`
-(`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
-is complete. The code is also admitted by the observations ledger and host adapter vocabularies
-(`internal/observations/observations.go:50-57@493847da`,
-`cmd/corvint/host_adapter.go:830-839@c1243f78`). Repeated appearances are not evidence of repeated
-failures, and adding artifacts does not remove this message.
-
-### What the artifacts enable, and what remains unavailable
-
-A CEM binds a committed base-to-target patch to cited evidence. An OCM binds a pinned owning
-specification's obligations to that CEM's hunks and selected test claims. The explicit
-`corvint frontier` command composes verified CEM/OCM inputs with lexical relevance and test-claim
-qualification into a bounded, Git-pinned advisory review queue. Without those inputs, that
-change-and-intent-specific queue cannot be assessed; it remains unknown, not an empty or closed
-frontier. Normal context queries and impact reads do not require adopting that workflow.
-
-**No CEM/OCM producer establishes execution authority.** The current `frontier/0` profile leaves
-linked test obligations open because test evidence is caller-reported
-(`docs/specs/change-frontier-v0.md:36-40@e5292c79`). Closing authority would require an accepted
-execution-attestation root and profile, plus harness integration; that is not an adopter setup
-option today. Accepted [decision 0009](decisions/0009-harness-authority-boundary.md) retains the
-local boundary and permits a separate non-authority workflow policy, not Frontier closure
-(`docs/decisions/0009-harness-authority-boundary.md:33-38@d8539a99`).
-
-### Minimum path to an advisory Frontier report
-
-No action is needed merely to keep using the hooks. If the adopter wants a change-evidence
-review queue, the minimum inputs and steps are:
-
-1. Select a committed change, its full immutable base and target commit IDs, and an existing
-   owning spec in the supported OCM requirements format. Keep all maps on that same base/target;
-   missing declared intent remains unassessed.
-2. Follow [CEM preparation](DOGFOOD.md#4-produce-the-cem): `corvint cem prepare`, cite evidence or
-   honestly mark unknown hunks, commit the CEM sidecar, and verify it against the final target.
-   Preparation alone does not prove complete evidence. These are explicit authoring operations,
-   not work performed by a read command or session hook.
-3. Follow [OCM preparation](DOGFOOD.md#5-close-every-owning-spec-obligation): `corvint ocm prepare`
-   for each owning spec, link supported hunks and test claims, retain unknown/unassessed obligations,
-   and inspect `ocm status`. OCM artifacts stay local and outside their own mapped patch.
-4. Run the read-only preview for each scope, using the verified maps and their exact pins:
-
-   ```sh
-   corvint frontier --cem CEM_PATH --ocm OCM_PATH \
-     --expected-base FULL_BASE_SHA --target FULL_TARGET_SHA --json
-   ```
-
-   Inspect the report, including every unknown and required action. Exit 1 can mean a valid open
-   frontier, not an invocation fault. Neither valid input nor passing tests grants authority or
-   changes the unconditional hook degradation. Keep the project's required checks and review.
-
-### Causes and remedies
-
-| Observation | Meaning | Action |
-|---|---|---|
-| Only `frontier-authority-unavailable`, no CEM/OCM workflow | Expected capability limitation; the code does not diagnose artifact absence. | Continue normal use. Adopt the advisory workflow above only if useful. |
-| The same code after preparing valid CEM/OCM artifacts | Expected: the hook does not consult Frontier, and caller-reported evidence cannot establish authority. | Inspect the explicit Frontier report; do not regenerate artifacts to silence the hook. |
-| Explicit `frontier` invocation refuses missing, stale or mismatched inputs | A separate evidence/input problem, not diagnosed by this generic hook code. | Check its error, map paths and exact base/target/intent pins; explicitly regenerate affected artifacts if needed. Do not treat missing evidence as success. |
-| Other codes, such as `corvint-event-rejected:dogfood-event-index-snapshot-stale` | A separate hook failure with its own remediation. | Follow that code's diagnostic; do not dismiss it because the Frontier code is benign. |
-| Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
-
-The Claude routine receipt path preserves the degradation codes in additionalContext
-(`cmd/corvint/host_adapter.go:809-828@1e71d8c1`). Presentation differs by host and event; quieting a
-notice is not removing the degradation or acquiring authority.
-
-### Not delivered by this guidance
-
-The degradation payload is still a list of strings, and no per-degradation `reason` distinguishes
-artifact absence from unavailable authority. The Stop receipt's `frontier.reason` repeats the generic
-code; `AHI-054` (decision 0519, V1-1157) adds the fixed `frontier.cause`
-`no-accepted-closing-authority`, which says why the degradation holds but never diagnoses a missing
-or unverified CEM. An adopter acknowledge/suppress option is **not implemented**: the owner declined
-it in decision 0519, because missing evidence stays visible. This guidance (V1-1143) adds no new
-authority, wire contract, or numbered requirement.

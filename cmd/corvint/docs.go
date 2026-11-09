@@ -333,6 +333,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus compact-provider --input PROVIDER.json
   corvint [--root PATH] docs corpus estate --input ESTATE.json
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
+  corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
   corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH
   corvint [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]
@@ -344,24 +345,59 @@ Separate experimental corpus profile:
 Read operations: info, validate, get/trace/related/journey/stability --id ID, locate --path PATH,
 coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
 Local input files (--manifest, --artifact, --input, --previous, --retirement, --migration,
---playwright-list, --receipt) are canonical paths relative to --root and must sit under
+--playwright-list, --receipt, --report) are canonical paths relative to --root and must sit under
 it: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused, naming the flag).
 Native context/impact/affected/test-validity accept --corpus=CORPUS.json. Generated evidence grants no task
 or test-selection authority. Read commands print bounded JSON and never collect tests.
 Every operation: corvint help docs corpus; its options: corvint docs corpus OPERATION --help.
 Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
 
-` + playwrightReceiptHelp + "\n" + legacyCasesHelp
+` + playwrightReceiptHelp + "\n" + behaviorAnnotationHelp + "\n" + legacyCasesHelp
+
+// behaviorAnnotationHelp is the DCP-V1-080 annotation contract that docs help and the
+// witness-playwright help topic share.
+const behaviorAnnotationHelp = `Behavior annotations (DCP-V1-080): witness-playwright reads the annotations of the single
+first attempt (retry 0, passed) of each registered test in REPORT.json, in published order:
+  corvint-behavior-event    one closed JSON event per annotation, no other keys: browser_context,
+                            page, frame, navigation, parent_page, behavior, criterion, matcher,
+                            locator, value, passed, sequence, kind, id. sequence is 1, 2, 3, ...;
+                            passed is true; browser_context, page, frame and id are non-empty;
+                            kind:id is unique; at most 4096 events.
+                            kind: page | assertion | negative-control.
+                            navigation (required for page): main-frame | frame | redirect | popup |
+                            setup; popup also names parent_page.
+  corvint-behavior-cleanup  exactly one, after the cleanup ran: passed. None is cleanup-unobserved;
+                            failed or more than one is cleanup-failed.
+  corvint-behavior-fixture  one per registered fixture, equal to the test's fixtures in order.
+  corvint-behavior-role     one per registered role, equal to the test's roles in order.
+To count as runtime-witnessed, the events must equal the ordered_events of each flow the test
+registers, and the assertion events must equal the test's registered assertion tuples (id,
+behavior, criterion, matcher, locator, value) one for one. An unwitnessed test names one reason; for an annotation-stage reason (events-unobserved, event-malformed,
+cleanup-unobserved, cleanup-failed, fixture-role-mismatch) missing_annotations lists the needed
+types never published, in the order events, cleanup, fixture, role (DCP-V1-082).
+Producer (DCP-V1-081): internal/doccorpus/behavior-events.cjs extends a Playwright test with a
+behavior fixture that publishes these annotations at teardown. It records an assertion only
+after Playwright's own matcher passed and a page event only for a main-frame http(s) commit:
+    const test = require('CORVINT/internal/doccorpus/behavior-events.cjs').extend(base);
+    await behavior.expect({id, behavior, criterion})(page.locator('#count')).toHaveText('2');
+Walkthrough: docs/DOCUMENTATION-CORPUS.md, "Playwright behavior witness walkthrough".
+`
 
 // playwrightReceiptHelp is the DCP-V1-053 receipt guidance that docs help and the
-// discover-playwright help topic share.
+// discover-playwright and witness-playwright help topics share.
 const playwrightReceiptHelp = `Playwright qualified receipt (DCP-V1-053): the producer is corvint-js-test-provider e2e
 --external-server. Its stdout is the canonical qualified receipt, and --retain writes the same
 bytes under .corvint/test-evidence/. Managed-server e2e output is not a qualified receipt.
-discover-playwright --receipt reads the file unchanged.
+discover-playwright --receipt reads the file unchanged. witness-playwright --receipt-input names a
+REQUEST.json input, not a file. The one conversion step: commit the receipt bytes unchanged at a
+tracked path and add them as an observed external-provider request input with a full-file anchor.
+REPORT.json is a caller-run Playwright JSON report of the same config file and runner version.
 End-to-end example, run at the repository root:
     corvint-js-test-provider e2e --external-server --server-ready-url http://127.0.0.1:3000 --app-identity web --config playwright.config.ts --runner-version 1.64.0 --test-file e2e/items.spec.ts --retain > evidence/receipt.json
     corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json
+    git add evidence/receipt.json && git commit -m "retain playwright receipt"
+    corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json
+REQUEST.json names the committed receipt as input "receipt", beside the migration and discovery.
 
 Test discovery (DCX-V1-370..376): discover-tests reads Playwright or RSpec test files from Git
 at --revision (one file, or the test files under a directory; --path . for all) and prints a

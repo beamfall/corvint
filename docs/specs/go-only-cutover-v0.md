@@ -252,18 +252,7 @@ or promoted by this cutover. Native qualification must independently cover the n
 
 #### Native hook fallback reasons
 
-The `native-hook` entry point selects the fallback reasons below (decision 0100). Each row cites
-the first site and states only the condition checked there. The fallback `systemMessage` is fixed
-text per mode and does not include the reason; only `corvint-invocation-timeout` changes the
-qualified-mode message.
-
-| Code | First emitting site | At the cited site |
-|---|---|---|
-| `consumer-unadmitted` | `cmd/corvint/native_hook.go:47` | the running executable path cannot be read or is not an admitted canonical release path (pattern mismatch, unclean, or a missing or symlinked component); also returned when the process replacement into the closed environment fails |
-| `input-unavailable` | `cmd/corvint/native_hook.go:68` | bounded reading of host input failed before the 1600 ms context expired |
-| `invalid-mode` | `cmd/corvint/native_hook.go:43` | arguments were given and they are not exactly `--qualified-lifecycle` |
-| `invalid-native-hook-input` | `cmd/corvint/native_hook.go:133` | normalization refuses the host input (over the input bound, invalid UTF-8, undecodable JSON, or fields or values the selected mode does not accept); the entry point maps it to the `invalid-input` fallback |
-| `not-enrolled` | `cmd/corvint/native_hook.go:73` | without `--qualified-lifecycle`, after host input was read, reading the active-enrollment pointer failed: it is unreadable or does not decode to exactly `profile` `corvint-protected-active-enrollment/0` plus an `enrollmentHandle` of 64 lowercase hex digits |
+The `native-hook` entry point and its fallback-reason table were removed by decision 0594.
 
 ### Native conformance and tooling dispositions
 

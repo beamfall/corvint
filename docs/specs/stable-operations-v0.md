@@ -198,13 +198,13 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:198@5817975f`, `internal/genesis/repository_test.go:210@a2e88456`, `internal/genesis/repository_test.go:248@a1e12d68` |
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:62@671cf1e3` |
 | paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:143@e18871cf` |
-| paths | `internal/corerelease` | `internal/corerelease/export_test.go:25@5a46f5ad` |
+| paths | `internal/corerelease` | `internal/corerelease/export_test.go:25@d4b6a1eb` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
 | symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:396@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:590@22f1c7f2`, `internal/contextindex/snapshot_test.go:640@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` |
-| case-folds | `internal/corerelease` | `internal/corerelease/export_test.go:174@5a46f5ad`, `internal/corerelease/export_test.go:447@5a46f5ad` |
+| case-folds | `internal/corerelease` | `internal/corerelease/export_test.go:174@4d21a51f`, `internal/corerelease/export_test.go:405@97879ced` |
 | case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` (`case-alias` subcase) |
 | bounded-output | `internal/procgroup` | `internal/procgroup/process_overflow_test.go:13@8b1b8267`, `internal/procgroup/process_overflow_test.go:93@e6067a5b` |
 | bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:155@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |

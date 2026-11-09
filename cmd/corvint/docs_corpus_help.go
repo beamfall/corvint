@@ -40,6 +40,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "estate", purpose: "reconcile the repository inventories of several verified corpora by exact name (corvint-corpus-estate/1)", required: []string{"--input"}},
 		{name: "compact-provider", purpose: "rewrite a corvint-corpus-adoption-provider/1 record or shard as its compact /2 encoding", required: []string{"--input"}},
 		{name: "discover-playwright", purpose: "produce Playwright test discovery from a listing and migration", required: []string{"--migration", "--config", "--playwright-list"}, optional: []string{"--receipt"}},
+		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "discover-tests", purpose: "read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs", required: []string{"--runner", "--revision", "--path"}},
 		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256", "--schema", "--repository"}},
@@ -106,7 +107,7 @@ func (operation corpusOperation) admits(flag string) bool {
 
 // corpusLocalInputFlags are the options whose value is a local input file: a canonical path
 // relative to --root that sits under it (DCP-V1-054).
-var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--retirement", "--migration", "--playwright-list", "--receipt", "--cases", "--baseline", "--sample"}
+var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--previous", "--retirement", "--migration", "--playwright-list", "--receipt", "--report", "--cases", "--baseline", "--sample"}
 
 var corpusFlagHelp = map[string][2]string{
 	"--revision":                    {"FULL_COMMIT", "source revision the manifest pins"},
@@ -125,6 +126,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--config":                      {"PATH", "Playwright config file"},
 	"--playwright-list":             {"LIST.json", "Playwright --list JSON output"},
 	"--receipt":                     {"RECEIPT.json", "qualified Playwright receipt, read unchanged"},
+	"--receipt-input":               {"ID", "REQUEST.json input naming the committed receipt; not a file"},
+	"--report":                      {"REPORT.json", "caller-run Playwright JSON report"},
 	"--format":                      {"testrail-json|csv", "test-management export format"},
 	"--content":                     {"ids-paths-titles|full", "case text kept; full is local_only (default ids-paths-titles)"},
 	"--query":                       {"TEXT", "search text"},
@@ -247,8 +250,11 @@ func docsCorpusOperationHelp(name string) string {
 			"--root: no leading /, no .., no ./ or //. Absolute paths are refused (corpus-refused).\n")
 	}
 	text.WriteString(docsCorpusHelpTrailer)
-	if name == "discover-playwright" {
+	if name == "discover-playwright" || name == "witness-playwright" {
 		text.WriteString("\n" + playwrightReceiptHelp)
+	}
+	if name == "witness-playwright" {
+		text.WriteString("\n" + behaviorAnnotationHelp)
 	}
 	if name == "import-cases" || name == "search-cases" {
 		text.WriteString("\n" + legacyCasesHelp)

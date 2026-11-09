@@ -230,7 +230,7 @@ sub lines_for {
     my $base = retirement_base($doc);
     return lines_at($base, $path) // lines_of($path) if defined $base;
     my $commit = decision_commit($doc);
-    return lines_of($path) unless defined $commit && $tracked{$path};
+    return lines_of($path) unless defined $commit;
     return lines_at($commit, $path) // lines_of($path);
 }
 

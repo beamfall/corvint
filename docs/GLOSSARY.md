@@ -43,16 +43,16 @@ The following was checked against the working tree on branch `integration/go-mig
   are the 2026-08-29 technology review (not tracked in this repository), which records the absence, and
   `docs/TECHNICAL-BRAIN.md:153@b20ddc29`, which names a checked-in glossary as an admission precondition that
   nothing satisfies.
-- `authorityClass` is declared with five disjoint value sets across five owners
+- `authorityClass` is declared with four disjoint value sets across four owners
   (`internal/dashboard/model/types.go` lines 40-46 at 4663b4e2, `internal/mcp/bridge/bridge.go:626@982aa756`,
-  `docs/specs/change-frontier-v0.md:244@1e1231f8`, `internal/lrf/types.go:12@fc816169`,
-  `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a sixth single-value constraint in
+  `docs/specs/change-frontier-v0.md:244@1e1231f8`,
+  `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a fifth single-value constraint in
   `docs/tcq-0.schema.json:125@49b495d9`.
 - A total order over `authorityClass` is declared exactly once, at
   `docs/specs/local-observability-dashboard-v0.md:89@186c53c1`, and covers only the seven dashboard values.
   No other surface's values are placed in it.
-- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:129-134@1c8e1cdc`, which
-  names four of the five sets and requires "one ordered lattice, one casing, one owner — before the
+- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:119-124@99f479e4`, which
+  names three of the four sets and requires "one ordered lattice, one casing, one owner — before the
   adapter, not after". This document is the response to that requirement.
 - `frontier` is used at three different scopes without a qualifier that distinguishes them
   (`docs/PRODUCT.md:13@9692debb`, `docs/ARCHITECTURE.md:82@311e28e5`, `docs/ARCHITECTURE.md:198@16bd8a01`).
@@ -79,7 +79,7 @@ dashboard spec cites it.
 | Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go` lines 40-46 at 4663b4e2; `docs/specs/local-observability-dashboard-v0.md:84@4b5e015c` |
 | MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:626@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:260@f4047e06` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:244@1e1231f8` |
-| Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12@fc816169`; `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:272,274@1875648f` |
+| Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:272,274@1875648f` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:389,285@8b000654` |
 | Test Claim Qualification | `CALLER_REPORTED` (schema `const`) | SCREAMING_SNAKE | `docs/tcq-0.schema.json:125@49b495d9`; `docs/specs/test-claim-qualification-v0.md:43@1e6cb0de` |
 
@@ -169,8 +169,7 @@ It is distinct from a measured zero: missing, invalid, inaccessible, unsupported
 expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, never zero
 (`docs/specs/local-observability-dashboard-v0.md:95-97@62f9e105`).
 
-**Declared variants.** `internal/dashboard/model/types.go` line 34 at 4663b4e2;
-`internal/mcp/bridge/bridge.go:955,1112@1e3552e5`.
+**Declared variants.** `internal/dashboard/model/types.go` line 34 at 4663b4e2.
 
 ### `NOT_RUN`
 
@@ -180,7 +179,7 @@ evidence stays visible and is never converted into a pass
 (`docs/SPEC-DRIVEN-DEVELOPMENT.md:199@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
-state (`docs/specs/README.md:14,15,21,24,36,44,46@e327133c`;
+state (`docs/specs/README.md:14,15,21,44,46@9d64977b`;
 `docs/specs/analyzer-candidate-profiles.md:444@57f8e367`;
 `docs/specs/analyzer-candidate-profiles.md:542@6424bf91`). It is also used once for a metric denominator
 — a zero positive denominator is `NOT_RUN`
@@ -193,7 +192,7 @@ excludes. *Proposal:* that one use adopts `completeness: UNKNOWN` instead.
 this revision, so it produces no result and cannot block. Distinct from `NOT_OBSERVED` (which is a
 measurement outcome) and from `NOT_RUN` (which is delivery evidence).
 
-**Declared variants.** `docs/specs/agent-harness-integration-v0.md:71@ab0adf38` — until a separately accepted
+**Declared variants.** `docs/specs/agent-harness-integration-v0.md:73@ab0adf38` — until a separately accepted
 closing authority exists, `stop` returns `frontier.state: UNAVAILABLE` with
 `shouldContinue: false`. `docs/specs/analyzer-candidate-profiles.md:68@e7dc63fe` and
 `docs/specs/analyzer-candidate-profiles.md:234@88e7795c` use the compound
@@ -218,7 +217,7 @@ stronger than caller input, because the producer is a Corvint profile bound to a
 weaker than an owning verifier, because nothing outside the producer checked it.
 
 **Declared variants.** `docs/specs/change-frontier-v0.md:166,179,183,186,244@0521a43b` (SCREAMING_SNAKE);
-`internal/lrf/types.go:12@fc816169`, `docs/lrf-0.schema.json:65,69@4aafd5d4`,
+`docs/lrf-0.schema.json:65,69@4aafd5d4`,
 `docs/specs/lexical-relevance-floor-v0.md:272,274@1875648f` (lowercase-kebab `producer-declared`). Same
 concept, two casings.
 
@@ -292,8 +291,8 @@ Ranks are ordinal labels spaced by ten so a future member can be inserted withou
 
 Ranks 70–40, 20, 10, and 0 are the dashboard set unchanged
 (`docs/specs/local-observability-dashboard-v0.md:84@4b5e015c`) in its declared order (`:89@186c53c1`). Rank 30 is the
-single new member, admitted because `PRODUCER_DECLARED` is already shipped in two profiles
-(`docs/specs/change-frontier-v0.md:244@1e1231f8`; `internal/lrf/types.go:12@fc816169`) and has no dashboard
+single new member, admitted because `PRODUCER_DECLARED` is already shipped in a profile
+(`docs/specs/change-frontier-v0.md:244@1e1231f8`) and has no dashboard
 equivalent.
 
 ## Proposed `authorityClass` migration
@@ -330,7 +329,7 @@ disclaims provider qualification (`:454-456@73351cde`).
 
 **Ordering safety.** No mapping above inverts an ordering that any surface declares today. The MCP
 bridge never compares `GIT_REPOSITORY` against `REPOSITORY_EVIDENCE`: each is a per-tool constant
-(`internal/mcp/bridge/bridge.go:878,931@b42bcbe6`). The dashboard order is preserved exactly. The only newly
+(`internal/mcp/bridge/bridge.go:436,484@b42bcbe6`). The dashboard order is preserved exactly. The only newly
 declared relations are those involving rank 30, which no surface previously ordered.
 
 ## Proposed comparison rules
