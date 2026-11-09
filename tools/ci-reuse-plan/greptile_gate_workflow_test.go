@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -272,5 +273,173 @@ func TestV15096WaiverApproversAgreeAcrossGates(t *testing.T) {
 	}
 	if lists[0] != lists[1] {
 		t.Fatalf("WAIVER_APPROVERS differ: ci-control-plane %q, greptile-gate %q", lists[0], lists[1])
+	}
+}
+
+// GRG-V0-002: execute the trusted workflow with GitHub metadata fixtures, never PR code.
+// Compare fixtures are pages as returned by gh api --paginate --slurp; missing fixtures fail.
+func TestGRGV0002CarryOnlyUnchangedPRDiff(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the gate step runs under bash with a gh spy")
+	for _, tool := range []string{"bash", "jq"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Fatalf("the gate step needs %s: %v", tool, err)
+		}
+	}
+	const head = "0c28ca2a4b1e2f3a4b5c6d7e8f90a1b2c3d4e5f6"
+	const reviewed = "8f05365360a1b2c3d4e5f60718293a4b5c6d7e8f"
+	const group = "6d1e0a7b2c3d4e5f60718293a4b5c6d7e8f90a1b"
+	type file = map[string]any
+	code := file{"status": "modified", "filename": "main.go", "patch": "@@ -1,2 +1,2 @@ func main()\n-old\n+new\n context"}
+	shifted := file{"status": "modified", "filename": "main.go", "patch": "@@ -8,2 +9,2 @@ func main()\n-old\n+new\n context"}
+	changed := file{"status": "modified", "filename": "main.go", "patch": "@@ -1,2 +1,2 @@ func main()\n-old\n+different\n context"}
+	binary := file{"status": "modified", "filename": "image.png"}
+	evidence := file{"status": "added", "filename": ".corvint/changes/seal.cem.json"} //corvint:fixture-path
+	sidecar := file{"status": "modified", "filename": ".corvint/change.cem.json"}
+	pages := func(files ...file) []any { return []any{map[string]any{"files": files}} }
+	many := make([]file, 300)
+	for i := range many {
+		many[i] = file{"status": "added", "filename": ".corvint/changes/" + strconv.Itoa(i) + ".cem.json"} //corvint:fixture-path
+	}
+	for name, tc := range map[string]struct {
+		old, head                   any
+		score, ancestry, fail, want string
+		unresolved, total           int
+	}{
+		"identical diff":             {old: pages(code), head: pages(code), want: "success"},
+		"hunk numbers only":          {old: pages(code), head: pages(shifted), want: "success"},
+		"one PR line differs":        {old: pages(code), head: pages(changed)},
+		"same missing patch on both": {old: pages(binary), head: pages(binary)},
+		"truncated compare":          {old: []any{map[string]any{"files": []file{code}, "truncated": true}}, head: pages(code)},
+		"hunk section differs":       {old: pages(code), head: pages(file{"status": "modified", "filename": "main.go", "patch": strings.Replace(code["patch"].(string), "func main()", "func other()", 1)})},
+		"head lacks patch":           {old: pages(code), head: pages(code, binary)},
+		"review lacks patch":         {old: pages(code, binary), head: pages(code)},
+		"review compare fails":       {old: pages(code), head: pages(code), fail: "old.json"},
+		"head compare fails":         {old: pages(code), head: pages(code), fail: "head.json"},
+		"ancestry compare fails":     {old: pages(code), head: pages(code), fail: "ancestry.json"},
+		"base read fails":            {old: pages(code), head: pages(code), fail: "base"},
+		"4 of 5":                     {old: pages(code), head: pages(code), score: "4/5"},
+		"evidence paths only":        {old: pages(code, sidecar), head: pages(evidence, code), want: "success"},
+		"not ancestor":               {old: pages(code), head: pages(code), ancestry: "diverged"},
+		"behind":                     {old: pages(code), head: pages(code), ancestry: "behind"},
+		"identical ancestry":         {old: pages(code), head: pages(code), ancestry: "identical", want: "success"},
+		"unresolved thread":          {old: pages(code), head: pages(code), unresolved: 1, total: 1, want: "failure"},
+		"too many threads":           {old: pages(code), head: pages(code), total: 101, want: "failure"},
+		"300 reviewed files":         {old: pages(many...), head: pages(code)},
+		"300 head files":             {old: pages(code), head: pages(many...)},
+		"paginated review":           {old: append(pages(code), map[string]any{"files": []file{}}), head: pages(code)},
+		"paginated head":             {old: pages(code), head: append(pages(code), map[string]any{"files": []file{}})},
+		"missing files":              {old: []any{map[string]any{}}, head: pages(code)},
+		"status differs":             {old: pages(code), head: pages(file{"status": "added", "filename": "main.go", "patch": code["patch"]})},
+		"previous filename differs":  {old: pages(code), head: pages(file{"status": "modified", "filename": "main.go", "previous_filename": "other.go", "patch": code["patch"]})},
+		"evidence lookalike":         {old: pages(code), head: pages(code, file{"status": "added", "filename": ".corvint/changes/nested/code.cem.json"})},                              //corvint:fixture-path
+		"source renamed to evidence": {old: pages(code), head: pages(code, file{"status": "renamed", "filename": ".corvint/changes/seal.cem.json", "previous_filename": "secret.go"})}, //corvint:fixture-path
+		"file order":                 {old: pages(code, file{"status": "added", "filename": "a.go", "patch": "+a"}), head: pages(file{"status": "added", "filename": "a.go", "patch": "+a"}, code), want: "success"},
+	} {
+		for _, event := range []string{"pull_request_target", "merge_group"} {
+			t.Run(name+"/"+event, func(t *testing.T) {
+				dir := t.TempDir()
+				score, ancestry, want := tc.score, tc.ancestry, tc.want
+				if score == "" {
+					score = "5/5"
+				}
+				if ancestry == "" {
+					ancestry = "ahead"
+				}
+				if want == "" {
+					want = "pending"
+				}
+				fixtures := map[string]any{
+					"pull.json": map[string]any{"state": "open", "head": map[string]any{"sha": head}, "base": map[string]any{"ref": "release/main"}},
+					"old.json":  tc.old, "head.json": tc.head,
+					"ancestry.json": map[string]any{"status": ancestry},
+					"comments.json": []any{map[string]any{"user": map[string]any{"login": "greptile-apps[bot]"}, "updated_at": "2026-11-08T23:16:00Z", "body": "Confidence Score: " + score + "\nLast reviewed commit: https://github.com/beamfall/corvint/commit/" + reviewed}},
+				}
+				for name, v := range fixtures {
+					if name == tc.fail {
+						continue
+					}
+					b, err := json.Marshal(v)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				stub := `#!/bin/sh
+[ "$1" = api ] || exit 2
+shift
+for a; do last=$a; done
+echo "$*" >>"$STUB_DIR/reads.log"
+case " $* " in
+  *" -X POST "*) echo "$*" >>"$STUB_DIR/posts.log"; exit 0 ;;
+  *mergeQueueEntry*) exit 0 ;;
+  *reviewThreads*) printf '%s %s\n' "$TOTAL" "$UNRESOLVED"; exit 0 ;;
+  *"repos/$REPO/pulls/$PR "*)
+    case "$last" in *base*) [ "$FAIL" != base ] || exit 22 ;; esac
+    exec jq -r "$last" "$STUB_DIR/pull.json" ;;
+  *"/statuses?per_page=100 "*) exit 0 ;;
+  *"/comments?per_page=100 "*) exec jq -r "$last" "$STUB_DIR/comments.json" ;;
+  *"repos/$REPO/compare/$REVIEWED...$HEAD "*) exec jq -r "$last" "$STUB_DIR/ancestry.json" ;;
+  *"repos/$REPO/compare/release%2Fmain...$REVIEWED "*) f=old.json ;;
+  *"repos/$REPO/compare/release%2Fmain...$HEAD "*) f=head.json ;;
+  *) echo "unexpected API call: $*" >&2; exit 22 ;;
+esac
+case " $* " in *" --paginate --slurp "*) ;; *) exit 23 ;; esac
+cat "$STUB_DIR/$f"
+`
+				if err := execfile.WriteFile(filepath.Join(dir, "gh"), []byte(stub), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				script := filepath.Join(dir, "step.sh")
+				if err := os.WriteFile(script, []byte(runScript(t, jobBlock(t, readWorkflow(t, "greptile-gate.yml"), "gate"))), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
+				cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "STUB_DIR="+dir,
+					"REPO=beamfall/corvint", "PR=153", "EVENT="+event, "GROUP_SHA="+group, "HEAD="+head, "REVIEWED="+reviewed,
+					"TOTAL="+strconv.Itoa(tc.total), "UNRESOLVED="+strconv.Itoa(tc.unresolved), "FAIL="+tc.fail,
+					"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub", "WAIVER_APPROVERS=Russe11")
+				out, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("workflow failed: %v\n%s", err, out)
+				}
+				b, err := os.ReadFile(filepath.Join(dir, "posts.log"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				targets := []string{head}
+				if event == "merge_group" {
+					targets = append(targets, group)
+				}
+				for _, target := range targets {
+					var posts []string
+					for _, p := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+						if strings.Contains(p, "statuses/"+target+" ") {
+							posts = append(posts, p)
+						}
+					}
+					if len(posts) != 2 || !strings.Contains(posts[0], "state=pending ") || !strings.Contains(posts[1], "state="+want+" ") {
+						t.Fatalf("posts on %s = %q; want pending then %s\n%s", target, posts, want, out)
+					}
+					if want == "success" && !strings.Contains(posts[1], "description=Greptile 5/5 on "+reviewed[:9]+"; head "+head[:9]+" adds only base merges and change evidence") {
+						t.Errorf("carry description: %s", posts[1])
+					}
+					if want == "pending" && !strings.Contains(posts[1], "ask @greptileai to re-review") {
+						t.Errorf("missing re-review instruction: %s", posts[1])
+					}
+				}
+				reads, err := os.ReadFile(filepath.Join(dir, "reads.log"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if score != "5/5" && strings.Contains(string(reads), "/compare/") {
+					t.Error("non-5/5 review must not attempt carry")
+				}
+				if want == "success" && strings.Count(string(reads), "/compare/") != 3 {
+					t.Errorf("carry did not read all three comparisons: %s", reads)
+				}
+			})
+		}
 	}
 }
