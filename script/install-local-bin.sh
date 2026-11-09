@@ -15,7 +15,7 @@
 set -uo pipefail
 export LC_ALL=C
 
-# --all installs a complete already-built cmd/ set, including corvint-test.
+# --all installs a complete already-built cmd/ set.
 # Validate the whole source set before replacing the first installed executable.
 if [[ ${1-} == --all ]]; then
   [[ $# == 3 ]] || { printf 'usage: install-local-bin.sh --all SOURCE_DIR DEST_DIR\n' >&2; exit 2; }

@@ -44,13 +44,12 @@ want=$(grep -c 'capcatalog_write,.*,internal/capcatalog/trees/' "$repo/Makefile"
   fail "not all $want trees snapshots were written"
 [ -z "$(leftover)" ] || fail "a succeeding run left $(leftover)"
 
-# CAP-V0-9300: one regeneration must refresh the canonical folded tree before
-# deriving compatibility shim trees, and derive documentation last. Model a
-# changed folded help source with a deliberately stale initial snapshot.
+# CAP-V0-9300: one regeneration must write every discovery tree before deriving the root
+# catalog, and derive documentation last. The folded corvint-test source and its shim trees left
+# with the E2E proof lab (decision 0593).
 cat > "$tmp/gen" <<'STUB'
 #!/bin/sh
 case "$1" in
-  ./cmd/corvint-test) cat folded-source ;;
   ./cmd/corvint)
     if [ "${3:-}" = --json ]; then
       [ -f internal/capcatalog/trees/corvint-new-binary.json ] && cat internal/capcatalog/trees/corvint-new-binary.json
@@ -59,25 +58,16 @@ case "$1" in
     printf 'generated %s %s\n' "$2" "$3" ;;
   ./tools/cli-discovery-gen)
     if [ "${2:-}" = --docs ]; then
-      cat internal/capcatalog/trees/corvint-tests-accept.json > docs.txt
+      cat internal/capcatalog/trees/corvint-new-binary.json > docs.txt
     else
       printf 'new binary tree\n' > internal/capcatalog/trees/corvint-new-binary.json
-      for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
-        cp internal/capcatalog/trees/corvint-test.json "internal/capcatalog/trees/$shim.json"
-      done
     fi ;;
   *) printf 'generated %s %s\n' "$2" "$3" ;;
 esac
 STUB
-printf 'new folded help\n' > "$w/folded-source"
-printf 'stale folded help\n' > "$w/internal/capcatalog/trees/corvint-test.json"
-run || fail "folded regeneration failed: $(cat "$tmp/out")"
+run || fail "regeneration failed: $(cat "$tmp/out")"
 grep -qx 'new binary tree' "$w/internal/capcatalog/catalog.json" || fail "root catalog omitted the new binary on first regeneration"
-for shim in corvint-tests-accept corvint-test-runner corvint-behavior-falsify corvint-playwright-minimize; do
-  cmp -s "$w/folded-source" "$w/internal/capcatalog/trees/$shim.json" ||
-    fail "$shim consumed stale folded help"
-done
-cmp -s "$w/folded-source" "$w/docs.txt" || fail "documentation consumed stale shim help"
+grep -qx 'new binary tree' "$w/docs.txt" || fail "documentation was derived before the discovery trees"
 cp -R "$w" "$tmp/once"
 run || fail "second folded regeneration failed: $(cat "$tmp/out")"
 diff -r "$tmp/once" "$w" || fail "one regeneration did not reach a stable result"

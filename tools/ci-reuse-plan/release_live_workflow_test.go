@@ -235,9 +235,7 @@ func TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost(t *testing.T) {
 	if n == 0 || gated != n {
 		t.Errorf("%d of the %d steps after the change check are gated on it", gated, n)
 	}
-	if !strings.Contains(readText(t, "../../Makefile"), "\tCORVINT_CCE_LIVE=required ") {
-		t.Error("make cce-live no longer sets CORVINT_CCE_LIVE=required, so a missing toolchain could skip")
-	}
+	// make cce-live is a no-op since decision 0593; the job itself leaves in a .github change.
 }
 
 // AFP-V0-434: the change check runs the live tests when the tested commit changes

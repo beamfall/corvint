@@ -194,9 +194,8 @@ var manifests = []Manifest{
 		Analyzers:     []SubPlugin{sub("corvint-analyzer-ruby", "internal/analyzerruby")},
 		Runners:       []string{"minitest", "rails-test", "rspec", "test-unit"},
 		TestProviders: []SubPlugin{sub("corvint-ruby-test-provider", "cmd/corvint-ruby-test-provider", "internal/rubytestprovider")},
-		Mutation: []SubPlugin{{Name: "rbmutate", Paths: []string{"internal/liveverify/rbmutate"}, Suffixes: []string{".rb"}},
-			sub("extmutate", "internal/extmutate")},
-		Coverage: []SubPlugin{sub("linecov-ruby", "internal/rubylinecov")},
+		Mutation:      []SubPlugin{{Name: "rbmutate", Paths: []string{"internal/liveverify/rbmutate"}, Suffixes: []string{".rb"}}},
+		Coverage:      []SubPlugin{sub("linecov-ruby", "internal/rubylinecov")},
 	},
 	{
 		Name:      "rust",
@@ -235,7 +234,7 @@ var manifests = []Manifest{
 		TestProviders: []SubPlugin{sub("corvint-js-test-provider", "cmd/corvint-js-test-provider", "internal/jstestprovider")},
 		Coverage: []SubPlugin{sub("linecov-js", "internal/jslinecov", "internal/linecov", "internal/linecov/v8"),
 			sub("linecov-browser", "internal/browsercov")},
-		Mutation: []SubPlugin{sub("extmutate", "internal/extmutate")},
+		Absent: map[Piece]string{Mutation: noMutation},
 	},
 	{
 		Name:      "sql",

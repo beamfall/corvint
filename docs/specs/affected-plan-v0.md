@@ -3497,7 +3497,7 @@ traceability rows there.
   the report is `corvint-affected-audit/1`, a planning error no longer exits 2, and a dropped
   test is no longer ignored.
 
-- **AFP-V0-447:** (proposed, experimental; accepted under the owner's standing lane auto-accept (2026-10-11); V1-2705, GitHub #1814; amends AFP-V0-445)
+- **AFP-V0-447:** (proposed, experimental; accepted under the owner's standing lane auto-accept (2026-10-11); V1-2705, GitHub #1814; amends AFP-V0-445; (2) amended 2026-11-09 by the owner's decision cutting the E2E proof lab)
   `corvint affected audit` MUST score every available selector against observed outcomes and
   MUST NOT turn missing observation into a safe result. (1) Changes. Each manifest change MAY
   name `kind` `replay` (the default: full `base` and `head`), `revert` (a full `revert` commit id
@@ -3506,19 +3506,18 @@ traceability rows there.
   committed in the private shared clone with a fixed identity and epoch dates so its synthesized
   `head` is the same on every run, and MUST NOT write a ref, object or file to the audited
   repository. A change that cannot be cloned, checked out, reverted or applied is an input error.
-  (2) Selectors. Each change MAY add `appmap` `{map, ledger?}` (files relative to the manifest)
-  and `e2e` `{manifest}` (repository-relative). The audit MUST run `affected` on every change,
-  `appmap-impact` (`appmap.Impact` at the change head, full lists) on each change that names a
-  map, and `e2e-compile` on each change that names a manifest, all in the private clone.
-  `e2e-compile` MUST run out of process as `corvint-test e2e compile` (the companion beside the
-  running executable, else on PATH) from base to head, with its scenarios written to scratch
-  beside the clone, so the core binary does not link the CCE environment's `net/http`
-  (invariant 7); an unavailable companion is the error `e2e-compiler-unavailable`, and a failed
-  run, an unreadable report or a report with truncated scenarios is `e2e-compile-failed`; any other selector failure is `selector-error`; a selector a change does not configure is `NOT_RUN` with the
-  reason, never SAFE. `affected` falls back (selects everything) when its scope is not BOUNDED,
-  `appmap-impact` when its verdict is `full-suite-required`; `e2e-compile` never falls back. An
-  appmap report with any omitted entry, and any selector error, MUST be recorded as scope `ERROR`
-  with the error code and message and verdict UNKNOWN, not as an exit 2. A test is selected by a
+  (2) Selectors. Each change MAY add `appmap` `{map, ledger?}` (files relative to the manifest).
+  The audit MUST run `affected` on every change and `appmap-impact` (`appmap.Impact` at the
+  change head, full lists) on each change that names a map, both in the private clone; these two
+  are the only selectors. A change carrying any other member, including the retired `e2e`, is the
+  input error `unsupported-affected-audit`. Any selector failure is `selector-error` unless it
+  carries its own code; a selector a change does not configure is `NOT_RUN` with the reason,
+  never SAFE. `affected` falls back (selects everything) when its scope is not BOUNDED,
+  `appmap-impact` when its verdict is `full-suite-required`. An appmap report with any omitted
+  entry, and any selector error, MUST be recorded as scope `ERROR` with the error code and
+  message and verdict UNKNOWN, not as an exit 2. `corvint help` MUST say that the input, outcome,
+  diff and map files must be regular files and that a symlink is refused. Amended 2026-11-09:
+  the `e2e-compile` selector was removed when the E2E proof lab was cut (owner decision). A test is selected by a
   fallback, a selected test file, a selected unit (`classname`, or `go:` plus it), or an appmap
   test key `file > title` (a Playwright `[project] ` prefix is ignored). (3) Observation.
   Outcomes (`format`, `baseline`, `changed`) are all present or all absent; absent makes the
@@ -3545,50 +3544,21 @@ traceability rows there.
   profiles; the appmap map build; weighting changes. Failure modes: a flaky test is reported as a
   miss unless removed from the outcomes; an outcome file whose `file` does not match a tracked path
   makes a dropped test unobserved (UNKNOWN), never removed; a revert that conflicts on `base` or a
-  patch that does not apply is an input error, not a skipped change; an `e2e-compile` miss can
-  mean the existing suite, not the compiler, covers the change, so its recall is a measure of the
-  compiled scenarios alone. Rollback: restore the AFP-V0-445 `/0` report from Git; nothing is
+  patch that does not apply is an input error, not a skipped change. Rollback: restore the AFP-V0-445 `/0` report from Git; nothing is
   persisted, and the input profile is unchanged, so `/0` manifests stay valid.
 
 ### Two-repository e2e inputs for the selection audit (AFP-V0-490 to AFP-V0-493; GitHub #1870)
 
-- **AFP-V0-490:** (accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870;
-  amends AFP-V0-447 (2)) A change's `e2e` object MAY also name `manifest_repo` (an alias),
-  `repos` (alias to absolute tests-repository root) and `repo_revisions` (alias to full commit
-  id). The audit MUST pass them to `corvint-test e2e compile` exactly as its `--repo ALIAS=ROOT`,
-  `--manifest-repo ALIAS` and `--repo-revision ALIAS=REV` flags (CCE-V0-130 to CCE-V0-136), in
-  alias order, so an adopter whose suite and manifest live in a second repository is scored
-  rather than reported `e2e-map-unavailable`. The second repository is read in place, at its
-  stated revision or else its HEAD, and never written.
-- **AFP-V0-491:** (accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
-  Those inputs MUST be checked before any change runs, by the same `appmap.BindRootFlags` parse
-  and `Roots.Check` the companion uses plus: every root absolute and clean
-  (`rootalias.ValidRoot`), every `repos` and `repo_revisions` key a valid alias
-  (`rootalias.Valid`, so a key holding `=` cannot re-split into another alias and root), every
-  revision a full lowercase commit id, `manifest_repo` and every `repo_revisions` alias naming a
-  `repos` alias, and no `repos` root that is the audited repository itself, directly or through a
-  symlink (the compile runs on a clone, so the companion's own `--root` collision check cannot
-  see it). A violation is the input error
-  `unsupported-affected-audit` (exit 2), never an UNKNOWN selection.
-- **AFP-V0-492:** (accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
-  An `e2e-compile` selection MUST record, as `roots`, the aliased-root pins the compile report
-  gives (alias, revision read, inputs, and `stated` for a `repo_revisions` revision), so the
-  tests revision scored is in the `corvint-affected-audit/1` report; one-repository selections
-  omit it. `corvint help` MUST say that the input, outcome, diff and map files must be regular
-  files and that a symlink is refused.
-- **AFP-V0-493:** (accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870;
-  amends AFP-V0-447 (3)) When a change's `e2e` names any `repos`, a baseline test missing from
-  the changed run MUST be `unobserved`, never `removed`: the suite may live in the second
-  repository, read at one revision for base and head, so the audited repository's tracked files
-  are no evidence of its removal, and a same-path application file deleted by the change MUST
-  NOT suppress UNKNOWN.
-  Non-goals: two-repository inputs for `appmap-impact`, which reads a pre-built map whose
-  `roots` already pin its tests side and diffs only the audited repository; accepting a symbolic
-  revision or a relative root. Failure modes: a tests root that is not a Git worktree top or
-  lacks the stated commit is an `e2e-compile-failed` UNKNOWN for that change, as before; a
-  `repos` entry naming the audited repository is refused by the companion. Rollback: revert the
-  change; manifests without the new members are unchanged and the report gains only the
-  optional `roots` member.
+- **AFP-V0-490:** (retired 2026-11-09; was accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
+  Retired 2026-11-09: the E2E proof lab was cut (owner decision); the e2e-compile selector and its inputs were removed. It required a change's `e2e` {manifest_repo, repos, repo_revisions} passed to `corvint-test e2e compile`.
+- **AFP-V0-491:** (retired 2026-11-09; was accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
+  Retired 2026-11-09: the E2E proof lab was cut (owner decision); the e2e-compile selector and its inputs were removed. It required validation of those two-repository inputs before any change runs.
+- **AFP-V0-492:** (retired 2026-11-09; was accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
+  Retired 2026-11-09: the E2E proof lab was cut (owner decision); the e2e-compile selector and its inputs were removed. It required the `roots` pins recorded on an `e2e-compile` selection; its regular-file help clause now lives in AFP-V0-447 (2).
+- **AFP-V0-493:** (retired 2026-11-09; was accepted under the owner's standing lane auto-accept (2026-10-11); GitHub #1870)
+  Retired 2026-11-09: the E2E proof lab was cut (owner decision); the e2e-compile selector and its inputs were removed. It required `unobserved`, never `removed`, for a dropped test when `e2e` names `repos`.
+  Rollback: restore this section, the `e2e-compile` selector in `cmd/corvint/affected_audit.go`
+  and the `corvint-test` companion from Git.
 
 ### Rule (d) refusals name the import chain (AFP-V0-500; V1-2823)
 
@@ -6549,12 +6519,12 @@ traceability table.
 | AFP-V0-441 | the Go tests step (`rerun_invocations`, `forward_outcomes`, the `flaky.sh` decision) and the `Retain the FLAKY record (AFP-V0-441)` step of `go-product-shard` in `.github/workflows/ci.yml`; `.github/forward-rows/flaky.sh` | `TestAFPV0441FlakyShard` (the recorded PR shard-7 flake passes as FLAKY with summary, annotation and `flaky.json`; a second failure, a failed rerun outcome, a rerun timeout, a package not rerun, an interrupted or bounded rerun, a failed whole-package invocation without a whole-package rerun, a passing first attempt and a lost failed-slice record each refuse with no record); `TestAFPV0441WorkflowBindings` (only `go-product-shard` calls `flaky.sh`, the rerun is bounded, FLAKY needs complete outcomes and a written output, the record upload cannot fail open, one `status=0`); a scratch run of the extracted step with a fake `go` (FLAKY pass, double failure exits 1, a hung rerun exits 1 with `rerun-status` 124); a runner run is `NOT_OBSERVED` |
 | AFP-V0-444 | `ReadGeneratedDeclaration`, `HashOverBoundSource` and `SourceBoundRemedy` in `internal/liveverify/affected/generated.go`; `playwrightBoundSourceFiles` and `PlaywrightGenerated` in `internal/liveverify/affected/typescript/playwright_generated.go`; `FrontierOverBoundSource` in `typescript.go`; `planUnbounded` in `internal/appflows/selection.go`; `holdPlaywrightIgnored` in `cmd/corvint/affected.go` | `TestReadGeneratedDeclarationAFPV0444` and `TestHashOverBoundSourceAFPV0444` (valid, absent and invalid declarations; the bound and remedy named); `TestAffectedOverBoundSourceIsPerPath_GH1811` (an untouched over-bound bundle still narrows e2e-safe; a touched one requires the full suite); `TestAffectedGeneratedPathsDeclaration_GH1811` (undeclared: a named over-bound unknown and `NOT_NARROWED`; declared: `plan.generated` recorded, no unknown, `NARROWED`); reporter repository `NOT_OBSERVED` |
 | AFP-V0-445 | `parseAffectedAuditOptions`, `compileAffectedAudit`, `planAffectedAuditChange`, `parseAffectedAuditJUnit`, `parseAffectedAuditPlaywright` and `clopperPearsonUpper` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445` (a selected failure exits 0 with HEAD and status unchanged; an unselected failure is a miss and exits 1; an invalid manifest exits 2); `TestAffectedAuditPlaywrightAndBounds_AFPV0445` (Playwright statuses and title paths; Clopper-Pearson values) |
-| AFP-V0-447 | `validateAffectedAuditChange`, `materializeAffectedAuditChange`, `observeAffectedAuditChange`, `pickAffectedAuditSelector`, `affectedAuditE2ECompiler`, `pickAffectedAuditE2E`, `affectedAuditPick.selects`, `scoreAffectedAuditSelector`, `aggregateAffectedAudit` and `affectedAuditExitCode` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445` (per-selector SAFE and MISS with recall and precision, NOT_RUN selectors, HEAD, status and refs unchanged); `TestAffectedAuditMissingObservationIsUnknown_AFPV0447` (no outcomes, a dropped test, and appmap and e2e selector errors are UNKNOWN, exit 3, aggregate bound UNKNOWN); `TestAffectedAuditRevertAndMutantChanges_AFPV0447` (deterministic synthesized heads, BOUNDED and SAFE, refs and object counts unchanged; a mutant with a head exits 2); `TestAffectedAuditAppmapImpactSelector_AFPV0447` (an unmapped template is a `full-suite-required` FALLBACK); `TestAffectedAuditE2ECompileSelector_AFPV0447` (with a built `corvint-test` on PATH, a compiled scenario is SAFE, an unrelated spec failure is a MISS, aggregate recall 0.5); `TestAffectedAuditSelectionMatching_AFPV0447`; `TestAffectedAuditUnknownRatiosPropagate_AFPV0447`; `TestCoreHTTPImportersAreAllowlisted` (the core closure gains no `net/http` importer); replay on a real repository history `NOT_OBSERVED` |
+| AFP-V0-447 | `validateAffectedAuditChange`, `materializeAffectedAuditChange`, `observeAffectedAuditChange`, `pickAffectedAuditSelector`, `affectedAuditPick.selects`, `scoreAffectedAuditSelector`, `aggregateAffectedAudit` and `affectedAuditExitCode` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445` (per-selector SAFE and MISS with recall and precision, exactly the `affected` and `appmap-impact` selectors, NOT_RUN selectors, HEAD, status and refs unchanged); `TestAffectedAuditMissingObservationIsUnknown_AFPV0447` (no outcomes, a dropped test, and an appmap selector error are UNKNOWN, exit 3, aggregate bound UNKNOWN); `TestAffectedAuditRevertAndMutantChanges_AFPV0447` (deterministic synthesized heads, BOUNDED and SAFE, refs and object counts unchanged; a mutant with a head exits 2); `TestAffectedAuditAppmapImpactSelector_AFPV0447` (an unmapped template is a `full-suite-required` FALLBACK); `TestAffectedAuditE2EFieldRefused_AFPV0447` (a change carrying `e2e` exits 2 with `unsupported-affected-audit`); `TestAffectedAuditSelectionMatching_AFPV0447`; `TestAffectedAuditUnknownRatiosPropagate_AFPV0447`; `TestCoreHTTPImportersAreAllowlisted` (the core closure gains no `net/http` importer); replay on a real repository history `NOT_OBSERVED` |
 | AFP-V0-464 | `link`, `dependents`, `reach` and `unresolved` in `internal/gateselect/readers.go` (edge classes `importers`, `namers`, `testImporters`) | `internal/gateselect/reach_parity_test.go` TestReachMatchesThePlannerGraph_V12727 (the selector's rule (d) set equals `Graph.UnboundedReaders` and its rule (a) reach equals `Graph.ReachedUnitIDs` less rule (d) over a fixture with a test-only import, a test-only importer's importer and a path-token holder); `internal/gateselect/select_test.go` TestSelectStructuralLeavesRuleDToThePlan_STRV0061 (`Select` stops at the test importer); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-26-v1-2727-shared-selector-reach.md` |
 | AFP-V0-465 | `.corvint/documentation-paths.json` (`docs/specs/` entry) read by `readDocumentationDeclaration` in `internal/liveverify/affected/documentation.go` | `internal/liveverify/affected/documentation_test.go` TestRepositoryDeclaresBuildLogDocumentation_AFPV0160 (the declared entries), TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160 and TestDeclaredDocumentationKeepsEveryReader_AFPV0160 (no participant, readers kept); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-26-v1-2727-shared-selector-reach.md`: on the PR #1816 mirror `LANGUAGE_FRONTIER` 96 to 3 and `UNOWNED_DIRTY_PATH` 1 to 0, with 73 selections and the `corvint test --dry-run` invocations identical |
-| AFP-V0-490 | `affectedAuditInE2E`, `affectedAuditE2ERootArgs` and `pickAffectedAuditE2E` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditE2ETwoRepository_AFPV0490` (with the suite and block declarations in a second repository and a built `corvint-test` on PATH, `repos` with and without `repo_revisions` compile and score SAFE; without `repos` the change stays `e2e-compile-failed` UNKNOWN) |
-| AFP-V0-491 | `affectedAuditE2ERootArgs`, `validateAffectedAuditChange` and the audited-repository check in `compileAffectedAudit` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditE2ETwoRepositoryInputErrors_AFPV0491` (a relative or unclean root, a symbolic revision, a revision or manifest_repo alias without `repos`, an invalid alias, a `repos` or `repo_revisions` key holding `=`, and a root that is the audited repository directly or through a symlink each exit 2 with `unsupported-affected-audit`) |
-| AFP-V0-493 | `auditAffectedChange` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditE2ETwoRepository_AFPV0490` (a dropped test whose same-path application file the change deleted is `unobserved` with `repos`, and `removed` without) |
+| AFP-V0-490 | retired 2026-11-09 (E2E proof lab cut; owner decision) | retired: the `e2e-compile` selector, its inputs and its tests were removed |
+| AFP-V0-491 | retired 2026-11-09 (E2E proof lab cut; owner decision) | retired: the `e2e-compile` selector, its inputs and its tests were removed |
+| AFP-V0-493 | retired 2026-11-09 (E2E proof lab cut; owner decision) | retired: the `e2e-compile` selector, its inputs and its tests were removed |
 | AFP-V0-494 | `symlinkHints` and `Unknown.String` in `internal/liveverify/affected/symlink_hint.go`, called from `Select`; `graphFrontierDetail` in `internal/liveverify/affected/typescript/playwright.go` | `TestUnownedSymlinkCarriesIgnoreHint_AFPV0494` (only the symlink gets the hint; no disk root gives no hint and the same plan); `TestGraphFrontierDetailCarriesHint_AFPV0494` |
 | AFP-V0-496 | `withFocusedNextStep` and the reworded mandatory reasons in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496` (the focused command leads the advisory checks, the mandatory reasons name the terminal boundary, no base or no dirty path adds nothing) |
 | AFP-V0-495 | `testlessReaderUsers` in `internal/liveverify/affected/readers.go`, called from `reach` | `TestTestlessDocumentationReaderSelectsImportingTest_AFPV0495` (the importing test is selected `BOUNDED` with a two-step `DEPENDENCY_PATH` witness from the helper); `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive` (a runner configuration naming an owned test path is not traversed) |
@@ -6623,7 +6593,7 @@ traceability table.
 | AFP-V0-670 | `.github/gate-reuse/find.sh`; the `doc-gates-reuse`, `doc-gates-record`, `cem-release-reuse` and `cem-release-record` jobs in `.github/workflows/ci.yml` and `.github/workflows/cem-release-gate.yml`; the `job:doc-gates-reuse` and `job:cem-release-reuse` rows of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0670GatesWireExactTreeReuse`, `TestAFPV0670RecordJobsRunNoRepositoryCode`, `TestAFPV0670ReuseDecidesOnlyForAPassedRunOfThisTree` (`tools/ci-reuse-plan/gate_reuse_workflow_test.go`; the `.github` and base guards each fail the last test when removed); hosted run timings in build log 2026-10-28-ci-gate-tree-reuse; hosted after-measurement `NOT_OBSERVED` |
 | AFP-V0-671 | the `needs`, `if` and step `if` lines of `doc-gates` and the `doc-gates-reuse` and `doc-gates-record` jobs in `.github/workflows/ci.yml` | `TestAFPV0670GatesWireExactTreeReuse`, `TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs`; the reuse-wiring fixture of `script/batch-precheck_test.sh` (`make batch-precheck-test`) and `script/batch-precheck.sh --sync-check` |
 | AFP-V0-672 | the `needs`, `if` and step `if` lines of `cem-release-gate` and `cem-release-readiness` and the `cem-release-reuse` and `cem-release-record` jobs in `.github/workflows/cem-release-gate.yml` | `TestAFPV0670GatesWireExactTreeReuse`, `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
-| AFP-V0-492 | `affectedAuditCompileReport.Roots`, `affectedAuditPick.roots` and `scoreAffectedAuditSelector` in `cmd/corvint/affected_audit.go`; the `affected audit` paragraph in `cmd/corvint/help.go` | `TestAffectedAuditE2ETwoRepository_AFPV0490` (each selection records the `e2e` pin at the tests commit, `stated` only with `repo_revisions`; a one-repository selection has no `roots`) |
+| AFP-V0-492 | retired 2026-11-09 (E2E proof lab cut; owner decision) | retired: the `e2e-compile` selector, its inputs and its tests were removed |
 | AFP-V0-500 | `explain` in `tools/unbounded-readers/main.go`; `Graph.UnboundedChain` and the chains of `unboundedReaders` in `internal/liveverify/affected/graph.go` | `TestAFPV0500RefusalNamesTheImportChain` (a package unbounded only through `user -> middle -> untested` is refused with that exact chain line and the reader's reason; a recorded self-caused reader is not explained) |
 | AFP-V0-460 | the `packageSeconds` lines of the AFP-V0-422 marker step of `go-product-shard`; the `boxed` output and the `Report the self-hosted shard balance (advisory, AFP-V0-460)` step of `ci-shard-cost-drift` in `.github/workflows/ci.yml` | `TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound` (runs the marker, outcome and balance scripts: package events only, a bare marker without a stream, even sums without a warning, a skew past the bound warns, exactly 125 percent does not, 125.5 percent does, a missing sum is not measured, seven markers skip the step); replays in build log 2026-10-26-ci-speed-shards-verdict-reuse; a box run `NOT_OBSERVED` |
 | AFP-V0-461 | `PR_HEAD` in the Go tests step of `go-product-shard` in `.github/workflows/ci.yml`; `decide` in `.github/forward-rows/accept.sh` | `TestAFPV0097WorkflowBindings` (the step names `PR_HEAD`), `TestAFPV0097VerdictAcceptance` (every verdict reaches the log line, the notice and the summary); root cause from run 40252414387 in build log 2026-10-26-ci-speed-shards-verdict-reuse; hosted `NOT_OBSERVED` |

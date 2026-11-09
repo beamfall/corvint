@@ -169,7 +169,7 @@ need_gocache() {
 # which PR shards skip, so a broken live test fails before the merge queue (AFP-V0-2702, V1-4923).
 EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-test capability-catalog-test live-test)
 # What capability-catalog-check reads beyond Go source: the root guides (README.md, llms.txt,
-# AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
+# AGENTS.md) and top-level docs (CAPABILITIES.md, APPLICATION-MAP.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
 CATALOG_INPUTS=(@go @root 'docs/*.md')
 # What selection-baseline-check reads beyond the Go source of the packages its recipe builds: the

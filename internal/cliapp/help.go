@@ -16,11 +16,8 @@ import (
 func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) {
 	// Preserve authored test-command help, including provider flag details.
 	// These binaries can still expose their offline command-tree catalog.
-	if binary == "corvint-test" {
-		return 0, false
-	}
 	switch binary {
-	case "corvint-test-runner", "corvint-behavior-falsify", "corvint-playwright-minimize", "corvint-tests-accept", "corvint-js-test-provider":
+	case "corvint-test-runner", "corvint-js-test-provider":
 		catalog := len(args) == 2 && args[0] == "help" && (args[1] == "--json" || args[1] == "--tree")
 		version := len(args) > 0 && args[0] == "--version"
 		if !catalog && !version {

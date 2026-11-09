@@ -190,8 +190,8 @@ func TestMCPV0100DriftFailureNamesTheRecovery(t *testing.T) {
 
 // CAP-V0-950: `corvint help --json COMMAND` prints that command's catalog
 // entry under 5 KB, every command slices, an unknown name is refused naming
-// every command, and corvint-tasks and corvint-test accept the --tree spelling
-// of their command trees.
+// every command, and corvint-tasks accepts the --tree spelling of its command
+// tree.
 func TestCAPV0950HelpJSONCommandSlice(t *testing.T) {
 	t.Parallel()
 	catalog := runCatalogHelp(t, "help", "--json")

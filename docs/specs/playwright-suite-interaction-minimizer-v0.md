@@ -2,16 +2,20 @@
 
 Owner: Russell Lewis
 Date: 2026-09-20
-Intent status: proposed
-Delivery status: experimental (closed operator executor; bounded observed-descendant cleanup)
+Intent status: retired 2026-11-09 (decision 0593)
+Delivery status: retired
+Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted
+`cmd/corvint-playwright-minimize` and `internal/playwrightminimize` with the E2E proof lab (b1a117eb
+is the last tree with them). The body below is historical and its requirement IDs stay for
+traceability.
 Authoritative inputs: GitHub issue #47; AGENTS.md invariants 1-4 and 8; Playwright External
 Provider V0; Documentation Corpus V1 stability identity.
 
 ## Agent digest
 - Claim: A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.
-- Status: proposed; experimental (closed operator executor; bounded observed-descendant cleanup).
-- Exists: `internal/playwrightminimize`, `cmd/corvint-playwright-minimize`, integrated evidence validation and synthetic/live qualification fixtures.
-- Blocked on: broader runtime qualification and production promotion; the admitted live tuple remains the exact system-Chrome profile.
+- Status: retired 2026-11-09 (decision 0593) / retired
+- Exists: nothing; `cmd/corvint-playwright-minimize` and `internal/playwrightminimize` were deleted (read them at b1a117eb).
+- Blocked on: nothing; retired by decision 0593.
 - Read next: Requirements; Trust, limits, and failure modes; Acceptance and traceability.
 
 ## User and current state
@@ -139,16 +143,8 @@ request continues to refuse before launch under CRR-V0-003(c).
 
 ## Acceptance and traceability
 
-| Requirement | Implementation | Evidence |
-|---|---|---|
-| PSM-V0-001/002/005/006 | `internal/playwrightminimize/planner.go`, `types.go` | `TestPSMV0001PlanIsExactBoundedAndReadOnly`, `TestPSMV0011WallClockAndTrialBoundsStayVisible`, `TestPSMV0012IncompleteReproductionCannotBecomeNotReproduced`, `TestPSMV0015DuplicateBaselineDigestRefuses` |
-| PSM-V0-003 | `internal/playwrightminimize/executor.go` | `TestPSMV0002ExecutionRequiresSeparateAuthorization` |
-| PSM-V0-004 | `internal/playwrightminimize/executor.go` | `TestPSMV0007NondeterministicReproductionStopsMinimization`, `TestPSMV0009NotReproducedHasNoMinimizationOrClassification`, `TestPSMV0018InvalidRepetitionOutranksMixedClasses` |
-| PSM-V0-004/008/009 | `internal/playwrightminimize/executor.go`, `internal/playwrightminimize/live.go` | `TestPSMV0019FailureSignatureMismatchCannotMinimize`, `TestPSMV0020FailureSignatureUsesExactClassSetNotEvidenceDigest`, `TestPSMLiveOriginalFailureSignatureIsRederived` |
-| PSM-V0-007/008/010 | `internal/playwrightminimize/executor.go` | `TestPSMV0005ApplicationRestartInvalidatesTrial`, `TestPSMV0006CleanupFailureInvalidatesTrial`, `TestPSMV0013RunnerGetsDeadlineAndErrorReceiptIsRetained`, `TestPSMV0016InfrastructureIsolationIsNotProductAttribution`, `TestPSMV0017CancellationDuringFinalTrialCannotPublishConfidence` |
-| PSM-V0-009/012 | `internal/playwrightminimize/executor.go` | `TestPSMV0003TruePredecessorLeakQualification`, `TestPSMV0004LoadOnlyQualification`, `TestPSMV0008IsolatedProductRegressionStopsMinimization`, `TestPSMV0014NecessityRequiresMatchingTopologyAndSupportingReceipts` |
-| PSM-V0-011 | `internal/playwrightminimize/planner.go`, `executor.go` | `TestPSMV0010MissingComposedQualificationsBlocksConfidence` |
-| PSM-V0-013 | `internal/playwrightminimize/live.go`, `cmd/corvint-playwright-minimize`, `internal/procgroup/descendants.go` | `TestPSMLiveAuthorizationPrecedesAllMutation`, `TestMinimizerCLIRefusesImplicitExecution`, `TestPSMLiveQualifiedEvidenceAndNegativeControls`, `TestPSMLiveResetFailureStillCleansUp`, `TestPSMLiveCancellationReapsDescendants`, `TestObservedDescendantCancellationReapsEscapedChild`, `TestObservedDescendantIdentityReuseDoesNotExpandOwnership`, `TestPSMLiveDockerPredecessorQualification` |
+Retired by decision 0593: this table cited tests deleted with the E2E proof lab. Read it
+at the last tree that held them: `git show b1a117eb:docs/specs/playwright-suite-interaction-minimizer-v0.md`.
 
 Focused acceptance is `GOTOOLCHAIN=local go test -count=1 ./internal/playwrightminimize` plus the
 repository requirement, definition, and traceability checks. The opt-in real predecessor/isolated
@@ -159,12 +155,6 @@ canonical gate belongs to the frozen integrated candidate.
 
 ### Owned emitted error codes
 
-| Code | Emitted condition | Site |
-|---|---|---|
-| `live-plan-drift` | Rebuilding the live plan from its bound input no longer reproduces the approved plan. | `internal/playwrightminimize/live.go:160@0fdb09c7` |
-| `operator-authorization-required` | Operator approval is absent or its approved digest does not match the plan. | `internal/playwrightminimize/executor.go:20@a6c4fe51` |
-| `reset-failed` | The operator-owned reset command does not complete successfully. | `internal/playwrightminimize/live.go:191@a7ad6655` |
-| `trial-runner-required` | Execution is requested without a trial runner. | `internal/playwrightminimize/executor.go:23@817fd5c2` |
 
 ## Rollout, rollback, compatibility, and promotion
 

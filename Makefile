@@ -667,7 +667,6 @@ capabilities-check:
 CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
 capcatalog_write = mkdir -p $(dir $(2)) && $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
-	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
@@ -695,7 +694,7 @@ capability-catalog-test:
 
 .PHONY: capability-catalog-check
 capability-catalog-check:
-	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029|030|031|032|04[0-9])' ./cmd/corvint ./internal/capcatalog ./internal/clitree ./internal/tasks/cli ./cmd/corvint-test ./tools/capabilities-check
+	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029|030|031|032|04[0-9])' ./cmd/corvint ./internal/capcatalog ./internal/clitree ./internal/tasks/cli ./tools/capabilities-check
 
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
@@ -1788,15 +1787,11 @@ HEAVY_LIGHT_ENV = $(if $(CI),,HEAVY_CLASS=$(or $(HEAVY_CLASS),light))
 HEAVY_ADMIT_LIGHT ?= $(if $(strip $(HEAVY_ADMIT)),$(HEAVY_LIGHT_ENV) $(HEAVY_ADMIT))
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
 
-# cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright
-# toolchain (CORVINT_PLAYWRIGHT_MODULES, node) is missing (CCE-V0-102). A CI lane calls it on a
-# macOS arm64 runner with a qualified Playwright tuple; the ordinary lane does not. Each live test
-# runs in its own process of one test binary, CCE_LIVE_PARALLEL at once, and prints its start and
-# duration as it ends (V1-2908, internal/changee2e/cce-live.sh).
-CCE_LIVE_PARALLEL ?= 3
+# cce-live is retired with the E2E proof lab (decision 0593). It stays as a no-op only until
+# the ci.yml cce-live job leaves in its own .github change (github-split-check, ASD-V0-706).
 .PHONY: cce-live
 cce-live:
-	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local sh internal/changee2e/cce-live.sh $(CCE_LIVE_PARALLEL) $(GO_TEST_TIMEOUT)
+	@echo 'cce-live: retired with the E2E proof lab (decision 0593)'
 
 # SRG-V0-8202: the CI doc-gates job invokes this same target.
 .PHONY: conflict-markers-check
