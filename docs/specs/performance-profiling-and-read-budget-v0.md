@@ -481,7 +481,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-007` | `internal/procprofile` | `TestPRBV0007WriteFailureReported`, `TestPRBV0007CPUWriteFailureReported` |
 | `PRB-V0-008` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/main.go`, `cmd/corvint/taskcontext.go` | `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0008NoNestedProfilerStart` |
 | `PRB-V0-009` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/help.go` | `TestPRBV0009HelpJSONListsProfileKnobScope` |
-| `PRB-V0-010` | `cmd/corvint-mcp`, `cmd/corvint-corpus-mcp`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` | `TestPRBV0010ServerHonoursProfileKnobs`, `TestPRBV0010CorpusServerHonoursProfileKnobs`, `TestPRBV0009HelpJSONListsProfileKnobScope` |
+| `PRB-V0-010` | `cmd/corvint-mcp`, `cmd/corvint-corpus-mcp`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` | `TestPRBV0010ServerHonoursProfileKnobs`, `TestPRBV0010CorpusServerHonoursProfileKnobs` (removed), `TestPRBV0009HelpJSONListsProfileKnobScope` |
 | `PRB-V0-011` | `docs/specs/corvint-rebrand-v0.md` | `TestPRBV0011KnobsInExactSettingsList` |
 | `PRB-V0-012` | `cmd/corvint/main.go`, `cmd/corvint/profile_knobs.go` | `TestPRBV0009HelpJSONListsProfileKnobScope` |
 | `PRB-V0-013` | `internal/procprofile` | `TestPRBV0013DestinationInsideRepositoryRefused`, `TestPRBV0013ProfileInsideWorktreeRefusesBeforeRead` |
@@ -512,7 +512,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-057` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go`, `internal/perfbudget/measure.go` | `TestPRBV0057CodeScenarios`, `TestPRBV0024HarnessSmokeRun`, `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-058` | `internal/perfbudget/code_fixture.go`, `internal/perfbudget/fixture.go` | `TestPRBV0058CodeFixtureShape` |
 | `PRB-V0-059` | `internal/perfbudget/budgets.json` | `TestPRBV0059CodeScenarioCeilings`, `TestPRBV0053BaselineProvenance` |
-| `PRB-V0-060` | `internal/perfbudget/relay_linux.go`, `internal/perfbudget/measure.go` | `TestPRBV0060PeakRSSExcludesHarness`, `TestPRBV0060RelayedMCPStartFailure`, `TestPRBV0060RelayReportNotInherited`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-060` | `internal/perfbudget/relay_linux.go`, `internal/perfbudget/measure.go` | `TestPRBV0060PeakRSSExcludesHarness`, `TestPRBV0060RelayedMCPStartFailure` (removed), `TestPRBV0060RelayReportNotInherited`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-037` | `internal/perfbudget/process.go`, `internal/perfbudget/measure.go`, `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0037InterruptRetiresBuildDescendants`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-038` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-039` | `internal/perfbudget/host.go`, `internal/perfbudget/budget.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |

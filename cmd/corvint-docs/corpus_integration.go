@@ -313,6 +313,7 @@ func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, st
 	command.WaitDelay = 5 * time.Second
 	err = command.Run()
 	var exit *exec.ExitError
+	var refused *gokernel.Error
 	switch {
 	case err == nil:
 		return 0
@@ -320,9 +321,11 @@ func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, st
 		return exit.ExitCode()
 	case ctx.Err() != nil:
 		emitError(stderr, &gokernel.Error{Code: "cancelled", Message: "the core read was interrupted"})
+	case errors.As(err, &refused):
+		// The bounded capture refused more output; report its own refusal.
+		emitError(stderr, refused)
 	default:
-		// The bounded capture refused more output, or the process could not start.
-		emitError(stderr, argumentError("corpus native result exceeds bound"))
+		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "cannot run " + docsenvelope.CoreBinary + ": " + err.Error()})
 	}
 	return 2
 }

@@ -826,8 +826,8 @@ and a validated declared identifier, never source text.
 | `NGI-V0-065` | `registryCallTokens`, `registryLexTokens` (`registry_dialect.go`); `substitutions` in `skipSubstitution` (`webimports.go`) | `TestRegistryDialectAccessorInsideSubstitution`, `TestSelectSetupRegistryKeyInSubstitution` |
 | `NGI-V0-066` | `registryWrites`, `registryWriteCount`, `registryWriteAt`, `registryAssignmentAt`; `written` in `registryDialect.impact` and `setupSelector.lookup` | `TestRegistryDialectWrittenAfterDeclarationWidens`, `TestSelectSetupRegistryKeyInSubstitution` |
 | `NGI-V0-067` | `registryValueBinding`, `registryArgumentsOpen`; `argumentKeys` in `registryDialect.impact`; `arguments` in `setupSelector.lookup` | `TestRegistryDialectConstructorArgumentsOpen`, `TestSelectSetupRegistryKeyInSubstitution` |
-| `NGI-V0-068` | `PathImpactSyntax`, `SyntaxProfileSelected` (`internal/contextindex/eval_query.go`); `standaloneImpactContext`, `impactBudget` (`cmd/corvint/main.go`); `callImpact` (`internal/mcp/bridge/bridge.go`) | `TestImpactCLIMatchesMCPOnRuby` (`cmd/corvint/impact_mcp_parity_test.go`) |
-| `NGI-V0-069` | `parseImpactArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestImpactLanguageProfileAnyPosition` (`cmd/corvint/impact_mcp_parity_test.go`), `TestNonGoImpactCLIProfileAdmission` |
+| `NGI-V0-068` | `PathImpactSyntax`, `SyntaxProfileSelected` (`internal/contextindex/eval_query.go`); `standaloneImpactContext`, `impactBudget` (`cmd/corvint/main.go`); `callImpact` (`internal/mcp/bridge/bridge.go`) | `TestImpactCLIMatchesMCPOnRuby` (removed) (`cmd/corvint/impact_mcp_parity_test.go`) |
+| `NGI-V0-069` | `parseImpactArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestImpactLanguageProfileAnyPosition` (removed) (`cmd/corvint/impact_mcp_parity_test.go`), `TestNonGoImpactCLIProfileAdmission` |
 | `NGI-V0-016` | `Mapper.Constant`, `Mapper.Camelize` (`internal/rubyautoload/rubyautoload.go`) | `TestRubyAutoloadConstantMapping` (`internal/rubyautoload`), `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-017` | `loadRubyAutoload`, `rubyAutoloadDeclaration` (`internal/contextindex/ruby_autoload.go`); `New`, `DefaultRoots`, declaration decoding and `readConfiguredInflections` (`internal/rubyautoload`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration` (`internal/rubyautoload`), `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
 | `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows`, `TestRubyAutoloadQualifiedAndOrAssignmentsDefine` |
@@ -860,14 +860,14 @@ Observed execution and independent findings are retained in
 
 | Requirement | Import graph implementation | Acceptance witness |
 |---|---|---|
-| `NGI-V0-301` | `BuildImportGraph`, `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphHistoricalUncapped`, `TestImportGraphImpactParity`, `TestImportGraphRevisionObjectOnly` |
-| `NGI-V0-302` | `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphUncertainty`, `TestImportGraphRuleUnavailableCoversAdmittedSources` |
-| `NGI-V0-303` | `ImportGraphKinds`, `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphImpactParity`, `TestImportGraphLookupParity` |
-| `NGI-V0-304` | `BuildImportGraph`; `runGraphImports` (`cmd/corvint/graph_imports.go`) | `TestImportGraphRefusalsAndCancellation`, `TestGraphImportsCLIAdmission` |
-| `NGI-V0-305` | `callGraphImports` (`internal/mcp/bridge/import_graph.go`) | `TestGraphImportsCLIMCPParity`, `TestGraphImportsToolAdmission`, `TestImportGraphMCPProfile`, `TestToolsExposeOnlyDeliveredClosedReadSurface` |
-| `NGI-V0-306` | `angularResourceEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphAngularResources` |
-| `NGI-V0-307` | `rubyConstantEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphRubyConstants`, `TestImportGraphRubyIncompleteResolution` |
-| `NGI-V0-308` | `ImportGraphKinds`, `writeGraphEdge`; `importGraphKindsPattern` (`internal/mcp/bridge/import_graph.go`) | `TestImportGraphKindsClosedSet`, `TestImportGraphAngularResources`, `TestImportGraphRubyConstants` |
+| `NGI-V0-301` | `BuildImportGraph`, `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphHistoricalUncapped` (removed), `TestImportGraphImpactParity` (removed), `TestImportGraphRevisionObjectOnly` (removed) |
+| `NGI-V0-302` | `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphUncertainty` (removed), `TestImportGraphRuleUnavailableCoversAdmittedSources` (removed) |
+| `NGI-V0-303` | `ImportGraphKinds`, `WalkImportGraph` (`internal/contextindex/import_graph.go`) | `TestImportGraphImpactParity` (removed), `TestImportGraphLookupParity` (removed) |
+| `NGI-V0-304` | `BuildImportGraph`; `runGraphImports` (`cmd/corvint/graph_imports.go`) | `TestImportGraphRefusalsAndCancellation` (removed), `TestGraphImportsCLIAdmission` (removed) |
+| `NGI-V0-305` | `callGraphImports` (`internal/mcp/bridge/import_graph.go`) | `TestGraphImportsCLIMCPParity` (removed), `TestGraphImportsToolAdmission` (removed), `TestImportGraphMCPProfile` (removed), `TestToolsExposeOnlyDeliveredClosedReadSurface` |
+| `NGI-V0-306` | `angularResourceEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphAngularResources` (removed) |
+| `NGI-V0-307` | `rubyConstantEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphRubyConstants` (removed), `TestImportGraphRubyIncompleteResolution` (removed) |
+| `NGI-V0-308` | `ImportGraphKinds`, `writeGraphEdge`; `importGraphKindsPattern` (`internal/mcp/bridge/import_graph.go`) | `TestImportGraphKindsClosedSet` (removed), `TestImportGraphAngularResources` (removed), `TestImportGraphRubyConstants` (removed) |
 | `NGI-V0-761` | `requestSpec` and `rubyRequestSpecConventionScore` in `internal/contextindex/ruby_autoload.go`; `conformance/ruby-profile-v0/rows.json` | `TestRubyControllerReachesItsRequestSpecByConvention_NGIV0761`; `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` (`request-spec`, `controller-spec`) |
 | `NGI-V0-980` | `moduleReading.swiftImpact`, `buildSwiftTargetMap` (`internal/contextindex/module_impact.go`); `Reader.Targets` (`internal/swiftimpact/swiftimpact.go`) | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership` |
 | `NGI-V0-981` | `moduleReading.kotlinImpact`, `kotlinImport` | `TestNGIV0981KotlinReverseImpactFollowsPackageImports` |
@@ -877,7 +877,7 @@ Observed execution and independent findings are retained in
 | `NGI-V0-985` | `moduleReading.disclosures` | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership`, `TestNGIV0981KotlinReverseImpactFollowsPackageImports`, `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
 | `NGI-V0-986` | `ImpactCapabilities` (`internal/contextindex/impact_capabilities.go`); `impact` help (`cmd/corvint/help.go`) | `TestNGIV0986CapabilitiesListModuleReferenceSuffixes`, `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
 | `NGI-V0-987` | `ImportedModules`, `TargetModule` (`internal/liveverify/affected/swift/imports.go`) | `TestNGIV0987ImportedModulesReadsCodeOnlyImports` |
-| `NGI-V0-988` | `SwiftPMReader`, `RegisterSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/*/swift_impact.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader`, `TestCurrentTasksSourceArchiveBuildsOffline` |
+| `NGI-V0-988` | `SwiftPMReader`, `RegisterSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/*/swift_impact.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader` (removed), `TestCurrentTasksSourceArchiveBuildsOffline` (removed) |
 
 ## Non-goals, rollout and rollback
 

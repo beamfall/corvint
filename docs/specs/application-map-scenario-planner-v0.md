@@ -290,7 +290,7 @@ passes no overlay. This slice implements no ledger or run.
 | AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007ReceiptVerificationOverlay`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`, `TestAMSPV0007CollidingElementIDsStayUnverified`, `TestAMSPV0007FactCapOverflowDoesNotPromote` |
 | AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport`, `TestAMSPV0008StaleImportEvidenceNotTrusted`, `TestAMSPV0008DraftLinesStayOneLine`, `TestAMSPV0008NonIdentifierMethodNameNotCalled` |
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |
-| AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0010CorpusMCPMapPlan` |
+| AMSP-V0-010 | `TestAMSPV0010FlowsAppmapPlanCLI`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0010CorpusMCPMapPlan` (removed) |
 
 Implementation: `internal/appmap/plan.go`, `internal/command/flows/flows_appmap_plan.go`,
 `cmd/corvint-corpus-mcp/mapplan.go`. Build log:

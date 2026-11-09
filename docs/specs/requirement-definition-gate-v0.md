@@ -182,7 +182,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-007 | the collected `$failed` flag and final `exit($failed)` | `make gate` membership; the script performs no write |
 | RDG-V0-023 | the `$continues`/`$wrapped` tracking in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 | RDG-V0-022 | the `@misshapen` scan and its report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
-| RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` |
+| RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` (removed) |
 | RDG-V0-741 | the regeneration hint after the undefined-id report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh` |
 
 ## Rollout, rollback, and drift

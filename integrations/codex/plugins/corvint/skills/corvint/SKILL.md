@@ -28,9 +28,6 @@ FULL support, automatic feature fanout or new execution authority.
      The same path and range modes admit Ruby (`.rb`), JavaScript (`.js .jsx .mjs .cjs`) and
      TypeScript (`.ts .tsx`) under the experimental `non-go-syntax-v0` profile, which always
      reports dynamic-dispatch unknowns; preserve them.
-   - Use `corvint impact --working-tree-untracked PATH... --limit 10` only when the requested
-     targets are explicitly identified as untracked `.go` files. Never use it as a substitute for
-     committed-range or tracked-path impact.
    - For an explicit feature ID, use `corvint feature FEATURE_ID --limit 1` on macOS or Linux
      for known ledger-only context, including repositories with non-Go sources. A larger limit
      admits Go candidate ranking; known non-Go ranking remains unsupported. Preserve unknown-ID
