@@ -2,14 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761); TCB-V0-047 accepted (decision 0548, reaffirmed 2026-10-24; V1-1895)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761); TCB-V0-047 accepted (decision 0548, reaffirmed 2026-10-24; V1-1895)/experimental delivery; owner release intent remains accepted separately.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031). An optional `effects.verdictPaths`, a subset of `touchPaths`, is the gate's predicate domain through `{claim.verdictPaths}` in repository policy v10, falling back to `touchPaths` (TCB-V0-035..039). The document pins the consumer's stage and code, an unsupported portable route refuses `portable-route-unsupported` by name, and the consumer resolves the gate's own Git, which fixed the hosted macos-15 gate tests (TCB-V0-040..044).
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store; installing a `corvint-tasks` with TCB-V0-037 before the store adopts policy v10.
 - Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes; Verdict predicate domain.

@@ -125,7 +125,6 @@ GATE_STEPS = \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
-  qualify-tasks-basic-test \
   register-shell-test-test \
   release-checklist-test \
   repin-test \
@@ -670,7 +669,6 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./tools/linecov help --json,tools/linecov/command-tree.json)
 	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
 	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
-	$(call capcatalog_write,./cmd/corvint-cem-experiments help --json,internal/capcatalog/trees/corvint-cem-experiments.json)
 	$(call capcatalog_write,./cmd/corvint-corpus-republish help --json,internal/capcatalog/trees/corvint-corpus-republish.json)
 	$(call capcatalog_write,./cmd/corvint-dashboard-snapshot help --json,internal/capcatalog/trees/corvint-dashboard-snapshot.json)
 	$(call capcatalog_write,./cmd/corvint-gateway help --json,internal/capcatalog/trees/corvint-gateway.json)
@@ -681,9 +679,7 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	$(call capcatalog_write,./cmd/corvint-postmerge-metrics help --json,internal/capcatalog/trees/corvint-postmerge-metrics.json)
 	$(call capcatalog_write,./cmd/corvint-postmerge-workflow help --json,internal/capcatalog/trees/corvint-postmerge-workflow.json)
 	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
-	$(call capcatalog_write,./cmd/corvint-tasks help --json,internal/capcatalog/trees/corvint-tasks.json)
 	$(call capcatalog_write,./cmd/corvint-update help --json,internal/capcatalog/trees/corvint-update.json)
-	$(call capcatalog_write,./cmd/corvint-work-queue help --json,internal/capcatalog/trees/corvint-work-queue.json)
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen
 	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
 	$(CAPCATALOG_RUN) ./tools/cli-discovery-gen --docs
@@ -694,7 +690,7 @@ capability-catalog-test:
 
 .PHONY: capability-catalog-check
 capability-catalog-check:
-	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029|030|031|032|04[0-9])' ./cmd/corvint ./internal/capcatalog ./internal/clitree ./internal/tasks/cli ./tools/capabilities-check
+	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029|030|031|032|04[0-9])' ./cmd/corvint ./internal/capcatalog ./internal/clitree ./tools/capabilities-check
 
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
@@ -1083,12 +1079,6 @@ shell-test-affected: go-version ## Run the shell-test steps the affected plan se
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh
 
-# qualify-tasks-basic-test proves the refusals, the supplied-input labelling and the tamper
-# injection of script/qualify-tasks-basic.sh (TBS-V1-458, TBS-V1-459).
-.PHONY: qualify-tasks-basic-test
-qualify-tasks-basic-test:
-	@script/qualify-tasks-basic_test.sh
-
 .PHONY: batch-review-packet
 batch-review-packet:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
@@ -1271,27 +1261,12 @@ dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
-# import-direction-check runs decision 0397's import-direction tests alone, so a tools/ or other
-# Core package importing a Tasks package other than the wire package fails in doc-gates, before
-# batch-precheck runs the whole internal/tasks package (ASD-V0-783, V1-3486).
-.PHONY: import-direction-check
-import-direction-check:
-	$(DOC_GATE_LIGHT_GO_TEST) -run '^(TestImportDirection|TestImportViolationControls)$$' ./internal/tasks
-
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
 # internal/liveverify/affected package (DCW-V0-812).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
 	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
-
-# tasks-profiles-check fails, naming the profile and file, when a taskman-NAME/N literal in the
-# non-test sources under internal/tasks is not in exactly one of cli.LiveFormats, outputOnlyProfiles and
-# adoptOnlyProfiles, so an unregistered profile fails in doc-gates instead of only inside the long
-# internal/tasks/cli package (TCL-V0-815, V1-4184).
-.PHONY: tasks-profiles-check
-tasks-profiles-check:
-	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/tasks-profiles-check >/dev/null
 
 # shell-test-register registers TEST=script/<name>_test.sh in its rule, GATE_STEPS and shell-test in one
 # command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
@@ -1334,21 +1309,18 @@ DOC_GATE_TARGETS := \
   go-version-pins-check \
   host-package-versions-check \
   host-package-versions-test \
-  import-direction-check \
   legal-file-pins-check \
   license-headers-check \
   long-lines-check \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
   py-signal-lint \
-  qualify-tasks-basic-test \
   requirement-definitions-check \
   selection-baseline-check \
   shell-foreign-callers-check \
   shell-test-registration-check \
   spec-claims-check \
   stray-backups-check \
-  tasks-profiles-check \
   test-commands-check \
   test-exec-writes-check \
   test-read-scopes-check \
@@ -1624,32 +1596,13 @@ seed-planning-store-test:
 vscode-check-install-test:
 	@script/vscode-check-install_test.sh
 
-# The in-tree corvint-tasks companion binary (decision 0397). It is never a corvint subcommand;
-# tasks-test runs its own packages, which also stay in go-test's ./... because they share the module.
-CORVINT_TASKS_BIN ?= corvint-tasks
-.PHONY: tasks-build
-tasks-build: go-version
-	$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_TASKS_BIN) ./cmd/corvint-tasks
-
-.PHONY: tasks-test
-tasks-test: go-version
-	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
-
-# tasks-reconcile is the post-merge closeout reconcile (TCD-V0-872, V1-3496): closeout-debt over the
-# merged-PR export, retained under <git-common-dir>/corvint/reconcile/<refCommit>/, proposing the
-# batch-close for each merged PR. It applies nothing unless RECONCILE_APPLY=dry-run|manual|gated.
-.PHONY: tasks-reconcile
-tasks-reconcile:
-	CORVINT_TASKS=$(CORVINT_TASKS_BIN) script/tasks-reconcile.sh
-
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
 # top-level test exactly once (ASD-V0-026, tools/test-shards). Reference splits:
-# PKG=./internal/tasks/store SHARDS=8 and PKG=./internal/tasks/cli SHARDS=4, SHARD=0..SHARDS-1.
+# PKG=./cmd/corvint SHARDS=4, SHARD=0..SHARDS-1.
 .PHONY: test-shard
 test-shard: go-version
-	@test -n "$(PKG)" && test -n "$(SHARDS)" && test -n "$(SHARD)" || { echo "usage: make test-shard PKG=./internal/tasks/store SHARDS=8 SHARD=0" >&2; exit 2; }
+	@test -n "$(PKG)" && test -n "$(SHARDS)" && test -n "$(SHARD)" || { echo "usage: make test-shard PKG=./cmd/corvint SHARDS=4 SHARD=0" >&2; exit 2; }
 	@sel=$$(script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-shards -shards '$(SHARDS)' -shard '$(SHARD)' '$(PKG)') && \
 	  flag=$${sel%% *} && pattern=$${sel#* } && \
 	  HEAVY_WHOLE_REASON='make test-shard $(SHARD) of $(SHARDS) $(PKG)' script/heavy.sh env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) $(TEST_SHARD_FLAGS) "$$flag" "$$pattern" '$(PKG)'
@@ -1714,7 +1667,6 @@ shell-test: \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
-  qualify-tasks-basic-test \
   register-shell-test-test \
   release-checklist-test \
   repin-test \
@@ -1774,7 +1726,7 @@ perf-budget: go-version
 # STR-V0-006-pinned go-test and ledger/go-test recipes stay unprefixed; script/heavy.sh lowers them.
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
-# ASD-V0-930 (V1-3626): the heavy non-test targets (build, tasks-build, doc-gates, batch-precheck,
+# ASD-V0-930 (V1-3626): the heavy non-test targets (build, doc-gates, batch-precheck,
 # dogfood-inputs-check, dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
 # script/heavy.sh queue as go test; steps they run through heavy.sh nest without a second slot
 # (ASD-V0-931). --admit-only: a slot only, no offload or argument rules. Empty under CI, and

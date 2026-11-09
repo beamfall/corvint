@@ -24,7 +24,7 @@ func TestNewBuildLogKeepsDeclaredReaders_TSPV01061(t *testing.T) {
 		}
 	}
 	units := selectedUnits(graph, module, dirty)
-	for _, reader := range []string{"cmd/corvint", "internal/tasks/cli", "internal/contextindex"} {
+	for _, reader := range []string{"cmd/corvint", "internal/contextindex"} {
 		if _, ok := units[reader]; !ok {
 			t.Errorf("reader %s omitted", reader)
 		}

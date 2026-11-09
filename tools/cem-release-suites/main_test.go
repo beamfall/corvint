@@ -45,7 +45,7 @@ func TestCEMV1572ReleaseBuildsMustMatch(t *testing.T) {
 		{"modified corvint", build(corvintMain, a, "true"), build(cem01Main, a, "false"), "modified worktree"},
 		{"modified unknown", build(corvintMain, a, "false"), build(cem01Main, a, ""), "modified worktree"},
 		{"no vcs stamp", build(corvintMain, "", ""), build(cem01Main, a, "false"), "no Git vcs.revision"},
-		{"wrong corvint main", build(corvintModule+"/cmd/corvint-tasks", a, "false"), build(cem01Main, a, "false"), "not " + corvintMain},
+		{"wrong corvint main", build(corvintModule+"/cmd/corvint-mcp", a, "false"), build(cem01Main, a, "false"), "not " + corvintMain},
 		{"binaries swapped", build(cem01Main, a, "false"), build(corvintMain, a, "false"), "not " + corvintMain},
 	}
 	for _, c := range cases {

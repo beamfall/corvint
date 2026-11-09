@@ -102,8 +102,8 @@ func TestRepositoryShellDataReaders_AFPV03330(t *testing.T) {
 			}
 		}
 	}
-	if count != 12 {
-		t.Fatalf("audited %d narrowed entries, want 12", count)
+	if count != 11 {
+		t.Fatalf("audited %d narrowed entries, want 11", count)
 	}
 }
 

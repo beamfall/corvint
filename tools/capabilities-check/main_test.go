@@ -95,7 +95,7 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 			t.Errorf("dispatched verb %q not collected", c)
 		}
 	}
-	for _, b := range []string{"corvint", "corvint-mcp", "corvint-lsp", "corvint-tasks", "corvint-analyzer-go"} {
+	for _, b := range []string{"corvint", "corvint-mcp", "corvint-lsp", "corvint-analyzer-go"} {
 		if !contains(inv.Binaries, b) {
 			t.Errorf("binary %q not collected", b)
 		}
