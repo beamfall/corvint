@@ -1,4 +1,4 @@
-package docsbridge
+package docstools
 
 import (
 	"context"

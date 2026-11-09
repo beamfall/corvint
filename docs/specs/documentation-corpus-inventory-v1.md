@@ -419,7 +419,7 @@ them. `DCI-V1-020` and `DCI-V1-025` revert with no stored state.
 
 | Requirements | Implementation boundary | Required evidence |
 | --- | --- | --- |
-| DCI-V1-001..003 | `internal/doccorpus/estate.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCIV1001DCIV1002DCIV1003DCIV1005EstateReconcilesAcrossCorpora`, `TestDCIV1001EstateTargetBudgetAndStrictFile`, `TestDCIV1003EstateGapsAreMatchedNotSplit`, `TestDCIV1001DocsCorpusEstateCommand`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
+| DCI-V1-001..003 | `internal/doccorpus/estate.go`, `cmd/corvint-docs/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCIV1001DCIV1002DCIV1003DCIV1005EstateReconcilesAcrossCorpora`, `TestDCIV1001EstateTargetBudgetAndStrictFile`, `TestDCIV1003EstateGapsAreMatchedNotSplit`, `TestDCIV1001DocsCorpusEstateCommand`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCI-V1-004 | `internal/doccorpus/compile.go`, `estate.go` | `TestDCIV1004ShallowRepositoryRefusalNamesIt` |
 | DCI-V1-005 | `internal/doccorpus/types.go` | `TestDCIV1001DCIV1002DCIV1003DCIV1005EstateReconcilesAcrossCorpora` |
 | DCI-V1-006..010 | `internal/doccorpus/repository_inventory.go`, `estate.go`, `providers.go`, `encoding.go` | `TestDCIV1006ToDCIV1010InventoryRulesNeedEvidence`, `TestDCIV1007RubyExpressionsAreNoNames`, `TestDCPV1703DCPV1704DCPV1705DeployablesPackagesAndReconciliation`, `TestDCXV1471DerivationVersionGuard` |

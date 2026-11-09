@@ -53,7 +53,7 @@ func TestDocsCorpusHelpListsOperations(t *testing.T) {
 			t.Errorf("corpus help has no purpose line for %q", op)
 		}
 	}
-	if !strings.Contains(overview, "corvint docs corpus OPERATION --help") {
+	if !strings.Contains(overview, "corvint-docs docs corpus OPERATION --help") {
 		t.Errorf("corpus help does not point at per-operation help")
 	}
 }
@@ -96,14 +96,14 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 	}
 	for _, op := range issue805CorpusOperations {
 		help := corpusHelpRun(t, "docs", "corpus", op, "--help")
-		if help == docsHelp || !strings.Contains(help, "corvint [--root PATH] docs corpus "+op+" ") {
+		if help == docsHelp || !strings.Contains(help, "corvint-docs [--root PATH] docs corpus "+op+" ") {
 			t.Fatalf("%s --help is not its own usage:\n%s", op, help)
 		}
 		if got := corpusHelpRun(t, "docs", "corpus", op, "-h"); got != help {
 			t.Fatalf("%s -h differs from --help", op)
 		}
 		// The usage line names exactly the literal admitted options, required ones unbracketed.
-		usage, _, _ := strings.Cut(strings.SplitN(help, "corvint [--root PATH] docs corpus "+op+" ", 2)[1], "\n")
+		usage, _, _ := strings.Cut(strings.SplitN(help, "corvint-docs [--root PATH] docs corpus "+op+" ", 2)[1], "\n")
 		var required, optional []string
 		for _, token := range strings.Fields(usage) {
 			if flag, bracketed := strings.CutPrefix(token, "["); bracketed && strings.HasPrefix(flag, "--") {
@@ -166,7 +166,7 @@ func TestUnknownHelpTopicListsValidTopics(t *testing.T) {
 		topics[topic] = true
 		corpusHelpRun(t, append([]string{"help"}, strings.Fields(topic)...)...)
 	}
-	for _, want := range []string{"context", "docs", "docs corpus", "test-plan"} {
+	for _, want := range []string{"docs", "docs corpus", "docs-tool"} {
 		if !topics[want] {
 			t.Errorf("valid topics omit %q: %s", want, list)
 		}

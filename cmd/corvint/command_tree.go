@@ -18,8 +18,7 @@ const nodeHelpPrefix = "node:"
 // or agent types them: hook and worker entry points the binary or its installed hooks invoke, test
 // fixtures, hook event values, and alternative spellings (CAP-V0-043).
 var commandTreeInternal = []clitree.Internal{
-	{Word: "audit", Reason: "spaced spelling of docs corpus audit-sample and audit-report"},
-	{Word: "sample", Reason: "spaced spelling of docs corpus audit-sample"},
+	{Word: "help", Reason: "help topic verb: corvint help [TOPIC], corvint help --json, corvint help --tree"},
 }
 
 // commandTreeRefs are the command trees `corvint help --json` links: corvint's own and each
@@ -36,7 +35,7 @@ func commandTreeJSON() string {
 }
 
 // helpTopics lists every authored help topic that documents commands, in a stable order: each
-// public command, each cem action, and each nested docs topic.
+// public command and the nested flows topic. The docs group's own topics are corvint-docs's.
 func helpTopics() []string {
 	topics := []string{}
 	for _, command := range topLevelCommands {
@@ -52,11 +51,7 @@ func helpTopics() []string {
 	}) {
 		topics = append(topics, cemActionHelpPrefix+action)
 	}
-	topics = append(topics, "docs-corpus", "docs-flows", "docs-maintain", flowsAppmapBuildHelpTopic)
-	for _, operation := range corpusOperations {
-		topics = append(topics, "docs-corpus-"+operation.name)
-	}
-	return topics
+	return append(topics, flowsAppmapBuildHelpTopic)
 }
 
 // helpTopicPath is the command path a help topic documents.
@@ -64,17 +59,7 @@ func helpTopicPath(topic string) []string {
 	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
 		return []string{"cem", action}
 	}
-	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
-		return []string{"docs", "corpus", operation}
-	}
-	switch topic {
-	case "docs-corpus":
-		return []string{"docs", "corpus"}
-	case "docs-flows":
-		return []string{"docs", "flows"}
-	case "docs-maintain":
-		return []string{"docs", "maintain"}
-	case flowsAppmapBuildHelpTopic:
+	if topic == flowsAppmapBuildHelpTopic {
 		return []string{"flows", "appmap", "build"}
 	}
 	return []string{topic}

@@ -2981,9 +2981,9 @@
     "closableToday": false,
     "implementation": [
       "internal/doccompiler/draft.go",
-      "cmd/corvint/docs.go",
+      "cmd/corvint-docs/docs.go",
       "internal/docmaintain",
-      "cmd/corvint/docs_maintain.go"
+      "cmd/corvint-docs/docs_maintain.go"
     ]
   },
   {
@@ -3239,7 +3239,7 @@
     "closableToday": false,
     "implementation": [
       "internal/doccompiler/trusted_nav.go",
-      "cmd/corvint/docs.go"
+      "cmd/corvint-docs/docs.go"
     ]
   },
   {
@@ -4485,7 +4485,7 @@
     "title": "Core and Bundled Apps V0",
     "reqPrefix": "CMS-V0",
     "intent": "accepted (owner, 2026-11-06)",
-    "delivery": "not-started",
+    "delivery": "in-progress (docs edges cut, 2026-11-09)",
     "claim": "Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory.",
     "dependsOn": [],
     "supersededBy": null,

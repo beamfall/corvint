@@ -20,6 +20,7 @@
         "internal/companioncli",
         "internal/contextindex",
         "internal/diagnostic",
+        "internal/docsenvelope",
         "internal/execfile",
         "internal/flowcoverage",
         "internal/genesis",
@@ -164,6 +165,7 @@
       "layer": 1,
       "summary": "documentation generation, corpus reads and the flows verbs: corvint-docs-mcp, corvint-web-flows and the docs code still inside corvint",
       "prefixes": [
+        "cmd/corvint-docs",
         "cmd/corvint-docs-mcp",
         "cmd/corvint-web-flows",
         "internal/command",
@@ -171,6 +173,7 @@
         "internal/doccompiler",
         "internal/doccorpus",
         "internal/docmaintain",
+        "internal/docstools",
         "internal/docviews",
         "internal/flowdocs",
         "internal/mcp/corpusbridge",
