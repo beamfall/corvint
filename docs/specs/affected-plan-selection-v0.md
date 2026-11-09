@@ -13,6 +13,11 @@ Delivery status: experimental
 - Blocked on: the parent spec's gates.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
 
+V1-5176's comment-only Go classification is specified in
+[Comment-only Go changes](#comment-only-go-changes-v1-5176), implemented by
+`golang.GoChangeRecords`, `Graph.WithGoChanges` and `Select`, with acceptance evidence in
+`docs/build-log/2026-11-08-comment-only-go-edits.md`.
+
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
 failure codes and acceptance gates), `docs/specs/affected-plan-python-playwright-v0.md` (the
 Python adapter), `docs/specs/corvint-self-development-v0.md` (ASD-V0-895, the
@@ -2241,6 +2246,102 @@ implementation is on the sibling branch and absent from the V1-5177 base.
   in its owning package as an unproven or unbounded reader, and its build-log entry SHALL say why.
   `TestClosureGuardIsProvenImportGraphReader_AFPV09600` classifies the real package and fails when
   any of its tests stops being a proven reader.
+
+
+### Comment-only Go changes (V1-5176)
+
+Intent: avoid recompiling the reverse dependency closure for ordinary Go comment and
+intraline whitespace edits, while retaining the changed package and every observed byte reader.
+The owner requested this bounded optimization on 2026-11-08; it does not prove test
+adequacy, remove unknowns, or narrow any independent byte-read witness.
+
+- **AFP-V0-3320:** (owner-requested V1-5176, 2026-11-08)
+  Classify a dirty `.go` path as `COMMENT_ONLY` only when both BASE and HEAD bytes are
+  readable within the source bound, both parse fully with `go/parser` and `ParseComments`,
+  and `go/scanner` yields identical tokens, literal text and unadjusted line numbers after
+  dropping comments, including automatic semicolons. Line numbers are compiled into
+  `runtime.Caller`, panics and `log.Lshortfile` output (as TSP-V0-941 records), so an
+  edit that moves any token to another line, such as a comment or blank line inserted
+  above a function, is not comment-only; only the EOF position is exempt, so an edit in
+  place or a comment appended after the last token stays eligible. Columns are ignored.
+  Compare protected comment lines separately:
+  any `//go:` directive (including build, embed, generate and linkname), `//line`,
+  `/*line`, legacy `// +build`, `//export`, any comment containing `+build` or
+  `//go:build` anywhere in its text (including block comments, which vet's buildtag check
+  reads), and the comment group immediately preceding `import "C"` or its grouped import spec. Changes to their bytes or token attachment
+  (including raw separation before the next token and the prefix before a legacy build
+  constraint, to preserve blank lines and the header region)
+  refuse classification. Missing sides, additions, deletions, renames, parse/scanner
+  errors, unreadable or oversized sources, and any analysis error retain full propagation.
+- **AFP-V0-3321:** (owner-requested V1-5176, 2026-11-08)
+  A proven comment-only path owned by a Go unit still selects its package with
+  `DIRECT_SOURCE_CHANGE`, but does not seed `DEPENDENCY_PATH`, `BINARY_EXEC`,
+  `IMPORT_GRAPH_READER`, or driver build-dependency edges from compilation of that file.
+  Narrow each path independently: a code or structural change in the same package or
+  another package keeps its existing propagation and names the propagating dirty path.
+  An unowned or unindexed Go path remains conservative rather than inventing ownership.
+- **AFP-V0-3322:** (owner-requested V1-5176, 2026-11-08)
+  Every byte-read route still receives the complete dirty set: `PATH_LITERAL_READER`,
+  `PATH_GLOB_READER`, `DECLARED_READ_SCOPE`, `UNBOUNDED_READER`, driver readers and their
+  existing reader-dependent rules, including a testless package reading its own source.
+  A testless independent literal or glob reader of a comment-only path still carries
+  its callers transitively even when the owning package has tests: removing compilation
+  seeds cannot remove the tests that exercise those source-byte reads.
+  Unproven `go list` observers marked `ImportGraphReadsFiles` may read package documentation:
+  keep them through an explicit `UNBOUNDED_READER` source-comment cause rather than an
+  `IMPORT_GRAPH_READER` edge, preserving AFP-V0-9010's byte-reader safety.
+  A `_test.go` file is not classified when its package
+  or tests may inspect comments: importing `go/doc`, or `go/ast` together with an
+  identifier use of `parser.ParseComments` (including aliases and dot imports) suffices
+  conservatively without claiming to prove the parser's source roots. Read/directory/parse
+  errors while inspecting either endpoint's package also refuse classification.
+- **AFP-V0-3323:** (owner-requested V1-5176, 2026-11-08)
+  Supply the comparison as explicit per-plan evidence through `WithGoChanges`, analogous
+  to `WithImportSetChanges`, from the CLI's measured BASE/HEAD and snapshot routes and
+  the Go-aware library planning helpers. A plain library caller, absent comparison,
+  unknown classification or `--path` probe retains today's propagation. Full and compact
+  plan JSON add optional `goChanges` entries with `path` and `kind: COMMENT_ONLY`; existing
+  fields keep their shapes. Entries follow normalized dirty-path order. The comparison is
+  recomputed after graph-cache lookup, never persisted as cached graph observation or
+  inferred from the graph digest. A later plan or changed dirty content cannot inherit it.
+- **AFP-V0-3324:** (owner-requested V1-5176, 2026-11-08)
+  `WithGoChanges` refuses a `COMMENT_ONLY` record for a `.go` path that a unit's
+  `EmbedFiles` names, or that lies below an embedding Go package's directory (the rule
+  `SourcePath` applies). A `//go:embed` consumer, such as a profile digest over embedded Go
+  sources, observes those bytes beyond compilation, so the path keeps full propagation.
+- **AFP-V0-3325:** (owner-requested V1-5176, 2026-11-08)
+  A seeded unit every dirty input of which is an admitted `COMMENT_ONLY` path compiles
+  identically under AFP-V0-3320 and AFP-V0-3324, so it is excluded from the
+  `NO_SELECTABLE_TEST` coverage-gap check (neither `unknown` nor `uncovered`) and cannot
+  make the scope `UNKNOWN` on that ground. Any other dirty input reaching the unit,
+  through ownership or any Go structural rule, restores the check unchanged. This includes
+  added, deleted and renamed files and enclosing data inputs, even when the retained
+  seed witness names a comment-only sibling; every input must be an admitted edit of an
+  existing file before the check can be skipped.
+
+Failure modes: token comparison alone misses compiler/tool directives and cgo code;
+protected raw lines and attachment checks prevent this. Ignoring positions would hide line
+shifts that change `runtime.Caller`, panic and log output; per-token line comparison
+prevents this. Vet reads build-constraint text even inside ordinary or block comments; any
+comment mentioning `+build` or `//go:build` is protected. Embedded `.go` files have byte
+consumers outside the compile graph; AFP-V0-3324 refuses them. Reporting
+`NO_SELECTABLE_TEST` for a unit that compiles identically would turn a precision gain into
+an `UNKNOWN` plan; AFP-V0-3325 skips only units whose every dirty input is admitted, so a
+real code edit still reports its coverage gap. Package-level suppression can hide a
+second dirty code file; per-path compilation seeds and import-set witness reassignment prevent
+this. Removing the path from all selection loses source-reading tests; reader selection keeps
+the original dirty set. Ignoring inserted semicolons can change Go syntax; scanner output keeps
+them. Unsupported/unavailable evidence always leaves the prior propagation in place.
+
+Acceptance: focused tests named `AFP_V0_3320` through `AFP_V0_3325` cover lexical and line
+equality, directives/cgo, build-constraint text, embedded sources, the coverage-gap
+exclusion, failure cases, all reader routes, mixed edits, caller defaults, CLI JSON and
+cache/non-cache planning. The build-log records the paired `anchor.go` comment measurement
+against the same base, with selected units, Go packages, tests and witness-kind counts.
+Non-goals: semantic equivalence of different token streams, excluding the own package,
+changing the CI selector, or certifying all comment readers from syntax alone.
+Rollback: remove the comparison attachment to restore full propagation; no store migration
+or graph-cache schema change is required.
 
 ### Driver narrowing after the convergence cap (V1-5000)
 

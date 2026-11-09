@@ -121,6 +121,9 @@ type Graph struct {
 	// (AFP-V0-2202); nil is unknown. Like priorReadScopes it is a selection
 	// input, not part of the observed graph or its digest.
 	importSets *ImportSetChanges
+	// goCommentOnly is per-selection BASE/HEAD evidence (AFP-V0-3323),
+	// attached after graph-cache lookup, never part of cached observations.
+	goCommentOnly map[string]bool
 	// sparse records that the disk checkout is a sparse checkout, where an
 	// absent directory may lie outside the cone rather than be deleted
 	// (AFP-V0-821). Like priorReadScopes it is a selection input.
