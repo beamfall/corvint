@@ -880,6 +880,15 @@ jobs:
           key: go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-${{ github.sha }}
           restore-keys: |
             go-build-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-race-shard-${{ strategy.job-index }}-of-${{ strategy.job-total }}-${{ hashFiles('source/go.sum') }}-
+      - name: Restore the pinned ripgrep release (V1-5188)
+        id: rgcache
+        if: runner.environment != 'self-hosted'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
       - name: Provision the host tools the product's fixed PATH resolves
         if: runner.environment != 'self-hosted'
         # Child processes run under worksource.PlatformPath, which reaches Go through
@@ -897,9 +906,19 @@ jobs:
           sudo ln -s "$(go env GOROOT)" /usr/local/go
           test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
-          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
-            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          # V1-5188: a restored release tarball that matches the pin skips the network; a
+          # missing or damaged one falls back to a download, and the pinned checksum below is
+          # verified again before anything is extracted.
+          if [ -f "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" ] &&
+            echo "$RG_SHA256  $RUNNER_TEMP/rg-release/$rg_name.tar.gz" | sha256sum --check --status --strict; then
+            cp "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" "$RUNNER_TEMP/$rg_name.tar.gz"
+          else
+            curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+              "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          fi
           echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/rg-release"
+          cp "$RUNNER_TEMP/$rg_name.tar.gz" "$RUNNER_TEMP/rg-release/$rg_name.tar.gz"
           tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
           sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
           rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)
@@ -913,6 +932,14 @@ jobs:
           git config --global maintenance.auto false
           git config --global gc.auto 0
           git --version
+      - name: Save the pinned ripgrep release (V1-5188)
+        if: runner.environment != 'self-hosted' && steps.rgcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
       - name: Verify the host tools the product's fixed PATH resolves (self-hosted runner, AFP-V0-421)
         # The self-hosted host has no passwordless sudo, so it provisions nothing: the owner
         # installs the pinned Go at /usr/local/go and the pinned ripgrep at /usr/local/bin/rg, and
@@ -2090,6 +2117,14 @@ jobs:
         with:
           cache: false
           go-version: "1.27.3"
+      - name: Restore the pinned ripgrep release (V1-5188)
+        id: rgcache
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
       - name: Provision the host tools the product's fixed PATH resolves, as the shards do
         # The same fixed-PATH Go, pinned ripgrep release (V1-1095) and fixture Git identity as
         # go-product-shard, because these tests ran there before the tier split.
@@ -2101,9 +2136,19 @@ jobs:
           sudo ln -s "$(go env GOROOT)" /usr/local/go
           test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
-          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
-            "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          # V1-5188: a restored release tarball that matches the pin skips the network; a
+          # missing or damaged one falls back to a download, and the pinned checksum below is
+          # verified again before anything is extracted.
+          if [ -f "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" ] &&
+            echo "$RG_SHA256  $RUNNER_TEMP/rg-release/$rg_name.tar.gz" | sha256sum --check --status --strict; then
+            cp "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" "$RUNNER_TEMP/$rg_name.tar.gz"
+          else
+            curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+              "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          fi
           echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/rg-release"
+          cp "$RUNNER_TEMP/$rg_name.tar.gz" "$RUNNER_TEMP/rg-release/$rg_name.tar.gz"
           tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
           sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
           test "$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)" = /usr/local/bin/rg
@@ -2111,6 +2156,14 @@ jobs:
           git config --global user.email corvint-ci@users.noreply.github.com
           git config --global maintenance.auto false
           git config --global gc.auto 0
+      - name: Save the pinned ripgrep release (V1-5188)
+        if: steps.rgcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
       - name: Live test tier
         run: make live-test
 
