@@ -1,7 +1,6 @@
 package contextindex
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -38,87 +37,10 @@ var (
 	projectOperationTerms = stringSet("contribute contributor gate gates instruction instructions orient orientation roadmap ticket tickets workflow workflows")
 )
 
-type instructionCandidate struct {
-	score  int
-	record Record
-	result map[string]any
-}
-
 type instructionMatch struct {
 	count, line int
 	text        string
 	overlap     []string
-}
-
-// QueryAuthorityStart compiles the deliberately narrow GPK-V0-028 task-start profile.
-func QueryAuthorityStart(ctx context.Context, index *Index, text string, limit int) (map[string]any, error) {
-	return QueryAuthorityStartBudget(ctx, index, text, limit, nil)
-}
-
-// QueryAuthorityStartBudget adds packet selection to the authority-start
-// profile. The packet is the Python oracle's project-operations answer: the
-// uniquely highest instruction result, a second ranked instruction document
-// when the limit admits one, then at most three advisory learned-path
-// candidates when the limit leaves room for them.
-func QueryAuthorityStartBudget(ctx context.Context, index *Index, text string, limit int, budget *int) (map[string]any, error) {
-	if err := ValidateQueryAuthorityStart(text, limit); err != nil {
-		return nil, err
-	}
-	trimmed := TrimPythonSpace(text)
-	queryText := pythonLower(trimmed)
-	queryTerms := terms(queryText)
-	intent := evalInferIntent(trimmed)
-	candidates, err := selectQueryAuthority(index, queryText, queryTerms)
-	if err != nil {
-		return nil, err
-	}
-	learned, learning, err := evalLearnedCandidates(ctx, index, startHistoryObservation(ctx, index), trimmed, limit, 2, nil, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	results := make([]map[string]any, 0, 5)
-	for _, candidate := range candidates[:min(2, limit, len(candidates))] {
-		results = append(results, candidate.result)
-	}
-	results = append(results, allowedLearned(learned, intent, min(3, limit-len(results)))...)
-	contextReceipt, err := receipt(index, "query", map[string]any{"text": trimmed, "limit": limit}, results, limit, "")
-	if err != nil {
-		return nil, err
-	}
-	contextReceipt["learning"] = learning
-	contextReceipt["intent"] = map[string]any{
-		"id": intent.id, "confidence": intent.confidence, "matched_terms": stringsToAny(intent.matched),
-	}
-	contextReceipt["abstention"] = map[string]any{"active": false, "reason": "none"}
-	return compileReceipt(contextReceipt, budget, index)
-}
-
-// allowedLearned keeps the learned-path candidates the intent admits, at most
-// maximum of them, in the oracle's order.
-func allowedLearned(learned []map[string]any, intent evalIntent, maximum int) []map[string]any {
-	kept := make([]map[string]any, 0, len(learned))
-	for _, candidate := range learned {
-		if evalResultAllowed(candidate, intent) {
-			kept = append(kept, candidate)
-		}
-	}
-	return kept[:min(len(kept), max(0, maximum))]
-}
-
-// selectQueryAuthority returns the ranked instruction candidates once the
-// uniquely highest one is the root AGENTS.md; any other authority is refused.
-func selectQueryAuthority(index *Index, queryText string, queryTerms map[string]struct{}) ([]instructionCandidate, error) {
-	candidates, err := instructionCandidates(index, queryText, queryTerms)
-	if err != nil {
-		return nil, err
-	}
-	if len(candidates) == 0 || candidates[0].record.ID != "AGENTS.md" || (len(candidates) > 1 && candidates[0].score == candidates[1].score) {
-		if agents, ok := index.Sources["AGENTS.md"]; ok && agents.Mode == "120000" {
-			return nil, &Error{Code: "unsupported-query-authority", Message: "native Go authority-start query found root AGENTS.md as a symlink, which is not an authority document; keep the guide as a regular file or point consumers at its canonical target"}
-		}
-		return nil, &Error{Code: "unsupported-query-authority", Message: QueryAuthorityMissingRootMessage}
-	}
-	return candidates, nil
 }
 
 // ValidateQueryAuthorityStart rejects query profiles that need no repository
@@ -135,28 +57,6 @@ func ValidateQueryAuthorityStart(text string, limit int) error {
 		return &Error{Code: "unsupported-query-intent", Message: "native Go query currently supports only project-operations task orientation"}
 	}
 	return nil
-}
-
-// ValidateQueryCommand classifies and validates the standalone query profiles
-// before an adapter opens the repository. Project operations take the
-// authority-start validator; repository and agent-tooling tasks take the
-// EvalQuery limit. Every UTF-8 task the oracle accepts is accepted.
-func ValidateQueryCommand(text string, limit int) (string, error) {
-	trimmed, err := validateQueryTask(text)
-	if err != nil {
-		return "", err
-	}
-	intent, _ := normalizedQueryIntent(trimmed)
-	if intent == "project-operations" {
-		if err := ValidateQueryAuthorityStart(text, limit); err != nil {
-			return "", err
-		}
-		return intent, nil
-	}
-	if err := validateQueryLimit(limit); err != nil {
-		return "", err
-	}
-	return intent, nil
 }
 
 func validateQueryLimit(limit int) error {
@@ -214,55 +114,6 @@ func normalizedQueryIntent(text string) (string, []string) {
 func QueryIntent(text string) string {
 	intent, _ := normalizedQueryIntent(text)
 	return intent
-}
-
-func instructionCandidates(index *Index, queryText string, queryTerms map[string]struct{}) ([]instructionCandidate, error) {
-	compactQuery := compactText(queryText)
-	candidates := make([]instructionCandidate, 0)
-	for _, record := range index.Documents {
-		if record.Kind != "instructions" || !projectOperationPath(record.Path) {
-			continue
-		}
-		source, ok := index.Sources[record.Path]
-		if !ok {
-			continue
-		}
-		if source.Mode != "100644" && source.Mode != "100755" {
-			continue
-		}
-		body, valid, loaded := source.Text()
-		if !loaded || !valid || strings.ContainsRune(body, '\r') {
-			return nil, &Error{Code: "unsupported-query-authority", Message: "native Go authority-start query requires UTF-8 LF-only regular instruction authority"}
-		}
-		searchable := record.Path + " " + stringValue(record.Fields["title"]) + " " +
-			stringValue(record.Fields["summary"]) + " " + stringValue(record.Fields["headings"]) + " " + body
-		overlap := termOverlap(queryTerms, terms(searchable))
-		compactTitle := compactText(stringValue(record.Fields["title"]))
-		exactTitle := len(compactTitle) >= 4 && strings.Contains(compactQuery, compactTitle)
-		if overlap < 1 && !exactTitle {
-			continue
-		}
-		score := overlap*18 + 240
-		if exactTitle {
-			score += 80
-		}
-		status := pythonLower(stringValue(record.Fields["status"]))
-		if status == "accepted" || status == "approved" || status == "current" || status == "active" || strings.HasPrefix(status, "partially-superseded-by:") {
-			score += 20
-		}
-		result, err := instructionResult(index, record, source, score, queryTerms)
-		if err != nil {
-			return nil, err
-		}
-		candidates = append(candidates, instructionCandidate{score: score, record: record, result: result})
-	}
-	sort.Slice(candidates, func(left, right int) bool {
-		if candidates[left].score != candidates[right].score {
-			return candidates[left].score > candidates[right].score
-		}
-		return candidates[left].record.ID < candidates[right].record.ID
-	})
-	return candidates, nil
 }
 
 func instructionResult(index *Index, record Record, source Source, score int, queryTerms map[string]struct{}) (map[string]any, error) {
@@ -708,25 +559,4 @@ func keepTerm(result, keep map[string]struct{}, value []byte) {
 		return
 	}
 	result[string(value)] = struct{}{}
-}
-
-// QuerySnapshotAuthority selects immutable project authority only. Mutable
-// traces and checkout-bracketed history are outside the explicit snapshot.
-func QuerySnapshotAuthority(index *Index, text string) (map[string]any, error) {
-	if err := ValidateQueryAuthorityStart(text, 1); err != nil {
-		return nil, err
-	}
-	trimmed := TrimPythonSpace(text)
-	candidates, err := selectQueryAuthority(index, pythonLower(trimmed), terms(pythonLower(trimmed)))
-	if err != nil {
-		return nil, err
-	}
-	results := []map[string]any{candidates[0].result}
-	const disclosure = "history and local traces are outside the immutable planning snapshot"
-	packet, err := receipt(index, "query", map[string]any{"text": trimmed, "limit": 1}, results, 1, "", disclosure)
-	if err != nil {
-		return nil, err
-	}
-	packet["abstention"] = map[string]any{"active": false, "reason": "none"}
-	return compileReceipt(packet, nil, index, disclosure)
 }

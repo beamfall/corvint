@@ -609,43 +609,6 @@ Example:
   corvint feature --limit 1 checkout-flow
 `
 
-const evalHelp = `Evaluate a frozen retrieval corpus through the native candidate.
-
-Usage:
-  corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
-  corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]
-  corvint [--root PATH] eval --reset-slot-weights
-  corvint [--root PATH] eval --friction FILE
-
-Without --goldens, use the repository's .corvint/eval.json or
-testing/context-retrieval-goldens.json when available. --trace-fixture adds the
-explicit learned-trace comparison arm; ordinary persisted trace replay is not
-implemented. The command reads without mutating repository or trace state.
-The report counts the traces it read by producer (cli, dogfood, pi-tool, or
-UNKNOWN for rows written before producer provenance); --exclude-producer NAME
-leaves that producer's traces out of the read, repeatable, without changing
-the store or the fixture.
-Select the owning spec's registered development or frozen evaluation inputs;
-never open a sealed holdout or infer promotion from an unregistered run. Preserve
-both arms, failures and unknowns. A routine explicit outcome record does not
-require a new learned-mechanism evaluation.
-
---learn-slot-weights reads the local unplanned-read and self-observation ledgers
-as negative labels, proposes bounded context slot weights and scores them on the
-frozen held-out split. Only with --admit and an improved delta does it write
-.context-corvint/slot-weights.json; --reset-slot-weights removes that file and
-restores the default slot order. These experimental steps (decision 0368) are
-eval's only writes.
-
-Experimental (URE-V0-996..998): --friction FILE takes no other option and
-reports deterministic friction metrics (rereads, unplanned_reads,
-retried_commands, reverted_edits, first_relevant_read_ms) for each session of
-a corvint-friction-sessions/0 record, totals per arm, and precision and recall
-for labelled sessions. Missing inputs are NOT_OBSERVED, never 0. It reads only
-FILE and writes nothing; the metrics are never a ranking or authority input.
-Example: corvint eval --friction internal/frictionmetric/testdata/benchmark.json
-`
-
 const activationHelp = `Compile one bounded mechanical repository inventory.
 
 Usage:

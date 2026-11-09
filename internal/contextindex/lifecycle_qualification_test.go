@@ -145,9 +145,6 @@ func requireSnapshotMiss(t *testing.T, root, state string) {
 	if _, fresh, err := ProbeSnapshot(context.Background(), root); err != nil || fresh {
 		t.Fatalf("IDX-SNAP-V0-023 %s: probe fresh=%v err=%v", state, fresh, err)
 	}
-	if _, hit, err := LoadEventSnapshot(context.Background(), root, true); err != nil || hit {
-		t.Fatalf("IDX-SNAP-V0-023 %s: compact event load hit=%v err=%v", state, hit, err)
-	}
 }
 
 // TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes pins the lifecycle
