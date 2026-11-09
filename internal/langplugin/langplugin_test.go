@@ -264,14 +264,13 @@ type coreLiteral struct {
 // A new name in core code reads langplugin or the registry instead.
 var coreNameLiterals = map[string]map[string]coreLiteral{
 	"cmd/corvint": {
-		"go":     {5, "Go session baseline, go-test argv word, claim-gate engine and Go's reverse-import rule, which is no dialect"},
+		"go":     {4, "Go session baseline, go-test argv word and Go's reverse-import rule, which is no dialect"},
 		"pytest": {1, "pytest.ini configuration section name"},
-		"python": {1, "claim-gate engine set of prove (go, python)"},
 		"ruby":   {1, "plugin whose dependencies prove the rspec runner (LGP-V0-017)"},
 		"rspec":  {1, "runner the dependency map is read for (LGP-V0-017)"},
 	},
 	"internal/contextindex": {
-		"go":   {2, "Go module unknown code and a source-suffix table key"},
+		"go":   {1, "source-suffix table key of context anchors"},
 		"java": {1, "source-suffix table key of context anchors"},
 	},
 	"internal/testsource": {

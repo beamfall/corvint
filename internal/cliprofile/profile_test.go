@@ -101,8 +101,6 @@ func TestCLIProfile9300LiteralHelpValues(t *testing.T) {
 		{"context", []string{"context", "--instruction-profile", "default", "--help"}},
 		{"context", []string{"--instruction-profile", "default", "context", "--help"}},
 		{"cem prepare", []string{"cem", "prepare", "--replace", "--help"}},
-		{"eval", []string{"eval", "--reset-slot-weights", "--help"}},
-		{"eval", []string{"eval", "--learn-slot-weights", "--help"}},
 	} {
 		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
 			var out, errout bytes.Buffer

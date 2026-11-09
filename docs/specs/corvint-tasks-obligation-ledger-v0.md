@@ -32,10 +32,8 @@ under the same standing auto-accept, and are experimental. The profile reuses un
 mutation, receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
-(TEA-V0-001) and the WORKER opt-in of [know-how notes](corvint-tasks-know-how-notes-v0.md)
-(KHN-V0-021..023). Playwright facts come from the
-[Playwright provider contract](playwright-external-provider-v0.md) and a scratch observation recorded
-in the build log.
+(TEA-V0-001) and the WORKER opt-in of [know-how notes](corvint-tasks-know-how-notes-v0.md) (KHN-V0-021..023). Playwright facts come from the
+[Playwright provider contract](playwright-external-provider-v0.md) and a scratch observation recorded in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
