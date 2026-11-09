@@ -300,7 +300,7 @@ func validateParsed(spec cemAction, flags *cemFlags, unrecognized []string) erro
 	return nil
 }
 
-// refusePairedChange refuses the witness's paired-change flags on every cem
+// refusePairedChange refuses the paired-change flags on every cem
 // action before any other stage, with the reason instead of the generic
 // unrecognized-arguments line (CEM-V1-648): a cem/1.0 map binds one
 // repository's base and target, so a change split across an app range and a
@@ -314,13 +314,13 @@ func refusePairedChange(unrecognized []string) error {
 
 // PairedChangeRefusal returns the CEM-V1-648 refusal for the first of tokens
 // that is a paired-change flag, spaced or in = form, and false when none is.
-// `prove --cem` shares it so every surface that reads a cem/1.0 map refuses a
+// The stable-read argument parser shares it so every cem surface refuses a
 // paired change with the same reason.
 func PairedChangeRefusal(tokens []string) (string, bool) {
 	for _, token := range tokens {
 		name, _, _ := strings.Cut(token, "=")
 		if name == "--range" || name == "--range-root" || name == "--paired-from" {
-			return fmt.Sprintf("argument %s: cem takes no paired change: a cem/1.0 map binds one repository's base and target, so pair an app range and a tests range with corvint witness and map each repository's change on its own (CEM-V1-648)", name), true
+			return fmt.Sprintf("argument %s: cem takes no paired change: a cem/1.0 map binds one repository's base and target, so map each repository's change on its own (CEM-V1-648)", name), true
 		}
 	}
 	return "", false

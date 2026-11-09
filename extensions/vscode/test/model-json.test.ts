@@ -18,6 +18,8 @@ import {
 } from "../src/model.js";
 import { decodeObservation } from "../src/observations.js";
 
+const PATHS: readonly string[] = ["src/a.go"];
+
 test("display strips line/paragraph separators, zero-width and bidi controls, and BOM", () => {
   const hostile = "a\u2028b\u2029c\u200bd\u200ce\u200df\u2060g\u2061h\u2062i\u2063j\u2064k\ufeffl"
     + "m\u202an\u2066o";
@@ -44,8 +46,8 @@ test("bounded JSON rejects duplicate, dangerous, invalid-Unicode, and over-depth
 
 test("strict CLI decoder produces deterministic snapshot identity", () => {
   const bytes = receiptBytes("result-id");
-  const first = decodeCorvintReceipt(bytes, "query", 262_144, "corvint", "project operations");
-  const second = decodeCorvintReceipt(bytes, "query", 262_144, "corvint", "project operations");
+  const first = decodeCorvintReceipt(bytes, "impact", 262_144, "corvint", PATHS);
+  const second = decodeCorvintReceipt(bytes, "impact", 262_144, "corvint", PATHS);
   assert.equal(first.snapshotKey, second.snapshotKey);
   assert.equal(first.results[0]?.id, "result-id");
   assert.equal(first.evidence[0]?.resultId, "result-id");
@@ -56,15 +58,33 @@ test("strict CLI decoder admits the current CLI's unparsed, extraction, and impa
   const encode = () => Buffer.from(`${JSON.stringify(response)}\n`, "utf8");
   response.context.unparsed = { count: 1, samples: [{ path: "bad.py", facts: 0, reason: "parse-error" }] };
   response.context.extraction = { count: 2, samples: [{ path: "src/a.go", reason: "truncated" }] };
-  const query = decodeCorvintReceipt(encode(), "query", 262_144, "corvint", "project operations");
-  assert.ok(query.uncertainty.includes("Unparsed source count: 1"));
-  assert.ok(query.uncertainty.includes("Incomplete extraction count: 2"));
-  const { abstention: _abstention, intent: _intent, learning: _learning, ...native } = response.context;
-  response.tool = "impact";
-  response.context = { ...native, mode: "impact", request: { paths: ["src/a.go"], limit: 20, budget_bytes: 5952 } };
+  const decoded = decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", PATHS);
+  assert.ok(decoded.uncertainty.includes("Unparsed source count: 1"));
+  assert.ok(decoded.uncertainty.includes("Incomplete extraction count: 2"));
+  const native = response.context;
+  response.context = { ...native, request: { paths: ["src/a.go"], limit: 20, budget_bytes: 5952 } };
   assert.equal(decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", ["src/a.go"]).results[0]?.id, "result-id");
-  response.context = { ...native, mode: "impact", request: { paths: ["src/a.go"], limit: 20, budget_bytes: 0 } };
+  response.context = { ...native, request: { paths: ["src/a.go"], limit: 20, budget_bytes: 0 } };
   assert.throws(() => decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", ["src/a.go"]));
+});
+
+test("strict CLI decoder keeps a mixed-worktree warning visible, shape-checks verification authority, and reads an empty status as unknown", () => {
+  const response = JSON.parse(Buffer.from(receiptBytes("result-id")).toString("utf8")) as { context: Record<string, unknown> };
+  const encode = () => Buffer.from(`${JSON.stringify(response)}\n`, "utf8");
+  const results = response.context.results as Array<Record<string, unknown>>;
+  const first = results[0];
+  assert.ok(first);
+  first.status = "";
+  response.context.warning = "MIXED worktree: impact is bound to commit a; 1 dirty path";
+  response.context.verification_authority = { mandatory: ["go test ./..."], inferred: [], source: "AGENTS.md" };
+  const decoded = decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", PATHS);
+  assert.ok(decoded.uncertainty.includes("MIXED worktree: impact is bound to commit a; 1 dirty path"));
+  assert.equal(decoded.results[0]?.state, undefined);
+  response.context.verification_authority = "go test ./...";
+  assert.throws(() => decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", PATHS));
+  response.context.verification_authority = {};
+  response.context.intent = {};
+  assert.throws(() => decodeCorvintReceipt(encode(), "impact", 262_144, "corvint", PATHS), /unsupported key/);
 });
 
 test("strict CLI decoder keeps capped impact omissions visible (MCPV0-031)", () => {
@@ -73,14 +93,14 @@ test("strict CLI decoder keeps capped impact omissions visible (MCPV0-031)", () 
   assert.ok(first);
   first.evidence_omitted = 3;
   first.references_omitted = 2;
-  const decoded = decodeCorvintReceipt(Buffer.from(`${JSON.stringify(response)}\n`, "utf8"), "query", 262_144, "corvint", "project operations");
+  const decoded = decodeCorvintReceipt(Buffer.from(`${JSON.stringify(response)}\n`, "utf8"), "impact", 262_144, "corvint", PATHS);
   assert.ok(decoded.uncertainty.includes("result-id: 3 evidence rows omitted"));
   assert.ok(decoded.uncertainty.includes("result-id: 2 references omitted"));
 });
 
 test("strict CLI decoder rejects unsafe identities and non-Git blob widths", () => {
   assert.throws(
-    () => decodeCorvintReceipt(receiptBytes("bad\u202eid"), "query", 262_144, "corvint", "project operations"),
+    () => decodeCorvintReceipt(receiptBytes("bad\u202eid"), "impact", 262_144, "corvint", PATHS),
     /unsafe identity text/,
   );
   const object = JSON.parse(Buffer.from(receiptBytes("result-id")).toString("utf8")) as {
@@ -91,7 +111,7 @@ test("strict CLI decoder rejects unsafe identities and non-Git blob widths", () 
   assert.ok(evidence);
   evidence.blob_hash = "a".repeat(41);
   assert.throws(
-    () => decodeCorvintReceipt(Buffer.from(`${JSON.stringify(object)}\n`), "query", 262_144, "corvint", "project operations"),
+    () => decodeCorvintReceipt(Buffer.from(`${JSON.stringify(object)}\n`), "impact", 262_144, "corvint", PATHS),
     /blob identity/,
   );
 });
@@ -150,7 +170,7 @@ test("projection classes fail unknown and absent states closed", () => {
 });
 
 test("MCP authority attachment is immutable and null receipt preserves only the bounded gap", () => {
-  const decoded = decodeCorvintReceipt(receiptBytes("result-id"), "query", 262_144, "corvint", "project operations");
+  const decoded = decodeCorvintReceipt(receiptBytes("result-id"), "impact", 262_144, "corvint", PATHS);
   const authority = transportAuthority();
   const attached = attachTransportAuthority(decoded, authority);
   assert.notEqual(attached, decoded);
@@ -171,8 +191,8 @@ test("MCP authority attachment is immutable and null receipt preserves only the 
     protocol: authority.protocol,
   };
   const abstained = createTransportAbstentionSnapshot(
-    "query",
-    "unsupported task",
+    "impact",
+    PATHS,
     Buffer.from('{"bridge":"bounded"}'),
     abstentionAuthority,
   );
@@ -202,7 +222,7 @@ function result(id: string, state: string, path: string, line: number): ResultIt
 function transportAuthority(): TransportAuthority {
   return Object.freeze({
     profile: "corvint-mcp-bridge-result/0",
-    tool: "corvint.query",
+    tool: "corvint.impact",
     state: "READY",
     epistemicClass: "OBSERVED",
     authorityClass: "REPOSITORY_EVIDENCE",
@@ -227,8 +247,8 @@ function receiptBytes(resultId: string): Uint8Array {
   return Buffer.from(`${JSON.stringify({
     context: {
       schema_version: 1,
-      mode: "query",
-      request: { limit: 1, text: "project operations" },
+      mode: "impact",
+      request: { limit: 20, paths: [...PATHS] },
       revision,
       freshness: { state: "fresh", revision, mixed_path_count: 0 },
       state: "READY",
@@ -249,12 +269,9 @@ function receiptBytes(resultId: string): Uint8Array {
       exclusions: { count: 0 },
       verification: [],
       coverage: { within_budget: true, packet_bytes: 1, uncertainty: [], critical_missing: [] },
-      abstention: { active: false, reason: "none" },
-      intent: {},
-      learning: {},
     },
     mutates: false,
     ok: true,
-    tool: "query",
+    tool: "impact",
   })}\n`, "utf8");
 }

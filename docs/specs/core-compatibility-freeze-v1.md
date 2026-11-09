@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); CCF-V1-007 first-release N-1 amendment accepted by owner decision 2026-10-30 (V1-3177); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help maturity groups of the `Commands:` list (`rootHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
-- Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: pinned modes for the mutating `cem` subcommands (`begin`, `prepare`, `cite`, `mark`, `cover`, `report`, `verify-stable`) are NOT_PRODUCED (`ocm` and `dogfood` were retired by decision 0594); the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -92,6 +92,9 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   human rendering and dynamic test mode; and `dogfood begin`, `verify`, `finish`, `review`,
   `handoff` and `cancel`. They are Core verbs' modes without a frozen identifier until a later change
   pins them with a test.
+  Amended by decision 0594 (2026-11-09): `cem discriminate`, `anchor` and `provenance`, every `ocm`
+  and `dogfood` mode and the frontier modes are removed; of this list only `cem begin`, `prepare`,
+  `cite`, `mark`, `report` and `cover` remain, still unpinned.
 - **CCF-V1-003:** These modes and profiles MUST stay outside the freeze and MUST NOT be advertised as
   Core compatibility: `impact --provider*`, `--repository` and `--range-profile expanded-256`;
   `affected --snapshot`, `--playwright-config`, `--provider*` and `--selection-profile`; `prove --cem`,
@@ -100,13 +103,13 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
-  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:691@5331c02b`); they
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:692@5331c02b`); they
   are absent from root help and outside the freeze. (accepted 2026-09-26, decision 0422; from decision 0398) The `cem/0.3` profile and the
   modes that write it, `cem cover`, `cem discriminate` and `cem mark` with a structural reason, are
   experimental and outside the freeze, not among the Core modes listed under CCF-V1-002; they never
   write over the Core sidecar `.corvint/change.cem.json` or their `cem/0.2` input (`CEM-SM-006`).
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
-  `emitError` (`cmd/corvint/main.go:1005@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
+  `emitError` (`cmd/corvint/main.go:1078@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
   converted. Frozen code families are `invalid-*` (argument, revision and repository-root validation),
   `unsupported-*` (a well-formed request outside the qualified profile, including

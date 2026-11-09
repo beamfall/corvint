@@ -6,7 +6,7 @@ const HEX_BLOB = /^[0-9a-f]{40,64}$/;
 const MAX_RESULTS = 20;
 const MAX_EVIDENCE_PER_RESULT = 16;
 
-export type Operation = "query" | "impact";
+export type Operation = "impact";
 
 export interface EvidenceItem {
   readonly resultId: string;
@@ -43,7 +43,7 @@ export interface TransportRepositoryIdentity {
 
 export interface TransportAuthority {
   readonly profile: "corvint-mcp-bridge-result/0";
-  readonly tool: "corvint.query" | "corvint.impact";
+  readonly tool: "corvint.impact";
   readonly state: "READY" | "ABSTAINED";
   readonly epistemicClass: "OBSERVED" | "NOT_OBSERVED";
   readonly authorityClass: "REPOSITORY_EVIDENCE" | "NONE";
@@ -111,7 +111,7 @@ export function decodeContextReceipt(
   snapshotBytes: Uint8Array,
 ): CorvintSnapshot {
   exactAllowedKeys(context, ["schema_version", "mode", "request", "revision", "freshness", "state", "results", "exclusions", "verification", "coverage"],
-    operation === "query" ? ["abstention", "intent", "learning", "unparsed", "extraction"] : ["unparsed", "extraction"], "context");
+    ["unparsed", "extraction", "warning", "verification_authority"], "context");
   if (context.schema_version !== 1 || string(context.mode, "context.mode", 16) !== operation) {
     throw new Error("UNSUPPORTED_PROFILE: only Corvint context schema_version 1 is supported");
   }
@@ -167,12 +167,13 @@ export function decodeContextReceipt(
     const extractionCount = integer(object(context.extraction, "context.extraction").count, "context.extraction.count", 1_000_000);
     uncertainty.push(`Incomplete extraction count: ${extractionCount}`);
   }
-  if (context.abstention !== undefined) {
-    const abstention = object(context.abstention, "context.abstention");
-    const reason = abstention.reason;
-    if (typeof reason === "string") {
-      uncertainty.push(display(reason, 2_000));
-    }
+  // A mixed-worktree impact names its commit binding and dirty paths; keep it visible.
+  if (context.warning !== undefined) {
+    uncertainty.push(display(string(context.warning, "context.warning", 16_384), 2_000));
+  }
+  // The project's verification commands are advisory text; they are shape-checked, not projected.
+  if (context.verification_authority !== undefined) {
+    object(context.verification_authority, "context.verification_authority");
   }
   if (state !== "READY") {
     uncertainty.unshift(`Corvint state: ${state}`);
@@ -198,7 +199,8 @@ function resultItem(value: JsonValue, index: number): ResultItem {
   const id = identityString(item.id, "result.id", 4_096);
   const kind = string(item.kind, "result.kind", 128);
   const summary = display(string(item.summary, "result.summary", 4_096), 300);
-  const state = item.status === undefined ? undefined : enumLike(item.status, "result.status");
+  // An empty status (an unstatused spec row) projects as unknown, like an absent one.
+  const state = item.status === undefined || item.status === "" ? undefined : enumLike(item.status, "result.status");
   const rawEvidence = array(item.evidence, "result.evidence", MAX_EVIDENCE_PER_RESULT);
   const evidence = rawEvidence.map((entry, evidenceIndex) => evidenceItem(entry, evidenceIndex, id, kind, summary, state));
   const ordinal = item.ordinal === undefined ? undefined : integer(item.ordinal, "result.ordinal", Number.MAX_SAFE_INTEGER);
@@ -497,20 +499,10 @@ function unique(values: readonly string[]): string[] {
 
 function validateEchoedRequest(
   request: JsonObject,
-  operation: Operation,
+  _operation: Operation,
   _cliKind: "corvint",
   expected: string | readonly string[],
 ): void {
-  if (operation === "query") {
-    if (typeof expected !== "string") {
-      throw new Error("INVALID_JSON: query expectation is invalid");
-    }
-    exactKeys(request, ["limit", "text"], "context.request");
-    if (request.text !== expected || request.limit !== 1) {
-      throw new Error("INVALID_JSON: query request echo mismatch");
-    }
-    return;
-  }
   if (typeof expected === "string") {
     throw new Error("INVALID_JSON: impact expectation is invalid");
   }

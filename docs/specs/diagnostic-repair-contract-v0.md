@@ -145,7 +145,10 @@ those codes to the self-observation ledger.
   `diagnostic.Refusal` literal is in `internal/worktreeimpact/diagnostics.go`; the gate counts such
   literals in non-test Go, and the recorded count in `script/diagnostic-coverage.count` MUST equal
   the measured count (decision 0201 (j)). A later family keeps that shape, one constructor per site
-  holding one literal, and raises the recorded count in the converting change. A form the literal
+  holding one literal, and raises the recorded count in the converting change. Decision 0594 deleted
+  the commands that held the first family and several later sites, so the recorded count fell with
+  the deleted sites themselves, to twenty-four; seven remains the gate's floor. A
+  site that still exists MUST NOT leave the covered set. A form the literal
   scan cannot inspect MUST also fail the gate: a `diagnostic.Error` literal with no `Refusal` member,
   a `diagnostic.Refusal` collection literal whose elements elide their type, a zero-valued
   `diagnostic.Refusal` declaration or `new(diagnostic.Refusal)`, and a dot import of
@@ -226,7 +229,7 @@ that an implementation cannot be graded by inspection.
 | DRC-V0-009 | a three-round repair transcript over a seeded multi-diagnostic input stops at the stated bound and reports the remainder unresolved | PASS — `TestRepairLoopTerminates` (`internal/diagnostic/repair_test.go`), `go test ./internal/diagnostic` 2026-09-13 |
 | DRC-V0-010 | a forced refusal is asserted non-zero with an `ok: false` envelope and no stdout at every layer carrying a converted family (the CLI alone for `unsupported-working-tree-impact-*`, decision 0201 (i), and for the later families except the impact path suffix, also asserted at its `batch` row and `harness event` `file-change` layers), and the pre-existing artifact is asserted untouched | PASS — `TestRefusalIsNeverSuccess` (`cmd/corvint/diagnostic_envelope_test.go`); exit 2, `ok: false` and empty stdout for each of the thirty later sites in `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`); the batch row and harness envelope in `TestImpactPathSuffixDiagnosticReachesEveryLayer` (same file), `go test -run` on the named tests `./cmd/corvint` 2026-09-13 |
 | DRC-V0-910 | `GitStartErrorClass` (`internal/contextindex/git.go`); the uncoded branch of `emitError` (`cmd/corvint/main.go`) | `TestGitStartErrorClass_DRCV0910`; `TestEmitErrorNamesTheGitStartClass_DRCV0910` |
-| DRC-V0-011, DRC-V0-012 | the gate runs over the tree, reports a covered-site count of at least seven, fails a planted uncovered site, fails a start below seven, fails a planted `message` parse, and fails each planted uninspectable refusal form | PASS — `TestDiagnosticCoverageRatchet` (`internal/diagnostic/gate_test.go`) via `script/check-diagnostic-coverage.sh` reports 37 covered sites equal to `script/diagnostic-coverage.count`; the first seven sites are frozen by `TestWorkingTreeImpactRefusalDiagnostics` (`internal/worktreeimpact/diagnostics_test.go`) and the thirty later sites, each emitting only registered fixes, by `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`), 2026-09-13 |
+| DRC-V0-011, DRC-V0-012 | the gate runs over the tree, reports a covered-site count of at least seven, fails a planted uncovered site, fails a start below seven, fails a planted `message` parse, and fails each planted uninspectable refusal form | PASS — `TestDiagnosticCoverageRatchet` (`internal/diagnostic/gate_test.go`) via `script/check-diagnostic-coverage.sh` reports 37 covered sites equal to `script/diagnostic-coverage.count`; the first seven sites are frozen by `TestWorkingTreeImpactRefusalDiagnostics` (`internal/worktreeimpact/diagnostics_test.go`) and the thirty later sites, each emitting only registered fixes, by `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`), 2026-09-13. After decision 0594 (2026-11-09) the recorded count is 24: twenty-two sites in `cmd/corvint/diagnostic_refusals.go` and two in `internal/contextindex/diagnostics.go`; the working-tree impact family and its test were deleted with their commands |
 
 ## Traceability
 
@@ -234,14 +237,14 @@ Every row names the test that evidences it; `make diagnostic-coverage-check` run
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| DRC-V0-001, DRC-V0-002, DRC-V0-003, DRC-V0-005 | `internal/diagnostic` `Refusal`, `Subject`, `Evidence`, `Error`, `Validate`; the later sites' constructors in `cmd/corvint/diagnostic_refusals.go` and `internal/touchsurprise/diagnostics.go` | `TestDiagnosticEnvelopeFields`; `TestConvertedRefusalDiagnostics` |
+| DRC-V0-001, DRC-V0-002, DRC-V0-003, DRC-V0-005 | `internal/diagnostic` `Refusal`, `Subject`, `Evidence`, `Error`, `Validate`; the later sites' constructors in `cmd/corvint/diagnostic_refusals.go` and `internal/contextindex/diagnostics.go` | `TestDiagnosticEnvelopeFields`; `TestConvertedRefusalDiagnostics` |
 | DRC-V0-004 | `docs/specs/FIX-REGISTRY.tsv` (`kind` and `fix` vocabularies) | `TestFixIdentifiersResolveInRegistry` |
 | DRC-V0-006 | `diagnosticMembers` (`cmd/corvint/diagnostic_envelope.go`) appended by `emitError`; unconverted envelopes unchanged | `TestRefusalCodeSpellingsSurvive`; `TestConvertedRefusalDiagnostics` |
 | DRC-V0-007 | the CLI emission path writes stderr only; the ledger append stays `observeUnsupported` (`SOL-V0-007`) | `TestDiagnosticEmissionDoesNotMutate` |
 | DRC-V0-008 | `Refusal.Bounded` (`internal/diagnostic/bound.go`): `secretscreen.Screen`, control escape, 512-byte rune-boundary cut that never splits a `\uXXXX` escape, 16-pair evidence bound | `TestDiagnosticValuesScreenedAndBounded`, `TestDiagnosticValueCutKeepsControlEscapesWhole` |
 | DRC-V0-009 | `diagnostic.RepairStop` (`internal/diagnostic/repair.go`), a pure stop rule an adapter may call | `TestRepairLoopTerminates` |
 | DRC-V0-010 | CLI refusal exit 2 with `ok: false` and empty stdout; the prior index snapshot is untouched; `addDiagnosticRowMembers` (`cmd/corvint/diagnostic_envelope.go`) on a `batch` operation row | `TestRefusalIsNeverSuccess`; `TestConvertedRefusalDiagnostics`; `TestImpactPathSuffixDiagnosticReachesEveryLayer` |
-| DRC-V0-011, DRC-V0-012 | `script/check-diagnostic-coverage.sh` (`make diagnostic-coverage-check`, a `gate` prerequisite), `script/diagnostic-coverage.count`, `internal/worktreeimpact/diagnostics.go` (seven converted sites), `cmd/corvint/diagnostic_refusals.go` (twenty-eight), `internal/touchsurprise/diagnostics.go` (two) | `TestDiagnosticCoverageRatchet`; `TestWorkingTreeImpactRefusalDiagnostics`; `TestConvertedRefusalDiagnostics` |
+| DRC-V0-011, DRC-V0-012 | `script/check-diagnostic-coverage.sh` (`make diagnostic-coverage-check`, a `gate` prerequisite), `script/diagnostic-coverage.count` (24), `cmd/corvint/diagnostic_refusals.go` (twenty-two), `internal/contextindex/diagnostics.go` (two) | `TestDiagnosticCoverageRatchet`; `TestConvertedRefusalDiagnostics` |
 
 ## Rollout, rollback, and drift
 

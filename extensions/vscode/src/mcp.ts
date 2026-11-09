@@ -8,6 +8,8 @@ const PROTOCOL_VERSION = "2026-07-28";
 const MAX_TOOLS_PER_PAGE = 64;
 const MAX_TOTAL_TOOLS = 256;
 const STDERR_LIMIT = 65_536;
+// The bridge MCPV0 impact path rule, as advertised in the corvint.impact input schema.
+const IMPACT_PATH_PATTERN = String.raw`^(?:(?:(?:[^/\\.\n\r][^/\\\n\r]*|\.[^/\\.\n\r][^/\\\n\r]*|\.\.[^/\\\n\r]+)/)+[^/\\\n\r]*|[^/\\\n\r]+)[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`;
 const CURRENT_SERVER = Object.freeze({
   name: "corvint-mcp",
   description: "Local read-only Corvint context and repository evidence server.",
@@ -87,9 +89,7 @@ export async function runMcpOperation(
     throw new McpFailure("cancelled", "MCP operation was cancelled before spawn");
   }
   const tool = `corvint.${operation}`;
-  const args = operation === "query"
-    ? queryArguments(value)
-    : impactArguments(value);
+  const args = impactArguments(value);
   const transport = new McpTransport(executable, root, options);
   let operationFailure: unknown;
   let receipt: McpOperationResult | undefined;
@@ -412,62 +412,78 @@ async function listAndValidateTools(transport: McpTransport, expectedServerInfo:
   validateToolDescriptors(tools);
 }
 
+// The bridge advertises exactly help, impact and status (decision 0594 retired
+// corvint.query). Impact and status are pinned byte-for-byte after canonical
+// ordering. corvint.help is never called; its command enum follows the binary's
+// own command catalog, so only its identity, keys and read-only contract are pinned.
 function validateToolDescriptors(actual: readonly JsonObject[]): void {
   const expected = expectedTools();
-  if (canonicalJson([...actual]) !== canonicalJson([...expected])) {
+  if (actual.length !== 3 || actual[0]?.name !== "corvint.help" || !validHelpDescriptor(actual[0]) ||
+    canonicalJson([...actual.slice(1)]) !== canonicalJson([...expected])) {
     throw new McpFailure("toolset-mismatch", "MCP advertised a non-conforming tool registry");
   }
 }
 
+function validHelpDescriptor(tool: JsonObject): boolean {
+  if (!allowedExactKeys(tool, ["annotations", "description", "inputSchema", "name", "outputSchema"], [])) {
+    return false;
+  }
+  const input = tool.inputSchema;
+  return typeof tool.description === "string" && tool.description.length > 0 &&
+    canonicalJson(tool.annotations ?? null) === canonicalJson(readOnlyAnnotations()) &&
+    canonicalJson(tool.outputSchema ?? null) === canonicalJson(outputSchema()) &&
+    typeof input === "object" && input !== null && !Array.isArray(input) && input.type === "object" && input.additionalProperties === false;
+}
+
+function readOnlyAnnotations(): JsonObject {
+  return { destructiveHint: false, idempotentHint: true, openWorldHint: false, readOnlyHint: true };
+}
+
+function outputSchema(): JsonObject {
+  return { properties: { mutates: { const: false }, tool: { type: "string" } }, type: "object" };
+}
+
 function expectedTools(): readonly JsonObject[] {
-  const annotations = { destructiveHint: false, idempotentHint: true, openWorldHint: false, readOnlyHint: true };
+  const annotations = readOnlyAnnotations();
   return [
     {
       name: "corvint.impact",
-      description: "Compile revision-bound impact evidence for tracked Go files without returning source bodies.",
+      description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. The receipt equals CLI corvint impact with the syntax profile for the same paths, revision and limit; the CLI admits more suffixes and --base (corvint impact --capabilities). MCP accepts paths only.",
       annotations,
       inputSchema: schema({
         snapshot: snapshot(),
-        paths: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1024, pattern: "^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\\\).+[.]go$" } },
+        paths: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1024, pattern: IMPACT_PATH_PATTERN } },
         limit: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+        budgetBytes: { type: "integer", minimum: 1216, maximum: 1000000 },
       }, ["paths"]),
-    },
-    {
-      name: "corvint.query",
-      description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.",
-      annotations,
-      inputSchema: schema({ snapshot: snapshot(), task: { type: "string", minLength: 1, maxLength: 2000, pattern: "^[ -~]*[!-~][ -~]*$" } }, ["task"]),
+      outputSchema: outputSchema(),
     },
     {
       name: "corvint.status",
-      description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.",
+      description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.",
       annotations,
       inputSchema: schema({}, []),
+      outputSchema: outputSchema(),
     },
   ];
 }
 
-// MCPV0-020 advertises an optional planning snapshot on query and impact. The
+// MCPV0-020 advertises an optional planning snapshot on impact. The
 // extension never sends one; it only pins the advertised schema.
 function snapshot(): JsonObject {
   const oid = { type: "string", pattern: "^([0-9a-f]{40}|[0-9a-f]{64})$" };
-  return schema({
+  // A nested schema carries no "$schema" keyword; only the input schema root does.
+  const { "$schema": _dialect, ...nested } = schema({
     schema: { const: "corvint-planning-snapshot/0" },
     commitRevision: oid, treeRevision: oid, baseRevision: oid,
     changedPaths: { type: "array", maxItems: 4096, uniqueItems: true, items: { type: "string", minLength: 1 } },
     changedPathsSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
   }, ["schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"]);
+  return nested;
 }
 
 function schema(properties: JsonObject, required: readonly string[]): JsonObject {
   return { "$schema": "https://json-schema.org/draft/2020-12/schema", type: "object", properties, required: [...required], additionalProperties: false };
-}
-
-function queryArguments(value: string | readonly string[]): JsonObject {
-  if (typeof value !== "string" || [...value].length > 2_000 || !/^[ -~]*[!-~][ -~]*$/u.test(value)) {
-    throw new McpFailure("input-unsupported", "MCP query task is outside the admitted profile");
-  }
-  return { task: value };
 }
 
 function impactArguments(value: string | readonly string[]): JsonObject {
@@ -608,7 +624,7 @@ function validateBridge(value: JsonObject, operation: Operation): {
     throw new McpFailure("protocol", "MCP ready wrapper contradicts the native receipt state");
   }
   if (value.state === "ABSTAINED" &&
-    (operation !== "impact" || abstention.reason !== "OUT_OF_SCOPE" || receipt.state !== "OUT_OF_SCOPE")) {
+    (abstention.reason !== "OUT_OF_SCOPE" || receipt.state !== "OUT_OF_SCOPE")) {
     throw new McpFailure("protocol", "MCP retained abstention receipt is inconsistent");
   }
   return { ...authority, receipt };

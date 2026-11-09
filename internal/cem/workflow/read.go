@@ -174,8 +174,8 @@ func (s *Session) readAbsoluteMap(mapPath string, allowWorktree bool) ([]byte, s
 	return raw, filepath.Join(root.Path(), name), nil
 }
 
-// ReadExternalMap is readExternalMap for a consumer outside the Core read,
-// such as prove --cem over an out-of-tree map (CEM-V1-641): the same
+// ReadExternalMap is readExternalMap for a consumer outside the Core read
+// over an out-of-tree map (CEM-V1-641): the same
 // containment, symlink and size refusals apply.
 func (s *Session) ReadExternalMap(mapPath string) ([]byte, error) {
 	raw, _, err := s.readExternalMap(mapPath)

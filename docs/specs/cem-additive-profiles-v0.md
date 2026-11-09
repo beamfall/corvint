@@ -5,9 +5,10 @@ Date: 2026-10-28
 Intent status: experimental under the standing lane auto-accept
 Decision: `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-cem-additive-profiles.md`
 Delivery status: experimental
-Retirement note: decision 0594 (2026-11-09) deleted the `cem` command group,
-`internal/cem/workflow`, `internal/cem/cli`, `internal/cem/witnesspaths` and `internal/attest`;
-requirements naming them are retired.
+Retirement note: decision 0594 (2026-11-09) deleted `corvint prove`, `corvint witness` and
+`internal/attest`, so `CAX-V0-001` and `CAX-V0-034` are retired; the binary no longer installs the
+data-reader lookup, so a `CAX-V0-064` data row from `corvint cem` reads `data-reader-not-produced`.
+The `cem` commands and `internal/cem/{cli,workflow,witnesspaths}` behind the other requirements stay.
 Authoritative inputs: `docs/specs/cem-stable-v1.md`,
 `docs/specs/test-claim-qualification-v0.md` (`TCQ-V0-051..054`),
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-cem-witness-paired-range.md`,

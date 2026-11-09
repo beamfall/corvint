@@ -64,21 +64,21 @@ test("version probe reads the commit-bearing line tolerantly (VSC-V0-007 PUB-V0-
 test("Corvint native argv and receipt (CRB-V0-013 VSC-V0-006 VSC-V0-007)", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "corvint-vscode-native-"));
   const candidate = path.join(directory, "corvint");
-  const task = "project operations";
-  const receipt = JSON.stringify(nativeReceipt(task));
+  const paths = ["src/a.go"];
+  const receipt = JSON.stringify(nativeReceipt(paths));
   try {
     await executable(candidate, `#!/bin/sh
 if [ "$1" = "--version" ]; then printf 'Corvint 1.0.0-rc.3 (build 12)\\n'; exit 0; fi
-[ "$1" = "--root" ] && [ "$2" = "${directory}" ] && [ "$3" = "query" ] && [ "$4" = "--task" ] && [ "$5" = "${task}" ] && [ "$6" = "--limit" ] && [ "$7" = "1" ] && [ "$#" = "7" ] || exit 19
+[ "$1" = "--root" ] && [ "$2" = "${directory}" ] && [ "$3" = "impact" ] && [ "$4" = "--limit" ] && [ "$5" = "20" ] && [ "$6" = "--" ] && [ "$7" = "src/a.go" ] && [ "$#" = "7" ] || exit 19
 printf '%s\\n' '${receipt}'
 `);
     const pin = await pinExecutable(candidate, "corvint", directory, "test", "configuration");
-    const argv = fixedArguments(pin.cliKind, "query", directory, task);
-    assert.deepEqual(argv, ["--root", directory, "query", "--task", task, "--limit", "1"]);
+    const argv = fixedArguments(pin.cliKind, "impact", directory, paths);
+    assert.deepEqual(argv, ["--root", directory, "impact", "--limit", "20", "--", "src/a.go"]);
     const result = await runBoundedProcess(pin.realPath, argv, {
       cwd: directory, env: {}, maxStdoutBytes: 262_144, maxStderrBytes: 65_536, timeoutMilliseconds: 2_000,
     });
-    const snapshot = decodeCorvintReceipt(result.stdout, "query", 262_144, pin.cliKind, task);
+    const snapshot = decodeCorvintReceipt(result.stdout, "impact", 262_144, pin.cliKind, paths);
     assert.equal(snapshot.revision, "a".repeat(40));
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -142,16 +142,15 @@ async function executable(file: string, source: string): Promise<void> {
   await chmod(file, 0o700);
 }
 
-function nativeReceipt(task: string): object {
+function nativeReceipt(paths: readonly string[]): object {
   const revision = "a".repeat(40);
   return {
     context: {
-      schema_version: 1, mode: "query", request: { limit: 1, text: task }, revision,
+      schema_version: 1, mode: "impact", request: { limit: 20, paths }, revision,
       freshness: { state: "fresh", revision, mixed_path_count: 0 }, state: "READY",
       results: [], exclusions: { count: 0 }, verification: [],
       coverage: { within_budget: true, packet_bytes: 1, uncertainty: [], critical_missing: [] },
-      abstention: { active: false, reason: "none" }, intent: {}, learning: {},
     },
-    mutates: false, ok: true, tool: "query",
+    mutates: false, ok: true, tool: "impact",
   };
 }
