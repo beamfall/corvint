@@ -114,7 +114,6 @@
         "internal/compactionkernel",
         "internal/contextindex",
         "internal/contextsummary",
-        "internal/corpusindex",
         "internal/delta",
         "internal/disagree",
         "internal/evalrepo",
@@ -155,8 +154,6 @@
       "layer": 4,
       "summary": "documentation corpus, compiler and flow docs",
       "prefixes": [
-        "internal/corpusrepublish",
-        "internal/corpusserve",
         "internal/doccitations",
         "internal/doccompiler",
         "internal/doccorpus",
@@ -254,7 +251,6 @@
       "layer": 6,
       "summary": "Tasks companion, task projection and work queues",
       "prefixes": [
-        "internal/intake",
         "internal/localcompletion",
         "internal/taskbarrier",
         "internal/taskman",
@@ -272,11 +268,6 @@
         "internal/betarung",
         "internal/companionrelease",
         "internal/migrationratchet",
-        "internal/postmergeconnector",
-        "internal/postmergehost",
-        "internal/postmergemetrics",
-        "internal/postmergeproof",
-        "internal/postmergeworkflow",
         "internal/releasecandidate",
         "internal/releasegate",
         "internal/toolchainreceipt",
@@ -289,12 +280,8 @@
       "summary": "MCP, model gateway, console, dashboard and companion integrations",
       "prefixes": [
         "internal/companioncli",
-        "internal/console",
-        "internal/dashboard",
         "internal/mcp",
-        "internal/modelgateway",
         "internal/opencodequalification",
-        "internal/remoteprovider",
         "internal/skillexport",
         "internal/upgradechanges"
       ]

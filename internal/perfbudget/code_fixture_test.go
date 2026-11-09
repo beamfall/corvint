@@ -15,9 +15,9 @@ import (
 var codeScenarioIDs = []string{"index-cold-build", "index-warm-build", "context-query", "lifecycle-hook", "affected-go", "affected-ts"}
 
 // PRB-V0-057: the scenario set ends with the cold and warm index build, the context query, the
-// lifecycle hook, and Go and TypeScript affected plans, after the seven earlier scenarios.
+// lifecycle hook, and Go and TypeScript affected plans, after the five earlier scenarios.
 func TestPRBV0057CodeScenarios(t *testing.T) {
-	if !slices.Equal(ScenarioIDs[7:], codeScenarioIDs) || len(ScenarioIDs) != 13 {
+	if !slices.Equal(ScenarioIDs[5:], codeScenarioIDs) || len(ScenarioIDs) != 11 {
 		t.Fatalf("scenario order %v", ScenarioIDs)
 	}
 	b, err := LoadBudgets("budgets.json")

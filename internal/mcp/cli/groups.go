@@ -87,7 +87,7 @@ func extractCorpusArtifact(arguments []string) (remaining []string, value, reaso
 
 // bindCorpusArtifact pairs --corpus-artifact with the corpus group and binds
 // it to one declared root (MMR-V0-014): the plain root's PATH, or ALIAS=PATH
-// with aliased roots. PATH follows the corvint-corpus-mcp --artifact rules: an
+// with aliased roots. PATH follows the corpus --artifact rules: an
 // absolute path must lie below that root, and a relative one must keep the local
 // input path rule.
 func bindCorpusArtifact(roots []rootDeclaration, groups []string, value string) (root, path, reason string) {

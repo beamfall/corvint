@@ -431,7 +431,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		}
 	}
 	// DCP-V1-653, DCP-V1-654: the receipt view and include ["capabilities"]
-	// shape only the corvint-corpus-mcp wire receipt; the corpus query sees
+	// shape only the corpus wire receipt; the corpus query sees
 	// include ["claims"] or no include.
 	if op == "search" {
 		if _, has := members["receipt"]; has && input.Receipt != CompactView && input.Receipt != FullView {

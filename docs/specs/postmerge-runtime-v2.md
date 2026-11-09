@@ -2,17 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-10-03
-Intent status: accepted
-Delivery status: partial
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `internal/postmergeproof`, `internal/postmergehost` and `conformance/postmerge-runtime-v2` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Intent basis: accepted /2 direction by direct human receipt; the executable elaboration below passed independent Gate A.
 Only the PMR-V2-006 process verifier and host collector slices are implemented; no /2 workflow
 runtime, host qualification or qualified positive replay is claimed.
 
 ## Agent digest
 - Claim: Accepted /2 contract compares stable producer decisions and canonical requests across fresh verified runs; only process verifier and collector slices exist.
-- Status: accepted; partial; PMR-V2-006 process verifier and host collector slices only, qualification NOT_OBSERVED.
-- Exists: This spec, `conformance/postmerge-runtime-v2/`, the `internal/postmergeproof` verifier and the `internal/postmergehost` process collector and observer role; no /2 workflow. /0 is unchanged; inherited /1 now observes provider-free native delta, then blocks at follow-up.
-- Blocked on: #394 producer decision (needs a qualified PMR-V2-006 process proof), collector wiring into the native producer run, provider-backed delta, Linux procfs tuple qualification and real follow-up/author/scope/validation stages.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `internal/postmergeproof`, `internal/postmergehost` and `conformance/postmerge-runtime-v2` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Closed executable profiles; Remaining work and promotion boundary.
 
 ## Authority
@@ -247,13 +248,8 @@ binding/check/seal. No passed design check is a source-execution authorization.
 
 ## Traceability
 
-| Requirements | Planned implementation | Required evidence / current status |
-|---|---|---|
-| PMR-V2-001, 007, 009, 010 | `internal/postmergeworkflow/v2*.go`, workflow CLI | strict routing, refusal and complete historical replay; NOT_RUN |
-| PMR-V2-002, 003, 004 | no emitter (the planned `internal/testacceptance` home was deleted by decision 0593), provider collector | native rederivation, all source/link tamper cases, fresh graph coverage; NOT_RUN |
-| PMR-V2-005, 008 | `internal/postmergeconnector/*v2*.go` | immutable resolver and actual Git joins, both-call revalidation, idempotent JSONL; NOT_RUN |
-| PMR-V2-006, 011 | `internal/postmergeproof` (verifier slice delivered), `internal/postmergehost` (collector slice delivered) | token boundary: TestVerifyProcessMintsBoundToken, TestZeroProcessTokenIsInvalid, TestVerifyProcessAdmissionRefusals, TestQualificationRefusals; raw birth/role/cleanup controls: TestRawProcessProofDerivesLogicalGraph, TestRawProcessRefusals, TestDistinctProcessStates, TestRoleWitnessOrderInvariant, TestProcStatParser, TestPolicyRefusals, TestWireTableMatchesFrozenSchemas; procfs: TestUnsupportedHostIsNotObserved, TestCaptureOwnBirth, TestSweepListsOwnProcess, TestPMRV2011SweepDropsOnlyConfirmedVanishedPIDs, TestPMRV2011SweepBoundCountsOnlyListedEntries (PMR-V2-011; linux/WSL2 amd64, with the procfs and collector tests 9/9 under a /bin/true churn loop), TestLinuxProcfsOwnedExecution, TestLinuxProcfsSweepFindsSurvivor (Linux arm64 container only; amd64 NOT_RUN); host collector and observer (`internal/postmergehost/process_v2.go`, `process_observer_v2.go`, launcher `--internal-process-observer`): TestHostCollectorV2OwnedExecution, TestHostCollectorV2SweepFindsSurvivor, TestProcessCollectorV2RefusesMisuse, TestProcessObserverV2Modes, TestProcessCollectorV2AwaitChildRefusesReusedParent, TestProcessCollectorV2FailedLaunchRetiresDescendants, TestProcessCollectorV2CancelledDeliveryRetires, TestProcessObserverV2CancelledInput, TestProcessCollectorV2OwnsObserverCommand, TestHostCollectorV2FailedSweepEmitsNoProof, TestHostCollectorV2FailedCaptureEmitsNoProof, TestProcessCollectorV2CleanupSkipsRecycledPID, TestProcessCollectorV2CleanupReportsAutoReapedChild, TestProcessCollectorV2CleanupReportsForkAndExit, TestProcessCollectorV2CleanupFreezesAllThreads, TestProcessCollectorV2CleanupKillsPartlyStoppedMember, TestProcessCollectorV2CleanupWalksLateChild, TestProcessCollectorV2EscapedOutputDoesNotStallWait, TestInternalProcessObserverStopsOnSIGTERM (Linux arm64 container only; amd64 NOT_RUN), TestProcessCollectorV2UnsupportedHostIsNotObserved, TestInvocationEnvironmentV2Allowlist, TestInternalProcessObserverRefusesUnknownMode, TestInternalProcessObserverRoutingBoundary; producer-run wiring, protected retention, native process locators and actual tuple qualification NOT_PRODUCED |
-| PMR-V2-007, 010 (prerequisite only) | inherited /1 `internal/postmergeworkflow/native.go` delta stage | provider-free actual delta observed and repeated byte-identically (`TestNativeDeltaRepeatsExactly`); provider-backed delta and later stages NOT_PRODUCED |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/postmerge-runtime-v2.md`.
 
 ## Remaining work and promotion boundary
 

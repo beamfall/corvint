@@ -4,7 +4,6 @@ conformance/beta-rung-v0/README.md
 conformance/cem-0.1/README.md
 conformance/cem-0.2/README.md
 conformance/cli-parity-v0/README.md
-conformance/dashboard-snapshot-v0/README.md
 conformance/frontier-v0/README.md
 conformance/go-live-test-v0/README.md
 conformance/go-query-start-v0/README.md

@@ -70,7 +70,7 @@ func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.
 	}{
 		{"docs/specs/test-selection-precision-v0.md", narrowed, []string{"internal/specindex", "internal/lrfrepo"}},
 		{"docs/specs/source-documentation-draft-v0.md", narrowed, []string{"internal/lrfrepo"}},
-		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/compactionkernel", "internal/dashboard/roadmap",
+		{"docs/specs/REQUIREMENTS.tsv", append([]string{"internal/compactionkernel",
 			"internal/sharedpath", "script/spec-coverage-audit"}, narrowed...), []string{"internal/lrfrepo"}},
 	} {
 		units := selectedUnits(graph, module, test.dirty)
@@ -98,7 +98,6 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 		{".github/forward-rows/failed.jq", "tools/ci-forward-row"},
 		{".github/cishards/package-costs.json", "internal/perfbudget"},
 		{"integrations/opencode/README.md", "internal/opencodequalification"},
-		{"internal/capcatalog/trees/corvint-cem-candidate.json", "cmd/corvint-postmerge-workflow"},
 		{"examples/evidence-provider/v0/main.go", "examples/evidence-provider/v0/conformance"},
 		{"Makefile", "shell:script/dogfood-cache_test.sh"},
 		{"Makefile", "shell:script/core-n1-replay-default_test.sh"},

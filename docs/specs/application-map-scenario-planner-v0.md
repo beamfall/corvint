@@ -177,7 +177,7 @@ Every requirement below is (accepted by decision 0446; V1-0959).
   it does not fit MUST refuse with `appmap-budget-too-small`. Only `unknowns` may be trimmed,
   with its omitted count reported. The same inputs at the same revision MUST give the same
   bytes. (accepted by decision 0446; V1-0959)
-- `AMSP-V0-010`: The planner MUST be served by two surfaces:
+- `AMSP-V0-010`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The planner MUST be served by two surfaces:
   - `corvint flows appmap plan --map FILE... (--step TEXT... | --request TEXT) [--draft]
     [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...`,
     which writes the library bytes and nothing else. `--receipt` and `--bind` are decoded

@@ -27,7 +27,7 @@ driving Corvint from scripts.
 
 ## Requirements
 
-- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736)
+- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-gateway`)
   Every shipped native error shape, stream, exit and stderr byte MUST remain compatible.
   An unhandled native help invocation MUST leave both streams untouched: in particular,
   `corvint-pulse --root . serve --help` retains exit 2, empty stdout and its exact native
@@ -154,7 +154,7 @@ driving Corvint from scripts.
   row for that binary. A binary without a row, or a row without a binary, SHALL fail the test.
   Making the binaries' envelopes identical is out of scope here; `ACX-V0-904` unifies the companions.
 - **ACX-V0-664:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
-  V1-3736 AC2; amended by ACX-V0-904) Every catalog binary's unknown-verb refusal SHALL carry a
+  V1-3736 AC2; amended by ACX-V0-904; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-republish`, `corvint-gateway`, `corvint-postmerge-workflow`, `corvint-postmerge-connect`) Every catalog binary's unknown-verb refusal SHALL carry a
   stable code and name the typed word. Until ACX-V0-904 each refusal kept the stream and exit
   code its row records, and named the
   typed word, on the stream and with the exit code its row already records. Binaries whose refusal

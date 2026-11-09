@@ -6,14 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/corpusindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
 
 // DCP-V1-313: corpus claims ranks claims by --query text with the same
-// receipt as docs_claims, and takes exactly one of --path or --query; the
-// companion request parser admits the same shape.
+// receipt as docs_claims, and takes exactly one of --path or --query.
 func TestDCPV1313CorpusClaimsQueryCLIParity(t *testing.T) {
 	root, _ := typedCorpusCLIFixture(t)
 	code, out, stderr := corpusCLI(t, root, "docs", "corpus", "claims", "--artifact", "corpus.json", "--query", "checkout declared")
@@ -43,11 +41,5 @@ func TestDCPV1313CorpusClaimsQueryCLIParity(t *testing.T) {
 		if code, _, _ := corpusCLI(t, root, append([]string{"docs", "corpus", "claims", "--artifact", "corpus.json"}, args...)...); code != 2 {
 			t.Fatalf("corpus claims %v exit %d, want 2", args, code)
 		}
-	}
-	if q, err := corpusindex.ParseRequest([]byte(`{"operation":"claims","query":"checkout","limit":20}`)); err != nil || q.Query != "checkout" {
-		t.Fatal("companion refused a claim text query", err)
-	}
-	if _, err := corpusindex.ParseRequest([]byte(`{"operation":"claims","query":"checkout","path":"proof.go","limit":20}`)); err == nil {
-		t.Fatal("companion admitted both path and query")
 	}
 }

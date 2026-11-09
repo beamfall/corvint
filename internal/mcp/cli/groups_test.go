@@ -306,13 +306,11 @@ func withoutMeta(response map[string]any) map[string]any {
 func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 	skipUnqualifiedStatus(t)
 	if testing.Short() {
-		t.Skip("builds the three dedicated server binaries")
+		t.Skip("builds the two dedicated server binaries")
 	}
 	app, e2e := groupsFixture(t)
 	binaries := t.TempDir()
-	// Without VCS stamping the dedicated corpus server has this test binary's
-	// unrecorded builder label, so it rederives the artifact the fixture built.
-	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-test-validity-mcp", "../../../cmd/corvint-docs-mcp", "../../../cmd/corvint-corpus-mcp")
+	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-test-validity-mcp", "../../../cmd/corvint-docs-mcp")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v: %s", err, output)
 	}
@@ -328,9 +326,6 @@ func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 		{"corvint-docs-mcp", app, "app", "corvint.docs_draft", map[string]any{"source": "owner.md", "package": "cache"}},
 		{"corvint-docs-mcp", app, "app", "corvint.docs_draft", map[string]any{"source": "absent.md", "package": "cache"}},
 		{"corvint-docs-mcp", e2e, "e2e", "corvint.docs_draft", map[string]any{"source": "AGENTS.md", "package": "absent"}},
-		{"corvint-corpus-mcp", app, "", "corvint.docs_search", map[string]any{"query": "Original"}},
-		{"corvint-corpus-mcp", app, "", "corvint.docs_search", map[string]any{"query": "Original", "receipt": "full"}},
-		{"corvint-corpus-mcp", app, "", "corvint.docs_search", map[string]any{"query": ""}},
 	}
 	unified := []map[string]any{}
 	for index, call := range calls {
@@ -341,12 +336,9 @@ func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 		unified = append(unified, toolCall(index, call.name, arguments))
 	}
 	responses := multiRootSession(t, []string{"--root", "app=" + app, "--root", "e2e=" + e2e,
-		"--tool-profile", "test-validity,docs,corpus", "--corpus-artifact", "app=corpus.json"}, unified...)
+		"--tool-profile", "test-validity,docs"}, unified...)
 	for index, call := range calls {
 		arguments := []string{"--root", call.root}
-		if call.binary == "corvint-corpus-mcp" {
-			arguments = append(arguments, "--artifact", "corpus.json")
-		}
 		dedicated := dedicatedSession(t, filepath.Join(binaries, call.binary), arguments, toolCall(index, call.name, maps.Clone(call.arguments)))
 		want, got := withoutMeta(dedicated[fmt.Sprint(index)]), withoutMeta(responses[fmt.Sprint(index)])
 		if !reflect.DeepEqual(want, got) {

@@ -2,16 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-09-20
-Intent status: accepted (decision 0325)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-remote-provider` and `internal/remoteprovider` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: issue 11 and the owner's direction to resolve it; decision 0318;
 `docs/specs/external-evidence-provider-transports-v0.md`.
 
 ## Agent digest
 - Claim: A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.
-- Status: accepted (decision 0325)/implemented; checked by `TestRemoteTransportConformance`.
-- Exists: `cmd/corvint-remote-provider`, `internal/remoteprovider`.
-- Blocked on: no delivery prerequisite; public Internet availability is not a correctness witness.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-remote-provider` and `internal/remoteprovider` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Acceptance; Rollback.
 
 ## User and boundary
@@ -62,12 +63,8 @@ TLS fixtures; no network service or account is a prerequisite for the default pr
 
 ## Traceability
 
-| Requirement | Implementation | Evidence |
-|---|---|---|
-| `EEP-REMOTE-001` | `cmd/corvint-remote-provider`, `internal/remoteprovider` | `TestRemoteCLI` |
-| `EEP-REMOTE-002` | `internal/remoteprovider` | `TestRemoteFailures` |
-| `EEP-REMOTE-003` | `internal/remoteprovider` | `TestRemoteFailures` |
-| `EEP-REMOTE-004` | `internal/remoteprovider` | `TestRemoteTransportConformance`, `TestRemoteFailures` |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/external-evidence-provider-remote-v0.md`.
 
 ## Rollback
 

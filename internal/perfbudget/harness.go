@@ -21,9 +21,8 @@ const ReportSchema = "corvint-perf-budget-report/0"
 
 // Options configures one harness run.
 type Options struct {
-	Budgets   *Budgets
-	Corvint   string // corvint binary
-	CorpusMCP string // corvint-corpus-mcp binary
+	Budgets *Budgets
+	Corvint string // corvint binary
 	// FixtureDir holds a fixture: reused when it carries fixture.json, generated into otherwise.
 	FixtureDir string
 	Scale      Scale
@@ -175,7 +174,7 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	// unmeasured, first (PRB-V0-970).
 	indexed := false
 	for _, id := range ScenarioIDs {
-		if !selected(id) && (id != "mcp-first-call" || !selected("mcp-warm-call")) {
+		if !selected(id) {
 			continue
 		}
 		if (id == "context-query" || id == "lifecycle-hook") && !indexed {
@@ -196,19 +195,6 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 			m, err = measureCLI(ctx, id, fixture.Primary, search, samples[id], 0, func() error { return os.RemoveAll(filepath.Join(fixture.Primary, ".corvint")) })
 		case "cli-warm-read":
 			m, err = measureCLI(ctx, id, fixture.Primary, search, samples[id], 1, nil)
-		case "mcp-first-call":
-			first, warm, err := measureMCP(ctx, o.CorpusMCP, fixture, samples["mcp-first-call"], samples["mcp-warm-call"])
-			if err != nil {
-				return nil, err
-			}
-			for _, m := range []ScenarioMeasured{first, warm} {
-				if selected(m.ID) {
-					r.Scenarios = append(r.Scenarios, m)
-				}
-			}
-			continue
-		case "mcp-warm-call":
-			continue
 		case "full-delta":
 			m, err = measureCLI(ctx, id, fixture.Primary, []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "delta", "--previous", fixture.Previous, "--artifact", fixture.Current, "--limit", "256"}, samples[id], 0, nil)
 		case "affected-path":
@@ -323,62 +309,6 @@ func measureCLIInput(ctx context.Context, id, dir string, argv []string, samples
 	}
 	m.summarize()
 	return m, nil
-}
-
-// measureMCP starts firstSamples corpus MCP servers. Each first call is timed from process start
-// to its response; warmSamples further calls on the first server, alternating search and get,
-// are timed per call. Each scenario's peak resident set is its servers' maximum. A server that
-// started and refused fails both scenarios; one that could not start is returned as the
-// harness's *StartError (PRB-V0-029).
-func measureMCP(ctx context.Context, binary string, f *Fixture, firstSamples, warmSamples int) (ScenarioMeasured, ScenarioMeasured, error) {
-	argv := []string{binary, "--root", f.Primary, "--artifact", f.Current, "--protocol-version", mcpProtocolVersion}
-	first := ScenarioMeasured{ID: "mcp-first-call", Command: displayCommand(argv), Samples: []Sample{}}
-	warm := ScenarioMeasured{ID: "mcp-warm-call", Command: displayCommand(argv), Samples: []Sample{}}
-	failBoth := func(err error) (ScenarioMeasured, ScenarioMeasured, error) {
-		first.Error, warm.Error = err.Error(), err.Error()
-		return first, warm, nil
-	}
-	for i := range firstSamples {
-		session, start, err := startMCP(ctx, f.Primary, argv)
-		var notStarted *StartError
-		if errors.As(err, &notStarted) {
-			return first, warm, err
-		}
-		if err != nil {
-			return failBoth(err)
-		}
-		if _, err := session.call("corvint.docs_search", map[string]any{"query": f.SearchQuery}); err != nil {
-			return failBoth(session.fail(err))
-		}
-		firstWall := time.Since(start)
-		warmWalls := []time.Duration{}
-		if i == 0 {
-			for c := range warmSamples {
-				tool, arguments := "corvint.docs_search", map[string]any{"query": f.SearchQuery}
-				if c%2 == 1 {
-					tool, arguments = "corvint.docs_get", map[string]any{"id": f.GetID}
-				}
-				wall, err := session.call(tool, arguments)
-				if err != nil {
-					warm.Error = session.fail(err).Error()
-					first.Error = warm.Error
-					return first, warm, nil
-				}
-				warmWalls = append(warmWalls, wall)
-			}
-		}
-		rss, err := session.close()
-		if err != nil {
-			return failBoth(err)
-		}
-		first.Samples = append(first.Samples, Sample{WallMS: ms(firstWall), PeakRSS: rss})
-		for _, wall := range warmWalls {
-			warm.Samples = append(warm.Samples, Sample{WallMS: ms(wall), PeakRSS: rss})
-		}
-	}
-	first.summarize()
-	warm.summarize()
-	return first, warm, nil
 }
 
 // displayCommand names the binary by its base name so reports do not carry host paths.
