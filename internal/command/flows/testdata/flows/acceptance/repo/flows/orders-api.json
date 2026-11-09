@@ -1,0 +1,20 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "orders-api",
+  "revision": 1,
+  "kind": "api",
+  "actor": "API client",
+  "preconditions": [],
+  "steps": [{"step_id": "create-order", "action": "POST an order"}],
+  "outcomes": [{"outcome_id": "created", "behavior": "the order is created", "matcher": "toBe", "locator": "response status", "value": "201"}],
+  "variations": [{"variation_id": "orders-api.create", "preconditions": [], "steps": ["create-order"], "observable_facts": [], "outcomes": ["created"], "projects": ["api"]}],
+  "links": [
+    {"from": "create-order", "basis": "declared", "target": {"type": "source", "path": "app/api/orders.js"}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "orders-api.create", "basis": "declared", "target": {"type": "test", "path": "e2e/orders-api.spec.ts", "test_key": "orders-api.spec.ts > creates"}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "created", "basis": "declared", "target": {"type": "assertion", "path": "e2e/orders-api.spec.ts", "assertion": "response status is 201"}, "reviewed_at": "REVIEW_ANCHOR"}
+  ],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [{"step_id": "create-order", "locator": {"method": "POST", "path": "/api/orders"}, "expect": ["created"], "effect": "write-reversible"}]
+  }
+}

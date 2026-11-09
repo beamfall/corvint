@@ -1,0 +1,20 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "checkout",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "shopper",
+  "preconditions": ["the cart holds one item"],
+  "steps": [{"step_id": "pay", "action": "press Pay"}],
+  "outcomes": [{"outcome_id": "paid", "behavior": "the order shows as paid", "matcher": "toHaveText", "locator": "order-status", "value": "paid"}],
+  "variations": [{"variation_id": "checkout.happy", "preconditions": [], "steps": ["pay"], "observable_facts": [], "outcomes": ["paid"], "projects": ["chromium"]}],
+  "links": [
+    {"from": "pay", "basis": "declared", "target": {"type": "source", "path": "app/web/checkout.js"}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "checkout.happy", "basis": "declared", "target": {"type": "test", "path": "e2e/checkout.spec.ts", "test_key": "checkout.spec.ts > pays"}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "paid", "basis": "declared", "target": {"type": "assertion", "path": "e2e/checkout.spec.ts", "assertion": "order-status has text paid"}, "reviewed_at": "REVIEW_ANCHOR"}
+  ],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [{"step_id": "pay", "state": "/checkout", "locator": {"role": "button", "name": "Pay"}, "expect": ["paid"], "effect": "external-side-effect"}]
+  }
+}

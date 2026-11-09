@@ -850,7 +850,7 @@ var (
 		"harness", "context", "adapter",
 		"affected",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "calibrate", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "breakage", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
+		"kernel", "calibrate", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "breakage", "changes", "runs", "test", "tests", "repro", "graph", "mcp", "how"}
 )
 
 func knownHost(value string) bool {

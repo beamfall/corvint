@@ -35,6 +35,10 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap setup --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
       [--budget N | --full]
   corvint [--root PATH] flows appmap links --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
+  corvint [--root PATH] flows appmap infer --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--corpus ARTIFACT]
+      [--emit report|request] [--budget N | --full]
+  corvint [--root PATH] flows appmap how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
+      [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -45,7 +49,8 @@ Application map usage (experimental, AMAP-V0):
 revision the map recorded for it; --repo ALIAS=ABSOLUTE_ROOT names that root's checkout. The
 source verbs also take --workspace FILE or read --root/.corvint/workspace.json (unless
 --no-workspace) for those roots, never merged with --repo. A map whose manifest is in an aliased
-root reads it from that root. Flags parse in any order; a refusal names the flag that failed.
+root reads it from that root. Flags parse in any order (how's after GOAL too); a refusal names the
+flag that failed.
 
 corvint flows appmap build --help names the manifest's minimum members (docs/APPLICATION-MAP.md).
 
@@ -207,7 +212,21 @@ screen graph's edges by provenance: static edges read from templates and compone
 ui-sref, routerLink, router <Link to>, form action, link_to, button_to, form_with url:,
 redirect_to, $state.go, navigate and router or history push) beside the map's test-observed and
 flow-declared edges, never merged; a Rails view or controller action binds the source screen,
-and dynamic or relative targets and unsupported template languages are unknowns.
+and dynamic or relative targets and unsupported template languages are unknowns. infer clusters
+test step sequences into candidate flows by start and end screen and into variations by action
+sequence, with support, conflicts, the outcomes every source asserts and single-source labels;
+--corpus ARTIFACT (built at the map revision) joins DCP-V1 test knowledge: a defect blocks its
+flow, an unrelated test is no source, and run+reviewed candidates rank first. --emit request
+prints the proposed candidates as a corvint-behavior-adapter-request/1 for flows import
+--format behavior-adapter-request, which writes them as proposed intents (default caps 6144
+bytes). Unsupported constructs are
+unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
+static, no code runs and no repository file changes. how answers one goal (site-knowledge-how/0):
+the best candidate flow by lexical coverage, its goal screen, the setup that arranges its primary
+test and each --condition, the steps with each hop's admitted static, test-observed and --ledger
+PROVEN edges (provenance kept), and the outcome oracle its sources share; a missing piece is a
+named gap (no-route, no-setup-for-precondition, no-oracle, no-page-object, ambiguous-goal,
+stale-evidence) and no candidate or a tie ABSTAINS. The answer is a proposal, never accepted intent.
 
 Route-action check (experimental, V1-1890): actions compiles every rails-routes/0 route (and its
 nested draws) to a controller and action and reports ROUTE-ACTION-MISSING when the handler
@@ -240,7 +259,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -305,6 +324,12 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag i
 	if verb == "pageobjects" || verb == "steps" || verb == "setup" || verb == "links" {
 		return runFlowsAppmapKnowledge(ctx, root, verb, args, out)
 	}
+	if verb == "infer" {
+		return runFlowsAppmapInfer(ctx, root, args, out)
+	}
+	if verb == "how" {
+		return runFlowsAppmapHow(ctx, root, args, out)
+	}
 	if verb == "actions" {
 		return runFlowsAppmapActions(ctx, root, args, out)
 	}
@@ -322,7 +347,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag i
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

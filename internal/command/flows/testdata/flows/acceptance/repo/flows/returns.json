@@ -1,0 +1,12 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "returns",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "shopper",
+  "preconditions": ["the shopper holds a paid order"],
+  "steps": [{"step_id": "request-return", "action": "request a return"}],
+  "outcomes": [{"outcome_id": "refunded", "behavior": "the refund is shown", "matcher": "toBeVisible", "locator": "refund-note", "value": "refunded"}],
+  "variations": [{"variation_id": "returns.basic", "preconditions": [], "steps": ["request-return"], "observable_facts": [], "outcomes": ["refunded"], "projects": []}],
+  "links": []
+}
