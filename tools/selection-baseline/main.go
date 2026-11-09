@@ -363,10 +363,9 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	errs := make([]error, len(set.Changes))
 	// ASC-V0-778: a change whose record matches its exact inputs is read, not replayed.
 	// TSP-V0-7330: the guard is DIR's trusted copy, read once; its bytes join the cache key.
-	guardData, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(guardPath)))
-	if err != nil {
-		return r, err
-	}
+	// A guard that cannot be read is left out of tmp, so every change records an `unreadable:`
+	// input and runs FULL, and the report still explains why (an absent and an empty guard both do).
+	guardData, guardErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(guardPath)))
 	cache, off := openCache(ctx, root, corvint, selector, costsData, guardData)
 	keys := make([]string, len(set.Changes))
 	var pending []int
@@ -392,8 +391,10 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 		}
 		defer os.RemoveAll(tmp)
 		guard := filepath.Join(tmp, "github-guard.sh")
-		if err := os.WriteFile(guard, guardData, 0o600); err != nil {
-			return r, err
+		if guardErr == nil {
+			if err := os.WriteFile(guard, guardData, 0o600); err != nil {
+				return r, err
+			}
 		}
 		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
 		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
