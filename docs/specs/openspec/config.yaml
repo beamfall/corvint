@@ -1,0 +1,23 @@
+schema: spec-driven
+
+# OpenSpec project configuration (owner decision H12 (2026-11-10)). The project root for the
+# OpenSpec command is docs/specs: run `openspec` from docs/specs, never from the repository root.
+# docs/specs/openspec/README.md describes the stages and the one difference from stock OpenSpec.
+
+context: |
+  Run every openspec command from docs/specs; the root is docs/specs/openspec.
+  The canonical specs are the flat files docs/specs/<capability>.md with stable requirement IDs.
+  A change's spec delta is a proposal. The apply stage copies each requirement into the owning
+  capability spec in the same change as the code, and archive runs with --skip-specs.
+  Only the owner accepts intent; a generated or inferred proposal stays "proposed".
+  Lines are at most 100 characters except table rows.
+
+rules:
+  proposal:
+    - Name the owning capability spec, the requirement-ID prefix and range, and the owner decisions cited
+    - State non-goals, failure modes, acceptance evidence and rollback
+  specs:
+    - 'Title each requirement "### Requirement: <ID> <title>" with a stable ID from the owning prefix'
+    - Use MUST or SHALL in every requirement and give each requirement at least one scenario
+  tasks:
+    - Write each task as a checkbox item that names its requirement IDs and its proof

@@ -4367,5 +4367,29 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/PRODUCT-PLAN-1.0.md",
+    "title": "Corvint 1.0 product plan",
+    "reqPrefix": "PROD-DOCS",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Proposed 1.0 product contract of 77 requirements for testing, documentation, task manager, integration, release, a GitHub Action and agent packages.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/SPEC-HEALTH-2026-11-09.md",
+    "title": "Corvint spec health report, 2026-11-09",
+    "reqPrefix": "",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Each of the 168 surviving specs gets a proposed class of keep, merge, retire or outside 1.0, with its acceptance and test-citation gaps.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
