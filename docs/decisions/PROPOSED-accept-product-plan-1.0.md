@@ -6,7 +6,7 @@
   becomes `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the next free number
   (change `acceptance-record`, ACR-V1-001).
 - Authority it would record: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date, and owner decisions H1 to H13 of 2026-11-10,
+  recorded in the owner-answers file of that date, and owner decisions H1 to H14 of 2026-11-10,
   recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
@@ -362,8 +362,8 @@ owner answer, panel pick or requirement records the value; this record does not 
 
 | Act | Due | Milestone that waits | Fallback if late |
 |---|---|---|---|
-| Create the touch-required signing key, confirm its fingerprint, and sign the plan acceptance tag (R42, D12 and D13; ACR-V1-011) | NOT_DECIDED (before M0) | M0: the fresh-store cutover and the ticket re-scope run only after the plan and the ticket scheme are signed (R42, C11; TSC-V1-001) | If the owner declines a key: an owner-merged decision file plus a protected-environment approval, with identity by convention and `NOT_VERIFIED` (ACR-V1-011, REL-V1-013). If the act is only late: NOT_DECIDED |
-| Sign the RC and stable acceptance tags and give the two environment approvals (REL-V1-007, REL-V1-013) | At M8 and at M10 | M8, M10 | The same decline fallback; late: NOT_DECIDED |
+| Create the touch-required signing key, confirm its fingerprint, and sign the plan acceptance tag (R42, D12 and D13; ACR-V1-011). Declined by owner decision H14 (2026-11-10): no key; the fallback in the last column applies | Declined; the owner's merge of the decision file is due before M0 | M0: the fresh-store cutover and the ticket re-scope run only after the plan and the ticket scheme are signed (R42, C11; TSC-V1-001) | If the owner declines a key: an owner-merged decision file plus a protected-environment approval, with identity by convention and `NOT_VERIFIED` (ACR-V1-011, REL-V1-013). If the act is only late: NOT_DECIDED |
+| Sign the RC and stable acceptance tags and give the two environment approvals (REL-V1-007, REL-V1-013) | At M8 and at M10 | M8, M10 | The same decline fallback, which applies under owner decision H14 (2026-11-10); late: NOT_DECIDED |
 | Create the seven public mirrors `beamfall/corvint-qual-<runner>` (R42, N4; GHA-V1-025) | 2026-11-27 | The starter acceptance of `github-action`, which stays `NOT_RUN` and names the missing mirror | NOT_DECIDED |
 | Review and sign the flow links for about 10 flows on the freeCodeCamp pin (R42, A16; PRR-V1-003, FIH-V1-002) | 2026-12-04 | Sealing the Playwright fault set, before M5a and M7 | M5a slips until the links are signed; Playwright is not demoted (owner decision H6 (2026-11-10)) |
 | Publish the Tasks RC tag (R42, C22) | 2026-12-08 | M5a and the start of the M9 trial | NOT_DECIDED; `tasks-conformance` names 2026-12-15 as the latest trial start that still meets a 2027-01-05 stable |
@@ -431,12 +431,17 @@ paperwork, and none of it is a new owner decision.
 
 ### 11. How the owner signs
 
-This file is a draft until the steps below are done. No agent performs steps 1, 2, 5 or 6, and no
-agent creates, holds or uses the key (ACR-V1-011; decision 0433).
+This file is a draft until the steps below are done. No agent performs steps 1, 2 or 5.
+
+Owner decision H14 (2026-11-10), the owner's words: "No key". The owner declines the signing key
+of R42, D12 and D13, so the fallback of ACR-V1-011 applies to the plan acceptance and, unless a
+later owner decision adds a key, to the RC and stable acceptances: an owner-merged decision file
+plus the protected-environment approval. No allowed-signers file is committed and no acceptance
+tag is signed. Every record states that the owner's identity is by convention and `NOT_VERIFIED`.
+H14 answers step 2 only; it does not accept sections 1 to 10.
 
 1. Read sections 1 to 10 and say which parts are accepted, amended or rejected.
-2. Choose the key path: generate a touch-required key and commit the allowed-signers file, or
-   record that no key will be used.
+2. Choose the key path. Done: no key (H14).
 3. The file is renamed to `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the
    next free number, its status line is changed to accepted, and its row is added to
    `docs/decisions/README.md` (ACR-V1-001). An agent may prepare this commit on the owner's word.
@@ -444,11 +449,10 @@ agent creates, holds or uses the key (ACR-V1-011; decision 0433).
    `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
    (ACR-V1-006, ACR-V1-008).
 5. The owner merges the pull request that carries steps 3 and 4.
-6. With a key: the owner pushes a signed tag on the merged commit. Without a key: the merged
-   decision file is the acceptance, and every record states that the owner's identity is by
-   convention and `NOT_VERIFIED` (ACR-V1-011, fallback).
+6. The merged decision file is the acceptance (ACR-V1-011, fallback; H14). It states that the
+   owner's identity is by convention and `NOT_VERIFIED`.
 
-After step 6 the change `acceptance-record` edits `AGENTS.md` invariants 3, 4, 5 and 7
+After step 5 the change `acceptance-record` edits `AGENTS.md` invariants 3, 4, 5 and 7
 (ACR-V1-012), and milestone M0 may start.
 
 ## Rollback
@@ -463,7 +467,7 @@ restores, and the acceptance log rows it changes go back to `pending-owner`.
 2. The plan commit SHA this record names (written in the header).
 3. The acts of section 8, and a value for each `NOT_DECIDED` cell the owner wants fixed.
 4. The eleven review settlements of section 10.
-5. The key path of section 11, step 2.
+5. The key path of section 11, step 2: decided, no key (H14).
 
 Section 9 lists the owner's answers of 2026-11-10 (H1 to H11) and leaves nothing open. Owner
 decision H13 (2026-11-10) confirmed the reading in section 1 that the canonical specs stay as the
