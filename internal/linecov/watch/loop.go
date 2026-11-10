@@ -170,7 +170,7 @@ func goPlan(ctx context.Context, o Options, diffs []linecov.FileDiff, p *Plan) e
 	dirs := o.Static
 	var err error
 	if dirs == nil {
-		_, dirs, err = Packages(o.Root)
+		_, dirs, err = Packages(ctx, o.Root)
 		if err != nil {
 			return err
 		}
@@ -232,12 +232,12 @@ func RunnerLike(ctx context.Context, root, want, wrapper string) (string, error)
 }
 
 // Packages lists the module path and the module-relative directories of the
-// module's packages at root.
-func Packages(root string) (module string, dirs []string, err error) {
-	if module, err = goOutput(root, "list", "-m"); err != nil {
+// module's packages at root. Cancelling ctx stops the listing.
+func Packages(ctx context.Context, root string) (module string, dirs []string, err error) {
+	if module, err = goOutput(ctx, root, "list", "-m"); err != nil {
 		return "", nil, err
 	}
-	out, err := goOutput(root, "list", "./...")
+	out, err := goOutput(ctx, root, "list", "./...")
 	if err != nil {
 		return "", nil, err
 	}
@@ -252,8 +252,8 @@ func Packages(root string) (module string, dirs []string, err error) {
 	return module, dirs, nil
 }
 
-func goOutput(root string, args ...string) (string, error) {
-	cmd := exec.Command("go", args...)
+func goOutput(ctx context.Context, root string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "go", args...)
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {

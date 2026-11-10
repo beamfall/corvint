@@ -200,3 +200,13 @@ func TestOnceAndLinesSources(t *testing.T) {
 type failingReader struct{}
 
 func (*failingReader) Read([]byte) (int, error) { return 0, errors.New("editor pipe broke") }
+
+// LPCV-V0-1086: package discovery stops with the watch; a cancelled context
+// ends the `go list` it runs instead of waiting for it.
+func TestPackagesStopsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, err := Packages(ctx, t.TempDir()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Packages under a cancelled context: %v", err)
+	}
+}
