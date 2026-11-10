@@ -77,6 +77,9 @@ case $out in
   *) fail "$n base: $out" ;;
 esac
 case $out in *identityKey*) fail "$n base: identityKey left in the payload" ;; esac
+# The store takes labels in sorted canonical byte order without duplicates.
+printf '%s\n' "$out" | sed -n 's/^PAYLOAD	//p' | jq -e '.labels == (.labels | unique)' \
+  > /dev/null || fail "$n base: labels not sorted: $out"
 
 # 2-5. FACET_VALUE: a free-text label, a wrong product, a wrong kind, rig in v1-0.
 variant label '.labels += ["ci-friction"]'
