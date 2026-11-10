@@ -1,0 +1,395 @@
+{
+  "profile": "corvint-ticket-vocabulary/0",
+  "status": "proposed",
+  "change": "docs/specs/openspec/changes/ticket-taxonomy",
+  "requirements": [
+    "TTX-V1-001",
+    "TTX-V1-002",
+    "TTX-V1-005",
+    "TTX-V1-016"
+  ],
+  "products": [
+    "testing",
+    "docs",
+    "tasks",
+    "integration"
+  ],
+  "components": {
+    "affected": {
+      "product": "testing",
+      "roots": [
+        "cmd/corvint/affected.go",
+        "internal/testplan/",
+        "internal/gateselect/",
+        "internal/runnerselection/"
+      ]
+    },
+    "test": {
+      "product": "testing",
+      "roots": [
+        "internal/testrunner/",
+        "cmd/corvint-test-runner/"
+      ]
+    },
+    "watch": {
+      "product": "testing",
+      "roots": []
+    },
+    "inventory": {
+      "product": "testing",
+      "roots": []
+    },
+    "line-evidence": {
+      "product": "testing",
+      "roots": [
+        "internal/linecov/",
+        "internal/lineanchor/",
+        "internal/jslinecov/",
+        "internal/nativelinecov/",
+        "internal/rubylinecov/",
+        "tools/linecov/"
+      ]
+    },
+    "runner": {
+      "product": "testing",
+      "roots": [
+        "internal/runnerprotocol/",
+        "internal/runnerpolicy/",
+        "internal/runnerqualification/",
+        "tools/runner-plugin/",
+        "tools/runner-qualification/",
+        "tools/runner-reference/"
+      ]
+    },
+    "run-evidence": {
+      "product": "testing",
+      "roots": [
+        "internal/testevidence/",
+        "tools/gotest-evidence/"
+      ]
+    },
+    "measurement": {
+      "product": "testing",
+      "roots": [
+        "tools/run-measure/",
+        "tools/selection-baseline/",
+        "benchmarks/"
+      ]
+    },
+    "docs": {
+      "product": "docs",
+      "roots": [
+        "internal/doccorpus/",
+        "cmd/corvint-docs/"
+      ]
+    },
+    "flows": {
+      "product": "docs",
+      "roots": [
+        "internal/appflows/",
+        "internal/flowdocs/",
+        "tools/web-flows/"
+      ]
+    },
+    "how": {
+      "product": "docs",
+      "roots": []
+    },
+    "mcp": {
+      "product": "docs",
+      "roots": [
+        "internal/mcp/",
+        "cmd/corvint-docs-mcp/"
+      ]
+    },
+    "store": {
+      "product": "tasks",
+      "roots": [
+        ".taskman/"
+      ]
+    },
+    "claims": {
+      "product": "tasks",
+      "roots": []
+    },
+    "completion": {
+      "product": "tasks",
+      "roots": []
+    },
+    "receipts": {
+      "product": "tasks",
+      "roots": []
+    },
+    "reads": {
+      "product": "tasks",
+      "roots": []
+    },
+    "cli": {
+      "product": "tasks",
+      "roots": []
+    },
+    "policy": {
+      "product": "tasks",
+      "roots": [
+        ".taskman/policy.json"
+      ]
+    },
+    "action": {
+      "product": "integration",
+      "roots": []
+    },
+    "agents": {
+      "product": "integration",
+      "roots": [
+        "integrations/"
+      ]
+    },
+    "catalog": {
+      "product": "integration",
+      "roots": [
+        "internal/capcatalog/"
+      ]
+    },
+    "release": {
+      "product": "integration",
+      "roots": [
+        "internal/releasecandidate/",
+        "internal/corerelease/",
+        "conformance/release-artifact-v0/"
+      ]
+    },
+    "specs": {
+      "product": "integration",
+      "roots": [
+        "internal/specindex/",
+        "docs/specs/"
+      ]
+    },
+    "gates": {
+      "product": "integration",
+      "roots": [
+        ".github/workflows/",
+        "Makefile"
+      ]
+    },
+    "shared": {
+      "product": "integration",
+      "roots": []
+    },
+    "preview": {
+      "product": "integration",
+      "roots": []
+    },
+    "rig": {
+      "product": null,
+      "productStatus": "NOT_DECIDED",
+      "milestone": "post-1-0",
+      "roots": [
+        ".agent-evidence/lanetools/"
+      ],
+      "productNote": [
+        "C21 names rig and its milestone, not its product (TTX-V1-002).",
+        "The gate refuses every rig ticket until the owner records the product here."
+      ]
+    }
+  },
+  "rootsNote": [
+    "Roots are proposed. An empty list means no root was found in this repository.",
+    "The tasks components other than store and policy live in the corvint-tasks repository."
+  ],
+  "types": {
+    "bug": {
+      "kind": "BUG",
+      "key": "<component>.<class>.<locus>",
+      "bodyLines": [
+        "Version",
+        "Expected",
+        "Actual",
+        "Repro"
+      ]
+    },
+    "delivery": {
+      "kind": "FEATURE",
+      "key": "<requirement-id>.<slice>[.<runner>]",
+      "bodyLines": [
+        "Requirement",
+        "Slice",
+        "Missing today"
+      ]
+    },
+    "test-gap": {
+      "kind": "CHORE",
+      "key": "<component>.gap.<locus>",
+      "bodyLines": [
+        "Behaviour",
+        "Gap"
+      ]
+    },
+    "optimization": {
+      "kind": "CHORE",
+      "key": "<component>.slow|large.<locus>",
+      "bodyLines": [
+        "Measured",
+        "Budget"
+      ]
+    },
+    "decision": {
+      "kind": "SPIKE",
+      "key": "<component>.decide.<topic>",
+      "bodyLines": [
+        "Question",
+        "Options",
+        "Blocks",
+        "Decider"
+      ]
+    },
+    "chore": {
+      "kind": "CHORE",
+      "key": "<component>.chore.<action>.<object>",
+      "bodyLines": [
+        "Object",
+        "Action",
+        "Why now"
+      ]
+    }
+  },
+  "runners": [
+    "go",
+    "vitest",
+    "jest",
+    "playwright",
+    "pytest",
+    "rspec",
+    "minitest",
+    "non-code",
+    "all"
+  ],
+  "agents": [
+    "claude-code",
+    "codex",
+    "opencode",
+    "pi",
+    "all"
+  ],
+  "bugClasses": [
+    "miss",
+    "over",
+    "wrong",
+    "fail",
+    "flake",
+    "bypass",
+    "stale",
+    "unusable"
+  ],
+  "slices": [
+    "spec",
+    "impl",
+    "test",
+    "docs",
+    "proof",
+    "run"
+  ],
+  "choreActions": [
+    "delete",
+    "move",
+    "split",
+    "rename",
+    "refresh",
+    "pin"
+  ],
+  "locusPrefixes": [
+    "t-",
+    "c-",
+    "o-",
+    "r-",
+    "v-",
+    "w-",
+    "m-",
+    "p-",
+    "f-"
+  ],
+  "milestones": [
+    "v1-0",
+    "post-1-0"
+  ],
+  "otherLabels": [
+    "suspected"
+  ],
+  "unplannedTypes": [
+    "bug",
+    "optimization",
+    "test-gap",
+    "chore",
+    "decision"
+  ],
+  "limits": {
+    "keyBytes": 60,
+    "keyHashedPrefixBytes": 53,
+    "keyHashHexDigits": 6,
+    "bodyBytes": 1200,
+    "titleBytes": 100,
+    "labelBytes": 64
+  },
+  "interim": {
+    "keyLabelPrefix": "key:",
+    "unplannedReasonLine": "Unplanned",
+    "distinctFromLine": "Distinct from",
+    "note": [
+      "Until the store has identityKey and distinctFrom, the gate stores the key as",
+      "label key:<k> and each distinctFrom entry as the body line",
+      "\"Distinct from <ID>: <reason>\".",
+      "The UNPLANNED reason is the body line \"Unplanned: <reason>\". Both line forms are proposed."
+    ]
+  },
+  "changeFolders": {
+    "acceptance-record": "specs",
+    "affected-plan-kinds": "affected",
+    "agent-packages": "agents",
+    "canonical-test-id": "inventory",
+    "change-report-impact": "preview",
+    "compatibility-promise": "release",
+    "docs-mcp-hardening": "mcp",
+    "e2e-inventory-discovery": "inventory",
+    "fault-injection-harness": "measurement",
+    "feature-map-from-flows": "flows",
+    "flow-link-proposals": "flows",
+    "flow-schema-version": "flows",
+    "flows-status-report": "flows",
+    "flows-unlinked-tests-report": "flows",
+    "github-action": "action",
+    "how-rewrite": "how",
+    "jest-provider": "runner",
+    "line-evidence": "line-evidence",
+    "macos-required-shards": "gates",
+    "mcp-tool-table": "catalog",
+    "narrowing-measurement": "measurement",
+    "non-code-map": "affected",
+    "openspec-check": "specs",
+    "per-test-durations": "run-evidence",
+    "proof-repositories": "measurement",
+    "pytest-provider": "runner",
+    "release-process": "release",
+    "review-evidence-check": "preview",
+    "ruby-providers": "runner",
+    "run-evidence": "run-evidence",
+    "runner-contract": "runner",
+    "selection-hardening": "affected",
+    "source-removal": "shared",
+    "spec-set-cleanup": "specs",
+    "tasks-conformance": "store",
+    "tasks-hardening": "store",
+    "tasks-integration": "release",
+    "tasks-policy-v15": "policy",
+    "tasks-store-cutover": "store",
+    "test-inventory": "inventory",
+    "ticket-brief-context": "preview",
+    "ticket-taxonomy": "policy",
+    "user-docs": "catalog",
+    "watch-flows-hardening": "watch",
+    "watch-seven-runners": "watch"
+  },
+  "changeFoldersNote": [
+    "The change proposals name no component; this assignment is proposed",
+    "for owner review (user-docs to catalog is the least certain)."
+  ]
+}
