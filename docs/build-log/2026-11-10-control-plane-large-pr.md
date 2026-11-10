@@ -116,9 +116,12 @@ open-PR lookup first.
   Git, for example a segment starting with `_`) is refused. The PR trigger targets `main`.
 - `AFP-V0-016` in `affected-plan-v0.md` still says a PR above the listing limit fails. That
   spec is at its obligation limit and was not edited; `CCEP-V0-001` records the amendment.
-- This change touches `.github/` and other paths in one range, which
-  `script/github-split-check.sh` refuses for any commit layout, so it is one commit.
+- This change touches `.github/` and other paths, which `script/github-split-check.sh`
+  refuses in one range for any commit layout. It landed as two PRs: the workflow change
+  alone as commit `47c053e6b` (PR 171), then the spec, this entry and the test.
 
 ## Rollback
 
-Revert the commit. The job again refuses 3000 or more changed files, which is fail-closed.
+Revert the workflow commit `47c053e6b`. The job again refuses 3000 or more changed files,
+which is fail-closed. Revert the second PR's commit with it: its test asserts the tree
+comparison. Reverting the second PR alone leaves the tree comparison active.
