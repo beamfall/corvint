@@ -120,6 +120,7 @@ GATE_STEPS = \
   test-exec-writes-check \
   test-read-scopes-check \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
@@ -1368,6 +1369,7 @@ shell-test: \
   spec-requirements-test \
   stray-backups-test \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 
@@ -1466,3 +1468,7 @@ install-local: ## Build and install all native binaries; add LOCAL_BIN_DIR to PA
 .PHONY: agents-invariants-check-test
 agents-invariants-check-test:
 	@script/agents-invariants-check_test.sh
+
+.PHONY: ticket-gate-test
+ticket-gate-test:
+	@script/ticket-gate_test.sh
