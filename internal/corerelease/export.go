@@ -378,7 +378,8 @@ func parseBatchHeader(line string) (oid, kind string, size int64, err error) {
 	if !looksLikeHex(fields[0]) {
 		return "", "", 0, fmt.Errorf("malformed batch header oid %q", fields[0])
 	}
-	size, convErr := strconv.ParseInt(fields[2], 10, 64)
+	n, convErr := strconv.Atoi(fields[2])
+	size = int64(n)
 	if convErr != nil || size < 0 || size > exportLimits.totalBytes {
 		return "", "", 0, fmt.Errorf("malformed or out-of-bound batch size %q", fields[2])
 	}

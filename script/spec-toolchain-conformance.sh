@@ -239,4 +239,4 @@ if [ "$failures" -ne 0 ]; then
     printf 'spec-toolchain-conformance: %d mismatch(es)\n' "$failures" >&2
     exit 1
 fi
-echo "spec-toolchain-conformance: PASS (openspec $os_version, spec-kit $sk_version, $maps intent forms checked)"
+echo "spec-toolchain-conformance: PASS (openspec $os_version, spec-kit $sk_version)"
