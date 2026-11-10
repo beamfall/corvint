@@ -99,30 +99,65 @@ jobs:
             fi
             base=$(jq -er '.base.sha | select(type == "string" and length > 0)' <<<"$pr")
             changed=$(jq -er '.changed_files | select(type == "number" and . >= 0 and . == floor)' <<<"$pr")
-            # At the API ceiling, completeness cannot be proved. Even a waiver cannot turn
-            # an incomplete or failed listing into success; set -e leaves no new status.
-            if [ "$changed" -ge 3000 ]; then
-              echo "ci-control-plane: files API limit reached; no status posted"
-              exit 1
-            fi
-            files=$(gh api --paginate --slurp "repos/$REPO/pulls/$number/files?per_page=100")
-            jq -e --argjson changed "$changed" '
-              type == "array" and length == ([1, (($changed + 99) / 100 | floor)] | max) and
-              all(.[]; type == "array") and
-              all(to_entries[]; (.value | length) == ([100, $changed - (.key * 100)] | min)) and
-              ([.[][]] | length == $changed and length < 3000 and
-                (map(.filename) | unique | length) == $changed and
-                all(.[]; (.filename | type == "string" and length > 0) and
-                  (.previous_filename == null or (.previous_filename | type == "string" and length > 0))))
-            ' <<<"$files" >/dev/null
             state=success
             description="PR changes nothing under .github/"
-            if jq -e 'any(.[][]; (.filename | startswith(".github/")) or
-                ((.previous_filename // "") | startswith(".github/")))' <<<"$files" >/dev/null; then
-              state=failure
-              description="PR changes .github/; merge needs an approver ci-control-plane-waiver status on this SHA"
+            if [ "$changed" -ge 3000 ]; then
+              # V1-5263 (CCEP-V0-001, owner decision 2026-11-10): at the files API ceiling a listing
+              # cannot be proved complete, so no file is listed. Compare the root `.github` tree
+              # entry of the base branch's current tip, of its merge base with HEAD and of HEAD
+              # (never the PR's `.base.sha`, which can be a stale ancestor). Equal tree SHAs at all
+              # three, or no entry at any, prove that no path under `.github/` differs. A base branch
+              # that moved `.github` since the merge base fails until the PR merges it or is waived.
+              # Every value read from the API is validated before it reaches a URL; any failed
+              # read, malformed or truncated answer stops the job under set -e, so no status is
+              # posted and a waiver cannot override it.
+              ref=$(jq -er '.base.ref | select(type == "string")' <<<"$pr")
+              [[ ${#ref} -le 255 && "$ref" != *..* &&
+                "$ref" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$ ]] || exit 1
+              tip=$(gh api "repos/$REPO/git/ref/heads/$ref" | jq -er --arg ref "refs/heads/$ref" \
+                'select(.ref == $ref and .object.type == "commit") | .object.sha')
+              [[ "$tip" =~ ^[0-9a-f]{40}$ ]] || exit 1
+              merge_base=$(gh api "repos/$REPO/compare/$tip...$HEAD?per_page=1" | jq -er --arg tip "$tip" \
+                'select(.base_commit.sha == $tip) | .merge_base_commit.sha')
+              [[ "$merge_base" =~ ^[0-9a-f]{40}$ ]] || exit 1
+              dotgithub=()
+              for commit in "$tip" "$merge_base" "$HEAD"; do
+                tree=$(gh api "repos/$REPO/git/commits/$commit" | jq -er --arg sha "$commit" \
+                  'select(.sha == $sha) | .tree.sha')
+                [[ "$tree" =~ ^[0-9a-f]{40}$ ]] || exit 1
+                # Non-recursive, so only the root level is read; a truncated root proves nothing.
+                entry=$(gh api "repos/$REPO/git/trees/$tree" | jq -er --arg sha "$tree" '
+                  select(.sha == $sha and .truncated == false and (.tree | type == "array") and
+                    all(.tree[]; type == "object" and (.path | type) == "string")) |
+                  [.tree[] | select(.path == ".github")] |
+                  if length == 0 then "absent" elif length > 1 then empty
+                  elif .[0].type == "tree" then "tree:" + .[0].sha else "not-a-tree" end')
+                [[ "$entry" =~ ^(absent|not-a-tree|tree:[0-9a-f]{40})$ ]] || exit 1
+                dotgithub+=("$entry")
+              done
+              echo "ci-control-plane: #$number has $changed changed files; .github is ${dotgithub[0]} at base tip $tip, ${dotgithub[1]} at merge base $merge_base and ${dotgithub[2]} at $HEAD"
+              if [ "${dotgithub[0]}" != "${dotgithub[1]}" ] || [ "${dotgithub[1]}" != "${dotgithub[2]}" ] ||
+                [ "${dotgithub[0]}" = not-a-tree ]; then
+                state=failure
+              fi
+            else
+              files=$(gh api --paginate --slurp "repos/$REPO/pulls/$number/files?per_page=100")
+              jq -e --argjson changed "$changed" '
+                type == "array" and length == ([1, (($changed + 99) / 100 | floor)] | max) and
+                all(.[]; type == "array") and
+                all(to_entries[]; (.value | length) == ([100, $changed - (.key * 100)] | min)) and
+                ([.[][]] | length == $changed and length < 3000 and
+                  (map(.filename) | unique | length) == $changed and
+                  all(.[]; (.filename | type == "string" and length > 0) and
+                    (.previous_filename == null or (.previous_filename | type == "string" and length > 0))))
+              ' <<<"$files" >/dev/null
+              if jq -e 'any(.[][]; (.filename | startswith(".github/")) or
+                  ((.previous_filename // "") | startswith(".github/")))' <<<"$files" >/dev/null; then
+                state=failure
+              fi
             fi
             if [ "$state" = failure ]; then
+              description="PR changes .github/; merge needs an approver ci-control-plane-waiver status on this SHA"
               # V1-5096 (replaces AFP-V0-171's user-success keep): an owner waiver is the newest
               # `ci-control-plane-waiver` status on this exact head posted by a login in
               # WAIVER_APPROVERS (read from this default-branch file). Success waives and this job
