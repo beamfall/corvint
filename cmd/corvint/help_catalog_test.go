@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
-	"github.com/Beamfall/corvint/internal/mcp/bridge"
 )
 
 func runCatalogHelp(t *testing.T, args ...string) string {
@@ -54,8 +51,9 @@ func TestCAPV0015HelpJSONListsEveryDispatchedCommand(t *testing.T) {
 		!strings.Contains(strings.Join(affected.SchemaIDs, " "), "affected-plan/1") {
 		t.Fatalf("affected entry is not derived from its help: %+v", affected)
 	}
-	if docs := byName["docs"]; len(docs.NestedOperations["corpus"]) != len(corpusOperations) || docs.Writes == nil || *docs.Writes != "mode-dependent" {
-		t.Fatalf("docs entry lacks the corpus operation table or its write class: %+v", docs)
+	if docs := byName["docs"]; len(docs.Operations) != 0 || len(docs.NestedOperations) != 0 || docs.Writes == nil || *docs.Writes != "mode-dependent" {
+		// The docs group is an exec-only shim onto corvint-docs (decision 0594): its operations are catalogued by that binary.
+		t.Fatalf("docs entry is not the corvint-docs shim or lacks its write class: %+v", docs)
 	}
 	if impact := byName["impact"]; impact.Writes == nil || *impact.Writes != "none" || impact.SelfObservationLedger != "best-effort-append" {
 		t.Fatalf("impact write class is not the root support boundary's: %+v", impact)
@@ -129,62 +127,6 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	err := unknownHelpTopic([]string{"nope"})
 	if strings.Contains(err.Error(), "--json") || strings.Contains(err.Error(), "'guide'") {
 		t.Fatalf("the unknown-topic refusal must keep listing commands and nested topics only: %v", err)
-	}
-}
-
-// catalogDriftHint names the recovery when the embedded catalog no longer
-// matches the CLI (V1-3659): the snapshot the help tool serves is regenerated,
-// not edited.
-const catalogDriftHint = "; the embedded catalog is stale: run `make capability-catalog` and commit internal/capcatalog/"
-
-// MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
-// and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
-// CLI's own stdout byte for byte, for both topics, in structuredContent. Each
-// server's wire test holds its answer equal to bridge.HelpToolResult's.
-func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
-	t.Parallel()
-	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
-		answer, callErr := bridge.HelpToolResult(context.Background(), []byte(arguments))
-		if callErr != nil {
-			t.Fatal(callErr)
-		}
-		structured, _ := answer["structuredContent"].(map[string]any)
-		receipt, _ := structured["receipt"].(map[string]any)
-		if text, _ := receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("companion corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
-		}
-	}
-}
-
-// MCPV0-100: the corvint.help MCP tool returns the CLI's own stdout byte for
-// byte, for both topics.
-func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
-	t.Parallel()
-	root := filepath.Clean(t.TempDir())
-	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	registry, bridgeErr := bridge.New(root)
-	if bridgeErr != nil {
-		t.Fatal(bridgeErr)
-	}
-	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
-		result, callErr := registry.Call(context.Background(), bridge.ToolHelp, []byte(arguments))
-		if callErr != nil {
-			t.Fatal(callErr)
-		}
-		if text, _ := result.Receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
-		}
-	}
-}
-
-// TestMCPV0100DriftFailureNamesTheRecovery (V1-3659): the MCPV0-100 and
-// MCPV0-105 drift failures name the regeneration command, not only the diff.
-func TestMCPV0100DriftFailureNamesTheRecovery(t *testing.T) {
-	t.Parallel()
-	if !strings.Contains(catalogDriftHint, "make capability-catalog") {
-		t.Fatalf("drift hint %q names no recovery command", catalogDriftHint)
 	}
 }
 

@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 )
 
 func cemGateOutcome(t *testing.T, revision, verdict, reason string) string {
 	t.Helper()
-	raw, err := companionrelease.EncodeStableGateOutcome(companionrelease.StableGateOutcome{Profile: companionrelease.StableGateOutcomeProfile, Revision: revision, DeclarationSha256: strings.Repeat("d", 64), Records: []string{strings.Repeat("e", 64)}, Verdict: verdict, Reason: reason})
+	raw, err := corerelease.EncodeStableGateOutcome(corerelease.StableGateOutcome{Profile: corerelease.StableGateOutcomeProfile, Revision: revision, DeclarationSha256: strings.Repeat("d", 64), Records: []string{strings.Repeat("e", 64)}, Verdict: verdict, Reason: reason})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,11 +29,11 @@ func TestCEMV1614ReadinessBindsTheCEMGateOutcome(t *testing.T) {
 	if _, _, err := BuildReadinessRecord(t.Context(), options(nil)); err == nil || !strings.Contains(err.Error(), "needs the cem-release-gate outcome") {
 		t.Fatalf("a candidate without a gate outcome: %v", err)
 	}
-	ready := fixture.file(t, "ready.json", cemGateOutcome(t, fixture.commit, companionrelease.StableGateReady, ""))
-	refused := fixture.file(t, "refused.json", cemGateOutcome(t, fixture.commit, companionrelease.StableGateRefused, "release-external-incomplete: independent-external-consumer"))
+	ready := fixture.file(t, "ready.json", cemGateOutcome(t, fixture.commit, corerelease.StableGateReady, ""))
+	refused := fixture.file(t, "refused.json", cemGateOutcome(t, fixture.commit, corerelease.StableGateRefused, "release-external-incomplete: independent-external-consumer"))
 	for name, evidence := range map[string]ReadinessEvidence{
 		"refused":        {Status: "PASS", Path: refused},
-		"another commit": {Status: "PASS", Path: fixture.file(t, "other.json", cemGateOutcome(t, strings.Repeat("a", 40), companionrelease.StableGateReady, ""))},
+		"another commit": {Status: "PASS", Path: fixture.file(t, "other.json", cemGateOutcome(t, strings.Repeat("a", 40), corerelease.StableGateReady, ""))},
 		"malformed":      {Status: "PASS", Path: fixture.file(t, "bad.json", "{}\n")},
 		"failed row":     {Status: "FAIL", Path: ready},
 		"not run":        {Status: "NOT_RUN", Reason: "skipped"},
@@ -47,7 +47,7 @@ func TestCEMV1614ReadinessBindsTheCEMGateOutcome(t *testing.T) {
 		t.Fatal(err)
 	}
 	row := readinessRowByID(record, cemGateRow)
-	if row.Status != "PASS" || row.SHA256 != digest([]byte(cemGateOutcome(t, fixture.commit, companionrelease.StableGateReady, ""))) || index(record, cemGateRow) != len(record.Rows)-1 {
+	if row.Status != "PASS" || row.SHA256 != digest([]byte(cemGateOutcome(t, fixture.commit, corerelease.StableGateReady, ""))) || index(record, cemGateRow) != len(record.Rows)-1 {
 		t.Fatalf("gate row = %#v at %d", row, index(record, cemGateRow))
 	}
 	if _, err := VerifyReadinessRecord(t.Context(), raw, fixture.candidate, map[string]string{cemGateRow: ready}); err != nil {
@@ -58,7 +58,7 @@ func TestCEMV1614ReadinessBindsTheCEMGateOutcome(t *testing.T) {
 	}
 	forged := resealReadiness(t, *record, func(r *ReadinessRecord) {
 		r.Rows = append([]ReadinessRow(nil), r.Rows...)
-		r.Rows[len(r.Rows)-1].SHA256 = digest([]byte(cemGateOutcome(t, fixture.commit, companionrelease.StableGateRefused, "release-external-incomplete: independent-external-consumer")))
+		r.Rows[len(r.Rows)-1].SHA256 = digest([]byte(cemGateOutcome(t, fixture.commit, corerelease.StableGateRefused, "release-external-incomplete: independent-external-consumer")))
 	})
 	if _, err := VerifyReadinessRecord(t.Context(), forged, fixture.candidate, map[string]string{cemGateRow: refused}); err == nil || !strings.Contains(err.Error(), "REFUSED") {
 		t.Fatalf("a record rebound to a REFUSED outcome: %v", err)

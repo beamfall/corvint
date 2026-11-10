@@ -58,20 +58,104 @@ func affprecRead(t *testing.T, path string) string {
 	return string(b)
 }
 
-// AFP-V0-9001 / V1-4036: exercise the actual boundary test, not a replacement
-// scanner. Its Go-file domain excludes hidden JSON but includes all source
+// affprecBoundaryScanner is a stand-in for the retired Tasks import-direction
+// test (decision 0594): a repository-wide Go import scanner with the same
+// read-kinds header, directory skips, walk and parser mode.
+const affprecBoundaryScanner = `//corvint:read-kinds .go go.mod
+
+package boundary
+
+import (
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func skipDir(path string, d fs.DirEntry, root string) bool {
+	name := d.Name()
+	if path == root {
+		return false
+	}
+	if strings.HasPrefix(name, ".") || name == "testdata" || name == "node_modules" || name == "vendor" {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(path, "go.mod"))
+	return err == nil
+}
+
+func TestImportDirection(t *testing.T) {
+	root := filepath.Join("..", "..")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && skipDir(path, d, root) {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			_ = spec.Path.Value
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+`
+
+// affprecHelpSource is a stand-in for the retired Tasks command help source
+// (decision 0594): display text embedded verbatim beside inline usage strings
+// that carry path examples.
+const affprecHelpSource = `package cli
+
+import _ "embed"
+
+// queueSnapshotUsage is display text, embedded verbatim so examples carry no executable path provenance (AFP-V0-9002).
+//
+//go:embed helptext/queue-snapshot.txt
+var queueSnapshotUsage string
+
+// archiveRestoreUsage is display text, embedded verbatim so examples carry no executable path provenance (AFP-V0-9002).
+//
+//go:embed helptext/archive-restore.txt
+var archiveRestoreUsage string
+
+var usage = map[string]string{
+	"queue snapshot":  queueSnapshotUsage,
+	"archive restore": archiveRestoreUsage,
+	"queue parity":    "tool queue parity --against FILE   (compares <git common dir>/taskman/head.json with FILE; example: tool queue parity --against ~/lane-inputs/queue-snapshot.json)",
+}
+`
+
+const (
+	affprecQueueSnapshotHelp  = "tool queue snapshot [--out FILE] [--worktree DIR]   (--worktree reads DIR/.taskman; example: tool queue snapshot --worktree ../lane --out /tmp/lane-snapshot.json)\n"
+	affprecArchiveRestoreHelp = "tool archive restore FILE   (example: tool archive restore ../queue-export.tar)\n"
+)
+
+// AFP-V0-9001 / V1-4036: exercise a repository-wide boundary scanner. Its Go-file domain excludes hidden JSON but includes all source
 // files (including foreign _test.go) and module boundaries. A real JSON reader
 // remains selected for precisely the path removed from the boundary's domain.
 func TestBoundaryKindBound_AFPV09001(t *testing.T) {
 	root := affprecFiles(t, map[string]string{
-		"go.mod":                          "module example.test/m\n",
-		"internal/tasks/boundary_test.go": affprecRead(t, "internal/tasks/boundary_test.go"),
-		"reader/r_test.go":                "package reader\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n",
-		".corvint/data.json":              "{}\n",
-		"other/o.go":                      "package other\n", "other/o_test.go": "package other\n",
+		"go.mod":                             "module example.test/m\n",
+		"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+		"reader/r_test.go":                   "package reader\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n",
+		".corvint/data.json":                 "{}\n",
+		"other/o.go":                         "package other\n", "other/o_test.go": "package other\n",
 	})
 	g := affprecGraph(t, root, golang.New())
-	const boundary = "go:example.test/m/internal/tasks"
+	const boundary = "go:example.test/m/internal/boundary"
 	p := affected.Select(g, []string{".corvint/data.json"})
 	if got := affprecIDs(p); !slices.Equal(got, []string{"go:example.test/m/reader"}) {
 		t.Fatalf("JSON reader selection: %v", got)
@@ -83,16 +167,16 @@ func TestBoundaryKindBound_AFPV09001(t *testing.T) {
 	}
 }
 
-// AFP-V0-9000/9001: the actual Tasks scanner opens a .go alias even when its
+// AFP-V0-9000/9001: the boundary scanner opens a .go alias even when its
 // target has another suffix. Only the target changes; the alias has no sibling
 // Go source and supplies no package import edge that could rescue selection.
 func TestBoundarySymlinkTarget_AFPV09001(t *testing.T) {
 	for _, target := range []string{"data/imports.txt", "data/imports[1].txt", "testdata/imports.txt", "data/chain.txt"} {
 		t.Run(target, func(t *testing.T) {
 			root := affprecFiles(t, map[string]string{
-				"go.mod":                          "module example.test/m\n",
-				"internal/tasks/boundary_test.go": affprecRead(t, "internal/tasks/boundary_test.go"),
-				target:                            "package probe\n",
+				"go.mod":                             "module example.test/m\n",
+				"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+				target:                               "package probe\n",
 			})
 			if err := os.Mkdir(filepath.Join(root, "probe"), 0700); err != nil {
 				t.Fatal(err)
@@ -110,8 +194,8 @@ func TestBoundarySymlinkTarget_AFPV09001(t *testing.T) {
 			if err := os.Symlink(linkTarget, alias); err != nil {
 				t.Skipf("symlinks unavailable: %v", err)
 			}
-			const boundary = "go:example.test/m/internal/tasks"
-			for _, body := range []string{"package probe\n", "package probe\nimport _ \"github.com/Beamfall/corvint/internal/tasks/store\"\n"} {
+			const boundary = "go:example.test/m/internal/boundary"
+			for _, body := range []string{"package probe\n", "package probe\nimport _ \"example.test/m/internal/boundary/store\"\n"} {
 				if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(target)), []byte(body), 0600); err != nil {
 					t.Fatal(err)
 				}
@@ -121,13 +205,13 @@ func TestBoundarySymlinkTarget_AFPV09001(t *testing.T) {
 				}
 				g := affprecGraph(t, root, golang.New())
 				if got := affprecIDs(affected.Select(g, []string{target})); !slices.Contains(got, boundary) {
-					t.Fatalf("Tasks scanner of changed symlink target %s omitted: %v", target, got)
+					t.Fatalf("boundary scanner of changed symlink target %s omitted: %v", target, got)
 				}
 				if got := affprecIDs(affected.Select(g, []string{"unrelated/data.json"})); slices.Contains(got, boundary) {
-					t.Fatalf("resolved alias made Tasks unbounded: %v", got)
+					t.Fatalf("resolved alias made the boundary scanner unbounded: %v", got)
 				}
 				if target == "data/chain.txt" && !slices.Contains(affprecIDs(affected.Select(g, []string{"probe/hop.txt"})), boundary) {
-					t.Fatal("intermediate alias retargeting lost Tasks scanner")
+					t.Fatal("intermediate alias retargeting lost the boundary scanner")
 				}
 			}
 		})
@@ -142,10 +226,10 @@ func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
 	}
 	pinnable(t)
 	root := affprecFiles(t, map[string]string{
-		"go.mod":                          "module example.test/m\n",
-		"internal/tasks/boundary_test.go": affprecRead(t, "internal/tasks/boundary_test.go"),
-		"data/imports.txt":                "package probe\n",
-		"data/other.txt":                  "package other\n",
+		"go.mod":                             "module example.test/m\n",
+		"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+		"data/imports.txt":                   "package probe\n",
+		"data/other.txt":                     "package other\n",
 	})
 	cache := privateCacheDir(t)
 	build := func(hit bool, target string) {
@@ -157,8 +241,8 @@ func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
 		if outcome.Hit != hit || (!hit && !outcome.Stored) {
 			t.Fatalf("cache hit=%v: %+v", hit, outcome)
 		}
-		if target != "" && !slices.Contains(affprecIDs(affected.Select(g, []string{target})), "go:example.test/m/internal/tasks") {
-			t.Fatalf("cached graph lost Tasks reader of %s", target)
+		if target != "" && !slices.Contains(affprecIDs(affected.Select(g, []string{target})), "go:example.test/m/internal/boundary") {
+			t.Fatalf("cached graph lost the boundary reader of %s", target)
 		}
 	}
 	build(false, "")
@@ -172,7 +256,7 @@ func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
 	}
 	build(false, "data/imports.txt")
 	build(true, "data/imports.txt")
-	if err := os.WriteFile(filepath.Join(root, "data/imports.txt"), []byte("package probe\nimport _ \"github.com/Beamfall/corvint/internal/tasks/store\"\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "data/imports.txt"), []byte("package probe\nimport _ \"example.test/m/internal/boundary/store\"\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	build(false, "data/imports.txt")
@@ -185,17 +269,17 @@ func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
 	build(false, "data/other.txt")
 }
 
-// AFP-V0-9002 / V1-3992: reproduce a fresh importer of the actual help source.
+// AFP-V0-9002 / V1-3992: reproduce a fresh importer of an embedded help source.
 // Help examples stay byte-identical while the embedded files remain source
 // dependencies. Reading the same JSON through an executable literal still
 // selects its reader; an edit of the importer's own test selects only itself.
 func TestHelpTextProvenance_AFPV09002(t *testing.T) {
 	files := map[string]string{
-		"go.mod":                             "module github.com/Beamfall/corvint\n",
-		"internal/tasks/cli/command_help.go": affprecRead(t, "internal/tasks/cli/command_help.go"),
-		"internal/tasks/cli/helptext/queue-snapshot.txt":  affprecRead(t, "internal/tasks/cli/helptext/queue-snapshot.txt"),
-		"internal/tasks/cli/helptext/archive-restore.txt": affprecRead(t, "internal/tasks/cli/helptext/archive-restore.txt"),
-		"new/n.go":         "package new\nimport _ \"github.com/Beamfall/corvint/internal/tasks/cli\"\n",
+		"go.mod":                               "module github.com/Beamfall/corvint\n",
+		"internal/helpsrc/cli/command_help.go": affprecHelpSource,
+		"internal/helpsrc/cli/helptext/queue-snapshot.txt":  affprecQueueSnapshotHelp,
+		"internal/helpsrc/cli/helptext/archive-restore.txt": affprecArchiveRestoreHelp,
+		"new/n.go":         "package new\nimport _ \"github.com/Beamfall/corvint/internal/helpsrc/cli\"\n",
 		"new/n_test.go":    "package new\n",
 		"reader/r_test.go": "package reader\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n",
 	}
@@ -209,12 +293,12 @@ func TestHelpTextProvenance_AFPV09002(t *testing.T) {
 		t.Fatalf("new importer's tests select %v", got)
 	}
 	for _, name := range []string{"queue-snapshot.txt", "archive-restore.txt"} {
-		if !slices.Contains(affprecIDs(affected.Select(g, []string{"internal/tasks/cli/helptext/" + name})), importer) {
+		if !slices.Contains(affprecIDs(affected.Select(g, []string{"internal/helpsrc/cli/helptext/" + name})), importer) {
 			t.Errorf("embed %s did not reach importer", name)
 		}
 	}
 	// A production parent-path read of the same JSON retains propagation.
-	files["internal/tasks/cli/reader.go"] = "package cli\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n"
+	files["internal/helpsrc/cli/reader.go"] = "package cli\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n"
 	real := affprecGraph(t, affprecFiles(t, files), golang.New())
 	if !slices.Contains(affprecIDs(affected.Select(real, []string{".corvint/data.json"})), importer) {
 		t.Fatal("production reader's importer omitted")
@@ -229,7 +313,7 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 	g := affprecGraph(t, repositoryRoot(t), languages.All()...)
 	sets := map[string][]string{
 		"heavy-only":       {"script/heavy.sh"},
-		"test-only":        {"internal/tasks/authority/preparation_observe_linux_test.go", "internal/tasks/authority/preparation_observe_test.go", "internal/tasks/store/claim_head_test.go"},
+		"test-only":        {"internal/cliapp/help_test.go", "internal/versionline/versionline_test.go", "internal/liveverify/affected/graphcache_test.go"},
 		"declaration-spec": {".corvint/shell-foreign-callers.json", ".corvint/test-read-scopes.json", "docs/specs/affected-plan-v0.md"},
 	}
 	for name, paths := range sets {
@@ -246,14 +330,6 @@ func TestPrecisionReplay_AFPV09003(t *testing.T) {
 				if s.Witness.Kind == affected.WitnessUnboundedReader {
 					floorUnits++
 				}
-			}
-			// The boundary test reads none of these paths (AFP-V0-9001). Its
-			// tests run the corvint binary, whose code locates the root, so
-			// rule (d) or a run of a reached command may still select it
-			// (AFP-V0-2991, AFP-V0-2992); a reader witness may not.
-			if s.UnitID == "go:github.com/Beamfall/corvint/internal/tasks" && name == "declaration-spec" &&
-				s.Witness.Kind != affected.WitnessUnboundedReader && s.Witness.Kind != affected.WitnessBinaryExec {
-				t.Errorf("%s selects the boundary test via %s", name, s.Witness.Kind)
 			}
 		}
 		t.Logf("%s selected=%d language=%d make=%d ci=%d scope=%s unknown=%+v", name, len(p.Selected), languageUnits, makeTargets, ciJobs, p.Scope, p.Unknown)

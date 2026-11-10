@@ -63,6 +63,14 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 				if len(via) < 2 || !slices.Contains(unit.Execs, via[len(via)-2]) {
 					t.Errorf("%s selected by %s through %v; want a runner of a command a CEM reader reaches", selection.UnitID, selection.Witness.Kind, via)
 				}
+			case affected.WitnessMustRun:
+				// A unit .corvint/test-selection.json declares must-run is
+				// selected on every nonempty plan that nothing else reaches it
+				// in. Decision 0594 removed the cmd/corvint code and tests
+				// that read sealed CEMs, so that package now arrives here.
+				if via := selection.Witness.Via; len(via) != 1 || via[0] != selection.UnitID {
+					t.Errorf("%s selected by %s through %v; want the declared must-run unit itself", selection.UnitID, selection.Witness.Kind, via)
+				}
 			case affected.WitnessFrontierSite:
 				// A make target or job that invokes a computed name is
 				// selected on every plan (AZU-V0-001).

@@ -12,6 +12,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -125,7 +126,7 @@ func load(root string) (*repository, error) {
 		return nil, err
 	}
 	repo.documents[skillPath], repo.offsets[skillPath] = string(skill), 1
-	for _, binary := range []string{"corvint", "corvint-tasks"} {
+	for _, binary := range []string{"corvint"} {
 		raw, err := os.ReadFile(filepath.Join(root, treesDir, binary+".json"))
 		if err != nil {
 			return nil, err
@@ -245,12 +246,12 @@ func checkSpan(root string, repo *repository, span string) (string, bool) {
 		}
 	}
 	// A bare binary name, a glob or a directory names no command to resolve.
-	if len(tokens) == 0 || (len(tokens) == 1 && (tokens[0] == "corvint" || tokens[0] == "corvint-tasks" || tokens[0] == "make")) ||
+	if len(tokens) == 0 || (len(tokens) == 1 && (tokens[0] == "corvint" || tokens[0] == "make")) ||
 		strings.ContainsAny(tokens[0], "*?[") || strings.HasSuffix(tokens[0], "/") {
 		return "", false
 	}
 	switch {
-	case tokens[0] == "corvint" || tokens[0] == "corvint-tasks":
+	case tokens[0] == "corvint":
 		return checkCommand(repo.trees[tokens[0]], tokens[0], tokens[1:]), true
 	case tokens[0] == "make":
 		return checkMake(repo, tokens[1:]), true
@@ -507,6 +508,10 @@ func dogfoodSites(root string, repo *repository) ([]site, error) {
 	fileSet := token.NewFileSet()
 	dir := filepath.Join(root, filepath.FromSlash(dogfoodDir))
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		// internal/dogfoodflow was retired by decision 0594; the surface reports zero sites.
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -674,14 +679,14 @@ func writeAudit(stdout io.Writer, sites []site, unclassified map[string]int) {
 			fmt.Fprintf(stdout, "  unhinted %s sites=%d\n", code, codes[code])
 		}
 	}
-	for _, area := range []string{"corvint", "corvint-tasks"} {
+	for _, area := range []string{"corvint"} {
 		fmt.Fprintf(stdout, "surface=%s NOT_CLASSIFIED refusal_call_sites=%d\n", area, unclassified[area])
 	}
 }
 
 // unclassifiedCounts counts Go calls whose callee name starts with refuse or Refuse outside
-// the gated dogfoodflow surface: internal/tasks and cmd/corvint-tasks for corvint-tasks,
-// the rest of cmd/ and internal/ for corvint.
+// the gated dogfoodflow surface: cmd/ and internal/ for corvint. Corvint Tasks left
+// the repository (decision 0594).
 func unclassifiedCounts(root string) (map[string]int, error) {
 	counts := map[string]int{}
 	for _, dir := range []string{"cmd", "internal"} {
@@ -708,9 +713,6 @@ func unclassifiedCounts(root string) (map[string]int, error) {
 				return nil
 			}
 			area := "corvint"
-			if strings.HasPrefix(relative, "internal/tasks/") || strings.HasPrefix(relative, "cmd/corvint-tasks/") {
-				area = "corvint-tasks"
-			}
 			ast.Inspect(parsed, func(node ast.Node) bool {
 				if call, ok := node.(*ast.CallExpr); ok {
 					name := ""

@@ -9,39 +9,6 @@ import (
 	"testing"
 )
 
-func TestEvalQueryCamelSplitsTaskBeforeLowering(t *testing.T) {
-	t.Run("GPK-V0-055", func(t *testing.T) {
-		t.Setenv("GIT_AUTHOR_DATE", "2000-01-01T00:00:00Z")
-		t.Setenv("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z")
-		root := t.TempDir()
-		testGit(t, root, "init", "-q")
-		testGit(t, root, "config", "user.email", "corvint@example.test")
-		testGit(t, root, "config", "user.name", "Corvint Test")
-		for path, content := range map[string]string{
-			"lib/io/strip-newline.js":          "export const stripNewline = value => value;\n",
-			"lib/validate-file-object-mode.js": "export const validateFileObjectMode = value => value;\n",
-		} {
-			writeTestFile(t, root, path, content)
-		}
-		testGit(t, root, "add", ".")
-		testGit(t, root, "commit", "-qm", "query fixture")
-
-		index, err := Build(context.Background(), root)
-		if err != nil {
-			t.Fatal(err)
-		}
-		packet, err := EvalQuery(context.Background(), index,
-			"How does stripFinalNewline behave for object-mode output?", 1, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		results := mapsFromAny(packet["results"])
-		if len(results) != 1 || results[0]["id"] != "lib/io/strip-newline.js:stripNewline" {
-			t.Fatalf("results = %v, want stripNewline first", results)
-		}
-	})
-}
-
 func TestImpactRanksSamePackageTestsByDeclarationReferences(t *testing.T) {
 	t.Run("GPK-V0-056", func(t *testing.T) {
 		t.Setenv("GIT_AUTHOR_DATE", "2000-01-01T00:00:00Z")

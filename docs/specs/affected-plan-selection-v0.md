@@ -768,7 +768,7 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
 - **AFP-V0-2404:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-3480) This repository's `.corvint/runtime-readers.json` (AFP-V0-602) SHALL declare
   `LICENSING.md`, `protocol/` and each Corvint declaration that is neither self-classifying nor a
-  driver input: `.corvint/evidence-reach.json`, `existence-readers.json`,
+  driver input (`.corvint/evidence-reach.json` until decision 0594 removed it on 2026-11-09), `existence-readers.json`,
   `gated-root-locators.json`, `runtime-edges.json`, `shell-foreign-callers.json`,
   `shell-read-scopes.json`, `shell-test-inputs.json`, `test-binary-consumers.json`,
   `test-binary-execs.json`, `test-nested-sandboxes.json`, `test-read-scope-literals.json`,
@@ -863,7 +863,7 @@ outside every other read of `main_test.go`. The two requirements below replace t
   of this repository's targets are identical for linux, darwin and windows (measured), and a target
   whose closure differs by platform declares the union.
 - **AFP-V0-3151:** (experimental under the owner's standing lane auto-accept (2026-10-11);
-  V1-4993 review round 1; applies AFP-V0-3150 to this repository's declaration) The packages whose
+  V1-4993 review round 1; applies AFP-V0-3150 to this repository's declaration; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The packages whose
   only remaining reason to keep `internal/` was a modelled closure SHALL declare their closures:
   `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `conformance/cli-parity-v0`,
   `conformance/mcp-2026-07-28`, `conformance/mcp-test-validity-v0`,
@@ -1165,7 +1165,7 @@ that a sealed CEM and a build-log entry select on every pull request (#106).
   (`sessiontest.ModuleCheck`: `go -C <directory> test ./...` and the reason). The `ci` profile
   launches no `go-module:` unit, because its confined runner is not qualified for a nested module;
   CI runs each nested module's suite in a job of its own outside the Go shards (`go-static` runs
-  the tests and vet of `interop/cem01-go` and `tools/local-authority`, CIN-V0-008, AFP-V0-380). A malformed detail and every other
+  the tests and vet of `interop/cem01-go`, AFP-V0-380; `tools/local-authority` and CIN-V0-008 were retired by decision 0594). A malformed detail and every other
   unknown keep FULL; the local profile is unchanged. Failure mode: a CI workflow that stopped
   running the module's suite would leave the check unrun; the check line names it. Falsifier: a
   `ci` dry run over a plan whose only non-allowlisted entry is a well-formed module frontier that is
@@ -2704,7 +2704,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
 
 ### Fixture-only dashboard readers (V1-5180)
 
-- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180)
+- **AFP-V0-3360:** (experimental; owner direction 2026-11-08, V1-5180; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/dashboard`)
   `internal/dashboard/repository.openDirectory` SHALL open the first absolute path component
   directly instead of reading the filesystem root merely to traverse it. Before binding it,
   the opener SHALL refuse a symlink or non-directory; the opened descriptor and a second
@@ -2712,7 +2712,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
   components retain the existing descriptor-relative no-follow walk. An explicit request for
   the filesystem root SHALL still require reading that root. This removes the fixture tests'
   confinement blocker without granting any extra repository reads.
-- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180)
+- **AFP-V0-3361:** (experimental; owner direction 2026-11-08, V1-5180; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `internal/dashboard`, `conformance/dashboard-snapshot-v0`, `corvint-dashboard-snapshot`)
   The existing `.corvint/test-read-scopes.json` SHALL bound `internal/dashboard/repository` to
   its implicit own subtree and `go.mod`, used to build its own standard-library-only process
   fixture; it SHALL bound `conformance/dashboard-snapshot-v0` to its implicit own subtree,
@@ -2721,6 +2721,8 @@ this lane's allowed paths. These facts and the pending integration checks are re
   grants `docs/build-log/` or `.corvint/changes/`. Both entries SHALL leave the unbounded-reader
   ratchet record. No new scope grammar, runtime-command exemption or record-path exclusion is
   introduced.
+  Amended by decision 0594: `conformance/dashboard-snapshot-v0` and its producer were removed, so
+  only the `internal/dashboard/repository` scope remains.
 - **AFP-V0-3362:** (experimental; owner direction 2026-11-08, V1-5180)
   A repository regression SHALL exclude both declared readers for an unrelated build-log or
   CEM entry and retain them for their real fixture, source and build inputs. A dependency-closure
@@ -2743,6 +2745,7 @@ this lane's allowed paths. These facts and the pending integration checks are re
   changing the reporter SHALL still select the target, and the actual writer SHALL retain
   its unresolved execution closure. Independent computed-invocation reasons remain selected.
   The caller/mention completeness gate remains mandatory.
+  Retired by decision 0594: both dogfood scripts were removed, so the declaration row is gone.
 
 ## Non-goals
 
@@ -3083,7 +3086,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2404 | `.corvint/runtime-readers.json` | the per-path plan summaries in the build-log entry |
 | AFP-V0-2405 | `driverInputUnownedHint`, `driverInputHints` in `internal/liveverify/affected/documentation.go` and its call in `select.go` | the `Makefile` plan in the build-log entry |
 | AFP-V0-2406 | `frontierSites`, `planFrontierSites` in `internal/liveverify/affected/graph.go`; `frontierUnknowns` returning the participants in `select.go` | `TestAFPV0381PlanCountsRepositoryFrontierSites` (amended), `TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446`; regenerated `cmd/corvint/testdata/affected-selection-*.golden` |
-| AFP-V0-2360 | `currentSourceFixture` in `internal/companionrelease/source_fixture_test.go`; its use in `exported_current_test.go`; `-buildvcs=false` in `companion_cli_contract_test.go` and `tasks_export_closure_test.go`; `.corvint/test-read-scopes.json`; `.corvint/unbounded-readers.json` | `go test -exec test-confine ./internal/companionrelease/` (build log); `TestCurrentTasksSourceArchiveBuildsOffline`, `TestCurrentExportedTasksSmokeGenerator` |
+| AFP-V0-2360 | `currentSourceFixture` in `internal/companionrelease/source_fixture_test.go`; its use in `exported_current_test.go`; `-buildvcs=false` in `companion_cli_contract_test.go` and `tasks_export_closure_test.go`; `.corvint/test-read-scopes.json`; `.corvint/unbounded-readers.json` | `go test -exec test-confine ./internal/companionrelease/` (build log); `TestCurrentTasksSourceArchiveBuildsOffline` (removed), `TestCurrentExportedTasksSmokeGenerator` (removed) |
 | AFP-V0-2361 | `manifestArchiveTestRepository`, `sharedArchiveTestRepository`, `initArchiveTestRepository` in `conformance/release-artifact-v0/archive_gate_test.go`; `newPublicationFixture` in `publication_status_test.go`; `.corvint/test-read-scopes.json` | `go test -exec test-confine ./conformance/release-artifact-v0/` (build log); `TestArchiveDestinationRequiresTrustedAbsentExternalChild`, `TestBuildArchivesCancellationRemovesScratchStageAndOutput` |
 | AFP-V0-2362 | the `CORVINT_HOST_ARCHIVE_PROOF` check in `conformance/release-artifact-v0/corvint_archive_test.go`; the job env of `.github/workflows/release-gates.yml` | `TestCorvintHostArchivePartialProof` (skips naming the variable) |
 | AFP-V0-2363 | the two declarations and `.corvint/unbounded-readers.json` | `make unbounded-readers-check`; planner runs and per-merge saving in build-log entry `2026-11-03-floor-typed-reach` |

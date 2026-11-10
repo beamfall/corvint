@@ -2,13 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-08-31
-Intent status: accepted (decision 0047, 2026-09-04)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/DOGFOOD.md`, and owner acceptance.
 
 ## Agent digest
 - Claim: Bounded harness observations and sealed labelled-corpus results cannot turn missing evidence into authority.
-- Status: accepted (decision 0047, 2026-09-04)/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: unwired pure library `internal/obscorpus` with capture fixtures, sealed replay, and privacy/bounds tests.
 - Blocked on: harness wiring and local retention for `OCA-V0-001..002`; an owner-run sealed corpus.
 - Read next: Verified current state; Requirements; Acceptance and traceability.

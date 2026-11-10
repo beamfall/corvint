@@ -36,8 +36,8 @@ type Scale struct {
 	ChangedPages int `json:"changed_pages"`
 	// RubyFiles is the size of the Ruby tree affected --path plans over.
 	RubyFiles int `json:"ruby_files"`
-	// GoPackages and TSModules size the Go and TypeScript code repository the index, context,
-	// lifecycle-hook and Go/TS affected scenarios read (PRB-V0-058); LongLineBytes is the length
+	// GoPackages and TSModules size the Go and TypeScript code repository the index, context
+	// and Go/TS affected scenarios read (PRB-V0-058); LongLineBytes is the length
 	// of its adversarial single-line Go and TypeScript declarations.
 	GoPackages    int `json:"go_packages"`
 	TSModules     int `json:"ts_modules"`

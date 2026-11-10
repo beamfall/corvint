@@ -288,7 +288,7 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 	}
 }
 
-// A runner that adds no command-line fsmonitor override (companionrelease's
+// A runner that adds no command-line fsmonitor override (a release helper's
 // does not) must still never execute a repository-configured fsmonitor hook.
 func TestStatusNeverExecutesRepositoryConfiguredFSMonitor(t *testing.T) {
 	root := fixture(t)

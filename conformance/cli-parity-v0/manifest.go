@@ -95,7 +95,9 @@ type divergenceRewrite struct {
 // blanket exclusion. Decision 0525 (CEM-V1-212) retires one more case the same
 // way: its frozen map is cem/0.x, which every consumer now refuses with
 // `unsupported-spec`, so the frozen supported-edge expectation is unreachable;
-// `retiredCaseDecisions` pins that case to decision 0525.
+// `retiredCaseDecisions` pins that case to decision 0525. Decision 0594 removes
+// the query, harness, ocm, migrate-traces, eval, record and lrf commands, so it
+// retires every remaining case of those commands (`decision0594RetiredCases`).
 type retiredCase struct {
 	Decision string `json:"decision"`
 	Reason   string `json:"reason"`
@@ -257,7 +259,7 @@ func validateManifest(manifest parityManifest) error {
 		}
 	}
 	if retired != len(retiredCases) || renamed != len(identityRenameDivergenceCases) {
-		return fmt.Errorf("decision 0308/0525 declarations are not closed: retired=%d identity-renames=%d", retired, renamed)
+		return fmt.Errorf("decision 0308/0525/0594 declarations are not closed: retired=%d identity-renames=%d", retired, renamed)
 	}
 	previous = ""
 	for _, item := range manifest.Refusals {
@@ -287,11 +289,12 @@ func validateManifest(manifest parityManifest) error {
 
 func validateInventory(entries []commandInventoryEntry) error {
 	// PARTIAL names a command with at least one case retired under decision
-	// 0308; its executed cases still replay byte-exactly.
+	// 0308; its executed cases still replay byte-exactly. RETIRED names a
+	// command decision 0594 removed: none of its cases replays.
 	want := map[string]string{
-		"adopt": "PASS", "cem": "PARTIAL", "eval": "PARTIAL", "feature": "PASS",
-		"harness": "PASS", "impact": "PASS", "init": "PASS", "lrf": "PARTIAL",
-		"migrate-traces": "PARTIAL", "ocm": "PARTIAL", "query": "PARTIAL", "record": "PARTIAL",
+		"adopt": "PASS", "cem": "PARTIAL", "eval": "RETIRED", "feature": "PASS",
+		"harness": "RETIRED", "impact": "PASS", "init": "PASS", "lrf": "RETIRED",
+		"migrate-traces": "RETIRED", "ocm": "RETIRED", "query": "RETIRED", "record": "RETIRED",
 	}
 	if len(entries) != len(want) {
 		return fmt.Errorf("command inventory entries=%d want=%d", len(entries), len(want))
@@ -696,18 +699,16 @@ func outOfPacketKnownDivergence(item parityCase) bool {
 
 // cemActionChoices is the `cem` action list the candidate's invalid-subcommand
 // refusal enumerates: the oracle's seven actions plus `cover` (`TCQ-V0-051`,
-// decision 0347), `discriminate` (`TCQ-V0-055`, decision 0353), `anchor` and
-// `provenance` (`FPK-V0-037`, decision 0355), `export` (`RCB-V0-001`), and
-// the experimental `defer` (`CEM-V1-644`), which the candidate adds last in
-// that order.
-const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance', 'export', 'defer'"
+// decision 0347), which the candidate adds last. Decision 0594 removed the
+// later `discriminate`, `anchor`, `provenance`, `export` and `defer` actions.
+const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover'"
 
 // oracleCEMActionChoices is the retired oracle's seven-action list.
 const oracleCEMActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
 
 // validCEMActionDivergence pins `DR-0040` to the `cem` invalid-subcommand
 // refusal: both runtimes refuse with exit status 2 and an empty stdout, and the
-// single stderr rewrite replaces the candidate's eleven-action list with the
+// single stderr rewrite replaces the candidate's eight-action list with the
 // oracle's seven.
 func validCEMActionDivergence(item parityCase) bool {
 	divergence := item.KnownDivergence
@@ -849,7 +850,7 @@ func validWideningDivergence(item parityCase) bool {
 	if divergence == nil || divergence.Reason == "" || item.Mutation != "none" || item.ExitStatus != 0 || !wideningDivergenceCases[item.ID] {
 		return false
 	}
-	if item.AcceptedDivergence != nil || item.LocationNormalization != nil || item.StructuralComparison != nil || item.Retired != nil {
+	if item.AcceptedDivergence != nil || item.LocationNormalization != nil || item.StructuralComparison != nil || retiredBeforeDecision0594(item) {
 		return false
 	}
 	if divergence.Register != "DR-0045" || divergence.Clause != "GPK-V0-090" {
@@ -900,8 +901,9 @@ func wideningMemberShape(candidate string) bool {
 // cases whose frozen argv, fixture or expectation address the oracle's
 // `.atlas/` or `.context-atlas/` state paths, plus the one whose frozen task
 // carries the retired product name as a tooling term; plus the two cases
-// decision 0525 retires (retiredCaseDecisions).
-var retiredCases = map[string]bool{
+// decision 0525 retires (retiredCaseDecisions) and the cases decision 0594
+// retires (decision0594RetiredCases).
+var retiredCases = withDecision0594Cases(map[string]bool{
 	"cem-cite-empty-span": true, "cem-cite-evidence": true, "cem-cite-invalid-line-range": true,
 	"cem-cite-line-range-out-of-range": true, "cem-cite-lines-span": true, "cem-cite-missing-evidence": true,
 	"cem-cite-span-out-of-range": true, "cem-mark-hunk-mechanical": true, "cem-mark-hunk-unknown": true,
@@ -913,7 +915,7 @@ var retiredCases = map[string]bool{
 	"query-repository-agent-tooling": true, "query-repository-trace-budget-selection": true,
 	"query-repository-trace-matching": true, "query-repository-trace-nonmatching-nonpassed": true,
 	"record-create-trace": true, "lrf-evaluate-supported": true, "cem-begin-map": true,
-}
+})
 
 // retiredCaseDecisions names the pinned case retired under a decision other
 // than 0308: decision 0525 (CEM-V1-210, CEM-V1-212) admits cem/1.0 only. The
@@ -921,7 +923,57 @@ var retiredCases = map[string]bool{
 // `unsupported-spec`; the cem begin case froze the cem/0.2 map begin wrote by
 // default, and begin now writes cem/1.0 (CEM-V1-216). Neither frozen
 // expectation can be reached; each stays in the manifest unchanged.
-var retiredCaseDecisions = map[string]string{"lrf-evaluate-supported": "0525", "cem-begin-map": "0525"}
+var retiredCaseDecisions = withDecision0594Decisions(map[string]string{"lrf-evaluate-supported": "0525", "cem-begin-map": "0525"})
+
+// decision0594RetiredCases is every case of a command decision 0594 removes
+// (query, harness, ocm, migrate-traces, eval, record, lrf) that no earlier
+// decision had retired. The candidate refuses each removed command as an
+// invalid command choice, so no frozen expectation is reachable; each stays
+// in the manifest unchanged, with any divergence declaration it carried.
+var decision0594RetiredCases = []string{
+	"eval-missing-corpus", "eval-unrecognized-argument", "harness-deeply-nested-input",
+	"harness-empty-paths", "harness-empty-task", "harness-file-change", "harness-invalid-event",
+	"harness-invalid-start-source", "harness-malformed-input", "harness-missing-host",
+	"harness-oversize-task", "harness-post-tool", "harness-session-end-outcome",
+	"harness-session-start", "harness-session-start-compact-clean",
+	"harness-session-start-compact-rehydrated", "harness-stop", "harness-unknown-subcommand",
+	"harness-unsupported-field", "harness-user-prompt", "harness-user-prompt-non-ascii",
+	"harness-user-prompt-out-of-scope", "lrf-missing-cem", "migrate-traces-mode-conflict",
+	"migrate-traces-mode-required", "migrate-traces-plan-digest-mismatch", "ocm-missing-action",
+	"ocm-report-missing-map", "ocm-status-missing-map", "ocm-verify-missing-map",
+	"query-authority-start-default", "query-authority-start-learned",
+	"query-authority-start-limit-50", "query-authority-start-limit-51",
+	"query-authority-start-non-ascii", "query-clean-authority-start",
+	"query-repository-budget-1000001", "query-repository-budget-1023",
+	"query-repository-budget-malformed", "query-repository-budget-selection",
+	"query-repository-default", "query-repository-empty-task", "query-repository-limit-1",
+	"query-repository-limit-10", "query-repository-limit-50", "query-repository-limit-51",
+	"query-repository-limit-malformed", "query-repository-limit-zero", "query-repository-non-ascii",
+	"query-repository-out-of-scope", "query-repository-task-oversized",
+	"query-repository-trace-mixed-worktree", "query-version-token", "record-missing-changed",
+	"record-untracked-changed",
+}
+
+func withDecision0594Cases(cases map[string]bool) map[string]bool {
+	for _, id := range decision0594RetiredCases {
+		cases[id] = true
+	}
+	return cases
+}
+
+func withDecision0594Decisions(decisions map[string]string) map[string]string {
+	for _, id := range decision0594RetiredCases {
+		decisions[id] = "0594"
+	}
+	return decisions
+}
+
+// retiredBeforeDecision0594 reports a retirement that excludes a divergence
+// declaration. A decision 0594 retirement withdraws a removed command, so the
+// declarations its cases carried stay inert in the manifest.
+func retiredBeforeDecision0594(item parityCase) bool {
+	return item.Retired != nil && item.Retired.Decision != "0594"
+}
 
 // validRetired admits a retirement only for a pinned case, only under its
 // pinned decision (0308 unless retiredCaseDecisions names another), and only
@@ -984,7 +1036,7 @@ func validIdentityRenameDivergence(item parityCase) bool {
 	if divergence == nil || divergence.Reason == "" || item.Mutation != "none" || !identityRenameDivergenceCases[item.ID] {
 		return false
 	}
-	if item.Retired != nil || item.AcceptedDivergence != nil || item.LocationNormalization != nil || item.StructuralComparison != nil {
+	if retiredBeforeDecision0594(item) || item.AcceptedDivergence != nil || item.LocationNormalization != nil || item.StructuralComparison != nil {
 		return false
 	}
 	if divergence.Register != "DR-0038" || divergence.Clause != "CRB-DEC-002" {

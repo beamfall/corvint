@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Frozen: 2026-09-11
 Requirement prefix: `DSE-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/depsource` (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 1, 2, 4 and 7,
 `docs/specs/go-production-kernel-migration-v0.md` (verb and error conventions),
 `internal/contextindex/git.go` (committed-object reads and sanitized Git execution),
@@ -12,7 +14,7 @@ Authoritative inputs: `AGENTS.md` invariants 1, 2, 4 and 7,
 
 ## Agent digest
 - Claim: `corvint depsource` cites third-party Go module source with the same pinning discipline as repository code, or abstains.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/depsource` and `cmd/corvint/depsource.go` are the whole implementation; nothing preceded this slice.
 - Blocked on: acceptance of the pin-extension in Non-goals and authority; non-Go ecosystems; dogfood receipts.
 - Read next: Pin authority and the proposed extension; Requirements; Failure modes.

@@ -46,7 +46,7 @@ func querySmoke(ctx context.Context, binary string, smoke Smoke, fixture, versio
 	if err != nil {
 		return SmokeReport{Status: statusFail, VersionOutput: version, Reason: "fixture status: " + err.Error()}
 	}
-	output, err := runCaptured(ctx, binary, "--root", fixture, "query", "--task", smoke.QueryTask, "--limit", smoke.QueryLimit)
+	output, err := runCaptured(ctx, binary, "--root", fixture, "context", "--task", smoke.QueryTask, "--limit", smoke.QueryLimit)
 	if err != nil {
 		return SmokeReport{Status: statusFail, VersionOutput: version, Reason: fmt.Sprintf("query failed: %v: %s", err, truncate(output))}
 	}
@@ -61,23 +61,26 @@ func querySmoke(ctx context.Context, binary string, smoke Smoke, fixture, versio
 // classifyQuery requires a real successful receipt: the resolved intent must be
 // the expected one and the repository must be provably unchanged.
 func classifyQuery(report SmokeReport, output, expectedIntent string) SmokeReport {
+	// Decision 0594 removed `query`; the smoke reads `corvint context`, whose first result names
+	// the kind of the highest-ranked evidence.
 	var decoded struct {
-		Context struct {
-			Intent struct {
-				ID string `json:"id"`
-			} `json:"intent"`
-		} `json:"context"`
+		OK      bool `json:"ok"`
+		Results []struct {
+			Kind string `json:"kind"`
+		} `json:"results"`
 	}
 	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
 		report.Status = statusFail
 		report.Reason = "query output is not JSON: " + truncate(output)
 		return report
 	}
-	report.QueryIntent = decoded.Context.Intent.ID
-	report.QueryOK = decoded.Context.Intent.ID == expectedIntent
+	if decoded.OK && len(decoded.Results) > 0 {
+		report.QueryIntent = decoded.Results[0].Kind
+	}
+	report.QueryOK = report.QueryIntent == expectedIntent
 	if !report.QueryOK {
 		report.Status = statusFail
-		report.Reason = "query resolved intent " + strconv.Quote(decoded.Context.Intent.ID) + " want " + strconv.Quote(expectedIntent)
+		report.Reason = "query resolved intent " + strconv.Quote(report.QueryIntent) + " want " + strconv.Quote(expectedIntent)
 		return report
 	}
 	if !report.RepositoryUnchanged {

@@ -3,12 +3,9 @@
 package contextindex
 
 import (
-	"crypto/sha1"
-	"crypto/sha256"
 	"hash"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"syscall"
 )
@@ -47,99 +44,6 @@ func readCleanFileUsing(opener *cleanFileOpener, relative string) ([]byte, bool)
 		return true
 	})
 	return data, ok
-}
-
-// verifyCleanFile streams a clean worktree candidate only long enough to
-// verify its immutable Git blob identity and generated-file header. Query
-// inventory intentionally retains neither body; authority closure loading
-// below is the only path that needs its bytes.
-func verifyCleanFile(repositoryRoot, relative, oid, objectFormat string) (generated, ok bool) {
-	var scratch cleanFileVerificationScratch
-	return verifyCleanFileWithScratch(repositoryRoot, relative, oid, objectFormat, &scratch)
-}
-
-func verifyCleanFileWithScratch(repositoryRoot, relative, oid, objectFormat string, scratch *cleanFileVerificationScratch) (generated, ok bool) {
-	opener, opened := newCleanFileOpener(repositoryRoot)
-	if !opened {
-		return false, false
-	}
-	defer opener.close()
-	return verifyCleanFileUsing(opener, relative, oid, objectFormat, scratch)
-}
-
-func verifyCleanFileUsing(opener *cleanFileOpener, relative, oid, objectFormat string, scratch *cleanFileVerificationScratch) (generated, ok bool) {
-	ok = withCleanFileUsing(opener, relative, func(file *os.File, size int64) bool {
-		hasher, valid := opener.blobHasher(size, objectFormat)
-		if !valid {
-			return false
-		}
-		prefixLength := 0
-		for remaining := size; remaining > 0; {
-			chunk := scratch.buffer[:]
-			if int64(len(chunk)) > remaining {
-				chunk = chunk[:remaining]
-			}
-			count, err := file.Read(chunk)
-			if count > 0 {
-				if prefixLength < len(scratch.prefix) {
-					prefixLength += copy(scratch.prefix[prefixLength:], chunk[:count])
-				}
-				_, _ = hasher.Write(chunk[:count])
-				remaining -= int64(count)
-			}
-			if err != nil && err != io.EOF {
-				return false
-			}
-			if count == 0 {
-				return remaining == 0 && err == io.EOF
-			}
-		}
-		generated = generatedHeader.Match(scratch.prefix[:prefixLength])
-		return equalHexDigest(hasher.Sum(opener.digest[:0]), oid)
-	})
-	if !ok {
-		return false, false
-	}
-	return generated, ok
-}
-
-// blobHasher returns this opener's hasher for objectFormat, primed with the
-// Git blob header. One hasher per opener is one per verification worker, so
-// resetting it is what removes a hash allocation from every clean file.
-func (opener *cleanFileOpener) blobHasher(size int64, objectFormat string) (hash.Hash, bool) {
-	var hasher hash.Hash
-	switch objectFormat {
-	case "sha1":
-		if opener.sha1Hasher == nil {
-			opener.sha1Hasher = sha1.New()
-		}
-		hasher = opener.sha1Hasher
-	case "sha256":
-		if opener.sha256Hasher == nil {
-			opener.sha256Hasher = sha256.New()
-		}
-		hasher = opener.sha256Hasher
-	default:
-		return nil, false
-	}
-	hasher.Reset()
-	header := append(opener.header[:0], "blob "...)
-	header = strconv.AppendInt(header, size, 10)
-	header = append(header, 0)
-	_, _ = hasher.Write(header)
-	return hasher, true
-}
-
-func equalHexDigest(digest []byte, oid string) bool {
-	if len(oid) != len(digest)*2 {
-		return false
-	}
-	for index, value := range digest {
-		if oid[index*2] != "0123456789abcdef"[value>>4] || oid[index*2+1] != "0123456789abcdef"[value&0x0f] {
-			return false
-		}
-	}
-	return true
 }
 
 // cleanFileOpener holds an O_NOFOLLOW-validated view of the worktree. Opening a
@@ -261,15 +165,6 @@ func componentEnd(path string, offset int) int {
 
 func validComponent(component string) bool {
 	return component != "" && component != "." && component != ".."
-}
-
-func withCleanFile(repositoryRoot, relative string, consume func(*os.File, int64) bool) bool {
-	opener, ok := newCleanFileOpener(repositoryRoot)
-	if !ok {
-		return false
-	}
-	defer opener.close()
-	return withCleanFileUsing(opener, relative, consume)
 }
 
 func withCleanFileUsing(opener *cleanFileOpener, relative string, consume func(*os.File, int64) bool) bool {

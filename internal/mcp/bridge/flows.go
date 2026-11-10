@@ -30,8 +30,8 @@ const (
 	maxFlowGoalRunes = 64
 )
 
-// flowsTools exist only in the flows descendant profile; the default V0 and task-review registries
-// neither advertise nor dispatch them.
+// flowsTools exist only in the flows descendant profile; the default V0 registry
+// neither advertises nor dispatches them.
 var flowsTools = map[string]bool{ToolFlowsCoverage: true, ToolFlowsMap: true, ToolFlowsGaps: true, ToolFlowsImpact: true, ToolFlowsNavigate: true}
 
 // effectClasses is the closed maxEffect ladder of `flows navigate --max-effect`.

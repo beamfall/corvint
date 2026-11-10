@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 )
 
 // aggregateFixture commits the sealed declaration to a fresh repository and
@@ -179,8 +179,8 @@ func TestCEMV1612BothPlatformRowsFromTwoRuns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o, err := companionrelease.ReadStableGateOutcome(raw)
-	if err != nil || o.Verdict != companionrelease.StableGateRefused || o.Revision != records[0].Revision || fmt.Sprint(o.Records) != fmt.Sprint(sums) || !strings.Contains(o.Reason, "release-external-incomplete") {
+	o, err := corerelease.ReadStableGateOutcome(raw)
+	if err != nil || o.Verdict != corerelease.StableGateRefused || o.Revision != records[0].Revision || fmt.Sprint(o.Records) != fmt.Sprint(sums) || !strings.Contains(o.Reason, "release-external-incomplete") {
 		t.Fatalf("outcome %+v, %v", o, err)
 	}
 	if code := run(aggregate(outcome), io.Discard, io.Discard); code != 2 {
@@ -256,8 +256,8 @@ func TestAFPV0432CIScopeExcludesOnlyAttestedExternalRows(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		o, err := companionrelease.ReadStableGateOutcome(raw)
-		if err != nil || o.Verdict != companionrelease.StableGateRefused || !strings.HasPrefix(o.Reason, class+":") {
+		o, err := corerelease.ReadStableGateOutcome(raw)
+		if err != nil || o.Verdict != corerelease.StableGateRefused || !strings.HasPrefix(o.Reason, class+":") {
 			t.Fatalf("%s: outcome %+v, %v; the outcome must stay the strict %s refusal", name, o, err, class)
 		}
 	}
@@ -280,12 +280,12 @@ func TestAFPV0432CIScopeExcludesOnlyAttestedExternalRows(t *testing.T) {
 	if strings.Contains(stdout, external+" PASSED") || strings.Contains(stdout, "readiness: READY") {
 		t.Fatalf("CI scope reported the unobserved row or the release as passed:\n%s", stdout)
 	}
-	strictOutcome("CI scope", out, companionrelease.StableRefusalExternal)
+	strictOutcome("CI scope", out, corerelease.StableRefusalExternal)
 
 	if code, stdout, _, out = aggregate("", passing); code != 3 || strings.Contains(stdout, "known blocker") {
 		t.Fatalf("strict aggregate exit %d, want 3:\n%s", code, stdout)
 	}
-	strictOutcome("strict", out, companionrelease.StableRefusalExternal)
+	strictOutcome("strict", out, corerelease.StableRefusalExternal)
 
 	failing := cloneRecord(t, records[1])
 	failing.Runner["cem01-go:repository-envelope"] = "NOT_RUN"
@@ -293,12 +293,12 @@ func TestAFPV0432CIScopeExcludesOnlyAttestedExternalRows(t *testing.T) {
 	if code != 3 || strings.Contains(stdout, "CI-OBSERVABLE PASSED") || !strings.Contains(stdout, "readiness: runner cem01-go:repository-envelope NOT_RUN") {
 		t.Fatalf("CI scope with a runner row NOT_RUN exit %d, want 3:\n%s", code, stdout)
 	}
-	strictOutcome("runner NOT_RUN", out, companionrelease.StableRefusalRunner)
+	strictOutcome("runner NOT_RUN", out, corerelease.StableRefusalRunner)
 
 	if code, stdout, _, out = aggregate(external, write(records[0])); code != 3 || strings.Contains(stdout, "CI-OBSERVABLE PASSED") {
 		t.Fatalf("CI scope with one platform unobserved exit %d, want 3:\n%s", code, stdout)
 	}
-	strictOutcome("platform missing", out, companionrelease.StableRefusalPlatform)
+	strictOutcome("platform missing", out, corerelease.StableRefusalPlatform)
 
 	for _, bad := range []string{"darwin/arm64", "corvint:tamper-matrix", external + "," + external, external + ",other", ","} {
 		code, _, stderr, out := aggregate(bad, passing)

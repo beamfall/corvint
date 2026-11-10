@@ -16,14 +16,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/contextsummary"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/lspevidence"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
@@ -31,28 +26,17 @@ import (
 )
 
 const (
-	ToolQuery  = "corvint.query"
 	ToolImpact = "corvint.impact"
 	ToolStatus = "corvint.status"
-	// ToolContext and ToolCEMReport project `corvint context` and `corvint cem
-	// report` (MCPV0-024, MCPV0-025). Only the opt-in task-review descendant
-	// profile advertises them (MCPV0-026, decision 0374).
-	ToolContext   = "corvint.context"
-	ToolCEMReport = "corvint.cem.report"
 
 	resultSchema    = "corvint-mcp-bridge-result/0"
 	maxArgumentSize = 512 * 1024
 	maxResultBytes  = 384 * 1024
-	maxQueryRunes   = 2_000
 	maxImpactPaths  = 100
 	maxPathRunes    = 1_024
 	maxImpactLimit  = 50
 	maxMCPLineBytes = 1 << 20
 	mcpFrameReserve = 8 * 1024
-
-	maxContextTaskBytes = 32_000
-	maxContextLimit     = 50
-	defaultContextLimit = 20
 )
 
 type ToolDescriptor struct {
@@ -101,72 +85,16 @@ type RepositoryBinding struct {
 }
 
 type repositoryOperations struct {
-	build      func(context.Context, string) (*contextindex.Index, error)
-	buildQuery func(context.Context, string, string) (*contextindex.Index, error)
-	context    func(context.Context, string, contextInput) (*contextindex.Index, map[string]any, error)
-	// cemReport receives the resolved root and the root as the caller named
-	// it; only a cem/1.0 read admits the latter (MCPV0-036, CEM-V1-017).
-	cemReport func(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error)
-	platform  string
-	probe     func(context.Context, string) (gokernel.Repository, error)
+	build    func(context.Context, string) (*contextindex.Index, error)
+	platform string
+	probe    func(context.Context, string) (gokernel.Repository, error)
 }
 
 func productionRepositoryOperations() repositoryOperations {
 	return repositoryOperations{
-		build: contextindex.Build, buildQuery: contextindex.BuildQuery,
-		context: compileContext, cemReport: previewCEMReport,
+		build:    contextindex.Build,
 		platform: runtime.GOOS, probe: gokernel.ProbeRepositoryContext,
 	}
-}
-
-// compileContext is `corvint context` without its operator-only members: the
-// snapshot read, the observed build on a miss, and the admitted slot weights,
-// retried through the eager loader when a deferred body is refused. The
-// gopls attachment is omitted because it would spawn a second executable.
-func compileContext(ctx context.Context, root string, input contextInput) (*contextindex.Index, map[string]any, error) {
-	index, packet, err := compileContextWith(ctx, root, input, contextindex.LoadContextSnapshotDeferred)
-	if errors.Is(err, contextindex.ErrSnapshotRefused) {
-		if index != nil {
-			index.Release()
-		}
-		return compileContextWith(ctx, root, input, contextindex.LoadContextSnapshot)
-	}
-	return index, packet, err
-}
-
-func compileContextWith(ctx context.Context, root string, input contextInput, load func(context.Context, string) (*contextindex.Index, bool, *contextindex.LoaderObservation, error)) (*contextindex.Index, map[string]any, error) {
-	index, hit, opening, err := load(ctx, root)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !hit {
-		index, err = contextindex.BuildContextObserved(ctx, root, input.Subject, opening)
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	admitted, err := contextindex.LoadAdmittedSlotWeights(root)
-	if err != nil {
-		// The caller releases only an index it receives, so a refused
-		// slot-weights file must not keep the mapping leased (MCPV0-090).
-		index.Release()
-		return nil, nil, err
-	}
-	packet, err := contextindex.TaskContextWeighted(ctx, index, input.Task, input.Subject, input.Limit, admitted)
-	return index, packet, err
-}
-
-// previewCEMReport is `corvint cem report` rendered without publication. A
-// 0.x map reads the resolved root; a cem/1.0 map is admitted against
-// callerRoot, so a symlinked --root is refused exactly as
-// `cem verify-stable --repository` refuses it (MCPV0-036, CEM-V1-017).
-func previewCEMReport(ctx context.Context, root, callerRoot string, options workflow.ReadOptions) (map[string]any, error) {
-	session, err := workflow.Open(root)
-	if err != nil {
-		return nil, err
-	}
-	session.SetStableRepository(callerRoot)
-	return session.Read(ctx, workflow.ActionReportPreview, options)
 }
 
 // repositorySnapshot is one immutable context-index capture for a read
@@ -234,12 +162,6 @@ func (result Result) CanonicalJSON() ([]byte, *Error) {
 // full rows travel in structuredContent (MCPV0-033, proposed).
 const TextSummaryProfile = "corvint-mcp-text-summary/0"
 
-const unsupportedQueryIntent = "UNSUPPORTED_QUERY_INTENT"
-
-// queryIntentAlternative is the text-block-only pointer an UNSUPPORTED_QUERY_INTENT corvint.query
-// abstention carries (MCPV0-630); structuredContent and the abstention object are unchanged.
-var queryIntentAlternative = map[string]any{"tool": ToolContext, "profile": "task-review", "command": "corvint context"}
-
 // TextJSON returns the canonical bytes for the MCP text content block. A
 // receipt carrying a results list is summarized: each row keeps only kind, id
 // and score, and the object names TextSummaryProfile, while every other member,
@@ -269,11 +191,6 @@ func (result Result) TextJSON() ([]byte, *Error) {
 		object["receipt"] = receipt
 		object["textProfile"] = TextSummaryProfile
 	}
-	if result.Tool == ToolQuery && result.Abstention.Active && result.Abstention.Reason == unsupportedQueryIntent {
-		// MCPV0-630 (V1-3705): the refusal itself names where a code, test or bug task goes,
-		// so an agent that never read the description is not left at a dead end.
-		object["alternative"] = queryIntentAlternative
-	}
 	encoded, encodeErr := gokernel.CanonicalJSON(object)
 	if encodeErr != nil {
 		return nil, failure("internal-error")
@@ -302,25 +219,17 @@ type Error struct{ Code, ReasonClass string }
 
 func (failure *Error) Error() string { return failure.Code }
 
-// taskReviewTools exist only in the task-review descendant profile; the
-// default V0 registry neither advertises nor dispatches them (decision 0103).
-var taskReviewTools = map[string]bool{ToolContext: true, ToolCEMReport: true}
-
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
-	root          string
-	callerRoot    string
-	rootIdentity  os.FileInfo
-	git           *rootbind.Binding
-	operations    repositoryOperations
-	taskReview    bool
-	lsp           bool
-	lspExecutable string
-	importGraph   bool
-	flows         bool
+	root         string
+	callerRoot   string
+	rootIdentity os.FileInfo
+	git          *rootbind.Binding
+	operations   repositoryOperations
+	flows        bool
 }
 
-// New binds the default V0 registry: exactly query, impact, and status.
+// New binds the default V0 registry: exactly help, impact, and status.
 func New(root string) (*Registry, error) {
 	if !validRoot(root) {
 		return nil, failure("invalid-root")
@@ -341,46 +250,17 @@ func New(root string) (*Registry, error) {
 	return registry, nil
 }
 
-// NewTaskReview binds the opt-in task-review descendant profile, which adds
-// the context and CEM report tools to the V0 three (MCPV0-026).
-func newTaskReview(root string) (*Registry, *Error) {
-	registry, err := New(root)
-	if err != nil {
-		return nil, err.(*Error)
-	}
-	registry.taskReview = true
-	return registry, nil
-}
-
-// NewTaskReviewLSP authorizes the optional executable at startup. Individual
-// calls must still request lsp:gopls; legacy environment knobs have no effect.
-func newTaskReviewLSP(root string) (*Registry, *Error) {
-	registry, err := newTaskReview(root)
-	if err != nil {
-		return nil, err
-	}
-	registry.lsp = true
-	registry.lspExecutable = lspevidence.Executable()
-	return registry, nil
-}
-
 // Profile names one registry profile's tool surface without a root.
-type Profile struct{ TaskReview, LSP, Flows, ImportGraph bool }
+type Profile struct{ Flows bool }
 
 // Tools lists what the profile's registry advertises, for a server that
 // starts with no usable root (MCPV0-950): it lists the tools it would serve and
 // refuses every repository call.
 func (profile Profile) Tools() []ToolDescriptor {
-	return (&Registry{taskReview: profile.TaskReview || profile.LSP, lsp: profile.LSP, flows: profile.Flows, importGraph: profile.ImportGraph}).Tools()
+	return (&Registry{flows: profile.Flows}).Tools()
 }
 
 func (registry *Registry) advertises(name string) bool {
-	if name == ToolGraphImports {
-		return registry.importGraph
-	}
-	if taskReviewTools[name] {
-		return registry.taskReview
-	}
 	if flowsTools[name] {
 		return registry.flows
 	}
@@ -388,8 +268,8 @@ func (registry *Registry) advertises(name string) bool {
 }
 
 // Tools is the exact delivered surface of the registry's profile. Standalone
-// evidence and dashboard snapshot tools are omitted; query and impact receipts
-// carry their evidence.
+// evidence and dashboard snapshot tools are omitted; impact receipts carry
+// their evidence.
 func (registry *Registry) Tools() []ToolDescriptor {
 	if registry == nil {
 		return nil
@@ -398,10 +278,6 @@ func (registry *Registry) Tools() []ToolDescriptor {
 	advertised := make([]ToolDescriptor, 0, len(all))
 	for _, tool := range all {
 		if registry.advertises(tool.Name) {
-			if registry.lsp && tool.Name == ToolContext {
-				tool.InputSchema["properties"].(map[string]any)["lsp"] = map[string]any{"type": "string", "enum": []any{"off", "gopls"}, "default": "off"}
-				tool.Description += " Optional lsp:gopls starts the operator-selected local Go language server for bounded definition/reference evidence; requires installed gopls and cached dependencies, may write Go caches, and does not change rankings."
-			}
 			advertised = append(advertised, tool)
 		}
 	}
@@ -409,44 +285,7 @@ func (registry *Registry) Tools() []ToolDescriptor {
 }
 
 func (registry *Registry) allTools() []ToolDescriptor {
-	// Byte bounds are advertised as code-point bounds divided by UTFMax, and
-	// the task pattern excludes U+0085 (Go trims it, ECMA \s does not), so
-	// every schema-valid argument is also runtime-valid.
-	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
-	ceiling := map[string]any{"type": "integer", "minimum": 0}
-	// The map and the cem/1.0 artifacts directory share one closed
-	// repository-relative path rule (MCPV0-025, MCPV0-036).
-	relativePath := func() map[string]any {
-		return map[string]any{
-			"type": "string", "minLength": 1, "maxLength": wire.MaxPathBytes / utf8.UTFMax,
-			"pattern": PathRule{Excluded: `\x00-\x1f\x7f`, GitSegment: "fold", TrailingSlash: true}.Pattern(), // MCPV0-954
-		}
-	}
 	return append([]ToolDescriptor{
-		{
-			Name:        ToolCEMReport,
-			Description: "Render the CEM reviewer report for a repository-relative canonical map against two full revision IDs, without writing it.",
-			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
-				"map": relativePath(), "artifacts": relativePath(),
-				"expectedBase": oid, "target": oid,
-				"maxUnknown": ceiling, "maxMechanical": ceiling,
-			}, []any{"map", "expectedBase", "target"}),
-		},
-		{
-			Name:        ToolContext,
-			Description: "Compile the task-context packet: the files to read for one task, each with the relation that admitted it.",
-			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
-				"task": map[string]any{"type": "string", "minLength": 1, "maxLength": maxContextTaskBytes / utf8.UTFMax, "pattern": `[^\s\x85]`},
-				"subject": map[string]any{
-					"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-					"pattern": SubjectPathRule.Pattern(),
-				},
-				"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
-				"summaryBytes": map[string]any{"type": "integer", "minimum": contextsummary.MinBytes, "maximum": contextsummary.MaxBytes},
-			}, []any{"task"}),
-		},
 		helpDescriptor(),
 		{
 			Name:        ToolImpact,
@@ -466,28 +305,17 @@ func (registry *Registry) allTools() []ToolDescriptor {
 			}, []any{"paths"}),
 		},
 		{
-			Name:        ToolQuery,
-			Description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.",
-			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
-				"snapshot": snapshotSchema(),
-				"task":     map[string]any{"type": "string", "minLength": 1, "maxLength": maxQueryRunes, "pattern": `^[ -~]*[!-~][ -~]*$`},
-			}, []any{"task"}),
-		},
-		{
 			Name:        ToolStatus,
 			Description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.",
 			InputSchema: objectSchema(map[string]any{}, []any{}),
 			Annotations: readAnnotations(),
 		},
-		importGraphDescriptor(),
 	}, flowsToolDescriptors()...)
 }
 
 func (registry *Registry) Call(ctx context.Context, name string, arguments []byte) (Result, *Error) {
 	if registry == nil || registry.root == "" || registry.rootIdentity == nil || registry.git == nil ||
-		registry.operations.build == nil || registry.operations.buildQuery == nil || registry.operations.probe == nil ||
-		registry.operations.context == nil || registry.operations.cemReport == nil {
+		registry.operations.build == nil || registry.operations.probe == nil {
 		return Result{}, failure("invalid-registry")
 	}
 	if err := ctx.Err(); err != nil {
@@ -506,18 +334,10 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 	var result Result
 	var callErr *Error
 	switch name {
-	case ToolQuery:
-		result, callErr = registry.callQuery(ctx, arguments)
-	case ToolGraphImports:
-		result, callErr = registry.callGraphImports(ctx, arguments)
 	case ToolImpact:
 		result, callErr = registry.callImpact(ctx, arguments)
 	case ToolStatus:
 		result, callErr = registry.callStatus(ctx, arguments)
-	case ToolContext:
-		result, callErr = registry.callContext(ctx, arguments)
-	case ToolCEMReport:
-		result, callErr = registry.callCEMReport(ctx, arguments)
 	case ToolFlowsMap:
 		result, callErr = registry.callFlowsMap(ctx, arguments)
 	case ToolFlowsGaps:
@@ -553,51 +373,6 @@ func (registry *Registry) sameRoot() bool {
 	return registry.git.Same(registry.root)
 }
 
-type queryInput struct {
-	Snapshot jsonv1.RawMessage `json:"snapshot"`
-	Task     string            `json:"task"`
-}
-
-func (registry *Registry) callQuery(ctx context.Context, arguments []byte) (Result, *Error) {
-	var input queryInput
-	if err := decodeClosed(arguments, &input); err != nil || !validTask(input.Task) {
-		return Result{}, failure("invalid-arguments")
-	}
-	if !nativePlatformQualified(registry.operations.platform) {
-		return abstained(ToolQuery, "UNSUPPORTED_PLATFORM", nil), nil
-	}
-	if err := contextindex.ValidateQueryAuthorityStart(input.Task, 1); err != nil {
-		if isUnsupported(err, "unsupported-query-") {
-			return abstained(ToolQuery, abstentionReason(err), nil), nil
-		}
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot, input.Task)
-	if bridgeErr != nil {
-		if repositoryDrift(bridgeErr) {
-			return abstained(ToolQuery, "REPOSITORY_STATE_UNSTABLE", nil), nil
-		}
-		return Result{}, bridgeErr
-	}
-	var receipt map[string]any
-	var err error
-	if scope != nil {
-		receipt, err = contextindex.QuerySnapshotAuthority(snapshot.index, input.Task)
-	} else {
-		receipt, err = contextindex.QueryAuthorityStart(ctx, snapshot.index, input.Task, 1)
-	}
-	if err != nil {
-		if isUnsupported(err, "unsupported-query-") {
-			return abstained(ToolQuery, abstentionReason(err), &snapshot.binding), nil
-		}
-		if repositoryDrift(err) {
-			return abstained(ToolQuery, "REPOSITORY_STATE_UNSTABLE", nil), nil
-		}
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	return registry.boundedPlanning(ctx, ToolQuery, snapshot, scope, receipt)
-}
-
 type impactInput struct {
 	Snapshot jsonv1.RawMessage `json:"snapshot"`
 	Paths    []string          `json:"paths"`
@@ -618,7 +393,7 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 	if !nativePlatformQualified(registry.operations.platform) {
 		return abstained(ToolImpact, "UNSUPPORTED_PLATFORM", nil), nil
 	}
-	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot, "")
+	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot)
 	if bridgeErr != nil {
 		if repositoryDrift(bridgeErr) {
 			return abstained(ToolImpact, "REPOSITORY_STATE_UNSTABLE", nil), nil
@@ -637,223 +412,6 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 		return Result{}, normalizeFailure(ctx, err)
 	}
 	return registry.boundedPlanning(ctx, ToolImpact, snapshot, scope, receipt)
-}
-
-type contextInput struct {
-	LSP     jsonv1.RawMessage `json:"lsp,omitempty"`
-	Task    string            `json:"task"`
-	Subject string            `json:"subject"`
-	Limit   int               `json:"limit"`
-	// SummaryBytes is `corvint context --summary-bytes` (MCPV0-111): set, the
-	// result is the evidence summary of the canonical receipt, not the receipt.
-	SummaryBytes jsonv1.RawMessage `json:"summaryBytes,omitempty"`
-}
-
-func (registry *Registry) callContext(ctx context.Context, arguments []byte) (Result, *Error) {
-	input := contextInput{Limit: defaultContextLimit}
-	if err := decodeClosed(arguments, &input); err != nil || !validContext(input) {
-		return Result{}, failure("invalid-arguments")
-	}
-	selection := "off"
-	if input.LSP != nil {
-		if !registry.lsp || jsonv1.Unmarshal(input.LSP, &selection) != nil || string(input.LSP) == "null" || (selection != "off" && selection != "gopls") {
-			return Result{}, failure("invalid-arguments")
-		}
-	}
-	if !nativePlatformQualified(registry.operations.platform) {
-		return abstained(ToolContext, "UNSUPPORTED_PLATFORM", nil), nil
-	}
-	index, packet, err := registry.operations.context(ctx, registry.root, input)
-	if index != nil {
-		// A mapped snapshot read leases its mapping until released; the
-		// result is detached from it below, so the lease ends with the call
-		// and a long-lived bridge does not pin every mapping it read
-		// (MCPV0-090, V1-1004).
-		defer index.Release()
-	}
-	if err != nil && index == nil {
-		if repositoryDrift(err) {
-			return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
-		}
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	snapshot, bridgeErr := registry.snapshotIndex(ctx, index, nil)
-	if bridgeErr != nil {
-		return Result{}, bridgeErr
-	}
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "subject path is not tracked at revision ") {
-			return abstained(ToolContext, "NOT_TRACKED_AT_REVISION", &snapshot.binding), nil
-		}
-		if repositoryDrift(err) {
-			return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
-		}
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	if selection == "gopls" {
-		if err := lspevidence.Attach(ctx, index, input.Subject, packet, input.Limit, registry.lspExecutable); err != nil {
-			if errors.Is(err, lspevidence.ErrRepositoryChanged) || repositoryDrift(err) {
-				return abstained(ToolContext, "REPOSITORY_STATE_UNSTABLE", nil), nil
-			}
-			return Result{}, normalizeFailure(ctx, err)
-		}
-	}
-	receipt, binding, detachErr := detachedContext(packet, snapshot.binding)
-	if detachErr != nil {
-		return Result{}, failure("internal-error")
-	}
-	if budget, _ := optionalBytes(input.SummaryBytes, contextsummary.MinBytes, contextsummary.MaxBytes); budget != nil {
-		summary, err := summarizedContext(receipt, *budget)
-		if err != nil {
-			if code := errorCode(err); code == "summary-budget" || code == "summary-shape" {
-				return abstained(ToolContext, abstentionReason(err), &binding), nil
-			}
-			return Result{}, failure("internal-error")
-		}
-		receipt = summary
-	}
-	return boundedObserved(ToolContext, binding, receipt)
-}
-
-// summarizedContext projects a detached context receipt through the CLI's
-// summary (MCPV0-111). The input is the canonical receipt plus LF, the bytes
-// `corvint context` writes, so packet_sha256 and packet_bytes name the same
-// bytes a caller reads back from corvint.context without summaryBytes.
-func summarizedContext(receipt map[string]any, budget int) (map[string]any, error) {
-	encoded, err := gokernel.CanonicalJSON(receipt)
-	if err != nil {
-		return nil, err
-	}
-	raw, err := contextsummary.Summarize(append(encoded, '\n'), budget, contextsummary.MCPContinuation)
-	if err != nil {
-		return nil, err
-	}
-	decoder := jsonv1.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	var summary map[string]any
-	if err := decoder.Decode(&summary); err != nil {
-		return nil, err
-	}
-	return summary, nil
-}
-
-// detachedContext copies a context packet and its binding onto the heap so
-// nothing the result returns aliases the snapshot mapping its Index leased
-// (MCPV0-090, V1-1004). The packet is copied through its canonical bytes,
-// decoding numbers as their literals, and the copy must encode to the same
-// bytes; any difference refuses rather than changing the wire result.
-func detachedContext(packet map[string]any, binding RepositoryBinding) (map[string]any, RepositoryBinding, error) {
-	encoded, err := gokernel.CanonicalJSON(packet)
-	if err != nil {
-		return nil, RepositoryBinding{}, err
-	}
-	decoder := jsonv1.NewDecoder(bytes.NewReader(encoded))
-	decoder.UseNumber()
-	var copied map[string]any
-	if err := decoder.Decode(&copied); err != nil {
-		return nil, RepositoryBinding{}, err
-	}
-	again, err := gokernel.CanonicalJSON(copied)
-	if err != nil {
-		return nil, RepositoryBinding{}, err
-	}
-	if !bytes.Equal(again, encoded) {
-		return nil, RepositoryBinding{}, errors.New("context packet does not survive its canonical copy")
-	}
-	binding.CommitRevision, binding.TreeRevision = strings.Clone(binding.CommitRevision), strings.Clone(binding.TreeRevision)
-	binding.ObjectFormat, binding.ProfileID = strings.Clone(binding.ObjectFormat), strings.Clone(binding.ProfileID)
-	return copied, binding, nil
-}
-
-type cemReportInput struct {
-	Map           string  `json:"map"`
-	Artifacts     *string `json:"artifacts"`
-	ExpectedBase  string  `json:"expectedBase"`
-	Target        string  `json:"target"`
-	MaxUnknown    *int    `json:"maxUnknown"`
-	MaxMechanical *int    `json:"maxMechanical"`
-}
-
-func (registry *Registry) callCEMReport(ctx context.Context, arguments []byte) (Result, *Error) {
-	var input cemReportInput
-	if err := decodeClosed(arguments, &input); err != nil || !validCEMReport(input) {
-		return Result{}, failure("invalid-arguments")
-	}
-	before, err := registry.operations.probe(ctx, registry.root)
-	if err != nil {
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	options := workflow.ReadOptions{
-		MapPath: input.Map, ExpectedBase: input.ExpectedBase, Target: input.Target,
-		Limits: workflow.PolicyLimits{MaxUnknown: input.MaxUnknown, MaxMechanical: input.MaxMechanical},
-	}
-	// MCPV0-036: the stable verifier needs an absolute artifact root; the
-	// caller names it relative to the bound root.
-	if input.Artifacts != nil {
-		options.ArtifactRoot = filepath.Join(registry.callerRoot, filepath.FromSlash(*input.Artifacts))
-		options.ArtifactsGiven = true
-	}
-	receipt, err := registry.operations.cemReport(ctx, registry.root, registry.callerRoot, options)
-	if err != nil {
-		return Result{}, cemFailure(ctx, err)
-	}
-	after, err := registry.operations.probe(ctx, registry.root)
-	if err != nil {
-		return Result{}, normalizeFailure(ctx, err)
-	}
-	if before != after {
-		return abstained(ToolCEMReport, "REPOSITORY_STATE_UNSTABLE", nil), nil
-	}
-	return boundedObserved(ToolCEMReport, bindingFromRepository(after), receipt)
-}
-
-// validCEMPath is the closed repository-relative path rule shared by the map
-// and the artifacts directory: no traversal and no .git segment in any case.
-func validCEMPath(path string) bool {
-	if wire.ValidatePath(path) != nil || !validRelativePath(path, wire.MaxPathBytes) {
-		return false
-	}
-	for _, part := range strings.Split(path, "/") {
-		if strings.EqualFold(part, ".git") {
-			return false
-		}
-	}
-	return true
-}
-
-// cemFailures closes CEM's registered codes onto the bridge's sanitized
-// failure set; an unlisted code is internal-error. A Git read that ran out of
-// its own bound is the MCPV0-038 timeout code (decision 0533); one that
-// exhausted its operation or output bound is the capacity code (V1-1992).
-var cemFailures = map[string]string{
-	cemcode.MapUnavailable: "cem-map-unavailable", cemcode.InvalidArguments: "cem-map-unsupported",
-	cemcode.InvalidJSON: "cem-map-invalid", cemcode.NotAnObject: "cem-map-invalid",
-	cemcode.MissingField: "cem-map-invalid", cemcode.UnknownField: "cem-map-invalid",
-	cemcode.UnsupportedSpec: "cem-map-invalid", cemcode.InvalidField: "cem-map-invalid",
-	cemcode.InvalidExcludedPath: "cem-map-invalid", cemcode.PathTraversal: "cem-map-invalid",
-	cemcode.GitReadFailed: "repository-unavailable", cemcode.GitDiffFailed: "repository-unavailable",
-	cemcode.GitDiffTimeout: "repository-probe-timeout", cemcode.GitStartFailed: "repository-unavailable",
-	cemcode.GitExitFailure: "repository-unavailable", cemcode.GitTimeout: "repository-probe-timeout",
-	cemcode.GitOutputExceeded: "corpus-capacity-exceeded", cemcode.GitBudgetExceeded: "corpus-capacity-exceeded",
-	cemcode.RepositoryObjectUnavailable:     "repository-unavailable",
-	cemcode.UnsupportedObjectAlternates:     "repository-unavailable",
-	cemcode.UnsupportedRepositoryAttributes: "repository-unavailable",
-}
-
-func cemFailure(ctx context.Context, err error) *Error {
-	code := cemcode.CodeOf(err)
-	if ctx.Err() != nil || code == cemcode.GitCancelled {
-		return failure("cancelled")
-	}
-	// MCPV0-037: a cem/1.0 map refused before its verifier ran is named
-	// apart from a malformed or unsupported 0.x map.
-	if workflow.IsStableRefusal(err) {
-		return failure("cem-map-stable-refused")
-	}
-	if mapped, known := cemFailures[code]; known {
-		return failure(mapped)
-	}
-	return failure("internal-error")
 }
 
 func nativePlatformQualified(platform string) bool {
@@ -882,11 +440,6 @@ func (registry *Registry) callStatus(ctx context.Context, arguments []byte) (Res
 
 func (registry *Registry) snapshot(ctx context.Context) (repositorySnapshot, *Error) {
 	index, err := registry.operations.build(ctx, registry.root)
-	return registry.snapshotIndex(ctx, index, err)
-}
-
-func (registry *Registry) querySnapshot(ctx context.Context, task string) (repositorySnapshot, *Error) {
-	index, err := registry.operations.buildQuery(ctx, registry.root, task)
 	return registry.snapshotIndex(ctx, index, err)
 }
 
@@ -965,18 +518,6 @@ func decodeClosed(arguments []byte, target any) error {
 	return json.Unmarshal(arguments, target, json.RejectUnknownMembers(true))
 }
 
-func validTask(task string) bool {
-	if strings.TrimSpace(task) == "" || utf8.RuneCountInString(task) > maxQueryRunes {
-		return false
-	}
-	for _, character := range task {
-		if character < 0x20 || character > 0x7e {
-			return false
-		}
-	}
-	return true
-}
-
 func validImpact(input impactInput) bool {
 	if len(input.Paths) == 0 || len(input.Paths) > maxImpactPaths {
 		return false
@@ -1020,35 +561,7 @@ func optionalBytes(raw jsonv1.RawMessage, low, high int) (*int, bool) {
 	return &value, true
 }
 
-func validContext(input contextInput) bool {
-	if strings.TrimSpace(input.Task) == "" || len(input.Task) > maxContextTaskBytes {
-		return false
-	}
-	if input.Limit < 1 || input.Limit > maxContextLimit {
-		return false
-	}
-	if _, ok := optionalBytes(input.SummaryBytes, contextsummary.MinBytes, contextsummary.MaxBytes); !ok {
-		return false
-	}
-	return input.Subject == "" || validRelativePath(input.Subject, maxPathRunes)
-}
-
-// validCEMReport admits a repository-relative map path outside Git metadata
-// and two full object IDs. A symlink at or above the map is refused by the
-// CEM read itself (publish.Root.ReadBounded), as cem-map-unavailable.
-func validCEMReport(input cemReportInput) bool {
-	if !validCEMPath(input.Map) || (input.Artifacts != nil && !validCEMPath(*input.Artifacts)) {
-		return false
-	}
-	if !fullObjectID(input.ExpectedBase) || !fullObjectID(input.Target) {
-		return false
-	}
-	return nonNegative(input.MaxUnknown) && nonNegative(input.MaxMechanical)
-}
-
 func fullObjectID(value string) bool { return lowerHex(value, 40) || lowerHex(value, 64) }
-
-func nonNegative(value *int) bool { return value == nil || *value >= 0 }
 
 // validRelativePath is the impact path rule without the Go suffix.
 func validRelativePath(value string, maxRunes int) bool {
@@ -1106,8 +619,8 @@ func readAnnotations() ToolAnnotations {
 func validResult(result Result) bool {
 	if result.Schema != resultSchema || result.Mutates ||
 		!knownTool(result.Tool) ||
-		// Only the object-only graph read leaves the checkout unobserved.
-		(result.Repository != nil && result.Repository.WorktreeState == "NOT_OBSERVED" && result.Tool != ToolGraphImports) ||
+		// No delivered read leaves the checkout unobserved.
+		(result.Repository != nil && result.Repository.WorktreeState == "NOT_OBSERVED") ||
 		(result.State != "READY" && result.State != "ABSTAINED") ||
 		(result.EpistemicClass != "OBSERVED" && result.EpistemicClass != "NOT_OBSERVED") ||
 		(result.AuthorityClass != "REPOSITORY_EVIDENCE" && result.AuthorityClass != "GIT_REPOSITORY" && result.AuthorityClass != "NONE" && result.AuthorityClass != "CORVINT_BINARY") {
@@ -1137,7 +650,7 @@ func validResult(result Result) bool {
 
 func knownTool(tool string) bool {
 	switch tool {
-	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolCEMReport, ToolHelp, ToolGraphImports:
+	case ToolImpact, ToolStatus, ToolHelp:
 		return true
 	}
 	return flowsTools[tool]
@@ -1166,26 +679,12 @@ func validReceiptBinding(result Result) bool {
 	if result.Repository == nil || result.Receipt == nil {
 		return false
 	}
-	switch result.Tool {
-	case ToolGraphImports:
-		return result.Receipt["tool"] == "graph-imports" && result.Receipt["revision"] == result.Repository.CommitRevision
-	case ToolContext:
-		revision, revisionOK := result.Receipt["revision"].(string)
-		return result.Receipt["tool"] == "context" && revisionOK && revision == result.Repository.TreeRevision
-	case ToolCEMReport:
-		// A CEM receipt binds to the caller's two object IDs, not the checkout.
-		return result.Receipt["tool"] == "cem-report" && result.Receipt["mutates"] == false
-	}
 	if flowsTools[result.Tool] {
 		return validFlowsReceipt(result)
 	}
 	mode, modeOK := result.Receipt["mode"].(string)
 	revision, revisionOK := result.Receipt["revision"].(string)
-	wantMode := "query"
-	if result.Tool == ToolImpact {
-		wantMode = "impact"
-	}
-	return modeOK && revisionOK && mode == wantMode && revision == result.Repository.TreeRevision
+	return modeOK && revisionOK && mode == "impact" && revision == result.Repository.TreeRevision
 }
 
 func lowerHex(value string, length int) bool {
@@ -1269,12 +768,8 @@ func snapshotSchema() map[string]any {
 	}, []any{"schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"})
 }
 
-func (registry *Registry) planningSnapshot(ctx context.Context, raw []byte, task string) (repositorySnapshot, *plansnapshot.Receipt, *Error) {
+func (registry *Registry) planningSnapshot(ctx context.Context, raw []byte) (repositorySnapshot, *plansnapshot.Receipt, *Error) {
 	if len(raw) == 0 {
-		if task != "" {
-			snapshot, err := registry.querySnapshot(ctx, task)
-			return snapshot, nil, err
-		}
 		snapshot, err := registry.snapshot(ctx)
 		return snapshot, nil, err
 	}
@@ -1336,21 +831,3 @@ func (registry *Registry) Root() string { return registry.root }
 // SameRoot reports whether the bound root, its Git marker and its Git
 // directories still have the identities observed at binding.
 func (registry *Registry) SameRoot() bool { return registry.sameRoot() }
-
-// NewTaskReview returns an ordinary error interface with a plain nil on success.
-func NewTaskReview(root string) (*Registry, error) {
-	registry, err := newTaskReview(root)
-	if err != nil {
-		return nil, err
-	}
-	return registry, nil
-}
-
-// NewTaskReviewLSP returns an ordinary error interface with a plain nil on success.
-func NewTaskReviewLSP(root string) (*Registry, error) {
-	registry, err := newTaskReviewLSP(root)
-	if err != nil {
-		return nil, err
-	}
-	return registry, nil
-}

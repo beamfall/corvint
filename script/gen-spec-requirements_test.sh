@@ -800,7 +800,7 @@ printf '%s\n' "$rbk" | grep -q '^RBK-V0-002	docs/specs/rbk.md	defined after' ||
 git -C "$test_root" rm -q --cached -- docs/specs/rbk.md
 # The no-changes or updated line is printed by the recipe's --write step (SRG-V0-967).
 recipe=$(sed -n '/^spec-requirements:/,/^$/p' "$(dirname "$0")/../Makefile"; cat "$(dirname "$0")/gen-spec-requirements.sh")
-for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSpecsStayWithinTheOCMObligationBound' 'SRG-V0-965'; do
+for want in 'spec-requirements: no changes' 'spec-requirements: updated'; do
   case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
 done
 
@@ -1253,7 +1253,6 @@ git -C "$test_root" rm -q --cached -- docs/specs/order.md
 grep -q '^### Authoring template$' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "template absent from authoring route"
 grep -q 'Claim: One sentence of at most 160 characters' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "Claim limit absent from template"
 grep -q 'git add -- docs/specs/NAME.md' "$source_root/docs/SPEC-DRIVEN-DEVELOPMENT.md" || fail "staging command absent from template"
-grep -q 'internal/tasks/wire/facets.go' "$source_root/docs/AGENT-ROUTES.md" || fail "facets decoder absent from route"
 mkdir -p "$test_root/cmd/tool"
 printf 'package main\n// Usage: before\n' > "$test_root/cmd/tool/main.go"
 git -C "$test_root" add -- cmd/tool/main.go

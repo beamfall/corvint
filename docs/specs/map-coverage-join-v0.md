@@ -239,12 +239,12 @@ library is not yet wired into the plan, the CLI or CI, so no plan carries its re
 
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
-| MCJ-V0-020 | `internal/funclink/funclink.go` (`Builder`, `Build`, authority mask), `sources.go` (`FromIntents`, `FromMap`, `FromImpact`, `FromSiteKnowledge`, `FromSetup`, `FromObserved` over the `ObservedSource` interface) | `TestMCJV0_020_UnitsCarryCodeAndTestSetsFromEverySource`, `TestMCJV0_020_LowerAuthorityNeverOverwritesHigher`, `TestMCJV0_020_ObservedSourceErrorAddsNothing`. Partial: project-config declared ownership is not read; the observed source is an interface with a test fixture only |
-| MCJ-V0-021 | `select.go` `AddUncovered` | `TestMCJV0_021_AddsLinkedTestsForUncoveredBlocksOnly`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` (2,000 seeded random cases) |
-| MCJ-V0-022 | `select.go` `ShadowReplace`, `FallbackMisses` (records the proposed linked set beside the fallback set and the omitted tests) | `TestMCJV0_022_ShadowReplacementRecordsTheFallbackMissCheck`. Shadow record only: no CI shadow run, so the 1,000-change zero-miss bar is `NOT_RUN` |
-| MCJ-V0-023 | `select.go` `SelectSurfaces` | `TestMCJV0_023_PageObjectMethodChangeSelectsExactlyItsCallers`, `TestMCJV0_021_023_FaultInjectionNeverDropsATest` |
+| MCJ-V0-020 | `internal/funclink/funclink.go` (`Builder`, `Build`, authority mask), `sources.go` (`FromIntents`, `FromMap`, `FromImpact`, `FromSiteKnowledge`, `FromSetup`, `FromObserved` over the `ObservedSource` interface) | `TestMCJV0_020_UnitsCarryCodeAndTestSetsFromEverySource` (removed), `TestMCJV0_020_LowerAuthorityNeverOverwritesHigher` (removed), `TestMCJV0_020_ObservedSourceErrorAddsNothing` (removed). Partial: project-config declared ownership is not read; the observed source is an interface with a test fixture only |
+| MCJ-V0-021 | `select.go` `AddUncovered` | `TestMCJV0_021_AddsLinkedTestsForUncoveredBlocksOnly` (removed), `TestMCJV0_021_023_FaultInjectionNeverDropsATest` (removed) (2,000 seeded random cases) |
+| MCJ-V0-022 | `select.go` `ShadowReplace`, `FallbackMisses` (records the proposed linked set beside the fallback set and the omitted tests) | `TestMCJV0_022_ShadowReplacementRecordsTheFallbackMissCheck` (removed). Shadow record only: no CI shadow run, so the 1,000-change zero-miss bar is `NOT_RUN` |
+| MCJ-V0-023 | `select.go` `SelectSurfaces` | `TestMCJV0_023_PageObjectMethodChangeSelectsExactlyItsCallers` (removed), `TestMCJV0_021_023_FaultInjectionNeverDropsATest` (removed) |
 | MCJ-V0-025 | `internal/linecov/plantime_test.go` and platform CPU clocks | `TestPlanTimeBudgetWithSegments`, `TestMCJV0025PlanBudgetDoubleCostFails`, `TestMCJV0025PlanClockFailure`; `BenchmarkPlanWithSegments` retains wall latency |
-| MCJ-V0-024 | `select.go` `Gaps` | `TestMCJV0_024_GapReport` |
+| MCJ-V0-024 | `select.go` `Gaps` | `TestMCJV0_024_GapReport` (removed) |
 
 Test identities stay opaque: SKH-V0 test IDs, AFU-V1 test keys and `linecov` test IDs are separate
 spaces, and joining them is the caller's.

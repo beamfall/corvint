@@ -100,8 +100,8 @@ var moduleLevelFrontiers = map[string]bool{
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
 
-// changeEvidence is the CEM sidecar (internal/frontier.ExcludedPath) that every
-// dogfooded change commits. It is derived from the rest of the diff, so a
+// changeEvidence is the retired CEM sidecar path (.corvint/change.cem.json) that every
+// dogfooded change committed. It is derived from the rest of the diff, so a
 // package's tests read it only through a literal that resolves to it from the
 // package's directory; a `.corvint` or `change.cem.json` token joined to a
 // fixture root does not select its holder (AFP-V0-012 (c)).

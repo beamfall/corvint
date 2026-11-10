@@ -1,0 +1,1722 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-docs",
+  "helpJson": "corvint-docs help --json",
+  "source": "cmd/corvint-docs help topics",
+  "dispatchSources": [
+    "cmd/corvint-docs"
+  ],
+  "globalFlags": [
+    "--corpus",
+    "--corpus-depth",
+    "--json",
+    "--root",
+    "--tree",
+    "--version"
+  ],
+  "internalEntryPoints": [
+    {
+      "word": "audit",
+      "reason": "spaced spelling of docs corpus audit-sample and audit-report"
+    },
+    {
+      "word": "sample",
+      "reason": "spaced spelling of docs corpus audit-sample"
+    },
+    {
+      "word": "report",
+      "reason": "spaced spelling of docs corpus audit-report"
+    },
+    {
+      "word": "--worktree-overlay",
+      "reason": "core context option the --corpus=FILE join skips while finding the positional task"
+    },
+    {
+      "word": "impact",
+      "reason": "core read the --corpus=FILE join runs in corvint"
+    },
+    {
+      "word": "affected",
+      "reason": "core read the --corpus=FILE join runs in corvint"
+    },
+    {
+      "word": "context",
+      "reason": "core read the --corpus=FILE join runs in corvint"
+    },
+    {
+      "word": "test-validity",
+      "reason": "core read the --corpus=FILE join runs in corvint"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [
+        "docs"
+      ],
+      "command": "corvint-docs docs",
+      "summary": "Experimental source documentation orientation",
+      "usage": [
+        "corvint-docs [--root PATH] docs citations check [PATH...]",
+        "corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
+        "corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)",
+        "corvint-docs [--root PATH] docs corpus OPERATION [OPTIONS]",
+        "corvint-docs docs corpus OPERATION --help",
+        "corvint-docs [--root PATH] docs corpus audit-report --artifact CORPUS.json --sample SAMPLE.json [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus audit-sample --artifact CORPUS.json --seed N --size N [--stratify provider|kind|flow|trust|patterns] [--scope PATH] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]",
+        "corvint-docs [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json",
+        "corvint-docs [--root PATH] docs corpus behavior-provider --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus build --manifest INPUT.json",
+        "corvint-docs [--root PATH] docs corpus build [--manifest INPUT.json] [--artifact CORPUS.json] [--max-unresolved-mention-rate R] [--max-pattern-rate R|NAME=R[,NAME=R]] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus carry-forward --previous CORPUS.json --provider PROVIDER [--artifact CORPUS.json] [--manifest INPUT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus claims --artifact CORPUS.json [--path PATH] [--query TEXT] [--state blocked|ready|proven|partial|not-demonstrable|disputed|obsolete|not-established|unknown] [--qualifier provisional|classification-only] [--run RUN] [--kind KIND[,KIND]] [--exclude-kind] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus compact-provider --input PROVIDER.json",
+        "corvint-docs [--root PATH] docs corpus compact-provider --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus concept --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus coverage --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus delta --previous CORPUS.json [--artifact CORPUS.json] [--manifest INPUT.json] [--limit N] [--offset N] [--uncovered changed|all] [--anchorless summary|list] [--format json|jsonl] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus dependencies --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]",
+        "corvint-docs [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REQUEST.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]",
+        "corvint-docs [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH",
+        "corvint-docs [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus estate --input ESTATE.json",
+        "corvint-docs [--root PATH] docs corpus estate --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus eval --artifact CORPUS.json --cases CASES.json [--baseline RECEIPT.json] [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]",
+        "corvint-docs [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX] [--schema 1|2] [--repository ROOT_COMMIT|ALIAS] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus flow --artifact CORPUS.json --id ID [--section NAME[,NAME]] [--include KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus gaps --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--kind KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus get --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]",
+        "corvint-docs [--root PATH] docs corpus import-cases --format testrail-json|csv --input REQUEST.json [--content ids-paths-titles|full] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus info --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus intent --artifact CORPUS.json [--id ID] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus inventory --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus journey --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus locate --artifact CORPUS.json --path PATH [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]",
+        "corvint-docs [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339",
+        "corvint-docs [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope [ALIAS:]PATH --timestamp RFC3339 [--schema 1|2] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus navigation --artifact CORPUS.json [--id ID] [--query TEXT] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus patterns --artifact CORPUS.json [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus recommend-tests --artifact CORPUS.json --path PATH [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus related --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus render --artifact CORPUS.json",
+        "corvint-docs [--root PATH] docs corpus render --artifact CORPUS.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT",
+        "corvint-docs [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT [--include KIND[,KIND]] [--kind KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]",
+        "corvint-docs [--root PATH] docs corpus search-cases --format testrail-json|csv --input REQUEST.json [--query TEXT] [--id ID] [--match] [--limit N] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus stability --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus trace --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus validate --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+        "corvint-docs [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint-docs [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint-docs [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint-docs [--root PATH] docs flows check ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]",
+        "corvint-docs [--root PATH] docs flows finalize ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH",
+        "corvint-docs [--root PATH] docs flows generate ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]",
+        "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
+        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]",
+        "corvint-docs [--root PATH] docs nav --trusted-project --request FILE",
+        "corvint-docs [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON"
+      ],
+      "flags": [
+        "--anchorless",
+        "--apply",
+        "--artifact",
+        "--baseline",
+        "--caller-revision",
+        "--cases",
+        "--check",
+        "--config",
+        "--content",
+        "--corpus",
+        "--dry-run",
+        "--enable",
+        "--exclude-kind",
+        "--flows",
+        "--format",
+        "--id",
+        "--include",
+        "--input",
+        "--inspect-python",
+        "--kind",
+        "--limit",
+        "--manifest",
+        "--match",
+        "--max-pattern-rate",
+        "--max-unresolved-mention-rate",
+        "--max-wall-clock",
+        "--max-writes",
+        "--migration",
+        "--no-workspace",
+        "--offset",
+        "--output-dir",
+        "--owner-section",
+        "--owner-stdin",
+        "--package",
+        "--page",
+        "--path",
+        "--playwright-list",
+        "--preview",
+        "--previous",
+        "--profile",
+        "--profile-sha256",
+        "--provider",
+        "--provider-path",
+        "--provider-revision",
+        "--qualifier",
+        "--query",
+        "--receipt",
+        "--receipt-input",
+        "--repo",
+        "--report",
+        "--repository",
+        "--request",
+        "--retirement",
+        "--revision",
+        "--root",
+        "--run",
+        "--runner",
+        "--sample",
+        "--schema",
+        "--scope",
+        "--section",
+        "--seed",
+        "--size",
+        "--source",
+        "--state",
+        "--stratify",
+        "--task",
+        "--timestamp",
+        "--timings",
+        "--trusted-project",
+        "--uncovered",
+        "--verify-rederive",
+        "--watch",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint-docs docs citations check",
+      "help": "corvint-docs docs --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations"
+      ],
+      "command": "corvint-docs docs citations",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs citations check",
+      "help": "corvint-docs docs citations --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations",
+        "check"
+      ],
+      "command": "corvint-docs docs citations check",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs citations check",
+      "help": "corvint-docs docs citations check --help"
+    },
+    {
+      "path": [
+        "docs",
+        "consume"
+      ],
+      "command": "corvint-docs docs consume",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md"
+      ],
+      "flags": [
+        "--owner-section",
+        "--package",
+        "--page",
+        "--root",
+        "--source",
+        "--task"
+      ],
+      "required": [
+        "--source PATH",
+        "--package DIRECTORY",
+        "--task TEXT",
+        "draft.md"
+      ],
+      "example": "corvint-docs docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
+      "help": "corvint-docs docs consume --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus"
+      ],
+      "command": "corvint-docs docs corpus",
+      "summary": "Experimental documentation corpus profile",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)",
+        "corvint-docs [--root PATH] docs corpus OPERATION [OPTIONS]",
+        "corvint-docs docs corpus OPERATION --help"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [
+        "OPERATION"
+      ],
+      "example": "corvint-docs docs corpus OPERATION",
+      "help": "corvint-docs docs corpus --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "audit-report"
+      ],
+      "command": "corvint-docs docs corpus audit-report",
+      "summary": "Experimental documentation corpus: measure sampled-claim accuracy from independent verdicts; also spelled audit report",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus audit-report --artifact CORPUS.json --sample SAMPLE.json [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--format",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--sample",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--sample SAMPLE.json"
+      ],
+      "example": "corvint-docs docs corpus audit-report --artifact CORPUS.json --sample SAMPLE.json",
+      "help": "corvint-docs docs corpus audit-report --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "audit-sample"
+      ],
+      "command": "corvint-docs docs corpus audit-sample",
+      "summary": "Experimental documentation corpus: draw a reproducible claim sample to audit; also spelled audit sample",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus audit-sample --artifact CORPUS.json --seed N --size N [--stratify provider|kind|flow|trust|patterns] [--scope PATH] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--scope",
+        "--seed",
+        "--size",
+        "--stratify",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--seed N",
+        "--size N"
+      ],
+      "example": "corvint-docs docs corpus audit-sample --artifact CORPUS.json --seed N --size N",
+      "help": "corvint-docs docs corpus audit-sample --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "behavior-adapter"
+      ],
+      "command": "corvint-docs docs corpus behavior-adapter",
+      "summary": "Experimental documentation corpus: map a behavior-adapter request to a provider bundle, or --check it",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]",
+        "corvint-docs [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--check",
+        "--input",
+        "--no-workspace",
+        "--previous",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--input REQUEST.json"
+      ],
+      "example": "corvint-docs docs corpus behavior-adapter --input REQUEST.json",
+      "help": "corvint-docs docs corpus behavior-adapter --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "behavior-provider"
+      ],
+      "command": "corvint-docs docs corpus behavior-provider",
+      "summary": "Experimental documentation corpus: build a corvint-corpus-behavior-provider/2 declaration from a request",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json",
+        "corvint-docs [--root PATH] docs corpus behavior-provider --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint-docs docs corpus behavior-provider --input REQUEST-V2.json",
+      "help": "corvint-docs docs corpus behavior-provider --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "build"
+      ],
+      "command": "corvint-docs docs corpus build",
+      "summary": "Experimental documentation corpus: build the immutable corpus artifact from a manifest, or rebuild an artifact from the manifest it embeds",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus build --manifest INPUT.json",
+        "corvint-docs [--root PATH] docs corpus build [--manifest INPUT.json] [--artifact CORPUS.json] [--max-unresolved-mention-rate R] [--max-pattern-rate R|NAME=R[,NAME=R]] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--manifest",
+        "--max-pattern-rate",
+        "--max-unresolved-mention-rate",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint-docs docs corpus build --manifest INPUT.json",
+      "help": "corvint-docs docs corpus build --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "carry-forward"
+      ],
+      "command": "corvint-docs docs corpus carry-forward",
+      "summary": "Experimental documentation corpus: emit a provider record of one provider's records whose span hashes still hold; adoption kinds keep their typed details in an adoption provider record",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus carry-forward --previous CORPUS.json --provider PROVIDER [--artifact CORPUS.json] [--manifest INPUT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--manifest",
+        "--no-workspace",
+        "--previous",
+        "--provider",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--previous CORPUS.json",
+        "--provider PROVIDER"
+      ],
+      "example": "corvint-docs docs corpus carry-forward --previous CORPUS.json --provider PROVIDER",
+      "help": "corvint-docs docs corpus carry-forward --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "claims"
+      ],
+      "command": "corvint-docs docs corpus claims",
+      "summary": "Experimental documentation corpus: typed claims about one path, claims ranked by --query text, or supplied status claims in one --state (exactly one), optionally only some --kind or without some --exclude-kind claim kinds",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus claims --artifact CORPUS.json [--path PATH] [--query TEXT] [--state blocked|ready|proven|partial|not-demonstrable|disputed|obsolete|not-established|unknown] [--qualifier provisional|classification-only] [--run RUN] [--kind KIND[,KIND]] [--exclude-kind] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--exclude-kind",
+        "--kind",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--path",
+        "--qualifier",
+        "--query",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--run",
+        "--state",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus claims --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus claims --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "compact-provider"
+      ],
+      "command": "corvint-docs docs corpus compact-provider",
+      "summary": "Experimental documentation corpus: rewrite a corvint-corpus-adoption-provider/1 record or shard as its compact /2 encoding",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus compact-provider --input PROVIDER.json",
+        "corvint-docs [--root PATH] docs corpus compact-provider --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint-docs docs corpus compact-provider --input PROVIDER.json",
+      "help": "corvint-docs docs corpus compact-provider --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "concept"
+      ],
+      "command": "corvint-docs docs corpus concept",
+      "summary": "Experimental documentation corpus: typed subjects matching a concept",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus concept --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--query",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--query TEXT"
+      ],
+      "example": "corvint-docs docs corpus concept --artifact CORPUS.json --query TEXT",
+      "help": "corvint-docs docs corpus concept --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "coverage"
+      ],
+      "command": "corvint-docs docs corpus coverage",
+      "summary": "Experimental documentation corpus: scoped coverage with its denominator",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus coverage --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus coverage --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus coverage --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "delta"
+      ],
+      "command": "corvint-docs docs corpus delta",
+      "summary": "Experimental documentation corpus: page a cross-revision worklist: carry-forward, moved, changed, removed, unresolved and uncovered; records-provider subjects, claims and relations, adoption kinds such as flows and paragraphs included, can carry forward",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus delta --previous CORPUS.json [--artifact CORPUS.json] [--manifest INPUT.json] [--limit N] [--offset N] [--uncovered changed|all] [--anchorless summary|list] [--format json|jsonl] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--anchorless",
+        "--artifact",
+        "--format",
+        "--limit",
+        "--manifest",
+        "--no-workspace",
+        "--offset",
+        "--previous",
+        "--repo",
+        "--root",
+        "--timings",
+        "--uncovered",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--previous CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus delta --previous CORPUS.json",
+      "help": "corvint-docs docs corpus delta --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "dependencies"
+      ],
+      "command": "corvint-docs docs corpus dependencies",
+      "summary": "Experimental documentation corpus: typed dependency relations of one subject",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus dependencies --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus dependencies --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus dependencies --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "discover-legacy"
+      ],
+      "command": "corvint-docs docs corpus discover-legacy",
+      "summary": "Experimental documentation corpus: inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]",
+        "corvint-docs [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REQUEST.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--path",
+        "--repo",
+        "--revision",
+        "--root",
+        "--runner",
+        "--workspace"
+      ],
+      "required": [
+        "--runner jasmine|mocha",
+        "--revision FULL_COMMIT",
+        "--path PATH"
+      ],
+      "example": "corvint-docs docs corpus discover-legacy --runner jasmine --revision FULL_COMMIT --path PATH",
+      "help": "corvint-docs docs corpus discover-legacy --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "discover-playwright"
+      ],
+      "command": "corvint-docs docs corpus discover-playwright",
+      "summary": "Experimental documentation corpus: produce Playwright test discovery from a listing and migration",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]",
+        "corvint-docs [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--config",
+        "--migration",
+        "--no-workspace",
+        "--playwright-list",
+        "--receipt",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--migration MIGRATION.json",
+        "--config PATH",
+        "--playwright-list LIST.json"
+      ],
+      "example": "corvint-docs docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json",
+      "help": "corvint-docs docs corpus discover-playwright --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "discover-tests"
+      ],
+      "command": "corvint-docs docs corpus discover-tests",
+      "summary": "Experimental documentation corpus: read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH",
+        "corvint-docs [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--no-workspace",
+        "--path",
+        "--repo",
+        "--revision",
+        "--root",
+        "--runner",
+        "--workspace"
+      ],
+      "required": [
+        "--runner playwright|rspec",
+        "--revision FULL_COMMIT",
+        "--path PATH"
+      ],
+      "example": "corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path PATH",
+      "help": "corvint-docs docs corpus discover-tests --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "estate"
+      ],
+      "command": "corvint-docs docs corpus estate",
+      "summary": "Experimental documentation corpus: reconcile the repository inventories of several verified corpora by exact name (corvint-corpus-estate/1)",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus estate --input ESTATE.json",
+        "corvint-docs [--root PATH] docs corpus estate --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint-docs docs corpus estate --input ESTATE.json",
+      "help": "corvint-docs docs corpus estate --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "eval"
+      ],
+      "command": "corvint-docs docs corpus eval",
+      "summary": "Experimental documentation corpus: score caller-labelled cases through the corpus MCP tool path; --baseline ratchets",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus eval --artifact CORPUS.json --cases CASES.json [--baseline RECEIPT.json] [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--baseline",
+        "--cases",
+        "--format",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--cases CASES.json"
+      ],
+      "example": "corvint-docs docs corpus eval --artifact CORPUS.json --cases CASES.json",
+      "help": "corvint-docs docs corpus eval --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "extract"
+      ],
+      "command": "corvint-docs docs corpus extract",
+      "summary": "Experimental documentation corpus: extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX]",
+        "corvint-docs [--root PATH] docs corpus extract --profile PATH --revision FULL_COMMIT [--profile-sha256 HEX] [--schema 1|2] [--repository ROOT_COMMIT|ALIAS] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--no-workspace",
+        "--profile",
+        "--profile-sha256",
+        "--repo",
+        "--repository",
+        "--revision",
+        "--root",
+        "--schema",
+        "--workspace"
+      ],
+      "required": [
+        "--profile PATH",
+        "--revision FULL_COMMIT"
+      ],
+      "example": "corvint-docs docs corpus extract --profile PATH --revision FULL_COMMIT",
+      "help": "corvint-docs docs corpus extract --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "flow"
+      ],
+      "command": "corvint-docs docs corpus flow",
+      "summary": "Experimental documentation corpus: one typed flow, optionally only some sections or record kinds",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus flow --artifact CORPUS.json --id ID [--section NAME[,NAME]] [--include KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--include",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--section",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus flow --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus flow --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "gaps"
+      ],
+      "command": "corvint-docs docs corpus gaps",
+      "summary": "Experimental documentation corpus: reported gaps, optionally for one subject, one file --path (in --repository) or some kinds",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus gaps --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--kind KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--kind",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--path",
+        "--repo",
+        "--repository",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus gaps --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus gaps --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "get"
+      ],
+      "command": "corvint-docs docs corpus get",
+      "summary": "Experimental documentation corpus: one subject by ID",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus get --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus get --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus get --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "import-cases"
+      ],
+      "command": "corvint-docs docs corpus import-cases",
+      "summary": "Experimental documentation corpus: import manual legacy cases from a caller-exported TestRail JSON or CSV file",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]",
+        "corvint-docs [--root PATH] docs corpus import-cases --format testrail-json|csv --input REQUEST.json [--content ids-paths-titles|full] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--content",
+        "--format",
+        "--input",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--format testrail-json|csv"
+      ],
+      "example": "corvint-docs docs corpus import-cases --format testrail-json --input EXPORT",
+      "help": "corvint-docs docs corpus import-cases --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "info"
+      ],
+      "command": "corvint-docs docs corpus info",
+      "summary": "Experimental documentation corpus: artifact identity, capabilities and freshness",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus info --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus info --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus info --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "intent"
+      ],
+      "command": "corvint-docs docs corpus intent",
+      "summary": "Experimental documentation corpus: typed intent comparisons of one subject, or every intent comparison without --id",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus intent --artifact CORPUS.json [--id ID] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus intent --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus intent --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "inventory"
+      ],
+      "command": "corvint-docs docs corpus inventory",
+      "summary": "Experimental documentation corpus: page through every subject, claim and relation ID",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus inventory --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus inventory --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus inventory --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "journey"
+      ],
+      "command": "corvint-docs docs corpus journey",
+      "summary": "Experimental documentation corpus: one recorded journey and its observations",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus journey --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus journey --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus journey --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "locate"
+      ],
+      "command": "corvint-docs docs corpus locate",
+      "summary": "Experimental documentation corpus: subjects that cite one path",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus locate --artifact CORPUS.json --path PATH [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--path",
+        "--repo",
+        "--repository",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--path PATH"
+      ],
+      "example": "corvint-docs docs corpus locate --artifact CORPUS.json --path PATH",
+      "help": "corvint-docs docs corpus locate --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "maintain"
+      ],
+      "command": "corvint-docs docs corpus maintain",
+      "summary": "Experimental documentation corpus: preview, or with --apply write, generated blocks of one human page",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]",
+        "corvint-docs [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--apply",
+        "--artifact",
+        "--no-workspace",
+        "--page",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--page PAGE.md"
+      ],
+      "example": "corvint-docs docs corpus maintain --artifact CORPUS.json --page PAGE.md",
+      "help": "corvint-docs docs corpus maintain --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "manifest"
+      ],
+      "command": "corvint-docs docs corpus manifest",
+      "summary": "Experimental documentation corpus: inventory one or more scopes at a full commit as a corpus manifest",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339",
+        "corvint-docs [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope [ALIAS:]PATH --timestamp RFC3339 [--schema 1|2] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--no-workspace",
+        "--repo",
+        "--revision",
+        "--root",
+        "--schema",
+        "--scope",
+        "--timestamp",
+        "--workspace"
+      ],
+      "required": [
+        "--revision FULL_COMMIT",
+        "--timestamp RFC3339"
+      ],
+      "example": "corvint-docs docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339",
+      "help": "corvint-docs docs corpus manifest --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "navigation"
+      ],
+      "command": "corvint-docs docs corpus navigation",
+      "summary": "Experimental documentation corpus: typed navigation records of one flow --id, or of the flows a --query selects (exactly one)",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus navigation --artifact CORPUS.json [--id ID] [--query TEXT] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--query",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus navigation --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus navigation --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "patterns"
+      ],
+      "command": "corvint-docs docs corpus patterns",
+      "summary": "Experimental documentation corpus: report templated text, anchor clusters, broad anchors, token-disjoint claims and uniform shapes",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus patterns --artifact CORPUS.json [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--format",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus patterns --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus patterns --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "recommend-tests"
+      ],
+      "command": "corvint-docs docs corpus recommend-tests",
+      "summary": "Experimental documentation corpus: tests related to one path; grants no test-selection authority",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus recommend-tests --artifact CORPUS.json --path PATH [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--path",
+        "--repo",
+        "--repository",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--path PATH"
+      ],
+      "example": "corvint-docs docs corpus recommend-tests --artifact CORPUS.json --path PATH",
+      "help": "corvint-docs docs corpus recommend-tests --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "related"
+      ],
+      "command": "corvint-docs docs corpus related",
+      "summary": "Experimental documentation corpus: subjects related to one subject",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus related --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus related --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus related --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "render"
+      ],
+      "command": "corvint-docs docs corpus render",
+      "summary": "Experimental documentation corpus: emit a deterministic filename-to-content documentation plan; writes nothing",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus render --artifact CORPUS.json",
+        "corvint-docs [--root PATH] docs corpus render --artifact CORPUS.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--no-workspace",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus render --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus render --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "search"
+      ],
+      "command": "corvint-docs docs corpus search",
+      "summary": "Experimental documentation corpus: rank subjects by text, optionally of some kinds or with claim hits",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT",
+        "corvint-docs [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT [--include KIND[,KIND]] [--kind KIND[,KIND]] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--include",
+        "--kind",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--query",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--query TEXT"
+      ],
+      "example": "corvint-docs docs corpus search --artifact CORPUS.json --query TEXT",
+      "help": "corvint-docs docs corpus search --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "search-cases"
+      ],
+      "command": "corvint-docs docs corpus search-cases",
+      "summary": "Experimental documentation corpus: search a caller-exported TestRail JSON or CSV file for legacy cases",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]",
+        "corvint-docs [--root PATH] docs corpus search-cases --format testrail-json|csv --input REQUEST.json [--query TEXT] [--id ID] [--match] [--limit N] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--format",
+        "--id",
+        "--input",
+        "--limit",
+        "--match",
+        "--no-workspace",
+        "--query",
+        "--repo",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--format testrail-json|csv"
+      ],
+      "example": "corvint-docs docs corpus search-cases --format testrail-json --input EXPORT --query TEXT [--match all",
+      "help": "corvint-docs docs corpus search-cases --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "stability"
+      ],
+      "command": "corvint-docs docs corpus stability",
+      "summary": "Experimental documentation corpus: repeated-run stability evidence of one subject",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus stability --artifact CORPUS.json --id ID [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--id ID"
+      ],
+      "example": "corvint-docs docs corpus stability --artifact CORPUS.json --id ID",
+      "help": "corvint-docs docs corpus stability --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "trace"
+      ],
+      "command": "corvint-docs docs corpus trace",
+      "summary": "Experimental documentation corpus: source citations of one subject, by --id or by the file --path (in --repository)",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus trace --artifact CORPUS.json [--id ID] [--path PATH] [--repository ROOT_COMMIT|ALIAS] [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--id",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--path",
+        "--repo",
+        "--repository",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus trace --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus trace --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "validate"
+      ],
+      "command": "corvint-docs docs corpus validate",
+      "summary": "Experimental documentation corpus: recheck the artifact against its original inputs",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus validate --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json"
+      ],
+      "example": "corvint-docs docs corpus validate --artifact CORPUS.json",
+      "help": "corvint-docs docs corpus validate --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "vocabulary"
+      ],
+      "command": "corvint-docs docs corpus vocabulary",
+      "summary": "Experimental documentation corpus: typed vocabulary matching a term",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--artifact",
+        "--caller-revision",
+        "--limit",
+        "--no-workspace",
+        "--offset",
+        "--query",
+        "--repo",
+        "--retirement",
+        "--root",
+        "--timings",
+        "--verify-rederive",
+        "--workspace"
+      ],
+      "required": [
+        "--artifact CORPUS.json",
+        "--query TEXT"
+      ],
+      "example": "corvint-docs docs corpus vocabulary --artifact CORPUS.json --query TEXT",
+      "help": "corvint-docs docs corpus vocabulary --help"
+    },
+    {
+      "path": [
+        "docs",
+        "corpus",
+        "witness-playwright"
+      ],
+      "command": "corvint-docs docs corpus witness-playwright",
+      "summary": "Experimental documentation corpus: import qualified Playwright witnesses from a committed receipt and report",
+      "usage": [
+        "corvint-docs [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+        "corvint-docs [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+      ],
+      "flags": [
+        "--input",
+        "--no-workspace",
+        "--receipt-input",
+        "--repo",
+        "--report",
+        "--root",
+        "--workspace"
+      ],
+      "required": [
+        "--input REQUEST.json",
+        "--receipt-input ID",
+        "--report REPORT.json"
+      ],
+      "example": "corvint-docs docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
+      "help": "corvint-docs docs corpus witness-playwright --help"
+    },
+    {
+      "path": [
+        "docs",
+        "draft"
+      ],
+      "command": "corvint-docs docs draft",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint-docs [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]"
+      ],
+      "flags": [
+        "--dry-run",
+        "--owner-section",
+        "--owner-stdin",
+        "--package",
+        "--page",
+        "--root",
+        "--source"
+      ],
+      "required": [
+        "--source PATH",
+        "--package DIRECTORY"
+      ],
+      "example": "corvint-docs docs draft --source PATH --package DIRECTORY",
+      "help": "corvint-docs docs draft --help"
+    },
+    {
+      "path": [
+        "docs",
+        "flows"
+      ],
+      "command": "corvint-docs docs flows",
+      "summary": "Generate bounded source-derived flow documentation (generated trust)",
+      "usage": [
+        "corvint-docs [--root PATH] docs flows check ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]",
+        "corvint-docs [--root PATH] docs flows finalize ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH",
+        "corvint-docs [--root PATH] docs flows generate ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]"
+      ],
+      "flags": [
+        "--corpus",
+        "--flows",
+        "--output-dir",
+        "--previous",
+        "--provider-path",
+        "--provider-revision",
+        "--revision",
+        "--root",
+        "--scope"
+      ],
+      "required": [],
+      "example": "corvint-docs docs flows check",
+      "help": "corvint-docs docs flows --help"
+    },
+    {
+      "path": [
+        "docs",
+        "flows",
+        "check"
+      ],
+      "command": "corvint-docs docs flows check",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs flows check ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]"
+      ],
+      "flags": [
+        "--output-dir",
+        "--previous",
+        "--revision",
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs flows check",
+      "help": "corvint-docs docs flows check --help"
+    },
+    {
+      "path": [
+        "docs",
+        "flows",
+        "finalize"
+      ],
+      "command": "corvint-docs docs flows finalize",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs flows finalize ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows finalize --previous FILE --provider-revision FULL_SHA --provider-path PATH"
+      ],
+      "flags": [
+        "--previous",
+        "--provider-path",
+        "--provider-revision",
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint-docs docs flows finalize",
+      "help": "corvint-docs docs flows finalize --help"
+    },
+    {
+      "path": [
+        "docs",
+        "flows",
+        "generate"
+      ],
+      "command": "corvint-docs docs flows generate",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs flows generate ... (corvint-docs help docs flows)",
+        "corvint-docs [--root PATH] docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR [--corpus FILE] [--flows FILE] [--previous FILE]"
+      ],
+      "flags": [
+        "--corpus",
+        "--flows",
+        "--output-dir",
+        "--previous",
+        "--revision",
+        "--root",
+        "--scope"
+      ],
+      "required": [],
+      "example": "corvint-docs docs flows generate",
+      "help": "corvint-docs docs flows generate --help"
+    },
+    {
+      "path": [
+        "docs",
+        "maintain"
+      ],
+      "command": "corvint-docs docs maintain",
+      "summary": "Experimental automatic maintenance of one human documentation page",
+      "usage": [
+        "corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)",
+        "corvint-docs [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]"
+      ],
+      "flags": [
+        "--apply",
+        "--enable",
+        "--max-wall-clock",
+        "--max-writes",
+        "--package",
+        "--page",
+        "--preview",
+        "--root",
+        "--source",
+        "--watch"
+      ],
+      "required": [
+        "--page PATH"
+      ],
+      "example": "corvint-docs docs maintain --page PATH",
+      "help": "corvint-docs docs maintain --help"
+    },
+    {
+      "path": [
+        "docs",
+        "nav"
+      ],
+      "command": "corvint-docs docs nav",
+      "summary": "",
+      "usage": [
+        "corvint-docs [--root PATH] docs nav --trusted-project --request FILE",
+        "corvint-docs [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON"
+      ],
+      "flags": [
+        "--inspect-python",
+        "--request",
+        "--root",
+        "--trusted-project"
+      ],
+      "required": [
+        "--trusted-project"
+      ],
+      "example": "corvint-docs docs nav --trusted-project --request FILE",
+      "help": "corvint-docs docs nav --help"
+    },
+    {
+      "path": [
+        "docs-tool"
+      ],
+      "command": "corvint-docs docs-tool",
+      "summary": "Answer one MCP documentation tool call for corvint-mcp (protocol verb)",
+      "usage": [
+        "corvint-docs docs-tool --root ABSOLUTE_ROOT TOOL < arguments.json"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [
+        "--root ABSOLUTE_ROOT",
+        "TOOL",
+        "arguments.json"
+      ],
+      "example": "corvint-docs docs-tool --root ABSOLUTE_ROOT TOOL < arguments.json",
+      "help": "corvint-docs docs-tool --help"
+    }
+  ]
+}

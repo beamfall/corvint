@@ -967,6 +967,19 @@ stage internal/demo/demo.go
 anchor=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:5)
 cite "$anchor"
 output=$(run) || fail "a committed decision citation needed a repin after its lines moved: $output"
+# A file the record cited and a later change deleted still resolves in the record's commit.
+printf '%s\n' 'package demo' '' 'func Dropped() int { return 9 }' > "$test_root/internal/demo/dropped.go"
+stage internal/demo/dropped.go
+dropped=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/dropped.go:3)
+# shellcheck disable=SC2016
+printf '# Decision 0002\n\nThe record cites `%s`.\n' "$dropped" > "$test_root/docs/decisions/0002-fixture.md"
+stage docs/decisions/0002-fixture.md
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm 'decision citing a file'
+git -C "$test_root" rm -q --cached internal/demo/dropped.go
+rm "$test_root/internal/demo/dropped.go"
+output=$(run) || fail "a committed decision citation of a deleted file failed: $output"
+git -C "$test_root" rm -q --cached docs/decisions/0002-fixture.md
+rm "$test_root/docs/decisions/0002-fixture.md"
 printf 'Edited in this change.\n' >> "$test_root/docs/decisions/0001-fixture.md"
 stage docs/decisions/0001-fixture.md
 rc=0
@@ -979,6 +992,67 @@ esac
 git -C "$test_root" rm -q --cached docs/decisions/0001-fixture.md
 rm "$test_root/docs/decisions/0001-fixture.md"
 write_source 1
+
+# 53. DCG-V0-923 (V1-5228): a retired spec whose header names a Retirement base resolves its
+#     citations in that commit's tree, a file the index deleted included; no base, a spec that is
+#     not retired, an unknown commit and a malformed base line keep the index.
+cite "$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3)"
+printf '%s\n' 'package demo' '' 'func Gone() int { return 7 }' > "$test_root/internal/demo/gone.go"
+stage internal/demo/gone.go
+gone_pin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/gone.go:3)
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -qm retirement-base
+retirement_base=$(git -C "$test_root" rev-parse HEAD)
+git -C "$test_root" rm -q --cached internal/demo/gone.go
+rm "$test_root/internal/demo/gone.go"
+# retired_spec STATUS BASE-LINE: the fixture spec's header, then a body citing the deleted file.
+retired_spec() {
+  # shellcheck disable=SC2016
+  printf '# Retired fixture\n\nDelivery status: %s\n%s\n\n## Body\n\nThe spec cites `%s`.\n' \
+    "$1" "$2" "$gone_pin" > "$test_root/docs/specs/retired-fixture.md"
+  stage docs/specs/retired-fixture.md
+}
+retired_spec retired "Retirement base: $retirement_base"
+output=$(run) || fail "a retired spec with a base did not resolve a deleted file: $output"
+retired_spec retired 'Owner: fixture'
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a retired spec without a base did not keep the index (exit $rc): $output"
+case $output in
+*'docs/specs/retired-fixture.md:8'*'no such file in the Git index: internal/demo/gone.go'*) ;;
+*) fail "a retired spec without a base did not report the deleted file: $output" ;;
+esac
+retired_spec implemented "Retirement base: $retirement_base"
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a non-retired spec with a base did not keep the index (exit $rc): $output"
+case $output in
+*'docs/specs/retired-fixture.md:4  Retirement base line in a spec whose header does not say'*) ;;
+*) fail "a non-retired spec's base line was not refused: $output" ;;
+esac
+case $output in
+*'no such file in the Git index: internal/demo/gone.go'*) ;;
+*) fail "a non-retired spec with a base resolved against the base: $output" ;;
+esac
+retired_spec retired 'Retirement base: 0123456789abcdef0123456789abcdef01234567'
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a retired spec with an unknown base did not keep the index (exit $rc): $output"
+case $output in
+*'no such file in the Git index: internal/demo/gone.go'*) ;;
+*) fail "a retired spec with an unknown base did not report the deleted file: $output" ;;
+esac
+retired_spec retired "Retirement base: ${retirement_base%????????}"
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a malformed base line passed (exit $rc): $output"
+case $output in
+*'docs/specs/retired-fixture.md:4  malformed Retirement base'*'no such file in the Git index: internal/demo/gone.go'*) ;;
+*'no such file in the Git index: internal/demo/gone.go'*'docs/specs/retired-fixture.md:4  malformed Retirement base'*) ;;
+*) fail "a malformed base line was not refused: $output" ;;
+esac
+git -C "$test_root" rm -q --cached docs/specs/retired-fixture.md
+rm "$test_root/docs/specs/retired-fixture.md"
 
 # 35. DCG-V0-810 (V1-3467): a short cited line whose insertion above it was already committed,
 #     so HEAD's diff to the index proves nothing, repins by the diff from the newest commit at

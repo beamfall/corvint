@@ -26,8 +26,8 @@ func main() {
 	switch {
 	case len(os.Args) > 1 && os.Args[1] == "--version":
 		os.Stdout.WriteString("Fixture 1 (build " + build + ")\n")
-	case len(os.Args) > 3 && os.Args[3] == "query":
-		os.Stdout.WriteString("{\"context\":{\"intent\":{\"id\":\"fixture\"}}}\n")
+	case len(os.Args) > 3 && os.Args[3] == "context":
+		os.Stdout.WriteString("{\"ok\":true,\"results\":[{\"kind\":\"fixture\"}]}\n")
 	default:
 		os.Stdout.WriteString("marks=" + marks + "\n")
 	}

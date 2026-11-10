@@ -4,15 +4,19 @@ Owner: Russell Lewis (repository owner). Accepted by the owner in decision 0047 
 symbol-resolver boundary (Q1) is decided by
 `docs/decisions/0151-change-witness-symbol-resolver-boundary-2026-09-12.md`.
 Date: 2026-08-29; amended 2026-10-13 (V1-1278 S3, `CEM-V1-225`): decision 0525 removed `cem/0.x`, so the canonical CEM 0.2 patch named below is historical; the pure evaluator reads no CEM map itself.
-Intent status: accepted (decision 0047, 2026-09-04)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/changewitness`
+(4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
+for traceability.
 Authoritative inputs: `docs/specs/change-frontier-v0.md`, `docs/specs/ocm-v0-dogfood.md`,
 `docs/specs/lexical-relevance-floor-v0.md`, `docs/specs/cem-0.2-canonical-binding.md`,
 `docs/decisions/0006-caller-authored-authority.md`
 
 ## Agent digest
 - Claim: The accepted change-witness relation proposes structural proof that a referenced hunk changed the uniquely named definition.
-- Status: accepted (decision 0047, 2026-09-04)/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: pure evaluator `internal/changewitness` with test vectors; no Frontier profile consumes it.
 - Blocked on: a `frontier/1` implementation to consume the evaluator (CF-V1-005..008).
 - Read next: `change-frontier-profile-1.md` and `change-frontier-v0.md`.

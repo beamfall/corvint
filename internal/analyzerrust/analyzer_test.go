@@ -125,7 +125,7 @@ func TestManifestFacts(t *testing.T) {
 
 // TestEvidenceDigestMatchesFrozenGenericConstruction recomputes each digest with
 // an independent implementation of the fourteen-field generic construction
-// pinned by internal/analyzercap/candidate_profile_vectors_test.go. It is the
+// that internal/analyzercap pinned until decision 0594 removed it. It is the
 // proof that this family reuses the frozen digest rather than inventing one.
 func TestEvidenceDigestMatchesFrozenGenericConstruction(t *testing.T) {
 	input := makeInput("input-1", "rust.manifest", "Cargo.toml", manifestSource)

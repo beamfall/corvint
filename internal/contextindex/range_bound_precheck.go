@@ -8,28 +8,6 @@ import (
 	"strings"
 )
 
-// RangeBoundRefusalBeforeLoad returns the exact over-bound refusal that
-// RangeImpact (or ExpandedRangeImpact when expanded) would return over the
-// loaded index, without loading or decoding the index snapshot, or nil when
-// that outcome is not proved; a nil answer leaves the caller's ordinary path
-// unchanged (ERI-V0-261, V1-1881). It answers only when every refusal that
-// precedes the range count provably passes:
-//   - the limit is in range and base is a full object ID of HEAD's format;
-//   - the repository is not history-cut and the worktree status is empty, so
-//     the drift and worktree checks over a loaded index pass;
-//   - a snapshot file for HEAD's tree and the running engine exists, so an
-//     index of this tree was built; a body that later fails to load makes the
-//     caller build the same clean tree again;
-//   - the root go.mod is admitted as a source exactly as Build admits it and
-//     declares a slash-qualified module, so the module refusal passes;
-//   - base resolves to a commit that is the only merge base with HEAD;
-//
-// and rangeCertainRefusal then proves the path refusal (ERI-V0-262) or the
-// bound refusal. Any Git failure or doubt answers nil. It writes nothing.
-func RangeBoundRefusalBeforeLoad(ctx context.Context, root, base string, limit int, expanded bool) error {
-	return rangeBoundRefusalBeforeLoad(ctx, root, base, limit, expanded, false)
-}
-
 // PerPathRangeBoundRefusalBeforeLoad is RangeBoundRefusalBeforeLoad for the
 // per-path compiler (ERI-V0-305): a path refusal is not whole-range there, so
 // only the bound refusal is proved early.

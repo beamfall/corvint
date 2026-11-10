@@ -5,8 +5,10 @@ is a reading aid for the eleven questions parked in the three frontier drafts, s
 answered in one sitting. It amends no clause, and where it says a clause already settles something it
 cites the clause rather than asserting it.
 
-Intent status: not-applicable (reading aid; decides nothing)
-Delivery status: not-applicable
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 deleted the frontier and witness surfaces this reading aid cites (756d3670 is the last tree with them). It remains a historical reading aid and decides nothing.
 
 Scope: the "Questions only the repository owner can answer" sections at
 `docs/specs/change-frontier-profile-1.md:315`, `docs/specs/change-witness-relation-v0.md:252`, and
@@ -14,7 +16,7 @@ Scope: the "Questions only the repository owner can answer" sections at
 
 ## Agent digest
 - Claim: This non-authoritative brief deduplicates seven owner-only Frontier decisions without ratifying any clause.
-- Status: not-applicable (reading aid; decides nothing)/not-applicable
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: nothing executable — seven deduplicated owner questions and cost evidence only.
 - Blocked on: repository-owner answers to the seven questions.
 - Read next: `change-frontier-profile-1.md`, `change-witness-relation-v0.md`, and `harness-authority-relation-v0.md`.

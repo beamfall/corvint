@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-25
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: GitHub beamfall/corvint#1820 (native V1-2724), #1821 (V1-2725) and #1815
 (V1-2710). These requirements amend the [agent lease contract](corvint-tasks-agent-leases-v0.md) (dispatcher CAL-V0 requirements),
@@ -14,7 +16,7 @@ own sidecar records beside the unchanged ledger.
 
 ## Agent digest
 - Claim: Dispatch flags unmatched work states and idle capacity, delivers OpenCode notices by plugin, and checks and applies an in-place upgrade.
-- Status: proposed; experimental; DSG-V0-001 to 015 are implemented with focused tests (DSG-V0-012 to 015 on Linux and macOS only); live OpenCode qualification of DSG-V0-008 and the post-handoff tool-call count are NOT_OBSERVED.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: NO_ROLE_MATCH plan reason, workState holdStates, unmatchedStates and the idle streak in admission.json, the IDLE_WITH_CAPACITY alert, doctor and status fields, contextNotices "plugin" with the OpenCode plugin module, `dispatch upgrade --check` and `--apply`, per-worker build records and the `upgrade.json` handover record.
 - Blocked on: a live OpenCode dispatcher worker run for DSG-V0-008 acceptance.
 - Read next: Requirements; Acceptance evidence.

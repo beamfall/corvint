@@ -39,7 +39,7 @@ func TestStandaloneBuildRejectsExecutableGitFilters(t *testing.T) {
 				if err := os.Chtimes(source, old, old); err != nil {
 					t.Fatal(err)
 				}
-				_, err = BuildQuery(context.Background(), root, queryTaskFixture)
+				_, err = Build(context.Background(), root)
 				var failure *Error
 				if !errors.As(err, &failure) || failure.Code != "repository-probe-failed" {
 					t.Fatalf("unsafe standalone build error=%v", err)
@@ -128,7 +128,7 @@ func TestStandaloneBuildClassifiesMalformedPrivateIndex(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".git", "index"), []byte("malformed index"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := BuildQuery(context.Background(), root, queryTaskFixture)
+	_, err := Build(context.Background(), root)
 	var failure *Error
 	if !errors.As(err, &failure) || failure.Code != "repository-probe-failed" {
 		t.Fatalf("malformed private index error=%#v", err)
@@ -173,7 +173,7 @@ func TestStandaloneBuildRefusesFIFOIgnoreFilePromptly(t *testing.T) {
 		t.Fatal(err)
 	}
 	started := time.Now()
-	_, err := BuildQuery(context.Background(), root, queryTaskFixture)
+	_, err := Build(context.Background(), root)
 	var failure *Error
 	if !errors.As(err, &failure) || failure.Code != "repository-probe-failed" || failure.ReasonClass != "metadata-unreadable" {
 		t.Fatalf("FIFO ignore file error=%#v", err)

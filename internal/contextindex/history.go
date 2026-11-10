@@ -2,15 +2,9 @@ package contextindex
 
 import (
 	"bytes"
-	"context"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 const (
@@ -18,128 +12,9 @@ const (
 	maxHistoryBytes   = 64 * 1024 * 1024
 )
 
-var pythonIgnoreCaseSpecials = strings.NewReplacer("İ", "i", "ı", "i", "ſ", "s", "K", "k")
-
 type historyEntry struct {
 	commit, tree, subject string
 	paths                 []string
-}
-
-func authorityTraceState(index *Index) (string, error) {
-	if len(index.DirtyPaths) != 0 {
-		return "blocked-mixed-worktree", nil
-	}
-	base := filepath.Join(index.Root, ".context-corvint")
-	info, err := os.Lstat(base)
-	if os.IsNotExist(err) {
-		return "absent", nil
-	}
-	if err != nil {
-		return "", &Error{Code: "unsupported-query-trace-state", Message: "native Go authority-start query cannot inspect the local trace store"}
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return "", &Error{Code: "unsupported-query-trace-state", Message: "native Go authority-start query requires an absent clean-tree local trace store"}
-	}
-	traces := filepath.Join(base, "traces")
-	_, err = os.Lstat(traces)
-	if os.IsNotExist(err) {
-		return "absent", nil
-	}
-	if err != nil {
-		return "", &Error{Code: "unsupported-query-trace-state", Message: "native Go authority-start query cannot inspect the local trace store"}
-	}
-	return "", &Error{Code: "unsupported-query-trace-state", Message: "native Go authority-start query requires an absent clean-tree local trace store"}
-}
-
-func historyObject(ctx context.Context, index *Index, expression string) (string, error) {
-	raw, err := git(ctx, index.Root, maxIdentityBytes, nil, "rev-parse", expression)
-	if err != nil {
-		return "", err
-	}
-	value := strings.TrimSpace(string(raw))
-	if !validObjectID(value, index.ObjectFormat) {
-		return "", &Error{Message: "Git returned an invalid history object identity"}
-	}
-	return value, nil
-}
-
-// historyObservation is one side of the history-learning stability bracket:
-// the worktree status and a Git object identity, sampled as one instant.
-type historyObservation struct {
-	statusSHA256 string
-	dirtyErr     error
-	head, tree   string
-	identityErr  error
-}
-
-// observeHistory opens the bracket. The status read and the identity read are
-// two independent Git invocations of the same instant, so run in series each
-// spent a whole process spawn and worktree scan waiting for the other. Both
-// errors are carried out rather than returned, so each caller still reports
-// whichever failure its sequential form reported first.
-func observeHistory(ctx context.Context, index *Index) historyObservation {
-	return observeHistoryWith(ctx, index, func(observation *historyObservation) {
-		observation.head, observation.tree, observation.identityErr = historyIdentity(ctx, index)
-	})
-}
-
-// historyProbe is one opening history observation still in flight.
-type historyProbe struct {
-	done        chan struct{}
-	observation historyObservation
-}
-
-// startHistoryObservation opens the bracket without waiting for it. The caller
-// must reach result before it reads the repository again; ranking does not read
-// the repository at all, which is why the observation can be issued ahead of it.
-func startHistoryObservation(ctx context.Context, index *Index) *historyProbe {
-	probe := &historyProbe{done: make(chan struct{})}
-	go func() {
-		defer close(probe.done)
-		probe.observation = observeHistory(ctx, index)
-	}()
-	return probe
-}
-
-func (probe *historyProbe) result() historyObservation {
-	<-probe.done
-	return probe.observation
-}
-
-// observeHistoryTree closes it, reading only the tree the learn stage compares.
-func observeHistoryTree(ctx context.Context, index *Index) historyObservation {
-	return observeHistoryWith(ctx, index, func(observation *historyObservation) {
-		observation.tree, observation.identityErr = historyObject(ctx, index, "HEAD^{tree}")
-	})
-}
-
-func observeHistoryWith(ctx context.Context, index *Index, identity func(*historyObservation)) historyObservation {
-	var observation historyObservation
-	var pending sync.WaitGroup
-	pending.Add(1)
-	go func() {
-		defer pending.Done()
-		_, observation.statusSHA256, observation.dirtyErr = readStatusSnapshot(ctx, index.Root)
-	}()
-	identity(&observation)
-	pending.Wait()
-	return observation
-}
-
-func historyIdentity(ctx context.Context, index *Index) (string, string, error) {
-	raw, err := git(ctx, index.Root, maxIdentityBytes, nil, "rev-parse", "HEAD^{commit}", "HEAD^{tree}")
-	if err != nil {
-		return "", "", err
-	}
-	return parseHistoryIdentity(raw, index.ObjectFormat)
-}
-
-func parseHistoryIdentity(raw []byte, objectFormat string) (string, string, error) {
-	lines := strings.Split(string(raw), "\n")
-	if len(lines) != 3 || lines[2] != "" || !validObjectID(lines[0], objectFormat) || !validObjectID(lines[1], objectFormat) {
-		return "", "", &Error{Message: "Git returned an invalid history object identity"}
-	}
-	return lines[0], lines[1], nil
 }
 
 // parseHistory refuses a path that is not UTF-8 unless skipNonUTF8 is set, in
@@ -266,7 +141,3 @@ func validPythonSecondByte(first, second byte) bool {
 }
 
 func continuationByte(value byte) bool { return value >= 0x80 && value <= 0xbf }
-
-func containsSecret(value string) bool {
-	return secretscreen.MatchString(pythonIgnoreCaseSpecials.Replace(value))
-}

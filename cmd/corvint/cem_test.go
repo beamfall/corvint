@@ -1,74 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
-
-// cemGit runs git on the fixture with the host's config files masked rather
-// than HOME moved: macOS's git shim keys its toolchain cache on HOME, and a
-// foreign HOME under a sandbox costs a full re-resolution plus a cache warning
-// on stderr per call. Only stdout is returned, so such a warning can never
-// leak into a revision or blob the test hands back to the CLI.
-func cemGit(t *testing.T, dir string, args ...string) string {
-	t.Helper()
-	command := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
-	command.Dir = dir
-	command.Env = append(fixtureGitEnvironment(),
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
-		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
-		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
-		"GIT_AUTHOR_DATE=2000-01-01T00:00:00+0000", "GIT_COMMITTER_DATE=2000-01-01T00:00:00+0000")
-	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	if err := command.Run(); err != nil {
-		t.Fatalf("git %v: %v\n%s%s", args, err, stdout.String(), stderr.String())
-	}
-	return strings.TrimSpace(stdout.String())
-}
-
-func cemWrite(t *testing.T, root, path, content string) {
-	t.Helper()
-	full := filepath.Join(root, filepath.FromSlash(path))
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// cemRepo builds a byte-deterministic two-commit fixture repository.
-func cemRepo(t *testing.T) (string, string, string) {
-	t.Helper()
-	root, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	cemGit(t, root, "init", "-q", "-b", "main")
-	cemWrite(t, root, "docs/rule.txt", "the frozen rule\nsecond line\n")
-	cemWrite(t, root, "src/app.txt", "alpha\nbeta\n")
-	cemGit(t, root, "add", ".")
-	cemGit(t, root, "commit", "-qm", "base")
-	base := cemGit(t, root, "rev-parse", "HEAD")
-	cemWrite(t, root, "src/app.txt", "alpha\nBETA\n")
-	cemGit(t, root, "add", ".")
-	cemGit(t, root, "commit", "-qm", "target")
-	target := cemGit(t, root, "rev-parse", "HEAD")
-	return root, base, target
-}
-
-func runCLI(t *testing.T, args ...string) (int, string, string) {
-	t.Helper()
-	var stdout, stderr bytes.Buffer
-	code := runContext(context.Background(), args, strings.NewReader(""), &stdout, &stderr)
-	return code, stdout.String(), stderr.String()
-}
 
 func TestCEMHelpSurfaces(t *testing.T) {
 	t.Parallel()
@@ -338,7 +276,7 @@ func TestRootHelpMutationBoundary(t *testing.T) {
 		t.Fatalf("help exited %d", code)
 	}
 	flowed := strings.Join(strings.Fields(out), " ")
-	for _, required := range []string{"query, impact, docs, harness, and lrf read without mutating", "write local CEM artifacts", "cem report, ocm, record"} {
+	for _, required := range []string{"init, adopt, impact and docs read without mutating", "write local CEM artifacts", "cem report, index, and docs"} {
 		if !strings.Contains(flowed, required) {
 			t.Fatalf("support boundary lost %q", required)
 		}

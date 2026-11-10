@@ -27,7 +27,7 @@ driving Corvint from scripts.
 
 ## Requirements
 
-- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736)
+- `ACX-V0-9301`: (accepted by the owner's 2026-11-05 clicontract repair charter; V1-3736; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-gateway`)
   Every shipped native error shape, stream, exit and stderr byte MUST remain compatible.
   An unhandled native help invocation MUST leave both streams untouched: in particular,
   `corvint-pulse --root . serve --help` retains exit 2, empty stdout and its exact native
@@ -154,7 +154,7 @@ driving Corvint from scripts.
   row for that binary. A binary without a row, or a row without a binary, SHALL fail the test.
   Making the binaries' envelopes identical is out of scope here; `ACX-V0-904` unifies the companions.
 - **ACX-V0-664:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
-  V1-3736 AC2; amended by ACX-V0-904) Every catalog binary's unknown-verb refusal SHALL carry a
+  V1-3736 AC2; amended by ACX-V0-904; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-republish`, `corvint-gateway`, `corvint-postmerge-workflow`, `corvint-postmerge-connect`) Every catalog binary's unknown-verb refusal SHALL carry a
   stable code and name the typed word. Until ACX-V0-904 each refusal kept the stream and exit
   code its row records, and named the
   typed word, on the stream and with the exit code its row already records. Binaries whose refusal
@@ -270,7 +270,7 @@ invocations keep their own contracts.
 | ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-664 | the unknown-verb refusals in `main.go` of the eight named binaries and `run` in `cmd/corvint-postmerge-connect/main.go`; the coded-row check in `conformance/cli-errors-v0/contract_test.go` | `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-904 | `UnknownVerb`, `RefuseUnknownVerb`, `RefuseIfUnknownVerb` in `internal/clitree/unknownverb.go`; `Help.Serve` in `internal/clitree/help.go`; `serveHelp` in `cmd/corvint-work-queue/help.go`; `conformance/cli-errors-v0` `companion` rows | `TestACXV0904UnknownVerbRefusal`; `TestACXV0904HelpServeRefusesUnknownVerb`; `TestCLIErrorContracts_ACXV0859` |
-| ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
+| ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858` (removed); `TestDogfoodFlowBaseOption_ACXV0858` (removed); `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 | ACX-V0-750 | `selfBinaryNotice` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` in `cmd/corvint/affected.go`; `writeAffectedDegradations` in `cmd/corvint/affected_text.go`; the `DegradationDetails` members in `affected_compact.go`, `affected_verdict.go` and `affected_by_path.go`; the `corvint-test: DEGRADED` line in `cmd/corvint/test.go` | `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`; `TestAFPV0825StaleCheckReusesThePlanHEAD` |
 | ACX-V0-751 | `degradeStaleAffected` in `cmd/corvint/affected.go`; the stale check in `runTest` in `cmd/corvint/test.go` | `TestStaleBinaryNoticeOncePerInvocation_ACXV0751` |
 | ACX-V0-752 | `affectedWorktreeBaseRefusal` and its check in `parseAffectedOptions` in `cmd/corvint/affected.go`; the `--worktree` help in `cmd/corvint/help.go` | `TestWorktreeWithBaseNamesTheAlternative_ACXV0752`; `TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752` (committed `assets/old.txt` → `assets/new.txt`, printed `--no-renames`, recovered paths and old-path reader witness); `TestACXV0851WorktreePathPlan` |

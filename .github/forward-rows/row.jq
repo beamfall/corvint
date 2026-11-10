@@ -26,6 +26,12 @@ def coverage($docs; $n; $what):
   | if ($s | sort) == [range(0; $n)] then empty
     else "\($what) cover shards \($s | sort | map(tostring) | join(",")) of \($n), want each of 0..\($n - 1) once" end;
 def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - $gone);
+# V1-5216: a shadow tool that builds no plan (an unsupported affected graph, say) falls back to
+# FULL with reason `no plan: ...`, no plan digest and the declared whole Go suite in place of go:
+# units. Only that recognisable shape may lack the plan digest; the row then takes S as every package
+# with an outcome, so it cannot miss, and it is complete when every shard is that fallback.
+def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason | startswith("no plan: "))
+  and .planDigest == "";
 
 [inputs] as $in
 | ($shards | num) as $n
@@ -68,7 +74,7 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
             and (.shard | type) == "number" and .shard >= 0 and .shard < $m
             and (.toolSource | hex40) and (.toolDigest | digest) and (.head | hex40) and (.target | hex40)
             and (.runId | type) == "number" and (.exit | type) == "number" and (.scope | type) == "string"
-            and (.manifestDigest | digest) and (.planDigest | digest) and (.partitionDigest | digest)
+            and (.manifestDigest | digest) and ((.planDigest | digest) or noPlanFull) and (.partitionDigest | digest)
             and (.selected | type) == "array" and ((.incomplete // []) | type) == "array")] as $sel
 | [$outA[] | select(.unreadable | not) | .doc
    | select(type == "object" and .profile == "corvint-ci-outcomes/0" and .shards == $no
@@ -80,6 +86,8 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 | ([$out[].target] | unique) as $targets
 | (if $kind == "pr" then (if ($targets | length) == 1 then $targets[0] else null end) else ($sha | str) end) as $rowSha
 | ([$sel[] | (.incomplete // [])[] | select(type == "string")] | unique) as $gaps
+| ([$sel[] | select(noPlanFull)] | length) as $fallbacks
+| ($fallbacks > 0 and $fallbacks == ($sel | length)) as $fullFallback
 | ([$infra | split("\n")[] | select(test("^[0-9]+$")) | tonumber] | unique) as $infraShards
 | [$infraShards[] | "infrastructure: go-product-shard (\(.)) of run \($outcomesRunId) failed at Set up job"] as $infrastructure
 | (if $n == null then [] else [coverage($sel; $m; "selection documents"), coverage($out; $no; "outcomes documents")] end) as $coverage
@@ -110,6 +118,7 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
     ($sel[] | select(.exit != 0 and .exit != 3) | "selection shard \(.shard): corvint test --dry-run exited \(.exit)"),
     ($sel[] | select(.scope != "NARROWED" and .scope != "FULL" and .scope != "NOTHING") | "selection shard \(.shard) has scope \(.scope)"),
     (if ([$sel[].manifestDigest] | unique | length) > 1 then "selection shards disagree on the manifest digest" else empty end),
+    (if $fallbacks > 0 and ($fullFallback | not) then "selection shards mix a no-plan FULL fallback with a plan" else empty end),
     ($gaps[] | select(limit_only | not) | "selection incomplete: \(. | shortr)"),
     ($out[] | select(.status != 0 and ([.outcomes[] | select(. == "fail" or . == "missing")] | length) == 0)
       | "outcomes shard \(.shard) exited \(.status) with no failed or missing package"),
@@ -125,7 +134,8 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
     $infrastructure[]
   ] as $incomplete
 | ($incomplete - $infrastructure - (if $explained then $coverage else [] end)) as $unexplained
-| (([$sel[].selected[] | select(type == "string")] | unique) - $narrowedOut) as $S
+| (([$sel[].selected[] | select(type == "string")] + (if $fullFallback then [$out[].outcomes | keys[]] else [] end)
+    | unique) - $narrowedOut) as $S
 | ([$out[] | .outcomes | to_entries[] | select(.value == "fail" or .value == "missing") | .key] | unique) as $F
 | ($F - $S) as $missed
 | ($F - $missed) as $both

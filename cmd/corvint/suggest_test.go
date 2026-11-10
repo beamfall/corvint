@@ -14,7 +14,7 @@ func TestUnknownCommandSuggestsNearChoices_ACXV0859(t *testing.T) {
 		command, suffix string
 	}{
 		{"contxt", "; did you mean 'context'?"},
-		{"ocn", "; did you mean 'ocm'?"},
+		{"mcq", "; did you mean 'mcp'?"},
 		{"xyz", ""},
 		{"zz-no-such-verb", ""},
 	} {

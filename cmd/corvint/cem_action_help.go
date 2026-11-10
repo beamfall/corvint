@@ -12,10 +12,6 @@ const cemActionHelpPrefix = "cem-"
 // closing wire note. status, verify and report share one Actions paragraph.
 // It returns "" for an action cemHelp does not document.
 func cemActionHelp(action string) string {
-	if action == "gate-verdict" {
-		// Its usage lives in the closing Tasks gate section, not in Usage.
-		return "Change Evidence Map gate-verdict action.\n" + cemGateVerdictHelp + "\nFull command help: corvint cem --help\n"
-	}
 	usage := cemHelpUsage(action)
 	paragraphAction := action
 	if action == "verify" || action == "report" {
@@ -33,7 +29,7 @@ func cemActionHelp(action string) string {
 		}
 	}
 	switch action {
-	case "status", "verify", "report", "anchor", "verify-stable", "bundle", "cite", "mark", "cover", "discriminate":
+	case "status", "verify", "report", "verify-stable", "cite", "mark", "cover":
 		// The out-of-tree map rules (CEM-V1-317, CEM-V1-640, CEM-V1-647).
 		if paths, ok := cemHelpBlock("\nMap paths:\n"); ok {
 			text.WriteString("\nMap paths:\n" + paths)
@@ -58,9 +54,7 @@ func cemHelpUsage(action string) string {
 	for _, line := range strings.SplitAfter(block, "\n") {
 		switch {
 		case strings.HasPrefix(line, "  corvint "):
-			// bundle takes no --root (CSB-V0-001), so its usage omits it.
 			taking = strings.HasPrefix(line, "  corvint [--root PATH] cem "+action+" ") ||
-				strings.HasPrefix(line, "  corvint cem "+action+" ") ||
 				strings.TrimRight(line, "\n") == "  corvint [--root PATH] cem "+action
 		case !strings.HasPrefix(line, "    "):
 			taking = false

@@ -3,15 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-09-04
 Requirement prefix: `CTR-V0`
-Intent status: accepted for CTR-V0-001..010 (decision 0052); CTR-V0-011/012 proposed
-Delivery status: not-started
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 756d3670892cf4a1eb733347774ed639625e005b
+Retirement note: decision 0594 (the test-selection refocus) deleted `tools/cem-trial` (756d3670 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `ROADMAP.md` (AT-09, AT-10), `docs/plans/EXCEPTIONAL-CORVINT-2026-09-04.md`
 (`P`; resource profile, baseline, screen, cost/ratio rules), `docs/plans/EXCEPTIONAL-CORVINT-EXECUTION-2026-09-04.md`
 (`E`; E00b split, qualified-containment rule), `AGENTS.md` invariants 2 and 4.
 
 ## Agent digest
 - Claim: Freezes the compatibility replay experiment's descriptor, comparison policy, resource profile, labels, baseline and preregistered rules before a runner exists.
-- Status: accepted for CTR-V0-001..010 (decision 0052); CTR-V0-011/012 proposed/not-started
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: a coordinator-accepted ten-case developmental label registry and ten-case exclusion registry in `benchmarks/compat-trial-v0.json`; the experiment has not run.
 - Blocked on: independent accepted-intent references, the baseline's five pinned artefacts, executable case descriptors, and qualified execution containment; no scored result exists.
 - Read next: CTR-V0-001 through CTR-V0-005; CTR-V0-009; `benchmarks/compat-trial-v0.md`; `benchmarks/compat-baseline-v0.md`.

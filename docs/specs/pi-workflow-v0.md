@@ -2,14 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-29
-Intent status: accepted direction (owner instruction “do it. parallel”, 2026-09-29)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `agent-harness-integration-v0.md`, `local-completion-policy-v0.md`,
 `corvint-tasks-agent-leases-v0.md`, `core-compatibility-freeze-v1.md`
 
 ## Agent digest
 - Claim: Pi offers bounded native Core reads and an explicitly authorized Tasks workflow without acquiring evidence or execution authority.
-- Status: accepted direction (owner instruction “do it. parallel”, 2026-09-29) / experimental; technical and exact-host qualification remain separate.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `integrations/pi` lifecycle adapter and revision-pinned context expansion.
 - Blocked on: exact candidate host qualification, native Tasks write admission, and independent evidence for each broader workflow slice.
 - Read next: Requirements, acceptance matrix, and rollback below; AHI and LCP govern any lifecycle amendment.

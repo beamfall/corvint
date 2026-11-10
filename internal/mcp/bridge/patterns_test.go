@@ -96,7 +96,7 @@ func TestMCPV0954SchemasHaveOneRootSchemaKeywordAndRE2Patterns(t *testing.T) {
 			}
 		}
 	}
-	for _, profile := range []Profile{{}, {TaskReview: true}, {LSP: true}, {Flows: true}, {ImportGraph: true}} {
+	for _, profile := range []Profile{{}, {Flows: true}} {
 		for _, tool := range profile.Tools() {
 			visit(tool.Name, tool.InputSchema, true)
 		}

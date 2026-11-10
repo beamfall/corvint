@@ -34,7 +34,7 @@ change reach, which tests must run, and can a reviewer check what the change res
 answers them from the repository itself, with evidence pinned to Git content, and says so when it
 cannot.
 
-- **Proof-carrying, Git-pinned context.** Every result from `impact`, `context`, `query` and `prove`
+- **Proof-carrying, Git-pinned context.** Every result from `impact`, `context` and `affected`
   names the Git blob it came from, the authority that admitted it and the reason it was
   included. Coverage, omissions and uncertainty are part of the receipt. Missing evidence is
   reported as unknown, never filled in, and the project's own instructions, decisions and specs
@@ -44,13 +44,6 @@ cannot.
   Go, JavaScript/TypeScript, Python, Ruby, Rust, Swift, Kotlin and .NET, plus the checks the
   project declares mandatory. When it cannot prove a narrower set (an unresolved import, an
   untracked file, a dynamic configuration) it names the reason and widens instead of skipping.
-- **Change Evidence Maps and review.** A CEM (`cem/1.0`) binds every textual hunk of a diff to
-  cited evidence, an explicit unknown or a checked mechanical exception. The verifier checks
-  patch, hunk, blob and span identity locally with no LLM, index or service, so CI can enforce it.
-  `ocm` and `frontier` turn declared obligations into a deterministic review queue.
-- **Corvint Tasks.** `corvint-tasks` is a local ticket store and roadmap with claims, heartbeats,
-  expiry, gates and audited completion. While a claim is valid, no other agent on the same store
-  can take that ticket.
 - **Agent integration.** Stdio MCP servers expose the same receipts to any MCP host, and adapters
   for Codex, Claude Code, Gemini CLI, OpenCode and Pi feed one bounded lifecycle event to Corvint.
 - **One local release.** `corvint` is a single native Go binary today; decision 0591 accepts a
@@ -77,18 +70,12 @@ with the code.
 | Capability | What you get | Try it | Maturity |
 |---|---|---|---|
 | Affected test selection | The tests to run for a branch, the mandatory checks, and an explicit unknown frontier instead of a silent full run | `corvint affected --base FULL_SHA` | core |
-| Change Evidence Map | Every diff hunk bound to cited evidence, an explicit unknown or a checked exception; CI verifies it with no LLM | `corvint cem prepare --base BASE_SHA --target HEAD_SHA` | core |
 | Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
-| Tasks | A local ticket store with roadmap, claims, gates and audited completion | `corvint-tasks queue status` | experimental |
+| Application map | A checked map of a web application that E2E-safe test selection reads | `corvint flows appmap build --manifest appmap.json --revision HEAD` | experimental |
 | Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
-| Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint mcp --root /abs/repo --tool-profile task-review` | experimental |
-| Obligation closure and review order | Declared obligations linked to test claims, then a deterministic review queue | `corvint ocm prepare --target HEAD_SHA --intent docs/specs/my-spec.md` | core |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
-| Governing context first | The instruction file that governs the task, then the minimum context, as one canonical receipt | `corvint query --task "add a retry to the uploader"` | core |
 | Context compilation with pinned evidence | The files to read, each pinned to a Git blob with the relation and reason that admitted it | `corvint context --task "fix the date parser" --subject internal/date/parse.go` | core |
-| Falsifiable evidence | Every claimed row of a packet gets a falsifier verdict, so a wrong citation is caught | `corvint prove --task "fix the date parser"` | core |
-| Gated learning | Learned ranking weights reach ranking only after a frozen held-out evaluation admits them | `corvint eval --learn-slot-weights` | experimental |
 <!-- /capability-gate:readme -->
 
 ## Try it in sixty seconds
@@ -137,75 +124,36 @@ tools, upgrades and removal.
 
 | When | Ask Corvint to | What you get back |
 |---|---|---|
-| Before editing | Show what governs and what a path reaches (`query`, `impact`, `context`) | Pinned results with authority, reasons, coverage and uncertainty |
+| Before editing | Show what governs and what a path reaches (`impact`, `context`) | Pinned results with authority, reasons, coverage and uncertainty |
 | Before running tests | Plan the tests a change can reach (`affected`) | Selected test units, mandatory checks, and a named reason whenever the plan widens |
 | After the run | Record what actually ran (test providers, `flows ingest`) | A receipt pinned to the run, its environment and the source commit |
-| At review and in CI | Attach a Change Evidence Map to the diff (`cem`) | A disposition for every textual hunk that CI verifies locally |
-| Across agents | Claim work from the Tasks queue (`corvint-tasks`) | Exclusive claims with heartbeats and expiry within one store |
 
 A green test run is a fact about that run; Corvint never treats it as proof that the tests are
 adequate.
 
-## Change Evidence Maps
-
-A CEM is a portable sidecar that travels with the change. For a committed change, replace
-`BASE_SHA` with its base commit and the example citation with a span that exists at that base:
-
-```console
-corvint cem prepare --base BASE_SHA --target HEAD
-corvint cem cite --map .corvint/change.cem.json --hunk 1 \
-  --evidence-path docs/decisions/0001-session-revocation.md --lines 5:5 --relation decision
-corvint cem status --map .corvint/change.cem.json \
-  --expected-base BASE_SHA --target HEAD --max-unknown 0 --max-mechanical 0
-```
-
-`prepare` writes a worklist with one entry per hunk; `cite` and `mark` give each hunk a
-disposition; `status` reports `ready-for-ci` once every hunk has one. `cem verify` is the CI
-check. The wire contract is the [CEM 1.0 stable contract](docs/specs/cem-stable-v1.md); the
-in-repository [portable consumer](interop/cem01-go/README.md) verifies a map without the rest of
-Corvint. See [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md) for the full workflow.
-
 ## Corvint Tasks
 
-`corvint-tasks` is a separate binary built from `cmd/corvint-tasks`. Its store lives in
-`.taskman/` in the repository and needs no server or account:
+The local ticket store and roadmap, `corvint-tasks`, is a separate project:
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594). Corvint works without it.
 
-```console
-GOTOOLCHAIN=local go build -o "$HOME/.local/bin/corvint-tasks" ./cmd/corvint-tasks
-corvint-tasks queue status
-corvint-tasks roadmap --summary
-corvint-tasks help --json
-```
-
-Agents claim work with `claim --next`, keep it with `renew` and `attempt heartbeat`, and finish
-through `submit`, `gate run` and `complete`. Every read takes no lock and writes nothing. See
-[external-agent usage](docs/TASKS-EXTERNAL-AGENTS.md) and, for operator-started supervision and
-dispatch, [Tasks supervision](docs/TASKS-SUPERVISION.md).
-
-## MCP servers and agent adapters
+## Agent plugins
 
 Each MCP server is a local stdio process bound to one repository root and is read-only
 ([protocol and setup](docs/MCP-SERVER.md)):
 
 | Server | Tools |
 |---|---|
-| `corvint-mcp` | `corvint.query`, `corvint.impact`, `corvint.status` and `corvint.help`; with `--tool-profile task-review`, also `corvint.context` and a non-publishing `corvint.cem.report` preview |
+| `corvint-mcp` | `corvint.impact`, `corvint.status` and `corvint.help` |
 | `corvint-docs-mcp` | `corvint.docs_draft` drafts source-pinned documentation; `corvint.docs_consume` rechecks a draft against source |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
-| `corvint-corpus-mcp` | Experimental, source-only read tools over one [documentation corpus](docs/DOCUMENTATION-CORPUS.md) artifact |
 
 `corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the others with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
 
-Host adapters run `corvint` from `PATH` and share one bounded lifecycle receipt
-(`corvint help harness event`): [Codex](integrations/codex/README.md),
-[Claude Code](integrations/claude-code/README.md), [Gemini CLI](integrations/gemini-cli/README.md),
-[OpenCode](integrations/opencode/README.md) and [Pi](integrations/pi/README.md). Lifecycle
-adapters report `FALLBACK` support; the [compatibility matrix](integrations/README.md) records each
-host's qualification. The [VS Code extension](extensions/vscode/README.md) projects the same
-receipts into editor views and is not part of 1.0.
+The [Claude Code](integrations/claude-code/README.md) and [Codex](integrations/codex/README.md)
+plugins run `corvint` from `PATH` and drive kept reads such as `affected`, `impact`, `index` and `review`.
+The editor server and the lifecycle host adapters were removed by decision 0594.
 
-Other tools in this repository (test providers, the dashboard and loopback console, analyzers, the
-work queue, Pulse and release checks) are listed with their maturity in the
+Other tools in this repository (test providers, analyzers and release checks) are listed with their maturity in the
 [capability catalog](docs/CAPABILITIES.md). They are qualified separately and carry no Core
 stability promise.
 
@@ -220,7 +168,6 @@ These are the retained results. Each is linked to its evidence; older evidence l
 | Does injecting context help an agent? | No measurable effect. Haiku 5.5, 10 pairs: geometric cost ratio 0.997 (95% CI 0.85 to 1.20). Sonnet 5.5, 20 pairs: 0.987 (0.89 to 1.10), 20 of 20 resolved in both arms. Agents found the files they edited within one or two steps without help ([evidence](https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-value-audit-verification-over-injection.md)). |
 | Does task orientation find the critical files? | Not yet. In the rc.2 evaluation, orientation missed critical files that a lexical baseline found on all three repositories; change consequence and evidence-carrying completion passed ([release notes](docs/RELEASE-NOTES.md#100-rc2-release-candidate)). |
 | Is broad retrieval reliable? | No. A held-out attempt beat exact search on top-5 (0.571 against 0.343) but returned forbidden results on 7 of 36 must-exclude checks ([decision 0307](docs/decisions/0307-alpha-release-bar-blind-v6-attempted-fail-2026-09-17.md)). On ContextBench (1,132 rows), `corvint query` had file recall 0.245 against 0.318 to 0.375 for grep and BM25, and `corvint context` had 0.483 ([evidence](https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v0415-contextbench-swebench-pro.md)). Rely on named paths and subjects, not ranking. |
-| Does a CEM help a reviewer? | Unproven. A 57-pair held-out agent-reviewer run supported neither hypothesis ([CEM reviewer trial](docs/specs/cem-reviewer-trial-v0.md)); no reviewer-productivity benefit is claimed. CEM claims structural integrity only. |
 | Does hunk reversal show causal support? | No. Of 3,790 eligible Go hunks, none was held; the opt-in `--hunk-revert` step ships with recorded limits ([evidence](https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-V1-1266-hunk-revert-falsifier.md)). |
 
 The 1.0 stability promise (frozen contracts, N-1 readers or deterministic migrations) covers the
@@ -238,7 +185,6 @@ release's assets and per-platform qualification are on the
 - [Product contract](docs/PRODUCT.md) and [architecture](docs/ARCHITECTURE.md)
 - [Agent evidence routes](docs/AGENT-ROUTES.md): task-sized paths to authority, code and tests
 - [Specification index](docs/specs/README.md): accepted intent and delivery state
-- [Change Evidence Map](docs/CHANGE-EVIDENCE-MAP.md) and the [CEM 1.0 portable consumer](interop/cem01-go/README.md)
 
 ## Development
 

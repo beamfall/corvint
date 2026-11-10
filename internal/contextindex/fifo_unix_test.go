@@ -26,9 +26,6 @@ func TestReadCleanFileRejectsFIFOWithoutBlocking(t *testing.T) {
 	if data, ok := readCleanFile(root, "pipe.go"); ok || data != nil {
 		t.Fatalf("FIFO admitted: ok=%v data=%q", ok, data)
 	}
-	if generated, ok := verifyCleanFile(root, "pipe.go", "", "sha1"); ok || generated {
-		t.Fatalf("streaming verifier admitted FIFO: ok=%v generated=%v", ok, generated)
-	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("FIFO read blocked for %s", elapsed)
 	}
@@ -82,22 +79,4 @@ func TestBuildCancellationKillsGitDescendants(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("Git descendant %d survived cancellation", pid)
-}
-
-// IDX-SNAP-V0-012: a FIFO at the build-cost record is refused without blocking the hook.
-func TestRecordedBuildCostRejectsFIFOWithoutBlocking(t *testing.T) {
-	index := taskContextFixture(t)
-	if _, err := WriteSnapshot(index); err != nil {
-		t.Fatal(err)
-	}
-	if err := syscall.Mkfifo(filepath.Join(SnapshotDirectory(index.Root), buildCostName), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	started := time.Now()
-	if cost, ok := RecordedBuildCost(index.Root); ok {
-		t.Fatalf("FIFO build-cost record admitted: %s", cost)
-	}
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("FIFO build-cost read blocked for %s", elapsed)
-	}
 }

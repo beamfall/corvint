@@ -246,7 +246,7 @@ func TestSTRV0007UniversePlacementEqualsCIPlan(t *testing.T) {
 	}
 	run := map[string]bool{}
 	for index, pkg := range universe {
-		if index%3 == 0 || strings.HasSuffix(pkg, "/internal/tasks/store") {
+		if index%3 == 0 || strings.HasSuffix(pkg, "/cmd/corvint") {
 			run[pkg] = true
 		}
 	}
@@ -281,9 +281,9 @@ func TestSTRV0007UniversePlacementEqualsCIPlan(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("total %d: placement differs\ngot  %v\nwant %v", total, got, want)
 		}
-		// The committed store split has eight slices (AFP-V0-060); a split
+		// The committed table splits cmd/corvint; a split
 		// package with more slices than shards runs whole (AFP-V0-041).
-		if total >= 8 && !strings.Contains(strings.Join(got, "\n"), "/internal/tasks/store 1/") {
+		if total >= 8 && !strings.Contains(strings.Join(got, "\n"), "/cmd/corvint 1/") {
 			t.Fatalf("total %d: the split package has no slices: %v", total, got)
 		}
 		if m.PartitionDigest != PartitionDigest(files) {

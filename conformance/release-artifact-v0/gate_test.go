@@ -157,7 +157,7 @@ func TestDivergenceLocatesFirstDifferingByte(t *testing.T) {
 }
 
 func TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged(t *testing.T) {
-	body := `{"context":{"intent":{"id":"project-operations"}}}`
+	body := `{"ok":true,"results":[{"kind":"project-operations"}]}`
 	passed := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, body, "project-operations")
 	if passed.Status != statusPass || !passed.QueryOK {
 		t.Fatalf("clean query failed: %+v", passed)
@@ -166,7 +166,7 @@ func TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged(t *testing.T)
 	if mutated.Status != statusFail || !strings.Contains(mutated.Reason, "mutated") {
 		t.Fatalf("mutation not caught: %+v", mutated)
 	}
-	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"context":{"intent":{"id":"other"}}}`, "project-operations")
+	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"ok":true,"results":[{"kind":"other"}]}`, "project-operations")
 	if wrong.Status != statusFail {
 		t.Fatalf("wrong intent accepted: %+v", wrong)
 	}

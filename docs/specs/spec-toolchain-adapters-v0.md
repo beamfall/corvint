@@ -103,10 +103,10 @@ Corvint at `d35b0ee3`:
   - An agent skill file with the same two read-only steps.
   - A README giving the exact `ocm prepare --intent-form` commands for main specs and deltas.
 - `STA-V0-010`: `interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects that pass the pinned upstream validators (`openspec validate --all --strict`; Spec Kit's own templates and `check-prerequisites.sh --json`). They include a nested capability, every delta operation, an archived change, `FR`/`SC` IDs, a clarification marker and a constitution.
-- `STA-V0-011`: `make spec-toolchain-conformance` and a CI job of the same name do four things.
+- `STA-V0-011`: `make spec-toolchain-conformance` and a CI job of the same name do three things (four before decision 0594).
   - Install the `STA-V0-001` versions with checksum verification: npm with a committed lockfile whose every entry carries a full SRI SHA-512 (88 base64 characters, 64 bytes; a truncated or empty digest is refused before `npm ci`), and Spec Kit from the pinned commit with `uv` or `pip --require-hashes`.
   - Run the upstream validators on the fixtures.
-  - Assert that Corvint's derived obligations equal upstream's view: `openspec show --json` requirement names for each OpenSpec form, and the template-grammar FR/SC ID set for Spec Kit, read with the `STA-V0-005` section rule (FR only under `## Requirements`, SC only under `## Success Criteria`), including a case with FR and SC items under another section that both sides exclude.
+  - (Removed with the `ocm` verb, decision 0594.) The job no longer asserts that Corvint's derived obligations equal upstream's view; while the `ocm` verb is absent no such comparison runs, and the `STA-V0-002` to `STA-V0-005` forms have no upstream equality evidence from this job.
   - Install the `STA-V0-008` extension with `specify extension add --dev`.
 
   Any mismatch fails the job. The job runs on changes to its inputs, the forms and the integrations, not on every PR.

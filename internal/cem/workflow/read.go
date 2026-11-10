@@ -20,8 +20,6 @@ type ReadOptions struct {
 	Limits       PolicyLimits
 	Output       string // report only
 	Format       string // report only: empty/markdown publishes; json is read-only
-	OCMPath      string // optional explicitly supplied obligation map
-	OCMGiven     bool   // whether --ocm appeared at all, even empty
 	// ArtifactRoot is the explicit absolute artifact root a cem/1.0 status or
 	// verify passes to the stable verifier (CEM-V1-017).
 	ArtifactRoot   string
@@ -35,9 +33,6 @@ type ReadOptions struct {
 	// GuardingTests runs the opt-in producer guarding-test search after a
 	// cem/1.0 verify accepts and reports it beside the result (TCQ-V0-062).
 	GuardingTests bool
-	// MaxDeferredIntents bounds a status or report's recorded intent-scope
-	// deferrals; nil is the default bound 0 (CEM-V1-645).
-	MaxDeferredIntents *int
 	// ScaledOperations opts a cem/1.0 status into the stable verifier's
 	// map-scaled Git operation bound instead of the protocol's fixed 1,024
 	// (DCW-V0-373).
@@ -179,8 +174,8 @@ func (s *Session) readAbsoluteMap(mapPath string, allowWorktree bool) ([]byte, s
 	return raw, filepath.Join(root.Path(), name), nil
 }
 
-// ReadExternalMap is readExternalMap for a consumer outside the Core read,
-// such as prove --cem over an out-of-tree map (CEM-V1-641): the same
+// ReadExternalMap is readExternalMap for a consumer outside the Core read
+// over an out-of-tree map (CEM-V1-641): the same
 // containment, symlink and size refusals apply.
 func (s *Session) ReadExternalMap(mapPath string) ([]byte, error) {
 	raw, _, err := s.readExternalMap(mapPath)

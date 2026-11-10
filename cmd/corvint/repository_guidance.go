@@ -494,7 +494,7 @@ func guidanceNextCalls(command string) []guidanceCall {
 	table := map[string][][]string{
 		"features": {{"corvint", "overview"}, {"corvint", "help", "feature"}},
 		"overview": {{"corvint", "features"}, {"corvint", "help", "review"}, {"corvint", "help", "affected"}},
-		"review":   {{"corvint", "help", "cem"}, {"corvint", "help", "ocm"}, {"corvint", "help", "frontier"}},
+		"review":   {{"corvint", "help", "affected"}, {"corvint", "help", "impact"}},
 	}
 	out := []guidanceCall{}
 	for _, argv := range table[command] {

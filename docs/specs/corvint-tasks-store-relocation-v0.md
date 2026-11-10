@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-22
-Intent status: accepted (owner standing auto-accept 2026-10-11)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: tickets V1-2437 (GitHub #1557) and V1-1461, the V1-1459 completion, the
 Corvint Tasks contract TCP-00 (`TM-V0-007`, `TM-V0-009`), `docs/specs/corvint-tasks-intent-worktree-v0.md`
 (`CTW-V0-001` keeps the primary identity and the relocation refusal), and the in-tree sources under
@@ -12,7 +14,7 @@ Corvint Tasks contract TCP-00 (`TM-V0-007`, `TM-V0-009`), `docs/specs/corvint-ta
 
 ## Agent digest
 - Claim: A moved or copied task store is bound to a new primary worktree only by an explicit `relocate` that commits one receipt naming both paths.
-- Status: accepted (owner standing auto-accept 2026-10-11); experimental. TRL-V0-001 through TRL-V0-006 are implemented and tested in tree; live qualification on an operator store is NOT_RUN.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the `relocate` verb, the `taskman-relocate/0` pinned descriptor, chain primary tracking in the journal walk, relocate redo, the optional dispatcher-lock hold, the consistent-snapshot refusal text, and `archive restore` into an absent state dir.
 - Blocked on: live qualification on an operator store.
 - Read next: Requirements; Failure modes; Traceability.

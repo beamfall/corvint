@@ -3,8 +3,12 @@
 Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `ICL-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood closeout
+(`internal/dogfoodflow`, the dogfood make targets and scripts) (4663b4e2b is the last tree with
+them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: ticket V1-1629 (lanes reran `dogfood-change` 4 to 19 times each; 855 runs cost
 about 28 h where the protocol needs about 2 per lane); `AGENTS.md` invariants 2 and 4;
 `docs/DOGFOOD.md` §4; the existing closeout contracts this slice refines: `DCW-V0-887` (pre-flight
@@ -15,7 +19,7 @@ batch-precheck leaves out the batch-drift go tests), `ASD-V0-042` (batch-prechec
 
 ## Agent digest
 - Claim: The closeout re-runs only what a commit's content invalidates under each result's binding, prints every carry and decline, and refuses missing inputs first.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: preflight reuse in `internal/dogfoodflow/finishlane_reuse.go`; `@prebind` drift entries, the pre-bind record and the carry decision in `script/batch-precheck.sh`; the unadmitted input refusal in the `Makefile` `dogfood-inputs-check` and `dogfood-finish` recipes.
 - Blocked on: owner acceptance; the per-lane `dogfood-change` median (V1-1629 AC3) needs the next batch's ledger.
 - Read next: Requirements; Binding rules; Non-goals; Rollback.

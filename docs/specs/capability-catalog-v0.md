@@ -497,7 +497,7 @@ cannot silently go missing or outlive its command.
   corvint's `help --tree` spelling; `help --json` stays. Non-goals: nested-operation slices, paging
   the full catalog. Falsifier: a command whose slice exceeds the bound, a slice whose entry differs
   from the catalog's other than the omitted statements, or a `--tree` that differs from `--json`.
-- `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499) Every companion
+- `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-corpus-mcp`, `corvint-dashboard-snapshot`) Every companion
   binary a release ships beside `corvint` and `corvint-tasks` (`corvint-console`, `corvint-update`,
   `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-corpus-mcp`,
   `corvint-dashboard-snapshot`, `corvint-web-flows`) MUST answer, through `internal/companioncli`,
@@ -519,7 +519,7 @@ cannot silently go missing or outlive its command.
   independent `0.1.0-experimental` release line except for native analyzers.
   The two version forms retain their shape.
 - `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499; amended by
-  ACX-V0-904) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
+  ACX-V0-904; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`) `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"`
   and exit 2 before it reads a repository or listens; `corvint-update` MUST refuse an action other
   than `check`, `apply` or `rollback` (including none) with exit 2 before it reads state, an unknown
   operation word with the shared ACX-V0-904 envelope, which names `corvint-update --help`, and any
@@ -582,7 +582,7 @@ cannot silently go missing or outlive its command.
   a verb is accepted there and ignored, as before. Rollback: restore the two ratchet rows and the
   ceiling of 52, delete the two snapshots, their `commandTreeRefs`, `llms.txt`, Makefile and
   Command trees entries, the two `help.go` files and `clitree.Answer`.
-- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-intake`, `corvint-postmerge-connect`, `corvint-postmerge-metrics`, `corvint-postmerge-workflow`)
   Every ratchet binary whose dispatch code matches a subcommand word MUST ship a command tree:
   `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-go-test-provider`,
   `corvint-intake`, `corvint-js-test-provider`, `corvint-postmerge-connect`,
@@ -820,12 +820,12 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| CAP-V0-8800 | `internal/cliapp`, `internal/cliprofile` exact-node help; `internal/capcatalog/mcp.go` offline MCP entries; `tools/capabilities-check/machine.go` root catalog reachability | `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`, `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode`, `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`, `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800OfflineDescriptorOmissionFails`, `TestCAPV08800UnknownOfflineDescriptorFailsClosed`, `TestCAPV08800TasksWorkRoleConditions`, `TestCAPV08800AnalyzerNodeHelpDelegates`, `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog` |
+| CAP-V0-8800 | `internal/cliapp`, `internal/cliprofile` exact-node help; `internal/capcatalog/mcp.go` offline MCP entries; `tools/capabilities-check/machine.go` root catalog reachability | `TestCAPV08800EveryInventoryNodeAnswersHelp`, `TestCAPV08800HelpTableOmissionFails`, `TestCAPV08800MachineCatalogLinks`, `TestCAPV08800HelpNode`, `TestCLIProfile9300EveryNode`, `TestCAPV08800MCPToolsReachable`, `TestCAPV08800NewMCPToolNeedsCatalogEntry`, `TestCAPV08800OfflineDescriptorOmissionFails`, `TestCAPV08800UnknownOfflineDescriptorFailsClosed`, `TestCAPV08800TasksWorkRoleConditions` (removed), `TestCAPV08800AnalyzerNodeHelpDelegates`, `TestCAPV08800DeepUnknownChild`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-001 | `docs/CAPABILITIES.md` | `TestCAPV0002RepositoryCatalogMatchesInventory` (structure via gated regions); build log self-check of five rows |
 | CAP-V0-002 | `Collect`, `parseCommands`, `parseDispatched`, `scanBinaries`, `scanTools`, `toolNames`, `parseRows` | `TestCAPV0002RepositoryCatalogMatchesInventory`, `TestCAPV0002InventoryCountsMatchCode`, `TestCAPV0002ToolNamesWithDigitsAndHyphens` |
 | CAP-V0-003 | `Check`, `checkDispatch`, `tools/capabilities-check/main.go` | `TestCAPV0003SyntheticOmissionAndStaleRowFail`, `TestCAPV0003MaturityAndLinkDriftFail`, `TestCAPV0002DispatchDriftFails` |
 | CAP-V0-004 | `checkReadme` | `TestCAPV0004ReadmeRowsMapToCatalog` |
-| CAP-V0-005 | routing lines and skill edits | `TestCAPV0005RoutingPointersNameTheCatalog`; `make host-package-versions-check`; `cmd/corvint`'s `TestHostAdapterJavaScriptHosts` (runs `integrations/host-adapters.test.mjs`) |
+| CAP-V0-005 | routing lines and skill edits | `TestCAPV0005RoutingPointersNameTheCatalog`; `make host-package-versions-check`; `cmd/corvint`'s `TestHostAdapterJavaScriptHosts` (removed) (runs `integrations/host-adapters.test.mjs`) |
 | CAP-V0-006 | `run`, `Collect`, `Check`, `ScanWords`, `parseSubcommands` | `TestCAPV0006CheckIsReadOnly` (synthetic tree unchanged by path, mode, mtime and digest), `TestCAPV0006CheckImportsNoProcessOrNetwork` |
 | CAP-V0-007 | `subcommandTables`, `parseSubcommands`, `literalKeys`, `checkSubcommands` | `TestCAPV0007UndocumentedSubcommandFails`, `TestCAPV0007SubcommandTablesParse`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-008 | `parseCommands` experimental set, `Check` maturity switch | `TestCAPV0008ExperimentalMaturityMismatchFails`, `TestCAPV0002GroupedRootHelp` |
@@ -835,7 +835,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
 | CAP-V0-080 | `proseShadows`, `shadowMessage` in `tools/capabilities-check/main_test.go`; the `TestCAPV0960TreeSubcommandUndocumentedFails` precondition | `TestCAPV0080BacktickedProseWordIsNamed` (a backticked prose `coverage` in the flows row is named with its line and CAP-V0-007) |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
-| CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` |
+| CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` (removed) |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
 | CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")`, `capcatalog.requiredFlags`, `capcatalog.FormKey` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep`, `TestCAPV0017RequiredFlagsAreDerivedFromUsageForms`, `TestCAPV0017GuideExamplesCarryRequiredOptions` |
@@ -859,29 +859,29 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-042 | `nodeHelpTopic`, `nodeHelpText`, `parentTopicPointer`, `clitree.Render`, `clitree.Find`, `clitree.LeadingWords`, tasks command help | `TestCAPV0042FindRenderAndLeadingWords`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli); the `corvint-test` cases left with decision 0593 |
 | CAP-V0-043 | `commandTreeInternal` (three binaries), `Tree.Words`, `Tree.AllFlags` | `TestCAPV0043WordsAndFlagsVocabulary`, `TestCAPV0047RepositoryCommandTreesMatchDispatch` |
 | CAP-V0-044 | `clitree.MinimalExample`, `helpExampleTrailer`, `treeHelp` | `TestCAPV0040TreeDerivesFromHelp`, `TestCAPV0042EveryTreeNodeAnswersHelp` (cmd/corvint, internal/tasks/cli) |
-| CAP-V0-045 | `commandTreeRefs`, `capcatalog.CommandTreeRef`, `internal/capcatalog/trees/*.json`, `make capability-catalog` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` |
-| CAP-V0-046 | `help --tree` topic, `CommandTreeJSON` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` |
+| CAP-V0-045 | `commandTreeRefs`, `capcatalog.CommandTreeRef`, `internal/capcatalog/trees/*.json`, `make capability-catalog` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` (removed) |
+| CAP-V0-046 | `help --tree` topic, `CommandTreeJSON` | `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0046HelpJSONIsTheTree` (removed) |
 | CAP-V0-047 | `CheckTrees`, `treeDrift`, `clitree.Problems`, `servesMCP` | `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0047SyntheticDriftFails`, `TestCAPV0047NewMCPServerToolNeedsRow` |
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
-| CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint; independent command subtests, timings in `docs/build-log/2026-11-05-slow-test-speedups.md`), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (internal/tasks/cli) |
-| CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) |
-| CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` |
-| CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
-| CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
+| CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint; independent command subtests, timings in `docs/build-log/2026-11-05-slow-test-speedups.md`), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (removed) (internal/tasks/cli) |
+| CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (removed) (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) (the `internal/companionrelease` tests were deleted by decision 0594; 1a838f144 is the last tree with them) |
+| CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` (removed) |
+| CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (removed) (internal/tasks/cli) |
+| CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest` (removed), `TestCAPV0820_VerbGroupsRefuseUnknownVerb` (removed), `TestCAPV0820_NoSuggestionBeyondThreshold` (removed) (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
-| CAP-V0-726 | `cmd/corvint-update/help.go`, `cmd/corvint-work-queue/help.go`, `internal/capcatalog/trees/corvint-update.json`, `internal/capcatalog/trees/corvint-work-queue.json` | `TestCAPV0726EveryNodeAnswersHelp` (both binaries), `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0700CompanionsAnswerTheSharedContract` |
+| CAP-V0-726 | `cmd/corvint-update/help.go`, `cmd/corvint-work-queue/help.go`, `internal/capcatalog/trees/corvint-update.json`, `internal/capcatalog/trees/corvint-work-queue.json` | `TestCAPV0726EveryNodeAnswersHelp` (both binaries), `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0700CompanionsAnswerTheSharedContract` (removed) |
 | CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
-| CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
+| CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (removed) (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
-| CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
+| CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (removed) (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
 | CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
 | CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
-| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
-| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |
+| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (removed) (cmd/corvint) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (removed) (cmd/corvint) |
 
 | CAP-V0-7700 | `internal/cliapp`, `tools/cli-discovery-gen`, `internal/capcatalog/trees.go`, all companion roots, full-node catalog | `TestCAPV07700EveryBinaryHasTree`, `TestCAPV07700NodeCatalog`, `TestCAPV07700ShippedHelp` |
 

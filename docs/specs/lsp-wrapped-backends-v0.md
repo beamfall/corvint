@@ -118,13 +118,13 @@ cleanup is unproven. A gopls failure keeps the LED-V0 behaviour of ending the se
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| LWB-V0-001, 002, 003, 005 | internal/lspstdio/backends.go; semantic.go; cmd/corvint-lsp | TestWrappedSuffixRouting; TestBackendConfiguration |
-| LWB-V0-004 | internal/goplsclient/client.go | TestWrappedNegotiationAndLanguage; TestWrappedNegotiationRefusals |
-| LWB-V0-006 | internal/goplsclient/client.go; internal/lspstdio/semantic.go; cmd/corvint-lsp | TestMissingExecutable; TestWrappedMissingBinaryAtInitialize; TestBackendRefusals |
-| LWB-V0-007 | internal/lspstdio/backends.go; semantic.go; cmd/corvint-lsp | TestWrappedUnsupportedSuffix; TestBackendRefusals |
-| LWB-V0-008 | internal/lspstdio/semantic.go | TestWrappedServerCrash |
-| LWB-V0-009 | internal/lspstdio/semantic.go; context worker | TestWrappedContextAtBoundRevision |
-| LWB-V0-010 | cmd/corvint-lsp/main.go | TestBackendRefusals |
+| LWB-V0-001, 002, 003, 005 | internal/lspstdio/backends.go; semantic.go; cmd/corvint-lsp | TestWrappedSuffixRouting (removed); TestBackendConfiguration (removed) |
+| LWB-V0-004 | internal/goplsclient/client.go | TestWrappedNegotiationAndLanguage (removed); TestWrappedNegotiationRefusals (removed) |
+| LWB-V0-006 | internal/goplsclient/client.go; internal/lspstdio/semantic.go; cmd/corvint-lsp | TestMissingExecutable (removed); TestWrappedMissingBinaryAtInitialize (removed); TestBackendRefusals (removed) |
+| LWB-V0-007 | internal/lspstdio/backends.go; semantic.go; cmd/corvint-lsp | TestWrappedUnsupportedSuffix (removed); TestBackendRefusals (removed) |
+| LWB-V0-008 | internal/lspstdio/semantic.go | TestWrappedServerCrash (removed) |
+| LWB-V0-009 | internal/lspstdio/semantic.go; context worker | TestWrappedContextAtBoundRevision (removed) |
+| LWB-V0-010 | cmd/corvint-lsp/main.go | TestBackendRefusals (removed) |
 
 All evidence uses in-repo fake LSP servers (the test binary re-executed through a shell wrapper).
 None of it is real-server, editor-client or performance qualification.

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 	"github.com/Beamfall/corvint/internal/execfile"
 )
 
@@ -45,7 +45,7 @@ func TestCEMV1572ReleaseBuildsMustMatch(t *testing.T) {
 		{"modified corvint", build(corvintMain, a, "true"), build(cem01Main, a, "false"), "modified worktree"},
 		{"modified unknown", build(corvintMain, a, "false"), build(cem01Main, a, ""), "modified worktree"},
 		{"no vcs stamp", build(corvintMain, "", ""), build(cem01Main, a, "false"), "no Git vcs.revision"},
-		{"wrong corvint main", build(corvintModule+"/cmd/corvint-tasks", a, "false"), build(cem01Main, a, "false"), "not " + corvintMain},
+		{"wrong corvint main", build(corvintModule+"/cmd/corvint-mcp", a, "false"), build(cem01Main, a, "false"), "not " + corvintMain},
 		{"binaries swapped", build(cem01Main, a, "false"), build(corvintMain, a, "false"), "not " + corvintMain},
 	}
 	for _, c := range cases {
@@ -338,7 +338,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	committed, err := companionrelease.ReadStableReleaseDeclaration(raw)
+	committed, err := corerelease.ReadStableReleaseDeclaration(raw)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 			t.Fatalf("output lacks %q:\n%s", want, out.String())
 		}
 	}
-	narrow := companionrelease.StableReleaseDeclaration{Profile: companionrelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
+	narrow := corerelease.StableReleaseDeclaration{Profile: corerelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
 	out.Reset()
 	if code, _ := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "release-external-incomplete") {
 		t.Fatalf("self-observed run exit %d, want 3 at external: %s", code, out.String())

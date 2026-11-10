@@ -2849,7 +2849,8 @@ the retired oracle enumerated seven. (Declared 2026-09-22 with the eight-action 
 0347 alone; widened the same day when the 0.7.0 integration added three more actions, and on
 2026-09-23 for `cem export` under `RCB-V0-001` in `docs/specs/receipt-bundle-v0.md`, and on
 2026-10-27 for the experimental `cem defer` under `CEM-V1-644` in `docs/specs/cem-stable-v1.md`,
-which makes the list thirteen actions.) Both runtimes
+which makes the list thirteen actions. Decision 0594 removed `discriminate`, `anchor`,
+`provenance`, `export` and `defer` on 2026-11-09, which narrows the list back to eight actions.) Both runtimes
 refuse `bogus` with exit status 2, an empty stdout, and the `invalid-arguments` envelope. Observed bytes on the frozen argv (`cem bogus`):
 
 - candidate (sha256 `b7b7eec6796ea6279675656ab1f7edb11419da42de91bcf65e9356f6e5026060`):
@@ -2867,7 +2868,8 @@ reasoning as `DR-0039`: the retired oracle predates the coverage witness, the ca
 `TCQ-V0-051`, and `GOC-V0-002` forbids re-authoring the frozen expectation from the candidate.
 
 **Scope of the repair.** One `knownDivergence` on `cem-invalid-subcommand` with no stdout rewrite
-and one `stderrRewrites` entry (the thirteen-action list for the seven-action list), validated by
+and one `stderrRewrites` entry (the eight-action list for the seven-action list since decision
+0594; the thirteen-action list before it), validated by
 `validCEMActionDivergence`, which pins the case to `cem`, register `DR-0040`, clause
 `TCQ-V0-051`, exactly one stderr rewrite, and the exact candidate and oracle byte strings.
 

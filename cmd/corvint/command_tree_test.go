@@ -20,7 +20,8 @@ func TestCAPV0042EveryTreeNodeAnswersHelp(t *testing.T) {
 	if problems := clitree.Problems(tree); len(problems) > 0 {
 		t.Fatalf("tree problems: %v", problems)
 	}
-	if len(tree.Nodes) < 200 {
+	// 94 after the docs group became a one-node shim onto corvint-docs (decision 0594 item 3), plus cem.
+	if len(tree.Nodes) < 94 {
 		t.Fatalf("tree has %d nodes", len(tree.Nodes))
 	}
 	for _, node := range tree.Nodes {
@@ -102,23 +103,4 @@ func onlyChildTopic(tree clitree.Tree, group, documented []string) bool {
 		}
 	}
 	return true
-}
-
-// TestCAPV0044OCMHelpNamesTheStablePins keeps the independent --expected-base and --target, which
-// every cem/1.0 OCM verification refuses without, in the required inputs of each verifying ocm
-// node's help (CAP-V0-044; V1-2685 retained evidence: `ocm link --help` omitted both).
-func TestCAPV0044OCMHelpNamesTheStablePins(t *testing.T) {
-	t.Parallel()
-	tree := commandTree()
-	for _, verb := range []string{"link", "status", "verify", "report"} {
-		node, ok := tree.Find([]string{"ocm", verb})
-		if !ok || len(node.Path) != 2 {
-			t.Fatalf("no ocm %s node", verb)
-		}
-		for _, want := range []string{"--expected-base REV", "--target REV"} {
-			if !slices.Contains(node.Required, want) {
-				t.Errorf("ocm %s --help: Required %v lacks %s", verb, node.Required, want)
-			}
-		}
-	}
 }

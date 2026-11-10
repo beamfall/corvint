@@ -593,7 +593,7 @@ func declaredInputs(raw json.RawMessage) (Inputs, bool) {
 }
 
 // ClosureRuleDeclared is the caller's unverified closure claim (PWR-V0-068), and
-// ClosureRuleComputed the closure `corvint runs identity --compute-closures` computed from the
+// ClosureRuleComputed the closure computed from the
 // config's static TypeScript graph (PWR-V0-072). No other rule is admitted.
 const (
 	ClosureRuleDeclared = "DECLARED"

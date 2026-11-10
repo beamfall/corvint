@@ -1,9 +1,8 @@
 // Package witnesspaths decodes the declared witness path policy
-// .corvint/witness-paths.json. Package datareaders finds a data path's readers.
-// corvint witness (AGW-V0-041..045) and the cem-path-policy/1 profile of cem
-// prepare and cem status (CAX-V0-060..065) share it, so both read one policy
-// the same way. It runs no Git: each caller reads the base-tree blob through
-// its own bounded runner and hands the bytes here. It lives under internal/cem
+// .corvint/witness-paths.json (AGW-V0-041..045) for the cem-path-policy/1
+// profile of cem prepare and cem status (CAX-V0-060..065). It runs no Git:
+// each caller reads the base-tree blob through its own bounded runner and
+// hands the bytes here. It lives under internal/cem
 // and imports only the standard library, so the CEM seams keep their
 // stdlib-and-Git dependency boundary (docs/specs/native-cem-adapter.md).
 package witnesspaths

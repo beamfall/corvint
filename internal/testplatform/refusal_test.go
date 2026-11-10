@@ -12,7 +12,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/doccorpus"
-	taskswire "github.com/Beamfall/corvint/internal/tasks/wire"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -86,13 +85,13 @@ func TestPlatformRefusalsMatchTheirSources(t *testing.T) {
 	}
 }
 
-// V1-2522, V1-2523: the CEM update-lock and Tasks platform refusals, as their
-// callers render them, skip on Windows only.
-func TestCEMLockAndTasksRefusalsSkipOnlyOnWindows(t *testing.T) {
+// V1-2522: the CEM update-lock platform refusal, as its caller renders it,
+// skips on Windows only. The Tasks refusal (V1-2523) left with Corvint Tasks
+// (decision 0594).
+func TestCEMLockRefusalSkipsOnlyOnWindows(t *testing.T) {
 	lock := fmt.Errorf("cem prepare: %w", cemcode.New(cemcode.PublishFailed,
 		"update lock for %q cannot be opened: %v", ".corvint/change.cem.json", errors.New("serialized CEM map updates are unsupported on this platform")))
-	tasks := taskswire.Errorf(taskswire.CodeUnsupported, "platform", "Corvint Tasks is unsupported on this platform")
-	for _, err := range []error{lock, tasks} {
+	for _, err := range []error{lock} {
 		for _, goos := range []string{"darwin", "linux"} {
 			if reason, skip := windowsRefusalSkip(goos, err); skip || reason != "" {
 				t.Fatalf("%s: %v skipped with %q, want no skip on a supported platform", goos, err, reason)
@@ -106,11 +105,6 @@ func TestCEMLockAndTasksRefusalsSkipOnlyOnWindows(t *testing.T) {
 	opaque := cemcode.New(cemcode.PublishFailed, "update lock for %q cannot be opened", ".corvint/change.cem.json")
 	if _, skip := windowsRefusalSkip("windows", opaque); skip {
 		t.Fatalf("windows: %v skipped without the platform refusal", opaque)
-	}
-	// A MALFORMED drive-letter PathText is not a platform refusal.
-	malformed := taskswire.Errorf(taskswire.CodeMalformed, "", "PathText must be an absolute path")
-	if _, skip := windowsRefusalSkip("windows", malformed); skip {
-		t.Fatalf("windows: %v skipped", malformed)
 	}
 }
 

@@ -1,9 +1,9 @@
 # Corvint Tasks obligation ledger V0
 
-Owner: Russell Lewis
-Date: 2026-10-08
-Intent status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022)
-Delivery status: experimental
+Owner: Russell Lewis; date: 2026-10-08
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability. Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d.
 
 Authoritative inputs: the owner request in GitHub beamfall/corvint#680, tracked as native ticket
 V1-1022 ("native per-ticket obligation ledger with step-level Playwright witnessing"). This document
@@ -32,14 +32,12 @@ under the same standing auto-accept, and are experimental. The profile reuses un
 mutation, receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
 (ON-V0-002), the revision-only write of [evidence attachments](corvint-tasks-evidence-attachments-v0.md)
-(TEA-V0-001) and the WORKER opt-in of [know-how notes](corvint-tasks-know-how-notes-v0.md)
-(KHN-V0-021..023). Playwright facts come from the
-[Playwright provider contract](playwright-external-provider-v0.md) and a scratch observation recorded
-in the build log.
+(TEA-V0-001) and the WORKER opt-in of [know-how notes](corvint-tasks-know-how-notes-v0.md) (KHN-V0-021..023). Playwright facts come from the
+[Playwright provider contract](playwright-external-provider-v0.md) and a scratch observation recorded in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-060..067 (version qualification and test repositories, GitHub #1070, V1-1648) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-079..083 (test boundaries and scope decisions, GitHub #1180, V1-1913) and TOL-V0-084..088 (reviewed-shortfall worklist, GitHub #1182, V1-1915) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-100..109 (ledger gate hardening, GitHub #1202, V1-1945, V1-1946, V1-1949) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-120..125 (obligation mirrors and the #1177 unblock follow-up, GitHub #1214, V1-1966) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-126..128 (live fixture qualification, V1-1022) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests and a retained live run; TOL-V0-131 (review staleness at the candidate, V1-1922) and TOL-V0-132 (plan witnesses at the candidate, V1-2248) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-133..140 (witness receipt store, GitHub #1837, V1-2731) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line is NOT_RUN; the live Playwright 1.63.0 fixture passed on a PWP-V0-008 tuple (TOL-V0-128).
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the read-only `boundary`, `worklist` and `capability` verbs (TOL-V0-083, 086..088, 108), `satisfiedBy` mirrors with their show, status, worklist and dispatch reads (TOL-V0-120..123), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the witness receipt store with `witness --retain`, `receipt put|get|path|prune` and `receipt audit --witness-receipts` (TOL-V0-133..140); the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: nothing for Playwright 1.63.0, the shipped qualified version since its live fixture run was retained (TOL-V0-126..128); any other version still needs a local `qualify-version` run (TOL-V0-060..063).
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.

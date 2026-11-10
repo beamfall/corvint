@@ -110,9 +110,9 @@ func TestCAPV08800NewMCPToolNeedsCatalogEntry(t *testing.T) {
 }
 
 // CAP-V0-8800: constant-backed names come from the offline descriptors, not a
-// namespace or literal spelling. Every tasks-work tool must survive discovery.
+// namespace or literal spelling. Every core tool must survive discovery.
 func TestCAPV08800OfflineDescriptorOmissionFails(t *testing.T) {
-	for _, name := range []string{"tasks_work_start", "tasks_work_deliver", "tasks_work_block", "tasks_work_finding", "tasks_work_close_merged", "tasks_work_release_sync"} {
+	for _, name := range []string{"corvint.impact", "corvint.help", "corvint.status"} {
 		t.Run(name, func(t *testing.T) {
 			entries := capcatalog.MCPTools()
 			found := false

@@ -5,6 +5,7 @@ Date: 2026-10-22
 Requirement prefix: `CTF-V0`
 Intent status: accepted (owner, 2026-10-22); retired except CTF-V0-010 by decision 0593
 Delivery status: retired
+Retirement base: b1a117eb129687f9555fa0c826fadfa0627afe3b
 Retirement note: decision 0593 (owner, 2026-11-09, "Cut it") deleted `cmd/corvint-test` and the
 folded shims with the E2E proof lab (b1a117eb is the last tree with them). `corvint-test-runner`
 stands alone again. `CTF-V0-010` stays in force: core links no `internal/testrunner/cli`. The rest
@@ -134,7 +135,7 @@ command.
 | `CTF-V0-004` | retired by decision 0593 (the shims and `cmd/corvint-test` deleted; evidence at b1a117eb) |
 | `CTF-V0-006` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted; evidence at b1a117eb) |
 | `CTF-V0-007` | retired by decision 0593 (`cmd/corvint-test/fold_test.go` deleted) |
-| `CTF-V0-008` | `internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames` |
+| `CTF-V0-008` | retired by decision 0594 with the companion bundle (`internal/companionrelease/fold_names_test.go` `TestCTFV0008ExactCompanionNames`; 1a838f144 is the last tree with it) |
 | `CTF-V0-010` | `TestCTFV0007CoreLinksNoFoldedGroup` (core links no group entry) |
 
 `CTF-V0-005` and `CTF-V0-009` have no evidence yet: they bind groups 5 and 6, which have not

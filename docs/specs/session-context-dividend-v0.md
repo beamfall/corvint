@@ -2,14 +2,18 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed; SESSION-V0-020..022 portable task bundle accepted (decision 0472; V1-0500)
-Delivery status: partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `dogfood handoff` commands
+(4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
+for traceability.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/DOGFOOD.md`, `docs/specs/technical-brain-dogfood.md`
 
 ## Agent digest
 - Claim: Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.
-- Status: proposed; SESSION-V0-020..022 portable task bundle accepted (decision 0472; V1-0500)/partial (handoff-receipt slices SESSION-V0-017..022 experimental; SESSION-V0-001..016 deferred)
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the contract; the read-only `corvint dogfood handoff` receipt and re-resolution (SESSION-V0-017..019, ticket V1-0199); additive caller-state bundles (SESSION-V0-020..022, ticket V1-0500).
 - Blocked on: Genesis authority, access-context identity, CEM/OCM binding, SESSION-V0-001..016 implementation, and outcome trials.
 - Read next: Verified current state; Requirements; Traceability.

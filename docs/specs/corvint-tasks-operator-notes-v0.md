@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted (owner decision 2026-10-04)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: owner request [issue 501](https://github.com/beamfall/corvint/issues/501)
 (native ticket V1-0698); the issue's NOTE501-001..010 preparation intent with its independently
@@ -20,7 +22,7 @@ restates its own required ticket/mutation/receipt boundaries without waiving tha
 
 ## Agent digest
 - Claim: Operators attach one current advisory note to a ticket, retain immutable history, and deliver the exact admitted note with each successful claim.
-- Status: accepted (owner decision 2026-10-04); experimental; native NOTE_SET/NOTE_CLEAR writer, `ticket note set|clear|show` and the `ticket show` operatorNote view exist; claim and claim-next deliver the note pinned by their own admission; receipt audit and redo bind every note transition; `ticket note history` reads anchored, bounded pages; the dispatcher renders the observed note through the role-prompt `{operatorNote}` placeholder.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: closed reference/event codecs, the optional record/Core `operatorNote` reference, one measured MUTATE derived-event slot, explicit OPERATOR policy grants, ADOPT_FILE refusal, CLI and current-note reads, the attempt `operatorNote` pin with claim-result delivery, journal replay binding of each note receipt, the anchored history reader with opaque cursors, the dispatch `{operatorNote}` rendering, and checkpoint-resumed writes and reads across note receipts (ON-V0-012..014 proposed; ON-V0-015 accepted), with focused and native-store tests.
 - Blocked on: a live dispatcher run on a real host (local-fixture qualification ON-V0-871..874 exists), owner acceptance of promotion, the checkpoint-tail detection limit below, and the existing TCP-00 active-staging recovery limit.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.

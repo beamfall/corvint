@@ -5,6 +5,8 @@ Date: 2026-09-15
 Requirement prefix: `CRB-V0`  
 Intent status: accepted  
 Delivery status: experimental foundation
+Retirement note: decision 0594 (2026-11-09) deleted `cmd/corvint-dashboard-snapshot`; requirements
+naming it are retired.
 
 Authoritative inputs: the owner's 2026-09-15 choice, “I don't care about dotcom use Corvint”; decision 0295; the accepted CEM canonical-binding contracts.
 
@@ -41,7 +43,7 @@ The user needs the unreleased product to acquire one coherent public identity be
 - `CRB-V0-004`: Existing public versioned `corvint-*` wire, schema, receipt, and profile identifiers MUST remain byte-compatible until a separately accepted protocol migration replaces them. A private derived index encoding MAY increment its existing schema version when the source-coordinate change invalidates cached package identities.
 - `CRB-V0-005`: `.corvint/change.cem.json` MUST remain the canonical CEM path, and canonical CEM/OCM `nextActions` MUST retain the executable literal `corvint` required by `CEM-CB-006`, `CEM-CB-007`, `CEM-CB-009`, and `CEM-CB-016`.
 - `CRB-V0-006`: Historical results, receipts, accepted decision facts, third-party notices, provenance, copyright, license text, and immutable Git identities MUST preserve their original names and bytes except for separately reviewed current prose around those facts.
-- `CRB-V0-007`: State directories, environment variables, command source directories, plugins, editor IDs, package/publisher identities, current URLs, visual assets, and closed companion bundle manifests/readers MUST change only in later authorized migration slices with explicit compatibility and ownership evidence. Standalone builds from the retained source directories use `Corvint Console` / `corvint-console`, `Corvint Tasks` / `corvint-tasks`, and `corvint-dashboard-snapshot`; the closed release bundle follows CRB-V0-017.
+- `CRB-V0-007`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) State directories, environment variables, command source directories, plugins, editor IDs, package/publisher identities, current URLs, visual assets, and closed companion bundle manifests/readers MUST change only in later authorized migration slices with explicit compatibility and ownership evidence. Standalone builds from the retained source directories use `Corvint Console` / `corvint-console`, `Corvint Tasks` / `corvint-tasks`, and `corvint-dashboard-snapshot`; the closed release bundle follows CRB-V0-017.
 - `CRB-V0-008`: This foundation MUST build offline with Go 1.27.1, print the Corvint version, expose usable help, complete a fixture query, and continue to verify an existing receipt where a practical retained fixture exists.
 - `CRB-V0-009`: The source Codex and Claude Code plugin directories, manifests, marketplace
   entries, bundled skills, and hook paths MUST use `corvint` coherently; Gemini CLI's extension,
@@ -72,7 +74,7 @@ The user needs the unreleased product to acquire one coherent public identity be
   the host color. SVG is the source; PNGs are rendered outputs. The artwork is manually qualified
   by SVG parsing, reference checks, PNG format/dimensions, and independent visual review. Native CEM
   does not support the PNG binary patch; this limitation MUST remain explicit.
-- `CRB-V0-015`: The standalone Console MUST present as `Corvint Console`, build from retained source
+- `CRB-V0-015`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) The standalone Console MUST present as `Corvint Console`, build from retained source
   package `cmd/corvint-console` to `corvint-console`, and default to adjacent `corvint-tasks` and
   `corvint-dashboard-snapshot` before `PATH` names.
   Explicit `--tasks` is primary, absent `--tasks` MAY use `--atm`, equal explicit values MUST pass,
@@ -88,7 +90,7 @@ The user needs the unreleased product to acquire one coherent public identity be
   versioned `corvint-*` profiles, `corvint.*` tools, producer/retention identities, and
   `--corvint-go-live-authority` MUST remain unchanged.
 
-- `CRB-V0-017`: Current companion writers MUST emit manifest profile `corvint-companion-bundle/1`
+- `CRB-V0-017`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-console`, `corvint-dashboard-snapshot`) Current companion writers MUST emit manifest profile `corvint-companion-bundle/1`
   with exactly nine components: `corvint`, `corvint-console`, `corvint-dashboard-snapshot`,
   `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`,
   `corvint-go-test-provider`, and `corvint-tasks`. Core module identity MUST be `corvint`;
@@ -195,8 +197,8 @@ compatibility identities.
 | CRB-V0-013 | `extensions/vscode`, `conformance/vscode-extension-v0` | native executable/MCP/config fixtures, extension check, package listing, conformance runner; installed host remains `NOT_RUN` |
 | CRB-V0-014 | `assets/brand/corvint-{lockup,mark}-{light,dark,universal}.{svg,png}`, root `README.md`, and `extensions/vscode/media/corvint.svg` | SVG parse and reference checks, matching geometry across variants, PNG format/dimensions, README theme selection, and independent visual review; PNG binary patches remain unsupported by native CEM |
 | CRB-V0-015 | `cmd/corvint-console`, `cmd/corvint-dashboard-snapshot`, `internal/console` | focused compatibility/default tests and the isolated standalone console proof |
-| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository`, `TestPRBV0011KnobsInExactSettingsList`, and `script/runtime-environment_test.sh` (passes with an empty `HOME` and `GIT_CONFIG_NOSYSTEM=1`; fixed fixture identity is exported to child suites, and the bind-range no-commit merge supplies its own identity) |
-| CRB-V0-020 | `internal/companionrelease` (`inventory.go`, `companionrelease.go`, `retained.go`, `workflow_smoke.go`, `core_evidence.go`) | `TestRubyProviderBundleProfileThree`, `TestRubyProviderUsageAdmitsTheBuiltProvider`, `TestCoreBundleRejectsProfileDowngrade`; two-build and installed `/3` qualification `NOT_RUN` |
+| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository` (removed), `TestPRBV0011KnobsInExactSettingsList`, and `script/runtime-environment_test.sh` (passes with an empty `HOME` and `GIT_CONFIG_NOSYSTEM=1`; fixed fixture identity is exported to child suites, and the bind-range no-commit merge supplies its own identity) |
+| CRB-V0-020 | `internal/companionrelease` (`inventory.go`, `companionrelease.go`, `retained.go`, `workflow_smoke.go`, `core_evidence.go`) | `TestRubyProviderBundleProfileThree` (removed), `TestRubyProviderUsageAdmitsTheBuiltProvider` (removed), `TestCoreBundleRejectsProfileDowngrade` (removed); two-build and installed `/3` qualification `NOT_RUN` (the `internal/companionrelease` tests were deleted by decision 0594; 1a838f144 is the last tree with them) |
 | CRB-V0-016 | three retained MCP command packages, two retained live-provider command packages, and `extensions/vscode/src/mcp.ts` | isolated five-binary handshake proof, MCP conformance, provider regressions, and current/unknown/drift client fixtures |
 
 ## Unresolved decisions and promotion gate

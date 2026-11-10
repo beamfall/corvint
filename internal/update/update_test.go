@@ -979,7 +979,7 @@ func TestUPDV0367CheckExplainsSourceAndUnknown(t *testing.T) {
 	}
 	e.config.AllowNetwork = false
 	r, err = e.run(context.Background(), "check")
-	if err == nil || !strings.Contains(r.UnknownReason, "--allow-network") || r.Source != "beamfall/corvint" {
+	if err == nil || !strings.Contains(r.UnknownReason, "--allow-network") || r.Source != "beamfall/corvint-tasks" {
 		t.Fatalf("offline: %+v %v", r, err)
 	}
 	if _, err = os.Stat(e.config.StateDir); !os.IsNotExist(err) {
@@ -1043,7 +1043,7 @@ func TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal(t *testing.T) {
 	t.Setenv("CORVINT_UPDATE_TEST_TOKEN", "")
 	c := Config{Component: "tasks", BinDir: e.config.BinDir, StateDir: e.config.StateDir, AllowNetwork: true, TokenEnv: "CORVINT_UPDATE_TEST_TOKEN"}
 	r, err = Run(context.Background(), "check", c)
-	if err == nil || r.Source != "beamfall/corvint" || r.Channel != "tasks-dev-" {
+	if err == nil || r.Source != "beamfall/corvint-tasks" || r.Channel != "tasks-dev-" {
 		t.Fatalf("unset token refusal: %+v %v", r, err)
 	}
 	r, err = Run(context.Background(), "rollback", c)

@@ -1,8 +1,6 @@
 package contextindex
 
 import (
-	"bytes"
-	"context"
 	"reflect"
 	"testing"
 )
@@ -91,75 +89,4 @@ func TestSymbolTermsDistributivityIsSpecificToTheSeparator(t *testing.T) {
 	if reflect.DeepEqual(terms(name+sourcePath), union) {
 		t.Fatal("terms distributes over an empty join too, so the space is not what the property tests")
 	}
-}
-
-// TestPathTermCacheEmitsIdenticalReceipts is the standing proof that caching a
-// path's terms across the declarations that share it is a pure allocation
-// change. Each receipt is emitted both ways in one binary and compared byte for
-// byte, over the same contrasting task and budget matrix the keep-set parity
-// test uses.
-func TestPathTermCacheEmitsIdenticalReceipts(t *testing.T) {
-	pinRoot, _ := pinParityRepository(t)
-	roots := append([]string{evalQueryRepository(t), pinRoot}, parityRepositoriesFromEnvironment()...)
-	for _, repository := range roots {
-		index, err := BuildEval(context.Background(), repository)
-		if err != nil {
-			t.Fatalf("BuildEval(%s): %v", repository, err)
-		}
-		expected := withRecomputedPathTerms(t, func() []parityReceipt {
-			return emitParityReceipts(index)
-		})
-		actual := emitParityReceipts(index)
-		compared, states := compareParityReceipts(t, repository, "recomputed", "    cached", expected, actual)
-		if compared == 0 {
-			t.Fatalf("no receipt could be compared in %s", repository)
-		}
-		t.Logf("%s: %d receipts byte-identical, states %v", repository, compared, states)
-	}
-}
-
-// TestPathTermCacheReceiptComparisonHasTeeth is the negative control for the
-// test above: it proves that receipt bytes move when a symbol's path terms
-// move, which is the only quantity the cache can get wrong. A parity harness
-// that could not see this difference would pass whatever the cache did.
-func TestPathTermCacheReceiptComparisonHasTeeth(t *testing.T) {
-	root := evalQueryRepository(t)
-	index, err := BuildEval(context.Background(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	task := "session expiry device revocation enforcement"
-	expected, _, err := evalContextReceipt(index, task, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	moved := *index
-	moved.Symbols = append([]Symbol(nil), index.Symbols...)
-	changed := false
-	for position := range moved.Symbols {
-		if moved.Symbols[position].Path == "internal/auth/session.go" {
-			moved.Symbols[position].Path = "internal/session/authority.go"
-			changed = true
-		}
-	}
-	if !changed {
-		t.Fatal("the fixture no longer carries the symbol this control moves")
-	}
-	actual, _, err := evalContextReceipt(&moved, task, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Equal(expected, actual) {
-		t.Fatal("a symbol's path terms changed and the receipt did not, so the parity comparison proves nothing")
-	}
-}
-
-// withRecomputedPathTerms runs one matrix over the per-symbol construction. It
-// is not parallel-safe by construction, which is why the parity test is the
-// only caller and why it emits a whole matrix inside one bracket.
-func withRecomputedPathTerms[Result any](t *testing.T, emit func() Result) Result {
-	t.Helper()
-	evalRecomputePathTerms = true
-	defer func() { evalRecomputePathTerms = false }()
-	return emit()
 }

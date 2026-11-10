@@ -12,7 +12,7 @@ Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07
 - Claim: One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.
 - Status: accepted (decision 0441); MMR-V0-009 accepted (decision 0519; V1-1173); MMR-V0-010 and MMR-V0-011 experimental under the standing lane auto-accept (V1-3116); MMR-V0-012 to MMR-V0-017 experimental under the standing lane auto-accept (V1-3117) / experimental
 - Exists: `internal/mcp/cli/roots.go`, `internal/mcp/cli/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; `internal/mcp/cli/worktree_notice.go`; per-root `--follow-ref ALIAS=REF` in `internal/mcp/cli/follow_ref.go`; `--tool-profile` tool groups, `--corpus-artifact` and `--workspace` in `internal/mcp/cli/groups.go` over the shared `internal/mcp/toolgroup`; tests in `internal/mcp/cli/roots_test.go`, `main_test.go`, `worktree_notice_test.go`, `follow_ref_roots_test.go` and `groups_test.go`.
-- Blocked on: owner acceptance; no qualified host run; the dedicated `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` binaries stay single-root deprecated aliases for one release (`MMR-V0-016`).
+- Blocked on: owner acceptance; no qualified host run; the dedicated `corvint-test-validity-mcp` and `corvint-docs-mcp` binaries stay single-root deprecated aliases for one release (`MMR-V0-016`); `corvint-corpus-mcp` was removed by decision 0594.
 - Read next: Requirements; Bounded state and measurements.
 
 ## Owner intent and scope
@@ -167,7 +167,7 @@ into the tool catalogue.
   result that differs from the dedicated server's for the same root and arguments, or a group call
   on a following alias answered outside its binding. Rollback: drop the per-root group branch of
   `answer` and `multiRootTools`.
-- `MMR-V0-014`: (experimental under the standing lane auto-accept; V1-3117, GitHub #2011) The
+- `MMR-V0-014`: (experimental under the standing lane auto-accept; V1-3117, GitHub #2011; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The
   `corpus` group and `--corpus-artifact VALUE` MUST each require the other; VALUE is given once,
   never beside `--version`, and is `PATH` with one plain root or `ALIAS=PATH` naming a declared
   alias. PATH keeps the `corvint-corpus-mcp --artifact` rules (an absolute path below the root, else
@@ -191,7 +191,7 @@ into the tool catalogue.
   A refusal or an unreadable declaration exits 2 with `corvint-mcp: invalid arguments: REASON`.
   Falsifier: a `--workspace` server whose `tools/list` differs from its `--root` expansion, or a
   declared revision followed implicitly. Rollback: drop `expandWorkspace`.
-- `MMR-V0-016`: (experimental under the standing lane auto-accept; V1-3117, GitHub #2011) The
+- `MMR-V0-016`: (experimental under the standing lane auto-accept; V1-3117, GitHub #2011; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) The
   dedicated `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` binaries MUST
   stay for one release with unchanged argv and results, as deprecated aliases of the unified server.
   `--help` or `-h` alone MUST print usage naming the unified equivalent on stdout and exit 0 on all
@@ -244,8 +244,8 @@ aggregation (only status lists every binding); Streamable HTTP or any listener; 
 `MCPV0` requirement, vector or single-root byte, except the notice block of `MMR-V0-009` and the
 named `--follow-ref` argument refusals of `MMR-V0-011`; a different ref per call, or a ref chosen by
 the client, is also a non-goal (`MMR-V0-010` refs come only from argv).
-The dedicated `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` binaries
-stay single-root; multi-root use of their tools goes through `corvint-mcp --tool-profile`
+The dedicated `corvint-test-validity-mcp` and `corvint-docs-mcp` binaries (and `corvint-corpus-mcp`
+until decision 0594 removed it) stay single-root; multi-root use of their tools goes through `corvint-mcp --tool-profile`
 (`MMR-V0-012` to `MMR-V0-017`). Removing them after the one-release alias window needs its own
 decision.
 

@@ -935,7 +935,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-014 | `internal/specindex` tests | `TestIndexCoversSpecsAndHeaders` |
 | SRG-V0-015 | the `tsv` and `lines` emission blocks in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `TestSRGV0015IndexOrderedByDefinitionPosition` |
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
-| SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
+| SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout` (removed); `TestSRGV0017KernelLocatesCommittedLayoutLines` (removed); `TestSRGV0017RoadmapLocatesCommittedLayoutLines` (removed); `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
 | SRG-V0-018 | `index_blobs` and the `--all` mode, which `--write` and `--check` run, in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 | SRG-V0-041 | `script/spec-requirements-resolve.sh` and the `spec-requirements-resolve` target in the `Makefile` | `spec-requirements-test` |
@@ -949,7 +949,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-800 | `script/spec-requirements-worktree-check.sh` and its `spec-requirements-check` line in `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
 | SRG-V0-970 | `statusDriftMessage` in `internal/specindex/index_test.go`; `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model | `TestSRGV0047StatusDriftNamesBothFieldsWithLines` |
-| SRG-V0-900 | `TestSpecsStayWithinTheOCMObligationBound` in `internal/lrfrepo/ocm_spec_bound_test.go`, run by `spec-requirements-check` |
+| SRG-V0-900 | `TestSpecsStayWithinTheOCMObligationBound` (removed) in `internal/lrfrepo/ocm_spec_bound_test.go`, run by `spec-requirements-check` |
 | SRG-V0-980 | `docs/specs/INTENT-STATUS-FROZEN.tsv`; the frozen-header refusal block in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-950 | the frozen-header refusal block in `script/gen-spec-requirements.sh`; `docs/LANE-ORCHESTRATION.md` section 3 | `spec-requirements-test` |
 | SRG-V0-951 | the `@refusals` collection and its single exit in `script/gen-spec-requirements.sh` | `spec-requirements-test` |

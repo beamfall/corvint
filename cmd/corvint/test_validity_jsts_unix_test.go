@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,9 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 )
 
 const jsDiscoverSpec = `describe('add', () => {
@@ -86,21 +82,4 @@ func TestTestValidityDiscoverJSSourceRules(t *testing.T) {
 		t.Errorf("skipped %+v %+v", skipped.Projection, skipped.SourceRules)
 	}
 
-	registry, registryErr := testvaliditybridge.New(root)
-	if registryErr != nil {
-		t.Fatal(registryErr)
-	}
-	structured, _, toolFailure, callErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
-	if toolFailure != nil || callErr != nil {
-		t.Fatalf("failure=%+v err=%v", toolFailure, callErr)
-	}
-	var cliDocument any
-	if err := json.Unmarshal(stdout.Bytes(), &cliDocument); err != nil {
-		t.Fatal(err)
-	}
-	cli, cliErr := gokernel.CanonicalJSON(cliDocument)
-	mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
-	if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) {
-		t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
-	}
 }

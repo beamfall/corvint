@@ -10,27 +10,24 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/witnesspaths"
-	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/witnesspaths/datareaders"
 )
 
-// indexReaders is the data-reader finder the binary installs.
-func indexReaders(ctx context.Context, root, target string) (func(string, []string) []witnesspaths.Reader, error) {
-	index, err := contextindex.BuildRevisionContext(ctx, root, target)
-	if err != nil {
-		return nil, err
-	}
-	unparsed := index.UnparsedPaths()
-	return func(dataPath string, declared []string) []witnesspaths.Reader {
-		return datareaders.Find(dataPath, declared, index, unparsed)
+// stubReaders is a data-reader finder that names pkg/calc/i18n.go as the one
+// found reader of the English catalogue and finds none for any other path.
+func stubReaders(context.Context, string, string) (func(string, []string) []witnesspaths.Reader, error) {
+	return func(dataPath string, _ []string) []witnesspaths.Reader {
+		if dataPath == "config/locales/en.yml" {
+			return []witnesspaths.Reader{{Path: "pkg/calc/i18n.go", Origin: "found"}}
+		}
+		return []witnesspaths.Reader{}
 	}, nil
 }
 
-// policySession is a session with the binary's data-reader finder.
+// policySession is a session with the stub data-reader finder.
 func policySession(t *testing.T, root string) *Session {
 	t.Helper()
 	session := openSession(t, root)
-	session.SetDataReaderFinder(indexReaders)
+	session.SetDataReaderFinder(stubReaders)
 	return session
 }
 
