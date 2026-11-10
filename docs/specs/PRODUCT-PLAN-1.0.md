@@ -173,6 +173,7 @@ questions and three extra points on 2026-11-09. This plan cites each as "owner d
 | H10 | The acceptance record is signed without waiting for the removal branch; the 0594 Keeps-line row takes effect when that branch lands | "Conflicts with accepted text" |
 | H11 | Per-merge macOS check advisory until the flake tickets close and 20 consecutive main runs pass, then required; still advisory per merge for 1.0 if not met by 2026-12-15; macOS required at release | PROD-INT-015, "Proposal dependency table" |
 | H12 | Install OpenSpec and follow its flows: `docs/specs/openspec/` is the OpenSpec root, the command is pinned and `openspec validate --all` passes for every change folder | PROD-INT-011, "Where this file sits" |
+| H13 | Keep flat specs: the canonical specs stay `docs/specs/*.md`; no `docs/specs/openspec/specs/` tree; `openspec archive` runs with `--skip-specs` | PROD-INT-011, "Where this file sits" |
 
 ## Where this file sits
 
@@ -210,7 +211,7 @@ root with `config.yaml` (schema `spec-driven`), and the OpenSpec command (`@fiss
 pinned 1.17.0) is run from `docs/specs`; the repository root holds no `openspec/` directory. The
 stages use `openspec new change`, `openspec validate`, `openspec status`, `openspec list` and
 `openspec archive <name> --skip-specs`. The canonical specs stay the flat `docs/specs/*.md` files,
-so archive skips the spec merge; the owner has not yet confirmed this reading. The planned
+so archive skips the spec merge (owner decision H13 (2026-11-10): "Keep flat specs"). The planned
 `openspec-check` change enforces the stages: `openspec validate --all` passes for every change
 folder, with strict-mode warnings reported, not failing (OSC-V1-012). Its Go check needs no
 OpenSpec command and the product build gains no npm dependency. The planned `spec-set-cleanup`

@@ -6,7 +6,7 @@
   becomes `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the next free number
   (change `acceptance-record`, ACR-V1-001).
 - Authority it would record: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date, and owner decisions H1 to H12 of 2026-11-10,
+  recorded in the owner-answers file of that date, and owner decisions H1 to H13 of 2026-11-10,
   recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
@@ -41,9 +41,9 @@ reommendations for unanswered?"), keeping publishing, stable promotion, credenti
 creation and repository visibility. Owner decision G14 (2026-11-09) accepts the plan once; a later
 proposal that only implements an accepted requirement is accepted automatically and logged. This
 record is that single acceptance. On 2026-11-10 the owner answered the eleven items this record
-carried open (H1 to H11, section 9) and amended G14 and R41 on the OpenSpec command (H12, section
-1). Each answer below is one line; the owner-answers file holds the full text. That file is outside
-this repository.
+carried open (H1 to H11, section 9) and amended G14 and R41 on the OpenSpec command (H12 and H13,
+section 1). Each answer below is one line; the owner-answers file holds the full text. That
+file is outside this repository.
 
 ## Decision (proposed)
 
@@ -73,9 +73,11 @@ this repository.
     repository root still holds no `openspec/`.
   - Propose, apply and archive use the command: `openspec new change`, `openspec validate`,
     `openspec status`, `openspec list`, `openspec archive <name> --skip-specs`.
-  - One deliberate difference from stock OpenSpec, kept from G14 and not yet confirmed by the
-    owner: the canonical specs stay the flat files `docs/specs/*.md` with stable requirement IDs,
-    so apply copies each requirement into the owning spec and archive runs with `--skip-specs`.
+  - One deliberate difference from stock OpenSpec, kept from G14 and confirmed by owner decision
+    H13 (2026-11-10), the owner's words "Keep flat specs": the canonical specs stay the flat files
+    `docs/specs/*.md` with stable requirement IDs, so apply copies each requirement into the
+    owning spec and archive runs with `--skip-specs`. No `docs/specs/openspec/specs/` tree is
+    created.
   - Bar: `openspec validate --all` passes for all 45 change folders; strict-mode warnings are
     reported, not failing (OSC-V1-012, change `openspec-check`). The Go check OSC-V1-001 to
     OSC-V1-011 does not need the command, and the default product build gains no npm dependency
@@ -404,6 +406,7 @@ restores, and the acceptance log rows it changes go back to `pending-owner`.
 1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3.
 2. The plan commit SHA this record names.
 3. The acts of section 8, and a value for each `NOT_DECIDED` cell the owner wants fixed.
-4. Confirm the reading in section 1 (H12) that the canonical specs stay as the flat
-   `docs/specs/*.md` files, so `openspec archive` runs with `--skip-specs`. Section 9 lists the
-   owner's answers of 2026-11-10 (H1 to H11); it leaves nothing open.
+
+Section 9 lists the owner's answers of 2026-11-10 (H1 to H11) and leaves nothing open. Owner
+decision H13 (2026-11-10) confirmed the reading in section 1 that the canonical specs stay as the
+flat `docs/specs/*.md` files, so `openspec archive` runs with `--skip-specs`.
