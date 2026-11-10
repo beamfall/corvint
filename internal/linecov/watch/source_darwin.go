@@ -245,7 +245,8 @@ func namesEntryOf(paths []string, dir string) bool {
 // rescan reconciles one directory after its event: new entries are watched
 // (a new directory with its whole tree), entries whose inode no longer
 // matches their descriptor are rewatched, and entries that are gone are
-// dropped. It returns the paths that were added, replaced or dropped.
+// dropped. A directory that was itself replaced is watched again first. It
+// returns the paths that were added, replaced or dropped.
 func (w *vnodeWatches) rescan(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -254,6 +255,16 @@ func (w *vnodeWatches) rescan(dir string) ([]string, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	// A directory that was renamed away or deleted lost its own watch with its
+	// subtree; when another directory now holds the name (the root has no
+	// parent whose rescan would find it), watch the directory itself again,
+	// or later saves directly in it would raise no event.
+	if fd, ok := w.fds[dir]; !ok || !w.sameInode(fd, dir) {
+		w.drop(dir)
+		if err := w.add(dir, true); err != nil {
+			return nil, err
+		}
 	}
 	present := map[string]bool{}
 	var added []string

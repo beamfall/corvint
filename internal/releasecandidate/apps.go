@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"debug/buildinfo"
 	"fmt"
 	"io"
 	"os"
@@ -152,7 +153,7 @@ func verifyApps(files map[string][]byte, assets map[string]Asset, manifest Manif
 			if row.SHA256 != digest(raw) || row.Bytes != int64(len(raw)) {
 				return fmt.Errorf("candidate app archive %s disagrees with the release manifest", name)
 			}
-			if _, err := verifyAppBinary(raw, app, goos, goarch, row.BinarySHA256, manifest.GoVersion); err != nil {
+			if _, err := verifyAppBinary(raw, app, goos, goarch, row.BinarySHA256, manifest.GoVersion, commit); err != nil {
 				return err
 			}
 		}
@@ -167,10 +168,45 @@ var verifyAppBinary = verifyAppArchiveBinary
 // verifyAppArchiveBinary rechecks one app archive the way verifyCoreArchiveBinary
 // rechecks a corvint archive: the closed inventory and modes, the binary's
 // digest against the manifest row, the inner SHA256SUMS row and the embedded
-// build identity for `cmd/<app>` on the target.
-func verifyAppArchiveBinary(raw []byte, app, goos, goarch, binaryDigest, goVersion string) ([]byte, error) {
+// build identity for `cmd/<app>` on the target. It then requires the
+// executable itself to carry the candidate's source commit, so an app built
+// from another commit is refused whatever the manifest claims.
+func verifyAppArchiveBinary(raw []byte, app, goos, goarch, binaryDigest, goVersion, commit string) ([]byte, error) {
 	target := coreTarget{GOOS: goos, GOARCH: goarch, BinaryName: app, ArchiveName: appArchiveName(app, goos+"_"+goarch), RetainedBinary: coreDigest{SHA256: binaryDigest}}
-	return verifyArchiveBinary(raw, target, modulePath+"/cmd/"+app, goVersion)
+	binary, err := verifyArchiveBinary(raw, target, modulePath+"/cmd/"+app, goVersion)
+	if err != nil {
+		return nil, err
+	}
+	settings := map[string]string{}
+	if info, err := buildinfo.Read(bytes.NewReader(binary)); err == nil {
+		for _, setting := range info.Settings {
+			settings[setting.Key] = setting.Value
+		}
+	}
+	if err := appCommitAgrees(binary, settings, commit); err != nil {
+		return nil, fmt.Errorf("app archive %s: %w", target.ArchiveName, err)
+	}
+	return binary, nil
+}
+
+// appCommitAgrees reports whether an app executable was built from commit.
+// The release builder stamps every core-set app with `-X main.sourceCommit`
+// (ARTIFACT-BIN-V0-002) and builds with -trimpath and -buildvcs=false, which
+// keep the linker flags and the Git stamp out of the build settings, so the
+// stamp is read where the linker put it: the commit's 40 hex digits in the
+// executable's bytes. A build that does carry a Git stamp must name the same
+// commit with an unmodified tree.
+func appCommitAgrees(binary []byte, settings map[string]string, commit string) error {
+	if len(commit) != 40 || !bytes.Contains(binary, []byte(commit)) {
+		return fmt.Errorf("executable is not stamped with source commit %s", commit)
+	}
+	if revision, stamped := settings["vcs.revision"]; stamped && revision != commit {
+		return fmt.Errorf("executable was built from %s, not %s", revision, commit)
+	}
+	if settings["vcs.modified"] == "true" {
+		return fmt.Errorf("executable was built from a modified tree at %s", commit)
+	}
+	return nil
 }
 
 // extractAppBinary adds one app's executable from its archive to the staged

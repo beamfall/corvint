@@ -107,6 +107,55 @@ func TestVnodeDropDirectoryTakesSubtree(t *testing.T) {
 	}
 }
 
+// LPCV-V0-1086: a root that was renamed away and replaced by another
+// directory is watched again by its rescan, with the replacement's entries,
+// so a later save directly in the root still raises an event.
+func TestVnodeRescanRewatchesReplacedRoot(t *testing.T) {
+	w, root := vnodeFixture(t)
+	write(t, root, "a.go", "package a\n")
+	if err := w.addTree(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(root, root+".old"); err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "b.go", "package b\n")
+	// The event loop drops a renamed directory before it rescans it.
+	w.drop(root)
+	added, err := w.rescan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fd, watched := w.fds[root]
+	if !watched || !w.dirs[root] || !w.sameInode(fd, root) {
+		t.Fatalf("replaced root is not watched: %v", w.fds)
+	}
+	if _, ok := w.fds[filepath.Join(root, "b.go")]; !ok || len(added) != 1 {
+		t.Fatalf("replacement entries not watched: %v, added %v", w.fds, added)
+	}
+	// A replacement found without the drop (a coalesced event) is rewatched too.
+	if err := os.Rename(root, root+".older"); err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "c.go", "package c\n")
+	if _, err := w.rescan(root); err != nil {
+		t.Fatal(err)
+	}
+	if fd := w.fds[root]; !w.sameInode(fd, root) || w.fds[filepath.Join(root, "c.go")] == 0 {
+		t.Fatalf("root replaced under a kept watch is stale: %v", w.fds)
+	}
+	if _, ok := w.fds[filepath.Join(root, "b.go")]; ok {
+		t.Fatal("an entry of the replaced root kept its watch")
+	}
+	// The directory's new watch reports a save directly in it.
+	write(t, root, "d.go", "package d\n")
+	events := make([]syscall.Kevent_t, 8)
+	n, err := syscall.Kevent(w.kq, nil, events, &syscall.Timespec{Sec: 5})
+	if err != nil || n == 0 {
+		t.Fatalf("no event after a save in the replaced root: n %d, %v", n, err)
+	}
+}
+
 // LPCV-V0-1086: descriptor exhaustion is named with its remedy; other errors
 // pass through unchanged.
 func TestDescriptorHint(t *testing.T) {
