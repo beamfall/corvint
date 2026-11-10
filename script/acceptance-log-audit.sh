@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 set -eu
 
 # ACR-V1-006, ACR-V1-007: compare docs/specs/openspec/acceptance-log.tsv with the committed
