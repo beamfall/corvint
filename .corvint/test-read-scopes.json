@@ -1644,6 +1644,7 @@
     ],
     "internal/perfbudget": [
       ".github/cishards/",
+      "cmd/corvint-docs/",
       "cmd/corvint/",
       "experimental/analyzers/sqlnative/",
       "go.mod",
@@ -1679,6 +1680,7 @@
       "internal/doccorpus/",
       "internal/docmaintain/",
       "internal/docsenvelope/",
+      "internal/docstools/",
       "internal/execfile/",
       "internal/extevidence/",
       "internal/flowcoverage/",
