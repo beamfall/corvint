@@ -1,21 +1,25 @@
-# Proposed: accept the Corvint 1.0 product plan
+# 0596: accept the Corvint 1.0 product plan
 
-- Date: 2026-11-09
-- Status: proposed. Not accepted. This file has no decision number and no row in
-  `docs/decisions/README.md`. Only the owner can accept it, in whole or in part. On acceptance it
-  becomes `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the next free number
-  (change `acceptance-record`, ACR-V1-001).
-- Authority it would record: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date, and owner decisions H1 to H13 of 2026-11-10,
+- Date: 2026-11-10 (drafted 2026-11-09)
+- Status: accepted (owner, 2026-11-10, "accepted"; owner decision H15). The owner accepted
+  sections 1 to 10 whole, with no amendment and no rejection. The acceptance takes effect when
+  the pull request that carries this file merges; the owner told the agent to merge it (owner
+  decision H16; section 11, step 5). No key signs
+  it (H14): the owner's identity is by convention and `NOT_VERIFIED` (ACR-V1-011, fallback).
+- Authority it records: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
+  recorded in the owner-answers file of that date, and owner decisions H1 to H16 of 2026-11-10,
   recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
   delegation: every still-open question takes the expert panel's recommendation as the decision.
   Publishing, stable promotion, credentials, repository creation and repository visibility stay
   with the owner. Each R42 item is a panel pick, not an owner-worded answer (section 3).
-- Accepts: `docs/specs/PRODUCT-PLAN-1.0.md` as amended by those answers, at a commit SHA to be
-  written here when the owner signs (open: the plan is still being edited; owner decision R35
-  (2026-11-09) requires its proposal dependency table and anchored code citations first).
+- Accepts: `docs/specs/PRODUCT-PLAN-1.0.md` as amended by those answers, at commit
+  `1d1f0670616654a19cbeedbb1e0c3bfcdae86601` on `origin/main` (the merge of pull request 170),
+  where the plan file is blob `e4accbefde3eab8e12c1c385f049c26c1391616d`. That commit carries the
+  proposal dependency table and the anchored code citations that owner decision R35 (2026-11-09)
+  requires first. If the plan changes before the owner signs, this line is rewritten to the new
+  commit and blob, and the owner is told what changed.
 - Amends or supersedes: decision 0433 item 1 (in part), decision 0592 items 1 and 2 (in part),
   decision 0594 (Keeps line, item 3, item 4), decision 0385 (Core classification of `e2e-safe`),
   owner answers 3 and 11, the G9 MCP row, R26, the use-case receipt contract, and in `AGENTS.md`
@@ -24,9 +28,10 @@
 - Read with: the change `docs/specs/openspec/changes/acceptance-record/` (ACR-V1-001 to
   ACR-V1-012: record format, supersession table, acceptance log, owner signing key, the
   `AGENTS.md` invariant edits). The
-  acceptance log `docs/specs/openspec/acceptance-log.tsv` holds only its header line at this
-  commit; its rows are written by change `acceptance-record` (task 2.5), so every sentence below
-  that reads the log applies only once those rows exist. Also read with
+  acceptance log `docs/specs/openspec/acceptance-log.tsv` holds one row for each of the 77 PROD
+  requirements and the 67 checklist O-rows, every one prepared with mode `owner` and this decision as its
+  reference. Only the owner writes those rows (ACR-V1-006): they were prepared as a diff and
+  merged on the owner's instruction (H16; section 11, steps 4 and 5). Also read with
   `docs/decisions/PROPOSED-supersede-0594-keeps-line.md` and the change
   `docs/specs/openspec/changes/source-removal/`; that file and decision 0594 are not on this
   branch (section 7).
@@ -45,7 +50,7 @@ carried open (H1 to H11, section 9) and amended G14 and R41 on the OpenSpec comm
 section 1). Each answer below is one line; the owner-answers file holds the full text. That
 file is outside this repository.
 
-## Decision (proposed)
+## Decision
 
 ### 1. Grill-round decisions accepted (G1 to G27)
 
@@ -359,8 +364,8 @@ owner answer, panel pick or requirement records the value; this record does not 
 
 | Act | Due | Milestone that waits | Fallback if late |
 |---|---|---|---|
-| Create the touch-required signing key, confirm its fingerprint, and sign the plan acceptance tag (R42, D12 and D13; ACR-V1-011) | NOT_DECIDED (before M0) | M0: the fresh-store cutover and the ticket re-scope run only after the plan and the ticket scheme are signed (R42, C11; TSC-V1-001) | If the owner declines a key: an owner-merged decision file plus a protected-environment approval, with identity by convention and `NOT_VERIFIED` (ACR-V1-011, REL-V1-013). If the act is only late: NOT_DECIDED |
-| Sign the RC and stable acceptance tags and give the two environment approvals (REL-V1-007, REL-V1-013) | At M8 and at M10 | M8, M10 | The same decline fallback; late: NOT_DECIDED |
+| Create the touch-required signing key, confirm its fingerprint, and sign the plan acceptance tag (R42, D12 and D13; ACR-V1-011). Declined by owner decision H14 (2026-11-10): no key; the fallback in the last column applies | Declined; the owner's merge of the decision file is due before M0 | M0: the fresh-store cutover and the ticket re-scope run only after the plan and the ticket scheme are signed (R42, C11; TSC-V1-001) | If the owner declines a key: an owner-merged decision file plus a protected-environment approval, with identity by convention and `NOT_VERIFIED` (ACR-V1-011, REL-V1-013). If the act is only late: NOT_DECIDED |
+| Sign the RC and stable acceptance tags and give the two environment approvals (REL-V1-007, REL-V1-013) | At M8 and at M10 | M8, M10 | The same decline fallback, which applies under owner decision H14 (2026-11-10); late: NOT_DECIDED |
 | Create the seven public mirrors `beamfall/corvint-qual-<runner>` (R42, N4; GHA-V1-025) | 2026-11-27 | The starter acceptance of `github-action`, which stays `NOT_RUN` and names the missing mirror | NOT_DECIDED |
 | Review and sign the flow links for about 10 flows on the freeCodeCamp pin (R42, A16; PRR-V1-003, FIH-V1-002) | 2026-12-04 | Sealing the Playwright fault set, before M5a and M7 | M5a slips until the links are signed; Playwright is not demoted (owner decision H6 (2026-11-10)) |
 | Publish the Tasks RC tag (R42, C22) | 2026-12-08 | M5a and the start of the M9 trial | NOT_DECIDED; `tasks-conformance` names 2026-12-15 as the latest trial start that still meets a 2027-01-05 stable |
@@ -395,17 +400,97 @@ settled, each by the pick it names).
 | H10. Signing and the removal branch | The record is signed without waiting for the removal branch; the row superseding decision 0594's Keeps line takes effect when that branch lands | Section 3 (F1); section 7 |
 | H11. macOS checks | MRS-V1-002 and MRS-V1-004 follow D7 and REL-V1-015. The per-merge macOS check stays advisory until the flake tickets are closed and 20 consecutive main runs pass, then it is made required; if that has not happened by 2026-12-15 it stays advisory per merge for 1.0. macOS is required at release. MRS-V1-004 keeps filing a P1 ticket per flake; its own rule against RC approval while such a ticket is open gives way to the release gate and the general open-P1 rule | MRS-V1-002, MRS-V1-004; section 3 (D7); plan dependency row `macos-required-shards` and PROD-INT-015 |
 
+### 10. Review settlements this record confirms
+
+The plan checklist marks eleven rows "confirm in the record". No owner answer names them; reviewers
+settled them. Accepting this record confirms each as written here. The owner may strike a row
+before signing; a struck row stays `pending-owner` in the acceptance log.
+
+| Row | Settlement confirmed |
+|---|---|
+| O8 | The release builds three platforms, including linux/arm64, in place of the PRS-V1-004 list |
+| O18 | PROD-INT-001 has four layers; no "analyzers" layer remains after G26 |
+| O24 | M3 removals are complete by 2026-12-01; a later batch moves to 1.0.x |
+| O26 | Decision 0433's no-signing choice is superseded for the build attestation and npm provenance only |
+| O27 | No telemetry; uninstall is deleting the binaries and `.corvint/` (PROD-INT-006 notes) |
+| O28 | `SECURITY.md` is copied into `corvint-action` and `corvint-agents` |
+| O39 | `context` stays on decision 0594's Keeps line; the release smoke uses `corvint context` |
+| O40 | The review requirement prefix is RVE-V1 |
+| O46 | Minitest results come from the rubylinecov hook |
+| O59 | Provider files, receipts and inventories follow an add-only rule |
+| O62 | The feature map is preview, as the output of `docs flows generate` |
+
+Five rows carry a recorded decision with paperwork still to do. Signing does not wait for the
+paperwork, and none of it is a new owner decision.
+
+| Row | What is decided | Paperwork still to do |
+|---|---|---|
+| O13 | Held-out repositories are drawn from sealed pools and never redrawn (H3) | A swap among the other G12a repositories is reported to the owner when the rule check finds one |
+| O31 | The dependency table and fixed-commit citations are in the plan (R35) | Proposal headers and the plan's "Implemented by" lines are reconciled |
+| O34 | Decisions 0224 and 0352 stay in force until the B11 action cut-over (R42, E2) | The change that lands B11 writes the superseding text |
+| O38 | G5 partly reverses decision 0595 (R42, B7) | One superseding decision file for 0595; CMS-V0-915, CMS-V0-916 and the layer test rewritten with `flows-status-report` |
+| O67 | "Implemented by" lines and the dependency table are generated and checked (R42, E10) | The check is built by change `openspec-check`; until then the table is kept by hand |
+
+### 11. How the owner signs
+
+No agent performs steps 1 or 2. Steps 1 to 4 are done or prepared; step 5 is done on the
+owner's instruction (H16).
+
+Owner decision H14 (2026-11-10), the owner's words: "No key". The owner declines the signing key
+of R42, D12 and D13, so the fallback of ACR-V1-011 applies to the plan acceptance and, unless a
+later owner decision adds a key, to the RC and stable acceptances: an owner-merged decision file
+plus the protected-environment approval. No allowed-signers file is committed and no acceptance
+tag is signed. Every record states that the owner's identity is by convention and `NOT_VERIFIED`.
+H14 answers step 2 only; it does not accept sections 1 to 10.
+
+Owner decision H15 (2026-11-10), the owner's words: "accepted". It answered the request to
+state acceptance of sections 1 to 10 of this record. It is read as accepting those sections
+whole: the grill and review decisions, each delegated pick of section 3, the drafted wording,
+the supersessions, the owner acts of section 8 as listed (each `NOT_DECIDED` cell stays
+`NOT_DECIDED`), the eleven review settlements of section 10, and the reading of the no-key
+fallback in step 6. H15 creates no repository, publishes nothing and promotes nothing.
+
+1. Read sections 1 to 10 and say which parts are accepted, amended or rejected. Done: all
+   accepted (H15).
+2. Choose the key path. Done: no key (H14).
+3. The file is renamed to `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the
+   next free number, its status line is changed to accepted, and its row is added to
+   `docs/decisions/README.md` (ACR-V1-001). An agent may prepare this commit on the owner's word.
+   Prepared: number 0596 (0594 is the refocus decision on the big-cut branch; 0595 is the
+   flows move on `claude/flows-to-docs`).
+4. The acceptance log rows the owner accepted are set to mode `owner` with the decision number as
+   `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
+   (ACR-V1-006, ACR-V1-008). Prepared as a diff for the owner to read back: 144 rows.
+5. The owner merges the pull request that carries steps 3 and 4. Owner decision H16
+   (2026-11-10), the owner's words: "you merge it". It answered the request that the owner
+   merge the pull request after reading the log rows back. The agent merges it through the
+   merge queue on that instruction; the `owner` rows rest on H15 and H16, not on an agent's
+   judgement.
+6. The plan acceptance is the owner-merged decision file (ACR-V1-011, fallback; H14). It states
+   that the owner's identity is by convention and `NOT_VERIFIED`. The fallback also names a
+   protected-environment approval. The plan acceptance deploys nothing, so no environment exists
+   to approve at this step; the two approvals are given at the RC publish (M8) and the stable
+   promotion (M10), and neither release is accepted without its approval (section 8; REL-V1-007).
+   This reading of the fallback is drafted wording: merging this record accepts it, and the
+   owner may instead ask for an approval step before M0.
+
+After step 5 the change `acceptance-record` edits `AGENTS.md` invariants 3, 4, 5 and 7
+(ACR-V1-012), and milestone M0 may start.
+
 ## Rollback
 
-Before acceptance: delete this file; nothing else depends on it. After acceptance: a decision
+A decision
 record is never deleted (ACR-V1-001); a new decision record supersedes this one, names what it
 restores, and the acceptance log rows it changes go back to `pending-owner`.
 
 ## What the owner decides
 
-1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3.
-2. The plan commit SHA this record names.
+1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3:
+   accepted (H15).
+2. The plan commit SHA this record names (written in the header).
 3. The acts of section 8, and a value for each `NOT_DECIDED` cell the owner wants fixed.
+4. The eleven review settlements of section 10: accepted (H15).
+5. The key path of section 11, step 2: decided, no key (H14).
 
 Section 9 lists the owner's answers of 2026-11-10 (H1 to H11) and leaves nothing open. Owner
 decision H13 (2026-11-10) confirmed the reading in section 1 that the canonical specs stay as the
