@@ -493,7 +493,13 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	if _, unknown := loadAverage(context.Background()); unknown != "" {
 		load = func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
 	}
-	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: load})
+	// watch-replan-self gets a generated repository as its self root: the smoke run must not
+	// depend on the checkout it runs from, which a CI job may hold without usable Git metadata.
+	selfRoot := filepath.Join(dir, "self")
+	if err := generateCode(context.Background(), selfRoot, Smoke); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: load, SelfRoot: selfRoot})
 	if err != nil {
 		t.Fatal(err)
 	}
