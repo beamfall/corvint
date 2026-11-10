@@ -3,10 +3,11 @@
 - Date: 2026-11-10 (drafted 2026-11-09)
 - Status: accepted (owner, 2026-11-10, "accepted"; owner decision H15). The owner accepted
   sections 1 to 10 whole, with no amendment and no rejection. The acceptance takes effect when
-  the owner merges the pull request that carries this file (section 11, step 5). No key signs
+  the pull request that carries this file merges; the owner told the agent to merge it (owner
+  decision H16; section 11, step 5). No key signs
   it (H14): the owner's identity is by convention and `NOT_VERIFIED` (ACR-V1-011, fallback).
 - Authority it records: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date, and owner decisions H1 to H15 of 2026-11-10,
+  recorded in the owner-answers file of that date, and owner decisions H1 to H16 of 2026-11-10,
   recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
@@ -29,8 +30,8 @@
   `AGENTS.md` invariant edits). The
   acceptance log `docs/specs/openspec/acceptance-log.tsv` holds one row for each of the 77 PROD
   requirements and the 67 checklist O-rows, every one prepared with mode `owner` and this decision as its
-  reference. Only the owner writes those rows (ACR-V1-006): the owner reads the prepared diff
-  back and merges it (section 11, steps 4 and 5). Also read with
+  reference. Only the owner writes those rows (ACR-V1-006): they were prepared as a diff and
+  merged on the owner's instruction (H16; section 11, steps 4 and 5). Also read with
   `docs/decisions/PROPOSED-supersede-0594-keeps-line.md` and the change
   `docs/specs/openspec/changes/source-removal/`; that file and decision 0594 are not on this
   branch (section 7).
@@ -432,7 +433,8 @@ paperwork, and none of it is a new owner decision.
 
 ### 11. How the owner signs
 
-No agent performs steps 1, 2 or 5. Steps 1 to 4 are done or prepared; step 5 is the owner's.
+No agent performs steps 1 or 2. Steps 1 to 4 are done or prepared; step 5 is done on the
+owner's instruction (H16).
 
 Owner decision H14 (2026-11-10), the owner's words: "No key". The owner declines the signing key
 of R42, D12 and D13, so the fallback of ACR-V1-011 applies to the plan acceptance and, unless a
@@ -458,7 +460,11 @@ fallback in step 6. H15 creates no repository, publishes nothing and promotes no
 4. The acceptance log rows the owner accepted are set to mode `owner` with the decision number as
    `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
    (ACR-V1-006, ACR-V1-008). Prepared as a diff for the owner to read back: 144 rows.
-5. The owner merges the pull request that carries steps 3 and 4.
+5. The owner merges the pull request that carries steps 3 and 4. Owner decision H16
+   (2026-11-10), the owner's words: "you merge it". It answered the request that the owner
+   merge the pull request after reading the log rows back. The agent merges it through the
+   merge queue on that instruction; the `owner` rows rest on H15 and H16, not on an agent's
+   judgement.
 6. The plan acceptance is the owner-merged decision file (ACR-V1-011, fallback; H14). It states
    that the owner's identity is by convention and `NOT_VERIFIED`. The fallback also names a
    protected-environment approval. The plan acceptance deploys nothing, so no environment exists
