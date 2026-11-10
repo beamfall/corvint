@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Taxonomy mapping table for the store cutover (TSC-V1-009). Status: proposed, for owner review.
+# script/cutover-payloads.sh applies it to dumped survivors; every change it makes is recorded in
+# the seed manifest (TSC-V1-010, TSC-V1-013). A ticket a rule cannot place is UNPLACED and stops
+# the seed for an owner decision. Columns: field, match, value, note. A value of - means UNPLACED.
+# Rows of one field are tried in order; the first match wins.
+field	match	value	note
+type	label=optimizations	optimization	label outranks kind; kind becomes CHORE and is recorded
+type	label=tests	test-gap	label outranks kind; kind becomes CHORE and is recorded
+type	kind=BUG	bug
+type	kind=FEATURE	delivery
+type	kind=SPIKE	decision
+type	kind=CHORE	chore
+type	kind=DOC	-	no taxonomy type for DOC; owner decides
+type	kind=MANUAL	-	no taxonomy type for MANUAL; owner decides
+type	kind=EXTERNAL	-	no taxonomy type for EXTERNAL; owner decides
+component	alias=linecov	line-evidence	title prefix alias
+component	alias=affected/golang	affected	title prefix alias
+component	alias=ci	gates	title prefix alias
+component	alias=go-macos	gates	title prefix alias
+component	title-prefix	*	a title prefix that names a component (case folded) or an alias
+component	ignore-path=docs/build-log/	-	bookkeeping or broad path; names no component
+component	ignore-path=docs/decisions/	-	bookkeeping or broad path; names no component
+component	ignore-path=.corvint/changes/	-	bookkeeping or broad path; names no component
+component	ignore-path=docs/specs/README.md	-	bookkeeping or broad path; names no component
+component	ignore-path=docs/specs/INDEX.json	-	bookkeeping or broad path; names no component
+component	ignore-path=docs/specs/REQUIREMENTS.tsv	-	bookkeeping or broad path; names no component
+component	ignore-path=docs/	-	bookkeeping or broad path; names no component
+component	ignore-path=internal/	-	bookkeeping or broad path; names no component
+component	ignore-path=cmd/	-	bookkeeping or broad path; names no component
+component	ignore-path=cmd/corvint/	-	bookkeeping or broad path; names no component
+component	ignore-path=tools/	-	bookkeeping or broad path; names no component
+component	ignore-path=script/	-	bookkeeping or broad path; names no component
+component	ignore-path=script	-	bookkeeping or broad path; names no component
+component	ignore-path=.corvint/	-	bookkeeping or broad path; names no component
+component	root=internal/liveverify/affected/	affected	an extra root for this mapping
+component	root=internal/jstestprovider/	runner	an extra root for this mapping
+component	root=cmd/corvint/test.go	test	an extra root for this mapping
+component	root=.github/forward-rows/	gates	an extra root for this mapping
+component	root=VERSION	release	an extra root for this mapping
+component	root=docs/releases	release	an extra root for this mapping
+component	root=docs/RELEASE-NOTES.md	release	an extra root for this mapping
+component	secondary=specs	-	a spec path names specs only when no other component is named
+component	touch-path	*	the one component named by the longest root prefix of the paths not ignored
+title	strip-prefix	*	drop a leading "<word>: " the taxonomy title rule refuses; record the old title
+labels	drop	*	drop every old label; record them; the gate adds the facet labels
+milestone	set	v1-0	survivors are 1.0 work (TSC-V1-008); a different old value is recorded
+requirementRefs	keep-known	*	keep refs found in REQUIREMENTS.tsv; record the dropped ones
+requirementRefs	add-anchor	*	add the PROD target of the M0 release mapping when it is MAPPED
+touchPaths	drop-missing	*	drop paths absent from origin/main; record them (TSC-V1-013)
+dependencies	filter-survivors	*	keep edges to survivors; record the dropped ones
+supersedes	filter-survivors	*	keep only a survivor; record a dropped value
+localToken	old-id	*	keep the old serial (decision 2, R42 C12)
