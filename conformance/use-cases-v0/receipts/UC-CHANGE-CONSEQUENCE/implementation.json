@@ -6,17 +6,17 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "3735bef2722129fdab0beb1d184ee9b45ae0b3fe",
+  "repositoryRevision": "6e825d4811551c5c360b5c573a7ff2928296dd08",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/main.go",
-      "sha256": "f5fae3966c881b7a3548e5962aca00468052cd39caa98e2d4374d189ece0dfcb"
+      "sha256": "4ce8849a8804d2ebf9ae70818aa80de1bee4cfd4fee462f80b706e4bc23d26ab"
     },
     {
       "path": "cmd/corvint/affected.go",
-      "sha256": "667a20fed3a171702109b1ccc516f958db8d298590d12829b9ecc600766196fd"
+      "sha256": "8c54cfaacfc6e99dab84abadeed3d03cc10fa5cbae4b046246d42520f897c2d1"
     }
   ],
   "useCaseId": "UC-CHANGE-CONSEQUENCE"

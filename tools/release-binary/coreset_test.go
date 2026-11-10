@@ -17,6 +17,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/releasecandidate"
 )
 
@@ -154,7 +155,10 @@ func TestInstalledCoreSetRunsCorvintDocs(t *testing.T) {
 		archives[name] = archive
 	}
 	fixture := t.TempDir()
-	for _, arguments := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture", "--allow-empty"}} {
+	for _, arguments := range [][]string{{"init", "-q"}, {"add", "-A"}, {"-c", "user.name=t",
+		"-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false",
+		"-c", "maintenance.auto=false", "-c", "gc.auto=0",
+		"commit", "-qm", "fixture", "--allow-empty"}} {
 		if err := os.WriteFile(filepath.Join(fixture, "README.md"), []byte("# Fixture\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -212,7 +216,7 @@ func TestInstalledCoreSetRunsCorvintDocs(t *testing.T) {
 	// CMS-V0-002: a corvint-docs beside corvint at another version is refused by name.
 	skewed := t.TempDir()
 	extractInto(t, skewed, archives["corvint"], "corvint_"+target.GOOS+"_"+target.GOARCH)
-	if err := os.WriteFile(filepath.Join(skewed, "corvint-docs"), []byte("#!/bin/sh\nprintf 'corvint-docs 9.9.9\\n'\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(skewed, "corvint-docs"), []byte("#!/bin/sh\nprintf 'corvint-docs 9.9.9\\n'\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if code, out := run(skewed, "--root", fixture, "docs", "citations", "check"); code != 2 || !strings.Contains(out, `"code": "version-mismatch"`) {

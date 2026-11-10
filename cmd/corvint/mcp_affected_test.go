@@ -186,10 +186,10 @@ func staleBuildInfoFunc(info *debug.BuildInfo) func() (*debug.BuildInfo, bool) {
 	return func() (*debug.BuildInfo, bool) { return info, true }
 }
 
-// MMR-V0-1118: `affected --summary` reports self-binary-stale as a degradation
-// inside its successful verdict, never as a refusal, so a stale corvint binary
-// served through corvint mcp answers the CLI's exact degraded bytes with no
-// tool error; because those bytes are the CLI's, the restart recovery lives in
+// MMR-V0-1118 with AFP-V0-9730: `affected --summary` refuses a self-binary-stale
+// binary with exit 2, so a stale corvint binary served through corvint mcp
+// answers the CLI's refusal as the tool error with the CLI's code and error,
+// never a plan; because that error is the CLI's, the restart recovery lives in
 // the tool description and the verb's help.
 func TestV15254MCPAffectedStaleBinaryDegrades(t *testing.T) {
 	root := affectedFixtureRepository(t)
@@ -198,22 +198,24 @@ func TestV15254MCPAffectedStaleBinaryDegrades(t *testing.T) {
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "edit")
 	stubSelfBuildInfo(t, selfBinaryInfo("example.com/fixture", built))
-	receipt, cli, stderr, code := runAffectedCLI(t, root, "--summary")
-	if code != 0 || !strings.Contains(stderr, "DEGRADED self-binary-stale") {
-		t.Fatalf("CLI exit %d stderr %q", code, stderr)
+	_, _, stderr, code := runAffectedCLI(t, root, "--summary")
+	var emitted struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
 	}
-	if degradations, _ := receipt["degradations"].([]any); !reflect.DeepEqual(degradations, []any{selfBinaryStaleCode}) {
-		t.Fatalf("CLI degradations %#v", receipt["degradations"])
+	if code != 2 || json.Unmarshal([]byte(stderr), &emitted) != nil ||
+		emitted.Code != selfBinaryStaleCode || !strings.Contains(emitted.Error, "rebuild") {
+		t.Fatalf("CLI exit %d stderr %q", code, stderr)
 	}
 	responses := mcpAffectedChildWith(t, root, []string{"--tool-profile", "affected", "--v15254-stale", "example.com/fixture", built},
 		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"corvint.affected","arguments":{}}}`,
 	)
-	checkMCPAffectedAnswer(t, responses["2"], cli)
-	structured := responses["2"]["result"].(map[string]any)["structuredContent"].(map[string]any)
-	details, _ := structured["degradationDetails"].(map[string]any)
-	if detail, _ := details[selfBinaryStaleCode].(string); !strings.Contains(detail, "rebuild") {
-		t.Fatalf("degradationDetails %#v", structured["degradationDetails"])
+	refused, _ := responses["2"]["result"].(map[string]any)
+	structured, _ := refused["structuredContent"].(map[string]any)
+	if refused["isError"] != true || structured["profile"] != toolgroup.AffectedErrorProfile ||
+		structured["code"] != emitted.Code || structured["error"] != emitted.Error {
+		t.Fatalf("stale binary: MCP %#v, CLI %#v", refused, emitted)
 	}
 	var description string
 	for _, raw := range responses["1"]["result"].(map[string]any)["tools"].([]any) {

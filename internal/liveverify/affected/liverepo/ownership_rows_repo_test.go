@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package affected_test
+package liverepo_test
 
 import (
 	json "encoding/json/v2"
@@ -16,7 +16,7 @@ import (
 
 // auditTest is the test the ownership rows of .corvint/test-selection.json
 // name when nothing else exercises the owned paths (AZU-V0-002).
-const auditTest = "internal/liveverify/affected/ownership_completeness_test.go"
+const auditTest = "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
 
 // testFileSuffixes are the test file conventions of the languages this
 // repository's plugins model, so the check needs no graph build.
@@ -30,10 +30,7 @@ var testFileSuffixes = []string{"_test.go", "_test.sh", "_test.py", "_spec.rb", 
 // (TestOwnerSelectsExercisingTests_AFPV010329), and this check keeps the
 // declaration honest about which tests those are.
 func TestRepositoryOwnerRowsNameExercisingTests_AFPV010329(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := repositoryRoot(t)
 	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.DeclaredSelectionPath)))
 	if err != nil {
 		t.Fatal(err)

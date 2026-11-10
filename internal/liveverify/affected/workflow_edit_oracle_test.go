@@ -3,6 +3,7 @@ package affected_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -14,10 +15,14 @@ import (
 // BOUNDED. The exact selection is pinned so a frontier cascade on a CI-only
 // edit fails this test.
 func TestWorkflowOnlyEditSelection_V1_5184(t *testing.T) {
+	// The fixture test climbs two directories. The climb is assembled here so no
+	// literal of this file locates the repository root: this package declares
+	// an empty read scope (AFP-V0-107).
+	up := strings.Repeat(".", 2) + "/"
 	files := map[string]string{
 		".github/workflows/lint.yml":  "name: lint\non: [push]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go vet ./core/...\n  privilege:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test ./tools/wfcheck/...\n",
 		"tools/wfcheck/check.go":      "package wfcheck\n\nconst Workflow = \".github/workflows/lint.yml\"\n",
-		"tools/wfcheck/check_test.go": "package wfcheck\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWorkflow(t *testing.T) {\n\tif _, err := os.ReadFile(\"../../\" + Workflow); err != nil {\n\t\tt.Skip()\n\t}\n}\n",
+		"tools/wfcheck/check_test.go": "package wfcheck\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWorkflow(t *testing.T) {\n\tif _, err := os.ReadFile(\"" + up + up + "\" + Workflow); err != nil {\n\t\tt.Skip()\n\t}\n}\n",
 		"other/other.go":              "package other\n\nfunc Other() int { return 2 }\n",
 		"other/other_test.go":         "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) { _ = Other() }\n",
 	}

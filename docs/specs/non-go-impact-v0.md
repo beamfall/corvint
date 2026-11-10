@@ -756,7 +756,10 @@ supply a build-unit graph; the Kotlin and C# rules read package and namespace sy
   `internal/liveverify/affected` or its language packages, so the corvint-tasks source archive
   closure (`PUB-V0-012`, `PUB-V0-013`) stays unchanged. It SHALL read SwiftPM targets and Swift
   imports through a `SwiftPMReader` that `internal/swiftimpact` registers. Every binary that links
-  the affected Swift model SHALL link that package, and corvint-tasks SHALL link neither. A Swift
+  the affected Swift model and can reach path impact (`corvint`, `corvint-mcp`,
+  `corvint-test-validity-mcp`) SHALL link that package, and corvint-tasks SHALL link neither;
+  `corvint-docs-mcp` and `corvint-web-flows` never reach path impact and do not link it
+  (`docs/build-log/2026-11-09-layer-tests-targets.md`). A Swift
   request served without a registered reader SHALL report no target membership and no
   `reverse-import` row, and SHALL keep the profile gap. It SHALL also carry the line
   `this binary does not link the SwiftPM target reading, so Swift paths have no target membership`.

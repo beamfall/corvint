@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,7 +16,7 @@ import (
 
 func watchGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := fixtureGitCommand(args...)
 	cmd.Dir = root
 	out, err := cmd.CombinedOutput()
 	if err != nil {

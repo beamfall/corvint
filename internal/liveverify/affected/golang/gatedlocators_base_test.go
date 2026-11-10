@@ -47,7 +47,8 @@ const gatedDeclaration = `{"profile":"corvint-gated-root-locators/0","packages":
 
 func gitIn(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", arguments...)
+	safeguards := []string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}
+	command := exec.Command("git", append(safeguards, arguments...)...)
 	command.Dir = root
 	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test")
 	out, err := command.CombinedOutput()

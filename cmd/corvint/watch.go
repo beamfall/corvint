@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/linecov"
 	"github.com/Beamfall/corvint/internal/linecov/watch"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 const watchHelp = `Rerun the tests a working-tree save can affect (experimental, LPCV-V0).
@@ -125,7 +126,7 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 		return watchRefuse(diagnostic, "watch-index-unavailable", fmt.Sprintf("index %s: %v", *index, err))
 	}
 	defer ix.Close()
-	if ix.Language != "" && ix.Language != "go" {
+	if ix.Language != "" && ix.Language != (golang.Language{}).Name() {
 		return watchRefuse(diagnostic, "watch-index-language", fmt.Sprintf("index %s records %s tests; corvint watch plans Go indexes, linecov watch -command runs other suites", *index, ix.Language))
 	}
 	var source *watch.Source

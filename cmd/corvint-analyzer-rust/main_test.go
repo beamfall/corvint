@@ -104,13 +104,18 @@ func (failingWriter) Write([]byte) (int, error) { return 0, os.ErrClosed }
 
 // TestNoAmbientCapabilityImports is the containment guard. It asserts the exact
 // import set of every production file rather than scanning for substrings: the
-// analyzer package may reach only pure-computation stdlib, and the command adds
-// only the three packages it needs to move bytes between stdin and stdout.
+// analyzer package may reach only pure-computation stdlib and the shared
+// internal/rustsyntax leaf, which is itself held to pure stdlib, and the command
+// adds only the three packages it needs to move bytes between stdin and stdout.
 func TestNoAmbientCapabilityImports(t *testing.T) {
 	pure := map[string]bool{
 		"bytes": true, "crypto/sha256": true, "encoding/base64": true,
 		"encoding/binary": true, "encoding/hex": true, "encoding/json": true,
 		"regexp": true, "sort": true, "strings": true, "unicode/utf8": true,
+	}
+	analyzer := map[string]bool{"github.com/Beamfall/corvint/internal/rustsyntax": true}
+	for path := range pure {
+		analyzer[path] = true
 	}
 	command := map[string]bool{
 		"fmt": true, "io": true, "os": true,
@@ -142,7 +147,8 @@ func TestNoAmbientCapabilityImports(t *testing.T) {
 			}
 		}
 	}
-	check(filepath.Join(root, "internal", "analyzerrust"), pure)
+	check(filepath.Join(root, "internal", "rustsyntax"), pure)
+	check(filepath.Join(root, "internal", "analyzerrust"), analyzer)
 	check(filepath.Join(root, "cmd", "corvint-analyzer-rust"), command)
 }
 

@@ -2,8 +2,6 @@
 package affected
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -68,30 +66,6 @@ func TestDriverWorkflowAnchorsAndAliases_AZU_V0_214(t *testing.T) {
 	} {
 		if !parseDriverWorkflow(".github/workflows/anchors.yml", []byte(broken)).unparsable {
 			t.Errorf("%s: parsed although outside the subset", name)
-		}
-	}
-}
-
-// AZU-V0-214: the repository's release-gates workflow reuses its setup steps
-// through anchors; it parses, so it no longer raises driver:unparsable-file on
-// every plan (V1-4999, V1-5184).
-func TestReleaseGatesWorkflowParses_AZU_V0_214(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	body, err := os.ReadFile(filepath.Join(root, ".github/workflows/release-gates.yml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	workflow := parseDriverWorkflow(".github/workflows/release-gates.yml", body)
-	if workflow.unparsable || len(workflow.jobs) == 0 {
-		t.Fatalf("release-gates.yml unparsable=%v jobs=%v", workflow.unparsable, workflow.jobs)
-	}
-	for _, job := range workflow.jobs {
-		steps := workflow.root.get("jobs").get(job).get("steps")
-		if steps == nil || len(steps.items) == 0 {
-			t.Errorf("job %s has no parsed steps", job)
 		}
 	}
 }

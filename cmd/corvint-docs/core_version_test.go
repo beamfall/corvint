@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // besideCore puts a corvint stand-in beside the running test executable, where Locate looks
@@ -33,7 +35,7 @@ func besideCore(t *testing.T, versionLine string) string {
 	}
 	capture := filepath.Join(t.TempDir(), "capture")
 	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\\n' '" + versionLine + "'; exit 0; fi\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_CAPTURE\"\nprintf '{\"ok\": true}\\n'\n"
-	if err := os.WriteFile(sibling, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(sibling, []byte(script), 0o755); err != nil {
 		t.Skipf("cannot write beside the test executable: %v", err)
 	}
 	t.Cleanup(func() { os.Remove(sibling) })

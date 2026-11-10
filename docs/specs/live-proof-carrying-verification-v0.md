@@ -800,8 +800,10 @@ the last plan on screen as if it were current.
   deletion, rename or atomic replacement reaches the directory's. A directory event rescans that
   directory: new entries are watched (a new directory with its whole tree), an entry whose inode no
   longer matches its descriptor is rewatched, and gone entries are dropped, so a replacement whose
-  own delete event was coalesced is still observed. Relevance is the `LPCV-V0-7607` rule: Go source,
-  or a path Git does not ignore. A tree the process cannot hold one descriptor per file for
+  own delete event was coalesced is still observed. The added, replaced and dropped entries are the
+  changed paths; the directory itself counts only when neither its rescan nor an event names an
+  entry of it, so Git-ignored output alone schedules no run. Relevance is the `LPCV-V0-7607` rule: Go
+  source, or a path Git does not ignore. A tree the process cannot hold one descriptor per file for
   (`EMFILE`, `ENFILE`) refuses at start with the remedy (`ulimit -n`, `--events-stdin`, `--once`)
   rather than watch a subset. Limits: the darwin tests are compile-checked on Linux
   (`GOOS=darwin go vet`) and run only on a macOS host; until a macOS run is retained the source is
