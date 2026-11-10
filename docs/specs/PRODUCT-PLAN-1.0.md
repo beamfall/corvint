@@ -342,8 +342,8 @@ Also part of the bar (owner decisions of 2026-11-09).
 
 ### Testing product
 
-- `PROD-TEST-001`: (proposed 2026-11-09) Given a commit range or a set of changed paths, Corvint
-  MUST name the tests that the change requires and give a one-line reason for each.
+- `PROD-TEST-001`: (accepted, decision 0596; V1-5272) Given a commit range or a set of changed
+  paths, Corvint MUST name the tests that the change requires and give a one-line reason for each.
   - Source: owner, "only run the tests that are required for a change"; G2 ("every selection
     prints a one-line reason").
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
@@ -361,9 +361,9 @@ Also part of the bar (owner decisions of 2026-11-09).
     pinned qualification repositories (PROD-INT-008), each selection carrying a reason, with a
     replay that shows byte-identical plans.
 
-- `PROD-TEST-002`: (proposed 2026-11-09) Corvint MUST NOT leave out a test that a change requires;
-  where evidence is missing it selects the test, widens to a full run, or reports the scope as
-  UNKNOWN with a reason.
+- `PROD-TEST-002`: (accepted, decision 0596; V1-5272) Corvint MUST NOT leave out a test that a
+  change requires; where evidence is missing it selects the test, widens to a full run, or reports
+  the scope as UNKNOWN with a reason.
   - Changed: (changed 2026-11-09, answer 5 then G3) The acceptance evidence was "a measured miss
     count of zero over sampled full runs", with the sample size an owner decision. It is now the
     fault-injection proof of PROD-TEST-014; merged-PR replay measures selection size only
@@ -384,10 +384,11 @@ Also part of the bar (owner decisions of 2026-11-09).
     #109 (commit `1dfc1718e`).
   - Acceptance evidence at 1.0: PROD-TEST-014 passing for every blocking runner.
 
-- `PROD-TEST-003`: (proposed 2026-11-09) One plan MUST cover unit, integration and end-to-end
-  tests. Each selected test MUST carry a kind from the closed set `unit | integration | e2e |
-  UNKNOWN` and a `kindSource` from `runner | declaration | default | conflict`. In 1.0 the kind is a
-  reporting label only and never changes selection; the narrowing basis is a separate field.
+- `PROD-TEST-003`: (accepted, decision 0596; V1-5272) One plan MUST cover unit, integration and
+  end-to-end tests. Each selected test MUST carry a kind from the closed set `unit | integration |
+  e2e | UNKNOWN` and a `kindSource` from `runner | declaration | default | conflict`. In 1.0 the
+  kind is a reporting label only and never changes selection; the narrowing basis is a separate
+  field.
   - Changed: (changed 2026-11-09, G13) The statement said only "each selected test carrying its
     kind". G13 fixes the enum, the kind source, the definitions below, and that kind never drives
     selection.
@@ -415,10 +416,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: one receipt from a repository that has all three kinds of test,
     recorded on the release candidate, with each kind source shown.
 
-- `PROD-TEST-004`: (proposed 2026-11-09) An end-to-end test MUST be selected through the flow it
-  tests, so that changing a feature's code selects that feature's flows. A browser E2E test is
-  removed from a selection only by accepted flow links plus static reachability (file and symbol
-  level). Each selected entry also reports its variation.
+- `PROD-TEST-004`: (accepted, decision 0596; V1-5272) An end-to-end test MUST be selected through
+  the flow it tests, so that changing a feature's code selects that feature's flows. A browser E2E
+  test is removed from a selection only by accepted flow links plus static reachability (file and
+  symbol level). Each selected entry also reports its variation.
   - Changed: (changed 2026-11-09, G2 and G6) It said "selected through the flow and variation".
     G6 makes 1.0 select per flow (frozen semantics) with the variation reported as an optional
     member; per-variation narrowing is additive after 1.0. G2 makes flow links plus reachability the
@@ -443,11 +444,11 @@ Also part of the bar (owner decisions of 2026-11-09).
     recorded change that selects exactly one flow's tests with the flow and variations named, and
     the same on Corvint's own suites; the reachability narrowing report published.
 
-- `PROD-TEST-005`: (proposed 2026-11-09) A flow MUST consist of variations with tests attached. A
-  variation counts as covered when any linked test (unit, integration or E2E) is attached. A flow
-  change requires every test linked to an affected variation. Corvint reports each variation with
-  no test, each E2E test with no variation (`unassigned`), and each flow with zero E2E tests as "no
-  end-to-end proof", which does not block.
+- `PROD-TEST-005`: (accepted, decision 0596; V1-5272) A flow MUST consist of variations with tests
+  attached. A variation counts as covered when any linked test (unit, integration or E2E) is
+  attached. A flow change requires every test linked to an affected variation. Corvint reports each
+  variation with no test, each E2E test with no variation (`unassigned`), and each flow with zero
+  E2E tests as "no end-to-end proof", which does not block.
   - Changed: (changed 2026-11-09, answers 9 and 15, G11) The two mismatch reports were `PROPOSED`;
     they are now owner-sourced. "Covered" and "no end-to-end proof" are new.
   - Source: owner, "flows are built up with variants ..."; answers 9 and 15; G11.
@@ -468,11 +469,11 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: both reports on a repository with real flows, with counts that a
     person checked by hand once.
 
-- `PROD-TEST-006`: (proposed 2026-11-09) One command MUST run exactly the selected tests for each of
-  the seven blocking runners through one compiled-in runner contract, and record what ran and the
-  result. Every other runner, Cypress included, runs in full with a printed reason. A runner may
-  have several instances in one repository, each keyed by its root directory; sharding happens in
-  the GitHub Action only.
+- `PROD-TEST-006`: (accepted, decision 0596; V1-5272) One command MUST run exactly the selected
+  tests for each of the seven blocking runners through one compiled-in runner contract, and record
+  what ran and the result. Every other runner, Cypress included, runs in full with a printed reason.
+  A runner may have several instances in one repository, each keyed by its root directory; sharding
+  happens in the GitHub Action only.
   - Changed: (changed 2026-11-09, G1 and G23; R6, R7, R11, R14 and R15) It said "every supported
     language and runner". G1 names the seven runners; G23 requires one compiled-in contract and
     drops the external runner protocol. Owner decision R6 (2026-11-09) drops Cypress from 1.0; R7
@@ -501,11 +502,12 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: a `corvint-test-run/0` receipt for each blocking runner on its
     pinned qualification repository in which only selected tests ran.
 
-- `PROD-TEST-007`: (proposed 2026-11-09) `corvint watch` MUST state, after each save, which tests
-  the current edit requires, for all seven blocking runners, within p95 at most 1.0 s and p50 at
-  most 300 ms from save to answer on a warm cache. The default output is the list of tests with a
-  ready-to-run command; `--run` runs them. Each answer carries its tier (`line`, `file`, `flow` or
-  `full`) and the `exact` flag, the single tier vocabulary of owner decision R16 (2026-11-09).
+- `PROD-TEST-007`: (accepted, decision 0596; V1-5272) `corvint watch` MUST state, after each save,
+  which tests the current edit requires, for all seven blocking runners, within p95 at most 1.0 s
+  and p50 at most 300 ms from save to answer on a warm cache. The default output is the list of
+  tests with a ready-to-run command; `--run` runs them. Each answer carries its tier (`line`,
+  `file`, `flow` or `full`) and the `exact` flag, the single tier vocabulary of owner decision R16
+  (2026-11-09).
   - Changed: (changed 2026-11-09, answer 1 and G7) The time limit was `PROPOSED` with no number,
     and the requirement said the loop reruns tests "when asked". Answer 1 sets 1 second; G7 gates
     all seven runners (against the panel's recommendation of Go, Vitest and Jest only), adds the
@@ -537,10 +539,10 @@ Also part of the bar (owner decisions of 2026-11-09).
     figures from a real save-event run; the budget targets promoted from advisory to enforced on a
     quiet host (G27).
 
-- `PROD-TEST-008`: (proposed 2026-11-09) For unit and integration tests, where line evidence is
-  fresh, selection MUST narrow to the tests that execute the changed lines, for Go, RSpec,
-  Minitest, Vitest and Jest; otherwise it falls back to the file-level selection and says so. These
-  five MUST be line-level at RC or the release blocks. pytest selects by file in 1.0, with the
+- `PROD-TEST-008`: (accepted, decision 0596; V1-5272) For unit and integration tests, where line
+  evidence is fresh, selection MUST narrow to the tests that execute the changed lines, for Go,
+  RSpec, Minitest, Vitest and Jest; otherwise it falls back to the file-level selection and says so.
+  These five MUST be line-level at RC or the release blocks. pytest selects by file in 1.0, with the
   `file` tier on every selection.
   - Changed: (changed 2026-11-09, answer 3 and G2) It was `PROPOSED` and Go-centred. Answer 3 put
     line-level in 1.0 for all listed runners with Go, JS and Playwright mandatory. G2 removes
@@ -567,8 +569,8 @@ Also part of the bar (owner decisions of 2026-11-09).
     with PROD-TEST-014 passing; for pytest, file-level selection with the `file` tier and the
     release exception recorded in the acceptance record.
 
-- `PROD-TEST-009`: (proposed 2026-11-09) An agent MUST be able to ask through MCP which tests a
-  change requires and receive the same answer as the command line.
+- `PROD-TEST-009`: (accepted, decision 0596; V1-5272) An agent MUST be able to ask through MCP which
+  tests a change requires and receive the same answer as the command line.
   - Source: owner, "reportable by the MCP and cli".
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: an agent asks after an edit.
@@ -582,9 +584,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: a conformance test that compares the tool's answer with the
     command's answer on the same inputs.
 
-- `PROD-TEST-010`: (proposed 2026-11-09) Corvint MUST give one report, on the command line and
-  through MCP, of each flow, its variations, their tests and each test's last recorded result, from
-  `corvint` alone.
+- `PROD-TEST-010`: (accepted, decision 0596; V1-5272) Corvint MUST give one report, on the command
+  line and through MCP, of each flow, its variations, their tests and each test's last recorded
+  result, from `corvint` alone.
   - Changed: (changed 2026-11-09, G5) The report is native in `corvint` and needs no other
     binary. The "last recorded result" needs a writer; see PROD-TEST-020.
   - Source: owner, "All this should be managed by corvint, easy to track and reportable by the
@@ -604,10 +606,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: the report from the command and from the tool on the same
     repository, shown equal, with results that came from PROD-TEST-020's writer.
 
-- `PROD-TEST-011`: (proposed 2026-11-09) The supported runners MUST be exactly the seven blocking
-  runners. For each, selection and running work; any other runner (Cypress included), any path no
-  runner owns, and any path whose runner was removed or is unavailable, gets a full run of all tests
-  with a named reason.
+- `PROD-TEST-011`: (accepted, decision 0596; V1-5272) The supported runners MUST be exactly the
+  seven blocking runners. For each, selection and running work; any other runner (Cypress included),
+  any path no runner owns, and any path whose runner was removed or is unavailable, gets a full run
+  of all tests with a named reason.
   - Changed: (changed 2026-11-09, answer 2, G1, G26) The list was an open owner decision. G1 fixes
     it. G26 removes the C-family, .NET, Java, Kotlin, Rust and Swift providers and all 16
     `corvint-analyzer-*` binaries; removal fails closed (an unowned path is UNKNOWN). Owner decision
@@ -629,9 +631,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: for each blocking runner, one recorded selection and one recorded
     run on its pinned repository; one recorded full-run fallback for an unsupported runner.
 
-- `PROD-TEST-012`: (proposed 2026-11-09) Continuous integration MUST run the same plan as the local
-  command, through the Corvint GitHub Action only, run everything when the plan cannot be trusted,
-  honour the kill switch, and run the full suite periodically.
+- `PROD-TEST-012`: (accepted, decision 0596; V1-5272) Continuous integration MUST run the same plan
+  as the local command, through the Corvint GitHub Action only, run everything when the plan cannot
+  be trusted, honour the kill switch, and run the full suite periodically.
   - Changed: (changed 2026-11-09, answer 6, G16, G18) It was `PROPOSED` with an unstated period.
     Answer 6 makes CI narrowing a product feature for GitHub Actions only, with a kill switch and
     periodic full runs. G16 to G18 define the action; see the GitHub Actions section.
@@ -648,11 +650,11 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: the action's own qualification (PROD-INT-021), and the period of
     periodic full runs stated in the action proposal.
 
-- `PROD-TEST-013`: (proposed 2026-11-09) `CORVINT_SELECTION=full`, set globally or for one runner,
-  MUST make every selection for that scope a full run with the switch named as the reason, in
-  `affected`, `test`, `watch`, MCP and the GitHub Action. The per-runner form is `full:<runner>`
-  everywhere. An unknown value MUST exit 2 with a clear message in the CLI and CI, and MUST run all
-  tests in agent hooks and MCP.
+- `PROD-TEST-013`: (accepted, decision 0596; V1-5272) `CORVINT_SELECTION=full`, set globally or for
+  one runner, MUST make every selection for that scope a full run with the switch named as the
+  reason, in `affected`, `test`, `watch`, MCP and the GitHub Action. The per-runner form is
+  `full:<runner>` everywhere. An unknown value MUST exit 2 with a clear message in the CLI and CI,
+  and MUST run all tests in agent hooks and MCP.
   - Changed: (changed 2026-11-09, R13) Owner decision R13 (2026-11-09) fixes the unknown-value
     behaviour and unifies the grammar as `full:<runner>`, the Action included.
   - Source: G10; answer 6; G16; R13.
@@ -668,9 +670,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: `git grep CORVINT_SELECTION` finds nothing on the integration branch.
   - Acceptance evidence at 1.0: the switch tested on the RC binary, globally and per runner.
 
-- `PROD-TEST-014`: (proposed 2026-11-09) Before the RC, each blocking runner MUST pass a frozen
-  fault-injection miss proof: at least 100 fault-carrying PRs (about 30 bug-fix reverts, the rest
-  changed-line mutants at 3 to 5 per PR) and at least 30 non-code faults (config, fixtures,
+- `PROD-TEST-014`: (accepted, decision 0596; V1-5272) Before the RC, each blocking runner MUST pass
+  a frozen fault-injection miss proof: at least 100 fault-carrying PRs (about 30 bug-fix reverts,
+  the rest changed-line mutants at 3 to 5 per PR) and at least 30 non-code faults (config, fixtures,
   snapshots, lockfiles, generated files), frozen and hashed before execution (sampling frame, SHAs,
   mutation operators, seeds, exclusion rules), with zero unselected confirmed kills.
   - Source: G3 (supersedes answer 5).
@@ -693,11 +695,11 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: per runner, the frozen hashed case manifest and the result record,
     with the release wording of "The 1.0 bar".
 
-- `PROD-TEST-015`: (proposed 2026-11-09) Corvint MUST report selection size and over-selection on a
-  plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on each of the four drawn
-  held-out repositories (owner decision H3 (2026-11-10)): the 50 most recent merged PRs before
-  each pin, the list frozen with the manifest (R42 (panel pick) A12; review completeness F16). The
-  replay does not count as miss proof.
+- `PROD-TEST-015`: (accepted, decision 0596; V1-5272) Corvint MUST report selection size and
+  over-selection on a plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on each of
+  the four drawn held-out repositories (owner decision H3 (2026-11-10)): the 50 most recent merged
+  PRs before each pin, the list frozen with the manifest (R42 (panel pick) A12; review completeness
+  F16). The replay does not count as miss proof.
   - Source: G3 (supersedes answer 5's N as a miss proof).
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: replay report.
@@ -709,10 +711,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: none for this sample size.
   - Acceptance evidence at 1.0: the three replay reports bound to the RC.
 
-- `PROD-TEST-016`: (proposed 2026-11-09) Go, Vitest, Jest and pytest MUST each narrow at least 60
-  percent of replayed PRs (plan not FULL or UNKNOWN) with median selected test time at most 50
-  percent of the full suite, measured from recorded per-test durations excluding build and setup.
-  Playwright, RSpec and Minitest publish their numbers with no bar.
+- `PROD-TEST-016`: (accepted, decision 0596; V1-5272) Go, Vitest, Jest and pytest MUST each narrow
+  at least 60 percent of replayed PRs (plan not FULL or UNKNOWN) with median selected test time at
+  most 50 percent of the full suite, measured from recorded per-test durations excluding build and
+  setup. Playwright, RSpec and Minitest publish their numbers with no bar.
   - Source: G4; R19.
   - Rules (G4): the numbers are confirmed on the 200-PR Go replay and frozen before the RC is
     measured. PROD-TEST-014 is evaluated first; a runner failing it cannot pass on narrowing. Owner
@@ -728,10 +730,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: none.
   - Acceptance evidence at 1.0: the frozen thresholds and the per-runner measurements.
 
-- `PROD-TEST-017`: (proposed 2026-11-09) An explicit `corvint inventory refresh` step MUST run each
-  of the seven runners' test listers and write one committed inventory under `.corvint/`.
-  `corvint affected` only reads that inventory. When it is missing or stale, the plan runs all
-  tests with reason `inventory-absent` or `inventory-stale`.
+- `PROD-TEST-017`: (accepted, decision 0596; V1-5272) An explicit `corvint inventory refresh` step
+  MUST run each of the seven runners' test listers and write one committed inventory under
+  `.corvint/`. `corvint affected` only reads that inventory. When it is missing or stale, the plan
+  runs all tests with reason `inventory-absent` or `inventory-stale`.
   - Changed: (changed 2026-11-09, R10) It covered E2E tests only and widened to all E2E tests.
     Owner decision R10 (2026-11-09) makes one inventory for all seven runners, names the refresh
     verb, and makes a missing or stale inventory run all tests.
@@ -748,9 +750,9 @@ Also part of the bar (owner decisions of 2026-11-09).
     no separate refresh command.
   - Acceptance evidence at 1.0: the refresh step and a recorded stale-widening plan.
 
-- `PROD-TEST-018`: (proposed 2026-11-09) An E2E test linked to no flow MUST always run and be
-  counted as `unassigned` in every plan and in `flows gaps`. A link goes stale, returning its test
-  to `unassigned`, when the cited test content hash or routes change; static reachability must
+- `PROD-TEST-018`: (accepted, decision 0596; V1-5272) An E2E test linked to no flow MUST always run
+  and be counted as `unassigned` in every plan and in `flows gaps`. A link goes stale, returning its
+  test to `unassigned`, when the cited test content hash or routes change; static reachability must
   still agree; dangling links are reported. An optional CI ratchet refusing new unassigned tests is
   off by default. Links are proposed with a confidence score and accepted by a person only (owner
   decision R12 (2026-11-09)).
@@ -765,14 +767,15 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: (integ) the `unassigned` report exists; link staleness was not found.
   - Acceptance evidence at 1.0: a recorded stale link and a recorded unassigned test in a plan.
 
-- `PROD-TEST-019`: (proposed 2026-11-09) A changed non-code file MUST select every test that might
-  read it, unless an accepted map entry narrows it. Recordings may only propose entries; an entry
-  narrows only after an injected data-file fault proves it is caught. Never narrowed: `go.mod`,
-  `go.sum` and other lockfiles, the toolchain pin, `.github/**`, `Makefile`, runner config, release
-  config, generator inputs, `go:embed` and build-tag inputs, snapshot update paths, the map file
-  itself, `.corvint/test-read-scopes.json`, and secret or environment config. Under `.corvint/`,
-  only Corvint configuration files force a full run; an edit to `.corvint/flows.json` runs the tests
-  linked to the changed flows; doc-only edits and the two private ledgers add no tests.
+- `PROD-TEST-019`: (accepted, decision 0596; V1-5272) A changed non-code file MUST select every test
+  that might read it, unless an accepted map entry narrows it. Recordings may only propose entries;
+  an entry narrows only after an injected data-file fault proves it is caught. Never narrowed:
+  `go.mod`, `go.sum` and other lockfiles, the toolchain pin, `.github/**`, `Makefile`, runner
+  config, release config, generator inputs, `go:embed` and build-tag inputs, snapshot update paths,
+  the map file itself, `.corvint/test-read-scopes.json`, and secret or environment config. Under
+  `.corvint/`, only Corvint configuration files force a full run; an edit to `.corvint/flows.json`
+  runs the tests linked to the changed flows; doc-only edits and the two private ledgers add no
+  tests.
   - Changed: (changed 2026-11-09, R31) Owner decision R31 (2026-11-09) narrows the `.corvint/`
     full-run rule to configuration files.
   - Source: G15b; R31.
@@ -788,10 +791,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: the never-narrowed list tested; one map entry proven by an injected
     fault.
 
-- `PROD-TEST-020`: (proposed 2026-11-09) Every test run that Corvint executes (`corvint test`,
-  `corvint watch --run`, the GitHub Action) MUST record each test's result as run evidence in one
-  documented private location that the flow reports read by default, so that "last recorded result"
-  has a writer. The record is append-only.
+- `PROD-TEST-020`: (accepted, decision 0596; V1-5272) Every test run that Corvint executes (`corvint
+  test`, `corvint watch --run`, the GitHub Action) MUST record each test's result as run evidence in
+  one documented private location that the flow reports read by default, so that "last recorded
+  result" has a writer. The record is append-only.
   - Changed: (changed 2026-11-09, R7) It was `PROPOSED`. Owner decision R7 (2026-11-09) adds it as
     an append-only run result record, amending answer 3 and answer 8.
   - Source: owner decision R7 (2026-11-09); needed by PROD-TEST-010 and answer 8 ("run evidence
@@ -809,10 +812,10 @@ Also part of the bar (owner decisions of 2026-11-09).
 
 ### Documentation product
 
-- `PROD-DOCS-001`: (proposed 2026-11-09) Corvint MUST serve its read answers to agents through a
-  local MCP server, bounded in size and without changing the repository. The documentation tools are
-  served by one `corvint-docs mcp` server; `corvint mcp` keeps the testing tools; one table fixes
-  every tool name and schema.
+- `PROD-DOCS-001`: (accepted, decision 0596; V1-5272) Corvint MUST serve its read answers to agents
+  through a local MCP server, bounded in size and without changing the repository. The documentation
+  tools are served by one `corvint-docs mcp` server; `corvint mcp` keeps the testing tools; one
+  table fixes every tool name and schema.
   - Changed: (changed 2026-11-09, R30) It named `corvint mcp` as the server and was `DELIVERED`.
     Owner decision R30 (2026-11-09) puts the documentation tools on one `corvint-docs mcp` server
     with one tool table; the state is `PARTIAL` until that server and table ship.
@@ -832,8 +835,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: the conformance suite recorded against the RC binary, and one
     recorded agent session on a held-out repository.
 
-- `PROD-DOCS-002`: (proposed 2026-11-09) Corvint MUST generate draft documentation in which every
-  statement cites its source, and a person accepts each draft; nothing is published unaccepted.
+- `PROD-DOCS-002`: (accepted, decision 0596; V1-5272) Corvint MUST generate draft documentation in
+  which every statement cites its source, and a person accepts each draft; nothing is published
+  unaccepted.
   - Source: owner, "auto docs generation"; answer 7 (confirms); PRS-V1-015.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a package gets a draft.
@@ -848,8 +852,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: drafts for Corvint and one outside repository, every citation
     resolved by the citation check, with the acceptance step recorded.
 
-- `PROD-DOCS-003`: (proposed 2026-11-09) Corvint MUST detect documentation that no longer matches
-  the source it cites, and fail the documentation check.
+- `PROD-DOCS-003`: (accepted, decision 0596; V1-5272) Corvint MUST detect documentation that no
+  longer matches the source it cites, and fail the documentation check.
   - Changed: (changed 2026-11-09, answer 8) Source was `PROPOSED`; answer 8 puts drift detection in
     1.0.
   - Source: answer 8.
@@ -864,10 +868,11 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: the check failing on a seeded drift and passing after repair, on
     Corvint and on one outside repository.
 
-- `PROD-DOCS-004`: (proposed 2026-11-09) A project MUST declare its flows and variations in one file
-  `.corvint/flows.json` with a versioned profile, and be able to import, export and read them, each
-  with an identifier that is never reused. Corvint proposes flows; a person accepts them; an
-  unaccepted flow never drives selection. A reader refuses an unknown schema version.
+- `PROD-DOCS-004`: (accepted, decision 0596; V1-5272) A project MUST declare its flows and
+  variations in one file `.corvint/flows.json` with a versioned profile, and be able to import,
+  export and read them, each with an identifier that is never reused. Corvint proposes flows; a
+  person accepts them; an unaccepted flow never drives selection. A reader refuses an unknown schema
+  version.
   - Changed: (changed 2026-11-09, answer 10, G5, G6) It said "declare, import, export and read"
     with commands taking `--flows DIR`. G6 fixes one file named `.corvint/flows.json`;
     `.corvint/e2e-flows.json` is read for one release with a deprecation notice; both present fails
@@ -884,8 +889,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: flows declared and accepted on Corvint and on one outside
     repository, with an export and import round trip and the both-files refusal recorded.
 
-- `PROD-DOCS-005`: (proposed 2026-11-09) Corvint MUST generate and check flow documentation from
-  accepted flows, and report when a flow document has drifted from its flow.
+- `PROD-DOCS-005`: (accepted, decision 0596; V1-5272) Corvint MUST generate and check flow
+  documentation from accepted flows, and report when a flow document has drifted from its flow.
   - Source: owner, "auto docs generation" with "flows"; PRS-V1-015.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a variation is added.
@@ -898,8 +903,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: generated flow documents for a real application, with a drift
     check recorded failing and then passing.
 
-- `PROD-DOCS-006`: (proposed 2026-11-09) Corvint MUST map an application's screens and routes to
-  its flows and to the end-to-end tests that exercise them.
+- `PROD-DOCS-006`: (accepted, decision 0596; V1-5272) Corvint MUST map an application's screens and
+  routes to its flows and to the end-to-end tests that exercise them.
   - Source: owner, "E2E mapping".
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a screen is looked up.
@@ -913,8 +918,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: a map of one real application, with a hand check of a sample of
     routes against the tests that ran.
 
-- `PROD-DOCS-007`: (proposed 2026-11-09) `corvint how` MUST answer how to do a task in the
-  application from the application map, giving the steps and the evidence for each step, under
+- `PROD-DOCS-007`: (accepted, decision 0596; V1-5272) `corvint how` MUST answer how to do a task in
+  the application from the application map, giving the steps and the evidence for each step, under
   requirements in a rewritten spec.
   - Changed: (changed 2026-11-09, answer 8) Source was `PROPOSED`; answer 8 puts `corvint how` in
     1.0 and requires its spec to be rewritten. G5 keeps `how` in `corvint-docs`.
@@ -931,8 +936,8 @@ Also part of the bar (owner decisions of 2026-11-09).
     `site-knowledge-how/0`, citing a retired contract; code under `internal/appmap/`.
   - Acceptance evidence at 1.0: the rewritten spec, and recorded answers on one real application.
 
-- `PROD-DOCS-008`: (proposed 2026-11-09) Flow and map evidence MUST come from recorded end-to-end
-  runs, and be marked stale when the run was on another tree.
+- `PROD-DOCS-008`: (accepted, decision 0596; V1-5272) Flow and map evidence MUST come from recorded
+  end-to-end runs, and be marked stale when the run was on another tree.
   - Changed: (changed 2026-11-09, answer 8, G24) Source was `PROPOSED`; answer 8 puts run evidence
     in 1.0. G24 removes `corvint runs` and `internal/playwrightruns`, which the first draft cited as
     implementation; the surviving path is `flows ingest` into `test-run-evidence/0`
@@ -951,7 +956,7 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: a recorded run ingested on a real application, then shown stale
     after a later commit.
 
-- `PROD-DOCS-009`: (proposed 2026-11-09) Corvint MUST let an agent search the project's
+- `PROD-DOCS-009`: (accepted, decision 0596; V1-5272) Corvint MUST let an agent search the project's
   documentation and read a cited passage that is verified against the pinned source.
   - Changed: (changed 2026-11-09, answer 8) Source was `PROPOSED`; answer 8 puts docs search for
     agents in 1.0.
@@ -967,8 +972,8 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: recorded searches on Corvint and on one outside repository, with
     every returned passage verified.
 
-- `PROD-DOCS-010`: (proposed 2026-11-09) Every documentation and flow answer MUST be available
-  through MCP with the same content as the command line.
+- `PROD-DOCS-010`: (accepted, decision 0596; V1-5272) Every documentation and flow answer MUST be
+  available through MCP with the same content as the command line.
   - Source: owner, "reportable by the MCP and cli".
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: the same question two ways.
@@ -981,10 +986,10 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Acceptance evidence at 1.0: for each documentation and flow command, a test that compares the
     command's answer with the tool's answer.
 
-- `PROD-DOCS-011`: (proposed 2026-11-09) Flow authoring, discovery, proposals and `how` MUST live in
-  `corvint-docs`. Flow reports that join flows with test evidence or results (gaps, status, impact,
-  test-evidence) MUST be native in `corvint` on shared readers. One written boundary rule decides
-  each verb's single home.
+- `PROD-DOCS-011`: (accepted, decision 0596; V1-5272) Flow authoring, discovery, proposals and `how`
+  MUST live in `corvint-docs`. Flow reports that join flows with test evidence or results (gaps,
+  status, impact, test-evidence) MUST be native in `corvint` on shared readers. One written boundary
+  rule decides each verb's single home.
   - Changed: (changed 2026-11-09, G5) It said all documentation commands, including `flows`, move
     to `corvint-docs`. G5 keeps the test-joining reports in `corvint` and amends decision 0595,
     under which only `flows test-evidence` is native today (`cmd/corvint/flows_shim.go` on
@@ -1001,11 +1006,11 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: decision 0595 (integ); `tools/import-ratchet/areas.json`.
   - Acceptance evidence at 1.0: the boundary rule written; the release smoke test of PROD-INT-016.
 
-- `PROD-DOCS-012`: (proposed 2026-11-09) Corvint MUST propose flow declarations and test links with
-  cited evidence (`flows propose --links`, with a bulk bootstrap), and a person MUST accept them per
-  flow. A link record holds `test_id` (file path plus title path), `variation_id`, `evidence`,
-  `accepted_by`, `accepted_at` and the pinned commit. Tags in test source are proposal evidence
-  only, never authority to exclude.
+- `PROD-DOCS-012`: (accepted, decision 0596; V1-5272) Corvint MUST propose flow declarations and
+  test links with cited evidence (`flows propose --links`, with a bulk bootstrap), and a person MUST
+  accept them per flow. A link record holds `test_id` (file path plus title path), `variation_id`,
+  `evidence`, `accepted_by`, `accepted_at` and the pinned commit. Tags in test source are proposal
+  evidence only, never authority to exclude.
   - Source: answer 10; G11; G25 item 6 (a model proposes flow declarations, links and doc drafts;
     Corvint verifies; the owner accepts).
   - Intent: proposed. Delivery: not-started. State: MISSING.
@@ -1019,9 +1024,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Evidence today: none found.
   - Acceptance evidence at 1.0: proposals and per-flow acceptance recorded on Corvint's own flows.
 
-- `PROD-DOCS-013`: (proposed 2026-11-09) `corvint-docs` MUST generate the feature map from
-  `.corvint/flows.json`. The `feature`, `features` and `overview` verbs fold into flows and their
-  regular-expression heuristics are removed.
+- `PROD-DOCS-013`: (accepted, decision 0596; V1-5272) `corvint-docs` MUST generate the feature map
+  from `.corvint/flows.json`. The `feature`, `features` and `overview` verbs fold into flows and
+  their regular-expression heuristics are removed.
   - Source: G25 item 4.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: feature map.
@@ -1043,8 +1048,8 @@ first draft. G9 froze Tasks scope for 1.0 at its nine requirements plus MCP. Own
 from 1.0: Tasks is CLI only, and the Tasks repository publishes schema v1 and a supported-command
 list.
 
-- `PROD-TASK-001`: (proposed 2026-11-09) Tasks MUST keep tickets in a local store in which every
-  change is journaled and a ticket can be created, read and searched.
+- `PROD-TASK-001`: (accepted, decision 0596; V1-5272) Tasks MUST keep tickets in a local store in
+  which every change is journaled and a ticket can be created, read and searched.
   - Source: owner, "task management". Wording PROPOSED; scope frozen by G9.
   - Intent: proposed. Delivery: experimental. State: PARTIAL (not verified from this repository).
   - Scenario: a bug is filed.
@@ -1056,8 +1061,8 @@ list.
   - Evidence today: this repository's `.taskman/` store is in daily use.
   - Acceptance evidence at 1.0: traced to a test on Tasks `main` (G9 conformance pack).
 
-- `PROD-TASK-002`: (proposed 2026-11-09) Tasks MUST let one agent claim a ticket and its file
-  scope for a limited time, and refuse a claim that overlaps another.
+- `PROD-TASK-002`: (accepted, decision 0596; V1-5272) Tasks MUST let one agent claim a ticket and
+  its file scope for a limited time, and refuse a claim that overlaps another.
   - Source: owner, "task management". Wording PROPOSED; G9 (8 concurrent agents never
     double-claim).
   - Intent: proposed. Delivery: experimental. State: PARTIAL (not verified from this repository).
@@ -1069,8 +1074,9 @@ list.
   - Evidence today: none read beyond the spec file names.
   - Acceptance evidence at 1.0: at least 8 concurrent agents with no double claim (G9).
 
-- `PROD-TASK-003`: (proposed 2026-11-09) A ticket MUST be completed only through submit, a gate
-  run that passes and a completion write; a manual completion carries recorded evidence.
+- `PROD-TASK-003`: (accepted, decision 0596; V1-5272) A ticket MUST be completed only through
+  submit, a gate run that passes and a completion write; a manual completion carries recorded
+  evidence.
   - Source: `AGENTS.md`, "Agent routing". Wording PROPOSED.
   - Intent: proposed. Delivery: experimental. State: PARTIAL (not verified from this repository).
   - Scenario: a gate fails.
@@ -1083,8 +1089,8 @@ list.
   - Acceptance evidence at 1.0: one ticket completed through the gate and one refusal, both
     recorded.
 
-- `PROD-TASK-004`: (proposed 2026-11-09) Every change to the store MUST leave a receipt, and an
-  audit command reports any change that has none.
+- `PROD-TASK-004`: (accepted, decision 0596; V1-5272) Every change to the store MUST leave a
+  receipt, and an audit command reports any change that has none.
   - Source: `AGENTS.md`. Wording PROPOSED; G9 (receipt audit 0 failures).
   - Intent: proposed. Delivery: experimental. State: PARTIAL (not verified from this repository).
   - Scenario: a record is edited by hand.
@@ -1096,8 +1102,8 @@ list.
   - Acceptance evidence at 1.0: receipt audit with 0 failures on the real store at the RC; kill -9
     mid-write recovers (G9).
 
-- `PROD-TASK-005`: (proposed 2026-11-09) Tasks MUST answer what is open, what is next and what is
-  blocked without changing the store.
+- `PROD-TASK-005`: (accepted, decision 0596; V1-5272) Tasks MUST answer what is open, what is next
+  and what is blocked without changing the store.
   - Source: owner, "task management". Wording PROPOSED.
   - Intent: proposed. Delivery: experimental. State: PARTIAL (not verified from this repository).
   - Scenario: the roadmap is read.
@@ -1109,8 +1115,8 @@ list.
   - Evidence today: `AGENTS.md` names `queue status`, `roadmap`, `ticket search`, `ticket show`.
   - Acceptance evidence at 1.0: read commands timed on the real store, with no write recorded.
 
-- `PROD-TASK-006`: (proposed 2026-11-09) A ticket MUST be able to name the requirement IDs it
-  delivers and the evidence that closed it.
+- `PROD-TASK-006`: (accepted, decision 0596; V1-5272) A ticket MUST be able to name the requirement
+  IDs it delivers and the evidence that closed it.
   - Source: PROPOSED, from "everything should be documented before being built".
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a ticket is traced.
@@ -1122,9 +1128,9 @@ list.
   - Acceptance evidence at 1.0: every ticket closed for 1.0 names at least one requirement ID or
     states why none applies.
 
-- `PROD-TASK-007`: (proposed 2026-11-09) Agents MUST use Tasks through its CLI. The Tasks
-  repository MUST publish schema v1 of its records and a supported-command list. There is no Tasks
-  MCP server in 1.0, and `corvint mcp` has no tasks tools.
+- `PROD-TASK-007`: (accepted, decision 0596; V1-5272) Agents MUST use Tasks through its CLI. The
+  Tasks repository MUST publish schema v1 of its records and a supported-command list. There is no
+  Tasks MCP server in 1.0, and `corvint mcp` has no tasks tools.
   - Changed: (changed 2026-11-09, answer 11, G9, R17) It required a Tasks-owned MCP server with CLI
     parity (answer 11, G9). Owner decision R17 (2026-11-09) removes the Tasks MCP server from 1.0
     and requires schema v1 and a supported-command list instead.
@@ -1141,8 +1147,8 @@ list.
   - Acceptance evidence at 1.0: schema v1 and the supported-command list published on Tasks
     `main`, each listed command covered by the conformance pack (PROD-TASK-010).
 
-- `PROD-TASK-008`: (proposed 2026-11-09) Tasks MUST install, update and run without any Corvint
-  binary, and Corvint runs without any Tasks binary.
+- `PROD-TASK-008`: (accepted, decision 0596; V1-5272) Tasks MUST install, update and run without any
+  Corvint binary, and Corvint runs without any Tasks binary.
   - Source: decision 0594 item 5; answer 13.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: Tasks alone.
@@ -1154,9 +1160,10 @@ list.
   - Evidence today: `docs/CAPABILITIES.md`; `cmd/corvint-update` still accepts `--component tasks`.
   - Acceptance evidence at 1.0: an install of each product alone on a clean machine, recorded.
 
-- `PROD-TASK-009`: (proposed 2026-11-09) Tasks MUST take over a real project roadmap before stable:
-  Corvint and one other repository (`beamfall/core`) run on the frozen RC binary for 21 days with
-  zero lost tickets, checked by ID and hash diff. A store format change restarts the clock.
+- `PROD-TASK-009`: (accepted, decision 0596; V1-5272) Tasks MUST take over a real project roadmap
+  before stable: Corvint and one other repository (`beamfall/core`) run on the frozen RC binary for
+  21 days with zero lost tickets, checked by ID and hash diff. A store format change restarts the
+  clock.
   - Changed: (changed 2026-11-09, answer 12, G9, R18) The trial length was "an agreed period". Answer
     12 keeps the Beamfall takeover as a 1.0 condition; G9 sets 21 days on the frozen RC. Owner
     decision R18 (2026-11-09) names `beamfall/core` as the trial and conformance subject.
@@ -1170,11 +1177,11 @@ list.
   - Evidence today: no takeover record read.
   - Acceptance evidence at 1.0: the trial record bound to the RC binaries.
 
-- `PROD-TASK-010`: (proposed 2026-11-09) Corvint 1.0 MUST NOT ship until corvint-tasks 1.0 passes
-  its own conformance pack: the nine requirements traced to tests on Tasks `main`, every command on
-  the supported-command list checked against schema v1, at least 8 concurrent agents never
-  double-claim, kill -9 mid-write recovers, receipt audit 0 failures. The conformance subject is
-  `beamfall/core`. Tasks is tagged first.
+- `PROD-TASK-010`: (accepted, decision 0596; V1-5272) Corvint 1.0 MUST NOT ship until corvint-tasks
+  1.0 passes its own conformance pack: the nine requirements traced to tests on Tasks `main`, every
+  command on the supported-command list checked against schema v1, at least 8 concurrent agents
+  never double-claim, kill -9 mid-write recovers, receipt audit 0 failures. The conformance subject
+  is `beamfall/core`. Tasks is tagged first.
   - Changed: (changed 2026-11-09, R17, R18) MCP parity with the CLI is removed (R17); the subject
     is `beamfall/core` (R18).
   - Source: G9; R17; R18.
@@ -1189,9 +1196,10 @@ list.
   - Evidence today: none read.
   - Acceptance evidence at 1.0: the Tasks conformance record at its 1.0 tag.
 
-- `PROD-TASK-011`: (proposed 2026-11-09) Corvint and Tasks MUST keep separate semver lines and name
-  one compatible pair (Corvint 1.0.0 with corvint-tasks 1.0.x). The file contract is ticket schema
-  v1 plus receipt reference v1, with one shared fixture checked in both repositories' CI.
+- `PROD-TASK-011`: (accepted, decision 0596; V1-5272) Corvint and Tasks MUST keep separate semver
+  lines and name one compatible pair (Corvint 1.0.0 with corvint-tasks 1.0.x). The file contract is
+  ticket schema v1 plus receipt reference v1, with one shared fixture checked in both repositories'
+  CI.
   - Source: G9; answer 13.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: fixture drift.
@@ -1202,9 +1210,9 @@ list.
   - Evidence today: none.
   - Acceptance evidence at 1.0: the fixture passing in both CIs at the paired tags.
 
-- `PROD-TASK-012`: (proposed 2026-11-09) A ticket gate MUST be able to run `corvint affected` and
-  `corvint test` and store the run's receipt ID, which must resolve on `receipt audit` (integration
-  I1).
+- `PROD-TASK-012`: (accepted, decision 0596; V1-5272) A ticket gate MUST be able to run `corvint
+  affected` and `corvint test` and store the run's receipt ID, which must resolve on `receipt audit`
+  (integration I1).
   - Source: G9.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: gate with tests.
@@ -1215,8 +1223,9 @@ list.
   - Evidence today: none.
   - Acceptance evidence at 1.0: one recorded gate run on Corvint's own store.
 
-- `PROD-TASK-013`: (proposed 2026-11-09) A ticket MAY cite a flow or variation ID; the citation MUST
-  resolve against `.corvint/flows.json` or the operation fails closed (integration I2).
+- `PROD-TASK-013`: (accepted, decision 0596; V1-5272) A ticket MAY cite a flow or variation ID; the
+  citation MUST resolve against `.corvint/flows.json` or the operation fails closed (integration
+  I2).
   - Source: G9.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: dangling citation.
@@ -1229,8 +1238,8 @@ list.
 
 ### Integration and release
 
-- `PROD-INT-001`: (proposed 2026-11-09) The code MUST be divided into layers with a check that
-  refuses a new wrong-way import, and 1.0 MUST have zero violations.
+- `PROD-INT-001`: (accepted, decision 0596; V1-5272) The code MUST be divided into layers with a
+  check that refuses a new wrong-way import, and 1.0 MUST have zero violations.
   - Changed: (changed 2026-11-09, answer 14) The acceptance allowed owner-accepted remaining
     entries; answer 14 requires zero violations at 1.0 and a check that blocks new ones.
   - Source: owner, "perfectly integrated and structured"; decision 0594 item 8; answer 14.
@@ -1248,9 +1257,9 @@ list.
     counted 39 at its base).
   - Acceptance evidence at 1.0: an empty baseline.
 
-- `PROD-INT-002`: (proposed 2026-11-09) Testing and documentation MUST read flows through one
-  shared model and reader, so that both products give the same answer about a flow. The shared
-  layer holds only the model and the reader.
+- `PROD-INT-002`: (accepted, decision 0596; V1-5272) Testing and documentation MUST read flows
+  through one shared model and reader, so that both products give the same answer about a flow. The
+  shared layer holds only the model and the reader.
   - Changed: (changed 2026-11-09, answer 14) Answer 14 adds the reader split.
   - Source: owner's decided structure; answer 14.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
@@ -1264,8 +1273,8 @@ list.
   - Acceptance evidence at 1.0: a test comparing the plan's flow selections with the flow report on
     the same inputs; the shared area holding only model and reader.
 
-- `PROD-INT-003`: (proposed 2026-11-09) Every command and MCP tool MUST appear in one capability
-  catalogue that names the product that owns it.
+- `PROD-INT-003`: (accepted, decision 0596; V1-5272) Every command and MCP tool MUST appear in one
+  capability catalogue that names the product that owns it.
   - Source: owner, "easy to track". Wording PROPOSED.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a command is added.
@@ -1276,9 +1285,9 @@ list.
   - Evidence today: `internal/capcatalog/`, `docs/CAPABILITIES.md`; entries name no product.
   - Acceptance evidence at 1.0: the catalogue grouped by product, the check passing on the RC.
 
-- `PROD-INT-004`: (proposed 2026-11-09) Each of the three products MUST be installable and usable
-  without the other two. They integrate loosely through files and IDs; no library is shared across
-  repositories.
+- `PROD-INT-004`: (accepted, decision 0596; V1-5272) Each of the three products MUST be installable
+  and usable without the other two. They integrate loosely through files and IDs; no library is
+  shared across repositories.
   - Changed: (changed 2026-11-09, answer 13) Source was `PROPOSED`; answer 13 adds the loose
     integration rule.
   - Source: answer 13.
@@ -1291,8 +1300,8 @@ list.
   - Evidence today: `cmd/corvint-docs`, `cmd/corvint-docs-mcp`; Tasks is a separate repository.
   - Acceptance evidence at 1.0: an install of each product alone on a clean machine, recorded.
 
-- `PROD-INT-005`: (proposed 2026-11-09) Every product requirement in this plan MUST trace to
-  accepted capability requirements, and each of those to a test or a measured result.
+- `PROD-INT-005`: (accepted, decision 0596; V1-5272) Every product requirement in this plan MUST
+  trace to accepted capability requirements, and each of those to a test or a measured result.
   - Source: owner, "setup for success"; `docs/SPEC-DRIVEN-DEVELOPMENT.md`.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a requirement has no test.
@@ -1305,10 +1314,10 @@ list.
   - Acceptance evidence at 1.0: for each `PROD` requirement, the accepted capability requirements
     and the test or measurement for each, listed in the acceptance decision (PROD-INT-012).
 
-- `PROD-INT-006`: (proposed 2026-11-09) A user MUST be able to install, update and roll back each
-  product from verified release artifacts: archives for linux/amd64, linux/arm64 and darwin/arm64
-  with `SHA256SUMS`, a manifest, licences and a build attestation. No notarization, install script
-  or Homebrew tap ships in 1.0.
+- `PROD-INT-006`: (accepted, decision 0596; V1-5272) A user MUST be able to install, update and roll
+  back each product from verified release artifacts: archives for linux/amd64, linux/arm64 and
+  darwin/arm64 with `SHA256SUMS`, a manifest, licences and a build attestation. No notarization,
+  install script or Homebrew tap ships in 1.0.
   - Changed: (changed 2026-11-09, G15a, answer 16) It named no targets and no exclusions.
   - Source: owner, "successful 1.0 launch"; G15a; answer 16.
   - Notes: (proposed, not from an owner answer; checklist O27) Corvint sends no telemetry.
@@ -1336,8 +1345,8 @@ list.
   - Acceptance evidence at 1.0: install, update and rollback recorded on Linux and macOS from the
     RC artifacts.
 
-- `PROD-INT-007`: (proposed 2026-11-09) The 1.0 wire formats and commands MUST be frozen and
-  recorded, with a readiness record that states what was and was not qualified.
+- `PROD-INT-007`: (accepted, decision 0596; V1-5272) The 1.0 wire formats and commands MUST be
+  frozen and recorded, with a readiness record that states what was and was not qualified.
   - Source: owner, "setup for success". Wording PROPOSED.
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a frozen format changes.
@@ -1352,8 +1361,8 @@ list.
     plan, test-run receipt, run evidence, ticket schema v1, receipt reference v1), and a readiness
     record for the RC.
 
-- `PROD-INT-008`: (proposed 2026-11-09) Before 1.0 the RC MUST be qualified on Corvint, on
-  Beamfall, on seven pinned public repositories (one per blocking runner) and on four held-out
+- `PROD-INT-008`: (accepted, decision 0596; V1-5272) Before 1.0 the RC MUST be qualified on Corvint,
+  on Beamfall, on seven pinned public repositories (one per blocking runner) and on four held-out
   repositories, one per family, drawn from sealed pools (owner decision H3 (2026-11-10)).
   - Changed: (changed 2026-11-09, answer 17, G12, G12a) It said "one repository not used during
     development". (changed 2026-11-09, owner decision R19 (2026-11-09)) Fault injection uses 100
@@ -1410,9 +1419,9 @@ list.
     draw record, each drawn held-out repository's verification record, and each repository's
     record bound to the M5a candidate and the RC.
 
-- `PROD-INT-009`: (proposed 2026-11-09) Corvint MUST use its three products on itself, recorded as
-  use of the products, and each release records that use and the friction found. This replaces the
-  CEM, OCM and dogfood ceremony.
+- `PROD-INT-009`: (accepted, decision 0596; V1-5272) Corvint MUST use its three products on itself,
+  recorded as use of the products, and each release records that use and the friction found. This
+  replaces the CEM, OCM and dogfood ceremony.
   - Changed: (changed 2026-11-09, G8) It cited "Dogfood Corvint" and `docs/DOGFOOD.md`. G8 replaces
     the ceremony with recorded self-use and requires `AGENTS.md` to be amended in the same change.
   - Source: G8.
@@ -1426,8 +1435,8 @@ list.
   - Acceptance evidence at 1.0: Corvint's own flows accepted, and one release cycle recorded with
     all three products in use.
 
-- `PROD-INT-010`: (proposed 2026-11-09) Every surviving spec MUST name the product requirement it
-  serves, or be retired in place with a status line, or be marked as outside 1.0.
+- `PROD-INT-010`: (accepted, decision 0596; V1-5272) Every surviving spec MUST name the product
+  requirement it serves, or be retired in place with a status line, or be marked as outside 1.0.
   - Changed: (changed 2026-11-09, G26, G27) Retired specs are archived in place (status lines,
     files kept). Tasks specs are deleted here only after `corvint-tasks` PR #4 merges. (changed
     2026-11-09, owner decisions R37 and R41 (2026-11-09)) Out-of-scope specs are archived in place
@@ -1446,11 +1455,11 @@ list.
   - Acceptance evidence at 1.0: every row of `docs/specs/README.md` showing a product requirement or
     a retired or outside-1.0 status.
 
-- `PROD-INT-011`: (proposed 2026-11-09) Every change MUST be documented before it is built: a
-  committed change proposal in the OpenSpec change-folder layout (proposal, tasks, spec delta with
-  ADDED, MODIFIED and REMOVED and scenarios) under `docs/specs/openspec/changes/`, checked by a Go
-  check in CI. Repository spec files and requirement IDs stay the source of truth; the delta is a
-  proposal only and the canonical spec is updated in the same change.
+- `PROD-INT-011`: (accepted, decision 0596; V1-5272) Every change MUST be documented before it is
+  built: a committed change proposal in the OpenSpec change-folder layout (proposal, tasks, spec
+  delta with ADDED, MODIFIED and REMOVED and scenarios) under `docs/specs/openspec/changes/`,
+  checked by a Go check in CI. Repository spec files and requirement IDs stay the source of truth;
+  the delta is a proposal only and the canonical spec is updated in the same change.
   - Changed: (changed 2026-11-09, G14) G14 fixes the layout and the check, rules out an npm tool, an
     `openspec/` root and any claim of OpenSpec CLI compatibility, and sets the acceptance mode: a
     proposal that only implements an accepted requirement is auto-accepted and logged; anything
@@ -1481,13 +1490,13 @@ list.
     auto-accept log with rationale per entry, the acceptance-mode audit command, and one workflow
     document.
 
-- `PROD-INT-012`: (proposed 2026-11-09) 1.0 is done only when every `PROD` requirement is PASS with
-  evidence or DEMOTED by a written owner note recorded before the freeze; there are zero open P0 or
-  P1 tickets in `v1-0`; each product completes its end-to-end scenario on an untouched repository;
-  and the RC soaks 7 days and at least 30 real PRs (merged Corvint and Beamfall PRs; held-out
-  repositories have no live PRs, so they add only replayed merged PRs, reported separately, O21)
-  with zero confirmed misses and zero new P0 or P1. Any code change in the RC restarts the soak and
-  the RC-publish clock (owner decision H1 (2026-11-10); REL-V1-003).
+- `PROD-INT-012`: (accepted, decision 0596; V1-5272) 1.0 is done only when every `PROD` requirement
+  is PASS with evidence or DEMOTED by a written owner note recorded before the freeze; there are
+  zero open P0 or P1 tickets in `v1-0`; each product completes its end-to-end scenario on an
+  untouched repository; and the RC soaks 7 days and at least 30 real PRs (merged Corvint and
+  Beamfall PRs; held-out repositories have no live PRs, so they add only replayed merged PRs,
+  reported separately, O21) with zero confirmed misses and zero new P0 or P1. Any code change in the
+  RC restarts the soak and the RC-publish clock (owner decision H1 (2026-11-10); REL-V1-003).
   - Source: G10; owner decisions R1, R2 and R20 (2026-11-09). The signed decision file is the one
     acceptance record of R1.
   - Signature (G10): only the owner signs, twice (RC publish, stable promotion), in one decision file
@@ -1517,10 +1526,10 @@ list.
   - Evidence today: none.
   - Acceptance evidence at 1.0: the signed decision file, with the PR agreement figure.
 
-- `PROD-INT-013`: (proposed 2026-11-09) The freeze date MUST be 2026-12-15. The RC is published
-  after the owner's signature. Stable is not promoted before the latest of 2027-01-05, the end of
-  the 21-day Tasks RC trial, the RC publish date plus 21 days and the end of the 7-day soak on the
-  frozen RC (owner decision H1 (2026-11-10)).
+- `PROD-INT-013`: (accepted, decision 0596; V1-5272) The freeze date MUST be 2026-12-15. The RC is
+  published after the owner's signature. Stable is not promoted before the latest of 2027-01-05, the
+  end of the 21-day Tasks RC trial, the RC publish date plus 21 days and the end of the 7-day soak
+  on the frozen RC (owner decision H1 (2026-11-10)).
   - Changed: (changed 2026-11-09, owner decision R2 (2026-11-09)) Qualification runs before the
     freeze, on the M5a candidate tagged about 2026-12-08 and rebuilt only for blockers.
   - Source: G10a; owner decision R2 (2026-11-09); owner decision H1 (2026-11-10).
@@ -1535,10 +1544,10 @@ list.
   - Acceptance evidence at 1.0: the dated M5a tag, the dated RC publish, and the trial and soak
     records.
 
-- `PROD-INT-014`: (proposed 2026-11-09) A pushed version tag MUST start a workflow that runs the full
-  suite and builds the PROD-INT-006 artifacts, then stops. The publish job runs only after owner
-  approval in a protected GitHub environment and is the only job with write permission. Tags are
-  protected and actions pinned by SHA.
+- `PROD-INT-014`: (accepted, decision 0596; V1-5272) A pushed version tag MUST start a workflow that
+  runs the full suite and builds the PROD-INT-006 artifacts, then stops. The publish job runs only
+  after owner approval in a protected GitHub environment and is the only job with write permission.
+  Tags are protected and actions pinned by SHA.
   - Changed: (changed 2026-11-09, owner decision R2 (2026-11-09)) The order is fixed: the RC tag
     is pushed first and builds the artifacts; the owner's approval at M8 publishes them. No
     publish precedes the tag.
@@ -1554,15 +1563,15 @@ list.
   - Evidence today: no release-publish workflow (panel fact check).
   - Acceptance evidence at 1.0: the RC published through this path.
 
-- `PROD-INT-015`: (proposed 2026-11-09) Supported platforms MUST be Linux and macOS. Windows is
-  supported only through WSL; native Windows is stated unsupported in 1.0. The exhaustive macOS
-  test and vet MUST be a release gate on the freeze and release candidates. The per-merge macOS
-  check stays advisory (REL-V1-015) until its flake tickets close and 20 consecutive main runs
+- `PROD-INT-015`: (accepted, decision 0596; V1-5272) Supported platforms MUST be Linux and macOS.
+  Windows is supported only through WSL; native Windows is stated unsupported in 1.0. The exhaustive
+  macOS test and vet MUST be a release gate on the freeze and release candidates. The per-merge
+  macOS check stays advisory (REL-V1-015) until its flake tickets close and 20 consecutive main runs
   pass, and is then made required; if that has not happened by 2026-12-15 it stays advisory per
   merge for 1.0. (decided 2026-11-09 under R42, D7) MRS-V1-002 and MRS-V1-004 follow D7 and
   REL-V1-015; MRS-V1-004 keeps filing a P1 ticket per flake, and the release gate and the general
-  open-P1 rule replace its own bar on RC approval (owner decision H11 (2026-11-10)). Native
-  Windows vet and archive work leaves the 1.0 bar.
+  open-P1 rule replace its own bar on RC approval (owner decision H11 (2026-11-10)). Native Windows
+  vet and archive work leaves the 1.0 bar.
   - Notes: (owner decision R36 (2026-11-09)) `make windows-vet` runs once per removal batch,
     before that batch's push, instead of before every push (removal lanes only).
   - Source: answer 16 and its listed consequences; owner decision R36 (2026-11-09); owner decision
@@ -1578,9 +1587,9 @@ list.
   - Acceptance evidence at 1.0: the macOS release gate (exhaustive test and vet) green on the freeze
     candidate and the RC; the WSL path recorded once.
 
-- `PROD-INT-016`: (proposed 2026-11-09) The flow file MUST carry a schema version and every reader
-  MUST refuse an unknown version. A release smoke test MUST run the testing product with `corvint`
-  installed alone, including the flow reports of PROD-DOCS-011.
+- `PROD-INT-016`: (accepted, decision 0596; V1-5272) The flow file MUST carry a schema version and
+  every reader MUST refuse an unknown version. A release smoke test MUST run the testing product
+  with `corvint` installed alone, including the flow reports of PROD-DOCS-011.
   - Source: G5.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: future schema.
@@ -1591,9 +1600,9 @@ list.
   - Evidence today: none.
   - Acceptance evidence at 1.0: the smoke test on the RC.
 
-- `PROD-INT-017`: (proposed 2026-11-09) Release gates MUST be the affected plan, the exhaustive `go
-  test` and `go vet` in both modules, and one scripted end-to-end qualification per product. The
-  CEM, OCM and dogfood ceremony is superseded by one decision with a carry-over table.
+- `PROD-INT-017`: (accepted, decision 0596; V1-5272) Release gates MUST be the affected plan, the
+  exhaustive `go test` and `go vet` in both modules, and one scripted end-to-end qualification per
+  product. The CEM, OCM and dogfood ceremony is superseded by one decision with a carry-over table.
   - Changed: (changed 2026-11-09, owner decisions R3 and R34 (2026-11-09)) Milestone M0
     re-scopes the `v1-0` release object: each open `v1-0` ticket is mapped to a plan requirement
     or moved to `post-1-0`, each move recorded. Tasks queue policy v15 drops `cemRequired`,
@@ -1634,10 +1643,11 @@ Today (CI survey of the integration checkout, spot-checked only): there is no `a
 `docs/AUTOMATION.md`. `ci.yml` selection is bespoke (`.github/forward-rows`, `tools/ci-reuse-plan`,
 `tools/docs-ci-plan`). The product CLI emits no job summary, annotation or PR comment.
 
-- `PROD-INT-018`: (proposed 2026-11-09) One GitHub Action in `beamfall/corvint-action` MUST, with no
-  account, no secrets and read-only permissions: download a checksum-verified Corvint binary;
-  resolve the base commit on `pull_request`, `merge_group` and `push`; output a plan and a per-runner
-  matrix with shards; run the selected tests; and fall back to running everything when unsure.
+- `PROD-INT-018`: (accepted, decision 0596; V1-5272) One GitHub Action in `beamfall/corvint-action`
+  MUST, with no account, no secrets and read-only permissions: download a checksum-verified Corvint
+  binary; resolve the base commit on `pull_request`, `merge_group` and `push`; output a plan and a
+  per-runner matrix with shards; run the selected tests; and fall back to running everything when
+  unsure.
   - Changed: (changed 2026-11-09, owner decisions R23, R24 and R25 (2026-11-09)) The action
     narrows on `pull_request` and `push`; fork pull requests always run everything (R23). Actions
     are pinned by SHA; permissions are `contents: read`, plus `id-token: write` only for
@@ -1656,10 +1666,10 @@ Today (CI survey of the integration checkout, spot-checked only): there is no `a
   - Acceptance evidence at 1.0: the action run on each of the seven pinned repositories and on
     Corvint, with recorded plans and fallbacks.
 
-- `PROD-INT-019`: (proposed 2026-11-09) The action MUST honour a kill-switch repository variable
-  equivalent to `CORVINT_SELECTION=full`, provide one always-running result job usable as the single
-  required check, write a job summary with each skip reason, and run the full suite on a periodic
-  schedule.
+- `PROD-INT-019`: (accepted, decision 0596; V1-5272) The action MUST honour a kill-switch repository
+  variable equivalent to `CORVINT_SELECTION=full`, provide one always-running result job usable as
+  the single required check, write a job summary with each skip reason, and run the full suite on a
+  periodic schedule.
   - Changed: (changed 2026-11-09, owner decision R13 (2026-11-09)) The variable uses the same
     grammar as the CLI, including `full:<runner>` (NMS-V1-008); an unknown value fails the job
     with exit 2 and a clear message.
@@ -1671,9 +1681,9 @@ Today (CI survey of the integration checkout, spot-checked only): there is no `a
   - Implemented by: `docs/specs/openspec/changes/github-action/`.
   - Acceptance evidence at 1.0: the switch and the periodic full run recorded on Corvint's CI.
 
-- `PROD-INT-020`: (proposed 2026-11-09) A change to Corvint's own config or narrowing map MUST run
-  everything; fork pull requests MUST read config from the base ref; the documentation MUST forbid
-  `pull_request_target` with head checkout.
+- `PROD-INT-020`: (accepted, decision 0596; V1-5272) A change to Corvint's own config or narrowing
+  map MUST run everything; fork pull requests MUST read config from the base ref; the documentation
+  MUST forbid `pull_request_target` with head checkout.
   - Source: owner decisions R23 and R24 (2026-11-09): fork pull requests always run everything,
     and PR code is never checked out under `pull_request_target`. Originally carried from the G16
     security lens.
@@ -1684,11 +1694,11 @@ Today (CI survey of the integration checkout, spot-checked only): there is no `a
   - Implemented by: `docs/specs/openspec/changes/github-action/`.
   - Acceptance evidence at 1.0: both cases recorded on a test repository.
 
-- `PROD-INT-021`: (proposed 2026-11-09) Corvint's own CI MUST run the action in shadow next to the
-  bespoke scripts until it matches them on 30 PRs with no would-be miss, then replace them before
-  the freeze. If not matched by 2026-12-15, the scripts stay for 1.0 and the cut-over is the first
-  1.0.x change. Shadow mode is therefore built before the freeze even though it is preview for
-  adopters.
+- `PROD-INT-021`: (accepted, decision 0596; V1-5272) Corvint's own CI MUST run the action in shadow
+  next to the bespoke scripts until it matches them on 30 PRs with no would-be miss, then replace
+  them before the freeze. If not matched by 2026-12-15, the scripts stay for 1.0 and the cut-over is
+  the first 1.0.x change. Shadow mode is therefore built before the freeze even though it is preview
+  for adopters.
   - Notes: (owner decisions R15 and R22 (2026-11-09)) The action produces one plan artifact with
     a digest; shards filter it by runner; a final job verifies that every shard used the same plan
     (R22). Several instances of one runner are keyed by root directory, and sharding happens only
@@ -1703,11 +1713,11 @@ Today (CI survey of the integration checkout, spot-checked only): there is no `a
   - Acceptance evidence at 1.0: the 30-PR shadow record, or the recorded decision to keep the
     scripts.
 
-- `PROD-INT-022`: (proposed 2026-11-09) These action features MUST be specified at 1.0 and labelled
-  preview, not release-blocking: shadow mode with a would-be-miss report for adopters, a docs drift
-  step, a flow-gaps report, a Tasks ticket-gate step, starter workflows per runner, a PR comment and
-  index cache reuse. Out of 1.0: GitLab and other CI systems, Windows runners, a hosted dashboard,
-  JavaScript or Docker action forms.
+- `PROD-INT-022`: (accepted, decision 0596; V1-5272) These action features MUST be specified at 1.0
+  and labelled preview, not release-blocking: shadow mode with a would-be-miss report for adopters,
+  a docs drift step, a flow-gaps report, a Tasks ticket-gate step, starter workflows per runner, a
+  PR comment and index cache reuse. Out of 1.0: GitLab and other CI systems, Windows runners, a
+  hosted dashboard, JavaScript or Docker action forms.
   - Notes: (owner decision R4 (2026-11-09)) The docs drift step is advisory by default, with an
     opt-in setting that makes it blocking.
   - Source: G16; owner decision R4 (2026-11-09).
@@ -1727,9 +1737,9 @@ change proposal is `docs/specs/openspec/changes/agent-packages/` (written separa
 links it). This amends decision 0594 (which removed hooks and packages) and PRS-V1-006 by a
 superseding decision.
 
-- `PROD-INT-023`: (proposed 2026-11-09) Claude Code and Codex MUST meet the full agent bar for 1.0.
-  OpenCode and Pi ship the same generated package labelled preview until they pass, and never block.
-  Pi is opt-in.
+- `PROD-INT-023`: (accepted, decision 0596; V1-5272) Claude Code and Codex MUST meet the full agent
+  bar for 1.0. OpenCode and Pi ship the same generated package labelled preview until they pass, and
+  never block. Pi is opt-in.
   - Source: G19.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: preview agent fails.
@@ -1738,8 +1748,8 @@ superseding decision.
   - Implemented by: `docs/specs/openspec/changes/agent-packages/`.
   - Acceptance evidence at 1.0: PROD-INT-026 passing for Claude Code and Codex.
 
-- `PROD-INT-024`: (proposed 2026-11-09) The full agent bar MUST be: one install command and
-  `corvint agents doctor`; MCP registered (a CLI-backed tool where the agent has no MCP client);
+- `PROD-INT-024`: (accepted, decision 0596; V1-5272) The full agent bar MUST be: one install command
+  and `corvint agents doctor`; MCP registered (a CLI-backed tool where the agent has no MCP client);
   three generated skills (tests, docs, tasks); an after-edit hook that records touched paths and at
   end of turn reports the affected tests and the command, says "UNKNOWN, run all" when unsure, and
   flags edits whose tests never ran; a session-start readiness check; after compaction, restating
@@ -1759,11 +1769,11 @@ superseding decision.
   - Implemented by: `docs/specs/openspec/changes/agent-packages/`.
   - Acceptance evidence at 1.0: PROD-INT-026 transcripts.
 
-- `PROD-INT-025`: (proposed 2026-11-09) Agent logic MUST live in the `corvint` binary (`corvint
-  agent hook <event> --host X`, `corvint agent manifest --json`). Thin per-agent packages are
-  generated from one source against a pinned Corvint release in `beamfall/corvint-agents`, with a
-  CI drift check. Each package declares its supported Corvint range and degrades visibly outside it.
-  npm packages use trusted publishing with provenance, zero runtime dependencies and no install
+- `PROD-INT-025`: (accepted, decision 0596; V1-5272) Agent logic MUST live in the `corvint` binary
+  (`corvint agent hook <event> --host X`, `corvint agent manifest --json`). Thin per-agent packages
+  are generated from one source against a pinned Corvint release in `beamfall/corvint-agents`, with
+  a CI drift check. Each package declares its supported Corvint range and degrades visibly outside
+  it. npm packages use trusted publishing with provenance, zero runtime dependencies and no install
   scripts. `CORVINT_HOOKS=off` turns the hooks off. Only event mappings, fixtures and the
   qualification harness may be reused from `841a58cbd^`.
   - Source: G20.
@@ -1776,13 +1786,13 @@ superseding decision.
   - Implemented by: `docs/specs/openspec/changes/agent-packages/`.
   - Acceptance evidence at 1.0: the drift check passing; packages published with provenance.
 
-- `PROD-INT-026`: (proposed 2026-11-09) "Supported" MUST mean a retained pass for the exact (agent
-  version, package version, Corvint version, OS) on a scripted session with the real agent binary
-  and the released package: install; MCP tools listed; an edit after which the hook names exactly
-  the `corvint affected` tests and the agent runs them; unsure leads to run all; a hook crash or
-  timeout does not block the edit; a docs query; a task claim on a scratch store; compaction
-  restates pending tests; clean uninstall. Assertions are on hook and tool transcripts; retries are
-  logged.
+- `PROD-INT-026`: (accepted, decision 0596; V1-5272) "Supported" MUST mean a retained pass for the
+  exact (agent version, package version, Corvint version, OS) on a scripted session with the real
+  agent binary and the released package: install; MCP tools listed; an edit after which the hook
+  names exactly the `corvint affected` tests and the agent runs them; unsure leads to run all; a
+  hook crash or timeout does not block the edit; a docs query; a task claim on a scratch store;
+  compaction restates pending tests; clean uninstall. Assertions are on hook and tool transcripts;
+  retries are logged.
   - Changed: (changed 2026-11-09, owner decisions R27, R39 and R40 (2026-11-09)) Each agent host
     uses one pinned model; the model ID and agent version are recorded (R27). Qualification uses
     the owner's existing subscription logins, with no API keys and no spend cap; it runs on the
@@ -1802,9 +1812,9 @@ superseding decision.
   - Acceptance evidence at 1.0: retained passes for versions pinned at the freeze, in the release
     evidence file, with model ID and agent version.
 
-- `PROD-INT-027`: (proposed 2026-11-09) The agent qualification MUST rerun on every package or
-  Corvint change and weekly against each agent's newest release. 1.0 is gated on the versions
-  pinned at the freeze.
+- `PROD-INT-027`: (accepted, decision 0596; V1-5272) The agent qualification MUST rerun on every
+  package or Corvint change and weekly against each agent's newest release. 1.0 is gated on the
+  versions pinned at the freeze.
   - Changed: (changed 2026-11-09, owner decision R39 (2026-11-09)) The per-change and weekly runs
     happen on the owner's machines with subscription logins, not on GitHub-hosted runners.
   - Source: G21; owner decision R39 (2026-11-09).
@@ -1821,10 +1831,10 @@ The owner chose "Revive as proposed" for the context and guidance verbs. Items 1
 preview for 1.0 and never block the release. Each needs a committed proposal before any build. None
 is designed in detail or checked against code yet.
 
-- `PROD-INT-028`: (proposed 2026-11-09) `corvint impact` MUST become the cross-product change report:
-  tests to run, flows and variations touched, docs made stale, tickets and requirements touched,
-  built on the `affected` engine plus the flow and docs joins. The separate impact engine in
-  `contextindex` is removed. Preview; not release-blocking.
+- `PROD-INT-028`: (accepted, decision 0596; V1-5272) `corvint impact` MUST become the cross-product
+  change report: tests to run, flows and variations touched, docs made stale, tickets and
+  requirements touched, built on the `affected` engine plus the flow and docs joins. The separate
+  impact engine in `contextindex` is removed. Preview; not release-blocking.
   - Source: G25 item 1.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: one change, four answers.
@@ -1836,11 +1846,11 @@ is designed in detail or checked against code yet.
   - Implemented by: CRI-V1-001 to CRI-V1-009 (`docs/specs/openspec/changes/change-report-impact/`).
   - Acceptance evidence at 1.0: the report on Corvint, labelled preview.
 
-- `PROD-INT-029`: (proposed 2026-11-09) `corvint review` MUST become a deterministic pre-merge
-  evidence check: changed lines whose selected tests did not run, changed flows with an untested
-  variation, unlinked E2E tests, stale docs, and ticket acceptance criteria without evidence. Its
-  consumers are the Action PR comment, the agent end-of-turn report and the Tasks completion gate.
-  Preview; not release-blocking.
+- `PROD-INT-029`: (accepted, decision 0596; V1-5272) `corvint review` MUST become a deterministic
+  pre-merge evidence check: changed lines whose selected tests did not run, changed flows with an
+  untested variation, unlinked E2E tests, stale docs, and ticket acceptance criteria without
+  evidence. Its consumers are the Action PR comment, the agent end-of-turn report and the Tasks
+  completion gate. Preview; not release-blocking.
   - Notes: (owner decision R4 (2026-11-09)) In the blocking consumers (the Tasks gate, the
     Action and the agent hooks) the docs findings are advisory by default, with an opt-in setting
     that makes them blocking.
@@ -1855,9 +1865,10 @@ is designed in detail or checked against code yet.
   - Note: depends on PROD-TEST-020 for recorded results.
   - Acceptance evidence at 1.0: the check on Corvint PRs, labelled preview.
 
-- `PROD-INT-030`: (proposed 2026-11-09) `corvint context` MUST become a ticket starting brief built
-  from declared links only, with no ranking. It ships as redesigned, non-blocking, with no claim of
-  measured benefit; the measurement of agent tool calls on a fixed task set runs in 1.0.x.
+- `PROD-INT-030`: (accepted, decision 0596; V1-5272) `corvint context` MUST become a ticket starting
+  brief built from declared links only, with no ranking. It ships as redesigned, non-blocking, with
+  no claim of measured benefit; the measurement of agent tool calls on a fixed task set runs in
+  1.0.x.
   - Changed: (changed 2026-11-09, owner decisions R28 and R29 (2026-11-09)) It said the verb is
     kept only if it measurably cuts agent tool calls, and is otherwise removed. The keep-or-remove
     measurement moves to 1.0.x.
@@ -1870,9 +1881,9 @@ is designed in detail or checked against code yet.
   - Acceptance evidence at 1.0: the redesigned verb on Corvint, labelled non-blocking; the frozen
     task set for the 1.0.x measurement.
 
-- `PROD-INT-031`: (proposed 2026-11-09) `corvint index` MUST survive only as the warm cache for
-  `corvint watch` if it helps meet the 1.0 s watch bar; otherwise it is removed, together with the
-  snapshot path if watch does not need it.
+- `PROD-INT-031`: (accepted, decision 0596; V1-5272) `corvint index` MUST survive only as the warm
+  cache for `corvint watch` if it helps meet the 1.0 s watch bar; otherwise it is removed, together
+  with the snapshot path if watch does not need it.
   - Source: G25 item 5.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: cache helps.

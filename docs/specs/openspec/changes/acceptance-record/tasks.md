@@ -6,10 +6,10 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 - [x] 1.1 File the ticket in `.taskman/` (milestone `v1-0`) and reserve prefix `ACR-V1` (001 to
       012). Requirements: all. Proof: `corvint-tasks ticket show`.
-- [ ] 1.2 First commit: create `docs/specs/acceptance-record-v1.md` from the spec delta, add its row
+- [x] 1.2 First commit: create `docs/specs/acceptance-record-v1.md` from the spec delta, add its row
       to `docs/specs/README.md`, regenerate the index and run `make spec-requirements-check`.
       Requirements: ACR-V1-001 to 012. Proof: check output.
-- [ ] 1.3 Regenerate `docs/specs/REQUIREMENTS.tsv` with `make spec-requirements` on the integ base
+- [x] 1.3 Regenerate `docs/specs/REQUIREMENTS.tsv` with `make spec-requirements` on the integ base
       before the record is drafted, and again after every later spec edit in this change. The
       prodspecs copy stopped at AFU-V1-131 and lacked AFU-V1-1651 to 1655, which exist at integ
       9ec3a29d0 (review testing T-m10). Requirements: ACR-V1-006. Proof: `git diff --exit-code
@@ -23,7 +23,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 2.4 Add the R9 release exception. Requirements: ACR-V1-005. Proof: the record section.
 - [x] 2.5 Create `docs/specs/openspec/acceptance-log.tsv` with a row per PROD requirement and O-row.
       Requirements: ACR-V1-006. Proof: row count equals the plan's PROD and O-row count.
-- [ ] 2.6 Extend `script/spec-acceptance-audit.sh` with the log check and tests. Requirements:
+- [x] 2.6 Extend `script/spec-acceptance-audit.sh` with the log check and tests. Requirements:
       ACR-V1-007, ACR-V1-008. Proof: tests for a missing row and a mode mismatch.
 - [ ] 2.7 Define the release record format and the workflow read. Requirements: ACR-V1-009,
       ACR-V1-010. Proof: a workflow run that refuses an unsigned record on a test tag.
