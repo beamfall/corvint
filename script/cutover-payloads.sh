@@ -69,12 +69,17 @@ else
 fi
 
 # Touch paths absent from the tree (TSC-V1-013); a directory path ends in "/".
+# A path is one line, so a name with a space stays one path.
 missing='[]'
-for p in $(jq -r '.record.effects.touchPaths[]? | select(type == "string")' "$dump" | sort -u); do
+paths=$(jq -r '.record.effects.touchPaths[]? | select(type == "string")' "$dump" | sort -u)
+while IFS= read -r p; do
+  test -n "$p" || continue
   q=${p%/}
   git -C "$repo" cat-file -e "$rev:$q" 2> /dev/null \
     || missing=$(printf '%s' "$missing" | jq -c --arg p "$p" '. + [$p]')
-done
+done << EOF
+$paths
+EOF
 
 jq -s -c --argjson rules "$rules" --argjson known "$known" --argjson anc "$anc" \
   --argjson missing "$missing" --slurpfile vocab "$vocab" '
