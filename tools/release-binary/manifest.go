@@ -326,8 +326,9 @@ func digestOf(raw []byte) string {
 
 // outputs retains one run's files under directory without ever replacing an existing file
 // (ARTIFACT-BIN-V0-007): every path is checked for absence before the first write, each file
-// is written to a temporary sibling and renamed into place, and discard removes what the run
-// wrote so a failure leaves no partial output.
+// is written to a temporary sibling and linked into place, which fails when another run took
+// the name in between, and discard removes what the run wrote so a failure leaves no partial
+// output and no other run's file is removed.
 type outputs struct {
 	directory string
 	written   []string
@@ -365,12 +366,15 @@ func (o *outputs) write(name string, raw []byte, mode os.FileMode) error {
 	if err := temporary.Close(); err != nil {
 		return fail(err)
 	}
-	if _, err := os.Lstat(path); err == nil {
+	// A hard link is created only when nothing holds the name, in one step,
+	// so two runs publishing one output cannot replace each other's file and
+	// discard removes only what this run itself published.
+	if err := os.Link(temporary.Name(), path); errors.Is(err, os.ErrExist) {
 		return fail(fmt.Errorf("output-exists: %s", path))
-	}
-	if err := os.Rename(temporary.Name(), path); err != nil {
+	} else if err != nil {
 		return fail(err)
 	}
+	os.Remove(temporary.Name())
 	o.written = append(o.written, path)
 	return nil
 }

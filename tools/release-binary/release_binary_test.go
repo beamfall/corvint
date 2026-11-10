@@ -1099,4 +1099,23 @@ func TestOutputsAreWrittenOutsideTheRepositoryWithoutPartialFiles(t *testing.T) 
 	if got := listDirectory(t, blocked); strings.Join(got, " ") != "second" {
 		t.Fatalf("discard left %v; want only the foreign directory", got)
 	}
+	// Another run's file that took the name after the pre-check is neither replaced nor removed.
+	raced := t.TempDir()
+	files = &outputs{directory: raced}
+	if err := files.reserve("out"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(raced, "out"), []byte("other run\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := files.write("out", []byte("this run\n"), 0o644); err == nil || !strings.Contains(err.Error(), "output-exists") {
+		t.Fatalf("write over another run's file: %v", err)
+	}
+	files.discard()
+	if raw, err := os.ReadFile(filepath.Join(raced, "out")); err != nil || string(raw) != "other run\n" {
+		t.Fatalf("another run's file was replaced or removed: %q %v", raw, err)
+	}
+	if got := listDirectory(t, raced); strings.Join(got, " ") != "out" {
+		t.Fatalf("a refused write left %v", got)
+	}
 }

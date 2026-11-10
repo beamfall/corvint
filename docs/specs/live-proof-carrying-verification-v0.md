@@ -820,6 +820,9 @@ the root included, is watched again before its entries. The added, replaced and 
   cannot be restored, an editor pipe that breaks) ends the loop with one terminal
   `{"Kind":"error"}` event whose `Message` names the cause and states that no further save is
   replanned and the last plan is stale; `corvint watch` then exits 2 and `linecov watch` nonzero.
+  `corvint watch` runs each planned invocation in a process group of its own: cancelling the watch
+  kills the wrapper, `go test` and the test binary together, and a descendant that keeps the output
+  pipe open cannot hold the watch open.
   Each plan event carries `ReplanMillis`, the time from the save notification to the plan, so the
   on-save latency is observable per save and measurable by `PRB-V0-1014`. Rollback: restore the
   plain notification channel; the loop then ends with status 0 when its source closes. Witness:
