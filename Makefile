@@ -69,6 +69,7 @@ GATE_STEPS = \
   ci-least-privilege-test \
   codex-review-test \
   conflict-markers-check \
+  cutover-payloads-test \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
@@ -123,6 +124,7 @@ GATE_STEPS = \
   test-exec-writes-check \
   test-read-scopes-check \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
@@ -1377,6 +1379,7 @@ shell-test: \
   changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
+  cutover-payloads-test \
   decision-numbers-test \
   documentation-paths-test \
   dogfood-merge-base-test \
@@ -1409,6 +1412,7 @@ shell-test: \
   spec-requirements-test \
   stray-backups-test \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 
@@ -1515,3 +1519,11 @@ acceptance-plan-pin-check-test:
 .PHONY: agents-invariants-check-test
 agents-invariants-check-test:
 	@script/agents-invariants-check_test.sh
+
+.PHONY: ticket-gate-test
+ticket-gate-test:
+	@script/ticket-gate_test.sh
+
+.PHONY: cutover-payloads-test
+cutover-payloads-test:
+	@script/cutover-payloads_test.sh

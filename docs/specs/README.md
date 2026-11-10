@@ -306,6 +306,8 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Corvint spec health report, 2026-11-09 | [`SPEC-HEALTH-2026-11-09.md`](SPEC-HEALTH-2026-11-09.md) | proposed | not-started | Each of the 168 surviving specs gets a proposed class of keep, merge, retire or outside 1.0, with its acceptance and test-citation gaps. |
 | Affected Plan Kinds V0 | [`affected-plan-kinds-v0.md`](affected-plan-kinds-v0.md) APK-V0-001..007 | proposed (2026-11-09; V1-5251; from the owner's testing product target and OpenSpec change `affected-plan-kinds`) | experimental | `corvint affected` returns one plan whose selections carry a test kind and whose E2E entries name the flow, variation and changed path that selected them. |
 | Source removal V1 | [`source-removal-v1.md`](source-removal-v1.md) RMV-V1-001..037 | proposed | not-started | Batches B0 to B11 remove the source 1.0 no longer ships, in a fixed order with per-batch proof, importer re-checks, orphan deletion and rollback by Git. |
+| Tasks Policy Version 15 V1 | [`tasks-policy-v15.md`](tasks-policy-v15.md) TPV-V1-001..008 | proposed | not-started | Tasks policy version 15 drops the CEM and OCM requirements and the two gates that run removed tooling, after the M0 removal lands. |
+| Release Process V1 | [`release-process-v1.md`](release-process-v1.md) REL-V1-001..015 | proposed | not-started | The 1.0 release runs on one calendar, a tag-started build stopping before an owner-approved publish, three platforms and a release object re-scoped at M0. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
