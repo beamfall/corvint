@@ -802,7 +802,8 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 // files do, so the run executes it or is INCOMPLETE for it. A member that
 // selects nothing while its scope is UNKNOWN (an invalid flows declaration)
 // returns a reason instead: tests the plan could not name never read as no
-// tests.
+// tests. A member whose inventory could not be derived returns its
+// flow-linked files and a reason, because unlinked tests are missing from it.
 func testE2EUnits(e2e *affected.E2EPlan) ([]string, string) {
 	if e2e == nil {
 		return nil, ""
@@ -821,6 +822,14 @@ func testE2EUnits(e2e *affected.E2EPlan) ([]string, string) {
 		}
 	}
 	slices.Sort(units)
+	// Without a matching discovery receipt the member lists only flow-linked
+	// files, so a test no flow links is not in units and the run cannot
+	// claim it ran every E2E test.
+	for _, unknown := range e2e.Unknown {
+		if unknown.Reason == affected.UnknownE2EInventoryUnderivable {
+			return units, "plan.e2e inventory is underivable (" + unknown.Detail + "): only flow-linked E2E files are selected, so an E2E test no flow links is not run"
+		}
+	}
 	return units, ""
 }
 

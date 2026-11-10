@@ -68,6 +68,11 @@ func TestSTRV08706PlanE2EUnits(t *testing.T) {
 			[]string{"typescript:playwright:e2e/cart.spec.ts", "typescript:playwright:e2e/login.spec.ts"}, ""},
 		"invalid declaration": {&affected.E2EPlan{Scope: affected.E2EScopeUnknown, Unknown: invalid}, nil,
 			"plan.e2e is UNKNOWN and selects nothing (FLOWS_DECLARATION_INVALID .corvint/flows.json; its E2E tests cannot be selected)"},
+		"underivable inventory": {&affected.E2EPlan{Scope: affected.E2EScopeFull,
+			Unknown:  []affected.Unknown{{Reason: affected.UnknownE2EInventoryUnderivable, Detail: "discovery:MISSING"}},
+			Selected: []affected.E2ESelection{{Path: "e2e/login.spec.ts"}}},
+			[]string{"typescript:playwright:e2e/login.spec.ts"},
+			"plan.e2e inventory is underivable (discovery:MISSING): only flow-linked E2E files are selected, so an E2E test no flow links is not run"},
 		"unknown without a reason": {&affected.E2EPlan{Scope: affected.E2EScopeUnknown}, nil,
 			"plan.e2e is UNKNOWN and selects nothing (its E2E tests cannot be selected)"},
 	} {
