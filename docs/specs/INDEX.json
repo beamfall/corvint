@@ -4403,5 +4403,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/release-process-v1.md",
+    "title": "Release Process V1",
+    "reqPrefix": "REL-V1",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "The 1.0 release runs on one calendar, a tag-started build stopping before an owner-approved publish, three platforms and a release object re-scoped at M0.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

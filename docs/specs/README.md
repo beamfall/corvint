@@ -304,6 +304,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Corvint 1.0 product plan | [`PRODUCT-PLAN-1.0.md`](PRODUCT-PLAN-1.0.md) PROD-DOCS-001..013 | proposed | experimental | Proposed 1.0 product contract of 77 requirements for testing, documentation, task manager, integration, release, a GitHub Action and agent packages. |
 | Corvint spec health report, 2026-11-09 | [`SPEC-HEALTH-2026-11-09.md`](SPEC-HEALTH-2026-11-09.md) | proposed | not-started | Each of the 168 surviving specs gets a proposed class of keep, merge, retire or outside 1.0, with its acceptance and test-citation gaps. |
 | Tasks Policy Version 15 V1 | [`tasks-policy-v15.md`](tasks-policy-v15.md) TPV-V1-001..008 | proposed | not-started | Tasks policy version 15 drops the CEM and OCM requirements and the two gates that run removed tooling, after the M0 removal lands. |
+| Release Process V1 | [`release-process-v1.md`](release-process-v1.md) REL-V1-001..015 | proposed | not-started | The 1.0 release runs on one calendar, a tag-started build stopping before an owner-approved publish, three platforms and a release object re-scoped at M0. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
