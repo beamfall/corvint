@@ -16,7 +16,7 @@ RMV-V1-004 (importers re-checked on the batch base), RMV-V1-005 (tests rewritten
    `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`. The RMV-V1-014 mechanism (owner decision
    R32 (2026-11-09)) and open items 4 and 5 (owner decision R33 (2026-11-09)) are already decided.
    Requirements: all. Proof: the accepted record names this change's commit SHA.
-- [ ] 2 Write `docs/specs/source-removal-v1.md` from the accepted requirements and regenerate
+- [x] 2 Write `docs/specs/source-removal-v1.md` from the accepted requirements and regenerate
    `docs/specs/REQUIREMENTS.tsv` with `make spec-requirements`. Requirements: RMV-V1-001 to
    RMV-V1-036. Proof: the RMV rows appear in `REQUIREMENTS.tsv`; the line-citation check passes.
 - [ ] 3 B0, `.github`-only repair of dangling references, with the ruleset check. Requirements:
