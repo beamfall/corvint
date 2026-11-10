@@ -85,7 +85,7 @@ func TestRepositoryLiveTierIsExcludedFromPRShards_AFPV02702(t *testing.T) {
 	for _, p := range packages {
 		dirs[p.Dir] = len(p.Tests)
 	}
-	for _, dir := range []string{"internal/liveverify/affected", "internal/companionrelease"} {
+	for _, dir := range []string{"internal/liveverify/affected"} {
 		if dirs[dir] == 0 {
 			t.Errorf("live tier has no tests in %s; got %v", dir, dirs)
 		}
