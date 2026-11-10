@@ -76,6 +76,18 @@ PROD-INT-028	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint impac
 PROD-INT-029	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint review` MUST become a deterministic pre-merge	unrecorded	-
 PROD-INT-030	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint context` MUST become a ticket starting brief buil	unrecorded	-
 PROD-INT-031	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint index` MUST survive only as the warm cache for	unrecorded	-
+ACR-V1-001	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) One	standing	2026-10-11; V1-5272
+ACR-V1-002	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-003	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-004	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-005	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-006	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272)	standing	2026-10-11; V1-5272
+ACR-V1-007	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-008	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) A change	standing	2026-10-11; V1-5272
+ACR-V1-009	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The RC	standing	2026-10-11; V1-5272
+ACR-V1-010	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
+ACR-V1-011	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) Four	standing	2026-10-11; V1-5272
+ACR-V1-012	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) Every	standing	2026-10-11; V1-5272
 ADN-V0-001	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-002	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-003	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
