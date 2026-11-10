@@ -193,7 +193,7 @@ func TestOwnerPatternGrammar_AFPV02481(t *testing.T) {
 			t.Errorf("valid pattern %q refused", pattern)
 		}
 	}
-	for _, pattern := range []string{"", "/a", "a/", "a//b", "./a", "a/./b", "a/../b", "..", "a/**b", "a/***", "a/[ab]", "a/{x,y}", `a\b`, "**/**/**/**/**", strings.Repeat("a", maxOwnerPatternBytes+1), "a/\x01"} {
+	for _, pattern := range []string{"", "/a", "a/", "a//b", "./a", "a/./b", "a/../b", parentDir, "a/**b", "a/***", "a/[ab]", "a/{x,y}", `a\b`, "**/**/**/**/**", strings.Repeat("a", maxOwnerPatternBytes+1), "a/\x01"} {
 		if validOwnerPattern(pattern) {
 			t.Errorf("invalid pattern %q accepted", pattern)
 		}

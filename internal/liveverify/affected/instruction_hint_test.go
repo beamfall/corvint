@@ -1,7 +1,6 @@
 package affected
 
 import (
-	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -36,19 +35,5 @@ func TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763(t *testing.T) {
 	classified := Select(declared, []string{"AGENTS.md", "CLAUDE.md"})
 	if len(classified.Unknown) != 0 || classified.Scope != ScopeBounded || !slices.Equal(groupPaths(classified, ClassDeclaredDocumentation), []string{"AGENTS.md", "CLAUDE.md"}) {
 		t.Fatalf("declared instruction files: scope %s unknown %v nonSource %v", classified.Scope, classified.Unknown, classified.NonSource)
-	}
-}
-
-// AFP-V0-763: this repository declares its own instruction files.
-func TestRepositoryDeclaresItsInstructionFiles_AFPV0763(t *testing.T) {
-	t.Parallel()
-	_, declared, err := ReadDocumentationDeclaration(filepath.Join("..", "..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range []string{"AGENTS.md", "CLAUDE.md"} {
-		if !slices.Contains(declared, name) {
-			t.Errorf("%s does not declare %s", DocumentationPathsPath, name)
-		}
 	}
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-package affected_test
+package liverepo_test
 
 import (
 	"encoding/json"
