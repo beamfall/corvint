@@ -141,8 +141,9 @@ is no longer untouched under G12 and must not enter any held-out pool.
   NOT_DECIDED.
 - A pool is changed after sealing, or the pool hashes, the seed or the draw record do not match at
   run time: the run refuses.
-- A drawn repository is found to have been touched after the draw: its result is void and the
-  void result is recorded. It is not replaced.
+- A drawn repository is found to have been touched after its pool was sealed, before or after the
+  draw, other than by its planned qualification work: its result is void and the void result is
+  recorded. It is not replaced (PRR-V1-005).
 - Two identical reruns differ: the held-out result is `NON_REPRODUCIBLE` and blocks (G12).
 
 ## Acceptance evidence

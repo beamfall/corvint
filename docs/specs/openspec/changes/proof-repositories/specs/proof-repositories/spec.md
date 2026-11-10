@@ -129,13 +129,23 @@ pool; A14 (decided 2026-11-09 under R42) added helm/helm with alternate go-task/
 ### Requirement: PRR-V1-005 Untouched means untouched
 
 A held-out repository or pool entry MUST have had no Corvint run, configuration, flow or fix keyed to
-it before its pool is sealed. go-chi/chi MUST be excluded because run-001 used it. (G12)
+it before its pool is sealed. go-chi/chi MUST be excluded because run-001 used it. Every pool entry
+MUST then stay untouched from the seal until the draw, and a drawn repository until its first
+qualification run; the planned qualification work on a drawn repository (its pin, checks, fault set
+and replay list) is the only exception. A drawn repository touched in that period MUST be recorded
+as void and MUST NOT be replaced. (G12; owner decision H3 (2026-11-10))
 
 #### Scenario: Previously used repository
 
 - **GIVEN** go-chi/chi in a proposed Go pool
 - **WHEN** the pool is sealed
 - **THEN** sealing refuses and names chi as touched
+
+#### Scenario: Pool entry touched between the seal and the draw
+
+- **GIVEN** a sealed pool and a Corvint run on one of its entries before the draw
+- **WHEN** the draw selects that entry
+- **THEN** its result is recorded as void, it is not replaced and the family is not redrawn
 
 ### Requirement: PRR-V1-006 One hundred frozen faults per held-out repository
 

@@ -17,7 +17,8 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [ ] 2.3 `.github` PR: `merge_group` trigger, no `continue-on-error`, no DEFER skip, docs-only
       success with reason, advisory timing. Requirements: MRS-V1-002, MRS-V1-003. Proof: a PR run and
       a merge-queue run where the aggregate reports.
-- [ ] 2.4 Count the flake tickets and consecutive `main` runs on or before 2026-12-15. If every
+- [ ] 2.4 Count the flake tickets and consecutive `main` runs (`merge_group` runs of the aggregate
+      since task 2.3 landed, docs-only skips left out) on or before 2026-12-15. If every
       flake ticket is closed and 20 consecutive runs passed, the owner adds `go-macos` to the
       required checks on `main`; otherwise the check stays advisory for 1.0 and the ruleset is
       unchanged. Requirements: MRS-V1-002. Proof: `gh api` ruleset read-back, or the recorded

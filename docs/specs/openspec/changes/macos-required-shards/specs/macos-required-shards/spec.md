@@ -19,12 +19,16 @@ The per-merge `go-macos` aggregate MUST stay advisory until every hosted-macOS f
 closed and 20 consecutive `main` runs have passed; it MUST then be made a required status check on
 `main`. If that has not happened by 2026-12-15, it MUST stay advisory per merge for 1.0. The
 workflow MUST run on `pull_request` and `merge_group`, and neither the shard jobs nor the aggregate
-MAY use `continue-on-error`. (answer 16; PROD-INT-015; D7; REL-V1-015; owner decision H11
-(2026-11-10))
+MAY use `continue-on-error`. A `main` run MUST mean a `merge_group` run of the aggregate for the
+`main` merge queue, which tests the commit that lands on `main`; the count starts when the
+`merge_group` trigger lands, a run skipped as docs-only is not counted and does not break the
+sequence, and no `push` trigger is added. (answer 16; PROD-INT-015; D7; REL-V1-015; owner decision
+H11 (2026-11-10))
 
 #### Scenario: The condition holds
 
-- **GIVEN** every flake ticket is closed and 20 consecutive `main` runs passed by 2026-12-15
+- **GIVEN** every flake ticket is closed and 20 consecutive `merge_group` runs for `main` passed by
+  2026-12-15
 - **AND** a PR in the merge queue whose darwin shard fails
 - **WHEN** the queue evaluates required checks
 - **THEN** the PR is removed from the queue
