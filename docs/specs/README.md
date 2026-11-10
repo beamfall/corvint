@@ -301,6 +301,8 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Corvint Self-Development Gates V0 | [`corvint-self-development-gates-v0.md`](corvint-self-development-gates-v0.md) ASC-V0-775..779 | proposed | experimental | Self-development gate requirements beyond the 256-obligation limit of `corvint-self-development-v0.md`, under their own prefix. |
 | Lane Check Tooling V0 | [`lane-check-tooling-v0.md`](lane-check-tooling-v0.md) ASD-V0-566..3731 | accepted | experimental | Lane closeout resumes at its failed step and repins first; focused checks cover long lines, Python signal handlers, merge drivers and changed inputs. |
 | Affected Edit Oracle V0 | [`affected-edit-oracle-v0.md`](affected-edit-oracle-v0.md) AEO-V0-001..008 | accepted | experimental | A pinned controlled-edit corpus measures affected-plan recall and over-selection, with opt-in observed mutation killers. |
+| Corvint 1.0 product plan | [`PRODUCT-PLAN-1.0.md`](PRODUCT-PLAN-1.0.md) PROD-DOCS-001..013 | proposed | experimental | Proposed 1.0 product contract of 77 requirements for testing, documentation, task manager, integration, release, a GitHub Action and agent packages. |
+| Corvint spec health report, 2026-11-09 | [`SPEC-HEALTH-2026-11-09.md`](SPEC-HEALTH-2026-11-09.md) | proposed | not-started | Each of the 168 surviving specs gets a proposed class of keep, merge, retire or outside 1.0, with its acceptance and test-citation gaps. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
