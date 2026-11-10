@@ -1290,10 +1290,11 @@ vscode-check-install-test:
 # the locked dependencies first when extensions/vscode/node_modules is absent. host-adapter-test is
 # the name the declaration .github/cishards/test-commands.json still uses for the TypeScript family;
 # it stays as an alias until that declaration names typescript-test.
-.PHONY: typescript-test host-adapter-test
+.PHONY: typescript-test
 typescript-test:
 	test -d extensions/vscode/node_modules || npm --prefix extensions/vscode ci --ignore-scripts --no-audit --no-fund
 	npm --prefix extensions/vscode test
+.PHONY: host-adapter-test
 host-adapter-test: typescript-test
 
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a

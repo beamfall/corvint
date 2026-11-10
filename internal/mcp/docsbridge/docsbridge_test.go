@@ -56,7 +56,7 @@ case "$input" in
 esac
 `
 	executable = filepath.Join(dir, "corvint-docs")
-	if err := execfile.WriteFile(executable,[]byte(strings.ReplaceAll(script, "$CAPTURE", capture)), 0o755); err != nil {
+	if err := execfile.WriteFile(executable, []byte(strings.ReplaceAll(script, "$CAPTURE", capture)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return executable, capture
