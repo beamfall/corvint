@@ -87,7 +87,10 @@ one accepted, non-stale link record attaches a test of any kind (unit, integrati
 limited to inventory E2E tests. The link record holds no `kind`: the report MUST read each linked
 test's kind from the test inventory by its canonical `test_id`, with `unit` as the default and the
 kind source reported (`affected-plan-kinds` decision 2). A link whose `test_id` is not in the
-inventory MUST be reported as `dangling-link` (decided 2026-11-09 under R42, N2).
+inventory MUST be reported as `dangling-link` (decided 2026-11-09 under R42, N2). A `test_id`
+with child segments (a Go subtest such as `go:internal/calc::TestAdd::negative`, or a
+parameterized case) matches the inventory entry of its longest listed ancestor and takes that
+entry's kind; it is `dangling-link` only when no ancestor is listed.
 
 #### Scenario: Only a unit test is linked
 

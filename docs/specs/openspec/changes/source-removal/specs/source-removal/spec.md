@@ -57,8 +57,9 @@ per batch):
    target or file;
 4. `git grep -n -F <path>` returning zero hits for each deleted path, outside this history
    exclusion list: `docs/build-log/`, `docs/decisions/`, spec files carrying a retirement status
-   line, `benchmarks/results/`, `.agent-evidence/` and `.corvint/changes/` (the last two only until
-   B6 removes them);
+   line, `benchmarks/results/`, `docs/specs/openspec/changes/` (active and archived change folders,
+   which are the removal's own plan and record), `.agent-evidence/` and `.corvint/changes/` (the
+   last two only until B6 removes them);
 5. `GOTOOLCHAIN=local go test -count=1 ./tools/import-ratchet/...` passing, with
    `tools/import-ratchet/areas.json` and `baseline.json` edited in the same batch: every prefix
    naming a deleted package is removed (the ratchet reports STALE_AREA_PREFIX otherwise), every

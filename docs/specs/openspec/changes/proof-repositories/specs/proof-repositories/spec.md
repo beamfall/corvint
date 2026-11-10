@@ -178,11 +178,14 @@ seven named repositories' fault sets allow zero known misses. (G12, owner decisi
 
 ### Requirement: PRR-V1-009 Where and when held-out runs happen
 
-Held-out runs MUST run on the benchmark box at RC time only, on Linux or macOS. (G12, G1)
+Held-out runs MUST run on the benchmark box, on Linux or macOS, only against the M5a
+qualification-candidate tag or an RC tag. The run on the M5a tag gives the results the owner
+uses for demotions before the freeze; the run on the RC tag confirms them. (G12, G1; decided
+2026-11-09 under R42, A18)
 
 #### Scenario: Early run attempt
 
-- **GIVEN** no RC tag
+- **GIVEN** neither a qualification-candidate tag nor an RC tag
 - **WHEN** a held-out run is started
 - **THEN** it refuses with `held-out-before-rc`
 

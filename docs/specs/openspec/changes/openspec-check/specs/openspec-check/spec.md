@@ -26,8 +26,9 @@ items, each naming at least one requirement ID and a proof) and at least one
 
 ### Requirement: OSC-V1-002 Requirement IDs in deltas
 
-An ADDED requirement ID MUST NOT exist in `docs/specs/REQUIREMENTS.tsv` or in any other active or
-archived change folder. A MODIFIED or REMOVED requirement ID MUST exist in `REQUIREMENTS.tsv`. A
+An ADDED requirement ID MUST NOT exist in `docs/specs/REQUIREMENTS.tsv` at the commit before the
+change folder was first added, or in any other active or archived change folder. A definition that
+the change itself adds during its apply stage (OSC-V1-005) is allowed. A MODIFIED or REMOVED requirement ID MUST exist in `REQUIREMENTS.tsv`. A
 retired ID MUST NOT be added again. (G14; owner decision R11 (2026-11-09) on fresh IDs)
 
 #### Scenario: An ADDED ID already in use
@@ -70,7 +71,11 @@ exist as an active folder in that commit's first parent. (owner decision R41 (20
 In `tasks.md`, a ticked item MUST NOT follow an unticked item. For every ticked item, each ADDED or
 MODIFIED requirement ID it names MUST appear in a canonical spec directly under `docs/specs/` at the
 range head, and each REMOVED ID MUST be marked retired there, within the same range as the change's
-code commits. (owner decision R41 (2026-11-09); G14)
+code commits. When the proposal header names a canonical spec in another repository (for example
+`beamfall/corvint-tasks`), this repository's check MUST NOT look for the IDs under `docs/specs/`:
+it MUST require each ticked item to name the other repository's commit that defines them, and
+report the item as `external-spec-not-verified` rather than pass or fail it. The same check run in
+the owning repository verifies the IDs there. (owner decision R41 (2026-11-09); G14)
 
 #### Scenario: Out-of-order tick
 
