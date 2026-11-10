@@ -236,7 +236,9 @@ func extractAppBinary(raw []byte, stage, expectedRoot, app string) ([]byte, erro
 			continue
 		}
 		relative, inRoot := strings.CutPrefix(clean, expectedRoot+"/")
-		if !inRoot || relative == "" || strings.Contains(relative, "/") || header.Typeflag != tar.TypeReg {
+		// A member is one plain name: no separator of either platform and no "..",
+		// so the notice comparison below never reads outside the stage.
+		if !inRoot || relative == "" || strings.ContainsAny(relative, `/\`) || strings.Contains(relative, "..") || header.Typeflag != tar.TypeReg {
 			return nil, fmt.Errorf("app archive %s member %s is outside its root or not a regular file", app, header.Name)
 		}
 		if _, seen := members[relative]; seen || len(members) >= 6 || header.Size < 0 || header.Size > maxInputBytes {

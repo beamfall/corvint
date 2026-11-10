@@ -332,6 +332,14 @@ func TestARTIFACTBINV0511ExtractAppBinaryRefusesChecksumAndNoticeDrift(t *testin
 	if _, err := extractAppBinary(good, t.TempDir(), "corvint-mcp_"+platform, "corvint-mcp"); err == nil {
 		t.Fatal("archive under another root extracted")
 	}
+	// A member name with a separator of either platform or a ".." is refused
+	// before any file under the stage is read.
+	for _, member := range []string{`sub\LICENSE`, "..LICENSE"} {
+		odd := scriptArchiveWithMembers(t, "corvint-docs", platform, "#!/bin/sh\nexit 0\n", map[string][]byte{member: []byte("n\n")})
+		if _, err := extractAppBinary(odd, t.TempDir(), "corvint-docs_"+platform, "corvint-docs"); err == nil || !strings.Contains(err.Error(), "outside its root") {
+			t.Fatalf("archive with member %q extracted: %v", member, err)
+		}
+	}
 	// A notice member must equal the one the corvint archive installed.
 	stage = t.TempDir()
 	if err := os.WriteFile(filepath.Join(stage, "LICENSE"), []byte("corvint notice\n"), 0o644); err != nil {
