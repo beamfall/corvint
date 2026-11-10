@@ -329,9 +329,12 @@ accepted by decision 0373 and the amendment it requires are stated.
   MUST NOT be described as stable in release notes, help or product docs.
 - `PRS-V1-003`: Every gate on the Core critical path to 1.0 MUST be closable by the owner without a
   third party, or be explicitly kept by an owner answer in "Decisions the owner must make".
-- `PRS-V1-004`: Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
-  platform needs retained native install-lifecycle and focused-test evidence on the candidate
-  bytes; without it the platform is reported FALLBACK, never Core. Windows MUST stay UNSUPPORTED.
+- `PRS-V1-004`: Release platforms MUST be linux/amd64, linux/arm64 and darwin/arm64 native
+  binaries. A Core platform needs retained native install-lifecycle and focused-test evidence on
+  the candidate bytes; without it the platform is reported FALLBACK, never Core. Windows is
+  supported only through WSL; native Windows MUST stay UNSUPPORTED and is stated unsupported in
+  1.0. Amended by change `release-process` (proposed 2026-11-10; answer 16, G15a): previously
+  darwin/arm64 and linux/amd64 only.
 - `PRS-V1-005`: A Core release candidate MUST NOT require companion input. Companions keep their
   own qualification and version and can be released separately. This assembly independence does
   not waive the whole-product stable-promotion requirements in PRS-V1-013..017. Amended by decision
@@ -524,7 +527,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
 | `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler and its `TestEmptyRootsRefuseBeforeExecution` (removed) were retired by decision 0594 | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
-| `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
+| `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN`; linux/arm64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
 | `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (removed) (compiled by the cross vet); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` |
