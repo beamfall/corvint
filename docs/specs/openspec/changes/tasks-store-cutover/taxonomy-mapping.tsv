@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 # Taxonomy mapping table for the store cutover (TSC-V1-009). Status: proposed, for owner review.
 # script/cutover-payloads.sh applies it to dumped survivors; every change it makes is recorded in
 # the seed manifest (TSC-V1-010, TSC-V1-013). A ticket a rule cannot place is UNPLACED and stops

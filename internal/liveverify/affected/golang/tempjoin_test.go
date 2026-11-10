@@ -42,7 +42,7 @@ func TestTempJoinComponents_AFP_V0_9810(t *testing.T) {
 		{"var-declaration", "func TestA(t *testing.T) { var root = t.TempDir(); _ = filepath.Join(root, \"docs/x.md\") }\n", []string{"docs/x.md"}, nil},
 		{"join-chain", "func TestA(t *testing.T) { root := t.TempDir(); dir := filepath.Join(root, \"repo\"); _ = filepath.Join(dir, \"docs\", \"y.md\") }\n", []string{"repo", "docs", "y.md"}, nil},
 		{"benchmark-and-tb", "func BenchmarkA(b *testing.B) { _ = filepath.Join(b.TempDir(), \"docs/b.md\") }\nfunc helper(tb testing.TB) { _ = filepath.Join(tb.TempDir(), \"docs/tb.md\") }\n", []string{"docs/b.md", "docs/tb.md"}, nil},
-		{"os-tempdir", "func TestA(t *testing.T) { _ = filepath.Join(os.TempDir(), \"docs/os.md\") }\n", []string{"docs/os.md"}, nil},
+		{"os-tempdir-kept", "func TestA(t *testing.T) { _ = filepath.Join(os.TempDir(), \"docs/os.md\") }\n", nil, []string{"docs/os.md"}},
 		{"repository-read-kept", "func TestA(t *testing.T) { root := t.TempDir(); _ = filepath.Join(root, \"docs/a.md\"); _, _ = os.ReadFile(\"docs/b.md\") }\n", []string{"docs/a.md"}, []string{"docs/b.md"}},
 		{"spelled-elsewhere-kept", "func TestA(t *testing.T) { _ = filepath.Join(t.TempDir(), \"docs/c.md\"); _ = \"docs/c.md\" }\n", nil, []string{"docs/c.md"}},
 		{"other-root-kept", "func TestA(t *testing.T) { root := \".\"; _ = filepath.Join(root, \"docs/d.md\") }\n", nil, []string{"docs/d.md"}},
