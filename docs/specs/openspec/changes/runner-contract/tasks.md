@@ -4,7 +4,7 @@ Build in this order. Each task names its requirement IDs and its proof. The cano
 (change `canonical-test-id`) and the inventory (change `test-inventory`) land first (owner decision
 R38 (2026-11-09) build order).
 
-1. Reserve `RNC-V1` 001..017; file the Jest ticket; set `requirementRefs`. Proof: `ticket show`
+1. Reserve `RNC-V1` 001..018; file the Jest ticket; set `requirementRefs`. Proof: `ticket show`
    read back.
 2. First commit: create `runner-contract-v1.md`; add the README entry; regenerate the index.
    Requirements: all. Proof: spec diff and index check.
@@ -29,5 +29,7 @@ R38 (2026-11-09) build order).
     `go vet ./...`.
 11. Retire each provider binary after its runner lands; edit `binaries.json`. Requirements:
     RNC-V1-017. Proof: binary list read back.
-12. Tier output, release manifest fields; docs; build-log; Tasks gate. Requirements: RNC-V1-011.
-    Proof: manifest fixture, `receipt audit`.
+12. Tier output, release manifest fields; the support table row for the shell provider (`kept,
+    not qualified`) and its full-selection fallback; docs; build-log; Tasks gate. Requirements:
+    RNC-V1-011, RNC-V1-018. Proof: manifest fixture, a shell fixture whose unmapped change
+    selects every shell test, `receipt audit`.

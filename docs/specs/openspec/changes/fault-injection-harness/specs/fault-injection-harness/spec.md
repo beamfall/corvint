@@ -11,7 +11,8 @@ The lane copies each statement below into `fault-injection-harness-v1.md`, insid
 For each blocking runner the harness MUST read a pre-registration file holding the sampling frame,
 repository SHAs, the revert selection query, the operator list per language, seeds, the over-sample
 size and exclusion rules, and MUST refuse to execute when its SHA-256 differs from the committed
-hash. (G3)
+hash. The file MUST also hold the SHA-256 of the reverted-fix rule file of FIH-V1-002 (decided
+2026-11-09 under R42, A17). (G3)
 
 #### Scenario: Changed seeds
 
@@ -21,12 +22,47 @@ hash. (G3)
 
 ### Requirement: FIH-V1-002 Composition of a fault set
 
-Each blocking runner's code set MUST contain exactly 30 reverts of real bug fixes, chosen by the
-revert selection query recorded in the pre-registration, and changed-line mutants at 3 to 5 per PR
+Each blocking runner's code set MUST contain 30 reverts of real bug fixes, chosen by the one
+deterministic rule below, and changed-line mutants at 3 to 5 per PR
 for the remaining PRs, drawn from the operator list the pre-registration names for that language.
 Non-code faults in configuration, fixtures, snapshots, lockfiles or generated files MUST be counted
 as a separate set of at least 30 with their own N and their own 3/N bound, and MUST NOT be added
 to the code-fault N. (G3, G15b, owner decision R19 (2026-11-09), review release-tasks 11)
+
+The reverted-fix rule (decided 2026-11-09 under R42, A17). The rule MUST be one deterministic rule
+file, committed and hashed before any Corvint run on the pin. Its frame is the PRs merged in the 12
+months before the pinned commit (24 months if fewer than 30 qualify) that are fixes (a `fix` title
+prefix, a bug label, or a closing link to a bug issue), that change runner-owned source and at
+least one test, whose source-only revert applies and builds at the pin, and whose revert fails at
+least one test three times out of three on the full suite. The frame MUST be ordered by SHA-256 of
+(rule-file hash, PR number) and the first 30 taken, with at most two per source file. If fewer than
+30 qualify, the shortfall MUST be filled with changed-line mutants and reported. Earlier wording,
+superseded by A17: "exactly 30 reverts of real bug fixes, chosen by the revert selection query
+recorded in the pre-registration".
+
+Flow-reaching faults (decided 2026-11-09 under R42, A16). The Playwright set MUST hold at least 20
+faults in code reached by a linked flow. The flows are those of the pinned freeCodeCamp repository
+(10 flows with at least 40 owner-accepted links), frozen and hashed into its manifest before this
+set is sealed (PRR-V1-003).
+
+#### Scenario: Same rule, same thirty
+
+- **GIVEN** one rule-file hash and one frame of qualifying PRs
+- **WHEN** the reverts are selected twice
+- **THEN** both selections name the same 30 PRs in the same order
+
+#### Scenario: Fewer than thirty qualifying fixes
+
+- **GIVEN** a frame of 24 qualifying PRs after the 24-month extension
+- **WHEN** the set is sealed
+- **THEN** it holds 24 reverts, fills the shortfall of 6 with changed-line mutants and reports the
+  shortfall
+
+#### Scenario: Too few flow-reaching faults
+
+- **GIVEN** a Playwright set with 12 faults in code reached by a linked flow
+- **WHEN** the set is sealed
+- **THEN** sealing refuses and reports 12 against the minimum of 20
 
 #### Scenario: Too few non-code faults
 
@@ -56,7 +92,10 @@ lines. (G3)
 The full suite MUST run three times at the base. A test failing in any baseline run MUST be
 quarantined and excluded from kill counting. If quarantined tests exceed 2 percent of the suite, the
 runner MUST be disqualified. The verdict MUST also report, as a separate count, the quarantined
-tests that a plan omitted for a PR touching their dependencies. (G3, review release-tasks 12)
+tests that a plan omitted for a PR touching their dependencies. Both caps apply to one baseline, on
+different sets: quarantined (flaky) tests above 2 percent disqualify the runner's miss proof, and
+all excluded tests (quarantined plus unrunnable in the pinned image) above 5 percent make the
+measurement `INVALID` (R42 (panel pick) A10). (G3, review release-tasks 12)
 
 #### Scenario: Flaky baseline
 
@@ -130,16 +169,39 @@ SHA, image digest) on Linux or macOS. (G1)
 - **WHEN** the host offers another
 - **THEN** the case refuses with `pin-mismatch`
 
-### Requirement: FIH-V1-010 One PR per runner first
+### Requirement: FIH-V1-010 Cost check in two steps, then one PR per runner first
 
-Before the full set, the harness MUST run one pre-registered PR per runner and report elapsed time,
-so the owner can confirm the compute budget. (G3)
+The cost check MUST run in two steps (decided 2026-11-09 under R42, A18). Step 1, by 2026-11-16:
+time one full-suite run of each of the seven pinned and four held-out repositories on the benchmark
+box and publish the projected total. Step 2, by 2026-11-27, once the Go adapter exists
+(FIH-V1-011): before the full set, the harness MUST run one pre-registered fault-carrying PR per
+runner and report elapsed time. The budget is 96 host-hours inside the M7 window (2026-12-08 to
+2026-12-15). If the projection is over budget, these measures MUST be applied in this order: one
+baseline per repository pin; kill confirmation reruns only the failing tests; held-out sets run in
+parallel on the second reference host. If the projection still exceeds the budget after the three
+measures, the choice between a smaller N and a later freeze returns to the owner. Earlier wording,
+superseded by A18: "Before the full set, the harness MUST run one pre-registered PR per runner and
+report elapsed time, so the owner can confirm the compute budget." (G3)
+
+#### Scenario: Step 1 projection
+
+- **GIVEN** the seven pinned and four held-out repositories
+- **WHEN** step 1 runs on the benchmark box
+- **THEN** the report holds one full-suite time per repository and the projected total in
+  host-hours beside the 96 host-hour budget
 
 #### Scenario: Cost probe
 
 - **GIVEN** seven sealed sets
 - **WHEN** the probe runs
 - **THEN** it reports one completed PR and its elapsed time per runner
+
+#### Scenario: Still over budget
+
+- **GIVEN** a projection above 96 host-hours after the three measures
+- **WHEN** the cost report is written
+- **THEN** it states the excess and that the choice between a smaller N and a later freeze is the
+  owner's, and the harness changes neither
 
 ### Requirement: FIH-V1-011 Go first, built once
 
@@ -155,11 +217,14 @@ adapters MUST reuse the same harness core. (G1)
 ### Requirement: FIH-V1-012 Held-out fault sets
 
 Owner decision R19 (2026-11-09). Each held-out repository named under PRR-V1-004 (fastapi, solidus
-and payload, owner decision R21 (2026-11-09)) MUST receive N = 100 faults by this method, frozen
+and payload, owner decision R21 (2026-11-09); and helm/helm for Go, alternate go-task/task, decided
+2026-11-09 under R42, A14) MUST receive N = 100 faults by this method, frozen
 and hashed before execution. Its verdict passes with at most 3 misses in N, reported with the 95
 percent Wilson interval (settled release-tasks S6); excluded tests MUST be at most 5 percent of the
-suite, or the verdict is `INVALID`. Every receipt MUST carry per-test durations (change
-`per-test-durations`). (G12)
+suite, or the verdict is `INVALID`. Each held-out miss MUST be published as measured with its
+interval, filed as a P1 ticket and fixed by widening before the release candidate. The per-runner
+fault sets of the seven pinned repositories MUST have zero known misses (G3). Every receipt MUST
+carry per-test durations (change `per-test-durations`). (G12; R42 (panel pick) A9)
 
 #### Scenario: Held-out freeze
 
@@ -172,6 +237,13 @@ suite, or the verdict is `INVALID`. Every receipt MUST carry per-test durations 
 - **GIVEN** a held-out set of 100 counted faults with 4 misses
 - **WHEN** the verdict is computed
 - **THEN** the held-out verdict is FAIL and states the Wilson interval
+
+#### Scenario: One held-out miss
+
+- **GIVEN** a held-out set of 100 counted faults with 1 miss
+- **WHEN** the verdict is computed
+- **THEN** the verdict passes, publishes the miss with its interval, and names the P1 ticket that
+  must be fixed by widening before the release candidate
 
 ### Requirement: FIH-V1-013 No dependency on removed packages
 
@@ -191,7 +263,8 @@ Owner decision R19 (2026-11-09), review release-tasks 10. The verdict MUST repor
 cases sealed, cases dropped because no test killed the fault, cases whose plan was FULL or UNKNOWN,
 and cases whose plan was narrowed with a confirmed kill. N is the last count. The pre-registration
 MUST over-sample, sealing about 140 PRs per blocking runner, so that N can reach 100. If N is below
-100, the runner's verdict MUST be `INVALID`.
+100, the runner's verdict MUST be `INVALID`. The cost check of FIH-V1-010 MUST NOT lower N or the
+over-sample; a smaller N is the owner's choice (decided 2026-11-09 under R42, A18).
 
 #### Scenario: Too few narrowed kills
 

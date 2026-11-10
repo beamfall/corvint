@@ -263,3 +263,25 @@ into `corvint`; none of them ships as a separate 1.0 artifact.
 - **WHEN** the RSpec and Minitest implementations land
 - **THEN** `binaries.json` has no `corvint-ruby-test-provider` entry and `corvint test` runs RSpec
   without it
+
+### Requirement: RNC-V1-018 Shell provider status
+
+Source: final decision round 2026-11-09 under R42, M11; `source-removal` RMV-V1-015 keeps the
+shell provider. The shell provider MUST be kept as a built-in provider outside the qualified
+runner set. The support table MUST list it as `kept, not qualified`. Its results MUST NOT count
+toward a 1.0 no-miss or narrowing claim. Any change it cannot map with certainty MUST select
+every shell test, with tier `full`, `exact: false` and a one-line reason. This requirement does
+not change the list of seven blocking runners. Whether `kept, not qualified` matches the label
+vocabulary of the support table is NOT_VERIFIED; the lane checks it when it writes the table.
+
+#### Scenario: Shell change that cannot be mapped
+
+- **GIVEN** a change to a shell script that the shell provider cannot map to tests with certainty
+- **WHEN** `corvint affected` plans the change
+- **THEN** every shell test is selected with tier `full` and a reason
+
+#### Scenario: Shell results in a release claim
+
+- **GIVEN** a run whose shell tests passed
+- **WHEN** the release manifest states the 1.0 no-miss and narrowing claims
+- **THEN** the shell provider is listed as `kept, not qualified` and its results are not counted

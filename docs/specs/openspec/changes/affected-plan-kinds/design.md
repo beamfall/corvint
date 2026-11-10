@@ -27,6 +27,11 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/affected-plan-ki
    `corvint inventory refresh`; absent or stale inventory runs all tests with reason
    `inventory-absent` or `inventory-stale` (owner decision R10 (2026-11-09)).
 
+Vocabulary note (selection verdicts, finding 5): the per-unknown effects `ignored`,
+`adds-suite:<runner>` and `forces-full` are defined once, by SLF-V1-007 in change
+`selection-hardening`. This change's plan kinds and reasons use those effect names and define no
+second set.
+
 ## Failure modes
 
 - Declaration missing: today's plan, unchanged.

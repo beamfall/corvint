@@ -136,14 +136,23 @@ The superseding decision MUST state:
 
 1. Pi has a built-in MCP client per its extensions page (read 2026-11-09); the panel assumed it did
    not. Settled without the owner: Pi uses its built-in MCP client once confirmed; the AGT-V1-010
-   CLI-backed fallback stays generic for hosts without one.
+   CLI-backed fallback stays generic for hosts without one. Decided 2026-11-09 under R42, D5: the
+   Pi package registers MCP if the client is confirmed usable under G21, otherwise it ships the
+   CLI-backed tool. Whether the client is enabled by default is still NOT_VERIFIED.
 2. Codex has no confirmed non-interactive plugin install, and project hooks need trust through
    `/hooks`. "One install command" may not be achievable for Codex without a manual step.
 3. Command names: G19 says `corvint agents doctor` (plural); G20 says `corvint agent hook` and
-   `corvint agent manifest` (singular). Proposed: keep both as written, or choose one verb.
+   `corvint agent manifest` (singular). Decided 2026-11-09 under R42, D4: one singular noun,
+   `corvint agent doctor`, `corvint agent hook` and `corvint agent manifest`, with no alias for
+   the plural form (AGT-V1-009).
 4. Product invariant 4 says read commands do not mutate repository or trace state. Hook session state
-   is placed outside the repository (AGT-V1-022); the owner confirms this is allowed or amends the
-   invariant.
+   is placed outside the repository (AGT-V1-022). Decided 2026-11-09 under R42, D17: this is
+   permitted. `corvint agent hook` is a session command, not a read command. Invariant 4 gains
+   the sentence "Agent hook session state kept in the user cache directory, outside the
+   repository and `.corvint/`, is not repository or trace state; it is bounded, expires, and is
+   never an input to ranking, evidence, authority or learning." and loses its
+   `--learn-slot-weights` clause (E3). AGT-V1-022 limits the state to paths, commit SHAs and
+   timestamps. The `AGENTS.md` wording is listed in the acceptance record (ACR-V1-002).
 5. Commit `841a58cbd` is 209 files and 27,208 deleted lines, not 133 and 16,800 as the panel brief
    says.
 6. Where the weekly run files its report: proposed as an issue in `beamfall/corvint-agents`, because
@@ -158,7 +167,23 @@ The superseding decision MUST state:
    end-of-turn report blocks 1.0 while `review` is preview. Proposed: the end-of-turn report uses
    `affected` plus test receipts directly and does not depend on `review`. Settled without the
    owner: adopted as proposed.
-10. How many passes out of how many runs make a qualifying pass (NEW-AGT-2). Open.
+10. How many passes out of how many runs make a qualifying pass (NEW-AGT-2). Decided 2026-11-09
+    under R42, D2: deterministic steps (install, doctor, hook wiring, hook behaviour, the
+    hooks-off switch, uninstall) pass in every run; model-driven scenarios run three times per
+    host and operating system and pass at two of three; every run is recorded; the rule is frozen
+    before the first qualification run (AGT-V1-023).
 11. Whether the Codex `Stop` block reason reaches the model, and whether Codex `SessionStart`
     carries source `compact`. NOT_VERIFIED; checked before AGT-V1-013 and AGT-V1-018 are built for
     Codex.
+12. Whether a subagent's own stop event (Claude Code `SubagentStop`) delivers an end-of-turn
+    report to the subagent. AGT-V1-022 fixes only that subagent edits count toward the parent's
+    report (review ci-agents F27). Decided 2026-11-09 under R42, N5: not in 1.0. The package
+    registers no `SubagentStop` hook; the parent's end-of-turn report is the only one. Revisit in
+    1.1 after the upstream behaviour is checked under G21.
+13. What replaces the dropped `impact`, `index` and `review` skills and the Codex `corvint` skill
+    in the AGT-V1-027 migration note: a 1.0 skill, a command, or nothing (review ci-agents F28).
+    Decided 2026-11-09 under R42, N6: no new skill. `affected` is replaced by the `tests` skill;
+    `impact` by the `corvint.impact` MCP tool and `corvint impact` (preview); `review` by the
+    change report command of change `change-report-impact`, reached through the `docs` skill
+    (the exact command name is UNVERIFIED); `index` by nothing; the Codex `corvint` skill by the
+    three shipped skills.

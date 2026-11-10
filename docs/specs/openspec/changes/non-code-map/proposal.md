@@ -49,7 +49,7 @@ What exists today, verified in `integ` at 9ec3a29d0 (all Go-selection specific, 
 ## What Changes
 
 - One map file per repository (proposed name `.corvint/data-map.json`, profile
-  `corvint-data-map/1`). Each entry names a path or glob, the tests that read it, the cited evidence,
+  `corvint-data-map/0`). Each entry names a path or glob, the tests that read it, the cited evidence,
   who accepted it and when, the pinned commit, and the fault case that proved it.
 - A command to propose entries from recorded reads (proposed: `corvint affected --propose-data-map`
   writing to stdout only; read commands stay read-only under invariant 4).

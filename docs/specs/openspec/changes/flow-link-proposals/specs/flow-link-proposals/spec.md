@@ -73,7 +73,9 @@ Status: proposed 2026-11-09; delivery not-started.
 A link record MUST hold `test_id` (the canonical test ID, CTI-V1-001, carrying the file path and
 title path), `variation_id`, `evidence`, `confidence`, `confidenceFormula`, `accepted_by`,
 `accepted_at` (UTC), `pinned_commit`, `test_content_hash` and `routes_digest`. A record missing
-`accepted_by`, `accepted_at` or `pinned_commit` MUST be treated as unaccepted.
+`accepted_by`, `accepted_at` or `pinned_commit` MUST be treated as unaccepted. A link record MUST
+NOT hold a test `kind`; the kind is read from the test inventory by `test_id` (decided 2026-11-09
+under R42, N2).
 
 #### Scenario: hand-written record without acceptance
 - **GIVEN** a link record in `.corvint/flows.json` with no `accepted_by`
@@ -92,6 +94,14 @@ selection made through an accepted link MUST carry tier `flow` (LEV-V1-009).
   or symbol of V
 - **WHEN** `corvint affected` plans the change
 - **THEN** that test is not selected, and every unassigned E2E test is selected
+
+#### Scenario: one spec file with a linked and an unlinked test
+Added from the watch-flows verdicts, finding 10.
+- **GIVEN** a spec file holding one test with an accepted link to variation V and one test with no
+  accepted link, and a change that reaches no linked variation
+- **WHEN** `corvint affected` plans the change
+- **THEN** the linked test is not selected, and the unlinked test in the same file still runs and
+  is counted `unassigned`
 
 ### Requirement: FLP-V1-008 Source tags are evidence only
 Source: G11 (owner answer).

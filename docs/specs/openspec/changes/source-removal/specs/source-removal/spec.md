@@ -16,6 +16,16 @@ and B10 SHALL finish by 2026-12-01, before the 2026-12-15 freeze (owner plan lin
 B8b follows the layering merge (about 2026-12-08) and B11 follows the shadow run (by 2026-12-15),
 as their gates say.
 
+B8b and B11 are the two named exceptions to the 2026-12-01 date (decided 2026-11-09 under R42,
+E5). B8b SHALL land by 2026-12-10 or move to 1.0.x. B8b SHALL remove only files that have no
+reader in product code, in CI or in a gate target, and SHALL NOT remove `github-split-check`
+(RMV-V1-032). B11 follows G18 and RMV-V1-028.
+
+#### Scenario: B8b misses its date
+- GIVEN 2026-12-10 has passed and B8b has not landed
+- WHEN B8b is proposed
+- THEN it becomes a 1.0.x change and the lane files stay in the 1.0 tree
+
 #### Scenario: a batch before its gate
 - GIVEN B5 (languages) is ready but RMV-V1-014 has not landed
 - WHEN the batch is proposed for merge
@@ -297,8 +307,31 @@ gate, and the `releasecandidate` CEM readiness gate), `interop/cem01-go`, `proto
 `cem-*` Makefile targets (`Makefile:253-307`), `script/install-cem-verifiers.sh`, the dogfood
 scripts and target (`script/dogfood-merge-base*.sh`, `Makefile:1204`), `docs/DOGFOOD.md` (left as a
 retirement stub), `.corvint/changes`, `.corvint/deferred-intents`, `.agent-evidence` and
-`artifacts/cem-release-27e9d98`. `conformance/tcq-0` and `conformance/use-cases-v0` SHALL be checked
-for CEM-only use in B6; whether they are CEM-only is NOT_VERIFIED.
+`artifacts/cem-release-27e9d98`. `conformance/tcq-0` SHALL be checked for CEM-only use in B6;
+whether it is CEM-only is NOT_VERIFIED.
+
+`conformance/use-cases-v0` does not leave in B6 (final round, M6): "The use-case receipt contract
+is superseded by the per-product end-to-end qualification of REL-V1-012;
+`conformance/use-cases-v0` is removed in B8 together with its two lints, and no 1.0 claim cites a
+use-case receipt." The two lints are `repin-use-case-receipts` and `use-case-receipts-check`
+(RMV-V1-024). The name of the spec that governs the receipt contract is UNVERIFIED; the B8
+build-log entry SHALL name it. Earlier wording, superseded by M6: `conformance/use-cases-v0` was
+checked for CEM-only use in B6.
+
+Self-use after B6 (decided 2026-11-09 under R42, E6): self-use of Corvint on a change SHALL be
+recorded as a progress note on the change's ticket, or in the PR body when the change has no
+ticket, and friction SHALL be filed as tickets. The `docs/DOGFOOD.md` retirement stub SHALL stay
+until the owner re-decides it after B6.
+
+#### Scenario: use-case receipts leave with their lints
+- GIVEN B6 has landed and B8 is prepared
+- WHEN B8 removes `repin-use-case-receipts` and `use-case-receipts-check`
+- THEN the same batch removes `conformance/use-cases-v0`
+
+#### Scenario: self-use record after B6
+- GIVEN B6 has landed and a change has a ticket
+- WHEN Corvint is used on that change
+- THEN the use is a progress note on the ticket and no CEM file is written
 
 #### Scenario: verb gone
 - GIVEN B6 has landed
@@ -392,7 +425,19 @@ Lane and batch steps SHALL leave `GATE_STEPS`, `doc-gates` and `shell-test` in B
 which can land at once. The lane scripts, merge drivers, `flow-guide-check`, requirement-ID
 reservation tooling, `docs/LANE-ORCHESTRATION.md` and the `corvint-lane-flow` skill SHALL leave only
 after the layering integration branch merges (about 2026-12-08), with a retirement stub at
-`docs/LANE-ORCHESTRATION.md`. `heavy.sh` SHALL stay until the gate rewrite.
+`docs/LANE-ORCHESTRATION.md`. RMV-V1-032 and RMV-V1-033 hold back two groups of files from B8's
+second part.
+
+Decided 2026-11-09 under R42, E9: the lane group that leaves in B8b SHALL be moved to a private
+operator repository, not deleted; the B8b build-log entry SHALL name that repository and the
+commit that received the files. `heavy.sh` SHALL stay for 1.0 as tooling that is not shipped, and
+SHALL leave with the gate rewrite or in 1.0.x. B8b follows the date and reader rules of
+RMV-V1-001 (E5).
+
+#### Scenario: lane files moved, not lost
+- GIVEN B8b is prepared
+- WHEN its build-log entry is written
+- THEN it names the private operator repository commit that holds the lane files
 
 #### Scenario: early removal
 - GIVEN the layering branch has not merged
@@ -426,6 +471,27 @@ B11 SHALL replace the bespoke CI selection scripts and the four gate scripts nam
 with the corvint action only after the action has matched them on 30 PRs with no would-be miss. If
 that has not happened by 2026-12-15, the scripts stay for 1.0. B11 is two PRs: a `.github`-only PR,
 then a non-`.github` PR that removes the scripts.
+
+The first PR, the `.github`-only cut-over (decided 2026-11-09 under R42, D15), SHALL:
+
+1. delete four workflow files: `pr-tests-qualification.yml`, `ci-forward-bar.yml`,
+   `ci-route-health.yml` and `flake-report.yml`;
+2. trim `ci-control-plane.yml`, not delete it: the `control-plane` and `merge-group` jobs stay,
+   the `main-miss` and `forward-rows` jobs are deleted, and the `ci-control-plane` status stays
+   required;
+3. leave `greptile-gate.yml` untouched (D14) and leave the other paths RMV-V1-035 keeps.
+
+No file `main-miss.yml` exists; `main-miss` is a job of `ci-control-plane.yml`. The cut-over
+therefore touches five workflow files and removes two jobs. The required statuses follow
+GHA-V1-031. The live ruleset is NOT_VERIFIED and the integ tree was not read for this decision
+(medium confidence); the B11 lane SHALL read both before it opens the PR. If the 30-PR shadow
+match is not reached by 2026-12-15, every file and job named here stays for 1.0 (G18).
+
+#### Scenario: control plane trimmed
+- GIVEN the shadow run has matched on 30 PRs
+- WHEN the `.github`-only cut-over PR merges
+- THEN `ci-control-plane.yml` still has the `control-plane` and `merge-group` jobs
+- AND the `ci-control-plane` status is still required
 
 #### Scenario: shadow not matched
 - GIVEN 2026-12-15 has passed with 22 matched PRs
@@ -476,6 +542,158 @@ decision is written per batch (owner decision R34 (2026-11-09)).
 - GIVEN B5 removes the last importer of a package that `path-verdicts.md` marks `keep`
 - WHEN the batch's importer check (RMV-V1-004) finds no remaining importer
 - THEN the package is deleted in B5 and appears in the orphan table of B5's build-log entry
+
+### Requirement: RMV-V1-032 The `.github` split check outlives the action cut-over (review ci-agents, split-check sequencing)
+
+`script/github-split-check.sh`, `script/github-split-check_test.sh` and the Makefile target that
+runs the test SHALL stay until the B11 `.github`-only cut-over pull request has merged. They SHALL
+leave in B11's script removal pull request, not in B8's second part. B8's second part removes
+`script/batch-precheck.sh`, the only caller (integ 9ec3a29d0, `script/batch-precheck.sh:850`);
+from then until the cut-over the check is run by hand before a push that touches `.github/`.
+
+#### Scenario: B8b lands before the cut-over
+- GIVEN B8's second part is prepared and the B11 cut-over pull request has not merged
+- WHEN the batch's path list is checked
+- THEN `script/github-split-check.sh` and its test are not in it, and they are still present after
+  the batch merges
+
+#### Scenario: after the cut-over
+- GIVEN the B11 `.github`-only cut-over pull request has merged
+- WHEN B11's script removal pull request is prepared
+- THEN it removes `script/github-split-check.sh`, its test and the Makefile line that runs it
+
+### Requirement: RMV-V1-033 Requirement-ID reservation tooling stays while a change folder calls it (review tools-script audit)
+
+`script/requirement-id-reservations.sh`, its test, `script/requirement-ids-free.sh`,
+`script/requirement-next-id*`, `script/requirement-id-collisions.sh`, its test and the Makefile
+targets that run them SHALL stay until the last change folder under
+`docs/specs/openspec/changes/` whose `tasks.md` or `proposal.md` calls one of them is archived.
+`script/requirement-id-collisions.sh` stays with them because the `requirement-ids-free` target
+runs it beside the reservation check (integ 9ec3a29d0, `Makefile:1217`, `Makefile:1218`). The Go
+tool `tools/requirement-id-collisions` SHALL still leave in B8's second part. The batch that
+removes the scripts SHALL record the zero-hit search of the change folders in its build-log entry.
+
+#### Scenario: a change folder still reserves a prefix
+- GIVEN `narrowing-measurement/tasks.md` step 1 calls `script/requirement-id-reservations.sh
+  reserve` and that change is not archived
+- WHEN B8's second part is prepared
+- THEN the reservation scripts and `script/requirement-id-collisions.sh` are not in its path list
+
+#### Scenario: the last caller is archived
+- GIVEN no file under `docs/specs/openspec/changes/` outside `archive/` names
+  `requirement-id-reservations`, `requirement-ids-free` or `requirement-next-id`
+- WHEN the next removal batch is prepared
+- THEN it removes the scripts and their Makefile targets and records the zero-hit search
+
+### Requirement: RMV-V1-034 One Go attribution after SLF-V1-007 (selection verdicts, finding 8)
+
+After SLF-V1-007 (change `selection-hardening`) has landed, the second Go attribution that
+`corvint test` computes for itself SHALL be removed, so that the one function SLF-V1-007 names
+decides the Go selection for `corvint affected`, `corvint test` and the MCP plan tool. At integ
+9ec3a29d0 that second attribution is `testRunInput` and `testFillPlan`
+(`cmd/corvint/test.go:589`, `cmd/corvint/test.go:660`), which call
+`gateselect.SelectQualifiedIndexed` (`cmd/corvint/test.go:736`). The removal SHALL NOT land before
+SLF-V1-007 and is not part of batches B0 to B11.
+
+#### Scenario: SLF-V1-007 has not landed
+- GIVEN the single mapping function of SLF-V1-007 is not on `main`
+- WHEN the removal is proposed
+- THEN it waits, and `corvint test` keeps its own attribution
+
+#### Scenario: after the removal
+- GIVEN SLF-V1-007 has landed and the second attribution is removed
+- WHEN `corvint affected` and `corvint test` plan the same Go change
+- THEN both print the same Go selection, and `cmd/corvint/test.go` no longer calls
+  `gateselect.SelectQualifiedIndexed`
+
+### Requirement: RMV-V1-035 Four CI paths are kept for 1.0 (decided 2026-11-09 under R42, D11)
+
+No batch from B0 to B11 SHALL remove the four paths below. Each stays until its condition ends,
+and the owner re-decides it then.
+
+| Path | Kept until |
+| --- | --- |
+| `.github/testconfine/` | the action proves the same read-scope confinement |
+| `.github/workflows/greptile-gate.yml` | the owner removes the required `greptile-gate` status |
+| `.github/workflows/merge-queue-cleanup.yml` | the merge queue is no longer used |
+| `.github/workflows/cache-prune.yml` | CodeQL stops sharing the cache quota |
+
+`cache-prune.yml` SHALL keep its recorded least-privilege exception. `greptile-gate-v0.md` SHALL
+stay an active spec while its workflow is kept. B11 SHALL leave `greptile-gate.yml` untouched
+(D14).
+
+#### Scenario: a batch deletes a kept workflow
+- GIVEN a batch whose diff deletes `.github/workflows/greptile-gate.yml`
+- WHEN the batch is reviewed
+- THEN it is refused, because the `main` ruleset still requires the `greptile-gate` status
+
+#### Scenario: a condition ends
+- GIVEN the merge queue is no longer used
+- WHEN removal of `merge-queue-cleanup.yml` is proposed
+- THEN the owner decides it as a new change, outside batches B0 to B11
+
+### Requirement: RMV-V1-036 Frozen corpora, retained evidence and the settled rows
+
+Decided 2026-11-09 under R42, E1. A frozen corpus that nothing reads SHALL be removed, and the batch's build-log entry SHALL record
+the corpus's last commit. Evidence that an active spec cites SHALL be kept. The rows below
+replace the matching `undetermined` rows of `path-verdicts.md`.
+
+| Paths | Verdict | Batch |
+| --- | --- | --- |
+| `tools/compat-trial`, `cw-trial`, `paired-trial`, `heading-nav-bench`, `retrieval-bench` | remove | B7 |
+| `tools/str-parity` | remove once the compiled-in runner contract (G23) lands | after G23 |
+| `script/measure-context-packet.py` and its test, `testing/context-retrieval-goldens.json` | remove | B7 |
+| `script/measure-worktree-index-share.sh`, `benchmarks/snapshot-reader` | follow RMV-V1-023 | B7 |
+| `benchmarks/blind-v2`, `blind-v3`, `blind-v4`, `blind-v6-dev`, `blind-v7`, `cases`, `cem2-discovery-replay-v0`, `daily-loop-v1`, `expert-audit-followup`, `parity-fixture-index`, `parity-snapshot-discovery` | remove, last commit recorded | B6 or B7 |
+| `benchmarks/untouched-repository-v1` | keep until change `proof-repositories` replaces that record and `LICENSING.md` lines 26 to 31 are edited in the same change | later |
+| `evidence/issues-167-175` | keep | none |
+| `conformance/interactive-alpha` and its test | keep | none |
+| `script/seed-planning-store*`, `script/atm-fixture-store.sh`, `core-planning-proof.mjs`, `roadmap-proof.mjs` | move to `beamfall/corvint-tasks` | B10 |
+| `cmd/corvint-test-runner` | retire with the provider binaries (owner decision R14) | after G23 |
+| `script/go-test-shard.sh` | remove with the lane tooling | B8b |
+| `script/spec-coverage-audit` | remove | B2 |
+
+Which of B6 and B7 removes each of the eleven corpora is NOT_VERIFIED; the batch lane SHALL
+re-check readers on the batch base (RMV-V1-004) and name the batch in its build-log entry.
+
+#### Scenario: a corpus with no reader
+- GIVEN `benchmarks/blind-v3` has no reader in the Makefile, workflows, scripts or Go code
+- WHEN its batch removes it
+- THEN the batch's build-log entry records the last commit that held the corpus
+
+#### Scenario: evidence an active spec cites
+- GIVEN `evidence/issues-167-175` is cited by an active spec
+- WHEN a batch proposes to remove it
+- THEN the removal is refused and the directory stays
+
+#### Scenario: a corpus gains a reader
+- GIVEN a 1.0.x measurement design that reads `benchmarks/cases` is committed before its batch
+- WHEN the batch is prepared
+- THEN that corpus is kept and the reason is recorded
+
+### Requirement: RMV-V1-037 The `e2e-safe` profile and the appmap navigation verdict leave 1.0
+
+Decided 2026-11-09 under R42, A4. The `--selection-profile e2e-safe` value of
+`corvint affected --provider FILE` and the appmap navigation verdict SHALL leave the public 1.0
+surface: command help, user documents and MCP tool descriptions. Their code SHALL be deleted by
+2026-12-01, or in the first 1.0.x release if the batch misses that date. The batch lane SHALL
+re-check readers on the batch base (RMV-V1-004) and name the batch in its build-log entry.
+
+This supersedes the Core classification of the profile in decision 0385 (AFU-V1-019 to
+AFU-V1-024) and in the `corvint impact`, `affected` row of
+`corvint-1.0-product-and-release-v1.md`. The supersession takes
+effect only when the owner accepts the plan record that lists it (plan checklist O66). Until
+then the accepted text governs and no lane removes the profile.
+
+#### Scenario: the plan record is not yet accepted
+- GIVEN the owner has not accepted the record that lists checklist row O66
+- WHEN a removal batch is prepared
+- THEN the `e2e-safe` profile and the navigation verdict are left in place
+
+#### Scenario: after acceptance
+- GIVEN the record is accepted and the batch has removed the profile
+- WHEN a user runs `corvint affected --selection-profile e2e-safe`
+- THEN the command refuses the unknown value and names the supported way to select flow tests
 
 ## MODIFIED Requirements
 
@@ -533,7 +751,9 @@ build-log entry SHALL confirm the exact requirement IDs it retires.
 Not in this list: specs whose code is already gone and workflow documents (spec-set-cleanup batch
 C1), MERGE folds (C2), Tasks specs moved to `beamfall/corvint-tasks` (B10), `SKH-V0` (owned by the
 change that rewrites `corvint how`), and rows whose verdict is still `undetermined` in
-specs-verdicts.md.
+specs-verdicts.md. `greptile-gate-v0.md` (GRG-V0) is also not in this list: its workflow is kept
+for 1.0 (RMV-V1-035), so the spec stays active and B8b does not archive it (decided 2026-11-09
+under R42, D11).
 
 | Batch | Spec file under `docs/specs/` | Prefix |
 | --- | --- | --- |
@@ -585,7 +805,6 @@ specs-verdicts.md.
 | B8b | `corvint-self-development-companion-v0.md` | CSD-V0 |
 | B8b | `corvint-self-development-gates-v0.md` | ASC-V0 |
 | B8b | `corvint-self-development-selection-v0.md` | ASD-V0 |
-| B8b | `greptile-gate-v0.md` | GRG-V0 |
 | B8b | `lane-check-tooling-v0.md` | ASD-V0 |
 | B8b | `lane-dogfood-tooling-v0.md` | DTL-V0 |
 | B8b | `lane-shell-portability-v0.md` | ASD-V0 |

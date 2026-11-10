@@ -43,6 +43,10 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/runner-contract/
     per `Class#method` at integ `9ec3a29d0`; the hook gains `result.error?` so `error` is separate
     from `failed`. `minitest-reporters` and JUnit XML are not used (settled without the owner, D9).
 13. Cypress is dropped from 1.0 and listed as post-1.0 (owner decision R6 (2026-11-09)).
+14. Shell provider status (decided 2026-11-09 under R42, M11; RNC-V1-018): kept as a built-in
+    provider outside the qualified runner set, listed as `kept, not qualified`, never counted
+    toward a no-miss or narrowing claim, and selecting every shell test when it cannot map a
+    change with certainty. The label's fit with the support table vocabulary is NOT_VERIFIED.
 
 ## Failure modes
 

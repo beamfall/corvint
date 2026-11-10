@@ -56,6 +56,22 @@ the base cannot be resolved, the action MUST run every test and MUST print `BASE
 - **WHEN** a `push` event carries an all-zero `before`
 - **THEN** every test runs and the summary gives the reason `BASE_UNRESOLVED`
 
+Force-push (decided 2026-11-09 under R42, D1). A force-push whose `before` commit cannot be
+fetched MUST be treated as an unresolvable base. A force-push whose `before` commit can be
+fetched MUST narrow as any other push does.
+
+#### Scenario: Force-push with an unfetchable old commit
+
+- **GIVEN** a `push` event from a force-push whose `before` commit is no longer on the remote
+- **WHEN** the action deepens the clone and still cannot fetch `before`
+- **THEN** every test runs and the summary gives the reason `BASE_UNRESOLVED`
+
+#### Scenario: Force-push with a fetchable old commit
+
+- **GIVEN** a `push` event from a force-push whose `before` commit can be fetched
+- **WHEN** the plan job runs
+- **THEN** the diff is taken from `before` and the plan narrows as for any other push
+
 GHA-V1-017 replaces the `pull_request` clause of this requirement. The `push` clause stays as written
 (owner decision R23 (2026-11-09): narrow on `pull_request` and on `push`, with the `push` diff taken
 from `before`). Known limit: if the run for the previous push failed or was cancelled, its commits
@@ -428,23 +444,113 @@ result record), not at a path chosen by the workflow.
 
 Source: G16 (preview), G1. The action repository MUST ship one starter workflow for each of the seven
 blocking runners (Go, Vitest, Jest, Playwright, pytest, RSpec, Minitest), each exercised in that
-runner's qualification repository (G12a).
+runner's qualification repository (G12a). Each starter MUST trigger on `pull_request`,
+`merge_group` and `push`, so the required check also reports in a merge queue (review ci-agents
+F16).
+
+Acceptance repositories (decided 2026-11-09 under R42, N4; low confidence). The starters MUST be
+exercised on seven public mirrors in the `beamfall` organisation: `corvint-qual-go`,
+`corvint-qual-vitest`, `corvint-qual-jest`, `corvint-qual-playwright`, `corvint-qual-pytest`,
+`corvint-qual-rspec` and `corvint-qual-minitest`. Each mirror MUST be a pushed copy of the
+pinned commit, not a fork, with upstream workflows disabled, issues off, the upstream licence
+kept and a README line saying it is an unaffiliated test mirror. Creating the seven repositories
+and setting them public is the owner's act, due by 2026-11-27. Until the mirrors exist the
+acceptance stays NOT_RUN.
+
+#### Scenario: Mirror not yet created
+
+- **GIVEN** `beamfall/corvint-qual-rspec` does not exist
+- **WHEN** the starter acceptance is recorded
+- **THEN** the RSpec row is NOT_RUN and names the missing mirror
 
 #### Scenario: pytest starter
 
 - **WHEN** the pytest starter is copied into the pytest qualification repository
 - **THEN** it plans, runs and reports with no edits other than the pinned versions
 
+#### Scenario: Merge queue
+
+- **WHEN** a repository with a merge queue copies a starter unchanged
+- **THEN** the result job runs on the `merge_group` event and reports the required check
+
 ### Requirement: GHA-V1-026 Index cache reuse
 
-Source: G16 (preview). The action MAY restore a Corvint index from the Actions cache keyed by Corvint
-version and commit, and MUST use it only if it matches both and passes its integrity check; otherwise
-it MUST rebuild. A cache MUST NOT change which tests are selected.
+Source: G16 (preview); review ci-agents F15. The action MAY restore a Corvint index from the Actions
+cache. The cache key MUST be the digest of the verified Corvint binary plus the commit the index was
+built from; on a pull request or merge group the restore key uses the base commit. The action MUST
+save the cache only in a `push` run on the default branch, and never in a run that checked out pull
+request code. The saved entry MUST carry a digest of the index recorded at save time. On restore
+the action MUST recompute that digest and MUST use the index only if the digest, the binary digest
+and the commit all match; otherwise it MUST discard the entry and rebuild. A cache MUST NOT change
+which tests are selected.
+
+Earlier wording, replaced on 2026-11-09 because it left the integrity check undefined and gave
+pull requests almost no cache hits: "keyed by Corvint version and commit, and MUST use it only if it
+matches both and passes its integrity check".
 
 #### Scenario: Cache from another version
 
-- **WHEN** the restored cache was written by a different Corvint version
+- **WHEN** the restored cache was written by a different Corvint binary
 - **THEN** it is discarded, the index is rebuilt and the plan is unchanged
+
+#### Scenario: Poisoned pull request cache
+
+- **GIVEN** a pull request whose code writes a crafted index into the cache directory
+- **WHEN** the pull request run ends
+- **THEN** the action saves no cache entry
+- **AND** a later run on the default branch restores only an entry saved by a default-branch `push`
+
+#### Scenario: Index bytes changed after save
+
+- **WHEN** the restored index does not hash to the digest recorded at save time
+- **THEN** the entry is discarded, the index is rebuilt and the plan is unchanged
+
+### Requirement: GHA-V1-027 Widen-only `always-run` input
+
+Source: review ci-agents F16 (adopter gap; preview). The action MUST accept an `always-run` input
+that lists tests or test paths to add to every plan. The input MUST only add tests: it MUST NOT
+remove a selected test, and the summary MUST list the added tests with reason `always-run`. An
+entry that matches no test in the plan's runners MUST fail the plan job with exit 2.
+
+#### Scenario: Smoke test added
+
+- **GIVEN** `always-run` names one smoke test and the plan selects three other tests
+- **WHEN** the action runs
+- **THEN** four tests run and the summary marks the smoke test `always-run`
+
+#### Scenario: Entry matches nothing
+
+- **WHEN** `always-run` names a path that no runner owns
+- **THEN** the plan job fails with exit 2 and names the entry
+
+### Requirement: GHA-V1-028 `working-directory` input
+
+Source: review ci-agents F16 (adopter gap; preview). The action MUST accept a `working-directory`
+input naming a directory inside the checkout. Every Corvint command MUST run there, and the plan
+artifact MUST record it. A value that is absolute, leaves the checkout or does not exist MUST fail
+the plan job with exit 2.
+
+#### Scenario: Monorepo package
+
+- **WHEN** `working-directory` is `services/api`
+- **THEN** the plan and the run both execute in `services/api` and the artifact records that path
+
+#### Scenario: Path leaves the checkout
+
+- **WHEN** `working-directory` is `../other`
+- **THEN** the plan job fails with exit 2 and nothing else runs
+
+### Requirement: GHA-V1-029 Static checks on the action repository
+
+Source: review ci-agents F16 (preview). The test workflow of `beamfall/corvint-action` MUST run
+`actionlint` and `zizmor` on every workflow, the composite action and each starter, and MUST fail
+on any finding. The repository MUST carry a Dependabot configuration for the `github-actions`
+ecosystem so that SHA pins (GHA-V1-014) get update pull requests.
+
+#### Scenario: Unpinned action in a starter
+
+- **WHEN** a pull request adds a starter step that uses an action by tag
+- **THEN** the test workflow fails and names the step
 
 ### Corvint's own CI (G18, G27)
 
@@ -479,6 +585,23 @@ Source: G27, G18. At cut-over the action MUST replace `tools/gate-ledger`, `scri
 `CORVINT_PR_NARROWING`, `CORVINT_MQ_NARROWING` and `CORVINT_LINECOV_NARROWING` (G18). The second
 list is an inventory to be confirmed by the lane before removal. The cut-over MUST be its own
 `.github` pull request, and the required-check list MUST be checked in the same change.
+
+Required statuses (decided 2026-11-09 under R42, D15; medium confidence). `go-product` (decision
+0390) is the one required status context the cut-over replaces; the action's result job
+(GHA-V1-010) MUST report in its place. The `doc-gates`, `ci-control-plane` and `greptile-gate`
+contexts MUST stay unchanged. `ci-control-plane.yml` is trimmed, not deleted: its `control-plane`
+and `merge-group` jobs stay and its `main-miss` and `forward-rows` jobs go (RMV-V1-028). The
+cut-over pull request MUST record the required-status list before and after. The live ruleset
+is NOT_VERIFIED; the lane reads it before the cut-over pull request is opened.
+
+#### Scenario: Required statuses after cut-over
+
+- **GIVEN** a required-status list of `go-product`, `doc-gates`, `ci-control-plane` and
+  `greptile-gate` before the cut-over
+- **WHEN** the cut-over pull request merges
+- **THEN** the list holds the action's result job, `doc-gates`, `ci-control-plane` and
+  `greptile-gate`
+- **AND** the pull request body records both lists
 
 #### Scenario: No orphan caller
 

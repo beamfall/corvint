@@ -27,6 +27,8 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    Requirements: LEV-V1-012. Proof: watch fixture for Vitest; read-only test for each consumer.
 9. Add argument files and the `argv-limit` widening.
    Requirements: LEV-V1-014. Proof: a fixture selecting more names than the limit.
+9a. Apply the working-tree rule to one-shot `affected`, `test` and the MCP plan tool.
+    Requirements: LEV-V1-015. Proof: staged-edit and untracked-file fixtures on each surface.
 10. Add the Action refresh and cache step (with change `github-action`).
     Requirements: LEV-V1-013. Proof: fixture workflow showing a cache hit narrows and a miss widens.
 11. Enable tier `line` per runner as each FIH result lands.

@@ -4,8 +4,8 @@
 
 Build tasks in order. Each names its requirement IDs and its proof.
 
-1. File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `TIN-V1` (001 to 013, with 005
-   retired) and set `requirementRefs` to the twelve live IDs. Proof: `corvint-tasks ticket show`.
+1. File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `TIN-V1` (001 to 014, with 005
+   retired) and set `requirementRefs` to the thirteen live IDs. Proof: `corvint-tasks ticket show`.
 2. First commit: create `docs/specs/tasks-integration-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Proof: `make spec-requirements` lists the IDs.
 3. With corvint-tasks: agree `taskman-ticket/1`, `taskman-receipt-ref/1` and the supported-command
@@ -18,8 +18,11 @@ Build tasks in order. Each names its requirement IDs and its proof.
    (TIN-V1-008). Proof: the advisory-finding scenario.
 7. RC signing check reading the record of change `tasks-conformance`, version pair and tag order
    (TIN-V1-001 to 003). Proof: the refusal scenarios.
-8. 21-day trial on Corvint and `beamfall/core` (TIN-V1-009). Proof: the trial record with the ID and
-   hash diff.
+8. Initialize the `beamfall/core` trial store by pull request: seed reviewed by 2026-12-01, dry
+   run by 2026-12-04, pull request on 2026-12-08, merged by the owner (TIN-V1-014; C23). Proof:
+   the merged pull request and `receipt audit` in that store. Then the 21-day trial on Corvint
+   and `beamfall/core`, 2026-12-08 to 2026-12-29 (TIN-V1-009; C22). Proof: the trial record with
+   the ID and hash diff.
 9. Spec deletion after corvint-tasks PR #4 merges (TIN-V1-010, 011). Proof: the cited merge.
 10. Build-log entry; complete the ticket through the Tasks gate. Proof: `corvint-tasks receipt audit`
     passes.

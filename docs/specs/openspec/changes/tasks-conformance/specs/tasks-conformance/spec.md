@@ -85,8 +85,10 @@ duplicated, with the interrupted write either fully present or absent. (G9; PROD
 ### Requirement: TCF-V1-008 Conformance record `taskman-conformance/1`
 
 One command MUST produce a `taskman-conformance/1` record at the Tasks tag commit holding the Tasks
-version and commit, the results of TCF-V1-004 to 007, `receipt audit` with zero failures, and the
-SHA-256 of the schema files and supported-command list. (G9; TIN-V1-002)
+version and commit, the results of TCF-V1-004 to 007, `receipt audit` with zero failures, the
+measured times of the listed read commands, and the SHA-256 of the schema files and
+supported-command list. The read-time budget MUST be set at the qualification candidate (about
+2026-12-08) from these timings; reads are profiled now. (G9; TIN-V1-002; R42 (panel pick) C8)
 
 #### Scenario: Record read by Corvint
 
@@ -101,11 +103,25 @@ ID and content hash diff at start and end and at least 50 ticket writes and 5 co
 repository. A store format change MUST restart the clock. (owner decision R18 (2026-11-09); G9;
 answer 12; REL-V1-010)
 
+Dates: corvint-tasks PR #4 MUST be merged by 2026-11-13. The `tasks-hardening` work and taxonomy
+build items B1 to B3 (TTX-V1-016) MUST be on corvint-tasks main by 2026-11-27. Schema v1 freezes
+on 2026-12-01. The Tasks RC is tagged on 2026-12-08, the same day as the M5a candidate; the trial
+starts that day in both repositories and ends on 2026-12-29. The latest start that still meets a
+2027-01-05 stable is 2026-12-15. Publishing the Tasks RC tag is the owner's act; the PR #4 merge
+follows the standing merge rule. The trial store in `beamfall/core` is initialized under
+TIN-V1-014. (decided 2026-11-09 under R42, C22)
+
 #### Scenario: Low activity
 
 - **GIVEN** `beamfall/core` with 3 completions at day 21
 - **WHEN** the trial record is read
 - **THEN** the trial is reported below its activity floor
+
+#### Scenario: Trial start after the last possible day
+
+- **GIVEN** a trial whose clock restarts on 2026-12-16
+- **WHEN** the trial record is read against a stable date of 2027-01-05
+- **THEN** it shows that 21 days do not fit before the stable date
 
 ### Requirement: TCF-V1-010 Three targets from the Tasks repository
 

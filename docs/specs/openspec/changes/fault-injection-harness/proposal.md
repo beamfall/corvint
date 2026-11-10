@@ -54,10 +54,11 @@ Why the removed packages are not needed is recorded in `design.md` (G26).
   tests at a commit and return per-test outcomes.
 - Case accounting with four counts; N = narrowed PRs with a confirmed kill, at least 100 after an
   over-sample of about 140 (owner decision R19 (2026-11-09)).
-- Exactly 30 reverts per runner, an operator list per language, and non-code faults counted as a
-  separate N.
+- 30 reverts per runner chosen by one deterministic, pre-hashed rule (decided 2026-11-09 under
+  R42, A17), an operator list per language, and non-code faults counted as a separate N.
+- At least 20 flow-reaching faults in the Playwright set (decided 2026-11-09 under R42, A16).
 - Held-out sets of 100 faults for fastapi, solidus and payload (owner decisions R19 and R21
-  (2026-11-09)).
+  (2026-11-09)) and for helm/helm (decided 2026-11-09 under R42, A14).
 - A verdict file per runner, consumed by `narrowing-measurement` (NMS-V1-004, NMS-V1-007).
 
 ## Capabilities
@@ -86,5 +87,7 @@ Why the removed packages are not needed is recorded in `design.md` (G26).
 - New tool and verdict schema. Uses manifests from `proof-repositories` (PRR-V1). Non-code faults
   use the map of `non-code-map` (NCM-V1). Receipts carry per-test durations from change
   `per-test-durations`.
-- Compute cost is large; the owner estimated about a week (G3), hence FIH-V1-010. The over-sample
+- Compute cost is large; the owner estimated about a week (G3), hence FIH-V1-010: a two-step cost
+  check (2026-11-16 and 2026-11-27) against a budget of 96 host-hours (decided 2026-11-09 under
+  R42, A18). The over-sample
   of about 140 PRs per runner raises it further.

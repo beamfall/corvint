@@ -1,7 +1,8 @@
 # Tasks: `user-docs`
 
 Each task names the requirement IDs it delivers and its proof. Tick tasks in order. Tasks for
-UDC-V1-001 to 007 start only after the owner's Q35 disposition is recorded.
+UDC-V1-001 to 007 are decided by R42 (panel pick) B6 (Q35); the content of UDC-V1-007 comes from
+change `compatibility-promise` (decided 2026-11-09 under R42, D10 and D10a).
 
 ## Tasks
 
@@ -24,8 +25,8 @@ UDC-V1-001 to 007 start only after the owner's Q35 disposition is recorded.
       staleness check.
 - [ ] 2.7 `CHANGELOG.md` and the release-workflow refusal. Requirements: UDC-V1-005. Proof: a tag
       without a section is refused in a workflow test.
-- [ ] 2.8 Location and compatibility pages per the owner's decision. Requirements: UDC-V1-006,
-      UDC-V1-007. Proof: diff read-back.
+- [ ] 2.8 Location page, and the compatibility page holding the `compatibility-promise` table.
+      Requirements: UDC-V1-006, UDC-V1-007. Proof: diff read-back.
 - [ ] 2.9 Checks wired into `doc-gates`. Requirements: UDC-V1-012. Proof: `doc-gates` output.
 - [ ] 3.1 Build-log entry; complete the ticket through the Tasks gate. Requirements: all. Proof:
       `corvint-tasks ticket show` and `receipt audit`.

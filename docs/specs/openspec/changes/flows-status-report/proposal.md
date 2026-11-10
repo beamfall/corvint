@@ -5,8 +5,8 @@ Ticket: V1-5257 (open, P1, milestone `v1-0`; the ticket stays in `.taskman/`)
 Product requirement served: PROD-TEST-010 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: a new companion spec `docs/specs/application-flow-status-v1.md` (prefix
 `AFL-V1`). It does not exist yet; the lane creates it in its first commit.
-Requirement IDs this change adds: AFL-V1-001 to AFL-V1-007 (AFL-V1-007 added 2026-11-09 after review,
-docs F2). The block was first planned as
+Requirement IDs this change adds: AFL-V1-001 to AFL-V1-008 (AFL-V1-007 added 2026-11-09 after review,
+docs F2; AFL-V1-008 added for R42 (panel pick) B4). The block was first planned as
 AFU-V1-160..165; it moved because `AFU-V1-165` is a string prefix of the existing
 AFU-V1-1651..1655 in `docs/specs/REQUIREMENTS.tsv`, and `AFL-` has no entry there (checked
 2026-11-09 on `claude/layers-integ` at `9ec3a29d0`).
@@ -70,6 +70,8 @@ and states `NOT_OBSERVED` for every other test.
   copy is removed, and the `corvint.flows.impact` MCP tool is kept on `corvint mcp` (AFL-V1-007,
   G5). Change `change-report-impact` reuses this native answer for its flows section and does not
   remove the tool.
+- The three look-alike docs command families are renamed into one group, with one-release aliases,
+  before `user-docs` and the command table are written (AFL-V1-008; R42 (panel pick) B4).
 
 ## Capabilities
 

@@ -1,4 +1,4 @@
-# Change proposal: proof repositories, one pinned public repository per runner plus three held out
+# Change proposal: proof repositories, one pinned public repository per runner plus four held out
 
 Change name: `proof-repositories`
 Ticket: none filed yet (task 1 files it in `.taskman/`, milestone `v1-0`; it relates to V1-0019)
@@ -22,7 +22,8 @@ checked on repositories that nobody tuned against (G12). One pinned public repos
 runner was already required (answer 17). G12 fixes the selection rule and the blocking conditions.
 G12a names seven repositories and an alternate for each, all marked as not yet verified. Owner
 decision R21 (2026-11-09) names the held-out repositories: fastapi, solidus and payload, each
-verified against the licence and activity rules before freezing.
+verified against the licence and activity rules before freezing. The held-out Go repository is
+helm/helm, alternate go-task/task (decided 2026-11-09 under R42, A14).
 
 The verification table of the named repositories, the current V1-0019 record and the go-chi/chi
 exclusion are in `design.md`.
@@ -33,8 +34,13 @@ exclusion are in `design.md`.
   any run, with a stated green-rate formula.
 - A manifest per repository (named or held-out) with every pin.
 - The seven named repositories, verified against the rule, with swaps where a check failed.
-- A frozen held-out list (fastapi/fastapi, solidusio/solidus, payloadcms/payload) and a
-  replacement pool file of at least 5 candidates per held-out repository.
+- A frozen held-out list (fastapi/fastapi, solidusio/solidus, payloadcms/payload, helm/helm) and
+  a replacement pool file of at least 5 candidates per held-out repository.
+- On the pinned Playwright repository, 10 flows with at least 40 owner-accepted links, frozen and
+  hashed into its manifest (decided 2026-11-09 under R42, A16).
+- Seven public qualification mirrors `beamfall/corvint-qual-<runner>`, needed by 2026-11-27 and
+  created by the owner; each URL enters its manifest after creation (decided 2026-11-09 under
+  R42, N4).
 - Held-out sets of 100 faults with the R19 pass bound.
 
 ## Capabilities
@@ -46,7 +52,7 @@ exclusion are in `design.md`.
 
 ### Modified Capabilities
 
-- `untouched-repository-validation` (V1-0019 record): one untouched repository becomes three named
+- `untouched-repository-validation` (V1-0019 record): one untouched repository becomes four named
   held-out ones, and chi is excluded from every pool.
 
 ## Non-goals

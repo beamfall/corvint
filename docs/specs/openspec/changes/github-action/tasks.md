@@ -2,11 +2,11 @@
 
 Build tasks in order. Each names its requirement IDs and its proof.
 
-1. File the ticket in `.taskman/` and reserve `GHA-V1` 001-018, 020-026, 030-033, 040-043. Proof:
-   `corvint-tasks ticket show` lists the 32 IDs.
+1. File the ticket in `.taskman/` and reserve `GHA-V1` 001-018, 020-029, 030-033, 040-043. Proof:
+   `corvint-tasks ticket show` lists the 35 IDs.
 2. First commit: create `docs/specs/github-action-v1.md` with these definition lines; add status
    lines to `ci-narrowing-v0.md`; regenerate the spec index. Proof: `make spec-requirements` lists
-   the 32 IDs.
+   the 35 IDs.
 3. Create `beamfall/corvint-action` with the Apache-2.0 licence (GHA-V1-015). Proof: `LICENSE` and
    README state Apache-2.0.
 4. Binary: the plan command and its schema, the `corvint test` runner selector, the plan digest
@@ -25,10 +25,16 @@ Build tasks in order. Each names its requirement IDs and its proof.
 8. Shadow jobs on Corvint's own CI as a separate `.github` pull request, from the M5a candidate, with
    `--accept-stale-binary` (GHA-V1-030, 033). Proof: build-log entry listing matching pull requests.
 9. Preview items: PR comment workflow with the four `workflow_run` rules, docs drift step (advisory,
-   opt-in blocking), flow gaps, ticket-gate output, starters, cache reuse (GHA-V1-016, 021 to 026).
+   opt-in blocking), flow gaps, ticket-gate output, starters with the `merge_group` trigger, cache
+   reuse with the save rule and the restore digest, the `always-run` and `working-directory`
+   inputs, and the action repository's static checks (GHA-V1-016, 021 to 029). The starters run
+   on the seven `beamfall/corvint-qual-*` mirrors once the owner has created them (owner act,
+   due 2026-11-27; N4).
    Proof: each preview test passes or is recorded NOT_RUN with that label.
 10. Cut-over pull request after 30 matches, or defer to 1.0.x per GHA-V1-032 (GHA-V1-031, 032).
-    Proof: `git grep` finds no caller of a removed script or variable.
+    Read the live ruleset first; replace only the `go-product` required status with the action's
+    result job (D15). Proof: `git grep` finds no caller of a removed script or variable, and the
+    pull request body records the required-status list before and after.
 11. Rewrite the `docs/AUTOMATION.md` adopter recipe, including the threat model of GHA-V1-008;
     build-log entry; complete the ticket through the Tasks gate. Proof: `corvint-tasks receipt audit`
     passes.

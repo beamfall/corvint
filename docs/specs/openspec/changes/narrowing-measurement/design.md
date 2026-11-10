@@ -61,5 +61,5 @@ its commits; the measurement tool and report schema go, the IDs are retired, not
 
 ## Open questions for the owner
 
-- The 5 percent excluded-test cap (owner decision R19) and the G3 2 percent quarantine cap measure
-  different sets; whether both apply to the same baseline is not decided.
+- Decided, R42 (panel pick) A10: the 5 percent excluded-test cap (owner decision R19) and the G3
+  2 percent quarantine cap both apply to the same baseline, each on its own set (NMS-V1-006).

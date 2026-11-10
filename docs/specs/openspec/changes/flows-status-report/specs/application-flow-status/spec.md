@@ -95,3 +95,28 @@ exit 2, no partial answer (as AFL-V1-006). Acceptance: the two scenarios as Go t
 smoke test with `corvint-docs` absent, and the APK-V0-007 comparison test. Rollback: revert the
 commit; `runFlowsShim` again forwards `flows impact` to `corvint-docs`, and APK-V0-007 returns to
 blocked.
+
+### Requirement: AFL-V1-008 One docs command group before 1.0
+
+Source: R42 (panel pick) B4 (docs-mcp finding 20). The three look-alike docs command families,
+`docs flows generate` / `docs flows check`, `flows docs` / `flows docs maintain` and
+`docs maintain`, MUST be renamed into one command group inside this change's window, so the verbs
+move once. The new names MUST be recorded in this change's design before the rename commit. Each
+old name MUST stay as an alias for one release that runs the same command and prints a notice
+naming the new name. The rename MUST land before change `user-docs` and the command table of change
+`mcp-tool-table` are written.
+
+#### Scenario: Old name still works with a notice
+
+- **GIVEN** a build with the renamed group
+- **WHEN** the user runs `corvint-docs docs maintain --preview`
+- **THEN** the command runs as its new name does, and stderr prints a notice naming the new name
+
+#### Scenario: Help lists one group
+
+- **WHEN** the user runs `corvint-docs --help`
+- **THEN** the three families appear under one group, and the old names are marked as aliases
+
+Failure mode: an alias and a new name diverge in output: the alias test fails the build. Acceptance:
+the two scenarios as Go tests and a golden of the help text. Rollback: revert the rename commit;
+the old names return as the only names.

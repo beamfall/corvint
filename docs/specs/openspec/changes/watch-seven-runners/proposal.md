@@ -64,7 +64,9 @@ recorded risk is that the bar for Playwright, pytest and Ruby is unproven and ma
 - Kill switch with the `full:<runner>` grammar of NMS-V1-008; an unknown value exits 2 (owner
   decision R13 (2026-11-09)).
 - A new performance gate measures save-to-answer time in a warm, running watch per runner on the
-  reference machines and repo. The `watch-replan` target moves from advisory to enforced.
+  reference machines and repo. The `watch-replan` target moves from advisory to enforced. A miss
+  blocks the release unless the owner recorded a demotion for that runner before the freeze; Go,
+  Vitest and Jest cannot be demoted (decided 2026-11-09 under R42, A15; WCH-V1-004).
 - The `contextindex` snapshot is not part of watch. It is kept as a warm cache only if a
   measurement shows it is needed to meet the bar (G25 item 5).
 
@@ -91,7 +93,7 @@ recorded risk is that the bar for Playwright, pytest and Ruby is unproven and ma
 
 - Code: `cmd/corvint/watch.go`, `internal/linecov/watch`, `internal/perfbudget/budgets.json`, the
   runner contract, a save-to-answer timing harness.
-- Reference machines (panel proposal, owner to confirm): an M2-class Mac with 16 GB and an 8-core
-  Linux host with NVMe storage. Reference repo (panel proposal): about 500k lines, 5k test files and
-  50k tests. On WSL only the ext4 filesystem is supported; `/mnt/c` falls back to
-  `--events-stdin`.
+- Reference machines (R42 (panel pick) A11): the owner's Mac and WSL2 Linux (ext4) on the Windows
+  benchmark box, reserved and quiet, hardware recorded, cores capped at 8. Reference repos: the seven
+  pinned proof repositories, one per runner, sizes printed; Go also timed on the Corvint repository.
+  On WSL only the ext4 filesystem is supported; `/mnt/c` falls back to `--events-stdin`.

@@ -21,7 +21,10 @@
   that alters a requirement's meaning sets its row to `pending-owner`.
 - Audit. `script/spec-acceptance-audit.sh` gains a log check: every PROD requirement and O-row has a
   row; a row's mode agrees with its spec marker by the mapping above; no `owner` row was added in a
-  commit not authored by the owner (the authorship test depends on the signature mechanism, Open).
+  commit not authored by the owner. Decided 2026-11-09 under R42, D12 and D13: the signature
+  mechanism is a tag signed with the owner's touch-required key (ACR-V1-011). `owner` log rows
+  are covered by the signed acceptance tag on the commit that holds them; commit authorship alone
+  is by convention, identity `NOT_VERIFIED`.
   It stays a report under `make spec-acceptance-audit` and is wired as a gate step only by the change
   `openspec-check`.
 - Release records. One file per signed event (RC publish, stable promotion) under
@@ -37,7 +40,10 @@
 - A supersession quote that no longer matches its source at the cited commit: the audit names it.
 - The plan SHA in the record differs from the plan on `origin/main`: the record is stale and must be
   re-signed.
-- No signature mechanism decided by the RC: the RC cannot publish; tracked as an Open item.
+- The signature mechanism is decided (2026-11-09 under R42, D12 and D13; ACR-V1-011). If the
+  owner has neither generated a key nor recorded the fallback by the RC, the RC cannot publish.
+- An acceptance tag signed by a key missing from the earlier allowed-signers file: the publish
+  job refuses.
 
 ## Acceptance evidence
 

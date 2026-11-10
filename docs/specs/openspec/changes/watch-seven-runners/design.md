@@ -18,6 +18,23 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/watch/spec.md`.
 7. The `contextindex` snapshot is kept as a warm cache only if a measurement shows it is needed to
    meet the bar (G25 item 5).
 8. Cypress is not a watch runner in 1.0 (owner decision R6 (2026-11-09)).
+9. Warm state (watch-flows verdicts, findings 3, 5, 7, 9 and 13; selection verdicts, finding 4).
+   Watch keeps five things between saves: the package list, each runner's identity, a per-file blob
+   table, the old-side blobs of the diff basis, and the evaluated flow links. WFF-V1-002 (change
+   `watch-flows-hardening`) says when each is dropped; this change adds no second rule. Between
+   saves only the changed paths are rescanned (WCH-V1-007).
+10. Blobs are read through `BlobReader` and hashed in process; watch spawns no `git` process per
+    save for them.
+11. Flow link evaluation counts inside the Playwright save-to-answer budget (WCH-V1-004,
+    WCH-V1-013); it is not timed apart.
+12. A new save cancels an in-flight `--run`. The cancelled run is reported incomplete, never as
+    passed.
+13. Event registration is pruned by the ignore rules of WCH-V1-011: an ignored directory is not
+    watched.
+14. Changed paths travel on the event source channel, and `--events-stdin` accepts one path per
+    line, so watch does not rediscover what changed.
+15. Each answer carries `changed[]` and, per test, a `because` member, under a size cap. The cap's
+    value is not set here; it is fixed with the answer profile.
 
 ## Failure modes
 
@@ -55,8 +72,13 @@ IDs are retired, not reused.
 
 ## Open questions for the owner
 
-- Name the reference machines and the reference repo (the panel proposal is in `proposal.md`).
-  Review T-m6 suggests one reference repo per runner, since no single repo of about 500k lines holds
-  all seven runners; not decided.
+- Decided, R42 (panel pick) A11: the owner's Mac and WSL2 (ext4) on the benchmark box, cores
+  capped at 8; the seven pinned proof repositories, one per runner, sizes printed; Go also timed on
+  the Corvint repository (WCH-V1-004).
+- Settled (decided 2026-11-09 under R42, A15): a runner that misses the bar at the freeze blocks
+  the release unless the owner recorded a demotion for it before the freeze; a demoted runner ships
+  `watch` as preview with its measured p50 and p95; Go, Vitest and Jest cannot be demoted on this
+  bar; fewer than four of seven passing means the release slips (WCH-V1-004, G10). Any demotion
+  note is the owner's act.
 - Accept that today's p50 evidence (about 700 ms, cold start) fails the 300 ms bar until a warm
   save-to-answer measurement exists, and that this may delay 1.0 (risk recorded with G7).

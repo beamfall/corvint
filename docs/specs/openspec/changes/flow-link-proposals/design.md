@@ -33,7 +33,11 @@
    accepted_at, pinned_commit, test_content_hash, routes_digest}`. `test_id` is the canonical test ID
    (CTI-V1-005 for Playwright, which holds the file path and title path). `pinned_commit` is HEAD at
    acceptance. `test_content_hash` is the blob digest of the test file at that commit;
-   `routes_digest` is the digest of the variation's routes at that commit.
+   `routes_digest` is the digest of the variation's routes at that commit. The record stores no
+   test `kind`. Kind is a property of the test: the report and the planner read it from the test
+   inventory by the canonical `test_id`, with `unit` as the default and the kind source reported
+   (`affected-plan-kinds` decision 2). A link whose `test_id` is not in the inventory is dangling
+   (decided 2026-11-09 under R42, N2).
 
 6. **Only accepted links narrow.** Selection reads link records from `.corvint/flows.json` and
    nothing else. A test with no accepted link is `unassigned` and always runs (G11). Tags in test
@@ -72,6 +76,12 @@
 - Stale, disagreeing and dangling fixtures each run the test with their reason.
 - A determinism test: two proposal runs on the same inputs give identical scores.
 - Proposals and acceptance recorded on Corvint's own flows (PROD-DOCS-012 acceptance evidence).
+- On the pinned freeCodeCamp repository: flow declarations written by agents, links proposed by
+  Corvint and accepted by the owner per flow with `flows accept --flow ID --by NAME`. Target: 10
+  flows with at least 40 accepted links, accepted in one sitting by 2026-12-04, then frozen and
+  hashed into the proof manifest before the Playwright fault set is sealed; that set holds at least
+  20 faults in code reached by a linked flow. The acceptances are the owner's act (decided
+  2026-11-09 under R42, A16; PRR-V1-003, FIH-V1-002).
 
 ## Rollback
 

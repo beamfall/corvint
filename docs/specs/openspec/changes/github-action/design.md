@@ -25,7 +25,24 @@
 - The self-shadow on Corvint's own CI starts from the M5a qualification candidate (owner decision
   R2, 2026-11-09) and passes `--accept-stale-binary`.
 - GHA-V1-040 to GHA-V1-043 stay in this change; change `acceptance-record` records their final home
-  (owner decision R1, 2026-11-09).
+  (owner decision R1, 2026-11-09). Decided 2026-11-09 under R42, D6: the four requirements stay
+  here with their IDs unchanged; `release-process` cites them and does not restate them.
+- Base on a force-push: an unfetchable `before` is an unresolvable base and runs every test; a
+  fetchable one narrows normally (decided 2026-11-09 under R42, D1; GHA-V1-003).
+- Cut-over and required statuses: `go-product` is the one context the action's result job
+  replaces; `doc-gates`, `ci-control-plane` and `greptile-gate` stay; `ci-control-plane.yml` is
+  trimmed, not deleted (decided 2026-11-09 under R42, D15; GHA-V1-031). The live ruleset is
+  NOT_VERIFIED.
+
+- Adopter gaps from review ci-agents F16 are each recorded once. Requirements, all preview:
+  `always-run` (GHA-V1-027), `working-directory` (GHA-V1-028), the `merge_group` trigger in
+  starters (GHA-V1-025), and `actionlint`, `zizmor` and Dependabot on the action repository
+  (GHA-V1-029). Non-goals at 1.0: a durations feed, JUnit or annotations, a flaky-test policy, a
+  `token` input and Scorecard. Decided 2026-11-09 under R42, N3: the split stands as written.
+- Index cache (GHA-V1-026): key is binary digest plus commit, saved only by default-branch `push`
+  runs, index digest checked on restore (review ci-agents F15).
+- `github-split-check` keeps `.github` changes in their own pull requests until the cut-over.
+  `source-removal` removes it in B11's script removal PR, after the cut-over PR merged (RMV-V1-032).
 
 ## Failure modes
 
@@ -58,8 +75,9 @@
 - The runner OS is Windows: the action refuses with a typed message (answer 16).
 - The job summary or PR comment would exceed its size bound: stable order, a truncation marker and
   totals; the full plan stays in the artifact.
-- A restored index cache does not match the commit and Corvint version or fails its integrity check:
-  it is discarded and rebuilt; a cache never narrows by itself.
+- A restored index cache does not match the commit and the Corvint binary digest, or its bytes do
+  not hash to the digest recorded at save time: it is discarded and rebuilt; a cache never narrows
+  by itself. A pull request run never saves a cache entry (GHA-V1-026).
 
 ## Acceptance evidence
 
@@ -86,7 +104,7 @@
 - Corvint's own CI: revert the cut-over pull request; the removed scripts return from history. Until
   cut-over nothing is removed, so rollback is deleting the shadow jobs.
 - Release workflow: disable the workflow; release-gates remains as it is today.
-- The 32 requirement IDs are retired, not reused, if the change is withdrawn.
+- The 35 requirement IDs are retired, not reused, if the change is withdrawn.
 
 ## Contradictions and open questions for the owner
 
@@ -116,3 +134,14 @@
 8. `push` base: R23 keeps `before`. Whether to use the last commit with a successful run instead,
    which needs `actions: read`, is open (NEW-CI-1).
 9. Whether the action repository also ships a reusable workflow (NEW-CI-2).
+10. The requirement and non-goal split for the review ci-agents F16 adopter gaps (GHA-V1-027 to
+    029 and five non-goals in `proposal.md`) was made without the owner. Decided 2026-11-09 under
+    R42, N3: the split stands and no requirement changes.
+11. The seven-repository acceptance of PROD-INT-018 and GHA-V1-025 runs the action on each
+    qualification repository. That needs a fork or mirror of each one in an organisation where
+    Corvint may add workflows (review ci-agents F17). Decided 2026-11-09 under R42, N4 (low
+    confidence): seven public mirrors in the `beamfall` organisation, `corvint-qual-go`,
+    `-vitest`, `-jest`, `-playwright`, `-pytest`, `-rspec` and `-minitest`, each a pushed copy of
+    the pinned commit and not a fork, by 2026-11-27. Creating the repositories and setting them
+    public is the owner's act. The acceptance stays NOT_RUN until they exist. The
+    `proof-repositories` manifest records each mirror URL.

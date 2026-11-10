@@ -127,7 +127,8 @@ exit code of the test run.
 Source: every unknown runs with a named reason; owner decision R8 (2026-11-09).
 Status: proposed 2026-11-09; delivery not-started.
 No selection path (`corvint affected`, `corvint test` planning, `corvint watch`, MCP affected) MUST
-use stored run results to remove a test from a plan.
+use stored run results to remove a test from a plan. In 1.0 stored results MAY only change the order
+of the selected tests; skipping an already-passed test is a post-1.0 proposal (R42 (panel pick) A3).
 
 #### Scenario: test passed many times
 - **GIVEN** a test that passed in every stored record

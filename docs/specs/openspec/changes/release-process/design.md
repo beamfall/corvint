@@ -11,8 +11,11 @@
   tag workflow runs the full suite and builds, then stops. M8 is "RC approval and publish": the
   owner signs and approves the protected publish job. The soak clock starts at publish, not at tag.
 - Rebuild only for blockers (owner decision R2). A rebuilt candidate cites the blocker ticket that
-  caused it. Proposed: the held-out draw is not redrawn on a blocker rebuild (listed as open in the
-  hand-back; it is not an owner decision).
+  caused it. Decided 2026-11-09 under R42, D16: the held-out draw is never redrawn on a blocker
+  rebuild; its seed is the first pushed candidate tag. REL-V1-014 sorts all other evidence into
+  three classes: always redone, redone only when the diff touches the class's declared input
+  paths, and never redone. The path sets are frozen before M5a, and the reuse check is a plain
+  path-set comparison, not Corvint's own selection.
 - Demotion basis (review finding 2; plan checklist O20). Before the freeze the owner records
   demotions from the fault-injection (FIH) and measurement (NMS) verdicts recorded on one named
   freeze-candidate SHA. The RC run repeats them on the RC SHA; any verdict that regresses from the
@@ -23,7 +26,9 @@
   reason recorded in the ticket. The release object's acceptance criteria are replaced by the plan's
   1.0 bar, and its required gates by the PROD-INT-017 gates. Which existing gate IDs survive
   (full-gate, interop-gate, companion-release, focused-docs, release-checklist) is decided in task
-  2.2 against PROD-INT-017 and listed in the hand-back as open.
+  2.2 against PROD-INT-017. Final round, M5: the nightly `release-gates.yml` run contains exactly
+  the REL-V1-012 gates; tickets V1-4848, V1-4849 and V1-4850 close against that rule, and a gate
+  dropped from the run closes its ticket as superseded.
 - Tag workflow permissions (G15a; owner decision R24; ci-agents review F11). The build job has
   `contents: read`, `id-token: write` and `attestations: write`, and no `contents: write`. Only the
   publish job has `contents: write`, and it runs in a protected environment bound to protected `v*`
@@ -40,17 +45,37 @@
   under owner decision R14, 2026-11-09) leave the list in the removal batch that deletes them. Tasks
   ships the same three targets from its own repository; `corvint-update` covers both components.
 - Removals (settled without the owner; plan checklist O24). M3 removal batches finish by 2026-12-01;
-  a batch not merged by then moves to 1.0.x.
+  a batch not merged by then moves to 1.0.x. Decided 2026-11-09 under R42, E5: B8b may land up
+  to 2026-12-10 and B11 follows the G18 deadline of 2026-12-15 (REL-V1-009, RMV-V1-001).
 - Soak and trial counts (review finding 14; plan checklist O21, O22). A real PR is one merged during
   the soak window in a Corvint or Beamfall repository, counted from the GitHub API. Held-out upstream
   PRs replayed on the RC are a separate count. The Tasks trial needs at least 50 ticket writes and
   5 completions per trial repository, read from the store event log.
 - Benchmark host (review finding 17; plan checklist O23). Linux runs on WSL2 on the Windows
-  benchmark box; macOS runs on the owner's Mac. Both are reserved with no lanes from M5a to RC
-  publish.
+  benchmark box; macOS runs on the owner's Mac. Decided 2026-11-09 under R42, D8: both are
+  reserved only during declared measurement sessions; each result records host, kernel, load and
+  concurrent processes; a result from a session in which a lane ran is NOT_VERIFIED and rerun.
 - Release gates (G8; PROD-INT-017; plan checklist O29). The affected plan, exhaustive `go test` and
   `go vet` in both modules, and one scripted qualification per product: the PROD-INT-004 "install
-  alone" scenario plus the product's primary verb on a pinned repository.
+  alone" scenario plus the product's primary verb on an untouched and pinned repository. Decided
+  2026-11-09 under R42, D9: one qualification for each of the three products; Tasks runs a new
+  store through create, claim, submit, gate, complete and receipt audit. M7: each qualification
+  installs from the candidate archive after checking `SHA256SUMS`.
+- `greptile-gate` (decided 2026-11-09 under R42, D14). It is a merge check on main and not a
+  release gate. It stays required on main through stable 1.0 with its waiver. The live ruleset
+  is NOT_VERIFIED.
+- macOS (decided 2026-11-09 under R42, D7; REL-V1-015). Exhaustive macOS test and vet are a
+  release gate on the freeze-candidate and release-candidate commits. The per-merge macOS check
+  is advisory until its flake tickets close and 20 consecutive main runs pass; if that has not
+  happened by 2026-12-15 it stays advisory for 1.0.
+- Release workflow requirements (decided 2026-11-09 under R42, D6). GHA-V1-040 to GHA-V1-043
+  stay in change `github-action` with their IDs; this change cites them.
+- Owner identity (decided 2026-11-09 under R42, D12 and D13). The RC and stable signatures are
+  tags signed by the owner with a touch-required key listed in a committed allowed-signers file
+  (ACR-V1-011). The publish job verifies against the allowed-signers file as at the previously
+  accepted tag. The environment approval is a second step under the owner's account, identity
+  `NOT_VERIFIED`. Generating the key, signing the tags and giving the approvals are the owner's
+  acts.
 
 ## Failure modes
 
@@ -65,8 +90,11 @@
   A demotion cannot be added after the freeze.
 - A removal batch is not merged on 2026-12-01: it moves to 1.0.x; the binaries it would have
   removed stay in the 1.0 artifact list.
-- The benchmark host runs a lane between M5a and RC publish: the qualification timing results from
-  that window are marked NOT_VERIFIED and rerun.
+- The benchmark host runs a lane during a declared measurement session: the timing results from
+  that session are marked NOT_VERIFIED and rerun (D8).
+- A rebuild changes a path that no evidence class declares: every class is redone (REL-V1-014).
+- The acceptance tag does not verify against the earlier allowed-signers file: the publish job
+  refuses (REL-V1-013).
 - The attestation step cannot obtain an OIDC token: the build fails closed; no unattested artifact
   is offered for approval.
 - The GitHub count of soak PRs is unavailable: the count is NOT_OBSERVED and stable is not promoted.

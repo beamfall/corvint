@@ -16,8 +16,9 @@
   `corvint-tasks qualify` with a conformance config or a dedicated script in the Tasks repository is
   not decided (Open). The record profile is `taskman-conformance/1` and holds: Tasks version and
   commit; for each of PROD-TASK-001 to 009 the test IDs and outcomes; for each listed command its
-  test and a schema check of its output; the concurrency run; the kill -9 run; the audit result; and
-  the SHA-256 of the schema files and command list.
+  test and a schema check of its output; the concurrency run; the kill -9 run; the audit result; the
+  read-command timings (budget set at the qualification candidate, R42 (panel pick) C8); and the
+  SHA-256 of the schema files and command list.
 - Concurrency. At least 8 separate OS processes claim from one store with overlapping scopes for a
   fixed number of rounds. Pass: every claimed ticket has exactly one live claim at any time, read
   from the store event log after the run.
@@ -28,6 +29,14 @@
 - Trial. The trial in Corvint and `beamfall/core` uses the frozen Tasks RC binary for 21 days and
   records a ticket ID and content hash diff at start and end (TIN-V1-009), with at least 50 ticket
   writes and 5 completions per repository (REL-V1-010). A store format change restarts the clock.
+- Trial dates (decided 2026-11-09 under R42, C22). PR #4 in `beamfall/corvint-tasks` merges by
+  2026-11-13. `tasks-hardening` and taxonomy items B1 to B3 are on Tasks main by 2026-11-27.
+  Schema v1 freezes 2026-12-01. The Tasks RC is tagged on 2026-12-08, the same day as the M5a
+  candidate, and the trial starts that day in both repositories and ends 2026-12-29. Stable minus
+  21 days is 2026-12-15, so this start leaves one week in which a format fix and a clock restart
+  still meet 2027-01-05. Everything that can change the store format (PR #4, hardening, the key
+  field) is in before the tag (G9). Publishing the Tasks RC tag is the owner's act. Known cost:
+  the trial runs against a Corvint that is still changing, which G9 allows (Tasks tagged first).
 - Release. corvint-tasks builds the three targets with checksums and attestation by the same tag
   workflow shape as the change `release-process`; the Tasks tag precedes the Corvint RC (TIN-V1-003).
 
@@ -36,7 +45,10 @@
 - Fewer than 8 processes, or a double claim: the record marks the check failed; TIN-V1-002 refuses.
 - A listed command whose output fails schema v1: the record marks that command failed.
 - A schema change without a fixture update: the fixture check fails in both repositories.
-- `beamfall/core` has no store at trial start: the trial cannot start; filed as a blocker. Whether
+- `beamfall/core` has no store at trial start: the trial cannot start; filed as a blocker. The
+  store is initialized by pull request on 2026-12-08 with the tagged Tasks RC binary; the seed
+  file is reviewed by 2026-12-01 and a dry run on a copy is done by 2026-12-04; merging that pull
+  request is the owner's act (TIN-V1-014; decided 2026-11-09 under R42, C23). Whether
   the untouched-repository scenario may be met by the trial evidence instead is not decided (Open).
 - PR #4 still open: the Tasks specs stay retired in place in this repository (TIN-V1-010).
 

@@ -56,8 +56,9 @@ an explicit state.
 1. The base and head commits (head defaults to the working tree's `HEAD`).
 2. The affected plan for that range, computed by the affected engine (not a second engine).
 3. `.corvint/flows.json` and its link records (change `affected-plan-kinds`).
-4. Optionally `--docs-check FILE`: a saved output of `corvint-docs docs flows check` for the head
-   revision. Loose integration through files (owner answer 13); absent means the docs section is
+4. Optionally `--docs-check FILE`: a saved output of `corvint-docs docs flows check`, or the
+   one-report output of `corvint-docs docs check` (DMF-V1-002), for the head revision. Loose
+   integration through files (owner answer 13); absent means the docs section is
    `NOT_OBSERVED`.
 5. Optionally the Tasks store, read only: tickets whose IDs appear in commit messages of the range
    and tickets whose claim scope covers a changed path; absent store means `NOT_OBSERVED`.

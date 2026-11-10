@@ -20,7 +20,8 @@
    widen to `file`, and an instance-wide mismatch widens the instance to `full`. Reason
    `line-evidence-stale`. For `corvint watch`, the planned change is the working tree and index
    against HEAD, with HEAD checked to descend from the evidence commit; otherwise FULL (owned by
-   change `watch-seven-runners`, review NEW-testing-2).
+   change `watch-seven-runners`, review NEW-testing-2). One-shot `corvint affected`, `corvint test`
+   and the MCP plan tool use the same rule (LEV-V1-015; R42 (panel pick) A7).
 
 4. **Collectors.**
 
@@ -96,7 +97,7 @@
 
 Revert the change's commits and delete `<git-dir>/corvint/line-evidence/`. Plans fall back to file
 and full tiers with `line-evidence-absent`, which only widens. The Go `--line-index` path is
-unchanged. LEV-V1-001 to LEV-V1-014 stay listed as retired if the change is withdrawn.
+unchanged. LEV-V1-001 to LEV-V1-015 stay listed as retired if the change is withdrawn.
 
 ## Open
 
@@ -104,3 +105,9 @@ unchanged. LEV-V1-001 to LEV-V1-014 stay listed as retired if the change is with
 2. The experimental E2E profile name.
 3. Whether `tools/linecov` keeps a separate program after folding, or is removed.
 4. The Action cache step, to be agreed with change `github-action`.
+
+## Open decisions
+
+- Decided, R42 (panel pick) A7: one-shot `corvint affected`, `corvint test` and the MCP plan tool
+  use the `corvint watch` working-tree rule of decision 3, so an uncommitted edit gets line
+  evidence instead of the `worktree-dirty` fallback (LEV-V1-015; selection verdicts, finding 10).

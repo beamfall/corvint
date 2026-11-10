@@ -27,6 +27,9 @@ Build in this order. Each task names its requirement IDs and its proof.
    reason.
 10. Reach definition and `reach-unknown`. Requirements: APK-V0-010. Proof: transitive, unresolved
     and RSpec system fixtures.
+    The `.corvint/flows.json` join MUST NOT reuse the `unbounded` or `closureUnknowns` results of
+    the e2e-safe profile; it computes reach itself (watch-flows verdicts, finding 1a). Extra proof:
+    the unowned `db/schema.sql` scenario of APK-V0-010.
 11. Agreement with `corvint flows impact` after change `flows-status-report` makes it native.
     Requirements: APK-V0-007. Proof: same-inputs comparison test.
 12. Update `docs/CAPABILITIES.md` and command help; build-log entry; Tasks gate. Proof: docs diff,

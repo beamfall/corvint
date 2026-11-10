@@ -90,24 +90,52 @@ and provenance, MUST have zero runtime dependencies and MUST declare no install 
 - **WHEN** the Pi package is packed
 - **THEN** its `package.json` lists no `dependencies` and no `preinstall`, `install` or `postinstall`
 
-### Requirement: AGT-V1-008 One install command
+### Requirement: AGT-V1-008 One documented install step
 
-Source: G19. Each host MUST have one documented install command that installs the package, registers
-MCP and enables the hooks, followed by `corvint agents doctor`. For Codex a non-interactive command is
-NOT_VERIFIED; if none exists, the documented path is the shortest supported one and the gap is
-reported to the owner.
+Source: G19; review ci-agents F26. Each host MUST have one documented install step that installs
+the package, registers MCP and enables the hooks, followed by `corvint agent doctor`. A step is
+the shortest command sequence the host supports, written as one copyable block. The documented
+commands per host are:
+
+- Claude Code: `claude plugin marketplace add <repository>`, then
+  `claude plugin install corvint@<marketplace> --scope user|project`. Two commands, because a
+  plugin installs in one command only from a marketplace the host already knows.
+- Codex: NOT_VERIFIED. Plugins install through `/plugins` inside Codex from a configured
+  marketplace; no non-interactive command is confirmed. The documented step is the shortest
+  supported one and the gap is reported to the owner.
+- OpenCode: `opencode plugin add` with the npm package name.
+- Pi: `pi install npm:<package>@<version>`.
+
+Earlier wording, replaced on 2026-11-09 because Claude Code needs two commands: "Each host MUST
+have one documented install command".
 
 #### Scenario: Claude Code install
 
-- **WHEN** the user runs the documented install command and then doctor
+- **WHEN** the user runs the two documented Claude Code commands and then doctor
 - **THEN** doctor reports MCP, skills and hooks active
+
+#### Scenario: One block per host
+
+- **WHEN** a reader opens the install page for any of the four hosts
+- **THEN** the page shows one copyable block with that host's commands, ending in
+  `corvint agent doctor`
 
 ### Requirement: AGT-V1-009 Doctor
 
-Source: G19. `corvint agents doctor` MUST be read-only and MUST report, per detected host: binary
+Source: G19; decided 2026-11-09 under R42, D4. `corvint agent doctor` MUST be read-only and MUST
+report, per detected host: binary
 version against the package range, MCP registration, hook presence and trust state, skills present,
 the kill switch state, the instruction-file check (AGT-V1-020), and whether the agent version is in
 the package's qualified list. It MUST exit non-zero only when the package cannot work.
+
+The agent commands MUST use one singular noun: `corvint agent doctor`, `corvint agent hook` and
+`corvint agent manifest`. The binary MUST NOT accept `corvint agents` as an alias. Earlier
+wording, superseded by D4: "`corvint agents doctor`".
+
+#### Scenario: Plural noun is not a command
+
+- **WHEN** the user runs `corvint agents doctor`
+- **THEN** the binary reports an unknown command and exits non-zero
 
 #### Scenario: Untrusted Codex hooks
 
@@ -126,6 +154,16 @@ tool with the same read operations.
 Earlier wording, superseded by R17 and R30: "the `corvint-docs` MCP server and, when installed, the
 `corvint-tasks` MCP server". Pi has a built-in MCP client per the
 upstream extensions page; whether it is on by default is NOT_VERIFIED.
+
+Pi (decided 2026-11-09 under R42, D5). The Pi package MUST register the MCP servers when Pi's
+built-in MCP client is confirmed usable by the upstream fact check (G21), and MUST otherwise ship
+the CLI-backed tool. Either way Pi stays preview and never blocks 1.0.
+
+#### Scenario: Pi MCP client not confirmed
+
+- **GIVEN** the upstream fact check has not confirmed that Pi's MCP client is usable
+- **WHEN** the Pi package is generated
+- **THEN** it ships the CLI-backed tool and registers no MCP server
 
 #### Scenario: MCP tools listed
 
@@ -295,15 +333,76 @@ calling the binary, and doctor MUST report the switch. MCP and skills are unaffe
 
 ### Requirement: AGT-V1-022 Session state outside the repository
 
-Source: G19, product invariant 4. Session state MUST live outside the repository and outside
+Source: G19, product invariant 4; decided 2026-11-09 under R42, D17 and N5. Session state MUST
+live outside the repository and outside
 `.corvint/` (proposed: the user cache directory keyed by repository root and session ID), MUST be
 bounded in size, MUST expire (proposed 24 hours), and MUST NOT be an input to ranking, evidence,
-authority or learning. Whether invariant 4 permits this as written is an owner question.
+authority or learning.
+
+Invariant 4 permits this (D17). `corvint agent hook` is a session command, not a read command,
+and the amended invariant 4 says that agent hook session state kept in the user cache directory
+is not repository or trace state. The state MUST hold only paths, commit SHAs and timestamps; it
+MUST NOT hold file content, command output or secrets. State files MUST be created readable and
+writable by their owner only. `affected`, `query`, `status` and every other read verb MUST NOT
+write session state, with or without a session. Earlier wording, superseded by D17: "Whether
+invariant 4 permits this as written is an owner question."
+
+Concurrent and continued sessions (review ci-agents F27). The repository root in the key is the
+root of the working tree the session runs in, so each Git worktree has its own state. A resumed
+session keeps its session ID and MUST reuse its unexpired state, including the commit recorded at
+session start. A forked session has a new session ID and MUST start new state that records the
+current `HEAD`; it MUST NOT read or write the parent's state. Edits a subagent makes in the
+parent's working tree are part of the parent's session changes through the diff of AGT-V1-013.
+In 1.0 the packages MUST NOT register a hook on a subagent's own stop event (Claude Code
+`SubagentStop`); the parent's end-of-turn report is the only one (N5; revisit in 1.1 after the
+upstream behaviour is checked under G21).
 
 #### Scenario: Read command purity
 
 - **WHEN** a session records edits
 - **THEN** `git status` and `.corvint/` are unchanged
+
+#### Scenario: State holds no content
+
+- **GIVEN** a session that edited a file containing a secret and ran a command that printed it
+- **WHEN** the session state files are read
+- **THEN** they contain only paths, commit SHAs and timestamps
+- **AND** each file is readable and writable by its owner only
+
+#### Scenario: Read verb writes no state
+
+- **GIVEN** an active session with recorded edits
+- **WHEN** `corvint affected` runs in that working tree
+- **THEN** no file under the session state directory is created or changed
+
+#### Scenario: No subagent stop hook
+
+- **WHEN** the generated Claude Code package is inspected
+- **THEN** it registers no `SubagentStop` hook
+
+#### Scenario: Two worktrees at once
+
+- **GIVEN** two sessions running in two worktrees of one repository
+- **WHEN** each edits a different file and ends its turn
+- **THEN** each report lists only the tests for the change in its own worktree
+
+#### Scenario: Subagent edit
+
+- **WHEN** a subagent edits `internal/a/a.go` in the parent's working tree and the parent's turn
+  ends
+- **THEN** the parent's end-of-turn report covers `internal/a/a.go`
+
+#### Scenario: Resumed session
+
+- **WHEN** a session is resumed with the same session ID before its state expired
+- **THEN** the end-of-turn diff still starts at the commit recorded when the session first started
+
+#### Scenario: Forked session
+
+- **WHEN** a session is forked while the working tree has uncommitted edits
+- **THEN** the fork's state is new, its start commit is the current `HEAD`, and its report covers
+  the uncommitted edits because they differ from `HEAD`
+- **AND** the parent's state file is unchanged
 
 ### Requirement: AGT-V1-023 Meaning of supported
 
@@ -314,9 +413,26 @@ listed; an edit after which the hook names exactly the affected tests and the ag
 unsure plan giving "UNKNOWN, run all"; a hook crash and a hook timeout that do not block; a docs
 query; a task claim on a scratch store through the `corvint-tasks` CLI; compaction restating pending tests; clean uninstall.
 Assertions MUST be made on hook and tool transcripts, and every retry MUST be logged. Each host
-uses one pinned model, and the model ID and agent version are recorded with the pass (R27). How
-many passes out of how many runs count as a pass is open (NEW-AGT-2); until the owner decides,
-every run and retry is recorded and none is dropped.
+uses one pinned model, and the model ID and agent version are recorded with the pass (R27).
+
+Pass rule (decided 2026-11-09 under R42, D2; closes NEW-AGT-2). Deterministic steps MUST pass in
+every run: install, doctor, hook wiring, hook behaviour (including a hook crash and a hook
+timeout that do not block), the hooks-off switch and uninstall. Model-driven scenarios MUST run
+three times per host and operating system and pass when at least two of the three runs pass.
+Every run and retry MUST be recorded and none dropped. The rule MUST be committed before the
+first qualification run and MUST NOT change after it.
+
+#### Scenario: Two of three model-driven runs pass
+
+- **GIVEN** the edit scenario run three times on Codex on Linux, with two passes and one failure
+- **WHEN** the evidence file is assembled
+- **THEN** the scenario passes and all three runs are listed
+
+#### Scenario: A deterministic step fails once
+
+- **GIVEN** three runs on one host in which uninstall fails in one run
+- **WHEN** the evidence file is assembled
+- **THEN** the host does not pass
 
 #### Scenario: Prose is not evidence
 
@@ -366,10 +482,31 @@ Codex, `beamfall/corvint` MUST remove `integrations/claude-code/**`, `integratio
 `instruction-profiles.json`. Removal before that release MUST NOT happen, so users always have one
 installable package.
 
+Migration note (review ci-agents F28). The packages ship exactly three skills (AGT-V1-011), so the
+skills of today's plugins are dropped: `affected`, `impact`, `index` and `review` in
+`integrations/claude-code/plugins/corvint/skills/`, and `corvint` in
+`integrations/codex/plugins/corvint/skills/` (paths at integ 9ec3a29d0). The release notes of the
+first `corvint-agents` release and the removal pull request MUST carry a migration note that names
+each dropped skill and what replaces it. `affected` is replaced by the `tests` skill. For each of
+the other four the note MUST name the replacing skill or command, or say that there is none.
+
+Replacements (decided 2026-11-09 under R42, N6). No new skill is added. The note MUST say:
+`impact` is replaced by the `corvint.impact` MCP tool and `corvint impact` (preview); `review` by
+the change report command of change `change-report-impact`, reached through the `docs` skill;
+`index` by nothing, because the index is prepared by the commands that need it or by
+`corvint index --if-stale`; the Codex `corvint` skill by the three shipped skills. The exact
+change report command name is UNVERIFIED and MUST be confirmed before the note is published.
+
 #### Scenario: No orphan reference
 
 - **WHEN** the removal lands
 - **THEN** `git grep integrations/claude-code integrations/codex` finds hits only in history files
+
+#### Scenario: Migration note names every dropped skill
+
+- **WHEN** the first `corvint-agents` release is published
+- **THEN** its notes list `affected`, `impact`, `index`, `review` and the Codex `corvint` skill,
+  each with its replacement or the words "no replacement"
 
 ### Requirement: AGT-V1-028 Superseding decision first
 

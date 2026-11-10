@@ -168,7 +168,13 @@ B8a and B8b. The "Proposed amendment: solo falsifiability" section (line 279) is
 - An archived ID is proposed again: the `openspec-check` ID rule refuses it.
 - A gated batch slips past 2026-12-01: its rows keep their current class and the table keeps the
   gate; no row moves to another batch.
-- An undetermined row: it stays as it is (active, not archived) until the owner answers.
+- An undetermined row: it stays as it is (active, not archived) until the owner answers. Decided
+  2026-11-09 under R42, E8: eleven of the twelve undetermined spec rows are classed in
+  `specs-verdicts.md`; `test-attack-v0.md` waits for the fault-injection proposal. The `init`,
+  `adopt` and self-observation ledger rows are low confidence: what `main.go` still writes was
+  not traced.
+- A kept workflow whose spec is archived: `greptile-gate-v0.md` stays active while
+  `greptile-gate.yml` is kept (decided 2026-11-09 under R42, D11; RMV-V1-035).
 - A new spec appears after the table was written: it needs a `Health:` line (OSC-V1-008); the table
   is a one-time input and the header line is the lasting record.
 

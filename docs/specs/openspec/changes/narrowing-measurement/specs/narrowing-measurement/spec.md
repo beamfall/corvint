@@ -96,7 +96,9 @@ from the frozen one. (G4, G10a)
 Each runner report MUST state the commit, repository, PR count, excluded PRs with reasons, the
 excluded-test share, and a 95 percent Wilson interval for the narrowing rate (settled release-tasks
 S6). Excluded tests (flaky or quarantined in the baseline) MUST be at most 5 percent of the full
-suite, or the runner's result is `INVALID` (owner decision R19 (2026-11-09)). (G4)
+suite, or the runner's result is `INVALID` (owner decision R19 (2026-11-09)). The G3 2 percent
+quarantine cap also applies to the same baseline, to the quarantined set only, and disqualifies the
+runner's miss proof (R42 (panel pick) A10). (G4)
 
 #### Scenario: Small sample
 
@@ -177,8 +179,10 @@ in the run output and listed in the release manifest with its reason. (G1, G2)
 
 ### Requirement: NMS-V1-010 Replay corpora and their role
 
-Plain replay over 200 Corvint, 100 Beamfall and 50 held-out PRs MUST report selection size and
-over-selection only; it MUST NOT be presented as miss evidence. Non-Go runners MUST be replayed on
+Plain replay over 200 Corvint, 100 Beamfall and 50 PRs on each of the three held-out repositories
+(fastapi, solidus and payload: the 50 most recent merged PRs before each pinned commit, the list
+frozen with the manifest; R42 (panel pick) A12) MUST report selection size and over-selection only;
+it MUST NOT be presented as miss evidence. Non-Go runners MUST be replayed on
 their pinned repository from `proof-repositories` (PRR-V1) with a frozen PR list built under
 NMS-V1-005 (at least 100 PRs, owner decision R19 (2026-11-09)). (G3, G12)
 
