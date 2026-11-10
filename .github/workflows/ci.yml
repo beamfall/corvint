@@ -2242,7 +2242,9 @@ jobs:
   web-flows-plan:
     # CIN-V0-7504: use the same shadow plan's still-required binary consumer checks.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # V1-5271: the dry run took 8 to 15+ minutes on a 4,500-file change, and a 15-minute limit
+    # cancelled it, which fails go-product and ejects the pull request from the merge queue.
+    timeout-minutes: 30
     env:
       GOTOOLCHAIN: local
       GOENV: "off"
