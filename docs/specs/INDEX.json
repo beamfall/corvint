@@ -4391,5 +4391,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/acceptance-record-v1.md",
+    "title": "Acceptance Record V1 — plan acceptance, acceptance log and release records",
+    "reqPrefix": "ACR-V1",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-5272)",
+    "delivery": "experimental; partially delivered",
+    "claim": "One decision record accepts the 1.0 plan, a log holds each acceptance, and an audit compares the log with the spec markers.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
