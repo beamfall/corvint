@@ -173,6 +173,9 @@ Revert the PR trigger and shared metadata changes to restore the completed-CI-on
 leave required checks, rulesets and waiver approvers intact. Revert this companion and its
 registration with the implementation if the proposed amendment is withdrawn.
 
-The V1-5263 amendment rolls back on its own: revert its commit to restore the refusal at
-3000 or more changed files, together with its test and this text. That is fail-closed, and
-such a PR again cannot merge until it is split below the ceiling.
+The V1-5263 amendment rolls back on its own, in two reverts. The workflow change merged
+first, alone, as commit `47c053e6b` (PR 171); its test and this text followed in a second PR.
+Revert `47c053e6b` to restore the refusal at 3000 or more changed files. That is fail-closed,
+and such a PR again cannot merge until it is split below the ceiling. Revert the second PR's
+commit with it, since its test asserts the tree comparison and fails without the workflow
+change. Reverting the second PR alone leaves the tree comparison active.
