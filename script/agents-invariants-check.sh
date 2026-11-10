@@ -10,14 +10,15 @@ set -uo pipefail
 pin=b6a0e7c10fbc5c24ac4eebcadf65e1af7f6638baef8877729e76f541b0b45caf
 file=${1:-AGENTS.md}
 test -r "$file" || { printf 'agents-invariants-check: cannot read %s\n' "$file" >&2; exit 2; }
-# One invariant: its numbered line and continuation lines, inside "## Product invariants".
+# One invariant: its numbered line and every line up to the next numbered line or section,
+# later paragraphs included, without trailing blank lines, inside "## Product invariants".
 block() {
   awk -v n="$1" '
     /^## / { on = ($0 == "## Product invariants"); take = 0; next }
     !on { next }
-    /^[0-9]+\. / { take = (index($0, n ". ") == 1) }
-    /^$/ { take = 0 }
-    take { print }' "$file"
+    /^[0-9]+\. / { take = (index($0, n ". ") == 1); blank = 0 }
+    take && /^$/ { blank++; next }
+    take { for (; blank > 0; blank--) print ""; print }' "$file"
 }
 last() { git log -1 --format=%H -- "$file" 2>/dev/null || true; }
 status=0
