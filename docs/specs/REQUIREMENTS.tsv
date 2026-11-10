@@ -7804,7 +7804,7 @@ STA-V0-007	docs/specs/spec-toolchain-adapters-v0.md	The context index classifies
 STA-V0-008	docs/specs/spec-toolchain-adapters-v0.md	`protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0,	unrecorded	-
 STA-V0-009	docs/specs/spec-toolchain-adapters-v0.md	`protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).	unrecorded	-
 STA-V0-010	docs/specs/spec-toolchain-adapters-v0.md	`interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects tha	unrecorded	-
-STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	`make spec-toolchain-conformance` and a CI job of the same name do four things.	unrecorded	-
+STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	`make spec-toolchain-conformance` and a CI job of the same name do three things	unrecorded	-
 STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	`script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001`	unrecorded	-
 STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 STA-V0-014	docs/specs/spec-toolchain-adapters-v0.md	A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding th	unrecorded	-
