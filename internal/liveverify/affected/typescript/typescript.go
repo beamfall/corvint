@@ -99,6 +99,12 @@ type observation struct {
 	configs   []string
 	puppeteer bool
 	test      bool
+	// aliasTargets are the paths an unresolved tsconfig alias of the module
+	// could load, added to its path tokens (TJAA-V0-1161).
+	aliasTargets []string
+	// dataTokens are the path-shaped strings of the JSON modules the module
+	// imports (TJAA-V0-622), candidate reads beside its own literals.
+	dataTokens []string
 }
 
 type config struct {
@@ -156,7 +162,28 @@ func (language Language) unitsSource(root *affected.Source, resolveAliases bool)
 	}
 	localizeFixtureFrontier(&result, frontier, e2eConfigs)
 	result.Frontier = locatedFrontier(frontier)
+	result.FrontierSites = frontierSiteRecord(frontier)
 	return result, nil
+}
+
+// frontierSiteRecord records every located site of each plugin-wide reason in
+// display form, pinned or not, so the graph can locate the sites a `+N` entry
+// stands for (AZU-V0-003, AZU-V0-212; TJAA-V0-1161). A reason without a site
+// is absent.
+func frontierSiteRecord(frontier frontierSet) map[string][]string {
+	var record map[string][]string
+	for reason, sites := range frontier {
+		if len(sites) == 0 {
+			continue
+		}
+		if record == nil {
+			record = make(map[string][]string)
+		}
+		for _, site := range orderedSites(sites) {
+			record[reason] = append(record[reason], siteWithToken(site, sites[site]))
+		}
+	}
+	return record
 }
 
 // frontierSet holds, for each raised frontier reason, the sites that raised it: `path:line` when
@@ -551,11 +578,12 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	for index := range observations {
 		observation := &observations[index]
 		if resolveAliases {
-			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier, keep)
+			observation.refs, observation.aliasTargets = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier, keep)
 		}
 		if ref, unresolved := unresolvedBareImport(root, observation.path, observation.refs, scopes); unresolved {
 			sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
 		}
+		observation.dataTokens = jsonModuleTokens(root, observation.path, observation.refs, frontier)
 	}
 	var e2eConfigs []string
 	for _, config := range configs {
@@ -654,6 +682,9 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 	storybookGroups := make(map[string]*affected.Unit)
 	storybookRefs := make(map[string]map[string]bool)
 	storybookTokens := make(map[string]map[string]bool)
+	// dataTokens holds each unit's JSON module tokens (TJAA-V0-622), merged
+	// after the import pass, which may recompute a unit's own tokens.
+	dataTokens := make(map[string][]string, len(observations))
 
 	for _, observation := range observations {
 		if observation.runner == runnerStorybook {
@@ -675,11 +706,26 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 			for _, ref := range observation.refs {
 				storybookRefs[groupID][ref] = true
 			}
+			dataTokens[groupID] = append(dataTokens[groupID], observation.dataTokens...)
 			continue
 		}
 		id := unitID(observation.runner, observation.path)
 		unit := affected.Unit{ID: id}
 		unit.PathTokens, unit.PathTokensBounded = pathTokens(observation.body)
+		if len(observation.aliasTargets) != 0 && !unit.PathTokensBounded {
+			merged := make(map[string]bool, len(unit.PathTokens)+len(observation.aliasTargets))
+			for _, token := range unit.PathTokens {
+				merged[token] = true
+			}
+			for _, target := range observation.aliasTargets {
+				merged[target] = true
+			}
+			if len(merged) > maxPathTokens {
+				unit.PathTokens, unit.PathTokensBounded = nil, true
+			} else {
+				unit.PathTokens = sortedKeys(merged)
+			}
+		}
 		if observation.test {
 			unit.Tests = []string{observation.path}
 		} else {
@@ -687,6 +733,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		}
 		units = append(units, unit)
 		pathToID[observation.path] = id
+		dataTokens[id] = observation.dataTokens
 		refs[id] = stringSet(observation.refs)
 		direct[id] = make(map[string]bool)
 		for _, configPath := range observation.configs {
@@ -744,6 +791,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		}
 		unit.Imports = sortedKeys(edges)
 		unresolvedSpecifierTokens(unit, sites, resolved)
+		mergeDataTokens(unit, dataTokens[unit.ID])
 	}
 	units = append(units, packages.built()...)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
@@ -2023,7 +2071,7 @@ func configRunner(relative, body string) (string, bool) {
 			return runnerDetox, true
 		}
 		return runnerJest, true
-	case prefixedConfig(base, "playwright.config") || strings.HasPrefix(base, "playwright.") && strings.Contains(base, ".config."):
+	case prefixedConfig(base, "playwright.config") || strings.HasPrefix(base, "playwright.") && strings.Contains(base, ".config.") && configExtension(base):
 		return runnerPlaywright, true
 	case prefixedConfig(base, "cypress.config"):
 		return runnerCypress, true
@@ -2398,8 +2446,22 @@ func externalScheme(reference string) bool {
 	return false
 }
 
+// prefixedConfig reports a configuration file name `<prefix>.<ext>` whose
+// extension a runner loads: a script or JSON extension. A fixture text copy of
+// a configuration, such as `playwright.config.js.txt`, is no configuration
+// (TJAA-V0-1161): no runner executes it, so it raises no frontier.
 func prefixedConfig(base, prefix string) bool {
-	return strings.HasPrefix(base, prefix+".")
+	return strings.HasPrefix(base, prefix+".") && configExtension(base)
+}
+
+// configExtension reports a file extension a runner loads a configuration
+// from: a script or JSON extension.
+func configExtension(base string) bool {
+	switch strings.ToLower(path.Ext(base)) {
+	case ".js", ".cjs", ".mjs", ".ts", ".cts", ".mts", ".jsx", ".tsx", ".json", ".jsonc":
+		return true
+	}
+	return false
 }
 
 func nearestScope(relative string, scopes []packageScope) (packageScope, bool) {

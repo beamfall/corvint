@@ -361,7 +361,7 @@ func TestASDV02478SourceEditRunsExistingTests(t *testing.T) {
 		t.Fatal(err)
 	}
 	head := strings.TrimSpace(string(headBytes))
-	write("selection.json", `{"profile":"corvint-test-manifest/0","source":{"head":"`+head+`"},"units":[{"unit":"go:example.invalid/fixture/p","slice":"whole"},{"unit":"go:example.invalid/fixture/p","slice":"1/2","flag":"-skip","pattern":"TestOther"}]}`)
+	write("selection.json", `{"profile":"corvint-test-manifest/0","producer":{"commit":"`+head+`","commitState":"clean"},"source":{"head":"`+head+`"},"units":[{"unit":"go:example.invalid/fixture/p","slice":"whole"},{"unit":"go:example.invalid/fixture/p","slice":"1/2","flag":"-skip","pattern":"TestOther"}]}`)
 	env = heavycapEnv(env, "HEAVY_SELECTION", filepath.Join(work, "selection.json"))
 	// With source admission disabled, the unchanged package must use the whole-unit manifest.
 	dogtoolsGit(t, work, "update-ref", "refs/remotes/origin/main", "HEAD")

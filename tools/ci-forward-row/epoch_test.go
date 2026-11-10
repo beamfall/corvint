@@ -20,6 +20,7 @@ var epochWorkflows = []struct{ file, variable string }{
 	{"ci.yml", "FORWARD_EPOCH"},
 	{"ci-forward-bar.yml", "FORWARD_EPOCH"},
 	{"ci-control-plane.yml", "FORWARD_EPOCH"},
+	{"main-miss.yml", "FORWARD_EPOCH"},
 }
 
 // forwardEpochSites returns every value each workflow sets for its epoch variable, keyed
@@ -89,9 +90,10 @@ func shiftEpoch(t *testing.T, epoch string, delta int) string {
 // TestCINV0960WorkflowsAgreeOnTheForwardEpoch pins CIN-V0-960: the committed workflows name one
 // forward epoch, and a workflow that names another, or none, fails.
 func TestCINV0960WorkflowsAgreeOnTheForwardEpoch(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	live := forwardEpoch(t)
 	next := shiftEpoch(t, live, 1)
-	for _, file := range []string{"ci.yml", "ci-forward-bar.yml", "ci-control-plane.yml"} {
+	for _, file := range []string{"ci.yml", "ci-forward-bar.yml", "ci-control-plane.yml", "main-miss.yml"} {
 		for _, mutation := range []struct {
 			name string
 			edit func(string) string
@@ -183,6 +185,7 @@ func forwardEpochSinceProblem(epoch, since string) error {
 // next epoch with a later FORWARD_EPOCH_SINCE passes the live checks, and advancing the epoch
 // while keeping the old time, or moving one workflow alone, fails.
 func TestCINV0960SynchronizedAdvancePasses(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	live := forwardEpoch(t)
 	next := shiftEpoch(t, live, 1)
 	old := liveEpochSince(t)

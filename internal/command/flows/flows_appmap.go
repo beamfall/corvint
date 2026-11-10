@@ -17,33 +17,33 @@ func init() { flowSubcommands["appmap"] = runFlowsAppmap }
 // AppmapHelp documents `flows appmap`; help.go appends it to flowsHelp.
 const AppmapHelp = `
 Application map usage (experimental, AMAP-V0):
-  corvint [--root PATH] flows appmap build --manifest FILE [--revision REV]
+  corvint-docs [--root PATH] flows appmap build --manifest FILE [--revision REV]
       [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...
       [--workspace FILE | --no-workspace] [--from MAP [--verify]]
-  corvint [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV]
+  corvint-docs [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
-  corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
+  corvint-docs [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
-  corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
-  corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT] [--remedies]
-  corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]
-  corvint [--root PATH] flows appmap refs --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
-  corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]...
+  corvint-docs [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
+  corvint-docs [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT] [--remedies]
+  corvint-docs [--root PATH] flows appmap coverage --map FILE [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap refs --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]...
       [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
-  corvint [--root PATH] flows appmap pageobjects --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
-  corvint [--root PATH] flows appmap steps --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
-  corvint [--root PATH] flows appmap setup --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
+  corvint-docs [--root PATH] flows appmap pageobjects --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap steps --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap setup --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
       [--budget N | --full]
-  corvint [--root PATH] flows appmap links --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
-  corvint [--root PATH] flows appmap infer --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--corpus ARTIFACT]
+  corvint-docs [--root PATH] flows appmap links --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap infer --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--corpus ARTIFACT]
       [--emit report|request] [--budget N | --full]
-  corvint [--root PATH] flows appmap how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
+  corvint-docs [--root PATH] flows appmap how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
       [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL
-  corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
-  corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
-  corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
-  corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
-  corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
+  corvint-docs [--root PATH] flows appmap actions --map FILE [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
+  corvint-docs [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
 --source ALIAS:DIR reads DIR from the root the map pinned under ALIAS (build --repo), at the
 revision the map recorded for it; --repo ALIAS=ABSOLUTE_ROOT names that root's checkout. The
@@ -55,7 +55,7 @@ flag that failed.
 corvint flows appmap build --help names the manifest's minimum members (docs/APPLICATION-MAP.md).
 
 Navigation edge ledger (experimental, ANL-V0):
-  corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
+  corvint-docs [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV]
       [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]
 Single-map declared adjacency ledger; UNKNOWN triggers retain missing interaction evidence.
 The JSON sidecar declares tests with test_key, proves and assumes edge lists. --observation
@@ -64,7 +64,7 @@ observed revision still has to prove it. An assumed edge whose only prover is th
 test is unsatisfied. Unproven requirements exit 1; invalid inputs exit 2. No browser runs and no repository files change.
 
 Navigation impact (experimental, ANL-V0):
-  corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
+  corvint-docs [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE]
       [--records FILE] [--revision REV] [--budget N | --full]
       [--endpoint-source [ALIAS:]DIR ... (--rails-routes [ALIAS:]FILE | --openapi [ALIAS:]FILE) ...]
       [--repo ALIAS=ABSOLUTE_ROOT]...
@@ -83,7 +83,7 @@ changed paths; an endpoint join input from an aliased root is read at the map's 
 read-only, offline.
 
 Navigation observation (experimental, ANL-V0):
-  corvint flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV]
+  corvint-docs flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV]
       [--budget N | --full]
 Reads playwright-navigation-events/0 reporter JSON, or one Playwright trace zip in memory (with
 --test-key; navigations from main-frame snapshot URLs, never extracted to disk), and prints
@@ -97,10 +97,10 @@ line in playwright.config: require('<corvint>/internal/appmap/navigation-events.
 64 tests) or DIR/<testId>.json.
 
 Observed UI records (experimental, OUE-V0):
-  corvint flows appmap observe --records --revision FULL_SHA --trace TEST_KEY=FILE.zip ...
+  corvint-docs flows appmap observe --records --revision FULL_SHA --trace TEST_KEY=FILE.zip ...
       [--map FILE] [--routes FILE]
-  corvint flows appmap structure-diff --base FILE --head FILE
-  corvint flows appmap staleness --records FILE [--at REV] [--retire-after N]
+  corvint-docs flows appmap structure-diff --base FILE --head FILE
+  corvint-docs flows appmap staleness --records FILE [--at REV] [--retire-after N]
 observe --records reads up to 64 Playwright trace zips in memory and prints observed-ui-records/0
 (LOCALLY_OBSERVED, bound to each test key and the revision): screens (map screen, else an
 observed-ui-routes/0 template, else default ID normalization), transitions, endpoints with route

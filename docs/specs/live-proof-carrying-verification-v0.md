@@ -11,7 +11,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
 - Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
-- Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered. LPCV-V0-7600..7607: Go windows, child audit, shared APIs, deadlines, Ruby/JavaScript command shadows and foreground watch; bounded qualification remains separate from production admission.
+- Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered. LPCV-V0-7600..7607: Go windows, child audit, shared APIs, deadlines, Ruby/JavaScript command shadows and foreground watch; bounded qualification remains separate from production admission. LPCV-V0-1085..1087: first-class `corvint watch`, macOS kqueue save events, explicit event-source failure and per-save replan latency; darwin tests compile-checked only until a macOS run is retained.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstained (`LPCV-V0-128`) until the callId frame link (`LPCV-V0-290`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
 
@@ -759,11 +759,69 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   against the immutable index commit with the same analyzers and fallbacks. Native Linux
   directory events observe close-write and atomic replacement, including existing untracked and
   newly created or moved directory trees. Lost events force a recursive watch rescan before the
-  next replan; failure to restore complete watches stops automatic watching. Other platforms use explicit
-  editor stdin notifications or one-shot execution. Native output and per-run results stream;
+  next replan; failure to restore complete watches stops automatic watching. macOS uses the kqueue
+  source of `LPCV-V0-1086`; other platforms use explicit editor stdin notifications or one-shot
+  execution. Native output and per-run results stream;
   failures do not prevent the next save from repairing them. Every event is user-scoped and
   ineligible to close a CI gate. Non-Go effective runs retain the unqualified static suite.
   Witness: `TestWatchWorkingTree`, `TestWatchIgnoredGoSource`, `TestNativeSaveNotification`, `TestNativeNewDirectorySaves`, `TestNativeLostDirectoryEvents`.
+
+### First-class watch command, macOS save events and replan latency (V1-4372, V1-5253)
+
+Status for `LPCV-V0-1085..1087`: accepted under the owner's standing auto-accept (2026-10-11);
+V1-4372, V1-5253. Owner statement (2026-11-09): the testing product answers, on save, which tests
+a change requires, Wallaby-like, on a developer Mac as well as on Linux. Observed before this
+tranche: the watch loop was reachable only through the `tools/linecov` executable, every non-Linux
+host refused native save events, and when an event source stopped the loop exited silently, leaving
+the last plan on screen as if it were current.
+
+- `LPCV-V0-1085`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4372, V1-5253)
+  `corvint watch` is a first-class verb of the core executable: `corvint [--root PATH] watch
+  --index FILE [--once | --events-stdin] [--dry-run] [--packages a,b] [--go-wrapper PATH]`. It runs
+  the same loop as `linecov watch` (`internal/linecov/watch`, shared by both executables, never a
+  forward to the tool) for a Go index: every current staged, unstaged and untracked edit is replanned
+  against the immutable index commit under `LPCV-V0-7607`, and the plan, each run result and any
+  terminal error stream as one JSON object per line on stdout (`Scope` `user`, `GateEligible`
+  `false`, `Commit` the index commit; `Kind` `plan`, `result` or `error`). `--dry-run` streams
+  plans only, so the answer is available without running a test. `--once` replans the current
+  working tree once; its exit status is 0 when every run passed, 1 when a run failed and 2 for a
+  refusal. The default event source is `LPCV-V0-7607` on Linux and `LPCV-V0-1086` on macOS;
+  `--events-stdin` reads one notification per line from stdin. A non-Go index is refused with a
+  message naming `linecov watch -command`; nothing under the repository is written. The verb has
+  its `--help`, catalog node and `docs/CAPABILITIES.md` row (CAP-V0-040..050). Rollback: remove
+  `cmd/corvint/watch.go`, the dispatch and root-help lines and the catalog rows; `linecov watch`
+  keeps working on the shared package. Witness: `TestWatchHelpAndRefusals`,
+  `TestWatchOnceDryRunCLI`, `TestRunDryRunAnswersWithoutRunning`, `TestRunStreamsFailureThenRepair`.
+- `LPCV-V0-1086`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5253) On macOS
+  the native event source is kqueue through the standard library (`syscall`): no cgo, no FSEvents
+  daemon, no third-party module and no polling. Every directory under the root except `.git` and
+  every regular file hold one event-only (`O_EVTONLY`) descriptor registered for write, extend,
+  delete, rename and revoke; an in-place write reaches the file's descriptor and a creation,
+  deletion, rename or atomic replacement reaches the directory's. A directory event rescans that
+  directory: new entries are watched (a new directory with its whole tree), an entry whose inode no
+  longer matches its descriptor is rewatched, and gone entries are dropped, so a replacement whose
+  own delete event was coalesced is still observed. Relevance is the `LPCV-V0-7607` rule: Go source,
+  or a path Git does not ignore. A tree the process cannot hold one descriptor per file for
+  (`EMFILE`, `ENFILE`) refuses at start with the remedy (`ulimit -n`, `--events-stdin`, `--once`)
+  rather than watch a subset. Limits: the darwin tests are compile-checked on Linux
+  (`GOOS=darwin go vet`) and run only on a macOS host; until a macOS run is retained the source is
+  `NOT_OBSERVED` live. Rollback: delete `source_darwin.go` and its test; macOS falls back to the
+  `LPCV-V0-1087` refusal. Witness: `TestNativeSaveNotification`, `TestNativeNewDirectorySaves`,
+  `TestNativeSaveNotificationDirectoriesAndIgnored`, `TestNativeStopIsExplicit` (shared by
+  `linux || darwin`), `TestVnodeRescanReconcilesInodes`, `TestVnodeDropDirectoryTakesSubtree`,
+  `TestDescriptorHint` (darwin).
+- `LPCV-V0-1087`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5253) An
+  event source never fails silently. A system with no native source refuses before the first save,
+  naming `-events-stdin` and `-once`. A source that stops for any reason other than the caller's
+  context or the end of stdin (a root that disappears, an inotify or kqueue read error, watches that
+  cannot be restored, an editor pipe that breaks) ends the loop with one terminal
+  `{"Kind":"error"}` event whose `Message` names the cause and states that no further save is
+  replanned and the last plan is stale; `corvint watch` then exits 2 and `linecov watch` nonzero.
+  Each plan event carries `ReplanMillis`, the time from the save notification to the plan, so the
+  on-save latency is observable per save and measurable by `PRB-V0-1014`. Rollback: restore the
+  plain notification channel; the loop then ends with status 0 when its source closes. Witness:
+  `TestRunReportsStoppedSourceExplicitly`, `TestNativeStopIsExplicit`, `TestOnceAndLinesSources`,
+  `TestNativeRefusesExplicitly` (other systems, compile-checked with `GOOS=windows go vet`).
 - `LPCV-V0-950`: (accepted, decision 0590 (owner 2026-11-03)) A **per-test coverage record** names one test identity (`LPCV-V0-022`), the runner
   and its exact version, the instrumentation mode, the commit and the Git blob OID of every source
   file the instrumented process tree could report, and per such file the executed line ranges with a
@@ -807,7 +865,21 @@ record that can justify skipping a test without weakening `LPCV-V0-008`, `LPCV-V
   coverage environment (for example `GOCOVERDIR` with `-cover` builds, `NODE_V8_COVERAGE`,
   `COVERAGE_PROCESS_START`, `JAVA_TOOL_OPTIONS` with a JaCoCo agent, `LLVM_PROFILE_FILE`) or a
   browser coverage protocol. A process the collector cannot instrument makes that test's record
-  incomplete; an incomplete record never excludes the test.
+  incomplete; an incomplete record never excludes the test. Detection rule for Go (amended
+  2026-11-09, V1-4380; implemented by `LPCV-V0-7601`): the collector observes every `os/exec`
+  launch in the test's process tree. A launched Go executable whose build metadata lacks `-cover`,
+  or lacks a digest-bound build proof of the collector's module-wide `-coverpkg` selector and
+  overlay (a child built with `GOFLAGS` cleared, built with a narrower `-coverpkg`, or prebuilt
+  before collection), rejects the record as `uninstrumented-child`; one whose counters never
+  complete rejects it as `missing-child-counters`. The rejected test is divergent, always kept, and
+  its package's in-order record keeps only its parent-side union, so the package runs whole for any
+  change it reaches. A child that carries the proof runs with a private `GOCOVERDIR`, its counters
+  join the parent's record, and that record may narrow. Non-Go and unknown launchers reject the
+  record conservatively; Go build-tool processes (`go build`, `list`, `env`, `version`, the compiler
+  and linker) are exempt launchers. Witness: `TestUninstrumentedChild` (modes `cleared`,
+  `prebuilt`, `partial`, `partial-replace*`, `missing-second` reject; `covered` and
+  `covered-delayed-wait` record), `TestFaultInjection` ("body reached only through an executed
+  binary" keeps `e2e.TestTool` and narrows to the tests that reach it), `TestCollectSuiteOnlyPackage`.
 - `LPCV-V0-955`: (accepted, decision 0590 (owner 2026-11-03)) Each supported runner family has a **collector** that produces `LPCV-V0-950`
   records by isolating tests (one process per test, or a per-test counter reset and dump in one
   process): Go (`go test`, Ginkgo); JavaScript and TypeScript (Mocha, Jasmine, `node:test`, Jest,
@@ -1210,6 +1282,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-950..963` line-level coverage selection | accepted (decision 0590); Go windows/child audit, shared index APIs, recorded deadlines, Ruby isolated divergence and child completeness implemented; Ruby commands and local watch experimental; production exclusion unadmitted; Rails workers conservatively incomplete | `TestInOrderWindows`, `TestUninstrumentedChild`, `TestQualificationDeadline`, `TestIsolationAndChildren`, `TestLiveRSpecIsolation`, `TestLanguageCommands`, `TestWatchWorkingTree`; full dry-equalizer 49-test RSpec shadow: four faults, zero misses, mean narrowing 70.4%; [lane evidence](../build-log/2026-11-04-linecov.md); 1,000-change promotion NOT_RUN |
 | `LPCV-V0-965..969` JavaScript and TypeScript line coverage | experimental; collection/selection commands implemented, effective static fallback retained | `TestCollect`, `TestCollectRepeatedTitle`, `TestCollectIsolation`, `TestFilter`, `TestAnalyze`, `TestRunnerFaultInjection` (all eight native runners, zero misses); pinned Beamfall full 91-test TypeScript suite: four faults, zero misses, mean narrowing 40.1%; [retained run](../experiments/linecov-2026-11-04-js-shadow.json) |
 | `LPCV-V0-970..979` browser E2E collector | experimental (V1-4368); Playwright and Cypress fixture suite passes on Linux; not qualified under `LPCV-V0-956` or `LPCV-V0-963` | `TestE2EPlaywright`, `TestE2ECypress` and the attribution unit tests in `internal/browsercov` |
+| `LPCV-V0-1085..1087` first-class watch, macOS save events, explicit source failure | accepted under the owner's standing auto-accept (V1-4372, V1-5253); Linux loop and sources tested; darwin source compile-checked only, `NOT_OBSERVED` live | `TestWatchHelpAndRefusals`, `TestWatchOnceDryRunCLI`, `TestRunDryRunAnswersWithoutRunning`, `TestRunReportsStoppedSourceExplicitly`, `TestRunStreamsFailureThenRepair`, `TestNativeSaveNotification`, `TestNativeStopIsExplicit`, `TestOnceAndLinesSources`; darwin: `TestVnodeRescanReconcilesInodes`, `TestVnodeDropDirectoryTakesSubtree`; `PRB-V0-1014` latency scenarios |
 | `LPCV-V0-037..042` containment and updates | not-started | process-tree, path, permission, network, and rollback matrix |
 | `LPCV-V0-043..046` language tranche | not-started | Corvint, Beamfall, and independent JS/TS shadow reports |
 | `LPCV-V0-047` five-axis projection on every presenting client | delivered for the experimental CLI and VS Code; MCP V0 out of scope (decision 0103); experimental descendant MCP profile `MTV-V0-001..009` (decision 0147) | `TestTestValidityProjectsReceiptWithoutTrustingCarriedProjections` exercises the CLI projection; `TestTestProjections` and `extensions/vscode/test/liveTestProtocol.test.ts` exercise the Go-session projection consumed by VS Code. MCP 2026-07-28 V0 presents no test-level result (`MCPV0-008`), and the descendant projection is the experimental `corvint-test-validity-mcp` profile (`MTV-V0-001..009`, decision 0147) rather than MCP V0. |

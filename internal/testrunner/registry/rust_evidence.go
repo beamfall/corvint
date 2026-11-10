@@ -13,9 +13,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/analyzerrust"
 	"github.com/Beamfall/corvint/internal/linecov/v8"
 	"github.com/Beamfall/corvint/internal/nativelinecov"
+	"github.com/Beamfall/corvint/internal/rustsyntax"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -129,7 +129,7 @@ func (p *rustPlugin) lineComponents(lines v8.Lines) (testevidence.Component[test
 			}
 		}
 		executed.Items = append(executed.Items, f)
-		bodies, err := analyzerrust.ExecutableBodies(src.Data)
+		bodies, err := rustsyntax.ExecutableBodies(src.Data)
 		if err != nil {
 			regions.State, regions.Reason = testevidence.Incomplete, err.Error()
 			continue
@@ -417,7 +417,7 @@ func (p *rustPlugin) scriptInputs(output []byte, dir string, addTree func(string
 
 // rustBodies converts the Rust analyzer's pure body shape to test-evidence
 // bodies; the two are field-for-field identical.
-func rustBodies(in []analyzerrust.Body) []testevidence.Body {
+func rustBodies(in []rustsyntax.Body) []testevidence.Body {
 	if in == nil {
 		return nil
 	}

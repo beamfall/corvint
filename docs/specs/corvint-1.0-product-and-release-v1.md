@@ -336,8 +336,12 @@ accepted by decision 0373 and the amendment it requires are stated.
   own qualification and version and can be released separately. This assembly independence does
   not waive the whole-product stable-promotion requirements in PRS-V1-013..017. Amended by decision
   0594 (2026-11-09): the combined companion profile and the companion bundle are retired, so the
-  Core-only profile `corvint-core-release-candidate/0` is the only candidate `corvint-release-candidate`
-  assembles and its reader admits; Corvint Tasks is released from `beamfall/corvint-tasks`.
+  Core-only profile `corvint-core-release-candidate/1` is the only candidate `corvint-release-candidate`
+  assembles and its reader admits; Corvint Tasks is released from `beamfall/corvint-tasks`. The
+  `/1` profile (V1-5237, `ARTIFACT-BIN-V0-510`) adds the core-set app archives (`corvint-docs`, the
+  MCP servers and the other `core` version-set members) and their release manifest to the `/0`
+  inventory; these are core products of one version, not companions, so this independence from
+  companion input is unchanged.
 - `PRS-V1-006`: Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Claude
   Code rows at FALLBACK when owner question 5 is answered yes. Formal FULL or protected authority for
   any host MUST NOT block Core.

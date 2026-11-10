@@ -169,7 +169,7 @@ func inventoryScopes(ctx context.Context, root, revision string, scopes []string
 	if err != nil {
 		return Manifest{}, nil, named(err)
 	}
-	m := Manifest{Schema: schema, Repository: Repository{id, revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
+	m := Manifest{Schema: schema, Repository: Repository{ID: id, Revision: revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
 	for _, scope := range scopes {
 		m.Scopes = append(m.Scopes, Scope{scope, revision})
 	}

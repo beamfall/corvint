@@ -88,6 +88,11 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	// Never consume a supplied additive exclusion. Recompute it against the
 	// immutable base; an absent base or snapshot only permits wider selection.
 	if plan.Snapshot == nil && fullObjectID.MatchString(base) {
+		// TSP-V0-608: this proof's own Go graph would otherwise re-raise
+		// go:gated-root-locators-changed for a dirty declaration the planner
+		// bounded; the same immutable-base comparison closes it here, and a
+		// comparison that fails leaves the frontier, so the fallback stays.
+		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, root, root, base, plan.Plan.Dirty))
 		graph = graph.WithRecordEntryBase(ctx, "git", root, base, plan.Plan.Dirty)
 		graph = graph.WithGoAdditive(golang.AdditiveChanges(ctx, root, base, graph, plan.Plan.Dirty))
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, root, root, base, graph, plan.Plan.Dirty))

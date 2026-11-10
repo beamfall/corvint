@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	coreManifestProfile  = "corvint-core-release-candidate/0"
+	// coreManifestProfile/1 adds the core-set app archives and the release manifest
+	// to the /0 inventory (V1-5237); the reader admits only this profile.
+	coreManifestProfile  = "corvint-core-release-candidate/1"
 	qualificationProfile = "corvint-release-qualification/0"
 )
 
@@ -27,7 +29,7 @@ func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 	if !versionPattern.MatchString(options.Version) {
 		return nil, fmt.Errorf("invalid release version %q", options.Version)
 	}
-	inputs := map[string]string{"core directory": options.CoreDirectory, "source root": options.SourceRoot, "scratch": options.Scratch, "output parent": options.OutputParent}
+	inputs := map[string]string{"core directory": options.CoreDirectory, "apps directory": options.AppsDirectory, "source root": options.SourceRoot, "scratch": options.Scratch, "output parent": options.OutputParent}
 	for name, value := range inputs {
 		if value == "" || !filepath.IsAbs(value) {
 			return nil, fmt.Errorf("%s must be absolute", name)
@@ -46,13 +48,45 @@ func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return assembleCoreOnly(ctx, options, core, coreBytes, target)
+	appBytes, err := readApps(options.AppsDirectory)
+	if err != nil {
+		return nil, err
+	}
+	return assembleCoreOnly(ctx, options, core, coreBytes, appBytes, target)
 }
 
-// assembleCoreOnly closes the verified core archive set and the source root's
-// own Corvint source archive into the corvint-core-release-candidate/0
-// profile. It takes no companion or Corvint Tasks input (PRS-V1-005).
-func assembleCoreOnly(ctx context.Context, options Options, core coreReport, coreBytes map[string][]byte, target string) (*Result, error) {
+// readApps reads the release-binary output directory: its release manifest and
+// one archive per core-set app and shipped platform, each bounded. The bytes
+// are bound to the manifest and the candidate identity by verifyApps before
+// anything is retained.
+func readApps(directory string) (map[string][]byte, error) {
+	resolved, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return nil, err
+	}
+	files := map[string][]byte{}
+	manifest, err := readRegular(filepath.Join(resolved, appManifestFile), maxInputBytes)
+	if err != nil {
+		return nil, fmt.Errorf("apps directory lacks %s: %w", appManifestFile, err)
+	}
+	files[appsManifestPath] = manifest
+	for _, app := range CoreSetApps {
+		for _, platform := range shippedPlatforms() {
+			raw, err := readRegular(filepath.Join(resolved, appArchiveName(app, platform)), maxInputBytes)
+			if err != nil {
+				return nil, fmt.Errorf("apps directory lacks %s: %w", appArchiveName(app, platform), err)
+			}
+			files[appArchivePath(app, platform)] = raw
+		}
+	}
+	return files, nil
+}
+
+// assembleCoreOnly closes the verified core archive set, the core-set app
+// archives with their release manifest, and the source root's own Corvint
+// source archive into the corvint-core-release-candidate/1 profile. It takes
+// no companion or Corvint Tasks input (PRS-V1-005).
+func assembleCoreOnly(ctx context.Context, options Options, core coreReport, coreBytes, appBytes map[string][]byte, target string) (*Result, error) {
 	sourceScratch, err := os.MkdirTemp(options.Scratch, ".release-core-source-")
 	if err != nil {
 		return nil, err
@@ -75,6 +109,12 @@ func assembleCoreOnly(ctx context.Context, options Options, core coreReport, cor
 		files[path], roles[path] = append([]byte(nil), raw...), role
 	}
 	addCoreFiles(add, coreBytes)
+	add(appsManifestPath, appManifestRole, appBytes[appsManifestPath])
+	for _, app := range CoreSetApps {
+		for _, platform := range shippedPlatforms() {
+			add(appArchivePath(app, platform), appArchiveRole, appBytes[appArchivePath(app, platform)])
+		}
+	}
 	add("source/corvint-src.tar.gz", "corvint-source", source.Archive)
 	qualification := coreOnlyQualification()
 	qualificationRaw, err := canonicalJSON(qualification)
@@ -87,6 +127,13 @@ func assembleCoreOnly(ctx context.Context, options Options, core coreReport, cor
 	versionOutput := versionline.Format("Corvint", options.Version, buildNumber, source.Commit, false)
 	manifest := Manifest{Profile: coreManifestProfile, Version: options.Version, BuildNumber: buildNumber, CorvintVersion: versionOutput, GoVersion: core.Toolchain, GitVersion: source.GitVersion, Sources: []SourceIdentity{{Name: "corvint", Commit: source.Commit, Tree: source.Tree}}}
 	manifest.Assets = assetsFor(files, roles)
+	assets := map[string]Asset{}
+	for _, asset := range manifest.Assets {
+		assets[asset.Path] = asset
+	}
+	if err := verifyApps(files, assets, manifest); err != nil {
+		return nil, err
+	}
 	manifestRaw, err := canonicalJSON(manifest)
 	if err != nil {
 		return nil, err
@@ -235,6 +282,9 @@ func validateScratchSeparation(options Options) error {
 		return fmt.Errorf("scratch must be an existing real directory")
 	}
 	inputs := map[string]string{"source root": options.SourceRoot, "core directory": options.CoreDirectory}
+	if options.AppsDirectory != "" {
+		inputs["apps directory"] = options.AppsDirectory
+	}
 	resolvedInputs := map[string]string{}
 	for name, candidate := range inputs {
 		resolved, resolveErr := resolveProspective(candidate)

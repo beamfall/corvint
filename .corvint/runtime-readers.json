@@ -26,6 +26,10 @@
       "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
+      "path": ".corvint/e2e-flows.json",
+      "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
       "path": ".corvint/existence-readers.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },

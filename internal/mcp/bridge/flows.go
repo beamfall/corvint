@@ -25,6 +25,7 @@ const (
 	ToolFlowsGaps     = "corvint.flows.gaps"
 	ToolFlowsImpact   = "corvint.flows.impact"
 	ToolFlowsNavigate = "corvint.flows.navigate"
+	ToolFlowsStatus   = "corvint.flows.status"
 
 	maxFlowInputs    = 100
 	maxFlowGoalRunes = 64
@@ -32,7 +33,7 @@ const (
 
 // flowsTools exist only in the flows descendant profile; the default V0 registry
 // neither advertises nor dispatches them.
-var flowsTools = map[string]bool{ToolFlowsCoverage: true, ToolFlowsMap: true, ToolFlowsGaps: true, ToolFlowsImpact: true, ToolFlowsNavigate: true}
+var flowsTools = map[string]bool{ToolFlowsCoverage: true, ToolFlowsMap: true, ToolFlowsGaps: true, ToolFlowsImpact: true, ToolFlowsNavigate: true, ToolFlowsStatus: true}
 
 // effectClasses is the closed maxEffect ladder of `flows navigate --max-effect`.
 var effectClasses = []string{appflows.EffectRead, appflows.EffectWriteReversible, appflows.EffectWriteIrreversible, appflows.EffectExternal}
@@ -48,10 +49,11 @@ var flowsSchemas = map[string][]string{
 	ToolFlowsGaps:     {appflows.GapsSchema},
 	ToolFlowsImpact:   {appflows.ImpactSchema},
 	ToolFlowsNavigate: {appflows.NavigationMapSchema, appflows.NavigationPacketSchema},
+	ToolFlowsStatus:   {appflows.StatusSchema},
 }
 
-// NewFlows binds the opt-in flows descendant profile, which adds the five read-only flows tools
-// (coverage, map, gaps, impact, navigate) to the V0 three (AFU-V1-034, amending MCPV0-026).
+// NewFlows binds the opt-in flows descendant profile, which adds the six read-only flows tools
+// (coverage, map, gaps, impact, navigate, status) to the V0 three (AFU-V1-034, AFU-V1-162, amending MCPV0-026).
 func NewFlows(root string) (*Registry, error) {
 	registry, err := New(root)
 	if err != nil {
@@ -75,9 +77,9 @@ func flowsToolDescriptors() []ToolDescriptor {
 		{Name: ToolFlowsCoverage, Description: "Complete accepted flow variation coverage, bound to immutable bytes with explicit provenance limits; page verdict covers the full inventory.", Annotations: readAnnotations(), InputSchema: objectSchema(map[string]any{"denominator": relative, "receipts": relative, "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100}}, []any{"denominator", "receipts"})},
 		{
 			Name:        ToolFlowsGaps,
-			Description: "Report the flows at HEAD without passing test evidence and the tests no flow names (application-flow-gaps/1).",
+			Description: "Report the flows at HEAD without passing test evidence and, given a provider, the E2E inventory tests no flow variation links, with the inventory's state (application-flow-gaps/1).",
 			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{"flows": relative, "evidence": files, "registry": relative}, []any{"flows"}),
+			InputSchema: objectSchema(map[string]any{"flows": relative, "evidence": files, "registry": relative, "provider": relative}, []any{"flows"}),
 		},
 		{
 			Name:        ToolFlowsImpact,
@@ -102,6 +104,15 @@ func flowsToolDescriptors() []ToolDescriptor {
 				map[string]any{"required": []any{"path", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
 				map[string]any{"required": []any{"testKey", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
 			}}}),
+		},
+		{
+			Name:        ToolFlowsStatus,
+			Description: "Report each flow at HEAD, its variations, the tests attached to each and the last recorded result of each test or NOT_OBSERVED, optionally only the flows the base..HEAD change reaches (application-flow-status/0).",
+			Annotations: readAnnotations(),
+			InputSchema: objectSchema(map[string]any{
+				"flows": relative, "evidence": files,
+				"base": map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"},
+			}, []any{"flows"}),
 		},
 		{
 			Name:        ToolFlowsNavigate,
@@ -133,8 +144,15 @@ type flowsMapInput struct {
 
 type flowsGapsInput struct {
 	Registry *string  `json:"registry"`
+	Provider *string  `json:"provider"`
 	Flows    string   `json:"flows"`
 	Evidence []string `json:"evidence"`
+}
+
+type flowsStatusInput struct {
+	Flows    string   `json:"flows"`
+	Evidence []string `json:"evidence"`
+	Base     *string  `json:"base"`
 }
 
 type flowsImpactInput struct {
@@ -173,7 +191,7 @@ func (registry *Registry) callFlowsMap(ctx context.Context, arguments []byte) (R
 
 func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (Result, *Error) {
 	var input flowsGapsInput
-	if decodeClosed(arguments, &input) != nil || (!validFlowFiles(input.Flows, input.Evidence) || (input.Registry != nil && !validFlowPath(*input.Registry))) {
+	if decodeClosed(arguments, &input) != nil || (!validFlowFiles(input.Flows, input.Evidence) || (input.Registry != nil && !validFlowPath(*input.Registry))) || (input.Provider != nil && !validFlowPath(*input.Provider)) {
 		return Result{}, failure("invalid-arguments")
 	}
 	return registry.runFlows(ctx, ToolFlowsGaps, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
@@ -181,7 +199,39 @@ func (registry *Registry) callFlowsGaps(ctx context.Context, arguments []byte) (
 		if err != nil {
 			return nil, err
 		}
-		return appflows.FlowGaps(ctx, root, set, records, deref(input.Registry))
+		var inventory *appflows.InventoryProvider
+		if input.Provider != nil {
+			if inventory, err = appflows.ReadInventoryProvider(root, *input.Provider, input.Flows); err != nil {
+				return nil, err
+			}
+		}
+		return appflows.FlowGaps(ctx, root, set, records, deref(input.Registry), inventory)
+	})
+}
+
+// callFlowsStatus is `flows status` (AFU-V1-162); with a base it serializes with flows impact, whose
+// pipeline it runs between the same repository probes.
+func (registry *Registry) callFlowsStatus(ctx context.Context, arguments []byte) (Result, *Error) {
+	var input flowsStatusInput
+	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, input.Evidence) || (input.Base != nil && !fullObjectID(*input.Base)) {
+		return Result{}, failure("invalid-arguments")
+	}
+	if input.Base != nil {
+		flowsImpactSerial.Lock()
+		defer flowsImpactSerial.Unlock()
+	}
+	return registry.runFlows(ctx, ToolFlowsStatus, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
+		records, err := readFlowInputs(root, input.Evidence, appflows.ReadRunEvidence)
+		if err != nil {
+			return nil, err
+		}
+		base := ""
+		if input.Base != nil {
+			if base, err = appflows.ResolveRevision(ctx, root, *input.Base); err != nil {
+				return nil, err
+			}
+		}
+		return appflows.FlowStatus(ctx, root, set, records, base)
 	})
 }
 

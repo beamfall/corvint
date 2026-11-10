@@ -18,15 +18,21 @@ import (
 )
 
 // parseAffectedJobsOptions reads `affected jobs --base FULL_COMMIT_ID
-// [--declaration PATH]` (AFP-V0-2341), each option at most once.
+// [--declaration PATH] [--accept-stale-binary]` (AFP-V0-2341, AFP-V0-11033),
+// each option at most once.
 func parseAffectedJobsOptions(rest []string) (affectedInvocation, error) {
 	invocation := affectedInvocation{}
 	declaration := ""
 	baseSet := false
 	for index := 0; index < len(rest); index++ {
+		if matched, err := parseAcceptStaleBinary(&invocation, rest[index]); err != nil {
+			return affectedInvocation{}, err
+		} else if matched {
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if name != "--base" && name != "--declaration" {
-			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index] + "; usage: corvint affected jobs --base FULL_COMMIT_ID [--declaration PATH]")
+			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index] + "; usage: corvint affected jobs --base FULL_COMMIT_ID [--declaration PATH] [--accept-stale-binary]")
 		}
 		if !inline {
 			if index+1 >= len(rest) {
@@ -82,6 +88,11 @@ func runAffectedJobs(ctx context.Context, invocation affectedInvocation, stdout,
 	}
 	plan.DeclarationDigest = jobinputs.DigestBytes(body)
 	receipt, err := compileAffected(ctx, invocation)
+	if err == nil {
+		// AFP-V0-9730, AFP-V0-11033: a stale binary refuses here as on the
+		// plan; an accepted or unverified one is named in the job plan.
+		plan.Degradations, plan.DegradationDetails, err = staleBinaryGate(ctx, invocation.Root, invocation.AcceptStaleBinary, "affected jobs", stdout, stderr)
+	}
 	if err != nil {
 		emitError(stderr, err)
 		return 2

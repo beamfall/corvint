@@ -34,7 +34,7 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, "tiers %s\n", receipt.Tiers.Summary)
 	}
 	for _, selection := range receipt.Plan.Selected {
-		fmt.Fprintf(&out, "selected %s tests=%d %s", textWord(selection.UnitID), selection.TestCount, textWord(selection.Witness.Kind))
+		fmt.Fprintf(&out, "selected %s tests=%d test-files=%d %s", textWord(selection.UnitID), selection.TestCount, selection.TestFileCount, textWord(selection.Witness.Kind))
 		if selection.Witness.DirtyPath != "" {
 			fmt.Fprintf(&out, " <- %s", textWord(selection.Witness.DirtyPath))
 		}
@@ -50,7 +50,29 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		if len(selection.Run) != 0 {
 			fmt.Fprintf(&out, " run %s", textWord(shellQuoteJoin(selection.Run)))
 		}
+		if selection.TestKind != "" {
+			fmt.Fprintf(&out, " kind %s", textWord(selection.TestKind))
+		}
 		out.WriteString("\n")
+	}
+	// APK-V0-005: the E2E member, one line per selected test file and one
+	// per E2E unknown, after the unit selections.
+	if e2e := receipt.Plan.E2E; e2e != nil {
+		fmt.Fprintf(&out, "e2e-scope %s inventory=%s:%d\n", textWord(e2e.Scope), textWord(e2e.Inventory.Source), e2e.Inventory.Count)
+		for _, selection := range e2e.Selected {
+			fmt.Fprintf(&out, "e2e %s", textWord(selection.Path))
+			if selection.Project != "" {
+				fmt.Fprintf(&out, " project %s", textWord(selection.Project))
+			}
+			fmt.Fprintf(&out, " reasons %s", textWord(strings.Join(selection.Reasons, ",")))
+			for _, hit := range selection.Flows {
+				fmt.Fprintf(&out, " flow %s variation %s <- %s", textWord(hit.Flow), textWord(hit.Variation), textWord(hit.ChangedPath))
+			}
+			out.WriteString("\n")
+		}
+		for _, unknown := range e2e.Unknown {
+			fmt.Fprintf(&out, "e2e-unknown %s %s\n", textWord(unknown.Reason), textWord(unknown.Detail))
+		}
 	}
 	for _, gap := range receipt.Plan.Uncovered {
 		fmt.Fprintf(&out, "uncovered %s %s\n", textWord(gap.Reason), textWord(gap.Detail))

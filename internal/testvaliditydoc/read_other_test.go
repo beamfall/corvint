@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/pinnedread"
 )
 
 // PRS-V1-022 (V1-2484): on windows and every other unqualified platform each
@@ -30,9 +32,9 @@ func TestPRSV1022UnqualifiedPlatformRefusesEveryReceiptOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer dir.Close()
-	_, fileErr := openReceiptFile(dir, "top.json")
-	_, dirErr := openReceiptDirectory(dir, "a")
-	_, topErr := openTopDirectory("a")
+	_, fileErr := pinnedread.OpenFile(dir, "top.json")
+	_, dirErr := pinnedread.OpenDirectory(dir, "a")
+	_, topErr := pinnedread.OpenTopDirectory("a")
 	_, readErr := ReadFile(dir, "top.json")
 	_, nestedErr := ReadFile(dir, filepath.Join("a", "r.json"))
 	streamErr := StreamFileBounded(dir, "top.json", 16, func(r io.Reader) error { _, err := io.ReadAll(r); return err })

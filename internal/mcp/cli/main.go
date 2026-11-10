@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
+	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -48,6 +49,12 @@ const (
 	toolProfileCorpus       = "corpus"
 	// toolProfileTestEvidence adds the opt-in test-evidence reader (RSP-V0-051).
 	toolProfileTestEvidence = "test-evidence"
+	// toolProfileAffected adds corvint.affected, which only `corvint mcp` can
+	// serve because the planner lives in the corvint binary (MMR-V0-1118).
+	toolProfileAffected = "affected"
+	// affectedReasonUnserved is the exit-2 reason corvint-mcp names for the
+	// affected group (MMR-V0-1118).
+	affectedReasonUnserved = "the affected group is served only by corvint mcp: corvint-mcp does not hold the affected planner"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.
@@ -72,8 +79,9 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +
 	"--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n" +
 	"--tool-profile LIST is a comma list of the profile flows\n" +
-	"and the groups test-validity, test-evidence, docs and corpus; corpus needs --corpus-artifact, a path relative\n" +
-	"to the root (ALIAS=PATH with aliased roots). Without --tool-profile the default tools are listed.\n" +
+	"and the groups test-validity, test-evidence, docs, corpus and affected; corpus needs --corpus-artifact, a path relative\n" +
+	"to the root (ALIAS=PATH with aliased roots); affected (corvint.affected) is served only by corvint mcp.\n" +
+	"Without --tool-profile the default tools are listed.\n" +
 	"Example: corvint-mcp --root /absolute/repo --tool-profile flows"
 
 // Serve runs one stdio MCP server until stdin closes or SIGINT/SIGTERM arrives. Both entry
@@ -82,9 +90,22 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 // version is the calling binary's build identity, which serverInfo.version and
 // --version carry (MCPV0-951); empty keeps serverVersion.
 func Serve(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return ServeWithHooks(ctx, version, arguments, stdin, stdout, stderr, Hooks{})
+}
+
+// Hooks are the services only the corvint binary can supply to the server it
+// embeds (MMR-V0-1118): Affected runs `corvint affected --summary` in-process
+// for the `affected` tool group. corvint-mcp serves with no hooks and refuses
+// that group by name before any MCP byte.
+type Hooks struct {
+	Affected toolgroup.AffectedRunner
+}
+
+// ServeWithHooks is Serve with the embedding binary's hooks.
+func ServeWithHooks(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer, hooks Hooks) int {
 	ctx, cancel := signal.NotifyContext(ctx, terminationSignals()...)
 	defer cancel()
-	return runVersioned(ctx, cmp.Or(version, serverVersion), arguments, stdin, stdout, stderr)
+	return runVersioned(ctx, cmp.Or(version, serverVersion), arguments, stdin, stdout, stderr, hooks)
 }
 
 // ServeProfiled is Serve under the corvint-mcp binary's own profile bracket.
@@ -103,10 +124,10 @@ func runProfiled(ctx context.Context, arguments []string, stdin io.Reader, stdou
 }
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	return runVersioned(ctx, serverVersion, arguments, stdin, stdout, stderr)
+	return runVersioned(ctx, serverVersion, arguments, stdin, stdout, stderr, Hooks{})
 }
 
-func runVersioned(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+func runVersioned(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer, hooks Hooks) int {
 	if len(arguments) == 1 && (arguments[0] == "--help" || arguments[0] == "-h") { // MCPV0-113
 		_, _ = fmt.Fprintln(stdout, usage)
 		return 0
@@ -124,7 +145,11 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	}
 	profile, groups, _ := splitToolProfile(profile)
 	followRefs, bindReason := bindFollowSelectors(roots, followSelectors)
-	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason); reason != "" { // MMR-V0-011: name the reason.
+	affectedReason := ""
+	if slices.Contains(groups, toolProfileAffected) && hooks.Affected == nil { // MMR-V0-1118: only corvint mcp holds the planner.
+		affectedReason = affectedReasonUnserved
+	}
+	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason, affectedReason); reason != "" { // MMR-V0-011: name the reason.
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+reason)
 		return 2
 	}
@@ -168,7 +193,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	}
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
-	handler := &toolHandler{reasonClass: reasonClass, version: version, plugin: declaredPlugin(os.LookupEnv)}
+	handler := &toolHandler{reasonClass: reasonClass, version: version, plugin: declaredPlugin(os.LookupEnv), affected: hooks.Affected}
 	bindings := map[*bridge.Registry]string{}
 	if single && unavailable == "" {
 		registry, registryErr := profileRegistries[profile](roots[0].root)
@@ -361,7 +386,7 @@ type toolHandler struct {
 	// corpus is the workspace-level corpus group and corpusTools every corpus
 	// tool name, listed or not, so none can reach a followed ref; nil unless
 	// the corpus group is selected (MMR-V0-014, MMR-V0-017).
-	corpus      *toolgroup.CorpusArtifact
+	corpus      *corpusbridge.Artifact
 	corpusTools map[string]bool
 	// unavailable is the single root's failure reason and unbound its
 	// profile's tool surface while the server serves no repository (MCPV0-950).
@@ -371,6 +396,9 @@ type toolHandler struct {
 	// declaration, nil when none is declared (MCPV0-951).
 	version string
 	plugin  *pluginDeclaration
+	// affected runs the planner for the affected group; nil in corvint-mcp,
+	// which refuses the group at startup (MMR-V0-1118).
+	affected toolgroup.AffectedRunner
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {

@@ -2,134 +2,904 @@
   "profile": "corvint-shell-foreign-callers/0",
   "scripts": {
     ".github/forward-rows/pin-lag.sh": {
-      "callers": [".github/workflows/ci.yml","tools/ci-forward-row/pinlag_test.go"],
+      "callers": [
+        ".github/workflows/ci.yml",
+        "tools/ci-forward-row/pinlag_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. The normalized-join test fixtures construct isolated example.test graphs and never execute repository scripts. The citation checker and merge driver join text and do not invoke this script. Intermediate-join mentions do not execute this script. github-guard.sh (AFP-V0-2720) names it in the comment listing the trusted narrowing inputs and never runs it. narrowing_sized_test.go (AFP-V0-3260) asserts the shard-plan job's workflow text names it and never runs it.",
-      "mentions": [".github/forward-rows/github-guard.sh","internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-use-case-pins.sh","tools/ci-forward-row/narrowing_sized_test.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        ".github/forward-rows/github-guard.sh",
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-use-case-pins.sh",
+        "tools/ci-forward-row/narrowing_sized_test.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
+    },
+    ".github/gate-reuse/find.sh": {
+      "callers": [
+        ".github/workflows/cem-release-gate.yml",
+        ".github/workflows/ci.yml"
+      ],
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/batch-precheck_test.sh",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-use-case-pins.sh",
+        "tools/ci-reuse-plan/gate_reuse_workflow_test.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ],
+      "reason": "V1-5184: the CEM release gate and CI workflows run it with bash. The mentions construct .github paths for other purposes or assert workflow text that names it (the gate-reuse workflow test, the batch-precheck test) and never execute it."
     },
     "script/affected-zero-unknown-replay.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/affected-zero-unknown-replay/main.go","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/affected-zero-unknown-replay/main.go",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/analyzer-inputs.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/analyzer-schema.sh","script/analyzer-schema_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/analyzer-schema.sh",
+        "script/analyzer-schema_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/analyzer-schema.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/contextindex/analyzer_schema_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/invocation_test.go","internal/liveverify/affected/shell/shell_test.go","script/analyzer-inputs.sh","script/analyzer-schema_test.sh","script/batch-regen.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","script/repin.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/contextindex/analyzer_schema_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/invocation_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/analyzer-inputs.sh",
+        "script/analyzer-schema_test.sh",
+        "script/batch-regen.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/repin.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/batch-precheck.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/batch-precheck_test.sh","script/batch-regen.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/gate-ledger/precheck_steps_test.go","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck_test.sh",
+        "script/batch-regen.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/gate-ledger/precheck_steps_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); the dogfood-cache shell test checks the closeout's batch-precheck order and the Go CI-route test reads its source (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script. dogfood-merge-base_test.sh only writes a stub of that name into a scratch repository, so the make recipe it probes runs the stub, never this script (DWC-V0-7601).",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/golang/ci_routes_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/dogfood-merge-base_test.sh","script/gen-spec-requirements.sh","script/lane-scripts_test.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/golang/ci_routes_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/dogfood-merge-base_test.sh",
+        "script/gen-spec-requirements.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/batch-regen.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/batch-precheck.sh","script/batch-precheck_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/check-bash32.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/check-bash32_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-bash32_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
+    },
+    "script/check-ci-least-privilege.sh": {
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-ci-least-privilege_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ],
+      "reason": "V1-5184: the ci-least-privilege-check make target and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it."
     },
     "script/check-fixed-tmp-paths.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/batch-precheck_test.sh","script/check-fixed-tmp-paths_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck_test.sh",
+        "script/check-fixed-tmp-paths_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming check-fixed-tmp-paths.sh: make fixed-tmp-paths-check and the batch-precheck shell test run it (ASD-V0-720) (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/check-install-lifecycle.sh": {
-      "callers": [".github/workflows/release-gates.yml","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/check-install-lifecycle_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        ".github/workflows/release-gates.yml",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-install-lifecycle_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming check-install-lifecycle.sh: its shell test runs it, and the release-gates workflow runs it through run-gate; the workflow owns no unit, so it adds no edge (TSP-V0-005; V1-3571, V1-4178). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/check-line-citations.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/replay_v12941_test.go","internal/liveverify/affected/shell/shell_test.go","script/batch-precheck_test.sh","script/batch-regen.sh","script/check-line-citations_test.sh","script/gen-spec-requirements_test.sh","script/lane-scripts_test.sh","script/line-citations-resolve.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","script/repin.sh","tools/docs-ci-plan/main.go","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/replay_v12941_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck_test.sh",
+        "script/batch-regen.sh",
+        "script/check-line-citations_test.sh",
+        "script/gen-spec-requirements_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/line-citations-resolve.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/repin.sh",
+        "tools/docs-ci-plan/main.go",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/doccitations/check.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/doccitations/check.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/codex-review.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/invocation_test.go","internal/liveverify/affected/shell/shell_test.go","script/codex-review_test.sh","script/heavy.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","script/review-head-check.sh","script/review-head-check_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/invocation_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/codex-review_test.sh",
+        "script/heavy.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/review-head-check.sh",
+        "script/review-head-check_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
+    },
+    "script/github-split-check.sh": {
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/batch-precheck.sh",
+        "script/github-split-check_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ],
+      "reason": "V1-5184: batch-precheck.sh and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it."
     },
     "script/go-test-shard.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/dogtools_test.go","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/dogtools_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/heavy.sh": {
-      "callers": [".github/macos/shard.py","Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/inbound_repo_test.go","internal/liveverify/affected/shell/shell_test.go","script/affected-zero-unknown-replay.sh","script/analyzer-schema.sh","script/batch-precheck.sh","script/batch-precheck_test.sh","script/batch-regen.sh","script/codex-review.sh","script/go-test-shard.sh","script/lane-corvint.sh","script/lane-host-heavy.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/heavycap_test.go","tools/test-commands-check/main_test.go"],
-      "mentions": [".github/macos/select_test.py",".github/macos/shard_test.py","cmd/corvint/compiled_binary_test.go","cmd/corvint/session_test_command_unix_test.go","cmd/corvint/test.go","cmd/corvint/test_module_strv0064_unix_test.go","cmd/corvint/test_whole_reason.go","cmd/corvint/test_whole_reason_cli_unix_test.go","cmd/corvint/test_whole_reason_test.go","internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/affprec_repo_test.go","internal/liveverify/affected/golang/readkinds_test.go","internal/liveverify/affected/measure_test.go","internal/liveverify/affected/replay_v14170_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/liveverify/affected/unbounded_readers_v14283_repo_test.go","internal/releasecandidate/version_test.go","internal/sessiontest/declared.go","script/analyzer-schema_test.sh","script/check-bash32.sh","script/check-bash32_test.sh","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/codex-review_test.sh","script/gen-spec-requirements.sh","script/go-cache-trim.sh","script/heavy-groups.sh","script/lane-guard.sh","script/lane-host-check.sh","script/lane-host-tools_test.sh","script/lane-tmp-sweep.sh","script/lane-transcript-metrics.py","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","script/test-run-pattern.sh","script/test-run-pattern_test.sh","tools/affected-edit-oracle/main_test.go","tools/flow-guide-check/main.go","tools/flow-guide-check/main_test.go","tools/linecov/watch.go","tools/selection-baseline/main.go","tools/test-commands-check/dogtools_test.go","tools/test-read-scopes-check/temp_root_test.go","tools/test-shards/main.go"],
+      "callers": [
+        ".github/macos/shard.py",
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/inbound_repo_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/affected-zero-unknown-replay.sh",
+        "script/analyzer-schema.sh",
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh",
+        "script/batch-regen.sh",
+        "script/codex-review.sh",
+        "script/go-test-shard.sh",
+        "script/lane-corvint.sh",
+        "script/lane-host-heavy.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/heavycap_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
+      "mentions": [
+        ".github/macos/select_test.py",
+        ".github/macos/shard_test.py",
+        "cmd/corvint/compiled_binary_test.go",
+        "cmd/corvint/session_test_command_unix_test.go",
+        "cmd/corvint/test.go",
+        "cmd/corvint/test_module_strv0064_unix_test.go",
+        "cmd/corvint/test_whole_reason.go",
+        "cmd/corvint/test_whole_reason_cli_unix_test.go",
+        "cmd/corvint/test_whole_reason_test.go",
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/affprec_repo_test.go",
+        "internal/liveverify/affected/golang/readkinds_test.go",
+        "internal/liveverify/affected/measure_test.go",
+        "internal/liveverify/affected/replay_v14170_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/liveverify/affected/unbounded_readers_v14283_repo_test.go",
+        "internal/releasecandidate/version_test.go",
+        "internal/sessiontest/declared.go",
+        "script/analyzer-schema_test.sh",
+        "script/check-bash32.sh",
+        "script/check-bash32_test.sh",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/codex-review_test.sh",
+        "script/gen-spec-requirements.sh",
+        "script/go-cache-trim.sh",
+        "script/heavy-groups.sh",
+        "script/lane-guard.sh",
+        "script/lane-host-check.sh",
+        "script/lane-host-tools_test.sh",
+        "script/lane-tmp-sweep.sh",
+        "script/lane-transcript-metrics.py",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
+        "script/test-run-pattern_test.sh",
+        "tools/affected-edit-oracle/main_test.go",
+        "tools/flow-guide-check/main.go",
+        "tools/flow-guide-check/main_test.go",
+        "tools/linecov/watch.go",
+        "tools/selection-baseline/main.go",
+        "tools/test-commands-check/dogtools_test.go",
+        "tools/test-read-scopes-check/temp_root_test.go",
+        "tools/test-shards/main.go"
+      ],
       "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; lane-host-heavy.sh execs it (ASD-V0-766); codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-host-check.sh, lane-host-tools_test.sh, lane-tmp-sweep.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. shard.py runs it for Darwin modules; shard_test.py asserts the command with a stub runner (CIN-V0-4625). Intermediate-join mentions do not execute this script."
     },
     "script/lane-corvint.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/dogtools_test.go","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/dogtools_test.go",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/lane-guard.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/lane-host-check.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-host-heavy.sh","script/lane-host-tools_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-host-heavy.sh",
+        "script/lane-host-tools_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/lane-host-heavy.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-host-check.sh","script/lane-host-tools_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-host-check.sh",
+        "script/lane-host-tools_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/lane-tmp-sweep.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/line-citations-resolve.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/check-line-citations_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/check-line-citations_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/merge-drivers.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/lane-setup.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/lane-setup.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: literal callers run it; directory constructions are partitioned as for the other script/ entries.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/merge-use-case-pins.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/pr-landing-watch.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data and check-bash32_test.sh names it only in a comment (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-bash32_test.sh","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-bash32_test.sh",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/proof-tour.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/proof-tour-test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/proof-tour-test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "Every tracked file naming proof-tour.sh: its shell test runs it (TSP-V0-005; V1-3571). Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/repin.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked executable-source references conservatively count as callers; the completeness gate checks literal and constructed names. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. repin_test.sh only matches make -n output and never runs or reads repin.sh. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/repin_test.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/repin_test.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/review-head-check.sh": {
-      "callers": ["conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/codex-review.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","script/review-head-check_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/codex-review.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "script/review-head-check_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","script/spec-acceptance-audit.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "script/spec-acceptance-audit.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     },
     "script/spec-acceptance-audit.sh": {
-      "callers": ["Makefile","conformance/release-artifact-v0/release_notes_platform_claims_test.go","internal/analyzershell/analyze_test.go","internal/liveverify/affected/golang/golang_test.go","internal/liveverify/affected/shell/shell_test.go","script/gen-spec-requirements_test.sh","script/lane-scripts_test.sh","script/merge-drivers_test.sh","script/no-python-runtime-dependency_test.sh","script/repin-use-case-receipts_test.sh","tools/test-commands-check/main_test.go"],
+      "callers": [
+        "Makefile",
+        "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+        "internal/analyzershell/analyze_test.go",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "internal/liveverify/affected/shell/shell_test.go",
+        "script/gen-spec-requirements_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/merge-drivers_test.sh",
+        "script/no-python-runtime-dependency_test.sh",
+        "script/repin-use-case-receipts_test.sh",
+        "tools/test-commands-check/main_test.go"
+      ],
       "reason": "AZU-V0-004: tracked source references and directory constructions are partitioned into callers and reviewed non-executing mentions; the maintained gate rejects drift. Reviewed mentions only read, classify or print paths: the citation checker reruns itself; the merge driver runs git; the spec audit executes only gen-spec-requirements.sh; the named Go classifiers do not execute these scripts. Intermediate-join mentions do not execute this script.",
-      "mentions": ["internal/appmap/fixture_seed_test.go","internal/extevidence/selection_test.go","internal/liveverify/affected/shell/callers_constructed_test.go","internal/releasecandidate/version_test.go","script/check-ci-least-privilege.sh","script/check-line-citations.sh","script/gen-spec-requirements.sh","script/merge-drivers.sh","script/merge-use-case-pins.sh","tools/flow-guide-check/main.go","tools/test-read-scopes-check/temp_root_test.go"]
+      "mentions": [
+        "internal/appmap/fixture_seed_test.go",
+        "internal/extevidence/selection_test.go",
+        "internal/liveverify/affected/shell/callers_constructed_test.go",
+        "internal/releasecandidate/version_test.go",
+        "script/check-ci-least-privilege.sh",
+        "script/check-line-citations.sh",
+        "script/gen-spec-requirements.sh",
+        "script/merge-drivers.sh",
+        "script/merge-use-case-pins.sh",
+        "tools/flow-guide-check/main.go",
+        "tools/test-read-scopes-check/temp_root_test.go"
+      ]
     }
   }
 }

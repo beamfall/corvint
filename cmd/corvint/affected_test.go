@@ -562,7 +562,7 @@ func TestAFPV0928AffectedFormatTextRestatesThePlan(t *testing.T) {
 		t.Fatalf("text does not restate the plan (%d selected, %d unknown):\n%s", len(receipt.Plan.Selected), len(receipt.Plan.Unknown), text)
 	}
 	first := receipt.Plan.Selected[0]
-	if !strings.Contains(text, "selected "+first.UnitID+" tests="+strconv.Itoa(first.TestCount)+" "+first.Witness.Kind+" <- "+first.Witness.DirtyPath) {
+	if !strings.Contains(text, "selected "+first.UnitID+" tests="+strconv.Itoa(first.TestCount)+" test-files="+strconv.Itoa(first.TestFileCount)+" "+first.Witness.Kind+" <- "+first.Witness.DirtyPath) {
 		t.Fatalf("first selection is not restated with its witness:\n%s", text)
 	}
 	if len(receipt.Provider.Go.Packages) != 0 && !strings.Contains(text, shellQuoteJoin(receipt.Provider.Go.Packages)) {

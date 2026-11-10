@@ -258,6 +258,11 @@ type Plan struct {
 	Changed           int         `json:"changed"`
 	PlanScope         string      `json:"planScope,omitempty"`
 	Jobs              []JobResult `json:"jobs"`
+	// Degradations and DegradationDetails are the planner's AFP-V0-846
+	// self-binary verdict when it applies (AFP-V0-11033): the code, and the
+	// code to its notice; absent otherwise.
+	Degradations       []string          `json:"degradations,omitempty"`
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 }
 
 // DigestBytes names a declaration's content.

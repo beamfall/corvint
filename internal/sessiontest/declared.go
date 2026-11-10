@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -36,16 +37,53 @@ type LanguageCommand struct {
 	None     string   `json:"none"`
 }
 
+// ProviderExecutable is the only test provider a declaration may name
+// (STR-V0-8701): the JavaScript and TypeScript provider, whose `unit`
+// subcommand runs Vitest and whose `e2e` subcommand runs Playwright.
+const ProviderExecutable = "corvint-js-test-provider"
+
+// The runners a declared provider may execute (STR-V0-8701). The names are
+// the runner segment of the affected plan's "typescript:<runner>:<path>"
+// unit ids.
+const (
+	ProviderRunnerPlaywright = "playwright"
+	ProviderRunnerVitest     = "vitest"
+)
+
+// providerSubcommands maps each admitted runner to the provider subcommand
+// its declared argv must name.
+var providerSubcommands = map[string]string{ProviderRunnerPlaywright: "e2e", ProviderRunnerVitest: "unit"}
+
+// ProviderCommand is one declared test provider (STR-V0-8701): Argv is the
+// provider invocation without the selected files, run from the repository
+// root; `corvint test` appends the selected test files of Runner.
+type ProviderCommand struct {
+	Argv   []string `json:"argv"`
+	Runner string   `json:"runner"`
+}
+
 // Declared is the read declaration in the slice form the manifest digests:
 // GoEnv as sorted NAME=VALUE words, GoFlags as argv words placed between
-// `go test` and the package patterns, and Languages sorted by name. A
-// declaration that cannot be read carries the reason in Unreadable and
-// nothing else.
+// `go test` and the package patterns, Languages sorted by name and Providers
+// sorted by runner. Providers is absent when none is declared, so such a
+// declaration keeps its digest. A declaration that cannot be read carries the
+// reason in Unreadable and nothing else.
 type Declared struct {
 	GoEnv      []string          `json:"goEnv"`
 	GoFlags    []string          `json:"goFlags"`
 	Languages  []LanguageCommand `json:"languages"`
+	Providers  []ProviderCommand `json:"providers,omitempty"`
 	Unreadable string            `json:"unreadable"`
+}
+
+// Provider returns the declared provider argv for runner, if any.
+func (d Declared) Provider(runner string) ([]string, bool) {
+	for _, entry := range d.Providers {
+		if entry.Runner == runner {
+			return entry.Argv, true
+		}
+	}
+	return nil, false
 }
 
 // Command returns the declared entry for language, if any.
@@ -121,11 +159,13 @@ func (d Declared) WithGoParallel(n int) Declared {
 }
 
 // declarationFile is the on-disk schema: a closed set of members, with each
-// language mapped to an argv array or to {"none": reason}.
+// language mapped to an argv array or to {"none": reason} and each provider
+// runner mapped to an argv array.
 type declarationFile struct {
 	Profile   string                    `json:"profile"`
 	Go        *declarationGo            `json:"go"`
 	Languages map[string]jsontext.Value `json:"languages"`
+	Providers map[string][]string       `json:"providers"`
 }
 
 type declarationGo struct {
@@ -210,7 +250,94 @@ func parseDeclaration(raw []byte) (Declared, error) {
 		declared.Languages = append(declared.Languages, entry)
 	}
 	sort.Slice(declared.Languages, func(i, j int) bool { return declared.Languages[i].Language < declared.Languages[j].Language })
+	for runner, argv := range parsed.Providers {
+		if err := providerCommand(runner, argv); err != nil {
+			return Declared{}, err
+		}
+		declared.Providers = append(declared.Providers, ProviderCommand{Argv: argv, Runner: runner})
+	}
+	sort.Slice(declared.Providers, func(i, j int) bool { return declared.Providers[i].Runner < declared.Providers[j].Runner })
 	return declared, nil
+}
+
+// providerCommand admits one providers entry (STR-V0-8701): a runner of the
+// closed set, whose argv names the provider executable and that runner's
+// subcommand in plain words, is a one-shot run and does not end the
+// provider's flags before the selected files are appended. The Vitest --dir must be
+// a repository-relative directory, since the command runs from the
+// repository root and the planner compares it with repository-relative test
+// paths.
+func providerCommand(runner string, argv []string) error {
+	field := "providers." + runner
+	subcommand, ok := providerSubcommands[runner]
+	if !ok {
+		return fmt.Errorf("providers has an unsupported runner %q: want %s or %s", runner, ProviderRunnerPlaywright, ProviderRunnerVitest)
+	}
+	if err := words(field, argv); err != nil {
+		return err
+	}
+	if len(argv) < 2 || path.Base(filepath.ToSlash(argv[0])) != ProviderExecutable || argv[1] != subcommand {
+		return fmt.Errorf("%s: argv must start with %s %s", field, ProviderExecutable, subcommand)
+	}
+	for index, word := range argv[2:] {
+		if name, _, _ := strings.Cut(flagName(word), "="); name == "watch" {
+			return fmt.Errorf("%s: a watch run never ends; declare the one-shot command", field)
+		}
+		// The provider stops reading flags at a bare "--", so the selected
+		// files appended after it would be ignored. A "--" that is one word
+		// of the server or Playwright command is that flag's value.
+		if before := flagName(argv[index+1]); word == "--" && before != "server-arg" && before != "test-arg" {
+			return fmt.Errorf("%s: a bare -- ends the provider's flags, so the selected files appended after it would be ignored; pass each command word as a flag value", field)
+		}
+	}
+	if _, ok := providerDir(argv); runner == ProviderRunnerVitest && !ok {
+		return fmt.Errorf("%s: --dir must be a repository-relative directory", field)
+	}
+	return nil
+}
+
+// flagName returns word without its one or two leading dashes, or "" when
+// word is not a flag.
+func flagName(word string) string {
+	name := strings.TrimPrefix(strings.TrimPrefix(word, "-"), "-")
+	if name == word || name == "" {
+		return ""
+	}
+	return name
+}
+
+// providerDir returns the repository-relative slash directory whose Vitest
+// suite a declared `unit` argv runs: the last --dir value, "." without one.
+// Every `unit` flag but --retain takes a value, and flag parsing ends at the
+// first word that is not a flag. It reports false for a --dir with no value
+// or one that is absolute or leaves the repository.
+func providerDir(argv []string) (string, bool) {
+	dir := "."
+	for index := 2; index < len(argv); index++ {
+		word := flagName(argv[index])
+		if word == "" {
+			break
+		}
+		name, value, assigned := strings.Cut(word, "=")
+		if !assigned && name != "retain" {
+			if index++; index < len(argv) {
+				value = argv[index]
+			} else if name == "dir" {
+				return "", false
+			}
+		}
+		if name == "dir" {
+			dir = value
+		}
+	}
+	dir = filepath.ToSlash(dir)
+	if dir == "" || path.IsAbs(dir) || filepath.IsAbs(dir) || strings.Contains(dir, ":") {
+		return "", false
+	}
+	if dir = path.Clean(dir); dir == ".." || strings.HasPrefix(dir, "../") {
+		return "", false
+	}
+	return dir, true
 }
 
 // languageCommand reads one language value: a non-empty argv array, or an

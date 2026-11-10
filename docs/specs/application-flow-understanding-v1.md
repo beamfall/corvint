@@ -43,7 +43,7 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`internal/command/flows/flows.go:52-53@97c5349d`), routes `record` through the
+  `import` subcommands (`internal/command/flows/flows.go:53-54@97c5349d`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:324@18a159fa`,
   `internal/appflows/input.go:161-174@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:135-142@8ab13087`).
@@ -314,6 +314,63 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
 - `AFU-V1-018`: All of these commands are read commands under product invariant 4. Only `import`,
   `docs` rendering and `record` write, and they write only to the paths their arguments name.
 
+Unlinked E2E tests (change `flows-unlinked-tests-report`, V1-5255, PROD-TEST-005; the proposal under
+`docs/specs/openspec/changes/` holds the scenarios):
+
+- `AFU-V1-150`: (proposed 2026-11-09; V1-5255; delivery experimental) `corvint flows gaps
+  --provider FILE` MUST list each test in the E2E inventory (the `inventory` of the
+  `application-flow-selection-provider/1` document `FILE`) that no flow variation links to, with
+  the gap code `unlinked-test`, distinct from `no-test`. A test is linked when a non-inferred `test`
+  link from a variation of some flow names its test key (AFU-V1-009); a test whose only links are
+  inferred is listed and its detail says so (AFU-V1-252). When every inventory test is linked the
+  list is empty and the inventory state says whether the inventory was complete.
+- `AFU-V1-151`: (proposed 2026-11-09; V1-5255; delivery experimental) The `corvint.flows.gaps`
+  MCP tool, given the same `flows`, `evidence`, `registry` and `provider` inputs, MUST return the
+  same unlinked-test records, gap codes and inventory state as the command.
+- `AFU-V1-152`: (proposed 2026-11-09; V1-5255; delivery experimental) The unlinked-test list MUST
+  be bounded at 1024 entries in a stable order (test key, then project) and, when the bound is
+  reached, MUST hold exactly the bounded number of entries, `unlinked_truncated` true and the total
+  count in `unlinked_total`.
+- `AFU-V1-153`: (proposed 2026-11-09; V1-5255; delivery experimental) When the inventory is
+  `absent` (no `--provider`), `unverified` (the declared discovery receipt is missing or
+  malformed), `stale` (the receipt is bound to a revision other than `HEAD`; `bound_to` names it) or
+  `partial` (the receipt matches `HEAD` but its tests and the inventory differ), the report MUST say
+  so with a reason and MUST NOT present an empty unlinked-test list as a complete answer. A provider
+  with no discovery receipt is `complete` with the author's attestation named as the source.
+- `AFU-V1-154`: (proposed 2026-11-09; V1-5255; delivery experimental) Producing the report MUST
+  write nothing to the repository and MUST be byte-identical for identical inputs.
+
+Flow status report (change `flows-status-report`, V1-5257, PROD-TEST-010; the proposal under
+`docs/specs/openspec/changes/` holds the scenarios):
+
+- `AFU-V1-160`: (proposed 2026-11-09; V1-5257; delivery experimental) `corvint flows status --flows
+  DIR [--evidence FILE]...` MUST print, for each flow and each variation, the attached tests (the
+  non-inferred `test` links from the variation, crossed with its projects as `flows map` evidence
+  pairs are) and the last recorded result of each. A variation with no attached test is shown with
+  an empty test list and the code `no-test`.
+- `AFU-V1-161`: (proposed 2026-11-09; V1-5257; delivery experimental) The last result MUST come
+  from the `test-run-evidence/0` records that name the pair, preferring records bound to `HEAD`'s
+  commit and tree from a clean worktree and, among them, the last in `--evidence` order; with no
+  such record the last record of another tree is reported and marked `stale` with its commit; with
+  no record at all the result is `NOT_OBSERVED`. `STATIC` records never count (AFU-V1-014). The
+  result is the record's AFU-V1-013 classification.
+- `AFU-V1-162`: (proposed 2026-11-09; V1-5257; delivery experimental) `corvint-mcp --tool-profile
+  flows` MUST advertise the read-only `corvint.flows.status` tool (`flows`, `evidence`, optional
+  `base`), which returns the same records as the command for the same inputs; it extends the
+  AFU-V1-034 list and the `MCPV0-026` flows profile without changing any other tool's bytes.
+- `AFU-V1-163`: (proposed 2026-11-09; V1-5257; delivery experimental) With `--base FULL_SHA` the
+  report MUST contain exactly the flows `corvint flows impact --flows DIR --base FULL_SHA` names
+  for the same inputs, say that it was limited by the base, and carry the impact graph's `scope`
+  and `unknown` reasons, so an `UNKNOWN` scope (where the list may be short) is never silent.
+- `AFU-V1-164`: (proposed 2026-11-09; V1-5257; delivery experimental) Producing the report MUST
+  write nothing to the repository, MUST hold at most 8192 test rows (past the bound, rows are
+  dropped in report order, `truncated` is true and `totals` keeps the full counts) and MUST be
+  byte-identical for identical inputs.
+- `AFU-V1-165`: (proposed 2026-11-09; V1-5257; delivery experimental) A missing or malformed flows
+  directory, an invalid `--base`, or unreadable run evidence MUST produce a typed failure with exit
+  status 2 and no partial report; a `--base` that is not a commit is `unsupported-affected-revision`
+  as for `flows impact`.
+
 ### Query wire contract
 
 This subsection fixes the S3 wire and argv shapes. It adds no requirement and no root verb. Every
@@ -375,6 +432,23 @@ under-report and never over-report.
   `stale`, `flaky`, `negative-control-missing` and `cleanup-unverified` to the like-named code;
   stability states map to their identically named gap code, with the registry refusal or aggregate
   ID in `detail` when available.
+  With `--provider FILE` (AFU-V1-150 to AFU-V1-154, experimental) the document also carries
+  `inventory` (`state` one of `absent`, `complete`, `partial`, `stale`, `unverified`; `source`,
+  `provider:FILE` or empty; `tests`, the inventory count; `reason`; and `bound_to` on `stale`),
+  `unlinked_tests` (each `code` `unlinked-test`, `test_key`, `project`, `detail`),
+  `unlinked_total` and `unlinked_truncated`. Without `--provider` the members are present with
+  `inventory.state` `absent` and an empty list. `FILE` is repository-relative, read from the working
+  tree with the AFU-V1-036 input discipline and validated as `corvint affected --provider` validates
+  it; a provider whose `flows` is not `DIR` is refused (`invalid-arguments`, exit 2). The addition is
+  additive on `/1`; `unlinked-test` never appears inside a flow's `gaps`.
+- `corvint [--root PATH] flows status --flows DIR [--evidence FILE]... [--base SHA]` (AFU-V1-160 to
+  AFU-V1-165, experimental) writes `application-flow-status/0`: `schema`, `revision`, `base` and
+  `limited_by_base` (with `--base`; then also `impact_graph` with `scope` and `unknown` as `flows
+  impact` reports them), `flows` (each `flow_id`, `proposed`, `variations`: each `variation_id`,
+  `projects`, `code` `no-test` when the test list is empty, and `tests`: each `test_key`, `project`,
+  `result`, `stale`, and on an observed result `source_commit`, `run_id` and `authority`), `totals`
+  (`flows`, `variations`, `tests`) and `truncated`. Flows and variations keep the intent order; tests
+  are ordered by test key then project.
 - `corvint [--root PATH] flows impact --flows DIR --base SHA` writes `application-flow-impact/1`:
   `schema`, `base`, `revision`, `changed_paths` (the `base..HEAD` tree diff), `graph` (`digest`,
   `scope` and `unknown`, each `REASON: detail` from the affected plan; an `UNKNOWN` scope means the
@@ -412,7 +486,7 @@ under-report and never over-report.
 
 ### E2E-safe selection (Core)
 
-- `AFU-V1-019`: `corvint affected --provider FILE --selection-profile e2e-safe` MUST select every test
+- `AFU-V1-019`: (accepted, decision 0385; amended under the owner's standing auto-accept (2026-10-11); V1-5195: the flow binding of declared binary consumers, AFU-V1-1651 to AFU-V1-1655, is the plan-level join for suites that run a built binary; this profile stays the inventory-level route) `corvint affected --provider FILE --selection-profile e2e-safe` MUST select every test
   linked to the change's obligation closure and every test whose file changed. It MAY narrow only when
   every test in the E2E inventory is either selected or has an exclusion proof. The inventory is
   reconciled against runner discovery at the head revision (`--playwright-discovery`, or the
@@ -681,6 +755,51 @@ paths, and `--page` and `--claims` differ.
   rate and reduction ratio per basis, and the count of each fallback code. The unsafe-narrowing rate
   MUST be 0 for a basis to ship.
 
+### Derived E2E inventory (V1-5252)
+
+Human-owned intent (owner testing product target, 2026-11-09; change proposal
+`docs/specs/openspec/changes/e2e-inventory-discovery/proposal.md`): an adopter gets E2E selection
+without authoring an inventory file. The inventory comes from the Playwright project config the
+flows declaration of `docs/specs/affected-plan-kinds-v0.md` names and a `playwright-discovery/0`
+receipt (TJAA-V0-019) bound to the planned tree; the plan read runs no project code.
+
+- `AFU-V1-140`: (proposed 2026-11-09; V1-5252; delivery experimental) Inventory from Playwright
+  discovery. When `.corvint/flows.json` carries `playwright` (`{"config": PATH, "discovery": PATH}`,
+  `config` a tracked JavaScript or TypeScript config and `discovery` a repository-relative receipt
+  path), the `plan.e2e` selection (APK-V0-001) MUST derive its inventory from that config and the
+  receipt, one (project, test file) entry per receipt unit, with no hand-written inventory file; a
+  test the receipt lists is in the inventory the moment the receipt is refreshed.
+- `AFU-V1-141`: (proposed 2026-11-09; V1-5252; delivery experimental) An unlinked test is selected.
+  A derived inventory entry whose path no flow link of the declared directory names MUST be in
+  `plan.e2e.selected` for every change with the reason `unlinked`, and MUST be listed under
+  `plan.e2e.inventory.unlinked`.
+- `AFU-V1-142`: (proposed 2026-11-09; V1-5252; delivery experimental) An underivable inventory
+  fails closed. When the config is not tracked at HEAD or the receipt is `MISSING`, `MALFORMED` or
+  `BINDING_MISMATCH`, the E2E member MUST have `scope` `FULL`, select every test file the flows
+  attach (reason `inventory-underivable`), carry the unknown `{reason: "E2E_INVENTORY_UNDERIVABLE",
+  detail: "discovery:STATE" | "config:untracked", hint}` naming `corvint affected discovery` as
+  the repair, and MUST NOT be an empty, `BOUNDED` answer.
+- `AFU-V1-143`: (proposed 2026-11-09; V1-5252; delivery experimental) The inventory is bound to the
+  planned tree. A receipt is used only when `VerifyPlaywrightDiscovery` reports `MATCHED` against
+  HEAD, the declared config's bytes and the observed source digest of the planned tree; any other
+  receipt is stale and AFU-V1-142 applies.
+- `AFU-V1-144`: (proposed 2026-11-09; V1-5252; delivery experimental) The plan read executes no
+  project code. `corvint affected` MUST NOT start a process to derive the inventory; the listing
+  comes from the separate, explicit `corvint affected discovery` step that writes the bound receipt.
+- `AFU-V1-145`: (proposed 2026-11-09; V1-5252; delivery experimental) A hand-written provider still
+  works. `--provider FILE --selection-profile e2e-safe` keeps AFU-V1-019 to AFU-V1-024 unchanged and
+  its `advice.test_selection` stays the selection to run; when the plan also derives an inventory,
+  `plan.e2e.inventory.source` is `provider` and `plan.e2e.inventory.providerOmits` lists, sorted,
+  every derived test file the provider's inventory does not name.
+
+Failure modes: a receipt produced before a test file changed binds a different source digest and is
+stale (AFU-V1-143); a config edited after discovery binds different bytes and is stale; a receipt
+that names a file absent from the tree fails `VerifyPlaywrightDiscovery` and is stale. Acceptance:
+`TestAFUV1140*` to `TestAFUV1145*` in `internal/appflows/flowplan_test.go` and
+`cmd/corvint/affected_flowplan_test.go` over the APK fixture: discovery, the unlinked test, each
+refusal path, no child process for a config with side effects, and provider precedence. Rollback:
+remove the `playwright` member to return to the flows-only inventory, or pass `--provider FILE`.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is today's behavior: run the full relevant E2E suite, read the docs, and let
@@ -856,6 +975,8 @@ registration. Requirement IDs are unchanged; tests that exercise root dispatch o
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `internal/mcp/cli/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
+| AFU-V1-150..154 | experimental (V1-5255): `internal/appflows/unlinked.go` (`ReadInventoryProvider`, `unlinkedTests`), `query.go` (`FlowGaps` inventory members), `internal/command/flows/flows.go` (`flows gaps --provider`), `internal/mcp/bridge/flows.go` (`provider` input) |
+| AFU-V1-160..165 | experimental (V1-5257): `internal/appflows/status.go` (`FlowStatus`, `StatusSchema`), `internal/command/flows/flows_status.go` (`flows status`), `internal/mcp/bridge/flows.go` (`corvint.flows.status`) |
 | AFU-V1-125 | implemented (V1-2414): `internal/flowdocs/generate.go` (`FlowLimitCode`, the whole-scope `candidates` count), `cmd/corvint-docs/docs_flows.go` (wire-code lift); `TestAFUV1125FlowLimitIsTyped`, `TestAFUV1125FlowLimitCLICode` |
 | AFU-V1-126..127 | experimental under the standing lane auto-accept (V1-2788, GitHub #1888): `internal/appflows/input.go` (`decode`, `maskFlowTierKeys`, the distinct Decode refusals), `internal/appflows/selection.go` (`Refusal`, `selectionInputError`, `selectionRefusalSubject`); `TestAFUV1126FlowTierIdentifierKeyIsNotSecret`, `TestAFUV1126E2ESafeFlowTierPasswordKey`, `TestAFUV1127ProviderUnavailableNamesRefusal`, `TestAFUV1024E2ESafeRefusesMalformedInput` |
 | AFU-V1-128..130 | experimental under the standing lane auto-accept (V1-2871, GitHub #1915): `internal/appflows/import.go` (`importPlaywrightList`, `playwrightListDir`, `listSpecs`, `disambiguate`, `dropCollisions`, `ImportSkipped`), `internal/command/flows/flows.go` (`runFlowsImport`, `flowsIntentHelp`); `TestAFUV1128PlaywrightListResolvesDescribeKeys`, `TestAFUV1128FlowsCLIPlaywrightListLinksResolve`, `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1130FlowsHelpSaysTestLinksOnly` |
@@ -1793,3 +1914,99 @@ missing; with a `sha256:`-prefixed `--build-artifact-digest` and a bad `--cleanu
 those two as invalid with their formats; and with the full header it ingests. `TestAFUV1904Help`
 checks the unbracketed usage and the stated formats. `TestAFUV1904CheckRunHeaderAgreesWithValidator`
 checks that a header `CheckRunHeader` passes yields records that encode.
+
+## Flow-bound binary consumers: code to flow to E2E suite (V1-5195)
+
+Human-owned intent (owner direction 2026-11-09, test-selection audit): Corvint's E2E-shaped suites
+are tracked through the flow system, which is tracked against code. A suite that runs a built
+binary is already a declared binary consumer (AFP-V0-762, AZU-V0-007); this slice binds each such
+consumer to the flows it exercises, so `corvint affected` keeps it when the change reaches a flow it
+exercises, leaves it out only when reviewed flow links explain every changed path that reaches the
+binary, and otherwise names the unexplained path. Experimental under the owner's standing lane
+auto-accept (2026-10-11). Scope note: the Go graph reaches a link target through the package that
+owns it, so a flow that anchors a command's own `main.go` is reached by every change that rebuilds
+that command; narrowing between consumers of one command arises only through flows whose targets
+lie in packages the change does not reach. The `e2e-safe` profile (AFU-V1-019) stays the
+inventory-level route with file and line targets.
+
+- **AFU-V1-1651**: A repository MAY commit `.corvint/e2e-flows.json`, the closed object
+  `{"profile":"corvint-e2e-flows/0","flows":DIR,"consumers":{FILE:{"flows":[FLOW_ID...]}}}`:
+  `DIR` is the AFU-V1-001 intent directory inside the root, each `FILE` a consumer of
+  `.corvint/test-binary-consumers.json`, and each list 1 to 256 strictly ascending flow IDs the
+  directory holds at HEAD; 1 to 4096 consumers, at most 1 MiB. `corvint affected`, `corvint test`
+  and a review's plan over the repository worktree apply the binding after the AFP-V0-762 and
+  AZU-V0-007 rules, through the one planning tail (`planAffectedGraph`), to each bound consumer
+  the plan reached (a `DECLARED_CONSUMER` selection or an `UNSELECTED_BINARY_CONSUMER` unknown):
+  when any link of a bound flow, whatever its basis, has a target the change reaches (AFU-V1-017
+  reach over the plan's graph), the consumer is kept, its selection carries `flows`, the reached
+  flows sorted, and an unknown's hint names them. A consumer the declaration does not bind, and a
+  consumer whose commands the change did not rebuild, are unchanged. The compact plan keeps
+  `flows`; a selection without it is byte-identical to before.
+- **AFU-V1-1652**: When no bound flow is reached, every changed path that reaches a command the
+  consumer runs (the command's own path, or a path whose owning unit the command's import walk
+  reaches) MUST be explained by a `reviewed` link (AFU-V1-008) of some flow in the directory whose
+  target the path reaches; `declared` links without a valid anchor, stale links and `inferred`
+  links have no narrowing authority. Each unexplained path is the unknown
+  `{reason: "E2E_UNMAPPED_CHANGE", detail: PATH, hint}`, the hint naming the commands, the consumer
+  and the repair; the consumer stays selected or named, and the plan is `UNKNOWN`. The CI driver
+  admits the entry beside the binary consumer (`gateselect.E2EFlowUnknown`) and `corvint test`
+  names no further check for it, because the consumer it concerns is already a check: the Go
+  selection is unchanged.
+- **AFU-V1-1653**: When every reaching path is explained, the consumer is left out: its selection or
+  unknown is removed and the plan's `e2eOmitted` member records
+  `{file, flows, commands, basis: "reviewed-links", mapped: [{path, flow, target}...]}`, one entry
+  per omitted consumer in file order, each `mapped` row the first reviewed link in flow and link
+  order that explains the path. The member is omitted when nothing is left out, and the compact plan
+  keeps it. A plan whose only unknowns were the omitted consumers' is `BOUNDED` again.
+- **AFU-V1-1654**: Fail-closed boundaries. A changed path whose base name is a global path
+  (AFU-V1 Definitions; `go.mod`, `Makefile`, `package.json` among them) leaves every reached bound
+  consumer out of omission and marks it with all its bound flows. A declaration that is present but
+  unreadable, oversized, invalid in any member, names a consumer `.corvint/test-binary-consumers.json`
+  does not declare, a flow the directory does not hold, or a directory that does not load or
+  evaluate at HEAD, adds `{reason: "E2E_FLOWS_INVALID", detail: ".corvint/e2e-flows.json", hint}` and
+  narrows nothing. A plan with more than 4096 dirty paths, and a plan over a materialized snapshot
+  (which has no HEAD of its own), are left as they were, every consumer kept. A command rebuilt by an
+  edge the import walk does not state (an embed, an enclosed path, an exec edge) yields no reaching
+  path; the consumer's first dirty path is then unexplained, so the consumer stays and the plan is
+  `UNKNOWN`.
+- **AFU-V1-1655**: This repository commits its E2E flow intents under `flows/` and binds them in
+  `.corvint/e2e-flows.json`: `installed-go-live-tests`, `installed-js-live-tests` and
+  `installed-test-validity-mcp` (the three provider binaries the installed-host proofs run) to
+  `extensions/vscode/test/installed/run.mjs` and `conformance/interactive-alpha/core-provider-proof.mjs`,
+  and `web-flows-browser-gate` (`cmd/corvint-web-flows`) to `tools/web-flows/test/e2e.mjs` and
+  `tools/web-flows/test/navigation-e2e.mjs`. Each flow's source links anchor the command's `main.go`
+  and one file of each internal package the suite exercises, each test link names the suite file,
+  and every declared link carries `reviewed_at`, the commit that declared it (`5cb958a65`), which
+  evaluates `reviewed` at HEAD. `TestRepositoryE2EFlowsAreBoundAndReviewed_AFUV11655` refuses a
+  binding of an undeclared consumer or unknown flow, an intent bound to no consumer, an inferred
+  link, a missing target or an unreviewed link, and `flows/**` is an owner row of
+  `.corvint/test-selection.json` naming that test. The `host-adapters-plan` and `host-adapters` CI
+  jobs that once consumed this binding for the TypeScript family were removed under decision 0594
+  (commit `ddab104b7`); no CI job now gates on `make host-adapter-test`, and the installed-host
+  proofs stay release qualification the Linux runners cannot execute.
+
+Failure modes: a flow whose links anchor too little (a dependency the suite exercises but no link
+reaches) can omit its consumer when another flow's reviewed link explains the change; the author's
+link completeness is the attestation, as in AFU-V1-020, and the installed-host flows anchor every
+internal package their binaries import for that reason. A stale anchor (a link target edited after
+review) removes the link's narrowing authority, so the change is unexplained and the consumer runs.
+Package-level reach never omits a consumer for a change inside a package a bound flow anchors.
+Measured on this repository, the binding omits nothing today: every bound flow anchors its
+command's `main.go`, so every change that rebuilds the command reaches the flow (probe plans in
+`docs/build-log/2026-11-09-e2ejoin.md`); the binding's effect here is the `flows` annotation, the
+reviewed anchors and the fail-closed unknowns.
+
+Non-goals: file- or line-level reach inside a Go package (the `e2e-safe` profile and coverage
+evidence remain the route); running a consumer; inferring a binding from argv or environment.
+
+Acceptance: `TestAFUV11651ReachedFlowKeepsAndReviewedLinksOmit`,
+`TestAFUV11652UnmappedChangeKeepsTheConsumer` and
+`TestAFUV11654GlobalPathsInvalidDeclarationAndAbsence` in `internal/appflows/e2eflows_test.go` plan
+a module with one command, two consumers and two flows over a git fixture with reviewed anchors;
+`TestE2EFlowUnknownAdmitted_AFUV11652` (`internal/gateselect`) and the AFU-V1-1652 cases of
+`TestBinaryConsumerIsANamedCheck_STRV0750` (`internal/sessiontest`) cover the driver and runner
+admission; `TestRepositoryE2EFlowsAreBoundAndReviewed_AFUV11655` covers this repository's binding.
+
+Rollback: remove `.corvint/e2e-flows.json`, `flows/`, `internal/appflows/e2eflows.go`, the
+`planAffectedGraph` call, the `flows` and `e2eOmitted` members, `E2EFlowUnknown` and the
+`host-adapters-plan` job; every bound consumer then keeps the AFP-V0-762 and AZU-V0-007 behaviour.

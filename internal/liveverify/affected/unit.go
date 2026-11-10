@@ -12,6 +12,8 @@
 package affected
 
 import (
+	"github.com/Beamfall/corvint/internal/repopath"
+
 	"context"
 	"errors"
 	"slices"
@@ -20,8 +22,9 @@ import (
 )
 
 var (
-	// ErrInvalidUnit reports a unit that is not in canonical form.
-	ErrInvalidUnit = errors.New("affected: unit is not canonical")
+	// ErrInvalidUnit reports a unit that is not in canonical form
+	// (repopath.ErrNotCanonical, so the shared readers refuse with one value).
+	ErrInvalidUnit = repopath.ErrNotCanonical
 	// ErrDuplicateUnit reports two units sharing one identity.
 	ErrDuplicateUnit = errors.New("affected: duplicate unit identity")
 	// ErrDuplicateOwner reports one path claimed by two units.
@@ -206,6 +209,14 @@ type Result struct {
 	Frontier   []string
 	Unobserved []string
 	Runnable   []string
+	// FrontierSites records, per plugin-wide reason (`<plugin>:<category>`),
+	// every located site of that reason in the form Frontier displays
+	// (`file`, `file:line`, each with an optional backquoted token), so the
+	// graph knows the site unit of each entry even when Frontier truncates
+	// the list to `reason:+N` (AZU-V0-003, AZU-V0-212). It is optional and
+	// no part of the graph digest: a plugin that omits it leaves its `+N`
+	// entries unlocated, so they stay unknown when they bear.
+	FrontierSites map[string][]string
 }
 
 // Language is the seam a second language plugs into.
@@ -267,6 +278,51 @@ type FrontierReach interface {
 	// runner, to a build graph between the plugin's own units, or to a file in
 	// an ancestor directory of the site's own.
 	FixtureClosedFrontiers() []string
+}
+
+// The FrontierDirection values (AZU-V0-003, AZU-V0-008).
+const (
+	// FrontierOutbound marks a reason whose hidden edge starts at the
+	// reference in the site's own file: an unresolved, dynamic or bare import,
+	// an include, an executable configuration or a computed invocation. When
+	// such an entry bears, the plan selects every site unit with its
+	// dependents and readers instead of naming the entry (AZU-V0-212).
+	FrontierOutbound = "OUTBOUND"
+	// FrontierInbound marks a reason whose hidden edge is a caller into the
+	// site unit that no plugin models; it closes only through a project
+	// declaration (AZU-V0-004). A reason with no declaration is inbound.
+	FrontierInbound = "INBOUND"
+	// FrontierDiscovery marks an OUTBOUND reason that also decides which
+	// files of the site's directory tree are tests or what its runner loads,
+	// such as an executable test configuration. It is discharged as OUTBOUND
+	// is, unless the site file is dirty or a dirty path of the plugin lies
+	// below the site's directory: what the site decides about may then have
+	// changed, so the entry stays (AZU-V0-212).
+	FrontierDiscovery = "DISCOVERY"
+	// FrontierPackageRunnable marks a reason that hides only which tests run
+	// inside a known package or project, or how its runner is invoked. When
+	// such an entry bears, the plan selects the site's unit when the plugin
+	// reports it runnable (RunnableUnits) and names the entry with the
+	// NO_RUNNER hint otherwise (AZU-V0-008, AZU-V0-213).
+	FrontierPackageRunnable = "PACKAGE_RUNNABLE"
+)
+
+// FrontierDirection is implemented by a plugin that classifies each of its
+// frontier reasons as FrontierOutbound, FrontierDiscovery, FrontierInbound or
+// FrontierPackageRunnable (AZU-V0-003, AZU-V0-008). A reason it does not
+// recognise, and every reason of a plugin without the method, is inbound,
+// which fails closed: the entry is named whenever it bears.
+type FrontierDirection interface {
+	FrontierDirection(reason string) string
+}
+
+// RunnableUnits is implemented by a plugin that declares FrontierPackageRunnable
+// reasons: RunnableUnit reports whether the unit's tests run through a runner
+// the plugin identified, so selecting the unit runs the package's tests. A
+// unit of an unidentified runner is not runnable, and its PACKAGE_RUNNABLE
+// entry stays unknown as NO_RUNNER (AZU-V0-213).
+type RunnableUnits interface {
+	RunnableUnit(id string) bool
 }
 
 // AncestorBoundFrontiers strengthens FrontierReach for located runner reasons
@@ -447,18 +503,6 @@ func validIdentifierList(values []string) error {
 
 // ValidRelativePath reports whether value is the canonical repository-relative
 // form this package accepts everywhere: non-empty, valid UTF-8, slash
-// separated, no leading slash, no "." or ".." component, and no empty component.
-func ValidRelativePath(value string) bool {
-	if value == "" || !utf8.ValidString(value) || strings.HasPrefix(value, "/") {
-		return false
-	}
-	if strings.ContainsRune(value, 0) || strings.Contains(value, `\`) {
-		return false
-	}
-	for _, component := range strings.Split(value, "/") {
-		if component == "" || component == "." || component == ".." {
-			return false
-		}
-	}
-	return true
-}
+// separated, no leading slash, no "." or ".." component, and no empty component
+// (repopath.Valid).
+func ValidRelativePath(value string) bool { return repopath.Valid(value) }

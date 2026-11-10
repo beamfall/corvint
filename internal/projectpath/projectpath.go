@@ -3,9 +3,37 @@ package projectpath
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
+
+// LocalInputRule names the rule a local input path breaks, or returns "" for a canonical
+// slash path relative to the input root (DCP-V1-054): never empty, over 1024 bytes, non-UTF-8,
+// carrying a backslash or control byte, absolute, a parent traversal, the root itself or
+// non-canonical. The corpus reader and the MCP corpus-artifact option apply the same rule.
+func LocalInputRule(value string) string {
+	switch {
+	case value == "":
+		return "got an empty path"
+	case len(value) > 1024:
+		return "got a path over 1024 bytes"
+	case !utf8.ValidString(value):
+		return "got a path that is not UTF-8"
+	case strings.ContainsAny(value, "\\\x00\r\n\t"):
+		return "got a backslash, NUL, tab, CR or LF"
+	case strings.HasPrefix(value, "/"):
+		return "got an absolute path"
+	case value == ".." || strings.HasPrefix(value, "../"):
+		return "got a parent traversal"
+	case value == ".":
+		return "got the root itself"
+	case path.Clean(value) != value:
+		return "got a non-canonical path"
+	}
+	return ""
+}
 
 // Relative returns a slash path strictly below the resolved root. Missing paths
 // are admitted only below a contained ancestor with an entirely absent suffix.

@@ -32,8 +32,9 @@ func TestCAPV0030FlowsAppmapBuildHelp(t *testing.T) {
 			t.Fatalf("flows appmap build %s still names the retired corvint-test companion:\n%s", word, got)
 		}
 	}
-	if got := runCatalogHelp(t, "flows", "appmap", "--help"); !strings.Contains(got, "corvint flows appmap build --help") {
-		t.Fatal("flows appmap help does not point at the build step help")
+	// The rest of the appmap group is corvint-docs's (decision 0595): corvint's node names the build step alone.
+	if got := runCatalogHelp(t, "flows", "appmap", "--help"); !strings.Contains(got, "corvint [--root PATH] flows appmap build --manifest FILE") {
+		t.Fatalf("flows appmap help does not name the build step:\n%s", got)
 	}
 }
 

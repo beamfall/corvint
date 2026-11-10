@@ -52,7 +52,7 @@ var (
 )
 
 // FixtureGenerator versions the generator; a reused fixture from another version is refused.
-const FixtureGenerator = "corvint-perf-budget-fixture/2"
+const FixtureGenerator = "corvint-perf-budget-fixture/3"
 
 // Fixture is a generated fixture. Paths are absolute; artifacts are relative to Primary.
 type Fixture struct {
@@ -85,6 +85,9 @@ type Fixture struct {
 	GoPath      string `json:"go_path"`
 	TSPath      string `json:"ts_path"`
 	ContextTask string `json:"context_task"`
+	// LineIndex is the Go line index collected over the code repository's first four packages,
+	// relative to the fixture directory; the watch-replan scenario plans against it (PRB-V0-1014).
+	LineIndex string `json:"line_index"`
 }
 
 const (
@@ -259,6 +262,10 @@ func Generate(ctx context.Context, dir string, s Scale, build Builder) (*Fixture
 		return nil, err
 	}
 	if err := generateCode(ctx, f.Code, s); err != nil {
+		return nil, err
+	}
+	f.LineIndex = codeLineIndex
+	if err := collectCodeIndex(ctx, f.Code, filepath.Join(dir, f.LineIndex)); err != nil {
 		return nil, err
 	}
 	return f, nil

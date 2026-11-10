@@ -1,0 +1,101 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "installed-test-validity-mcp",
+  "revision": 1,
+  "kind": "api",
+  "actor": "installed host qualifier",
+  "preconditions": [
+    "the release binaries are built from the tested commit"
+  ],
+  "steps": [
+    {
+      "step_id": "mcp-discover",
+      "action": "call corvint.test_validity with discover over the fixture through corvint-test-validity-mcp"
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "mcp-agrees",
+      "behavior": "the MCP result agrees with the retained provider evidence",
+      "matcher": "toEqual",
+      "locator": "status",
+      "value": "PASS"
+    }
+  ],
+  "variations": [
+    {
+      "variation_id": "installed-test-validity-mcp.default",
+      "preconditions": [],
+      "steps": [
+        "mcp-discover"
+      ],
+      "observable_facts": [
+        "the MCP discover result names the retained evidence"
+      ],
+      "outcomes": [
+        "mcp-agrees"
+      ],
+      "projects": [
+        "node"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from": "mcp-discover",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "cmd/corvint-test-validity-mcp/main.go"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    },
+    {
+      "from": "mcp-discover",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/mcp/protocol/decode.go"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    },
+    {
+      "from": "mcp-discover",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/mcp/server/server.go"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    },
+    {
+      "from": "mcp-discover",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/mcp/testvaliditybridge/testvaliditybridge.go"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    },
+    {
+      "from": "installed-test-validity-mcp.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "conformance/interactive-alpha/core-provider-proof.mjs",
+        "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    },
+    {
+      "from": "installed-test-validity-mcp.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "extensions/vscode/test/installed/run.mjs",
+        "test_key": "extensions/vscode/test/installed/run.mjs"
+      },
+      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+    }
+  ]
+}

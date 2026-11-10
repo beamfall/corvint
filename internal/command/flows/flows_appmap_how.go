@@ -8,16 +8,16 @@ import (
 	"github.com/Beamfall/corvint/internal/appmap"
 )
 
-// HowHelp documents `corvint how`, the top-level alias of `flows appmap how` (SKH-V0-810).
+// HowHelp documents `corvint-docs how`, the top-level alias of `flows appmap how` (SKH-V0-810).
 const HowHelp = `Answer "how do I GOAL" from an application map (SKH-V0, experimental).
 
 Usage:
-  corvint [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
+  corvint-docs [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]...
       [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL
 
-how is an alias of corvint flows appmap how: the same flags, the same
+how is an alias of corvint-docs flows appmap how: the same flags, the same
 site-knowledge-how/0 bytes on stdout and the same refusals (exit 2). It writes
-nothing. See corvint flows --help for the application map verbs.
+nothing. See corvint-docs flows --help for the application map verbs.
 `
 
 // runFlowsAppmapHow prints the stage 6 task answer (site-knowledge-how/0) for one goal: the goal

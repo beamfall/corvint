@@ -33,9 +33,22 @@ func installFixture(t *testing.T) (string, *VerifiedCandidate) {
 	verified := &VerifiedCandidate{Manifest: Manifest{Version: "0.5.0a1", CorvintVersion: "Corvint 0.5.0a1 (build 9)"}, files: map[string][]byte{}}
 	setFixtureProgram(t, verified, "#!/bin/sh\nprintf '%s\\n' 'Corvint 0.5.0a1 (build 9)'\n")
 	previous := verifyForInstall
-	verifyForInstall = func(context.Context, string) (*VerifiedCandidate, error) { return verified, nil }
+	verifyForInstall = func(context.Context, string) (*VerifiedCandidate, error) {
+		setFixtureApps(t, verified)
+		return verified, nil
+	}
 	t.Cleanup(func() { verifyForInstall = previous })
 	return candidate, verified
+}
+
+// setFixtureApps gives the candidate one host app archive per core-set app whose executable
+// reports the manifest's version, so the installed set is one release (ARTIFACT-BIN-V0-511).
+func setFixtureApps(t *testing.T, verified *VerifiedCandidate) {
+	t.Helper()
+	platform := runtime.GOOS + "_" + runtime.GOARCH
+	for _, app := range CoreSetApps {
+		verified.files[appArchivePath(app, platform)] = appScriptArchive(t, app, platform, "#!/bin/sh\nprintf '%s\\n' '"+app+" "+verified.Manifest.Version+"'\n")
+	}
 }
 
 func setFixtureProgram(t *testing.T, verified *VerifiedCandidate, program string) {
@@ -203,7 +216,7 @@ func TestPUBV0026CandidateInventoryBounds(t *testing.T) {
 						}
 					}
 				case "directories":
-					for i := 0; i < 5; i++ {
+					for i := 0; i < maxCandidateDirectories; i++ {
 						if err := os.Mkdir(filepath.Join(root, fmt.Sprint(i)), 0700); err != nil {
 							t.Fatal(err)
 						}

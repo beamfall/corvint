@@ -88,9 +88,41 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   unreadable, oversized, not a regular file, has an unknown member or a wrong profile, or names a
   package that is not observed, does not locate the root, or whose non-test sources do not carry
   the gate as a Go string literal. A plan with the declaration dirty SHALL name
-  `go:gated-root-locators-changed`, so it is `UNKNOWN`. Each declared package SHALL carry a test
+  `go:gated-root-locators-changed`, so it is `UNKNOWN`, unless TSP-V0-608 bounds the edit. Each
+  declared package SHALL carry a test
   that proves the gate from its own non-test sources and fails when the gate or the declaration
   drifts; for `internal/authoritystore` it is `TestRootLocatorGated_TSP_V0_003`.
+- **TSP-V0-608:** (experimental, under the owner's standing lane auto-accept; lane affprec2 charter
+  2026-11-09; V1-5192) A plan measured from a commit (`--base`, a worktree plan measured from
+  `HEAD`, or a `--snapshot` plan from its pinned base) whose dirty paths hold
+  `.corvint/gated-root-locators.json` SHALL compare the declaration at that commit, read from
+  immutable Git objects (an absent declaration is empty), with the tree's, and SHALL seed the Go
+  unit of every package directory whose entry was added, removed or changed in gate or reason as
+  a changed unit, witness `GATED_LOCATOR_CHANGE` with the declaration as its dirty path, traversed
+  to its transitive importers as any changed unit is: under the base declaration those importers
+  were root-locator dependents (AFP-V0-012 rule (d)), and under the head declaration they are not,
+  so the edit can change only what they and the package itself select. When every changed
+  directory holds an observed unit and the head declaration is valid, the plan SHALL NOT name
+  `go:gated-root-locators-changed`; the declaration path keeps its own classification and readers.
+  The edit SHALL stay `UNKNOWN`, with that frontier, when the base declaration cannot be read or is
+  invalid, when the head declaration is invalid (the plugin's `go:gated-root-locators-invalid`
+  frontier is also present), when a changed directory holds no unit (a removed package), or in
+  `--path` mode, which measures from no commit. The selector's qualified proof (`SelectQualified`,
+  `internal/gateselect/qualified.go`), which re-plans on its own Go graph and takes that graph's
+  unknowns, SHALL apply the same comparison from the plan's measured commit (`range.base`, else
+  `revision`, when it is a full object ID and the plan is no snapshot), beside its AFP-V0-050
+  read-scope base; a comparison it cannot make leaves its graph's frontier and the fallback. A plan
+  that still names the frontier falls back at module level (TSP-V0-940), and one that does not
+  attributes the declaration path by its own rules and takes the planner's Go packages, so the
+  selection-baseline replay of merged change `pr-14`, which adds the declaration, narrows instead
+  of `FALLBACK` (verdict `run`, cost share 0.790, misses 0).
+- **TSP-V0-609:** (experimental, under the owner's standing lane auto-accept; lane affprec2 charter
+  2026-11-09; V1-5207) `cmd/corvint` SHALL wire TSP-V0-608 through both planning tails,
+  `planAffectedGraph` (measured plans) and the `--snapshot` tail, and a `cmd/corvint` test SHALL
+  drive `corvint affected --snapshot` over a Git fixture whose change adds a gating declaration,
+  asserting the gated package and its dependents are selected and the plan names no
+  `go:gated-root-locators-changed` entry, and SHALL drive `--path` over the same declaration,
+  asserting the entry stays.
 - **TSP-V0-004:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; the
   orchestrator's V1-3325 decision, 2026-10-30) The shell plugin SHALL treat a `source` or `.` of
   `$NAME/REST` or `${NAME}/REST` as a read of a runtime file outside the repository, and not as a
@@ -203,7 +235,9 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   a nested-module change included. An absent or invalid declaration SHALL declare nothing (the
   wider selection). A plan that names `go:gated-root-locators-invalid` or
   `go:gated-root-locators-changed` SHALL make the selection `FALLBACK`, as the module-level
-  frontiers do.
+  frontiers do. Amended by TSP-V0-608 (lane affprec2, 2026-11-09): the qualified proof's own graph
+  closes a dirty declaration by the planner's immutable-base comparison; the module-level fallback
+  for a plan that names the frontier is unchanged.
 
 - **TSP-V0-665:** (experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,
   2026-10-11; V1-4178) The completeness scan SHALL also cover the caller candidates under each
@@ -597,6 +631,58 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   Full JSON, compact JSON and text SHALL retain that explanation. This additive witness
   changes no selection rule, including the conservative unindexed/deleted-file fallback.
 
+### Stale-producer manifests and unresolved go targets (lane cinarrow, 2026-11-09)
+
+Intent (V1-5011, V1-5028): a `corvint-test-manifest/0` carried no producer, so `script/heavy.sh
+--plan` ran a selection a stale installed corvint computed, which can drop tests a change affects;
+and `tools/test-read-scopes-check` recorded nothing for a go command whose target is a variable or
+helper parameter, so a narrowed declaration could drift unseen. Both are selection-precision
+holes: a test the selection should run goes unrun without a refusal or a finding.
+
+- **TSP-V0-8131:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5011;
+  refines ASD-V0-891 and ASD-V0-722, extends AFP-V0-846 to a manifest consumer) `script/heavy.sh
+  --plan PATH` and a `HEAVY_SELECTION=PATH` admission SHALL refuse a manifest the current checkout
+  cannot trust, before any unit is printed or admitted: `manifest-head` when `source.head` is not
+  `git rev-parse HEAD` (the ASD-V0-722 wording `source.head H is not HEAD H2 (regenerate the
+  manifest after this commit)` stays the first admission cause); `manifest-producer-missing` when
+  the manifest names no `producer.commit` (STR-V0-8301: a corvint older than it, or a build without
+  a Git stamp); `manifest-producer-unverified` when that commit is absent here, is not HEAD or an
+  ancestor of HEAD, or git cannot compare it; `manifest-producer-stale` when it is an ancestor of
+  HEAD from which a non-test Go source file, `go.mod` or `go.sum` differs (the AFP-V0-846 rule,
+  narrowed to descendants, so a selection a pre-fix binary computed never runs). `--plan` prints
+  `heavy.sh: REFUSE CODE WHY`, then `fix: ...` naming the rebuild (`go install ./cmd/corvint`, or
+  `go run ./cmd/corvint`) and the regenerate command (`corvint test --base <origin/main sha>
+  --dry-run --manifest PATH`), then the stdout marker `heavy.sh: REFUSED CODE (exit 2)`; an
+  admission prints `heavy.sh: HEAVY_SELECTION=PATH not admitted: CODE: WHY` and the same `fix:`
+  line before the ASD-V0-030 refusal. A manifest written at HEAD, or by a binary built from an
+  ancestor of HEAD with no such difference, is accepted as before. Only git reads run; a manifest
+  Perl cannot parse keeps the ASD-V0-891 refusal. Non-goals: judging uncommitted edits made after
+  the manifest (as ASD-V0-891). Evidence: `make lane-scripts-test` group `policy` (TSP-V0-8131
+  cases): a manifest without a producer, one from an unknown commit, one from an ancestor whose Go
+  source differs and one planned for another HEAD each refuse `--plan` and admission with the code
+  and the `fix:` line; one from HEAD and one from an ancestor that only changed a test file run.
+- **TSP-V0-8132:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5028;
+  refines ASD-V0-611 and ASD-V0-612) `tools/test-read-scopes-check` SHALL report, as a finding of
+  the package and test file, a `go build`, `run`, `vet`, `test`, `install` or `list` target it
+  cannot resolve because the argument is no literal at all (a variable, a helper parameter, a
+  call), naming the argument's source text, unless the package declares a whole top-level tree with
+  its reason (AFP-V0-3010) or `.corvint/test-read-scope-literals.json` records `go-target:EXPR` for
+  the package with the reason the target is a temporary path outside the repository (an unused
+  record is reported stale); before this change such a target recorded nothing and the check
+  passed. A `go list` target written as a literal joined to a range over string literals expands as
+  `go build` does (ASD-V0-611), and a `go list` whose only positional argument is unresolved is not
+  taken for the package itself. `go run` takes only its first positional as a target, and `go test`
+  none after a literal `-args`; the value of a `go list -f` is no target. Non-goals: resolving
+  variables. Evidence: `TestTSPV08132UnresolvedGoTargetsAreFindings_TSPV08132` (the V1-5028
+  probe, a whole-tree entry, a record, a stale record, a variable `go list`, a ranged `go list`,
+  `go run` arguments, `-args`, a `-f` value); on this repository three temporary-path builds are
+  recorded and the native-bridge candidate build spells its targets, so `make
+  test-read-scopes-check` passes with the rule.
+
+Rollback: remove `manifest_producer_check` from `script/heavy.sh` and the `unresolved` results and
+`go-target:` admission from `tools/test-read-scopes-check`; the three records and the spelled
+candidate targets can stay.
+
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -605,6 +691,12 @@ AFP-V0-580's review withdrew a narrower scoping over); selecting a dependent nes
 (AFP-V0-582).
 
 ## Failure modes
+
+For the gated-locator base comparison (TSP-V0-608), the base declaration is read for the wrong commit, or a package's entry changes
+while its unit is renamed in the same change. Mitigations: the measured commit is the one every
+other base comparison uses (`affectedMeasuredCommit`, a snapshot's pinned base); a changed
+directory with no head unit keeps the plan `UNKNOWN`; an invalid declaration on either side keeps
+it; and `TestGatedLocatorChangeSelection_TSP_V0_608` pins each refusal beside the bounded case.
 
 (1) A non-host variant that calls code in another package can break when that package changes,
 and the plan is now `BOUNDED`; a FULL run on the same host compiles the same host variant, so it
@@ -773,6 +865,8 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-785 | `testSourceParse`, `testSourceParsed` and `testSourceParsedCache` in `cmd/corvint/test_source_slices.go` | `TestTSPV0785ParsedFilesAreReusedAndEqual` in `cmd/corvint/test_source_slices_tspv0785_test.go` (a cold slice, a warm slice and a slice after the cache is emptied are equal and the warm one adds no entry; one changed byte adds one entry); the before/after in build log `docs/build-log/2026-11-01-tsf-w33.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-7330 | `githubGuard`, `guardPath` and the guard read in `replay` in `tools/selection-baseline/main.go`; the `guard` stamp line in `cache.go`; `guardPath` in the explicit inputs of `inputs.go` | `TestTSPV07330GuardDecidesTheGithubScope_TSPV07330`, `TestTSPV07330RealGuardNarrowsAnUnguardedWorkflow_TSPV07330` and `TestTSPV07330MissingGuardKeepsTheReport_TSPV07330` (an absent guard still reports each change as unreadable) in `tools/selection-baseline/guard_test.go`; the `github-guard.sh` case of `TestBaselineInputDecisionASDV0944`; the replay in build log `docs/build-log/2026-11-09-selbase-guard.md` (pr-4 and pr-6 FULL to NARROW) |
+| TSP-V0-8131 | `manifest_producer_check` in `script/heavy.sh`, called by `manifest_admits` and `print_plan` | `make lane-scripts-test` group `policy`, TSP-V0-8131 cases: missing, unknown, stale and another-HEAD manifests refuse `--plan` and admission with the code and `fix:` line; HEAD and a test-only ancestor run |
+| TSP-V0-8132 | `goBuildTargets` and `goListTargets` (`unresolved`) and the `goTargetRecord` admission in `checkFile` of `tools/test-read-scopes-check/main.go` | `TestTSPV08132UnresolvedGoTargetsAreFindings_TSPV08132`; `make test-read-scopes-check` on this repository (three `go-target:` records, the spelled native-bridge candidates) |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
 | TSP-V0-720 | `validBaseArgument` and `resolveBaseArgument` in `cmd/corvint/affected_abbrev_base.go`; their calls in `parseTestOptions` and `runTest` (`cmd/corvint/test.go`) and in `resolveAffectedAbbrevBase` | `TestTSPV0720BaseRevisionExpressionResolves` in `cmd/corvint/affected_abbrev_base_test.go` (`HEAD`, `HEAD^`, `HEAD~1`, a branch, `branch^{commit}` and `@` resolve and the affected receipt records the full id; an unknown ref, an out-of-range ancestor, a range, a leading `-`, a path and whitespace are refused; all-hex values are not revisions; `test --base HEAD~1 --dry-run` records the full id in its manifest and `test --base HEAD~9` exits 2); `TestACXV0854RevisionBase`, `TestAFPV0230AbbreviatedBaseAndTrailingRoot` and `TestAFPV0232AmbiguousAbbreviatedBase` unchanged |
 | TSP-V0-721 | `LinkTarget` in `internal/liveverify/affected/source.go`; `linkedSources`, `linkedImportPath`, `inModule` and their use in `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `FrontierSymlinkedSource` | `TestSymlinkedGoSourceIsAttributedToItsPackage_TSP_V0_721` in `internal/liveverify/affected/golang/golang_test.go` (the source and test links are the package's, it imports the target's package and the target's import, the link is owned by the package, and a dirty target, target import or link selects the package and its dependent but not an unrelated package, `BOUNDED`; without the link the target does not reach it; a link outside the root, dangling, to a non-Go file or into `testdata` names the frontier where the package is reached and not elsewhere); `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` unchanged |
@@ -789,6 +883,9 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-902 | `driverInput`, `bearsOnUnowned` and `readsResolutionInput` in `internal/liveverify/affected/select.go` (unchanged) | the measured plans in build log `docs/build-log/2026-11-01-rsd-w17.md` |
 | TSP-V0-830 | `.corvint/shell-read-scopes.json` and `.corvint/unbounded-readers.json` (the three Makefile-only entries) | `TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830` in `internal/liveverify/affected/readscope_narrowing_repo_test.go`; `TestRepositoryShellReadScopes_TSP_V0_951`; the scratch-tree runs in build log `docs/build-log/2026-11-01-aff-w34.md` |
 | TSP-V0-831 | `applyShellReadScopes` and `invalidEntry` in `internal/liveverify/affected/shell/readscopes.go`; the read-scope frontier refusal in `tools/unbounded-readers/main.go` | `TestShellReadScopeEntryInvalidAlone_TSP_V0_831` in `internal/liveverify/affected/shell/readscopes_test.go`; `TestInvalidShellReadScopeEntryRefused_TSP_V0_831` in `tools/unbounded-readers/main_test.go` |
+| TSP-V0-608 | `GatedLocatorChanges`, `gatedLocatorSeeds`, `WitnessGatedLocatorChange` and `gatedLocatorsChanged` in `internal/liveverify/affected/readers.go`, the seed hook in `select.go`, `WithGatedLocatorChanges` in `graph.go`; `GatedLocatorChangesAt` in `internal/liveverify/affected/golang/gatedlocators_base.go` | `TestGatedLocatorChangeSelection_TSP_V0_608` (bounded edit selects the gated package and its importer and names no frontier; no comparison, an empty change, a removed package and an invalid head each keep the frontier) and `TestGatedLocatorChangesAt_TSP_V0_608` (Git fixture: added entry, unchanged, edited reason, invalid head, unreadable base) in `internal/liveverify/affected/golang/gatedlocators_base_test.go`; pr-14 replay in `docs/build-log/2026-11-09-affprec2.md` |
+| TSP-V0-608 (selector) | `WithGatedLocatorChanges` beside `WithReadScopeBase` in `internal/gateselect/qualified.go` | `TestGatedLocatorChangeNarrowsTheProof_TSP_V0_608` in `internal/gateselect/gatedlocators_base_test.go` (bounded edit runs loc and dep, not other; measured from the revision runs; an unmeasurable revision keeps the frontier fallback; a planner-named frontier falls back at module level); single-change baseline replay of pr-14 in `docs/build-log/2026-11-09-affprec2.md` |
+| TSP-V0-609 | the two `WithGatedLocatorChanges` calls in `cmd/corvint/affected.go` | `TestAffectedSnapshotBoundsGatedLocatorChange_TSP_V0_609` in `cmd/corvint/affected_gated_locators_test.go` (`--snapshot` selects the gated package and dependents with no changed frontier; `--path` keeps it) |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 | TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
 | TSP-V0-1061 | `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; existing `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go` | `TestNewBuildLogKeepsDeclaredReaders_TSPV01061` in `internal/liveverify/affected/new_file_precision_test.go` requires `internal/contextindex` and its root-locator witness; `TestReferenceScannersMatchTheirRegexes` in `internal/contextindex/reference_scan_test.go` reads the tracked self corpus; rebuilt CLI replay recorded in `docs/build-log/2026-11-04-cx-affected-final-review-fixes.md` |
@@ -800,7 +897,10 @@ Remove `frontierBears = affected.FrontierBearsOnOwnFiles` in `observeDirectory`;
 `ownFilesBear` are then inert. No stored state depends on the value. TSP-V0-002: drop the
 `LinkedEntries` check in `observeDirectory` only together with TSP-V0-001. TSP-V0-003: delete
 `.corvint/gated-root-locators.json` (a change that itself plans `UNKNOWN`); the package is then a
-root locator again and its dependents are followed on every dirty path. TSP-V0-004: make
+root locator again and its dependents are followed on every dirty path. TSP-V0-608/609: drop the
+two `WithGatedLocatorChanges` calls in `cmd/corvint/affected.go`; every declaration edit then plans
+`UNKNOWN` again and the selector falls back, as before; no stored state or wire member depends on
+the `GATED_LOCATOR_CHANGE` witness, which then never appears. TSP-V0-004: make
 `freshDirectorySource` return false; every such source is then dynamic again, as before.
 TSP-V0-820: restore the 512-byte limit after shortening any longer reason. TSP-V0-005: delete `.corvint/shell-foreign-callers.json` (a change that itself plans `UNKNOWN`) or
 make `applyForeignCallers` return at once; every script then carries the frontier again and the

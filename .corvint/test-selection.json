@@ -16,7 +16,7 @@
     {
       "paths": ".github/cishards/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        ".github/cishards/"
       ]
     },
     {
@@ -28,7 +28,6 @@
     {
       "paths": ".github/linecov/qualification.json",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go",
         "tools/linecov/qualified_workflow_test.go"
       ]
     },
@@ -125,7 +124,7 @@
     {
       "paths": "benchmarks/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "benchmarks/selfuse-batch/"
       ]
     },
     {
@@ -155,7 +154,7 @@
     {
       "paths": "conformance/cli-parity-v0/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "conformance/cli-parity-v0/"
       ]
     },
     {
@@ -395,7 +394,7 @@
     {
       "paths": "conformance/mcp-2026-07-28/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "conformance/mcp-2026-07-28/"
       ]
     },
     {
@@ -407,7 +406,7 @@
     {
       "paths": "conformance/perf-v0/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "conformance/perf-v0/"
       ]
     },
     {
@@ -419,11 +418,35 @@
     {
       "paths": "conformance/release-artifact-v0/**",
       "tests": [
+        "conformance/release-artifact-v0/"
+      ]
+    },
+    {
+      "paths": "conformance/ruby-profile-v0/README.md",
+      "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
     },
     {
-      "paths": "conformance/ruby-profile-v0/**",
+      "paths": "conformance/ruby-profile-v0/rails-app/.rspec",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ruby-profile-v0/rails-app/Gemfile",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ruby-profile-v0/rows.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "conformance/ruby-profile-v0/rspec-report.json",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -509,7 +532,13 @@
     {
       "paths": "extensions/vscode/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "extensions/vscode/test/"
+      ]
+    },
+    {
+      "paths": "flows/**",
+      "tests": [
+        "internal/appflows/e2eflows_repo_test.go"
       ]
     },
     {
@@ -611,7 +640,7 @@
     {
       "paths": "internal/capcatalog/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "internal/capcatalog/"
       ]
     },
     {
@@ -927,13 +956,73 @@
       ]
     },
     {
-      "paths": "script/**",
+      "paths": "script/*.allowlist",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.count",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.json",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.pl",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.ps1",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.tsv",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/*.txt",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
     },
     {
       "paths": "script/affected-zero-unknown-merges.txt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/gate-receipt",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/go-archive-gate",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/release-checklist",
+      "tests": [
+        "internal/liveverify/affected/ownership_completeness_test.go"
+      ]
+    },
+    {
+      "paths": "script/web-flows-gate",
       "tests": [
         "internal/liveverify/affected/ownership_completeness_test.go"
       ]
@@ -1115,7 +1204,11 @@
     {
       "paths": "tools/web-flows/**",
       "tests": [
-        "internal/liveverify/affected/ownership_completeness_test.go"
+        "tools/web-flows/test/lifecycle.test.mjs",
+        "tools/web-flows/test/navigation-e2e.mjs",
+        "tools/web-flows/test/navigation.test.mjs",
+        "tools/web-flows/test/proxy-headers.test.mjs",
+        "tools/web-flows/test/scan.test.mjs"
       ]
     }
   ],

@@ -13,9 +13,9 @@ import (
 // AppmapPlanHelp documents `flows appmap plan`; help.go appends it to flowsHelp.
 const AppmapPlanHelp = `
 Scenario planner usage (experimental, AMSP-V0):
-  corvint [--root PATH] flows appmap plan --map FILE [--map FILE]... (--step TEXT... | --request TEXT)
+  corvint-docs [--root PATH] flows appmap plan --map FILE [--map FILE]... (--step TEXT... | --request TEXT)
       [--draft] [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
-  corvint [--root PATH] flows appmap plan --map FILE --request GOAL --draft --source DIR [--source DIR]...
+  corvint-docs [--root PATH] flows appmap plan --map FILE --request GOAL --draft --source DIR [--source DIR]...
       [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full]
 
 plan resolves each plain-language step (repeat --step, or one --request split at ';' and line

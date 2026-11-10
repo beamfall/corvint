@@ -87,6 +87,30 @@ func UnobservedModule(reason, detail string) (string, bool) {
 	return found, true
 }
 
+// E2EFlowUnknown returns the detail of a well-formed flow-binding entry of
+// `corvint affected` (AFU-V1-1652): E2E_UNMAPPED_CHANGE names a clean relative
+// changed path that reaches a flow-bound consumer's command while no reviewed
+// flow link explains it, and E2E_FLOWS_INVALID names the binding declaration
+// itself. Either leaves the consumer it concerns selected or named as a check
+// (the binding only narrows when every path is explained), so the Go
+// selection is unchanged: the driver admits the entry beside BinaryConsumer,
+// and `corvint test` names no further check for it.
+func E2EFlowUnknown(reason, detail string) (string, bool) {
+	switch reason {
+	case "E2E_UNMAPPED_CHANGE":
+		if detail == "." || !fs.ValidPath(detail) || strings.ContainsRune(detail, '\\') || strings.ContainsFunc(detail, unicode.IsControl) {
+			return "", false
+		}
+		return detail, true
+	case "E2E_FLOWS_INVALID":
+		if detail != ".corvint/e2e-flows.json" {
+			return "", false
+		}
+		return detail, true
+	}
+	return "", false
+}
+
 // BinaryConsumer returns the file of a well-formed AFP-V0-762
 // UNSELECTED_BINARY_CONSUMER entry: a clean, relative, slash-separated path
 // with no backslash or control character, judged the same on every host. The

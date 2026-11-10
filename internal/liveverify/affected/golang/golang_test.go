@@ -761,11 +761,14 @@ func TestSealedChangeEvidenceReadersAreNarrowed_AFPV0152(t *testing.T) {
 }
 
 // AFP-V0-072 (V1-1806), amended by AFP-V0-2203 round 8: placement no longer
-// narrows a Go unit. A lone file name such as tempfixture's README.md under
-// t.TempDir() cannot be told syntactically from one joined to a runtime root
-// (`filepath.Join(os.Getenv("ROOT"), name)`), so every Go unit naming a
-// path's file name, anchored or not, stays a reader of it. Placement still
-// narrows a non-Go unit whose plugin certifies it (AFP-V0-400).
+// narrows a Go unit, so every Go unit naming a path's file name, anchored or
+// not, stays a reader of it: `joined` joins its literal to a root parameter
+// that may be any directory, and `anchored` concatenates one. AFP-V0-9810
+// (V1-5201) then proves the one shape that can be told syntactically: a
+// literal joined only to `t.TempDir()`, as tempfixture's README.md is, lies
+// below the temporary directory and names no repository read, so tempfixture
+// is a reader only of its own directory. Placement still narrows a non-Go unit
+// whose plugin certifies it (AFP-V0-400).
 func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -782,12 +785,14 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ dirty, want string }{
-		// The PR #1134 shape selects the fixture again: its README.md may lie
-		// below any root.
-		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go tempfixture/fixture_test.go]"},
+		// The PR #1134 shape no longer selects the fixture: its README.md
+		// lies below t.TempDir() (AFP-V0-9810); joined and anchored, whose
+		// roots are parameters, stay readers of every README.md.
+		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go]"},
+		// A path inside the fixture package's own directory still selects it.
 		{"tempfixture/testdata/README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
-		{"README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
-		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
+		{"README.md", "[anchored/anchored_test.go joined/joined_test.go]"},
+		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go]"},
 		// Control: a file none of the tokens names selects nothing.
 		{"other/INDEX.json", "[]"},
 	}

@@ -1,6 +1,8 @@
 package affected
 
 import (
+	"github.com/Beamfall/corvint/internal/repopath"
+
 	"bytes"
 	"context"
 	"errors"
@@ -23,8 +25,9 @@ var (
 	// ErrStatusOverflow reports a status larger than the fixed bound. A
 	// truncated status would understate the dirty set, so it fails closed.
 	ErrStatusOverflow = errors.New("affected: worktree status exceeds the byte bound")
-	// ErrStatusMalformed reports a status Corvint could not decode exactly.
-	ErrStatusMalformed = errors.New("affected: worktree status is malformed")
+	// ErrStatusMalformed reports a status Corvint could not decode exactly
+	// (repopath.ErrNameListMalformed).
+	ErrStatusMalformed = repopath.ErrNameListMalformed
 )
 
 const (
@@ -156,22 +159,9 @@ func IgnoredPaths(ctx context.Context, gitExecutable, root string) ([]string, er
 }
 
 // DecodeNameList parses a NUL-delimited path list such as
-// `git diff --name-only -z` emits, admitting only valid relative paths.
-func DecodeNameList(raw []byte) ([]string, error) {
-	fields := bytes.Split(raw, []byte{0})
-	if len(fields) != 0 && len(fields[len(fields)-1]) == 0 {
-		fields = fields[:len(fields)-1]
-	}
-	paths := make([]string, 0, len(fields))
-	for _, field := range fields {
-		value := displayPath(field)
-		if !ValidRelativePath(value) {
-			return nil, fmt.Errorf("%w: path %q", ErrStatusMalformed, value)
-		}
-		paths = append(paths, value)
-	}
-	return NormalizePaths(paths), nil
-}
+// `git diff --name-only -z` emits, admitting only valid relative paths
+// (repopath.DecodeNameList).
+func DecodeNameList(raw []byte) ([]string, error) { return repopath.DecodeNameList(raw) }
 
 // Observation is a dirty path set some other component already observed, in
 // the same repository, from the same Git status bytes this package would have

@@ -37,10 +37,13 @@ type AdapterManifest struct {
 // and the `go list ./...` universe check, plan the typed `go test` argv of
 // Invocations, execute `go test -json` and cancel the process-group kill. For
 // the declared adapter, discover is the runner's version probe, plan the
-// declared full command, execute that command and cancel the same kill.
+// declared full command, execute that command and cancel the same kill. For
+// the provider adapter (STR-V0-8701), discover is the provider's version
+// probe, plan the declared provider argv plus the selected test files,
+// execute that run and its receipt document, and cancel the same kill.
 func AdapterManifests() map[string]AdapterManifest {
 	manifests := map[string]AdapterManifest{}
-	for _, adapter := range []string{AdapterGo, AdapterDeclared} {
+	for _, adapter := range []string{AdapterGo, AdapterDeclared, AdapterProvider} {
 		manifests[adapter] = AdapterManifest{Adapter: adapter, Operations: slices.Clone(adapterOperations), Profile: AdapterManifestProfile}
 	}
 	return manifests

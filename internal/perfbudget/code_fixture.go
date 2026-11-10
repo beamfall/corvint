@@ -35,7 +35,7 @@ func generateCode(ctx context.Context, root string, s Scale) error {
 		if n > 1 {
 			parent, call = fmt.Sprintf("example.com/codeapp/pkg/p%04d", n/2), fmt.Sprintf("p%04d.Word%04d()", n/2, n/2)
 		}
-		files[dir+fmt.Sprintf("p%04d.go", n)] = fmt.Sprintf("// Package p%04d is generated perf-budget fixture code.\npackage p%04d\n\nimport %q\n\n// Word%04d reports the %s word.\nfunc Word%04d() string { return %s + %q }\n\n// Record%04d is one %s record.\ntype Record%04d struct {\n\tName  string\n\tCount int\n}\n\n// Describe names the record.\nfunc (r Record%04d) Describe() string { return r.Name + Word%04d() }\n",
+		files[dir+fmt.Sprintf("p%04d.go", n)] = fmt.Sprintf("// Package p%04d is generated perf-budget fixture code.\npackage p%04d\n\nimport %q\n\n// Word%04d reports the %s word.\nfunc Word%04d() string { return %s + %q }\n\n// Record%04d is one %s record.\ntype Record%04d struct {\n\tName  string\n\tCount int\n}\n\n// Describe names the record.\nfunc (r Record%04d) Describe() string {\n\treturn r.Name + Word%04d()\n}\n",
 			n, n, parent, n, word(n), n, call, word(n), n, word(n/3), n, n, n)
 		files[dir+fmt.Sprintf("p%04d_test.go", n)] = fmt.Sprintf("package p%04d\n\nimport \"testing\"\n\nfunc TestWord%04d(t *testing.T) {\n\tif Word%04d() == \"\" {\n\t\tt.Fatal(\"empty\")\n\t}\n}\n", n, n, n)
 	}

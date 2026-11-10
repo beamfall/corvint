@@ -18,7 +18,7 @@ const BudgetSchema = "corvint-perf-budget/0"
 // GitHub #1634 (PRB-V0-050), then the code-repository index, context and Go and TypeScript
 // affected scenarios (PRB-V0-057; the lifecycle hook left with the adapters, decision 0594), in
 // report order.
-var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts"}
+var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts", "watch-replan", "watch-replan-self"}
 
 // Metrics a limit may bound.
 const (

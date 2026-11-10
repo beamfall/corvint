@@ -13,29 +13,42 @@ import (
 )
 
 const (
-	maxCandidateFiles       = 15
-	maxCandidateDirectories = 5 // Includes the candidate root.
+	// The candidate holds the eleven core files, one app archive per core-set
+	// app and shipped platform, and the release manifest (ARTIFACT-BIN-V0-510).
+	maxCandidateFiles       = 48
+	maxCandidateDirectories = 6 // Includes the candidate root.
 	maxCandidateBytes       = 1 << 30
 	maxInstallSiblings      = 4096
 )
 
 func probeCoreVersion(ctx context.Context, binary, directory, expected string) error {
+	stdout, err := probeStdout(ctx, binary, directory, "--version")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(stdout) != expected {
+		return fmt.Errorf("version identity mismatch")
+	}
+	return nil
+}
+
+// probeStdout runs binary with arguments in its own process group, a closed
+// environment, a 30 s bound and 4 KiB of each stream, and returns its stdout
+// only for an observed exit 0 with the group reaped.
+func probeStdout(ctx context.Context, binary, directory string, arguments ...string) (string, error) {
 	observation := procgroup.Run(ctx, procgroup.Spec{
-		Argv: []string{binary, "--version"}, Dir: directory,
+		Argv: append([]string{binary}, arguments...), Dir: directory,
 		Env:     []string{"PATH=/usr/bin:/bin", "HOME=" + directory, "LANG=C", "LC_ALL=C"},
 		Timeout: 30 * time.Second, ShutdownTimeout: time.Second,
 		OutputLimit: 4096, StderrLimit: 4096,
 	})
 	if observation.Err != nil || !observation.ExitObserved || !observation.WaitCompleted || observation.ExitStatus != 0 || observation.Signal != "" || !observation.OwnedProcessGroupCleanup {
-		return fmt.Errorf("version probe failed or cleanup was not observed")
+		return "", fmt.Errorf("%s %s probe failed or cleanup was not observed", filepath.Base(binary), strings.Join(arguments, " "))
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return "", err
 	}
-	if strings.TrimSpace(string(observation.Stdout)) != expected {
-		return fmt.Errorf("version identity mismatch")
-	}
-	return nil
+	return string(observation.Stdout), nil
 }
 
 // The closed candidate is small. ReadDir with a positive bound avoids allocating

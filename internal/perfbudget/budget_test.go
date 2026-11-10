@@ -79,18 +79,21 @@ func TestPRBV0031CommittedBudgets(t *testing.T) {
 	}
 	want := map[string]struct {
 		limit     float64
+		status    string
 		pendingOn string
 		profile   string
 	}{
-		"cli-cold-read": {1000, "GH #1598", ProfileExperimental},
-		"cli-warm-read": {200, "GH #1598", ProfileExperimental},
-		"affected-path": {1000, "GH #1601", ProfileCore},
+		"cli-cold-read":     {1000, StatusPending, "GH #1598", ProfileExperimental},
+		"cli-warm-read":     {200, StatusPending, "GH #1598", ProfileExperimental},
+		"affected-path":     {1000, StatusPending, "GH #1601", ProfileCore},
+		"watch-replan":      {1000, StatusAdvisory, "", ProfileExperimental},
+		"watch-replan-self": {1000, StatusAdvisory, "", ProfileExperimental},
 	}
 	for _, s := range b.Scenarios {
 		target, hasTarget := want[s.ID]
 		switch {
-		case hasTarget && (len(s.Targets) != 1 || s.Targets[0].Metric != MetricP95Wall || s.Targets[0].Limit != target.limit || s.Targets[0].Status != StatusPending || s.Targets[0].PendingOn != target.pendingOn || s.Targets[0].Profile != target.profile):
-			t.Errorf("%s targets %+v, want %s p95 %v ms pending on %s", s.ID, s.Targets, target.profile, target.limit, target.pendingOn)
+		case hasTarget && (len(s.Targets) != 1 || s.Targets[0].Metric != MetricP95Wall || s.Targets[0].Limit != target.limit || s.Targets[0].Status != target.status || s.Targets[0].PendingOn != target.pendingOn || s.Targets[0].Profile != target.profile):
+			t.Errorf("%s targets %+v, want %s p95 %v ms %s on %q", s.ID, s.Targets, target.profile, target.limit, target.status, target.pendingOn)
 		case !hasTarget && len(s.Targets) != 0:
 			t.Errorf("%s has targets %+v no issue states", s.ID, s.Targets)
 		}
@@ -244,7 +247,8 @@ func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 // PRB-V0-053: a committed baseline measurement taken in another run carries that run's start
 // time, measured executable and host observation, so it is not attributed to the baseline's run;
 // the six measurements of the baseline's own run carry none, and a malformed provenance is refused.
-// PRB-V0-059: the code-repository scenarios' measurements name their own run the same way.
+// PRB-V0-059: the code-repository scenarios' measurements name their own run the same way, and
+// PRB-V0-1014: so do the two watch scenarios'.
 func TestPRBV0053BaselineProvenance(t *testing.T) {
 	b, err := LoadBudgets("budgets.json")
 	if err != nil {
@@ -254,6 +258,13 @@ func TestPRBV0053BaselineProvenance(t *testing.T) {
 		p := m.Provenance
 		if slices.Contains(codeScenarioIDs, m.ID) {
 			if p == nil || p.RecordedAt == b.Baseline.RecordedAt || p.ExecutableSHA256 == b.Baseline.Fixture.BuilderSHA256 || p.ExecutableRevision != "8501edc5357fbf2c39bf9002fd75038a8346f935" || p.Host.LoadBefore == nil {
+				t.Errorf("%s provenance %+v does not name its own run", m.ID, p)
+			}
+			continue
+		}
+		if m.ID == "watch-replan" || m.ID == "watch-replan-self" {
+			// PRB-V0-1014: the lane's clean full-scale run, not the baseline's own.
+			if p == nil || p.RecordedAt == b.Baseline.RecordedAt || p.ExecutableSHA256 == b.Baseline.Fixture.BuilderSHA256 || p.ExecutableRevision != "c0724a7fac88e157bf02429081f8039c09be97ae" || p.Host.LoadBefore == nil {
 				t.Errorf("%s provenance %+v does not name its own run", m.ID, p)
 			}
 			continue

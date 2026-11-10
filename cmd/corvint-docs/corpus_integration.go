@@ -308,6 +308,11 @@ func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, st
 		emitError(stderr, &gokernel.Error{Code: docsenvelope.NotInstalledCode, Message: docsenvelope.NotInstalledMessage(docsenvelope.CoreBinary, "--corpus")})
 		return 2
 	}
+	// CMS-V0-002: a corvint installed beside this executable must be the same release.
+	if reason := docsenvelope.CheckBeside(ctx, executable, versionSpec().Line()); reason != "" {
+		emitError(stderr, &gokernel.Error{Code: docsenvelope.VersionMismatchCode, Message: "--corpus refused: " + reason})
+		return 2
+	}
 	command := exec.CommandContext(ctx, executable, args...)
 	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
 	docsenvelope.StopOnCancel(command, 5*time.Second)

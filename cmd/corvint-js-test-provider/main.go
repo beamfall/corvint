@@ -218,7 +218,7 @@ func printSubcommandUsage(w io.Writer, show func()) {
 }
 
 func main() {
-	if code, handled := cliapp.Answer("corvint-js-test-provider", os.Args[1:], os.Stdout, os.Stderr); handled {
+	if code, handled := cliapp.AnswerReleased("corvint-js-test-provider", version, build, sourceCommit, os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}
 
