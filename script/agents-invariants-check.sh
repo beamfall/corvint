@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # usage: script/agents-invariants-check.sh [FILE]
 #
 # ACR-V1-012: product invariants 3, 4, 5, 7 and 8 of AGENTS.md are edited only by the change
