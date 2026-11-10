@@ -2747,6 +2747,33 @@ this lane's allowed paths. These facts and the pending integration checks are re
   The caller/mention completeness gate remains mandatory.
   Retired by decision 0594: both dogfood scripts were removed, so the declaration row is gone.
 
+### Hub read scopes (V1-5201)
+
+Copied from the OpenSpec change `hub-read-scopes`; the build log entry
+`docs/build-log/2026-11-10-hub-read-scopes.md` records the confined runs and the blockers.
+
+- **AFP-V0-107:** (proposed 2026-11-10; delivery partial; V1-5201)
+  A test that reads the whole repository (it lists the repository root, reads Git metadata, or
+  builds a graph over every package) MUST live in a test package that holds only such tests when
+  its former package declares a read scope. That package MUST be listed in
+  `.corvint/unbounded-readers.json` with its reason. (PROD-TEST-001)
+  Delivered for `internal/liveverify/affected`, whose whole-repository tests moved to
+  `internal/liveverify/affected/liverepo`; `internal/contextindex`,
+  `internal/liveverify/affected/golang` and `cmd/corvint` stay unbounded with recorded blockers.
+- **AFP-V0-108:** (proposed 2026-11-10; delivery delivered; V1-5201)
+  A read scope for a package that leaves the unbounded set MUST be declared only after that
+  package's tests pass under the Landlock wrapper with exactly that scope. The build log MUST name
+  the run. (PROD-TEST-002)
+- **AFP-V0-109:** (proposed 2026-11-10; delivery delivered; V1-5201)
+  A package without a passing confined run MUST stay selected on every change, and the build log
+  MUST NOT count it as freed. (PROD-TEST-002)
+- **AFP-V0-110:** (proposed 2026-11-10; delivery partial; V1-5201)
+  The change MUST record the plan for the diff of pull request 178 from base `2913fdc7e` before and
+  after it, with the selected Go packages and their test counts. A scoped hub MUST be absent from
+  the plan after the change. (PROD-TEST-001)
+  The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
+  `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
