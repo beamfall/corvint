@@ -72,7 +72,7 @@ func newConfirmRepo(t *testing.T) *confirmRepo {
 
 // confirmFakeGo stands in for the Go toolchain: `go version` prints the pinned version; `go test ... ./DIR`
 // fails with a package-level fail event when DIR/FAIL exists in the worktree, exits nonzero with no
-// event when DIR/UNUSABLE exists, and passes otherwise. Every test invocation is appended to
+// event when DIR/UNUSABLE exists, sleeps a minute first when DIR/SLOW exists, and passes otherwise. Every test invocation is appended to
 // $FAKE_GO_LOG as "<worktree name> <dir>".
 func confirmFakeGo(t *testing.T, dir string) string {
 	t.Helper()
@@ -88,6 +88,7 @@ mod=$(sed -n 's/^module //p' go.mod)
 pkg="$mod/$dir"
 [ "$dir" != . ] || pkg=$mod
 [ -d "$dir" ] || { echo "no such package ./$dir" >&2; exit 1; }
+if [ -f "$dir/SLOW" ]; then sleep 60; fi
 if [ -f "$dir/UNUSABLE" ]; then echo "go: build constraints exclude all Go files" >&2; exit 1; fi
 printf '{"Action":"start","Package":"%s"}\n' "$pkg"
 if [ -f "$dir/FAIL" ]; then
@@ -370,5 +371,38 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 	}
 	if strings.Contains(wf, "pull_request") || strings.Contains(wf, "head_repository.full_name != ") {
 		t.Fatal("main-miss.yml reaches pull-request code")
+	}
+}
+
+// TestCINV07922RerunEndsWithBudget: a rerun still running when BUDGET_SECONDS ends is killed and
+// reported as a timeout, so the step writes check.json instead of outliving its own deadline.
+func TestCINV07922RerunEndsWithBudget(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/mainmiss-confirm.sh", "did not end within")
+	if _, err := exec.LookPath("timeout"); err != nil {
+		t.Skip("timeout(1) is not installed; the script runs reruns unbounded on such a host")
+	}
+	r := &confirmRepo{t: t, dir: t.TempDir()}
+	r.git("init", "-q", "-b", "main")
+	writeFile(t, filepath.Join(r.dir, "go.mod"), []byte("module example.org/m\n\ngo 1.27.3\n"))
+	writeFile(t, filepath.Join(r.dir, "store", "store.go"), []byte("package store\n"))
+	writeFile(t, filepath.Join(r.dir, "store", "SLOW"), nil)
+	r.git("add", "-A")
+	r.git("commit", "-q", "-m", "base")
+	r.base = r.git("rev-parse", "HEAD")
+	r.git("checkout", "-q", "-b", "feature")
+	writeFile(t, filepath.Join(r.dir, "store", "FAIL"), nil)
+	r.git("add", "-A")
+	r.git("commit", "-q", "-m", "feature")
+	r.prTip = r.git("rev-parse", "HEAD")
+	r.git("checkout", "-q", "main")
+	r.git("merge", "-q", "--no-ff", "-m", "Merge pull request #12", r.prTip)
+	r.merge = r.git("rev-parse", "HEAD")
+	r.head = r.merge
+	miss := doc{"pr": 12, "head": r.prTip, "merge": r.merge, "packages": []string{"example.org/m/store"}}
+	res := confirm(t, r, []any{miss}, "BUDGET_SECONDS=2")
+	want := "the base rerun at " + r.base + " did not end within the 2 s budget"
+	if res.outputs["check"] != "ci-forward-MAINCHECK-r500-"+r.head+"-e2-c0-k0-u1-pr12" || len(res.log) != 1 ||
+		!strings.Contains(res.summary, want) {
+		t.Fatalf("slow base: %v reruns %v\n%s", res.outputs, res.log, res.summary)
 	}
 }
