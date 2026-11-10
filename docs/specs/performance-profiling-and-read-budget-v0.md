@@ -69,7 +69,9 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   deadline) MUST NOT stop the profiles, and a panicking body still writes them.
 - `PRB-V0-005`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The token `{pid}` in either path MUST be replaced by the process ID, so a child that
   inherits the environment writes its own file instead of truncating its parent's. Without the
-  token the path is used as given; one process writes one CPU and one heap file.
+  token the path is used as given; one process writes one CPU and one heap file, so the
+  `corvint-docs` that `corvint` forwards to (`CMS-V0-003`) inherits only the knobs holding the
+  token.
 - `PRB-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) A knob that cannot be honoured MUST refuse before the command runs, with status 2:
   `profile-unavailable` when a file cannot be created or the profiler cannot start,
   `profile-invalid` when both knobs name the same file or a value holds a NUL byte. `corvint`
@@ -476,7 +478,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-002` | `internal/procprofile` | `TestPRBV0002KnobsOffByDefault` |
 | `PRB-V0-003` | `internal/procprofile` | `TestPRBV0001BothKnobsWriteProfiles`, `TestPRBV0008EveryNamedCommandWritesProfiles` |
 | `PRB-V0-004` | `internal/procprofile` | `TestPRBV0004ContextEndWritesProfilesBeforeExit`, `TestPRBV0004SignalWritesProfiles` |
-| `PRB-V0-005` | `internal/procprofile` | `TestPRBV0005PIDPlaceholder` |
+| `PRB-V0-005` | `internal/procprofile`, `cmd/corvint/docs_shim.go` | `TestPRBV0005PIDPlaceholder`, `TestPRBV0005ForwardedDocsChildKeepsOnlyPIDKnobs` |
 | `PRB-V0-006` | `internal/procprofile`, `cmd/corvint/profile_knobs.go` | `TestPRBV0006UnusableKnobRefusesBeforeBody`, `TestPRBV0006RefusalWritesNothing`, `TestPRBV0006UnusableKnobRefusesCommand`, `TestPRBV0006LateStartupFailurePreservesProfiles`, `TestPRBV0006DeviceDestinationKeepsOtherProfile` |
 | `PRB-V0-007` | `internal/procprofile` | `TestPRBV0007WriteFailureReported`, `TestPRBV0007CPUWriteFailureReported` |
 | `PRB-V0-008` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/main.go`, `cmd/corvint/taskcontext.go` | `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0008NoNestedProfilerStart` |
