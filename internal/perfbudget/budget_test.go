@@ -45,7 +45,9 @@ func sharedHarnessBinaries(t *testing.T) map[string]string {
 			return
 		}
 		harnessBinaries.paths = make(map[string]string)
-		for _, pkg := range []string{"corvint"} {
+		// corvint docs is served by the corvint-docs executable beside corvint, so the
+		// fixture build needs both.
+		for _, pkg := range []string{"corvint", "corvint-docs"} {
 			path := filepath.Join(harnessBinaries.root, testplatform.Executable(pkg))
 			build := exec.Command("go", "build", "-o", path, "../../cmd/"+pkg)
 			if out, err := build.CombinedOutput(); err != nil {
