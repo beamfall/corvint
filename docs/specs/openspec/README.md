@@ -82,7 +82,7 @@ plan requirements the proposal header serves.
 | `how-rewrite` | Rewrite of `corvint how` | PROD-DOCS-007; PROD-INT-004 | proposed |
 | `jest-provider` | Jest runner provider, line-exact (R7, R8) | PROD-TEST-006, 008, 011 | proposed |
 | `line-evidence` | Line-level evidence behind line-exact selection (R8, R9) | PROD-TEST-008 | proposed |
-| `literal-temp-root` | Temp-root and bounded-climb literal proofs, every selection reason reported, and hub read scopes (V1-5201) | PROD-TEST-001, 002 | proposed |
+| `hub-read-scopes` | Declared read scopes for the hub test packages, with whole-repository tests moved out (V1-5201, V1-5234) | PROD-TEST-001, 002 | proposed |
 | `macos-required-shards` | Required macOS checks on the release candidate | PROD-INT-015 | proposed |
 | `mcp-tool-table` | One table of MCP tool names and schemas; one `corvint-docs mcp` server (R13, R30) | PROD-DOCS-001, 010; PROD-TEST-009 | proposed |
 | `narrowing-measurement` | Narrowing measurement, the tiered bar and the `CORVINT_SELECTION` kill switch (R13, R16) | PROD-TEST-002, 008, 011; PROD-INT-007, 008 | proposed |
