@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 
 	"github.com/Beamfall/corvint/internal/docsenvelope"
@@ -56,7 +55,7 @@ func runDocsTool(ctx context.Context, root, tool string, stdin io.Reader, stdout
 			result.Structured, result.Text = structured, text
 		}
 	}
-	encoded, err := json.Marshal(result)
+	encoded, err := encodeToolResult(result)
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "cannot encode the docs-tool result"})
 		return 2
@@ -66,4 +65,18 @@ func runDocsTool(ctx context.Context, root, tool string, stdin io.Reader, stdout
 		return 2
 	}
 	return 0
+}
+
+// encodeToolResult encodes result as the bridge reads it back. It never HTML-escapes: `<`, `>`
+// and `&` would grow to six bytes in each of the two copies of a draft (structured and text).
+// An envelope the bridge's docsenvelope.MaxResultBytes bound cannot hold, with its newline,
+// becomes the coded documentation-limit-exceeded refusal rather than output the bridge can only
+// report as internal-error.
+func encodeToolResult(result docsenvelope.ToolResult) ([]byte, error) {
+	encoded, err := gokernel.CanonicalJSON(result)
+	if err == nil && len(encoded)+1 > docsenvelope.MaxResultBytes {
+		refusal := docsenvelope.ToolResult{Schema: result.Schema, Tool: result.Tool, Error: &docsenvelope.Coded{Code: "documentation-limit-exceeded"}}
+		encoded, err = gokernel.CanonicalJSON(refusal)
+	}
+	return encoded, err
 }

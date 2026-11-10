@@ -140,3 +140,30 @@ func TestDocsShimMapsSignalExit(t *testing.T) {
 		t.Errorf("exit %d stderr %q; want 143 and a signal diagnostic", code, &stderr)
 	}
 }
+
+// PRB-V0-005: a profile knob without {pid} names the file this corvint process owns, so the
+// forwarded corvint-docs does not inherit it; a knob with the token, and every other variable,
+// pass through unchanged.
+func TestPRBV0005ForwardedDocsChildKeepsOnlyPIDKnobs(t *testing.T) {
+	capture := fakeDocsApp(t)
+	script := filepath.Join(filepath.Dir(capture), "corvint-docs")
+	body := "#!/bin/sh\nprintf '%s|%s|%s\\n' \"${CORVINT_CPUPROFILE-unset}\" \"${CORVINT_MEMPROFILE-unset}\" \"$CORVINT_TEST_KEEP\" > \"$CORVINT_TEST_CAPTURE\"\n"
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CORVINT_TEST_KEEP", "kept")
+	for _, test := range []struct{ cpu, mem, want string }{
+		{"/profiles/cpu.prof", "/profiles/mem-{pid}.prof", "unset|/profiles/mem-{pid}.prof|kept\n"},
+		{"/profiles/cpu-{pid}.prof", "/profiles/mem.prof", "/profiles/cpu-{pid}.prof|unset|kept\n"},
+	} {
+		t.Setenv("CORVINT_CPUPROFILE", test.cpu)
+		t.Setenv("CORVINT_MEMPROFILE", test.mem)
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+			t.Fatalf("exit %d stderr %q", code, &stderr)
+		}
+		if recorded, err := os.ReadFile(capture); err != nil || string(recorded) != test.want {
+			t.Errorf("child environment %q (%v); want %q", recorded, err, test.want)
+		}
+	}
+}
