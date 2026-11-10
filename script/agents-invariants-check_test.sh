@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # ACR-V1-012: script/agents-invariants-check.sh passes on the repository's AGENTS.md, fails when
 # invariant 8 loses the words "human-owned intent", and fails when invariant 3, 4, 5 or 7 is
 # edited without moving the pin (an edit from another change). Temporary copies only.
