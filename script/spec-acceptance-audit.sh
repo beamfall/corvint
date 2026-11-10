@@ -70,7 +70,7 @@ while (my $line = <$in>) {
     my @fields = split /\t/, $line, -1;
     @fields == 5 or die "$tsv:$.: want 5 columns, got " . @fields . "\n";
     my ($id, $file, $title, $acceptance, $by) = @fields;
-    $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3}\z/
+    $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3,}\z/
         && $file =~ m{\Adocs/specs/[^/]+\.md\z}
         or die "$tsv:$.: want a requirement id and a docs/specs/*.md file\n";
     my ($defined, $number) = @{$line{$id} // die "$tsv:$.: $id is not defined by the staged specs; run make spec-requirements\n"};

@@ -12,8 +12,8 @@ was created from).
 ## Agent digest
 - Claim: One decision record accepts the 1.0 plan, a log holds each acceptance, and an audit compares the log with the spec markers.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-5272) / experimental; partially delivered
-- Exists: decision 0596; `docs/specs/openspec/acceptance-log.tsv`; `script/acceptance-log-audit.sh`; `script/agents-invariants-check.sh`.
-- Blocked on: the release record format and workflow read (ACR-V1-009, ACR-V1-010); the stale-plan and stale-quote audits.
+- Exists: decision 0596; `docs/specs/openspec/acceptance-log.tsv`; `script/acceptance-log-audit.sh`; `script/acceptance-plan-pin-check.sh`; `script/agents-invariants-check.sh`.
+- Blocked on: the release record format and workflow read (ACR-V1-009, ACR-V1-010); the stale-quote audit.
 - Read next: Requirements; Fallback in force; Acceptance evidence.
 
 ## User and measurable job
@@ -187,10 +187,25 @@ prints one line per finding:
 It ends with a `total` line. It reports and exits 0; with `--strict` it exits 1 on any finding.
 A malformed log or index exits 2. `make spec-acceptance-audit` runs it after the mode listing.
 
-Known finding at delivery: the plan still marks its 77 PROD requirements `(proposed
-2026-11-09)` while the log lists them as `owner`, so the audit reports 77 mismatches. Rewriting
-the markers changes the plan content that decision 0596 names by commit and blob (ACR-V1-001).
-That edit is the owner's to direct; the audit stays report-only until it is made.
+The plan marks each of its 77 PROD requirements `(accepted, decision 0596; V1-5272)`, so the
+log and the index agree and `make spec-acceptance-audit` runs the audit with `--strict`.
+
+## The plan pin check
+
+`script/acceptance-plan-pin-check.sh` compares the plan with the blob the acceptance record
+names (ACR-V1-001). It compares words, so a re-wrapped paragraph is no difference. It ignores
+three things, and nothing else:
+
+- the acceptance marker of a PROD requirement line, `(proposed YYYY-MM-DD)` or `(accepted,
+  decision NNNN; V1-NNNN)`. Owner decision H17 (2026-11-10): "Ignore markers in pin";
+- the line numbers of a `path:LINE@hash` citation. A repin moves them and the hash holds;
+- the record's own path, which changed when the proposed record took its decision number.
+
+The second and third are lane decisions, not owner answers; both were already true of the plan
+on `main` when the check was written. Any other difference prints `STALE_PLAN` with the first
+differing words and exits 1. A record that names no blob, or a blob the clone does not hold,
+exits 2, and the pin is then `NOT_VERIFIED`. The pin no longer covers the acceptance markers:
+the log audit covers those. The plan's "Intent: proposed" sub-lines are pinned text and stay.
 
 ## Failure modes
 
@@ -208,7 +223,7 @@ That edit is the owner's to direct; the audit stays report-only until it is made
 
 | Requirement | Evidence | State |
 |---|---|---|
-| ACR-V1-001 | Decision 0596 names plan commit `1d1f06706` and blob `e4accbefd`; merged on the owner's instruction (H15, H16) | record delivered; stale-plan audit `NOT_RUN` |
+| ACR-V1-001 | Decision 0596 names plan commit `1d1f06706` and blob `e4accbefd`; merged on the owner's instruction (H15, H16); `script/acceptance-plan-pin-check_test.sh` | delivered |
 | ACR-V1-002 | Decision 0596 section 4 | delivered |
 | ACR-V1-003 | Decision 0596 section 5 | delivered |
 | ACR-V1-004 | Decision 0596 section 7 | table delivered; stale-quote audit `NOT_RUN` |
