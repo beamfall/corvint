@@ -207,6 +207,7 @@
         "internal/releasegate",
         "internal/toolchainreceipt",
         "internal/update",
+        "internal/workflowshell",
         "script",
         "tools"
       ]

@@ -48,7 +48,7 @@
         "type": "source",
         "path": "cmd/corvint-js-test-provider/main.go"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     },
     {
       "from": "js-session",
@@ -57,7 +57,7 @@
         "type": "source",
         "path": "internal/jstestprovider/application_attestation.go"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     },
     {
       "from": "js-session",
@@ -66,7 +66,7 @@
         "type": "source",
         "path": "internal/testevidence/capture.go"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     },
     {
       "from": "js-session",
@@ -75,7 +75,7 @@
         "type": "source",
         "path": "internal/testvalidity/projection.go"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     },
     {
       "from": "installed-js-live-tests.default",
@@ -85,7 +85,7 @@
         "path": "conformance/interactive-alpha/core-provider-proof.mjs",
         "test_key": "conformance/interactive-alpha/core-provider-proof.mjs"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     },
     {
       "from": "installed-js-live-tests.default",
@@ -95,7 +95,7 @@
         "path": "extensions/vscode/test/installed/run.mjs",
         "test_key": "extensions/vscode/test/installed/run.mjs"
       },
-      "reviewed_at": "5cb958a659c912a4c03f902adbc40b9fa4018ea9"
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
     }
   ]
 }

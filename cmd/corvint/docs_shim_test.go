@@ -189,7 +189,7 @@ func besideDocsApp(t *testing.T, versionLine string) string {
 	}
 	capture := filepath.Join(t.TempDir(), "capture")
 	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\\n' '" + versionLine + "'; exit 0; fi\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_CAPTURE\"\nexit 0\n"
-	if err := os.WriteFile(sibling, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(sibling, []byte(script), 0o755); err != nil {
 		t.Skipf("cannot write beside the test executable: %v", err)
 	}
 	t.Cleanup(func() { os.Remove(sibling) })

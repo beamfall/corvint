@@ -75,7 +75,7 @@ func (group Affected) Tools() []bridge.ToolDescriptor {
 			"without base it plans the dirty worktree alone. The verdict carries the plan scope, dirty/selected/excluded/unknown counts, unknown reasons and the sorted tier-0 and tier-1 unit names; " +
 			"missing evidence widens the scope or stays UNKNOWN, never selects fewer tests. Read-only; served by corvint mcp only. " +
 			"One planner runs at a time per root. A verdict too large for one MCP message is the tool error verdict-oversized: read it with the CLI instead. " +
-			"If the verdict's degradations name self-binary-stale, this server is running a corvint binary older than the repository's Go source; " +
+			"The tool error self-binary-stale means this server is running a corvint binary older than the repository's Go source; " +
 			"rebuilding changes nothing until the server restarts, so rebuild corvint and restart corvint mcp.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{

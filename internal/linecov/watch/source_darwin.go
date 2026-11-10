@@ -99,13 +99,18 @@ func native(ctx context.Context, root string) (*Source, error) {
 				}
 			}
 			for dir := range dirs {
-				added, err := w.rescan(dir)
+				changed, err := w.rescan(dir)
 				if err != nil {
 					s.stop(fmt.Errorf("kqueue watches cannot be restored under %s: %w", root, descriptorHint(err)))
 					return
 				}
-				paths = append(paths, added...)
-				paths = append(paths, dir)
+				// The directory itself is a changed path only when neither its
+				// rescan nor an event names an entry of it, so Git-ignored output
+				// alone stays irrelevant (LPCV-V0-7607).
+				if len(changed) == 0 && !namesEntryOf(paths, dir) {
+					changed = append(changed, dir)
+				}
+				paths = append(paths, changed...)
 			}
 			if _, err := os.Stat(root); err != nil {
 				s.stop(fmt.Errorf("kqueue: root %s: %w", root, err))
@@ -227,10 +232,20 @@ func (w *vnodeWatches) addTree(dir string) error {
 	})
 }
 
+// namesEntryOf reports whether any path is a direct entry of dir.
+func namesEntryOf(paths []string, dir string) bool {
+	for _, p := range paths {
+		if filepath.Dir(p) == dir {
+			return true
+		}
+	}
+	return false
+}
+
 // rescan reconciles one directory after its event: new entries are watched
 // (a new directory with its whole tree), entries whose inode no longer
 // matches their descriptor are rewatched, and entries that are gone are
-// dropped. It returns the paths that were added or replaced.
+// dropped. It returns the paths that were added, replaced or dropped.
 func (w *vnodeWatches) rescan(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -270,6 +285,7 @@ func (w *vnodeWatches) rescan(dir string) ([]string, error) {
 	for p := range w.fds {
 		if len(p) > len(prefix) && p[:len(prefix)] == prefix && filepath.Dir(p) == dir && !present[p] {
 			w.drop(p)
+			added = append(added, p)
 		}
 	}
 	return added, nil

@@ -37,6 +37,12 @@ func TestVnodeRescanReconcilesInodes(t *testing.T) {
 	if before == 0 || !w.dirs[filepath.Join(root, "p")] {
 		t.Fatalf("tree not watched: %v", w.fds)
 	}
+	// The kernel reuses the lowest free descriptor number, so a rewatch can
+	// get the old number back: compare the inodes the descriptors name.
+	var old syscall.Stat_t
+	if err := syscall.Fstat(before, &old); err != nil {
+		t.Fatal(err)
+	}
 	// Replace p.go without an event being processed, remove gone.go, add a tree.
 	write(t, root, "p/p.go.tmp", "package p\n\nfunc F() {}\n")
 	if err := os.Rename(filepath.Join(root, "p", "p.go.tmp"), target); err != nil {
@@ -50,8 +56,12 @@ func TestVnodeRescanReconcilesInodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if after := w.fds[target]; after == 0 || after == before || !w.sameInode(after, target) {
-		t.Fatalf("replaced inode kept its stale descriptor: before %d after %d", before, after)
+	after := w.fds[target]
+	var now syscall.Stat_t
+	if after == 0 || syscall.Fstat(after, &now) != nil || now.Ino == old.Ino ||
+		!w.sameInode(after, target) {
+		t.Fatalf("replaced inode kept its stale descriptor: before %d (inode %d) after %d (inode %d)",
+			before, old.Ino, after, now.Ino)
 	}
 	if _, ok := w.fds[filepath.Join(root, "p", "gone.go")]; ok {
 		t.Fatal("removed file kept its watch")
@@ -64,7 +74,8 @@ func TestVnodeRescanReconcilesInodes(t *testing.T) {
 	for _, p := range added {
 		seen[p] = true
 	}
-	if !seen[target] || !seen[filepath.Join(root, "p", "q")] {
+	gone := filepath.Join(root, "p", "gone.go")
+	if !seen[target] || !seen[filepath.Join(root, "p", "q")] || !seen[gone] {
 		t.Fatalf("rescan reported %v", added)
 	}
 	for path, fd := range w.fds {

@@ -124,10 +124,8 @@ func TestMMRV01118AffectedGroupServedThroughHooks(t *testing.T) {
 	if !slices.Contains(listed, toolgroup.AffectedTool) || !slices.Contains(listed, "corvint.status") {
 		t.Fatalf("tools=%q", listed)
 	}
-	root, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The planner runs for the declared root spelling, which rootbind.Resolve
+	// keeps when it is the toplevel (macOS /var -> /private/var stays /var).
 	for id, base := range map[float64]string{2: "", 3: "abc1234"} {
 		result := resultOf(t, responses[id])
 		structured, _ := result["structuredContent"].(map[string]any)
@@ -171,10 +169,6 @@ func TestMMRV01118AffectedGroupRoutesByAlias(t *testing.T) {
 	)
 	if exit != 0 || stderr != "" {
 		t.Fatalf("exit=%d stderr=%q", exit, stderr)
-	}
-	e2e, err := filepath.EvalSymlinks(e2e)
-	if err != nil {
-		t.Fatal(err)
 	}
 	structured, _ := resultOf(t, responses[1])["structuredContent"].(map[string]any)
 	if structured["root"] != e2e || structured["base"] != "HEAD~1" {

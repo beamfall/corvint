@@ -17,6 +17,8 @@
         "script/check-line-citations.sh",
         "script/gen-spec-requirements.sh",
         "script/merge-use-case-pins.sh",
+        "script/test-run-pattern.sh",
+        "tools/ci-forward-row/narrowing_reasons_test.go",
         "tools/ci-forward-row/narrowing_sized_test.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -36,10 +38,11 @@
         "script/check-line-citations.sh",
         "script/gen-spec-requirements.sh",
         "script/merge-use-case-pins.sh",
+        "script/test-run-pattern.sh",
         "tools/ci-reuse-plan/gate_reuse_workflow_test.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ],
-      "reason": "V1-5184: the CEM release gate and CI workflows run it with bash. The mentions construct .github paths for other purposes or assert workflow text that names it (the gate-reuse workflow test, the batch-precheck test) and never execute it."
+      "reason": "V1-5184: the CEM release gate and CI workflows run it with bash. The mentions construct .github paths for other purposes or assert workflow text that names it (the gate-reuse workflow test, the batch-precheck test) and never execute it. Intermediate-join mentions do not execute this script."
     },
     "script/affected-zero-unknown-replay.sh": {
       "callers": [
@@ -65,6 +68,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/affected-zero-unknown-replay/main.go",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
@@ -96,6 +100,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -131,6 +136,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -165,6 +171,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -196,6 +203,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -226,6 +234,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -254,10 +263,11 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ],
-      "reason": "V1-5184: the ci-least-privilege-check make target and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it."
+      "reason": "V1-5184: the ci-least-privilege-check make target and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it. Intermediate-join mentions do not execute this script."
     },
     "script/check-fixed-tmp-paths.sh": {
       "callers": [
@@ -286,6 +296,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -316,6 +327,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -353,6 +365,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -386,6 +399,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -415,10 +429,11 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ],
-      "reason": "V1-5184: batch-precheck.sh and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it."
+      "reason": "V1-5184: batch-precheck.sh and the script's own test run it; the other callers are tracked executable sources that construct script paths and conservatively count as callers (AZU-V0-8901). The mentions join intermediate script paths or list script names and never execute it. Intermediate-join mentions do not execute this script."
     },
     "script/go-test-shard.sh": {
       "callers": [
@@ -445,6 +460,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -481,12 +497,13 @@
         "cmd/corvint/session_test_command_unix_test.go",
         "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",
+        "cmd/corvint/test_producer_strv08301_test.go",
         "cmd/corvint/test_whole_reason.go",
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
+        "cmd/corvint/watch.go",
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
-        "internal/liveverify/affected/affprec_repo_test.go",
         "internal/liveverify/affected/golang/readkinds_test.go",
         "internal/liveverify/affected/liverepo/measure_test.go",
         "internal/liveverify/affected/liverepo/precision_replay_repo_test.go",
@@ -495,6 +512,7 @@
         "internal/liveverify/affected/shell/callers_constructed_test.go",
         "internal/releasecandidate/version_test.go",
         "internal/sessiontest/declared.go",
+        "internal/sessiontest/manifest.go",
         "script/analyzer-schema_test.sh",
         "script/check-bash32.sh",
         "script/check-bash32_test.sh",
@@ -550,6 +568,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -578,6 +597,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -608,6 +628,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -638,6 +659,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -666,6 +688,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -695,6 +718,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -712,7 +736,7 @@
         "script/repin-use-case-receipts_test.sh",
         "tools/test-commands-check/main_test.go"
       ],
-      "reason": "AZU-V0-004: literal callers run it; directory constructions are partitioned as for the other script/ entries.",
+      "reason": "AZU-V0-004: literal callers run it; directory constructions are partitioned as for the other script/ entries. Intermediate-join mentions do not execute this script.",
       "mentions": [
         "internal/appmap/fixture_seed_test.go",
         "internal/extevidence/selection_test.go",
@@ -723,6 +747,7 @@
         "script/gen-spec-requirements.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -751,6 +776,7 @@
         "script/gen-spec-requirements.sh",
         "script/merge-drivers.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -780,6 +806,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -809,6 +836,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -839,6 +867,7 @@
         "script/merge-use-case-pins.sh",
         "script/repin_test.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -869,6 +898,7 @@
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
         "script/spec-acceptance-audit.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]
@@ -898,6 +928,7 @@
         "script/gen-spec-requirements.sh",
         "script/merge-drivers.sh",
         "script/merge-use-case-pins.sh",
+        "script/test-run-pattern.sh",
         "tools/flow-guide-check/main.go",
         "tools/test-read-scopes-check/temp_root_test.go"
       ]

@@ -35,7 +35,7 @@ summary form of the affected verb prints, for a base or for the dirty worktree;
 only this verb serves it, because the planner lives in this binary (MMR-V0-1118).
 One planner runs at a time per root; a verdict too large for one MCP message is
 the tool error verdict-oversized, read with the CLI instead. The server keeps the
-binary it started with: when a verdict's degradations name self-binary-stale,
+binary it started with: when a call answers the tool error self-binary-stale,
 rebuild this binary and restart the server, since a rebuild alone changes nothing.
 
 Example:

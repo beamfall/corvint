@@ -77,6 +77,13 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 				if selection.Kind != affected.SelectionKindCIJob && selection.Kind != affected.SelectionKindDriverTarget {
 					t.Errorf("%s selected by %s with kind %q; want a driver selection", selection.UnitID, selection.Witness.Kind, selection.Kind)
 				}
+			case affected.WitnessPathGlobReader:
+				// A make target that runs `go run` or enumerates the tree
+				// reads every path, recorded as the anchored glob "/*"
+				// (AFP-V0-9401), so it is selected on every change.
+				if selection.Kind != affected.SelectionKindDriverTarget || selection.Witness.Glob != "/*" {
+					t.Errorf("%s selected by %s glob %q; want a CEM reader or its dependent", selection.UnitID, selection.Witness.Kind, selection.Witness.Glob)
+				}
 			default:
 				t.Errorf("%s selected by %s; want a CEM reader or its dependent", selection.UnitID, selection.Witness.Kind)
 			}

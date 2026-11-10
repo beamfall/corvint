@@ -384,21 +384,17 @@ func (o *outputs) discard() {
 }
 
 // refuseOutputInsideRepository is the ARTIFACT-BIN-V0-007 rule that release output lives
-// outside the repository: a DIR at or under root refuses `output-inside-repository`.
+// outside the repository: a DIR at or under root refuses `output-inside-repository`. Both
+// paths are compared physically, so a DIR not yet created below a symlinked ancestor of the
+// root (macOS /var -> /private/var) is still recognised as inside it.
 func refuseOutputInsideRepository(root, output string) error {
-	root, err := filepath.Abs(root)
+	root, err := physicalPath(root)
 	if err != nil {
 		return err
 	}
-	if resolved, err := filepath.EvalSymlinks(root); err == nil {
-		root = resolved
-	}
-	output, err = filepath.Abs(output)
+	output, err = physicalPath(output)
 	if err != nil {
 		return err
-	}
-	if resolved, err := filepath.EvalSymlinks(output); err == nil {
-		output = resolved
 	}
 	relative, err := filepath.Rel(root, output)
 	if err != nil {
@@ -408,6 +404,26 @@ func refuseOutputInsideRepository(root, output string) error {
 		return fmt.Errorf("output-inside-repository: %s is under the repository %s; write release output outside it", output, root)
 	}
 	return nil
+}
+
+// physicalPath is the absolute path with its deepest existing ancestor's symbolic links
+// resolved and the not yet existing remainder appended unchanged.
+func physicalPath(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	missing := ""
+	for current := path; ; current = filepath.Dir(current) {
+		if resolved, err := filepath.EvalSymlinks(current); err == nil {
+			return filepath.Join(resolved, missing), nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return path, nil
+		}
+		missing = filepath.Join(filepath.Base(current), missing)
+	}
 }
 
 // verifyOutput rechecks directory against the manifest and repairs nothing: the digest file

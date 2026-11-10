@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,9 +173,12 @@ func TestManifestConformance_LGPV0008(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// affectedcheck and liverepo hold the hub's shared witness rules and its
+	// whole-repository tests (hub-read-scopes); neither is a language provider.
+	hub := []string{"affectedcheck", "languages", "liverepo", "testdata"}
 	for _, e := range providers {
 		p := "internal/liveverify/affected/" + e.Name()
-		if e.IsDir() && e.Name() != "languages" && e.Name() != "testdata" && owner[p] == "" {
+		if e.IsDir() && !slices.Contains(hub, e.Name()) && owner[p] == "" {
 			t.Errorf("provider package %s belongs to no language plugin", p)
 		}
 	}

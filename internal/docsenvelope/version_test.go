@@ -4,12 +4,12 @@ package docsenvelope
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/versionline"
 )
 
@@ -66,7 +66,7 @@ func TestCMSV0002ProbeVersionAndCheckBeside(t *testing.T) {
 	}
 	dir := t.TempDir()
 	sibling := filepath.Join(dir, "corvint-docs")
-	if err := os.WriteFile(sibling, []byte("#!/bin/sh\n[ \"$1\" = --version ] || exit 9\nprintf 'corvint-docs 9.9.9\\n'\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(sibling, []byte("#!/bin/sh\n[ \"$1\" = --version ] || exit 9\nprintf 'corvint-docs 9.9.9\\n'\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	line, err := ProbeVersion(context.Background(), sibling)
@@ -80,13 +80,13 @@ func TestCMSV0002ProbeVersionAndCheckBeside(t *testing.T) {
 	if reason := CheckBeside(context.Background(), sibling, self); reason != "" {
 		t.Fatalf("a sibling on PATH, not beside, was checked: %q", reason)
 	}
-	if err := os.WriteFile(sibling, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(sibling, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ProbeVersion(context.Background(), sibling); err == nil {
 		t.Fatal("a failing --version probed as a version")
 	}
-	if err := os.WriteFile(sibling, []byte("#!/bin/sh\nhead -c 100000 /dev/zero | tr '\\0' x\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(sibling, []byte("#!/bin/sh\nhead -c 100000 /dev/zero | tr '\\0' x\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ProbeVersion(context.Background(), sibling); err == nil {

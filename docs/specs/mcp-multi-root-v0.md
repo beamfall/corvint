@@ -243,10 +243,10 @@ into the tool catalogue.
     earlier `corvint: DEGRADED ...` notice (`AFP-V0-846`) never turns a named refusal into
     `affected-failed`; an unparsable last line is `affected-failed` with that line as the message;
     the message, parsed or raw, is cut to 4096 bytes.
-  - Stale binary. `affected --summary` reports `self-binary-stale` as a degradation inside its
-    successful verdict (`degradations`, `degradationDetails`; exit 0), never as a refusal, so the
-    tool answers it as the CLI bytes with those members and no tool error. Because the answer bytes
-    are the CLI's, the recovery the verdict names (rebuild or `go run`) is not restated there; the
+  - Stale binary. `affected --summary` refuses a `self-binary-stale` binary with exit 2 and that
+    code (`AFP-V0-9730`; the runner never passes `--accept-stale-binary`), so the tool answers it
+    as the group's tool error carrying the CLI's `code` and `error`, never as a plan. Because the
+    error is the CLI's, the recovery it names (rebuild or `go run`) is not restated there; the
     tool description and `corvint mcp --help` MUST say that the server keeps the binary it started
     with, so the recovery is to rebuild `corvint` and restart `corvint mcp`.
   - Framing. `AHI-004` binds the `corvint-mcp` tool-result text block (`MCPV0-008`): the text block
@@ -264,8 +264,9 @@ into the tool catalogue.
   `corvint affected --summary` for the same root and base, a selection the tool narrows, or
   `corvint-mcp` serving the group; two planners running at once for one root, or a waiting call that
   outlives its cancelled context; a refusal preceded by a DEGRADED line answered as
-  `affected-failed`, or a tool-error message over 4096 bytes; a stale binary answered as a tool
-  error, or a description and help without the restart recovery; a framed `structuredContent` or
+  `affected-failed`, or a tool-error message over 4096 bytes; a stale binary answered as a plan
+  instead of the `self-binary-stale` tool error, or a description and help without the restart
+  recovery; a framed `structuredContent` or
   an unframed text block; an oversized verdict answered as `output-bound-exceeded`; a planner child
   process other than `git`. Rollback: drop `toolgroup.Affected`, the `affected` token in
   `toolGroups`, `cli.Hooks` and the `corvint mcp` runner; no wire or persisted state depends on
@@ -363,8 +364,9 @@ profile goldens pass unchanged and `testdata/tools-list-groups.golden.jsonl` is 
 Acceptance evidence for `MMR-V0-1118`: `TestV15254MCPAffectedMatchesCLI` compares the tool's text
 block and `structuredContent` with the `corvint affected --summary` bytes on the affected fixture for
 the dirty worktree and for a base, including a refused base; `TestV15254MCPAffectedStaleBinaryDegrades`
-injects a stale binary through the served `corvint mcp` path and requires the CLI's degraded verdict,
-no tool error, and the restart recovery in the description and help; the `internal/mcp/toolgroup` and
+injects a stale binary through the served `corvint mcp` path and requires the CLI's
+`self-binary-stale` refusal as the tool error with the CLI's code and error, and the restart
+recovery in the description and help; the `internal/mcp/toolgroup` and
 `internal/mcp/cli` tests in its row cover the closed input, the `corvint-mcp` refusal, the hook path,
 alias routing, the unusable root, the per-root planner gate and its cancellation, the last-line
 bounded failure, the named size refusal and the followed root;

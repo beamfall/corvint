@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/conformance/release-artifact-v0/archivebuild"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fixtureCatalog is a release catalog over a tiny module: two core binaries, one independent
@@ -80,7 +81,9 @@ func hostSuffix() string {
 
 func git(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false"}, arguments...)...)
+	command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=test",
+		"-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
+		"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
 	out, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, out)
@@ -358,7 +361,7 @@ func TestBuildOneBinaryWritesArchiveChecksumsAndEntryAndRefusesReplacement(t *te
 	}
 	// The stamped binary reports the build number and the source commit it was built from.
 	extracted := filepath.Join(t.TempDir(), binaryName)
-	if err := os.WriteFile(extracted, members[root+"/"+binaryName], 0o755); err != nil {
+	if err := execfile.WriteFile(extracted, members[root+"/"+binaryName], 0o755); err != nil {
 		t.Fatal(err)
 	}
 	out, err := exec.Command(extracted).Output()
@@ -452,7 +455,7 @@ func runExtracted(t *testing.T, output, name string) string {
 	members := archiveMembers(t, filepath.Join(output, archive))
 	binaryName := name + hostSuffix()
 	extracted := filepath.Join(t.TempDir(), binaryName)
-	if err := os.WriteFile(extracted, members[root+"/"+binaryName], 0o755); err != nil {
+	if err := execfile.WriteFile(extracted, members[root+"/"+binaryName], 0o755); err != nil {
 		t.Fatal(err)
 	}
 	out, err := exec.Command(extracted).Output()
