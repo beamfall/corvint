@@ -185,7 +185,10 @@ func runWatchPlan(ctx context.Context, root string, ix *linecov.Index, p watch.P
 		cmd.Dir = root
 		cmd.Stdout, cmd.Stderr = diagnostic, diagnostic
 		cmd.Env = append(os.Environ(), "HEAVY_WHOLE_REASON=corvint watch working-tree plan selects whole package")
-		if err := cmd.Run(); err != nil {
+		// A cancelled watch kills the wrapper, go test and the test binary
+		// together, and a child that keeps the output pipe cannot hold the
+		// watch open.
+		if err := linecov.RunIsolated(cmd); err != nil {
 			lastErr = err
 		}
 	}
