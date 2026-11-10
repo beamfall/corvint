@@ -1,4 +1,81 @@
 id	file	title	acceptance	acceptedBy
+PROD-TEST-001	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Given a commit range or a set of changed paths, Corvint	unrecorded	-
+PROD-TEST-002	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST NOT leave out a test that a change requires;	unrecorded	-
+PROD-TEST-003	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) One plan MUST cover unit, integration and end-to-end	unrecorded	-
+PROD-TEST-004	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) An end-to-end test MUST be selected through the flow it	unrecorded	-
+PROD-TEST-005	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A flow MUST consist of variations with tests attached. A	unrecorded	-
+PROD-TEST-006	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) One command MUST run exactly the selected tests for each o	unrecorded	-
+PROD-TEST-007	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint watch` MUST state, after each save, which tests	unrecorded	-
+PROD-TEST-008	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) For unit and integration tests, where line evidence is	unrecorded	-
+PROD-TEST-009	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) An agent MUST be able to ask through MCP which tests a	unrecorded	-
+PROD-TEST-010	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST give one report, on the command line and	unrecorded	-
+PROD-TEST-011	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The supported runners MUST be exactly the seven blocking	unrecorded	-
+PROD-TEST-012	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Continuous integration MUST run the same plan as the local	unrecorded	-
+PROD-TEST-013	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `CORVINT_SELECTION=full`, set globally or for one runner,	unrecorded	-
+PROD-TEST-014	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Before the RC, each blocking runner MUST pass a frozen	unrecorded	-
+PROD-TEST-015	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST report selection size and over-selection on a	unrecorded	-
+PROD-TEST-016	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Go, Vitest, Jest and pytest MUST each narrow at least 60	unrecorded	-
+PROD-TEST-017	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) An explicit `corvint inventory refresh` step MUST run each	unrecorded	-
+PROD-TEST-018	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) An E2E test linked to no flow MUST always run and be	unrecorded	-
+PROD-TEST-019	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A changed non-code file MUST select every test that might	unrecorded	-
+PROD-TEST-020	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every test run that Corvint executes (`corvint test`,	unrecorded	-
+PROD-DOCS-001	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST serve its read answers to agents through a	unrecorded	-
+PROD-DOCS-002	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST generate draft documentation in which every	unrecorded	-
+PROD-DOCS-003	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST detect documentation that no longer matches	unrecorded	-
+PROD-DOCS-004	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A project MUST declare its flows and variations in one fil	unrecorded	-
+PROD-DOCS-005	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST generate and check flow documentation from	unrecorded	-
+PROD-DOCS-006	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST map an application's screens and routes to	unrecorded	-
+PROD-DOCS-007	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint how` MUST answer how to do a task in the	unrecorded	-
+PROD-DOCS-008	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Flow and map evidence MUST come from recorded end-to-end	unrecorded	-
+PROD-DOCS-009	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST let an agent search the project's	unrecorded	-
+PROD-DOCS-010	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every documentation and flow answer MUST be available	unrecorded	-
+PROD-DOCS-011	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Flow authoring, discovery, proposals and `how` MUST live i	unrecorded	-
+PROD-DOCS-012	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST propose flow declarations and test links with	unrecorded	-
+PROD-DOCS-013	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint-docs` MUST generate the feature map from	unrecorded	-
+PROD-TASK-001	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Tasks MUST keep tickets in a local store in which every	unrecorded	-
+PROD-TASK-002	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Tasks MUST let one agent claim a ticket and its file	unrecorded	-
+PROD-TASK-003	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A ticket MUST be completed only through submit, a gate	unrecorded	-
+PROD-TASK-004	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every change to the store MUST leave a receipt, and an	unrecorded	-
+PROD-TASK-005	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Tasks MUST answer what is open, what is next and what is	unrecorded	-
+PROD-TASK-006	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A ticket MUST be able to name the requirement IDs it	unrecorded	-
+PROD-TASK-007	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Agents MUST use Tasks through its CLI. The Tasks	unrecorded	-
+PROD-TASK-008	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Tasks MUST install, update and run without any Corvint	unrecorded	-
+PROD-TASK-009	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Tasks MUST take over a real project roadmap before stable:	unrecorded	-
+PROD-TASK-010	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint 1.0 MUST NOT ship until corvint-tasks 1.0 passes	unrecorded	-
+PROD-TASK-011	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint and Tasks MUST keep separate semver lines and name	unrecorded	-
+PROD-TASK-012	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A ticket gate MUST be able to run `corvint affected` and	unrecorded	-
+PROD-TASK-013	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A ticket MAY cite a flow or variation ID; the citation MUS	unrecorded	-
+PROD-INT-001	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The code MUST be divided into layers with a check that	unrecorded	-
+PROD-INT-002	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Testing and documentation MUST read flows through one	unrecorded	-
+PROD-INT-003	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every command and MCP tool MUST appear in one capability	unrecorded	-
+PROD-INT-004	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Each of the three products MUST be installable and usable	unrecorded	-
+PROD-INT-005	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every product requirement in this plan MUST trace to	unrecorded	-
+PROD-INT-006	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A user MUST be able to install, update and roll back each	unrecorded	-
+PROD-INT-007	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The 1.0 wire formats and commands MUST be frozen and	unrecorded	-
+PROD-INT-008	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Before 1.0 the RC MUST be qualified on Corvint, on	unrecorded	-
+PROD-INT-009	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint MUST use its three products on itself, recorded as	unrecorded	-
+PROD-INT-010	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every surviving spec MUST name the product requirement it	unrecorded	-
+PROD-INT-011	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Every change MUST be documented before it is built: a	unrecorded	-
+PROD-INT-012	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) 1.0 is done only when every `PROD` requirement is PASS wit	unrecorded	-
+PROD-INT-013	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The freeze date MUST be 2026-12-15. The RC is published	unrecorded	-
+PROD-INT-014	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A pushed version tag MUST start a workflow that runs the f	unrecorded	-
+PROD-INT-015	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Supported platforms MUST be Linux and macOS. Windows is	unrecorded	-
+PROD-INT-016	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The flow file MUST carry a schema version and every reader	unrecorded	-
+PROD-INT-017	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Release gates MUST be the affected plan, the exhaustive `g	unrecorded	-
+PROD-INT-018	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) One GitHub Action in `beamfall/corvint-action` MUST, with	unrecorded	-
+PROD-INT-019	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The action MUST honour a kill-switch repository variable	unrecorded	-
+PROD-INT-020	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) A change to Corvint's own config or narrowing map MUST run	unrecorded	-
+PROD-INT-021	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Corvint's own CI MUST run the action in shadow next to the	unrecorded	-
+PROD-INT-022	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) These action features MUST be specified at 1.0 and labelle	unrecorded	-
+PROD-INT-023	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Claude Code and Codex MUST meet the full agent bar for 1.0	unrecorded	-
+PROD-INT-024	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The full agent bar MUST be: one install command and	unrecorded	-
+PROD-INT-025	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) Agent logic MUST live in the `corvint` binary (`corvint	unrecorded	-
+PROD-INT-026	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) "Supported" MUST mean a retained pass for the exact (agent	unrecorded	-
+PROD-INT-027	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) The agent qualification MUST rerun on every package or	unrecorded	-
+PROD-INT-028	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint impact` MUST become the cross-product change repo	unrecorded	-
+PROD-INT-029	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint review` MUST become a deterministic pre-merge	unrecorded	-
+PROD-INT-030	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint context` MUST become a ticket starting brief buil	unrecorded	-
+PROD-INT-031	docs/specs/PRODUCT-PLAN-1.0.md	(proposed 2026-11-09) `corvint index` MUST survive only as the warm cache for	unrecorded	-
 ADN-V0-001	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-002	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-003	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
