@@ -535,7 +535,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	busy := func(context.Context) ([]float64, string) {
 		return []float64{float64(runtime.NumCPU()), 1, 1}, ""
 	}
-	contended, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: busy})
+	contended, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: busy, SelfRoot: selfRoot})
 	if err != nil {
 		t.Fatal(err)
 	}
