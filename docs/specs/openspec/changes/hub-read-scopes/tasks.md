@@ -6,10 +6,14 @@ IDs and its proof.
 - [ ] 1 Set `requirementRefs` on V1-5201 to AFP-V0-107..110. Copy the spec delta into
    `affected-plan-selection-v0.md` and regenerate the index. Requirements: AFP-V0-107..110.
    Proof: `ticket show` read back and the spec diff.
-- [ ] 2 Stage 1: move `TestGoImportsDifferentialAgainstScanner` and the two live-repository tests
-   of `internal/liveverify/affected` into sibling packages, and list those packages in
-   `.corvint/unbounded-readers.json` with their reason. Requirements: AFP-V0-107. Proof: the moved
-   tests pass, and both hubs' remaining tests pass.
+- [ ] 2 Stage 1: find every whole-repository test of `internal/contextindex` and
+   `internal/liveverify/affected` by running each hub confined to its candidate scope. Known
+   ones: `TestGoImportsDifferentialAgainstScanner`, `TestIncrementalSelectionMeetsTheLiveBudget`,
+   `TestSelectionOnTheLiveDirtyWorktree`, `TestOwnershipAuditRatchet_AZU_V0_002` and
+   `TestRepositoryScriptsAreBoundedSources_V14283`; the list is not complete. Move them all into
+   sibling packages and list those packages in `.corvint/unbounded-readers.json` with their
+   reason. Requirements: AFP-V0-107. Proof: the moved tests pass, and both hubs' remaining tests
+   pass with no new skip.
 - [ ] 3 Stage 1: observe each hub's reads under the Landlock wrapper, declare its read scope and
    remove it from the unbounded set. Requirements: AFP-V0-108, AFP-V0-109. Proof: the confined
    run of each hub passes; `tools/test-read-scopes-check` passes.

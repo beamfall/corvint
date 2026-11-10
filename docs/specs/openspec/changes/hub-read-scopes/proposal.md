@@ -8,7 +8,7 @@ Requirement IDs this change adds: AFP-V0-107 to AFP-V0-110 (reserved for V1-5201
 Intent status: proposed (written 2026-11-10; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No product code changes with this proposal.
-Layout: `proposal.md`, `tasks.md`, `specs/hub-read-scopes/spec.md`.
+Layout: `proposal.md`, `design.md`, `tasks.md`, `specs/hub-read-scopes/spec.md`.
 
 ## Why
 
@@ -31,7 +31,8 @@ diff of pull request 178 (`AGENTS.md`, `Makefile`, three specs, two scripts) the
   then edit `AGENTS.md`. The plan no longer selects `internal/contextindex`. The scope is sound
   only when full CI confines the package to it (AFP-V0-161), so the probe proves the planner
   side only.
-- The recorded reasons name a few tests per hub that read the whole repository:
+- The recorded reasons name some tests per hub that read the whole repository. The list is not
+  complete; `internal/liveverify/affected` has more (see `tasks.md`, task 2):
 
 | Hub | Tests that read the whole repository |
 |---|---|
