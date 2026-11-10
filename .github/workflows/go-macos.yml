@@ -281,10 +281,7 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/macos-selection"
           mkdir -p "$out"
-          # Same nested module provisioning as go-static; no downloads during tests.
-          (cd tools/local-authority && GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download)
           go list -json ./... > "$out/packages.json"
-          (cd tools/local-authority && go list -json ./...) >> "$out/packages.json"
           (cd interop/cem01-go && go list -json ./...) >> "$out/packages.json"
           record="$out/no-native-record.json"
           if [ "$NATIVE_NARROW_RESULT" = success ]; then

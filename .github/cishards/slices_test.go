@@ -451,12 +451,12 @@ func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
 	for p := range costs {
 		universe = append(universe, p)
 	}
-	// AFP-V0-164 (V1-1752): internal/tasks/cli is split too; internal/tasks/authority
-	// stays allowed but runs whole while its cost is within the bound (V1-0961).
+	// internal/tasks/cli, which AFP-V0-164 (V1-1752) also split, moves to
+	// beamfall/corvint-tasks (decision 0594). internal/tasks/store stays in the
+	// tables until the tests outside .github stop naming it as the split package.
 	for _, p := range []string{
 		"github.com/Beamfall/corvint/cmd/corvint",
 		"github.com/Beamfall/corvint/internal/tasks/store",
-		"github.com/Beamfall/corvint/internal/tasks/cli",
 	} {
 		if _, ok := f.Packages[p]; !ok {
 			t.Fatalf("%s is not split", p)

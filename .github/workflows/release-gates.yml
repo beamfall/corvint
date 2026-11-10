@@ -83,11 +83,6 @@ jobs:
             os: ubuntu-24.04
             timeout: 90
             command: script/core-n1-source.sh --replay
-          # The companion bundle targets darwin/arm64 and smoke-runs its installed binaries.
-          - gate: companion-release
-            os: macos-15
-            timeout: 120
-            command: make companion-release-gate
     env:
       RUNNER_LABEL: ${{ matrix.os }}
       # AFP-V0-2362: the darwin/arm64 Corvint host archive proof reads the checkout's .git,
@@ -201,7 +196,7 @@ jobs:
           if-no-files-found: error
 
   # linux/amd64 Core platform evidence (decision 0420 item 2, PRS-V1-004, PRS-V1-006): release
-  # runbook steps 5, 6 and 8 and the HLQ-V1 host tuples, run natively on this sha's own
+  # runbook steps 5, 6 and 8, run natively on this sha's own
   # linux/amd64 archive. The setup steps are the gate job's, by YAML alias.
   linux-core:
     runs-on: ubuntu-24.04
@@ -265,11 +260,6 @@ jobs:
             sha256sum corvint
             sha256sum -c SHA256SUMS
             ./corvint --version' sh
-      - name: Install the Codex CLI and Claude Code hosts
-        # The exact versions of the Core plugin rows in integrations/compatibility.json. The HLQ
-        # runner gives each host a private HOME and config directory and calls the installed hook
-        # commands itself, so no credential, secret or model call is used (HLQ-V1-003, HLQ-V1-004).
-        run: npm install --global --no-audit --no-fund @openai/codex@0.153.2 @anthropic-ai/claude-code@2.1.267
       - name: Install lifecycle on this sha's archive (runbook step 8)
         if: ${{ !cancelled() && steps.candidate.outcome == 'success' }}
         env:
@@ -292,38 +282,6 @@ jobs:
           fi
           test "$FIRST_RELEASE" = false
           "$RUNNER_TEMP/run-gate" install-lifecycle-n1 script/check-install-lifecycle.sh
-      - name: Host lifecycle qualification of the three Core tuples (HLQ-V1)
-        # Each raw --report is kept for conformance/host-lifecycle-v1/results/ (HLQ-V1-008). On a
-        # FIRST_RELEASE run there is no --base-corvint: the upgrade case must be its only NOT_RUN
-        # case, and every other case must pass.
-        if: ${{ !cancelled() && steps.n1.outcome == 'success' }}
-        env:
-          FIRST_RELEASE: ${{ steps.n1.outputs.first_release }}
-        run: |
-          mkdir "$RUNNER_TEMP/host-lifecycle"
-          case $FIRST_RELEASE in
-            true) base=() ;;
-            false) base=(--base-corvint "$RUNNER_TEMP/previous/corvint") ;;
-            *) echo "::error::n1 step set no first_release output"; exit 1 ;;
-          esac
-          status=0
-          for host in cli codex claude-code; do
-            report="$RUNNER_TEMP/host-lifecycle/$host.txt"
-            code=0
-            "$RUNNER_TEMP/run-gate" "host-lifecycle-$host" go run ./conformance/host-lifecycle-v1 --host "$host" \
-              --corvint "$RUNNER_TEMP/current/corvint" "${base[@]}" \
-              --source "$GITHUB_WORKSPACE" --report "$report" || code=$?
-            if [ "$FIRST_RELEASE" = true ] && [ "$code" -eq 1 ] &&
-              grep -Fqx $'case\tupgrade\tNOT_RUN\tno --base-corvint supplied' "$report" &&
-              grep -Fqx $'SUMMARY\tstatus=FAIL\tpassed=8\tfailed=0\tnotRun=1' "$report"; then
-              reason="FIRST_RELEASE: no published release precedes $SHA; host-lifecycle-$host upgrade case is not applicable"
-              echo "::notice title=host-lifecycle-$host::$reason"
-              echo "- host-lifecycle-$host $reason; the other eight cases passed" >>"$GITHUB_STEP_SUMMARY"
-              code=0
-            fi
-            [ "$code" -eq 0 ] || status=1
-          done
-          exit "$status"
       - name: Hostile regression matrix (runbook step 8)
         if: ${{ !cancelled() }}
         run: |
@@ -334,7 +292,6 @@ jobs:
           name: linux-core-${{ inputs.release || 'nightly' }}-ubuntu-24.04
           path: |
             ${{ runner.temp }}/evidence/
-            ${{ runner.temp }}/host-lifecycle/
           if-no-files-found: error
 
   # SOP-V0-013 (V1-1114): a scheduled run on main that fails gets one deduplicated, visible signal,

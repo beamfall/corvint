@@ -132,7 +132,7 @@ func TestAFPV02723SizeRefusesOrKeepsTheMaximumWhenItCannotPrice_AFPV02723(t *tes
 	}
 	// The committed tables price the repository: the whole universe sizes to the maximum at the
 	// default budget, since a full run needs every shard, and a one-package selection to the floor.
-	if n, err := Size([]string{"github.com/Beamfall/corvint/internal/sharedpath"}, []string{"github.com/Beamfall/corvint/internal/sharedpath"}, MinNarrowedShards, 16, 4, DefaultWallBudgetMs); err != nil || n != MinNarrowedShards {
+	if n, err := Size([]string{"github.com/Beamfall/corvint/internal/projectpath"}, []string{"github.com/Beamfall/corvint/internal/projectpath"}, MinNarrowedShards, 16, 4, DefaultWallBudgetMs); err != nil || n != MinNarrowedShards {
 		t.Fatalf("one package sizes to %d (%v), want %d", n, err, MinNarrowedShards)
 	}
 }
