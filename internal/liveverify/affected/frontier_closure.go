@@ -371,6 +371,9 @@ func (graph *Graph) observersOf(files []string, site Witness, reached map[string
 	if len(embedded) != 0 {
 		walked := graph.traverse(embedded, nil)
 		graph.testUsersOf(walked, nil)
+		// A command that embeds the file is rebuilt, so the tests that run
+		// its binary observe the change as they do in the site closure.
+		graph.execUsersOf(walked, graph.builtCommands(walked, nil))
 		for dependent, witness := range walked {
 			if _, hit := reached[dependent]; !hit {
 				reached[dependent] = witness

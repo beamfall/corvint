@@ -77,6 +77,7 @@ func TestOutboundSiteClosure_AZU_V0_003(t *testing.T) {
 	goPlugin := fake{name: "go", units: []Unit{
 		{ID: "go:runner", Sources: []string{"runner/runner.go"}, Tests: []string{"runner/runner_test.go"}, PathTokens: []string{"lib/loader.y"}},
 		{ID: "go:embedder", Sources: []string{"embed/embed.go"}, Tests: []string{"embed/embed_test.go"}, Embeds: true, EmbedFiles: []string{"lib/loader.y"}},
+		{ID: "go:clitest", Tests: []string{"cli/cli_test.go"}, Execs: []string{"go:embedder"}, TestOnlyExecs: []string{"go:embedder"}},
 		{ID: "go:bystander", Sources: []string{"by/by.go"}, Tests: []string{"by/by_test.go"}},
 	}}
 	graph, err := Build(context.Background(), t.TempDir(), goPlugin, language)
@@ -93,7 +94,8 @@ func TestOutboundSiteClosure_AZU_V0_003(t *testing.T) {
 			t.Errorf("%s must stay unknown: %v", want, frontier)
 		}
 	}
-	for id, kind := range map[string]string{"y:consumer": WitnessDependency, "go:runner": WitnessPathLiteralReader, "go:embedder": WitnessDependency} {
+	for id, kind := range map[string]string{"y:consumer": WitnessDependency, "go:runner": WitnessPathLiteralReader, "go:embedder": WitnessDependency,
+		"go:clitest": WitnessBinaryExec} {
 		witness, hit := witnessOf(plan, id)
 		if !hit || witness.Kind != kind {
 			t.Errorf("%s: witness %+v, want %s through the site", id, witness, kind)
