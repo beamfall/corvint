@@ -185,7 +185,9 @@ prints one line per finding:
   `auto` wants `standing`, `pending-owner` wants `unrecorded`. The line names both modes.
 
 It ends with a `total` line. It reports and exits 0; with `--strict` it exits 1 on any finding.
-A malformed log or index exits 2. `make spec-acceptance-audit` runs it after the mode listing.
+A malformed log or index, or a row with an empty date, owner reference or rationale, exits 2.
+Only an immediate folder of `changes/` or `changes/archive/` counts as a change.
+`make spec-acceptance-audit` runs it after the mode listing.
 
 The plan marks each of its 77 PROD requirements `(accepted, decision 0596; V1-5272)`, so the
 log and the index agree and `make spec-acceptance-audit` runs the audit with `--strict`.

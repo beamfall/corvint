@@ -76,9 +76,12 @@ printf 'PROD-A-009\tprod\towner\t2026-11-10\tx\tr\n' >> "$log"
 printf 'O9\to-row\towner\t2026-11-10\tx\tr\n' >> "$log"
 printf 'no-such-change\tchange\tauto\t2026-11-10\tx\tr\n' >> "$log"
 printf 'O1\to-row\towner\t2026-11-10\tx\tr\n' >> "$log"
+# A folder nested in a change, such as its specs/, is no change.
+mkdir -p "$root/docs/specs/openspec/changes/one-change/specs"
+printf 'specs\tchange\tauto\t2026-11-10\tx\tr\n' >> "$log"
 out=$("$audit" "$root")
 case $out in
-  *'DUPLICATE_ROW	O1	o-row'*'UNKNOWN_ROW	PROD-A-009	prod'*'UNKNOWN_ROW	O9	o-row'*'UNKNOWN_ROW	no-such-change	change'*'unknown 3	duplicate 1'*) ;;
+  *'DUPLICATE_ROW	O1	o-row'*'UNKNOWN_ROW	PROD-A-009	prod'*'UNKNOWN_ROW	O9	o-row'*'UNKNOWN_ROW	no-such-change	change'*'UNKNOWN_ROW	specs	change'*'unknown 4	duplicate 1'*) ;;
   *) fail "unknown and duplicate rows printed: $out" ;;
 esac
 
@@ -88,6 +91,14 @@ printf 'PROD-A-001\tprod\taccepted\t2026-11-10\tx\tr\n' >> "$log"
 status=0
 "$audit" "$root" > /dev/null 2>&1 || status=$?
 test "$status" = 2 || fail "a mode outside the closed set exited $status, want 2"
+for row in 'PROD-A-001\tprod\towner\t\tx\tr' 'PROD-A-001\tprod\towner\t2026-11-10\t\tr' \
+  'PROD-A-001\tprod\towner\t2026-11-10\tx\t'; do
+  printf 'id\tkind\tmode\tdate\townerRef\trationale\n' > "$log"
+  printf "$row\n" >> "$log"
+  status=0
+  "$audit" "$root" > /dev/null 2>&1 || status=$?
+  test "$status" = 2 || fail "a row with an empty cell exited $status, want 2"
+done
 printf 'id\tmode\n' > "$log"
 status=0
 "$audit" "$root" > /dev/null 2>&1 || status=$?
