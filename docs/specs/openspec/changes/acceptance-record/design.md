@@ -1,0 +1,54 @@
+# Design: `acceptance-record`
+
+## Decisions
+
+- Decision record. One file `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md`, with NNNN
+  the next free number when it is written. It names the plan path and commit SHA, lists the drafted
+  requirement wording, states that in-flight work stays experimental, holds the supersession table
+  and lists release exceptions (R9). It is written as a draft by a lane and becomes accepted only
+  when the owner signs it.
+- Supersession table. Columns: superseded source, quoted text, replacement (owner decision or plan
+  section), effect (replaced, amended, removed). Rows: decision 0433 item 1; answer 3; answer 11;
+  the G9 MCP row; R26; decision 0594 item 4; the `AGENTS.md` sections "Dogfood Corvint" and the
+  dogfood paragraphs it links. Each quote is copied from the source at a named commit.
+- Acceptance log. `docs/specs/openspec/acceptance-log.tsv`, tab separated, one header line, columns
+  `id`, `kind` (`prod`, `o-row`, `change`), `mode`, `date`, `ownerRef`, `rationale`. Modes:
+  - `owner`: the owner accepted it; `ownerRef` names a decision number or an owner decision Rn with
+    date. Maps to the existing `owner` marker `(accepted, decision NNNN; V1-NNNN)`.
+  - `auto`: accepted under the owner's standing auto-accept. Maps to the `standing` marker.
+  - `pending-owner`: written, not accepted. Maps to no acceptance marker (`unrecorded`).
+  Only the owner writes `owner` rows. A lane writes `auto` or `pending-owner` rows. A lane change
+  that alters a requirement's meaning sets its row to `pending-owner`.
+- Audit. `script/spec-acceptance-audit.sh` gains a log check: every PROD requirement and O-row has a
+  row; a row's mode agrees with its spec marker by the mapping above; no `owner` row was added in a
+  commit not authored by the owner (the authorship test depends on the signature mechanism, Open).
+  It stays a report under `make spec-acceptance-audit` and is wired as a gate step only by the change
+  `openspec-check`.
+- Release records. One file per signed event (RC publish, stable promotion) under
+  `docs/releases/`, listing each requirement with its evidence path or demotion, NOT_RUN and
+  NOT_OBSERVED items and deferred P2 and P3 tickets. The release workflow refuses to publish without
+  the signed record (REL-V1-013).
+
+## Failure modes
+
+- A PROD requirement or O-row without a log row: the audit names it.
+- A spec marker says `owner` while the log says `auto`: the audit names the mismatch.
+- A proposal header says accepted with no log row: `openspec-check` fails (OSC-V1-009).
+- A supersession quote that no longer matches its source at the cited commit: the audit names it.
+- The plan SHA in the record differs from the plan on `origin/main`: the record is stale and must be
+  re-signed.
+- No signature mechanism decided by the RC: the RC cannot publish; tracked as an Open item.
+
+## Acceptance evidence
+
+- The signed decision record and the plan SHA it names.
+- `docs/specs/openspec/acceptance-log.tsv` with one row per PROD requirement and O-row.
+- `make spec-acceptance-audit` output with zero log mismatches.
+- Audit tests for a missing row, a mode mismatch and a stale quote.
+- The signed RC release record, read by the release workflow.
+
+## Rollback
+
+- The log and audit extension are additive; removing the log check returns the audit to its SRG-V0-010
+  behavior.
+- A decision record is never deleted; a wrong record is superseded by a new decision record.
