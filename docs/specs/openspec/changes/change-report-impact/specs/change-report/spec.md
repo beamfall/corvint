@@ -8,14 +8,29 @@ preview)`.
 
 ### Requirement: CRI-V1-001 Five sections on the affected engine
 
-Source: G25 item 1. `corvint impact --base` MUST report the sections `tests`, `flows`, `docs`,
-`tickets` and `requirements`, and the `tests` section MUST equal the affected plan for the same
-range.
+Source: G25 item 1; owner decision H8 (2026-11-10). `corvint impact` MUST report the sections
+`tests`, `flows`, `docs`, `tickets` and `requirements`, and the `tests` section MUST equal the
+affected plan for the same range. With `--base` omitted, `impact` MUST use the merge base of `HEAD`
+with the repository's default branch and MUST report the base it chose. When the default branch or
+the merge base cannot be determined, `impact` MUST refuse with a non-zero exit and a typed reason.
 
 #### Scenario: Agreement with affected
 
 - **WHEN** `impact` and `affected` run on the same range
 - **THEN** the `tests` section lists the same tests, reasons and scope
+
+#### Scenario: Default base
+
+- **GIVEN** a repository whose default branch is `main` and a branch forked from it
+- **WHEN** `impact` runs without `--base`
+- **THEN** the report names the merge base of `HEAD` and `main` as its base
+- **AND** the `tests` section equals the affected plan for that base and `HEAD`
+
+#### Scenario: Default base cannot be determined
+
+- **GIVEN** a repository whose default branch cannot be resolved or has no merge base with `HEAD`
+- **WHEN** `impact` runs without `--base`
+- **THEN** it exits non-zero with a typed reason and prints no report sections
 
 ### Requirement: CRI-V1-002 Every section has an explicit state
 

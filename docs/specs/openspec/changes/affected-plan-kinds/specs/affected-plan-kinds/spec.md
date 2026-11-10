@@ -214,9 +214,10 @@ Added from the watch-flows verdicts, finding 1a.
 
 ### Requirement: AFU-V1-1651 The flow declaration file
 
-Source: G6. Text changes from `.corvint/e2e-flows.json` to `.corvint/flows.json` with a versioned
-profile; `.corvint/e2e-flows.json` is read for one release with a deprecation notice; both present
-is `E2E_FLOWS_INVALID`. The closed-object rule is kept.
+Source: G6. The flow declaration file MUST be `.corvint/flows.json` with a versioned profile, in
+place of `.corvint/e2e-flows.json`. `.corvint/e2e-flows.json` MUST be read for one release with a
+deprecation notice; both files present MUST be refused as `E2E_FLOWS_INVALID`. The closed-object
+rule is kept.
 
 #### Scenario: Deprecated file alone
 
@@ -225,8 +226,8 @@ is `E2E_FLOWS_INVALID`. The closed-object rule is kept.
 
 ### Requirement: AFU-V1-1655 Flow intents are committed
 
-Source: G6. The repository commits flow intents under the directory that `.corvint/flows.json`
-names, instead of the directory named by `.corvint/e2e-flows.json`.
+Source: G6. The repository MUST commit flow intents under the directory that
+`.corvint/flows.json` names, instead of the directory named by `.corvint/e2e-flows.json`.
 
 #### Scenario: Directory from the new file
 

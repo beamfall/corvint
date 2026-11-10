@@ -29,12 +29,19 @@
 - Trial. The trial in Corvint and `beamfall/core` uses the frozen Tasks RC binary for 21 days and
   records a ticket ID and content hash diff at start and end (TIN-V1-009), with at least 50 ticket
   writes and 5 completions per repository (REL-V1-010). A store format change restarts the clock.
+- Trial and the stable date (owner decision H1 (2026-11-10)). Stable waits for the later of this
+  trial's end and the Corvint RC publish date plus 21 days; REL-V1-003 adds 2027-01-05 and the
+  end of the 7-day soak. A code change in the Corvint RC restarts the soak and the RC-publish
+  clock and does not restart this trial. A late Corvint batch (B8b, B11) restarts a clock only if
+  it changes a shipped binary, and it does not restart this trial. A restarted trial ends 21 days
+  after the restart, and stable moves with it when that end is the latest date.
 - Trial dates (decided 2026-11-09 under R42, C22). PR #4 in `beamfall/corvint-tasks` merges by
   2026-11-13. `tasks-hardening` and taxonomy items B1 to B3 are on Tasks main by 2026-11-27.
   Schema v1 freezes 2026-12-01. The Tasks RC is tagged on 2026-12-08, the same day as the M5a
   candidate, and the trial starts that day in both repositories and ends 2026-12-29. Stable minus
   21 days is 2026-12-15, so this start leaves one week in which a format fix and a clock restart
-  still meet 2027-01-05. Everything that can change the store format (PR #4, hardening, the key
+  still meet 2027-01-05; a later restart moves stable past 2027-01-05 (owner decision H1
+  (2026-11-10)). Everything that can change the store format (PR #4, hardening, the key
   field) is in before the tag (G9). Publishing the Tasks RC tag is the owner's act. Known cost:
   the trial runs against a Corvint that is still changing, which G9 allows (Tasks tagged first).
 - Release. corvint-tasks builds the three targets with checksums and attestation by the same tag

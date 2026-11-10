@@ -114,10 +114,10 @@ Line numbers are in integ 9ec3a29d0 unless the row says prodspecs.
 
 1. Title and one-line product statement (unchanged).
 2. Delivery and context (unchanged).
-3. Product invariants. 1 to 3, 5 and 6 unchanged. 4 amended in B6 if its ledgers go (G8 names
-   invariants 4 and 8). 7 keeps its spec citations that stay active and drops archived ones. 8
-   becomes: "Every change is documented before it is built, as a change folder that passes the
-   propose, apply and archive stages; see `docs/SPEC-DRIVEN-DEVELOPMENT.md`."
+3. Product invariants. This change makes no edit to them. Every edit of invariants 3, 4, 5, 7 and
+   8 is owned by change `acceptance-record` (ACR-V1-012; owner decisions H4 and H5 (2026-11-10)).
+   Invariants 1, 2 and 6 are unchanged. Invariant 8 is not reworded: the owner rejected a
+   rewording that drops "human-owned intent".
 4. Spec-driven development, five lines: the workflow document is the only process document; one
    change folder per change; the canonical spec is updated in the same change; requirement IDs are
    stable and never reused; one build-log entry per material decision or removal batch. No CEM

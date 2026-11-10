@@ -12,13 +12,22 @@ For each blocking runner the harness MUST read a pre-registration file holding t
 repository SHAs, the revert selection query, the operator list per language, seeds, the over-sample
 size and exclusion rules, and MUST refuse to execute when its SHA-256 differs from the committed
 hash. The file MUST also hold the SHA-256 of the reverted-fix rule file of FIH-V1-002 (decided
-2026-11-09 under R42, A17). (G3)
+2026-11-09 under R42, A17). A drawn held-out repository (FIH-V1-012) is not known before the draw
+of PRR-V1-004, so its pre-registration MUST be written and its hash committed after the draw and
+before any fault is generated for it; the harness MUST refuse a held-out pre-registration earlier.
+(G3, owner decision H3 (2026-11-10))
 
 #### Scenario: Changed seeds
 
 - **GIVEN** a committed pre-registration hash
 - **WHEN** a seed is edited and the harness starts
 - **THEN** it refuses with `preregistration-changed` and runs nothing
+
+#### Scenario: Held-out pre-registration before the draw
+
+- **GIVEN** no committed draw record under PRR-V1-004
+- **WHEN** a held-out pre-registration or fault set is requested
+- **THEN** it refuses with `held-out-not-drawn`
 
 ### Requirement: FIH-V1-002 Composition of a fault set
 
@@ -172,23 +181,33 @@ SHA, image digest) on Linux or macOS. (G1)
 ### Requirement: FIH-V1-010 Cost check in two steps, then one PR per runner first
 
 The cost check MUST run in two steps (decided 2026-11-09 under R42, A18). Step 1, by 2026-11-16:
-time one full-suite run of each of the seven pinned and four held-out repositories on the benchmark
-box and publish the projected total. Step 2, by 2026-11-27, once the Go adapter exists
-(FIH-V1-011): before the full set, the harness MUST run one pre-registered fault-carrying PR per
-runner and report elapsed time. The budget is 96 host-hours inside the M7 window (2026-12-08 to
-2026-12-15). If the projection is over budget, these measures MUST be applied in this order: one
-baseline per repository pin; kill confirmation reruns only the failing tests; held-out sets run in
-parallel on the second reference host. If the projection still exceeds the budget after the three
-measures, the choice between a smaller N and a later freeze returns to the owner. Earlier wording,
-superseded by A18: "Before the full set, the harness MUST run one pre-registered PR per runner and
-report elapsed time, so the owner can confirm the compute budget." (G3)
+time one full-suite run of each of the seven pinned repositories on the benchmark box and publish
+the projected total. The four drawn held-out repositories are unknown until the first candidate tag
+(PRR-V1-004), so the held-out part of the projection MUST be reported as `NOT_OBSERVED` and MUST be
+re-run once the draw exists; how it is estimated before then is NOT_DECIDED. Step 2, by 2026-11-27,
+once the Go adapter exists (FIH-V1-011): before the full set, the harness MUST run one
+pre-registered fault-carrying PR per runner and report elapsed time. The budget is 96 host-hours
+inside the M7 window (2026-12-08 to 2026-12-15). If the projection is over budget, these measures
+MUST be applied in this order: one baseline per repository pin; kill confirmation reruns only the
+failing tests; held-out sets run in parallel on the second reference host. If the projection still
+exceeds the budget after the three measures, the choice between a smaller N and a later freeze
+returns to the owner. Earlier wording, superseded by A18: "Before the full set, the harness MUST run
+one pre-registered PR per runner and report elapsed time, so the owner can confirm the compute
+budget." (G3)
 
 #### Scenario: Step 1 projection
 
-- **GIVEN** the seven pinned and four held-out repositories
+- **GIVEN** the seven pinned repositories and no draw yet
 - **WHEN** step 1 runs on the benchmark box
-- **THEN** the report holds one full-suite time per repository and the projected total in
-  host-hours beside the 96 host-hour budget
+- **THEN** the report holds one full-suite time per pinned repository, marks the held-out part
+  `NOT_OBSERVED`, and shows the projected total beside the 96 host-hour budget
+
+#### Scenario: Projection after the draw
+
+- **GIVEN** a committed draw record
+- **WHEN** the projection is re-run
+- **THEN** it holds one full-suite time per drawn repository, and the total is compared with the
+  96 host-hour budget
 
 #### Scenario: Cost probe
 
@@ -216,19 +235,22 @@ adapters MUST reuse the same harness core. (G1)
 
 ### Requirement: FIH-V1-012 Held-out fault sets
 
-Owner decision R19 (2026-11-09). Each held-out repository named under PRR-V1-004 (fastapi, solidus
-and payload, owner decision R21 (2026-11-09); and helm/helm for Go, alternate go-task/task, decided
-2026-11-09 under R42, A14) MUST receive N = 100 faults by this method, frozen
-and hashed before execution. Its verdict passes with at most 3 misses in N, reported with the 95
-percent Wilson interval (settled release-tasks S6); excluded tests MUST be at most 5 percent of the
-suite, or the verdict is `INVALID`. Each held-out miss MUST be published as measured with its
-interval, filed as a P1 ticket and fixed by widening before the release candidate. The per-runner
-fault sets of the seven pinned repositories MUST have zero known misses (G3). Every receipt MUST
-carry per-test durations (change `per-test-durations`). (G12; R42 (panel pick) A9)
+Owner decision R19 (2026-11-09). Each held-out repository drawn under PRR-V1-004 (one per family,
+a seeded draw that is never redrawn: owner decision H3 (2026-11-10)) MUST receive N = 100 faults by
+this method, frozen and hashed before execution. The sets can only be built after the first
+candidate tag exists, because that tag seeds the draw; they MUST be built between the candidate tag
+and the freeze (a schedule risk, not a decision). Its verdict passes with at most 3 misses in N,
+reported with the 95 percent Wilson interval (settled release-tasks S6); excluded tests MUST be at
+most 5 percent of the suite, or the verdict is `INVALID`. Each held-out miss MUST be published as
+measured with its interval, filed as a P1 ticket and fixed by widening before the release
+candidate. The per-runner fault sets of the seven pinned repositories MUST have zero known misses
+(G3). Every receipt MUST carry per-test durations (change `per-test-durations`). A drawn repository
+that proves unusable MUST be reported by PRR-V1-004 and MUST NOT be replaced. (G12; R42 (panel
+pick) A9)
 
 #### Scenario: Held-out freeze
 
-- **GIVEN** a held-out repository from the frozen list
+- **GIVEN** a held-out repository from the drawn list
 - **WHEN** its faults are generated
 - **THEN** the hash is committed before any selected run
 

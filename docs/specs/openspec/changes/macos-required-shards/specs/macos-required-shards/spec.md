@@ -13,17 +13,27 @@ freeze-candidate SHA and the RC SHA. A failure MUST block the candidate. (answer
 - **WHEN** the release workflow runs
 - **THEN** the RC is not offered for approval and the record names the test
 
-### Requirement: MRS-V1-002 The `go-macos` aggregate is a required check on `main`
+### Requirement: MRS-V1-002 The per-merge `go-macos` check is advisory until the condition holds
 
-Once every hosted-macOS flake ticket is closed, the `go-macos` aggregate MUST be a required status
-check on `main`. The workflow MUST run on `pull_request` and `merge_group`, and neither the shard jobs
-nor the aggregate MAY use `continue-on-error`. (answer 16; PROD-INT-015)
+The per-merge `go-macos` aggregate MUST stay advisory until every hosted-macOS flake ticket is
+closed and 20 consecutive `main` runs have passed; it MUST then be made a required status check on
+`main`. If that has not happened by 2026-12-15, it MUST stay advisory per merge for 1.0. The
+workflow MUST run on `pull_request` and `merge_group`, and neither the shard jobs nor the aggregate
+MAY use `continue-on-error`. (answer 16; PROD-INT-015; D7; REL-V1-015; owner decision H11
+(2026-11-10))
 
-#### Scenario: A macOS failure in the merge queue
+#### Scenario: The condition holds
 
-- **GIVEN** a PR in the merge queue whose darwin shard fails
+- **GIVEN** every flake ticket is closed and 20 consecutive `main` runs passed by 2026-12-15
+- **AND** a PR in the merge queue whose darwin shard fails
 - **WHEN** the queue evaluates required checks
 - **THEN** the PR is removed from the queue
+
+#### Scenario: The condition does not hold by 2026-12-15
+
+- **GIVEN** an open macOS flake ticket on 2026-12-15
+- **WHEN** the required-status list for 1.0 is fixed
+- **THEN** `go-macos` is not added to the required checks and the release gate still applies
 
 ### Requirement: MRS-V1-003 Only a verified docs-only plan skips, and the check still reports
 
@@ -46,8 +56,9 @@ macOS MUST NOT fail the aggregate. (answer 16; MCJ-V0-019)
 ### Requirement: MRS-V1-004 macOS flakes are 1.0 blockers
 
 A macOS test that fails and then passes on the same SHA MUST be filed as a ticket at milestone
-`v1-0`, priority P1, with the run URL, test ID and both outcomes. The RC MUST NOT be approved while
-such a ticket is open. (answer 16)
+`v1-0`, priority P1, with the run URL, test ID and both outcomes. This requirement adds no separate
+rule that holds the RC while such a ticket is open; the release gate (MRS-V1-001, REL-V1-015) and
+the general open-P1 rule apply. (answer 16; owner decision H11 (2026-11-10))
 
 #### Scenario: A rerun hides a flake
 
@@ -82,7 +93,7 @@ R36 (2026-11-09))
 ### Requirement: MRS-V1-007 macOS evidence in the acceptance record
 
 The acceptance record for the RC MUST list the macOS exhaustive run on the RC SHA, the state of the
-required check, and the closed flake tickets. (answer 16; PROD-INT-012)
+required check, and the flake tickets with their state. (answer 16; PROD-INT-012)
 
 #### Scenario: Missing macOS evidence
 

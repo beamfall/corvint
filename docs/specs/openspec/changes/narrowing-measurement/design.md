@@ -18,13 +18,18 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/narrowing-measur
 7. Selective means zero-miss FIH and not DEMOTED (settled release-tasks S5, review release-tasks
    22).
 8. Verdicts are judged on the milestone M5a candidate SHA (owner decision R2 (2026-11-09)) and
-   confirmed on the RC SHA after the freeze (review release-tasks blocker 2).
+   confirmed on the RC SHA after the freeze (review release-tasks blocker 2). A regression on the
+   RC SHA is a blocking miss for each of the seven blocking runners and is never recorded as a
+   demotion of that runner (owner decision H2 (2026-11-10); NMS-V1-007, REL-V1-004).
 9. Kill-switch grammar `full` and `full:<runner>[,<runner>]`, owned here; unknown values exit 2 on
    CLI and Action and select all tests in agent hooks and MCP (owner decision R13 (2026-11-09)).
 10. The agreement figure of owner decision R20 (2026-11-09) is reported (NMS-V1-011).
 11. pytest is measured at tier `file`; its file-level selection is a recorded release exception
     (owner decisions R8 and R9 (2026-11-09)).
 12. Cypress is dropped from 1.0 and listed as post-1.0 (owner decision R6 (2026-11-09)).
+13. The held-out replay runs on the four repositories of the seeded draw, one per family, which
+    is never redrawn (owner decision H3 (2026-11-10); PRR-V1-004). No fixed held-out list is
+    named here (NMS-V1-010).
 
 ## Failure modes
 
@@ -40,7 +45,8 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/narrowing-measur
   (2026-11-09)).
 - The miss proof for a runner is absent or failed: the runner's status is FAIL whatever its
   narrowing numbers.
-- A post-freeze RC verdict contradicts the M5a verdict: the runner is DEMOTED.
+- A post-freeze RC verdict regresses from the M5a verdict: the report states a blocking miss for
+  that runner; the runner is not recorded as DEMOTED (owner decision H2 (2026-11-10)).
 
 ## Acceptance evidence
 
@@ -50,7 +56,8 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/narrowing-measur
   RC SHA.
 - Go tests for each requirement on a fixture corpus: below-bar, flow-not-narrowed, missing
   durations, publish-only, miss-first, edited bar, too few PRs, excluded share over cap,
-  three-of-seven slip, kill switch global, per-runner, CLI typo and hook typo, agreement figure.
+  three-of-seven slip, RC regression as a blocking miss, kill switch global, per-runner, CLI typo
+  and hook typo, agreement figure.
 - RC qualification transcript showing both kill-switch forms forcing FULL.
 
 ## Rollback

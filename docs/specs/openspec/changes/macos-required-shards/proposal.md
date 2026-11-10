@@ -6,7 +6,8 @@ Product requirement served: PROD-INT-015 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/macos-required-shards-v1.md`, a new spec with prefix `MRS-V1`
 Requirement IDs this change adds: MRS-V1-001 to MRS-V1-007
 Requirement IDs this change modifies: none (PRS-V1-004 is modified by the change `release-process`)
-Owner answers this change implements: answer 16, owner decision R36 (2026-11-09)
+Owner answers this change implements: answer 16, owner decisions R36 (2026-11-09) and H11
+(2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -18,9 +19,11 @@ This change follows the G14 layout: `proposal.md` (this file), `design.md`, `tas
 
 Answer 16 makes Linux and macOS the supported platforms, with Windows through WSL only, and lists
 two consequences: macOS CI shards become required checks, and hosted-macOS flake tickets become 1.0
-blockers. Today macOS results never block a merge, so a darwin-only regression can reach `main` and
-the release. Owner decision R36 (2026-11-09) also moves `make windows-vet` for removal lanes from
-every push to once per removal batch.
+blockers. Owner decision H11 (2026-11-10) settles the conflict with D7: the per-merge check is
+advisory until the stated condition holds, and macOS is required at release. Today macOS results
+never block a merge, so a darwin-only regression can reach `main` and the release. Owner decision
+R36 (2026-11-09) also moves `make windows-vet` for removal lanes from every push to once per
+removal batch.
 
 ## What exists today
 
@@ -42,12 +45,17 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 - The release requires an exhaustive macOS `go test` and `go vet` run in both modules on the
   freeze-candidate SHA and on the RC SHA.
-- The `go-macos` aggregate becomes a required status check on `main` once the hosted-macOS flake
-  tickets are closed. The workflow gains a `merge_group` trigger, loses `continue-on-error` on the
-  shard and aggregate jobs, and is never skipped by the cadence DEFER decision; only a verified
-  docs-only plan may skip, and the aggregate then reports success with the skip reason.
+- The per-merge `go-macos` aggregate stays advisory until the hosted-macOS flake tickets are closed
+  and 20 consecutive `main` runs pass; it then becomes a required status check on `main`. If that
+  has not happened by 2026-12-15 it stays advisory per merge for 1.0, and macOS is required at
+  release only (D7, REL-V1-015; owner decision H11 (2026-11-10)). The workflow gains a `merge_group`
+  trigger, loses `continue-on-error` on the shard and aggregate jobs, and is never skipped by the
+  cadence DEFER decision; only a verified docs-only plan may skip, and the aggregate then reports
+  success with the skip reason.
 - Timing budgets on hosted macOS stay advisory.
-- Every macOS flaky test is filed as a `v1-0` P1 blocker.
+- Every macOS flaky test is filed as a `v1-0` P1 ticket. There is no separate rule that holds the RC
+  while such a ticket is open; the macOS release gate and the general open-P1 rule cover it
+  (owner decision H11 (2026-11-10)).
 - The documentation states native Windows is unsupported and points to WSL (text owned by the change
   `user-docs`); native Windows vet and archive work leaves the 1.0 bar.
 - Removal lanes run `make windows-vet` once per removal batch, before that batch's push (R36).
@@ -66,7 +74,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 ## Impact
 
 - `.github/workflows/go-macos.yml`, `.github/workflows/release-gates.yml` and the repository
-  ruleset for `main`. Changing the ruleset is an owner action.
+  ruleset for `main`. Changing the ruleset is an owner action, taken only if the stage 2 condition
+  is met by 2026-12-15.
 - Merge latency rises by the macOS run time on PRs that select darwin tests.
 - AGENTS.md "Verify" section: the windows-vet sentence gains the removal-batch rule.
 - The `.github/` edits go in their own PR, as the repository requires for `.github` changes.

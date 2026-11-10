@@ -14,6 +14,8 @@
 ## Failure modes
 
 - Base not an ancestor or not a full SHA: typed refusal, exit 2.
+- `--base` omitted and the default branch or the merge base cannot be determined: non-zero exit
+  with a typed reason; no fallback base is guessed.
 - Affected plan `FULL` or `UNKNOWN`: the tests section says so with the plan's reasons; never an
   empty list as complete.
 - Docs check file for another revision: docs section `INCOMPLETE` with the mismatch.
@@ -35,9 +37,12 @@ data is written. IDs are retired, not reused.
 
 ## Open questions for the owner
 
-Still undecided by the owner (D21 part i); not settled by owner decisions R4 or R30.
+Decided items are listed with their decision; none remains open here.
 
 - Decided, R42 (panel pick) C10: both commit-message IDs and claim scope, each labelled, cited
   tickets first (CRI-V1-005).
-- Should `impact` default `--base` to the merge base with `origin/main` when omitted, or keep it
-  required (proposed: required)?
+- Decided, owner decision H8 (2026-11-10), marked low confidence by the owner: with `--base`
+  omitted, `impact` uses the merge base of `HEAD` with the repository's default branch, reports
+  the base it chose, and refuses (non-zero, typed reason) when the default branch or the merge
+  base cannot be determined (CRI-V1-001). This is the first decision to revisit on field
+  evidence. How the default branch is read (remote `HEAD` or configuration) is left to the lane.

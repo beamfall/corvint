@@ -32,10 +32,11 @@ browser E2E against a running application. (G12, review release-tasks 15)
 ### Requirement: PRR-V1-002 Seven named repositories
 
 One named repository per blocking runner MUST be recorded with its measured rule values and used for
-tuning and published numbers: the G12a primaries, or a swap made under PRR-V1-010. fastapi/fastapi,
-solidusio/solidus, payloadcms/payload and helm/helm MUST NOT be used as named repositories or
-alternates, because they are held out (owner decision R21 (2026-11-09); helm/helm decided
-2026-11-09 under R42, A14). (G12, G12a, answer 17)
+tuning and published numbers: the G12a primaries, or a swap made under PRR-V1-010. A repository
+that is in a sealed held-out pool (PRR-V1-011) MUST NOT be used as a named repository or
+alternate; fastapi/fastapi, solidusio/solidus, payloadcms/payload and helm/helm, held out under
+owner decision R21 (2026-11-09) and A14, are kept out as pool candidates (owner decision H3
+(2026-11-10)). (G12, G12a, answer 17)
 
 #### Scenario: Measured values recorded
 
@@ -45,7 +46,7 @@ alternates, because they are held out (owner decision R21 (2026-11-09); helm/hel
 
 #### Scenario: Held-out repository proposed as a swap
 
-- **GIVEN** payloadcms/payload proposed as the Playwright swap
+- **GIVEN** payloadcms/payload in the JS/TS held-out pool and proposed as the Playwright swap
 - **WHEN** the swap is checked
 - **THEN** it refuses with `held-out-repository`
 
@@ -88,44 +89,47 @@ after the mirror is created.
 - **WHEN** the manifest is read
 - **THEN** it holds no mirror URL, and no URL is assumed from the name
 
-### Requirement: PRR-V1-004 Four held-out repositories, frozen before qualification
+### Requirement: PRR-V1-004 Four held-out repositories, drawn from sealed pools
 
-Owner decision R21 (2026-11-09). The held-out repositories are fastapi/fastapi (pytest),
-solidusio/solidus (RSpec) and payloadcms/payload (Playwright). The held-out Go repository is
-helm/helm, with the same treatment as those three (100 faults, the 50-PR replay), verified and
-frozen before the M5a tag; if it fails a check, its alternate is go-task/task (decided 2026-11-09
-under R42, A14). The helm/helm test count is not yet verified and MUST be verified before
-freezing. Each MUST be checked against the
-rule's licence and activity criteria and the untouched rule (PRR-V1-005) before the held-out list is
-frozen; the frozen list, with each repository's runner, pinned SHA and check results, and its hash
-MUST be committed before qualification starts. A repository that fails a check MUST NOT be frozen;
-it goes back to the owner with a proposed replacement from its pool (PRR-V1-011). (G12)
+Owner decision H3 (2026-11-10). One held-out repository per family (Go, JS/TS, Python, Ruby) MUST
+be drawn from that family's sealed pool (PRR-V1-011), once, after the first candidate tag
+(REL-V1-002) is pushed. The seed is the commit SHA of that tag. The draw MUST be deterministic from
+the seed and the sealed pool and reproducible by anyone who holds both. The draw record (seed, pool
+hashes, indexes, drawn slugs) MUST be committed before any fault is generated for a drawn
+repository. The drawn list, with each repository's runner, pinned SHA and check results against
+the rule's licence and activity criteria and the untouched rule (PRR-V1-005), and its hash MUST be
+committed before qualification starts. A drawn repository MUST get the same treatment (100 faults,
+the 50-PR replay). A drawn repository that proves unusable MUST be reported as unusable with the
+failed check; it MUST NOT be replaced, and no family MUST be redrawn. (G12; owner decision H3
+(2026-11-10))
 
-Earlier wording, superseded by A14: "Three held-out repositories, frozen before qualification",
-naming only fastapi, solidus and payload; G12 asked for four families and R21 named three.
+Earlier wording, superseded by H3: owner decision R21 (2026-11-09) named fastapi, solidus and
+payload as a fixed list, with a failing one going back to the owner with a replacement from its
+pool; A14 (decided 2026-11-09 under R42) added helm/helm with alternate go-task/task.
 
-#### Scenario: All four pass
+#### Scenario: Same seed, same four
 
-- **GIVEN** fastapi, solidus, payload and helm passing licence, activity and untouched checks
-- **WHEN** the held-out list is frozen
-- **THEN** its hash is committed and names the four repositories with their runners
+- **GIVEN** four sealed pool files and a candidate tag commit SHA
+- **WHEN** the draw is computed twice, by two independent readers
+- **THEN** both name the same repository in each family
 
-#### Scenario: helm fails a check
+#### Scenario: Drawn repository unusable
 
-- **GIVEN** helm/helm failing one check before freezing
-- **WHEN** the held-out list is frozen
-- **THEN** helm/helm is not frozen, and go-task/task is checked as the Go alternate
+- **GIVEN** a drawn repository that fails a check after the draw
+- **WHEN** the drawn list is frozen
+- **THEN** it is reported as unusable with the failed check, no second draw is run, and no other
+  pool entry is substituted
 
-#### Scenario: One fails
+#### Scenario: Draw attempted again
 
-- **GIVEN** solidus measured below 100 merged PRs in 12 months
-- **WHEN** the held-out list is frozen
-- **THEN** freezing refuses, and the owner receives a proposed replacement from the Ruby pool
+- **GIVEN** a committed draw record for a seed
+- **WHEN** a second draw is requested for the same family
+- **THEN** it refuses with `held-out-already-drawn`
 
 ### Requirement: PRR-V1-005 Untouched means untouched
 
 A held-out repository or pool entry MUST have had no Corvint run, configuration, flow or fix keyed to
-it before the freeze. go-chi/chi MUST be excluded because run-001 used it. (G12)
+it before its pool is sealed. go-chi/chi MUST be excluded because run-001 used it. (G12)
 
 #### Scenario: Previously used repository
 
@@ -135,12 +139,14 @@ it before the freeze. go-chi/chi MUST be excluded because run-001 used it. (G12)
 
 ### Requirement: PRR-V1-006 One hundred frozen faults per held-out repository
 
-Each held-out repository MUST carry 100 injected faults frozen and hashed before execution, produced
-by the FIH-V1 method (FIH-V1-012). (G12, G3, owner decision R19 (2026-11-09))
+Each drawn held-out repository MUST carry 100 injected faults frozen and hashed before execution,
+produced by the FIH-V1 method (FIH-V1-012). The sets can only be built after the draw, between the
+first candidate tag and the freeze. (G12, G3, owner decision R19 (2026-11-09), owner decision H3
+(2026-11-10))
 
 #### Scenario: Fault set frozen
 
-- **GIVEN** a frozen held-out repository
+- **GIVEN** a drawn held-out repository
 - **WHEN** its 100 faults are generated
 - **THEN** their hash is committed before any selected run
 
@@ -205,13 +211,14 @@ pick) A13)
 - **THEN** the rule check fails it, and only a replacement that passes the rule and has no Corvint
   run can be recorded, with the swap reported in the manifest
 
-### Requirement: PRR-V1-011 Held-out replacement pools
+### Requirement: PRR-V1-011 Held-out candidate pools
 
-Review release-tasks 16. For each held-out repository a pool file MUST list at least 5 replacement
-candidates, each entry stating its runner and the search showing it is untouched (the query, its
-date and the result). The pool files and their hashes MUST be committed with the frozen held-out
-list. A replacement is proposed from the pool only under PRR-V1-004 and takes effect only by owner
-decision.
+Review release-tasks 16; owner decision H3 (2026-11-10). For each family (Go, JS/TS, Python, Ruby)
+a pool file MUST list at least 5 candidates, each entry stating its runner and the search showing
+it is untouched (the query, its date and the result), and each candidate MUST be checked against the
+held-out rule (licence and activity criteria) and the untouched search. The four pool files MUST be
+hashed and sealed, with their hashes committed, before the first candidate tag is pushed. A sealed
+pool MUST NOT change; the draw (PRR-V1-004) reads it as sealed.
 
 #### Scenario: Short pool
 
@@ -224,3 +231,15 @@ decision.
 - **GIVEN** a pool entry without a recorded untouched search
 - **WHEN** the pools are sealed
 - **THEN** sealing refuses and names the entry
+
+#### Scenario: Candidate fails a check
+
+- **GIVEN** a candidate measured below 100 merged PRs in 12 months
+- **WHEN** the pools are sealed
+- **THEN** sealing refuses and names the candidate, which is not in the pool
+
+#### Scenario: Pool changed after sealing
+
+- **GIVEN** a committed pool hash and a draw record
+- **WHEN** the pool file differs from its hash
+- **THEN** the draw refuses with `pool-hash-mismatch`

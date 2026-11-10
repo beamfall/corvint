@@ -11,7 +11,7 @@ Requirement IDs this change adds: CRI-V1-001 to CRI-V1-009 (CRI-V1-009 added 202
 decision R30). `CRI-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` (checked 2026-11-09 on `claude/layers-integ` at `9ec3a29d0`).
 Owner answers and decisions this change implements: G6, G16, G25, owner answer 13, owner decision R4
-(2026-11-09) and owner decision R30 (2026-11-09)
+(2026-11-09), owner decision R30 (2026-11-09) and owner decision H8 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started. Release label: preview for 1.0; it never blocks the release (G25).
 Written before dispatch: yes. G25 requires a committed proposal before any build.
@@ -48,12 +48,15 @@ was not yet checked against code; this proposal does that check.
 
 ## What Changes
 
-`corvint impact --base FULL_SHA [--head FULL_SHA]` prints one report with five sections, each with
+`corvint impact [--base FULL_SHA] [--head FULL_SHA]` prints one report with five sections, each with
 an explicit state.
 
 ### Inputs
 
-1. The base and head commits (head defaults to the working tree's `HEAD`).
+1. The base and head commits (head defaults to the working tree's `HEAD`). With `--base` omitted,
+   the base is the merge base of `HEAD` with the repository's default branch; the report names the
+   base it chose, and `impact` refuses with a typed reason when the default branch or the merge
+   base cannot be determined (owner decision H8 (2026-11-10), marked low confidence).
 2. The affected plan for that range, computed by the affected engine (not a second engine).
 3. `.corvint/flows.json` and its link records (change `affected-plan-kinds`).
 4. Optionally `--docs-check FILE`: a saved output of `corvint-docs docs flows check`, or the

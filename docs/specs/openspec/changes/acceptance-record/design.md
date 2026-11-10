@@ -27,6 +27,13 @@
   is by convention, identity `NOT_VERIFIED`.
   It stays a report under `make spec-acceptance-audit` and is wired as a gate step only by the change
   `openspec-check`.
+- Invariant edits (ACR-V1-012; owner decisions H4 and H5 (2026-11-10)). Every edit of `AGENTS.md`
+  product invariants 3, 4, 5, 7 and 8 is made by this change and no other. 3, 4 and 5 take the
+  wording quoted in the record's superseded-text table (section 7). 7 keeps the citations of active
+  documents and drops the archived ones. 8 is not reworded, because the proposed rewording dropped
+  "human-owned intent". A later rewording of 8 keeps those words and goes to the owner. The audit
+  gains two checks: invariant 8 still contains "human-owned intent", and a commit that changes
+  invariants 3, 4, 5, 7 or 8 belongs to this change.
 - Release records. One file per signed event (RC publish, stable promotion) under
   `docs/releases/`, listing each requirement with its evidence path or demotion, NOT_RUN and
   NOT_OBSERVED items and deferred P2 and P3 tickets. The release workflow refuses to publish without
@@ -44,6 +51,8 @@
   owner has neither generated a key nor recorded the fallback by the RC, the RC cannot publish.
 - An acceptance tag signed by a key missing from the earlier allowed-signers file: the publish
   job refuses.
+- An edit of invariant 8 that drops "human-owned intent", or an invariant edit made by another
+  change: the audit names the commit and the change is refused (ACR-V1-012).
 
 ## Acceptance evidence
 
@@ -52,6 +61,8 @@
 - `make spec-acceptance-audit` output with zero log mismatches.
 - Audit tests for a missing row, a mode mismatch and a stale quote.
 - The signed RC release record, read by the release workflow.
+- The `AGENTS.md` diff: invariants 3, 4, 5 and 7 changed as ACR-V1-012 states, invariant 8
+  unchanged, and the audit tests for a dropped phrase and a foreign edit.
 
 ## Rollback
 

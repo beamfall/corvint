@@ -2,7 +2,8 @@
 
 Owner: Russell Lewis (repository owner). This file proposes a plan. It accepts nothing.
 Date: 2026-11-09 (revision 3: folds in the owner answers of 2026-11-09, answers 1 to 18, G1 to G27,
-the review-round decisions R1 to R41 and the final-round delegation R42)
+the review-round decisions R1 to R41 and the final-round delegation R42; owner decisions H1 to
+H12 of 2026-11-10 are applied in place)
 Intent status: proposed
 Delivery status: experimental
 
@@ -105,7 +106,7 @@ earlier one, the later one governs and the requirement says so.
 | G10, G10a | Definition of done, freeze 2026-12-15, stable no earlier than 2027-01-05 | PROD-INT-012, PROD-INT-013 |
 | G11 | Unlinked E2E tests always run; links proposed and accepted | PROD-TEST-018, PROD-DOCS-012 |
 | G13 | Test kind enum and kind source | PROD-TEST-003 |
-| G14 | Accept the plan once; auto-accept implementing proposals; OpenSpec change folders | PROD-INT-011 |
+| G14 | Accept the plan once; auto-accept implementing proposals; OpenSpec change folders (its "no npm tool, no `openspec/` root" clause amended by H12) | PROD-INT-011 |
 | G15a | Tag-started release with owner approval in a protected environment | PROD-INT-014 |
 | G15b | Non-code files select every possible reader unless a proven map entry narrows | PROD-TEST-019 |
 | G16 to G18 | GitHub Action in `beamfall/corvint-action`; Corvint's own CI cut over after shadow | PROD-INT-018 to 022 |
@@ -139,7 +140,7 @@ questions and three extra points on 2026-11-09. This plan cites each as "owner d
 | R18 | Tasks trial and conformance subject is `beamfall/core` | PROD-TASK-009, PROD-TASK-010 |
 | R19 | 100 planted faults per held-out repository, at most 3 misses with a Wilson interval, at most 5 percent of tests excluded, per-test durations in every receipt | PROD-TEST-016, PROD-INT-008 |
 | R20 | PR agreement figure: share of soak-window PRs whose narrowed pass/fail equals full pass/fail on the same commit | PROD-INT-012 |
-| R21 | Held-out repositories fastapi, solidus, payload, each verified against the licence and activity rules first | PROD-INT-008 |
+| R21 | Held-out repositories fastapi, solidus, payload, each verified against the licence and activity rules first. The fixed list is superseded by H3 | PROD-INT-008 |
 | R22 | One plan artifact with a digest; shards filter by runner; a final job verifies every shard used it | PROD-INT-021, PROD-INT-022 |
 | R23 | Narrow on pull_request and push; fork PRs run everything | PROD-INT-018, PROD-INT-020 |
 | R24 | Actions pinned by SHA; contents read plus id-token write only for attestation; no PR checkout under pull_request_target | PROD-INT-018, PROD-INT-020 |
@@ -158,8 +159,20 @@ questions and three extra points on 2026-11-09. This plan cites each as "owner d
 | R38 | Testing build order: canonical test ID, inventory, run results, line evidence, flow links | "Proposal dependency table" |
 | R39 | No API keys and no spend cap; agent qualification uses the owner's subscription logins on the owner's machines, never GitHub-hosted runners; the result is a release evidence file | PROD-INT-026, PROD-INT-027 |
 | R40 | Codex qualification uses the logged-in Codex CLI | PROD-INT-026 |
-| R41 | Every change uses the OpenSpec propose, apply, archive stages under `docs/specs/openspec/changes/`; old process documents cleaned up by `spec-set-cleanup` | PROD-INT-010, PROD-INT-011, "Where this file sits" |
+| R41 | Every change uses the OpenSpec propose, apply, archive stages under `docs/specs/openspec/changes/`; old process documents cleaned up by `spec-set-cleanup`. H12 runs the stages with the OpenSpec command | PROD-INT-010, PROD-INT-011, "Where this file sits" |
 | R42 | Final round: every still-open question takes the expert panel's recommendation as the decision (delegated picks A1 to A18, B1 to B10, C1 to C23, D1 to D17 with D10a, E1 to E10, F1, F2, N1 to N11, M1 to M12). Publishing, stable promotion, credentials, repository creation and repository visibility stay with the owner | Cited in place as "R42" with the pick's id; listed pick by pick in section 3 of `docs/decisions/PROPOSED-accept-product-plan-1.0.md` |
+| H1 | Stable is not published before the latest of 2027-01-05, the end of the 21-day Tasks RC trial, the Corvint RC publish plus 21 days and the end of the 7-day soak | "The 1.0 bar", PROD-INT-012, PROD-INT-013, milestone row M9 |
+| H2 | A regression found on the RC blocks, for each of the seven blocking runners; it never becomes a demotion | PROD-INT-012 |
+| H3 | One held-out repository per family (Go, JS/TS, Python, Ruby), drawn from a sealed pool seeded by the first candidate tag's commit SHA and never redrawn; R21's names may be pool candidates | PROD-INT-008, PROD-TEST-015 |
+| H4 | `AGENTS.md` invariant 7 rewording accepted; invariant 8 not reworded and keeps "human-owned intent" | "Removed from 1.0" rows G8 and G22; "Corrections to the first draft" item 3; checklist row O35 |
+| H5 | Every edit of `AGENTS.md` invariants 3, 4, 5, 7 and 8 is made by the change `acceptance-record` (ACR-V1-012) | Checklist row O35 |
+| H6 | If the flow links miss 2026-12-04, M5a slips until they are signed; Playwright is not demoted | Milestone row M5a |
+| H7 | M4 lands before the M5a tag | Milestone rows M4 and M5a |
+| H8 | `impact` without `--base` uses the merge base of HEAD with the default branch, reports it, and refuses when it cannot determine one (low confidence) | PROD-INT-028 |
+| H9 | `external-spec-not-verified` is an accepted status of the openspec check, reported and not failing | PROD-INT-011 |
+| H10 | The acceptance record is signed without waiting for the removal branch; the 0594 Keeps-line row takes effect when that branch lands | "Conflicts with accepted text" |
+| H11 | Per-merge macOS check advisory until the flake tickets close and 20 consecutive main runs pass, then required; still advisory per merge for 1.0 if not met by 2026-12-15; macOS required at release | PROD-INT-015, "Proposal dependency table" |
+| H12 | Install OpenSpec and follow its flows: `docs/specs/openspec/` is the OpenSpec root, the command is pinned and `openspec validate --all` passes for every change folder | PROD-INT-011, "Where this file sits" |
 
 ## Where this file sits
 
@@ -191,8 +204,16 @@ A proposal that changes behaviour, a file or wire format, or the release bar wai
 
 OpenSpec stages (owner instruction of 2026-11-09, owner decision R41 (2026-11-09)). Every change
 uses the OpenSpec propose, apply and archive stages in its own folder under
-`docs/specs/openspec/changes/`. The G14 layout is unchanged: no npm tool and no root `openspec/`
-directory. The planned `openspec-check` change enforces the stages. The planned `spec-set-cleanup`
+`docs/specs/openspec/changes/`. Owner decision H12 (2026-11-10), the owner's words: "install
+openspec and ensure we are following its flows for this". `docs/specs/openspec/` is an OpenSpec
+root with `config.yaml` (schema `spec-driven`), and the OpenSpec command (`@fission-ai/openspec`,
+pinned 1.17.0) is run from `docs/specs`; the repository root holds no `openspec/` directory. The
+stages use `openspec new change`, `openspec validate`, `openspec status`, `openspec list` and
+`openspec archive <name> --skip-specs`. The canonical specs stay the flat `docs/specs/*.md` files,
+so archive skips the spec merge; the owner has not yet confirmed this reading. The planned
+`openspec-check` change enforces the stages: `openspec validate --all` passes for every change
+folder, with strict-mode warnings reported, not failing (OSC-V1-012). Its Go check needs no
+OpenSpec command and the product build gains no npm dependency. The planned `spec-set-cleanup`
 change gives every old process document and spec a verdict (keep, rewrite, archive, delete or move)
 and leaves one workflow document, so that old process text cannot be mistaken for the current
 workflow.
@@ -242,9 +263,13 @@ Dates (G10a, as amended by owner decision R2 (2026-11-09)).
   printed reason. The owner records each demotion verdict before the freeze, from the qualification
   results on the M5a candidate.
 - Release candidate: tagged first, then published after the owner's approval (M8).
-- Stable: no earlier than 2027-01-05. It needs the 21-day Tasks takeover trial and the 7-day soak,
-  both on the frozen RC. Because 2026-12-15 plus 21 days is 2027-01-05, the earliest stable date
-  holds only if the RC is published on the freeze date and no code change restarts a clock.
+- Stable (owner decision H1 (2026-11-10)): not published before the latest of 2027-01-05; the end
+  of the 21-day Tasks RC trial (2026-12-08 to 2026-12-29, unless it restarts on a store format
+  change under TCF-V1-009); the Corvint RC publish date plus 21 days; and the end of the 7-day soak
+  on the frozen RC. Because 2026-12-15 plus 21 days is 2027-01-05, the earliest stable date holds
+  only if the RC is published on the freeze date and no code change restarts a clock. A code
+  change in the Corvint RC restarts the soak and the RC-publish clock, not the Tasks trial; a late
+  batch (B8b, B11) restarts a clock only if it changes a shipped binary (REL-V1-003).
 
 Seven blocking runners (G1, superseding answer 2's set; confirmed by owner decision R7
 (2026-11-09)). Go (`go test`), Vitest, Jest, Playwright, pytest, RSpec and Minitest must select and
@@ -308,8 +333,9 @@ Also part of the bar (owner decisions of 2026-11-09).
   artifact (G22, R33).
 - Agent qualification runs on the owner's machines with the owner's subscription logins, never on
   GitHub-hosted runners, and its result is a release evidence file (R39, R40, PROD-INT-026).
-- Held-out repositories are fastapi, solidus and payload, each pending the licence and activity
-  check (R21, PROD-INT-008).
+- One held-out repository per family (Go, JS/TS, Python, Ruby) is drawn from a sealed pool, seeded
+  by the commit SHA of the first pushed candidate tag and never redrawn (owner decision H3
+  (2026-11-10), PROD-INT-008).
 
 ## Requirements
 
@@ -667,10 +693,10 @@ Also part of the bar (owner decisions of 2026-11-09).
     with the release wording of "The 1.0 bar".
 
 - `PROD-TEST-015`: (proposed 2026-11-09) Corvint MUST report selection size and over-selection on a
-  plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on each of the three R21
-  held-out repositories (fastapi, solidus, payload): the 50 most recent merged PRs before each pin,
-  the list frozen with the manifest (R42 (panel pick) A12; review completeness F16). The replay does
-  not count as miss proof.
+  plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on each of the four drawn
+  held-out repositories (owner decision H3 (2026-11-10)): the 50 most recent merged PRs before
+  each pin, the list frozen with the manifest (R42 (panel pick) A12; review completeness F16). The
+  replay does not count as miss proof.
   - Source: G3 (supersedes answer 5's N as a miss proof).
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: replay report.
@@ -696,7 +722,7 @@ Also part of the bar (owner decisions of 2026-11-09).
   - Scenario: a runner over-selects.
     - **WHEN** pytest narrows 45 percent of replayed PRs
     - **THEN** pytest fails the bar and is demoted or fixed before the freeze
-  - Implemented by: PRR-V1-001 to PRR-V1-010 (`docs/specs/openspec/changes/proof-repositories/`) plus the NMS measurement.
+  - Implemented by: PRR-V1-001 to PRR-V1-011 (`docs/specs/openspec/changes/proof-repositories/`) plus the NMS measurement.
   - Open tickets: none found.
   - Evidence today: none.
   - Acceptance evidence at 1.0: the frozen thresholds and the per-runner measurements.
@@ -1326,19 +1352,25 @@ list.
     record for the RC.
 
 - `PROD-INT-008`: (proposed 2026-11-09) Before 1.0 the RC MUST be qualified on Corvint, on
-  Beamfall, on seven pinned public repositories (one per blocking runner) and on the held-out
-  repositories named by owner decision R21 (2026-11-09).
+  Beamfall, on seven pinned public repositories (one per blocking runner) and on four held-out
+  repositories, one per family, drawn from sealed pools (owner decision H3 (2026-11-10)).
   - Changed: (changed 2026-11-09, answer 17, G12, G12a) It said "one repository not used during
-    development". (changed 2026-11-09, owner decision R21 (2026-11-09)) The held-out repositories
-    are fastapi, solidus and payload (exact repository slugs pinned in the manifest), each verified against the
-    licence and activity rules before they are frozen; a failing one goes back to the owner with a
-    replacement. The sealed-pool draw seeded by the RC commit SHA is removed: the repositories are
-    fixed before the candidate exists, so the candidate cannot choose its own test set. The Go
-    held-out repository is `helm/helm`, alternate `go-task/task` (decided 2026-11-09 under R42,
-    A14; test count NOT_VERIFIED until the rule check). (changed 2026-11-09, owner decision R19 (2026-11-09))
-    Fault injection uses 100 planted faults per held-out repository.
+    development". (changed 2026-11-09, owner decision R19 (2026-11-09)) Fault injection uses 100
+    planted faults per held-out repository. (changed 2026-11-10, owner decision H3 (2026-11-10))
+    The fixed list of owner decision R21 (2026-11-09), fastapi, solidus and payload, and the Go
+    pick `helm/helm` with alternate `go-task/task` (R42, A14) are superseded. One held-out
+    repository per family (Go, JS/TS, Python, Ruby) is drawn from that family's pool. Each pool
+    lists at least five candidates, each checked against the held-out rule and the untouched
+    search, and the pools are hashed and sealed before the first candidate tag is pushed
+    (PRR-V1-011). The seed is the commit SHA of the first pushed candidate tag (REL-V1-002). The
+    draw is deterministic from the seed and the sealed pool (PRR-V1-004; proposed detail in the
+    `proof-repositories` design: pool sorted by slug, index from SHA-256 of the seed and the family
+    name, modulo the pool size) and is never redrawn (REL-V1-014). A drawn repository that proves
+    unusable is reported with the failed check, not replaced. The five names above may be pool
+    candidates. Schedule risk: fault sets for the drawn repositories are built between the
+    candidate tag and the freeze.
   - Source: PRS-V1-008, PRS-V1-017; answer 17; G12; G12a; owner decisions R19 and R21
-    (2026-11-09).
+    (2026-11-09); owner decision H3 (2026-11-10).
   - Rules (G12): a written selection rule is committed and hashed first (MIT, Apache-2.0 or BSD;
     at least 500 tests; full suite at most 30 minutes; default branch at least 85 percent green over
     90 days; at least 100 merged PRs in 12 months; the Playwright repository needs browser E2E
@@ -1347,8 +1379,9 @@ list.
     (`vitejs/vite`); Jest `prettier/prettier` (`babel/babel`); Playwright
     `freeCodeCamp/freeCodeCamp` (`RocketChat/Rocket.Chat`); pytest `pydantic/pydantic`
     (`pallets/flask`); RSpec `rubocop/rubocop` (`thoughtbot/factory_bot`); Minitest `rails/rails`
-    activesupport (`jekyll/jekyll`). Held-out repositories (R21) are verified and frozen before the
-    M5a candidate is tagged; untouched means no Corvint run, config, flow or fix keyed to the
+    activesupport (`jekyll/jekyll`). Held-out pools are sealed before the M5a candidate tag is
+    pushed, and the draw record is committed before any fault is generated for a drawn repository
+    (H3); untouched means no Corvint run, config, flow or fix keyed to the
     repository before; no flows written there, so E2E runs unnarrowed. Fault injection (R19): 100
     planted faults per held-out repository; pass at most 3 misses, with the Wilson interval
     reported, each miss filed P1 and fixed by widening before the candidate (R42 (panel pick) A9);
@@ -1356,7 +1389,9 @@ list.
     All repositories pinned by commit SHA, lockfiles, toolchain versions and image digest in a
     hashed manifest; source fetched, never vendored. Blocking: a fault result above the R19 limit
     or any confirmed miss outside fault injection; a refusal rate above 25 percent; a result
-    differing across two identical reruns. Over-selection is reported, not blocking. Runs on the
+    differing across two identical reruns; a regression found on the RC, for each of the seven
+    blocking runners, which blocks and never becomes a demotion of that runner (owner decision H2
+    (2026-11-10); REL-V1-004, NMS-V1-007). Over-selection is reported, not blocking. Runs on the
     benchmark box on the M5a candidate (owner decision R2 (2026-11-09)) and again on the RC.
   - Notes: (proposed, not from an owner answer; checklist O23) Benchmark hosts: Linux runs on the
     WSL2 Linux of the Windows benchmark box and macOS on the owner's Mac, both reserved with no
@@ -1364,13 +1399,15 @@ list.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: the held-out repositories.
     - **WHEN** the M5a candidate is tagged
-    - **THEN** the held-out repositories were verified and frozen before the tag, and each
-      product's acceptance evidence is recorded there, with failures kept
+    - **THEN** the held-out pools were sealed before the tag, the draw seeded by the tag's commit
+      SHA is committed, and each product's acceptance evidence is recorded there, with failures
+      kept
   - Implemented by: PRS-V1-008, PRS-V1-017 (to be superseded).
   - Open tickets: V1-0019, V1-0020, V1-0021. V1-0014 closes as superseded (G8).
   - Evidence today: no qualification record for this scope.
-  - Acceptance evidence at 1.0: the hashed manifest, the rule file, each held-out repository's
-    verification record, and each repository's record bound to the M5a candidate and the RC.
+  - Acceptance evidence at 1.0: the hashed manifest, the rule file, the sealed pool hashes and the
+    draw record, each drawn held-out repository's verification record, and each repository's
+    record bound to the M5a candidate and the RC.
 
 - `PROD-INT-009`: (proposed 2026-11-09) Corvint MUST use its three products on itself, recorded as
   use of the products, and each release records that use and the friction found. This replaces the
@@ -1421,9 +1458,14 @@ list.
     passes through the propose, apply and archive stages under `docs/specs/openspec/changes/`, and
     the planned `openspec-check` enforces the stages (R41). PRS-V1-018 (d), the recorded
     acceptance mode per requirement with an audit command, carries over to 1.0 (R37); (a), (b) and
-    (e) drop.
+    (e) drop. (changed 2026-11-10, owner decision H12 (2026-11-10)) H12 replaces the G14 clauses
+    on the npm tool and the `openspec/` root: `docs/specs/openspec/` is an OpenSpec root, the
+    pinned OpenSpec command runs the stages ("Where this file sits"), and `openspec validate --all`
+    passes for every change folder (OSC-V1-012). The Go check and the product build still need no
+    npm tool. (owner decision H9 (2026-11-10)) `external-spec-not-verified` is an accepted status
+    of the check, reported and not failing (OSC-V1-005).
   - Source: owner, "everything should be documented before being built"; G14; owner decisions R37
-    and R41 (2026-11-09).
+    and R41 (2026-11-09); owner decisions H9 and H12 (2026-11-10).
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: a ticket is about to be dispatched.
     - **WHEN** a ticket has no committed proposal and cites no existing requirement ID
@@ -1434,15 +1476,17 @@ list.
   - Open tickets: none found.
   - Evidence today: `docs/decisions/PROPOSED-openspec-workflow.md`; proposals under
     `docs/specs/openspec/changes/`.
-  - Acceptance evidence at 1.0: the Go check in CI, the auto-accept log with rationale per entry,
-    the acceptance-mode audit command, and one workflow document.
+  - Acceptance evidence at 1.0: the Go check in CI, a passing `openspec validate --all` run, the
+    auto-accept log with rationale per entry, the acceptance-mode audit command, and one workflow
+    document.
 
 - `PROD-INT-012`: (proposed 2026-11-09) 1.0 is done only when every `PROD` requirement is PASS with
   evidence or DEMOTED by a written owner note recorded before the freeze; there are zero open P0 or
   P1 tickets in `v1-0`; each product completes its end-to-end scenario on an untouched repository;
   and the RC soaks 7 days and at least 30 real PRs (merged Corvint and Beamfall PRs; held-out
   repositories have no live PRs, so they add only replayed merged PRs, reported separately, O21)
-  with zero confirmed misses and zero new P0 or P1. Any code change restarts the soak.
+  with zero confirmed misses and zero new P0 or P1. Any code change in the RC restarts the soak and
+  the RC-publish clock (owner decision H1 (2026-11-10); REL-V1-003).
   - Source: G10; owner decisions R1, R2 and R20 (2026-11-09). The signed decision file is the one
     acceptance record of R1.
   - Signature (G10): only the owner signs, twice (RC publish, stable promotion), in one decision file
@@ -1452,10 +1496,12 @@ list.
     owner's demotion notes use the fault-injection (FIH) and measurement (NMS) verdicts recorded
     on the M5a qualification candidate, tagged about 2026-12-08 and rebuilt only for blockers.
     The RC run after the freeze confirms them; any regression from those verdicts is a blocking
-    miss. Soak count (checklist O21): PRs merged during the soak window in Corvint or Beamfall
-    repositories, read from the GitHub API, plus held-out upstream PRs merged during the window
-    and replayed on the RC; the two are reported as separate counts, and at least 20 of the 30 are
-    live Corvint or Beamfall PRs (R42 (panel pick) C9). The soak also reports the PR
+    miss, for each of the seven blocking runners, and is never recorded as a demotion (owner
+    decision H2 (2026-11-10); REL-V1-004). Soak count (checklist O21): PRs merged during the soak
+    window in Corvint or Beamfall repositories, read from the GitHub API, plus held-out upstream
+    PRs merged during the window and replayed on the RC; the two are reported as separate counts,
+    and at least 20 of the 30 are live Corvint or Beamfall PRs (R42 (panel pick) C9). The soak
+    also reports the PR
     agreement figure (owner decision R20 (2026-11-09)): the share of soak-window PRs where the
     narrowed run's pass or fail equals the full run's pass or fail on the same commit. Trial
     activity (checklist O22, R42 (panel pick) C9): at least 50 ticket writes and 5 completions per
@@ -1471,15 +1517,17 @@ list.
   - Acceptance evidence at 1.0: the signed decision file, with the PR agreement figure.
 
 - `PROD-INT-013`: (proposed 2026-11-09) The freeze date MUST be 2026-12-15. The RC is published
-  after the owner's signature. Stable is promoted no earlier than 2027-01-05, after the 21-day Tasks
-  trial and the 7-day soak on the frozen RC.
+  after the owner's signature. Stable is not promoted before the latest of 2027-01-05, the end of
+  the 21-day Tasks RC trial, the RC publish date plus 21 days and the end of the 7-day soak on the
+  frozen RC (owner decision H1 (2026-11-10)).
   - Changed: (changed 2026-11-09, owner decision R2 (2026-11-09)) Qualification runs before the
     freeze, on the M5a candidate tagged about 2026-12-08 and rebuilt only for blockers.
-  - Source: G10a; owner decision R2 (2026-11-09).
+  - Source: G10a; owner decision R2 (2026-11-09); owner decision H1 (2026-11-10).
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: a fix during soak.
     - **WHEN** a code change lands in the RC during the soak
-    - **THEN** both the soak and the Tasks trial clocks restart and the stable date moves
+    - **THEN** the soak and the RC-publish clock restart and the stable date moves; the Tasks trial
+      restarts only on a store format change (TCF-V1-009)
   - Implemented by: nothing yet. Planned: `release-process`.
   - Open tickets: none found.
   - Evidence today: none.
@@ -1509,11 +1557,15 @@ list.
   supported only through WSL; native Windows is stated unsupported in 1.0. The exhaustive macOS
   test and vet MUST be a release gate on the freeze and release candidates. The per-merge macOS
   check stays advisory (REL-V1-015) until its flake tickets close and 20 consecutive main runs
-  pass; if that has not happened by 2026-12-15 it stays advisory for 1.0. (decided 2026-11-09
-  under R42, D7) Native Windows vet and archive work leaves the 1.0 bar.
+  pass, and is then made required; if that has not happened by 2026-12-15 it stays advisory per
+  merge for 1.0. (decided 2026-11-09 under R42, D7) MRS-V1-002 and MRS-V1-004 follow D7 and
+  REL-V1-015; MRS-V1-004 keeps filing a P1 ticket per flake, and the release gate and the general
+  open-P1 rule replace its own bar on RC approval (owner decision H11 (2026-11-10)). Native
+  Windows vet and archive work leaves the 1.0 bar.
   - Notes: (owner decision R36 (2026-11-09)) `make windows-vet` runs once per removal batch,
     before that batch's push, instead of before every push (removal lanes only).
-  - Source: answer 16 and its listed consequences; owner decision R36 (2026-11-09).
+  - Source: answer 16 and its listed consequences; owner decision R36 (2026-11-09); owner decision
+    H11 (2026-11-10).
   - Intent: proposed. Delivery: experimental. State: PARTIAL.
   - Scenario: native Windows.
     - **WHEN** a user runs the release on native Windows
@@ -1522,7 +1574,8 @@ list.
     Planned: `macos-required-shards`.
   - Open tickets: hosted-macOS flake tickets (IDs not collected).
   - Evidence today: macOS shards are advisory today (operator practice; not re-checked here).
-  - Acceptance evidence at 1.0: required macOS checks green on the RC; the WSL path recorded once.
+  - Acceptance evidence at 1.0: the macOS release gate (exhaustive test and vet) green on the freeze
+    candidate and the RC; the WSL path recorded once.
 
 - `PROD-INT-016`: (proposed 2026-11-09) The flow file MUST carry a schema version and every reader
   MUST refuse an unknown version. A release smoke test MUST run the testing product with `corvint`
@@ -1776,7 +1829,10 @@ is designed in detail or checked against code yet.
   - Scenario: one change, four answers.
     - **WHEN** the user runs `corvint impact --base FULL_SHA`
     - **THEN** one report lists the tests, flows and variations, stale docs and touched tickets
-  - Implemented by: CRI-V1-001 to CRI-V1-008 (`docs/specs/openspec/changes/change-report-impact/`).
+  - Notes: (owner decision H8 (2026-11-10), marked low confidence by the owner) With `--base`
+    omitted, `impact` uses the merge base of HEAD with the default branch, reports the base it
+    chose, and refuses when it cannot determine one (CRI-V1-001).
+  - Implemented by: CRI-V1-001 to CRI-V1-009 (`docs/specs/openspec/changes/change-report-impact/`).
   - Acceptance evidence at 1.0: the report on Corvint, labelled preview.
 
 - `PROD-INT-029`: (proposed 2026-11-09) `corvint review` MUST become a deterministic pre-merge
@@ -1875,9 +1931,9 @@ are written alongside this revision; each is proposed only. The order and prereq
 | `jest-provider` | PROD-TEST-006, 008, 011 | R7, R8 |
 | `per-test-durations` | PROD-TEST-016 | R19 |
 | `release-process` | PROD-INT-012, 013, 017; milestones M0 and M5a | R2, R3 |
-| `openspec-check` | PROD-INT-011 | G14, R41 |
+| `openspec-check` | PROD-INT-011 | G14, R41, H9, H12 |
 | `flow-schema-version` | PROD-INT-016 | G5 |
-| `macos-required-shards` | PROD-INT-015 | answer 16, R36 |
+| `macos-required-shards` | PROD-INT-015 | answer 16, R36, H11 |
 | `mcp-tool-table` | PROD-DOCS-001, 010; PROD-TEST-009 | R13, R30 |
 | `user-docs` | product gaps (a) to (f); PROD-INT-004, 017 | R42 B6 (O30, O64) |
 | `compatibility-promise` (CMP-V1-001 to 006) | product gap (g) | R42 D10, D10a (O30, O64) |
@@ -1916,9 +1972,9 @@ Panel file counts are estimates not yet checked by a build.
 
 | Answer | Removed | Kept or moved | Decision it supersedes |
 |---|---|---|---|
-| G8 | CEM, OCM and dogfood ceremony; `corvint cem` verbs | Release gates of PROD-INT-017; recorded self-use (PROD-INT-009) | 0594 item 4 (kept `corvint cem`); `AGENTS.md` "Dogfood Corvint", invariants 4 and 8 amended in the same change |
+| G8 | CEM, OCM and dogfood ceremony; `corvint cem` verbs | Release gates of PROD-INT-017; recorded self-use (PROD-INT-009) | 0594 item 4 (kept `corvint cem`); `AGENTS.md` "Dogfood Corvint" section; invariant 4 amended by the change `acceptance-record` (ACR-V1-012, owner decision H5 (2026-11-10)); invariant 8 is not reworded (owner decision H4 (2026-11-10)) |
 | G22 | `vscode-extension.yml` (separate `.github` PR), Makefile `host-adapter-test` and `vscode-check-install-test`, `conformance/vscode-extension-v0`, `tools/lsp-editors`, three `script/*lsp*.py` | `extensions/vscode` moves to the new public repository `beamfall/corvint-vscode` (owner decision R33 (2026-11-09), creation approved), frozen and unpublished; orphaned code is deleted and tracked in a table; a thin editor client on `corvint watch` is the first post-1.0 item | none named |
-| G22 (panel, fold into the proposal) | third-party parts of external evidence (`examples/evidence-provider`, `docs/EXTERNAL-EVIDENCE-PROVIDERS.md`, MCP and command sources), `protocol/integrations/speckit`, `conformance/cli-parity-v0` (repoint `internal/gokernel/repository.go:390@1726b502`); archive the deployment-neutral index spec and `docs/EXTENSION-ECOSYSTEM.md` | `internal/extevidence` as an internal format | `AGENTS.md` invariant 7 reworded |
+| G22 (panel, fold into the proposal) | third-party parts of external evidence (`examples/evidence-provider`, `docs/EXTERNAL-EVIDENCE-PROVIDERS.md`, MCP and command sources), `protocol/integrations/speckit`, `conformance/cli-parity-v0` (repoint `internal/gokernel/repository.go:390@1726b502`); archive the deployment-neutral index spec and `docs/EXTENSION-ECOSYSTEM.md` | `internal/extevidence` as an internal format | `AGENTS.md` invariant 7 reworded by the change `acceptance-record` (ACR-V1-012; owner decisions H4 and H5 (2026-11-10)) |
 | G23 | `internal/runnerprotocol`, `runnerpolicy`, `runnerqualification`, `tools/runner-*` | compiled-in `registry.RunnerPlugin`, `runnerselection`, `testrunner`; one compiled-in contract for seven runners | external-protocol part of 0592 (RSP-V0-025, RSP-V0-026) |
 | G24 | `corvint test-plan`, `tests lint`, `tests duplicates`, `internal/testplan`; `corvint runs`, `internal/playwrightruns`; `test-validity` and `tests validity`, `cmd/corvint-test-validity-mcp` (and its row in `tools/release-binary/binaries.json`), `internal/mcp/testvaliditybridge`, the `test-validity` MCP group, `internal/testsource/validity*.go`, tcq code unused outside tcq | `internal/testvalidity` projection types and state constants, tcq `Flaky` and result constants, the testvaliditydoc receipt decoder (`read.go` moves to `internal/pinnedread`), `internal/testevidence`, `corvint test-evidence`, `flows test-evidence` and its MCP group (preview) | 0594 Keeps line for these verbs |
 | G25 | context ranking files, the old impact engine, feature heuristics, the snapshot path if watch does not need it | revived verbs of PROD-INT-028 to 031, PROD-DOCS-013 | 0594 Keeps line |
@@ -1945,14 +2001,14 @@ change folders is in "Proposal dependency table".
 | M1 | Cut PR | `claude/bigcut-keepdocs` lands unchanged; no removals added to it. It already carries the decision 0586 licence text in `AGENTS.md` (see "Corrections", item 3). | PR CI on the cut PR |
 | M2 | `.github`-only PR | Items 0594 deferred, `vscode-extension.yml`, `cem-release-gate.yml`, `intake-containment.yml`, the dangling `.github/workflows/release-gates.yml:90@3aa27b74` target, cishards entries; lane and batch steps out of CI; required-check list checked and the ruleset updated in the same window | Required CI checks |
 | M3 | Removal lanes on the integration branch | G8, G23, G24, G26 removals and lint trims as the first lanes, before directory moves; compile-check only. Removals complete by 2026-12-01; a batch not merged by then moves to 1.0.x. `spec-set-cleanup` verdicts land with the matching removal batch (R41). Per batch: `go vet ./...` in both modules, `make windows-vet` once before the batch's push (R36), `make -n gate doc-gates shell-test release-binaries-check`, a zero-hit `git grep -F` for each deleted path over live paths, and one build-log entry (R34) | Per-batch reference closure (no tests) |
-| M4 | Layering and release merge (about 2026-12-08) | The layering integration branch merges with the 1.0 feature lanes; lane tooling moves to a private operator repository after it, in batch B8b (R42, E9; RMV-V1-025) | `corvint affected --base <pre-batch SHA>` with the selected tests, plus required CI |
+| M4 | Layering and release merge (about 2026-12-08), landed before the M5a tag (owner decision H7 (2026-11-10)) | The layering integration branch merges with the 1.0 feature lanes; lane tooling moves to a private operator repository after it, in batch B8b (R42, E9; RMV-V1-025) | `corvint affected --base <pre-batch SHA>` with the selected tests, plus required CI |
 | M5 | Action cut-over | After 30 shadow PRs with no would-be miss (PROD-INT-021): first a `.github` PR, then the non-`.github` tools; ideally before the freeze, otherwise first 1.0.x change | Shadow record |
-| M5a | Qualification candidate tag, about 2026-12-08 (owner decision R2 (2026-11-09)) | A qualification candidate is tagged from the integration result; it is rebuilt only for blockers. The Tasks RC is tagged the same day (R42, C22); publishing that tag is the owner's act. The held-out repositories (R21) are verified and frozen before the tag | Tag recorded; candidate builds |
+| M5a | Qualification candidate tag, about 2026-12-08 (owner decision R2 (2026-11-09)) | A qualification candidate is tagged from the integration result; it is rebuilt only for blockers. The Tasks RC is tagged the same day (R42, C22); publishing that tag is the owner's act. Tagged only after M4 lands (owner decision H7 (2026-11-10)). The held-out pools are sealed before the tag, and the tag's commit SHA seeds the draw (owner decision H3 (2026-11-10); PROD-INT-008). If the Playwright flow links are not signed by 2026-12-04, M5a slips until they are; Playwright is not demoted (owner decision H6 (2026-11-10)) | Tag recorded; candidate builds |
 | M6 | Freeze, 2026-12-15 | Owner records demotions from the FIH and NMS verdicts on the M5a candidate (PROD-INT-012 notes, R2); nothing removed in the two weeks before except the action cut-over (removal panel r5) and the two late removal batches: B8b (by 2026-12-10, or the first 1.0.x) and B11 (by 2026-12-15) (R42, E5; REL-V1-009) | none |
 | M7 | Per-product end-to-end qualification on the M5a candidate, before the freeze (R2) | PROD-TEST-014 to 016 per runner (R19); PROD-INT-008 pinned and held-out repositories; PROD-INT-017 scripted qualification per product; agent qualification on the owner's machines (R39, R40); Tasks conformance pack and tag (PROD-TASK-010, beamfall/core per R18) | Full qualification on the benchmark box, Linux and macOS (hosts proposed in PROD-INT-008 notes, O23); confirmed again on the RC |
 | M8 | RC tag, then approve and publish | The RC tag is pushed first and the tag workflow builds the artifacts; owner signature 1 is the approval in the protected environment that publishes them (PROD-INT-014, R2) | Full suite in the tag workflow |
-| M9 | Soak and trial | 7 days and at least 30 real PRs; 21-day Tasks trial on the frozen RC, 2026-12-08 to 2026-12-29 (R42, C22); any code change restarts both | Soak records |
-| M10 | Stable, no earlier than 2027-01-05 | Owner signature 2 | none beyond M9 |
+| M9 | Soak and trial | 7 days and at least 30 real PRs; 21-day Tasks trial on the frozen RC, 2026-12-08 to 2026-12-29 (R42, C22). A code change in the Corvint RC restarts the soak and the RC-publish clock; the Tasks trial restarts only on a store format change (TCF-V1-009); B8b and B11 restart a clock only if they change a shipped binary (owner decision H1 (2026-11-10); REL-V1-003) | Soak records |
+| M10 | Stable, not before the latest of 2027-01-05, the end of the Tasks trial, the RC publish plus 21 days and the end of the soak (owner decision H1 (2026-11-10)) | Owner signature 2 | none beyond M9 |
 
 Also on the path: Tasks specs are deleted from this repository only after `corvint-tasks` PR #4
 merges (G27). The analyzer roster removal needs its own superseding decision (removal panel r5).
@@ -2008,7 +2064,7 @@ for each of the 45 folders on disk, and `docs/specs/openspec/README.md` lists th
 | `mcp-tool-table` | existing | none for the table; `narrowing-measurement` for the kill-switch rows | `agent-packages` |
 | `agent-packages` | existing | `mcp-tool-table`, `review-evidence-check` | agent qualification (M7) |
 | `github-action` | existing | `runner-contract`, `narrowing-measurement` | the action cut-over (M5) |
-| `macos-required-shards` | existing | none (a `.github`-only PR) | the macOS release gate on the freeze and release candidates (REL-V1-015). MRS-V1-002 still makes the per-merge check required and is not yet aligned with R42, D7 |
+| `macos-required-shards` | existing | none (a `.github`-only PR) | the macOS release gate on the freeze and release candidates (REL-V1-015). MRS-V1-002 and MRS-V1-004 follow R42, D7 and REL-V1-015: the per-merge check stays advisory until the flake tickets close and 20 consecutive main runs pass, then is required, and stays advisory per merge for 1.0 if that has not happened by 2026-12-15 (owner decision H11 (2026-11-10)) |
 | `how-rewrite` | existing | none | `user-docs` |
 | `user-docs` | existing | `how-rewrite`, `source-removal`, `mcp-tool-table` | release notes for the RC (`release-process`) |
 | `tasks-integration` | existing | none | `tasks-conformance`, `ticket-brief-context` |
@@ -2046,7 +2102,9 @@ The first draft of this file (commit `1d9dc4c90`) contained these errors or omis
    integration branch all carry the 0586 text in their `AGENTS.md` licence paragraph. Only the
    primary checkout's stale local `AGENTS.md` still shows the AGPL wording; it is not a branch head.
    Required amendment: the cut PR (M1) must not regress `AGENTS.md` to the AGPL text; the G8, G22
-   amendments (Dogfood section, invariants 4, 7 and 8) land on top of the 0586 text. Related: the
+   amendments (Dogfood section, invariants 3, 4, 5 and 7, the invariant edits made by the change
+   `acceptance-record` under ACR-V1-012) land on top of the 0586 text; invariant 8 is not
+   reworded (owner decisions H4 and H5 (2026-11-10)). Related: the
    agents panel's statement that a permissive licence "needs decision 0002 amendment if in the main
    repo" rests on the stale text; the main repository is already Apache-2.0.
 4. "Last recorded result" has no writer. PROD-TEST-010 and the flows status proposal report each
@@ -2072,7 +2130,7 @@ name it; the acceptance record still restates them.
 | PRS-V1-004 | Core platforms darwin/arm64 and linux/amd64; Windows unsupported | G15a builds linux/arm64 too; answer 16 adds WSL | Amend platform list; keep Windows native unsupported |
 | PRS-V1-006 | Host scope is plain CLI plus Codex CLI and Claude Code at FALLBACK | G19 sets a full bar for Claude Code and Codex, preview for OpenCode and Pi | Supersede by the agent decision (PROD-INT-023 to 027) |
 | PRS-V1-007 | No CEM, OCM or frontier interoperability claim unless V1-0014 passes | G8 closes V1-0014 | Drop; no interoperability claim in 1.0 |
-| PRS-V1-008 | Core candidate passes three Core jobs on Corvint, Beamfall and one untouched repository | G12 sets seven pinned plus held-out repositories (three named by R21) | Supersede by PROD-INT-008 |
+| PRS-V1-008 | Core candidate passes three Core jobs on Corvint, Beamfall and one untouched repository | G12 sets seven pinned plus held-out repositories (four drawn, one per family, owner decision H3 (2026-11-10)) | Supersede by PROD-INT-008 |
 | PRS-V1-013 | Qualified Flows, navigation, flow docs and MCP tools | Consistent in direction; G5 and G6 change file and command homes | Carry over, pointing to PROD-TEST-004, PROD-DOCS-004 to 006, 011 |
 | PRS-V1-014, PRS-V1-016 | Tasks replaces Beamfall's roadmap workflow | Consistent with answer 12; G9 adds the 21-day trial and coupling | Carry over, pointing to PROD-TASK-009 to 013 |
 | PRS-V1-015 | Flow docs never accept intent or publish themselves | Consistent with answer 7 | Carry over into PROD-DOCS-002 and 005 |
@@ -2141,9 +2199,9 @@ from what is still open. Nothing is accepted until the record exists.
 | 8 | Tasks is CLI only in 1.0, with no Tasks MCP server; `corvint mcp` has no tasks tools | Answer 11; R17 |
 | 9 | Beamfall takeover stays a 1.0 condition; coupled release; 21-day trial on `beamfall/core` | Answer 12; G9; R18 |
 | 10 | Zero layer violations at 1.0; flow reader split | Answer 14 |
-| 11 | Pinned public repositories per runner plus held-out repositories (fastapi, solidus, payload; `helm/helm` for Go, decided 2026-11-09 under R42, A14), under a hashed rule | Answer 17; G12; G12a; R21 |
+| 11 | Pinned public repositories per runner plus four held-out repositories, one per family, drawn from sealed pools and never redrawn (the R21 names and the A14 Go pick may be pool candidates), under a hashed rule | Answer 17; G12; G12a; R21; owner decision H3 (2026-11-10) |
 | 12 | Separate inventory step; `affected` only reads it | Answer 4 |
-| 13 | Accept the plan once; auto-accept implementing proposals; OpenSpec change folders with propose, apply and archive stages and a Go check | G14; R1; R41 |
+| 13 | Accept the plan once; auto-accept implementing proposals; OpenSpec change folders with propose, apply and archive stages run with the pinned OpenSpec command, `openspec validate --all` passing, and a Go check | G14; R1; R41; owner decision H12 (2026-11-10) |
 | 14 | Zero-miss by fault injection; replay reports size only | G3 |
 | 15 | Tiered narrowing bar | G4 |
 | 16 | One flow file `.corvint/flows.json`; flow selects, variation shown | G6 |
@@ -2179,7 +2237,7 @@ the acceptance record must confirm; it is not an owner answer. "Open" rows still
 | O10 | Licence of `beamfall/corvint-action` and `beamfall/corvint-agents` (Apache-2.0 or MIT) | The repositories are not created | Owner decision R25 (2026-11-09): Apache-2.0 |
 | O11 | Agent API keys and CI spend for G21 | Agent qualification cannot run in CI; Claude Code and Codex cannot pass PROD-INT-026 | Owner decisions R39 and R40 (2026-11-09): subscription logins and the Codex CLI on the owner's machines, no API keys or spend cap (amends R26) |
 | O12 | Name and visibility of the VS Code extension repository (G22) | `extensions/vscode` stays in place, unpublished | Owner decision R33 (2026-11-09): public `beamfall/corvint-vscode` |
-| O13 | Swaps among the G12a named repositories after the rule check | The named list stands only where it passes the rule | Partly: owner decision R21 (2026-11-09) for the held-out repositories; swaps among the other G12a repositories are still reported to the owner |
+| O13 | Swaps among the G12a named repositories after the rule check | The named list stands only where it passes the rule | Partly: owner decision H3 (2026-11-10) for the held-out repositories (drawn from sealed pools, never swapped or redrawn; it supersedes R21's fixed list); swaps among the other G12a repositories are still reported to the owner |
 | O14 | Behaviour for a repository that declares a removed runner (G26) | Fail-closed UNKNOWN is assumed | Owner decision R32 (2026-11-09): run all tests with a named reason |
 | O15 | `context` is not release-blocking until measured (PROD-INT-030) | `context` needs its own bar | Owner decisions R28 and R29 (2026-11-09): non-blocking, measured in 1.0.x |
 | O16 | Work in flight on `claude/layers-integ` may continue as experimental until acceptance | Those lanes stop until the record exists | Owner decision R1 (2026-11-09): in-flight work continues as experimental |
@@ -2210,7 +2268,7 @@ reviewer settlement for the owner to confirm.
 | O32 | C5: RC and stable calendar against the 21-day trial | Q2 | Owner decision R2 (2026-11-09) |
 | O33 | C7: `agents doctor` (G19) against `agent hook` and `agent manifest` (G20) naming | Q27 | Partly: owner decision R27 (2026-11-09) pins one model per agent host; verb naming decided 2026-11-09 under R42, D4: `corvint agent doctor`, `agent hook`, `agent manifest`, no alias |
 | O34 | C8: G27 retires `gate-ledger` and `gate-receipt`, which `make gate` uses; decisions 0224 and 0352 need superseding. The interim handling is settled without the owner | No question number yet | Settled by G27 and G18 (panel E2, R42): 0224 and 0352 stay in force until the B11 action cut-over, the change that lands B11 supersedes them, and both stay if B11 slips past 1.0. No change folder carries the superseding text yet |
-| O35 | C9: invariant 4 against agent-hook session state; the `--learn-slot-weights` exception; invariant 7 wording | Q28 | Settled: decided 2026-11-09 under R42, D17. Invariant 3 drops "and learned task traces"; invariant 4 drops the `--learn-slot-weights` clause and states that agent hook session state in the user cache directory is not repository or trace state; invariant 5 becomes "Corvint 1.0 learns nothing from use". The `AGENTS.md` edit is assigned here to change `agent-packages` (AGT-V1-027), but that requirement only retires `integrations/`; who makes the edit is carried open in the proposed acceptance record (section 9, row e) |
+| O35 | C9: invariant 4 against agent-hook session state; the `--learn-slot-weights` exception; invariant 7 wording | Q28 | Settled: decided 2026-11-09 under R42, D17. Invariant 3 drops "and learned task traces"; invariant 4 drops the `--learn-slot-weights` clause and states that agent hook session state in the user cache directory is not repository or trace state; invariant 5 becomes "Corvint 1.0 learns nothing from use". Every edit of invariants 3, 4, 5, 7 and 8 is made by the change `acceptance-record` (ACR-V1-012, owner decision H5 (2026-11-10)), not `agent-packages`; invariant 7 is reworded and invariant 8 is not (owner decision H4 (2026-11-10)) |
 | O36 | C10: Cypress must-run (answer 2) against conditional (G1) | Q6 | Owner decision R6 (2026-11-09): Cypress dropped from 1.0 |
 | O37 | C11: `review` is preview (G25) while review evidence blocks completion (G9) | Q4 | Owner decision R4 (2026-11-09): advisory by default, opt-in blocking |
 | O38 | C12: G5 partly reverses decision 0595 and breaks CMS-V0-915/916 layer tests | No question number yet | Decision settled by G5 (panel B7, R42). Paperwork open: one superseding decision file for 0595, and CMS-V0-915/916 and the layer test rewritten with `flows-status-report` |

@@ -2,12 +2,24 @@
 
 ## Decisions
 
-- Calendar (owner decision R2, 2026-11-09; G10a; review finding 1). M5a tags a qualification
-  candidate about 2026-12-08. The freeze is 2026-12-15. Stable is promoted on the latest of three
-  dates: 2027-01-05, RC publish plus 21 days (Tasks trial), and the end of the 7-day soak. Any code
-  change in the RC restarts both clocks (PROD-INT-013).
+- Calendar (owner decision R2, 2026-11-09; G10a; review finding 1; owner decision H1
+  (2026-11-10)). M5a tags a qualification candidate about 2026-12-08. The freeze is 2026-12-15.
+  Stable is promoted no earlier than the latest of four dates: 2027-01-05; the end of the 21-day
+  Tasks RC trial (2026-12-08 to 2026-12-29 unless it restarts); the Corvint RC publish date plus
+  21 days; and the end of the 7-day soak (REL-V1-003, PROD-INT-013).
+- Clock restarts (owner decision H1 (2026-11-10)). A code change in the Corvint RC restarts the
+  soak and the RC-publish clock and does not restart the Tasks trial. The Tasks trial restarts as
+  TCF-V1-009 says, on a store format change. A late batch (B8b, B11) restarts a clock only if it
+  changes a shipped binary, read here as a binary listed in `binaries.json`; it then counts as a
+  code change in the Corvint RC. A batch that changes only `.github` files restarts nothing. How
+  "changes a shipped binary" is tested (changed build inputs or a changed built digest) is not
+  decided by H1.
 - Tag first (review finding 3). The candidate tag is pushed first. Its commit SHA is the seed of
-  the held-out repository draw (G12), so the draw cannot be known before the candidate exists. The
+  the held-out repository draw (G12), so the draw cannot be known before the candidate exists.
+  Owner decision H3 (2026-11-10): the held-out repositories come from a seeded draw that is never
+  redrawn, one repository per family (Go, JS/TS, Python, Ruby) from that family's sealed, hashed
+  pool; PRR-V1-004 and PRR-V1-011 own the pools and the draw rule. No fixed held-out list applies;
+  the names fixed earlier (fastapi, solidus, payload, helm, go-task) may be pool candidates. The
   tag workflow runs the full suite and builds, then stops. M8 is "RC approval and publish": the
   owner signs and approves the protected publish job. The soak clock starts at publish, not at tag.
 - Rebuild only for blockers (owner decision R2). A rebuilt candidate cites the blocker ticket that
@@ -20,7 +32,8 @@
   demotions from the fault-injection (FIH) and measurement (NMS) verdicts recorded on one named
   freeze-candidate SHA. The RC run repeats them on the RC SHA; any verdict that regresses from the
   freeze-candidate verdict is a blocking miss. "Selective" means zero-miss and not demoted (settled
-  without the owner).
+  without the owner). Owner decision H2 (2026-11-10): a regression found on the RC blocks, for
+  each of the seven blocking runners, and is never turned into a demotion of that runner.
 - Release object (owner decision R3; review finding 4). Each open `v1-0` ticket gets one of: a
   `requirementRefs` entry naming the `PROD` requirement it serves, or a move to `post-1-0` with a
   reason recorded in the ticket. The release object's acceptance criteria are replaced by the plan's
@@ -85,9 +98,14 @@
   candidate is not eligible for approval.
 - A ticket in `v1-0` has neither a requirement reference nor a move record after M0: the M0 audit
   (task 2.1) lists it and M0 is not complete.
-- A verdict regresses between the freeze-candidate SHA and the RC SHA: blocking miss; the RC is not
-  approved until fixed (which restarts the clocks) or the owner records a demotion before the freeze.
-  A demotion cannot be added after the freeze.
+- A verdict regresses between the freeze-candidate SHA and the RC SHA: blocking miss for each of
+  the seven blocking runners; the RC is not approved until the regression is fixed. It is never
+  recorded as a demotion of that runner (owner decision H2 (2026-11-10)), and a demotion cannot be
+  added after the freeze. A fix made after RC publish is a code change under REL-V1-003.
+- A late batch (B8b, B11) changes a shipped binary after RC publish: the soak and the RC-publish
+  clock restart (REL-V1-003). A late batch that changes no shipped binary restarts nothing.
+- A held-out repository yields a blocker: it is rerun and labelled `refit`; the draw is not
+  repeated (REL-V1-014).
 - A removal batch is not merged on 2026-12-01: it moves to 1.0.x; the binaries it would have
   removed stay in the 1.0 artifact list.
 - The benchmark host runs a lane during a declared measurement session: the timing results from

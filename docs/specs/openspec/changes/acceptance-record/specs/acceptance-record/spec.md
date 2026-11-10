@@ -196,3 +196,31 @@ convention and NOT_VERIFIED.
 - **GIVEN** the owner has recorded that no signing key will be used
 - **WHEN** the RC is accepted through the owner-merged decision file and environment approval
 - **THEN** the release record states that the owner's identity is by convention and NOT_VERIFIED
+
+### Requirement: ACR-V1-012 Edits of AGENTS.md invariants 3, 4, 5, 7 and 8 belong to this change
+
+Every edit of the `AGENTS.md` product invariants 3, 4, 5, 7 and 8 MUST be made by this change and
+by no other change. Invariants 3, 4 and 5 MUST take the wording quoted in the acceptance record's
+superseded-text table. Invariant 7 MUST take the accepted rewording, which keeps the citations of
+active documents and drops the archived ones. Invariant 8 MUST NOT be reworded by this change,
+because the proposed rewording dropped "human-owned intent" and the owner rejected it. Any later
+rewording of invariant 8 MUST keep the words "human-owned intent" and MUST go to the owner. (owner
+decisions H4 and H5 (2026-11-10))
+
+#### Scenario: An edit of invariant 8 drops the words
+
+- **GIVEN** a commit that rewrites invariant 8 without the words "human-owned intent"
+- **WHEN** the audit runs
+- **THEN** it names the commit and the check fails
+
+#### Scenario: An invariant edit from another change
+
+- **GIVEN** a commit of another change that edits invariant 3, 4, 5, 7 or 8
+- **WHEN** the audit runs
+- **THEN** it names the commit and refuses the edit as not owned by this change
+
+#### Scenario: The accepted edits
+
+- **GIVEN** the edit made by this change
+- **WHEN** the `AGENTS.md` diff is read back
+- **THEN** invariants 3, 4, 5 and 7 carry the accepted wording and invariant 8 is unchanged

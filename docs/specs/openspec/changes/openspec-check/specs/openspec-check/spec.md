@@ -10,7 +10,9 @@ hold `proposal.md` (Why, What Changes, Impact, Non-goals, and the intent and del
 items, each naming at least one requirement ID and a proof) and at least one
 `specs/<capability>/spec.md` with ADDED, MODIFIED or REMOVED Requirements, each written as
 `### Requirement: <ID> <title>` with at least one `#### Scenario:` block or, for REMOVED, a reason.
-(G14; PROD-INT-011)
+The folder MAY hold the `.openspec.yaml` file that `openspec new change` writes. Whether the folder
+passes the OpenSpec command is checked by OSC-V1-012, not by this rule.
+(G14; PROD-INT-011; owner decision H12 (2026-11-10))
 
 #### Scenario: No design file
 
@@ -74,8 +76,11 @@ range head, and each REMOVED ID MUST be marked retired there, within the same ra
 code commits. When the proposal header names a canonical spec in another repository (for example
 `beamfall/corvint-tasks`), this repository's check MUST NOT look for the IDs under `docs/specs/`:
 it MUST require each ticked item to name the other repository's commit that defines them, and
-report the item as `external-spec-not-verified` rather than pass or fail it. The same check run in
-the owning repository verifies the IDs there. (owner decision R41 (2026-11-09); G14)
+report the item as `external-spec-not-verified`. That status is accepted as a reported status that
+does not fail the check: it is listed in the output with the item and the named commit, and it is
+never counted as a pass. A ticked item that names no commit in the other repository MUST fail. The
+same check run in the owning repository verifies the IDs there. (owner decision R41 (2026-11-09);
+G14; owner decision H9 (2026-11-10))
 
 #### Scenario: Out-of-order tick
 
@@ -89,13 +94,24 @@ the owning repository verifies the IDs there. (owner decision R41 (2026-11-09); 
 - **WHEN** no canonical spec under `docs/specs/` holds the ID at the range head
 - **THEN** the check fails and names the ID
 
+#### Scenario: A requirement owned by another repository
+
+- **GIVEN** a proposal header naming a canonical spec in `beamfall/corvint-tasks` and a ticked task
+  that names the commit there which defines its IDs
+- **WHEN** the check runs in this repository
+- **THEN** it reports the item as `external-spec-not-verified`, lists the named commit, and exits
+  zero when nothing else fails
+
 ### Requirement: OSC-V1-006 Archive stage
 
 A change whose tasks are all ticked and whose every delta ID is present in the canonical specs MUST
-be moved to `docs/specs/openspec/changes/archive/YYYY-MM-DD-<name>/` by a pure rename, dated with the
-archive commit's UTC date. The check MUST fail when a finished change is still under `changes/` at
-the range head, and when any commit after the archive commit changes a file in an archived folder.
-(owner decision R41 (2026-11-09))
+be moved to `docs/specs/openspec/changes/archive/YYYY-MM-DD-<name>/` by a pure rename. The move is
+made with `openspec archive <name> --skip-specs`, run from `docs/specs`; `--skip-specs` is required
+because the canonical specs are the flat files under `docs/specs/` (OSC-V1-007). The date in the
+folder name is the one the command writes and MUST be within one day of the archive commit's UTC
+date. The check MUST fail when a finished change is still under `changes/` at the range head, when
+an archived folder holds an unticked task, and when any commit after the archive commit changes a
+file in an archived folder. (owner decision R41 (2026-11-09); owner decision H12 (2026-11-10))
 
 #### Scenario: A finished change left in place
 
@@ -109,18 +125,40 @@ the range head, and when any commit after the archive commit changes a file in a
 - **WHEN** a later commit changes its `tasks.md`
 - **THEN** the check fails and names the commit
 
-### Requirement: OSC-V1-007 G14 boundaries
+#### Scenario: Archived with an open task
 
-The check MUST fail if the repository root holds an `openspec/` directory or an `.openspec.yaml`
-file, or if a Makefile target or a workflow under `.github/workflows/` runs an `openspec` command.
-`interop/spec-toolchains/` MUST be excluded. Documentation MUST NOT claim OpenSpec CLI
-compatibility. (G14)
+- **GIVEN** a folder under `changes/archive/` whose `tasks.md` holds an unticked item
+- **WHEN** the check runs
+- **THEN** it fails and names the folder and the task
+
+### Requirement: OSC-V1-007 One OpenSpec root under `docs/specs/`
+
+The repository MUST hold exactly one OpenSpec root: `docs/specs/openspec/`, with a `config.yaml`
+that names the schema `spec-driven`, beside `changes/`. The check MUST fail if that `config.yaml` is
+missing or names another schema, or if the repository root holds an `openspec/` directory or an
+`.openspec.yaml` file. `interop/spec-toolchains/` MUST be excluded. The canonical specs stay the
+flat files directly under `docs/specs/`: the check MUST fail if `docs/specs/openspec/specs/` exists,
+because a second set of canonical specs would then exist. Documentation MAY say that the change
+folders pass `openspec validate`; it MUST NOT say that `openspec archive` without `--skip-specs` is
+supported. (G14; owner decision H12 (2026-11-10))
 
 #### Scenario: A root openspec directory
 
 - **GIVEN** a commit that adds `openspec/changes/x/proposal.md` at the repository root
 - **WHEN** the check runs
 - **THEN** it fails and points to `docs/specs/openspec/changes/`
+
+#### Scenario: No config file
+
+- **GIVEN** a tree without `docs/specs/openspec/config.yaml`
+- **WHEN** the check runs
+- **THEN** it fails and names the missing file
+
+#### Scenario: A second set of canonical specs
+
+- **GIVEN** a commit that adds `docs/specs/openspec/specs/watch/spec.md`
+- **WHEN** the check runs
+- **THEN** it fails and says the canonical spec belongs directly under `docs/specs/`
 
 ### Requirement: OSC-V1-008 Spec health class in each canonical spec header
 
@@ -172,6 +210,40 @@ committed baseline file are reported but do not fail; the baseline MUST only shr
 - **GIVEN** a depth-1 checkout and a range of ten commits
 - **WHEN** the check runs
 - **THEN** it exits non-zero with `history-unavailable`
+
+### Requirement: OSC-V1-012 The OpenSpec command validates every change folder
+
+The Make target `openspec-validate` MUST run `openspec validate --all` from `docs/specs` with the
+OpenSpec command (`@fission-ai/openspec`) at the one version pinned in the Makefile, with telemetry
+off (`OPENSPEC_TELEMETRY=0`), and MUST fail when any change folder fails validation. Warnings from
+`--strict` are reported and do not fail the target.
+
+- Locally, when the command is absent or its version differs from the pin, the target MUST report
+  NOT_RUN with the reason and exit zero.
+- In CI, an absent command or a version mismatch MUST fail the job.
+- The Go check (OSC-V1-001 to OSC-V1-011) MUST NOT need the command, the network or npm.
+- The default product build MUST NOT gain an npm dependency: the command is a developer and CI
+  tool only, and no shipped binary calls it.
+
+(owner decision H12 (2026-11-10); G14)
+
+#### Scenario: A folder the command refuses
+
+- **GIVEN** a change folder whose delta has a requirement with no scenario
+- **WHEN** `make openspec-validate` runs with the pinned command installed
+- **THEN** it exits non-zero and prints the command's finding for that folder
+
+#### Scenario: The command is not installed locally
+
+- **GIVEN** a developer machine without the OpenSpec command
+- **WHEN** `make openspec-validate` runs outside CI
+- **THEN** it prints NOT_RUN with the reason and exits zero
+
+#### Scenario: The command is missing in CI
+
+- **GIVEN** a CI job in which the OpenSpec command is absent or at another version
+- **WHEN** `make openspec-validate` runs
+- **THEN** it exits non-zero
 
 ## MODIFIED Requirements
 

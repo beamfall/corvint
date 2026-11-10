@@ -22,9 +22,10 @@ This change follows the G14 layout: `proposal.md` (this file), `design.md`, `tas
 
 Owner decision R41 (2026-11-09): "again, make sure everything is using the flows of OpenSpec, and
 that anything old that may confuse things is cleaned up". Every change uses the propose, apply and
-archive stages under `docs/specs/openspec/changes/`; G14 is unchanged (no npm tool, no root
-`openspec/`); `openspec-check` enforces the stages; and this change gives every old doc and spec a
-verdict and leaves one workflow document.
+archive stages under `docs/specs/openspec/changes/`; `openspec-check` enforces the stages; and this
+change gives every old doc and spec a verdict and leaves one workflow document. Owner decision H12
+(2026-11-10) amends G14: the OpenSpec command is installed and its flow is followed, with one
+OpenSpec root at `docs/specs/openspec/` and still no `openspec/` directory at the repository root.
 
 Today a contributor who opens the repository finds several documents that each describe how a change
 is made, most of them built around CEM, OCM, dogfood binding or lanes, which G8 and G27 remove. A
@@ -127,8 +128,10 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 ## Non-goals
 
-- No change to G14: no npm tool, no root `openspec/` directory, no `.openspec.yaml`, no claim of
-  OpenSpec command compatibility.
+- No change to G14 beyond owner decision H12 (2026-11-10): no `openspec/` directory and no
+  `.openspec.yaml` at the repository root, and the canonical specs stay the flat files under
+  `docs/specs/`. The OpenSpec command and its rules belong to the change `openspec-check`
+  (OSC-V1-007, OSC-V1-012).
 - No restatement of the `openspec-check` rules and no second check of the stages.
 - No edit of `docs/decisions/` entries or individual `docs/build-log/` entries; they are history.
 - No move or deletion of a spec file other than the 37 Tasks specs in B10 (RMV-V1-026, RMV-V1-027).
