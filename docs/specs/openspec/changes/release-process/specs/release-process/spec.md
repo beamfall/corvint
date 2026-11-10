@@ -186,11 +186,20 @@ read from the GitHub API. Held-out upstream PRs replayed on the RC MUST be repor
 count. Each Tasks trial repository MUST record at least 50 ticket writes and 5 completions, read
 from the store event log. (G10; review finding 14; plan checklist O21, O22)
 
+The soak MUST reach at least 30 PRs, counting the replayed held-out PRs, and at least 20 of the
+30 MUST be live Corvint or Beamfall PRs. (decided 2026-11-09 under R42, C9)
+
 #### Scenario: Too little trial activity
 
 - **GIVEN** a trial repository with 40 ticket writes after 21 days
 - **WHEN** the trial record is read at stable promotion
 - **THEN** the trial is reported below its activity floor and stable is not promoted
+
+#### Scenario: Too few live PRs
+
+- **GIVEN** a soak window with 15 live merged PRs and 15 replayed held-out PRs
+- **WHEN** the soak record is read at stable promotion
+- **THEN** the soak is reported below its live-PR floor and stable is not promoted
 
 ### Requirement: REL-V1-011 Reserved benchmark hosts
 

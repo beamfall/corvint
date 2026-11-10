@@ -10,7 +10,7 @@ requirements GHA-V1-040 to GHA-V1-043 stay in this change for now; change `accep
 records whether they stay here or move to `docs/specs/public-release-v0.md` (owner decision R1
 (2026-11-09): one acceptance record).
 Requirement IDs this change adds: GHA-V1-001 to GHA-V1-018, GHA-V1-020 to GHA-V1-029,
-GHA-V1-030 to GHA-V1-033, GHA-V1-040 to GHA-V1-043 (35 requirements; GHA-V1-018 added 2026-11-09
+GHA-V1-030 to GHA-V1-033, GHA-V1-040 to GHA-V1-043 (36 requirements; GHA-V1-018 added 2026-11-09
 for owner decision R22; GHA-V1-027 to GHA-V1-029 added 2026-11-09 for review ci-agents F16).
 The prefix had no entry in
 `docs/specs/REQUIREMENTS.tsv` on 2026-11-09.
