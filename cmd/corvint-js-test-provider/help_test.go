@@ -76,7 +76,7 @@ func TestProviderHelpPrintsEverySubcommandUsage(t *testing.T) {
 // external-mode admission requires (internal/jstestprovider admitExternal), so it produces a
 // retained qualified receipt rather than a refusal.
 func TestDocsHelpProducerExampleUsesE2EFlags(t *testing.T) {
-	source, err := os.ReadFile("../corvint/docs.go")
+	source, err := os.ReadFile("../corvint-docs/docs.go")
 	if err != nil {
 		t.Fatal(err)
 	}
