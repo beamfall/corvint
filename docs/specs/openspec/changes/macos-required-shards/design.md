@@ -7,9 +7,12 @@
   and the RC SHA, and a failure blocks. Stage 2 (merge gate) makes the `go-macos` aggregate a
   required check on `main`; until then the per-merge check is advisory.
 - Entry condition for stage 2. Every open ticket labelled as a hosted-macOS flake is closed, and the
-  aggregate has passed on 20 consecutive `main` runs (decided; D7). No pass-rate threshold is
-  added. If the condition is not met by 2026-12-15, the per-merge check stays advisory for 1.0 and
-  only stage 1 applies; the ruleset is not changed.
+  aggregate has passed on 20 consecutive `main` runs (decided; D7). A `main` run is a
+  `merge_group` run of the aggregate for the `main` merge queue: the workflow has no `push`
+  trigger and none is added, and the merge-queue run tests the commit that lands on `main`. The
+  count starts when task 2.3 lands; a docs-only skip is not counted and does not break the
+  sequence. No pass-rate threshold is added. If the condition is not met by 2026-12-15, the
+  per-merge check stays advisory for 1.0 and only stage 1 applies; the ruleset is not changed.
 - Workflow changes (task 2.3; they do not by themselves make the check required):
   - add `merge_group` to `on:` so the required check reports in the merge queue;
   - remove `continue-on-error` from `go-macos-shard` and `go-macos`;
