@@ -2,9 +2,9 @@
 
 Build in this order. Each task names its requirement IDs and the proof that closes it.
 
-1. Create `docs/specs/line-evidence-v1.md` with LEV-V1-001 to LEV-V1-014 from the spec delta as
+1. Create `docs/specs/line-evidence-v1.md` with LEV-V1-001 to LEV-V1-015 from the spec delta as
    proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`.
-   Requirements: LEV-V1-001 to LEV-V1-014. Proof: the spec toolchain check passes.
+   Requirements: LEV-V1-001 to LEV-V1-015. Proof: the spec toolchain check passes.
 2. Add the tier enum, `exact` flag and one-line reason to the plan output.
    Requirements: LEV-V1-009, LEV-V1-010. Proof: plan golden files showing each tier and reason.
 3. Add the shared reader with freshness and widening reasons.
