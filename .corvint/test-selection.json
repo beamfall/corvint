@@ -675,6 +675,12 @@
       ]
     },
     {
+      "paths": "internal/liveverify/affected/liverepo/testdata/**",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "internal/liveverify/affected/testdata/**",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
