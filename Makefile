@@ -50,10 +50,11 @@ GATE_STEPS = \
   go-test \
   go-vet \
   cross-vet \
-  adopter-ci-advisory-test \
   acceptance-log-audit-test \
   acceptance-plan-pin-check-test \
+  adopter-ci-advisory-test \
   agent-preflight-test \
+  agents-invariants-check-test \
   ai-coauthor-trailers-test \
   analyzer-schema-check \
   analyzer-schema-test \
@@ -1332,6 +1333,7 @@ shell-test: \
   acceptance-plan-pin-check-test \
   adopter-ci-advisory-test \
   agent-preflight-test \
+  agents-invariants-check-test \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
   bash32-test \
@@ -1475,3 +1477,7 @@ acceptance-log-audit-test:
 .PHONY: acceptance-plan-pin-check-test
 acceptance-plan-pin-check-test:
 	@script/acceptance-plan-pin-check_test.sh
+
+.PHONY: agents-invariants-check-test
+agents-invariants-check-test:
+	@script/agents-invariants-check_test.sh
