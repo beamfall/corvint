@@ -31,7 +31,7 @@ func TestRecordEntriesSelectOnlyTheirReaders_AFPV2743(t *testing.T) {
 	units := []Unit{
 		unit("ancestor", "anc", "../.corvint", "../docs"),
 		unit("lister", "list", "../.corvint/changes", "../docs/build-log"),
-		unit("named", "named", "../"+sealed, "../"+entry),
+		unit("named", "named", parentDir+"/"+sealed, parentDir+"/"+entry),
 		unit("temp", "temp", ".corvint/changes/", "docs/build-log/"),
 		unit("other", "other", "../docs/specs"),
 	}

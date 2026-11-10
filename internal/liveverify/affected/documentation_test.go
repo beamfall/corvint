@@ -192,38 +192,6 @@ func TestDocumentationDeclarationIsInTheDigest_AFPV0160(t *testing.T) {
 	}
 }
 
-// AFP-V0-160 (6) as AFP-V0-465 and AFP-V0-508 amend it: this repository's
-// declaration names `docs/build-log/`, `docs/specs/` and
-// `docs/decisions/`, and every top-level `docs/*.md` file; every declared
-// file exists, so no stale entry hides a path that has become something else.
-func TestRepositoryDeclaresBuildLogDocumentation_AFPV0160(t *testing.T) {
-	t.Parallel()
-	root := filepath.Join("..", "..", "..")
-	_, declared, err := ReadDocumentationDeclaration(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, directory := range []string{"docs/build-log/", "docs/specs/", "docs/decisions/"} {
-		if !slices.Contains(declared, directory) {
-			t.Errorf("%s does not declare %s", DocumentationPathsPath, directory)
-		}
-	}
-	for _, entry := range declared {
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(entry))); err != nil {
-			t.Errorf("declared %s: %v", entry, err)
-		}
-	}
-	docs, err := filepath.Glob(filepath.Join(root, "docs", "*.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, doc := range docs {
-		if name := "docs/" + filepath.Base(doc); !slices.Contains(declared, name) {
-			t.Errorf("%s is not declared in %s", name, DocumentationPathsPath)
-		}
-	}
-}
-
 // AFP-V0-443: a dirty .corvint/documentation-paths.json that no unit names or
 // reaches is the CORVINT_DECLARATION group, not UNOWNED_DIRTY_PATH, so a
 // change that adds the declaration is BOUNDED; a unit whose path literal names

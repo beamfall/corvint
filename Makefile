@@ -1088,10 +1088,10 @@ DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the M
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
-# internal/liveverify/affected package (DCW-V0-812).
+# internal/liveverify/affected/liverepo package (DCW-V0-812, V1-5201).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected/liverepo
 
 # shell-test-register registers TEST=script/<name>_test.sh in its rule, GATE_STEPS and shell-test in one
 # command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
