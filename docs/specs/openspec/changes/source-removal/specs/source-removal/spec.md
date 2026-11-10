@@ -701,7 +701,7 @@ then the accepted text governs and no lane removes the profile.
 ### Requirement: RSP-V0-025 Runner pieces are compiled in (G23)
 
 Source: decision 0592 (owner 2026-11-07), superseded for the out-of-process form by G23 (owner
-answer 2026-11-09) through `docs/decisions/PROPOSED-accept-product-plan-1.0.md`. Spec:
+answer 2026-11-09) through `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`. Spec:
 `docs/specs/runner-selection-plugins-v0.md`.
 
 A runner's pieces SHALL be provided compiled-in, implementing the in-process runner-plugin
@@ -721,7 +721,7 @@ every compiled-in runner alike. The previous text allowed both forms.
 ### Requirement: RSP-V0-026 to RSP-V0-032 and RSP-V0-047 The `corvint-runner/1` out-of-process protocol
 
 **Reason**: G23 keeps one compiled-in runner contract; decision 0592's out-of-process form is
-superseded (`docs/decisions/PROPOSED-accept-product-plan-1.0.md`). B3 removes `tools/runner-*`,
+superseded (`docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`). B3 removes `tools/runner-*`,
 `internal/runnerprotocol`, `internal/runnerpolicy` and `internal/runnerqualification`
 (RMV-V1-010). The
 removed IDs are RSP-V0-026 (JSON-lines framing), RSP-V0-027 (methods), RSP-V0-028
