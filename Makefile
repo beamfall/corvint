@@ -67,6 +67,7 @@ GATE_STEPS = \
   ci-least-privilege-test \
   codex-review-test \
   conflict-markers-check \
+  cutover-payloads-test \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
@@ -1337,6 +1338,7 @@ shell-test: \
   changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
+  cutover-payloads-test \
   decision-numbers-test \
   documentation-paths-test \
   dogfood-merge-base-test \
@@ -1472,3 +1474,7 @@ agents-invariants-check-test:
 .PHONY: ticket-gate-test
 ticket-gate-test:
 	@script/ticket-gate_test.sh
+
+.PHONY: cutover-payloads-test
+cutover-payloads-test:
+	@script/cutover-payloads_test.sh
