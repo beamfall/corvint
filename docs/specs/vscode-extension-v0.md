@@ -232,14 +232,14 @@ cannot access the network.
 ### 4.4 Fixed CLI adapter and process bounds
 
 - **VSC-V0-016.** The only automatic process is the discovery-time `--version` probe. Evidence and
-impact commands run only after an explicit user command. V0 admits these fixed logical operations:
+impact commands run only after an explicit user command. V0 admits this fixed logical operation
+(the query operation, `--root ROOT query --task TASK --limit 1`, is retired by decision 0594, which
+removed `corvint query`):
 
 | CLI kind | Logical operation | Exact arguments after the pinned executable |
 |---|---|---|
-| `corvint` / `corvint` | query | `--root ROOT query --task TASK --limit 1` |
 | `corvint` / `corvint` | impact | `--root ROOT impact --limit 20 -- PATH...` |
 
-`TASK` is explicit user input of 1..2,000 Unicode scalar values and at most 16,384 UTF-8 bytes.
 Impact accepts 1..256 unique normalized repository-relative paths, each at most 4,096 UTF-8 bytes,
 in raw UTF-8 byte order. Absolute, empty, `.`, `..`, escaping, NUL/control-containing, or
 out-of-root paths are rejected. A `corvint` unsupported option/intent/path/platform response is a
@@ -277,23 +277,26 @@ container one level past the bound is admitted and any member inside it is not; 
 conformance oracle `parseJsonStrict` (decision 0239). Stderr,
 partial output, and parser exceptions are inert bounded text and never evidence.
 
-The only admitted query/impact adapter is the current unprofiled envelope V1:
+The only admitted impact adapter is the current unprofiled envelope V1 (its query mode is retired by
+decision 0594):
 
 - the top-level object contains exactly `context`, `mutates`, `ok`, and `tool`; `ok` is `true`,
-  `mutates` is `false`, and `tool` equals the requested `query|impact` operation;
+  `mutates` is `false`, and `tool` equals the requested `impact` operation;
 - `context` requires `schema_version:1`, matching `mode`, exact echoed `request`, lowercase 40- or
   64-hex `revision`, `freshness`, `state`, `results`, `exclusions`, `verification`, and `coverage`;
-  only query may additionally contain `abstention`, `intent`, and `learning`; either mode may
-  contain `unparsed` and `extraction`, each an object with an integral `count` that the adapter
+  `abstention`, `intent`, and `learning` (query-only keys, retired by decision 0594) are rejected; it
+  may contain `unparsed` and `extraction`, each an object with an integral `count` that the adapter
   surfaces as uncertainty (`internal/contextindex` adds them only when a source was left unparsed or
-  incompletely extracted); the echoed impact `request` is `paths` and `limit` plus an optional
+  incompletely extracted), a string `warning` that the adapter surfaces as uncertainty (the native
+  mixed-worktree notice), and an object `verification_authority` that is shape-checked and never
+  rendered as authority; the echoed impact `request` is `paths` and `limit` plus an optional
   positive integral `budget_bytes` of at most 1,048,576;
 - `state` is one of `READY`, `NEEDS_WIDENING`, `OUT_OF_SCOPE`, `STALE_INDEX` (no longer produced
   since `DIRTY-CACHE-005` moved worktree dirtiness to `freshness.state`), `BUDGETED`, or
   `CRITICAL_EVIDENCE_OVERFLOW`; `freshness.revision`, when present, equals `revision`, and
   `freshness.state` is `fresh|mixed-worktree`;
 - `results` has at most the requested limit. Each rendered result has bounded inert `kind`, `id`,
-  `summary`, optional `title|name|status`, integral score when present, and at most 16 evidence rows;
+  `summary`, optional `title|name|status` (an empty `status` is read as absent), integral score when present, and at most 16 evidence rows;
   each evidence row has exactly `path`, positive integral `line`, lowercase Git `blob_hash`,
   `reason`, `confidence`, and `authority`; and
 - `coverage.within_budget` is `true`, its integral `packet_bytes` does not exceed the stdout bound,
@@ -313,9 +316,10 @@ as the result of the failed request. Unrelated editing stays available.
 ### 4.5 Native presentation semantics
 
 - **VSC-V0-021.** The command IDs are exactly `corvint.selectExecutable`, `corvint.clearExecutable`,
-`corvint.query`, `corvint.impact`, `corvint.refresh`, and `corvint.clearResults`
-(`corvint.importTestObservation` is not offered, as amended by VSC-V0-079). `corvint.refresh`
-repeats only the last explicit query/impact after trust and pin revalidation; it never runs on activation or file change. It MUST NOT edit, fix, apply, run tests,
+`corvint.impact`, `corvint.refresh`, and `corvint.clearResults`
+(`corvint.importTestObservation` is not offered, as amended by VSC-V0-079; `corvint.query` is
+retired by decision 0594). `corvint.refresh`
+repeats only the last explicit impact after trust and pin revalidation; it never runs on activation or file change. It MUST NOT edit, fix, apply, run tests,
 install/update a binary, request trust, or merge.
 
 - **VSC-V0-022.** The status bar has exactly one of `Restricted`, `No CLI`, `Incompatible`, `Ready`,
@@ -487,7 +491,7 @@ contents or credentials. `npm run check` performs the lockfile-clean install its
 tests, so the check passes on a checkout with no `node_modules` and refuses, installing nothing,
 when the lockfile is absent. `script/vscode-check-install_test.sh` pins both.
 
-- **VSC-V0-045.** Manual query/impact adds at most 50 ms p95 adapter overhead excluding Corvint runtime
+- **VSC-V0-045.** Manual impact (query retired by decision 0594) adds at most 50 ms p95 adapter overhead excluding Corvint runtime
 over 100 warm fixture calls; activation before a user command adds no Corvint process and no workspace
 scan. Complete UI model memory is capped at 16 MiB per root. Measurements name hardware, OS, VS Code,
 extension, and Corvint versions; absent measurements are `NOT_RUN`.
@@ -511,7 +515,7 @@ compatibility is established by `server/discover`, not by interpreting a CLI ver
 proof. No `--version` probe, `PATH`, shell, package manager, URI, workspace search, or CLI candidate
 participates.
 
-- **VSC-V0-048.** MCP V0 uses local stdio only. One explicit query or impact owns exactly one newly
+- **VSC-V0-048.** MCP V0 uses local stdio only. One explicit impact owns exactly one newly
 spawned pinned `corvint-mcp` direct child for the complete operation. The child executable is the
 pinned absolute path, its exact argv is `--root ABSOLUTE_ROOT`, `shell:false`, `cwd` and
 `ABSOLUTE_ROOT` are the selected contained canonical root, and the environment is VSC-V0-015.
@@ -560,22 +564,21 @@ at either later response are incompatible and produce no projected receipt.
 - **VSC-V0-051.** After discovery the client fetches `tools/list` in the same process. Discovery MUST
 match MCPV0-006, including `ttlMs:0`, `cacheScope:"public"`, the exact tools capability, and the
 standard server info. The tool-list result MUST match MCPV0-007..010, including
-`ttlMs:300000`, `cacheScope:"private"`, and exactly the three frozen, ordered definitions
-`corvint.impact`, `corvint.query`, and `corvint.status` with their closed schemas and annotations,
-including the optional MCPV0-020 planning `snapshot` property on impact and query, which the client
-pins but never sends. The
+`ttlMs:300000`, `cacheScope:"private"`, and exactly the three ordered definitions the bridge
+advertises after decision 0594 retired `corvint.query`: `corvint.help`, `corvint.impact`, and
+`corvint.status`, each with an `outputSchema` and read-only annotations. Impact and status are pinned
+exactly, including the optional MCPV0-020 planning `snapshot` property on impact, which the client
+pins but never sends. Help is pinned on its closed key set, annotations, output schema, and closed
+object input schema, but not on its `command` enum, which tracks the CLI command catalog. The
 client accepts exactly that one page and no `nextCursor`. Its bounded decoder can recognize an
 optional cursor only to reject the response as `MCP_TOOLSET_MISMATCH`; it MUST NOT request another
 page under V0. `ttlMs` and `cacheScope` are structurally validated but V0 performs no catalog cache:
-every explicit operation rediscovers and relists. The extension invokes only the requested
-`corvint.query` or `corvint.impact`; it never calls `corvint.status`. An extra, missing, reordered,
+every explicit operation rediscovers and relists. The extension invokes only `corvint.impact`; it never calls `corvint.help` or `corvint.status`. An extra, missing, reordered,
 cursor-bearing, or schema-mismatched tool result is `MCP_TOOLSET_MISMATCH`. Future pagination
 requires an amendment to both the MCP server and client contracts.
 
-- **VSC-V0-052.** The MCP tool calls are closed read-only adapters. `corvint.query` receives the exact
-validated VSC-V0-016 task as the closed arguments `{"task":"TASK"}` only when it also satisfies
-the MCPV0-009 printable-ASCII, non-all-space profile `^[ -~]*[!-~][ -~]*$`; Unicode valid for the
-CLI is not thereby valid for MCP. `corvint.impact` receives `{"paths":[...],"limit":20}` only when
+- **VSC-V0-052.** The MCP tool call is a closed read-only adapter. (The `corvint.query` call with
+closed arguments `{"task":"TASK"}` is retired by decision 0594.) `corvint.impact` receives `{"paths":[...],"limit":20}` only when
 every validated path also satisfies MCPV0-009's unique, normalized, repository-relative `.go` path
 profile and cardinality bounds. A value valid only for CLI is rejected before MCP spawn as
 `MCP_INPUT_UNSUPPORTED`, never coerced, replaced, or sent. The root exists only in the fixed startup
@@ -586,7 +589,7 @@ constraints is `MCP_TOOLSET_MISMATCH`.
 
 - **VSC-V0-053.** `tools/call` MUST return one complete result with `resultType:"complete"`,
 `isError:false`, and `structuredContent` containing the exact closed
-`corvint-mcp-bridge-result/0` wrapper frozen by MCPV0-008. Its nested unaltered native query/impact
+`corvint-mcp-bridge-result/0` wrapper frozen by MCPV0-008. Its nested unaltered native impact
 `receipt`, when non-null, is a context receipt object, not the CLI `{context,mutates,ok,tool}`
 envelope: it MUST satisfy the context-schema, request, revision, and coverage rules in VSC-V0-019
 directly, with no synthetic envelope or nested `context` requirement. `receipt:null` is valid only
@@ -635,7 +638,7 @@ catalog caching, a client capability change, or another Corvint operation.
 - **VSC-V0-057.** The MCP client remains `FALLBACK` and its runtime evidence `NOT_RUN` until a
 publishable `corvint-mcp` binary implementing the existing MCPV0 root/tool/bridge contract is
 installed and independent black-box conformance drives the packaged extension through discovery,
-pagination, query, impact, cancellation, timeout, hostile frames, clean EOF, and descendant-residue
+pagination, impact, cancellation, timeout, hostile frames, clean EOF, and descendant-residue
 fixtures. Server source, unit tests, a protocol document, or successful direct CLI execution is not
 MCP client evidence. The current experimental server source and local tests do not close this client
 tuple; its inherited Git runner still has a documented executable-pinning promotion blocker.
@@ -942,7 +945,7 @@ caps, and stale-generation suppression.
 - **VSC-V0-080.** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0437) The
 repository workflow `.github/workflows/vscode-extension.yml` MUST run, on every pull request that
 touches `extensions/vscode/**`, this spec, the extension conformance corpus, or the wire contracts
-the extension consumes (`cmd/corvint/main.go`, `cmd/corvint/query*.go`, `cmd/corvint/impact*.go`,
+the extension consumes (`cmd/corvint/main.go`, `cmd/corvint/impact*.go` (`cmd/corvint/query*.go` left with decision 0594),
 `cmd/corvint-mcp/**`, `internal/mcp/**`, `cmd/corvint-go-test-provider/**`,
 `internal/liveverify/**`), `npm ci --ignore-scripts` from the committed lockfile, then
 `npm run lint`, `npm run typecheck` and `npm test` in `extensions/vscode`, with read-only

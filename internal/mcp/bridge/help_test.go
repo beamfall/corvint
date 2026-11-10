@@ -23,7 +23,7 @@ func TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for name, constructor := range map[string]func(string) (*Registry, error){"default": New, "task-review": NewTaskReview, "task-review-lsp": NewTaskReviewLSP, "flows": NewFlows} {
+	for name, constructor := range map[string]func(string) (*Registry, error){"default": New, "flows": NewFlows} {
 		registry, err := constructor(root)
 		if err != nil {
 			t.Fatal(err)
@@ -42,13 +42,13 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 		t.Fatalf("%s profile does not advertise %s", profile, ToolHelp)
 	}
 	// MCPV0-953: the guide by default and one command's slice when named.
-	querySlice, _, _ := capcatalog.Slice(capcatalog.Snapshot(), "query")
+	impactSlice, _, _ := capcatalog.Slice(capcatalog.Snapshot(), "impact")
 	for arguments, want := range map[string]string{
-		`{}`:                                    capcatalog.Guide(),
-		`{"topic":"catalog"}`:                   string(capcatalog.Snapshot()),
-		`{"topic":"guide"}`:                     capcatalog.Guide(),
-		`{"command":"query"}`:                   string(querySlice),
-		`{"topic":"command","command":"query"}`: string(querySlice),
+		`{}`:                                     capcatalog.Guide(),
+		`{"topic":"catalog"}`:                    string(capcatalog.Snapshot()),
+		`{"topic":"guide"}`:                      capcatalog.Guide(),
+		`{"command":"impact"}`:                   string(impactSlice),
+		`{"topic":"command","command":"impact"}`: string(impactSlice),
 	} {
 		// The repository is an empty .git directory: any repository read would fail.
 		result, callErr := registry.Call(context.Background(), ToolHelp, []byte(arguments))
@@ -71,7 +71,7 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 		}
 	}
 	for _, arguments := range []string{`{"topic":"COMMAND"}`, `{"topic":null}`, `{"topic":1}`, `{"extra":true}`, `null`, `[]`,
-		`{"topic":"command"}`, `{"command":"nope"}`, `{"command":null}`, `{"topic":"guide","command":"query"}`, `{"topic":"catalog","command":"query"}`} {
+		`{"topic":"command"}`, `{"command":"nope"}`, `{"command":null}`, `{"topic":"guide","command":"impact"}`, `{"topic":"catalog","command":"impact"}`} {
 		if _, callErr := registry.Call(context.Background(), ToolHelp, []byte(arguments)); callErr == nil || callErr.Code != "invalid-arguments" {
 			t.Fatalf("%s %s error = %#v", profile, arguments, callErr)
 		}
@@ -98,7 +98,7 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 		"extra member":                  func(receipt map[string]any) { receipt["note"] = "x" },
 		"schema missing":                func(receipt map[string]any) { delete(receipt, "schema") },
 		"command topic with catalog text": func(receipt map[string]any) {
-			receipt["topic"], receipt["command"] = "command", "corvint help --json query"
+			receipt["topic"], receipt["command"] = "command", "corvint help --json impact"
 		},
 	} {
 		tampered := ready

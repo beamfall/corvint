@@ -2,14 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `step` command group and
+`internal/stepverify`; `protocol/step` stays only as a published schema (4663b4e2b is the last tree
+with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner-authored GitHub issue #393, native ticket V1-0540;
 repository AGENTS.md and read-command invariants.
 
 ## Agent digest
 - Claim: Local step verification binds observed checkout writes to a declared authoring scope.
-- Status: Proposed intent; experimental source tests/vet, independent repair/dispatch review and public Darwin qualification pass; final binding pending.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: Experimental descriptor observer, strict records and publicly dispatched experimental handler.
 - Blocked on: CLI integration, bound qualification and owner technical acceptance.
 - Read next: Requirements; Declaration and receipts; Limits; Acceptance and rollback.

@@ -1,26 +1,6 @@
 # File and refusal code pairs on the ASD-V0-997 gated surfaces whose sites name no recovery
 # hint yet (V1-3239 audit, 2026-11-01). The list only shrinks: give a code a fix: line, a
 # failRecoveries entry or a guide refusal-table row, then delete its row; a new pair fails.
-internal/dogfoodflow/batch.go	base-not-ancestor-of-head
-internal/dogfoodflow/batch.go	base-unavailable
-internal/dogfoodflow/batch.go	dirty-worktree
-internal/dogfoodflow/batch.go	empty-range
-internal/dogfoodflow/batch.go	scratch-repository-unavailable
-internal/dogfoodflow/check.go	aggregate-enrollment-required
-internal/dogfoodflow/check.go	aggregate-publication-failed
-internal/dogfoodflow/check.go	nothing-to-seal
-internal/dogfoodflow/check.go	sealed-aggregate-unsupported
-internal/dogfoodflow/check.go	sealed-binding-drift
-internal/dogfoodflow/check.go	sealed-binding-required
-internal/dogfoodflow/check.go	sealed-context-replay-unsupported
-internal/dogfoodflow/check.go	verifier-disagreement
-internal/dogfoodflow/check.go	verifier-unavailable
-internal/dogfoodflow/flow.go	anchor-merge-base-ambiguous
-internal/dogfoodflow/flow.go	anchor-ref-unavailable
-internal/dogfoodflow/flow.go	multiple-anchor-refs
-internal/dogfoodflow/flow.go	not-repository-root
-internal/dogfoodflow/prechange.go	prechange-after-change
-internal/dogfoodflow/prechange.go	prechange-evidence-unwritable
 script/batch-review-packet.sh	base-not-ancestor
 script/batch-review-packet.sh	head-not-checked-out
 script/batch-review-packet.sh	no-checked-out-head
@@ -32,7 +12,6 @@ script/core-n1-source.sh	ancestry
 script/core-n1-source.sh	cannot
 script/core-n1-source.sh	previous
 script/core-n1-source.sh	published
-script/dogfood-bind-range.sh	corvint-version-mismatch
 script/go-cache-trim.sh	cache-required
 script/go-cache-trim.sh	invalid-$1
 script/go-cache-trim.sh	invalid-work-age-hours
@@ -64,8 +43,6 @@ script/lane-setup.sh	dir-exists
 script/lane-setup.sh	not-a-repository
 script/lane-setup.sh	unknown-base
 script/lane-setup.sh	worktree-add-failed
-script/pre-push-dogfood-seal.sh	dogfood-seal-missing
-script/pre-push-dogfood-seal.sh	dogfood-seal-not-checked
 script/scratch-sweep.sh	archive-required
 script/scratch-sweep.sh	archive-unusable
 script/scratch-sweep.sh	invalid-age-hours

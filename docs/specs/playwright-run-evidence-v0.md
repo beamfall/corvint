@@ -4,6 +4,7 @@ Owner: Russell Lewis
 Date: 2026-10-11
 Intent status: accepted (decision 0520; V1-1230, V1-1229)
 Delivery status: experimental
+Amended: 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. Each retired or amended requirement says so on its own definition line (bodies and IDs kept). The readers still consume an embedded or sidecar declaration a project produces itself.
 Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; GitHub
 #809 (repeat-each) and #810 (shards) for PWR-V0-011..023, agent-drafted and accepted under the
 owner's standing auto-accept (2026-10-11) after independent review; V1-1578 / GitHub #1021 (result
@@ -25,8 +26,8 @@ experimental under the standing lane auto-accept (2026-10-27); AGENTS.md invaria
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
-- Status: accepted (decision 0520; V1-1230, V1-1229)/experimental
-- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023); `corvint runs reusable` lists each selected test as `REUSABLE` or `MUST_RUN` with a reason from fingerprinted prior passes, `corvint runs redundancy` reports re-run test minutes by category, and `corvint runs fresh` reads evidence freshness over the repository-declared reach in `.corvint/evidence-reach.json` (PWR-V0-033..040); `corvint runs baseline record` and `diff` gate candidate runs on a revision-pinned failure baseline whose known entries were confirmed by an isolated re-run (PWR-V0-041..045); `corvint runs identity --config FILE` prints the `corvintRunIdentity` declaration computed read-only from the test (and optional `--app-root` application) checkout, and `runs stability` names an undeclared report once per run with that remedy instead of one abstention per test (PWR-V0-046..051); a repeatable `--project-test-dir DIR[:REGEXP]` declares blobs for files under a project's own `testDir`, keyed `../` as the report spells them, and an `IDENTITY_INPUT_MISSING` stability entry names its `missingInputs` (PWR-V0-052..053); `--artifact-digest VALUE` records the operator-supplied `servedArtifactDigest`, runs pool, shard and reuse only at one served digest, `runs compare` reports `UNDEPLOYED` when the candidate served the baseline's build (or another build at the same revision), and a run without the digest states `servedDigest` `UNKNOWN` (PWR-V0-054..057); an interrupted observation folds into the test's pooled row as `excluded[]`, `runs-invalid-arguments` names `reason` and `option`, `baseline record` refuses an incomplete full run (`FULL_RUN_INCOMPLETE`) unless `--allow-unobserved` lists the tests as unobserved, a not-ancestor baseline names its merge base and side counts, and `runs stability --last N` windows by start time (PWR-V0-058..063); `--identity REPORT=FILE` and `--identity-sidecars` attach a hash-bound identity sidecar that never overrides an embedded declaration, and `runs stability --pool-by closure` pools on caller-declared per-test closure digests (`runs identity --closure-digests FILE`), refusing a contradicted closure (PWR-V0-064..071); `runs identity --compute-closures` computes per-test closure digests under rule `corvint-test-closure/0` from the static TypeScript graph, failing closed to no digest (PWR-V0-072..074); fetching the digest from a URL is not delivered.
+- Status: accepted (decision 0520; V1-1230, V1-1229) / experimental; amended 2026-11-09 by decision 0594, which removed `runs fresh`, `runs identity` and `runs reusable --fresh` with `internal/runidentity`, `internal/evidencereach` and `.corvint/evidence-reach.json`. Each retired or amended requirement says so on its own definition line (bodies and IDs kept). The readers still consume an embedded or sidecar declaration a project produces itself.
+- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023); `corvint runs reusable` lists each selected test as `REUSABLE` or `MUST_RUN` with a reason from fingerprinted prior passes, `corvint runs redundancy` reports re-run test minutes by category (PWR-V0-033..040; `runs fresh`, `reusable --fresh` and `.corvint/evidence-reach.json` were removed by decision 0594); `corvint runs baseline record` and `diff` gate candidate runs on a revision-pinned failure baseline whose known entries were confirmed by an isolated re-run (PWR-V0-041..045); `runs stability` names an undeclared report once per run with a remedy instead of one abstention per test (PWR-V0-051), and an `IDENTITY_INPUT_MISSING` stability entry names its `missingInputs` (PWR-V0-053; the `runs identity` producer of PWR-V0-046..050 and 052 was removed by decision 0594); a declared `servedArtifactDigest` makes runs pool, shard and reuse only at one served digest, `runs compare` reports `UNDEPLOYED` when the candidate served the baseline's build (or another build at the same revision), and a run without the digest states `servedDigest` `UNKNOWN` (PWR-V0-054..057); an interrupted observation folds into the test's pooled row as `excluded[]`, `runs-invalid-arguments` names `reason` and `option`, `baseline record` refuses an incomplete full run (`FULL_RUN_INCOMPLETE`) unless `--allow-unobserved` lists the tests as unobserved, a not-ancestor baseline names its merge base and side counts, and `runs stability --last N` windows by start time (PWR-V0-058..063); `--identity REPORT=FILE` and `--identity-sidecars` attach a hash-bound identity sidecar that never overrides an embedded declaration, and `runs stability --pool-by closure` pools on caller-declared per-test closure digests, refusing a contradicted closure (PWR-V0-064..070), and admits rule `corvint-test-closure/0` from a declaration (PWR-V0-074); the closure producers of PWR-V0-071..073 were removed by decision 0594; fetching the digest from a URL is not delivered.
 - Blocked on: owner acceptance; fixture durations, cleanup and passing assertions are not in the JSON reporter output.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -199,7 +200,7 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   truncated count; an unresolved pair is `FRESHNESS_UNRESOLVED` with the freshness reason, including
   `TEST_ROOT_UNRESOLVED` when the test file cannot be located through `testRootPath` or a `rootDir`
   inside the repository, or when its report file name is absolute, volume-qualified or escapes the
-  root (checked before it is joined to the root). Freshness never overrides a blob, config, version or project change.
+  root (checked before it is joined to the root). Freshness never overrides a blob, config, version or project change. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-037`: `Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without one
   (`START_TIME_MISSING`) or a refused shard set (`SHARD_SET_REFUSED`), and with `--since` keep earlier
   runs as `HISTORY` whose passes still count. For each counted executed test it MUST tally total
@@ -212,18 +213,19 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   patterns, at most 64 KiB, unknown fields refused), read from the NEW commit's tree as a regular
   blob. A pattern is a clean repository-relative slash path whose segments are `path.Match` globs; a
   whole `**` segment spans any number of segments (at most 4), and a trailing `/` covers a directory.
-  No shared-code path is hard-coded; the declaration file itself is always in reach.
+  No shared-code path is hard-coded; the declaration file itself is always in reach. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-039`: `runs fresh` MUST read the paths changed between the OLD and NEW commits through
   bounded pinned Git (`diff-tree --no-renames`, at most 16 MiB) and return `FRESH` only when no
   changed path is cited, matches a shared pattern or is the declaration; `STALE` naming each deciding
   path and why (`cited`, `shared`, `reach-config`, sorted, at most 256 plus a truncated count); or
   `UNRESOLVED`, never `FRESH`, with `REVISION_UNRESOLVED`, `REACH_UNDECLARED`, `REACH_INVALID`,
-  `REACH_UNREADABLE`, `DIFF_FAILED`, `DIFF_BOUND_EXCEEDED` or `CITED_PATH_INVALID`.
+  `REACH_UNREADABLE`, `DIFF_FAILED`, `DIFF_BOUND_EXCEEDED` or `CITED_PATH_INVALID`. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-040`: `corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...
-  [--since T]` and `runs fresh --old REV --new REV [--cite PATH,...]` MUST be read-only, refuse
+  [--since T]` MUST be read-only, refuse
   malformed arguments as `runs-invalid-arguments` and unreadable reports as
   `runs-report-unavailable` naming the option and position, offer `--summary` (counts and verdict
-  without per-test or per-run rows, such as `priors` and `shardSets`, or path lists), and be documented in `corvint runs` topic help.
+  without per-test or per-run rows, such as `priors` and `shardSets`, or path lists), and be documented in `corvint runs` topic help. (Amended by decision 0594: the
+  `runs fresh` form was removed.)
 
 ### Revision-pinned failure baseline (GitHub #1033, V1-1590)
 
@@ -285,27 +287,27 @@ one place.
   project's own `testDir` below it is not passed: its files are found under the top-level directory
   and keyed relative to it, as the reporter keys them; a project `testDir` outside it is passed with
   `--project-test-dir` (PWR-V0-052). Playwright's config is not evaluated, so a non-default top-level
-  `testDir` or `testMatch` MUST be passed explicitly.
+  `testDir` or `testMatch` MUST be passed explicitly. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-047`: Test files MUST be the tracked and untracked-not-ignored files under the test
   directory whose test-directory-relative path matches `--test-match` (default
   `(^|/)[^/]*\.(spec|test)\.[cm]?[jt]sx?$`, Playwright's default `testMatch`), excluding any path with a
   `node_modules` segment and any tracked file deleted from the working tree. `testFileBlobs` MUST be
   keyed by that test-directory-relative slash path, which is the JSON reporter's `file` because
   `config.rootDir` is `testDir`, and each value MUST be the Git blob id of the working-tree content
-  (the index blob when unmodified; otherwise hashed without writing an object).
+  (the index blob when unmodified; otherwise hashed without writing an object). Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-048`: `configDigest` MUST be `sha256:` over the line `config\t<config path>\n` (so two
   configs over one tree never share a digest) followed by the sorted lines `mode blob\tpath\n` of every
   tracked file of the test checkout that is not a test file (support code, page objects, fixtures,
   lockfiles and the config itself, plus the config when it is untracked), using working-tree blob ids
   for modified files. A change to any of them changes the digest; a test-file change does not, since
   it is pooled through `testFileBlobs`. Untracked non-test files are outside the digest and MUST be
-  counted and named with the limit `UNTRACKED_FILES_OUTSIDE_DIGEST`; ignored files are excluded.
+  counted and named with the limit `UNTRACKED_FILES_OUTSIDE_DIGEST`; ignored files are excluded. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-049`: `testRevision` MUST be the test checkout's `HEAD` commit and `testRootPath` the
   test directory's repository-relative path (`.` at the root, PWR-V0-033). `applicationRevision` MUST
   be the `HEAD` commit of `--app-root` (default the test checkout); when that checkout's tracked
   working-tree diff against `HEAD` is non-empty it MUST be suffixed `+worktree.sha256:` plus the
   sha256 of `git diff --binary --full-index HEAD` bytes and carry the limit
-  `APPLICATION_WORKTREE_MODIFIED`, so a dirty application never pools with its clean commit.
+  `APPLICATION_WORKTREE_MODIFIED`, so a dirty application never pools with its clean commit. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-050`: The producer MUST refuse with `runs-identity-unavailable` and one reason —
   `CONFIG_UNREADABLE`, `NOT_A_REPOSITORY`, `TEST_DIR_OUTSIDE_REPOSITORY`, `TEST_MATCH_INVALID`,
   `TEST_REVISION_UNRESOLVED`, `APPLICATION_REVISION_UNRESOLVED`, `UNMERGED_PATHS`,
@@ -317,9 +319,10 @@ one place.
   content, and a repository-configured `filter.*.clean` or `filter.*.process` command
   (`FILTER_CONFIGURED`) refuse. It MUST only read: Git runs with a scrubbed environment (no global or
   system config), `GIT_OPTIONAL_LOCKS=0` and `core.fsmonitor=false`, blob ids are computed without
-  `-w`, and the index and working tree are byte-unchanged afterwards.
+  `-w`, and the index and working tree are byte-unchanged afterwards. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-051`: `runs stability` MUST state a report that declares no identity inputs once, on its
-  `runs[]` entry, with `unpooledTests` (its test count) and a `remedy` naming `runs identity`, and count
+  `runs[]` entry, with `unpooledTests` (its test count) and a `remedy` naming the declaration (PWR-V0-046) or an
+  identity sidecar (PWR-V0-065; decision 0594 removed the `runs identity` producer), and count
   such reports in `summary.identityNotDeclaredRuns`, instead of emitting one
   `IDENTITY_INPUT_MISSING` entry per test. Those observations still never join a pool, and a test seen
   only in undeclared reports has no `tests[]` entry. Shard reports keep `SHARD_INPUTS_NOT_DECLARED`
@@ -336,7 +339,7 @@ one place.
   `testFiles`. The document MUST list each named directory in `projectTestDirs[]` (`dir`
   repository-relative, `testMatch`, `status` `RESOLVED`, `testFiles`). Because the config is not
   evaluated, a project `testDir` is never discovered or guessed; without the flag its tests keep
-  abstaining with the PWR-V0-053 statement.
+  abstaining with the PWR-V0-053 statement. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-053`: A `--project-test-dir` that resolves (after symlinks) outside the test checkout MUST
   refuse with `runs-identity-unavailable` / `PROJECT_TEST_DIR_OUTSIDE_REPOSITORY` before anything
   under it is read, and an invalid `REGEXP` with `TEST_MATCH_INVALID`. One that is not an existing
@@ -346,7 +349,9 @@ one place.
   `IDENTITY_INPUT_MISSING` MUST name `missingInputs`, the sorted union over its observations of
   `applicationRevision`, `configDigest` and `testFileBlobs[<file>]` (with `corvintRunIdentity` for an
   undeclared shard report), so a report file that has no blob, such as an unnamed project
-  `testDir`'s `../` file, is visible per test.
+  `testDir`'s `../` file, is visible per test. (Amended by decision 0594: the `--project-test-dir`
+  refusals and `projectTestDirs[]` statuses belonged to the removed `runs identity` producer; the
+  `missingInputs` statement stays.)
 
 ### Served artifact digest (GitHub #1873, V1-2774)
 
@@ -357,7 +362,7 @@ different builds apart. Corvint fetches nothing: the digest is a value the opera
 - `PWR-V0-054`: `runs identity` MUST accept one `--artifact-digest VALUE` (1 to 256 characters of
   `A-Za-z0-9._:+/=@-`) and record it as `corvintRunIdentity.servedArtifactDigest`; the document
   MUST state `servedDigest` `DECLARED` with it and `UNKNOWN` without it. An empty, invalid or repeated
-  value MUST refuse with `runs-invalid-arguments` before anything is read.
+  value MUST refuse with `runs-invalid-arguments` before anything is read. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-055`: `runs stability` MUST pool only runs whose declared `servedArtifactDigest` is equal
   (absent is its own value) and show it in the pool's `inputs`. Each run summary MUST state
   `servedDigest`: `UNKNOWN` without a declaration or digest, `DISAGREES` when another run in the set
@@ -472,7 +477,7 @@ for it.
   `testClosureRule` `DECLARED`. A key that is not a `testFileBlobs` key of the declaration, a duplicate
   key, a value of another form, or an unreadable, oversized or malformed file refuses
   `runs-identity-unavailable` with `reason` `CLOSURE_DECLARATION_INVALID`. Tests the file does not
-  cover keep no closure digest.
+  cover keep no closure digest. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-072`: (experimental under the standing lane auto-accept (2026-10-27); V1-2812)
   `runs identity --compute-closures` MUST set `testClosureRule` `corvint-test-closure/0` and, for each
   declared test the closure of `TJAA-V0-140` covers, a `testClosureDigests` entry: SHA-256 over
@@ -480,7 +485,7 @@ for it.
   test-file lines of the same checkout, less the test's `Excludable` files. A file the checkout
   modified relative to `HEAD` is never left out. The document states `closure` `{"source":"COMPUTED"}`.
   With `--closure-digests` the declared digests win, the rule is `DECLARED` and `closure.source` is
-  `DECLARED`. Without the option the output is unchanged and has no `closure` member.
+  `DECLARED`. Without the option the output is unchanged and has no `closure` member. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-073`: (same acceptance) A test whose closure is not computed MUST get no digest, so it
   abstains under `--pool-by closure`, and is named in `closure.unknown` with the reason and the limit
   `TEST_CLOSURE_UNKNOWN`: the config is not statically resolved, no project admits the test, the
@@ -488,7 +493,7 @@ for it.
   the digest (untracked or ignored). When a frontier outside the suite widens a test's closure
   (`TJAA-V0-141`), its digest leaves no file out, `closure.widened` names the cause and the limit
   `TEST_CLOSURE_EXCLUSION_WIDENED` is stated. Every failure keeps or widens the digest input; none
-  narrows it.
+  narrows it. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
 - `PWR-V0-074`: (same acceptance) The reader MUST admit rule `corvint-test-closure/0`, from an
   embedded declaration or a sidecar, and `runs stability --pool-by closure` MUST state such a run's
   `closureSource` `COMPUTED`. The rule is part of the pool key, so a `COMPUTED` and a `DECLARED`
@@ -518,10 +523,11 @@ for it.
   `playwright:use-value-unverified` unknown of every project that left every closure unknown.
 - `PWR-V0-178`: (same acceptance) `closure` MUST list in `sharedCauses` each reason that leaves two or
   more tests without a digest, once, with its `tests` count and the reason's own location, in
-  addition to the per-test `unknown` map.
+  addition to the per-test `unknown` map. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
   Evidence: `TestStabilityClosureInterruptedAndCompletedWindow`, `TestPWRV0059_RunsInvalidArgumentsReason`,
   `TestPWRV0176_RunsJoinedOptionValue`, `TestPlaywrightTestClosuresNonIdentityUse_PWRV0177`,
-  `TestSharedClosureCauses_PWRV0178`. Rollback: revert; the three #1918 gaps and the whole-suite
+  `TestSharedClosureCauses_PWRV0178` (deleted with `internal/runidentity` by decision 0594; PWR-V0-177
+  stays a property of the TypeScript closure adapter). Rollback: revert; the three #1918 gaps and the whole-suite
   unknown return.
 - `PWR-V0-183`: (experimental under the standing lane auto-accept (2026-10-28); V1-2914; GitHub
   #1920) Amends `PWR-V0-073` with `TJAA-V0-147`. A `\` escape inside a quoted string that is one
@@ -544,20 +550,21 @@ for it.
   `process.env` reads in the global `use`, an escaped regexp string in its own identity call and a
   setup project selected through `--project-test-dir`) MUST digest every test with no `closure.unknown`,
   `closure.sharedCauses` or `closure.widened`. When tests widen for different reasons,
-  `closure.widened` MUST be the first reason in byte order, independent of iteration order.
+  `closure.widened` MUST be the first reason in byte order, independent of iteration order. Retired 2026-11-09 by decision 0594: the producer (`runs identity`, `runs fresh`, `reusable --fresh`, `internal/runidentity`, `internal/evidencereach`) was deleted; read the implementation at `4663b4e2`.
   Evidence: `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183`,
   `TestPlaywrightTestClosuresUnverifiedUseWidensProject_PWRV0184`,
   `TestPlaywrightTestClosuresDynamicProjectMetadataWidens_PWRV0185` in
   `internal/liveverify/affected/typescript/playwright_test_closure_gh1920_test.go`;
   `TestPWRV0186_IssueConfigDigestsEveryTest`, `TestPWRV0186_WidenedReasonDeterministic` in
-  `internal/runidentity/computed_closure_test.go`. Rollback: revert; the whole suite is unknown
+  `internal/runidentity/computed_closure_test.go` (deleted by decision 0594; PWR-V0-183..185 stay
+  properties of the TypeScript closure adapter, whose `closure.widened` output had no other consumer). Rollback: revert; the whole suite is unknown
   again on one unverified `use` value, dynamic project metadata or an escaped identity argv string.
 
 ## Boundaries and failure modes
 
 Non-goals: running Playwright, fetching reports, reading HTML/blob/JUnit reporters, directory or glob
 input, receipts as identity input, inferring identity from Git inside the readers (the separate
-`runs identity` producer computes a declaration the adopter chooses to embed), feeding obligation outcomes from
+`runs identity` producer, removed by decision 0594, computed a declaration the adopter chose to embed), feeding obligation outcomes from
 the expected-fail flag, telling page objects, helpers and fixtures apart, and counting passing
 assertions. Those remain `NOT_RUN` until a later requirement.
 
@@ -578,7 +585,7 @@ passing `expect` calls, so they stay `NOT_OBSERVED`.
 
 Reuse and freshness non-goals (PWR-V0-033..040): writing or caching results, a retained-result store
 beyond the reports the caller names, computing fingerprints from the working tree inside the reuse
-reads (only `runs identity` does, PWR-V0-046..050), per-test import
+reads (only the removed `runs identity` producer did, PWR-V0-046..050), per-test import
 graphs, rename tracking, `corvint test` (STR-V0) receipts, and skipping tests: the read only lists
 decisions. Reuse limits: the decision trusts declared fingerprints exactly as stability does; a
 `FRESH_PASS` is as good as the declared reach, which covers only cited and declared shared paths, so
@@ -637,6 +644,9 @@ observation of what the run loaded. Non-goals: computing a closure in `runs stab
 
 ## Implementation, rollout and rollback
 
+Decision 0594 (2026-11-09) executed the `runs fresh` / `reusable --fresh` rollback and the
+`runs identity` producer rollback described below; the readers, sidecars and closure pooling stay.
+
 Keep parsing in `internal/playwrightruns`, CLI parsing in `cmd/corvint/runs.go` and the dispatch and
 help edits minimal. This additive experimental profile changes no Core profile or persisted format.
 Rollback removes the dispatch line, the help entries and the package; there is no data migration.
@@ -671,6 +681,8 @@ member, the two limits and `ClosureRuleComputed` from the reader; declarations c
 Promotion beyond experimental needs owner acceptance of these requirements.
 
 ## Acceptance evidence
+
+Evidence below for requirements retired by decision 0594 is historical; read it at `4663b4e2`.
 
 Synthetic reports shaped like `@playwright/test` 1.63 json-reporter output: `{fail,pass,fail}` at
 identical inputs is `INTERMITTENT` with both first errors; a changed test file blob is not pooled;
@@ -784,27 +796,27 @@ and a declared run apart. A real Playwright run with a sidecar or a computed clo
 | PWR-V0-033 | `internal/playwrightruns` | `TestRunFactsDeclaration`, `TestReusableDecisions` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-034 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-035 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` (including a report from another machine: a foreign `config.rootDir` with `testRootPath` declared resolves `FRESH_PASS` or `STALE`, and without it, or with an escaping one, `FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`; V1-1611) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` (including a report from another machine: a foreign `config.rootDir` with `testRootPath` declared resolves `FRESH_PASS` or `STALE`, and without it, or with an escaping one, `FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`; V1-1611) | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
 | PWR-V0-037 | `internal/playwrightruns` | `TestRedundancy`, `TestRunsRedundancyCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-040 | `cmd/corvint/runs_reuse.go` | `TestRunsReusableCLI`, `TestRunsRedundancyCLI`, `TestReusableSummaryForm`, `TestReaderCheck` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-040 | `cmd/corvint/runs_reuse.go` | `TestRunsReusableCLI`, `TestRunsRedundancyCLI`, `TestReusableSummaryForm` (`TestReaderCheck` deleted by decision 0594) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-041 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RecordKnownNeedsBothRuns`, `TestPWRV0041_ReadBaselineShape`, `TestPWRV0041_KnownBindsFailingFullReport`, `TestPWRV0041_RunsBaselineCLI`, `TestPWRV0042_RunsBaselineRelativeRoot` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-042 | `internal/playwrightruns/baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0042_EvidenceReReadUnexcuses`, `TestPWRV0041_ReadBaselineRefusesFIFO`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-043 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0043_OwnFileAndReportErrorsBlock`, `TestPWRV0043_AmbiguousFailureNeverExcused`, `TestPWRV0043_RunsBaselineOwnFailsClosed`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-044 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-045 | `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-046 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0047_TestFileBlobsKeyedAsReportFile`, `TestRunsIdentityCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-047 | `internal/runidentity` | `TestPWRV0047_TestFileBlobsKeyedAsReportFile`, `TestPWRV0047_WorkingTreeBlobsAndUntrackedSpecs` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-048 | `internal/runidentity` | `TestPWRV0048_ConfigDigestCoversTrackedSupportCode`, `TestPWRV0048_ConfigBoundIntoDigest` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-049 | `internal/runidentity` | `TestPWRV0049_ApplicationRevisionFromNamedCheckout`, `TestPWRV0047_TestFileBlobsKeyedAsReportFile` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-050 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0050_RefusalsAndReadOnly`, `TestPWRV0050_CheckoutValidation`, `TestRunsIdentityCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-051 | `internal/playwrightruns/stability.go` | `TestStabilityVerdicts`, `TestRunsIdentityCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-052 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0052_ProjectTestDirKeyedAsReportFile`, `TestRunsIdentitySetupProjectPools`, `TestSplitProjectTestDir` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-053 | `internal/runidentity`, `internal/playwrightruns/stability.go` | `TestPWRV0053_ProjectTestDirUnresolvedOrOutside`, `TestRunsIdentitySetupProjectPools` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-046 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0047_TestFileBlobsKeyedAsReportFile`, `TestRunsIdentityCLI` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-047 | `internal/runidentity` | `TestPWRV0047_TestFileBlobsKeyedAsReportFile`, `TestPWRV0047_WorkingTreeBlobsAndUntrackedSpecs` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-048 | `internal/runidentity` | `TestPWRV0048_ConfigDigestCoversTrackedSupportCode`, `TestPWRV0048_ConfigBoundIntoDigest` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-049 | `internal/runidentity` | `TestPWRV0049_ApplicationRevisionFromNamedCheckout`, `TestPWRV0047_TestFileBlobsKeyedAsReportFile` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-050 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0050_RefusalsAndReadOnly`, `TestPWRV0050_CheckoutValidation`, `TestRunsIdentityCLI` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-051 | `internal/playwrightruns/stability.go` | `TestStabilityVerdicts` (`TestRunsIdentityCLI` deleted by decision 0594) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-052 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestPWRV0052_ProjectTestDirKeyedAsReportFile`, `TestRunsIdentitySetupProjectPools`, `TestSplitProjectTestDir` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-053 | `internal/playwrightruns/stability.go` | the `missingInputs` half only; the producer half and its tests were deleted by decision 0594 (read at `4663b4e2`) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.
-| PWR-V0-054 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestRunsIdentityServedDigest` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-054 | `internal/runidentity`, `cmd/corvint/runs.go` | `TestRunsIdentityServedDigest` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
 | PWR-V0-055 | `internal/playwrightruns/stability.go`, `reader.go` | `TestServedDigestStability`, `TestSingleRepeatOutputByteIdentical` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-056 | `internal/playwrightruns/compare.go` | `TestServedDigestCompare`, `TestRunsIdentityServedDigest`, `TestCompareVerdicts` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-057 | `internal/playwrightruns/reuse.go`, `shards.go` | `TestServedDigestReuseAndShards`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
@@ -821,7 +833,7 @@ Repository-wide gate is `NOT_RUN` in this scoped lane.
 | PWR-V0-068 | `internal/playwrightruns/reader.go`, `shards.go` | `TestPWRV0068_ClosureDeclaration` | experimental under the standing lane auto-accept |
 | PWR-V0-069 | `internal/playwrightruns/stability.go`, `cmd/corvint/runs.go` | `TestPWRV0069_PoolByClosure`, `TestPWRV0069_RunsStabilityPoolByClosure` | experimental under the standing lane auto-accept |
 | PWR-V0-070 | `internal/playwrightruns/stability.go`, `cmd/corvint/runs.go` | `TestPWRV0070_ClosureContradiction`, `TestPWRV0069_RunsStabilityPoolByClosure` | experimental under the standing lane auto-accept |
-| PWR-V0-071 | `internal/runidentity/identity.go`, `cmd/corvint/runs.go` | `TestPWRV0071_ClosureDigests`, `TestPWRV0071_RunsIdentityClosureDigests` | experimental under the standing lane auto-accept |
-| PWR-V0-072 | `internal/runidentity/identity.go`, `cmd/corvint/runs.go`, `internal/liveverify/affected/typescript/playwright_test_closure.go` | `TestPWRV0072_ComputedClosureDigests`, `TestPWRV0072_RunsIdentityComputeClosures` | experimental under the standing lane auto-accept; real Playwright run `NOT_RUN` |
-| PWR-V0-073 | `internal/runidentity/identity.go` | `TestPWRV0073_ComputedClosureFailsClosed` | experimental under the standing lane auto-accept |
+| PWR-V0-071 | `internal/runidentity/identity.go`, `cmd/corvint/runs.go` | `TestPWRV0071_ClosureDigests`, `TestPWRV0071_RunsIdentityClosureDigests` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-072 | `internal/runidentity/identity.go`, `cmd/corvint/runs.go`, `internal/liveverify/affected/typescript/playwright_test_closure.go` | `TestPWRV0072_ComputedClosureDigests`, `TestPWRV0072_RunsIdentityComputeClosures` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
+| PWR-V0-073 | `internal/runidentity/identity.go` | `TestPWRV0073_ComputedClosureFailsClosed` | retired 2026-11-09 (decision 0594); read at `4663b4e2` |
 | PWR-V0-074 | `internal/playwrightruns/reader.go`, `stability.go` | `TestPWRV0074_PoolByComputedClosure`, `TestPWRV0068_ClosureDeclaration` | experimental under the standing lane auto-accept |

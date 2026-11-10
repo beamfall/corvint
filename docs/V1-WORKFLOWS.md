@@ -19,10 +19,7 @@ witnesses and unknowns. Test claims and structural links do not mean tests ran o
 Omit `--ocm` to retain an explicit missing-obligation view. Invalid OCM inputs remain visible
 and produce no joins. JSON output is read-only stdout; it rejects `--output`.
 
-The optional standalone `corvint-console` `/chain` pane follows a hunk to original pinned
-source, requirement/citation detail and test/gap state. Start that loopback console explicitly
-when useful, and stop the owned process afterward. See [CEM pilot kit](specs/cem-pilot-kit.md)
-and [console contract](specs/local-admin-console-v0.md).
+See [CEM pilot kit](specs/cem-pilot-kit.md).
 
 ## Attack tests for changed Go conditions
 

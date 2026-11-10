@@ -2,13 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-09-29
-Intent status: proposed technical contract; owner accepted agent and optional editor direction
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, owner V1-0480 request; proposed LQP-V0-003/004/006/014 platform requirements.
 
 ## Agent digest
 - Claim: Experimental in-memory snapshots separate syntactic Git identity from bounded session overlays.
-- Status: proposed technical contract; owner accepted agent and optional editor direction/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: isolated native-Go package with immutable captures, full-text edits, stale checks and bounded live storage.
 - Blocked on: independent review, final evidence binding, actual Git validation, evidence joins, transport integration and client qualification.
 - Read next: Requirements; Limits and failure modes; Acceptance evidence.

@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/frontier"
 )
 
 const fixtureModule = "example.com/fixture"
@@ -85,8 +83,8 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 // partial literals composed with a root-climbing literal remain conservative,
 // and any other path keeps the component-run rule.
 func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
-	if changeEvidence != frontier.ExcludedPath {
-		t.Fatalf("changeEvidence = %q, want the CEM excluded path %q", changeEvidence, frontier.ExcludedPath)
+	if changeEvidence != ".corvint/change.cem.json" {
+		t.Fatalf("changeEvidence = %q, want the CEM excluded path %q", changeEvidence, ".corvint/change.cem.json")
 	}
 	root := writeFixture(t, map[string]string{
 		"fixture/fixture_test.go": "package fixture\n\nvar a, b, c = \".corvint\", \"change.cem.json\", \".corvint/change.cem.json\"\n",

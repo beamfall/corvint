@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055); JRT-V0-015..016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1701; re-homed from the agent leases spec, owner-approved 2026-10-17)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner request [issue 1055](https://github.com/beamfall/corvint/issues/1055)
 ("get 1055 done", 2026-10-17); the receipt chain, the complete audit and the read rule of
 [the agent leases contract](corvint-tasks-agent-leases-v0.md) (CAL-V0-060, CAL-V0-061); its writer
@@ -14,7 +16,7 @@ requirements and does not restate them. The design choice and its reasons are re
 
 ## Agent digest
 - Claim: `receipt retire` bounds the live journal by sealing the head receipt over a verified archive of the prefix; `receipt unretire` restores it.
-- Status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055); JRT-V0-015..016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1701; re-homed from the agent leases spec, owner-approved 2026-10-17) / experimental source implementation with focused store and CLI tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `receipt retire --archive FILE [--dry-run]`, `receipt unretire --archive FILE`, the `RETIRED_PREFIX` seal, sealed complete audit and binding folds from the anchor, crash recovery through `RETIRE_INCOMPLETE`, doctor journal size, growth and JOURNAL_GROWTH.
 - Blocked on: nothing for the slice; retire is one-shot per seal, and export, compaction and import refuse on a sealed store (Non-goals).
 - Read next: Requirements; Failure modes; Compatibility and rollback; Traceability.

@@ -2,7 +2,7 @@
 // (PRB-V0-020..036) over a generated realistic-size fixture: `make perf-budget`.
 //
 //	perf-budget [--budgets FILE] [--scale full|smoke] [--fixture DIR] [--corvint BIN]
-//	            [--corpus-mcp BIN] [--out FILE] [--scenario ID]... [--record-baseline]
+//	            [--out FILE] [--scenario ID]... [--record-baseline]
 //	            [--require-judgement]
 //	perf-budget [--budgets FILE] --record-baseline-from REPORT
 //
@@ -53,7 +53,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	scaleName := flags.String("scale", "", "fixture scale: full or smoke (default: the budgets file's)")
 	fixtureDir := flags.String("fixture", "", "fixture directory, reused when it holds fixture.json (default: a removed temporary directory)")
 	corvint := flags.String("corvint", "", "corvint binary (default: built from ./cmd/corvint)")
-	corpusMCP := flags.String("corpus-mcp", "", "corvint-corpus-mcp binary (default: built from ./cmd/corvint-corpus-mcp)")
 	out := flags.String("out", "", "also write the report to FILE")
 	record := flags.Bool("record-baseline", false, "write this run's measurements and host record as the budgets file's baseline")
 	requireJudgement := flags.Bool("require-judgement", false, "exit 3 instead of 0 when the run is NOT_JUDGED")
@@ -135,7 +134,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	for _, b := range []struct {
 		path *string
 		pkg  string
-	}{{corvint, "./cmd/corvint"}, {corpusMCP, "./cmd/corvint-corpus-mcp"}} {
+	}{{corvint, "./cmd/corvint"}} {
 		if *b.path != "" {
 			if *b.path, err = filepath.Abs(*b.path); err != nil {
 				return fail(err)
@@ -151,6 +150,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		if err := perfbudget.RunOwned(build); err != nil {
 			return fail(fmt.Errorf("go build %s: %w", b.pkg, err))
 		}
+		// The docs scenarios run `corvint docs ...`, which the built corvint serves through the
+		// corvint-docs executable beside it. A caller that supplies its own corvint installs
+		// corvint-docs itself.
+		progress("build: ./cmd/corvint-docs")
+		docs := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(work, "bin", "corvint-docs"), "./cmd/corvint-docs")
+		docs.Stdout, docs.Stderr = stderr, stderr
+		if err := perfbudget.RunOwned(docs); err != nil {
+			return fail(fmt.Errorf("go build ./cmd/corvint-docs: %w", err))
+		}
 	}
 	revision := "NOT_OBSERVED"
 	if head, err := ownedOutput(ctx, "git", "rev-parse", "HEAD"); err == nil {
@@ -159,7 +167,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			revision += "+dirty"
 		}
 	}
-	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, CorpusMCP: *corpusMCP, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress, Selected: selected})
+	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress, Selected: selected})
 	if err != nil {
 		return fail(err)
 	}

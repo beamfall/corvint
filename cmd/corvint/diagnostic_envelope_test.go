@@ -20,10 +20,13 @@ func diagnosticRefusalRepository(t *testing.T) string {
 	return root
 }
 
-func runWorkingTreeImpact(t *testing.T, root string, paths ...string) (int, string, string) {
+// runImpactRefusal runs path impact; README.csv carries a suffix the fixture index does not admit,
+// so it reaches the converted unsupported-impact-path-suffix refusal. The working-tree impact family
+// that used to anchor these checks left with internal/worktreeimpact (decision 0594).
+func runImpactRefusal(t *testing.T, root string, paths ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	arguments := append([]string{"--root", root, "impact", "--working-tree-untracked"}, paths...)
+	arguments := append([]string{"--root", root, "impact"}, paths...)
 	exit := run(arguments, &forbiddenImpactReader{}, &stdout, &stderr)
 	return exit, stdout.String(), stderr.String()
 }
@@ -45,38 +48,22 @@ func ledgerRows(t *testing.T, root string) []map[string]any {
 	return rows
 }
 
-// TestRefusalCodeSpellingsSurvive checks DRC-V0-006 over the converted family: the code and error
-// bytes of a converted envelope are unchanged ahead of the additive members, an unconverted
-// envelope of the same verb stays byte-identical, and the SOL-V0-007 row carries the code alone.
+// TestRefusalCodeSpellingsSurvive checks DRC-V0-006 over a converted family: the code and error
+// bytes of a converted envelope lead it, ahead of the additive members, and the SOL-V0-007 row
+// carries the code alone.
 func TestRefusalCodeSpellingsSurvive(t *testing.T) {
 	t.Parallel()
 	root := diagnosticRefusalRepository(t)
-	for _, test := range []struct {
-		path, prefix, members string
-	}{
-		{
-			path:    "pkg/main.go",
-			prefix:  `{"code": "unsupported-working-tree-impact-path", "error": "working-tree impact accepts only paths absent from the captured revision: pkg/main.go", "evidence": [{"name": "revision", "value": "`,
-			members: `, "ok": false, "subject": {"kind": "value", "value": "pkg/main.go"}, "supported_fixes": ["worktree-impact.remove-path", "impact.use-tracked-path-profile"]}` + "\n",
-		},
-		{
-			path:    "pkg/notes.txt",
-			prefix:  "{\"code\": \"unsupported-working-tree-impact-path\", \"error\": \"untracked-path impact is implemented for `.go` files only; commit or `git add -N` the file to use tracked-path impact\", \"evidence\": [], \"ok\": false",
-			members: `, "subject": {"kind": "value", "value": "pkg/notes.txt"}, "supported_fixes": ["worktree-impact.remove-path", "git.add-intent-to-add", "impact.use-tracked-path-profile"]}` + "\n",
-		},
-	} {
-		exit, _, stderr := runWorkingTreeImpact(t, root, test.path)
-		if exit != 2 || !strings.HasPrefix(stderr, test.prefix) || !strings.HasSuffix(stderr, test.members) {
-			t.Fatalf("path %s exit=%d stderr=%s", test.path, exit, stderr)
+	prefix := `{"code": "unsupported-impact-path-suffix", "error": "native Go impact requires a suffix admitted by the repository index", `
+	for _, path := range []string{"README.csv", "notes.csv"} {
+		exit, _, stderr := runImpactRefusal(t, root, path)
+		if exit != 2 || !strings.HasPrefix(stderr, prefix) || !strings.Contains(stderr, `"supported_fixes": [`) {
+			t.Fatalf("path %s exit=%d stderr=%s", path, exit, stderr)
 		}
-	}
-	unconverted := "{\"code\": \"invalid-working-tree-impact-path\", \"error\": \"working-tree impact path must be normalized and repository-relative: \\\"pkg/./new.go\\\"\", \"ok\": false}\n"
-	if exit, _, stderr := runWorkingTreeImpact(t, root, "pkg/./new.go"); exit != 2 || stderr != unconverted {
-		t.Fatalf("unconverted envelope changed: exit=%d stderr=%q", exit, stderr)
 	}
 	rows := ledgerRows(t, root)
 	for _, row := range rows {
-		if row["code"] != "unsupported-working-tree-impact-path" {
+		if row["code"] != "unsupported-impact-path-suffix" {
 			t.Fatalf("ledger row code = %v", row)
 		}
 		for _, member := range []string{"subject", "evidence", "supported_fixes", "terminal"} {
@@ -96,7 +83,7 @@ func TestDiagnosticEmissionDoesNotMutate(t *testing.T) {
 	t.Parallel()
 	root := diagnosticRefusalRepository(t)
 	before := repositoryBytesDigest(t, root, refusalLedger)
-	if exit, _, stderr := runWorkingTreeImpact(t, root, "pkg/main.go"); exit != 2 || !strings.Contains(stderr, `"supported_fixes": [`) {
+	if exit, _, stderr := runImpactRefusal(t, root, "README.csv"); exit != 2 || !strings.Contains(stderr, `"supported_fixes": [`) {
 		t.Fatalf("exit=%d stderr=%s", exit, stderr)
 	}
 	if after := repositoryBytesDigest(t, root, refusalLedger); after != before {
@@ -114,12 +101,12 @@ func TestRefusalIsNeverSuccess(t *testing.T) {
 	t.Parallel()
 	root := diagnosticRefusalRepository(t)
 	before := repositoryBytesDigest(t, root, refusalLedger)
-	exit, stdout, stderr := runWorkingTreeImpact(t, root, "main.go")
+	exit, stdout, stderr := runImpactRefusal(t, root, "README.csv")
 	var envelope map[string]any
 	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
 		t.Fatal(err)
 	}
-	if exit != 2 || stdout != "" || envelope["ok"] != false || envelope["code"] != "unsupported-working-tree-impact-path" {
+	if exit != 2 || stdout != "" || envelope["ok"] != false || envelope["code"] != "unsupported-impact-path-suffix" {
 		t.Fatalf("exit=%d stdout=%q envelope=%v", exit, stdout, envelope)
 	}
 	if after := repositoryBytesDigest(t, root, refusalLedger); after != before {

@@ -8,8 +8,7 @@ or a promise that a future host will automatically follow the guide. The owning 
 
 ## Start with the actual task
 
-Follow [DOGFOOD](DOGFOOD.md) for measurement, immutable base, explicit intent/check enrollment and
-pre-change evidence. Preserve the original query, omissions, failures and unsupported results.
+Freeze the base and collect pre-change evidence with the routes below. Preserve the original query, omissions, failures and unsupported results.
 Use [AGENT-ROUTES](AGENT-ROUTES.md) to expand original evidence; a locator is not governing intent.
 When several agent lanes share one host, follow [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md)
 (`ASD-V0-013..018`).
@@ -26,43 +25,23 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Ask independent questions together | `batch` with an admitted bounded request | Use only with a current snapshot and independent query/context/path-impact operations. Keep per-operation errors. One question stays standalone. |
 | Prepare an index or adopt a repository | explicit supervised `index --if-stale`; `init` / `adopt` for first adoption | Index writes derived state; no detached refresh or service. Missing/stale snapshot may use an admitted standalone read fallback. |
 | Select tests after a meaningful dirty diff | `affected`; explicit immutable receipt via `affected --snapshot FILE` (AFP-V0-019) | Keep selected Go units, exclusions, unknowns and mandatory repository checks. Advice never permits skipping `make gate` or proves behavioral coverage. |
-| Challenge a context/change/CEM claim | `prove --task TASK`, `prove PATH...`, `prove --base FULL_SHA`, or `prove --cem MAP` | Choose the relevant wrapper; retain embedded receipt and every PASS/FAIL/NOT_RUN. Do not repeat an identical query just to count another feature. |
-| Challenge behavioral test coverage | explicit `prove PATH... --mutate` or range mutation | Only when the task needs this experimental execution and its sandbox/dependencies/budgets admit it. Retain baseline failures, survived mutants and unrun rows; never a hook or every-edit default. |
-| Explore task criterion experiments | separate experimental `corvint-cem-experiments plan` / approved `run` / historical `verify` / live `gate` | Opt-in companion; see [example and disposable lifecycle](../examples/cem/experiments/README.md). Every native criterion binds a reviewer-attested oracle and registered controls. Historical integrity is distinct from live gate applicability; caller-reported execution never proves test adequacy or product superiority. Existing CEM wires and default Tasks gates remain unchanged. |
 | Exercise main runner execution | separate experimental `corvint-test-runner plan` / approved `run` | 57 concrete experimental profiles, separately qualified by runtime tuple; listed unavailable IDs still refuse. Independently pinned tools, source/configuration and fresh reports retain native outcomes. SQL CASE/SUITE_ONLY and executed/skipped counts preserve their actual granularity. SourceFile is caller-bound; complete inventory does not accept a criterion. See [companion](../cmd/corvint-test-runner/README.md) and [execution contract](specs/test-runner-execution-v0.md). |
 | Check native criterion capture | separately built `corvint-tasks criterion-binding capture` / offline `criterion-binding verify` | Native Tasks owns complete record/coherence validation; Core uses only wire projections through independently pinned bounded read calls. Historical validity is separate from current applicability. See [boundary contract](specs/tasks-criterion-binding-v0.md); installed versions lacking these experimental verbs remain unsupported. |
 | Verify a CEM1 reference candidate | separately built standalone Go consumer `verify-candidate --repository DIR --map FILE --expected-base FULL_OID --target FULL_OID --artifacts DIR` | Exact `cem/1.0-experimental.1` only; independent immutable Git derivation and opaque artifact-byte integrity. All eight authority/source/discrimination/external limits remain NOT_OBSERVED. Go >=1.24 source-build floor; no default producer or legacy dispatch migration. See [public candidate algorithms](../protocol/cem-1.0/ALGORITHMS.md). |
-| Resume a caller-owned checkpoint | `prove --checkpoint FILE` | Revalidate actual existing `corvint-checkpoint/0` handles against current Git. No automatic writer, invented checkpoint, or claim of full conversation recovery. |
 | Draft/consume source documentation | `docs draft`; `docs consume` using actual emitted stdin bytes | Producer `corvint-source-documentation-draft/0`, consumer `corvint-documentation-consumption/0`. Require admitted committed owner Agent digest and exported Go package declarations. Source rederivation does not accept generated intent or deliver HDC. |
 | Expand source-view experiment evidence | opt-in `adapter source-view` / `adapter claude-source-handoff` | Only tasks owning the experiment use its exact packet/digest/selectors. Normal work reads original cited immutable source. No default host wrapper or usefulness claim. |
-| Select backlog work or propose a wave | `script/corvint-work-queue`; `work observe` / `work propose-wave` | Validate current queue evidence, then inspect shadow proposals and conflicts. Existing coordinator owns claims and dispatch; observation authorizes neither. |
-| Inspect native fixture planning | `work plan-fixture --executor ABSOLUTE_FILE --observations FILE` | Explicit native fixture only; fixed read commands and immutable source/snapshot bindings. Trusted-local reservation/history observations; no admission or production qualification. See [NTP](specs/native-taskman-planning-v0.md). |
-| Bind and review a change | keyed `dogfood` workflow plus `cem` / every scoped `ocm` | Reuse the existing frozen plan, selected-check observations and exact report-set acknowledgment. Inspect citation meaning, unknowns and check adequacy. |
-| Inspect unresolved review obligations | `frontier --cem MAP --ocm MAP --expected-base BASE --target TARGET --json`; `lrf` where relevant | Before acknowledgment inspect each relevant bound scope. Valid exit 1 means an open advisory queue; distinguish it from invalid input. `frontier/0` cannot close authority or make local policy satisfied. |
 | Read test dependency evidence | `test-evidence PATH [--lines START:END] --revision COMMIT`, `test-evidence --test TEST`, or `test-evidence --explain TEST --base COMMIT`; `flows test-evidence --flows DIR` joins AFU links; MCP group `test-evidence` exposes `corvint.test_evidence` | RSP-V0-051; reads existing records only. UNKNOWN names unavailable inventory, run context or freshness; absent admitted qualification is FULL unqualified. No collection or authority promotion. |
 | Use a live Go provider | separate `corvint-go-test-provider --experimental --trusted-local --authority-bundle FILE` | Only an actual admitted parent-verifier attachment qualifies the route. Missing attachment is unavailable; ordinary selected tests still run. Protected runner/LPCV qualification is separate. |
 | Inspect web flows and test gaps | `flows --manifest FILE [--evidence FILE]`; separate opt-in `corvint-web-flows` | Experimental declared-flow reports, literal assertion candidates and guided DOM observations. Read commands never launch the provider; unknown inventory, unexplored controls, stale evidence and backend contradictions remain visible. See [application flows](specs/application-flow-understanding-v0.md) and [provider usage](../tools/web-flows/README.md). |
-| Record outcome or inspect learning | existing `dogfood finish`; supported trace-aware query; explicit `migrate-traces` | Do not duplicate finish's outcome. Migration apply requires explicit scope. Preserve trace refusal/learned-path counts; a mechanism or scoring change needs the registered two-arm LTA gate, not every record row. |
-| Investigate repeated friction | `observations`; explicitly scoped `prove-observe` | Bounded private counts never rank evidence or confer authority. No transcript scan, invented usage or background monitor. |
 | Change retrieval, learning or a profile | owning frozen `eval --goldens FILE` / registered benchmark engine arms | Pin engine, corpus, fixture and output identities; retain losing arms. No blind-v4 access or broad campaign for a prose-only change. Current eval supports an explicit trace-fixture arm, not unrestricted persisted trace replay. |
-| Compare migration evidence | `migration-ratchet --profile FILE` | Bind exact baseline/candidate artifacts and preserve every delta, denominator, exception and comparability rule. Pass is incremental no-regression only; it proves neither adequacy nor completeness. |
-| Inspect a console or release readiness | standalone `corvint-dashboard-snapshot`; explicit bounded `corvint-console`; `script/release-checklist` | Build standalone companions from their retained `cmd/corvint-*` source packages until the closed bundle migration lands; `corvint-companion-release -tasks-only` builds the separately bounded Tasks archive without qualifying the full bundle. Start an optional loopback server only for useful requested inspection with cleanup. Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
+| Inspect release readiness | `script/release-checklist` | Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
 | Inspect Go semantic dependencies | `context --task TEXT --subject PATH --lsp gopls`; explicit MCP `task-review-lsp` profile with `lsp: "gopls"` | Optional installed local gopls, immutable endpoint checks, separated external evidence; no ranking change. Use [LSP setup and qualification](LSP.md); absence stays unavailable and synthetic parity does not establish agent benefit. |
 | Change an optional analyzer/integration | owning public route and targeted tests from [spec index](specs/INDEX.json), including [Playwright External Provider V0](specs/playwright-external-provider-v0.md) for externally managed Playwright servers | Distinguish delivered internals, optional artifacts and unbuilt parent contracts. Do not separately launch every analyzer, MCP, Pulse or service; state the exact unavailable/inapplicable boundary. |
-| Change an OpenSpec or Spec Kit intent form or integration | `affected --base FULL_SHA`; the forms' focused tests (`TestSTAV0` in `internal/lrfrepo`, `protocol/integrations`, `internal/contextindex`); `make spec-toolchain-conformance` | Covers `internal/lrfrepo/ocm_toolchain_forms*.go`, `protocol/integrations/{openspec,speckit}/`, `interop/spec-toolchains/` and their scripts ([STA-V0](specs/spec-toolchain-adapters-v0.md), [integration guide](SPEC-TOOLCHAIN-INTEGRATION.md)). Conformance installs only the `versions.json` pins with checksum verification and needs npm, GitHub and PyPI; offline it is unavailable, never passed. `script/spec-toolchain-latest.sh` reports a newer release; moving a pin is its own traced change. Other upstream versions stay untested. |
-| Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Remote HTTPS requires the separately built `corvint-remote-provider --allow-network --config FILE` command; Core never fetches network evidence. All routes retain the same strict EEP decode, reference checks and separated authority. |
-
-For issue392 connector work, use the separate experimental `corvint-postmerge-connect` CLI and
-its [local conformance kit](../cmd/corvint-postmerge-connect/README.md). Recording/dry-run retain
-fixed canonical requests; live references update private local files only. Vendor transport,
-host credential isolation and independent adopter qualification remain unobserved.
+| Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Core never fetches network evidence; the remote provider was removed by decision 0594. All routes retain the same strict EEP decode, reference checks and separated authority. |
 
 ## Read, implement, challenge
 
 The [six experimental workflows](V1-WORKFLOWS.md) add bounded, explicit routes to this table:
-`cem report --format json --ocm` for exact hunk/obligation inspection and the optional console
-chain links; `prove --base FULL_SHA --mutate --attack-tests` for selected Go survivors;
-`dogfood handoff --task-state` / `--bundle` for inert caller state and drift refusal;
 `breakage` for pinned declared repositories and API relationships; the explicit `context`
 instruction flags for conditional project-file selection; and `script/proof-tour.sh` for the
 disposable independent-review tour. Use only the route relevant to the task. Actual session
@@ -71,8 +50,7 @@ interoperability remain unqualified; none of these routes accepts intent or clos
 
 Use `corvint help COMMAND` and the owning spec for exact flags and admission before invoking a
 route. Begin with a handful of applicable rows. After the first meaningful source diff, inspect
-`affected` when it can advise the changed paths; keep the actual gate mandatory. Challenge relevant
-claims with nonmutating `prove`. A guidance-only change may not need dirty-Go advice, batch,
+`affected` when it can advise the changed paths; keep the actual gate mandatory. A guidance-only change may not need dirty-Go advice, batch,
 mutation, draft generation or checkpoint handling. Do not manufacture source changes or toy tasks
 to make those rows appear used.
 
@@ -111,21 +89,12 @@ For the experimental [corpus republish companion](specs/corpus-republish-v0.md),
 
 ## Finish through the existing gate
 
-Follow [DOGFOOD §4](DOGFOOD.md#4-produce-the-cem) to commit source, bind and commit the CEM, and prepare
-every owning OCM on the same final target. Run frozen selected checks through the existing keyed
-`dogfood verify`. Before acknowledging its report set, read the CEM/OCM reports and relevant
-`frontier-stable-view/0` views together. Keep structural links, actual test results, local satisfaction and
-Frontier authority separate. An open advisory queue is not a command failure or a new Stop rule.
-
-The `examples/cem/recipes/` scripts that packaged these public commands for other repositories
-read only `cem/0.x` maps and were removed by V1-1278 S3 (`CEM-V1-223`, decision 0525); Git history
-keeps them. Use `make dogfood-change` and `make dogfood-check` here, and the `cem/1.0` commands in
-[the automation reference](AUTOMATION.md) elsewhere. They never replaced the keyed verification,
-OCM or outcome recording of the dogfood loop.
+Commit the source, run the selected checks and the gate that [AGENTS.md](../AGENTS.md) names, and
+keep actual test results separate from structural or advisory output. The CEM bind, check and seal
+loop was retired by decision 0594.
 
 Independent review checks whether a material applicable family was missed and whether each claimed
-use has real evidence. Repair the omission or explain its boundary before acknowledgment. Reuse
-strict finish's single explicit outcome; no duplicate learning record. Close measurement after
+use has real evidence. Repair the omission or explain its boundary before acknowledgment. Close measurement after
 review, keeping prior planning gaps and unknown tokens/cost visible. If no paired baseline exists,
 make no savings claim. Native host use in another checkout stays `NOT_OBSERVED` for this task.
 

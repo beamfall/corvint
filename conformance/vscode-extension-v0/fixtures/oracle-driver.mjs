@@ -19,27 +19,44 @@ const mcpMeta = (version = expect.mcpMetadataVersion ?? '0.1.0') => ({
 const mcpSchema = (properties, required) => ({ '$schema': 'https://json-schema.org/draft/2020-12/schema', type: 'object', properties, required, additionalProperties: false });
 const mcpAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const mcpServerInfo = { description: 'Local read-only Corvint context and repository evidence server.', name: 'corvint-mcp', version: '0.1.0-experimental' };
+const mcpOutputSchema = { type: 'object', properties: { mutates: { const: false }, tool: { type: 'string' } } };
+const mcpRevision = { type: 'string', pattern: '^([0-9a-f]{40}|[0-9a-f]{64})$' };
+// The bridge advertises help, impact and status after decision 0594 retired corvint.query.
 const mcpTools = [
   {
-    name: 'corvint.impact', description: 'Compile revision-bound impact evidence for tracked Go files without returning source bodies.',
+    name: 'corvint.help', description: "Return the task-indexed agent guide exactly as `corvint help guide` prints it (the default), one command's catalog entry exactly as `corvint help --json COMMAND` prints it (command NAME, under 5 KB), or with topic catalog the full command catalog (corvint-capability-catalog/0, about 180 KB) exactly as `corvint help --json` prints it. Reads only the binary, never the repository.",
     inputSchema: mcpSchema({
-      paths: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: { type: 'string', minLength: 1, maxLength: 1024, pattern: '^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\\\).+[.]go$' } },
-      limit: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
-    }, ['paths']), annotations: mcpAnnotations,
+      command: { type: 'string', enum: ['impact', 'help'] },
+      topic: { type: 'string', enum: ['guide', 'command', 'catalog'], default: 'guide' },
+    }, []), annotations: mcpAnnotations, outputSchema: mcpOutputSchema,
   },
   {
-    name: 'corvint.query', description: 'Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.',
-    inputSchema: mcpSchema({ task: { type: 'string', minLength: 1, maxLength: 2000, pattern: '^[ -~]+$' } }, ['task']), annotations: mcpAnnotations,
+    name: 'corvint.impact', description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. The receipt equals CLI corvint impact with the syntax profile for the same paths, revision and limit; the CLI admits more suffixes and --base (corvint impact --capabilities). MCP accepts paths only.",
+    inputSchema: mcpSchema({
+      paths: { type: 'array', minItems: 1, maxItems: 100, uniqueItems: true, items: { type: 'string', minLength: 1, maxLength: 1024, pattern: String.raw`^(?:(?:(?:[^/\\.\n\r][^/\\\n\r]*|\.[^/\\.\n\r][^/\\\n\r]*|\.\.[^/\\\n\r]+)/)+[^/\\\n\r]*|[^/\\\n\r]+)[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$` } },
+      limit: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
+      budgetBytes: { type: 'integer', minimum: 1216, maximum: 1000000 },
+      snapshot: {
+        type: 'object', additionalProperties: false,
+        required: ['schema', 'commitRevision', 'treeRevision', 'baseRevision', 'changedPaths', 'changedPathsSha256'],
+        properties: {
+          schema: { const: 'corvint-planning-snapshot/0' },
+          commitRevision: mcpRevision, treeRevision: mcpRevision, baseRevision: mcpRevision,
+          changedPaths: { type: 'array', maxItems: 4096, uniqueItems: true, items: { type: 'string', minLength: 1 } },
+          changedPathsSha256: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+        },
+      },
+    }, ['paths']), annotations: mcpAnnotations, outputSchema: mcpOutputSchema,
   },
   {
     name: 'corvint.status', description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.',
-    inputSchema: mcpSchema({}, []), annotations: mcpAnnotations,
+    inputSchema: mcpSchema({}, []), annotations: mcpAnnotations, outputSchema: mcpOutputSchema,
   },
 ];
 const mcpRequests = [];
 for (const [index, method] of (expect.mcpRequestSequence ?? []).entries()) {
   const params = { _meta: mcpMeta() };
-  if (method === 'tools/call') Object.assign(params, { name: 'corvint.query', arguments: { task: 'q' } });
+  if (method === 'tools/call') Object.assign(params, { name: 'corvint.impact', arguments: { paths: ['a.go'], limit: 20 } });
   mcpRequests.push({ jsonrpc: '2.0', id: index + 1, method, params });
 }
 if (expect.mcpInvokedTool && mcpRequests.length === 0) mcpRequests.push({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { _meta: mcpMeta(), name: expect.mcpInvokedTool, arguments: { paths: ['a.go'], limit: 20 } } });
@@ -48,11 +65,10 @@ if (expect.mcpCallArguments) {
   for (const [index, call] of expect.mcpCallArguments.entries()) mcpRequests.push({ jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: { _meta: mcpMeta(), ...call } });
 }
 const mcpCallResults = (expect.mcpCallArguments ?? []).map((call) => {
-  const mode = call.name === 'corvint.query' ? 'query' : 'impact';
   const wrapper = {
     schema: 'corvint-mcp-bridge-result/0', tool: call.name, mutates: false, state: 'READY', epistemicClass: 'OBSERVED', authorityClass: 'REPOSITORY_EVIDENCE',
     repository: { commitRevision: 'a'.repeat(40), treeRevision: 'a'.repeat(40), objectFormat: 'sha1', profileId: 'generic', worktreeState: 'CLEAN', dirtyPathCount: 0, dirtyPathsSha256: 'c'.repeat(64) },
-    receipt: { schema_version: 1, mode, revision: 'a'.repeat(40), request: mode === 'query' ? { text: call.arguments.task, limit: 1 } : { paths: call.arguments.paths, limit: 20 }, freshness: { state: 'fresh', revision: 'a'.repeat(40) }, state: 'READY', results: [], exclusions: [], verification: [], coverage: { within_budget: true, packet_bytes: 0 } },
+    receipt: { schema_version: 1, mode: 'impact', revision: 'a'.repeat(40), request: { paths: call.arguments.paths, limit: 20 }, freshness: { state: 'fresh', revision: 'a'.repeat(40) }, state: 'READY', results: [], exclusions: [], verification: [], coverage: { within_budget: true, packet_bytes: 0 } },
     abstention: { active: false, reason: 'NONE' },
   };
   return { resultType: 'complete', isError: false, content: [{ type: 'text', text: canonicalJson(wrapper) }], structuredContent: wrapper, _meta: { 'io.modelcontextprotocol/serverInfo': mcpServerInfo } };
@@ -66,8 +82,8 @@ const bridgeCallResult = (wrapper) => ({
 });
 if (expect.mcpNullAbstentionExact) {
   mcpCallResults.push(bridgeCallResult({
-    schema: 'corvint-mcp-bridge-result/0', tool: 'corvint.query', mutates: false, state: 'ABSTAINED', epistemicClass: 'NOT_OBSERVED', authorityClass: 'NONE',
-    repository: null, receipt: null, abstention: { active: true, reason: 'UNSUPPORTED_INTENT' },
+    schema: 'corvint-mcp-bridge-result/0', tool: 'corvint.impact', mutates: false, state: 'ABSTAINED', epistemicClass: 'NOT_OBSERVED', authorityClass: 'NONE',
+    repository: null, receipt: null, abstention: { active: true, reason: 'REPOSITORY_STATE_UNSTABLE' },
   }));
 }
 if (expect.mcpRetainedOutOfScopeExact) {
@@ -85,7 +101,7 @@ if (expect.mcpRetainedOutOfScopeExact) {
 const executionCount = expect.executionCount ?? Math.min(expect.maxExecutionCount ?? 0, 0);
 const executions = Array.from({ length: executionCount }, () => ({
   executable: '/opt/corvint/bin/corvint',
-  argv: ['query', '--format', 'json'],
+  argv: ['impact', '--format', 'json'],
   shell: false,
   pathLookup: false,
   identity: 'dev=1;ino=2;size=3;mtime=4',
@@ -186,8 +202,8 @@ const observation = {
     status: expect.status ?? 'ready',
     trees: expect.mcpAuthorityProjected ? {
       evidence: [],
-      impact: [{ id: 'mcp:impact:unknown', label: `Unknown: ${expect.mcpNullAbstentionExact ? 'UNSUPPORTED_INTENT' : 'OUT_OF_SCOPE'}`, description: 'ABSTAINED', tooltip: 'NOT_OBSERVED NONE' }],
-      why: [{ id: 'mcp:why:authority', label: 'MCP authority: ABSTAINED', description: 'NOT_OBSERVED · NONE', tooltip: `Reason: ${expect.mcpNullAbstentionExact ? 'UNSUPPORTED_INTENT' : 'OUT_OF_SCOPE'}` }],
+      impact: [{ id: 'mcp:impact:unknown', label: `Unknown: ${expect.mcpNullAbstentionExact ? 'REPOSITORY_STATE_UNSTABLE' : 'OUT_OF_SCOPE'}`, description: 'ABSTAINED', tooltip: 'NOT_OBSERVED NONE' }],
+      why: [{ id: 'mcp:why:authority', label: 'MCP authority: ABSTAINED', description: 'NOT_OBSERVED · NONE', tooltip: `Reason: ${expect.mcpNullAbstentionExact ? 'REPOSITORY_STATE_UNSTABLE' : 'OUT_OF_SCOPE'}` }],
     } : { evidence: [], impact: [], why: [] },
     diagnostics,
     documentOpenCount: expect.documentOpenCount ?? 0,
@@ -195,7 +211,7 @@ const observation = {
     tests,
     testRunProfiles: 0,
     testRun: expect.testRunEnded ? { ended: true, corvintRunId: 'run:opaque' } : undefined,
-    registeredCommands: expect.exactCommands ? ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'] : [],
+    registeredCommands: expect.exactCommands ? ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'] : [],
     statusAccessibleName: expect.statusAccessible ? 'Corvint Ready' : '',
     output: expect.outputContains ? [`Corvint ${expect.outputContains}`] : [],
     rejectedLocations: expect.minRejectedLocations ?? 0,

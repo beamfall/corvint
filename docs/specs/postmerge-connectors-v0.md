@@ -2,16 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-connect` and `internal/postmergeconnector` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human request https://github.com/beamfall/corvint/issues/392;
 decision 0373; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `AGENTS.md`.
 
 ## Agent digest
 - Claim: A separate companion reads pinned fixture context and renders bounded idempotent tracker and forge requests with recording and dry-run modes.
-- Status: proposed/experimental; local references only, no remote service qualification.
-- Exists: `internal/postmergeconnector`, `cmd/corvint-postmerge-connect`; conformance and CLI tests.
-- Blocked on: owner acceptance and independent remote connector qualification; integration and native completion.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-postmerge-connect` and `internal/postmergeconnector` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Trust boundary; Qualification and rollback.
 
 ## User and measurable job
@@ -103,13 +105,8 @@ establishes no independent adopter or remote profile qualification.
 
 ## Traceability
 
-| Requirements | Implementation | Evidence |
-|---|---|---|
-| PMC-V0-001, PMC-V0-002 | `read.go`, `git.go` | `TestConnectorConformance` |
-| PMC-V0-003, PMC-V0-004, PMC-V0-005 | `plan.go` | `TestConnectorConformance` |
-| PMC-V0-006, PMC-V0-007, PMC-V0-008 | `client.go`, `types.go` | `TestConnectorConformance`, `TestCLIReferenceWorkflow` |
-| PMC-V0-009 | `decode.go`, `files.go` | `TestConnectorConformance`, `TestCLIReferenceWorkflow` |
-| PMC-V0-010 | `git.go` (`verifyBinding`) | `TestChangedFilesRefusesRewrittenAncestry_PMCV0010` (grafts and shallow fixtures; the plain checkout reads again) |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/postmerge-connectors-v0.md`.
 
 ## Qualification and rollback
 

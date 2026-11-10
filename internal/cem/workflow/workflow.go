@@ -40,12 +40,6 @@ type Session struct {
 	// stableHolders maps the mechanics view a mutator read from a stable
 	// producer map to its stable document, which writeMap re-encodes.
 	stableHolders map[*wire.Map]*wire.StableMap
-	// stableOCM verifies an OCM a stable report supplies; nil leaves the
-	// report's obligations NOT_PRODUCED (see SetStableOCMReader).
-	stableOCM StableOCMReader
-	// intentCounter counts an intent's obligations for a recorded deferral;
-	// nil leaves each count NOT_CHECKED (see SetIntentObligationCounter).
-	intentCounter IntentObligationCounter
 	// dataReaders finds a declared data path's readers for the
 	// cem-path-policy/1 profile; nil leaves each data row
 	// data-reader-not-produced (see SetDataReaderFinder).

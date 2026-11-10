@@ -3,14 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-12
 Requirement prefix: `REC-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: AGENTS.md invariants 2 and 8; `learned-trace-admission-v0.md` `LTA-V0-001`;
 `../../benchmarks/README.md` (first-observation rule); `benchmarks/manifest.json`.
 
 ## Agent digest
 - Claim: The offline retrieval benchmark reports dev and held-out splits beside the full set, recall at fixed byte budgets, and an explicit downstream-outcome slot.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/evalrepo` split, budget-yield and outcome helpers; `benchmarks/runner` `comparability` blocks, `-purpose` and the committed `benchmarks/eval-split-v0.json`.
 - Blocked on: owner acceptance; every v0 held-out row was observed during development, so no generalization claim exists.
 - Read next: Requirements; Non-goals and failure modes.

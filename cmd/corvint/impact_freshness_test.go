@@ -96,7 +96,6 @@ func TestImpactRequireCleanArguments(t *testing.T) {
 	for _, args := range [][]string{
 		{"--require-clean=true", "pkg/main.go"},
 		{"--require-clean", "--require-clean", "pkg/main.go"},
-		{"--require-clean", "--working-tree-untracked", "pkg/new.go"},
 		{"--require-clean", "--base", strings.Repeat("a", 40)},
 	} {
 		if _, err := parseImpactArgumentsForPlatform(options{impactLimit: 10}, args, "darwin"); err == nil {
@@ -105,17 +104,6 @@ func TestImpactRequireCleanArguments(t *testing.T) {
 	}
 	if !strings.Contains(impactHelp, "--require-clean") || !strings.Contains(impactHelp, "NEEDS_WIDENING") {
 		t.Fatal("missing help")
-	}
-}
-
-// V1-1141: prove embeds ordinary impact and has no strict abstention form, so
-// it refuses --require-clean instead of ignoring it.
-func TestProveRefusesRequireClean(t *testing.T) {
-	t.Parallel()
-	root := impactCLIRepository(t)
-	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "prove", "pkg/main.go", "--require-clean"}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "prove does not support --require-clean") {
-		t.Fatalf("exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
 	}
 }
 

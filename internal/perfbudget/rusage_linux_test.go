@@ -4,7 +4,6 @@ package perfbudget
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,17 +40,6 @@ func deref(v *int64) int64 {
 		return -1
 	}
 	return *v
-}
-
-// PRB-V0-060 (V1-3079): an MCP server the relay cannot start is a harness start failure naming the
-// server, even though the relay itself started and the initialize request is what fails first.
-func TestPRBV0060RelayedMCPStartFailure(t *testing.T) {
-	const missing = "/definitely/missing/corpus-mcp"
-	_, _, err := startMCP(context.Background(), t.TempDir(), []string{missing})
-	var start *StartError
-	if !errors.As(err, &start) || start.Command != missing {
-		t.Fatalf("missing server: %T %v, want *StartError naming %s", err, err, missing)
-	}
 }
 
 // PRB-V0-060 (V1-3079): the relay's report pipe is not inherited by the measured command, so a

@@ -87,7 +87,6 @@ class CorvintRuntime implements vscode.Disposable {
       }),
       vscode.commands.registerCommand("corvint.selectExecutable", () => this.tasks.track(this.selectExecutable())),
       vscode.commands.registerCommand("corvint.clearExecutable", () => this.clearExecutable()),
-      vscode.commands.registerCommand("corvint.query", () => this.tasks.track(this.query())),
       vscode.commands.registerCommand("corvint.impact", () => this.tasks.track(this.impact())),
       vscode.commands.registerCommand("corvint.refresh", () => this.tasks.track(this.refresh())),
       vscode.commands.registerCommand("corvint.clearResults", () => this.clearResults()),
@@ -311,25 +310,6 @@ class CorvintRuntime implements vscode.Disposable {
     this.presentation.setStatus(supportedExecutionPlatform() ? "No CLI" : "Unsupported");
   }
 
-  private async query(): Promise<void> {
-    if (!this.guardTrusted() || !this.guardPlatform()) {
-      return;
-    }
-    const task = await vscode.window.showInputBox({
-      title: "Corvint query",
-      prompt: "Describe the evidence you need. The task is sent only to the local pinned Corvint process and is not stored by this extension.",
-      ignoreFocusOut: true,
-      validateInput: validateTask,
-    });
-    if (task === undefined || this.disposed || !vscode.workspace.isTrusted) {
-      return;
-    }
-    const root = await this.selectRoot(vscode.window.activeTextEditor?.document.uri);
-    if (root !== undefined && !this.disposed && vscode.workspace.isTrusted) {
-      await this.startOperation("query", root, task);
-    }
-  }
-
   private async impact(): Promise<void> {
     if (!this.guardTrusted() || !this.guardPlatform()) {
       return;
@@ -372,7 +352,7 @@ class CorvintRuntime implements vscode.Disposable {
     }
     const last = this.lastOperation;
     if (last === undefined) {
-      this.fail("Degraded", new Error("CLI_FAILED: no explicit query or impact is available to refresh"));
+      this.fail("Degraded", new Error("CLI_FAILED: no explicit impact is available to refresh"));
       return;
     }
     await this.startOperation(last.operation, last.root, last.value);
@@ -670,25 +650,6 @@ function manifestVersion(context: vscode.ExtensionContext): string {
     return "0.0.0-invalid";
   }
   return value;
-}
-
-function validateTask(value: string): string | undefined {
-  if (value.length === 0 || [...value].length > 2_000 || Buffer.byteLength(value, "utf8") > 16_384 || /[\u0000-\u001f\u007f]/u.test(value)) {
-    return "Task must be 1–2,000 Unicode scalars, at most 16,384 UTF-8 bytes, without control characters.";
-  }
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 0xd800 && code <= 0xdbff) {
-      const next = value.charCodeAt(index + 1);
-      if (!(next >= 0xdc00 && next <= 0xdfff)) {
-        return "Task contains an unpaired surrogate.";
-      }
-      index += 1;
-    } else if (code >= 0xdc00 && code <= 0xdfff) {
-      return "Task contains an unpaired surrogate.";
-    }
-  }
-  return undefined;
 }
 
 function supportedExecutionPlatform(): boolean {

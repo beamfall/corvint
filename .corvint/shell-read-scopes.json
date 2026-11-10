@@ -50,29 +50,6 @@
         "script/select-previous-release.sh"
       ]
     },
-    "script/dogfood-bind-range_test.sh": {
-      "reads": [
-        ".github/cishards/",
-        "cmd/corvint/",
-        "go.mod",
-        "go.sum",
-        "internal/",
-        "tools/dogfood-guard-hunks/"
-      ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint and ./tools/dogfood-guard-hunks, whose only non-standard packages are under internal/; the wrapper runs on a copy in a temporary repository (V1-3616)."
-    },
-    "script/dogfood-change_test.sh": {
-      "reads": [
-        ".github/cishards/",
-        ".gitignore",
-        "cmd/corvint/",
-        "docs/DOGFOOD.md",
-        "go.mod",
-        "go.sum",
-        "internal/"
-      ],
-      "reason": "Outside script/, it reads docs/DOGFOOD.md and .gitignore and runs go build ./cmd/corvint; the dogfood wrappers run on copies in a temporary repository (V1-3616)."
-    },
     "script/dogfood-merge-base_test.sh": {
       "reads": [
         "Makefile"
@@ -117,18 +94,6 @@
       "localReads": [
         "script/dogfood-merge-base.sh",
         "script/gate-receipt"
-      ]
-    },
-    "script/qualify-tasks-basic_test.sh": {
-      "reads": [
-        "cmd/corvint-tasks/",
-        "go.mod",
-        "go.sum",
-        "internal/"
-      ],
-      "reason": "Outside script/, it runs go build ./cmd/corvint-tasks from the checkout, whose only non-standard packages are under internal/, and reads internal/tasks/transaction/qualification.go; the qualification runs in a temporary directory (AFP-V0-2955, V1-4283).",
-      "localReads": [
-        "script/qualify-tasks-basic.sh"
       ]
     },
     "script/repin_test.sh": {

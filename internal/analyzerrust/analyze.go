@@ -512,7 +512,7 @@ func factLess(left, right Fact) bool {
 
 // evidence is the frozen fourteen-field generic candidate digest. Its field
 // order, domain separator, and length framing are identical to the vector
-// pinned by internal/analyzercap/candidate_profile_vectors_test.go.
+// that internal/analyzercap pinned until decision 0594 removed that package.
 func evidence(r Request, inputDigest string, f Fact) string {
 	target, _ := json.Marshal(r.Target)
 	fields := []string{Family, r.RequestID, r.ScopeID, r.CompilationUnitID, string(target),

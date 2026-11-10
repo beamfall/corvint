@@ -2,12 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-20
-Intent status: accepted (GitHub issue #46)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `migration` command group
+and `internal/migrationratchet` (4663b4e2b is the last tree with them). The body below is historical
+and its requirement IDs stay for traceability.
 Authoritative inputs: GitHub issue #46; `../SPEC-DRIVEN-DEVELOPMENT.md`; `documentation-corpus-v1.md` issue-40 and issue-42 evidence boundaries; repository invariants 1, 2, 3, 7 and 8.
 
 ## Agent digest
-- Status: accepted (GitHub issue #46) / experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Claim: A revision-bound baseline/candidate receipt prevents migration evidence debt from growing without claiming adequacy or completeness.
 - Exists: `internal/migrationratchet`; `corvint migration-ratchet --profile FILE`, `schema`, `seal` and `span-digest`; synthetic focused tests.
 - Blocked on: real consumer snapshots, clean-tree gate, dogfood closure and independent review.

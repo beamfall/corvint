@@ -4,6 +4,8 @@ Owner: Russell Lewis
 Date: 2026-09-09
 Intent status: proposed
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted `script/dogfood-change.sh`; the dogfood caller
+of range impact is retired, the `impact` command stays.
 Authoritative inputs: the owner's instruction to reach full protected-runner support;
 `AGENTS.md`'s explicitly experimental prototype allowance;
 `go-production-kernel-migration-v0.md` (`GPK-V0-030`, `GPK-V0-040`, `GPK-V0-051`);
@@ -225,14 +227,14 @@ bounded enumeration does not close those critical misses or the non-Go semantic 
 
 | Requirement | Implementation | Executable evidence |
 |---|---|---|
-| `ERI-V0-001` | explicit CLI parsing and `ExpandedRangeImpact` | `TestExpandedRangeImpactBoundaries`, `TestExpandedRangeImpactCLIClosedSelection` |
-| `ERI-V0-002` | unchanged global range compiler/reducer | `TestExpandedRangeImpactGlobalCoverage`, `TestExpandedRangeImpactGlobalAuthority`, `TestExpandedRangeImpactPreservesDefaultSemantics` |
-| `ERI-V0-003` | existing validators and correctly scoped bounds | `TestExpandedRangeImpactRejectsUnsupportedMembers`, `TestExpandedRangeImpactBoundaries`; unchanged range/Git bound tests |
-| `ERI-V0-004` | default wrapper and unchanged positional limit | `TestExpandedRangeImpactPreservesDefaultSemantics`, `TestImpactRejectsInvalidBoundsBeforeCompilation`, `TestExpandedRangeImpactProveRejectsSelector`, existing committed-range tests |
-| `ERI-V0-005` | shared immutable snapshot and Git runner | `TestExpandedRangeImpactPreservesSnapshotRefusal`, `TestExpandedRangeImpactCLIExplicitReadOnly`; existing Git interruption/cleanup regressions |
+| `ERI-V0-001` | explicit CLI parsing and `ExpandedRangeImpact` | `TestExpandedRangeImpactBoundaries` (removed), `TestExpandedRangeImpactCLIClosedSelection` |
+| `ERI-V0-002` | unchanged global range compiler/reducer | `TestExpandedRangeImpactGlobalCoverage` (removed), `TestExpandedRangeImpactGlobalAuthority` (removed), `TestExpandedRangeImpactPreservesDefaultSemantics` (removed) |
+| `ERI-V0-003` | existing validators and correctly scoped bounds | `TestExpandedRangeImpactRejectsUnsupportedMembers` (removed), `TestExpandedRangeImpactBoundaries` (removed); unchanged range/Git bound tests |
+| `ERI-V0-004` | default wrapper and unchanged positional limit | `TestExpandedRangeImpactPreservesDefaultSemantics` (removed), `TestImpactRejectsInvalidBoundsBeforeCompilation`, `TestExpandedRangeImpactProveRejectsSelector` (removed), existing committed-range tests |
+| `ERI-V0-005` | shared immutable snapshot and Git runner | `TestExpandedRangeImpactPreservesSnapshotRefusal` (removed), `TestExpandedRangeImpactCLIExplicitReadOnly`; existing Git interruption/cleanup regressions |
 | `ERI-V0-006` | `script/dogfood-change.sh` explicit prototype argv | actual final coordinator receipt and independent strict checker; final integrated evidence pending |
-| `ERI-V0-060` | `rangeCertainlyExceeds`, `mayLackObjects` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection`, `TestRangeImpactOverBoundKeepsMissingObjectRefusalForPromisorRemotes`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-range-bound-before-copy-detection.md` |
-| `ERI-V0-261` | `RangeBoundRefusalBeforeLoad` (`internal/contextindex/range_bound_precheck.go`) before `overSnapshot` in the `impact` route of `cmd/corvint/main.go` | `TestERIV0261RangeBoundRefusesWithoutDecodingTheSnapshot` (SHA-1/SHA-256 and expanded over-bound refusals equal to the loaded path's with the snapshot file emptied; in-bound, missing snapshot, dirty worktree, unqualified module, non-ancestor and invalid limit answer nil); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-partial-1021-ticket-completions.md` |
+| `ERI-V0-060` | `rangeCertainlyExceeds`, `mayLackObjects` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection` (removed), `TestRangeImpactOverBoundKeepsMissingObjectRefusalForPromisorRemotes`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-range-bound-before-copy-detection.md` |
+| `ERI-V0-261` | `RangeBoundRefusalBeforeLoad` (`internal/contextindex/range_bound_precheck.go`) before `overSnapshot` in the `impact` route of `cmd/corvint/main.go` | `TestERIV0261RangeBoundRefusesWithoutDecodingTheSnapshot` (removed) (SHA-1/SHA-256 and expanded over-bound refusals equal to the loaded path's with the snapshot file emptied; in-bound, missing snapshot, dirty worktree, unqualified module, non-ancestor and invalid limit answer nil); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-partial-1021-ticket-completions.md` |
 | `ERI-V0-262` | `rangeCertainRefusal`, `rangeCertainPathRefusal` in `compileRangeImpact` and `RangeBoundRefusalBeforeLoad` | `TestRangeImpactRefusesUnsafePathBeforeCopyDetection` (modified and added unsafe paths refuse with the exact bytes and no exact diff; a smaller unsafe copy source reaches the exact diff), `TestRangeCertainPathRefusalProvesSmallestFailingPath`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md` |
 | `ERI-V0-263` | `rangePathPattern`, `rangePathRule`, `validateRangePath`, `rangeBinaryError` and the Go-directory `@` guard in `internal/contextindex/range_impact.go` | `TestRangePathRefusalNamesPathAndRule`, `TestRangeImpactRefusesGoPackageDirectoryWithAt` |
 | `ERI-V0-264` | `parseRangeChanges`, `parseRangeChangeRecords`, `PerPathRangeImpact` and `compileRangeImpactMode` | `TestRangePathRefusalNamesPathAndRule` (order-independent refusal), `TestPerPathRangeImpactNamesEachRefusedPath`, `TestPerPathRangeImpactKeepsBytesWithoutRefusals` |

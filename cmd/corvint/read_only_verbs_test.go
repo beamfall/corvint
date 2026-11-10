@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -90,24 +88,12 @@ func ledgerIgnoringRepository(t *testing.T) string {
 	return root
 }
 
-func runHarnessEventInProcess(t *testing.T, root, event, input string) int {
-	t.Helper()
-	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	code := runContext(context.Background(), cliArguments(root, event), strings.NewReader(input), stdout, stderr)
-	if code != 0 {
-		t.Logf("harness event %s exited %d: %s", event, code, stderr)
-	}
-	return code
-}
-
 // TestReadOnlyVerbsWriteNothing is the filesystem tripwire for the verbs the
 // root help lists as reading without mutating repository or trace state
-// (init, adopt, query, impact, docs, harness, lrf; GPK-V0-007, AGENTS.md
-// invariant 4). Each verb runs over a snapshot of the whole fixture tree,
-// .git and .corvint included, and may change nothing except the documented
-// ledgers under their documented conditions: harness event session-start
-// appends one self-observation row when .corvint/ is gitignored, and the
-// unplanned-read marker alone never makes a read verb record anything.
+// (init, adopt, impact, docs, lrf; GPK-V0-007, AGENTS.md invariant 4). Each
+// verb runs over a snapshot of the whole fixture tree, .git and .corvint
+// included, and may change nothing except the documented ledgers under their
+// documented conditions.
 func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -137,82 +123,11 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 			},
 		},
 		{
-			name: "query compiles the authority-start receipt",
-			setup: func(t *testing.T) (string, func() int) {
-				root := queryCLIRepository(t)
-				return root, func() int {
-					code, _, _ := runCLI(t, "--root", root, "query", "--task", authorityStartPrompt, "--limit", "1")
-					return code
-				}
-			},
-		},
-		{
-			name: "query records nothing while the unplanned-read marker exists",
-			setup: func(t *testing.T) (string, func() int) {
-				root := queryCLIRepository(t)
-				cemWrite(t, root, ".corvint/unplanned-reads.enabled", "")
-				return root, func() int {
-					code, _, _ := runCLI(t, "--root", root, "query", "--task", authorityStartPrompt, "--limit", "1")
-					return code
-				}
-			},
-		},
-		{
 			name: "impact compiles path impact",
 			setup: func(t *testing.T) (string, func() int) {
 				root := impactCLIRepository(t)
 				return root, func() int {
 					code, _, _ := runCLI(t, "--root", root, "impact", "pkg/main.go", "--limit", "10")
-					return code
-				}
-			},
-		},
-		{
-			name: "docs drafts the source-derived page",
-			setup: func(t *testing.T) (string, func() int) {
-				root := docsRepository(t)
-				return root, func() int {
-					code, _, _ := runDocsFixture(t, root, "draft", "")
-					return code
-				}
-			},
-		},
-		{
-			name: "harness event session-start appends only the self-observation row",
-			setup: func(t *testing.T) (string, func() int) {
-				root := ledgerIgnoringRepository(t)
-				return root, func() int { return runHarnessEventInProcess(t, root, "session-start", `{"startSource":"startup"}`) }
-			},
-			allowed: []string{".corvint", ".corvint/self-observations.jsonl"},
-		},
-		{
-			name: "harness event stop writes nothing",
-			setup: func(t *testing.T) (string, func() int) {
-				root := ledgerIgnoringRepository(t)
-				return root, func() int { return runHarnessEventInProcess(t, root, "stop", `{}`) }
-			},
-		},
-		{
-			name: "lrf refuses the cem/1.0 fixture without writing (CEM-V1-210)",
-			setup: func(t *testing.T) (string, func() int) {
-				fixture := newLRFFixture(t)
-				return fixture.root, func() int {
-					code, _, _ := runCLI(t, "--root", fixture.root, "lrf", "--cem", fixture.mapPath,
-						"--expected-base", fixture.base, "--target", fixture.target)
-					return code
-				}
-			},
-			wantExit: 2,
-		},
-		{
-			name: "cem export writes only the bundle outside the worktree",
-			setup: func(t *testing.T) (string, func() int) {
-				fixture := newLRFFixture(t)
-				bind := commitExportMap(t, fixture)
-				output := filepath.Join(t.TempDir(), "bundle")
-				return fixture.root, func() int {
-					code, _, _ := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-						"--expected-base", fixture.base, "--target", bind, "--artifacts", fixture.root, "--output", output)
 					return code
 				}
 			},

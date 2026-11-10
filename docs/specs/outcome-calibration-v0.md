@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Frozen: 2026-09-11
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Requirement prefix: `OCL-V0`
 Authoritative inputs: AGENTS.md invariants 2, 4 and 5;
 `docs/specs/learned-trace-admission-v0.md`; `docs/specs/lexical-relevance-floor-v0.md`;
@@ -12,7 +14,7 @@ Authoritative inputs: AGENTS.md invariants 2, 4 and 5;
 
 ## Agent digest
 - Claim: `corvint calibrate` reports, read-only, how recorded outcomes line up with the packet stance before them, and proposes a threshold it never applies.
-- Status: proposed/experimental.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/outcomecal`, `cmd/corvint/calibrate.go`, and the requirement tests below. The join, the sample bounds, the 2x2, the decile table, the minimum-sample abstention, and the proposal arithmetic are delivered and exercised.
 - Blocked on: the schema-version-1 trace record carries **no packet stance and no relevance-floor score**, so every live row classifies `unknown` and `score_coverage` is `0` on real data. Two producer fields are required before the report has signal (see "Missing record fields"). The answerability signal the proposal would calibrate does not exist either.
 - Read next: `OCL-V0-003`, then "Missing record fields", then `OCL-V0-006`.

@@ -8,17 +8,19 @@ import { McpFailure, decodeCallResult, runMcpOperation } from "../src/mcp.js";
 import { decodeContextReceipt } from "../src/model.js";
 import { configuredMcpCandidate, pinMcpExecutable, revalidateMcpPin } from "../src/executable.js";
 
+const PATHS: readonly string[] = ["src/a.go"];
+
 test("Corvint MCP pin keeps Corvint wire tools (CRB-V0-013 VSC-V0-047 VSC-V0-052)", async () => {
   await withFakeServer("success", async ({ executable, root }) => {
     const candidate = configuredMcpCandidate(executable);
     assert.equal(candidate.cliKind, "corvint-mcp");
     const pin = await pinMcpExecutable(candidate.path, candidate.cliKind, root, "test");
     assert.equal(await revalidateMcpPin(pin), true);
-    const source = await runMcpOperation(pin.realPath, root, "query", "project operations", options(root));
+    const source = await runMcpOperation(pin.realPath, root, "impact", PATHS, options(root));
     assert.ok(source.context);
-    const snapshot = decodeContextReceipt(source.context, "query", 65_536, "corvint", "project operations", source.snapshotBytes);
+    const snapshot = decodeContextReceipt(source.context, "impact", 65_536, "corvint", PATHS, source.snapshotBytes);
     assert.equal(snapshot.state, "READY");
-    assert.equal(snapshot.results[0]?.id, "AGENTS.md");
+    assert.equal(snapshot.results[0]?.id, "src/a.go");
     assert.equal(source.authority.serverVersion, "0.1.0-experimental");
     assert.equal(source.authority.repository?.profileId, "generic");
   });
@@ -28,7 +30,7 @@ test("CRB-V0-016 VSC-V0-050 accepts the exact current MCP presentation pair", as
   for (const mode of ["success"] as const) {
     await withFakeServer(mode, async ({ executable, root }) => {
       const pin = await pinMcpExecutable(executable, "corvint-mcp", root, "test");
-      const source = await runMcpOperation(pin.realPath, root, "query", "project operations", options(root));
+      const source = await runMcpOperation(pin.realPath, root, "impact", PATHS, options(root));
       assert.equal(source.authority.serverVersion, "0.1.0-experimental");
       assert.equal(source.authority.state, "READY");
       assert.equal(source.context?.state, "READY");
@@ -43,15 +45,25 @@ test("CRB-V0-016 VSC-V0-050 rejects unknown and drifting MCP presentation", asyn
     ["call-presentation-drift", ["protocol", "incompatible"]],
   ] as const) {
     await withFakeServer(mode, async ({ executable, root }) => {
-      await assert.rejects(runMcpOperation(executable, root, "query", "project operations", options(root)),
+      await assert.rejects(runMcpOperation(executable, root, "impact", PATHS, options(root)),
         (error: unknown) => error instanceof McpFailure && (codes as readonly string[]).includes(error.code), mode);
     });
   }
 });
 
+test("MCP tool set is exactly help, impact and status; help's command catalog may drift (decision 0594)", async () => {
+  await withFakeServer("help-drift", async ({ executable, root }) => {
+    const source = await runMcpOperation(executable, root, "impact", PATHS, options(root));
+    assert.equal(source.authority.state, "READY");
+  });
+});
+
 test("MCP rejects reordered tools, input-required, hostile server version, and nonzero close", async () => {
   for (const [mode, code] of [
     ["reordered-tools", "toolset-mismatch"],
+    ["retired-query", "toolset-mismatch"],
+    ["missing-help", "toolset-mismatch"],
+    ["help-writes", "toolset-mismatch"],
     ["input-required", "interaction-required"],
     ["hostile-version", "incompatible"],
     ["version-drift", "incompatible"],
@@ -60,7 +72,7 @@ test("MCP rejects reordered tools, input-required, hostile server version, and n
   ] as const) {
     await withFakeServer(mode, async ({ executable, root }) => {
       await assert.rejects(
-        runMcpOperation(executable, root, "query", "project operations", options(root)),
+        runMcpOperation(executable, root, "impact", PATHS, options(root)),
         (error: unknown) => error instanceof McpFailure && error.code === code,
         mode,
       );
@@ -71,7 +83,7 @@ test("MCP rejects reordered tools, input-required, hostile server version, and n
 test("MCP cancellation sends bounded metadata for the observed in-flight request", async () => {
   await withFakeServer("cancel", async ({ executable, root, cancellationLog, callMarker }) => {
     const token = new MutableCancellation();
-    const running = runMcpOperation(executable, root, "query", "project operations", { ...options(root), cancellation: token });
+    const running = runMcpOperation(executable, root, "impact", PATHS, { ...options(root), cancellation: token });
     const call = JSON.parse(await waitForFile(callMarker)) as { id?: number };
     assert.equal(typeof call.id, "number");
     token.cancel();
@@ -94,7 +106,7 @@ test("call-result decoder rejects a canonical-copy mismatch", () => {
   const first = content[0];
   assert.ok(first);
   first.text = "{}";
-  assert.throws(() => decodeCallResult(result, "query"), /canonical duplicates/);
+  assert.throws(() => decodeCallResult(result, "impact"), /canonical duplicates/);
 });
 
 test("MCP text is the canonical receipt summary inside the AHI-004 envelope with hidden characters escaped (VSC-V0-053, MCPV0-033)", () => {
@@ -106,12 +118,12 @@ test("MCP text is the canonical receipt summary inside the AHI-004 envelope with
   const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
   assert.ok(text.includes("root\\u2028authority") && !text.includes("\u2028"));
   assert.ok(text.includes('"textProfile":"corvint-mcp-text-summary/0"') && !text.includes('"evidence"'));
-  assert.equal(decodeCallResult(result, "query").authority.state, "READY");
+  assert.equal(decodeCallResult(result, "impact").authority.state, "READY");
   const bare = { ...result, content: [{ type: "text", text: canonical(structured) }] };
-  assert.throws(() => decodeCallResult(bare, "query"), /canonical duplicates/);
+  assert.throws(() => decodeCallResult(bare, "impact"), /canonical duplicates/);
   // A server predating MCPV0-033 frames the full object; it stays admitted.
   const full = { ...result, content: [{ type: "text", text: framed(canonical(structured)) }] };
-  assert.equal(decodeCallResult(full, "query").authority.state, "READY");
+  assert.equal(decodeCallResult(full, "impact").authority.state, "READY");
 });
 
 test("MCP admits a closed null-receipt abstention and rejects authority laundering", () => {
@@ -124,7 +136,7 @@ test("MCP admits a closed null-receipt abstention and rejects authority launderi
     receipt: null,
     abstention: { active: true, reason: "UNSUPPORTED_INTENT" },
   };
-  const admitted = decodeCallResult(callResult(nullAbstention), "query");
+  const admitted = decodeCallResult(callResult(nullAbstention), "impact");
   assert.equal(admitted.context, undefined);
   assert.equal(admitted.authority.state, "ABSTAINED");
   assert.equal(admitted.authority.abstention.reason, "UNSUPPORTED_INTENT");
@@ -136,23 +148,16 @@ test("MCP admits a closed null-receipt abstention and rejects authority launderi
     authorityClass: "NONE",
     abstention: { active: true, reason: "OUT_OF_SCOPE" },
   };
-  assert.throws(() => decodeCallResult(callResult(retained), "query"), /retained abstention receipt/);
-  assert.throws(() => decodeCallResult(callResult({ ...nullAbstention, abstention: { active: true, reason: "NONE" } }), "query"), /abstention authority/);
+  assert.throws(() => decodeCallResult(callResult(retained), "impact"), /retained abstention receipt/);
+  assert.throws(() => decodeCallResult(callResult({ ...nullAbstention, abstention: { active: true, reason: "NONE" } }), "impact"), /abstention authority/);
 
-  const native = retained.receipt as JsonObject;
-  const impactRetained: JsonObject = {
-    ...retained,
-    tool: "corvint.impact",
-    receipt: { ...native, mode: "impact", request: { paths: ["src/a.go"], limit: 20 } },
-  };
-  assert.throws(() => decodeCallResult(callResult(impactRetained), "impact"), /retained abstention receipt/);
   const validImpact: JsonObject = {
-    ...impactRetained,
-    receipt: { ...(impactRetained.receipt as JsonObject), state: "OUT_OF_SCOPE" },
+    ...retained,
+    receipt: { ...(retained.receipt as JsonObject), state: "OUT_OF_SCOPE" },
   };
   const impact = decodeCallResult(callResult(validImpact), "impact");
   assert.equal(impact.context?.state, "OUT_OF_SCOPE");
-  assert.throws(() => decodeCallResult(callResult({ ...base, receipt: { ...(base.receipt as JsonObject), state: "OUT_OF_SCOPE" } }), "query"), /ready wrapper contradicts/);
+  assert.throws(() => decodeCallResult(callResult({ ...base, receipt: { ...(base.receipt as JsonObject), state: "OUT_OF_SCOPE" } }), "impact"), /ready wrapper contradicts/);
 });
 
 test("repository object format, digest widths, and profile are correlated", () => {
@@ -163,15 +168,14 @@ test("repository object format, digest widths, and profile are correlated", () =
   ]) {
     const structured = bridgeResult();
     const repository = structured.repository as JsonObject;
-    assert.throws(() => decodeCallResult(callResult({ ...structured, repository: { ...repository, ...override } }), "query"), /repository binding/);
+    assert.throws(() => decodeCallResult(callResult({ ...structured, repository: { ...repository, ...override } }), "impact"), /repository binding/);
   }
 });
 
 test("MCP-only input is rejected before any process spawn", async () => {
   const missing = path.join(tmpdir(), "corvint-vscode-must-not-spawn", "corvint-mcp");
   for (const [operation, value] of [
-    ["query", "   "],
-    ["query", "Unicode π"],
+    ["impact", []],
     ["impact", ["../escape.go"]],
     ["impact", ["src/not-go.ts"]],
     ["impact", ["src/\ud800.go"]],
@@ -194,7 +198,7 @@ function options(root: string) {
 }
 
 async function withFakeServer(
-  mode: "success" | "legacy-success" | "mixed-current" | "mixed-legacy" | "unknown-pair" | "presentation-drift" | "call-presentation-drift" | "reordered-tools" | "input-required" | "hostile-version" | "version-drift" | "nonzero-close" | "closed-stdin" | "cancel",
+  mode: "success" | "help-drift" | "retired-query" | "missing-help" | "help-writes" | "unknown-pair" | "presentation-drift" | "call-presentation-drift" | "reordered-tools" | "input-required" | "hostile-version" | "version-drift" | "nonzero-close" | "closed-stdin" | "cancel",
   action: (fixture: { executable: string; root: string; cancellationLog: string; callMarker: string }) => Promise<void>,
 ): Promise<void> {
   const root = await mkdtemp(path.join(tmpdir(), "corvint-vscode-mcp-"));
@@ -216,7 +220,7 @@ function fakeServerSource(mode: string, root: string, cancellationLog: string, c
   const listMeta = mode === "version-drift" ? serverMeta("0.1.1-drift", mode)
     : mode === "presentation-drift" ? serverMeta(version, "unknown-pair") : meta;
   const callMeta = mode === "call-presentation-drift" ? serverMeta(version, "unknown-pair") : meta;
-  const tools = toolRegistry();
+  const tools = toolRegistry(mode);
   if (mode === "reordered-tools") {
     tools.reverse();
   }
@@ -282,36 +286,55 @@ function serverMeta(version = "0.1.0-experimental", pair = "success"): JsonObjec
   return { "io.modelcontextprotocol/serverInfo": info };
 }
 
-function toolRegistry(): Array<Record<string, unknown>> {
+// The registry `corvint-mcp --root` advertises after decision 0594: help, impact
+// and status, written out independently of src/mcp.ts.
+function toolRegistry(mode = "success"): Array<Record<string, unknown>> {
   const annotations = { destructiveHint: false, idempotentHint: true, openWorldHint: false, readOnlyHint: true };
+  const outputSchema = { properties: { mutates: { const: false }, tool: { type: "string" } }, type: "object" };
   const schema = (properties: Record<string, unknown>, required: string[]) => ({ "$schema": "https://json-schema.org/draft/2020-12/schema", additionalProperties: false, properties, required, type: "object" });
   const oid = { type: "string", pattern: "^([0-9a-f]{40}|[0-9a-f]{64})$" };
-  const snapshot = schema({
-    schema: { const: "corvint-planning-snapshot/0" }, commitRevision: oid, treeRevision: oid, baseRevision: oid,
-    changedPaths: { type: "array", maxItems: 4096, uniqueItems: true, items: { type: "string", minLength: 1 } },
-    changedPathsSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
-  }, ["schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"]);
-  return [
-    { name: "corvint.impact", description: "Compile revision-bound impact evidence for tracked Go files without returning source bodies.", annotations,
-      inputSchema: schema({ snapshot, paths: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1024, pattern: "^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\\\).+[.]go$" } }, limit: { type: "integer", minimum: 1, maximum: 50, default: 10 } }, ["paths"]) },
-    { name: "corvint.query", description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.", annotations,
-      inputSchema: schema({ snapshot, task: { type: "string", minLength: 1, maxLength: 2000, pattern: "^[ -~]*[!-~][ -~]*$" } }, ["task"]) },
-    { name: "corvint.status", description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.", annotations, inputSchema: schema({}, []) },
+  const snapshot = {
+    additionalProperties: false, type: "object",
+    properties: {
+      schema: { const: "corvint-planning-snapshot/0" }, commitRevision: oid, treeRevision: oid, baseRevision: oid,
+      changedPaths: { type: "array", maxItems: 4096, uniqueItems: true, items: { type: "string", minLength: 1 } },
+      changedPathsSha256: { type: "string", pattern: "^[0-9a-f]{64}$" },
+    },
+    required: ["schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"],
+  };
+  const pathPattern = String.raw`^(?:(?:(?:[^/\\.\n\r][^/\\\n\r]*|\.[^/\\.\n\r][^/\\\n\r]*|\.\.[^/\\\n\r]+)/)+[^/\\\n\r]*|[^/\\\n\r]+)[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`;
+  // corvint.help's command enum follows the binary's command catalog; the drift mode proves it is not pinned.
+  const commands = mode === "help-drift" ? ["impact", "status", "new-command"] : ["impact", "mcp"];
+  const tools: Array<Record<string, unknown>> = [
+    { name: "corvint.help", description: "Return the task-indexed agent guide.", annotations, outputSchema,
+      inputSchema: schema({ command: { enum: commands, type: "string" }, topic: { default: "guide", enum: ["guide", "command", "catalog"], type: "string" } }, []) },
+    { name: "corvint.impact", description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. The receipt equals CLI corvint impact with the syntax profile for the same paths, revision and limit; the CLI admits more suffixes and --base (corvint impact --capabilities). MCP accepts paths only.", annotations, outputSchema,
+      inputSchema: schema({ snapshot, paths: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1024, pattern: pathPattern } }, limit: { type: "integer", minimum: 1, maximum: 50, default: 10 }, budgetBytes: { type: "integer", minimum: 1216, maximum: 1000000 } }, ["paths"]) },
+    { name: "corvint.status", description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.", annotations, outputSchema, inputSchema: schema({}, []) },
   ];
+  if (mode === "retired-query") {
+    tools.splice(2, 0, { name: "corvint.query", description: "Retired by decision 0594.", annotations, outputSchema, inputSchema: schema({}, []) });
+  }
+  if (mode === "missing-help") {
+    tools.shift();
+  }
+  if (mode === "help-writes") {
+    tools[0] = { ...tools[0], annotations: { ...annotations, readOnlyHint: false } };
+  }
+  return tools;
 }
 
 function bridgeResult(): JsonObject {
   const revision = "a".repeat(40);
   return {
-    schema: "corvint-mcp-bridge-result/0", tool: "corvint.query", mutates: false, state: "READY",
+    schema: "corvint-mcp-bridge-result/0", tool: "corvint.impact", mutates: false, state: "READY",
     epistemicClass: "OBSERVED", authorityClass: "REPOSITORY_EVIDENCE",
     repository: { commitRevision: revision, treeRevision: revision, objectFormat: "sha1", profileId: "generic", worktreeState: "CLEAN", dirtyPathCount: 0, dirtyPathsSha256: "b".repeat(64) },
     receipt: {
-      schema_version: 1, mode: "query", request: { text: "project operations", limit: 1 }, revision,
+      schema_version: 1, mode: "impact", request: { paths: [...PATHS], limit: 20 }, revision,
       freshness: { state: "fresh", revision, mixed_path_count: 0 }, state: "READY",
-      results: [{ id: "AGENTS.md", kind: "path", summary: "root authority", evidence: [{ path: "AGENTS.md", line: 1, blob_hash: "c".repeat(40), reason: "authority", confidence: "high", authority: "repository" }] }],
+      results: [{ id: "src/a.go", kind: "path", summary: "changed file", evidence: [{ path: "src/a.go", line: 1, blob_hash: "c".repeat(40), reason: "authority", confidence: "high", authority: "repository" }] }],
       exclusions: { count: 0 }, verification: [], coverage: { within_budget: true, packet_bytes: 1, uncertainty: [], critical_missing: [] },
-      abstention: { active: false, reason: "none" }, intent: {}, learning: {},
     },
     abstention: { active: false, reason: "NONE" },
   };

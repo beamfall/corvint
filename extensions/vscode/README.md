@@ -44,13 +44,13 @@ inherited Git executable-pinning promotion blocker remains open. MCP runtime evi
 3. For `cli`, set `Corvint: Executable Path` or run **Corvint: Select and Pin Executable** to inspect
    narrowly named PATH candidates. For MCP, set the absolute **Corvint: MCP Executable Path**; there
    is no MCP PATH discovery.
-4. Run **Corvint: Query Evidence** or open a file and run **Corvint: Inspect Active File Impact**.
+4. Open a file and run **Corvint: Inspect Active File Impact**.
 5. Inspect the Evidence, Impact, and Why views. Diagnostics and decorations are projections of the
    same bounded result, not additional analysis.
 
-**Corvint: Refresh Last Explicit Query** repeats only the last explicit query or impact after trust,
+**Corvint: Refresh Last Explicit Impact** repeats only the last explicit impact after trust,
 root, transport, and executable identity revalidation. **Corvint: Clear Results** removes the current
-in-memory evidence projection. Query and impact remain explicit commands; live-test providers
+in-memory evidence projection. Impact remains an explicit command; live-test providers
 rerun on saves only after the separate opt-in below. Returned verification suggestions are never executed.
 
 V0 offers no Test Observation import command: importing a completed Go live-test observation is not
@@ -125,16 +125,16 @@ discarded on trust-host reload, root or transport change, clear, deactivation, d
 
 The MCP client is deliberately modern-only and local-only:
 
-- each explicit query/impact starts one pinned `corvint-mcp --root ABSOLUTE_ROOT` process;
+- each explicit impact starts one pinned `corvint-mcp --root ABSOLUTE_ROOT` process;
 - `server/discover` is first and protocol version `2026-07-28` is required on every request;
 - no legacy `initialize` fallback, roots capability, HTTP/SSE, sampling, elicitation, prompts,
   resources, subscriptions, progress/logging notifications, catalog cache, restart, replay, or
   transport failover exists;
-- every operation validates all three frozen tool definitions, then calls only `corvint.query` or
+- every operation validates the three advertised tool definitions (`corvint.help`, `corvint.impact`,
+  `corvint.status`; impact and status exactly, help on its closed shape), then calls only
   `corvint.impact`; and
-- MCP query accepts printable ASCII with at least one non-space character, and MCP impact accepts
-  only the frozen normalized repository-relative Go-path profile; a CLI-valid Unicode task or
-  broader path is rejected before spawn rather than coerced or silently routed to CLI; and
+- MCP impact accepts only the frozen normalized repository-relative Go-path profile; a broader path
+  is rejected before spawn rather than coerced or silently routed to CLI; and
 - the canonical text result must exactly duplicate the validated `corvint-mcp-bridge-result/0`
   structured result before its native Corvint receipt is projected.
 

@@ -257,37 +257,62 @@ function canonicalJson(value) {
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
 }
 
+// Decision 0594 retired corvint.query; the bridge now advertises help, impact and status, in that
+// order, each with an output schema. Impact and status are pinned exactly. Help's `command` enum
+// tracks the CLI command catalog, so only its closed shape is pinned (VSC-V0-051).
+const MCP_IMPACT_PATH_PATTERN = String.raw`^(?:(?:(?:[^/\\.\n\r][^/\\\n\r]*|\.[^/\\.\n\r][^/\\\n\r]*|\.\.[^/\\\n\r]+)/)+[^/\\\n\r]*|[^/\\\n\r]+)[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`;
+const MCP_OUTPUT_SCHEMA = Object.freeze({ type: 'object', properties: { mutates: { const: false }, tool: { type: 'string' } } });
+
 function expectedMcpTools() {
   const schema = (properties, required) => ({
     '$schema': 'https://json-schema.org/draft/2020-12/schema',
     type: 'object', properties, required, additionalProperties: false,
   });
+  const revision = { type: 'string', pattern: '^([0-9a-f]{40}|[0-9a-f]{64})$' };
   return [
     {
       name: 'corvint.impact',
-      description: 'Compile revision-bound impact evidence for tracked Go files without returning source bodies.',
+      description: "Compile revision-bound impact evidence without source bodies. Capabilities: Go (.go): path, package imports; Ruby (.rb): path, markers, advisory autoload constant references, reverse imports unknown; JavaScript (.js/.jsx/.mjs/.cjs) and TypeScript (.ts/.tsx): path, literal relative/profile/tsconfig-alias imports, unresolved bare imports unknown. Non-Go paths name experimental non-go-syntax-v0. Dynamic dispatch and test closure remain unknown. The receipt equals CLI corvint impact with the syntax profile for the same paths, revision and limit; the CLI admits more suffixes and --base (corvint impact --capabilities). MCP accepts paths only.",
       inputSchema: schema({
         paths: {
           type: 'array', minItems: 1, maxItems: 100, uniqueItems: true,
-          items: { type: 'string', minLength: 1, maxLength: 1024, pattern: '^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\\\).+[.]go$' },
+          items: { type: 'string', minLength: 1, maxLength: 1024, pattern: MCP_IMPACT_PATH_PATTERN },
         },
         limit: { type: 'integer', minimum: 1, maximum: 50, default: 10 },
+        budgetBytes: { type: 'integer', minimum: 1216, maximum: 1000000 },
+        snapshot: {
+          type: 'object', additionalProperties: false,
+          required: ['schema', 'commitRevision', 'treeRevision', 'baseRevision', 'changedPaths', 'changedPathsSha256'],
+          properties: {
+            schema: { const: 'corvint-planning-snapshot/0' },
+            commitRevision: revision, treeRevision: revision, baseRevision: revision,
+            changedPaths: { type: 'array', maxItems: 4096, uniqueItems: true, items: { type: 'string', minLength: 1 } },
+            changedPathsSha256: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+          },
+        },
       }, ['paths']),
       annotations: MCP_ANNOTATIONS,
-    },
-    {
-      name: 'corvint.query',
-      description: 'Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.',
-      inputSchema: schema({ task: { type: 'string', minLength: 1, maxLength: 2000, pattern: '^[ -~]+$' } }, ['task']),
-      annotations: MCP_ANNOTATIONS,
+      outputSchema: MCP_OUTPUT_SCHEMA,
     },
     {
       name: 'corvint.status',
       description: 'Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest. Gitlinks bind commit IDs; nested submodule contents are outside coverage.',
       inputSchema: schema({}, []),
       annotations: MCP_ANNOTATIONS,
+      outputSchema: MCP_OUTPUT_SCHEMA,
     },
   ];
+}
+
+function validMcpHelpTool(tool) {
+  if (tool == null || typeof tool !== 'object' || Array.isArray(tool)) return false;
+  if (Object.keys(tool).sort().join(',') !== 'annotations,description,inputSchema,name,outputSchema') return false;
+  const input = tool.inputSchema;
+  return tool.name === 'corvint.help' && typeof tool.description === 'string' && tool.description.length > 0
+    && canonicalJson(tool.annotations) === canonicalJson(MCP_ANNOTATIONS)
+    && canonicalJson(tool.outputSchema) === canonicalJson(MCP_OUTPUT_SCHEMA)
+    && input != null && typeof input === 'object' && !Array.isArray(input)
+    && input.type === 'object' && input.additionalProperties === false;
 }
 
 function validMcpMeta(params, extensionVersion) {
@@ -319,7 +344,7 @@ function validMcpToolPages(pages) {
     tools.push(...page.tools);
     if (page.nextCursor != null) return false;
   }
-  return tools.length <= 256 && canonicalJson(tools) === canonicalJson(expectedMcpTools());
+  return tools.length === 3 && validMcpHelpTool(tools[0]) && canonicalJson(tools.slice(1)) === canonicalJson(expectedMcpTools());
 }
 
 function validMcpRepository(repository) {
@@ -348,7 +373,7 @@ function validMcpBridgeResult(callResult, expectedCall) {
   if (canonicalJson(textObject) !== canonicalJson(callResult.structuredContent) || canonicalJson(callResult.structuredContent) !== block.text) return false;
   const wrapper = callResult.structuredContent;
   if (Object.keys(wrapper).sort().join(',') !== 'abstention,authorityClass,epistemicClass,mutates,receipt,repository,schema,state,tool') return false;
-  if (wrapper.schema !== 'corvint-mcp-bridge-result/0' || wrapper.mutates !== false || wrapper.tool !== expectedCall?.name || !['corvint.query', 'corvint.impact'].includes(wrapper.tool)) return false;
+  if (wrapper.schema !== 'corvint-mcp-bridge-result/0' || wrapper.mutates !== false || wrapper.tool !== expectedCall?.name || wrapper.tool !== 'corvint.impact') return false;
   if (!['READY', 'ABSTAINED'].includes(wrapper.state) || !['OBSERVED', 'NOT_OBSERVED'].includes(wrapper.epistemicClass) || !['REPOSITORY_EVIDENCE', 'NONE'].includes(wrapper.authorityClass)) return false;
   const abstention = wrapper.abstention;
   if (abstention == null || typeof abstention !== 'object' || Array.isArray(abstention) || Object.keys(abstention).sort().join(',') !== 'active,reason' ||
@@ -363,16 +388,16 @@ function validMcpBridgeResult(callResult, expectedCall) {
   if (wrapper.receipt != null) {
     const receipt = wrapper.receipt;
     const required = ['schema_version', 'mode', 'request', 'revision', 'freshness', 'state', 'results', 'exclusions', 'verification', 'coverage'];
-    const allowed = new Set([...required, ...(receipt.mode === 'query' ? ['abstention', 'intent', 'learning'] : [])]);
+    const allowed = new Set(required);
     if (receipt.context != null || required.some((key) => !(key in receipt)) || Object.keys(receipt).some((key) => !allowed.has(key))) return false;
-    if (receipt.schema_version !== 1 || receipt.mode !== (expectedCall?.name === 'corvint.query' ? 'query' : 'impact')) return false;
-    const expectedRequest = receipt.mode === 'query' ? { text: expectedCall?.arguments?.task, limit: 1 } : { paths: expectedCall?.arguments?.paths, limit: 20 };
+    if (receipt.schema_version !== 1 || receipt.mode !== 'impact') return false;
+    const expectedRequest = { paths: expectedCall?.arguments?.paths, limit: 20 };
     if (canonicalJson(receipt.request) !== canonicalJson(expectedRequest)) return false;
     if (typeof receipt.revision !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(receipt.revision)) return false;
     if (repositoryValid && receipt.revision !== wrapper.repository.treeRevision) return false;
     if (receipt.freshness?.revision !== receipt.revision || !['fresh', 'mixed-worktree'].includes(receipt.freshness?.state)) return false;
     if (!['READY', 'NEEDS_WIDENING', 'OUT_OF_SCOPE', 'STALE_INDEX', 'BUDGETED', 'CRITICAL_EVIDENCE_OVERFLOW'].includes(receipt.state)) return false;
-    if (!Array.isArray(receipt.results) || receipt.results.length > (receipt.mode === 'query' ? 1 : 20) || !Array.isArray(receipt.verification)) return false;
+    if (!Array.isArray(receipt.results) || receipt.results.length > 20 || !Array.isArray(receipt.verification)) return false;
     if (receipt.coverage?.within_budget !== true || !Number.isSafeInteger(receipt.coverage?.packet_bytes) || receipt.coverage.packet_bytes < 0 || receipt.coverage.packet_bytes > 393216) return false;
     if (wrapper.state === 'ABSTAINED' && (wrapper.tool !== 'corvint.impact' || abstention.reason !== 'OUT_OF_SCOPE' || receipt.state !== 'OUT_OF_SCOPE')) return false;
   }
@@ -513,8 +538,8 @@ export function checkObservation(testCase, observation, limits) {
   if (expect.mcpNullAbstentionExact) {
     const results = observation?.mcp?.callResults ?? [];
     const wrapper = results[0]?.structuredContent;
-    assertCondition(failures, validMcpBridgeResults(results, [{ name: 'corvint.query', arguments: { task: 'unsupported task' } }]) &&
-      wrapper?.state === 'ABSTAINED' && wrapper?.receipt === null && wrapper?.repository === null && wrapper?.abstention?.reason === 'UNSUPPORTED_INTENT', `${prefix}: null-receipt abstention lost or weakened its closed bridge authority`);
+    assertCondition(failures, validMcpBridgeResults(results, [{ name: 'corvint.impact', arguments: { paths: ['src/a.go'], limit: 20 } }]) &&
+      wrapper?.state === 'ABSTAINED' && wrapper?.receipt === null && wrapper?.repository === null && wrapper?.abstention?.reason === 'REPOSITORY_STATE_UNSTABLE', `${prefix}: null-receipt abstention lost or weakened its closed bridge authority`);
   }
   if (expect.mcpRetainedOutOfScopeExact) {
     const results = observation?.mcp?.callResults ?? [];
@@ -524,7 +549,7 @@ export function checkObservation(testCase, observation, limits) {
   }
   if (expect.mcpAuthorityProjected) {
     const projection = allStrings(observation?.ui?.trees).join('\n');
-    assertCondition(failures, /ABSTAINED/u.test(projection) && /NOT_OBSERVED/u.test(projection) && /NONE/u.test(projection) && /(?:UNSUPPORTED_INTENT|OUT_OF_SCOPE)/u.test(projection), `${prefix}: bounded MCP authority/gap was not projected in Impact and Why`);
+    assertCondition(failures, /ABSTAINED/u.test(projection) && /NOT_OBSERVED/u.test(projection) && /NONE/u.test(projection) && /(?:REPOSITORY_STATE_UNSTABLE|OUT_OF_SCOPE)/u.test(projection), `${prefix}: bounded MCP authority/gap was not projected in Impact and Why`);
   }
   if (expect.mcpAuthorityCorrelationRejected) assertCondition(failures, canonicalJson(observation?.mcp?.rejectedAuthorityBehaviors) === canonicalJson(testCase.setup.serverBehaviors) && (observation?.mcp?.callResults ?? []).length === 0, `${prefix}: hostile bridge authority correlation was admitted or not exercised`);
   if (expect.mcpIdentityCorrelationRejected) assertCondition(failures, canonicalJson(observation?.mcp?.rejectedIdentityBehaviors) === canonicalJson(testCase.setup.serverBehaviors) && (observation?.mcp?.callResults ?? []).length === 0, `${prefix}: repository/server identity drift was admitted or not exercised`);
@@ -629,7 +654,7 @@ export function checkObservation(testCase, observation, limits) {
   if (expect.testRunEnded) assertCondition(failures, observation?.ui?.testRun?.ended === true && typeof observation?.ui?.testRun?.corvintRunId === 'string', `${prefix}: imported observation did not create one finite ended Corvint TestRun`);
   if (expect.noRunProfile) assertCondition(failures, observation?.ui?.testRunProfiles === 0, `${prefix}: Testing API RunProfile was registered`);
   if (expect.exactCommands) {
-    const expected = ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'].sort();
+    const expected = ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'].sort();
     assertCondition(failures, JSON.stringify([...(observation?.ui?.registeredCommands ?? [])].sort()) === JSON.stringify(expected), `${prefix}: command surface differs from contract`);
   }
   if (expect.statusAccessible) assertCondition(failures, typeof observation?.ui?.statusAccessibleName === 'string' && /Corvint/u.test(observation.ui.statusAccessibleName) && /Ready/u.test(observation.ui.statusAccessibleName), `${prefix}: status accessible name omits Corvint or state`);

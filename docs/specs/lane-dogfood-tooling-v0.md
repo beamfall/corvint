@@ -5,6 +5,8 @@ Date: 2026-11-03
 Requirement prefix: `DTL-V0`
 Intent status: accepted
 Delivery status: experimental
+Retirement note: decision 0594 (2026-11-09) deleted the dogfood make targets, scripts and
+`internal/dogfoodflow`; requirements naming them are retired, the other lane tooling stays.
 Authoritative inputs: owner dogtools lane charter (2026-11-03); AGENTS.md; immutable-delta-v0.md; daily-change-evidence-workflow-v0.md.
 
 ## Agent digest
@@ -158,22 +160,22 @@ handback. Full repository and external interoperability qualification are outsid
 
 | Requirement | Implementation | Proving evidence |
 |---|---|---|
-| DTL-V0-001 | cmd/corvint/local_completion_event.go; host_adapter.go | TestDTLV0001DirtyEditsReuseSnapshot |
-| DTL-V0-002 | cmd/corvint/host_adapter_diagnostics.go; host_adapter_projection.go; host_adapter_compaction.go (`compactionPlainOutput`) | TestDTLV0002FallbackDiagnostics; TestDTLV0002PreCompactPlainFallbackDiagnostics; TestClaudeCompactionDegradationIsPlainText; TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery; TestAHI803SiblingRepositoryEditIsAttributedToItsOwner |
+| DTL-V0-001 | cmd/corvint/local_completion_event.go; host_adapter.go | TestDTLV0001DirtyEditsReuseSnapshot (removed) |
+| DTL-V0-002 | cmd/corvint/host_adapter_diagnostics.go; host_adapter_projection.go; host_adapter_compaction.go (`compactionPlainOutput`) | TestDTLV0002FallbackDiagnostics (removed); TestDTLV0002PreCompactPlainFallbackDiagnostics (removed); TestClaudeCompactionDegradationIsPlainText (removed); TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery (removed); TestAHI803SiblingRepositoryEditIsAttributedToItsOwner (removed) |
 | DTL-V0-003 | script/lane-corvint.sh; docs/LANE-ORCHESTRATION.md | TestDTLV0003WorktreeBuild; retained worktree binary and path-control receipts |
-| DTL-V0-004 | internal/dogfoodflow/finishlane.go; finishlane_entry.go; cmd/corvint/dogfood_flow.go; script/dogfood-finish.sh; Makefile | TestDTLV0004FinishStopsAfterCheck; TestDTLV0004RetryKeepsStopBeforeSeal; script/dogfood-cache_test.sh |
-| DTL-V0-005 | internal/dogfoodflow/propose.go; propose_refresh.go | TestDTLV0005SameChangeRefinementNewFiles |
+| DTL-V0-004 | internal/dogfoodflow/finishlane.go; finishlane_entry.go; cmd/corvint/dogfood_flow.go; script/dogfood-finish.sh; Makefile | TestDTLV0004FinishStopsAfterCheck (removed); TestDTLV0004RetryKeepsStopBeforeSeal (removed); script/dogfood-cache_test.sh |
+| DTL-V0-005 | internal/dogfoodflow/propose.go; propose_refresh.go | TestDTLV0005SameChangeRefinementNewFiles (removed) |
 | DTL-V0-006 | Makefile; script/doc-gate-timed.sh; script/doc-gates-summary.sh (DOC_GATE_JOBS guard) | TestDTLV0006TimingPreservesFailure; `make batch-precheck-test` group `8b` (empty/zero/non-integer DOC_GATE_JOBS refused); measured per-target timings |
 | DTL-V0-007 | script/go-test-shard.sh; script/heavy.sh | TestDTLV0007ShardCoverageAndFailure; TestDTLV0007ShardInventoryRealPolicy; TestDTLV0007InheritedGoflagsKeepCoverage; TestDTLV0007ListAliasAndArgsRefused (including `--` after `go test`); retained real selected-failure control |
 | DTL-V0-008 | .corvint/unbounded-readers.json | Source audit in docs/build-log/2026-11-03-dogtools.md; confined admission NOT_PRODUCED |
-| DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON |
+| DTL-V0-009 | cmd/corvint/test.go | TestDTLV0009TestFormatJSON (removed) |
 | DTL-V0-010 | .github/testconfine/cmd/main.go; lane guide | TestDTLV0010MissingRootNamesRecovery in .github/testconfine/cmd/main_test.go; retained uncommitted path controls |
-| DTL-V0-011 | internal/companionrelease/export.go | TestDTLV0011StderrOnce |
+| DTL-V0-011 | internal/corerelease/export.go (moved from internal/companionrelease by decision 0594) | TestDTLV0011StderrOnce |
 | DTL-V0-012 | script/tracked-ignored-check.sh; Makefile | TestDTLV0012TrackedIgnoredFault |
 | DTL-V0-013 | internal/liveverify/affected/source.go | TestDTLV0013MapFSBounded; TestDTLV0013BuildMapFS; TestDTLV0013FakeLanguageBuildCached |
 | DTL-V0-014 | script/heavy.sh; lane-binary-check.sh; lane-stage-inputs.sh | TestDTLV0014DiskHeadroom; TestDTLV0014ScratchRootRecovery; TestDTLV0014RelativeScratchRootTerminates; lane admission fixtures |
 | DTL-V0-015 | script/requirement-ids-free.sh; requirement-id-collisions.sh | TestDTLV0015FourDigitBlocks; TestDTLV0015FourDigitOpenRefCollision; retained charter-block checks |
-| DTL-V0-016 | internal/dogfoodflow/check.go; .gitignore; docs/DOGFOOD.md | TestDTLV0016ReportPublication; retained cross-mount check |
+| DTL-V0-016 | internal/dogfoodflow/check.go; .gitignore; docs/DOGFOOD.md | TestDTLV0016ReportPublication (removed); retained cross-mount check |
 | DTL-V0-017 | `replayJobs` in tools/selection-baseline | `TestDTLV0017ReplayJobs`, `TestDTLV0017ReplayBytesIndependentOfWorkers`: real cloned replays at 1, 2, 3 and 8 workers preserve JSON and diagnostics |
 
 ## Rollout and rollback

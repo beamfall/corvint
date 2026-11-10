@@ -235,7 +235,7 @@ func executionMode(name, operation string) mode {
 		return discoveryOnly
 	}
 	switch name {
-	case "corvint-lsp", "corvint-console", "corvint-corpus-http":
+	case "corvint-console", "corvint-corpus-http":
 		return discoveryOnly
 	case "corvint-gateway":
 		if operation == "serve" {

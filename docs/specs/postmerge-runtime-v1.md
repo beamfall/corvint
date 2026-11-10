@@ -2,15 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-02
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-workflow` and `internal/postmergeworkflow` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: human issue #395 and native V1-0542 AC4; unchanged accepted /1 fork in owner-acceptance-20261001.json with its five pinned artifacts; Gate A current-review and R1 partial-slice PASS; existing PMR-V0/PMC-V0/CVI-V0/ASS-V0/NEA-V0/PCH-V0 contracts. The complete R1 wire was registered before implementation at corrected seed `30dac48f1c4ef290d161544af14f995b113c95a8`; this is proposed intent, not whole-workflow acceptance.
 
 ## Agent digest
 - Claim: Explicit /1 binds actual native stage observations and refuses missing evidence; /0 remains unchanged.
-- Status: proposed; experimental native refusal slice; qualification NOT_OBSERVED.
-- Exists: Optional /0 companion and explicit /1 admission, actual connector.Read, BuildAuthorInput and provider-free delta.Compile with retained bytes, then follow-up BLOCKED/CLI2.
-- Blocked on: Positive wire decision, follow-up/author/proof integration, provider-backed delta and host qualification; complete recording/local+CI outcome remains NOT_PRODUCED.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-postmerge-workflow` and `internal/postmergeworkflow` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; partial wire; acceptance and rollback.
 
 ## User and measurable job
@@ -87,16 +89,8 @@ Two runs over the same admitted inputs retain byte-identical delta input and out
 First slice tests: unchanged /0; strict closed admission/pins/path/tree; actual native intake rejection; actual successful intake then missing-delta BLOCKED/CLI2; no labels/raw prose in candidate/native inputs; no downstream invocation; retained bytes/error/cancellation/overflow; generated labels remain generated; no BLOCKED exit0. Exact PMR IDs must appear at meaningful test anchors. Focused native tests passed on a disposable Git fixture; they establish native conformance, not historical or host qualification. Required final checks, independent source review, integration and native completion remain separate.
 
 
-| First-slice requirements | Executable evidence | Retained limitation |
-|---|---|---|
-| PMR-V1-001 | `TestNativeAdmissionFailures`, `TestNativeStrictInputsAndRetention`, `TestNativeAdmissionDoesNotEchoInvalidIdentity`, `TestNativeFilesystemAliasAdmission`, `TestNativeRequiredNestedAdmission` | Source IDs are operator provenance; no source-build attestation |
-| PMR-V1-002 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeDeltaRepeatsExactly`, `TestNativeDeltaRefusalBlocksDependents`, `TestNativeIntakeRejectsInvalidCandidate` | No raw reader; delta runs without providers, baseline or work keys |
-| PMR-V1-003, PMR-V1-004 | `TestNativeAdmissionFailures` | Author/scope/test/proof stages not executed |
-| PMR-V1-005, PMR-V1-006 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeDeltaRepeatsExactly` | Recording/projection not executed; no positive equivalence evidence |
-| PMR-V1-007 | `TestNativeActualIntakeDeltaThenFollowUpRefusal`, `TestNativeCLIExitTwo` | Comparison NOT_RUN; mismatch arrays uncomputed |
-| PMR-V1-008 | `TestNativeActualIntakeDeltaThenFollowUpRefusal` | Metrics/approved-republish not executed |
-| PMR-V1-009 | `TestNativeCLIExitTwo`, `TestNativeAdmissionFailures` | Synthetic candidate conformance; operational qualification unavailable |
-| PMR-V1-010 | `TestNativeDeltaRefusalBlocksDependents`, `TestNativeIntakeRejectsInvalidCandidate`, `TestNativeStrictInputsAndRetention`, `TestNativeRetentionRejectsChangedEvidence`, `TestNonregularInputDoesNotBlock` | No adversarial concurrent-host or whole-workflow qualification |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/postmerge-runtime-v1.md`.
 
 ### Fixed refusal reasons
 

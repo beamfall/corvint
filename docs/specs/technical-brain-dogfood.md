@@ -2,13 +2,17 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: accepted
-Delivery status: not-started
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted `benchmarks/dogfood-measure` and
+the dogfood workflow (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`, `docs/LEGACY-ADOPTION.md`
 
 ## Agent digest
 - Claim: Frozen Corvint workflows must prove bounded cited context improves engineering outcomes before technical-brain promotion.
-- Status: accepted/not-started
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: accepted requirements plus partial deterministic measurement support in `benchmarks/dogfood_measure.py`.
 - Blocked on: frozen tasks, labelled answers, held-out retrieval, and complete outcome measurements.
 - Read next: User and job; Requirements; Traceability.

@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-12
 Requirement prefix: `DRC-V0`
 Intent status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12)
-Delivery status: implemented: envelope, fix registry, screen/bound, the seven-site working-tree impact conversion with its additive CLI envelope, thirty further refusal sites across twenty codes, repair-stop and the coverage ratchet at thirty-seven sites
+Delivery status: implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites
 Authoritative inputs: `../../AGENTS.md` invariants 2, 4 and 5, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `self-observation-ledger-v0.md` `SOL-V0-007` (the one write a refusal is already allowed to make),
 and `../agent-memory/fixes.md` (the refuse-without-naming-the-repair entries that motivated this
@@ -15,8 +15,8 @@ independent convergence on Corvint invariant 2; no code, schema, or text was tak
 
 ## Agent digest
 - Claim: A repairable Corvint refusal names its subject, its measured evidence, and a closed list of permitted repairs instead of free prose.
-- Status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12) / implemented: envelope, fix registry, screen/bound, the seven-site working-tree impact conversion with its additive CLI envelope, thirty further refusal sites across twenty codes, repair-stop and the coverage ratchet at thirty-seven sites
-- Exists: the `internal/diagnostic` envelope, screen/bound, `RepairStop` and coverage ratchet (`make diagnostic-coverage-check`), `docs/specs/FIX-REGISTRY.tsv`, the seven converted `unsupported-working-tree-impact-*` sites (`internal/worktreeimpact/diagnostics.go`) and their additive CLI envelope (`cmd/corvint/diagnostic_envelope.go`), and thirty further converted sites (`cmd/corvint/diagnostic_refusals.go`, `internal/touchsurprise/diagnostics.go`) covering the root, platform, impact budget option, impact path suffix, batch snapshot, affected, prove, checkpoint object-format, attestation key and envelope, CEM map, prove-observe document and touch-set surprise refusals; every other refusal still carries a stable code plus prose (`internal/lrf/types.go:119@0c6a5ab9`, `cmd/corvint/batch.go:190`).
+- Status: accepted (decision 0201, 2026-09-13, with clause amendments; `DRC-V0-001` subject shape, `DRC-V0-004` registry location and `DRC-V0-011` ratchet start by owner instructions 2026-09-12) / implemented: envelope, fix registry, screen/bound, the additive CLI envelope, the converted refusal sites in the code kept after decision 0594 (the working-tree impact, batch, prove, checkpoint and touch-set sites were deleted with their commands; twenty-four sites remain), repair-stop and the coverage ratchet at twenty-four sites
+- Exists: the `internal/diagnostic` envelope, screen/bound, `RepairStop` and coverage ratchet (`make diagnostic-coverage-check`), `docs/specs/FIX-REGISTRY.tsv`, the additive CLI envelope (`cmd/corvint/diagnostic_envelope.go`), and the converted refusal sites in `cmd/corvint/diagnostic_refusals.go` that remain after decision 0594 (the working-tree impact, `internal/touchsurprise` and `prove` family sites were deleted); every other refusal still carries a stable code plus prose.
 - Blocked on: nothing; accepted by decision 0201.
 - Read next: Requirements; Trust boundary, limits, and failure modes.
 
@@ -24,9 +24,9 @@ independent convergence on Corvint invariant 2; no code, schema, or text was tak
 
 A Corvint refusal is currently a stable machine-readable code and a sentence of English. The code
 says which rule fired; the sentence is the only place the refused input and the available repair
-appear, and it is prose an agent must guess at. `internal/worktreeimpact/compiler.go:127` is the
-good case: it names the unsupported input and two exact repairs, in prose. `cmd/corvint/local_completion.go:294@f35c3997`
-is the bad case: it emits the code as both code and message, so the caller learns that something was
+appear, and it is prose an agent must guess at. The removed working-tree impact compiler was the
+good case: it names the unsupported input and two exact repairs, in prose. The removed local-completion command
+was the bad case: it emits the code as both code and message, so the caller learns that something was
 refused and nothing else. Between those two shapes there is no contract, so a caller cannot tell a
 refusal it can repair from one it cannot, and cannot tell whether it has exhausted the repairs or
 merely failed to imagine one.
@@ -50,12 +50,10 @@ changes no refusal decision, no threshold, and no code spelling.
 
 ## Verified current state
 
-Refusals are a `{code, message}` pair. `internal/lrf/types.go:119@0c6a5ab9` defines the two-field error type
-directly; `internal/doccompiler/errors.go:12` and `internal/worktreeimpact/compiler.go:536` are
+Refusals are a `{code, message}` pair. The removed `internal/lrf` defined the two-field error type
+directly; `internal/doccompiler/errors.go:12` is a
 per-package `failure` constructors of the same shape. The CLI serializes that pair as
-`{"ok": false, "error": {"code": ..., "message": ...}}` (`cmd/corvint/batch.go:190`,
-`cmd/corvint/source_handoff.go:222`), and at least one site emits the code in both fields
-(`cmd/corvint/local_completion.go:294@f35c3997`). No site carries a subject field, a measured-evidence
+`{"ok": false, "error": {"code": ..., "message": ...}}` (as the removed batch and source-handoff commands did), and at least one site emitted the code in both fields. No site carries a subject field, a measured-evidence
 field, or an enumerated repair set, and no registry of admissible repairs exists. The
 `unsupported-*` code family is the one part already load-bearing beyond display: `SOL-V0-007` writes
 those codes to the self-observation ledger.
@@ -147,7 +145,10 @@ those codes to the self-observation ledger.
   `diagnostic.Refusal` literal is in `internal/worktreeimpact/diagnostics.go`; the gate counts such
   literals in non-test Go, and the recorded count in `script/diagnostic-coverage.count` MUST equal
   the measured count (decision 0201 (j)). A later family keeps that shape, one constructor per site
-  holding one literal, and raises the recorded count in the converting change. A form the literal
+  holding one literal, and raises the recorded count in the converting change. Decision 0594 deleted
+  the commands that held the first family and several later sites, so the recorded count fell with
+  the deleted sites themselves, to twenty-four; seven remains the gate's floor. A
+  site that still exists MUST NOT leave the covered set. A form the literal
   scan cannot inspect MUST also fail the gate: a `diagnostic.Error` literal with no `Refusal` member,
   a `diagnostic.Refusal` collection literal whose elements elide their type, a zero-valued
   `diagnostic.Refusal` declaration or `new(diagnostic.Refusal)`, and a dot import of
@@ -228,7 +229,7 @@ that an implementation cannot be graded by inspection.
 | DRC-V0-009 | a three-round repair transcript over a seeded multi-diagnostic input stops at the stated bound and reports the remainder unresolved | PASS — `TestRepairLoopTerminates` (`internal/diagnostic/repair_test.go`), `go test ./internal/diagnostic` 2026-09-13 |
 | DRC-V0-010 | a forced refusal is asserted non-zero with an `ok: false` envelope and no stdout at every layer carrying a converted family (the CLI alone for `unsupported-working-tree-impact-*`, decision 0201 (i), and for the later families except the impact path suffix, also asserted at its `batch` row and `harness event` `file-change` layers), and the pre-existing artifact is asserted untouched | PASS — `TestRefusalIsNeverSuccess` (`cmd/corvint/diagnostic_envelope_test.go`); exit 2, `ok: false` and empty stdout for each of the thirty later sites in `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`); the batch row and harness envelope in `TestImpactPathSuffixDiagnosticReachesEveryLayer` (same file), `go test -run` on the named tests `./cmd/corvint` 2026-09-13 |
 | DRC-V0-910 | `GitStartErrorClass` (`internal/contextindex/git.go`); the uncoded branch of `emitError` (`cmd/corvint/main.go`) | `TestGitStartErrorClass_DRCV0910`; `TestEmitErrorNamesTheGitStartClass_DRCV0910` |
-| DRC-V0-011, DRC-V0-012 | the gate runs over the tree, reports a covered-site count of at least seven, fails a planted uncovered site, fails a start below seven, fails a planted `message` parse, and fails each planted uninspectable refusal form | PASS — `TestDiagnosticCoverageRatchet` (`internal/diagnostic/gate_test.go`) via `script/check-diagnostic-coverage.sh` reports 37 covered sites equal to `script/diagnostic-coverage.count`; the first seven sites are frozen by `TestWorkingTreeImpactRefusalDiagnostics` (`internal/worktreeimpact/diagnostics_test.go`) and the thirty later sites, each emitting only registered fixes, by `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`), 2026-09-13 |
+| DRC-V0-011, DRC-V0-012 | the gate runs over the tree, reports a covered-site count of at least seven, fails a planted uncovered site, fails a start below seven, fails a planted `message` parse, and fails each planted uninspectable refusal form | PASS — `TestDiagnosticCoverageRatchet` (`internal/diagnostic/gate_test.go`) via `script/check-diagnostic-coverage.sh` reports 37 covered sites equal to `script/diagnostic-coverage.count`; the first seven sites are frozen by `TestWorkingTreeImpactRefusalDiagnostics` (`internal/worktreeimpact/diagnostics_test.go`) and the thirty later sites, each emitting only registered fixes, by `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`), 2026-09-13. After decision 0594 (2026-11-09) the recorded count is 24: twenty-two sites in `cmd/corvint/diagnostic_refusals.go` and two in `internal/contextindex/diagnostics.go`; the working-tree impact family and its test were deleted with their commands |
 
 ## Traceability
 
@@ -236,14 +237,14 @@ Every row names the test that evidences it; `make diagnostic-coverage-check` run
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| DRC-V0-001, DRC-V0-002, DRC-V0-003, DRC-V0-005 | `internal/diagnostic` `Refusal`, `Subject`, `Evidence`, `Error`, `Validate`; the later sites' constructors in `cmd/corvint/diagnostic_refusals.go` and `internal/touchsurprise/diagnostics.go` | `TestDiagnosticEnvelopeFields`; `TestConvertedRefusalDiagnostics` |
+| DRC-V0-001, DRC-V0-002, DRC-V0-003, DRC-V0-005 | `internal/diagnostic` `Refusal`, `Subject`, `Evidence`, `Error`, `Validate`; the later sites' constructors in `cmd/corvint/diagnostic_refusals.go` and `internal/contextindex/diagnostics.go` | `TestDiagnosticEnvelopeFields`; `TestConvertedRefusalDiagnostics` |
 | DRC-V0-004 | `docs/specs/FIX-REGISTRY.tsv` (`kind` and `fix` vocabularies) | `TestFixIdentifiersResolveInRegistry` |
 | DRC-V0-006 | `diagnosticMembers` (`cmd/corvint/diagnostic_envelope.go`) appended by `emitError`; unconverted envelopes unchanged | `TestRefusalCodeSpellingsSurvive`; `TestConvertedRefusalDiagnostics` |
 | DRC-V0-007 | the CLI emission path writes stderr only; the ledger append stays `observeUnsupported` (`SOL-V0-007`) | `TestDiagnosticEmissionDoesNotMutate` |
 | DRC-V0-008 | `Refusal.Bounded` (`internal/diagnostic/bound.go`): `secretscreen.Screen`, control escape, 512-byte rune-boundary cut that never splits a `\uXXXX` escape, 16-pair evidence bound | `TestDiagnosticValuesScreenedAndBounded`, `TestDiagnosticValueCutKeepsControlEscapesWhole` |
 | DRC-V0-009 | `diagnostic.RepairStop` (`internal/diagnostic/repair.go`), a pure stop rule an adapter may call | `TestRepairLoopTerminates` |
-| DRC-V0-010 | CLI refusal exit 2 with `ok: false` and empty stdout; the prior index snapshot is untouched; `addDiagnosticRowMembers` (`cmd/corvint/diagnostic_envelope.go`) on a `batch` operation row | `TestRefusalIsNeverSuccess`; `TestConvertedRefusalDiagnostics`; `TestImpactPathSuffixDiagnosticReachesEveryLayer` |
-| DRC-V0-011, DRC-V0-012 | `script/check-diagnostic-coverage.sh` (`make diagnostic-coverage-check`, a `gate` prerequisite), `script/diagnostic-coverage.count`, `internal/worktreeimpact/diagnostics.go` (seven converted sites), `cmd/corvint/diagnostic_refusals.go` (twenty-eight), `internal/touchsurprise/diagnostics.go` (two) | `TestDiagnosticCoverageRatchet`; `TestWorkingTreeImpactRefusalDiagnostics`; `TestConvertedRefusalDiagnostics` |
+| DRC-V0-010 | CLI refusal exit 2 with `ok: false` and empty stdout; the prior index snapshot is untouched; `addDiagnosticRowMembers` (`cmd/corvint/diagnostic_envelope.go`) on a `batch` operation row | `TestRefusalIsNeverSuccess`; `TestConvertedRefusalDiagnostics`; `TestImpactPathSuffixDiagnosticReachesEveryLayer` (removed) |
+| DRC-V0-011, DRC-V0-012 | `script/check-diagnostic-coverage.sh` (`make diagnostic-coverage-check`, a `gate` prerequisite), `script/diagnostic-coverage.count` (24), `cmd/corvint/diagnostic_refusals.go` (twenty-two), `internal/contextindex/diagnostics.go` (two) | `TestDiagnosticCoverageRatchet`; `TestConvertedRefusalDiagnostics` |
 
 ## Rollout, rollback, and drift
 
@@ -292,10 +293,8 @@ use the change as cover for a lower number.
 
 `subject` is a typed `kind`/`value` pair rather than one string. The bare string was the cheaper
 option and was set aside on evidence. One file refuses four different sorts of thing: an argument
-whose count is wrong at `internal/worktreeimpact/compiler.go:90`, one supplied path at
-`internal/worktreeimpact/compiler.go:116`, a missing captured revision index at
-`internal/worktreeimpact/compiler.go:84`, and a module that is not slash-qualified at
-`internal/worktreeimpact/compiler.go:96`. Two more sorts appear in the doc compiler: a document read
+whose count is wrong, one supplied path, a missing captured revision index, and a module that is
+not slash-qualified (all in the removed working-tree impact compiler). Two more sorts appear in the doc compiler: a document read
 as authority at `internal/doccompiler/build.go:158` and a host facility at
 `internal/doccompiler/build.go:32`. One string can hold any of those only by encoding its own sort
 inside the text, which is the parsing `DRC-V0-012` forbids. The revision-alongside-a-path worry

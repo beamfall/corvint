@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"sort"
 	"unsafe"
 )
 
@@ -150,24 +149,6 @@ func stringView(data []byte) string {
 }
 
 func (view packTermView) keyCount() int { return len(view.keyOffsets) - 1 }
-
-func (view packTermView) key(index int) string {
-	return view.keyBytes[view.keyOffsets[index]:view.keyOffsets[index+1]]
-}
-
-// find returns the posting range of key, or false: termPostings.find over
-// the view.
-func (view packTermView) find(key string) (int, int, bool) {
-	count := view.keyCount()
-	if count <= 0 {
-		return 0, 0, false
-	}
-	index := sort.Search(count, func(candidate int) bool { return view.key(candidate) >= key })
-	if index == count || view.key(index) != key {
-		return 0, 0, false
-	}
-	return int(view.offsets[index]), int(view.offsets[index+1]), true
-}
 
 // postings is the view as the five-slice table the ranking reads; the
 // slices are shared with the mapping, not copied.

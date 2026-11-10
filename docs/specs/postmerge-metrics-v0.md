@@ -2,18 +2,20 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-postmerge-metrics` and `internal/postmergemetrics` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 
-Status: experimental optional Darwin/Linux companion; human-owned feature intent is GitHub issue #396
+Status: retired by decision 0594 (was an experimental optional Darwin/Linux companion); human-owned feature intent is GitHub issue #396
 (native V1-0543). This technical contract proposes implementation details, not accepted automation
 policy. Decisions 0081 and 0373 retain owner authority. No merge permission is emitted.
 
 ## Agent digest
 - Claim: A local companion reports per-class post-merge evidence from stored records and immutable Git, with recommendations that grant no merge authority.
-- Status: proposed/experimental optional Darwin/Linux companion.
-- Exists: internal/postmergemetrics; cmd/corvint-postmerge-metrics; focused reducer/Git/CLI fixtures.
-- Blocked on: independent runtime/platform qualification and owner automation-policy promotion; current integration evidence is separate.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-postmerge-metrics` and `internal/postmergemetrics` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Wire and reducer contract; Git observation and operational limits.
 
 ## Requirements

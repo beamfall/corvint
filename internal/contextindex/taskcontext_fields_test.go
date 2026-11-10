@@ -8,41 +8,6 @@ import (
 	"testing"
 )
 
-// TCP-V0-162: the named fields of top-level struct types are a table of
-// their own, with file and line; the declaration table is unchanged.
-func TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162(t *testing.T) {
-	text := "package p\n\n" +
-		"type (\n" +
-		"\tPlan struct {\n" +
-		"\t\tExpectedTests []string\n" +
-		"\t\tFirst, Second int\n" +
-		"\t\t_ int\n" +
-		"\t\tEmbedded\n" +
-		"\t\tNested struct{ Inner int }\n" +
-		"\t}\n" +
-		"\tAlias = int\n" +
-		")\n\n" +
-		"type Embedded struct{ Own bool }\n\n" +
-		"func local() { type Hidden struct{ Local int }; _ = Hidden{} }\n"
-	symbols, fields, refusal := goSymbols(testSource(), text)
-	if refusal != "" {
-		t.Fatal(refusal)
-	}
-	got := make([]string, 0, len(fields))
-	for _, field := range fields {
-		got = append(got, fmt.Sprintf("%s %s %s:%d", field.Kind, field.Name, field.Path, field.Line))
-	}
-	want := []string{"field ExpectedTests sample.go:5", "field First sample.go:6", "field Second sample.go:6", "field Nested sample.go:9", "field Own sample.go:14"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("fields = %q, want %q", got, want)
-	}
-	for _, symbol := range symbols {
-		if symbol.Kind == "field" {
-			t.Fatalf("a field leaked into the declaration table: %+v", symbol)
-		}
-	}
-}
-
 func fieldFixture(t *testing.T) string {
 	t.Helper()
 	return impactRepositoryWithFiles(t, map[string]string{
@@ -162,23 +127,6 @@ func TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162(t *testing.T) {
 			t.Fatalf("reused fields = %+v, want %+v", reused.Fields, index.Fields)
 		}
 	})
-}
-
-// TCP-V0-162: a parenthesized struct type is the same struct, so its fields
-// are recorded rather than silently dropped.
-func TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162(t *testing.T) {
-	text := "package p\n\ntype Plan (struct {\n\tExpectedTests []string\n})\n\ntype Deep ((struct{ Inner int }))\n"
-	_, fields, refusal := goSymbols(testSource(), text)
-	if refusal != "" {
-		t.Fatal(refusal)
-	}
-	got := make([]string, 0, len(fields))
-	for _, field := range fields {
-		got = append(got, fmt.Sprintf("%s:%d", field.Name, field.Line))
-	}
-	if want := []string{"ExpectedTests:4", "Inner:7"}; !slices.Equal(got, want) {
-		t.Fatalf("fields = %q, want %q", got, want)
-	}
 }
 
 // TCP-V0-162: a path keeps its strongest definition match. a.go's unique

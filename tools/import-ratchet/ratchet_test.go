@@ -322,7 +322,9 @@ func loadEmbedded(t *testing.T) (*manifest, *baseline) {
 // TestImportRatchet holds IRT-V0-001, IRT-V0-002 and IRT-V0-004 on this
 // checkout: every package maps to an area, no wrong-way cross-area import
 // exists outside the baseline, and every baseline entry still exists. It runs
-// inside go test ./... (IRT-V0-006) and proves its own controls (IRT-V0-005).
+// inside go test ./... (IRT-V0-006) and proves its own controls (IRT-V0-005):
+// an added import from a layer-0 package into a package of the highest
+// non-entry layer, and the removal of the first baselined import.
 func TestImportRatchet(t *testing.T) {
 	m, b := loadEmbedded(t)
 	graph, err := scanModule(filepath.Join("..", ".."), m.Module)
@@ -342,19 +344,25 @@ func TestImportRatchet(t *testing.T) {
 		if len(b.Edges) == 0 {
 			t.Skip("no baselined edge to remove")
 		}
+		top := 0
+		for _, a := range m.Areas {
+			if !a.Entry && a.Layer > top {
+				top = a.Layer
+			}
+		}
 		var low, high string
 		for pkg := range graph {
 			a, _, _ := m.areaOf(pkg)
 			switch {
-			case a == nil:
-			case a.Layer == 0 && !a.Entry && (low == "" || pkg < low):
+			case a == nil || a.Entry:
+			case a.Layer == 0 && (low == "" || pkg < low):
 				low = pkg
-			case a.Name == "cli" && (high == "" || pkg < high):
+			case a.Layer == top && (high == "" || pkg < high):
 				high = pkg
 			}
 		}
-		if low == "" || high == "" {
-			t.Fatalf("no layer-0 or cli package to build the control edge from (low=%q high=%q)", low, high)
+		if top == 0 || low == "" || high == "" {
+			t.Fatalf("no layer-0 and top-layer (%d) packages to build the control edge from (low=%q high=%q)", top, low, high)
 		}
 		added := copyGraph(graph)
 		added[low] = append(added[low], high)

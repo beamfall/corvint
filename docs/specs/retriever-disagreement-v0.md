@@ -2,15 +2,17 @@
 
 Owner: Russell Lewis
 Frozen: 2026-09-11
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `docs/specs/task-context-packet-v0.md`,
 `docs/specs/lexical-relevance-floor-v0.md`, `docs/agent-memory/ideas.md`
 (2026-09-01 "abstention needs an answerability signal"), `AGENTS.md` invariants 2, 4, 5 and 7
 
 ## Agent digest
 - Claim: The agreement of two independent retrieval channels is a cheap local answerability proposal; it changes no threshold, no packet, and no stored state.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/disagree`, `cmd/corvint/answerability.go`, and the five `cmd/corvint` requirement tests.
 - Blocked on: the frozen designated missing-evidence corpus that would separate answerable from unanswerable better than the relevance floor alone.
 - Read next: User and job; Requirements; Promotion and kill criteria.

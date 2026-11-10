@@ -140,7 +140,7 @@ run unchanged through this transport.
 ## Remote profile (NO-GO on the default path)
 
 Decision 0318's default-path NO-GO remains binding. Decision 0325 accepts the separately built
-`corvint-remote-provider` under `external-evidence-provider-remote-v0.md`: explicit per-invocation
+`corvint-remote-provider` (removed by decision 0594) under `external-evidence-provider-remote-v0.md`: explicit per-invocation
 consent, normal TLS plus SPKI pinning, private-file credentials, bounded complete bytes and closed
 failure. The adapter is an operator-selected command and is never imported or installed by Core.
 

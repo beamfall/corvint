@@ -17,7 +17,7 @@ import (
 )
 
 // usage is the source-owned synopsis for offline discovery.
-const usage = `usage: corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION [--companion-dir DIR]`
+const usage = `usage: corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION`
 
 func main() {
 	streams := &clierror.Streams{Binary: "corvint-release-candidate", Out: os.Stdout, Err: os.Stderr}
@@ -33,7 +33,6 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("corvint-release-candidate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	core := flags.String("core-dir", "", "verified core archive-gate directory")
-	companion := flags.String("companion-dir", "", "verified companion retained directory (omit for a Core-only candidate)")
 	source := flags.String("source-root", "", "Corvint Git checkout containing the exact built commit")
 	scratch := flags.String("scratch", "", "private scratch directory")
 	output := flags.String("output-parent", "", "parent for the fresh versioned candidate")
@@ -47,7 +46,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	result, err := releasecandidate.Assemble(ctx, releasecandidate.Options{CoreDirectory: *core, CompanionDirectory: *companion, SourceRoot: *source, Scratch: *scratch, OutputParent: *output, Version: *version})
+	result, err := releasecandidate.Assemble(ctx, releasecandidate.Options{CoreDirectory: *core, SourceRoot: *source, Scratch: *scratch, OutputParent: *output, Version: *version})
 	if err != nil {
 		fmt.Fprintln(stderr, "corvint-release-candidate:", err)
 		return 1

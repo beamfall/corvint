@@ -2,8 +2,6 @@ package workflow
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -41,16 +39,6 @@ var stableStates = map[string]string{"ACCEPT": "accepted", "REJECT": "rejected",
 // same string (CEM-V1-017), so an empty path is kept and refused. A session
 // whose entry point never sets it admits the session root.
 func (s *Session) SetStableRepository(path string) { s.stableRepository = &path }
-
-// StableOCMReader verifies supplied OCM bytes against an exact cem/1.0 map
-// through the owning adapter's stable admission and returns the same review
-// OCM projection a 0.x report carries (valid, state, verification, obligations,
-// claims). A closed refusal is a projection with valid false; only an
-// unexpected failure is an error (V1-1305).
-type StableOCMReader func(ctx context.Context, repository string, cemRaw, ocmRaw []byte, expectedBase, target, artifactRoot string) (map[string]any, error)
-
-// SetStableOCMReader installs the stable OCM verifier a report --ocm uses.
-func (s *Session) SetStableOCMReader(reader StableOCMReader) { s.stableOCM = reader }
 
 // stableRefusal marks a refusal Core issues for an exact cem/1.0 map before the
 // stable verifier runs. It keeps the wrapped code and message, and lets a
@@ -92,12 +80,6 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	// report preview accept no bound (CEM-V1-645).
 	if options.PathPolicy && action != "status" {
 		return nil, stableRefusal{invalidArguments("%s %s does not accept --path-policy", wire.StableSpec, action)}
-	}
-	if options.MaxDeferredIntents != nil && action != "status" && action != "report" {
-		return nil, stableRefusal{invalidArguments("%s %s does not accept --max-deferred-intents", wire.StableSpec, action)}
-	}
-	if report && options.OCMGiven && options.OCMPath == "" {
-		return nil, stableRefusal{invalidArguments("%s %s does not accept --ocm with an empty path", wire.StableSpec, action)}
 	}
 	repository := s.root
 	if s.stableRepository != nil {
@@ -181,16 +163,6 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	} else if action == "status" || action == "report" {
 		stableCounts(envelope, raw, excluded, inert)
 	}
-	// A recorded intent-scope deferral is checked beside, never inside, the
-	// verifier result; any issue clears ok while state stays the verifier
-	// verdict (CEM-V1-645).
-	var deferred map[string]any
-	if action != "verify" {
-		deferred = s.deferredIntents(ctx, repository, raw, result, options.MaxDeferredIntents)
-		if deferred != nil && len(deferred["issues"].([]any)) != 0 {
-			envelope["ok"] = false
-		}
-	}
 	switch action {
 	case "status":
 		envelope["map"] = options.MapPath
@@ -198,9 +170,6 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 			envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
 		}
 		envelope["state"] = stableStates[result.Outcome]
-		if deferred != nil {
-			envelope["deferredIntents"] = deferred
-		}
 		// --citation names the map's citation class beside, never inside, the
 		// verifier result, so the result stays what verify-stable reports and
 		// never echoes the role (CEM-V1-095, CEM-V1-106).
@@ -221,7 +190,7 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 			}
 		}
 	case "report", ActionReportPreview:
-		return s.stableReport(ctx, action, repository, raw, result, envelope, options, deferred)
+		return s.stableReport(action, raw, result, envelope, options)
 	}
 	return envelope, nil
 }
@@ -284,8 +253,8 @@ func addNonRegularCounts(counts map[string]any, nonRegular int) {
 }
 
 // StablePolicyIssues returns the CEM-V1-145 counts and policy issues of a
-// stable map's hunks under limits, for a consumer outside the Core read such
-// as prove --attest-cem-v2 (CEM-V1-638). A map the stable parser refuses is an
+// stable map's hunks under limits, for a consumer outside the Core read
+// (CEM-V1-638). A map the stable parser refuses is an
 // error, never an empty issue list.
 func StablePolicyIssues(raw []byte, limits PolicyLimits) (map[string]any, []any, error) {
 	document, err := wire.ParseStable(raw)
@@ -302,25 +271,11 @@ func StablePolicyIssues(raw []byte, limits PolicyLimits) (map[string]any, []any,
 // Markdown for every verifier outcome, locating the Git directories only after
 // the verifier has run and without the 0.x object admission (CEM-V1-034,
 // CEM-V1-035).
-func (s *Session) stableReport(ctx context.Context, action, repository string, raw []byte, result verify.StableResult, envelope map[string]any, options ReadOptions, deferred map[string]any) (map[string]any, error) {
+func (s *Session) stableReport(action string, raw []byte, result verify.StableResult, envelope map[string]any, options ReadOptions) (map[string]any, error) {
 	envelope["tool"] = "cem-report"
 	projection, err := stableReviewProjection(result)
 	if err != nil {
 		return nil, err
-	}
-	if options.OCMPath != "" {
-		ocm, err := s.stableReportOCM(ctx, repository, raw, options)
-		if err != nil {
-			return nil, err
-		}
-		applyStableOCM(projection, ocm, s.stableOCM != nil)
-		envelope["ok"] = envelope["ok"] == true && projection["ocmValid"] == true
-	}
-	// The deferral member sits beside the record set: it joins the projection
-	// after every recordSetSha256 computation, so that digest never covers it
-	// (CEM-V1-646).
-	if deferred != nil {
-		projection["deferredIntents"] = deferred
 	}
 	if action == "report" && options.Format == "json" {
 		envelope["review"] = projection
@@ -369,8 +324,8 @@ const (
 // than change; for the change role, class "record" when the hunks name at
 // least one evidence-record path and every other hunk path is a CEM sidecar
 // path, and "change" otherwise; beside the role itself. The record rule is
-// internal/dogfoodflow.RecordChange applied to hunk paths; keep the two in
-// step (CEM-V1-170, DCW-V0-057).
+// the one the retired internal/dogfoodflow.RecordChange applied to hunk paths
+// (CEM-V1-170, DCW-V0-057).
 func StableCitationClass(role string, paths []string) map[string]any {
 	class := StableCitationClassChange
 	switch {
@@ -401,39 +356,4 @@ func stableRecordPaths(paths []string) bool {
 		}
 	}
 	return record
-}
-
-// maxStableOCMBytes bounds a supplied OCM exactly as the 0.x review reader does.
-const maxStableOCMBytes = 1 << 20
-
-// stableReportOCM reads a supplied OCM inside the session root and verifies it
-// through the installed stable reader against the exact map bytes, the caller's
-// binding and artifact root. Without a reader the obligations stay
-// NOT_PRODUCED with reason ocm-verifier-unavailable (V1-1305).
-func (s *Session) stableReportOCM(ctx context.Context, repository string, raw []byte, options ReadOptions) (map[string]any, error) {
-	relative := options.OCMPath
-	if filepath.IsAbs(relative) {
-		inside, err := filepath.Rel(s.workRoot.Path(), filepath.Clean(relative))
-		if err != nil || inside == "." || inside == ".." || filepath.IsAbs(inside) || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
-			return nil, invalidArguments("--ocm must remain inside repository root")
-		}
-		relative = filepath.ToSlash(inside)
-	}
-	if filepath.Clean(filepath.FromSlash(relative)) != filepath.FromSlash(relative) {
-		return nil, invalidArguments("--ocm must be normalized")
-	}
-	ocmRaw, err := s.workRoot.ReadBounded(relative, maxStableOCMBytes, cemcode.MapUnavailable)
-	if err != nil {
-		return nil, err
-	}
-	if s.stableOCM == nil {
-		return map[string]any{"state": "NOT_PRODUCED", "reason": "ocm-verifier-unavailable", "obligations": []any{}, "claims": []any{}}, nil
-	}
-	ocm, err := s.stableOCM(ctx, repository, append([]byte(nil), raw...), ocmRaw, options.ExpectedBase, options.Target, options.ArtifactRoot)
-	if err != nil {
-		return nil, err
-	}
-	ocmSum, cemSum := sha256.Sum256(ocmRaw), sha256.Sum256(raw)
-	ocm["mapSha256"], ocm["cemMapSha256"] = hex.EncodeToString(ocmSum[:]), hex.EncodeToString(cemSum[:])
-	return ocm, nil
 }

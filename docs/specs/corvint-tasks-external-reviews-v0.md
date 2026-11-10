@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted (owner decision 2026-10-04)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: owner request [issue 504](https://github.com/beamfall/corvint/issues/504)
 (native ticket V1-0701). The technical contract below adapts the issue's preparation plan
@@ -17,7 +19,7 @@ their authority; this profile never amends them.
 
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
-- Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and the native writer (OWNER/OPERATOR/REVIEWER recorders, WORKER resubmissions, TREE and EVIDENCE candidates, evidence references, the issue 394 acceptance mapping).
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011); the bounded `gate packet` review packet (ERG-V0-017..021), resolvable in a configured source repository (ERG-V0-022), with a checkpoint commit binding when the hand-off note names its commit (ERG-V0-026), which the dispatcher's salvaged notes now name (ERG-V0-028), and a `gate history --cursor` command for review history past its bound (ERG-V0-027).
 - Blocked on: promotion (ERG-V0-010): independent review, current-main integration, live qualification of the issue 394 connection with a real `corvint tests accept` report, and native completion.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.

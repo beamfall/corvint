@@ -41,18 +41,13 @@ func f(perm fs.FileMode) {
 			t.Errorf("finding %d = %q", index, findings[index])
 		}
 	}
-	tasks, err := scan("internal/tasks/store/a_test.go", []byte(source))
-	if err != nil || len(tasks) != 3 || !strings.Contains(tasks[0], "fix: use fixture.WriteExecutable") {
-		t.Fatalf("tasks findings %q %v", tasks, err)
-	}
 }
 
 func TestASDV0929Skips(t *testing.T) {
 	for path, want := range map[string]bool{
-		"internal/execfile/execfile_test.go":      true,
-		"internal/x/testdata/a_test.go":           true,
-		"internal/tasks/cli/live_upgrade_test.go": true,
-		"internal/x/a_test.go":                    false,
+		"internal/execfile/execfile_test.go": true,
+		"internal/x/testdata/a_test.go":      true,
+		"internal/x/a_test.go":               false,
 	} {
 		if skipped(path) != want {
 			t.Errorf("skipped(%q) = %v", path, !want)

@@ -62,10 +62,10 @@ replacement between checks. PID observation cannot contain deliberately detachin
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| LEC-V0-001–004 | internal/lspstdio/context.go; semantic.go | TestContextClosedParams; TestContextResponseErrorsAndBounds; TestCapturedIdentityReopen |
-| LEC-V0-005 | internal/lspstdio/context.go | TestContextFreshnessAfterCore; TestNativeContextWorker |
-| LEC-V0-006–009 | cmd/corvint-lsp; internal/lspstdio/context_worker.go; internal/gitstatus/worker.go; Core process helpers | TestNativeContextWorker; TestWorkerIdentityDrift; TestWorkerGitProcessGroup; retained real CPU-phase and editor EOF transcripts |
-| LEC-V0-010 | internal/lspstdio/context.go | TestContextResponseErrorsAndBounds; TestContextClosedParams |
+| LEC-V0-001–004 | internal/lspstdio/context.go; semantic.go | TestContextClosedParams (removed); TestContextResponseErrorsAndBounds (removed); TestCapturedIdentityReopen (removed) |
+| LEC-V0-005 | internal/lspstdio/context.go | TestContextFreshnessAfterCore (removed); TestNativeContextWorker (removed) |
+| LEC-V0-006–009 | cmd/corvint-lsp; internal/lspstdio/context_worker.go; internal/gitstatus/worker.go; Core process helpers | TestNativeContextWorker (removed); TestWorkerIdentityDrift (removed); TestWorkerGitProcessGroup; retained real CPU-phase and editor EOF transcripts |
+| LEC-V0-010 | internal/lspstdio/context.go | TestContextResponseErrorsAndBounds (removed); TestContextClosedParams (removed) |
 
 The build-log entry retains native production-loader, CPU-phase, group identity, EOF, retry and
 selected test evidence with their limitations. This is experimental development evidence, not

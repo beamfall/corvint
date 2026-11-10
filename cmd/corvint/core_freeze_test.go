@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,15 +17,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
-var frozenCoreVerbs = []string{"init", "adopt", "index", "query", "context", "impact", "affected", "prove", "cem", "ocm", "frontier", "dogfood"}
+var frozenCoreVerbs = []string{"init", "adopt", "index", "context", "impact", "affected", "cem"}
 
 // hookPlumbingVerbs are the CCF-V1-003 adapter plumbing verbs runContext dispatches before the
-// topLevelCommands check; they are undocumented, absent from root help and outside the freeze.
-var hookPlumbingVerbs = []string{"native-hook", "authority-event", "qualified-event"}
+// topLevelCommands check. None remain: native-hook, authority-event and qualified-event retired
+// with decision 0594.
+var hookPlumbingVerbs = []string{}
 
 // absentMember marks a wanted member that the frozen document must not carry.
 type absentMember struct{}
@@ -81,26 +85,47 @@ func jsonMember(document map[string]any, path string) (any, bool) {
 	return value, true
 }
 
-// coreEvidenceArguments builds a committed cem/1.0 map and bound OCM, and returns the read
-// arguments of one CEM, OCM or frontier mode against them.
-func coreEvidenceArguments(t *testing.T, verb string, extra ...string) []string {
+// coreCEMArguments builds a committed cem/1.0 map with one cited hunk and returns the read
+// arguments of one cem mode against it. Decision 0525 §6 supersedes decision 0357: the frozen cem
+// status and verify goldens describe the cem/1.0 stable read, which needs the artifact root
+// (CEM-V1-219).
+func coreCEMArguments(t *testing.T, mode string) []string {
 	t.Helper()
-	fixture := newOCMReadFixture(t)
-	if verb == "cem" {
-		// Decision 0525 §6 supersedes decision 0357: the frozen cem status and
-		// verify goldens describe the cem/1.0 stable read, which needs the
-		// artifact root (CEM-V1-219).
-		fixture = newLRFFixture(t)
-		extra = append(extra, "--artifacts", fixture.root)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
 	}
-	maps := map[string][]string{
-		"cem":      {"--map", fixture.mapPath},
-		"ocm":      {"--map", "change.ocm.json", "--cem", fixture.mapPath},
-		"frontier": {"--cem", fixture.mapPath, "--ocm", "change.ocm.json", "--json"},
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemWrite(t, root, "docs/rule.txt", "widget renderer authority\n")
+	cemWrite(t, root, "docs/intent.md", "# Intent\n\n## Requirements\n\n- `LRF-CLI-001`: Widget renderer changes remain relevant.\n\n## Next\n")
+	cemWrite(t, root, "src/app.txt", "alpha\n")
+	cemWrite(t, root, "tests/widget_test.go", "package tests\n\nimport \"testing\"\n\nfunc TestWidget(t *testing.T) {\n\t_ = []struct{ name string }{{name: \"LRF-CLI-001 widget renderer\"}}\n}\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	cemWrite(t, root, "src/app.txt", "alpha\nwidget renderer\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "target")
+	target := cemGit(t, root, "rev-parse", "HEAD")
+	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		t.Fatal(err)
 	}
-	arguments := append([]string{"--root", fixture.root, verb}, extra...)
-	arguments = append(arguments, maps[verb]...)
-	return append(arguments, "--expected-base", fixture.base, "--target", fixture.target)
+	patchBytes, err := repository.CanonicalDiff(context.Background(), base, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "change.patch"), patchBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mapPath := ".corvint/change.cem.json"
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target); code != 0 {
+		t.Fatalf("prepare: %s", stderr)
+	}
+	if code, _, stderr := runCLI(t, "--root", root, "cem", "cite", "--map", mapPath, "--hunk", "1", "--evidence-path", "docs/rule.txt", "--lines", "1:1", "--relation", "specification"); code != 0 {
+		t.Fatalf("cite: %s", stderr)
+	}
+	return []string{"--root", root, "cem", mode, "--artifacts", root, "--map", mapPath, "--expected-base", base, "--target", target}
 }
 
 // TestCoreVerbsEmitTheFrozenProfiles pins CCF-V1-002: every frozen Core mode exits with its
@@ -146,17 +171,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			}
 			return []string{"--root", root, "index", "--if-stale"}
 		}, 0, map[string]any{"state": "fresh", "ok": absentMember{}, "profile": absentMember{}, "command": absentMember{}}},
-		{"query repository task", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "query", "--task", task}
-		}, 0,
-			map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query"}},
-		{"query authority start", func(t *testing.T) []string {
-			return []string{"--root", queryCLIRepository(t), "query", "--task", authorityStartPrompt, "--limit", "1"}
-		}, 0, map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query", "context.intent.id": "project-operations"}},
-		{"query excluded sources", func(t *testing.T) []string {
-			return []string{"--root", coreFreezeCommit(t, impactCLIRepository(t), excluded), "query", "--task", task}
-		}, 0,
-			map[string]any{"tool": "query", "context.schema_version": float64(1), "context.mode": "query"}},
 		{"context task", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "context", "--task", task}
 		}, 0,
@@ -191,11 +205,6 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			root := impactCLIRepository(t)
 			return []string{"--root", root, "impact", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "impact", "context.profile": "corvint-range-impact/0"}},
-		{"impact untracked working tree", func(t *testing.T) []string {
-			root := impactCLIRepository(t)
-			writeFixtureFile(t, root, "pkg/extra.go", "package main\n")
-			return []string{"--root", root, "impact", "--working-tree-untracked", "pkg/extra.go"}
-		}, 0, map[string]any{"tool": "impact", "context.profile": "corvint-working-tree-impact/0"}},
 		{"affected worktree", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "affected"} }, 0,
 			map[string]any{"tool": "affected", "profile": "affected-plan/1"}},
 		{"affected committed range", func(t *testing.T) []string {
@@ -208,27 +217,10 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			root := impactCLIRepository(t)
 			return []string{"--root", root, "affected", "--full", "--base", coreFreezeParent(t, root)}
 		}, 0, map[string]any{"tool": "affected", "profile": "affected-plan/0"}},
-		{"prove task", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "prove", "--task", task}
-		}, 0,
-			map[string]any{"tool": "prove", "profile": "falsifiable-packet/0"}},
-		{"prove path", func(t *testing.T) []string { return []string{"--root", impactCLIRepository(t), "prove", "pkg/main.go"} }, 0,
-			map[string]any{"tool": "prove", "profile": "falsifiable-packet/0"}},
-		{"prove committed range", func(t *testing.T) []string {
-			root := impactCLIRepository(t)
-			return []string{"--root", root, "prove", "--base", coreFreezeParent(t, root)}
-		}, 0, map[string]any{"tool": "prove", "profile": "falsifiable-packet/0", "packet.profile": "corvint-range-impact/0"}},
-		{"cem status", func(t *testing.T) []string { return coreEvidenceArguments(t, "cem", "status") }, 0,
+		{"cem status", func(t *testing.T) []string { return coreCEMArguments(t, "status") }, 0,
 			map[string]any{"tool": "cem-status", "stableVerification.spec": "cem/1.0"}},
-		{"cem verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "cem", "verify") }, 0,
+		{"cem verify", func(t *testing.T) []string { return coreCEMArguments(t, "verify") }, 0,
 			map[string]any{"tool": "cem-verify", "stableVerification.spec": "cem/1.0"}},
-		{"ocm status", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "status") }, 0,
-			map[string]any{"tool": "ocm-status", "verification.spec": "ocm/0.1-experimental"}},
-		{"ocm verify", func(t *testing.T) []string { return coreEvidenceArguments(t, "ocm", "verify") }, 0,
-			map[string]any{"tool": "ocm-verify", "verification.spec": "ocm/0.1-experimental"}},
-		{"dogfood status retained outcome", func(t *testing.T) []string {
-			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
-		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
 	register := observeCoreEnumerations(t, len(cases))
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
@@ -287,13 +279,11 @@ var coreN1Skips = map[string]string{
 	"TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range":         "the affected-plan/1 default is new here (AFP-V0-035); the N-1 affected-plan/0 default replays against the affected full committed range mode",
 	"TestCoreVerbsEmitTheFrozenProfiles/cem_status":                       coreN1CEMOnlySkip,
 	"TestCoreVerbsEmitTheFrozenProfiles/cem_verify":                       coreN1CEMOnlySkip,
-	"TestCoreVerbsEmitTheFrozenProfiles/ocm_status":                       coreN1CEMOnlySkip,
-	"TestCoreVerbsEmitTheFrozenProfiles/ocm_verify":                       coreN1CEMOnlySkip,
 }
 
-// coreN1CEMOnlySkip is why the N-1 replay skips the cem and ocm read modes (V1-0285): their fixture
-// is a cem/1.0 map, which 0.8.1 cannot read (cem status/verify refuse --artifacts; ocm reports
-// invalid-cem), and decision 0525 §6 superseded the cem/0.2 freeze and its N-1 reader.
+// coreN1CEMOnlySkip is why the N-1 replay skips the cem read modes (V1-0285): their fixture is a
+// cem/1.0 map, which 0.8.1 cannot read (cem status/verify refuse --artifacts), and decision 0525 §6
+// superseded the cem/0.2 freeze and its N-1 reader.
 const coreN1CEMOnlySkip = "decision 0525 §6 superseded the cem/0.2 freeze and its N-1 reader; the cem/1.0 fixture map is unreadable to 0.8.1"
 
 // coreN1WithoutFull names the modes whose N-1 equivalent is the same command line without
@@ -360,8 +350,7 @@ func coreMemberKinds(path string, value any, kinds map[string]string) {
 
 // TestCoreRefusalsKeepTheFrozenEnvelope pins CCF-V1-004 with one refusal per Core verb: a Core
 // refusal exits 2 with empty stdout and one stderr JSON envelope whose ok is false and whose code
-// keeps its frozen family, including the codeless repository envelope. frontier keeps its frozen
-// frontier-error/0 document, and dogfood carries the top-level code beside its error object.
+// keeps its frozen family, including the codeless repository envelope.
 func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -374,17 +363,10 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 		{"init", "init with an unrecognized argument", func(root string) []string { return []string{"--root", root, "init", "--bogus"} }, "invalid-arguments", ""},
 		{"adopt", "adopt with an unrecognized argument", func(root string) []string { return []string{"--root", root, "adopt", "--bogus"} }, "invalid-arguments", ""},
 		{"index", "index with an unrecognized argument", func(root string) []string { return []string{"--root", root, "index", "--bogus"} }, "invalid-arguments", ""},
-		{"query", "query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments", ""},
 		{"context", "context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments", ""},
 		{"impact", "impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, "", ""},
 		{"affected", "affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments", ""},
-		{"prove", "prove with an abbreviated base", func(root string) []string { return []string{"--root", root, "prove", "--base", "abc1234"} }, "unsupported-impact-range", ""},
 		{"cem", "cem status without a map", func(root string) []string { return []string{"--root", root, "cem", "status"} }, "invalid-arguments", ""},
-		{"ocm", "ocm status without a map", func(root string) []string { return []string{"--root", root, "ocm", "status"} }, "invalid-arguments", ""},
-		{"frontier", "frontier without its maps", func(root string) []string { return []string{"--root", root, "frontier", "--json"} }, "invalid-frontier-input", "frontier-error/0"},
-		{"dogfood", "dogfood status with a malformed session key", func(root string) []string {
-			return []string{"--root", root, "dogfood", "status", "--session-key", "k"}
-		}, "invalid-session-key", ""},
 	}
 	covered := []string{}
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
@@ -495,8 +477,8 @@ func coreRootRefusal(t *testing.T, directory string, arguments ...string) map[st
 // coreRootRefusingVerbs are the Core modes that read the repository at the working directory
 // when --root is omitted.
 var coreRootRefusingVerbs = [][]string{
-	{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
-	{"affected"}, {"prove", "pkg/main.go"}, {"dogfood", "status", "--session-key", strings.Repeat("a", 64)},
+	{"index"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
+	{"affected"},
 }
 
 // TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike pins CCF-V1-004: with --root omitted,
@@ -534,24 +516,6 @@ func TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike(t *testing.T) {
 	}
 }
 
-// TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike pins the CCF-V1-004 map-first clause: cem,
-// ocm and frontier judge their root-relative maps before any repository check, so a
-// subdirectory is refused identically whether --root is omitted or names it.
-func TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike(t *testing.T) {
-	t.Parallel()
-	for _, arguments := range [][]string{coreEvidenceArguments(t, "cem", "status"), coreEvidenceArguments(t, "ocm", "status"), coreEvidenceArguments(t, "frontier")} {
-		nested := filepath.Join(arguments[1], "nested")
-		if err := os.Mkdir(nested, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		omitted := coreRootRefusal(t, nested, arguments[2:]...)
-		explicit := coreRootRefusal(t, t.TempDir(), append([]string{"--root", nested}, arguments[2:]...)...)
-		if fmt.Sprint(omitted) != fmt.Sprint(explicit) {
-			t.Errorf("%s: omitted-root refusal %v, explicit %v, want the same", arguments[2], omitted, explicit)
-		}
-	}
-}
-
 // TestIndexedCoreVerbsCodeAnUnbornHead pins CCF-V1-004: a repository with no commit yet is
 // refused with the coded repository-head-unborn diagnostic, not the codeless Git error text.
 func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
@@ -562,7 +526,7 @@ func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "add", "main.go")
-	for _, arguments := range [][]string{{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "main.go"}, {"prove", "main.go"}} {
+	for _, arguments := range [][]string{{"index"}, {"context", "--task", "fix login"}, {"impact", "main.go"}} {
 		t.Run(arguments[0], func(t *testing.T) {
 			t.Parallel()
 			code, stdout, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...)
@@ -637,10 +601,9 @@ func checkPromisorObjectRefusals(t *testing.T) {
 		root               string
 		objects, arguments []string
 	}{
-		{sparse, outsideCone, []string{"index"}}, {sparse, outsideCone, []string{"query", "--task", "fix login"}},
+		{sparse, outsideCone, []string{"index"}},
 		{sparse, outsideCone, []string{"context", "--task", "fix login"}}, {sparse, outsideCone, []string{"impact", "pkg/main.go"}},
-		{sparse, outsideCone, []string{"prove", "pkg/main.go"}},
-		{full, baseBlob, []string{"impact", "--base", base}}, {full, baseBlob, []string{"prove", "--base", base}},
+		{full, baseBlob, []string{"impact", "--base", base}},
 	}
 	for _, test := range cases {
 		code, stdout, stderr := runCLI(t, append([]string{"--root", test.root}, test.arguments...)...)
@@ -686,55 +649,6 @@ func checkPromisorObjectRefusals(t *testing.T) {
 	lazyRead()
 	if _, err := os.Stat(sentinel); err != nil {
 		t.Fatalf("a lazy fetch with the file transport allowed left no sentinel, so the sentinel proves nothing: %v", err)
-	}
-}
-
-// TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching extends V1-0349 to the map-first reads,
-// whose object reads go through internal/cem/gitauth rather than the kernel: cem status and verify
-// over a blob:none clone missing the base blob refuse with repository-object-unavailable, and no
-// fetch reaches the promisor remote, also through a Git that drops GIT_NO_LAZY_FETCH. It sets
-// PATH, so it cannot run in parallel.
-func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
-	realGit, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, base, target := cemRepo(t)
-	head := completionCandidate(t, source, base, target)
-	cemGit(t, source, "config", "uploadpack.allowFilter", "true")
-	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
-	clone, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	cemGit(t, source, "clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none", "file://"+source, clone)
-	cemGit(t, clone, "config", "remote.origin.uploadpack", "touch '"+strings.ReplaceAll(sentinel, "'", `'\''`)+"' && git-upload-pack")
-	if err := os.RemoveAll(source); err != nil {
-		t.Fatal(err)
-	}
-	for _, dropsLazyFetchGuard := range []bool{false, true} {
-		if dropsLazyFetchGuard {
-			shim := t.TempDir()
-			script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-			if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
-		}
-		for _, verb := range []string{"status", "verify"} {
-			arguments := completionStatus(clone, base, head, "1")
-			arguments[3] = verb
-			if verb == "verify" {
-				arguments = arguments[:len(arguments)-4] // a cem/1.0 verify takes no policy ceilings
-			}
-			code, stdout, stderr := runCLI(t, arguments...)
-			if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
-				t.Fatalf("drops guard %v: cem %s reached the promisor remote (sentinel stat: %v)", dropsLazyFetchGuard, verb, err)
-			}
-			if code != 2 || !strings.Contains(stdout+stderr, "repository-object-unavailable") {
-				t.Errorf("drops guard %v: cem %s exit %d stdout %s stderr %s, want 2 with repository-object-unavailable", dropsLazyFetchGuard, verb, code, stdout, stderr)
-			}
-		}
 	}
 }
 
@@ -860,8 +774,9 @@ var preDispatchVerb = regexp.MustCompile(`arguments\[0\] == "([a-z][a-z-]*)"`)
 
 // TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp pins CCF-V1-003 and CCF-V1-008: the verbs
 // runContext compares literally are either listed in topLevelCommands, and so labelled in root
-// help, or exactly the three hook-plumbing verbs, which stay out of root help and outside the freeze.
-// A fourth verb dispatched this way fails here until it is listed or deliberately pinned.
+// help, or exactly the pinned hook-plumbing verbs (none since decision 0594), which stay out of root
+// help and outside the freeze. Any other verb dispatched this way fails here until it is listed or
+// deliberately pinned.
 func TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp(t *testing.T) {
 	t.Parallel()
 	source, err := os.ReadFile("main.go")
@@ -996,11 +911,6 @@ func TestCoreEnumerationCoverageNeedsEveryMode(t *testing.T) {
 	}
 }
 
-// provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
-// it (accepted 2026-09-26, decision 0422; from decision 0398): `prove` embeds the query or impact
-// packet unchanged as `packet`.
-var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
-
 // modeRan records that one declared frozen mode observed its document.
 func (observer *coreEnumerationObserver) modeRan() {
 	observer.mu.Lock()
@@ -1012,11 +922,6 @@ func (observer *coreEnumerationObserver) observe(t *testing.T, document map[stri
 	t.Helper()
 	tool, _ := document["tool"].(string)
 	observer.observeAs(t, tool, document)
-	packet, embedded := document["packet"].(map[string]any)
-	if tool == "prove" && embedded {
-		mode, _ := packet["mode"].(string)
-		observer.observeAs(t, provePacketTools[mode], map[string]any{"context": packet})
-	}
 }
 
 func (observer *coreEnumerationObserver) observeAs(t *testing.T, tool string, document map[string]any) {

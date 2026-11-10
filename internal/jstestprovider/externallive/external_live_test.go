@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -241,29 +240,10 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 			t.Fatal(err)
 		}
 		if doc.Playwright == nil || doc.Playwright.External.ServerDescendants != "unknown" || doc.Playwright.ServerDescendantsGone != nil || doc.Run.Freshness.State == testvalidity.FreshnessCurrent {
-			t.Fatalf("MCP discovery lost unknowns %+v", doc)
+			t.Fatalf("discovery lost unknowns %+v", doc)
 		}
 		if len(doc.Tests) != 6 || doc.Tests[0].ID == "" || len(doc.Tests[0].Attempts) == 0 {
 			t.Fatalf("discovery lost identity/attempts %+v", doc.Tests)
-		}
-		if err = os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
-			t.Fatal(err)
-		}
-		registry, registryErr := testvaliditybridge.New(root)
-		if registryErr != nil {
-			t.Fatal(registryErr)
-		}
-		object, _, toolErr, transportErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
-		if toolErr != nil || transportErr != nil {
-			t.Fatalf("MCP discovery %v %v", toolErr, transportErr)
-		}
-		projected, _ := json.Marshal(object["document"])
-		var mcpDoc testvaliditydoc.Document
-		if err = json.Unmarshal(projected, &mcpDoc); err != nil {
-			t.Fatal(err)
-		}
-		if mcpDoc.Playwright == nil || mcpDoc.Playwright.External.ServerDescendants != "unknown" || mcpDoc.Run.Freshness.State != testvalidity.FreshnessUnknown || len(mcpDoc.Tests) != 6 {
-			t.Fatalf("MCP lost qualified facts %+v", mcpDoc)
 		}
 	})
 	cfg.TestArgv = []string{"external.spec.cjs", "--project=broken-browser", "--grep=passing page"}

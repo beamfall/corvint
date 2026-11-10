@@ -3,15 +3,19 @@
 Owner: Russell Lewis
 Date: 2026-11-02
 Requirement prefix: `DCW-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood citation-plan
+precheck and `internal/dogfoodflow` (4663b4e2b is the last tree with them). The body below is
+historical and its requirement IDs stay for traceability.
 Authoritative inputs: V1-1724 owner lane request; `daily-change-evidence-workflow-v0.md`
 (`DCW-V0-019`, `DCW-V0-029`, `DCW-V0-335`, `DCW-V0-380`, `DCW-V0-690`);
 `cem-stable-v1.md` (`CEM-V1-114`).
 
 ## Agent digest
 - Claim: A citation-plan precheck names every refused row and its CEM reason before binding.
-- Status: accepted under the owner's standing auto-accept (2026-10-11) / implemented
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `dogfood inputs-check` and finish-lane prepare reuse `cem cite` against a temporary map.
 - Blocked on: measured lane bind-attempt savings remain NOT_OBSERVED.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.

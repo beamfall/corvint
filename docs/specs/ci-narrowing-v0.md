@@ -59,8 +59,8 @@ kill switch keep their thresholds; no row is seeded or synthetic.
 
 - `CIN-V0-7500`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2864) The tier plan MUST retain every distinct FULL-forcing path reason rather than capping the list at twenty; the per-reason display limit MAY remain 300 characters.
 - `CIN-V0-7501`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4119) The shared PR documentation gates MUST run the exact per-job permission/exception check before merge; each nondefault grant MUST name its exact permissions and purpose in the exception table.
-- `CIN-V0-7502`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
-- `CIN-V0-7503`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3333) `go-static` MUST restore the exact `go.mod`/`go.sum`-keyed local-authority module cache, refuse a cache miss, verify it with `go mod verify` and run the nested module tests and vet with GOPROXY/GOSUMDB off and readonly module directives. An explicit preceding preparation job MAY fetch checksum-verified dependencies and populate that cache; compiler steps MUST NOT fetch from a proxy.
+- `CIN-V0-7502`: (retired by decision 0594, 2026-11-09: the host adapters, `make host-adapter-test` and the `host-adapters` job were deleted; body kept as history) (accepted under the owner's standing auto-accept (2026-10-11); V1-4123) PR, merge-queue and main CI MUST execute the declared TypeScript family through `make host-adapter-test`; a failure MUST fail the required `go-product` check.
+- `CIN-V0-7503`: (retired by decision 0594, 2026-11-09: `tools/local-authority`, the `local-authority-deps` job and its `go-static` steps were deleted; body kept as history) (accepted under the owner's standing auto-accept (2026-10-11); V1-3333) `go-static` MUST restore the exact `go.mod`/`go.sum`-keyed local-authority module cache, refuse a cache miss, verify it with `go mod verify` and run the nested module tests and vet with GOPROXY/GOSUMDB off and readonly module directives. An explicit preceding preparation job MAY fetch checksum-verified dependencies and populate that cache; compiler steps MUST NOT fetch from a proxy.
 - `CIN-V0-7504`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4436) CI MUST compute the shadow dry-run plan for the event range and require `web-flows` for a FULL plan, an Incomplete dry-run (exit 3), or still-required checks naming a web-flows binary consumer. That job MUST install the lockfile dependencies with lifecycle scripts disabled and the matching Playwright Chromium, then run `script/web-flows-gate`. The selector binary and confine wrapper MUST build from the trusted checkout and inspect a separate tested checkout. Consumer and read-scope declarations (`.corvint/test-binary-consumers.json` and `.corvint/test-read-scopes.json`) are tested-tree data, reviewed as code; a FULL plan MUST always require the consumer job. Any other nonzero planning exit or required consumer failure MUST fail `go-product`; an unreached consumer in a complete non-FULL plan MUST leave the job skipped.
 - `CIN-V0-7505`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4574) An edit under `.github/` MUST select `tools/ci-forward-row` through its declared read scope and its workflow-executing tests in batch verification.
 - `CIN-V0-7506`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4154) A new binary source or command-tree entry MUST select `conformance/cli-errors-v0` catalog-equality tests in affected and in batch verification, including when source and catalog changes meet only in the batch.
@@ -140,7 +140,7 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   and `go-product` SHALL accept a skipped shard result only for that decision. A skip under any
   other decision, a missing decision, or a failed or skipped `docs-plan`, and a failed or
   cancelled shard under DOCS or REUSE, SHALL fail `go-product`.
-- **CIN-V0-008:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3329)
+- **CIN-V0-008:** (retired by decision 0594, 2026-11-09: `tools/local-authority` and its `go-static` step were deleted; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3329)
   `go-static` SHALL run `go test -count=1 -timeout 30m ./...` and `go vet ./...` in the nested
   module `tools/local-authority` on every run that starts `go-static`, so every change a plan can
   carry to the module, its own files included, is tested. Its external modules are fetched once
@@ -312,7 +312,7 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   starts with `dynamic/github-code-scanning/` (CodeQL default setup). It SHALL stay the only
   workflow that grants `actions: write`. On 2026-11-03 the schedule ran twice in 8 hours while
   CodeQL ran 11 times on `main`.
-- `CIN-V0-2304`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
+- `CIN-V0-2304`: (retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; the DCW-V0-348 pre-push hook remains; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
   effective only after the owner's `ci-control-plane` review) For a pull request whose head branch
   starts with `claude/batch-`, the required `doc-gates` job SHALL, unless its reuse decision is
   REUSE, build the checker and its verifier from the pull request's base commit (trusted `main`,
@@ -612,7 +612,7 @@ a pull-request record job and would change the AFP-V0-670 and AFP-V0-080 gated-j
 building the shadow planner once per run (V1-2902 remainder: it touches the pin steps PR #11
 changes and needs a trusted artifact handoff); reusing a narrowed queue record for a `main` push
 (rejected, CIN-V0-005); planner selection of a `tools/local-authority` unit, which belongs to the
-affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
+affected planner (V1-0872), so CIN-V0-008 (retired by decision 0594) ran the module whenever `go-static` ran; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
 
 CIN-V0-4750..4756 do not defer any change beyond DOCS and TESTS, do not change the required check names, the
@@ -656,7 +656,7 @@ documents; hosted scheduling remains pending. CIN-V0-861 makes such a run a
 the verdict's own staleness shows it. A queue row takes the epoch
 of its pull-request selection run. (4) A dead pin turns every shard red until repinned
 (CIN-V0-002); that is the intended loud failure. (5) An old `ci-reuse-plan` refusing `--base` on a
-push fails the reuse step, so `docs-plan` fails and every shard runs FULL. (6) The CIN-V0-008
+push fails the reuse step, so `docs-plan` fails and every shard runs FULL. (6) The retired (decision 0594) CIN-V0-008
 fetch needs the module proxy; an unreachable proxy or a `go.sum` mismatch fails `go-static`
 loudly rather than skipping the module. (7) CIN-V0-860: rule (d) is only as complete as the static index's root-locator model
 (AFP-V0-012 failure modes): a Go test that reads an unowned path by a computed name without being
@@ -666,7 +666,7 @@ change merged to `main` made every Go shard FULL until both pins were repinned p
 now builds the tools from the compared commit, so only a run whose compared commit predates a pin or
 is off `main` builds the pin and can still lag. That costs latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
 would go unnoticed until the list follows it. A `main` change to `package-costs.json` moves shard
-costs only, so it does not count as lag. (9) CIN-V0-2304 runs a checker built from the
+costs only, so it does not count as lag. (9) The retired (decision 0594) CIN-V0-2304 ran a checker built from the
 pull request's base, so a batch cannot weaken its own check by editing `cmd/corvint` or
 `script/dogfood-batch-check.sh`; a change to the check itself takes effect only after it merges, and
 only an edit to the protected `.github/` paths can alter the step. A non-batch pull request is not
@@ -701,7 +701,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-005 | `Decide` in `tools/ci-reuse-plan/main.go`; the pull-request-only `ci-narrowed-tree-record` job of `ci.yml` | `TestCINV0005PushNeverReusesANarrowedQueueRecord`; `TestAFPV0734NarrowedRecordJob` |
 | CIN-V0-006 | the "Refuse AI co-author trailers" step of `doc-gates` in `ci.yml`; the `ai-coauthor-trailers-check` target in `Makefile` | `TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests`; `TestAFPV0670GatesWireExactTreeReuse` |
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
-| CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
+| CIN-V0-008 | retired by decision 0594 (1a838f144 is the last tree with the step); it was: the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and `deletedGoSource` and their calls in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers, an unowned path alone or beside frontiers, no selectable test and a deleted source of an existing package run, the deleted package and its importer selected; a module-level frontier, an unindexed existing source, a deleted source of a removed package, a malformed or empty reason, an UNKNOWN plan naming none and another reason fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | CIN-V0-010 | `CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE` and the `pin-lag.sh` call in the narrowing gate of `ci.yml`; `.github/forward-rows/pin-lag.sh` | `TestCINV0010PinLagRefusesNarrowing` in `tools/ci-forward-row/pinlag_test.go` (a pin at MAIN passes; a selection change, a `cmd/corvint/test*.go` change and a `narrow.jq` change after a pin fail; a test, testdata, `package-costs.json` or unrelated change does not; a pin outside MAIN's history fails; malformed and unknown pins exit 2; the committed pins are one equal full commit id each; the gate calls the script from the compared `main` commit in both branches before `narrow.sh` and `mq-narrow.sh`) |
 | CIN-V0-011 | the `pin-main` step of `ci.yml` and every `steps.pin-main.outputs` binding | `TestCINV0011ToolsBuildFromComparedMain` in `tools/ci-forward-row/pinlag_test.go` (the step's own script, run on a fixture repository: a pull request on a moved `main` and a merge-queue entry on `main` or behind an unmerged entry build `main`; a first parent off `main`, a `main` older than the pin, or a queue base with no `main` ancestor keeps the pin; every fetch, build, record, gate and failure binding reads the outputs) |
@@ -711,7 +711,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2301 | the `pr-base-target-unreadable` exit of `.github/forward-rows/collect.sh`; the `target` reason of `absence.jq` | the mixed-targets (`rtarget`) and no-document (`rnodoc`) cases of `TestAFPV0047CollectorNamesRows`; a no-document run whose pull request touches `.github/` is not named |
 | CIN-V0-2302 | `absent`, its two calls and the carried `rowAbsence.absent` in `.github/forward-rows/accept.sh` | the "runs without a row" cases of `TestAFPV0097VerdictAcceptance`, whole and incremental (CIN-V0-004) listings: three markers are FULL, two and three of another epoch are MET; two carried plus one since is FULL; an incremental verdict without a count is FULL |
 | CIN-V0-2303 | the `on:` block and the job `if:` of `.github/workflows/cache-prune.yml` | `TestCINV02303CachePruneFollowsCodeQL` (trigger, backstop, guard clauses; no other workflow grants `actions: write`, with the matcher checked on a planted grant); `TestAFPV0097CachePruneKeepsNewestOverlay` |
-| CIN-V0-2304 | the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself (it ran the step on a fixture repository with a stand-in `cmd/corvint`: the base-built trusted checker runs, never the head's replacement, from the head and the merge base, built without a Git stamp; a refusing check and an unresolvable head fail; skipped where no POSIX sh exists); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
+| CIN-V0-2304 | retired by decision 0594 (1a838f144 is the last tree with the step); it was: the "Refuse a batch pull request whose commits no sealed CEM binds" step of the `doc-gates` job in `.github/workflows/ci.yml` | the workflow assertion for this step was removed under decision 0594, ahead of the step itself (it ran the step on a fixture repository with a stand-in `cmd/corvint`: the base-built trusted checker runs, never the head's replacement, from the head and the merge base, built without a Git stamp; a refusing check and an unresolvable head fail; skipped where no POSIX sh exists); live replay on PR 87's range (PASS, 14 s) and with one added unsealed commit (`FAIL unbound-commits count=1`), build log `docs/build-log/2026-11-03-mqfix.md` |
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
@@ -763,8 +763,8 @@ every `steps.pin-main.outputs` reference then falls back to the committed pins. 
 parent-0 proof in `narrow.sh`; a driver fallback again records base `""`, still FULL.
 CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop the two `absent`
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
-`workflow_run` clause; the schedule alone remains. CIN-V0-2304: drop the batch-check step of
-`doc-gates`; the DCW-V0-348 pre-push hook remains the only check.
+`workflow_run` clause; the schedule alone remains. CIN-V0-2304 is retired by decision 0594: the batch-check step of
+`doc-gates` was dropped; the DCW-V0-348 pre-push hook remains the only check.
 
 ## Lane maintenance evidence (2026-11-04)
 
@@ -772,8 +772,8 @@ calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job g
 | --- | --- |
 | `CIN-V0-7500` | `.github/forward-rows/tiers.jq`; `TestCINV07500AllFullReasons` (29 reasons). |
 | `CIN-V0-7501` | `Makefile` DOC_GATE_TARGETS and `script/ci-least-privilege-exceptions.tsv`; `TestCINV07501PermissionsArePremerge`; `script/check-ci-least-privilege_test.sh` missing/changed per-job exception fixtures. |
-| `CIN-V0-7502` | `.github/workflows/ci.yml` host-adapters and go-product; `TestCINV07502RequiredFamiliesAndOfflineModules`. |
-| `CIN-V0-7503` | `.github/workflows/ci.yml` local-authority-deps and go-static; `TestCINV07502RequiredFamiliesAndOfflineModules`; hosted cache qualification remains NOT_OBSERVED. |
+| `CIN-V0-7502` | retired by decision 0594 (1a838f144 is the last tree with the job); it was: `.github/workflows/ci.yml` host-adapters and go-product; `TestCINV07502RequiredFamiliesAndOfflineModules`. |
+| `CIN-V0-7503` | retired by decision 0594 (1a838f144 is the last tree with the job); it was: `.github/workflows/ci.yml` local-authority-deps and go-static; `TestCINV07502RequiredFamiliesAndOfflineModules`; hosted cache qualification remains NOT_OBSERVED. |
 | `CIN-V0-7504` | `.github/workflows/ci.yml` web-flows-plan/web-flows/go-product; `TestCINV07504WebFlowsConsumerJob`, `TestCINV07504WorkflowPlanFlags` (actual CLI option parser); live PR/MQ evidence remains NOT_OBSERVED until publication is authorized. |
 | `CIN-V0-7505` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestAFPV0591CoverageGuard`. |
 | `CIN-V0-7506` | `.corvint/test-read-scopes.json`, `script/batch-precheck.sh`; `TestCINV07505RepositoryCIRoutes`, `TestCLIErrorContracts_ACXV0859`. |

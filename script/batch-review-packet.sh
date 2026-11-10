@@ -6,10 +6,8 @@
 #     the corvint version that produced the sections below;
 #   - lane overlap: every path changed by more than one first-parent merge of the range, with the
 #     merges that changed it (`git diff --no-renames --name-only M^1 M` per merge);
-#   - `corvint impact --base BASE` for the range;
-#   - `corvint dogfood batch-check BASE`: each constituent sealed CEM's report and its unresolved
-#     obligations, or the refusal that names the missing seal.
-# HEAD must be the checked-out commit, because impact and batch-check read the checkout's HEAD;
+#   - `corvint impact --base BASE` for the range.
+# HEAD must be the checked-out commit, because impact reads the checkout's HEAD;
 # nothing is checked out, fetched, indexed or written. Each section keeps its first
 # BATCH_REVIEW_LINES lines (default 200) and names how many it elided; each corvint command runs
 # under BATCH_REVIEW_TIMEOUT seconds (default 300) and its exit status is printed, so a refusal,
@@ -34,7 +32,7 @@ cd "$top" || exit 2
 base=$(git rev-parse --verify -q "$1^{commit}") || refuse "unknown-base $1"
 head=$(git rev-parse --verify -q "${2:-HEAD}^{commit}") || refuse "unknown-head ${2:-HEAD}"
 checkout=$(git rev-parse --verify -q 'HEAD^{commit}') || refuse "no-checked-out-head"
-[[ $head == "$checkout" ]] || refuse "head-not-checked-out head=$head checkout=$checkout (impact and batch-check read the checked-out HEAD)"
+[[ $head == "$checkout" ]] || refuse "head-not-checked-out head=$head checkout=$checkout (impact reads the checked-out HEAD)"
 git merge-base --is-ancestor "$base" "$head" || refuse "base-not-ancestor base=$base head=$head"
 [[ $corvint == */* ]] || corvint=$(type -P -- "$corvint") || corvint=
 
@@ -77,5 +75,3 @@ done <<< "$merges" | awk -F '\t' '{ n[$1]++; by[$1] = by[$1] " " $2 } END { for 
   sort | bound | grep . || printf 'none\n'
 
 section "corvint impact --base $base" --root "$top" impact --base "$base"
-section "corvint dogfood batch-check $base (constituent CEM reports and unresolved obligations)" \
-  --root "$top" dogfood batch-check --verifier "$corvint" "$base"

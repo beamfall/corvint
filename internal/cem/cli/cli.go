@@ -113,14 +113,13 @@ var cemActions = map[string]cemAction{
 		},
 	},
 	"verify": {arguments: append(slices.Clone(readArguments), "--non-regular"), required: []string{"--map"}, booleans: []string{"--citation", "--hunk-revert", "--guarding-tests"}, choices: nonRegularChoice},
-	// --max-deferred-intents bounds the change's recorded intent-scope
-	// deferral; verify refuses it (CEM-V1-645). --scaled-operations opts a
-	// cem/1.0 status into the map-scaled Git operation bound (DCW-V0-373).
+	// --scaled-operations opts a cem/1.0 status into the map-scaled Git
+	// operation bound (DCW-V0-373).
 	// --paired with --paired-root re-verifies a cem-paired-evidence/1 document
 	// instead of reading the map's status (CAX-V0-033).
-	"status": {arguments: append(slices.Clone(readArguments), "--max-deferred-intents", "--non-regular", "--path-policy", "--paired", "--paired-root"), required: []string{"--map"}, booleans: []string{"--citation", "--scaled-operations"}, paths: []string{"--paired"}, choices: pathPolicyChoices},
+	"status": {arguments: append(slices.Clone(readArguments), "--non-regular", "--path-policy", "--paired", "--paired-root"), required: []string{"--map"}, booleans: []string{"--citation", "--scaled-operations"}, paths: []string{"--paired"}, choices: pathPolicyChoices},
 	"report": {
-		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--ocm", "--artifacts", "--max-deferred-intents"},
+		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical", "--format", "--artifacts"},
 		required:  []string{"--map"},
 		choices:   map[string][]string{"--format": {"markdown", "json"}},
 		booleans:  []string{"--preview"},
@@ -129,61 +128,12 @@ var cemActions = map[string]cemAction{
 		arguments: []string{"--map", "--coverprofile", "--test-run", "--output", "--states-output"},
 		required:  []string{"--map", "--coverprofile", "--test-run"},
 	},
-	"discriminate": {
-		arguments: []string{"--map", "--target", "--max-hunks", "--max-mutants", "--wall-time", "--same-change-test", "--output"},
-		required:  []string{"--map", "--target"},
-	},
-	"anchor": {
-		arguments: []string{"--map", "--commit", "--artifacts"},
-		required:  []string{"--map"},
-		paths:     []string{"--map"},
-	},
-	"provenance": {arguments: []string{"--commit", "--notes-tip", "--verdicts-tip"}, required: []string{"--commit"}, booleans: []string{"--verdicts"}},
-	"export": {
-		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness", "--artifacts"},
-		required:  []string{"--map", "--expected-base", "--target", "--output"},
-		paths:     []string{"--map"},
-	},
-	// defer records one intent-scope deferral as a tracked content-addressed
-	// file the change creates, never a map member (CEM-V1-644; experimental).
-	"defer": {
-		arguments: []string{"--map", "--intent", "--reason"},
-		required:  []string{"--map", "--intent", "--reason"},
-		paths:     []string{"--map", "--intent"},
-	},
 }
 
 // cemActionOrder is the order the oracle declares its subparsers in, which is
-// the order its invalid-choice message lists them in; cover (TCQ-V0-051),
-// discriminate (TCQ-V0-055), anchor and provenance (FPK-V0-037..040), and
-// export (RCB-V0-001) and defer (CEM-V1-644) have no oracle counterpart and
-// are listed last.
-var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "discriminate", "anchor", "provenance", "export", "defer"}
-
-// GitNotes serves anchor and provenance (internal/gitnotes). The binary
-// installs it, so the CEM seams' dependency closure stays the standard library
-// and internal/cem; an uninstalled handler is an invalid choice. values holds
-// only the valued arguments given; booleans the boolean flags given.
-var GitNotes func(ctx context.Context, root, action string, values map[string]string, booleans map[string]bool) (map[string]any, error)
-
-// Export serves export (internal/receiptbundle), installed by the binary for
-// the same reason as GitNotes; cem/1.0 admits callerRoot (CEM-V1-060).
-var Export func(ctx context.Context, root, callerRoot string, values map[string]string) (map[string]any, error)
-
-// StableOCM verifies the OCM a cem/1.0 report supplies through the stable
-// universe admission (internal/lrfrepo); the binary installs it for the same
-// reason as GitNotes. Nil leaves stable obligations NOT_PRODUCED (V1-1305).
-var StableOCM workflow.StableOCMReader
-
-// IntentObligations counts one intent document's obligations for a recorded
-// intent-scope deferral (CEM-V1-644, CEM-V1-645). The binary installs it;
-// nil leaves `cem defer` refused and each checked count NOT_CHECKED.
-var IntentObligations workflow.IntentObligationCounter
-
-// DataReaders finds a declared data path's readers in the target index for
-// the cem-path-policy/1 profile (CAX-V0-064). The binary installs it; nil
-// leaves each data row data-reader-not-produced.
-var DataReaders workflow.DataReaderFinder
+// the order its invalid-choice message lists them in; cover (TCQ-V0-051) has
+// no oracle counterpart and is listed last.
+var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover"}
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -350,7 +300,7 @@ func validateParsed(spec cemAction, flags *cemFlags, unrecognized []string) erro
 	return nil
 }
 
-// refusePairedChange refuses the witness's paired-change flags on every cem
+// refusePairedChange refuses the paired-change flags on every cem
 // action before any other stage, with the reason instead of the generic
 // unrecognized-arguments line (CEM-V1-648): a cem/1.0 map binds one
 // repository's base and target, so a change split across an app range and a
@@ -364,13 +314,13 @@ func refusePairedChange(unrecognized []string) error {
 
 // PairedChangeRefusal returns the CEM-V1-648 refusal for the first of tokens
 // that is a paired-change flag, spaced or in = form, and false when none is.
-// `prove --cem` shares it so every surface that reads a cem/1.0 map refuses a
+// The stable-read argument parser shares it so every cem surface refuses a
 // paired change with the same reason.
 func PairedChangeRefusal(tokens []string) (string, bool) {
 	for _, token := range tokens {
 		name, _, _ := strings.Cut(token, "=")
 		if name == "--range" || name == "--range-root" || name == "--paired-from" {
-			return fmt.Sprintf("argument %s: cem takes no paired change: a cem/1.0 map binds one repository's base and target, so pair an app range and a tests range with corvint witness and map each repository's change on its own (CEM-V1-648)", name), true
+			return fmt.Sprintf("argument %s: cem takes no paired change: a cem/1.0 map binds one repository's base and target, so map each repository's change on its own (CEM-V1-648)", name), true
 		}
 	}
 	return "", false
@@ -538,9 +488,6 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 		return nil, err
 	}
 	session.SetStableRepository(callerRoot)
-	session.SetStableOCMReader(StableOCM)
-	session.SetIntentObligationCounter(IntentObligations)
-	session.SetDataReaderFinder(DataReaders)
 	switch action {
 	case "begin":
 		return session.Begin(ctx, workflow.BeginOptions{
@@ -602,25 +549,6 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 			TestRun: flags.values["--test-run"], Output: flags.values["--output"],
 			StatesOutput: flags.values["--states-output"],
 		})
-	case "discriminate":
-		return session.Discriminate(ctx, workflow.DiscriminateOptions{
-			MapPath: flags.values["--map"], Target: flags.values["--target"],
-			MaxHunks: flags.values["--max-hunks"], MaxMutants: flags.values["--max-mutants"],
-			WallTime: flags.values["--wall-time"], SameChangeTests: flags.values["--same-change-test"],
-			Output: flags.values["--output"],
-		})
-	case "anchor", "provenance":
-		if GitNotes != nil {
-			return GitNotes(ctx, root, action, flags.values, flags.booleans)
-		}
-	case "export":
-		if Export != nil {
-			return Export(ctx, root, callerRoot, flags.values)
-		}
-	case "defer":
-		return session.Defer(ctx, workflow.DeferOptions{
-			MapPath: flags.values["--map"], Intent: flags.values["--intent"], Reason: flags.values["--reason"],
-		})
 	case "status", "verify", "report":
 		if paired := pairedFlagsGiven(flags, "--paired", "--paired-root"); paired != nil {
 			if err := paired(); err != nil {
@@ -648,10 +576,6 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 		if err != nil {
 			return nil, err
 		}
-		maxDeferred, err := flags.limit("--max-deferred-intents")
-		if err != nil {
-			return nil, err
-		}
 		// --preview renders the Markdown report into the envelope and writes
 		// nothing, so the report is read-only on request (DCW-V0-345).
 		if flags.booleans["--preview"] {
@@ -663,12 +587,11 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 		return session.Read(ctx, action, workflow.ReadOptions{
 			MapPath: flags.values["--map"], PatchGiven: flags.present["--patch"], ExpectedBase: flags.values["--expected-base"],
 			Target: flags.values["--target"], Output: flags.values["--output"],
-			Format: flags.values["--format"], OCMPath: flags.values["--ocm"],
-			OCMGiven:     flags.present["--ocm"],
+			Format:       flags.values["--format"],
 			Limits:       workflow.PolicyLimits{MaxUnknown: maxUnknown, MaxMechanical: maxMechanical},
 			ArtifactRoot: flags.values["--artifacts"], ArtifactsGiven: flags.present["--artifacts"],
 			Citation: flags.booleans["--citation"], HunkRevert: flags.booleans["--hunk-revert"],
-			GuardingTests: flags.booleans["--guarding-tests"], MaxDeferredIntents: maxDeferred,
+			GuardingTests:    flags.booleans["--guarding-tests"],
 			ScaledOperations: flags.booleans["--scaled-operations"],
 			NonRegular:       flags.values["--non-regular"] == workflow.NonRegularUnknown,
 			PathPolicy:       flags.values["--path-policy"] == workflow.PathPolicyBase,

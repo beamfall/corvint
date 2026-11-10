@@ -122,12 +122,12 @@ test('MCP checker rejects capability, registry, canonical-result, and cancellati
   recanonicalize(laundered.mcp.callResults[0]);
   assert.ok(checkObservation(callCase, laundered, manifest.limits).some((failure) => failure.includes('authority correlation')));
 
-  const retainedQuery = await runDriver(oracle, callCase, manifest.limits);
-  Object.assign(retainedQuery.mcp.callResults[0].structuredContent, {
+  const abstainedReady = await runDriver(oracle, callCase, manifest.limits);
+  Object.assign(abstainedReady.mcp.callResults[0].structuredContent, {
     state: 'ABSTAINED', epistemicClass: 'NOT_OBSERVED', authorityClass: 'NONE', abstention: { active: true, reason: 'OUT_OF_SCOPE' },
   });
-  recanonicalize(retainedQuery.mcp.callResults[0]);
-  assert.ok(checkObservation(callCase, retainedQuery, manifest.limits).some((failure) => failure.includes('authority correlation')));
+  recanonicalize(abstainedReady.mcp.callResults[0]);
+  assert.ok(checkObservation(callCase, abstainedReady, manifest.limits).some((failure) => failure.includes('authority correlation')));
 
   const profileDrift = await runDriver(oracle, callCase, manifest.limits);
   profileDrift.mcp.callResults[0].structuredContent.repository.profileId = 'unknown';

@@ -2,13 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted optional profile (owner-accepted 2026-10-04)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner request [issue 500](https://github.com/beamfall/corvint/issues/500), native ticket V1-0697 acceptance revision1, the owner's 2026-10-04 acceptance of the #500 intent as drafted, the Corvint agent contract's invariant 7 optional-profile boundary, [deployment-neutral index platform](deployment-neutral-index-platform-v0.md), and CAL-V0-052/055/056/058/064 in [agent leases](corvint-tasks-agent-leases-v0.md).
 
 ## Agent digest
 - Claim: An explicit user-service profile restarts dispatcher/helper controllers while preserving workers and durable suppression under verified ownership.
-- Status: accepted optional profile (owner-accepted 2026-10-04); experimental. A local runtime slice with the shared control/launch fence, drain, the legacy stop file, Linux-only helpers through `run-helper`, bounded service logging and helper runtime restart-debt charging exists; main-controller runtime restart-debt charging, Darwin helpers and platform qualification are not delivered.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the pure models (profile/manifest, unit rendering, operation/rollback plans, control/debt/resume, fence pruning) plus the runtime slice: `corvint-tasks service install|status|uninstall|stop|resume|run`, the private per-user registry and original-request operation journal, bounded launchctl/systemctl calls behind a Manager interface, the foreground managed main, the shared control/launch fence and durable pre-spawn launch intent taken by `dispatch.OpenControlled` launches and pool sweeps and by every control write, `stop --drain` settled at a recorded dispatcher tick boundary, the optional legacy stop-file latch, the Linux helper wrapper `service run-helper` (per-helper controller lock, fenced durable spawn intent, child-subreaper descendant verification and proved retirement, durable per-helper restart debt), bounded non-blocking per-stream service logs, and the additive `service` object in `dispatch status`. Witnesses use an in-memory fake manager in a temp HOME.
 - Blocked on: Darwin helper descendant proof (helpers are UNSUPPORTED off Linux), automatic recovery of a helper tree intent left by a killed wrapper, automatic no-orphan reconciliation of an unrecorded launch intent, actual #464 transient ownership and cancellation proof, durable main-controller runtime restart-debt charging, disposable Darwin/Linux platform access (platform qualification owner-deferred 2026-10-04; V1-0697 stays open), and terminal evidence/native completion.
 - Read next: Human intent and scope; Requirements; Lock and wait graph; Acceptance; Traceability; Rollback.

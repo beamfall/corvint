@@ -165,11 +165,20 @@ sub unstaged_hint {
 my (@missing, %reported);
 my $planned = 0;
 my $wildcards = 0;
+my ($retired, $removed) = (0, 0);
 for my $spec_ref (@spec_refs) {
     my $at = $spec_ref eq '' ? '' : substr($spec_ref, 0, 12) . ' ';
     for my $file (tracked_spec_docs($spec_ref)) {
         my ($active, $level, $line_number) = (0, 0, 0);
-        for my $line (index_lines($file, $spec_ref)) {
+        my @lines = index_lines($file, $spec_ref);
+        # TTG-V0-951: a spec whose header says `Delivery status: retired` keeps its body as a record
+        # of removed code, so its rows name tests that left with that code; it is not checked.
+        my $last = $#lines < 39 ? $#lines : 39;
+        if (grep { /^(?:- )?\**Delivery status:\**\s*retired\b/ } @lines[0 .. $last]) {
+            ++$retired;
+            next;
+        }
+        for my $line (@lines) {
             ++$line_number;
             if ($line =~ /^(#{1,6})\s+(.+)/) {
                 my ($next_level, $title) = (length($1), $2);
@@ -193,6 +202,14 @@ for my $spec_ref (@spec_refs) {
                 # TTG-V0-917 (V1-4048): a word of the test-name shape that names no test, such as a fixture
                 # `TestLine`, is written with `(not a test)` right after it and is not checked or counted.
                 next if $after =~ /^`?[ \t]*\(not a test\)/;
+                # TTG-V0-952: a live spec row that records a test removed with its code writes
+                # `(removed)` right after the name. The marker is refused while the test is declared.
+                if ($after =~ /^`?[ \t]*\(removed\)/) {
+                    push @missing, "$at$file:$line_number: $name is marked (removed) but is declared; drop the marker"
+                        if $tests{$name};
+                    ++$removed;
+                    next;
+                }
                 # DCW-V0-356 (V1-2855): a wildcard such as `TestX_*` is never expanded; the refusal says
                 # so and names the declared functions it would have matched, so the row can list them.
                 if ($after =~ /^\*/) {
@@ -214,6 +231,7 @@ for my $spec_ref (@spec_refs) {
 
 close_index();
 print "traceability tests: $planned planned\n";
+print "traceability tests: $removed marked removed; $retired retired spec(s) not checked\n" if $removed || $retired;
 if (@missing) {
     print STDERR "traceability tests: unresolved test functions:\n";
     print STDERR "  $_\n" for @missing;

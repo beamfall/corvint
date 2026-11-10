@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/gateagreement"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
 	"github.com/Beamfall/corvint/internal/testsource"
 )
@@ -22,15 +21,13 @@ Usage:
   corvint [--root PATH] tests setup-select --specs PATH[,PATH...] [--specs ...]
     [--rev REV] [--format json|lines]
   corvint [--root PATH] tests lint (--base REV [--all-lines] | --all-lines)
-    [--rev REV] [--runs REPORT.json ...] [--json] [--advisory] [--compare FILE] [--log FILE]
-    [--label NAME]
+    [--rev REV] [--runs REPORT.json ...] [--json] [--advisory]
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N] [--decisions FILE ...]
-    [--advisory] [--compare FILE] [--log FILE] [--label NAME]
-  corvint tests agreement --log FILE [--log FILE ...] [--command NAME]
+    [--advisory]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME]
-    [--advisory] [--compare FILE] [--log FILE] [--label NAME]
+    [--advisory]
   corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
     [--receipt FILE ...] [--rev REV]
   corvint [--root PATH] tests unselected [--rev REV]
@@ -93,29 +90,9 @@ decision missing either blob is listed under warnings as unpinned: it does
 not expire when either test is edited. Validity and exit status are unchanged.
 Example: corvint tests duplicates --base origin/main --gate V1-1 --decisions review.json
 
-lint, duplicates, validity and migration-ratchet share an advisory/compare mode.
---advisory exits 0 where the command would exit 1 (an error still exits 2).
---log FILE (outside the analysed repository) appends one
-corvint-gate-agreement/0 JSONL record per run: the command, its arguments,
-the binary's build identity, the revision, both exit codes and the
-comparison. --compare VERDICTS.json (needs --log; schema
-corvint-gate-verdicts/0, verdicts of {rule, path, line, test, other}) sorts
-each Corvint finding into agreements or corvintOnly and each caller verdict
-not found into callerOnly, or abstentions where Corvint did not decide (an
-uncertain file, an UNKNOWN or suppressed lint finding, every unmatched
-verdict in changed-lines scope, a truncated pair list). A line of 0 matches
-any line of the path; a duplicate pair is rule duplicate-pair with test and
-other; a validity finding is its rule at the path and line of the test it
-names, and an abstained finding or cross-file reading abstains there.
-Without --compare the record's comparison is NOT_PRODUCED. --label NAME
-(once) is copied to the record's label, so logs of several callers can be
-split.
-agreement reads such logs and prints one corvint-gate-agreement-summary/0
-report: runs, compared runs and per rule its agreements, corvintOnly,
-callerOnly, abstentions and agreementRate (agreements over the first three,
-null when none); a line that is not a record is listed, never counted.
-Example: corvint tests lint --base main --all-lines --advisory --compare v.json --log /tmp/a.jsonl
-Example: corvint tests agreement --log /tmp/a.jsonl --command "tests lint"
+lint, duplicates and validity share an advisory mode: --advisory exits 0
+where the command would exit 1 (an error still exits 2).
+Example: corvint tests lint --base main --all-lines --advisory
 
 validity applies the static test-validity rules to at most 256 named
 committed files (each at most 1 MiB). To a JS/TS test file (a .spec. or .test.
@@ -261,9 +238,7 @@ Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable,
 tests-join-revision-unbound, tests-join-revision-mismatch,
-tests-join-selector-malformed, tests-join-selector-unknown,
-agreement-verdicts-invalid, agreement-log-unavailable,
-agreement-log-inside-repository.
+tests-join-selector-malformed, tests-join-selector-unknown.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
 V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
@@ -326,11 +301,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|agreement|validity|teardown|unselected|role-locators|env|citations|example-join")
-	}
-	if args[0] == "agreement" {
-		// The summary reads only the named logs, so it needs no repository (GVA-V0-007).
-		return runTestsAgreement(args[1:], out, diagnostic)
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations|example-join")
 	}
 	if root == "" {
 		root = "."
@@ -363,7 +334,7 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 	case "example-join":
 		return runTestsExampleJoin(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|agreement|validity|teardown|unselected|role-locators|env|citations|example-join")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations|example-join")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
@@ -427,7 +398,6 @@ func runTestsSetupSelect(ctx context.Context, repo testsource.Repo, root string,
 
 func runTestsLint(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
 	gate, args, gateErr := splitGateAgreement(args)
-	commandArgs := args
 	f, once := testsFlags("tests lint")
 	options := testsource.LintOptions{Revision: "HEAD"}
 	once("base", &options.Base)
@@ -444,9 +414,6 @@ func runTestsLint(repo testsource.Repo, root string, args []string, out, diagnos
 	asJSON := f.Bool("json", false, "")
 	if err := f.Parse(args); gateErr != nil || err != nil || f.NArg() != 0 || options.Base == "" && !options.AllLines {
 		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests lint (--base REV [--all-lines] | --all-lines) [--rev REV] [--runs REPORT.json ...] [--json] "+gateAgreementUsage)
-	}
-	if err := gate.prepare(root); err != nil {
-		return testsAgreementFailure(diagnostic, err)
 	}
 	for _, name := range runs {
 		run, err := playwrightruns.ReadFile(name)
@@ -467,10 +434,7 @@ func runTestsLint(repo testsource.Repo, root string, args []string, out, diagnos
 	if report.Blocking() > 0 {
 		status = 1
 	}
-	status, err = gate.finish("tests lint", commandArgs, report.Revision, lintRules(report), lintObserved(report), status)
-	if err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
+	status = gate.finish(status)
 	if *asJSON {
 		if code := testsWrite(out, diagnostic, report); code != 0 {
 			return code
@@ -521,7 +485,6 @@ func runTestsLint(repo testsource.Repo, root string, args []string, out, diagnos
 
 func runTestsDuplicates(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
 	gate, args, gateErr := splitGateAgreement(args)
-	commandArgs := args
 	f, once := testsFlags("tests duplicates")
 	options := testsource.DuplicatesOptions{Revision: "HEAD"}
 	threshold, cutoff := "0.5", "5"
@@ -556,9 +519,6 @@ func runTestsDuplicates(repo testsource.Repo, root string, args []string, out, d
 	if options.MaxLineTests, err = strconv.Atoi(cutoff); err != nil {
 		return testsRefuse(diagnostic, "tests-invalid-option", "--max-line-tests must be an integer in [2,100]")
 	}
-	if err := gate.prepare(root); err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
 	report, err := testsource.Duplicates(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
@@ -567,54 +527,18 @@ func runTestsDuplicates(repo testsource.Repo, root string, args []string, out, d
 	if options.Gate != "" && report.UnresolvedCount > 0 {
 		status = 1
 	}
-	status, err = gate.finish("tests duplicates", commandArgs, report.Revision, []string{duplicatesAgreementRule}, duplicatesObserved(report), status)
-	if err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
+	status = gate.finish(status)
 	if code := testsWrite(out, diagnostic, report); code != 0 {
 		return code
 	}
 	return status
 }
 
-// testsAgreementFailure reports a typed agreement refusal (GVA-V0-001).
-func testsAgreementFailure(diagnostic io.Writer, err error) int {
-	var agreementError *gateagreement.Error
-	if errors.As(err, &agreementError) {
-		return testsRefuse(diagnostic, agreementError.Code, agreementError.Message)
-	}
-	return testsRefuse(diagnostic, "agreement-log-unavailable", err.Error())
-}
-
-// runTestsAgreement prints the per-rule agreement over agreement logs (GVA-V0-007).
-func runTestsAgreement(args []string, out, diagnostic io.Writer) int {
-	f, once := testsFlags("tests agreement")
-	logs := []string{}
-	command := ""
-	f.Func("log", "agreement log", func(value string) error {
-		if len(logs) >= gateagreement.MaxLogs || strings.TrimSpace(value) == "" {
-			return errors.New("too many or empty")
-		}
-		logs = append(logs, value)
-		return nil
-	})
-	once("command", &command)
-	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(logs) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests agreement --log FILE.jsonl [--log ...] [--command NAME]")
-	}
-	summary, err := gateagreement.Summarise(logs, command, openAgreementLog)
-	if err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
-	return testsWrite(out, diagnostic, summary)
-}
-
 // runTestsValidity prints the static test-validity findings of the named committed files
 // (TSA-V0-071) and the advisory seed parity of each --legacy link (TSA-V0-108). It exits 1 when a
-// finding refuses a test as proof; --advisory, --compare and --log apply as on lint (GVA-V0-094).
+// finding refuses a test as proof; --advisory applies as on lint (GVA-V0-094).
 func runTestsValidity(repo testsource.Repo, root string, args []string, out, diagnostic io.Writer) int {
 	gate, args, gateErr := splitGateAgreement(args)
-	commandArgs := args
 	f, once := testsFlags("tests validity")
 	options := testsource.SourceValidityOptions{Revision: "HEAD"}
 	f.Func("files", "test file paths", func(value string) error {
@@ -638,9 +562,6 @@ func runTestsValidity(repo testsource.Repo, root string, args []string, out, dia
 	if err := f.Parse(args); gateErr != nil || err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
 		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME] "+gateAgreementUsage)
 	}
-	if err := gate.prepare(root); err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
 	report, err := testsource.SelectedSourceValidity(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
@@ -649,10 +570,7 @@ func runTestsValidity(repo testsource.Repo, root string, args []string, out, dia
 	if report.Refused() {
 		status = 1
 	}
-	status, err = gate.finish("tests validity", commandArgs, report.Revision, nil, validityObserved(report), status)
-	if err != nil {
-		return testsAgreementFailure(diagnostic, err)
-	}
+	status = gate.finish(status)
 	if code := testsWrite(out, diagnostic, report); code != 0 {
 		return code
 	}
@@ -700,4 +618,37 @@ func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.W
 		return 1
 	}
 	return 0
+}
+
+// gateAdvisory holds the --advisory option of a gate-shaped tests command: it exits 0 where the
+// command would exit 1, and an error still exits 2 (GVA-V0-001). The agreement log and verdict
+// comparison (--compare, --log, --label, tests agreement) were retired by decision 0594.
+type gateAdvisory struct{ advisory bool }
+
+const gateAgreementUsage = "[--advisory]"
+
+// splitGateAgreement removes --advisory from args and returns the rest in order; it may be given
+// once and takes no value.
+func splitGateAgreement(args []string) (gateAdvisory, []string, error) {
+	g, rest := gateAdvisory{}, []string{}
+	for _, arg := range args {
+		name, _, inline := strings.Cut(arg, "=")
+		if name != "--advisory" {
+			rest = append(rest, arg)
+			continue
+		}
+		if inline || g.advisory {
+			return g, nil, errors.New("--advisory takes no value and is given once")
+		}
+		g.advisory = true
+	}
+	return g, rest, nil
+}
+
+// finish returns the status to exit with: 0 for an advisory run's 1.
+func (g gateAdvisory) finish(code int) int {
+	if g.advisory && code == 1 {
+		return 0
+	}
+	return code
 }

@@ -1,7 +1,6 @@
 package contextindex
 
 import (
-	"context"
 	"reflect"
 	"testing"
 )
@@ -153,45 +152,6 @@ func TestReceiptNamesUnknownLanguageVerification(t *testing.T) {
 				t.Fatalf("uncertainty=%v want unknown-language=%v", uncertainty, test.wantUnknown)
 			}
 		})
-	}
-}
-
-// The standalone query index records every admitted path but loads content
-// only for what it ranks, and an unloaded source's Text() is an empty string.
-// So the Makefile scan behind gateCommand found no target and closed the plan
-// with the signal-free "git diff --check", while the oracle read the same
-// repository's Makefile and closed it with "make gate" - the divergence that
-// made query-authority-start unequal-stdout in the 2026-09-03 packet-5 run.
-// The pure-function tests above could not see it: they hand gateCommand a
-// Source whose Data is already populated.
-func TestQueryIndexLoadsTheGateFileItDerivesTheClosingCommandFrom(t *testing.T) {
-	root := t.TempDir()
-	benchmarkGit(t, root, "init", "-q")
-	benchmarkGit(t, root, "config", "user.email", "corvint@example.test")
-	benchmarkGit(t, root, "config", "user.name", "Corvint Test")
-	benchmarkWriteFile(t, root, "AGENTS.md", "# Project instructions\n\nThe roadmap is the only active work queue.\n")
-	benchmarkWriteFile(t, root, "Makefile", "gate: build\n\t@true\nbuild:\n\t@true\n")
-	benchmarkWriteFile(t, root, "internal/widget/widget.go", "package widget\n\nvar Payload = 1\n")
-	benchmarkGit(t, root, "add", ".")
-	benchmarkGit(t, root, "commit", "-qm", "gate fixture")
-
-	index, err := BuildQuery(context.Background(), root, "Identify the active work queue and the required workflow gates")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, present := index.Sources["Makefile"]
-	if !present {
-		t.Fatal("the query index did not admit the Makefile at all")
-	}
-	if text, valid, loaded := source.Text(); !loaded || !valid || text == "" {
-		t.Fatalf("the Makefile is not loaded valid text: text=%q valid=%v loaded=%v", text, valid, loaded)
-	}
-	command, found, complete := makefileTargetCommand(index.Sources)
-	if !complete || !found || command != "make gate" {
-		t.Fatalf("makefileTargetCommand = %q, found=%v complete=%v; want \"make gate\", true, true", command, found, complete)
-	}
-	if got, complete := gateCommand(verificationProfile(index.Sources), index.Sources); !complete || got != "make gate" {
-		t.Fatalf("gateCommand = %q, complete=%v; want \"make gate\", true", got, complete)
 	}
 }
 

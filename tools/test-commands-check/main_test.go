@@ -62,7 +62,6 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	// and names the diagnostic the comparison it targets must print.
 	mutations := map[string][3]string{
 		"missing make target":  {`"languages": {`, `"languages": {"zig": ["make", "no-such-target"], `, "languages.zig names make no-such-target"},
-		"none the gate runs":   {`"typescript": ["make", "host-adapter-test"]`, `"typescript": {"none": "claimed"}`, `languages.typescript is none, but make gate step host-adapter-node-test runs "node"`},
 		"none without runners": {`"languages": {`, `"languages": {"zig": {"none": "claimed"}, `, "languages.zig is none, but this gate knows no zig runners"},
 	}
 	for name, mutation := range mutations {
@@ -121,7 +120,7 @@ func TestSTRV0006MakefileTextRules(t *testing.T) {
 		"computed include":        {"", "include $(wildcard *.mk)\n", "include $(wildcard names a file make computes"},
 		"missing include":         {"", "include no-such.mk\n", "include no-such.mk: "},
 		"GATE_STEPS twice":        {"", "GATE_STEPS += extra\n", "GATE_STEPS is assigned 2 times"},
-		"GATE_STEPS expanded":     {"GATE_STEPS = \\\n  host-adapter-node-test", "GATE_STEPS = \\\n  $(EXTRA) host-adapter-node-test", "is expanded by make; the none-language check reads only a literal step list"},
+		"GATE_STEPS expanded":     {"GATE_STEPS = \\\n  go-version", "GATE_STEPS = \\\n  $(EXTRA) go-version", "is expanded by make; the none-language check reads only a literal step list"},
 	}
 	for name, mutation := range refusals {
 		problems, _ := checkMakefile(root, mutate(t, filepath.Join(root, "Makefile"), mutation[0], mutation[1]))
@@ -318,8 +317,8 @@ func TestSTRV0019GateGoTestHasTimeout(t *testing.T) {
 	}
 	// The focused host Go subset is intentionally outside GATE_STEPS. Inject a
 	// direct Go command into an actual gate step to exercise timeout enforcement.
-	bounded := "host-adapter-node-test:\n\tgo test -count=1 -timeout 30m ./cmd/corvint"
-	fixture := mutate(t, filepath.Join(root, "Makefile"), "host-adapter-node-test:", bounded)
+	bounded := "\ngo-version:\n\tgo test -count=1 -timeout 30m ./cmd/corvint\n"
+	fixture := mutate(t, filepath.Join(root, "Makefile"), "\ngo-version:\n", bounded)
 	bad := mutate(t, fixture, "go test -count=1 -timeout 30m ./cmd/corvint", "go test -count=1 ./cmd/corvint")
 	got := checkGoTestTimeouts(filepath.Dir(bad), filepath.Base(bad), steps)
 	if len(got) != 1 || !strings.Contains(got[0], "without -timeout") {
@@ -500,13 +499,13 @@ func TestGateStepsTwoLaneMergeIsClean_STR_V0_920(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(string(text), "\n")
-	const gateHead, shellHead, fixed = "GATE_STEPS = \\", "shell-test: \\", 5
+	const gateHead, shellHead, fixed = "GATE_STEPS = \\", "shell-test: \\", 4
 	for _, list := range []struct {
 		head string
 		skip int
 	}{{gateHead, fixed}, {shellHead, 0}} {
 		names, _ := listEntries(t, lines, list.head)
-		if list.skip == fixed && (len(names) < fixed || !slices.Equal(names[:fixed], []string{"host-adapter-node-test", "go-version", "go-test", "go-vet", "cross-vet"})) {
+		if list.skip == fixed && (len(names) < fixed || !slices.Equal(names[:fixed], []string{"go-version", "go-test", "go-vet", "cross-vet"})) {
 			t.Fatalf("gate fixed prefix: %q", names)
 		}
 		if len(names) <= list.skip || !slices.IsSorted(names[list.skip:]) {
@@ -599,7 +598,7 @@ func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
 	if !strings.HasPrefix(got, "usage: make <target> [BASE=<rev>]  (BASE=origin/main)\n") {
 		t.Fatalf("bare make did not print the help header with BASE=origin/main:\n%s", got)
 	}
-	for _, target := range []string{"help", "gate", "doc-gates", "dogfood-change", "windows-vet"} {
+	for _, target := range []string{"help", "gate", "doc-gates", "windows-vet"} {
 		if !regexp.MustCompile(`(?m)^  ` + regexp.QuoteMeta(target) + ` +\S`).MatchString(got) {
 			t.Errorf("help does not list %s:\n%s", target, got)
 		}

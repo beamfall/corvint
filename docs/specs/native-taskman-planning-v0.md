@@ -2,14 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-19
-Intent status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548); NTP-V0-026 accepted under the owner's standing auto-accept (2026-10-11, V1-2119)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
+Retirement note: decision 0594 (2026-11-09) deleted the `taskman` and `work` command groups
+(`cmd/corvint/taskman_fixture.go`); `internal/taskman` leaves with Corvint Tasks.
 Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
 - Claim: Read-only native fixture priority-first planning with explicit incomplete coverage.
-- Status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548); NTP-V0-026 accepted under the owner's standing auto-accept (2026-10-11, V1-2119)/experimental; GP and production promotion held.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration; read-only `corvint-tasks plan batches` (NTP-V0-020..025).
 - Blocked on: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
 - Read next: Requirements; Fixture input and receipt; Acceptance and rollback; Tasks plan batches; Shared reservation paths.

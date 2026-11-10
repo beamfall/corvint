@@ -3,13 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-09-29
 Requirement prefix: `GCS-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `AGENTS.md`, `docs/specs/external-evidence-provider-v0.md`; owner direction for V1-0479, Go/gopls agent enrichment and optional editor companion. This bounded prototype implements part of the proposed LQP-V0-007..009 adapter profile; it does not qualify or promote any exact platform profile.
 
 ## Agent digest
 - Claim: An optional local gopls session observes definitions only between caller-owned synchronized overlays with explicit lifecycle and bounds.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: internal package, fake-server hostile tests, dependency-free Go/gopls live overlay witness.
 - Blocked on: shared snapshot/editor integration, independent review, real client qualification and outcome gates.
 - Read next: Requirements, profile bounds, acceptance evidence and rollback.

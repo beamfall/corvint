@@ -141,11 +141,11 @@ func commandPackageDirs(mainDir, commandDir string) ([]string, error) {
 // subcommandTables names the code-declared subcommand tables in cmd/corvint and its command
 // packages under internal/command (CAP-V0-007). An
 // empty command marks a nested table whose keys are verbs and whose values are subcommand sets.
+// The docs table left with the docs group, which is an exec-only shim onto corvint-docs
+// (decision 0594 item 3); that binary's tree snapshot catalogues its subcommands.
 var subcommandTables = []struct{ variable, command string }{
 	{"helpSubcommands", ""},
-	{"docsSubcommands", "docs"},
 	{"flowSubcommands", "flows"},
-	{"leaseActions", "lease"},
 }
 
 // parseSubcommands reads each declared table from the non-test Go files of the corvint main

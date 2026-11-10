@@ -2,14 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-10-30
-Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3181)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: native ticket V1-3181; CAL-V0-007..017, CAL-V0-019 and CAL-V0-069 in `corvint-tasks-agent-leases-v0.md`; PRS-V1-002, PRS-V1-004 and the companion classification of `corvint-tasks` in `corvint-1.0-product-and-release-v1.md`; the V1-3180 inventory `docs/build-log/2026-10-29-core-promotion-inventory.md`.
 Native ticket: V1-3181.
 
 ## Agent digest
 - Claim: One source-built `corvint-tasks` binary runs the agent lifecycle on one non-fixture store with fixed commands, refusal codes and a requalification script.
-- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3181); qualified on darwin/arm64 and linux/amd64. The catalog maturity stays experimental until the owner accepts this profile.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `script/qualify-tasks-basic.sh` and `script/qualify-tasks-basic_test.sh`; the CAL-V0-019 suite in `internal/tasks/store`; evidence in `docs/build-log/2026-10-29-tasks-basic-stability.md`.
 - Blocked on: owner acceptance of the profile (TBS-V1-460). Mixed binaries (V1-0757), cross-language CEM integration (V1-0596) and release attestation (V1-0232) are separate obligations outside this profile.
 - Read next: Requirements; Non-goals.

@@ -76,8 +76,10 @@ The output profile is `corvint-vscode-host-observation/0`:
 MCP observations additionally retain the selected transport, pinned executable SHA-256, raw parsed
 request/result transcript, one-page tool catalogue, process lifecycle, framing counters, and
 cancellation ordering. The conformance runner independently validates modern-only
-`2026-07-28` metadata, `server/discover` before `tools/list`, the exact no-cursor MCPV0 registry,
-closed root-free query/impact arguments, canonical text/`structuredContent` duplication, and the
+`2026-07-28` metadata, `server/discover` before `tools/list`, the no-cursor MCPV0 registry of
+exactly `corvint.help`, `corvint.impact`, and `corvint.status` (decision 0594 retired
+`corvint.query`; impact and status are pinned exactly, help on its closed shape only because its
+`command` enum tracks the CLI catalog), closed root-free impact arguments, canonical text/`structuredContent` duplication, and the
 direct nested context receipt. A server-reported version is bounded inert display/debug identity;
 protocol, exact tools, and the pinned executable digest establish compatibility.
 

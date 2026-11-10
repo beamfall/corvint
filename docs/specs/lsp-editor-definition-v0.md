@@ -2,13 +2,15 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-29
-- Intent status: proposed
-- Delivery status: experimental
+- Intent status: retired 2026-11-09 (decision 0594)
+- Delivery status: retired
+- Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+- Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 - Authoritative inputs: owner-requested Go/gopls agent and optional editor direction; AGENTS.md; LSP snapshot overlay, gopls client session and stdio experiment contracts.
 
 ## Agent digest
 - Claim: Explicitly configured editor sessions can request definitions between synchronized open Go overlays through a local gopls process.
-- Status: proposed/experimental; no semantic promotion or client qualification claim.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: separate opt-in command mode, exact overlay joins, bounded request worker and Unicode conversion.
 - Blocked on: independent real-client qualification; external targets remain unavailable.
 - Read next: Requirements; Bounds and failures; Traceability.

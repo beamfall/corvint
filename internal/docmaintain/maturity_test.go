@@ -15,7 +15,7 @@ var (
 )
 
 // SDD-V0-634: every "docs/specs/NAME.md remains STATUS" statement in the
-// non-test Go files of cmd/corvint and internal/docmaintain agrees with that
+// non-test Go files of cmd/corvint, cmd/corvint-docs and internal/docmaintain agrees with that
 // spec's delivery in docs/specs/INDEX.json, including its parenthesized range.
 func TestSDDV0634MaturityStringsMatchSpecIndex(t *testing.T) {
 	root := filepath.Join("..", "..")
@@ -32,7 +32,7 @@ func TestSDDV0634MaturityStringsMatchSpecIndex(t *testing.T) {
 		delivery[filepath.Base(spec.Path)] = spec.Delivery
 	}
 	statements := 0
-	for _, directory := range []string{"cmd/corvint", "internal/docmaintain"} {
+	for _, directory := range []string{"cmd/corvint", "cmd/corvint-docs", "internal/docmaintain"} {
 		files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(directory), "*.go"))
 		if err != nil {
 			t.Fatal(err)
