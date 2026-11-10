@@ -52,6 +52,7 @@ GATE_STEPS = \
   cross-vet \
   adopter-ci-advisory-test \
   agent-preflight-test \
+  agents-invariants-check-test \
   ai-coauthor-trailers-test \
   analyzer-schema-check \
   analyzer-schema-test \
@@ -1325,6 +1326,7 @@ plugin-test: go-version
 shell-test: \
   adopter-ci-advisory-test \
   agent-preflight-test \
+  agents-invariants-check-test \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
   bash32-test \
@@ -1460,3 +1462,7 @@ install-local: ## Build and install all native binaries; add LOCAL_BIN_DIR to PA
 	trap 'rm -rf "$$work"' EXIT && \
 	$(HEAVY_ADMIT) env GOTOOLCHAIN=local go build -o "$$work/" ./cmd/... && \
 	bash script/install-local-bin.sh --all "$$work" "$(LOCAL_BIN_DIR)"
+
+.PHONY: agents-invariants-check-test
+agents-invariants-check-test:
+	@script/agents-invariants-check_test.sh

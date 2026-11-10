@@ -20,13 +20,15 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
 
 1. Evidence is pinned to immutable Git content and always explains its inclusion.
 2. Missing evidence produces uncertainty or abstention, never invented certainty.
-3. Project-owned authority outranks syntax, history, and learned task traces.
+3. Project-owned authority outranks syntax and history.
 4. Read commands do not mutate repository or trace state. Outside the repository, `affected` and
    the planning step of `test` may write one bounded, private user-cache directory,
    `os.UserCacheDir()/corvint/affected`, of derived graph entries admitted by `AFP-V0-436` to
    `AFP-V0-439` and the scan memo of `AFP-V0-822`; it is never repository, Git,
    trace or `.corvint/` state and never an input to ranking, evidence, authority or learning.
-5. Any learning is explicit, local, bounded, secret-screened, and evaluation-gated.
+   Agent hook session state kept in the user cache directory is not repository or trace state.
+5. Corvint 1.0 learns nothing from use. Any later learning must be explicit, local, bounded,
+   secret-screened and evaluation-gated under its own decision.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.
 7. The default local product is one release of native-Go executables: the `corvint` core plus the
    bundled apps and plugins its release manifest names; adding an executable to that manifest needs
@@ -40,11 +42,9 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
    embedded index encoding is derived state, not a database, and still needs the benchmark/format
    gate. Anything outside that boundary needs its own accepted profile on the same
    transport-neutral immutable index contract and cannot silently broaden the local path: see
-   `docs/specs/deployment-neutral-index-platform-v0.md`,
    `docs/specs/go-production-kernel-migration-v0.md` (hot-path language moves need exact parity and
-   staged rollback), decision 0081 / `docs/specs/local-admin-console-v0.md` (optional,
-   operator-started, loopback-only console with no authority; never in the default manifest), and
-   decision 0591 / `docs/specs/core-bundled-apps-v0.md` (core, bundled-app and plugin boundaries).
+   staged rollback) and decision 0591 / `docs/specs/core-bundled-apps-v0.md` (core, bundled-app
+   and plugin boundaries).
 8. Substantive capabilities are spec-driven. Record the human-owned intent, numbered requirements,
    non-goals, failure modes, acceptance evidence, and rollback before calling implementation done.
    Generated or inferred documentation can propose intent but cannot accept or govern it.
