@@ -1410,6 +1410,7 @@
     ],
     "internal/langplugin/runnernames": [],
     "internal/linecov/v8": [],
+    "internal/liveverify/affected": [],
     "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
