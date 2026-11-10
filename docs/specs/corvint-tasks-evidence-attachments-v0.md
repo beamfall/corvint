@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-05
-Intent status: accepted
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: the agent-filed native ticket V1-0808 ("attach evidence to an OPEN ticket
 without changing it"), implemented on orchestrator instruction on 2026-10-05. On 2026-10-05 the owner accepted V1-0808
@@ -15,7 +17,7 @@ preserves the audited record) and the ticket/mutation/receipt boundaries of the
 
 ## Agent digest
 - Claim: Writers attach sha256 evidence digests and a reason to an OPEN native ticket in one receipt-backed write that leaves acceptance, status and gates unchanged.
-- Status: accepted; experimental; the native `ticket attach-evidence` writer (operation `ATTACH_EVIDENCE`), the optional record/Core `attachedEvidence` member and the `ticket show` listing exist with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: closed payload and record codecs, Core reader validation, Apply/finalize through the existing mutation path, OWNER default and explicit OPERATOR grant, ADOPT_FILE and IMPORT_APPLY refusal, CLI help, replay and receipt-audit witnesses.
 - Blocked on: durable qualification. The native archive round trip (export, verify and `archive restore`, `TRL-V0-871`), the two-process CAS and the interrupted-commit redo witnesses pass (V1-0813, 2026-10-31).
 - Read next: Requirements; Resolved decisions; Acceptance evidence and traceability; Rollout and rollback.

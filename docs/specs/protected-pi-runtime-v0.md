@@ -3,13 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `PPI-V0`
-Intent status: accepted direction (owner approval, 2026-09-22); technical details experimental
-Delivery status: experimental; no protected installation or native qualification
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (2026-11-09) deleted the `qualified` command group,
+`internal/authoritystore` and `tools/local-authority`; requirements naming them are retired.
 Authoritative inputs: `agent-harness-integration-v0.md`, `protected-local-execution-v0.md`, `qualified-lifecycle-v0.md`, decision 0009
 
 ## Agent digest
 - Claim: Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.
-- Status: accepted direction (owner approval, 2026-09-22); technical details experimental; no protected installation or native qualification. No execution root, completed qualification or FULL claim.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: experimental repository Node SEA build with embedded Pi 0.85.1 code/assets, native TUI/RPC/reload/session replacement/image tools, startup injection controls and interruption cleanup; closed root/3, campaign/2, Pi qualification and QLF/2 source; functional Pi adapter 0.2.0 remains separate.
 - Blocked on: final immutable release review, protected installation, adversarial/native qualification, independent admission and explicit operator activation.
 - Read next: Requirements; Runtime boundary; Acceptance and rollout.

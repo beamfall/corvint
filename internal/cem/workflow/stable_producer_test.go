@@ -276,8 +276,8 @@ func TestCEMV1142StableBeginWritesProducerMap(t *testing.T) {
 	}
 }
 
-// TestCEMV1143StableProducerMutationsStayStable cites, marks, covers and
-// discriminates a stable producer map: each write stays canonical cem/1.0,
+// TestCEMV1143StableProducerMutationsStayStable cites, marks and covers a
+// stable producer map: each write stays canonical cem/1.0,
 // keeps the producer role, and the result verifies; a bound stable map is
 // still refused (CEM-V1-143, CEM-V1-144).
 func TestCEMV1143StableProducerMutationsStayStable(t *testing.T) {
@@ -312,13 +312,6 @@ func TestCEMV1143StableProducerMutationsStayStable(t *testing.T) {
 	covered := readStableAt(t, root, wire.ExcludedCEMPath)
 	if covered.Role != "bind-chore" || covered.Change.Hunks[0].Coverage == nil {
 		t.Fatalf("covered stable map = role %q coverage %+v", covered.Role, covered.Change.Hunks[0].Coverage)
-	}
-	if _, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD"}); err != nil {
-		t.Fatal(err)
-	}
-	discriminated := readStableAt(t, root, wire.ExcludedCEMPath)
-	if discriminated.Role != "bind-chore" || discriminated.Change.Hunks[0].Discriminates == nil {
-		t.Fatalf("discriminated stable map = role %q witness %+v", discriminated.Role, discriminated.Change.Hunks[0].Discriminates)
 	}
 	if status := stableStatus(t, root, wire.ExcludedCEMPath, base, target, PolicyLimits{}); stableOutcome(status) != "ACCEPT" {
 		t.Fatalf("mutated stable map does not verify: %v", status)

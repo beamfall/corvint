@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-31
-Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: the agent-filed native tickets V1-3569 and V1-3463 (in-flight lane work is
 invisible while the queue barrier is OPERATOR/ADMISSION), V1-3577 (no verb carries an undelivered
@@ -16,7 +18,7 @@ V1-3331 (the delivery screen misses tickets delivered on unmerged lane heads) an
 
 ## Agent digest
 - Claim: Lanes record a typed progress phase on live tickets without a claim; read-only checks screen lane heads, requirement IDs and effects proposals.
-- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576); delivery experimental: the progress phase, collision check, lane-ref screen, effects proposals and `ticket split` exist with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: operation `PROGRESS_SET` and the optional record member `progress`, the `ticket progress` verb, the `--phase` search filter, phase in show and roadmap rows, closeout-debt `progress-head` rows, `tools/requirement-id-collisions`, delivery-screen `--lane-refs`, `ticket effects-proposals`, and `ticket split`.
 - Blocked on: the operator-applied batch set-effects of V1-3576 (lanes may not write the store); durable qualification.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.

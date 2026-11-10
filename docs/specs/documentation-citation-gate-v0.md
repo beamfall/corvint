@@ -292,7 +292,8 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 - `DCG-V0-800`: (experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)
   A citation in a `docs/decisions/*.md` record whose index copy equals its blob in the newest
   commit that added or modified it MUST be resolved against that commit's tree, not the Git
-  index: the record is written once and cites the code as it stood then. A decision this change
+  index, a file the index no longer tracks included (decision 0594): the record is written
+  once and cites the code as it stood then. A decision this change
   writes or edits, one no commit has written, a cited path absent from that tree, and a clone
   whose history lacks the commit keep index resolution. Design: on 2026-10-31 an output-neutral
   edit of `internal/contextindex/git.go` failed two decision 0158 citations that `--repin` cannot
@@ -302,6 +303,22 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   fails; CI's doc-gates checkout fetches full history. Evidence: case 34 of
   `script/check-line-citations_test.sh` (a committed decision citation survives a move of its
   lines; an edited decision reports it; fails on BASE). Rollback: `lines_for` returns `lines_of`.
+- `DCG-V0-923`: (experimental under decision 0594 (owner, 2026-11-09); V1-5228; refines DCG-V0-800)
+  A `docs/specs/*.md` document whose header (the lines before its first `## ` heading) carries
+  both `Delivery status: retired` and one line `Retirement base: <40 lowercase hex commit>` MUST
+  resolve every citation it holds against that commit's tree, including citations of files the
+  index no longer tracks. A base the clone lacks, and a cited path absent from its tree, keep
+  index resolution. A `Retirement base:` line in a spec whose header is not retired, and a
+  malformed or repeated base line, MUST fail naming the line, and that document keeps the index.
+  Design: a retired spec keeps its body and requirement IDs as history (decisions 0593 and 0594),
+  but the change that retires it deletes or moves the code it cites, which failed about 287
+  retired-spec citations no repin can fix without rewriting history. Unpinned citations need the
+  same inventory rows as before, as decisions do. Non-goals: live specs, and retirements that name
+  no base. Failure modes: a citation already wrong at the base stays wrong and still fails; a
+  wrong base fails the citations it does not hold. Evidence: case 53 of
+  `script/check-line-citations_test.sh` (a retired spec with a base resolves a deleted file; no
+  base, a non-retired spec and an unknown commit keep the index). Rollback: delete the
+  `retirement_base` branch of `lines_for`.
 - `DCG-V0-801`: (experimental under the standing lane auto-accept (V1-3384)) `make repin`
   (`script/repin.sh [--base REF]`) MUST perform every mechanical repin an output-neutral source
   edit needs, in order: `script/analyzer-schema.sh bump`, staging the two analyzer-schema pin files
@@ -555,19 +572,19 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:361-365@3dd28600` and `:439-442@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:401-405@3dd28600` and `:479-482@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:262-268@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:254-260@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:784-801@b0ffc20a` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:266-272@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:258-264@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:824-841@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:90-178@e2e51d91` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:270-275@fce1154d` and `:355-360@e5963c48` | case 11 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:274-279@fce1154d` and `:395-400@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:309-327@5e2147f9` and `:366@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:349-367@5e2147f9` and `:406@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
 | DCG-V0-042 | the `scanned_doc` pattern in `script/check-line-citations.sh`; the pinned citations in `docs/AUTOMATION.md` and `docs/GLOSSARY.md` | full-index run |
 | DCG-V0-041 | the inventory loader after the legacy allowlist, the inventory branch in `check` and the unused-row failure loop, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
@@ -579,6 +596,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-800 | `decision_commit`, `lines_at` and `lines_for` in `script/check-line-citations.sh` | case 34 |
 | DCG-V0-801 | `script/repin.sh`, `REPIN_BASE` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34; `script/repin_test.sh` |
+| DCG-V0-923 | `retirement_base` and its branch in `lines_for` in `script/check-line-citations.sh`; the `Retirement base:` header lines of the retired specs | case 53 |
 | DCG-V0-840 | `CHECK_LINE_CITATIONS_REPIN_TOTAL` and the repin report in `script/check-line-citations.sh` | case 37 |
 | DCG-V0-841 | the relocation hint in `script/check-line-citations.sh` | case 32c |
 | DCG-V0-842 | the end of the `--repin` block in `script/check-line-citations.sh` | case 38 |

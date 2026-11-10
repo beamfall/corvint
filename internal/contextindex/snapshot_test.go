@@ -120,14 +120,6 @@ func TestSnapshotSameLengthBodyOverwriteIsAMiss(t *testing.T) {
 	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
 		t.Fatalf("IDX-SNAP-V0-003: overwritten body loaded: hit=%v err=%v", hit, err)
 	}
-	if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, false); err != nil || hit {
-		t.Fatalf("IDX-SNAP-V0-003: overwritten body event load: hit=%v err=%v", hit, err)
-	}
-	// IDX-SNAP-V0-811: a compact load reads only the digest-covered spine; a
-	// body it never reads cannot reach its output, so it stays a hit.
-	if compact, hit, err := LoadEventSnapshot(context.Background(), index.Root, true); err != nil || !hit || compact.ProfileID != index.ProfileID {
-		t.Fatalf("IDX-SNAP-V0-811: compact load beside an overwritten body: hit=%v err=%v", hit, err)
-	}
 	// A deferred load hits and refuses the body when a read reaches it.
 	deferred, hit, err := LoadSnapshotDeferred(context.Background(), index.Root)
 	if err != nil || !hit {
@@ -249,20 +241,6 @@ func TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree(t *testing.T) {
 	if !equalIgnoringSymbolTerms(loaded, index) {
 		t.Fatalf("IDX-SNAP-V0-001: loaded index differs from the built one")
 	}
-	event, hit, err := LoadEventSnapshot(context.Background(), root, false)
-	if err != nil || !hit {
-		t.Fatalf("event load: hit=%v err=%v", hit, err)
-	}
-	if event.Tracked != nil || event.Vocabulary != nil || !reflect.DeepEqual(event.Sources, index.Sources) {
-		t.Fatalf("event snapshot did not retain only its required tables")
-	}
-	compact, hit, err := LoadEventSnapshot(context.Background(), root, true)
-	if err != nil || !hit {
-		t.Fatalf("compact load: hit=%v err=%v", hit, err)
-	}
-	if compact.ProfileID != index.ProfileID || compact.Sources != nil {
-		t.Fatalf("clean compact snapshot = %+v", compact)
-	}
 	if err := os.WriteFile(filepath.Join(root, "cache", "cache.go"), []byte("package cache\n\nfunc Demux() string { return \"changed\" }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -272,10 +250,6 @@ func TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree(t *testing.T) {
 	}
 	if !reflect.DeepEqual(dirty.DirtyPaths, []string{"cache/cache.go"}) || dirty.StatusSHA256 == index.StatusSHA256 || string(dirty.Sources["cache/cache.go"].Data) != string(index.Sources["cache/cache.go"].Data) {
 		t.Fatalf("IDX-SNAP-V0-004: dirty view = %v %q", dirty.DirtyPaths, dirty.Sources["cache/cache.go"].Data)
-	}
-	compactDirty, hit, err := LoadEventSnapshot(context.Background(), root, true)
-	if err != nil || !hit || !reflect.DeepEqual(compactDirty.DirtyPaths, []string{"cache/cache.go"}) || len(compactDirty.Sources) == 0 {
-		t.Fatalf("dirty compact load: hit=%v err=%v paths=%v sources=%d", hit, err, compactDirty.DirtyPaths, len(compactDirty.Sources))
 	}
 	for _, arguments := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "next"}} {
 		command := exec.Command("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false"}, arguments...)...)
@@ -706,10 +680,6 @@ func TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory(t *testin
 			}
 			if _, hit, err := ProbeSnapshot(context.Background(), root); err != nil || hit {
 				t.Fatalf("IDX-SNAP-V0-005: ProbeSnapshot through a symlink hit=%v err=%v", hit, err)
-			}
-			observation := Observation{ObjectFormat: index.ObjectFormat, CommitRevision: index.CommitRevision, Revision: index.Revision}
-			if _, hit, err := LoadEventSnapshotObserved(root, false, observation); err != nil || hit {
-				t.Fatalf("IDX-SNAP-V0-005: LoadEventSnapshotObserved through a symlink hit=%v err=%v", hit, err)
 			}
 		})
 	}

@@ -390,7 +390,7 @@ func TestRVNV0007AuthorityLimit(t *testing.T) {
 			t.Fatalf("%s: verification changed other fields", c.query)
 		}
 	}
-	for _, dir := range []string{"../contextindex", "../slotlearn", "../localauthority", "../authoritystore", "../authorityevent"} {
+	for _, dir := range []string{"../contextindex"} {
 		pkgs, err := parser.ParseDir(gotoken.NewFileSet(), dir, nil, parser.ImportsOnly)
 		if err != nil {
 			t.Fatal(err)

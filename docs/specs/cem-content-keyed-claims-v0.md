@@ -3,13 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-11-01
 Requirement prefix: `CKC-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood citation claims in
+`internal/dogfoodflow` (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 Authoritative inputs: ticket V1-3980 (CEM 2.0 Phase 1a); `AGENTS.md` invariants 1, 2, 4 and 8; `docs/specs/daily-change-evidence-workflow-v0.md` DCW-V0-150, DCW-V0-350, DCW-V0-442 and DCW-V0-884; `internal/cem/wire/canonical.go` `HunkIdentity`.
 
 ## Agent digest
 - Claim: Reviewed plan rows persist as content-keyed claims that compile to current hunk IDs across fixes and rebases, refusing every ambiguous match.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `corvint dogfood record-claims`, the claims form of `corvint dogfood propose-citations --refresh`, `internal/dogfoodflow/claims.go` and its focused tests and replay harness.
 - Blocked on: owner acceptance; adoption in `docs/DOGFOOD.md` (owned by another lane, proposed text only); live lane use.
 - Read next: Requirements; Failure modes; Acceptance evidence.

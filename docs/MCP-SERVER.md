@@ -54,37 +54,39 @@ ignores a legacy `notifications/initialized` notification without responding.
 
 | Tool | Arguments | Meaning |
 |---|---|---|
-| `corvint.query` | `{"task":"PRINTABLE ASCII TASK"}` | Authority-start context at the native fixed limit of one; unsupported intent abstains |
 | `corvint.impact` | `{"paths":["relative/file.go"],"limit":10}` | Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths (non-Go paths are experimental `non-go-syntax-v0` syntax evidence); `limit` is optional, 1–50 |
 | `corvint.status` | `{}` | Exact commit/tree/object-format/profile/worktree/dirty-count-and-digest binding |
-| `corvint.help` | `{}` or `{"topic":"guide"}` | The `corvint help --json` command catalog, or the `corvint help guide` agent guide, byte for byte from the binary; reads no repository state and is listed on every profile (`MCPV0-100`); `corvint-docs-mcp`, `corvint-corpus-mcp` and `corvint-test-validity-mcp` list the same tool (`MCPV0-101..105`) |
+| `corvint.help` | `{}` or `{"topic":"guide"}` | The `corvint help --json` command catalog, or the `corvint help guide` agent guide, byte for byte from the binary; reads no repository state and is listed on every profile (`MCPV0-100`); `corvint-docs-mcp` and `corvint-test-validity-mcp` list the same tool (`MCPV0-101..105`) |
 
-### Task-review profile (opt-in)
+### Flows profile and tool groups (opt-in)
 
-Starting the server with one extra closed selector adds two review tools (`MCPV0-024..026`,
-decision 0374):
+`--tool-profile LIST` takes a comma list of the profile `flows` and the groups `test-validity`,
+`test-evidence`, `docs` and `corpus` (`MCPV0-026`, `MMR-V0-012`):
 
 ```console
-$ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profile task-review
+$ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profile flows
 ```
 
-| Tool | Arguments | Meaning |
-|---|---|---|
-| `corvint.context` | `{"task":"TASK","subject":"relative/path","limit":20}` | The `corvint context` task-context packet at the bound revision; `subject` and `limit` (1–50) are optional |
-| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical` (0.x maps) and `artifacts` (a repository-relative artifact directory for a `cem/1.0` map, whose receipt embeds the stable verifier result) |
+| Entry | Adds |
+|---|---|
+| `flows` | `corvint.flows.coverage`, `corvint.flows.gaps`, `corvint.flows.impact`, `corvint.flows.map` and `corvint.flows.navigate` |
+| `test-validity` | `corvint.test_validity` |
+| `test-evidence` | `corvint.test_evidence` |
+| `docs` | `corvint.docs_draft` and `corvint.docs_consume`; each call runs the `corvint-docs` executable beside the server or on PATH (its `docs-tool` verb, decision 0594), and a missing one answers a `not-installed` tool error |
+| `corpus` | The `corvint.docs_*` corpus tools the artifact supports; needs `--corpus-artifact [ALIAS=]PATH`, a path relative to the root |
 
-The only accepted value is `task-review`, given once, as two separate arguments. Any other value,
-a repeated selector, `--tool-profile=task-review`, or the selector with `--version` exits 2 before
-the repository is opened. Without the selector the server lists exactly the four tools above, and
-a call to `corvint.context` or `corvint.cem.report` fails as an unknown tool (`-32602`). The
-selector composes with `--protocol-version 2025-11-25`, in either order.
+An unknown entry, a repeated selector, or the selector with `--version` exits 2 before the
+repository is opened. Without the selector the server lists exactly the three tools above, and a
+call to any other tool fails as an unknown tool (`-32602`). The selector composes with
+`--protocol-version 2025-11-25`, in either order. The [capability catalog](CAPABILITIES.md#mcp-tools)
+lists every tool with its profile.
 
 Discovery is root-independent and returns `cacheScope: "public"`, `ttlMs: 0`, and fixed server info:
 name `corvint-mcp`, build version, and Corvint description
 `Local read-only Corvint context and repository evidence server.` Tool listing is root-bound and
 returns `cacheScope: "private"`, `ttlMs: 300000`, and no next cursor.
 
-All input schemas are closed. Query text is 1–2,000 printable ASCII characters. Impact accepts
+All input schemas are closed. Impact accepts
 1–100 unique normalized repository-relative paths, each at most 1,024 Unicode scalar values, with
 the lowercase suffix `.go`, `.rb`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts` or `.tsx` (NGI-V0-001). A
 non-Go path answers with the experimental `non-go-syntax-v0` profile: Ruby gives the path, markers
@@ -96,13 +98,10 @@ Ruby path outside mapped autoload roots and unresolved bare imports stay unknown
 `corvint impact --capabilities` lists them. `corvint.impact` stays single-root (MMR-V0-005,
 MMR-V0-007): a question that spans an application root and a separate test root uses the CLI
 `corvint impact --app-root DIR --test-root ALIAS=ROOT` (ANL-V0-064..067) instead. Absolute paths, `.`/`..`/empty segments, other
-suffixes, path escapes, extra fields, and invalid limits are rejected before repository access. Context `task` is 1–32,000 bytes and not blank. The CEM
-`map` is a repository-relative path of at most 512 bytes with no `.git` segment; a symlinked map or
-ancestor is refused as `cem-map-unavailable`, so a repository file cannot redirect the read outside
-the bound root. `expectedBase` and `target` must be full object IDs.
+suffixes, path escapes, extra fields, and invalid limits are rejected before repository access.
 
 Tool names are unique, case-sensitive, 1–128 characters, and use only letters, digits, `_`, `-`,
-or `.`. All `corvint.*` names, in both profiles, follow the official 2026-07-28 grammar.
+or `.`. All `corvint.*` names, in every profile, follow the official 2026-07-28 grammar.
 
 Successful calls return the complete canonical `corvint-mcp-bridge-result/0` receipt both as one text
 content block and as the identical parsed `structuredContent`. `READY` means the bounded operation
@@ -154,8 +153,7 @@ this profile into logs.
 | `-32603` | Sanitized unexpected server failure | Treat the operation as unobserved; inspect local process health |
 | `ABSTAINED` | Corvint could not safely produce the requested bounded receipt | Preserve the receipt's reason and gaps; widen through an explicit supported operation |
 
-A tool error with `code` `repository-probe-timeout` means the repository probe, a CEM report's Git
-read or the context index's Git read outlasted its own bound while the request was still live; the
+A tool error with `code` `repository-probe-timeout` means the repository probe outlasted its own bound while the request was still live; the
 repository may be healthy, so retrying on a quieter host is reasonable (`MCPV0-038`). `repository-unavailable` remains every other repository refusal.
 
 Errors never include request bodies, repository paths, task text, environment values, Git output,
@@ -190,12 +188,12 @@ root digest. Those fields are outside the delivered repository-binding status an
 `NOT_OBSERVED`.
 
 The server performs no Corvint executable PATH lookup because it calls the Go kernels in process.
-Every Git runner it uses, including the CEM seams' own `internal/cem/gitrun` runner, is pinned to
-one absolute start-time Git executable (`internal/mcp/cli/main.go:130-136`, `internal/gitstatus`'s
+Every Git runner it uses, including the `internal/cem/gitrun` runner, is pinned to
+one absolute start-time Git executable (`internal/mcp/cli/main.go:164`, `internal/gitstatus`'s
 `Pin`/`Executable`, `internal/cem/gitrun.PinBinary`; `MCPV0-016`); a Git binary placed on PATH after
-start never runs. This is observed by the adversarial conformance cases `TestGitPlantedOnPathAfterStartNeverRuns`
-and `TestTaskReviewCEMReportNeverRunsPlantedGit` in `conformance/mcp-2026-07-28`, plus
-`internal/gitstatus.TestPinFixesExecutableAgainstLaterPathChanges`; all three pass.
+start never runs. This is observed by the adversarial conformance case `TestGitPlantedOnPathAfterStartNeverRuns`
+in `conformance/mcp-2026-07-28`, plus
+`internal/gitstatus.TestPinFixesExecutableAgainstLaterPathChanges`; both pass.
 
 ## Verification status
 

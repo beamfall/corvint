@@ -341,13 +341,6 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 // writerBoundsKey marks the background refresh writer's context.
 type writerBoundsKey struct{}
 
-// WithWriterBounds marks ctx as the background refresh writer's, whose own CPU
-// work budget and wall bound replace the shared Git deadline (IDX-SNAP-V0-912).
-// It is set in-process by the writer only; no flag or environment reaches it.
-func WithWriterBounds(ctx context.Context) context.Context {
-	return context.WithValue(ctx, writerBoundsKey{}, true)
-}
-
 // withGitDeadline is the shared DCW-V0-075 deadline, or only the parent's
 // bounds for a context marked by WithWriterBounds.
 func withGitDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -763,13 +756,6 @@ func equalBytesString(value []byte, expected string) bool {
 		}
 	}
 	return true
-}
-
-func readQueryBlobs(ctx context.Context, root string, entries []treeEntry) (map[string][]byte, error) {
-	if len(entries) == 0 {
-		return map[string][]byte{}, nil
-	}
-	return readBlobs(ctx, root, entries)
 }
 
 // readStatusSnapshotRaw is readStatusSnapshot that also returns the status

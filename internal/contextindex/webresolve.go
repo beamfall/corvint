@@ -486,8 +486,6 @@ type webSetting struct {
 	value      string
 }
 
-var webSettingNames = [3]string{"moduleResolution", "module", "target"}
-
 // webOptions is a leaf config's effective resolution input after extends.
 // A field is known only when a readable config declares it before any
 // unreadable link in TypeScript's precedence order; an unknown field makes

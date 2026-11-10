@@ -2,16 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-intake`, `internal/intake` and `protocol/intake` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner-authored GitHub issue #391, native ticket V1-0538;
 repository AGENTS.md and product invariants. Issue text describes intent, never execution authority.
 
 ## Agent digest
 - Claim: Intake admits typed records before untrusted change context reaches an author.
-- Status: Proposed intent; experimental local implementation, qualification pending.
-- Exists: Strict schema, immutable-path validator, reader preflight, author-input builder and battery.
-- Blocked on: Final bound evidence closeout, hosted CI, host/reader qualification and owner technical acceptance.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-intake`, `internal/intake` and `protocol/intake` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Reader boundary; Acceptance; Limits and rollback.
 
 ## Job and current state
@@ -84,15 +86,8 @@ Reader output must not be used as CLI argv, executable code, a policy grant, or 
 
 ## Acceptance and traceability
 
-| Requirement | Intended implementation | Acceptance witness |
-|---|---|---|
-| CVI-V0-001 | protocol/intake/schema.json; internal/intake | `TestCVI_V0_001_002_PublishedVectors` |
-| CVI-V0-002 | internal/intake decode/validation | `TestCVI_V0_002_StrictGrammar` |
-| CVI-V0-003 | internal/intake immutable lookup | `TestCVI_V0_003_ImmutablePathAndTrustedPins` |
-| CVI-V0-004 | internal/intake normalization | `TestCVI_V0_004_Normalization` |
-| CVI-V0-005 | internal/intake reader preflight | `TestCVI_V0_005_ReaderIsolation` |
-| CVI-V0-006 | internal/intake author builder | `TestCVI_V0_006_007_HostileTwinsAndMutants` |
-| CVI-V0-007 | owned test battery and CI workflow | `TestCVI_V0_006_007_HostileTwinsAndMutants` |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/closed-vocabulary-intake-v0.md`.
 
 These named witnesses passed focused local execution. Final candidate binding and hosted CI remain pending. Delivery requires focused tests,
 actual CLI fixture qualification, focused-docs gate, independent review, bound change evidence and

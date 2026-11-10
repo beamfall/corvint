@@ -12,7 +12,7 @@ import (
 )
 
 var flowsArguments = []string{"--tool-profile", "flows"}
-var flowsToolNames = []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.help", "corvint.impact", "corvint.query", "corvint.status"}
+var flowsToolNames = []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.help", "corvint.impact", "corvint.status"}
 
 func flowsFixture(t *testing.T) string {
 	t.Helper()
@@ -200,4 +200,16 @@ func assertCoveragePage(t *testing.T, text, head string) {
 	if row := receipt.Rows[0]; row.DocumentedID != "search" || row.IntentFlowID != "search" || row.Status != "MISSING_TEST" {
 		t.Fatalf("coverage row differs from the fixture's uncovered intent: %s", document)
 	}
+}
+
+func listedToolNames(t *testing.T, client *stdioClient, meta map[string]any) []string {
+	t.Helper()
+	result := successResult(t, client.call(t, 899, "tools/list", map[string]any{"_meta": meta}))
+	tools, _ := result["tools"].([]any)
+	names := make([]string, 0, len(tools))
+	for _, value := range tools {
+		name, _ := object(t, value)["name"].(string)
+		names = append(names, name)
+	}
+	return names
 }

@@ -3,6 +3,8 @@
 Owner: repository owner. Proposed build slice: V1-0611. Date: 2026-10-02.
 Intent status: proposed
 Delivery status: experimental; NOT_QUALIFIED; source candidate implemented, qualification incomplete
+Retirement note: decision 0594 (2026-11-09) deleted `internal/dogfoodflow`,
+`internal/dogfoodoperation` and `internal/localcompletion`; requirements naming them are retired.
 Human job: finish a complete explicitly enrolled change whose current-path admission exceeds the
 legacy learning recorder's 200-path limit, retaining all evidence and refusing partial completion.
 
@@ -375,7 +377,7 @@ structural-refusal compatibility evidence only; they are not current build/CI qu
 | physical budget and owned cleanup | 017..019 | internal/cem/gitrun/operation_budget_test.go; internal/contextindex/git_test.go; unchanged Owner tests and actual native RELEASED witnesses |
 | dispatch and predecessor | 020 | cmd/corvint event/portable/worker tests; console/receiptbundle tests; actual original-main predecessor refuses genuine /1 state and legacy /0 still works |
 | source-bound qualification | 021,022 | immutable candidate manifests/raw argv/exit/stdout/stderr, fresh process phase snapshots, independent review, CEM/OCM and native gate receipts |
-| transport-adapted held recovery | 023..026 | cmd/corvint/transport_recovery_test.go TestTransportAdaptedRecoveryNative; internal/localcompletion/transport_recovery_test.go TestTransportRecoveryRequestClosedCanonical, TestTransportRecoveryAdmissionsClosed; refusals with unchanged evidence bytes, pending disagreement, public-check refusal, recorded A/B identities, committed refusal |
+| transport-adapted held recovery | 023..026 | cmd/corvint/transport_recovery_test.go TestTransportAdaptedRecoveryNative (removed); internal/localcompletion/transport_recovery_test.go TestTransportRecoveryRequestClosedCanonical (removed), TestTransportRecoveryAdmissionsClosed (removed); refusals with unchanged evidence bytes, pending disagreement, public-check refusal, recorded A/B identities, committed refusal |
 
 Mandatory inventory includes: legacy 200 success/201 refusal; short-path aggregate 201/299/512
 success, 513 refusal (amended by `ALO-V0-027`: 513 and 4096 succeed), candidate 4097 refusal; byte exact/+1 independent of capacities; source/total

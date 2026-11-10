@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-30
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-3236, V1-3237, V1-3223)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: native tickets V1-3236 (the
 [agent lease contract](corvint-tasks-agent-leases-v0.md) Requirements section is at the
@@ -19,7 +21,7 @@ mutation payload codec or wire code.
 
 ## Agent digest
 - Claim: Tasks ranks friction against open tickets with BM25, guards duplicate creates, and serves lane hosts without a journal from a verified snapshot.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-3236, V1-3237, V1-3223); experimental; TCL-V0-001..014 implemented with focused tests and a frozen duplicate eval.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/tasks/similar`, `internal/contextindex/lexrank.go`, the `ticket similar|digest|recur` and `queue snapshot` verbs, and the create guard in `internal/tasks/cli`.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.

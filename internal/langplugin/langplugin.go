@@ -2,13 +2,13 @@
 
 // Package langplugin is the in-process language plugin manifest
 // (docs/specs/language-plugins-v0.md, LGP-V0-001..022). Each language declares
-// the paths it owns, its affected-selection provider, its analyzercap
-// analyzers and its sub-plugins: test runners, test providers, coverage
+// the paths it owns, its affected-selection provider, its
+// analyzer binaries and its sub-plugins: test runners, test providers, coverage
 // collectors and mutation tools. A piece a language lacks is declared absent
 // with a reason, so a missing piece is never silent.
 //
 // Core packages read languages through this manifest instead of naming them.
-// Registration is in-process; the analyzercap subprocess protocol stays the
+// Registration is in-process; the analyzer subprocess protocol stays the
 // external form of an analyzer.
 package langplugin
 
@@ -100,7 +100,7 @@ type Manifest struct {
 	Paths []string
 	// Provider builds the affected-selection provider (affected.Language).
 	Provider func() affected.Language
-	// Analyzers are the analyzercap binaries, by cmd/ directory name.
+	// Analyzers are the analyzer binaries, by cmd/ directory name.
 	Analyzers []SubPlugin
 	// Runners are testrunner registry names; their build, parse and
 	// normalize live in the registry family that registers them.
@@ -245,7 +245,7 @@ var manifests = []Manifest{
 	},
 	{
 		Name:      "shader",
-		Paths:     []string{"cmd/corvint-analyzer-shader", "internal/analyzershader", "internal/shaderdialect", "internal/shaderrunner"},
+		Paths:     []string{"cmd/corvint-analyzer-shader", "internal/analyzershader", "internal/shaderdialect"},
 		Analyzers: []SubPlugin{sub("corvint-analyzer-shader", "internal/analyzershader")},
 		Runners:   []string{"shader-behavior"},
 		Absent:    map[Piece]string{Provider: noProvider, TestProvider: noTestProvider, Coverage: noCollector, Mutation: noMutation},

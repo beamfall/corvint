@@ -2,14 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-25
-Intent status: accepted (owner, 2026-10-18, decision 0541)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `ocm` command group and the
+OCM forms in `internal/lrfrepo` (4663b4e2b is the last tree with them). The body below is historical
+and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 3 and 6, `docs/specs/ocm-v0-dogfood.md` (`OCM-V0-001`),
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, decision 0386, decision 0541, ticket V1-0259
 
 ## Agent digest
 - Claim: `ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.
-- Status: accepted (owner, 2026-10-18, decision 0541); delivery experimental, and the capability must not be advertised as delivered until the promotion evidence passes.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/lrfrepo/ocm_forms.go`, the `--intent-form` flag, an optional `intentScope.form` wire member, focused tests, and one live Beamfall sweep. The experimental `requirements-subset` form (`OIF-V0-670` to `OIF-V0-672`, V1-2275) lets an intent cite part of a spec over the 256-obligation bound.
 - Blocked on: one real change dogfooded with a declared form and an independent review; open decisions 1, 2, 4 and 5 stay recorded limits, and LRF and the change universe refuse declared forms.
 - Read next: Declaration mechanism; Requirements; Acceptance evidence.

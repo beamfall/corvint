@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-25
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2703; GitHub #1812)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: native ticket V1-2703 and GitHub #1812. These requirements amend
 `ticket create --template` and the CREATE payload refusal of the
@@ -13,7 +15,7 @@ receipt or accepted wire contract: the CREATE payload stays a closed object.
 
 ## Agent digest
 - Claim: ticket create --template --skeleton prints a complete CREATE payload; a MALFORMED CREATE names every missing, unknown and invalid key with its shape.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2703; GitHub #1812); experimental; TCT-V0-001 and TCT-V0-002 are implemented with focused CLI tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the `--skeleton` flag on `ticket create --template` and the combined CREATE diagnosis in the CLI.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.

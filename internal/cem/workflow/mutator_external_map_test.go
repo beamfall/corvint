@@ -48,10 +48,6 @@ func TestCEMV1647MutatorsReadAnOutOfTreeMapIntoARelativeOutput(t *testing.T) {
 			_, err := openSession(t, root).Mark(ctx(), MarkOptions{MapPath: outside, Hunk: "1", Disposition: "unknown", Reason: "insufficient-evidence"})
 			return err
 		},
-		"discriminate in place": func() error {
-			_, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: outside, Target: "HEAD"})
-			return err
-		},
 		"inside the repository": func() error {
 			_, err := openSession(t, root).Mark(ctx(), MarkOptions{MapPath: filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)), Hunk: "1", Disposition: "unknown", Reason: "insufficient-evidence", Output: "again.cem.json"})
 			return err

@@ -486,7 +486,8 @@ func TestDiagnosticCoverageRatchet(t *testing.T) {
 	if ratchetProblem(ratchetStart-1, ratchetStart-1) == "" {
 		t.Fatal("a ratchet started below seven passed")
 	}
-	delete(sources, "internal/worktreeimpact/diagnostics.go")
+	lost, _, _ := strings.Cut(tree.sites[0].position, ":")
+	delete(sources, lost)
 	if ratchetProblem(recorded, len(scanSources(sources, known).sites)) == "" {
 		t.Fatal("losing the converted family's sites passed the ratchet")
 	}

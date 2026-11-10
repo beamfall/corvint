@@ -40,7 +40,7 @@ func TestAnalyzerNativeDispatch(t *testing.T) {
 // ACX-V0-9301: a native preamble refusal must have untouched streams.
 func TestNativeHelpPreambleDoesNotWrite(t *testing.T) {
 	var out, errout bytes.Buffer
-	code, handled := Answer("corvint-gateway", []string{"--root", ".", "serve", "--help"}, &out, &errout)
+	code, handled := Answer("corvint-go-test-provider", []string{"--dir", ".", "test-run", "--help"}, &out, &errout)
 	if code != 0 || handled || out.Len() != 0 || errout.Len() != 0 {
 		t.Fatalf("code=%d handled=%v stdout=%q stderr=%q", code, handled, out.String(), errout.String())
 	}
@@ -48,9 +48,9 @@ func TestNativeHelpPreambleDoesNotWrite(t *testing.T) {
 
 // CAP-V0-9300: emitting the exact-node synopsis also completes dispatch.
 func TestNativeNodeHelpFullyHandled(t *testing.T) {
-	for _, args := range [][]string{{"serve", "--help"}, {"serve", "-h"}} {
+	for _, args := range [][]string{{"test-run", "--help"}, {"test-run", "-h"}} {
 		var out, errout bytes.Buffer
-		code, handled := Answer("corvint-gateway", args, &out, &errout)
+		code, handled := Answer("corvint-go-test-provider", args, &out, &errout)
 		if code != 0 || !handled || out.Len() == 0 || errout.Len() != 0 {
 			t.Fatalf("%v: code=%d handled=%v stdout=%q stderr=%q", args, code, handled, out.String(), errout.String())
 		}

@@ -19,7 +19,7 @@ narrowing in TCN-V0-016.
 ## Agent digest
 - Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
 - Status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031); experimental. GitHub #681 is the V0 request. Acceptance settles intent only.
-- Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..016 each have passing focused tests (Deterministic acceptance and traceability).
+- Exists: `internal/testplan` and `corvint test-plan consolidate|check`; the `corvint-corpus-mcp` tool `corvint.consolidate_tests` was removed by decision 0594; TCN-V0-001..016 each have passing focused tests (Deterministic acceptance and traceability).
 - Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is synthetic-only in V0 (TCN-V0-016).
 - Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.
 
@@ -237,7 +237,7 @@ requirements TCN-V0-013..016 are accepted under the owner's standing auto-accept
   `test-plan-header-missing` when FILE has no header or more than one; it exits 2 for invalid
   arguments or input. Its `max-steps` and the header's MUST agree, and an edited, reordered, added
   or dropped row MUST fail. (accepted (decision 0457; V1-1023))
-- `TCN-V0-012`: When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
+- `TCN-V0-012`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
   non-destructive, closed-world tool `corvint.consolidate_tests` on `corvint-corpus-mcp`, listed
   only when that server is started with `--consolidation`; `corvint-mcp` and its frozen MCP
   2026-07-28 V0 tool set MUST NOT change. The tool takes the input document inline (at most
@@ -407,7 +407,7 @@ Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/co
 | TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestConsoleQualificationGolden` (the repository qualification below: counts and status), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
 | TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above), `TestConsoleQualificationGolden` (`testdata/console-qualification.table`, digest-pinned and checked against its own plan). |
 | TCN-V0-011 | `TestCheck` (exact table inside Markdown; edited, reordered, added, dropped and changed rows; edited header; missing and doubled header; max-steps, revision and map disagreement; `INCOMPLETE`), `TestTestPlanCheckExitCodes`. |
-| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
+| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (removed) (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
 | TCN-V0-013 | `TestStepFactsNeverConflictOrOrder` (different values of one step-fact key share a test; no edge from a `changes` fact to a step fact; table and JSON equal the plan without step facts apart from `input_digest`, the header and `table_digest`; the same values as `requires` read `conflicting-state`), `TestStepFactsDecoding` (absent equals empty, sorted set, canonical member, every refusal and bound), `TestInputOrderDoesNotChangeOutput` (step facts permuted). |
 | TCN-V0-014 | `TestStepFactKeyAlsoRequiredRefuses` (equal and different values refuse; the key across variations is valid). |
 | TCN-V0-015 | `TestStepFactsInDuplicateKey` (differing step facts are not duplicates; equal, absent and empty ones class), `TestStepFactsSplitDuplicateChangesPlan` (a step fact on one of two identical variations turns a duplicate into a planned variation; the plan changes beyond its digests). |

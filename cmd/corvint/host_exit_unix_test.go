@@ -39,6 +39,16 @@ func TestAHI049ExitProcessKillsProcgroupGroup(t *testing.T) {
 	requireExitProcessKillsHelperChildren(t, "^TestAHI049ExitProcessProcgroupHelper$", exitKillProcgroupEnvironment+"="+pids)
 }
 
+// failOpenAlive reports whether pid still names a live process.
+func failOpenAlive(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	defer process.Release()
+	return process.Signal(syscall.Signal(0)) == nil
+}
+
 func requireExitProcessKillsHelperChildren(t *testing.T, run, environment string) {
 	t.Helper()
 	helper := exec.Command(os.Args[0], "-test.run="+run)

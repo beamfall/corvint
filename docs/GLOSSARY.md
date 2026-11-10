@@ -43,16 +43,16 @@ The following was checked against the working tree on branch `integration/go-mig
   are the 2026-08-29 technology review (not tracked in this repository), which records the absence, and
   `docs/TECHNICAL-BRAIN.md:153@b20ddc29`, which names a checked-in glossary as an admission precondition that
   nothing satisfies.
-- `authorityClass` is declared with five disjoint value sets across five owners
-  (`internal/dashboard/model/types.go:40-46@9d0ecd1e`, `internal/mcp/bridge/bridge.go:1113@982aa756`,
-  `docs/specs/change-frontier-v0.md:249@1e1231f8`, `internal/lrf/types.go:12@fc816169`,
-  `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a sixth single-value constraint in
+- `authorityClass` is declared with four disjoint value sets across four owners
+  (`internal/dashboard/model/types.go` lines 40-46 at 4663b4e2, `internal/mcp/bridge/bridge.go:626@982aa756`,
+  `docs/specs/change-frontier-v0.md:244@1e1231f8`,
+  `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a fifth single-value constraint in
   `docs/tcq-0.schema.json:125@49b495d9`.
 - A total order over `authorityClass` is declared exactly once, at
-  `docs/specs/local-observability-dashboard-v0.md:85@186c53c1`, and covers only the seven dashboard values.
+  `docs/specs/local-observability-dashboard-v0.md:89@186c53c1`, and covers only the seven dashboard values.
   No other surface's values are placed in it.
-- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:129-134@c09c41e2`, which
-  names four of the five sets and requires "one ordered lattice, one casing, one owner — before the
+- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:119-124@99f479e4`, which
+  names three of the four sets and requires "one ordered lattice, one casing, one owner — before the
   adapter, not after". This document is the response to that requirement.
 - `frontier` is used at three different scopes without a qualifier that distinguishes them
   (`docs/PRODUCT.md:13@9692debb`, `docs/ARCHITECTURE.md:82@311e28e5`, `docs/ARCHITECTURE.md:198@16bd8a01`).
@@ -68,18 +68,18 @@ currently declares a variant of it.
 independent of whether the value was observed, whether it is complete, and whether it is current.
 It never states that a proposition is true.
 
-**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` supplies the definition and
-the only declared ordering (`:85@186c53c1`). *Proposal:* ownership of the axis moves to this file, and the
+**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:84@4b5e015c` supplies the definition and
+the only declared ordering (`:89@186c53c1`). *Proposal:* ownership of the axis moves to this file, and the
 dashboard spec cites it.
 
 **Declared variants.**
 
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
-| Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go:40-46@9d0ecd1e`; `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` |
-| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:260@f4047e06` |
-| Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:249@1e1231f8` |
-| Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12@fc816169`; `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:268,270@1875648f` |
+| Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go` lines 40-46 at 4663b4e2; `docs/specs/local-observability-dashboard-v0.md:84@4b5e015c` |
+| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE`, `CORVINT_BINARY` (`corvint.help` only, `MCPV0-100`) | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:626@982aa756`; `docs/specs/mcp-server-2026-07-28-v0.md:260@f4047e06` |
+| Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:244@1e1231f8` |
+| Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:272,274@1875648f` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:389,285@8b000654` |
 | Test Claim Qualification | `CALLER_REPORTED` (schema `const`) | SCREAMING_SNAKE | `docs/tcq-0.schema.json:125@49b495d9`; `docs/specs/test-claim-qualification-v0.md:43@1e6cb0de` |
 
@@ -92,18 +92,18 @@ every other set.
 **Normative definition.** Whether a value was measured, copied from a declaration, derived from
 non-authoritative evidence, or is unavailable. Independent of authority.
 
-**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:79@4c15b452`.
+**Owning contract.** `docs/specs/local-observability-dashboard-v0.md:83@4c15b452`.
 
 **Declared variants.** `OBSERVED`, `DECLARED`, `ADVISORY`, `NOT_OBSERVED`
-(`internal/dashboard/model/types.go:31-34@36ca6aad`). The MCP bridge admits only the two-value subset
-`OBSERVED`, `NOT_OBSERVED` (`internal/mcp/bridge/bridge.go:1112@85072359`). The subset is a restriction, not
+(`internal/dashboard/model/types.go` lines 31-34 at 4663b4e2). The MCP bridge admits only the two-value subset
+`OBSERVED`, `NOT_OBSERVED` (`internal/mcp/bridge/bridge.go:625@85072359`). The subset is a restriction, not
 a divergence: both members carry the dashboard meaning.
 
 ### `ADVISORY`
 
 **Current state, unresolved.** The token `ADVISORY` is a member of two different axes in the same
-table: `epistemicClass` at `docs/specs/local-observability-dashboard-v0.md:79@4c15b452` and `authorityClass`
-at `:80@4b5e015c`. `docs/specs/local-observability-dashboard-v0.md:86-87@3068dd84` uses both in one sentence — a
+table: `epistemicClass` at `docs/specs/local-observability-dashboard-v0.md:83@4c15b452` and `authorityClass`
+at `:84@4b5e015c`. `docs/specs/local-observability-dashboard-v0.md:90-91@3068dd84` uses both in one sentence — a
 proposed repository declaration is `DECLARED` with authority `ADVISORY`.
 
 This file does not resolve the collision, because renaming a shipped enum member is the owning
@@ -116,7 +116,7 @@ An unqualified `ADVISORY` in prose is a defect in that prose.
 **Normative definition.** A bounded, valid, non-error result stating that the profile declined to
 produce a witness or a closing relation for a named subject, together with the exact reason. An
 abstention is a result, never a missing field and never a failure
-(`docs/MCP-SERVER.md:110-111@a1ba8f57`).
+(`docs/MCP-SERVER.md:109-110@a1ba8f57`).
 
 **Owning contract.** *Proposal:* none exists; each profile names its own field. This file is the
 cross-profile definition and the following table is the mapping between the field names.
@@ -125,26 +125,26 @@ cross-profile definition and the following table is the mapping between the fiel
 
 | Surface | Field | Values | Citation |
 |---|---|---|---|
-| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1111@e32959ff`; `docs/MCP-SERVER.md:155@84842141` |
-| LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:268,271@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
+| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:624@e32959ff`; `docs/MCP-SERVER.md:154@84842141` |
+| LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:272,275@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
 | TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:135@b607a27b` |
 | TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:136@902d0f8a` |
 
 LRF is the only surface that distinguishes **abstained** from **rejected**, and the distinction is
 normative for the whole vocabulary: `abstained` means the inputs could not be evaluated and the
-subject stays unknown (`docs/specs/lexical-relevance-floor-v0.md:65-67@781e744f`); `rejected` means the
-inputs were evaluable and did not meet the floor (`:68@1522c636`). *Proposal:* every profile that today has
+subject stays unknown (`docs/specs/lexical-relevance-floor-v0.md:69-71@781e744f`); `rejected` means the
+inputs were evaluable and did not meet the floor (`:72@1522c636`). *Proposal:* every profile that today has
 only a two-value abstention field states which of the two LRF senses its `ABSTAINED` carries, or
-splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:113-115@4dcf1137`).
+splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:112-114@4dcf1137`).
 
 ### `NONE`
 
 **Normative definition.** Absence of any authority root. It is a value of the `authorityClass` axis
 only. It is legal only alongside an active abstention: the MCP bridge rejects any result that pairs
-`NONE` with a non-abstaining state (`internal/mcp/bridge/bridge.go:1119-1126@e542140b`).
+`NONE` with a non-abstaining state (`internal/mcp/bridge/bridge.go:632-639@e542140b`).
 
-**Declared variants.** `internal/dashboard/model/types.go:46@9b49e16a`;
-`internal/mcp/bridge/bridge.go:1113@982aa756`; `docs/specs/change-frontier-v0.md:249@1e1231f8`.
+**Declared variants.** `internal/dashboard/model/types.go` line 46 at 4663b4e2;
+`internal/mcp/bridge/bridge.go:626@982aa756`; `docs/specs/change-frontier-v0.md:244@1e1231f8`.
 
 ### `UNKNOWN`
 
@@ -154,9 +154,9 @@ result and MUST never be converted into `cannot happen` (`docs/ARCHITECTURE.md:2
 
 **Declared variants.** As a proposition verdict alongside `PROVED`, `REFUTED`, `CONFLICTED`
 (`docs/ARCHITECTURE.md:85@d7e7f51a`). As a `completeness` value meaning the denominator is not closed over
-the cohort (`docs/specs/local-observability-dashboard-v0.md:81@c6ea8ee8`;
-`internal/dashboard/model/types.go:52-56@d3bbd1ac`). As a `currency` value
-(`docs/specs/local-observability-dashboard-v0.md:82@fb4bf96f`).
+the cohort (`docs/specs/local-observability-dashboard-v0.md:85@c6ea8ee8`;
+`internal/dashboard/model/types.go` lines 52-56 at 4663b4e2). As a `currency` value
+(`docs/specs/local-observability-dashboard-v0.md:86@fb4bf96f`).
 
 *Current state, unresolved:* the proposition-verdict `UNKNOWN` and the completeness `UNKNOWN` are
 different axes carrying the same token, the same collision as `ADVISORY`. The same reading rule
@@ -167,10 +167,9 @@ applies: name the axis.
 **Normative definition.** The value was not measured. It is a value of the `epistemicClass` axis.
 It is distinct from a measured zero: missing, invalid, inaccessible, unsupported, disabled,
 expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, never zero
-(`docs/specs/local-observability-dashboard-v0.md:91-93@62f9e105`).
+(`docs/specs/local-observability-dashboard-v0.md:95-97@62f9e105`).
 
-**Declared variants.** `internal/dashboard/model/types.go:34@7bc4de6c`;
-`internal/mcp/bridge/bridge.go:955,1112@1e3552e5`.
+**Declared variants.** `internal/dashboard/model/types.go` line 34 at 4663b4e2.
 
 ### `NOT_RUN`
 
@@ -180,11 +179,11 @@ evidence stays visible and is never converted into a pass
 (`docs/SPEC-DRIVEN-DEVELOPMENT.md:199@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
-state (`docs/specs/README.md:14,15,21,24,36,44,46@e327133c`;
+state (`docs/specs/README.md:14,15,21,44,46@9d64977b`;
 `docs/specs/analyzer-candidate-profiles.md:444@57f8e367`;
 `docs/specs/analyzer-candidate-profiles.md:542@6424bf91`). It is also used once for a metric denominator
 — a zero positive denominator is `NOT_RUN`
-(`docs/specs/lexical-relevance-floor-v0.md:815@4b3d7316`) — which is the receipt sense this definition
+(`docs/specs/lexical-relevance-floor-v0.md:819@4b3d7316`) — which is the receipt sense this definition
 excludes. *Proposal:* that one use adopts `completeness: UNKNOWN` instead.
 
 ### `UNAVAILABLE`
@@ -193,7 +192,7 @@ excludes. *Proposal:* that one use adopts `completeness: UNKNOWN` instead.
 this revision, so it produces no result and cannot block. Distinct from `NOT_OBSERVED` (which is a
 measurement outcome) and from `NOT_RUN` (which is delivery evidence).
 
-**Declared variants.** `docs/specs/agent-harness-integration-v0.md:71@ab0adf38` — until a separately accepted
+**Declared variants.** `docs/specs/agent-harness-integration-v0.md:73@ab0adf38` — until a separately accepted
 closing authority exists, `stop` returns `frontier.state: UNAVAILABLE` with
 `shouldContinue: false`. `docs/specs/analyzer-candidate-profiles.md:68@e7dc63fe` and
 `docs/specs/analyzer-candidate-profiles.md:234@88e7795c` use the compound
@@ -202,12 +201,12 @@ closing authority exists, `stop` returns `frontier.state: UNAVAILABLE` with
 ### `CALLER_REPORTED`
 
 **Normative definition.** Integrity-bound caller input without an independent execution authority
-root (`docs/specs/change-frontier-v0.md:76@7d410827`). It is evidence for review and is mechanically
+root (`docs/specs/change-frontier-v0.md:71@7d410827`). It is evidence for review and is mechanically
 non-closing: it cannot remove a frontier item
 (`docs/specs/test-claim-qualification-v0.md:43@1e6cb0de`; `docs/TEST-CLAIM-QUALIFICATION.md:16@65656d2d`).
 
-**Declared variants.** `internal/dashboard/model/types.go:44@12f467c0`;
-`docs/specs/change-frontier-v0.md:249@1e1231f8`; `docs/tcq-0.schema.json:125@49b495d9`;
+**Declared variants.** `internal/dashboard/model/types.go` line 44 at 4663b4e2;
+`docs/specs/change-frontier-v0.md:244@1e1231f8`; `docs/tcq-0.schema.json:125@49b495d9`;
 `docs/specs/verification-planner-observer-v0.md:285@14fac67d`. The four agree; this term is not in drift.
 
 ### `PRODUCER_DECLARED`
@@ -217,9 +216,9 @@ evaluation of admitted inputs, with no independent verifier or execution root co
 stronger than caller input, because the producer is a Corvint profile bound to a frozen contract, and
 weaker than an owning verifier, because nothing outside the producer checked it.
 
-**Declared variants.** `docs/specs/change-frontier-v0.md:171,184,188,191,249@0521a43b` (SCREAMING_SNAKE);
-`internal/lrf/types.go:12@fc816169`, `docs/lrf-0.schema.json:65,69@4aafd5d4`,
-`docs/specs/lexical-relevance-floor-v0.md:268,270@1875648f` (lowercase-kebab `producer-declared`). Same
+**Declared variants.** `docs/specs/change-frontier-v0.md:166,179,183,186,244@0521a43b` (SCREAMING_SNAKE);
+`docs/lrf-0.schema.json:65,69@4aafd5d4`,
+`docs/specs/lexical-relevance-floor-v0.md:272,274@1875648f` (lowercase-kebab `producer-declared`). Same
 concept, two casings.
 
 ### `CORVINT_PROCESS_OBSERVED`
@@ -240,10 +239,10 @@ replacement encoding.
 
 **Normative definition.** One independently supplied expected base and target, their canonical CEM
 0.2 patch and exclusion, and one exact OCM intent scope
-(`docs/specs/change-frontier-v0.md:64-65@a4f27a11`). Every absence claim Corvint makes is bounded by exactly
+(`docs/specs/change-frontier-v0.md:59-60@a4f27a11`). Every absence claim Corvint makes is bounded by exactly
 one declared universe.
 
-**Owning contract.** `docs/specs/change-frontier-v0.md:64-65@a4f27a11`. The analogous construct at repository
+**Owning contract.** `docs/specs/change-frontier-v0.md:59-60@a4f27a11`. The analogous construct at repository
 scope is the negative-scope certificate (`docs/ARCHITECTURE.md:79-82@32dad176`), which pins revision, roots,
 file classes, adapters, query semantics, exclusions, budgets, and unsupported surfaces.
 
@@ -251,16 +250,16 @@ file classes, adapters, query semantics, exclusions, budgets, and unsupported su
 
 **Normative definition.** The bounded result that no qualifying relation was accepted for one named
 obligation from the declared, verified inputs
-(`docs/specs/change-frontier-v0.md:70-71@dd7619ea`). It proves only `no qualifying witness found in this
+(`docs/specs/change-frontier-v0.md:65-66@dd7619ea`). It proves only `no qualifying witness found in this
 declared universe`; it never proves a global non-capability (`docs/ARCHITECTURE.md:81-82@f602cd65`).
 
 ### `qualifying relation`
 
 **Normative definition.** A relation that the owning profile explicitly permits to remove its exact
-frontier item (`docs/specs/change-frontier-v0.md:68-69@3d3ca52a`). Whether a relation qualifies is a property
+frontier item (`docs/specs/change-frontier-v0.md:63-64@3d3ca52a`). Whether a relation qualifies is a property
 of the owning profile, not of the relation's authority: TCQ's `test-report-matched-v0` is
 explicitly non-closing under default frontier policy despite being a real observation
-(`docs/specs/change-frontier-v0.md:57-58@71744d6d`).
+(`docs/specs/change-frontier-v0.md:52-53@71744d6d`).
 
 ### `frontier`
 
@@ -282,7 +281,7 @@ Ranks are ordinal labels spaced by ten so a future member can be inserted withou
 | Rank | Value | Authority root |
 |---:|---|---|
 | 70 | `REPOSITORY_ACCEPTED` | The repository accepted the declaration at that revision: a merged specification, decision, policy, or owner record with the declared status and scope. |
-| 60 | `OWNING_VERIFIER` | The exact verifier that owns the artifact validated it, and it passed. A failed owning verifier does not lower the class; it makes the source `INVALID` (`docs/specs/local-observability-dashboard-v0.md:87@9f0d5ee6`). |
+| 60 | `OWNING_VERIFIER` | The exact verifier that owns the artifact validated it, and it passed. A failed owning verifier does not lower the class; it makes the source `INVALID` (`docs/specs/local-observability-dashboard-v0.md:91@9f0d5ee6`). |
 | 50 | `PROVIDER_QUALIFIED` | A qualified execution or evidence provider, identified and admitted under its own profile, attested the value. |
 | 40 | `ADAPTER_QUALIFIED` | A registered, compiled Corvint adapter produced the value from admitted bytes. |
 | 30 | `PRODUCER_DECLARED` | The producing Corvint profile declared it from its own deterministic evaluation, with no independent root. |
@@ -291,9 +290,9 @@ Ranks are ordinal labels spaced by ten so a future member can be inserted withou
 | 0 | `NONE` | No authority root. Legal only alongside an active abstention. |
 
 Ranks 70–40, 20, 10, and 0 are the dashboard set unchanged
-(`docs/specs/local-observability-dashboard-v0.md:80@4b5e015c`) in its declared order (`:85@186c53c1`). Rank 30 is the
-single new member, admitted because `PRODUCER_DECLARED` is already shipped in two profiles
-(`docs/specs/change-frontier-v0.md:249@1e1231f8`; `internal/lrf/types.go:12@fc816169`) and has no dashboard
+(`docs/specs/local-observability-dashboard-v0.md:84@4b5e015c`) in its declared order (`:89@186c53c1`). Rank 30 is the
+single new member, admitted because `PRODUCER_DECLARED` is already shipped in a profile
+(`docs/specs/change-frontier-v0.md:244@1e1231f8`) and has no dashboard
 equivalent.
 
 ## Proposed `authorityClass` migration
@@ -310,19 +309,19 @@ equivalent.
 | `ADVISORY` | dashboard | `ADVISORY` | 10 | Identity. Axis must be named at every use; see [`ADVISORY`](#advisory). |
 | `NONE` | dashboard, MCP, frontier | `NONE` | 0 | Identity; all three already agree. |
 | `PRODUCER_DECLARED` | frontier | `PRODUCER_DECLARED` | 30 | Identity. |
-| `producer-declared` | LRF | `PRODUCER_DECLARED` | 30 | Casing normalisation only. The LRF definition — a producer-evaluated edge that witnesses only a typed lexical relation and never closes an obligation (`docs/specs/lexical-relevance-floor-v0.md:293-294@a07f1d99`) — is exactly rank 30. |
+| `producer-declared` | LRF | `PRODUCER_DECLARED` | 30 | Casing normalisation only. The LRF definition — a producer-evaluated edge that witnesses only a typed lexical relation and never closes an obligation (`docs/specs/lexical-relevance-floor-v0.md:297-298@a07f1d99`) — is exactly rank 30. |
 | `GIT_REPOSITORY` | MCP | `OWNING_VERIFIER` | 60 | The authority root is Git's content-addressed object store, read directly by Corvint. That store is the exact verifier that owns repository identity and revision facts, and it validated them. It is **not** `REPOSITORY_ACCEPTED`: nothing about a revision hash is an accepted declaration, and mapping it to rank 70 would let a commit SHA outrank an accepted specification. |
-| `REPOSITORY_EVIDENCE` | MCP | `ADAPTER_QUALIFIED` | 40 | The value is compiled by Corvint analyzers and adapters from repository bytes at a pinned revision. The receipt binding that the bridge enforces (`internal/mcp/bridge/bridge.go:1165@fdac9c05`) proves revision binding, not that each cited artifact's own owning verifier ran. Rank 40 is the honest floor. The name's resemblance to `REPOSITORY_ACCEPTED` is a false cognate and must not drive the mapping. |
+| `REPOSITORY_EVIDENCE` | MCP | `ADAPTER_QUALIFIED` | 40 | The value is compiled by Corvint analyzers and adapters from repository bytes at a pinned revision. The receipt binding that the bridge enforces (`internal/mcp/bridge/bridge.go:678@fdac9c05`) proves revision binding, not that each cited artifact's own owning verifier ran. Rank 40 is the honest floor. The name's resemblance to `REPOSITORY_ACCEPTED` is a false cognate and must not drive the mapping. |
 | `CORVINT_BINARY` | MCP | not mapped | — | Added by `MCPV0-100` for `corvint.help` only: the value is the running binary's own embedded command catalog or guide, with no repository binding. It is evidence about Corvint, not about the repository, so no rank above is honest without its own decision. |
 | `CORVINT_PROCESS_OBSERVED` | VPO | `ADAPTER_QUALIFIED` (retire the token) | 40 | See below. |
 
 **`CORVINT_PROCESS_OBSERVED` — retire.** The token names an *observation mechanism*, not an authority
 root, so it sits on the wrong axis. Its content is already carried by two other axes that the
 dashboard contract requires to stay independent: `epistemicClass: OBSERVED`
-(`docs/specs/local-observability-dashboard-v0.md:79@4c15b452`) and the profile's own `containmentClass`
+(`docs/specs/local-observability-dashboard-v0.md:83@4c15b452`) and the profile's own `containmentClass`
 (`docs/specs/verification-planner-observer-v0.md:392@a56726cd`). Keeping it as an `authorityClass` value
 collapses epistemic class into authority, which
-`docs/specs/local-observability-dashboard-v0.md:73-74@8d0948b1` forbids in exactly those words. On the authority
+`docs/specs/local-observability-dashboard-v0.md:77-78@8d0948b1` forbids in exactly those words. On the authority
 axis a VPO observation is the output of Corvint's own compiled process observer, which is rank 40; it
 can never be rank 50, because VPO-V0-028 places `PROVIDER_UNQUALIFIED` permanently in that profile's
 unknown set (`docs/specs/verification-planner-observer-v0.md:448@84be3668`) and VPO-V0-029 explicitly
@@ -330,7 +329,7 @@ disclaims provider qualification (`:454-456@73351cde`).
 
 **Ordering safety.** No mapping above inverts an ordering that any surface declares today. The MCP
 bridge never compares `GIT_REPOSITORY` against `REPOSITORY_EVIDENCE`: each is a per-tool constant
-(`internal/mcp/bridge/bridge.go:878,931@b42bcbe6`). The dashboard order is preserved exactly. The only newly
+(`internal/mcp/bridge/bridge.go:436,484@b42bcbe6`). The dashboard order is preserved exactly. The only newly
 declared relations are those involving rank 30, which no surface previously ordered.
 
 ## Proposed comparison rules
@@ -347,23 +346,23 @@ declared relations are those involving rank 30, which no surface previously orde
    only legal operations. Differences, sums, averages, and ratios of ranks have no meaning and MUST
    NOT be computed.
 4. **Derivation takes the weakest contributor.** A value derived from several sources carries the
-   minimum rank among them (`docs/specs/local-observability-dashboard-v0.md:85-86@525946a0`).
+   minimum rank among them (`docs/specs/local-observability-dashboard-v0.md:89-90@525946a0`).
 5. **Cross-axis comparison is illegal.** `authorityClass` MUST NOT be compared against, substituted
    for, or collapsed into `epistemicClass`, `validity`, `completeness`, `currency`, or
-   `deliveryStage` (`docs/specs/local-observability-dashboard-v0.md:73-74@8d0948b1`). A token that appears on
+   `deliveryStage` (`docs/specs/local-observability-dashboard-v0.md:77-78@8d0948b1`). A token that appears on
    two axes — `ADVISORY`, `UNKNOWN` — is two different values and the axis must be named.
 6. **Rank is not a verdict.** A higher rank never means a proposition is true
    (`docs/ARCHITECTURE.md:87@1bb66862`), never means a test passed, and never confers merge permission; see
    [`mergeAuthority`](#mergeauthority).
 7. **Rank does not confer closure.** Whether a relation may remove a frontier item is decided by the
-   owning profile, not by rank (`docs/specs/change-frontier-v0.md:68-69@3d3ca52a`). A rank-60 relation that
+   owning profile, not by rank (`docs/specs/change-frontier-v0.md:63-64@3d3ca52a`). A rank-60 relation that
    its profile declares non-closing still leaves the item open.
 8. **Cross-universe comparison is illegal.** Two values bounded by different declared universes
-   (`docs/specs/change-frontier-v0.md:64-65@a4f27a11`) or different negative-scope certificates
+   (`docs/specs/change-frontier-v0.md:59-60@a4f27a11`) or different negative-scope certificates
    (`docs/ARCHITECTURE.md:79-82@32dad176`) describe different questions and MUST NOT be ordered against each
    other. Normalisation makes values commensurable in vocabulary, not in scope.
 9. **`NONE` requires an abstention.** Emitting rank 0 alongside a non-abstaining state is invalid
-   (`internal/mcp/bridge/bridge.go:1119-1126@e542140b`).
+   (`internal/mcp/bridge/bridge.go:632-639@e542140b`).
 
 ## Frontier disambiguation
 
@@ -372,7 +371,7 @@ declared relations are those involving rank 30, which no surface previously orde
 | Scope | Meaning as used | Citation |
 |---|---|---|
 | One query | The bounded set of unknowns returned with a single abstaining answer: "abstain with a precise unknown frontier". | `docs/PRODUCT.md:13@9692debb`; `docs/PRODUCT.md:235@561d2fb4` |
-| One change / one certificate | The unresolved obligations of one exact change in one declared universe (`frontier/0`, `corvint frontier`), and the complement of one negative-scope certificate's declared universe: "Anything outside the certificate remains in the unknown frontier". | `docs/specs/change-frontier-v0.md:64-67@1732b465`; `docs/PRODUCT.md:24,50@7d7df2e3`; `docs/ARCHITECTURE.md:82@311e28e5` |
+| One change / one certificate | The unresolved obligations of one exact change in one declared universe (`frontier/0`, `corvint frontier`), and the complement of one negative-scope certificate's declared universe: "Anything outside the certificate remains in the unknown frontier". | `docs/specs/change-frontier-v0.md:59-62@1732b465`; `docs/PRODUCT.md:24,50@7d7df2e3`; `docs/ARCHITECTURE.md:82@311e28e5` |
 | One repository | The standing set of reachable code, declared behavior, acceptance criteria, and changed surfaces for which no applicable proving claim exists. | `docs/ARCHITECTURE.md:198-201@81982dba`; `docs/ARCHITECTURE.md:180@84754ee9` ("known frontier") |
 
 The first two are enumerable and bounded by exactly one declared input. The third is a standing
@@ -393,7 +392,7 @@ residue.
   same shape at certificate rather than change scope.
 - **repository unknown frontier** — the standing residue at `docs/ARCHITECTURE.md:198@16bd8a01`. Reserved
   also for the programme name.
-- `empty frontier` and `open frontier` (`docs/specs/change-frontier-v0.md:72-73@c8d10480`) are properties of
+- `empty frontier` and `open frontier` (`docs/specs/change-frontier-v0.md:67-68@c8d10480`) are properties of
   a change frontier result only, and stay unqualified because they are already scoped by it.
 - The qualifier is part of the term, not decoration: a document that cannot name the scope of a
   frontier it is describing has not determined which one it means.

@@ -16,5 +16,5 @@ evidence. State that the output is inferred guidance: change evidence, test obli
 by a person remain open. Show missing sources and index gaps as unknowns.
 
 Other Corvint capabilities: `corvint help` lists every command, and the catalog at
-https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
-MCP tool with its maturity and refusals.
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command and binary with
+its maturity and refusals.

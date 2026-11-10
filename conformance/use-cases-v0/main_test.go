@@ -239,7 +239,7 @@ func testUCV0ProfileMigration(t *testing.T) {
 	// The canonical ledger validates in the repository tree, where its receipts live (decision 0373).
 	tree := validate("../..", "conformance/use-cases-v0/ledger.json")
 	// V1-0011 promoted the three Core rows; V1-0341 (UCV0-014/015) returned consequence and completion to experimental.
-	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 21 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 1 {
+	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 22 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 0 {
 		t.Fatal(tree)
 	}
 	current := newFixture(t)

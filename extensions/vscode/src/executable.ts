@@ -146,11 +146,7 @@ export async function revalidatePin(pin: ExecutablePin): Promise<boolean> {
   }
 }
 
-export function fixedArguments(_cliKind: CliKind, operation: "query" | "impact", root: string, value: string | readonly string[]): string[] {
-  if (operation === "query") {
-    if (typeof value !== "string") throw new Error("CLI_FAILED: invalid query input");
-    return ["--root", root, "query", "--task", value, "--limit", "1"];
-  }
+export function fixedArguments(_cliKind: CliKind, _operation: "impact", root: string, value: string | readonly string[]): string[] {
   if (typeof value === "string" || value.length < 1 || value.length > 256) {
     throw new Error("PATH_REJECTED: impact requires bounded repository-relative paths");
   }

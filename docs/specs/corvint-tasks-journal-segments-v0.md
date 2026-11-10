@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-20
-Intent status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850); JSG-V0-020..021 accepted under the same standing auto-accept (V1-2204, V1-2278)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: decision 0549 (`docs/decisions/0549-tasks-lease-write-performance-design-2026-10-20.md`),
 which records the measurements, targets T1 to T3 and forks F1 to F3; the owner's 2026-10-20 ruling
 that performance issues are 1.0 work; the writer route, checkpoint and resume contracts of
@@ -15,7 +17,7 @@ contract is at its obligation bound, so this domain spec holds the new requireme
 
 ## Agent digest
 - Claim: Lease writes stop reading intent and whole history: the journal seals 512-receipt segments, so each write is bounded by the active segment.
-- Status: JSG-V0-001..014 accepted by the orchestrator under decision 0548's delegation and the owner's standing auto-accept (2026-10-11) (decision 0549; V1-0887, V1-1512); JSG-V0-015 accepted under the same standing auto-accept (V1-0850); JSG-V0-020..021 accepted under the same standing auto-accept (V1-2204, V1-2278) / experimental; slices S1 to S7 land in order on the tasks-perf lane.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the decision 0549 profile and spike; the CAL-V0-224 interim probe that JSG-V0-007 retires.
 - Blocked on: nothing; the format gate (Acceptance evidence) must pass before INIT creates a segmented store by default.
 - Read next: Requirements; Failure modes; Compatibility and rollback; Traceability.

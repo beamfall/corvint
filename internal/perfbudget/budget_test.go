@@ -45,7 +45,9 @@ func sharedHarnessBinaries(t *testing.T) map[string]string {
 			return
 		}
 		harnessBinaries.paths = make(map[string]string)
-		for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
+		// corvint docs is served by the corvint-docs executable beside corvint, so the
+		// fixture build needs both.
+		for _, pkg := range []string{"corvint", "corvint-docs"} {
 			path := filepath.Join(harnessBinaries.root, testplatform.Executable(pkg))
 			build := exec.Command("go", "build", "-o", path, "../../cmd/"+pkg)
 			if out, err := build.CombinedOutput(); err != nil {
@@ -80,11 +82,9 @@ func TestPRBV0031CommittedBudgets(t *testing.T) {
 		pendingOn string
 		profile   string
 	}{
-		"cli-cold-read":  {1000, "GH #1598", ProfileExperimental},
-		"cli-warm-read":  {200, "GH #1598", ProfileExperimental},
-		"mcp-first-call": {1000, "GH #1598", ProfileExperimental},
-		"mcp-warm-call":  {100, "GH #1598", ProfileExperimental},
-		"affected-path":  {1000, "GH #1601", ProfileCore},
+		"cli-cold-read": {1000, "GH #1598", ProfileExperimental},
+		"cli-warm-read": {200, "GH #1598", ProfileExperimental},
+		"affected-path": {1000, "GH #1601", ProfileCore},
 	}
 	for _, s := range b.Scenarios {
 		target, hasTarget := want[s.ID]
@@ -189,7 +189,7 @@ func TestPRBV0050UnchangedDeltaBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ScenarioIDs[6] != "unchanged-delta" || !slices.Equal(ScenarioIDs[:6], []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path"}) {
+	if ScenarioIDs[4] != "unchanged-delta" || !slices.Equal(ScenarioIDs[:4], []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path"}) {
 		t.Fatalf("scenario order %v", ScenarioIDs)
 	}
 	var budget ScenarioBudget
@@ -349,11 +349,11 @@ func TestPRBV0034EvaluateVerdicts(t *testing.T) {
 	}
 	unobserved := measuredAll(50)
 	unobserved[2].PeakRSSBytes, unobserved[2].RSSUnknown = nil, "NOT_OBSERVED"
-	if checks, ok = Evaluate(b, unobserved); ok || verdicts(checks, "mcp-first-call", "ceiling", MetricPeakRSS) != VerdictUnknown {
+	if checks, ok = Evaluate(b, unobserved); ok || verdicts(checks, "full-delta", "ceiling", MetricPeakRSS) != VerdictUnknown {
 		t.Fatal("unobserved enforced metric did not fail closed")
 	}
 	failed := measuredAll(50)
-	failed[4] = ScenarioMeasured{ID: "full-delta", Error: "corpus-refused"}
+	failed[2] = ScenarioMeasured{ID: "full-delta", Error: "corpus-refused"}
 	if checks, ok = Evaluate(b, failed); ok || verdicts(checks, "full-delta", "ceiling", MetricP95Wall) != VerdictUnknown || verdicts(checks, "full-delta", "target", MetricP95Wall) != VerdictPendingUnknown {
 		t.Fatal("failed scenario did not fail the run")
 	}
@@ -423,7 +423,7 @@ func TestPRBV0039ContentionWithholdsJudgement(t *testing.T) {
 	}
 	contended := host([]float64{8, 1, 1}, []float64{8, 1, 1}, "")
 	failed := measured(50)
-	failed[4] = ScenarioMeasured{ID: "full-delta", Error: "corpus-refused"}
+	failed[2] = ScenarioMeasured{ID: "full-delta", Error: "corpus-refused"}
 	checks, verdict, reason := Judge(b, contended, failed)
 	if verdict != RunFail || !strings.HasPrefix(reason, "host contended") {
 		t.Fatalf("a failed scenario on a contended host was %s (%q), want FAIL with the reason kept", verdict, reason)
@@ -443,7 +443,7 @@ func TestPRBV0039ContentionWithholdsJudgement(t *testing.T) {
 		t.Fatalf("an unobserved enforced metric on a contended host was %s, want FAIL", verdict)
 	}
 	for _, c := range checks {
-		if c.Scenario == "mcp-first-call" && c.Limit.Metric == MetricPeakRSS && (c.Verdict != VerdictUnknown || !strings.Contains(c.Reason, "NOT_OBSERVED")) {
+		if c.Scenario == "full-delta" && c.Limit.Metric == MetricPeakRSS && (c.Verdict != VerdictUnknown || !strings.Contains(c.Reason, "NOT_OBSERVED")) {
 			t.Fatalf("unobserved metric check %+v", c)
 		}
 	}
@@ -459,7 +459,7 @@ func TestPRBV0039ContentionWithholdsJudgement(t *testing.T) {
 // identity is rebuilt rather than refused.
 func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	if testing.Short() {
-		t.Skip("builds corvint and corvint-corpus-mcp")
+		t.Skip("builds corvint")
 	}
 	dir := t.TempDir()
 	bin := sharedHarnessBinaries(t)
@@ -482,7 +482,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	if _, unknown := loadAverage(context.Background()); unknown != "" {
 		load = func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
 	}
-	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: load})
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: load})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,10 +502,10 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 		t.Fatalf("scenarios %v", ids)
 	}
 	switch {
-	case r.Verdict == RunNotJudged && strings.HasPrefix(r.NotJudgedReason, "host contended") && !r.OK && len(r.Pending) == 5:
+	case r.Verdict == RunNotJudged && strings.HasPrefix(r.NotJudgedReason, "host contended") && !r.OK && len(r.Pending) == 3:
 		// PRB-V0-039 on a contended host: inconclusive, with every measurement kept, never FAIL.
 		t.Logf("ceilings NOT_JUDGED on this run: %s", r.NotJudgedReason)
-	case !r.OK || r.Verdict != RunPass || r.NotJudgedReason != "" || len(r.Pending) != 5 || r.Host.Cores < 1:
+	case !r.OK || r.Verdict != RunPass || r.NotJudgedReason != "" || len(r.Pending) != 3 || r.Host.Cores < 1:
 		t.Fatalf("ok=%t verdict=%s reason=%q pending=%d host=%+v checks=%+v", r.OK, r.Verdict, r.NotJudgedReason, len(r.Pending), r.Host, r.Checks)
 	}
 	for _, c := range r.Pending {
@@ -518,7 +518,7 @@ func TestPRBV0024HarnessSmokeRun(t *testing.T) {
 	busy := func(context.Context) ([]float64, string) {
 		return []float64{float64(runtime.NumCPU()), 1, 1}, ""
 	}
-	contended, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: busy})
+	contended, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: fixtureDir, Scale: Smoke, Revision: "test", LoadAverage: busy})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -623,11 +623,11 @@ func TestPRBV0056UnenforcedTargetNeverReadsAsPassing(t *testing.T) {
 	}
 }
 
-// PRB-V0-970: a filtered run measures and judges only the selected scenarios; naming only the
-// warm MCP call still measures the MCP pair together but reports only the warm call.
+// PRB-V0-970: a filtered run measures and judges only the selected scenarios; naming
+// two scenarios reports exactly those two.
 func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 	if testing.Short() {
-		t.Skip("builds corvint and corvint-corpus-mcp")
+		t.Skip("builds corvint")
 	}
 	dir := t.TempDir()
 	bin := sharedHarnessBinaries(t)
@@ -640,10 +640,10 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 		b.Scenarios[i].Samples = 1
 	}
 	quiet := func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
-	selected := []string{"mcp-warm-call", "cli-warm-read"}
+	selected := []string{"affected-path", "cli-warm-read"}
 	var lines []string
 	progress := func(line string) { lines = append(lines, line) }
-	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: selected, Progress: progress})
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: selected, Progress: progress})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -651,7 +651,7 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 	for _, m := range r.Scenarios {
 		ids = append(ids, m.ID)
 	}
-	if !slices.Equal(ids, []string{"cli-warm-read", "mcp-warm-call"}) || !slices.Equal(r.Selected, selected) {
+	if !slices.Equal(ids, []string{"cli-warm-read", "affected-path"}) || !slices.Equal(r.Selected, selected) {
 		t.Fatalf("filtered run measured %v, selected %v", ids, r.Selected)
 	}
 	for _, c := range append(append(slices.Clone(r.Checks), r.Pending...), r.Advisory...) {
@@ -673,8 +673,8 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines = nil
-	indexReaders := []string{"context-query", "lifecycle-hook"}
-	r, err = Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: indexReaders, Progress: progress})
+	indexReaders := []string{"context-query"}
+	r, err = Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: indexReaders, Progress: progress})
 	if err != nil {
 		t.Fatal(err)
 	}

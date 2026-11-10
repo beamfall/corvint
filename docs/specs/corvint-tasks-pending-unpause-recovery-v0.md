@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: accepted (decision 0478)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: ticket V1-0309 (panel F2, audit addendum STO-01), the Corvint Tasks contract
 TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md` at `800682d`: "Settled fixture barriers
 (decision 0008)", §5.2 and `TM-V0-007`, `TM-V0-009`), decision 0397 (corvint-tasks built in tree),
@@ -12,7 +14,7 @@ in-tree sources under `internal/tasks/store` and `internal/tasks/journal`.
 
 ## Agent digest
 - Claim: An UNPAUSE interrupted after its receipt is linked is settled by retrying a supported command, with the same ticket-divergence tolerance the fresh UNPAUSE had.
-- Status: accepted (decision 0478); experimental. PUR-V0-001 through PUR-V0-005 are implemented and tested in tree; live qualification is NOT_RUN.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: barrier-command redo, receipt-authorized barrier deletion in redo, the pending UNPAUSE audit mode, and the narrowed redo branch guard.
 - Blocked on: the matching edit to the external TCP-00 barrier clause in `beamfall/corvint-tasks` (open, not made).
 - Read next: Requirements; Failure modes; Traceability.

@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
 func TestPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
@@ -42,27 +40,8 @@ func testPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
 	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) { return coreBinary(target), nil }
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
 
-	corvintCommit, corvintTree := strings.Repeat("a", 40), strings.Repeat("b", 40)
-	tasks := SourceIdentity{Name: "corvint-tasks", Commit: strings.Repeat("c", 40), Tree: strings.Repeat("d", 40)}
-	corvintSource, tasksSource := []byte("corvint source\n"), []byte("tasks source\n")
-	previousCompanion := loadCompanionEvidence
-	loadCompanionEvidence = func(directory string) (*candidateCompanionEvidence, error) {
-		entries, err := os.ReadDir(directory)
-		if err != nil {
-			return nil, err
-		}
-		if len(entries) != 3 {
-			t.Fatalf("companion verifier received %d files, expected 3", len(entries))
-		}
-		return &candidateCompanionEvidence{
-			manifest: companionManifestFixture(), corvintCommit: corvintCommit, corvintTree: corvintTree,
-			corvintSourcePath: "source/corvint-src.tar.gz", tasks: tasks, tasksSourcePath: "source/corvint-tasks-src.tar.gz",
-			entries: map[string][]byte{"source/corvint-src.tar.gz": corvintSource, "source/corvint-tasks-src.tar.gz": tasksSource},
-		}, nil
-	}
-	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
-
-	directory := closedCandidateFixture(t, versionOutput, corvintCommit, corvintTree, tasks, corvintSource, tasksSource, coreBinary)
+	coreArchive := func(target coreTarget) []byte { return []byte("archive-" + target.ArchiveName) }
+	directory := coreOnlyCandidateFixture(t, versionOutput, strings.Repeat("a", 40), strings.Repeat("b", 40), coreBinary, coreArchive, nil)
 	verified, err := VerifyContext(context.Background(), directory)
 	if err != nil {
 		t.Fatal(err)
@@ -100,12 +79,6 @@ func testPRSV1005CoreOnlyCandidateVerifiesAndInstalls(t *testing.T) {
 	previousCore := verifyCoreBinary
 	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) { return coreBinary(target), nil }
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
-	previousCompanion := loadCompanionEvidence
-	loadCompanionEvidence = func(string) (*candidateCompanionEvidence, error) {
-		t.Fatal("Core-only candidate consulted companion evidence")
-		return nil, nil
-	}
-	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
 
 	directory := coreOnlyCandidateFixture(t, versionOutput, strings.Repeat("a", 40), strings.Repeat("b", 40), coreBinary, coreArchive, nil)
 	verified, err := VerifyContext(t.Context(), directory)
@@ -125,7 +98,7 @@ func testPRSV1005CoreOnlyCandidateVerifiesAndInstalls(t *testing.T) {
 	companionClaim := verified.Qualification
 	companionClaim.Rows = append([]QualificationRow(nil), companionClaim.Rows...)
 	companionClaim.Rows[1] = QualificationRow{Platform: "darwin/amd64", Workflow: "companion-bundle", Status: "PASS", Evidence: "README.md"}
-	if err := validateQualification(companionClaim, candidateProfiles[coreManifestProfile]); err == nil {
+	if err := validateQualification(companionClaim); err == nil {
 		t.Fatal("Core-only receipt claiming a companion PASS accepted")
 	}
 	if err := os.WriteFile(filepath.Join(directory, "core", "corvint_linux_arm64.tar.gz"), []byte("changed"), 0o600); err != nil {
@@ -146,12 +119,6 @@ func testPRSV1005CoreOnlyCandidateRefusals(t *testing.T) {
 		return []byte("binary-" + target.GOOS + "-" + target.GOARCH), nil
 	}
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
-	previousCompanion := loadCompanionEvidence
-	loadCompanionEvidence = func(string) (*candidateCompanionEvidence, error) {
-		t.Fatal("refused candidate consulted companion evidence")
-		return nil, nil
-	}
-	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
 	commit, tree := strings.Repeat("a", 40), strings.Repeat("b", 40)
 	coreBinary := func(target coreTarget) []byte { return []byte("binary-" + target.GOOS + "-" + target.GOARCH) }
 	coreArchive := func(target coreTarget) []byte { return []byte("archive-" + target.ArchiveName) }
@@ -170,13 +137,8 @@ func testPRSV1005CoreOnlyCandidateRefusals(t *testing.T) {
 	}{
 		{"combined profile on Core inventory", "manifest identity is invalid", func() string {
 			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, manifest *Manifest, _ *Qualification) {
-				manifest.Profile = manifestProfile
+				manifest.Profile = "corvint-qualified-release-candidate/0"
 			})
-		}},
-		{"Core profile on combined inventory", "manifest identity is invalid", func() string {
-			directory := closedCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, tasks, []byte("corvint source\n"), []byte("tasks source\n"), coreBinary)
-			resealCandidateProfile(t, directory, coreManifestProfile)
-			return directory
 		}},
 		{"Core profile with two sources", "manifest identity is invalid", func() string {
 			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, manifest *Manifest, _ *Qualification) {
@@ -260,12 +222,6 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 	previousCore := verifyCoreBinary
 	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) { return coreBinary(target), nil }
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
-	previousCompanion := loadCompanionEvidence
-	loadCompanionEvidence = func(string) (*candidateCompanionEvidence, error) {
-		t.Fatal("Core-only assembly consulted companion evidence")
-		return nil, nil
-	}
-	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
 
 	output := filepath.Join(canonicalTemp(t), "candidates")
 	drifted := Options{CoreDirectory: coreGateFixture(t, strings.Repeat("a", 40), tree, coreBinary), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
@@ -363,11 +319,11 @@ func testPUBV0026FailedInputRetainsNoCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := Assemble(t.Context(), Options{
-		CoreDirectory: validCoreFixture(t), CompanionDirectory: filepath.Join(root, "missing"),
-		SourceRoot: root, Scratch: root, OutputParent: output, Version: "0.5.0a1",
+		CoreDirectory: filepath.Join(root, "missing"),
+		SourceRoot:    root, Scratch: root, OutputParent: output, Version: "0.5.0a1",
 	})
 	if err == nil {
-		t.Fatal("missing companion accepted")
+		t.Fatal("missing core input accepted")
 	}
 	entries, readErr := os.ReadDir(output)
 	if readErr != nil || len(entries) != 0 {
@@ -391,11 +347,11 @@ func TestPUBV0025PromotionNeverReplacesExistingCandidate(t *testing.T) {
 func TestPUBV0026ScratchAndOutputCannotOverlapInputs(t *testing.T) {
 	root := t.TempDir()
 	for name, options := range map[string]Options{
-		"scratch in source": {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), CompanionDirectory: filepath.Join(root, "companion"), Scratch: filepath.Join(root, "scratch"), OutputParent: filepath.Join(t.TempDir(), "out")},
-		"output in source":  {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), CompanionDirectory: filepath.Join(root, "companion"), Scratch: t.TempDir(), OutputParent: filepath.Join(root, "out")},
+		"scratch in source": {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), Scratch: filepath.Join(root, "scratch"), OutputParent: filepath.Join(t.TempDir(), "out")},
+		"output in source":  {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), Scratch: t.TempDir(), OutputParent: filepath.Join(root, "out")},
 	} {
 		t.Run(name, func(t *testing.T) {
-			for _, directory := range []string{options.CoreDirectory, options.CompanionDirectory, options.Scratch} {
+			for _, directory := range []string{options.CoreDirectory, options.Scratch} {
 				if err := os.MkdirAll(directory, 0o700); err != nil {
 					t.Fatal(err)
 				}
@@ -448,62 +404,6 @@ func validCoreFixture(t *testing.T) string {
 		if err := os.WriteFile(filepath.Join(directory, name), raw, 0o600); err != nil {
 			t.Fatal(err)
 		}
-	}
-	return directory
-}
-
-func companionManifestFixture() companionrelease.BundleManifest {
-	return companionrelease.BundleManifest{GoVersion: "go1.27.3", GitVersion: "git version fixture"}
-}
-
-func closedCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintTree string, tasks SourceIdentity, corvintSource, tasksSource []byte, coreBinary func(coreTarget) []byte) string {
-	t.Helper()
-	files, roles := map[string][]byte{}, map[string]string{}
-	add := func(name, role string, raw []byte) {
-		files[name], roles[name] = raw, role
-	}
-	addCoreCandidateFixture(t, add, corvintCommit, corvintTree, coreBinary, func(target coreTarget) []byte { return []byte("archive-" + target.ArchiveName) })
-	add("companion/corvint-companion.tar.gz", "companion-archive", []byte("companion archive\n"))
-	add("companion/corvint-companion.tar.gz.sha256", "companion-checksum", []byte("companion checksum\n"))
-	add("evidence/corvint-companion.smoke.json", "companion-installed-smoke", []byte("companion smoke\n"))
-	add("source/corvint-src.tar.gz", "corvint-source", corvintSource)
-	add("source/corvint-tasks-src.tar.gz", "corvint-tasks-source", tasksSource)
-
-	qualification := Qualification{Profile: qualificationProfile}
-	workflows := []string{"core-archive", "companion-bundle", "version-identity", "affected-selection", "playwright-external-discovery", "documentation-corpus-discovery", "work-queue-observation"}
-	for _, platform := range []string{"darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"} {
-		for _, workflow := range workflows {
-			status, evidence := "NOT_RUN", "workflow unavailable"
-			if workflow == "core-archive" {
-				status, evidence = "PASS", "evidence/core-verification-report.json"
-			} else if platform == "darwin/arm64" {
-				status, evidence = "PASS", "evidence/corvint-companion.smoke.json"
-				if workflow == "companion-bundle" {
-					evidence = "companion/corvint-companion.tar.gz"
-				}
-			}
-			qualification.Rows = append(qualification.Rows, QualificationRow{Platform: platform, Workflow: workflow, Status: status, Evidence: evidence})
-		}
-	}
-	qualificationRaw, err := canonicalJSON(qualification)
-	if err != nil {
-		t.Fatal(err)
-	}
-	add("QUALIFICATION.json", "qualification-receipt", qualificationRaw)
-	add("README.md", "release-notes", []byte(candidateReadme("0.5.0a1")))
-	manifest := Manifest{
-		Profile: manifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.3", GitVersion: "git version fixture",
-		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}, tasks}, Assets: assetsFor(files, roles),
-	}
-	manifestRaw, err := canonicalJSON(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files["MANIFEST.json"] = manifestRaw
-	files["SHA256SUMS"] = renderChecksums(files)
-	directory := t.TempDir()
-	if err := writeCandidate(directory, files); err != nil {
-		t.Fatal(err)
 	}
 	return directory
 }
@@ -588,27 +488,4 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 		t.Fatal(err)
 	}
 	return directory
-}
-
-// resealCandidateProfile rewrites only the manifest profile and reseals the
-// candidate checksums, so the profile check alone decides admission.
-func resealCandidateProfile(t *testing.T, directory, profile string) {
-	t.Helper()
-	files, _, err := readCandidateFiles(t.Context(), directory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var manifest Manifest
-	if err := decodeClosed(files["MANIFEST.json"], &manifest); err != nil {
-		t.Fatal(err)
-	}
-	manifest.Profile = profile
-	if files["MANIFEST.json"], err = canonicalJSON(manifest); err != nil {
-		t.Fatal(err)
-	}
-	delete(files, "SHA256SUMS")
-	files["SHA256SUMS"] = renderChecksums(files)
-	if err := writeCandidate(directory, files); err != nil {
-		t.Fatal(err)
-	}
 }

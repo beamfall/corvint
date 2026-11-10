@@ -4,24 +4,9 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
-
-// RefuseCEMProjection is all that is left of `docs corpus cem`: it projected a
-// cem/0.x map only, and cem/0.x is retired (CEM-V1-210). A 0.x map refuses with
-// the retired-spec fix, a cem/1.0 map with the stable operation (CEM-V1-163),
-// and any other coded parse refusal keeps its code (V1-1305).
-func RefuseCEMProjection(data []byte) error {
-	if _, err := wire.ParseStable(data); err != nil {
-		if code := cemcode.CodeOf(err); code != "" {
-			return &Error{Code: code, Message: cemcode.MessageOf(err)}
-		}
-		return err
-	}
-	return &Error{Code: cemcode.UnsupportedSpec, Message: "docs corpus cem projected retired cem/0.x maps only; project a cem/1.0 map with `corvint docs corpus cem-stable`, which also requires --expected-base, --target and --stable-artifact-root"}
-}
 
 // projectClaims checks each selected claim anchor at the map's base commit and
 // binds it to the map's evidence by identity. A stable projection never offers

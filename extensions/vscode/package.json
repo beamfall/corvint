@@ -34,7 +34,6 @@
     "onStartupFinished",
     "onCommand:corvint.selectExecutable",
     "onCommand:corvint.clearExecutable",
-    "onCommand:corvint.query",
     "onCommand:corvint.impact",
     "onCommand:corvint.refresh",
     "onCommand:corvint.clearResults",
@@ -72,16 +71,12 @@
         "title": "Corvint: Clear Pinned Executable"
       },
       {
-        "command": "corvint.query",
-        "title": "Corvint: Query Evidence"
-      },
-      {
         "command": "corvint.impact",
         "title": "Corvint: Inspect Active File Impact"
       },
       {
         "command": "corvint.refresh",
-        "title": "Corvint: Refresh Last Explicit Query"
+        "title": "Corvint: Refresh Last Explicit Impact"
       },
       {
         "command": "corvint.clearResults",

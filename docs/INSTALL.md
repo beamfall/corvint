@@ -18,7 +18,8 @@ and 1 MiB per output stream, and retains failed native streams/status inside its
 
 With the pinned Go toolchain, run `make install-local` from the source checkout. It builds every
 native `cmd/` executable from that tree and installs them into `~/.local/bin`, including
-all provider tools and `corvint-tasks`. Override the destination with
+all provider tools. `corvint-tasks` builds from [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks)
+(decision 0594). Override the destination with
 `make install-local LOCAL_BIN_DIR=/absolute/bin` and add that directory to `PATH`. Existing
 binaries are replaced atomically with one bounded rollback copy per tool. Historical `.bak-*`
 files made by other installers are not owned or removed by this command. Core and companions
@@ -73,9 +74,10 @@ say otherwise.
 
 ### Qualified local candidate and versioned install
 
-`corvint-release-candidate` closes the verified core and companion outputs into
-`corvint-v<version>-qualified`. Omit `-companion-dir` to close only the core gate output and the
-source root's Corvint source into a Core-only `corvint-v<version>-core` candidate. Verify its
+`corvint-release-candidate` closes the verified core gate output and the source root's Corvint
+source into a Core-only `corvint-v<version>-core` candidate. The combined
+`corvint-v<version>-qualified` candidate and its `-companion-dir` input were retired with the
+companion bundle by decision 0594. Verify its
 top-level `SHA256SUMS`, then read `MANIFEST.json` and `QUALIFICATION.json`; `NOT_RUN` is never a
 platform pass. The candidate is local evidence, not a tag, signature, upload, publication or
 promotion.
@@ -83,7 +85,6 @@ promotion.
 ```sh
 go run ./cmd/corvint-release-candidate \
   -core-dir /absolute/core-gate-output \
-  -companion-dir /absolute/companion-retained-output \
   -source-root /absolute/corvint-checkout \
   -scratch /absolute/private-scratch \
   -output-parent /absolute/candidates \
@@ -127,21 +128,6 @@ branch overlap hints. Replace `FULL_BASE_SHA` with the full ancestor commit imme
 the changes. These commands refuse dirty trees, do not execute suggested next calls, and do not
 close review or test obligations. See the [guidance contract](specs/repository-guidance-v0.md).
 
-The former `examples/cem/recipes/` Bash recipes (`CEM-PILOT-024`..`027` in
-[the pilot kit](specs/cem-pilot-kit.md)) were removed with `cem/0.x` by V1-1278 S3 and remain in
-Git history. For a whole change, run `impact`, `affected` and `context` over a `BASE..HEAD` range,
-then `cem prepare`, `status`, `report` and `review`; `corvint cem verify-stable` or the portable
-[`interop/cem01-go`](../interop/cem01-go/README.md) verifier checks a committed `cem/1.0` map.
-
-For a committed change, the daily change-evidence loop binds task context, impact, a CEM, the
-owning-spec OCMs, a frontier, checks, review and the retained outcome in one ordered sequence: see
-the [daily adopter path](DOGFOOD.md#daily-adopter-path). It lists each input's exact format, the
-refusals that are expected before the CEM is committed, and the reason every fail-closed outcome
-prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinators build
-`./cmd/corvint` and run only in a Corvint source checkout; another repository runs the same
-`corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
-passing loop is structural closure, not proof that the change is correct.
-
 Read commands do not change repository or trace state, with two bounded private exceptions under
 `.corvint/`: `self-observations.jsonl` (an `unsupported-*` refusal may append one row) and
 `unplanned-reads.jsonl` (host-adapter hooks append only while the operator marker
@@ -152,58 +138,23 @@ state. [Automation](AUTOMATION.md) lists each write condition.
 
 ## Standalone Tasks archive
 
-Tasks has a separate `corvint-tasks_darwin_arm64.tar.gz` candidate builder. The Core archives
-remain unchanged. From a clean source checkout, build a candidate with:
-
-```sh
-go run ./cmd/corvint-companion-release -tasks-only \
-  -source-root "$PWD" -target darwin/arm64 \
-  -scratch /absolute/fresh/tasks-scratch \
-  -output-parent /absolute/release-output -bundle-name tasks-candidate
-```
-
-Both output directories must be outside the checkout. The builder independently builds the
-binary twice from the pinned Git export, includes its source and notices, verifies deterministic
-archive bytes, and runs the extracted version/help commands. The retained directory holds the
-archive and `SHA256SUMS`; verify that checksum before extracting into a fresh directory. Add its
-`bin/` to PATH and use the [external-agent setup guide](TASKS-EXTERNAL-AGENTS.md).
-The version keeps its explicit unverified label. This candidate is not an execution cutover,
-release promotion, or proof that the complete workflow bundle is qualified. Publishing it as a
-release asset remains an explicit operator action.
-
-For Linux agent hosts the same command with `-target linux/amd64` cross-builds
-`corvint-tasks_linux_amd64.tar.gz` (static, `CGO_ENABLED=0`) with its `SHA256SUMS` line. The build
-host never runs it, so no version/help smoke happens and the manifest `qualification` is
-`reproducible-cross-build-only-target-runtime-not-observed`: the Linux runtime is NOT_OBSERVED until
-a Linux host does the following with a downloaded archive and an existing `.taskman` store
-(CAL-V0-320):
-
-```sh
-# One && chain: a failed checksum stops before anything is extracted or run.
-sha256sum -c SHA256SUMS --ignore-missing &&
-  mkdir tasks && tar -xzf corvint-tasks_linux_amd64.tar.gz -C tasks &&
-  tasks/bin/corvint-tasks version &&
-  (cd /path/to/repo-with-.taskman && /abs/tasks/bin/corvint-tasks roadmap)
-```
-
-Run `roadmap` read-only on a copy or a clean checkout. Other Tasks archive targets, including
-linux/arm64, are NOT_RUN.
+Corvint Tasks moved to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) with decision 0594; its
+archive builder and install steps live there.
 
 ## Optional workflow bundle
 
-The planned, separately assembled **macOS arm64** workflow bundle will contain ten native binaries:
-`corvint`, `corvint-console`, `corvint-dashboard-snapshot`, `corvint-tasks`, `corvint-mcp`, `corvint-docs-mcp`,
-`corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
+Decision 0594 retired the companion bundle assembler and its gate, so no workflow bundle is
+currently assembled; this section describes the earlier plan and stays only for bundles already
+retained. The planned, separately assembled **macOS arm64** workflow bundle would contain seven native binaries:
+`corvint`, `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
 `corvint-ruby-test-provider` (profile `corvint-companion-bundle/3`, `CRB-V0-020`; its smoke checks only
 the usage line, RSpec execution is not qualified); a VS Code VSIX;
 and raw Codex, Claude Code, Gemini CLI and OpenCode integration trees marked `FALLBACK`.
-`corvint-corpus-mcp` is deliberately excluded: it is source-only and experimental, not part of this
-distributable set (see [agent-facing servers](../README.md#mcp-servers-and-agent-adapters)).
 The host applications and their external dependencies are not bundled. Install it only when the
 exact release's attached evidence qualifies the archive and the workflow you intend to use.
 
-The companion gate names archives `corvint-companion-<corvint-commit-prefix>-<taskman-commit-prefix>-darwin-arm64-<UTC-timestamp>.tar.gz`
-and supplies an adjacent `.tar.gz.sha256` file. Use the actual retained filename, verify that
+The retired companion gate named archives `corvint-companion-<corvint-commit-prefix>-<taskman-commit-prefix>-darwin-arm64-<UTC-timestamp>.tar.gz`
+and supplied an adjacent `.tar.gz.sha256` file. Use the actual retained filename, verify that
 checksum, extract into a fresh directory, and follow its `README.md`, `MANIFEST.json` and internal
 `SHA256SUMS`. Retain the whole directory so companion paths, source archives and notices remain
 together. Extraction does not install a VSIX or configure an agent host.
@@ -241,7 +192,7 @@ for each desired server:
 
 | Executable | Tools |
 |---|---|
-| `corvint-mcp` | Read-only context, Go impact and repository status |
+| `corvint-mcp` | Impact, status and help; opt-in flows, test-evidence, test-validity and documentation groups |
 | `corvint-docs-mcp` | `corvint.docs_draft` and `corvint.docs_consume` |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 
@@ -288,58 +239,11 @@ The watch is experimental. A source-built watch/update/MCP check has passed; con
 release's installed qualification evidence for packaged status. The read-only docs MCP tools do
 not trigger maintenance.
 
-### Tickets and local console
-
-`corvint-tasks` provides the local ticket store and roadmap as a separate companion binary built in
-tree from `cmd/corvint-tasks`. The optional console combines ticket,
-specification and evidence views; it has no autonomous agent dispatch. Start it explicitly using
-absolute paths to the extracted companions:
-
-```sh
-/path/to/bundle/bin/corvint-console --repo /absolute/path/to/repo \
-  --tasks /path/to/bundle/bin/corvint-tasks \
-  --snapshot /path/to/bundle/bin/corvint-dashboard-snapshot
-```
-
-Open its loopback address, default `http://127.0.0.1:7777`, in your browser. Stop it with Ctrl-C.
-It installs no background service. Consult the bundle manifest and exact release evidence before
-relying on a browser/platform tuple.
-
 ### Work queue adoption
 
-`corvint work observe` needs a committed queue policy, worklist, and adapter. Create them once per
-repository and explicitly bind the installed executable. `~/.local/bin`, `/opt/homebrew/bin`, and
-`/usr/local/bin` are supported when the selected path is canonical and safe:
-
-```sh
-corvint work init --repository NAME --corvint-executable "$(command -v corvint)"
-git add .corvint && git commit -m "Adopt the Corvint work queue"
-corvint work observe
-corvint work propose-wave --envelope capacity.json --limit 4
-```
-
-`init` refuses if any of the three files already exists. Add tickets to `.corvint/worklist.json`
-(`{"profile":"corvint-worklist/0","tickets":[{"id":…,"title":…,"body":…,"touchPaths":[…]}]}`)
-and commit before observing. The capacity envelope names `capacity:NAME:worklist:agent`, the
-capability `capability:NAME:worklist:agent`, and `repo:NAME`. Neither command dispatches, leases,
-merges, or runs anything. Init rejects relative paths, symlinks, unsafe or writable parent
-components, repository-local executables, missing files, and non-Corvint builds. It records the
-executable path, SHA-256, version/build, and source identity in the adapter; observation executes only
-the verified private exact-byte materialization under a closed environment, never ambient `PATH`.
-
-After replacing or moving Corvint, explicitly regenerate that reviewed binding and commit it:
-
-```sh
-corvint work rebind --corvint-executable "$(command -v corvint)"
-git add .corvint/work-queue-adapter && git commit -m "Rebind Corvint work-queue executable"
-```
-
-| What you see | Cause |
-|---|---|
-| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, uncommitted worktree changes, or the bound executable path/bytes/version/build/source identity changed; review and commit an explicit `work rebind` |
-| `ERROR` / `ADAPTER_FAILED` | the canonical bound adapter exited, timed out, or exceeded an output bound |
-| observation `STALE`, empty proposal | the worklist or commit changed while observing |
-| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: the reviewed binding detects drift, while Darwin cannot claim VPO-V0-024 exact-object execution and the other local axes stay unknown |
+The work queue moved with Corvint Tasks to
+[beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594); its adoption
+steps live there.
 
 ## Optional operator updater
 
@@ -370,8 +274,9 @@ and for the checkout you run it from when that checkout is already indexed. The 
 not undo the switch. Other checkouts, and any Core binary copied into place by hand, still need
 an explicit `corvint index --if-stale`.
 
-Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately from the one
-official source, the GitHub releases of `beamfall/corvint`. RC (`vX.Y.Z-rc.N`) and developer Tasks
+Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately, each from its own
+official source: Core from the GitHub releases of `beamfall/corvint` and Tasks from those of
+`beamfall/corvint-tasks`, since Core no longer bundles Tasks (decision 0594). RC (`vX.Y.Z-rc.N`) and developer Tasks
 releases are published as prereleases and are admitted, so checking them never waits for a stable
 release. Every result names `source` and `channel`; when no release can be selected, freshness
 stays `UNKNOWN` and `unknownReason` says why and what would resolve it (for example, that the
@@ -385,7 +290,7 @@ See [Operator update V0](specs/operator-update-v0.md) for the requirements and e
 
 ## Upgrade, retry and remove
 
-Install a new version into a new directory. Stop active console/provider processes and let the MCP
+Install a new version into a new directory. Stop active provider processes and let the MCP
 client close its children; disable editor live tests before changing tools. Keep the previous
 directory and any ticket data, verify the new archive and version, then update your PATH and
 absolute editor/MCP paths. Re-select and pin the editor executable when its identity changes.
@@ -402,7 +307,7 @@ repeat checksum verification before executing anything. For an interrupted test 
 cleanup, inspect its incomplete/cancelled state, then save again or restart the explicit session.
 Never treat a stale prior pass as the current run's result.
 
-To uninstall, disable live tests, close the console and MCP children, uninstall the Corvint VSIX,
+To uninstall, disable live tests, close MCP children, uninstall the Corvint VSIX,
 remove the Corvint entries you added to host configuration and PATH, then remove your extracted
 tool directory or copied executables. Preserve repository files, ticket stores and retained
 `.corvint` evidence unless you separately intend to delete them. No system service needs removal.

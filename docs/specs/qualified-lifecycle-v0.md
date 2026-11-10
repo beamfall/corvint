@@ -3,13 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-09-09
 Requirement prefix: `QLF-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `qualified` command group
+and `internal/authoritystore` (4663b4e2b is the last tree with them). The body below is historical
+and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/specs/agent-harness-integration-v0.md`, `docs/specs/protected-local-execution-v0.md`, `docs/specs/local-completion-policy-v0.md`, `docs/decisions/0009-harness-authority-boundary.md`
 
 ## Agent digest
 - Claim: An optional protected adapter can deliver bounded lifecycle context with current qualified capability and separately computed Stop authority.
-- Status: proposed/experimental; source and fixture tests are not native qualification or root admission.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: closed qualified-event consumer, protected scope bracketing, uninstalled adapter mode and candidate lifecycle campaign path.
 - Blocked on: independent source review, accepted optional profile/root, eleven actual AHI cases, exact native latency/equal-critical-recall evidence and completed qualification admission.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.

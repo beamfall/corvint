@@ -68,13 +68,6 @@ func RangeImpact(ctx context.Context, index *Index, base string, limit int) (map
 	return compileRangeImpact(ctx, index, base, limit, false)
 }
 
-// ExpandedRangeImpact explicitly selects the experimental fixed-256-path
-// profile. All remaining validation, resource bounds and semantics are shared
-// with RangeImpact; no failed default request falls back to this profile.
-func ExpandedRangeImpact(ctx context.Context, index *Index, base string, limit int) (map[string]any, error) {
-	return compileRangeImpact(ctx, index, base, limit, true)
-}
-
 // PerPathRangeImpact is RangeImpact for a caller that reports every changed
 // path on its own (the witness report, ERI-V0-264). A changed path the default
 // profile refuses for itself alone -- an unsafe path, a deletion or other

@@ -4,7 +4,10 @@ All notable changes to the Corvint VS Code extension are recorded here.
 
 ## 0.1.0 — Unreleased developer preview
 
-- Added trust-gated, root-bound local Corvint CLI query and impact projection.
+- Added trust-gated, root-bound local Corvint CLI impact projection.
+- Removed the **Corvint: Query Evidence** command and the `corvint.query` MCP call after decision
+  0594 retired `corvint query`; the MCP client now expects `corvint.help`, `corvint.impact`, and
+  `corvint.status`.
 - Added an explicit, no-fallback MCP `2026-07-28` stdio client profile for the experimental local
   `corvint-mcp` server contract; runtime conformance remains `NOT_RUN`.
 - Added Evidence, Impact, and Why Tree Views, status and commands, bounded diagnostics and

@@ -3,19 +3,14 @@ set -euf
 
 # AHI-173 (docs/specs/agent-harness-integration-v0.md): bump or verify every version location of
 # one host package together, so a shipped-content change needs one command rather than a hand edit
-# of each manifest that host-package-versions-check (AHI-020) and the AHI-010 matrix test then
-# compare (V1-2145).
+# of each manifest that host-package-versions-check (AHI-020) then compares (V1-2145). The Gemini
+# CLI, OpenCode and Pi packages and the host compatibility matrix were removed by decision 0594.
 #
 #   script/host-package-version.sh verify [PKG...]   every location equals the manifest version
 #   script/host-package-version.sh bump PKG [X.Y.Z]  set every location (default: next patch)
 #
 # Edits are textual and format-preserving: only the one quoted value at each location changes,
 # and each JSON edit is checked against jq's setpath of the same path before it is written.
-# Recorded evidence fields that name an older adapter version (lastValidation, lastConformance,
-# hostVersionEvidenceAdapterVersion) are never touched. A lit:NAME filter is a source-code
-# constant (AHI-240): the one quoted string assigned to NAME, as in NAME='X' or NAME = "X". A
-# tuple:FIELD filter is a spec's declared host tuple (AHI-522, V1-3170): the quoted FIELD value
-# inside the one `"tuple": {...}` object on a single line, as in the Pi capability inventory.
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -23,7 +18,7 @@ for tool in jq perl awk; do
     command -v "$tool" >/dev/null 2>&1 || { printf 'host package version: %s is required\n' "$tool" >&2; exit 1; }
 done
 
-packages="claude-code codex gemini-cli opencode pi speckit openspec"
+packages="claude-code codex speckit openspec"
 
 # known PKG: refuse a package outside the list before any command substitution swallows the exit.
 known() {
@@ -34,33 +29,13 @@ known() {
 }
 
 # locations PKG: one "path|filter" line per version location; the first is the package manifest.
-# A filter is a jq path expression, yaml:PARENT.CHILD, lit:NAME or tuple:FIELD.
+# A filter is a jq path expression or yaml:PARENT.CHILD.
 locations() {
-    matrix='integrations/compatibility.json|.entries[]|select(.host=="'$1'")|.adapterVersion'
     case $1 in
         claude-code) printf '%s\n' \
             'integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json|.version' \
-            'integrations/claude-code/.claude-plugin/marketplace.json|.plugins[]|select(.name=="corvint")|.version' \
-            'integrations/claude-code/plugins/corvint/compatibility.json|.adapter.version' "$matrix" \
-            'integrations/claude-code/plugins/corvint/.mcp.json|plugin:.mcpServers.corvint.env.CORVINT_PLUGIN_VERSION' ;;
-        codex) printf '%s\n' \
-            'integrations/codex/plugins/corvint/.codex-plugin/plugin.json|.version' \
-            'integrations/codex/plugins/corvint/compatibility.json|.adapter.version' "$matrix" ;;
-        gemini-cli) printf '%s\n' \
-            'integrations/gemini-cli/gemini-extension.json|.version' \
-            'integrations/gemini-cli/compatibility.json|.adapterVersion' "$matrix" \
-            'integrations/gemini-cli/hooks/corvint-hook.mjs|lit:ADAPTER_VERSION' ;;
-        opencode) printf '%s\n' \
-            'integrations/opencode/package.json|.version' \
-            'integrations/opencode/package.json|.corvintIntegration.adapterVersion' "$matrix" \
-            'integrations/opencode/src/runtime.js|lit:ADAPTER_VERSION' ;;
-        pi) printf '%s\n' \
-            'integrations/pi/package.json|.version' \
-            'integrations/pi/package.json|.corvintIntegration.adapterVersion' \
-            'integrations/pi/compatibility.json|.adapterVersion' "$matrix" \
-            'integrations/pi/runtime.js|lit:PI_ADAPTER_VERSION' \
-            'cmd/corvint/pi_adapter.go|lit:piAdapterVersion' \
-            'docs/specs/pi-workflow-v0.md|tuple:adapterVersion' ;;
+            'integrations/claude-code/.claude-plugin/marketplace.json|.plugins[]|select(.name=="corvint")|.version' ;;
+        codex) printf '%s\n' 'integrations/codex/plugins/corvint/.codex-plugin/plugin.json|.version' ;;
         speckit) printf '%s\n' 'protocol/integrations/speckit/corvint/extension.yml|yaml:extension.version' ;;
         openspec) printf '%s\n' 'protocol/integrations/openspec/skills/corvint-openspec/SKILL.md|yaml:metadata.version' ;;
         *) printf 'host package version: unknown package %s (one of: %s)\n' "$1" "$packages" >&2; exit 2 ;;
@@ -84,22 +59,9 @@ yaml_field() {
         END { if (!found) exit 1 }' "$3"
 }
 
-# lit_field NAME FILE: the quoted string assigned to NAME, only when exactly one assignment exists.
-lit_field() {
-    N=$1 perl -0ne '@m = /\b\Q$ENV{N}\E\s*=\s*["\x27]([^"\x27\n]*)["\x27]/g; exit 1 if @m != 1; print $m[0]' "$2"
-}
-
-# tuple_field FIELD FILE: the quoted FIELD value of the one single-line "tuple" object.
-tuple_field() {
-    F=$1 perl -0ne '@m = /"tuple":\s*\{[^}\n]*"\Q$ENV{F}\E":\s*"([^"\n]*)"/g; exit 1 if @m != 1; print $m[0]' "$2"
-}
-
 # read_field PATH FILTER: the value at one location, or a refusal naming it.
 read_field() {
     case $2 in
-        plugin:*) value=$(jq -er "${2#plugin:} | select(startswith(\"claude-code/\")) | ltrimstr(\"claude-code/\")" "$1") || value= ;;
-        lit:*) value=$(lit_field "${2#lit:}" "$1") || value= ;;
-        tuple:*) value=$(tuple_field "${2#tuple:}" "$1") || value= ;;
         yaml:*) key=${2#yaml:}; value=$(yaml_field "${key%%.*}" "${key#*.}" "$1") || value= ;;
         *) value=$(jq -er "[$2] | if length == 1 then .[0] else error end" "$1" 2>/dev/null) || value= ;;
     esac
@@ -112,18 +74,6 @@ set_field() {
     file=$1 filter=$2 old=$3 new=$4
     tmp="$file.version-tmp.$$"
     case $filter in
-        plugin:*)
-            filter=${filter#plugin:}
-            old=claude-code/$old new=claude-code/$new
-            ;;
-    esac
-    case $filter in
-        lit:*)
-            N=${filter#lit:} O=$old V=$new perl -0pe 's/(\b\Q$ENV{N}\E\s*=\s*["\x27])\Q$ENV{O}\E(["\x27])/$1$ENV{V}$2/' "$file" >"$tmp"
-            ;;
-        tuple:*)
-            F=${filter#tuple:} O=$old V=$new perl -0pe 's/("tuple":\s*\{[^}\n]*"\Q$ENV{F}\E":\s*")\Q$ENV{O}\E"/$1$ENV{V}"/' "$file" >"$tmp"
-            ;;
         yaml:*)
             key=${filter#yaml:}
             awk -v parent="${key%%.*}" -v child="${key#*.}" -v old="$old" -v new="$new" '

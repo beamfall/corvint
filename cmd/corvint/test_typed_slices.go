@@ -21,9 +21,7 @@ import (
 // type-checked call graph proves can reach the change. Every other package
 // keeps its whole-package selection.
 var typedReachPackages = map[string]bool{
-	"cmd/corvint":          true,
-	"internal/tasks/cli":   true,
-	"internal/tasks/store": true,
+	"cmd/corvint": true,
 }
 
 // typedReachLoad and typedReachAnalyze are held in variables so a test can

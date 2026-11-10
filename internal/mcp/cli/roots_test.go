@@ -120,7 +120,7 @@ func TestMMRV0004RepositoryEnumOnEveryTool(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, profile := range [][]string{nil, {"--tool-profile", "task-review"}, {"--tool-profile", "flows"}} {
+	for _, profile := range [][]string{nil, {"--tool-profile", "flows"}} {
 		arguments := append([]string{"--root", "web=" + second, "--root", "core=" + first}, profile...)
 		single := append([]string{"--root", first}, profile...)
 		multiTools := listedTools(t, arguments)
@@ -245,9 +245,8 @@ func TestMMRV0005AliasRoutingAndRefusal(t *testing.T) {
 		requests = append(requests, toolCall(index, "corvint.status", map[string]any{"repository": alias}))
 	}
 	refused := []map[string]any{
-		toolCall(100, "corvint.query", map[string]any{"task": "orientation"}),
-		toolCall(101, "corvint.query", map[string]any{"task": "orientation", "repository": "missing"}),
-		toolCall(102, "corvint.query", map[string]any{"task": "orientation", "repository": roots["core"]}),
+		toolCall(101, "corvint.impact", map[string]any{"paths": []any{"main.go"}, "repository": "missing"}),
+		toolCall(102, "corvint.impact", map[string]any{"paths": []any{"main.go"}, "repository": roots["core"]}),
 		toolCall(103, "corvint.status", map[string]any{"repository": 1}),
 		toolCall(104, "corvint.status", map[string]any{"repository": "CORE"}),
 		toolCall(105, "corvint.impact", map[string]any{"paths": []any{"main.go"}}),

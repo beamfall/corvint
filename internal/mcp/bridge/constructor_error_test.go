@@ -16,7 +16,7 @@ import (
 func TestConstructorsReturnUntypedNilError(t *testing.T) {
 	root := makeRepository(t)
 	for name, constructor := range map[string]func(string) (*Registry, error){
-		"default": New, "task-review": NewTaskReview, "task-review-lsp": NewTaskReviewLSP, "flows": NewFlows, "import-graph": NewImportGraph,
+		"default": New, "flows": NewFlows,
 	} {
 		registry, err := constructor(root)
 		if err != nil || registry == nil {
@@ -63,8 +63,8 @@ func TestExportedConstructorsDeclareErrorResult(t *testing.T) {
 			}
 		}
 	}
-	if checked < 5 {
-		t.Fatalf("checked %d constructors, want at least 5", checked)
+	if checked < 2 {
+		t.Fatalf("checked %d constructors, want at least 2", checked)
 	}
 }
 

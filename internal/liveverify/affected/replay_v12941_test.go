@@ -31,8 +31,8 @@ var batch1028cUnowned = []string{
 // batch1028aDeclared is the part of batch 1028a's (73f47a93b3af..f7f73626af4a)
 // UNOWNED_DIRTY_PATH set whose test readers the reader rules name: a sealed
 // CEM, the two reader declarations, a cmd/corvint golden, the use-case ledger
-// and receipts, the host compatibility matrix, embedded catalog files and the
-// line-citation inventory.
+// and receipts, embedded catalog files and the line-citation inventory (the
+// host compatibility matrix was removed by decision 0594).
 var batch1028aDeclared = []string{
 	".corvint/changes/ebda995079c5c3e402cf94ac0158d01ee15b5d63.cem.json",
 	".corvint/test-read-scopes.json",
@@ -42,7 +42,6 @@ var batch1028aDeclared = []string{
 	"conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
 	"conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
 	"conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
-	"integrations/compatibility.json",
 	"internal/capcatalog/catalog.json",
 	"internal/capcatalog/trees/corvint-test.json",
 	"internal/capcatalog/trees/corvint.json",
@@ -51,13 +50,11 @@ var batch1028aDeclared = []string{
 
 // batch1028aUnowned is the rest of that set, which must stay UNKNOWN: CI
 // driver inputs, which no declaration may cover (the driver claimant owns the
-// workflow since AZU-V0-001, leaving the jq file), and the opencode package's
-// npm manifest, which no declaration covers. Its README is declared
-// documentation since AFP-V0-830 and leaves the unowned set.
+// workflow since AZU-V0-001, leaving the jq file). The opencode package's npm
+// manifest was also in it until decision 0594 removed that package.
 var batch1028aUnowned = []string{
 	".github/forward-rows/narrow.jq",
 	".github/workflows/ci.yml",
-	"integrations/opencode/package.json",
 }
 
 // docsOnly is a documentation-only change (V1-2726): a spec and a build-log
@@ -72,7 +69,7 @@ var docsOnly = []string{
 // readers that rule (d) selects for every dirty path, which any plan carries.
 // Since the shell foreign-caller declaration (TSP-V0-005) the floor is empty.
 // The replayed CEM and spec paths are still named by undeclared non-test shell
-// scripts (check-line-citations.sh, dogfood-seal.sh and others), path-literal
+// scripts (check-line-citations.sh and others), path-literal
 // readers whose shell:foreign-invocation-unmodelled entry bears; that one
 // entry is the measured residual, and no other may appear.
 func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {

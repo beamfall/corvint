@@ -2,14 +2,16 @@
 
 Owner: Russell Lewis
 Frozen: 2026-09-11
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `AGENTS.md` (invariants 1, 2, 4),
 `docs/specs/task-context-packet-v0.md`, `docs/DOGFOOD.md`, `LICENSING.md`
 
 ## Agent digest
 - Claim: `corvint necessity` labels each packet file `load-bearing` or `supporting` by removing it from an index copy and recompiling the packet.
-- Status: proposed/experimental
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/necessity`, `cmd/corvint/necessity.go`, and their tests.
 - Blocked on: a CEM reviewer trial measuring whether the labels help a reviewer reach decisive evidence, and dogfood receipts; dispatch from `cmd/corvint/main.go` landed with decision 0089.
 - Read next: Requirements; Labelling rule; Gate and kill.

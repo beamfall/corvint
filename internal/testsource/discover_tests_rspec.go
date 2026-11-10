@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/lineanchor"
 )
 
 // The RSpec half of the static test discovery (DCX-V1-371..376). It reuses the TSA-V0-048
@@ -312,7 +312,7 @@ func (d *rspecDiscovery) declFacts(out *DiscoveredExample, i int) {
 }
 
 // metadataArg adds one metadata argument: a :symbol tag, a key-value tag, or an unknown.
-func (d *rspecDiscovery) metadataArg(out *DiscoveredExample, masked, text string, where doccorpus.Anchor, line int) {
+func (d *rspecDiscovery) metadataArg(out *DiscoveredExample, masked, text string, where lineanchor.Anchor, line int) {
 	if m := rspecSymbolArg.FindStringSubmatch(masked); m != nil {
 		out.Tags = append(out.Tags, DiscoveredTag{Name: m[1], Value: "true", Evidence: where})
 		d.metadataAnnotation(out, m[1], "true", where)
@@ -337,7 +337,7 @@ func (d *rspecDiscovery) metadataArg(out *DiscoveredExample, masked, text string
 	d.metadataAnnotation(out, key, value, where)
 }
 
-func (d *rspecDiscovery) metadataAnnotation(out *DiscoveredExample, key, value string, where doccorpus.Anchor) {
+func (d *rspecDiscovery) metadataAnnotation(out *DiscoveredExample, key, value string, where lineanchor.Anchor) {
 	if key != "skip" && key != "pending" && key != "focus" || value == "false" || value == "nil" {
 		return
 	}

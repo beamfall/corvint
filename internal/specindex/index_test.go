@@ -362,6 +362,11 @@ func TestIndexImplementationPathsExist(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range entries {
+		// Decision 0594: a retired spec keeps its historical body and the paths it cited when the
+		// code existed, so only a live spec must name implementation that is still in the tree.
+		if strings.HasPrefix(e.Delivery, "retired") {
+			continue
+		}
 		for _, path := range e.Implementation {
 			if _, err := os.Stat(filepath.Join("../..", path)); err != nil {
 				t.Errorf("%s: implementation path %q is absent from the tree: %v", e.Path, path, err)

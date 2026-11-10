@@ -225,8 +225,12 @@ sub lines_at {
 # lines_for is the content DOC's citation of PATH is checked against (DCG-V0-800).
 sub lines_for {
     my ($doc, $path) = @_;
+    # DCG-V0-923: a retired spec resolves every citation, a deleted file's included, in its
+    # retirement base; a base the clone lacks, or a path absent from it, keeps the index.
+    my $base = retirement_base($doc);
+    return lines_at($base, $path) // lines_of($path) if defined $base;
     my $commit = decision_commit($doc);
-    return lines_of($path) unless defined $commit && $tracked{$path};
+    return lines_of($path) unless defined $commit;
     return lines_at($commit, $path) // lines_of($path);
 }
 
@@ -280,6 +284,42 @@ sub scanned_doc {
 }
 
 my @failures;
+
+# DCG-V0-923 (V1-5228): a retired spec keeps its body and requirement IDs as history, but the code
+# it cites is deleted or moved by the change that retired it. A docs/specs document whose header
+# (the lines before its first `## ` heading) says both `Delivery status: retired` and
+# `Retirement base: <40-hex commit>` names the tree its citations describe, the way DCG-V0-800 pins
+# a decision to the commit that wrote it. A base line in a spec that is not retired, a malformed or
+# repeated base line, is refused and the document keeps the index; nothing passes silently.
+my %retirement_base;
+sub retirement_base {
+    my ($doc) = @_;
+    return $retirement_base{$doc} if exists $retirement_base{$doc};
+    $retirement_base{$doc} = undef;
+    return undef unless $doc =~ m{\Adocs/specs/[^/]+\.md\z};
+    my $lines = lines_of($doc) or return undef;
+    my ($retired, @bases);
+    my $line_number = 0;
+    for my $line (@$lines) {
+        ++$line_number;
+        last if $line =~ /^## /;
+        $retired = 1 if $line =~ /^\s*(?:-\s+)?Delivery status: retired\s*$/;
+        push @bases, [$line_number, $1] if $line =~ /^\s*(?:-\s+)?Retirement base:(.*)$/;
+    }
+    return undef unless @bases;
+    my ($line_number_of_base, $value) = @{ $bases[0] };
+    if (!$retired) {
+        push @failures, "$doc:$line_number_of_base  Retirement base line in a spec whose header does not say "
+            . "`Delivery status: retired`: delete it, or retire the spec (DCG-V0-923)";
+        return undef;
+    }
+    if (@bases > 1 || $value !~ /\A\s*([0-9a-f]{40})\s*\z/) {
+        push @failures, "$doc:$line_number_of_base  malformed Retirement base: expected one line "
+            . "`Retirement base: <40 lowercase hex commit>` in the header (DCG-V0-923)";
+        return undef;
+    }
+    return $retirement_base{$doc} = $1;
+}
 my @repins;
 # DCG-V0-045: under --repin, the commit whose diff to the index proves a whole-span move, and the
 # changed citations whose span that diff maps to new lines (suggested, never written).
@@ -828,6 +868,7 @@ for my $row (@$inventory_rows) {
 
 for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     my $doc_lines = lines_of($doc) or die "$doc: not readable from the Git index\n";
+    retirement_base($doc);
     my $line_number = 0;
     my $fenced = 0;
     my $current;

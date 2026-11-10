@@ -2,7 +2,10 @@
 // Identity validation does not establish semantic truth or accepted intent.
 package doccorpus
 
-import "github.com/Beamfall/corvint/internal/testvaliditydoc"
+import (
+	"github.com/Beamfall/corvint/internal/lineanchor"
+	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+)
 
 const (
 	Schema         = "corvint-evidence-corpus/1"
@@ -123,21 +126,7 @@ type Builder struct {
 	Revision string `json:"revision"`
 	Engine   string `json:"engine"`
 }
-type Anchor struct {
-	Repository string `json:"repository"`
-	Revision   string `json:"revision"`
-	Path       string `json:"path"`
-	Blob       string `json:"blob"`
-	SHA256     string `json:"sha256"`
-	Start      int    `json:"start_line"`
-	End        int    `json:"end_line"`
-	SpanSHA256 string `json:"span_sha256"`
-	Symbol     string `json:"symbol"`
-	Region     string `json:"region"`
-	Authority  string `json:"authority"`
-	Kind       string `json:"evidence_kind"`
-	Reason     string `json:"reason"`
-}
+type Anchor = lineanchor.Anchor
 type Evidence struct {
 	ReportedTrust string   `json:"reported_trust"`
 	Derivation    string   `json:"derivation"`
@@ -489,13 +478,9 @@ type AliasResolution struct {
 	AlternateID string `json:"alternate_id"`
 	ID          string `json:"id"`
 }
-type Error struct {
-	Code    string
-	Message string
-}
+type Error = lineanchor.Error
 
-func (e *Error) Error() string  { return e.Code + ": " + e.Message }
-func fail(message string) error { return &Error{Code: "corpus-refused", Message: message} }
+func fail(message string) error { return lineanchor.Fail(message) }
 
 // JourneyRun is independently retained step observation data. A native passing
 // test alone cannot populate these ordered expected/observed records.

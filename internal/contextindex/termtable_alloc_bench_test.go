@@ -19,13 +19,6 @@ func BenchmarkCountTermsLine(b *testing.B) {
 	}
 }
 
-func BenchmarkLineTokens(b *testing.B) {
-	b.ReportAllocs()
-	for b.Loop() {
-		_ = lineTokens(benchmarkLine, benchmarkWanted)
-	}
-}
-
 func BenchmarkRoleTerms(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {

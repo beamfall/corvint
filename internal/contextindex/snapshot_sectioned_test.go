@@ -80,10 +80,6 @@ func TestSectionedSnapshotDecodesEverySectionToTheGobValues(t *testing.T) {
 	if !equalIgnoringLease(loaded, index) {
 		t.Fatal("sectioned LoadSnapshot differs from the built index")
 	}
-	compact, hit, err := LoadEventSnapshot(context.Background(), index.Root, true)
-	if err != nil || !hit || compact.ProfileID != index.ProfileID || compact.Sources != nil {
-		t.Fatalf("sectioned compact load: hit=%v err=%v index=%+v", hit, err, compact)
-	}
 }
 
 type countingReaderAt struct {
@@ -200,7 +196,7 @@ func TestSectionedSnapshotRefusesACorruptSectionAsAMiss(t *testing.T) {
 	if err := os.Remove(receipt.Path); err != nil {
 		t.Fatal(err)
 	}
-	loaded, hit, err := LoadEventSnapshot(context.Background(), index.Root, false)
+	loaded, hit, err := LoadSnapshot(context.Background(), index.Root)
 	if err != nil || hit || loaded != nil {
 		t.Fatalf("corrupt sectioned snapshot must miss: hit=%v err=%v", hit, err)
 	}

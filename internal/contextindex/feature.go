@@ -34,11 +34,6 @@ type featureCandidate struct {
 // they use precede vocabulary-only neighbours.
 const featureMarkerUseCap = 2
 
-// Feature compiles an unbudgeted canonical-feature receipt.
-func Feature(index *Index, featureID string, limit int) (map[string]any, error) {
-	return FeatureBudget(index, featureID, limit, nil)
-}
-
 // FeatureBudget compiles the Go-symbol feature slice and applies the shared
 // Python-compatible packet budget selector.
 func FeatureBudget(index *Index, featureID string, limit int, budget *int) (map[string]any, error) {

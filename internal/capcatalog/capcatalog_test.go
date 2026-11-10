@@ -149,8 +149,8 @@ func TestCAPV0017RequiredFlagsAreDerivedFromUsageForms(t *testing.T) {
 	}
 }
 
-// The shipped catalog requires the verification options of cem verify, so the
-// guide's example must carry them (gh#1590 review).
+// The shipped catalog requires the options of runs response-wait, so a guide
+// example must carry them (gh#1590 review).
 func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	t.Parallel()
 	var catalog Catalog
@@ -160,9 +160,9 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 	if problems := GuideProblems(catalog, Guide()); len(problems) != 0 {
 		t.Fatalf("shipped guide problems: %v", problems)
 	}
-	problems := GuideProblems(catalog, "  corvint cem verify --map .corvint/change.cem.json\n"+Guide())
-	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --expected-base of cem verify") {
-		t.Fatalf("a cem verify example with only --map: problems = %v", problems)
+	problems := GuideProblems(catalog, "  corvint runs response-wait --log server.log\n"+Guide())
+	if len(problems) != 3 || !strings.Contains(strings.Join(problems, "\n"), "required option --timeout-ms of runs response-wait") {
+		t.Fatalf("a runs response-wait example with only --log: problems = %v", problems)
 	}
 	// CAP-V0-018 against the shipped catalog: the --root preamble and nested
 	// help topics are checked, not skipped.
@@ -171,8 +171,8 @@ func TestCAPV0017GuideExamplesCarryRequiredOptions(t *testing.T) {
 			t.Fatalf("drift %q problems = %v", drift, problems)
 		}
 	}
-	if problems := GuideProblems(catalog, "  `corvint help docs corpus`\n  `corvint help cem verify`\n  corvint --root /repo witness --base FULL\n"+Guide()); len(problems) != 0 {
-		t.Fatalf("catalogued nested topics and a --root preamble: problems = %v", problems)
+	if problems := GuideProblems(catalog, "  `corvint help flows`\n  corvint --root /repo affected --base FULL\n"+Guide()); len(problems) != 0 {
+		t.Fatalf("a catalogued topic and a --root preamble: problems = %v", problems)
 	}
 }
 
@@ -397,13 +397,13 @@ func TestCAPV0027GuideTeachesDeliveredCapabilities(t *testing.T) {
 	guide := Guide()
 	goals, _, _ := strings.Cut(guide, "\nNon-capabilities\n")
 	for _, example := range []string{
-		"\n   corvint docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
+		"\n   corvint-docs docs corpus discover-tests --runner playwright --revision FULL_COMMIT --path ",
 		" --coverage-artifact lcov=trace.lcov > run.jsonl\n",
 		"\n   corvint flows ingest-coverage --format lcov --from trace.lcov --evidence run.jsonl --revision FULL_COMMIT --test-key \"example.com/upload > TestRetry\"\n",
 		"trace.lcov must hold\n   that test's coverage only, and --test-key names the test's key in run.jsonl",
-		"\n   corvint docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
-		"\n   corvint docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
-		"\n   corvint docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
+		"\n   corvint-docs docs corpus search --artifact corpus.json --query \"retry policy\" --kind symbol --include claims\n",
+		"\n   corvint-docs docs corpus claims --artifact corpus.json --query \"retry policy\"\n",
+		"\n   corvint-docs docs corpus delta --previous previous-corpus.json --artifact corpus.json --format jsonl\n",
 	} {
 		if !strings.Contains(goals, example) {
 			t.Fatalf("the guide goals lack the example %q", example)

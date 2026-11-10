@@ -2,14 +2,18 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `delta` command group and
+`internal/delta`; `protocol/delta` stays only as a published schema (4663b4e2b is the last tree with
+them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner issue #389; native ticket V1-0536 revision 2; repository
 product invariants; docs/SPEC-DRIVEN-DEVELOPMENT.md; docs/DOGFOOD.md.
 
 ## Agent digest
 - Claim: One deterministic, read-only, source-content-free observation of an explicit immutable change.
-- Status: proposed/experimental; public CLI integration is under qualification.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: reviewed immutable compiler, public CLI, schema and conformance; bounded native no-op, tests-needed and findings witnesses.
 - Blocked on: final bound qualification/publication and native completion. Native docs-only is deferred by owner decision 2026-10-01 (V1-0579 follow-up).
 - Read next: Requirements; Bounds and failures; Acceptance and traceability.

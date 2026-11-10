@@ -22,15 +22,6 @@ func contextSpanMode() string {
 	return ""
 }
 
-// hitWindow is the window of contextSpanLineRadius lines either side of the
-// span's hit range, clamped to the file: the range CRK-V0-010's fallback
-// returns in place of an expansion that does not fit.
-func (span contextSpan) hitWindow(count int) contextSpan {
-	window := span
-	window.start, window.end = max(span.hitStart-contextSpanLineRadius, 1), min(span.hitEnd+contextSpanLineRadius, count)
-	return window
-}
-
 // clipNote is the reason, under `hits`, for a declaration of `lines` lines
 // that the span keeps only the first contextSpanMaxLines of (CRK-V0-010).
 func (ranker *spanRanker) clipNote(symbol string, lines int) string {
@@ -116,17 +107,6 @@ func (span contextSpan) contributors() []contextSpan {
 	return []contextSpan{span}
 }
 
-// mergeSpans folds span and every selected span of its file that it touches,
-// transitively, into one row at the earliest of those positions; the row
-// keeps that earlier span's role, symbol, reason, hit range and authority and
-// lists every contributor in rank order, the candidate last (CRK-V0-011). It is a
-// pure function of its arguments and leaves the other rows in order. It
-// reports false, and changes nothing, when span touches no selected span or
-// the union would exceed contextSpanMaxLines.
-func mergeSpans(selected []contextSpan, span contextSpan) ([]contextSpan, bool) {
-	return mergeSpansBounded(selected, span, contextSpanMaxLines)
-}
-
 // coalesceSpans is a pure rank-stable normalization, independent of budgets.
 // Its unions are unbounded; rank applies capMerged to each before selection.
 // Only a fresh parts slice is extended; contributor slices in input are immutable.
@@ -176,14 +156,6 @@ func mergeSpansBounded(selected []contextSpan, span contextSpan, maxLines int) (
 	row.parts = append(row.parts, span.contributors()...)
 	row.start, row.end = start, end
 	return merged, true
-}
-
-func spanLines(spans []contextSpan) int {
-	total := 0
-	for _, span := range spans {
-		total += span.lines()
-	}
-	return total
 }
 
 // spanHitFields adds the hit range under `hits` and, under `merged`, the
