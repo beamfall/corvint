@@ -106,3 +106,14 @@ pr57-af470712c01d8039bc03abda4d5eb903cb1ee5e2 artifact=13196291400
 pr58-96edecf342929cea1416b65fab39d5766ae06721 artifact=13193989358
 pr58-c10607a936eba96d3538ec71ec35597c48af7389 artifact=13196337109
 pr59-375e8d0a29c617dde60fc494dc1720bcf1b57b53 artifact=13194438926
+# Epoch-2 keys below (2026-11-10, owner decision in chat: "Yes, reclassify"; V1-5216): the four
+# ci-forward-INCOMPLETE rows of PR 163. Its runs took the fail-closed FULL fallback
+# (unsupported-affected-graph), whose selection documents the collector rejects ("selection
+# document(s) fail the corvint-pr-selection/0 shape or shard count"); two rows also lack two
+# outcomes shards. A run that ran everything says nothing about the shadow selector. Each row
+# was read before listing; together they tripped the AFP-V0-030 kill switch for every PR.
+# Head 872458ac has two artifacts (13654313355, 13654654614); the later one is named.
+pr163-cb6322613a7b3b99f7ea3d2351e8ffd880735d9d artifact=13684996630
+pr163-f29ac9fbe37f3b11c93577b3f74ffd6d7bc3f201 artifact=13673798657
+pr163-3169623c81dde170b03503a6a92e0c8def3977e6 artifact=13657002427
+pr163-872458acda51d38053ac475f9272168cce9686ab artifact=13654654614
