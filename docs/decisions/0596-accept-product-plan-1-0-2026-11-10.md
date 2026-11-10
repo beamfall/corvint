@@ -1,4 +1,4 @@
-# 0595: accept the Corvint 1.0 product plan
+# 0596: accept the Corvint 1.0 product plan
 
 - Date: 2026-11-10 (drafted 2026-11-09)
 - Status: accepted (owner, 2026-11-10, "accepted"; owner decision H15). The owner accepted
@@ -456,7 +456,8 @@ fallback in step 6. H15 creates no repository, publishes nothing and promotes no
 3. The file is renamed to `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the
    next free number, its status line is changed to accepted, and its row is added to
    `docs/decisions/README.md` (ACR-V1-001). An agent may prepare this commit on the owner's word.
-   Prepared: number 0595 (0594 is taken by the refocus decision on the big-cut branch).
+   Prepared: number 0596 (0594 is the refocus decision on the big-cut branch; 0595 is the
+   flows move on `claude/flows-to-docs`).
 4. The acceptance log rows the owner accepted are set to mode `owner` with the decision number as
    `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
    (ACR-V1-006, ACR-V1-008). Prepared as a diff for the owner to read back: 144 rows.
