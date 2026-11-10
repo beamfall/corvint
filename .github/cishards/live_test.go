@@ -85,9 +85,16 @@ func TestRepositoryLiveTierIsExcludedFromPRShards_AFPV02702(t *testing.T) {
 	for _, p := range packages {
 		dirs[p.Dir] = len(p.Tests)
 	}
-	for _, dir := range []string{"internal/liveverify/affected"} {
-		if dirs[dir] == 0 {
-			t.Errorf("live tier has no tests in %s; got %v", dir, dirs)
+	// The live tests live in the affected hub or in a package below it (AFP-V0-107).
+	for _, prefix := range []string{"internal/liveverify/affected"} {
+		count := 0
+		for dir, n := range dirs {
+			if dir == prefix || strings.HasPrefix(dir, prefix+"/") {
+				count += n
+			}
+		}
+		if count == 0 {
+			t.Errorf("live tier has no tests in or below %s; got %v", prefix, dirs)
 		}
 	}
 	ci, err := os.ReadFile("../workflows/ci.yml")
