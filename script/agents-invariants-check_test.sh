@@ -30,6 +30,18 @@ for n in 3 4 5 7; do
     || fail "edited invariant $n output: $out"
 done
 
+# 3b. A second paragraph added after a blank line is part of the invariant, in the list and at
+# its end.
+for n in 5 8; do
+  awk -v n="$n" '
+    index($0, n ". ") == 1 { in_block = 1; print; next }
+    in_block && !/^   / { print ""; print "   A second paragraph."; in_block = 0 }
+    { print }' "$src" > "$tmp/para-$n.md"
+  cmp -s "$src" "$tmp/para-$n.md" && fail "fixture for a paragraph in invariant $n did not change the file"
+  out=$("$check" "$tmp/para-$n.md" 2>&1)
+  [[ $? == 1 ]] || fail "paragraph added to invariant $n: not exit 1: $out"
+done
+
 # 4. An edit of an invariant this change does not own, or of another section, passes.
 sed 's/^1\. Evidence is pinned/1. Evidence stays pinned/; s/^## Verify$/## Verify it/' "$src" > "$tmp/other.md"
 cmp -s "$src" "$tmp/other.md" && fail "fixture for an unowned edit did not change the file"
