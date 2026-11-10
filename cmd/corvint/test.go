@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/linecov"
@@ -33,6 +35,7 @@ Usage:
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N] [--line-index FILE]
     [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]
+    [--accept-stale-binary]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
@@ -49,6 +52,14 @@ combine with --summary or --pins. Example: corvint test --base HEAD --dry-run --
 
 --base takes a full commit id, an unambiguous prefix or a revision such as
 HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
+
+--accept-stale-binary (AFP-V0-9730) runs or plans with a binary whose Go
+source differs from this checkout's HEAD (self-binary-stale, AFP-V0-846),
+carrying the degradation on stderr instead of refusing. Without it such a
+binary exits 2 with a fix: line, because its selection may be narrower than
+this checkout's own build gives; rebuild (go install ./cmd/corvint) or run
+go run ./cmd/corvint test ... instead. Example: corvint test --base HEAD~1
+--dry-run --accept-stale-binary.
 
 --line-index FILE (experimental, GLS-V0-020) narrows a NARROWED run by the
 per-test line coverage index FILE, as corvint affected --line-index decides,
@@ -70,6 +81,14 @@ FALLBACK <reason>. A language with no adapter runs the full command that
 file declares (ci: reports it as still required, not run), runs nothing
 when it declares {"none": reason}, and is INCOMPLETE when it declares
 neither. The budget covers the whole shard: 6h local, 60m ci.
+When that file's "providers" member declares a corvint-js-test-provider
+command for vitest or playwright, the local profile runs each selected
+Vitest or Playwright test file through it (adapter "provider") and records
+its outcome beside the Go ones; a provider that is missing, refuses or
+reports no usable result leaves those tests NOT_RUN with the reason and
+the run INCOMPLETE (exit 3), never PASS (STR-V0-8701 to STR-V0-8707).
+Example: "providers": {"vitest": ["corvint-js-test-provider", "unit",
+"--dir", "web"]}.
 A Go package selected only because its own test files changed runs just
 the Test, Example and Fuzz functions those files declare (-run, slice
 "selected" in the manifest) when no unchanged test file of the package
@@ -184,6 +203,9 @@ type testOptions struct {
 	// pins is --pins: a dry run prints the advisory pinned tests instead
 	// of the JSON plan (TSP-V0-944).
 	pins bool
+	// acceptStaleBinary is --accept-stale-binary: a self-binary-stale verdict
+	// degrades the run instead of refusing it (AFP-V0-9730).
+	acceptStaleBinary bool
 }
 
 // testInvocation recognises `[--root PATH] test ...`.
@@ -243,8 +265,9 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.summary, "summary", false, "")
 	f.BoolVar(&options.full, "full", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
+	f.BoolVar(&options.acceptStaleBinary, "accept-stale-binary", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--line-index FILE] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--line-index FILE] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH] [--accept-stale-binary]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -376,6 +399,12 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	started := time.Now()
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
 	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
+		// AFP-V0-9730: a stale binary's selection is refused, never run or
+		// planned silently; --accept-stale-binary keeps the degraded run.
+		if freshness.Code == selfBinaryStaleCode && !options.acceptStaleBinary {
+			emitError(stderr, selfBinaryStaleRefusal(freshness, "test"))
+			return 2
+		}
 		notice := fmt.Sprintf("corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
 		if testSummarySelected(options) {
 			// Leave room for scope, counts and whole-package advice. Long valid
@@ -559,7 +588,7 @@ func testScanMemo(invocation affectedInvocation, module string) *gateselect.Scan
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
 func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) (sessiontest.Input, testPinsResult) {
 	input := sessiontest.Input{
-		Base: options.base, Placement: options.placement, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
+		Base: options.base, Placement: options.placement, Producer: manifestProducer(), RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
 			Allow:  testReadOptional(filepath.Join(root, testPartitionDirectory, "test-split-allow.json")),
 			Costs:  testReadOptional(filepath.Join(root, testPartitionDirectory, "package-costs.json")),
@@ -674,6 +703,15 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		}
 	}
 	slices.SortFunc(input.Declared.Languages, func(a, b sessiontest.LanguageCommand) int { return strings.Compare(a.Language, b.Language) })
+	units, unread := testSelectionUnits(receipt.Advice.TestSelection)
+	for _, unit := range units {
+		if !slices.Contains(input.Selected, unit) {
+			input.Selected = append(input.Selected, unit)
+		}
+	}
+	if unread != "" {
+		input.SelectionIncomplete = append(input.SelectionIncomplete, unread)
+	}
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
@@ -707,6 +745,46 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		}
 	}
 	return nil
+}
+
+// testSelectionUnits reads the plan's advice.test_selection member
+// (STR-V0-8706). Each Playwright test file an e2e-safe selection selected is
+// returned as its "typescript:playwright:<path>" unit, which joins the plan's
+// selected units: a declared Playwright provider runs it, and without one it
+// names the language's declared full command. A member this command cannot
+// read as a set of tests to run returns a reason instead, and the plan is
+// INCOMPLETE: a selection that is blocked, of another schema or malformed
+// never reads as no tests.
+func testSelectionUnits(selection map[string]any) ([]string, string) {
+	if len(selection) == 0 {
+		return nil, ""
+	}
+	schema, _ := selection["schema"].(string)
+	state, _ := selection["state"].(string)
+	switch {
+	case schema != appflows.E2ESafeSchema:
+		return nil, fmt.Sprintf("advice.test_selection has schema %q, which corvint test does not run; its tests are not run", schema)
+	case state != extevidence.SelectionNarrow && state != extevidence.SelectionFull:
+		reason, _ := selection["state_reason"].(string)
+		return nil, fmt.Sprintf("advice.test_selection is %q (%s); its Playwright tests cannot be selected", state, reason)
+	}
+	selected, ok := selection["selected"].([]any)
+	if !ok {
+		return nil, "advice.test_selection names no selected list; its Playwright tests cannot be selected"
+	}
+	units := []string{}
+	for _, entry := range selected {
+		test, _ := entry.(map[string]any)
+		file, _ := test["path"].(string)
+		if file == "" {
+			return nil, "advice.test_selection selects a test without a path; its Playwright tests cannot be selected"
+		}
+		if unit := "typescript:" + sessiontest.ProviderRunnerPlaywright + ":" + file; !slices.Contains(units, unit) {
+			units = append(units, unit)
+		}
+	}
+	slices.Sort(units)
+	return units, ""
 }
 
 // testPlanRunSet retains the AFP-V0-2402 verdict projection for callers that

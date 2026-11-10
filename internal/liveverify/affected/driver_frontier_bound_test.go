@@ -42,6 +42,12 @@ func boundFiles(makefile string) map[string]string {
 	}
 }
 
+// recipeEvaluated defines EVAL, an evaluated word function (AFP-V0-3122)
+// that expands to nothing: a recipe that spells `$(EVAL)` is an evaluated
+// target by its own text, which AZU-V0-610 requires for the certification
+// hedge. A variable no recipe references marks no target (AZU-V0-610).
+const recipeEvaluated = "EVAL = $(strip )\n"
+
 // driverSelections maps each driver selection of plan by unit ID. Unlike
 // driverSelected it tolerates unknown entries: a sealed CEM in a fixture is
 // an unowned path, which the plan names apart from the selection.
@@ -69,32 +75,37 @@ func computedSite(t *testing.T, graph *affected.Graph, id string) bool {
 // AFP-V0-3120 the file-level expander marked that ambiguity on every target
 // of the file, so `check`, which runs a literal `go test`, became a
 // driver:computed-invocation site, and driverSites claimed every dirty path
-// for it, including a new sealed CEM; the control never selected it. A target
-// that runs a script enumerating every tracked file keeps the claim under the
-// same injection, since its read set includes the CEM (AFP-V0-3122).
+// for it, including a new sealed CEM; the control never selected it. Until
+// AZU-V0-610 the injection also left `enumerate`, which runs an uncertified
+// script, an evaluated site that claimed the CEM, while the control did not:
+// a variable no text of the file expands changes nothing make runs, so the
+// injected graph now carries the control's edges and frontier for both
+// targets, and the omitted claim depends on nothing the variable can do.
 func TestFrontierSiteFaultInjection_AFP_V0_3120(t *testing.T) {
 	recipe := "check:\n\tgo test ./tools/local/...\nenumerate:\n\tscript/lsfiles.sh\n"
-	for _, tc := range []struct {
-		name, prefix string
-		evaluated    bool
-	}{
-		{"control", "", false},
-		{"injected-or", "CACHE = $(or $(XDG_CACHE_HOME),/tmp)/cache\n", true},
-		{"injected-if", "NICE = $(if $(filter-out 0,$(LEVEL)),nice -n $(LEVEL))\n", true},
-		{"injected-reassigned", "MODE = fast\nMODE = slow\n", false},
-		{"injected-join", "PAIR = $(join a b,$(SUFFIXES))\n", true},
-		{"info-never-expands", "$(info $(or $(XDG_CACHE_HOME),/tmp))\n", false},
+	control := driverGraph(t, boundFiles(recipe), nil)
+	for _, tc := range []struct{ name, prefix string }{
+		{"control", ""},
+		{"injected-or", "CACHE = $(or $(XDG_CACHE_HOME),/tmp)/cache\n"},
+		{"injected-if", "NICE = $(if $(filter-out 0,$(LEVEL)),nice -n $(LEVEL))\n"},
+		{"injected-reassigned", "MODE = fast\nMODE = slow\n"},
+		{"injected-join", "PAIR = $(join a b,$(SUFFIXES))\n"},
+		{"info-never-expands", "$(info $(or $(XDG_CACHE_HOME),/tmp))\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			graph := driverGraph(t, boundFiles(tc.prefix+recipe), nil)
 			if computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Errorf("check runs only `go test ./tools/local/...` but is a computed site")
 			}
-			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
-			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", jobUnit})
-			if _, claimed := selected["driver:make:Makefile#enumerate"]; claimed != tc.evaluated {
-				t.Errorf("the enumerating target claims the CEM = %v, want %v (the base claimed it exactly when the file was ambiguous)", claimed, tc.evaluated)
+			for _, id := range []string{"driver:make:Makefile#check", "driver:make:Makefile#enumerate"} {
+				want, _ := control.Unit(id)
+				got, _ := graph.Unit(id)
+				if fmt.Sprint(got.Imports, got.PathImports, got.BuildPathImports, got.Frontier, got.PathGlobs) != fmt.Sprint(want.Imports, want.PathImports, want.BuildPathImports, want.Frontier, want.PathGlobs) {
+					t.Errorf("%s edges differ from the control: %+v vs %+v (AZU-V0-610)", id, got, want)
+				}
 			}
+			selected := driverSelections(affected.Select(graph, []string{sealedCEM}))
+			wantDriverSelection(t, selected, nil, []string{"driver:make:Makefile#check", "driver:make:Makefile#enumerate", jobUnit})
 			selected = driverSelections(affected.Select(graph, []string{"tools/local/main.go"}))
 			wantDriverSelection(t, selected, []string{"driver:make:Makefile#check", jobUnit}, nil)
 		})
@@ -241,7 +252,7 @@ func TestFrontierSiteShellTestParity_AFP_V0_3122(t *testing.T) {
 		"tests/a.sh", "script/a_test",
 	} {
 		t.Run(name, func(t *testing.T) {
-			files := boundFiles("CACHE = $(or $(XDG_CACHE_HOME),/tmp)\ncheck:\n\t" + name + "\n")
+			files := boundFiles(recipeEvaluated + "check:\n\t$(EVAL)" + name + "\n")
 			files[name] = "#!/bin/sh\necho ok\n"
 			files["go.mod"] = "module example.test/m\n\ngo 1.27.0\n"
 			root := t.TempDir()
@@ -378,25 +389,27 @@ func TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127(t *testing.T) {
 // names, a jq module, an awk or sed program, a go operand that can split
 // into flags, and a make call that overrides a variable.
 func TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128(t *testing.T) {
-	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"
+	// The recipe's own `$(EVAL)` makes check an evaluated target
+	// (AZU-V0-610); CACHE stays an environment-supplied directory.
+	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n" + recipeEvaluated
 	for _, tc := range []struct{ name, makefile string }{
 		{"environment-operand", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\tcat $(INPUT)\n"},
 		{"environment-redirection", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\twc -l < $(INPUT)\n"},
 		{"environment-test-path", "INPUT = $(or $(FILE),known.txt)\ncheck:\n\ttest -f $(INPUT)\n"},
-		{"shell-variable-operand", evaluated + "check:\n\tfor f in a b; do cat \"$$f\"; done\n"},
-		{"xargs", evaluated + "check:\n\txargs cat < known.txt\n"},
+		{"shell-variable-operand", evaluated + "check:\n\t$(EVAL)for f in a b; do cat \"$$f\"; done\n"},
+		{"xargs", evaluated + "check:\n\t$(EVAL)xargs cat < known.txt\n"},
 		{"unknown-directory", evaluated + "check:\n\tcd $(CACHE) && cat known.txt\n"},
-		{"checksum-manifest", evaluated + "check:\n\tsha256sum -c checksums.txt\n"},
-		{"checksum-manifest-long", evaluated + "check:\n\tshasum --check --quiet checksums.txt\n"},
-		{"checksum-manifest-cluster", evaluated + "check:\n\tmd5sum -sc checksums.txt\n"},
-		{"files0-from", evaluated + "check:\n\twc -l --files0-from=list.txt\n"},
-		{"jq-module", evaluated + "check:\n\tjq -n 'import \"lib\" as lib; lib::x'\n"},
-		{"jq-library-path", evaluated + "check:\n\tjq -L lib -n '1'\n"},
-		{"awk", evaluated + "check:\n\tawk '{ while ((getline line < $$1) > 0) print line }' known.txt\n"},
-		{"sed", evaluated + "check:\n\tsed -n '1r other.txt' known.txt\n"},
+		{"checksum-manifest", evaluated + "check:\n\t$(EVAL)sha256sum -c checksums.txt\n"},
+		{"checksum-manifest-long", evaluated + "check:\n\t$(EVAL)shasum --check --quiet checksums.txt\n"},
+		{"checksum-manifest-cluster", evaluated + "check:\n\t$(EVAL)md5sum -sc checksums.txt\n"},
+		{"files0-from", evaluated + "check:\n\t$(EVAL)wc -l --files0-from=list.txt\n"},
+		{"jq-module", evaluated + "check:\n\t$(EVAL)jq -n 'import \"lib\" as lib; lib::x'\n"},
+		{"jq-library-path", evaluated + "check:\n\t$(EVAL)jq -L lib -n '1'\n"},
+		{"awk", evaluated + "check:\n\t$(EVAL)awk '{ while ((getline line < $$1) > 0) print line }' known.txt\n"},
+		{"sed", evaluated + "check:\n\t$(EVAL)sed -n '1r other.txt' known.txt\n"},
 		{"go-environment-operand", "PKG = $(or $(PKGS),./tools/local)\ncheck:\n\tgo test $(PKG)\n"},
-		{"go-environment-flags", evaluated + "check:\n\tgo test $(GOFLAGS_EXTRA) ./tools/local\n"},
-		{"make-override", evaluated + "check:\n\t$(MAKE) other PKG=ci\nother:\n\tgo test ./tools/local\n"},
+		{"go-environment-flags", evaluated + "check:\n\t$(EVAL)go test $(GOFLAGS_EXTRA) ./tools/local\n"},
+		{"make-override", evaluated + "check:\n\t$(EVAL)$(MAKE) other PKG=ci\nother:\n\tgo test ./tools/local\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			graph := driverGraph(t, boundFiles(tc.makefile+"all: check\n"), nil)
@@ -416,14 +429,14 @@ func TestFrontierSiteUnboundedOperandKeepsClaim_AFP_V0_3128(t *testing.T) {
 // same commands in modes that read only their literal operands, with a
 // bounded Go output value, leave the evaluated target no site.
 func TestFrontierSiteBoundedOperandDropsClaim_AFP_V0_3128(t *testing.T) {
-	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"
+	const evaluated = "CACHE = $(or $(XDG_CACHE_HOME),/tmp)\n" + recipeEvaluated
 	for _, tc := range []struct{ name, makefile string }{
 		{"checksum-compute", evaluated + "check:\n\tsha256sum known.txt > $(CACHE)/sums\n"},
-		{"literal-redirection", evaluated + "check:\n\twc -l < known.txt\n"},
+		{"literal-redirection", evaluated + "check:\n\t$(EVAL)wc -l < known.txt\n"},
 		{"literal-test", evaluated + "check:\n\ttest -f known.txt && test -n \"$(CACHE)\"\n"},
-		{"jq-literal", evaluated + "check:\n\tjq -r .name known.json\n"},
+		{"jq-literal", evaluated + "check:\n\t$(EVAL)jq -r .name known.json\n"},
 		{"go-output", evaluated + "CACHE = /tmp\ncheck:\n\tgo build -o $(CACHE)/bin ./tools/local\n"},
-		{"make-literal", evaluated + "check:\n\t$(MAKE) other\nother:\n\tgo test ./tools/local\n"},
+		{"make-literal", evaluated + "check:\n\t$(EVAL)$(MAKE) other\nother:\n\tgo test ./tools/local\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			files := boundFiles(tc.makefile + "all: check\n")
@@ -537,7 +550,7 @@ func TestFrontierSiteGoFlagAllowlist_AFP_V0_3128(t *testing.T) {
 		"go build -o * ./tools/local",
 	} {
 		t.Run(recipe, func(t *testing.T) {
-			graph := driverGraph(t, boundFiles("OUTPUT = $(or $(OUT),/tmp/bin)\nCACHE = $(or $(XDG_CACHE_HOME),/tmp)\ncheck:\n\t"+recipe+"\nall: check\n"), nil)
+			graph := driverGraph(t, boundFiles("OUTPUT = $(or $(OUT),/tmp/bin)\nCACHE = $(or $(XDG_CACHE_HOME),/tmp)\n"+recipeEvaluated+"check:\n\t$(EVAL)"+recipe+"\nall: check\n"), nil)
 			if !computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Fatal("unknown Go flag or value certified check")
 			}
@@ -569,7 +582,7 @@ func TestFrontierSiteCommandOptionAllowlist_AFP_V0_3128(t *testing.T) {
 		"grep --rec known.txt tools",
 	} {
 		t.Run(command, func(t *testing.T) {
-			graph := driverGraph(t, boundFiles("CACHE = $(or $(XDG_CACHE_HOME),/tmp)\ncheck:\n\t"+command+"\nall: check\n"), nil)
+			graph := driverGraph(t, boundFiles(recipeEvaluated+"check:\n\t$(EVAL)"+command+"\nall: check\n"), nil)
 			if !computedSite(t, graph, "driver:make:Makefile#check") {
 				t.Fatal("unknown command option certified check")
 			}

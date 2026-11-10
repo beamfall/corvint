@@ -27,6 +27,7 @@ import (
 // element of an array or every value of a map.
 var closed = map[string][]string{
 	".corvint/documentation-paths.json":         {""},
+	".corvint/e2e-flows.json":                   {"", "/consumers/*"},
 	".corvint/existence-readers.json":           {"", "/entries/*"},
 	".corvint/gated-root-locators.json":         {"", "/packages/*"},
 	".corvint/non-source-paths.json":            {"", "/entries/*"},

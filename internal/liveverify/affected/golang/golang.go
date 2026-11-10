@@ -778,6 +778,15 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		return join
 	})
 	comparisonOnly, joined, components := comparisonOnlyLocators(body, aliases, joins)
+	// AFP-V0-9810: a literal joined only to a test-scoped temporary root
+	// names a fixture outside every checkout, not a repository read.
+	every, _ := qualifiedImports(imports, func(string) bool { return true })
+	for offset := range tempJoinComponents(body, every) {
+		if components == nil {
+			components = map[int]bool{}
+		}
+		components[offset] = true
+	}
 	metadata := testMetadataLiterals(body, imports)
 	var scan fileScan
 	// A bounded join's root-anchored token names what the join reads

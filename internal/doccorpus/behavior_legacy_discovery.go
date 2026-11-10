@@ -15,7 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/repopath"
 )
 
 // LegacyInventorySchema names the generated static legacy inventory (DCP-V1-060).
@@ -164,7 +164,7 @@ func BuildLegacyInventory(ctx context.Context, input LegacyInventoryInput) ([]by
 	if !wire.IsGitOid(input.Revision) {
 		return nil, fail("legacy discovery requires a full commit revision")
 	}
-	if input.Path != "." && !affected.ValidRelativePath(input.Path) {
+	if input.Path != "." && !repopath.Valid(input.Path) {
 		return nil, fail("legacy path is not a canonical repository-relative path")
 	}
 	repository, err := contextindex.CorpusRepositoryID(ctx, input.Root, input.Revision)
@@ -253,7 +253,7 @@ func legacyPaths(ctx context.Context, auth *gitauth.Repository, revision, root s
 	// node_modules directory inside it. A test-named symlink or other non-tree entry is kept, so
 	// the read refuses it exactly as it refuses that path selected alone.
 	below := func(name string) bool { return root == "." || strings.HasPrefix(name, root+"/") }
-	names, err := auth.RevisionPaths(ctx, revision, affected.MaxWalkEntries, func(dir string) bool {
+	names, err := auth.RevisionPaths(ctx, revision, repopath.MaxWalkEntries, func(dir string) bool {
 		if dir == root || below(dir) {
 			return path.Base(dir) != "node_modules"
 		}

@@ -495,6 +495,23 @@ type driverAlternatives struct {
 	values    []driverMakeValue
 	ok        bool
 	evaluated bool
+	// evaluatedBy names the variables and functions that set evaluated
+	// (AZU-V0-611). Diagnostic only.
+	evaluatedBy map[string]bool
+}
+
+// driverMergeReasons adds every reason of src to *dst, allocating it on
+// first use.
+func driverMergeReasons(dst *map[string]bool, src map[string]bool) {
+	if len(src) == 0 {
+		return
+	}
+	if *dst == nil {
+		*dst = map[string]bool{}
+	}
+	for reason := range src {
+		(*dst)[reason] = true
+	}
 }
 
 // variableAlternatives is every value the file can leave in name after its
@@ -529,6 +546,7 @@ func (parsed *driverMakeFile) variableAlternatives(name string, limit int) drive
 
 func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlternatives {
 	evaluated := false
+	var evaluatedBy map[string]bool
 	union := func(sets ...[]driverMakeValue) []driverMakeValue {
 		var out []driverMakeValue
 		for _, set := range sets {
@@ -546,6 +564,7 @@ func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlt
 		expander := parsed.expanderAt(at)
 		variants := expander.expandAll(text)
 		evaluated = evaluated || expander.evaluated
+		driverMergeReasons(&evaluatedBy, expander.evaluatedBy)
 		if expander.ambiguous {
 			return nil, false
 		}
@@ -628,12 +647,12 @@ func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlt
 			}
 			next, ok := assign(current, event, at)
 			if !ok {
-				return driverAlternatives{evaluated: evaluated}
+				return driverAlternatives{evaluated: evaluated, evaluatedBy: evaluatedBy}
 			}
 			current = next
 		}
 		if len(current) > driverMaxAlternatives {
-			return driverAlternatives{evaluated: evaluated}
+			return driverAlternatives{evaluated: evaluated, evaluatedBy: evaluatedBy}
 		}
 	}
 	// AFP-V0-3126: a target-specific value applies over the global value
@@ -643,14 +662,14 @@ func (parsed *driverMakeFile) walkAlternatives(name string, limit int) driverAlt
 	for _, at := range scoped {
 		next, ok := assign(all, parsed.events[at], at)
 		if !ok {
-			return driverAlternatives{evaluated: evaluated}
+			return driverAlternatives{evaluated: evaluated, evaluatedBy: evaluatedBy}
 		}
 		all = union(all, next)
 		if len(all) > driverMaxAlternatives {
-			return driverAlternatives{evaluated: evaluated}
+			return driverAlternatives{evaluated: evaluated, evaluatedBy: evaluatedBy}
 		}
 	}
-	return driverAlternatives{values: all, ok: true, evaluated: evaluated}
+	return driverAlternatives{values: all, ok: true, evaluated: evaluated, evaluatedBy: evaluatedBy}
 }
 
 // driverParseTime is what make expands and runs while it reads a file,
@@ -662,6 +681,7 @@ type driverParseTime struct {
 	shells         []string
 	shellAmbiguous bool
 	evaluated      bool
+	evaluatedBy    map[string]bool
 }
 
 // parseTime expands every text make expands while it reads the file, each
@@ -670,7 +690,16 @@ type driverParseTime struct {
 // and every rule's prerequisites.
 func (parsed *driverMakeFile) parseTime() driverParseTime {
 	var result driverParseTime
-	expand := func(text string, at int) ([]string, bool) {
+	// expand expands text where make reads it. observed marks text whose
+	// expanded value every target observes (a `!=` command, a bare
+	// statement, an include); evaluation of any other text marks the file
+	// only when it ran a command, read a file or met an unmodeled function
+	// (AZU-V0-610). A conditional's condition is never evaluated into a
+	// branch choice (every branch is an alternative), an immediate value
+	// reaches a target only through the alternatives of the variable it
+	// sets, and a prerequisite list only its own rule: each of those marks
+	// the target that expands it (AFP-V0-3121, AFP-V0-3122).
+	expand := func(text string, at int, observed bool) ([]string, bool) {
 		if !strings.Contains(text, "$") {
 			return []string{text}, false
 		}
@@ -683,16 +712,20 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 		}
 		result.readPaths = append(result.readPaths, expander.readPaths...)
 		result.shellAmbiguous = result.shellAmbiguous || expander.shellAmbiguous || expander.unmodeledEffects
-		result.evaluated = result.evaluated || expander.evaluated
+		effects := len(expander.shells) != 0 || len(expander.readPaths) != 0 || expander.shellAmbiguous || expander.unmodeledEffects || expander.ambiguous
+		if observed || effects {
+			result.evaluated = result.evaluated || expander.evaluated
+			driverMergeReasons(&result.evaluatedBy, expander.evaluatedBy)
+		}
 		return variants, expander.ambiguous
 	}
 	for at, event := range parsed.events {
 		switch {
 		case event.kind == driverEventIf || event.kind == driverEventElse:
-			expand(event.text, at)
+			expand(event.text, at, false)
 		case event.kind != driverEventAssign:
 		case event.op == "!=":
-			variants, ambiguous := expand(event.command, at)
+			variants, ambiguous := expand(event.command, at, true)
 			result.shellAmbiguous = result.shellAmbiguous || ambiguous
 			for _, script := range variants {
 				if !slices.Contains(result.shells, script) {
@@ -700,24 +733,24 @@ func (parsed *driverMakeFile) parseTime() driverParseTime {
 				}
 			}
 		case event.immediate:
-			expand(event.value, at)
+			expand(event.value, at, false)
 		case event.op == "+=":
 			alternatives := parsed.variableAlternatives(event.name, at)
 			if !alternatives.ok || slices.ContainsFunc(alternatives.values, func(value driverMakeValue) bool { return value.simple }) {
-				expand(event.value, at)
+				expand(event.value, at, false)
 			}
 		}
 	}
 	for index, statement := range parsed.statements {
-		expand(statement, parsed.statementAt[index])
+		expand(statement, parsed.statementAt[index], true)
 	}
 	for index, include := range parsed.includes {
-		expand(include, parsed.includeAt[index])
+		expand(include, parsed.includeAt[index], true)
 	}
 	for _, target := range parsed.order {
 		rule := parsed.rules[target]
 		for index, prerequisites := range rule.prereqs {
-			expand(prerequisites, rule.prereqAt[index])
+			expand(prerequisites, rule.prereqAt[index], false)
 		}
 	}
 	return result
@@ -929,6 +962,9 @@ type driverExpander struct {
 	// conditional and word functions. Such a target stays a computed site
 	// unless every command it runs is certified (AFP-V0-3122).
 	evaluated bool
+	// evaluatedBy names each variable or function that set evaluated
+	// (AZU-V0-611). Diagnostic only: no unit field or selection reads it.
+	evaluatedBy map[string]bool
 	// shells are the expanded commands of every `$(shell ...)` reached.
 	shells []string
 	// autoChoices holds the alternatives of an automatic variable whose
@@ -1245,6 +1281,10 @@ func (e *driverExpander) lookup(name string) string {
 	alternatives := e.file.variableAlternatives(name, e.limit)
 	if len(e.file.vars[name]) > 1 || alternatives.evaluated {
 		e.evaluated = true
+		driverMergeReasons(&e.evaluatedBy, alternatives.evaluatedBy)
+		if len(e.file.vars[name]) > 1 {
+			driverMergeReasons(&e.evaluatedBy, map[string]bool{name: true})
+		}
 	}
 	if !alternatives.ok {
 		e.unmodeledEffects = true
@@ -1340,6 +1380,7 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 	switch name {
 	case "strip", "if", "or", "and", "filter", "filter-out", "findstring", "word", "wordlist", "firstword", "lastword", "join":
 		e.evaluated = true
+		driverMergeReasons(&e.evaluatedBy, map[string]bool{"$(" + name + ")": true})
 	}
 	switch name {
 	case "strip":
@@ -1539,9 +1580,10 @@ func (e *driverExpander) function(name, args string) (string, bool) {
 		return strings.Join(out, " "), true
 	case "error", "warning", "info":
 		// Discard the diagnostic value, but preserve argument evaluation effects.
-		savedAmbiguous, savedEvaluated := e.ambiguous, e.evaluated
+		savedAmbiguous, savedEvaluated, savedEvaluatedBy := e.ambiguous, e.evaluated, e.evaluatedBy
+		e.evaluatedBy = nil
 		e.expand(args)
-		e.ambiguous, e.evaluated = savedAmbiguous, savedEvaluated
+		e.ambiguous, e.evaluated, e.evaluatedBy = savedAmbiguous, savedEvaluated, savedEvaluatedBy
 		return "", true
 	case "addprefix":
 		parts := split(2)

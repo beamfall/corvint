@@ -4,18 +4,19 @@ Owner: Russell Lewis
 Date: 2026-11-06
 Requirement prefix: `CMS-V0`
 Intent status: accepted (owner, 2026-11-06)
-Delivery status: in-progress (docs edges cut, 2026-11-09)
+Delivery status: in-progress (docs edges cut and flows commands forwarded, 2026-11-09)
 Authoritative inputs:
 - decision 0591;
 - `AGENTS.md` invariant 7 as amended by 0591;
 - decision 0081;
+- decision 0595 (`corvint flows` and `corvint how` move to the docs app);
 - `core-compatibility-freeze-v1.md` (Core verb list);
 - restructure tickets labelled `restructure-2026-11` (V1-4800..4829, V1-4898..4909).
 
 ## Agent digest
 - Claim: Corvint splits into a core plus bundled apps and plugins, each measured for LLM fit, test isolation, plugin cost, speed and memory.
-- Status: accepted (owner, 2026-11-06) / in-progress (docs edges cut, 2026-11-09)
-- Exists: one root module; `corvint docs` and `--corpus=FILE` are exec-only shims onto the `corvint-docs` binary, and `internal/mcp/docsbridge` reaches it through the `docs-tool` envelope (V1-4907, 2026-11-09); `corvint` still links flows; Tasks left with decision 0594.
+- Status: accepted (owner, 2026-11-06) / in-progress (docs edges cut and flows commands forwarded, 2026-11-09)
+- Exists: one root module; `corvint docs` and `--corpus=FILE` are exec-only shims onto the `corvint-docs` binary, and `internal/mcp/docsbridge` reaches it through the `docs-tool` envelope (V1-4907, 2026-11-09); `corvint flows` and `corvint how` are exec-only shims onto `corvint-docs` too (decision 0595, `CMS-V0-912..916`), with `flows test-evidence` native in `corvint`; `corvint` still links the shared flow readers (`internal/appflows`, `internal/appmap`, `internal/flowcoverage`) for test selection; Tasks left with decision 0594.
 - Blocked on: baseline measurements (`CMS-V0-005`, `-006`, `-008`, `-010`, `-011`) before the docs module split (V1-4901) and the remaining extractions.
 - Read next: Requirements; Units and edges to cut; Acceptance and evidence.
 
@@ -44,7 +45,7 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
 | Kernel (leaf packages) | git runner, `gitprobe`, `gitstatus`, language ID, `execfile`, `procgroup`, `secretscreen`, `analyzerenvelope`, `langplugin`, `protocol/**` | upward imports (V1-4809) |
 | Tasks `corvint-tasks` | `internal/tasks/**`, `taskman`, `taskprojection`, `taskbarrier`, `localcompletion`, `scopelease`, `workqueue`, `worksource`, `corvint-work-queue` | `tasks`→`contextindex` (V1-4810); `cmd/corvint`→`taskman`; `internal/mcp/tasksbridge`, `internal/mcp/tasksread` |
 | Docs `corvint-docs` | doccorpus, doccompiler, docmaintain, doccitations, docstools, `cmd/corvint-docs`, `corvint-docs-mcp` (decision 0594 deleted corpus index/serve/republish and `corvint-corpus-*`) | cut (V1-4907): `cmd/corvint` forwards `docs` and `--corpus=FILE` to `corvint-docs`; `internal/mcp/docsbridge` runs its `docs-tool` verb (`internal/docsenvelope`); still open: `internal/mcp/toolgroup` and `internal/mcp/cli` → `doccorpus`/`corpusbridge` for the corpus tools |
-| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs (the E2E proof lab left with decision 0593) | `cmd/corvint`→`appflows`; `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
+| Flows `corvint-web-flows` | appflows, appmap, funclink, browsercov, flowcoverage, flowdocs (the E2E proof lab left with decision 0593) | cut (decision 0595): `cmd/corvint`→`internal/command/flows`, the `flows` and `how` commands now run in `corvint-docs`; still open: `cmd/corvint`→`appflows` (kept on purpose while the readers are `shared`, `CMS-V0-915`); `command/breakage`→`appflows`; `internal/mcp/bridge`→`flowcoverage` |
 | Adapters | `corvint-mcp`, `corvint-lsp`, test-validity MCP | bridges call apps through envelopes |
 | Plugins | analyzers; test providers only if measured (V1-4824) | registries (V1-4818); `corvint-plugin/1` (V1-4819) |
 | Release/update (in manifest) | `corvint-update`, `corvint-release-install` | none |
@@ -99,6 +100,27 @@ At base `1a401eb5ee68ff4a0541534b33a5d6538793e9ea`:
   `index --if-stale` MUST be recorded at baseline and after each extraction.
   - Pass: none regresses beyond noise.
   - Pass: the core binary is smaller after the docs, flows and Tasks extractions.
+- `CMS-V0-912`: (owner decision 0595, 2026-11-09) The `flows` command group and its `how` alias
+  MUST run in `corvint-docs`: `corvint-docs flows ...` and `corvint-docs how ...` take the argument
+  vectors `corvint flows ...` and `corvint how ...` took and write the same stdout, exit codes and
+  refusals. Their help spells the binary `corvint-docs`, and every registered `flows` subcommand
+  MUST be a node of the `corvint-docs` command tree.
+- `CMS-V0-913`: `corvint flows ...` and `corvint how ...` MUST be exec-only shims onto
+  `corvint-docs` under `CMS-V0-003`, with the `corvint docs` shim's behaviour: the argument vector
+  is forwarded unchanged, the child's bytes and exit code are returned, no authority is passed, a
+  missing `corvint-docs` is the named `NOT_INSTALLED` gap (code `not-installed`, exit 2), help is
+  answered natively and names `corvint-docs`, and `--require-clean` is refused by the shim.
+- `CMS-V0-914`: `flows test-evidence` MUST stay native in `corvint`, because it joins flow links
+  to test evidence from the tests layer, which the docs layer may not import. `corvint-docs flows
+  test-evidence` MUST refuse with exit 2 and a message naming `corvint flows test-evidence`.
+- `CMS-V0-915`: The tests layer MUST read flows in process, through packages the import manifest
+  keys `shared` (`internal/appflows`, `internal/appmap`, `internal/flowcoverage`). No tests-layer
+  package may import a docs-layer package, or run `corvint-docs`, to read a flow; the code -> flow
+  -> E2E test selection path MUST work with no `corvint-docs` installed.
+- `CMS-V0-916`: Moving the commands MUST add no cross-layer import edge. The baseline
+  `tools/import-ratchet/baseline.json` only shrinks: the edge `cmd/corvint ->
+  internal/command/flows` is gone and MUST NOT return, and no baselined edge may start at
+  `cmd/corvint` or end at `internal/command/flows` or `cmd/corvint-docs`.
 
 ## Non-goals, trust boundary and failure modes
 
@@ -133,7 +155,7 @@ assumed to pass.
 | Requirement | Implementation | Evidence |
 | --- | --- | --- |
 | `CMS-V0-001` | import and write ratchet (V1-4800) | ratchet test with a seeded cross-unit edge and a seeded `.corvint/` write |
-| `CMS-V0-002` | release manifest and `corvint-update` | manifest refusal test; interrupted-install test |
+| `CMS-V0-002` | release manifest and `corvint-update`; the beside-version refusal in `internal/docsenvelope` (`CheckBeside`), `cmd/corvint/docs_shim.go` and `cmd/corvint-docs/corpus_integration.go`, and the one-version install probe in `internal/releasecandidate` (`ARTIFACT-BIN-V0-510..512`, V1-5237) | manifest refusal test (`release-binary`, `ARTIFACT-BIN-V0-004`); `TestDocsShimRefusesSiblingAtAnotherVersion`, `TestCoreReadRefusesSiblingCoreAtAnotherVersion`, `TestARTIFACTBINV0511InstallPlacesAppsBesideCorvintAtOneVersion`; the `corvint-update` whole-set install and its interrupted-install test are still open |
 | `CMS-V0-003` | Core verb dispatcher | no-app PATH test over every Core verb |
 | `CMS-V0-004` | each extraction PR | CLI/wire golden diff; frozen eval parity; benchmarks |
 | `CMS-V0-005` | `affected` module mapping | replay before and after, recorded in the build log |
@@ -142,12 +164,20 @@ assumed to pass.
 | `CMS-V0-008` | per-unit `AGENTS.md`; size check | context-pack size and context-eval recall |
 | `CMS-V0-009` | per-unit test layout | isolated `go test`; `affected` app-only edit fixture |
 | `CMS-V0-010` | `corvint-plugin/1` host | overhead benchmark per plugin boundary |
+| `CMS-V0-912` | `cmd/corvint-docs/flows.go` (`flowInvocation`, `runFlows`), `cmd/corvint-docs/help.go`, `internal/command/flows` | `TestCMSV0912FlowsAndHowParityWithCorvintDocs` (over fixture repositories, `flows map`, `flows export`, `how`, `flows appmap how` and four refusals print the same stdout, stderr and exit code three ways: corvint's dispatcher forwarding to a built `corvint-docs` process, that `corvint-docs` binary run directly, and the handlers called in process as `corvint` dispatched them before the move); `TestCMSV0912FlowsHelpDoesNotRequireRepository`; `TestCMSV0912EveryFlowsSubcommandIsInTheCommandTree`; `TestSKHV0810HowAlias` |
+| `CMS-V0-913` | `cmd/corvint/flows_shim.go` (`runFlowsShim`), `forwardToDocs` in `cmd/corvint/docs_shim.go` | `TestCMSV0913FlowsShimForwardsToCorvintDocs` (a stand-in `corvint-docs` must receive the exact argument vector, so a native implementation in `corvint` fails it); `TestCMSV0913FlowsShimHelpIsNativeAndNamesCorvintDocs`; `TestCMSV0913FlowsShimReportsNotInstalled`; `TestCMSV0913FlowsShimRefusesRequireClean` |
+| `CMS-V0-914` | `cmd/corvint/flows_test_evidence.go` (`runFlowsTestEvidence`); `refuseFlowsTestEvidence` in `internal/command/flows` | `TestRSPV0051FlowProjection`; `TestCMSV0914TestEvidenceRefusesWithThePointerToCorvint`; `TestCMSV0914TestEvidenceRefusalIsReachable` |
+| `CMS-V0-915` | `tools/import-ratchet/areas.json` (`shared` prefixes `internal/appflows`, `internal/appmap`, `internal/flowcoverage`) | `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` (area keys; no tests-layer production import of `internal/command/flows`; `cmd/corvint`, `internal/testplan` and `internal/testsource` import a shared flow reader); `TestImportRatchet` (`IRT-V0-004`) for every other tests -> docs edge |
+| `CMS-V0-916` | `tools/import-ratchet/baseline.json` (18 -> 17 edges) | `TestImportRatchet` (`IRT-V0-003`, `IRT-V0-004`, `IRT-V0-005`); the baseline scan and the seeded `cmd/corvint -> internal/command/flows` control in `TestCMSV0915FlowReaderIsSharedAndFlowCommandsAreDocs` |
 
 ## Compatibility and rollback
 
 - Each extraction is one PR. Reverting it re-links the unit into `corvint`, and no wire change is
   needed (`CMS-V0-004`).
 - Reverting decision 0591 needs a new superseding decision.
+- Decision 0595 rolls back by reverting its change: `corvint` dispatches `flows` and `how`
+  natively again and the edge `cmd/corvint -> internal/command/flows` returns to the baseline. No
+  wire format, flag or stored state changed.
 
 ## Remaining decisions
 

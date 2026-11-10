@@ -1,6 +1,20 @@
 {
   "profile": "corvint-test-binary-consumers/0",
   "consumers": {
+    "conformance/interactive-alpha/core-provider-proof.mjs": {
+      "commands": [
+        "cmd/corvint-go-test-provider",
+        "cmd/corvint-js-test-provider",
+        "cmd/corvint-test-validity-mcp"
+      ]
+    },
+    "extensions/vscode/test/installed/run.mjs": {
+      "commands": [
+        "cmd/corvint-go-test-provider",
+        "cmd/corvint-js-test-provider",
+        "cmd/corvint-test-validity-mcp"
+      ]
+    },
     "tools/web-flows/test/e2e.mjs": {
       "commands": [
         "cmd/corvint-web-flows"

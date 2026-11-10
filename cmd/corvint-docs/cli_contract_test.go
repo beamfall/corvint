@@ -91,7 +91,7 @@ func TestHelpFormsPrintAuthoredTopics(t *testing.T) {
 	reader := &forbiddenHelpReader{}
 	var stdout, stderr bytes.Buffer
 	if exit := runContext(context.Background(), []string{"help", "not-a-command"}, reader, &stdout, &stderr); exit != 2 || stdout.Len() != 0 ||
-		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'docs', 'docs-tool', 'docs corpus', ") {
+		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'docs', 'flows', 'how', 'docs-tool', 'docs corpus', ") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
 	}
 	if exit := runContext(context.Background(), []string{"corpus", "info"}, reader, &stdout, &stderr); exit != 2 || !strings.Contains(stderr.String(), "\"code\": \"invalid-arguments\"") {

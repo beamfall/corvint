@@ -348,6 +348,8 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 		result, callErr = registry.callFlowsCoverage(ctx, arguments)
 	case ToolFlowsNavigate:
 		result, callErr = registry.callFlowsNavigate(ctx, arguments)
+	case ToolFlowsStatus:
+		result, callErr = registry.callFlowsStatus(ctx, arguments)
 	default:
 		return Result{}, failure("unsupported-tool")
 	}

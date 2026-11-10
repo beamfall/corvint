@@ -223,8 +223,10 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) { return coreBinary(target), nil }
 	t.Cleanup(func() { verifyCoreBinary = previousCore })
 
+	stubAppBinaries(t)
+	apps := appsOutputFixture(t, "0.5.0a1", "1", commit, "go1.27.3")
 	output := filepath.Join(canonicalTemp(t), "candidates")
-	drifted := Options{CoreDirectory: coreGateFixture(t, strings.Repeat("a", 40), tree, coreBinary), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
+	drifted := Options{CoreDirectory: coreGateFixture(t, strings.Repeat("a", 40), tree, coreBinary), AppsDirectory: apps, SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
 	if _, err := Assemble(t.Context(), drifted); err == nil || !strings.Contains(err.Error(), "identities disagree") {
 		t.Fatalf("core report for another commit accepted: %v", err)
 	}
@@ -232,7 +234,14 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 		t.Fatalf("refused Core-only assembly retained output: %v", entries)
 	}
 
-	result, err := Assemble(t.Context(), Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"})
+	staleApps := Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: appsOutputFixture(t, "0.5.0a1", "1", strings.Repeat("f", 40), "go1.27.3"), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
+	if _, err := Assemble(t.Context(), staleApps); err == nil || !strings.Contains(err.Error(), "release manifest records corvint-cli") {
+		t.Fatalf("app archives built from another commit accepted: %v", err)
+	}
+	if entries, err := os.ReadDir(output); err == nil && len(entries) != 0 {
+		t.Fatalf("refused assembly retained output: %v", entries)
+	}
+	result, err := Assemble(t.Context(), Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), AppsDirectory: apps, SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"})
 	if err != nil {
 		t.Fatalf("Core-only assembly refused: %v", err)
 	}
@@ -246,10 +255,17 @@ func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("retained Core-only candidate refused: %v", err)
 	}
+	appArchives := 0
 	for _, asset := range verified.Manifest.Assets {
 		if strings.HasPrefix(asset.Role, "companion") || strings.Contains(asset.Role, "tasks") {
 			t.Fatalf("Core-only candidate carries companion asset %s (%s)", asset.Path, asset.Role)
 		}
+		if asset.Role == appArchiveRole {
+			appArchives++
+		}
+	}
+	if appArchives != appAssetCount() {
+		t.Fatalf("candidate carries %d app archives, want %d", appArchives, appAssetCount())
 	}
 }
 
@@ -319,8 +335,8 @@ func testPUBV0026FailedInputRetainsNoCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := Assemble(t.Context(), Options{
-		CoreDirectory: filepath.Join(root, "missing"),
-		SourceRoot:    root, Scratch: root, OutputParent: output, Version: "0.5.0a1",
+		CoreDirectory: filepath.Join(root, "missing"), AppsDirectory: filepath.Join(root, "apps"),
+		SourceRoot: root, Scratch: root, OutputParent: output, Version: "0.5.0a1",
 	})
 	if err == nil {
 		t.Fatal("missing core input accepted")
@@ -471,6 +487,10 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 	if mutate != nil {
 		mutate(files, roles, &manifest, &qualification)
 	}
+	// The app archives and release manifest agree with the (possibly mutated) candidate identity;
+	// app drift is exercised through verifyApps directly (apps_test.go).
+	stubAppBinaries(t)
+	addAppsCandidateFixture(t, add, manifest.Version, manifest.BuildNumber, manifest.Sources[0].Commit, manifest.GoVersion)
 	qualificationRaw, err := canonicalJSON(qualification)
 	if err != nil {
 		t.Fatal(err)

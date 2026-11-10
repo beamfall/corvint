@@ -275,16 +275,17 @@ func parseTypeScriptAliasesIn(name string, bodies map[string]string) typeScriptA
 // resolveTypeScriptAliases rewrites each bare reference the nearest alias config resolves to the
 // relative path of its target. When keep reports true for the original reference, the target is
 // added beside it instead, so the edges the original names are kept (TJAA-V0-059).
-func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) []string {
+func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) ([]string, []string) {
 	nearest := nearestTypeScriptAliases(owner, configs)
 	typeScript := strings.HasSuffix(owner, ".ts") || strings.HasSuffix(owner, ".tsx")
 	// Playwright maps no specifier of a module that is not .ts or .tsx without allowJs
 	// (AFP-V0-418, TJAA-V0-960). Under a blocked gate (keep set) every edge is speculative and
 	// kept, so the selection stays a superset of what any runner resolves (TJAA-V0-059).
 	if nearest == nil || !nearest.valid || !typeScript && !nearest.allowJS && keep == nil {
-		return refs
+		return refs, nil
 	}
 	resolved := append([]string(nil), refs...)
+	var targets []string
 	for index, ref := range refs {
 		if strings.HasPrefix(ref, ".") || externalScheme(ref) {
 			continue
@@ -293,6 +294,11 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		if target == "" {
 			if claimed {
 				sites.raiseRef(frontier, FrontierPathAlias, owner, ref)
+				// The substituted targets are what the alias could load: a
+				// data file the adapter does not observe, such as JSON, is
+				// then read by the importer through its path token
+				// (TJAA-V0-1161, V1-4683).
+				targets = append(targets, nearest.candidates(ref)...)
 			}
 			continue
 		}
@@ -309,7 +315,29 @@ func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptA
 		}
 		sites.alias(owner, ref, rewritten)
 	}
-	return resolved
+	return resolved, targets
+}
+
+// candidates lists the repository-relative paths the alias patterns that
+// claim ref substitute it into, and the baseUrl join when no pattern claims
+// it, without probing for a module: the files an unresolved alias could load.
+func (config typeScriptAliases) candidates(ref string) []string {
+	var paths []string
+	claimed := false
+	for _, pattern := range sortedKeys(config.paths) {
+		capture, matches := typeScriptAliasMatch(pattern, ref)
+		if !matches {
+			continue
+		}
+		claimed = true
+		for _, target := range config.paths[pattern] {
+			paths = append(paths, path.Clean(path.Join(config.base, strings.ReplaceAll(target, "*", capture))))
+		}
+	}
+	if !claimed && config.baseURL {
+		paths = append(paths, path.Clean(path.Join(config.base, ref)))
+	}
+	return paths
 }
 
 func (config typeScriptAliases) resolve(ref string, bodies map[string]string) (string, bool) {

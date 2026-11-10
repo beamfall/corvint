@@ -141,6 +141,14 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 				if name != "1028a" && !floor[entry.Detail] && entry.Detail != shell.FrontierForeignInvocation {
 					t.Errorf("%s: LANGUAGE_FRONTIER %s beyond a Go source edit's floor", name, entry.Detail)
 				}
+			case affected.UnknownUnselectedBinaryConsumer:
+				// AFP-V0-762 (V1-5200): a dirty set that reaches a provider
+				// binary names the installed-host proofs that exec it; the
+				// entry is the declared fail-closed output, which CI retains
+				// as a check (STR-V0-750) without widening the Go shards.
+				if !slices.Contains([]string{"conformance/interactive-alpha/core-provider-proof.mjs", "extensions/vscode/test/installed/run.mjs", "tools/web-flows/test/e2e.mjs", "tools/web-flows/test/navigation-e2e.mjs"}, entry.Detail) {
+					t.Errorf("%s: %s %s is no declared consumer of this repository", name, entry.Reason, entry.Detail)
+				}
 			default:
 				t.Errorf("%s: %s %s", name, entry.Reason, entry.Detail)
 			}

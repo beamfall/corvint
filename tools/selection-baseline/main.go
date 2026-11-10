@@ -8,8 +8,13 @@
 //
 // FILE (profile corvint-selection-baseline-changes/0) lists each change as a
 // base and head commit and, for a change whose CI failed, the failing packages.
-// The replay clones DIR's repository into a temporary directory with --shared
-// (DIR's index, worktrees and refs are not written), checks out each head
+// The replay clones DIR's repository into a temporary directory (DIR's index,
+// worktrees and refs are not written; the objects are hardlinked when the
+// temporary directory, TMPDIR, is on DIR's filesystem, and copied otherwise;
+// never --shared, whose objects/info/alternates the planner's Git authority
+// reader refuses, which left every base comparison the planner makes from
+// immutable objects, AFP-V0-050 read scopes and TSP-V0-608 gated locators
+// among them, silently unknown in this replay), checks out each head
 // detached and clean, and runs `BIN affected --base BASE`, the selector on that
 // plan, and `BIN test --base BASE --dry-run --manifest M`. A change narrows in CI
 // when the selector's verdict is `run` or `NOTHING` and the range changes no
@@ -39,6 +44,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -142,34 +148,39 @@ type manifestUnit struct {
 
 // Result is one replayed change.
 type Result struct {
-	ID             string         `json:"id"`
-	Kind           string         `json:"kind"`
-	Base           string         `json:"base"`
-	Head           string         `json:"head"`
-	PR             int            `json:"pr,omitempty"`
-	PlanScope      string         `json:"planScope"`
-	Dirty          int            `json:"dirty"`
-	Selected       int            `json:"selected"`
-	Unknown        int            `json:"unknown"`
-	Universe       int            `json:"universe"`
-	UnknownKinds   map[string]int `json:"unknownKinds"`
-	WitnessKinds   map[string]int `json:"witnessKinds"`
-	Verdict        string         `json:"verdict"`
-	VerdictReason  string         `json:"verdictReason,omitempty"`
-	GithubChange   bool           `json:"githubChange"`
-	GithubInputs   []string       `json:"githubInputs,omitempty"`
-	CIScope        string         `json:"ciScope"`
-	Packages       []string       `json:"packages"`
-	PackageShare   float64        `json:"packageShare"`
-	CostShare      float64        `json:"costShare"`
-	TestScope      string         `json:"testScope"`
-	WholePackages  int            `json:"wholePackages"`
-	SlicedPackages int            `json:"slicedPackages"`
-	WholeWithTests int            `json:"wholeSourceAndTestsChanged"`
-	Failures       []failure      `json:"failures,omitempty"`
-	Misses         []string       `json:"misses,omitempty"`
-	MissCauses     []string       `json:"missCauses,omitempty"`
-	Unattributed   int            `json:"unattributedFailures,omitempty"`
+	ID            string         `json:"id"`
+	Kind          string         `json:"kind"`
+	Base          string         `json:"base"`
+	Head          string         `json:"head"`
+	PR            int            `json:"pr,omitempty"`
+	PlanScope     string         `json:"planScope"`
+	Dirty         int            `json:"dirty"`
+	Selected      int            `json:"selected"`
+	Unknown       int            `json:"unknown"`
+	Universe      int            `json:"universe"`
+	UnknownKinds  map[string]int `json:"unknownKinds"`
+	WitnessKinds  map[string]int `json:"witnessKinds"`
+	Verdict       string         `json:"verdict"`
+	VerdictReason string         `json:"verdictReason,omitempty"`
+	GithubChange  bool           `json:"githubChange"`
+	GithubInputs  []string       `json:"githubInputs,omitempty"`
+	// GithubMapped names each mapped `.github/` narrowing input the change
+	// touches with its consumer packages, as the guard prints them
+	// (CIN-V0-8423); the change narrows only when the verdict selects every
+	// consumer (CIN-V0-8424).
+	GithubMapped   []string  `json:"githubMapped,omitempty"`
+	CIScope        string    `json:"ciScope"`
+	Packages       []string  `json:"packages"`
+	PackageShare   float64   `json:"packageShare"`
+	CostShare      float64   `json:"costShare"`
+	TestScope      string    `json:"testScope"`
+	WholePackages  int       `json:"wholePackages"`
+	SlicedPackages int       `json:"slicedPackages"`
+	WholeWithTests int       `json:"wholeSourceAndTestsChanged"`
+	Failures       []failure `json:"failures,omitempty"`
+	Misses         []string  `json:"misses,omitempty"`
+	MissCauses     []string  `json:"missCauses,omitempty"`
+	Unattributed   int       `json:"unattributedFailures,omitempty"`
 	// TestExtra names each Go package a NARROWED `corvint test` manifest
 	// runs that the plan does not select, TestOmitted each root Go package
 	// the plan selects that a manifest which is not FULL does not run, and
@@ -396,13 +407,13 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 				return r, err
 			}
 		}
-		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
+		// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own local clone, so
 		// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
 		jobs := replayJobs(len(pending))
 		clones := make(chan string, jobs)
 		for i := range jobs {
 			clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
-			if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
+			if _, err := run(ctx, root, "git", "clone", "--quiet", "--no-checkout", ".", clone); err != nil {
 				return r, err
 			}
 			clones <- clone
@@ -479,7 +490,9 @@ func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector s
 	if _, err := run(ctx, clone, "git", "clean", "-ffdxq"); err != nil {
 		return res, err
 	}
-	raw, err := run(ctx, clone, corvint, "affected", "--base", c.Base)
+	// The replay runs one current binary over historical trees on purpose, so
+	// the AFP-V0-9730 stale-binary refusal is accepted; the plan stays marked.
+	raw, err := run(ctx, clone, corvint, "affected", "--base", c.Base, "--accept-stale-binary")
 	if err != nil {
 		return res, err
 	}
@@ -508,9 +521,11 @@ func measure(ctx context.Context, clone, tmp, guard, module, corvint, selector s
 		return res, fmt.Errorf("manifest: %w", err)
 	}
 	m.nested = nestedModuleUnits(clone, module, m.Excluded)
-	res.GithubChange, res.GithubInputs = githubGuard(ctx, clone, guard, c.Base, c.Head)
+	var mapped []string
+	res.GithubChange, res.GithubInputs, mapped = githubGuard(ctx, clone, guard, c.Base, c.Head)
 	fillPlan(&res, p)
 	fillVerdict(&res, audit, costs)
+	applyMappedInputs(&res, module, mapped, costs)
 	fillManifest(&res, m)
 	checkFailures(&res)
 	checkAgreement(&res, p, m)
@@ -588,8 +603,10 @@ func fillVerdict(res *Result, audit string, costs map[string]float64) {
 const guardPath = ".github/forward-rows/github-guard.sh"
 
 // githubGuard runs the guard over base..head in clone (TSP-V0-7330). Its first line `0` is no
-// narrowing input changed; `1` is a changed input, named by the lines after it; anything else,
-// or a guard that cannot run, fails closed as a change, as narrow.sh records it.
+// narrowing input changed; `1` is a changed global input, named by the lines after it; `mapped`
+// (CIN-V0-8423) is a change to mapped inputs only, each line after it `INPUT CONSUMER...`, which
+// applyMappedInputs decides against the verdict; anything else, or a guard that cannot run,
+// fails closed as a change, as narrow.sh records it.
 // cacheable reports whether a measured result may be recorded in the result
 // cache (TSP-V0-7330). A guard that could not run (an `unreadable:` input: no
 // shell, no temporary directory, an unreadable guard) depends on conditions
@@ -604,18 +621,51 @@ func cacheable(res Result) bool {
 	return true
 }
 
-func githubGuard(ctx context.Context, clone, guard, base, head string) (bool, []string) {
+func githubGuard(ctx context.Context, clone, guard, base, head string) (changed bool, inputs, mapped []string) {
 	out, err := run(ctx, clone, "sh", guard, base, head)
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	switch {
 	case err != nil:
-		return true, []string{"unreadable: " + err.Error()}
+		return true, []string{"unreadable: " + err.Error()}, nil
 	case lines[0] == "0" && len(lines) == 1:
-		return false, nil
+		return false, nil, nil
 	case lines[0] == "1" && len(lines) > 1:
-		return true, lines[1:]
+		return true, lines[1:], nil
+	case lines[0] == "mapped" && len(lines) > 1:
+		for _, line := range lines[1:] {
+			if len(strings.Fields(line)) < 2 {
+				return true, []string{"unreadable: " + strings.Join(lines, "; ")}, nil
+			}
+		}
+		return false, nil, lines[1:]
 	}
-	return true, []string{"unreadable: " + strings.Join(lines, "; ")}
+	return true, []string{"unreadable: " + strings.Join(lines, "; ")}, nil
+}
+
+// applyMappedInputs applies CIN-V0-8424 after the verdict: a change to mapped
+// `.github/` inputs narrows only when a `run` verdict names every consumer
+// package (module-qualified) of every input; otherwise it is a `.github/`
+// change naming the omitted consumers, so the CI scope is FULL.
+func applyMappedInputs(res *Result, module string, mapped []string, costs map[string]float64) {
+	if len(mapped) == 0 {
+		return
+	}
+	res.GithubMapped = append([]string(nil), mapped...)
+	for _, line := range mapped {
+		fields := strings.Fields(line)
+		for _, consumer := range fields[1:] {
+			if res.Verdict == "run" && slices.Contains(res.Packages, module+"/"+consumer) {
+				continue
+			}
+			res.GithubChange = true
+			res.GithubInputs = append(res.GithubInputs, fields[0]+": "+consumer+" not selected")
+		}
+	}
+	if !res.GithubChange {
+		return
+	}
+	res.CIScope = CIScope(res.Verdict, res.GithubChange)
+	res.PackageShare, res.CostShare = 1, 1
 }
 
 // CIScope is the CI PR tier's decision: a change to a guarded `.github/` narrowing
@@ -913,7 +963,9 @@ func moduleOf(name string) (string, error) {
 // records that. A historic head can lack a declaration the current binary
 // needs, such as the cfamily one a bearing frontier adds (AFP-V0-2750).
 func dryRunManifest(ctx context.Context, dir, corvint, base, manifestPath string) error {
-	args := []string{"test", "--base", base, "--dry-run", "--manifest", manifestPath}
+	// AFP-V0-9730: the replay runs one binary over historical trees, so the
+	// stale-binary verdict is accepted instead of refused; the plan stays marked.
+	args := []string{"test", "--base", base, "--dry-run", "--manifest", manifestPath, "--accept-stale-binary"}
 	if os.Getenv("SELECTION_CONTRACT_CHECK") == "1" {
 		// CI planning requires an absolute wrapper path even in dry-run mode.
 		// It only appears in planned argv; no wrapper is created or executed.

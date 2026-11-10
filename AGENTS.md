@@ -32,7 +32,13 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.
 7. The default local product is one release of native-Go executables: the `corvint` core plus the
    bundled apps and plugins its release manifest names; adding an executable to that manifest needs
-   its own accepted spec and decision. Every one of them is local only: no account, network
+   its own accepted spec and decision. The product binaries are `corvint`, `corvint-docs`,
+   `corvint-cli`, the MCP servers `corvint-mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`,
+   `corvint-web-flows`, `corvint-test-runner`, the test providers `corvint-go-test-provider`,
+   `corvint-js-test-provider` and `corvint-ruby-test-provider`, every `corvint-analyzer-*` and
+   `corvint-update`; `tools/release-binary/binaries.json` is the catalog that names them, cites
+   each one's decision and says which must share a version, and each is released on its own
+   (decision 0594 item 8, `ARTIFACT-BIN-V0-001`). Every one of them is local only: no account, network
    dependency, mutable/external database service, hosted service, embeddings, permanent daemon, UI,
    or broad language rewrite. A bundled app or plugin may be its own Go module and executable but
    cannot widen that boundary. It reaches the core or another app only through a published,

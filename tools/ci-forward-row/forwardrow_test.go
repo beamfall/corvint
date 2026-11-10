@@ -1252,6 +1252,7 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 }
 
 func TestAFPV0047WorkflowBindings(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	read := func(path string) string {
 		b, err := os.ReadFile(path)
 		if err != nil {
@@ -1259,7 +1260,7 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 		}
 		return string(b)
 	}
-	ci, cp := read("../../.github/workflows/ci.yml"), read("../../.github/workflows/ci-control-plane.yml")
+	ci, cp, mm := read("../../.github/workflows/ci.yml"), read("../../.github/workflows/ci-control-plane.yml"), read("../../.github/workflows/main-miss.yml")
 	one := func(text, pattern string) string {
 		t.Helper()
 		m := regexp.MustCompile(pattern).FindAllStringSubmatch(text, -1)
@@ -1273,8 +1274,8 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 	if e, f := one(ci, `(?m)^      CORVINT_PR_FORWARD_EPOCH: "([0-9]+)"$`), one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`); e != f {
 		t.Fatalf("FORWARD_EPOCH %s names rows of another epoch than CORVINT_PR_FORWARD_EPOCH %s", f, e)
 	}
-	// AFP-V0-983: the main-miss job names its rows with the same epoch.
-	if m := one(cp, `(?m)^          FORWARD_EPOCH: "([0-9]+)"$`); m != one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`) {
+	// AFP-V0-983, CIN-V0-7922: the main-miss workflow names its rows with the same epoch.
+	if m := one(mm, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`); m != one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`) {
 		t.Fatalf("main-miss FORWARD_EPOCH %s differs from the forward-rows epoch", m)
 	}
 	job := one(cp, `(?ms)^  forward-rows:\n(.*?)\z`)

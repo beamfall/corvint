@@ -46,7 +46,7 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 			t.Fatal(err)
 		}
 		var stdout, stderr bytes.Buffer
-		code := runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &stdout, &stderr)
+		code := runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, strings.NewReader(""), &stdout, &stderr)
 		raw, err := os.ReadFile(argv)
 		if err != nil {
 			t.Fatal(err)

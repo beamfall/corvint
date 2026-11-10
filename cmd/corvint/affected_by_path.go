@@ -15,11 +15,14 @@ const affectedByPathProfile = "affected-by-path/1"
 
 // affectedByPathUnit is one selected unit of a --by-path document.
 type affectedByPathUnit struct {
-	Kind      string                 `json:"kind,omitempty"`
-	Run       []string               `json:"run,omitempty"`
-	UnitID    string                 `json:"unitId"`
-	TestCount int                    `json:"testCount"`
-	Witness   affectedCompactWitness `json:"witness"`
+	Kind   string   `json:"kind,omitempty"`
+	Run    []string `json:"run,omitempty"`
+	UnitID string   `json:"unitId"`
+	// TestCount and TestFileCount are the compact plan's (AFP-V0-9451,
+	// AFP-V0-9731): runnable tests, and observed test files.
+	TestCount     int                    `json:"testCount"`
+	TestFileCount int                    `json:"testFileCount"`
+	Witness       affectedCompactWitness `json:"witness"`
 }
 
 // affectedByPathEntry is one named path: its own selection less the shared
@@ -65,8 +68,14 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 		emitError(stderr, err)
 		return 2
 	}
-	// AFP-V0-846: a stale or unverified binary is named here as on the plan.
-	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr).(affectedReceipt)
+	// AFP-V0-846, AFP-V0-9730: a stale binary refuses here as on the plan;
+	// an accepted or unverified one is named as on the plan.
+	degraded, err := degradeStaleAffected(ctx, invocation.Root, receipt, invocation.AcceptStaleBinary, stdout, stderr)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	receipt = degraded.(affectedReceipt)
 	result := affectedByPath(receipt, graph, invocation.PathList)
 	result.Degradations = receipt.Degradations
 	result.DegradationDetails = receipt.DegradationDetails
@@ -97,12 +106,13 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []string) affectedByPathReceipt {
 	result := affectedByPathReceipt{Profile: affectedByPathProfile, Tool: "affected", Revision: receipt.Revision, Scope: receipt.Plan.Scope, Shared: []affectedByPathUnit{}, Paths: []affectedByPathEntry{}, OK: true}
 	plans := make([]affected.Plan, len(paths))
-	selectedBy, unbounded, tests := map[string]int{}, map[string]affected.Witness{}, map[string]int{}
+	selectedBy, unbounded, tests, files := map[string]int{}, map[string]affected.Witness{}, map[string]int{}, map[string]int{}
 	for index, path := range paths {
 		plans[index] = affected.SelectLinked(graph, []string{path})
 		for _, selection := range plans[index].Selected {
 			selectedBy[selection.UnitID]++
 			tests[selection.UnitID] = projectedTestCount(receipt.TestCounts, selection)
+			files[selection.UnitID] = len(selection.Tests)
 			if selection.Witness.Kind == affected.WitnessUnboundedReader {
 				if _, exists := unbounded[selection.UnitID]; !exists {
 					unbounded[selection.UnitID] = selection.Witness
@@ -114,7 +124,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 	for _, selection := range receipt.Plan.Selected {
 		if witness, ok := unbounded[selection.UnitID]; ok && selectedBy[selection.UnitID] == len(paths) {
 			shared[selection.UnitID] = true
-			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], Witness: compactWitness(witness)})
+			result.Shared = append(result.Shared, affectedByPathUnit{UnitID: selection.UnitID, TestCount: tests[selection.UnitID], TestFileCount: files[selection.UnitID], Witness: compactWitness(witness)})
 		}
 	}
 	for index, path := range paths {
@@ -125,7 +135,7 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 				entry.Shared++
 				continue
 			}
-			entry.Additions = append(entry.Additions, affectedByPathUnit{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: projectedTestCount(receipt.TestCounts, selection), Witness: compactWitness(selection.Witness)})
+			entry.Additions = append(entry.Additions, affectedByPathUnit{Kind: selection.Kind, Run: selection.Run, UnitID: selection.UnitID, TestCount: projectedTestCount(receipt.TestCounts, selection), TestFileCount: len(selection.Tests), Witness: compactWitness(selection.Witness)})
 		}
 		result.Paths = append(result.Paths, entry)
 	}
@@ -141,7 +151,7 @@ func renderAffectedByPathText(result affectedByPathReceipt) string {
 	}
 	writeAffectedDegradations(&out, result.Degradations, result.DegradationDetails)
 	for _, unit := range result.Shared {
-		fmt.Fprintf(&out, "shared %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind)
+		fmt.Fprintf(&out, "shared %s tests=%d test-files=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.TestFileCount, unit.Witness.Kind)
 	}
 	for _, entry := range result.Paths {
 		fmt.Fprintf(&out, "path %s scope=%s shared=%d/%d additions=%d\n", textWord(entry.Path), entry.Scope, entry.Shared, len(result.Shared), len(entry.Additions))
@@ -150,7 +160,7 @@ func renderAffectedByPathText(result affectedByPathReceipt) string {
 			if len(unit.Run) != 0 {
 				command = " run " + textWord(shellQuoteJoin(unit.Run))
 			}
-			fmt.Fprintf(&out, "  added %s tests=%d %s%s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness.Kind, command)
+			fmt.Fprintf(&out, "  added %s tests=%d test-files=%d %s%s\n", textWord(unit.UnitID), unit.TestCount, unit.TestFileCount, unit.Witness.Kind, command)
 		}
 		for _, gap := range entry.Uncovered {
 			fmt.Fprintf(&out, "  uncovered %s %s\n", textWord(gap.Reason), textWord(gap.Detail))

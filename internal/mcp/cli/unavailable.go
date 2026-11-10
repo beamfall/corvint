@@ -55,6 +55,8 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 		switch name {
 		case toolProfileTestEvidence:
 			group = unavailableGroup{toolgroup.TestEvidence{}.Tools, toolgroup.TestEvidenceErrorProfile, reason}
+		case toolProfileAffected:
+			group = unavailableGroup{toolgroup.Affected{}.Tools, toolgroup.AffectedErrorProfile, reason}
 		case toolProfileTestValidity:
 			group = unavailableGroup{(&testvaliditybridge.Registry{}).Tools, toolgroup.TestValidityErrorProfile, reason}
 		case toolProfileDocs:

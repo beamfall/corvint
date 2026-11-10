@@ -41,6 +41,7 @@ func barJSON(t *testing.T, epoch string, names []string) doc {
 // at least 2, so the epoch-1 INCOMPLETE and MISS rows the dead b609ca4b pins produced neither
 // count toward the AFP-V0-029 bar nor hold the kill switch, whose thresholds are unchanged.
 func TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	epoch := liveEpoch(t)
 	if n, err := strconv.Atoi(epoch); err != nil || n < 2 {
 		t.Fatalf("live forward epoch %q, want 2 or later (V1-3314)", epoch)
@@ -119,6 +120,7 @@ func TestCINV0002UnreachablePinFailsTheShardLoudly(t *testing.T) {
 // that reached it counts as reaching the epoch's start, and the verdict records when its
 // listing began and the names of its AFP-V0-030 window rows.
 func TestCINV0003VerdictListsBackToTheEpochSince(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	since := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
 	// Page 1: 22 epoch rows, five failing, after the epoch began; page 2: artifacts of other
 	// branches from before it; page 3, were it read, ends the listing.

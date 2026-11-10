@@ -137,8 +137,10 @@ type Planned struct {
 // declared language argv. Declared units whose argv is identical and
 // nonempty share one invocation, which records each unit's outcome
 // (AZU-V0-007). A nested-module unit is its own go test ./...
-// from the module directory with GOWORK=off (STR-V0-064). Only the target
-// set differs between a narrowed and a FULL run.
+// from the module directory with GOWORK=off (STR-V0-064). The provider
+// units of one runner share one provider invocation, after the others
+// (STR-V0-8703). Only the target set differs between a narrowed and a FULL
+// run.
 func Invocations(m Manifest, declared Declared, shard int, root, confine string) []Planned {
 	var whole []Unit
 	var planned []Planned
@@ -194,7 +196,7 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
-	return planned
+	return append(planned, providerInvocations(m, declared, shard)...)
 }
 
 // GoExecutor returns the environment entries, appended to the runner's own
@@ -287,6 +289,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 		if len(invocation.Argv) == 0 {
 			receipt.Incomplete = append(receipt.Incomplete, invocation.Units[0].Unit+": "+DeclarationPath+" names no command for it")
+			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
 			planned = withoutRunner(planned, key)
 			continue
 		}
@@ -300,6 +303,9 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 		if err != nil {
 			receipt.Incomplete = append(receipt.Incomplete, key+": "+err.Error())
+			// STR-V0-8705: a provider that cannot be discovered leaves each
+			// of its selected tests recorded NOT_RUN beside the reason.
+			receipt.Invocations = append(receipt.Invocations, providerUnavailable(planned, key, manifests)...)
 			planned = withoutRunner(planned, key)
 			continue
 		}
@@ -328,9 +334,12 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 			break
 		}
 		launched = true
-		recorded, stop := r.launch(ctx, invocation, versions[runnerKey(invocation)], budget, deadline)
+		recorded, stop, unobserved := r.launch(ctx, invocation, versions[runnerKey(invocation)], budget, deadline)
 		recorded.AdapterManifest = manifests[invocation.Adapter].Profile
 		receipt.Invocations = append(receipt.Invocations, recorded)
+		// A provider run that observed no usable result is INCOMPLETE, and
+		// the other invocations still run (STR-V0-8705).
+		receipt.Incomplete = append(receipt.Incomplete, unobserved...)
 		if stop != "" {
 			receipt.Incomplete = append(receipt.Incomplete, stop)
 			break
@@ -689,8 +698,9 @@ func firstOf(values []string) string {
 
 // launch runs one invocation in its own process group until the shard's
 // deadline and returns what the receipt records, plus a reason to stop
-// launching when the budget or a cancellation ended it.
-func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string) {
+// launching when the budget or a cancellation ended it, plus the reasons a
+// provider run that finished is still INCOMPLETE (STR-V0-8705).
+func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string, []string) {
 	runCtx, cancel := r.withDeadline(ctx, deadline)
 	defer cancel()
 	plannedEnv := GoCacheOverride(planned.Env, r.Environ)
@@ -710,12 +720,18 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 	}
 	if err != nil {
 		recorded.Outcomes = notRun(planned.Units)
-		return recorded, "an adapter could not start: " + err.Error()
+		return recorded, "an adapter could not start: " + err.Error(), nil
 	}
 	packages := map[string]string{}
-	if planned.Adapter == AdapterGo {
+	var document providerCapture
+	switch planned.Adapter {
+	case AdapterGo:
 		packages = parseTestEvents(stdout, r.Output)
-	} else {
+	case AdapterProvider:
+		// The receipt document is read, not echoed: providerOutcomes writes
+		// the summary and the failing tests it names.
+		_, _ = io.Copy(&document, stdout)
+	default:
 		_, _ = io.Copy(r.Output, stdout)
 	}
 	_ = cmd.Wait()
@@ -730,6 +746,13 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		stop = "cancelled while an adapter ran; its process group was killed"
 	case runCtx.Err() != nil:
 		stop = fmt.Sprintf("the shard exceeded its %s total budget while an adapter ran; its process group was killed", budget)
+	}
+	if planned.Adapter == AdapterProvider {
+		var unobserved []string
+		if recorded.Outcomes = notRun(planned.Units); stop == "" {
+			recorded.Outcomes, unobserved = providerOutcomes(planned, recorded.Exit, &document, r.Output)
+		}
+		return recorded, stop, unobserved
 	}
 	for _, unit := range planned.Units {
 		outcome := OutcomeNotRun
@@ -749,7 +772,7 @@ func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string
 		}
 		recorded.Outcomes = append(recorded.Outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit})
 	}
-	return recorded, stop
+	return recorded, stop, nil
 }
 
 // moduleOutcome folds a nested module's per-package outcomes into its one

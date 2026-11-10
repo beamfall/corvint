@@ -48,7 +48,7 @@
       "summary": "Compile the affected-test selection plan for the dirty worktree",
       "usage": [
         "corvint affected --path PATH [PATH ...] plans a transitive selection at HEAD.",
-        "corvint [--root PATH] affected [--full | --summary] [--require-clean] [--cache DIR | --no-cache] [--format json|text] [--fail-fast-order]",
+        "corvint [--root PATH] affected [--full | --summary] [--require-clean] [--cache DIR | --no-cache] [--format json|text] [--fail-fast-order] [--accept-stale-binary]",
         "corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...] [--paths-from FILE] [--worktree] [--cache DIR | --no-cache] [--format json|text]",
         "corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]",
         "corvint [--root PATH] affected [--full] --snapshot RECEIPT",
@@ -62,6 +62,7 @@
         "corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID --appmap-impact REPORT [--appmap-impact REPORT ...] [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]"
       ],
       "flags": [
+        "--accept-stale-binary",
         "--appmap-impact",
         "--base",
         "--by-path",
@@ -102,9 +103,10 @@
       "command": "corvint affected audit",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] affected audit --changes FILE"
+        "corvint [--root PATH] affected audit --changes FILE [--accept-stale-binary]"
       ],
       "flags": [
+        "--accept-stale-binary",
         "--changes",
         "--root"
       ],
@@ -164,9 +166,10 @@
       "command": "corvint affected jobs",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]"
+        "corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH] [--accept-stale-binary]"
       ],
       "flags": [
+        "--accept-stale-binary",
         "--base",
         "--declaration",
         "--root"
@@ -570,19 +573,15 @@
         "flows"
       ],
       "command": "corvint flows",
-      "summary": "Inspect experimental web-flow assertion candidates and runtime observations",
+      "summary": "Application flows and assertions, served by corvint-docs",
       "usage": [
-        "corvint [--root PATH] flows --manifest FILE [--evidence FILE]"
+        "corvint [--root PATH] flows [SUBCOMMAND] [OPTIONS]"
       ],
       "flags": [
-        "--evidence",
-        "--manifest",
         "--root"
       ],
-      "required": [
-        "--manifest FILE"
-      ],
-      "example": "corvint flows --manifest FILE",
+      "required": [],
+      "example": "corvint flows",
       "help": "corvint flows --help"
     },
     {
@@ -593,169 +592,7 @@
       "command": "corvint flows appmap",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]",
-        "corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]",
-        "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
-        "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
-        "corvint flows appmap build --help names the manifest's minimum members (docs/APPLICATION-MAP.md).",
-        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]",
-        "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
-        "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
-        "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]",
-        "corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]",
-        "corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...",
-        "corvint [--root PATH] flows appmap how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL",
-        "corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE] [--records FILE] [--revision REV] [--budget N | --full] [--endpoint-source [ALIAS:]DIR ... (--rails-routes [ALIAS:]FILE | --openapi [ALIAS:]FILE) ...] [--repo ALIAS=ABSOLUTE_ROOT]...",
-        "corvint [--root PATH] flows appmap infer --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--corpus ARTIFACT] [--emit report|request] [--budget N | --full]",
-        "corvint [--root PATH] flows appmap links --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
-        "corvint flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV] [--budget N | --full]",
-        "corvint flows appmap observe --records --revision FULL_SHA --trace TEST_KEY=FILE.zip ... [--map FILE] [--routes FILE]",
-        "corvint [--root PATH] flows appmap pageobjects --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
-        "corvint [--root PATH] flows appmap plan --map FILE [--map FILE]... (--step TEXT... | --request TEXT) [--draft] [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...",
-        "corvint [--root PATH] flows appmap plan --map FILE --request GOAL --draft --source DIR [--source DIR]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full]",
-        "corvint [--root PATH] flows appmap refs --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
-        "corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]",
-        "corvint [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...",
-        "corvint [--root PATH] flows appmap setup --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--budget N | --full]",
-        "corvint flows appmap staleness --records FILE [--at REV] [--retire-after N]",
-        "corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT] [--remedies]",
-        "corvint [--root PATH] flows appmap steps --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
-        "corvint flows appmap structure-diff --base FILE --head FILE"
-      ],
-      "flags": [
-        "--at",
-        "--base",
-        "--bind",
-        "--budget",
-        "--cite",
-        "--condition",
-        "--corpus",
-        "--declarations",
-        "--draft",
-        "--emit",
-        "--endpoint-source",
-        "--flow",
-        "--from",
-        "--full",
-        "--head",
-        "--ledger",
-        "--manifest",
-        "--manifest-repo",
-        "--map",
-        "--min-resolved",
-        "--no-workspace",
-        "--note",
-        "--observation",
-        "--openapi",
-        "--rails-routes",
-        "--receipt",
-        "--records",
-        "--remedies",
-        "--repo",
-        "--repo-revision",
-        "--request",
-        "--require",
-        "--retire-after",
-        "--revision",
-        "--root",
-        "--routes",
-        "--screen",
-        "--source",
-        "--step",
-        "--test-key",
-        "--text",
-        "--trace",
-        "--verify",
-        "--workspace"
-      ],
-      "required": [],
-      "example": "corvint flows appmap actions --map FILE",
-      "help": "corvint flows appmap --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "actions"
-      ],
-      "command": "corvint flows appmap actions",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--root"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap actions --map FILE",
-      "help": "corvint flows appmap actions --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "blocker"
-      ],
-      "command": "corvint flows appmap blocker",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--note",
-        "--root"
-      ],
-      "required": [
-        "--map FILE",
-        "--note TEXT"
-      ],
-      "example": "corvint flows appmap blocker --map FILE --note TEXT",
-      "help": "corvint flows appmap blocker --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "branches"
-      ],
-      "command": "corvint flows appmap branches",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--cite",
-        "--full",
-        "--map",
-        "--root"
-      ],
-      "required": [
-        "--map FILE",
-        "--cite"
-      ],
-      "example": "corvint flows appmap branches --map FILE --cite PATH:START[-END]",
-      "help": "corvint flows appmap branches --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "build"
-      ],
-      "command": "corvint flows appmap build",
-      "summary": "Compile the committed manifest into an application map at one revision (experimental, AMAP-V0)",
-      "usage": [
-        "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
-        "corvint flows appmap build --help names the manifest's minimum members (docs/APPLICATION-MAP.md)."
+        "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]"
       ],
       "flags": [
         "--from",
@@ -771,940 +608,36 @@
       ],
       "required": [],
       "example": "corvint flows appmap build --manifest FILE",
-      "help": "corvint flows appmap build --help"
+      "help": "corvint flows appmap --help"
     },
     {
       "path": [
         "flows",
         "appmap",
-        "coverage"
+        "build"
       ],
-      "command": "corvint flows appmap coverage",
-      "summary": "",
+      "command": "corvint flows appmap build",
+      "summary": "Compile the committed manifest into an application map at one revision (experimental, AMAP-V0)",
       "usage": [
-        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]"
+        "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]"
       ],
       "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--root"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap coverage --map FILE",
-      "help": "corvint flows appmap coverage --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "edges"
-      ],
-      "command": "corvint flows appmap edges",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--declarations",
-        "--full",
-        "--map",
-        "--observation",
-        "--receipt",
-        "--require",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap edges --map FILE",
-      "help": "corvint flows appmap edges --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "endpoints"
-      ],
-      "command": "corvint flows appmap endpoints",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--openapi",
-        "--rails-routes",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap endpoints --map FILE --source",
-      "help": "corvint flows appmap endpoints --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "entries"
-      ],
-      "command": "corvint flows appmap entries",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--ledger",
-        "--map",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap entries --map FILE",
-      "help": "corvint flows appmap entries --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "find"
-      ],
-      "command": "corvint flows appmap find",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--root",
-        "--text"
-      ],
-      "required": [
-        "--map FILE",
-        "--text TEXT"
-      ],
-      "example": "corvint flows appmap find --map FILE --text TEXT",
-      "help": "corvint flows appmap find --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "flow"
-      ],
-      "command": "corvint flows appmap flow",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap flow --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]..."
-      ],
-      "flags": [
-        "--bind",
-        "--budget",
-        "--flow",
-        "--full",
-        "--map",
-        "--receipt",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--map FILE",
-        "--flow FLOW_ID"
-      ],
-      "example": "corvint flows appmap flow --map FILE --flow FLOW_ID",
-      "help": "corvint flows appmap flow --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "how"
-      ],
-      "command": "corvint flows appmap how",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL"
-      ],
-      "flags": [
-        "--budget",
-        "--condition",
-        "--corpus",
-        "--full",
-        "--ledger",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source GOAL"
-      ],
-      "example": "corvint flows appmap how --map FILE --source GOAL",
-      "help": "corvint flows appmap how --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "impact"
-      ],
-      "command": "corvint flows appmap impact",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap impact --map FILE --base COMMIT [--ledger FILE] [--records FILE] [--revision REV] [--budget N | --full] [--endpoint-source [ALIAS:]DIR ... (--rails-routes [ALIAS:]FILE | --openapi [ALIAS:]FILE) ...] [--repo ALIAS=ABSOLUTE_ROOT]..."
-      ],
-      "flags": [
-        "--base",
-        "--budget",
-        "--endpoint-source",
-        "--full",
-        "--ledger",
-        "--map",
-        "--openapi",
-        "--rails-routes",
-        "--records",
-        "--repo",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--map FILE",
-        "--base COMMIT"
-      ],
-      "example": "corvint flows appmap impact --map FILE --base COMMIT",
-      "help": "corvint flows appmap impact --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "infer"
-      ],
-      "command": "corvint flows appmap infer",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap infer --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--corpus ARTIFACT] [--emit report|request] [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--corpus",
-        "--emit",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap infer --map FILE --source",
-      "help": "corvint flows appmap infer --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "links"
-      ],
-      "command": "corvint flows appmap links",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap links --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap links --map FILE --source",
-      "help": "corvint flows appmap links --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "observe"
-      ],
-      "command": "corvint flows appmap observe",
-      "summary": "",
-      "usage": [
-        "corvint flows appmap observe --map FILE --trace FILE|DIR|ZIP [--test-key KEY] [--revision REV] [--budget N | --full]",
-        "corvint flows appmap observe --records --revision FULL_SHA --trace TEST_KEY=FILE.zip ... [--map FILE] [--routes FILE]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--records",
-        "--revision",
-        "--routes",
-        "--test-key",
-        "--trace"
-      ],
-      "required": [],
-      "example": "corvint flows appmap observe --map FILE --trace FILE",
-      "help": "corvint flows appmap observe --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "pageobjects"
-      ],
-      "command": "corvint flows appmap pageobjects",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap pageobjects --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap pageobjects --map FILE --source",
-      "help": "corvint flows appmap pageobjects --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "plan"
-      ],
-      "command": "corvint flows appmap plan",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap plan --map FILE [--map FILE]... (--step TEXT... | --request TEXT) [--draft] [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...",
-        "corvint [--root PATH] flows appmap plan --map FILE --request GOAL --draft --source DIR [--source DIR]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full]"
-      ],
-      "flags": [
-        "--bind",
-        "--budget",
-        "--condition",
-        "--corpus",
-        "--draft",
-        "--full",
-        "--ledger",
-        "--map",
-        "--receipt",
-        "--request",
-        "--revision",
-        "--root",
-        "--source",
-        "--step"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap plan --map FILE --step TEXT...",
-      "help": "corvint flows appmap plan --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "refs"
-      ],
-      "command": "corvint flows appmap refs",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap refs --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap refs --map FILE --source",
-      "help": "corvint flows appmap refs --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "scaffold"
-      ],
-      "command": "corvint flows appmap scaffold",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]"
-      ],
-      "flags": [
-        "--budget",
-        "--flow",
-        "--full",
-        "--map",
-        "--revision",
-        "--root"
-      ],
-      "required": [
-        "--map FILE",
-        "--flow FLOW_ID"
-      ],
-      "example": "corvint flows appmap scaffold --map FILE --flow FLOW_ID",
-      "help": "corvint flows appmap scaffold --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "screen"
-      ],
-      "command": "corvint flows appmap screen",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap screen --map FILE --screen ID|STATE|TEMPLATE|URL [--budget N | --full] [--revision REV] [--receipt FILE]... [--bind STEP_ID=TEST_KEY]..."
-      ],
-      "flags": [
-        "--bind",
-        "--budget",
-        "--full",
-        "--map",
-        "--receipt",
-        "--revision",
-        "--root",
-        "--screen"
-      ],
-      "required": [
-        "--map FILE",
-        "--screen ID|STATE|TEMPLATE|URL"
-      ],
-      "example": "corvint flows appmap screen --map FILE --screen ID",
-      "help": "corvint flows appmap screen --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "setup"
-      ],
-      "command": "corvint flows appmap setup",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap setup --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--condition",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap setup --map FILE --source",
-      "help": "corvint flows appmap setup --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "staleness"
-      ],
-      "command": "corvint flows appmap staleness",
-      "summary": "",
-      "usage": [
-        "corvint flows appmap staleness --records FILE [--at REV] [--retire-after N]"
-      ],
-      "flags": [
-        "--at",
-        "--records",
-        "--retire-after"
-      ],
-      "required": [
-        "--records FILE"
-      ],
-      "example": "corvint flows appmap staleness --records FILE",
-      "help": "corvint flows appmap staleness --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "stats"
-      ],
-      "command": "corvint flows appmap stats",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT] [--remedies]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--min-resolved",
-        "--remedies",
-        "--root"
-      ],
-      "required": [
-        "--map FILE"
-      ],
-      "example": "corvint flows appmap stats --map FILE",
-      "help": "corvint flows appmap stats --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "steps"
-      ],
-      "command": "corvint flows appmap steps",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows appmap steps --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]"
-      ],
-      "flags": [
-        "--budget",
-        "--full",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
-      ],
-      "required": [
-        "--map FILE",
-        "--source"
-      ],
-      "example": "corvint flows appmap steps --map FILE --source",
-      "help": "corvint flows appmap steps --help"
-    },
-    {
-      "path": [
-        "flows",
-        "appmap",
-        "structure-diff"
-      ],
-      "command": "corvint flows appmap structure-diff",
-      "summary": "",
-      "usage": [
-        "corvint flows appmap structure-diff --base FILE --head FILE"
-      ],
-      "flags": [
-        "--base",
-        "--head"
-      ],
-      "required": [
-        "--base FILE",
-        "--head FILE"
-      ],
-      "example": "corvint flows appmap structure-diff --base FILE --head FILE",
-      "help": "corvint flows appmap structure-diff --help"
-    },
-    {
-      "path": [
-        "flows",
-        "coverage"
-      ],
-      "command": "corvint flows coverage",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows coverage --denominator FILE --receipts FILE [--revision SHA] [--offset N --limit N] [--write-back FRESH_DIR | --check DIR]"
-      ],
-      "flags": [
-        "--check",
-        "--denominator",
-        "--limit",
-        "--offset",
-        "--receipts",
-        "--revision",
-        "--root",
-        "--write-back"
-      ],
-      "required": [
-        "--denominator FILE",
-        "--receipts FILE"
-      ],
-      "example": "corvint flows coverage --denominator FILE --receipts FILE",
-      "help": "corvint flows coverage --help"
-    },
-    {
-      "path": [
-        "flows",
-        "docs"
-      ],
-      "command": "corvint flows docs",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...",
-        "corvint [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]..."
-      ],
-      "flags": [
-        "--check",
-        "--claims",
-        "--docs-root",
-        "--evidence",
-        "--flows",
-        "--page",
-        "--root",
-        "--waivers"
-      ],
-      "required": [
-        "--flows DIR",
-        "--page FILE",
-        "--claims FILE"
-      ],
-      "example": "corvint flows docs --flows DIR --page FILE --claims FILE",
-      "help": "corvint flows docs --help"
-    },
-    {
-      "path": [
-        "flows",
-        "docs",
-        "maintain"
-      ],
-      "command": "corvint flows docs maintain",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt]"
-      ],
-      "flags": [
-        "--adopt",
-        "--apply",
-        "--claims",
-        "--expected-proposal",
-        "--flows",
-        "--page",
-        "--preview",
-        "--receipt",
-        "--root"
-      ],
-      "required": [
-        "--flows DIR",
-        "--page FILE",
-        "--claims FILE",
-        "--preview",
-        "--apply",
-        "--expected-proposal SHA256"
-      ],
-      "example": "corvint flows docs maintain --flows DIR --page FILE --claims FILE --preview | --apply --expected-proposal SHA256",
-      "help": "corvint flows docs maintain --help"
-    },
-    {
-      "path": [
-        "flows",
-        "export"
-      ],
-      "command": "corvint flows export",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows export --flows DIR --emit inventory|provider|request [--envelope FILE]"
-      ],
-      "flags": [
-        "--emit",
-        "--envelope",
-        "--flows",
-        "--root"
-      ],
-      "required": [
-        "--flows DIR",
-        "--emit inventory|provider|request"
-      ],
-      "example": "corvint flows export --flows DIR --emit inventory",
-      "help": "corvint flows export --help"
-    },
-    {
-      "path": [
-        "flows",
-        "gaps"
-      ],
-      "command": "corvint flows gaps",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--registry FILE]"
-      ],
-      "flags": [
-        "--evidence",
-        "--flows",
-        "--registry",
-        "--root"
-      ],
-      "required": [
-        "--flows DIR"
-      ],
-      "example": "corvint flows gaps --flows DIR",
-      "help": "corvint flows gaps --help"
-    },
-    {
-      "path": [
-        "flows",
-        "impact"
-      ],
-      "command": "corvint flows impact",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows impact --flows DIR --base SHA"
-      ],
-      "flags": [
-        "--base",
-        "--flows",
-        "--root"
-      ],
-      "required": [
-        "--flows DIR",
-        "--base SHA"
-      ],
-      "example": "corvint flows impact --flows DIR --base SHA",
-      "help": "corvint flows impact --help"
-    },
-    {
-      "path": [
-        "flows",
-        "import"
-      ],
-      "command": "corvint flows import",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|extractor-inventory|openapi|playwright-list"
-      ],
-      "flags": [
-        "--flows",
-        "--format",
         "--from",
-        "--root"
-      ],
-      "required": [
-        "--flows DIR",
-        "--from FILE",
-        "--format behavior-adapter-request|extractor-inventory|openapi|playwright-list"
-      ],
-      "example": "corvint flows import --flows DIR --from FILE --format behavior-adapter-request",
-      "help": "corvint flows import --help"
-    },
-    {
-      "path": [
-        "flows",
-        "ingest"
-      ],
-      "command": "corvint flows ingest",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean] --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]..."
-      ],
-      "flags": [
-        "--build-artifact-digest",
-        "--cleanup",
-        "--control",
-        "--coverage-artifact",
-        "--environment-digest",
-        "--environment-id",
-        "--fixture-digest",
-        "--fixture-id",
-        "--format",
-        "--from",
-        "--root",
-        "--run-id",
-        "--runner-version",
-        "--source-clean",
-        "--source-commit",
-        "--source-tree"
-      ],
-      "required": [
-        "--format playwright-json|playwright-receipt|junit-xml|go-test-json",
-        "--from FILE",
-        "--run-id ID",
-        "--runner-version VERSION",
-        "--source-commit SHA",
-        "--source-tree SHA",
-        "--build-artifact-digest DIGEST",
-        "--environment-id ID",
-        "--environment-digest DIGEST",
-        "--fixture-id ID",
-        "--fixture-digest DIGEST"
-      ],
-      "example": "corvint flows ingest --format playwright-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST",
-      "help": "corvint flows ingest --help"
-    },
-    {
-      "path": [
-        "flows",
-        "ingest-coverage"
-      ],
-      "command": "corvint flows ingest-coverage",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows ingest-coverage --format v8|istanbul|rspec|lcov --from FILE --evidence FILE... --revision FULL_COMMIT [--test-key KEY] [--links FILE] [--strip-prefix P]"
-      ],
-      "flags": [
-        "--evidence",
-        "--format",
-        "--from",
-        "--links",
-        "--revision",
-        "--root",
-        "--strip-prefix",
-        "--test-key"
-      ],
-      "required": [
-        "--format v8|istanbul|rspec|lcov",
-        "--from FILE",
-        "--evidence FILE...",
-        "--revision FULL_COMMIT"
-      ],
-      "example": "corvint flows ingest-coverage --format v8 --from FILE --evidence FILE... --revision FULL_COMMIT",
-      "help": "corvint flows ingest-coverage --help"
-    },
-    {
-      "path": [
-        "flows",
-        "map"
-      ],
-      "command": "corvint flows map",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows map --flows DIR [--evidence FILE]... [--registry FILE]",
-        "corvint [--root PATH] flows map --flows DIR [--path P | --test-key K]"
-      ],
-      "flags": [
-        "--evidence",
-        "--flows",
-        "--path",
-        "--registry",
-        "--root",
-        "--test-key"
-      ],
-      "required": [
-        "--flows DIR"
-      ],
-      "example": "corvint flows map --flows DIR",
-      "help": "corvint flows map --help"
-    },
-    {
-      "path": [
-        "flows",
-        "navigate"
-      ],
-      "command": "corvint flows navigate",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows navigate --flows DIR [--evidence FILE]... [--registry FILE] [--traffic FILE]... [--goal FLOW_ID [--max-effect CLASS]]"
-      ],
-      "flags": [
-        "--evidence",
-        "--flows",
-        "--goal",
-        "--max-effect",
-        "--registry",
-        "--root",
-        "--traffic"
-      ],
-      "required": [
-        "--flows DIR"
-      ],
-      "example": "corvint flows navigate --flows DIR",
-      "help": "corvint flows navigate --help"
-    },
-    {
-      "path": [
-        "flows",
-        "record"
-      ],
-      "command": "corvint flows record",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows record --manifest FILE --evidence FILE --output FILE"
-      ],
-      "flags": [
-        "--evidence",
         "--manifest",
-        "--output",
-        "--root"
-      ],
-      "required": [
-        "--manifest FILE",
-        "--evidence FILE",
-        "--output FILE"
-      ],
-      "example": "corvint flows record --manifest FILE --evidence FILE --output FILE",
-      "help": "corvint flows record --help"
-    },
-    {
-      "path": [
-        "flows",
-        "request-path"
-      ],
-      "command": "corvint flows request-path",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows request-path --file PATH (--route 'METHOD /path' | --handler NAME) [--revision REV] [--env-profile FILE [--warn]]"
-      ],
-      "flags": [
-        "--env-profile",
-        "--file",
-        "--handler",
+        "--manifest-repo",
+        "--no-workspace",
+        "--repo",
+        "--repo-revision",
         "--revision",
         "--root",
-        "--route",
-        "--warn"
+        "--verify",
+        "--workspace"
       ],
       "required": [
-        "--file PATH"
+        "--manifest FILE"
       ],
-      "example": "corvint flows request-path --file PATH --route 'METHOD /path'",
-      "help": "corvint flows request-path --help"
-    },
-    {
-      "path": [
-        "flows",
-        "stability"
-      ],
-      "command": "corvint flows stability",
-      "summary": "",
-      "usage": [
-        "corvint [--root PATH] flows stability --registry FILE [--evidence FILE]..."
-      ],
-      "flags": [
-        "--evidence",
-        "--registry",
-        "--root"
-      ],
-      "required": [
-        "--registry FILE"
-      ],
-      "example": "corvint flows stability --registry FILE",
-      "help": "corvint flows stability --help"
+      "example": "corvint flows appmap build --manifest FILE",
+      "help": "corvint flows appmap build --help"
     },
     {
       "path": [
@@ -1740,26 +673,17 @@
         "how"
       ],
       "command": "corvint how",
-      "summary": "Answer \"how do I GOAL\" from an application map (SKH-V0, experimental)",
+      "summary": "Answer \"how do I GOAL\" from an application map, served by corvint-docs",
       "usage": [
-        "corvint [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL"
+        "corvint [--root PATH] how [OPTIONS] GOAL"
       ],
       "flags": [
-        "--budget",
-        "--condition",
-        "--corpus",
-        "--full",
-        "--ledger",
-        "--map",
-        "--repo",
-        "--root",
-        "--source"
+        "--root"
       ],
       "required": [
-        "--map FILE",
-        "--source GOAL"
+        "GOAL"
       ],
-      "example": "corvint how --map FILE --source GOAL",
+      "example": "corvint how GOAL",
       "help": "corvint how --help"
     },
     {
@@ -1846,6 +770,7 @@
         "corvint mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25]",
         "corvint mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]",
         "corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]",
+        "corvint mcp --root ABSOLUTE_ROOT --tool-profile affected",
         "corvint mcp --root ABSOLUTE_ROOT --follow-ref REF",
         "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]"
       ],
@@ -2191,9 +1116,10 @@
       "command": "corvint test",
       "summary": "Run the affected test set (experimental, STR-V0)",
       "usage": [
-        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--line-index FILE] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH]"
+        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--line-index FILE] [--format json] [--dry-run [--summary|--full|--pins]] [--manifest PATH] [--receipt PATH] [--accept-stale-binary]"
       ],
       "flags": [
+        "--accept-stale-binary",
         "--base",
         "--confine",
         "--dry-run",
@@ -2834,6 +1760,30 @@
       ],
       "example": "corvint tests validity --files PATH[,PATH...]",
       "help": "corvint tests validity --help"
+    },
+    {
+      "path": [
+        "watch"
+      ],
+      "command": "corvint watch",
+      "summary": "Rerun the tests a working-tree save can affect (experimental, LPCV-V0)",
+      "usage": [
+        "corvint [--root PATH] watch --index FILE [--once | --events-stdin] [--dry-run] [--packages a,b] [--go-wrapper PATH]"
+      ],
+      "flags": [
+        "--dry-run",
+        "--events-stdin",
+        "--go-wrapper",
+        "--index",
+        "--once",
+        "--packages",
+        "--root"
+      ],
+      "required": [
+        "--index FILE"
+      ],
+      "example": "corvint watch --index FILE",
+      "help": "corvint watch --help"
     }
   ]
 }

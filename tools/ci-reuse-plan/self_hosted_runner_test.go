@@ -13,7 +13,19 @@ import (
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
+	"github.com/Beamfall/corvint/internal/workflowshell"
 )
+
+// ciStep returns a command that runs SCRIPT, a fragment of ci.yml, under the shell ci.yml declares
+// for its run steps (CIN-V0-8426: bash with pipefail), never a hard-coded one.
+func ciStep(t *testing.T, script string) *exec.Cmd {
+	t.Helper()
+	argv, err := workflowshell.Argv([]byte(readWorkflow(t, "ci.yml")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exec.Command(argv[0], append(argv[1:], "-c", script)...)
+}
 
 // stepBlock returns the step of job block B whose name line starts with NAME, up to the next step.
 func stepBlock(t *testing.T, b, name string) string {
@@ -170,7 +182,7 @@ func TestAFPV0421SelfHostedGitConfigIsPerRunner(t *testing.T) {
 	failures := make(chan string, runners)
 	for i := 0; i < runners; i++ {
 		go func() {
-			cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", "tmp_root="+dir+"\n"+block)
+			cmd := ciStep(t, "tmp_root="+dir+"\n"+block)
 			cmd.Env = append(os.Environ(), "HOME="+home, "RUNNER_NAME=corvint-box-"+strconv.Itoa(i), "GITHUB_ENV="+filepath.Join(dir, "env-"+strconv.Itoa(i)), "GIT_CONFIG_NOSYSTEM=1")
 			out, err := cmd.CombinedOutput()
 			if err == nil {
@@ -239,7 +251,7 @@ func TestAFPV0422SelfHostedShardsMakeTheDriftReportAbstain(t *testing.T) {
 			}
 		}
 		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
-		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+		cmd := ciStep(t, script)
 		cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "SHARDS=8", "SHARDS_RESULT=success",
 			"GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary, "GITHUB_EVENT_NAME="+event)
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -281,7 +293,7 @@ func TestAFPV0460SelfHostedShardBalanceWarnsPastTheBound(t *testing.T) {
 	wantLine(t, "balance", balanceStep, `          BOUND_PERCENT: "125"`)
 	bash := func(script string, env ...string) string {
 		t.Helper()
-		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+		cmd := ciStep(t, script)
 		// A merge-queue event by default, so the outcome step never takes its pull-request
 		// abstention from the runner's own environment; a case may override it.
 		cmd.Env = append(append(os.Environ(), "GITHUB_EVENT_NAME=merge_group"), env...)
@@ -460,7 +472,7 @@ func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 		if err := os.MkdirAll(temp, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script)
+		cmd := ciStep(t, script)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "PATH="+path+":"+os.Getenv("PATH"), "RUNNER_TEMP="+temp,
 			"GOCACHE="+filepath.Join(temp, "go-build"), "RUNNER_NAME="+runner, "CORVINT_BOX_GOCACHE_ROOT="+root,
@@ -643,7 +655,7 @@ func TestAFPV0430SelfHostedTMPDIRBlockEmptiesLeftoversAndRefusesUnsafeRoots(t *t
 	env := filepath.Join(dir, "github-env")
 	run := func(runner string) (string, error) {
 		t.Helper()
-		cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", strings.TrimPrefix(block, "          "))
+		cmd := ciStep(t, strings.TrimPrefix(block, "          "))
 		cmd.Env = append(os.Environ(), "RUNNER_NAME="+runner, "GITHUB_ENV="+env)
 		out, err := cmd.CombinedOutput()
 		return string(out), err

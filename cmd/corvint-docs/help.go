@@ -8,23 +8,29 @@ import (
 	"sync"
 
 	"github.com/Beamfall/corvint/internal/clitree"
+	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
 // rootHelp is `corvint-docs --help`. The corpus join is prose, not a synopsis, because the
 // words after --corpus=FILE are the core's verbs, not this binary's.
 const rootHelp = `usage: corvint-docs [--root PATH] docs SUBCOMMAND [OPTIONS]
-       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | docs-tool
+       corvint-docs [--root PATH] flows [SUBCOMMAND] [OPTIONS]
+       corvint-docs [--root PATH] how [OPTIONS] GOAL
+       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
        corvint-docs help --json
 Corvint's documentation app (decision 0594): drafting pinned documentation, the documentation
-corpus, generated-block maintenance and flow documentation. Every docs subcommand is experimental.
-` + "`corvint docs ...` and `corvint --corpus=FILE ...` forward to this executable unchanged, so the\n" +
-	"two spellings print the same bytes.\n" +
+corpus, generated-block maintenance and flow documentation, and the application-flow group
+(flows, and how, its alias of flows appmap how; decision 0595). Every subcommand is experimental.
+` + "`corvint docs ...`, `corvint flows ...`, `corvint how ...` and `corvint --corpus=FILE ...` forward to\n" +
+	"this executable unchanged, so the two spellings print the same bytes; only\n" +
+	"`flows test-evidence` stays in corvint.\n" +
 	`With --corpus=FILE [--corpus-depth=N] before a core read (impact, affected, context or
 test-validity), corvint-docs runs that read in the corvint executable beside it or on PATH and
 joins the corpus receipt onto its output.
 Required: a Git repository at --root (default .) for every verb but the corpus operations that
 read only their input files.
-Writes: docs maintain --apply and docs flows finalize write the pages they name; docs draft and
+Writes: docs maintain --apply and docs flows finalize write the pages they name; flows record,
+flows docs maintain --apply and the flows ingest verbs write the files they name; docs draft and
 docs consume best-effort append unsupported-* failures to .corvint/self-observations.jsonl
 (SOL-V0-007); every other verb reads.
 Example: corvint-docs docs corpus search --artifact corpus.json --query TERM
@@ -59,8 +65,8 @@ var nestedHelpTopics = [][2]string{
 
 // parseHelpInvocation recognises every help form corvint recognised for its docs group, with
 // this binary's root and docs-tool topics: `--help`, `-h` or `help` alone; `help --json` and
-// `help --tree`; `help docs [corpus [OPERATION]|flows|maintain]`; `help docs-tool`; and a
-// `--help` after a docs verb. An unknown help topic is an error; anything else is not help.
+// `help --tree`; `help docs [corpus [OPERATION]|flows|maintain]`; `help flows`, `help how` and
+// `help docs-tool`; and a `--help` after a docs, flows or how verb. An unknown help topic is an error; anything else is not help.
 func parseHelpInvocation(arguments []string) (string, bool, error) {
 	index := 0
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
@@ -98,8 +104,8 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 // helpWordsTopic names the topic of `help WORDS...`, or "" for an unknown path.
 func helpWordsTopic(words []string) string {
 	switch {
-	case len(words) == 1 && words[0] == "docs":
-		return "docs"
+	case len(words) == 1 && (words[0] == "docs" || words[0] == "flows" || words[0] == "how"):
+		return words[0]
 	case len(words) == 1 && words[0] == toolVerb:
 		return "docs-tool"
 	case len(words) == 2 && words[0] == "docs":
@@ -132,6 +138,8 @@ func commandHelpTopic(rest []string) string {
 	switch {
 	case rest[0] == toolVerb:
 		return "docs-tool"
+	case rest[0] == "flows", rest[0] == "how":
+		return rest[0]
 	case rest[0] != "docs":
 		return ""
 	case len(rest) > 1 && rest[1] == "corpus":
@@ -164,7 +172,7 @@ func helpFlagRequested(tokens []string) bool {
 }
 
 func unknownHelpTopic(topic []string) error {
-	quoted := []string{pythonRepr("docs"), pythonRepr(toolVerb)}
+	quoted := []string{pythonRepr("docs"), pythonRepr("flows"), pythonRepr("how"), pythonRepr(toolVerb)}
 	for _, nested := range nestedHelpTopics {
 		quoted = append(quoted, pythonRepr(nested[0]))
 	}
@@ -196,13 +204,17 @@ func topicText(topic string) string {
 		return docsMaintainHelp
 	case "docs-tool":
 		return docsToolHelp
+	case "flows":
+		return flowsHelp
+	case "how":
+		return flowscmd.HowHelp
 	}
 	panic("unknown help topic " + topic)
 }
 
 // helpTopics lists every authored topic that documents a command path, in a stable order.
 func helpTopics() []string {
-	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool"}
+	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}

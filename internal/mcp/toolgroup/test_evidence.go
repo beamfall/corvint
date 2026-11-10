@@ -8,17 +8,27 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
-	"github.com/Beamfall/corvint/internal/testevidencedoc"
 )
 
 const TestEvidenceTool = "corvint.test_evidence"
 const TestEvidenceErrorProfile = "corvint-test-evidence-mcp-tool-error/1"
 
 // TestEvidence is an opt-in group so existing profiles keep their frozen tools.
+// The evidence projection is the tests layer's (internal/testevidencedoc), so
+// the binary supplies Parse; this group only shapes the MCP call.
 type TestEvidence struct {
 	Root    string
 	Binding *rootbind.Binding
+	Parse   TestEvidenceParse
 }
+
+// TestEvidenceParse validates argv as `corvint test-evidence` does and returns
+// the read of that query; an error is the tool's invalid-params refusal.
+type TestEvidenceParse func(argv []string) (TestEvidenceRead, error)
+
+// TestEvidenceRead projects the retained evidence under root; the document is
+// encoded as the tool's structured content and text block.
+type TestEvidenceRead func(ctx context.Context, root string) any
 
 func (g TestEvidence) Tools() []bridge.ToolDescriptor {
 	props := map[string]any{}
@@ -47,7 +57,10 @@ func (g TestEvidence) Call(ctx context.Context, name string, args map[string]any
 		// The terminator keeps a path that starts with "-" from parsing as an option.
 		argv = append(argv, "--", v)
 	}
-	q, _, err := testevidencedoc.Parse(argv)
+	if g.Parse == nil {
+		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+	}
+	read, err := g.Parse(argv)
 	if err != nil {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
@@ -57,7 +70,7 @@ func (g TestEvidence) Call(ctx context.Context, name string, args map[string]any
 	if ctx.Err() != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
-	d := testevidencedoc.Read(ctx, g.Root, q)
+	d := read(ctx, g.Root)
 	raw, err := json.Marshal(d)
 	if err != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
@@ -66,5 +79,5 @@ func (g TestEvidence) Call(ctx context.Context, name string, args map[string]any
 	if json.Unmarshal(raw, &structured) != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
-	return answer(ctx, TestEvidenceErrorProfile, name, structured, string(raw), nil, nil)
+	return Answer(ctx, TestEvidenceErrorProfile, name, structured, string(raw), nil, nil)
 }

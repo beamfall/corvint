@@ -285,9 +285,9 @@ query, the lifecycle hook or a Go or TypeScript affected plan reached users unme
   `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript source). Each of
   the last four takes one unmeasured run. The budgets file MUST bound exactly the ten scenarios in
   that order. (Amended 2026-11-09 by decision 0594: the corpus MCP pair, the `lifecycle-hook`
-  adapter scenario and `--lsp off` left with the surfaces they measured.)
+  adapter scenario and `--lsp off` left with the surfaces they measured. Amended by `PRB-V0-1014`: two watch scenarios follow the ten.)
 - `PRB-V0-058`: The fixture MUST generate the code repository deterministically (generator
-  `corvint-perf-budget-fixture/2`; the app and Ruby repositories are unchanged): `GoPackages` Go
+  `corvint-perf-budget-fixture/2`, `/3` since `PRB-V0-1014`; the app and Ruby repositories are unchanged): `GoPackages` Go
   packages and `TSModules` TypeScript modules whose imports form a binary tree, a test file per Go
   package and per fourth module, and adversarial single-line Go and TypeScript declarations of at
   least `LongLineBytes` bytes that the root package and module import. The `full` scale is 1,500
@@ -325,6 +325,37 @@ Failure modes: a scenario command that fails or measures nothing refuses the run
 cold build that silently reuses a snapshot would read as a warm build, which the per-sample state
 removal prevents. Rollback: remove the six scenarios from `ScenarioIDs` and `budgets.json` and
 restore generator `/1`.
+
+### Watch replan latency (V1-5253)
+
+Status for `PRB-V0-1014`: accepted under the owner's standing auto-accept (2026-10-11); V1-5253.
+Owner statement (2026-11-09): the on-save answer must be Wallaby-like, at once; no budget scenario
+measured it, so a regression in the save-to-answer path reached users unmeasured.
+
+- `PRB-V0-1014`: After the ten scenarios of `PRB-V0-057`, the harness MUST measure, in order,
+  `watch-replan` and `watch-replan-self`: each is one measured `corvint watch --once --dry-run
+  --index FILE` run, the whole save-to-answer path of a cold process (index load, working-tree diff,
+  package listing, head-test parse, analysis and narrowing) with no test executed, one unmeasured
+  run first. `watch-replan` runs over the fixture's code repository with one Go source
+  (`GoPath`) edited in the working tree before every run and restored after the scenario, against
+  a line index the fixture generator collects once (generator `corvint-perf-budget-fixture/3`) over
+  its first four Go packages with `linecov.Collect`, so changed lines resolve through recorded
+  coverage. `watch-replan-self` runs over Corvint's own repository (the harness's `SelfRoot`,
+  the Git top level of the working directory by default, `--self-root` to name another) as its
+  working tree stands, never editing it, against the index `--self-index` names or, by default, a
+  records-free index built for its HEAD at run time: every package then keeps whole, and the
+  measurement is the fail-closed answer path without coverage lookups, which a recorded index of
+  Corvint (cmd/corvint alone collects in about 325 s) is out of a budget run's budget to produce.
+  Both carry the two `PRB-V0-032` ceilings, enforced, and one advisory `p95_wall_ms` target of
+  1,000 ms (profile `experimental`), the owner's "at once" stated as a number to measure against,
+  never enforced by this requirement. Until the next `--record-baseline` run their ceilings are
+  provisional: derived from the lane's local measurement at the smoke and full scales and so
+  reasoned in the budgets file. A `SelfRoot` the harness cannot resolve records the scenario's
+  error and refuses the run (`PRB-V0-029`). Failure modes: a dirty fixture after an interrupted run
+  is restored by the scenario's own `git checkout` of `GoPath` before it edits; a repository whose
+  `go list` fails records the scenario error. Rollback: remove the two scenarios from
+  `ScenarioIDs` and `budgets.json`, `Fixture.LineIndex`, `Options.SelfRoot`/`SelfIndex` and the
+  two flags, and restore generator `/2`.
 
 ### Scenario filter and baseline recorded elsewhere (V1-3418)
 
@@ -525,6 +556,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-970` | `--scenario` in `internal/perfbudget/cmd/perf-budget/main.go`, `Options.Selected` and `Report.Selected` in `internal/perfbudget/harness.go`, `mergeBaseline` | `TestPRBV0970ScenarioFilterArguments`, `TestPRBV0970FilteredBaselineReplacesOnlySelected`, `TestPRBV0970RunMeasuresOnlySelected` |
 | `PRB-V0-971` | `--record-baseline-from` and `readReport` in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0971RecordBaselineFromReport` |
 | `PRB-V0-120` | `withholdForScale`, `appliedLine` and the scale check in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0120SmokeScaleRunIsMeasurementsOnly`, `TestPRBV0029HarnessCannotRunExitsTwo` |
+| `PRB-V0-1014` | `watch-replan`, `watch-replan-self`, `Fixture.LineIndex`, `Options.SelfRoot`, `Options.SelfIndex` in `internal/perfbudget`; `--self-root`, `--self-index` in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV01014WatchScenarios`, `TestPRBV0057CodeScenarios`, `TestPRBV0024HarnessSmokeRun`, `TestPRBV0030BudgetsValidation` |
 
 ## Rollback
 

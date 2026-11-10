@@ -1,0 +1,30 @@
+{
+  "profile": "corvint-e2e-flows/0",
+  "flows": "flows",
+  "consumers": {
+    "conformance/interactive-alpha/core-provider-proof.mjs": {
+      "flows": [
+        "installed-go-live-tests",
+        "installed-js-live-tests",
+        "installed-test-validity-mcp"
+      ]
+    },
+    "extensions/vscode/test/installed/run.mjs": {
+      "flows": [
+        "installed-go-live-tests",
+        "installed-js-live-tests",
+        "installed-test-validity-mcp"
+      ]
+    },
+    "tools/web-flows/test/e2e.mjs": {
+      "flows": [
+        "web-flows-browser-gate"
+      ]
+    },
+    "tools/web-flows/test/navigation-e2e.mjs": {
+      "flows": [
+        "web-flows-browser-gate"
+      ]
+    }
+  }
+}

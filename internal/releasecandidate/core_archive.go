@@ -20,6 +20,15 @@ type coreMember struct {
 var verifyCoreBinary = verifyCoreArchiveBinary
 
 func verifyCoreArchiveBinary(raw []byte, target coreTarget) ([]byte, error) {
+	return verifyArchiveBinary(raw, target, modulePath+"/cmd/corvint", "go1.27.3")
+}
+
+// verifyArchiveBinary rechecks one release archive of the ARTIFACT-GO-V0-002
+// layout for the executable target names: the closed six-member inventory and
+// modes under the archive's root, the binary's digest (and size when the
+// report recorded one) against target.RetainedBinary, the inner SHA256SUMS row
+// and the embedded build identity for packagePath on the target.
+func verifyArchiveBinary(raw []byte, target coreTarget, packagePath, goVersion string) ([]byte, error) {
 	members, err := readCoreMembers(raw, target)
 	if err != nil {
 		return nil, err
@@ -43,7 +52,7 @@ func verifyCoreArchiveBinary(raw []byte, target coreTarget) ([]byte, error) {
 		}
 	}
 	binary := members[path.Join(root, target.BinaryName)].data
-	if digest(binary) != target.RetainedBinary.SHA256 || int64(len(binary)) != target.RetainedBinary.Bytes {
+	if digest(binary) != target.RetainedBinary.SHA256 || (target.RetainedBinary.Bytes > 0 && int64(len(binary)) != target.RetainedBinary.Bytes) {
 		return nil, fmt.Errorf("core archive %s binary disagrees with report", target.ArchiveName)
 	}
 	wantSum := digest(binary) + "  " + target.BinaryName + "\n"
@@ -51,7 +60,7 @@ func verifyCoreArchiveBinary(raw []byte, target coreTarget) ([]byte, error) {
 		return nil, fmt.Errorf("core archive %s internal checksum disagrees", target.ArchiveName)
 	}
 	info, err := buildinfo.Read(bytes.NewReader(binary))
-	if err != nil || info.GoVersion != "go1.27.3" || info.Path != "github.com/Beamfall/corvint/cmd/corvint" {
+	if err != nil || info.GoVersion != goVersion || info.Path != packagePath {
 		return nil, fmt.Errorf("core archive %s build identity disagrees", target.ArchiveName)
 	}
 	settings := map[string]string{}

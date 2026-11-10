@@ -104,11 +104,16 @@ type LookupReport struct {
 	Flows    []ReverseHit `json:"flows"`
 }
 
-// GapsReport is `flows gaps`.
+// GapsReport is `flows gaps`. The inventory members are additive on /1 (AFU-V1-150 to AFU-V1-154):
+// which E2E inventory was compared, and the inventory tests no variation links.
 type GapsReport struct {
-	Schema   string    `json:"schema"`
-	Revision string    `json:"revision"`
-	Flows    []GapFlow `json:"flows"`
+	Schema            string         `json:"schema"`
+	Revision          string         `json:"revision"`
+	Flows             []GapFlow      `json:"flows"`
+	Inventory         InventoryState `json:"inventory"`
+	UnlinkedTests     []Gap          `json:"unlinked_tests"`
+	UnlinkedTotal     int            `json:"unlinked_total"`
+	UnlinkedTruncated bool           `json:"unlinked_truncated"`
 }
 
 // GapFlow is one flow; any gap makes it incomplete.
@@ -204,17 +209,24 @@ func FlowLookup(ctx context.Context, root string, set IntentSet, path, testKey s
 	return doccorpus.Encode(report)
 }
 
-// FlowGaps reports each flow's closed-code gaps at the set's revision (AFU-V1-016).
-func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, registry string) ([]byte, error) {
+// FlowGaps reports each flow's closed-code gaps at the set's revision (AFU-V1-016) and, when a
+// provider is given, the E2E inventory tests no variation links (AFU-V1-150); without one the
+// inventory is absent and the unlinked list is empty, never a complete answer (AFU-V1-153).
+func FlowGaps(ctx context.Context, root string, set IntentSet, evidence []TestRunEvidence, registry string, provider *InventoryProvider) ([]byte, error) {
 	links, at, err := evaluateSet(ctx, root, set)
 	if err != nil {
 		return nil, err
 	}
 	at.stability = readFlowStability(ctx, root, registry, evidence, at)
-	report := GapsReport{Schema: GapsSchema, Revision: at.commit, Flows: []GapFlow{}}
+	report := GapsReport{Schema: GapsSchema, Revision: at.commit, Flows: []GapFlow{}, Inventory: absentInventory(), UnlinkedTests: []Gap{}}
 	for _, intent := range set.Flows {
 		gaps := flowGaps(intent, flowLinks(links, intent.FlowID), evidence, at)
 		report.Flows = append(report.Flows, GapFlow{FlowID: intent.FlowID, Status: status(gaps), Gaps: gaps})
+	}
+	if provider != nil {
+		report.Inventory = provider.state(root, at)
+		report.UnlinkedTests, report.UnlinkedTotal = unlinkedTests(set, links, provider.Provider.Inventory)
+		report.UnlinkedTruncated = report.UnlinkedTotal > len(report.UnlinkedTests)
 	}
 	return doccorpus.Encode(report)
 }

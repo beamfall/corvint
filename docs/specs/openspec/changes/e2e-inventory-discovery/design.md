@@ -22,6 +22,19 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/e2e-inventory-di
    before planning (review T-M4; owner decision R10 (2026-11-09)).
 7. A provider file adds tests and never removes them (settled without the owner, S5).
 
+## Decisions made while building
+
+Builder decision (2026-11-10), recorded while merging `claude/layers-integ`; checked against
+`ReconcileProvider` in `internal/appflows/flowplan.go` and its caller in `cmd/corvint/affected.go`.
+It is not an owner decision and stands until the owner amends it.
+
+1. The provider wins (AFU-V1-145): with `--provider FILE --selection-profile e2e-safe`, the
+   provider's `advice.test_selection` is the selection to run, `plan.e2e.inventory.source` is
+   `provider`, and `plan.e2e.inventory.providerOmits` lists, sorted, the files the provider's
+   inventory leaves out. As built, the list covers the derived files the plan selects, not every
+   derived inventory file. This differs from decision 7 and from the union rule under Failure
+   modes, which the reversal test under Acceptance evidence still targets.
+
 ## Failure modes
 
 - Inventory absent: the Playwright runner's declared full command runs with reason

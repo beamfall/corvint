@@ -255,6 +255,9 @@
       "tools/tiers-replay": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "tools/unbounded-readers": "walltime_test.go replay data, not a read (bridge until ci-1107x)"
     },
+    "cmd/corvint-analyzer-html-css": {
+      "go-target:sourcePath": "isolation_darwin_test.go buildGoRuntimeHelper builds a spy program writeSpySource wrote under t.TempDir(), a temporary path outside the repository (TSP-V0-8132)"
+    },
     "conformance/use-cases-v0": {
       "script/repin-use-case-receipts.sh": "named inside the expected recovery hint; the test reads no file"
     },
@@ -280,8 +283,14 @@
     "internal/observations": {
       "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"
     },
+    "internal/sessiontest": {
+      "go-target:filepath.Join(dir, \"q\")": "runnerenv_test.go runs go test on a fixture module written under t.TempDir(), named by its absolute temporary path, no repository directory (TSP-V0-8132)"
+    },
     "internal/specindex": {
       "cmd/corvint/main.go": "a read-scope control path passed to the InReadScope predicate; the file is never read"
+    },
+    "tools/beamfall-shadow": {
+      "go-target:source": "main_test.go builds fixtureGoAnalyzer from a main.go written under t.TempDir(), a temporary path outside the repository (TSP-V0-8132)"
     },
     "tools/gate-ledger": {
       ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",

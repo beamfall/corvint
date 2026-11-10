@@ -99,7 +99,7 @@ func main() {
 		os.Exit(streams.Status(code))
 	}
 
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-web-flows", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-web-flows", Version: companioncli.ExperimentalVersion, Build: build, Commit: sourceCommit, Usage: usage}, os.Args[1:], streams.Stdout()); handled {
 		os.Exit(streams.Status(code))
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

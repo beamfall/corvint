@@ -49,7 +49,7 @@ func TestAFPV0990ByPathSeparatesSharedUnboundedReaders(t *testing.T) {
 		}
 	}
 	text := renderAffectedByPathText(result)
-	for _, line := range []string{"affected by-path scope=", "shared go:any tests=1 UNBOUNDED_READER\n", "path docs/a.md scope=", " shared=1/1 additions=1\n", "  added go:b tests=2 PATH_LITERAL_READER\n"} {
+	for _, line := range []string{"affected by-path scope=", "shared go:any tests=1 test-files=1 UNBOUNDED_READER\n", "path docs/a.md scope=", " shared=1/1 additions=1\n", "  added go:b tests=2 test-files=2 PATH_LITERAL_READER\n"} {
 		if !strings.Contains(text, line) {
 			t.Errorf("text lacks %q:\n%s", line, text)
 		}

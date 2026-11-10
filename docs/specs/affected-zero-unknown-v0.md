@@ -15,12 +15,14 @@ Lane selfloor (V1-5000, owner lane charter 2026-11-07) defines AFP-V0-3120 to AF
 its PR #142 repair AFP-V0-9050 and AFP-V0-9051, and its computed-site narrowing AFP-V0-9620 to
 AFP-V0-9628 (build-log entry `docs/build-log/2026-11-08-v1-5000-driver-computed-narrowing.md`), here
 under the parent's `AFP-V0` prefix for the same reason; see build-log entry
-`2026-11-07-selfloor`.
+`2026-11-07-selfloor`. Lane affshell (2026-11-09) adds AFP-V0-9130 to AFP-V0-9132 for the shell
+scanner's line continuations, absolute executables and step outputs (build-log entry
+`docs/build-log/2026-11-09-affshell.md`).
 
 ## Agent digest
 - Claim: every `corvint affected` plan closes unknowns with sound selections or stated proofs, including bounded readers, never by dropping reached units.
 - Status: experimental (owner goal, owner chat 2026-11-04; orchestrator design under the 2026-11-02 delegation); delivery experimental.
-- Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach` in `unit.go`; `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json` and `.corvint/test-binary-consumers.json`.
+- Exists: `frontierUnknowns`, `bearsOnUnowned`, `participants`, `unownedUnknown` and `driverInput` in `internal/liveverify/affected/select.go`; `FrontierReach`, `FrontierDirection` and `RunnableUnits` in `unit.go`; the site closure and hosted-fixture rule in `frontier_closure.go` (AZU-V0-211 to AZU-V0-213); `.corvint/shell-foreign-callers.json`, `.corvint/runtime-readers.json`, `.corvint/runtime-edges.json` and `.corvint/test-binary-consumers.json`.
 - Blocked on: aggregate sibling integration, empty unknown lists on every frozen merge, and historical full-suite/mutation receipts; lane verification retains sandbox CLI failures; the registered-driver assertion conflict is repaired without changing frozen receipts.
 - Read next: User and current state, then the requirement you are implementing.
 
@@ -173,7 +175,7 @@ participation, and inbound shell callers. The remaining classes are small and lo
   legacy `graph.unknown` list and `UNKNOWN` scope; its wire and goldens do not change.
   The existing advice coverage warnings also retain `NO_SELECTABLE_TEST: UNIT_ID` for
   uncovered units: compile-only advice does not claim behavioural test coverage.
-- **AZU-V0-007:** **Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
+- **AZU-V0-007:** (amended under the owner's standing auto-accept (2026-10-11); V1-5195: a `DECLARED_CONSUMER` selection of a consumer `.corvint/e2e-flows.json` binds to flows carries `flows`, the bound flows the change reaches, and may be left out under AFU-V1-1653; the compact plan keeps `flows`) **Declared binary consumers run.** An entry of `.corvint/test-binary-consumers.json`
   MAY carry `run`, the argv that runs it from the repository root. Legacy `FILE:[COMMAND_DIR...]`
   entries remain valid; the extended form is `FILE:{"commands":[COMMAND_DIR...],"run":[ARG...]}`.
   `commands` has the existing directory-list grammar; `run` is optional but, when present,
@@ -342,7 +344,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
 
   An evaluated target that runs any other repository program, an interpreter, `git` or an
   unlisted command SHALL keep claiming every dirty path, since its read set can include every
-  tracked file. A certified target SHALL be selected for a dirty path only through its edges, with
+  tracked file. Amended by lane affprec2 (V1-5168, 2026-11-09): "its file's variables" means the
+  variables and parse-time text whose expansion the target observes, as AZU-V0-610 bounds; a
+  value no text of the file expands, and a conditional's condition, mark no target. A certified target SHALL be selected for a dirty path only through its edges, with
   a dependency, path-literal or other reader witness. A dirty path that no alternative can run,
   name or read SHALL NOT select it or its dependents by `FRONTIER_SITE`. A new
   `.corvint/changes/<sha>.cem.json` or `docs/build-log/` entry is such a path unless an alternative
@@ -514,7 +518,9 @@ participation, and inbound shell callers. The remaining classes are small and lo
   lane charter, 2026-11-08) Each driver unit that is a computed-invocation site SHALL carry the
   internal reasons that made it one (for example `shell:assignment`, `make:evaluated-uncertified`).
   The reasons are diagnostic only. They SHALL NOT change selection, witnesses, the wire format or
-  any receipt, and a site SHALL stay computed if any one reason holds.
+  any receipt, and a site SHALL stay computed if any one reason holds. AZU-V0-611 refines
+  `make:evaluated-uncertified` with the variable or function evaluated and the word the scan
+  could not bound.
 - **AFP-V0-9621:** **Allowlisted `set` options.** (experimental, V1-5000 orchestrator lane
   charter, 2026-11-08) A `set` builtin SHALL NOT make a CI step computed when it has at least one
   argument and every argument is `-` or `+` followed only by the letters `e`, `u`, `x`, `v` and `E`,
@@ -569,9 +575,97 @@ participation, and inbound shell callers. The remaining classes are small and lo
   `failglob`, `dotglob`, `globstar` or `nocaseglob` SHALL NOT make the step computed. Every other
   `shopt` form stays computed. So do these builtins, which can set any variable: `printf -v`,
   `mapfile`, `readarray`, `let`, `getopts`, `typeset`, `hash`, `enable` and `alias`.
+- **AFP-V0-9130:** **Exact line continuations; function shadows.** (experimental, affshell lane,
+  2026-11-09, V1-5169) The shell scanner SHALL remove a backslash-newline exactly where bash
+  does, before it splits a script into lines: outside single quotes and comments, inside double
+  quotes or not, when the backslash is not itself escaped, through nested `$(`, `${` and
+  parentheses. A `$(...)` or a command continued over several lines is then one line and revokes
+  no narrowing. Text whose quoting the joiner does not follow (a backtick, `$'` or `$"` outside
+  single quotes, a here-document operator, a quote or substitution left open) SHALL keep the
+  previous blanket join and revoke narrowing (`shell:line-continuation`). A function defined by
+  `name()` or `function name` whose name is a command the scanner models (pure and bounded
+  commands, go, make, shells, interpreters, and the builtins, wrappers and keywords it reads)
+  SHALL keep the site computed (`shell:function-shadow`); `alias` stays computed (AFP-V0-9627).
+  A function of any other name changes nothing: an unknown command word is trusted for nothing.
+- **AFP-V0-9131:** **Absolute executables.** (experimental, affshell lane, 2026-11-09, V1-5119)
+  An absolute command word below the source's disk root SHALL be the repository program at its
+  relative path: it records that path edge and is certified only as the relative spelling would
+  be (a shell test with recorded arguments certifies; any other repository program leaves the
+  command uncertified, so the computed fallback stays). Any other absolute command word,
+  `/bin/cat` and `/usr/bin/cat` included, SHALL be certified for nothing and record no edge: a
+  base name never selects command semantics.
+- **AFP-V0-9132:** **Step outputs are run-time values.** (experimental, affshell lane,
+  2026-11-09, V1-5171) A workflow `${{ }}` expression that reads `steps.ID.outputs.NAME` SHALL
+  be rendered as a run-time computed value, which never forms the root-like `$X/` prefix
+  AFP-V0-9626 admits, unless step ID has an id, no `uses`, no expression of its own, and a
+  `run` script whose every line is blank, a comment or `echo "NAME=VALUE" >> "$GITHUB_OUTPUT"`
+  with a literal value. A command word built from a run-time value stays computed
+  (`shell:computed-command-word`). An expression naming several steps is literal only when
+  every one is. Composite-action steps are read the same way.
 AFP-V0-9628 is defined in [Affected Plan Selection Precision V0](affected-plan-selection-v0.md),
 amended by the V1-5000 convergence-cap redesign (2026-11-08). Its complete-parse prerequisite
 governs every narrowing above.
+
+### Make site evaluation scope (lane affprec2, V1-5168)
+
+Measured on the repository at `32140bb3b` (2026-11-09): 112 of the root Makefile's make targets
+were computed sites, 65 of them solely as `make:evaluated-uncertified`. Every one of the 65 was
+"evaluated" only because the file-level expander walked variable values no recipe references
+(`WINDOWS_VET_GOCACHE`, `HEAVY_ADMIT`, `CORVINT_GOCACHE`) and the conditions of `ifeq`/`ifneq`
+lines, and "uncertified" because its own recipe runs a repository script such as
+`script/check-go-format.sh`. A target whose recipe is one literal command resolved nothing.
+
+- **AZU-V0-610:** **Evaluation marks only what a target observes.** (experimental, lane affprec2
+  charter, 2026-11-09; V1-5168) The AFP-V0-3122 hedge, under which an evaluated target stays a
+  `driver:computed-invocation` site unless every command it runs is certified, SHALL apply to a
+  target only when the evaluation resolved text that target observes:
+  - its own recipe lines, prerequisite lists and the variable alternatives they expand
+    (AFP-V0-3121), as before;
+  - a remainder recipe, which make runs for every target (AFP-V0-3120);
+  - a parse-time expansion (AFP-V0-3125) that ran a command (a `$(shell ...)` reached, a `!=`
+    command), read a file (`wildcard`), met an unmodeled or ambiguous function, or is a bare
+    statement or an include, each of which make reads for every target (AFP-V0-3127).
+
+  A variable value that no recipe, prerequisite, include, statement or parse-time text expands
+  SHALL mark no target: make never runs it (AFP-V0-3120). A conditional's condition SHALL mark no
+  target by its value: the claimant takes every branch as an alternative whatever the condition
+  says, so evaluating it resolves nothing a target observes; only the effects the condition's
+  expansion has (a command it runs, a file it reads) count under the previous bullet. An
+  immediate value, or a `+=` text, whose evaluation left no command, read or unmodeled function
+  SHALL mark only the targets that expand the variable it sets, through its alternatives. The
+  commands, reads and make calls such texts hold stay every target's edges, exactly as before.
+  Failure mode: a defect in an exactly evaluated word function (AFP-V0-3121) over definite values
+  could skip a parse-time `$(shell ...)` in an untaken `if` branch; AFP-V0-3121's exactness tests
+  and AZU-V0-9850's counterexamples guard those functions, an environment-decided condition still
+  takes both branches and keeps the hedge for every target, and a `!=` command keeps it whatever
+  was evaluated. The same trust is already placed in the evaluation of a recipe's own text.
+- **AZU-V0-611:** **Evaluated-uncertified sites name their blockers.** (experimental, lane
+  affprec2 charter, 2026-11-09; V1-5168) A make site that is computed only as
+  `make:evaluated-uncertified` (AFP-V0-9620) SHALL also record `make:evaluated:<name>` for each
+  variable (`MODE`) or function (`$(if)`) whose evaluation marked it, and
+  `make:uncertified:<reason>` for each command, operand or form the scan could not bound:
+  `shell:uncertified-command:<word>` with the first unbounded operand when the command kind is
+  certifiable (`shell:uncertified-command:go:run`), `shell:redirect-input:<file>`,
+  `shell:glob-operand:<word>`, `shell:cd-unproven:<dir>`, `shell:test-operand:<file>`,
+  `shell:assignment:<name>`, `shell:xargs-operands`, `shell:sourced`, `shell:trap`, `shell:eval`,
+  `shell:builtin-<name>`, and `make:export-uncertified`, `make:recipe-shell-uncertified` or
+  `make:include` for the file-level forms. The file-level reasons SHALL mirror exactly what left
+  the file uncertified: a `$(shell ...)` of a recursive value runs only where a recipe expands
+  it (AFP-V0-3127) and records nothing at file level. Like AFP-V0-9620 the reasons are
+  diagnostic only and change no unit, selection, witness, wire member or receipt.
+- **AZU-V0-612:** **`GOTOOLCHAIN=local` is a modeled assignment.** (experimental, lane affprec2
+  charter, 2026-11-09; V1-5168) The AFP-V0-3128 assignment allowlist (the cache location and
+  empty Go flags) SHALL also admit `GOTOOLCHAIN` with the exact value `local`, as a prefix or
+  standalone assignment: it forbids the toolchain switch that any other value may perform, which
+  downloads and runs a toolchain this graph does not model, and it adds no read of its own.
+  `GOTOOLCHAIN=auto`, `path`, a version, `local` with a suffix, an empty value and a value the
+  environment or a make variable supplies SHALL keep the AFP-V0-3128 rule and the site. The
+  literal make shapes AFP-V0-3122 already certifies, literal goals and a literal `-C` directory,
+  SHALL stay pinned against their dynamic variants (a computed goal, a computed directory, a
+  variable override), which stay computed because make exports command-line variables to every
+  recipe. Recipe-local lowercase shell variables stay under AFP-V0-9622's CI-only rule: in this
+  repository every such variable is referenced later in its recipe, so AFP-V0-9628 revokes it,
+  and the ticket's remaining shape is not narrowed here.
 
 ### Lane qualification details
 
@@ -605,8 +699,9 @@ governs every narrowing above.
   For root and nested scripts alike, quoted computed basenames include backtick substitution,
   `$()`, `${}`, `$VAR` and percent formats, including paths after a command prefix.
 - **AZU-V0-8902:** **Located runtime caller closure.** A located TypeScript end-to-end runtime site
-  covered by an existing runtime edge SHALL select its declared test unit and traverse its
-  dependents on every nonempty code-bearing change, including changes within TypeScript. A site's
+  covered by an existing runtime edge SHALL select its declared test unit on every nonempty
+  code-bearing change, including changes within TypeScript, as a terminal selection whose
+  dependents are not traversed (amended 2026-11-09 by AZU-V0-210; the first text traversed them). A site's
   file drops its backquoted token and then its line, so a line-less site is located too
   (AFP-V0-9009). Only after selection
   SHALL that site's inbound unknown close. Unlocated, truncated, stale or undeclared sites SHALL
@@ -719,6 +814,95 @@ lanes and external full-suite/mutation observations at every historical revision
   `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950`. Rollback: restore the single `path %q`
   error.
 
+- **AZU-V0-210: Declared runtime callers are terminal selections.** (experimental under the owner's
+  standing lane auto-accept, 2026-11-09; V1-4999, V1-4679) Amending AZU-V0-8902: the declared
+  caller of a located runtime site SHALL be selected with witness `FRONTIER_SITE` for its tests
+  alone on every nonempty code-bearing change; its dependents SHALL NOT be traversed, and the
+  selection SHALL NOT by itself make the caller's plugin take part (AFP-V0-560). Soundness: the
+  declaration says what the caller's tests run; none of the caller's own code changes, so no
+  importer or test user of it observes the selection, and a hidden edge into or out of it cannot
+  add a selection (AFP-V0-560 (4)). A caller the plan reaches another way keeps that witness and
+  its participation. A plugin left out this way is recorded in `plan.frontierExcluded` with its
+  terminal units, so its plugin-wide frontier stays visible as a non-scope diagnostic. Measured
+  2026-11-09 on this tree with the Go-only dirty path `internal/sessiontest/balanced_test.go`:
+  unknown 59 to 3; the 57 TypeScript entries that bore as `PARTICIPATING_PLUGIN` only through the
+  three declared fixture callers of `.corvint/runtime-edges.json` are now listed under
+  `frontierExcluded`. Evidence: `TestDeclaredRuntimeCallerIsTerminal_AZU_V0_210`. Rollback:
+  traverse and follow the seeds again.
+- **AZU-V0-214: Workflow anchors and aliases.** (experimental under the owner's standing lane
+  auto-accept, 2026-11-09; V1-4999, V1-5184) The driver claimant's YAML subset SHALL include an
+  anchor property (`&name`) on a sequence item or a mapping value and an alias (`*name`) in either
+  position: an alias stands for the anchored node, so an aliased step's `run`, `uses` and `with`
+  members are its job's edges exactly as the anchored step's are. An alias to a name the file has
+  not yet anchored, a redefined anchor, an alias followed by text, an anchored alias, merge keys
+  (`<<`) and tags (`!name`) stay outside the subset, so such a file remains `driver:unparsable-file`
+  and selects all of itself. Measured 2026-11-09: `.github/workflows/release-gates.yml` reuses six
+  setup steps by anchor; before this requirement it was unparsable, and its fallback unit bore
+  `driver:unparsable-file` on every plan with an unproven dirty path, so no plan could be BOUNDED.
+  Evidence: `TestDriverWorkflowAnchorsAndAliases_AZU_V0_214`,
+  `TestReleaseGatesWorkflowParses_AZU_V0_214`. Rollback: reject `&` and `*` again.
+
+- **AZU-V0-211: Hosted fixture sites close through their Go host.** (experimental under the owner's
+  standing lane auto-accept, 2026-11-09; V1-4999, V1-4679) A plugin-wide frontier entry of a
+  participating plugin whose every site lies below a `testdata` directory a Go unit hosts
+  (AFP-V0-446 rule (i)) SHALL NOT bear when the change neither touches nor reaches the site's
+  fixture root (the directory directly below `testdata`: no dirty path lies below it and no unit
+  the change propagates through, terminal selections excepted, owns a file below it), no dirty path
+  the plugin does not own is one of its resolution inputs (`FrontierReach.ResolutionInput`), and
+  either the reason is source-bound or fixture-closed (AFP-V0-511), so its hidden edge binds only
+  the plugin's own paths or its runner configuration, or the plan selects the hosting unit with
+  its tests. For a path-open reason the plan SHALL select the hosting Go unit for its tests alone,
+  witness `FRONTIER_SITE`, instead of walking into the fixture: the host's tests are the only run
+  of a hosted fixture, so they observe whatever the hidden edge binds. Each closed entry SHALL be
+  reported in `plan.frontierExcluded` under `HostedFixtureExclusionReason` with the hosting units.
+  Fault injections: a dirty path inside the fixture, a fixture unit the change reaches through an
+  import, a dirty resolution input and an unhosted `testdata` directory each make the site a live
+  site (AZU-V0-212). A `reason:+N` entry closes this way only when every recorded site qualifies.
+  Measured 2026-11-09 on this tree with the one-file change `extensions/vscode/src/configuration.ts`:
+  21 fixture sites of `internal/{appmap,browsercov,command/flows,doccorpus,jslinecov,jstestprovider}`
+  closed through their hosts. Evidence: `TestHostedFixtureSitesCloseThroughTheHost_AZU_V0_211`,
+  `TestFixtureFrontierKeepsUnboundedSpecifiersPluginWide_AFPV0446`. Rollback: drop
+  `hostedFixtures`; fixture sites bear as live sites again.
+- **AZU-V0-212: Outbound site closure.** (experimental under the owner's standing lane auto-accept,
+  2026-11-09; V1-4686, V1-4999) Implementing AZU-V0-003: a plugin classifies its reasons through
+  `FrontierDirection(reason) string` with the values `OUTBOUND`, `DISCOVERY`, `INBOUND` and
+  `PACKAGE_RUNNABLE`; a reason it does not classify, and every reason of a plugin without the
+  method, is `INBOUND`. The plugin records every located site of each plugin-wide reason in
+  `Result.FrontierSites`, carried by the graph cache and no part of the graph digest, so the sites a
+  `reason:+N` entry hides are located too. When an `OUTBOUND` or `DISCOVERY` entry bears through a
+  participating plugin or a reached or narrowed unit, the plan SHALL select each site unit it can
+  locate with witness `FRONTIER_SITE` and traverse from it as from a changed unit: its dependents,
+  test users, the users of the commands it builds, the units that embed its files and the literal
+  and glob readers of its files, whose witnesses chain through the site unit. The bearing frontier is
+  recomputed to a fixed point and the entry is dropped once every site unit is reached with its
+  dependents followed; the entry's bearers are dropped with it (TSP-V0-942). A `DISCOVERY` site
+  also decides which files below its directory are tests, so its entry stays when the site file is
+  dirty or a dirty path of the plugin lies below the site's directory. A bare entry, an entry whose
+  site file no unit of the plugin owns, and a `+N` entry whose plugin recorded no sites stay unknown.
+  A plan with a dirty path no plugin owns stays `UNKNOWN` whatever the frontier says, so no
+  selection closes an entry on it and the closure selects nothing. Soundness: the hidden edge of an
+  outbound reason starts at the site file, so whichever path it binds, only the site unit and what
+  observes it can see the change. Declarations at acceptance: typescript `OUTBOUND`
+  `relative-import-unresolved`, `bare-import-undeclared`, `dynamic-import`; `DISCOVERY`
+  `executable-config-unresolved`; `PACKAGE_RUNNABLE` `runtime-flags-unresolved`,
+  `test-runner-unknown`; everything else `INBOUND` (TJAA-V0-1161). Measured 2026-11-09 on this
+  tree: `extensions/vscode/src/configuration.ts` alone, unknown 58 to 1 (the remaining entry is the
+  shell foreign-invocation frontier of nine scripts that read TypeScript site files), selected 184
+  to 248. Evidence: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`,
+  `TestDiscoverySiteKeepsEntryOnDirtyConfiguration_AZU_V0_212`,
+  `TestUnownedPathDisablesSiteClosure_AZU_V0_212`, `TestFrontierSitesSurviveTheGraphCache_AZU_V0_212`,
+  `TestFrontierSiteRecordIsComplete_TJAA_V0_1161`. Rollback: return `INBOUND` from every plugin;
+  every entry bears as before.
+- **AZU-V0-213: Package-runnable sites.** (experimental under the owner's standing lane auto-accept,
+  2026-11-09; V1-4691) Implementing AZU-V0-008: when a `PACKAGE_RUNNABLE` entry bears, the plan
+  SHALL select each located site unit the plugin reports runnable (`RunnableUnits.RunnableUnit`:
+  a test unit of an identified runner) with witness `FRONTIER_SITE`, for its tests alone, and drop
+  the entry once every site unit is selected. A site unit the plugin cannot run, or whose file no
+  unit owns, keeps the entry unknown, with the hint `NO_RUNNER` naming why. Evidence:
+  `TestPackageRunnableSites_AZU_V0_008`, `TestRunnableUnits_TJAA_V0_1161`; in this tree the twelve
+  `node:test` sites of `extensions/vscode/test` close and the three `test-runner-unknown` fixture
+  sites close through their hosts (AZU-V0-211). Rollback: classify the reasons `INBOUND`.
+
 ## Non-goals
 
 - No requirement here may drop a reached, reading, executing, importing or embedding unit. Every
@@ -749,6 +933,15 @@ lanes and external full-suite/mutation observations at every historical revision
   closed.
 - A driver hunk is misattributed to the wrong target. Mitigation: an unparsable make file or
   workflow selects every target or job of that file.
+- AZU-V0-610 drops the hedge for a target that does observe an evaluated value. Mitigations: a
+  recipe or prerequisite that expands the variable is marked through its alternatives; a
+  parse-time expansion with any command, read, unmodeled or ambiguous function keeps the
+  file-wide mark; `TestFrontierSiteEvaluationScope_AZU_V0_610` pins both directions and
+  `TestFrontierSiteFaultInjection_AFP_V0_3120` proves an unreferenced value leaves every
+  target's edges and frontier identical to the control.
+- AZU-V0-612 certifies a toolchain value with an unmodeled effect. Mitigation: only the exact
+  value `local` is admitted; `TestFrontierSiteGoToolchainLocal_AZU_V0_612` keeps every other
+  spelling a site.
 - The AFP-V0-3121 walk misses or mis-evaluates an alternative, which would drop an edge.
   Mitigations:
   - only the listed functions are evaluated, each exactly and over definite values;
@@ -965,6 +1158,10 @@ site again, and the guards these commits added are removed too: `printf -v` and 
 variable-setting builtins, command substitution inside `${...}` and `$((...))`, uppercase or
 env-declared loop variables, and the GitHub environment files named through an expression. So a
 revert can also narrow those few forms back to their earlier treatment.
+Reverting the AZU-V0-610 to AZU-V0-612 commit restores the file-wide evaluated mark (every target
+of a file with any evaluated variable value or conditional is hedged again), the single
+`make:evaluated-uncertified` reason and the computed `GOTOOLCHAIN=local` prefix; no wire, witness
+or receipt member changes either way.
 Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without their readers.
 
 ## Traceability
@@ -974,12 +1171,12 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-001 | V1-4684 | `Driver` claimant in `internal/liveverify/affected/driver*.go`; `TestDriverImplicitGoPackage_AZU_V0_001`, `TestDriverImplicitGoPackageDirectory_AZU_V0_001`, `TestDriverFlowMappingKeepsUncertainty_AZU_V0_001`; `driver_test.go` (per-hunk, remainder, unparsable, removed-block, deleted-file and `FRONTIER_SITE` cases); replay `--base 39c031980` at `8e2c13aa9`: unknown 92 to 89, `UNOWNED_DIRTY_PATH` 5 to 2, selected 266 to 488, no selection dropped (`docs/build-log/2026-11-04-azu-driver-claimant.md`) |
 | AZU-V0-002 | V1-4685; V1-4659, V1-3480 | `affected --ownership-audit`, `.corvint/non-source-paths.json`, `TestOwnershipAuditRatchet_AZU_V0_002` over an empty baseline, `TestRepositoryOwnershipComplete_AZU_V0_8900` (including a new unclaimed path), `TestAuditControlKeepsSelectionUncertainty_AZU_V0_8900`; aggregate safety qualification remains external |
 | AZU-V0-9704 | PR #98 repair round 2 | `TestDriverUnknownIsNotLanguage_AZU_V0_9704` in `internal/sessiontest`; unchanged `make doc-gate/selection-baseline-check` corpus |
-| AZU-V0-003 | V1-4686 | not yet |
+| AZU-V0-003 | V1-4686 | AZU-V0-212: `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161` (frontierSites count equals the recorded sites), `TestFrontierDirections_TJAA_V0_1161`; one-file TypeScript probe in `docs/build-log/2026-11-09-frontier.md` |
 | AZU-V0-004 | V1-4687; V1-4392, V1-4535 | `TestRepositoryInboundCallers_AZU_V0_8901`, `TestConstructedForeignCallers_AZU_V0_8901`, `TestRootConstructedForeignCallers_AZU_V0_8901`, `TestRawStringJoinRetainsUnknown_AZU_V0_8901`, `TestConstructedDirectoryRetainsUnknown_AZU_V0_8901` (raw formatted paths, split separators, trailing-slash joins and backticks without format markers), `TestConstructedBasenameSpellings_AZU_V0_8901` (shared root/nested substitution, quote, format, concatenation and join matrix; known callers remain selected), `TestNormalizedJoinRetainsUnknown_AZU_V0_8901` (normalized literal components and unresolved suffixes retain UNKNOWN), `TestTraversalJoinRetainsUnknown_AZU_V0_8901` (an unresolved intermediate ancestor operand cancels an unrelated prefix; integrated selection retains UNKNOWN and known callers), `TestTraversalJoinSuffixBounds_AZU_V0_8901` (only a fixed non-shell suffix proves exclusion; shell suffixes, partial suffixes and cleaned components retain uncertainty, grouped or not, and a suffix on one branch of a conditional or boolean expression proves nothing), `TestGroupedSuffixJoinRetainsUnknown_AZU_V0_8901` (an undeclared `name + (".sh")` caller retains UNKNOWN), `TestNormalizedJoinBounds_AZU_V0_8901`, `TestNormalizedJoinSharedDirectoryRetainsUnknown_AZU_V0_8901` (two declared scripts share a directory; embedded Python with an escaped basename retains UNKNOWN and known caller selection), `TestDeclaredInboundRuntime_AZU_V0_8902`, `TestInboundRevisionRetainsOldCallers_AZU_V0_8904`, `TestInboundRevisionRejectsInvalidSnapshots_AZU_V0_8904` (invalid base with valid HEAD and invalid HEAD retain changed-declaration uncertainty) |
 | AZU-V0-005 | V1-4688 | `TestAZUV0005HiddenPackages`; `TestHiddenPackageImportSetSelectsObserver_AFPV02202`; `TestAZUV0005KeepsTestlessReadersCallers`; `TestAZUV0005HiddenPackageSelection`; `TestAZUV0005RunnerExecutesHiddenPackages`; `TestHiddenUnrepresentableNames_AZU_V0_005`; `TestHiddenHelperScopes_AZU_V0_9920` (declared output); [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
 | AZU-V0-006 | V1-4689 | `TestAZUV0006CoverageGap`; `TestAZUV0006TestlessScopedReaderCallers`; `TestAZUV0006CoverageCountsOnlyRunCallers`; `TestAZUV0006ReaderCallerUncertainty`; `TestAZUV0006MultipleChangedPathsReaderUncertainty`; `TestAZUV0006MultipleChangedFilesDeclaredReader`; `TestAZUV0006ReaderOwnFilesFrontierInBatch`; `TestShortFragmentsKeepConcatenatedReaders_V1_1818`; `TestAZUV0006DeclaredReaderUnownedCaller`; `TestAZUV0006OwnedTestlessReaderCallers`; `TestAZUV0006OwnedSourceReaderCaller`; `TestAffectedUntestedGoPackageIsUnknownScope`; `TestUseCaseHostileChangeConsequence`; `TestAZUV0006And007CompactPlan`; [coverage and inbound uncertainty evidence](../build-log/2026-11-04-azu-small-classes.md); [self-review repair](../build-log/2026-11-05-azu-small-self-review-reader-callers.md) |
 | AZU-V0-007 | V1-4690 | `TestAZUV0007RunnableConsumer`; `TestAZUV0007InvalidRun`; `TestAZUV0006And007CompactPlan`; `TestAZUV0007CLIExecutesDeclaredConsumers`; `TestAZUV0007CIRunnableBrowserConsumerRequired`; `TestAZUV0007IdenticalDeclaredCommandsShareInvocation`; `TestAZUV0007SharedConsumerRunnerRunsOnce`; [whole-package evidence](../build-log/2026-11-04-azu-small-classes.md); [eight-merge consumer replay](../build-log/2026-11-05-azu-small-wave-1105b.md) |
-| AZU-V0-008 | V1-4691 | not yet |
+| AZU-V0-008 | V1-4691 | AZU-V0-213: `TestPackageRunnableSites_AZU_V0_008`, `TestRunnableUnits_TJAA_V0_1161`, `TestFrontierReachHoldsForUnownedPaths_AFPV0511` (NO_RUNNER stays) |
 | AZU-V0-009 | V1-4692 | replay tool, `TestSafetyRejectsUnsafeDrop_AZU_V0_8903`, `TestReplayIncompleteRemainsUnaccepted_AZU_V0_8903` and `TestChangedLineGitPaths_AZU_V0_8903` (Git-quoted Unicode/tab paths, space delimiters and deleted-file parent coordinates), `TestSourceDiffConfiguration_AZU_V0_8903` (canonical prefixes under local diff settings, source coordinates despite textconv), `TestInterHunkContextRejectsUnchangedMutants_AZU_V0_8903` (actual +/- records and canonical zero inter-hunk context; unchanged-line mutants remain NOT_PRODUCED on both sides), `TestSafetyHonorsSelectionTestFilter_AZU_V0_009` (an ownership-only `-run` selection does not catch other tests of its package; subtest, `-skip`, `-list`, repeated or invalid filters remain NOT_PRODUCED); historical full-suite/mutation qualification remains NOT_PRODUCED |
 | AZU-V0-9700 | PR #98 review | `TestDriverMissingWrapperOperand_AZU_V0_9700` |
 | AZU-V0-9701 | PR #98 review | `TestDriverImplicitGoPackage_AZU_V0_9701` |
@@ -1009,6 +1206,12 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AFP-V0-9626 | V1-5000 | `TestDriverComputedNeighbours_AFP_V0_9625`, `TestDriverWorkflowEnv_AFP_V0_9623` |
 | AFP-V0-9627 | V1-5000 | `TestDriverComputedNeighbours_AFP_V0_9625` |
 | AFP-V0-9628 | V1-5000 | `TestDriverReviewCounterexamples_AFP_V0_9628`, `TestDriverWorkflowCounterexamples_AFP_V0_9628`, `TestDriverReviewCounterexamplesSelected_AFP_V0_9628` |
+| AFP-V0-9130 | affshell (V1-5169) | `TestDriverLineContinuations_AFP_V0_9130`, `TestDriverJoinContinuations_AFP_V0_9130`, `TestDriverFunctionShadowing_AFP_V0_9130`; census in `docs/build-log/2026-11-09-affshell.md` |
+| AFP-V0-9131 | affshell (V1-5119) | `TestDriverAbsoluteExecutable_AFP_V0_9131` |
+| AFP-V0-9132 | affshell (V1-5171) | `TestDriverStepOutputCommandWord_AFP_V0_9132` |
+| AZU-V0-610 | V1-5168 (lane affprec2) | `TestFrontierSiteEvaluationScope_AZU_V0_610`, `TestFrontierSiteFaultInjection_AFP_V0_3120` (control parity), `TestFrontierSiteParseTimeCommandKeepsClaim_AFP_V0_3127`; census and one-file CEM replay in `docs/build-log/2026-11-09-affprec2.md` |
+| AZU-V0-611 | V1-5168 (lane affprec2) | `TestDriverEvaluatedUncertifiedReasons_AZU_V0_611`; `TestDriverComputedReasonCounts` census in `docs/build-log/2026-11-09-affprec2.md` |
+| AZU-V0-612 | V1-5168 (lane affprec2) | `TestFrontierSiteGoToolchainLocal_AZU_V0_612`, `TestFrontierSiteLiteralMakeGoals_AZU_V0_612`, `TestFrontierSiteMakeOptionAllowlist_AFP_V0_3128` |
 | AZU-V0-9920 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED), `TestHiddenHelperUniverse_AZU_V0_9920`, `TestHiddenHelperModuleBoundary_AZU_V0_9920`, `TestHiddenHelperScopes_AZU_V0_9920`; Go/Python `.github/` discovery and `.corvint/runtime-edges.json` |
 | AZU-V0-9921 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `non_source_paths.go`; declaration preserves reader selection |
 | AZU-V0-9922 | fullplan charter | `TestFullplanReplay_AZU_V0_9920_9921` (PLANNED); `docs/build-log/2026-11-05-fullplan-selection-precision.md` |
@@ -1017,6 +1220,11 @@ Declarations added for AZU-V0-002, AZU-V0-004 and AZU-V0-007 are inert without t
 | AZU-V0-9930 | Owner unbounded lane charter, 2026-11-05 | `TestComparisonOnlyLocators_AZU_V0_9930` (both scanners), `TestLocatorComparisonSelection_AZU_V0_9930`, `TestLocatorComparisonScanner_AZU_V0_9930` |
 | AZU-V0-9931 | Owner unbounded lane charter, 2026-11-05 | Existing `tools/test-read-scopes-check`; four-merge replay in `docs/build-log/2026-11-05-unbounded-reader-precision.md` |
 | AZU-V0-9950 | V1-4919; standing lane auto-accept, 2026-11-06 | `TestNonSourcePathsNamesOrderingFaults_AZU_V0_9950` (out-of-order, duplicate and undeclarable entries) |
+| AZU-V0-210 | V1-4999, V1-4679 | `TestDeclaredRuntimeCallerIsTerminal_AZU_V0_210`; Go-only probe 59 to 3 unknowns in `docs/build-log/2026-11-09-frontier.md` |
+| AZU-V0-211 | V1-4999, V1-4679 | `TestHostedFixtureSitesCloseThroughTheHost_AZU_V0_211`, `TestFixtureFrontierStaysPluginWideWhenEscapedOrUnhosted_AFPV0446`, `TestFixtureFrontierKeepsUnboundedSpecifiersPluginWide_AFPV0446` |
+| AZU-V0-212 | V1-4686, V1-4999 | `TestOutboundSiteClosure_AZU_V0_003`, `TestOverflowSitesClose_AZU_V0_212`, `TestDiscoverySiteKeepsEntryOnDirtyConfiguration_AZU_V0_212`, `TestUnownedPathDisablesSiteClosure_AZU_V0_212`, `TestFrontierSitesSurviveTheGraphCache_AZU_V0_212`, `TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770`, `TestRepositoryShellDataReaders_AFPV03330` (sibling data selects no closure) |
+| AZU-V0-213 | V1-4691 | `TestPackageRunnableSites_AZU_V0_008`, `TestRunnableUnits_TJAA_V0_1161` |
+| AZU-V0-214 | V1-4999, V1-5184 | `TestDriverWorkflowAnchorsAndAliases_AZU_V0_214`, `TestReleaseGatesWorkflowParses_AZU_V0_214`; the repository workflow `release-gates.yml` parses |
 
 The comparison proof's failure mode is an escaped path mistaken for a pure guard. The binding
 and scanner regressions retain real reads, aliases, closures, shadowing and parse failures.
