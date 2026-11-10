@@ -449,8 +449,13 @@ H14 answers step 2 only; it does not accept sections 1 to 10.
    `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
    (ACR-V1-006, ACR-V1-008).
 5. The owner merges the pull request that carries steps 3 and 4.
-6. The merged decision file is the acceptance (ACR-V1-011, fallback; H14). It states that the
-   owner's identity is by convention and `NOT_VERIFIED`.
+6. The plan acceptance is the owner-merged decision file (ACR-V1-011, fallback; H14). It states
+   that the owner's identity is by convention and `NOT_VERIFIED`. The fallback also names a
+   protected-environment approval. The plan acceptance deploys nothing, so no environment exists
+   to approve at this step; the two approvals are given at the RC publish (M8) and the stable
+   promotion (M10), and neither release is accepted without its approval (section 8; REL-V1-007).
+   This reading of the fallback is drafted wording: merging this record accepts it, and the
+   owner may instead ask for an approval step before M0.
 
 After step 5 the change `acceptance-record` edits `AGENTS.md` invariants 3, 4, 5 and 7
 (ACR-V1-012), and milestone M0 may start.
