@@ -11,7 +11,7 @@ Owning capability spec: a new `docs/specs/source-removal-v1.md` (prefix `RMV-V1`
 proposal is accepted. It is not written by this change.
 Companion decision: `docs/decisions/PROPOSED-supersede-0594-keeps-line.md`, which lands with
 the removal branch, not with the plan (R42, F1)
-Acceptance record: `docs/decisions/0595-accept-product-plan-1-0-2026-11-10.md`
+Acceptance record: `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`
 Requirement IDs this change adds: RMV-V1-001 to RMV-V1-037 (no `RMV-` row exists in
 `docs/specs/REQUIREMENTS.tsv` and no other change folder uses the prefix; no collision)
 Files in this change (G14 layout): `proposal.md` (this file: why, what changes, non-goals,
