@@ -43,7 +43,7 @@ item() {
 }
 {
   item V1-0001 BUG 'affected: miss a renamed file' '["bugs"]' \
-    '["internal/testplan/plan.go","gone/file.go"]' '["PROD-TEST-001","GONE-001"]' '["V1-0002"]'
+    '["internal/testplan/plan.go","gone/old file.go"]' '["PROD-TEST-001","GONE-001"]' '["V1-0002"]'
   item V1-0002 FEATURE 'Speed up planning' '["optimizations"]' '["internal/testplan/"]' '[]' '[]'
   item V1-0003 MANUAL 'Accept the release' '[]' '["internal/testplan/"]' '[]' '["V1-0999"]'
 } > "$root/dump.jsonl"
@@ -74,7 +74,7 @@ test "$p3" = '[["component:affected"],[]]' || fail "V1-0003: $p3"
 
 m1=$(jq -c 'select(.oldId == "V1-0001") | [.title.from, .droppedLabels, .droppedRefs,
   .droppedTouchPaths, .milestone, .component.from]' "$root/out/manifest.jsonl")
-test "$m1" = '["affected: miss a renamed file",["bugs"],["GONE-001"],["gone/file.go"],'\
+test "$m1" = '["affected: miss a renamed file",["bugs"],["GONE-001"],["gone/old file.go"],'\
 '{"from":"post-1-0","to":"v1-0"},"title-prefix"]' || fail "V1-0001 manifest: $m1"
 m2=$(jq -c 'select(.oldId == "V1-0002") | [.kind, .component.from]' "$root/out/manifest.jsonl")
 test "$m2" = '[{"from":"FEATURE","to":"CHORE"},"touch-path"]' || fail "V1-0002 manifest: $m2"

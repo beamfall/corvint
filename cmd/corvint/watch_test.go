@@ -160,6 +160,12 @@ func TestWatchOnceDryRunCLI(t *testing.T) {
 	if len(got) != 2 || got[1].Kind != "result" || got[1].ExitCode != 1 {
 		t.Fatalf("events %+v", got)
 	}
+	// A loop that ends by a closed stdin exits 0 though its run failed: only
+	// --once reports the run in the exit status.
+	code, stdout, _ = watchCLI(t, "save\n", "--root", root, "watch", "--index", index, "--events-stdin", "--packages", "p")
+	if got = watchEvents(t, stdout); code != 0 || len(got) != 2 || got[1].Kind != "result" || got[1].ExitCode != 1 {
+		t.Fatalf("a failing stdin-driven run exited %d: %+v", code, got)
+	}
 	if err := os.WriteFile(filepath.Join(root, "p", "p.go"), []byte("package p\nfunc F() int {\n return 3\n}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

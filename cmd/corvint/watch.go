@@ -162,7 +162,9 @@ func runWatch(ctx context.Context, root string, args []string, stdin io.Reader, 
 		}
 		return watchRefuse(diagnostic, code, err.Error())
 	}
-	if failed {
+	// A watch that ends by signal exits 0 whatever an earlier save's run
+	// did: a later save may have repaired it. Only --once reports its run.
+	if failed && *once {
 		return 1
 	}
 	return 0
