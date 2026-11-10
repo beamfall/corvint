@@ -150,6 +150,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		if err := perfbudget.RunOwned(build); err != nil {
 			return fail(fmt.Errorf("go build %s: %w", b.pkg, err))
 		}
+		// The docs scenarios run `corvint docs ...`, which the built corvint serves through the
+		// corvint-docs executable beside it. A caller that supplies its own corvint installs
+		// corvint-docs itself.
+		progress("build: ./cmd/corvint-docs")
+		docs := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(work, "bin", "corvint-docs"), "./cmd/corvint-docs")
+		docs.Stdout, docs.Stderr = stderr, stderr
+		if err := perfbudget.RunOwned(docs); err != nil {
+			return fail(fmt.Errorf("go build ./cmd/corvint-docs: %w", err))
+		}
 	}
 	revision := "NOT_OBSERVED"
 	if head, err := ownedOutput(ctx, "git", "rev-parse", "HEAD"); err == nil {
