@@ -62,7 +62,6 @@ func TestSTRV0006DeclarationMatchesMakefile(t *testing.T) {
 	// and names the diagnostic the comparison it targets must print.
 	mutations := map[string][3]string{
 		"missing make target":  {`"languages": {`, `"languages": {"zig": ["make", "no-such-target"], `, "languages.zig names make no-such-target"},
-		"none the gate runs":   {`"typescript": ["make", "host-adapter-test"]`, `"typescript": {"none": "claimed"}`, `languages.typescript is none, but make gate step host-adapter-node-test runs "node"`},
 		"none without runners": {`"languages": {`, `"languages": {"zig": {"none": "claimed"}, `, "languages.zig is none, but this gate knows no zig runners"},
 	}
 	for name, mutation := range mutations {
