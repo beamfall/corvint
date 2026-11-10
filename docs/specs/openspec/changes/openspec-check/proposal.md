@@ -4,11 +4,11 @@ Change name: `openspec-check`
 Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
 Product requirement served: PROD-INT-011 and PROD-INT-010 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/openspec-check-v1.md`, a new spec with prefix `OSC-V1`
-Requirement IDs this change adds: OSC-V1-001 to OSC-V1-011
+Requirement IDs this change adds: OSC-V1-001 to OSC-V1-012
 Requirement IDs this change modifies: PRS-V1-018 (clauses (c) and (d) carried over, (a), (b) and (e)
 dropped)
 Owner answers this change implements: G14, owner decision R37 (2026-11-09), owner decision R41
-(2026-11-09)
+(2026-11-09), owner decision H9 (2026-11-10), owner decision H12 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -19,8 +19,10 @@ This change follows the G14 layout: `proposal.md` (this file), `design.md`, `tas
 ## Why
 
 G14 adopts the OpenSpec change-folder layout under `docs/specs/openspec/changes/`, "checked by a Go
-check in CI", with no npm tool, no root `openspec/` directory and no claim of OpenSpec CLI
-compatibility. Owner decision R41 (2026-11-09) requires every change to use the propose, apply and
+check in CI", with no root `openspec/` directory. G14 also said "no npm tool" and "no claim of
+OpenSpec CLI compatibility"; owner decision H12 (2026-11-10) replaces those two clauses: the
+OpenSpec command is installed and its propose, apply and archive flow is followed. Owner decision
+R41 (2026-11-09) requires every change to use the propose, apply and
 archive stages, and requires the check to enforce those stages, not only the folder layout. Owner
 decision R37 (2026-11-09) carries over two of the five spec-driven development improvements of
 PRS-V1-018: (c) generated spec header rows and (d) a recorded acceptance mode per requirement with
@@ -49,6 +51,9 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 - `interop/spec-toolchains/versions.json` (lines 6-11, integ 9ec3a29d0) pins the npm package
   `@fission-ai/openspec` 1.16.0 as a toolchain Corvint recognises in other repositories. It is not
   used to check this repository.
+- Since 2026-11-10 `docs/specs/openspec/config.yaml` (schema `spec-driven`) makes
+  `docs/specs/openspec/` an OpenSpec root, and `openspec validate --all` run from `docs/specs` with
+  version 1.17.0 passes for all 45 change folders. No Make target or CI job runs it yet.
 - The existing change folders were written before this check. Some `tasks.md` items name no
   requirement ID (for example `tasks-integration/tasks.md` task 2.1 in the prodspecs tree).
 - `docs/specs/SPEC-HEALTH-2026-11-09.md` (prodspecs tree) proposes a class for each of 168 specs:
@@ -64,8 +69,13 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
     same change as the code;
   - archive: a finished change moves to `docs/specs/openspec/changes/archive/YYYY-MM-DD-<name>/`,
     and an archived folder is never edited.
-- Boundary rules: no root `openspec/` directory, no `.openspec.yaml`, no OpenSpec npm tool in the
-  build.
+- Boundary rules: exactly one OpenSpec root, `docs/specs/openspec/`, with its `config.yaml`; no
+  `openspec/` directory and no `.openspec.yaml` at the repository root; no second set of canonical
+  specs under `docs/specs/openspec/specs/`.
+- A Make target `openspec-validate` that runs `openspec validate --all` at one pinned version
+  (owner decision H12 (2026-11-10)). Its CI wiring is a separate `.github` pull request.
+- The status `external-spec-not-verified` for a requirement owned by another repository is a
+  reported status that does not fail the check (owner decision H9 (2026-11-10)).
 - A spec health class row in each canonical spec header, checked against a closed set.
 - PRS-V1-018 is modified: (c) and (d) carry over and are traced to SRG-V0-009, 010 and 012; (a),
   (b) and (e) are dropped.
@@ -74,7 +84,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 ### New Capabilities
 
-- `openspec-check`: layout, stage, boundary and health-class checks.
+- `openspec-check`: layout, stage, boundary and health-class checks, and validation by the
+  OpenSpec command.
 
 ### Modified Capabilities
 
@@ -84,6 +95,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 ## Impact
 
 - `make doc-gates` and the `focused-docs` gate gain one check.
+- Developers who write or archive a change need the OpenSpec command (`@fission-ai/openspec`, Node
+  20.19 or later) at the pinned version. The product build and the shipped binaries do not.
 - Existing change folders must be brought into the layout before the check becomes blocking.
 - CI checkouts used by the check need enough history to see the commit that added each folder.
 - The change `spec-set-cleanup` gives every old document and spec a verdict and leaves one workflow
@@ -93,8 +106,14 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 ## Non-goals
 
-- No npm tool, no OpenSpec CLI, no `openspec validate`, no root `openspec/` directory, and no claim
-  of OpenSpec CLI compatibility (G14).
+- No root `openspec/` directory (G14). No npm dependency in the product build, and no shipped
+  binary that calls the OpenSpec command (AGENTS.md invariant 7 is unaffected).
+- The Go check does not call the OpenSpec command; the two run side by side.
+- No native spec merge: `openspec archive` is always run with `--skip-specs`, and no
+  `docs/specs/openspec/specs/` tree is created. Moving the canonical specs into that tree is a
+  separate decision for the owner.
+- Strict-mode warnings of the OpenSpec command (requirement text over 500 characters, text above
+  the first section) do not fail anything in this change.
 - The delta does not replace the canonical spec; repository spec files and requirement IDs stay the
   source of truth (G14).
 - No change to `interop/spec-toolchains/versions.json`, which describes other repositories.

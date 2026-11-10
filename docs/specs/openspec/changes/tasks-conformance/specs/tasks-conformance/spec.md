@@ -111,6 +111,11 @@ starts that day in both repositories and ends on 2026-12-29. The latest start th
 follows the standing merge rule. The trial store in `beamfall/core` is initialized under
 TIN-V1-014. (decided 2026-11-09 under R42, C22)
 
+Stable MUST wait for the later of this trial's end and the Corvint RC publish date plus 21 days
+(REL-V1-003). A code change in the Corvint RC, or a late Corvint batch (B8b, B11), MUST NOT
+restart this trial; those restart only the Corvint clocks of REL-V1-003. A restarted trial ends
+21 days after the restart. (owner decision H1 (2026-11-10))
+
 #### Scenario: Low activity
 
 - **GIVEN** `beamfall/core` with 3 completions at day 21
@@ -122,6 +127,13 @@ TIN-V1-014. (decided 2026-11-09 under R42, C22)
 - **GIVEN** a trial whose clock restarts on 2026-12-16
 - **WHEN** the trial record is read against a stable date of 2027-01-05
 - **THEN** it shows that 21 days do not fit before the stable date
+- **AND** the restarted trial ends on 2027-01-06
+
+#### Scenario: A Corvint RC fix during the trial
+
+- **GIVEN** a trial started on 2026-12-08 and a code change in the Corvint RC on 2026-12-20
+- **WHEN** the trial record is read
+- **THEN** the trial end is still 2026-12-29
 
 ### Requirement: TCF-V1-010 Three targets from the Tasks repository
 

@@ -29,18 +29,24 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/fault-injection-
    (review release-tasks 12).
 8. The release wording is the G3 sentence, copied exactly (review minor 20), with the Wilson upper
    bound printed beside 3/N (settled release-tasks S6).
-9. Held-out repositories fastapi, solidus and payload (owner decision R21 (2026-11-09)) and
-   helm/helm for Go (decided 2026-11-09 under R42, A14) get N = 100
-   faults each, pass with at most 3 misses, a 5 percent excluded-test cap, and per-test durations
-   in every receipt (owner decision R19 (2026-11-09)).
+9. The four held-out repositories drawn under PRR-V1-004 (a seeded draw, never redrawn: owner
+   decision H3 (2026-11-10), replacing the fixed list of R21 and A14) get N = 100 faults each,
+   pass with at most 3 misses, a 5 percent excluded-test cap, and per-test durations in every
+   receipt (owner decision R19 (2026-11-09)).
 10. "Line-level proven" means zero-miss with plans at line granularity (review release-tasks 21).
 11. The Playwright set holds at least 20 faults in code reached by a linked flow; the flows are the
     10 flows and at least 40 owner-accepted links on the freeCodeCamp pin, frozen before the set is
     sealed (decided 2026-11-09 under R42, A16; FIH-V1-002, PRR-V1-003).
-12. The cost check runs in two steps: full-suite timing of the eleven repositories by 2026-11-16,
-    then the one-PR-per-runner probe by 2026-11-27. Budget 96 host-hours inside the M7 window
-    (2026-12-08 to 2026-12-15); over budget, three measures apply in order, and a remaining excess
-    returns to the owner (decided 2026-11-09 under R42, A18; FIH-V1-010).
+12. The cost check runs in two steps: full-suite timing of the seven pinned repositories by
+    2026-11-16, then the one-PR-per-runner probe by 2026-11-27. Budget 96 host-hours inside the M7
+    window (2026-12-08 to 2026-12-15); over budget, three measures apply in order, and a remaining
+    excess returns to the owner (decided 2026-11-09 under R42, A18; FIH-V1-010). The held-out part
+    of the projection cannot be measured until the draw.
+13. Timing of the held-out work. The drawn repositories are unknown until the first candidate tag
+    is pushed (the seed). Their pre-registrations are written and hashed, and their fault sets built
+    and frozen, between that tag and the freeze. Nothing about them can be pre-registered earlier.
+    This is a schedule risk, not a decision (owner decision H3 (2026-11-10); FIH-V1-001,
+    FIH-V1-012).
 
 ### Removed packages and whether this change needs them (G26)
 
@@ -63,13 +69,18 @@ otherwise it is removed with no loss here.
   waived as a flake (G3).
 - The pre-registration file changes after the first execution: the harness refuses.
 - A held-out set records more than 3 misses in N = 100: the held-out verdict is FAIL.
+- A held-out pre-registration or fault set is requested before the draw exists: the harness
+  refuses with `held-out-not-drawn`.
+- A drawn repository proves unusable: it is reported as unusable by `proof-repositories`
+  (PRR-V1-004); the harness builds no set for a replacement, because there is none (H3).
 
 ## Acceptance evidence
 
 - Seven sealed pre-registration files with hashes, each holding the reverted-fix rule hash; the
   step 1 timing report and the step 2 cost-probe report (A18).
 - Seven verdict files at the RC SHA with the G3 wording and the four counts, plus four held-out
-  verdicts (fastapi, solidus, payload, helm).
+  verdicts, one per drawn repository (PRR-V1-004). Four held-out pre-registrations, hashed after
+  the draw.
 - Go tests for every failure mode above, using a small fixture repository per runner.
 - Go adapter parity with `affected-edit-oracle` on its existing cases.
 
@@ -89,7 +100,10 @@ reason under NMS-V1-007.
   fixed by widening before the release candidate (FIH-V1-012).
 - Decided, R42 (panel pick) A10: both caps apply to one baseline on different sets: 2 percent
   quarantined tests (disqualifies) and 5 percent excluded tests (`INVALID`) (FIH-V1-004).
-- Settled (decided 2026-11-09 under R42, A14): the held-out Go repository is helm/helm, alternate
-  go-task/task. Earlier wording, superseded by A14: "no held-out Go repository is named."
+- Settled, owner decision H3 (2026-11-10): the held-out repositories are a seeded draw, never
+  redrawn (PRR-V1-004). Earlier wording, superseded by H3: owner decision R21 (2026-11-09) and
+  A14, a fixed list (fastapi, solidus, payload; helm/helm with alternate go-task/task).
+- Not decided: whether the time between the candidate tag and the freeze is enough for the four
+  held-out sets within the M7 window; it is NOT_OBSERVED until the draw.
 - Settled (decided 2026-11-09 under R42, A18): the cost check and its budget (FIH-V1-010). Only an
   excess that remains after the three measures returns to the owner.

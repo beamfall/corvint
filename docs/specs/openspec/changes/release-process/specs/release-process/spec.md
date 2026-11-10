@@ -32,11 +32,22 @@ review finding 3)
 The seed MUST be the commit SHA of the first pushed candidate tag. The draw MUST NOT be redrawn
 on a rebuild; REL-V1-014 says what a rebuild repeats. (decided 2026-11-09 under R42, D16)
 
+The draw is the seeded draw of PRR-V1-004: one held-out repository for each family (Go, JS/TS,
+Python, Ruby), taken from that family's pool, which PRR-V1-011 seals and hashes before the first
+candidate tag is pushed. No fixed list of held-out repositories applies. (owner decision H3
+(2026-11-10))
+
 #### Scenario: A blocker rebuild keeps the draw
 
 - **GIVEN** a held-out draw seeded by the first pushed candidate tag
 - **WHEN** a second candidate is built to fix a named blocker
 - **THEN** the held-out repositories, the pool, the rule hash and the pass rules are unchanged
+
+#### Scenario: The first candidate tag seeds the draw
+
+- **GIVEN** four sealed family pools and no candidate tag yet pushed
+- **WHEN** the first candidate tag is pushed
+- **THEN** its commit SHA is recorded as the seed and one repository per family is drawn
 
 #### Scenario: A rebuild without a blocker
 
@@ -46,13 +57,24 @@ on a rebuild; REL-V1-014 says what a rebuild repeats. (decided 2026-11-09 under 
 
 ### Requirement: REL-V1-003 Release calendar
 
-The freeze MUST be 2026-12-15. Stable MUST NOT be promoted before the latest of 2027-01-05, RC
-publish plus 21 days, and the end of the 7-day soak. Any code change in the RC MUST restart both the
-soak and the Tasks trial clocks. (G10a; owner decision R2 (2026-11-09); review finding 1)
+The freeze MUST be 2026-12-15. Stable MUST NOT be promoted before the latest of four dates:
+2027-01-05; the end of the 21-day Tasks RC trial; the Corvint RC publish date plus 21 days; and
+the end of the 7-day soak. (G10a; owner decision R2 (2026-11-09); review finding 1; owner decision
+H1 (2026-11-10))
+
+The Tasks RC trial runs from 2026-12-08 to 2026-12-29 unless it restarts. It restarts as
+TCF-V1-009 in change `tasks-conformance` says, on a store format change, and its end is then 21
+days after the restart. A code change in the Corvint RC MUST restart the soak and the RC-publish
+clock from the new RC publish, and MUST NOT restart the Tasks trial.
+
+A late batch (B8b or B11, REL-V1-009) MUST restart a clock only if it changes a shipped binary,
+meaning a binary listed in `tools/release-binary/binaries.json` (REL-V1-008). Such a batch counts
+as a code change in the Corvint RC. A late batch that changes no shipped binary MUST NOT restart
+any clock. (owner decision H1 (2026-11-10))
 
 #### Scenario: A late RC publish
 
-- **GIVEN** the RC is published on 2026-12-20
+- **GIVEN** a Tasks trial that ends on 2026-12-29 and an RC published on 2026-12-20
 - **WHEN** the stable date is computed
 - **THEN** it is 2027-01-10, the RC publish date plus 21 days
 
@@ -60,7 +82,21 @@ soak and the Tasks trial clocks. (G10a; owner decision R2 (2026-11-09); review f
 
 - **GIVEN** a code change lands in the RC on soak day 4
 - **WHEN** the clocks are read
-- **THEN** both the soak and the trial restart from the new RC publish
+- **THEN** the soak and the RC-publish clock restart from the new RC publish
+- **AND** the Tasks trial clock does not restart
+
+#### Scenario: A restarted Tasks trial sets the date
+
+- **GIVEN** the RC is published on 2026-12-16
+- **AND** a store format change restarts the Tasks trial on 2026-12-18
+- **WHEN** the stable date is computed
+- **THEN** it is 2027-01-08, the end of the restarted trial
+
+#### Scenario: A B11 batch that changes only `.github` files
+
+- **GIVEN** a B11 batch whose diff changes only files under `.github`
+- **WHEN** it is merged and the clocks are read
+- **THEN** no clock restarts and the computed stable date is unchanged
 
 ### Requirement: REL-V1-004 Demotion verdicts at the freeze
 
@@ -68,6 +104,10 @@ The owner's demotion notes MUST rest on the fault-injection and measurement verd
 named freeze-candidate SHA, recorded before the freeze. The RC run MUST repeat those verdicts on the
 RC SHA, and any verdict that regresses from the freeze-candidate verdict MUST be a blocking miss. No
 demotion may be added after the freeze. (G10; review finding 2; plan checklist O20)
+
+This holds for each of the seven blocking runners. A regression found on the RC MUST block the
+RC until it is fixed, and MUST NOT be recorded as a demotion of that runner. (owner decision H2
+(2026-11-10))
 
 A verdict MAY be carried forward from an earlier candidate to the RC SHA only under the
 REL-V1-014 rules. A carried-forward verdict MUST name the commit it was measured on. (decided
@@ -78,6 +118,13 @@ REL-V1-014 rules. A carried-forward verdict MUST name the commit it was measured
 - **GIVEN** a runner that was selective on the freeze-candidate SHA
 - **WHEN** the RC run shows a miss for that runner
 - **THEN** the RC is not approved and the record names the runner and the miss
+- **AND** the runner is not recorded as DEMOTED
+
+#### Scenario: A demotion proposed for a regressed runner
+
+- **GIVEN** a blocking runner whose verdict regressed on the RC SHA
+- **WHEN** a demotion of that runner is proposed in the release record
+- **THEN** the record refuses the demotion and the miss stays blocking
 
 ### Requirement: REL-V1-005 Tag-started build that stops before publishing
 
@@ -316,10 +363,12 @@ the record MUST state that the owner's identity is by convention and NOT_VERIFIE
 When a candidate is rebuilt to fix a blocker, evidence MUST be treated in three classes.
 (decided 2026-11-09 under R42, D16)
 
-Never redone: the held-out draw. Its seed is the SHA of the first pushed candidate tag, and the
-pool, the rule hash and the pass rules stay frozen. A held-out repository in which the blocker
-was found MUST be rerun, labelled `refit` and reported separately; a replacement for it goes to
-the owner under R21.
+Never redone: the held-out draw. One held-out repository for each family (Go, JS/TS, Python,
+Ruby) is drawn from that family's sealed, hashed pool (PRR-V1-004, PRR-V1-011). Its seed is the
+SHA of the first pushed candidate tag, and the pools, the rule hash and the pass rules stay
+frozen. The draw MUST NOT be redrawn, on a rebuild or for any other reason. A held-out repository
+in which the blocker was found MUST be rerun, labelled `refit` and reported separately; it MUST
+NOT be replaced by a second draw. (owner decision H3 (2026-11-10))
 
 Always redone on the rebuilt candidate: the tag workflow (full suite, build, checksums and
 attestation); the exhaustive Linux and macOS test and vet of both modules; each product's
@@ -363,6 +412,7 @@ there were more than two rebuilds or when any carried result is older than 14 da
 - **GIVEN** a blocker found in one held-out repository
 - **WHEN** that repository is rerun on the rebuilt candidate
 - **THEN** its result is labelled `refit` and reported apart from the held-out results
+- **AND** no repository is drawn in its place
 
 ### Requirement: REL-V1-015 macOS release gate and advisory merge check
 

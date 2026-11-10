@@ -13,12 +13,15 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [ ] 2.1 Release workflow: exhaustive macOS `go test` and `go vet` in both modules on the candidate
       and RC SHA. Requirements: MRS-V1-001. Proof: a workflow run on a candidate tag.
 - [ ] 2.2 Flake filing rule and the flake ticket sweep. Requirements: MRS-V1-004. Proof: every open
-      flake ticket at `v1-0` P1.
+      flake ticket at `v1-0` P1; no RC-hold rule beyond the release gate and the open-P1 rule.
 - [ ] 2.3 `.github` PR: `merge_group` trigger, no `continue-on-error`, no DEFER skip, docs-only
       success with reason, advisory timing. Requirements: MRS-V1-002, MRS-V1-003. Proof: a PR run and
       a merge-queue run where the aggregate reports.
-- [ ] 2.4 Owner adds `go-macos` to the required checks on `main`. Requirements: MRS-V1-002. Proof:
-      `gh api` ruleset read-back.
+- [ ] 2.4 Count the flake tickets and consecutive `main` runs on or before 2026-12-15. If every
+      flake ticket is closed and 20 consecutive runs passed, the owner adds `go-macos` to the
+      required checks on `main`; otherwise the check stays advisory for 1.0 and the ruleset is
+      unchanged. Requirements: MRS-V1-002. Proof: `gh api` ruleset read-back, or the recorded
+      counts and the advisory decision.
 - [ ] 2.5 AGENTS.md windows-vet rule for removal batches, and the Windows scope sentence.
       Requirements: MRS-V1-005, MRS-V1-006. Proof: diff read-back.
 - [ ] 2.6 RC evidence row. Requirements: MRS-V1-007. Proof: the acceptance record lists the macOS run

@@ -8,7 +8,8 @@ Owning capability spec: `docs/specs/fault-injection-harness-v1.md`, a new spec w
 `FIH-V1`, extending the method of `docs/specs/affected-edit-oracle-v0.md` (AEO-V0)
 Requirement IDs this change adds: FIH-V1-001 to FIH-V1-015
 Owner answers this change implements: G1, G2, G3, G12, G15b, G23, G26
-(`owner-answers-2026-11-09.md`), and owner decisions R7, R9, R16, R19 and R21 (2026-11-09)
+(`owner-answers-2026-11-09.md`), and owner decisions R7, R9, R16, R19 and R21 (2026-11-09) and
+H3 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -57,9 +58,19 @@ Why the removed packages are not needed is recorded in `design.md` (G26).
 - 30 reverts per runner chosen by one deterministic, pre-hashed rule (decided 2026-11-09 under
   R42, A17), an operator list per language, and non-code faults counted as a separate N.
 - At least 20 flow-reaching faults in the Playwright set (decided 2026-11-09 under R42, A16).
-- Held-out sets of 100 faults for fastapi, solidus and payload (owner decisions R19 and R21
-  (2026-11-09)) and for helm/helm (decided 2026-11-09 under R42, A14).
+- Held-out sets of 100 faults for the four repositories drawn under PRR-V1-004, one per family
+  (owner decisions R19 (2026-11-09) and H3 (2026-11-10)). They are built after the draw, between
+  the first candidate tag and the freeze.
 - A verdict file per runner, consumed by `narrowing-measurement` (NMS-V1-004, NMS-V1-007).
+
+## Schedule risk
+
+The drawn repositories are unknown until the first candidate tag is pushed, because the draw is
+seeded by that tag's commit SHA (owner decision H3 (2026-11-10), PRR-V1-004). Their
+pre-registrations and fault sets cannot be written earlier. They are built in the time between the
+candidate tag and the freeze, inside the M7 window and its 96 host-hour budget (FIH-V1-010). This is
+a schedule risk and is not a decision. The held-out part of the cost projection is NOT_OBSERVED
+until the draw.
 
 ## Capabilities
 

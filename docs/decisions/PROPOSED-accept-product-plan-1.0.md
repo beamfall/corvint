@@ -6,7 +6,8 @@
   becomes `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the next free number
   (change `acceptance-record`, ACR-V1-001).
 - Authority it would record: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date. Owner decision R1 (2026-11-09): one decision
+  recorded in the owner-answers file of that date, and owner decisions H1 to H12 of 2026-11-10,
+  recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
   delegation: every still-open question takes the expert panel's recommendation as the decision.
@@ -18,9 +19,11 @@
 - Amends or supersedes: decision 0433 item 1 (in part), decision 0592 items 1 and 2 (in part),
   decision 0594 (Keeps line, item 3, item 4), decision 0385 (Core classification of `e2e-safe`),
   owner answers 3 and 11, the G9 MCP row, R26, the use-case receipt contract, and in `AGENTS.md`
-  the "Dogfood Corvint" section and product invariants 3, 4 and 5 (table in section 7).
+  the "Dogfood Corvint" section and product invariants 3, 4, 5 and 7 (table in section 7). The
+  owner's own later decisions amend R21's fixed held-out list (H3) and G14 and R41 (H12).
 - Read with: the change `docs/specs/openspec/changes/acceptance-record/` (ACR-V1-001 to
-  ACR-V1-011: record format, supersession table, acceptance log, owner signing key). The
+  ACR-V1-012: record format, supersession table, acceptance log, owner signing key, the
+  `AGENTS.md` invariant edits). The
   acceptance log `docs/specs/openspec/acceptance-log.tsv` holds only its header line at this
   commit; its rows are written by change `acceptance-record` (task 2.5), so every sentence below
   that reads the log applies only once those rows exist. Also read with
@@ -37,8 +40,10 @@ still open to the expert panel's recommendation (R42, the owner's words: "can yo
 reommendations for unanswered?"), keeping publishing, stable promotion, credentials, repository
 creation and repository visibility. Owner decision G14 (2026-11-09) accepts the plan once; a later
 proposal that only implements an accepted requirement is accepted automatically and logged. This
-record is that single acceptance. Each answer below is one line; the owner-answers file holds the
-full text. That file is outside this repository.
+record is that single acceptance. On 2026-11-10 the owner answered the eleven items this record
+carried open (H1 to H11, section 9) and amended G14 and R41 on the OpenSpec command (H12, section
+1). Each answer below is one line; the owner-answers file holds the full text. That file is outside
+this repository.
 
 ## Decision (proposed)
 
@@ -60,6 +65,21 @@ full text. That file is outside this repository.
 - G12a: the named repository list, each checked against the selection rule first.
 - G13: test kinds by driver plus declaration.
 - G14: the owner accepts the plan once, by class; changes follow OpenSpec.
+- H12 (2026-11-10), amending G14 ("no npm tool, no `openspec/` root, no claim of OpenSpec-CLI
+  compatibility") and R41. The owner's words: "install openspec and ensure we are following its
+  flows for this". Applied as:
+  - `docs/specs/openspec/` is an OpenSpec root with `config.yaml` (schema `spec-driven`). The
+    OpenSpec command (`@fission-ai/openspec`, pinned 1.17.0) is run from `docs/specs`. The
+    repository root still holds no `openspec/`.
+  - Propose, apply and archive use the command: `openspec new change`, `openspec validate`,
+    `openspec status`, `openspec list`, `openspec archive <name> --skip-specs`.
+  - One deliberate difference from stock OpenSpec, kept from G14 and not yet confirmed by the
+    owner: the canonical specs stay the flat files `docs/specs/*.md` with stable requirement IDs,
+    so apply copies each requirement into the owning spec and archive runs with `--skip-specs`.
+  - Bar: `openspec validate --all` passes for all 45 change folders; strict-mode warnings are
+    reported, not failing (OSC-V1-012, change `openspec-check`). The Go check OSC-V1-001 to
+    OSC-V1-011 does not need the command, and the default product build gains no npm dependency
+    (`AGENTS.md` invariant 7 is about the product binary and is unaffected).
 - G15a: a release starts from a tag and publishes only after owner approval.
 - G15b: a changed non-code file selects every test that may read it unless a proven map entry
   narrows it.
@@ -111,7 +131,9 @@ full text. That file is outside this repository.
   5 percent of tests excluded, per-test durations in every receipt.
 - R20: the PR agreement figure is the share of soak-window PRs whose narrowed and full pass/fail
   agree on the same commit.
-- R21: held-out repositories fastapi, solidus and payload, each verified first.
+- R21: held-out repositories fastapi, solidus and payload, each verified first. The fixed list is
+  superseded by owner decision H3 (2026-11-10): one held-out repository per family is drawn from a
+  sealed pool and never redrawn (section 9, H3); these names may be pool candidates.
 - R22: one plan artifact with a digest; shards filter by runner; a final job checks every shard
   used it.
 - R23: narrow on pull_request and push; fork PRs run everything.
@@ -144,6 +166,8 @@ full text. That file is outside this repository.
 - R40: Codex qualification uses the logged-in Codex CLI.
 - R41: every change uses the OpenSpec propose, apply and archive stages under
   `docs/specs/openspec/changes/`; the change `spec-set-cleanup` gives every old document a verdict.
+  Owner decision H12 (2026-11-10) extends R41: the stages are run with the OpenSpec command
+  (section 1, H12).
 
 ### 3. Final-round picks delegated under R42 (proposed)
 
@@ -153,7 +177,8 @@ owner can amend or reject it one by one. "Lands in" names the change folder unde
 `docs/specs/openspec/changes/`, the requirement or the plan row that carries the pick; "no text"
 means no plan line or change folder cites it and only the owner-answers file records it. A row
 marked "fix" corrects a spec and decides nothing new. The acts R42 keeps with the owner are in
-section 8; the points no decision settles are in section 9.
+section 8; the items carried open at drafting, and the owner's answers of 2026-11-10 (H1 to
+H11), are in section 9.
 
 | Pick | Decision in one line | Lands in |
 |---|---|---|
@@ -168,9 +193,9 @@ section 8; the points no decision settles are in section 9.
 | A9 | Zero known misses on the seven pinned repositories' fault sets; never-seen repositories pass at up to 3 misses per 100, each published with its interval, filed P1 and fixed before the candidate | `fault-injection-harness`, `proof-repositories`; PROD-INT-008 |
 | A10 | Both caps apply, on different sets: 2 percent flaky quarantine and 5 percent excluded tests | `fault-injection-harness`, `narrowing-measurement` |
 | A11 | The `watch` 1-second bar is measured on the owner's Mac and on WSL2 on the benchmark box, on the seven pinned repositories, sizes published, Go also timed on Corvint, cores capped at 8 | `watch-seven-runners`; PROD-TEST-007 |
-| A12 | The 50-change replay runs on all three never-seen repositories (fastapi, solidus, payload), the 50 most recent merged PRs before each pin | `narrowing-measurement`, `proof-repositories` |
+| A12 | The 50-change replay runs on each never-seen held-out repository, the 50 most recent merged PRs before each pin; under owner decision H3 (2026-11-10) these are the four drawn repositories, one per family, not the names fastapi, solidus and payload | `narrowing-measurement`, `proof-repositories` |
 | A13 | Proof-repository swaps are made by rule and reported; only a Minitest alternate that is a second Rails component, or Playwright if freeCodeCamp fails, comes back to the owner | `proof-repositories` |
-| A14 | Held-out Go repository `helm/helm`, alternate `go-task/task`; its test count is still to verify | `proof-repositories` (PRR-V1-004), `fault-injection-harness`; PROD-INT-008 |
+| A14 | Held-out Go repository `helm/helm`, alternate `go-task/task`; its test count is still to verify. Superseded by owner decision H3 (2026-11-10): both are Go pool candidates (PRR-V1-011), not a fixed pick | `proof-repositories` (PRR-V1-004), `fault-injection-harness`; PROD-INT-008 |
 | A15 | WCH-V1-004 gains the G10 exit: an owner-recorded demotion before the freeze; Go, Vitest and Jest cannot be demoted on this bar | `watch-seven-runners` (WCH-V1-004) |
 | A16 | Agents write flows on the freeCodeCamp pin; target 10 flows, 40 accepted links, 20 flow-reaching faults; the acceptances are the owner's act | `fault-injection-harness` (FIH-V1-002), `proof-repositories` (PRR-V1-003), `flow-link-proposals` |
 | A17 | Deterministic reverted-fix rule, hashed before any run, first 30 by SHA-256 order | `fault-injection-harness` (FIH-V1-002) |
@@ -214,7 +239,7 @@ section 8; the points no decision settles are in section 9.
 | D4 | One singular noun: `corvint agent doctor`, `agent hook`, `agent manifest`; no alias | `agent-packages` |
 | D5 (fix) | Pi registers MCP if its client is confirmed usable, else the CLI-backed tool | `agent-packages` |
 | D6 (fix) | GHA-V1-040 to GHA-V1-043 stay in `github-action`; `release-process` cites them | `github-action`, `release-process` (REL-V1-005); plan row O63; section 7 |
-| D7 | The macOS exhaustive test and vet are a release gate on the freeze and release candidates; the per-merge macOS check stays advisory until flake tickets close and 20 consecutive main runs pass, and for 1.0 if that is not reached by 2026-12-15 | `release-process` (REL-V1-015) |
+| D7 | The macOS exhaustive test and vet are a release gate on the freeze and release candidates; the per-merge macOS check stays advisory until flake tickets close and 20 consecutive main runs pass, and for 1.0 if that is not reached by 2026-12-15 | `release-process` (REL-V1-015); `macos-required-shards` (MRS-V1-002, MRS-V1-004) follows it by owner decision H11 (2026-11-10) |
 | D8 | Benchmark hosts are WSL2 on the benchmark box and the owner's Mac, reserved only during declared measurement sessions; a result is NOT_VERIFIED if a lane ran | `release-process` (REL-V1-011); plan row O23 |
 | D9 | Settled by G10 and G8; the REL-V1-012 wording becomes "untouched and pinned" | `release-process` (REL-V1-012); plan row O29 |
 | D10 | A narrow 1.x compatibility promise covering only contract-tested surfaces; previews and caches excluded by name; one minor release of deprecation notice | `compatibility-promise` (CMP-V1-001 to CMP-V1-006), `user-docs` |
@@ -224,11 +249,11 @@ section 8; the points no decision settles are in section 9.
 | D13 | Four acts need the owner's key (plan, RC and stable acceptance tags; allowed-signers changes); all else is by convention, identity `NOT_VERIFIED` | `acceptance-record` (ACR-V1-011), `release-process` (REL-V1-013) |
 | D14 | `greptile-gate` stays required on main through stable 1.0; it is not a release gate | `release-process` (REL-V1-012) |
 | D15 | B11 is a `.github`-only PR; `ci-control-plane.yml` is trimmed and stays required; only `go-product` is replaced by the action's result job | `github-action` (GHA-V1-031), `source-removal` |
-| D16 | The held-out draw is never redrawn; build, exhaustive tests and install smokes always rerun; measured classes are reused only by frozen path sets, fail-closed | `release-process` (REL-V1-002, REL-V1-004, REL-V1-014); see section 9, row c |
-| D17 | Agent hook session state outside the repository is permitted; invariant 4 says so and loses the `--learn-slot-weights` clause | `agent-packages` (AGT-V1-022); plan row O35; section 7 |
+| D16 | The held-out draw is never redrawn; build, exhaustive tests and install smokes always rerun; measured classes are reused only by frozen path sets, fail-closed | `release-process` (REL-V1-002, REL-V1-004, REL-V1-014); the same rule as owner decision H3 (2026-11-10), section 9 |
+| D17 | Agent hook session state outside the repository is permitted; invariant 4 says so and loses the `--learn-slot-weights` clause | `agent-packages` (AGT-V1-022); the invariant edit: `acceptance-record` (ACR-V1-012, owner decision H5 (2026-11-10)); plan row O35; section 7 |
 | E1 | A frozen corpus nothing reads is removed with its last commit recorded in the batch build-log entry; evidence an active spec cites stays | `source-removal` |
 | E2 | Settled by G27 and G18: decisions 0224 and 0352 are superseded in the change that lands B11 | plan row O34 |
-| E3 | Invariant 3 drops "and learned task traces"; invariant 5 becomes "Corvint 1.0 learns nothing from use" with a rule for later learning | `acceptance-record` (ACR-V1-004); section 7 |
+| E3 | Invariant 3 drops "and learned task traces"; invariant 5 becomes "Corvint 1.0 learns nothing from use" with a rule for later learning | `acceptance-record` (ACR-V1-004; the edits: ACR-V1-012, owner decision H5 (2026-11-10)); section 7 |
 | E4 | Settled by R25: no AGPL line on `origin/main` | no text |
 | E5 | Settled by G18 and G27; B8b lands by 2026-12-10 or moves to 1.0.x and must not remove `github-split-check` | `release-process` (REL-V1-009), `source-removal` (RMV-V1-001); plan row M6 |
 | E6 | Self-use is recorded as a progress note on the change's ticket; friction is filed as tickets; the `docs/DOGFOOD.md` stub stays until re-decided after B6 | `source-removal`, `spec-set-cleanup` |
@@ -236,7 +261,7 @@ section 8; the points no decision settles are in section 9.
 | E8 | The ten specs are classed per the panel table; `init` and `adopt` are 1.0 first-run verbs; the self-observation ledger stays, documented as local-only | `spec-set-cleanup`, `user-docs`; PROD-INT-017 notes |
 | E9 | Settled by G27; the lane group leaves in B8b to a private operator repository; `heavy.sh` stays for 1.0 as unshipped tooling | `source-removal` (RMV-V1-025); plan row M4 |
 | E10 (fix) | Proposal headers are the source; the plan's "Implemented by" column is generated; a check fails on mismatch | `openspec-check`; plan row O67 |
-| F1 | The plan lands without `PROPOSED-supersede-0594-keeps-line.md`; that file follows with the big cut; this record names a commit containing both | `source-removal` (proposal); section 7 |
+| F1 | The plan lands without `PROPOSED-supersede-0594-keeps-line.md`; that file follows with the big cut; this record names a commit containing both. Amended by owner decision H10 (2026-11-10): the record is signed without waiting for the removal branch, and the 0594 row takes effect when that branch lands | `source-removal` (proposal); section 7 |
 | F2 (fix) | Bug-fix lanes start now only for findings that break an already-accepted requirement in an `active` spec, in code no removal batch touches, failing test first | no text |
 | N1 | New flow-gap codes are additive under `application-flow-gaps/1`; readers ignore unknown codes | `flows-unlinked-tests-report`, `flow-link-proposals` |
 | N2 | Flow links store no test kind; kind is read from the inventory by `test_id` | `flows-unlinked-tests-report`, `flow-link-proposals` |
@@ -293,11 +318,14 @@ space. Three kinds of row cannot be audited from this repository at that commit:
 - Owner answer 3, owner answer 11, the G9 MCP row and R26 are quoted from the owner-answers file
   of 2026-11-09, which is not tracked in this repository.
 - Decision 0594 and `docs/decisions/PROPOSED-supersede-0594-keeps-line.md` are not on this branch.
-  The 0594 row takes effect only after the removal branch lands both files; this record would
-  then name a commit that contains both (R42, F1). Its quote is carried from the removal branch
-  and is not checkable here.
-- The "new wording" in the `AGENTS.md` rows is proposed text. No file holds it yet; the edit is
-  made by a later change (section 9, row e).
+  By owner decision H10 (2026-11-10) this record is signed without waiting for the removal
+  branch; the 0594 row takes effect when that branch lands both files (R42, F1). Its quote is
+  carried from the removal branch and is not checkable here.
+- The "new wording" in the `AGENTS.md` rows is proposed text. No file holds it yet. Every edit of
+  invariants 3, 4, 5, 7 and 8 is made by the change `acceptance-record` (ACR-V1-012, owner
+  decision H5 (2026-11-10)). By owner decision H4 (2026-11-10) the invariant 7 rewording is
+  accepted and invariant 8 is not reworded: the proposed rewording dropped "human-owned intent".
+  A later rewording of invariant 8 must keep those words and go to the owner.
 
 | Superseded source | Quoted text | Replacement | Effect |
 |---|---|---|---|
@@ -315,6 +343,7 @@ space. Three kinds of row cannot be audited from this repository at that commit:
 | `AGENTS.md`, product invariant 3 | "Project-owned authority outranks syntax, history, and learned task traces." | R42, E3. New wording: "Project-owned authority outranks syntax and history." | amended |
 | `AGENTS.md`, product invariant 4 | "nor to learning except through the operator-invoked `corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen held-out gate admits it (`LTA-V0-009` to `LTA-V0-012`)" | R42, D17: the clause is dropped, and the invariant gains the sentence AGT-V1-022 needs: agent hook session state kept in the user cache directory is not repository or trace state | amended |
 | `AGENTS.md`, product invariant 5 | "Learning is explicit, local, bounded, secret-screened, and evaluation-gated." | R42, E3. New wording: "Corvint 1.0 learns nothing from use. Any later learning must be explicit, local, bounded, secret-screened and evaluation-gated under its own decision." | replaced |
+| `AGENTS.md`, product invariant 7 | "see `docs/specs/deployment-neutral-index-platform-v0.md`, `docs/specs/go-production-kernel-migration-v0.md` (hot-path language moves need exact parity and staged rollback), decision 0081 / `docs/specs/local-admin-console-v0.md`" | G22 and owner decision H4 (2026-11-10): the citations of active documents stay and those of archived documents are dropped; the edit is ACR-V1-012 (H5) | amended |
 | Decision 0385, Classification, Core line (`AFU-V1-019..024`) | "the `e2e-safe` value of `corvint affected --selection-profile` (`AFU-V1-019..024`)" | R42, A4: the `e2e-safe` profile and the appmap navigation verdict leave the public surface in 1.0 (RMV-V1-037; plan row O66) | superseded |
 
 The pre-cut 1.0 contract rows (PRS-V1-001 to PRS-V1-018) are resolved as the plan's "Conflicts with
@@ -331,7 +360,7 @@ owner answer, panel pick or requirement records the value; this record does not 
 | Create the touch-required signing key, confirm its fingerprint, and sign the plan acceptance tag (R42, D12 and D13; ACR-V1-011) | NOT_DECIDED (before M0) | M0: the fresh-store cutover and the ticket re-scope run only after the plan and the ticket scheme are signed (R42, C11; TSC-V1-001) | If the owner declines a key: an owner-merged decision file plus a protected-environment approval, with identity by convention and `NOT_VERIFIED` (ACR-V1-011, REL-V1-013). If the act is only late: NOT_DECIDED |
 | Sign the RC and stable acceptance tags and give the two environment approvals (REL-V1-007, REL-V1-013) | At M8 and at M10 | M8, M10 | The same decline fallback; late: NOT_DECIDED |
 | Create the seven public mirrors `beamfall/corvint-qual-<runner>` (R42, N4; GHA-V1-025) | 2026-11-27 | The starter acceptance of `github-action`, which stays `NOT_RUN` and names the missing mirror | NOT_DECIDED |
-| Review and sign the flow links for about 10 flows on the freeCodeCamp pin (R42, A16; PRR-V1-003, FIH-V1-002) | 2026-12-04 | Sealing the Playwright fault set, before M5a and M7 | NOT_DECIDED |
+| Review and sign the flow links for about 10 flows on the freeCodeCamp pin (R42, A16; PRR-V1-003, FIH-V1-002) | 2026-12-04 | Sealing the Playwright fault set, before M5a and M7 | M5a slips until the links are signed; Playwright is not demoted (owner decision H6 (2026-11-10)) |
 | Publish the Tasks RC tag (R42, C22) | 2026-12-08 | M5a and the start of the M9 trial | NOT_DECIDED; `tasks-conformance` names 2026-12-15 as the latest trial start that still meets a 2027-01-05 stable |
 | Merge the trial-store PR in `beamfall/core` (R42, C23; TIN-V1-014) | 2026-12-08 | The M9 trial | The trial cannot start and a blocker is filed (`tasks-conformance` design); beyond that NOT_DECIDED |
 | Make the one-line global-instruction edit once the `beamfall/corvint-tasks` store exists (R42, C15; TSC-V1-016 initialises the store within three days of PR #4 merging) | NOT_DECIDED | None named | NOT_DECIDED |
@@ -340,25 +369,29 @@ owner answer, panel pick or requirement records the value; this record does not 
 | Create the private operator repository that B8b moves the lane group into (R42, E9; RMV-V1-025) | 2026-12-10 | B8b, after M4 | B8b moves to the first 1.0.x (R42, E5; REL-V1-009) |
 | Bind the protected release environment to protected `v*` tags (REL-V1-007; GHA-V1-041, GHA-V1-042) and make the ruleset required-check changes that need owner rights (RMV-V1-002) | Before M8; with each `.github` batch | M2, M8 | NOT_DECIDED |
 | Create `beamfall/corvint-action` (G17), `beamfall/corvint-agents` (G20) and `beamfall/corvint-vscode` (R33), and set their visibility | NOT_DECIDED | `corvint-action`: the shadow run and the M5 cut-over. `corvint-agents`: the M7 agent qualification. `corvint-vscode`: no 1.0 milestone | `corvint-action`: the CI scripts stay for 1.0 if the action has not matched them by 2026-12-15, and the cut-over is the first 1.0.x change (G18). The other two: NOT_DECIDED |
-| Conditional acts: record a runner demotion before the freeze (R42, A15); decide a fault-run budget overrun (R42, A18); name a replacement held-out repository (R21; R42, D16) | When the condition arises | The freeze (M6); the fault runs (M7) | NOT_DECIDED |
+| Conditional acts: record a runner demotion before the freeze (R42, A15); decide a fault-run budget overrun (R42, A18). No replacement held-out repository is named: the drawn repositories are never redrawn (owner decision H3 (2026-11-10); REL-V1-014) | When the condition arises | The freeze (M6); the fault runs (M7) | NOT_DECIDED |
 
-### 9. Carried open at signing
+### 9. Carried open, settled 2026-11-10
 
-No owner answer or panel pick settles the items below. This record does not decide them; each is
-listed so the owner signs knowing it is open. Two points the closing review raised are not in the
-table because a pick already decides them: the soak's live-PR floor (R42, C9; now in REL-V1-010)
-and the plan checklist rows O23, O29, O33, O34, O38 and O51 (now marked settled, each by the pick
-it names).
+At drafting, the items below had no owner answer or panel pick. On 2026-11-10 the owner answered
+each (H1 to H11). Each row gives the answer and where it is applied. Two points the closing review
+raised were never in this table because a pick already decides them: the soak's live-PR floor
+(R42, C9; now in REL-V1-010) and the plan checklist rows O23, O29, O33, O34, O38 and O51 (marked
+settled, each by the pick it names).
 
-| Item | What is open | Where the two readings stand |
+| Decision | Owner's answer | Where it is applied |
 |---|---|---|
-| a. Stable clock | Which clock sets stable: the Tasks trial of 2026-12-08 to 2026-12-29 (R42, C22), or the Corvint RC publish date plus 21 days with a 7-day soak; and whether a late batch (B8b, B11) restarts it | Plan milestone row M9 ("any code change restarts both"); REL-V1-003; `release-process` design; `tasks-conformance` |
-| b. Regression on the RC | A runner that regresses at the RC: demoted at the freeze, or a blocking miss | NMS-V1-007 (a runner without PASS is recorded DEMOTED at the freeze); REL-V1-004 (a regression is a blocking miss) |
-| c. Held-out repositories | A fixed list (R21) or a seeded draw that is never redrawn (R42, D16) | PRR-V1-004 and the plan's proof-repository section give the fixed list; REL-V1-002 and REL-V1-014 describe the draw. Both stand unchanged |
-| e. Who edits the `AGENTS.md` invariants | No requirement or checklist row owns the edits of invariants 3, 4 and 5 named in section 7, or the rewrite of invariants 7 and 8 | Plan row O35 assigns them to AGT-V1-027, which only retires `integrations/`; the `spec-set-cleanup` design says invariants 1 to 3, 5 and 6 are unchanged, 4 is amended in B6 and 7 and 8 are rewritten; its task 2.2 rewrites `AGENTS.md` sections 3, 4 and 7 |
-| g. M4 and M5a dates | Both milestones read "about 2026-12-08"; their order on that day is not stated | Plan milestone rows M4 and M5a |
-| h. `impact --base` default | Default to the merge base with `origin/main`, or keep `--base` required | `change-report-impact` design, open questions |
-| i. Status `external-spec-not-verified` | Whether the new status value in OSC-V1-005 is added to the status set | `openspec-check` spec (OSC-V1-005) |
+| H1. Stable clock | Stable is not published before the latest of: (a) 2027-01-05; (b) the end of the 21-day Tasks RC trial, 2026-12-08 to 2026-12-29, unless it restarts under TCF-V1-009 on a store format change; (c) the Corvint RC publish plus 21 days; (d) the end of the 7-day soak. A Corvint RC code change restarts the soak and the RC-publish clock; the Tasks trial restarts only under TCF-V1-009. A late batch (B8b, B11) restarts a clock only if it changes a shipped binary | REL-V1-003 and the `release-process` design; TCF-V1-009; plan "The 1.0 bar", PROD-INT-012, PROD-INT-013 and milestone row M9 |
+| H2. Regression on the RC | A regression found on the RC blocks, for each of the seven blocking runners; it never becomes a demotion of that runner | REL-V1-004; NMS-V1-007; plan PROD-INT-008 |
+| H3. Held-out repositories | One held-out repository per family (Go, JS/TS, Python, Ruby), drawn from a sealed, hashed pool of at least five candidates per family, checked against the held-out rule and the untouched search, sealed before the first candidate tag is pushed. The seed is the commit SHA of that tag; the draw is deterministic and never redrawn. fastapi, solidus, payload, helm and go-task stop being a fixed list and may be pool candidates. Fault sets for the drawn repositories are built between the candidate tag and the freeze | PRR-V1-004, PRR-V1-011; REL-V1-002, REL-V1-014; `narrowing-measurement`; section 2 (R21), section 3 (A12, A14, D16), section 8; plan PROD-INT-008, PROD-TEST-015, checklist rows 11 and O13, milestone row M5a |
+| H4. Invariants 7 and 8 | The invariant 7 rewording is accepted: citations of active documents stay, archived ones are dropped. The invariant 8 rewording is rejected because it drops "human-owned intent"; invariant 8 is not reworded, and a later rewording keeps those words and goes to the owner | ACR-V1-012; section 7; plan G8 removal row and "Corrections" item 3 |
+| H5. Who edits the `AGENTS.md` invariants | Every edit of invariants 3, 4, 5, 7 and 8 is made by the change `acceptance-record` | ACR-V1-012; section 3 (D17, E3); section 7; plan checklist row O35 |
+| H6. Flow links late | If the flow links miss 2026-12-04, M5a slips until they are signed; Playwright is not demoted | Section 8, flow-links row |
+| H7. M4 and M5a order | M4 lands before the M5a tag | Plan milestone rows M4 and M5a |
+| H8. `impact --base` default | With `--base` omitted, `impact` uses the merge base of HEAD with the default branch, reports the base it chose, and refuses when it cannot determine one. The recommendation the owner took was marked low confidence by its author | CRI-V1-001 and the `change-report-impact` design; plan PROD-INT-028 |
+| H9. Status `external-spec-not-verified` | An accepted status of the openspec check: reported, not failing | OSC-V1-005 |
+| H10. Signing and the removal branch | The record is signed without waiting for the removal branch; the row superseding decision 0594's Keeps line takes effect when that branch lands | Section 3 (F1); section 7 |
+| H11. macOS checks | MRS-V1-002 and MRS-V1-004 follow D7 and REL-V1-015. The per-merge macOS check stays advisory until the flake tickets are closed and 20 consecutive main runs pass, then it is made required; if that has not happened by 2026-12-15 it stays advisory per merge for 1.0. macOS is required at release. MRS-V1-004 keeps filing a P1 ticket per flake; its own rule against RC approval while such a ticket is open gives way to the release gate and the general open-P1 rule | MRS-V1-002, MRS-V1-004; section 3 (D7); plan dependency row `macos-required-shards` and PROD-INT-015 |
 
 ## Rollback
 
@@ -371,4 +404,6 @@ restores, and the acceptance log rows it changes go back to `pending-owner`.
 1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3.
 2. The plan commit SHA this record names.
 3. The acts of section 8, and a value for each `NOT_DECIDED` cell the owner wants fixed.
-4. The items of section 9, which this record does not decide.
+4. Confirm the reading in section 1 (H12) that the canonical specs stay as the flat
+   `docs/specs/*.md` files, so `openspec archive` runs with `--skip-specs`. Section 9 lists the
+   owner's answers of 2026-11-10 (H1 to H11); it leaves nothing open.

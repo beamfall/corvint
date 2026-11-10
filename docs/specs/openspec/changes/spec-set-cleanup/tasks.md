@@ -17,8 +17,10 @@ the B6, B7, B8b, B10 and B11 tasks land with their gated batches.
       `docs/specs/openspec/README.md`, `docs/DOGFOOD.md` and
       `docs/decisions/PROPOSED-openspec-workflow.md` at it. Requirements: SSC-V1-001. Proof: a
       search of active documents finds the stage descriptions only in that file.
-- [ ] 2.2 C1: rewrite `AGENTS.md` sections 3, 4 and 7 to the outline in `design.md` (the B6 lines
-      wait for task 3.6). Requirements: SSC-V1-001. Proof: diff review; reference check report.
+- [ ] 2.2 C1: rewrite `AGENTS.md` sections 4 and 7 to the outline in `design.md` (the B6 lines
+      wait for task 3.6). Do not edit the product invariants (section 3): ACR-V1-012 in change
+      `acceptance-record` owns every edit of invariants 3, 4, 5, 7 and 8. Requirements: SSC-V1-001.
+      Proof: diff review shows no change inside the product invariants; reference check report.
 - [ ] 2.3 C1: apply the C1 rows of `docs-verdicts.md` (rewrite `docs/README.md`, `docs/PRODUCT.md`,
       the C1 rows of `docs/AGENT-ROUTES.md`; archive `BEAMFALL-INTEGRATION.md`, `PORTFOLIO-0.6.md`,
       `SPEC-TOOLCHAIN-INTEGRATION.md`, `TECHNICAL-BRAIN.md`, `plans/`, `lrf-0.schema.json`; delete

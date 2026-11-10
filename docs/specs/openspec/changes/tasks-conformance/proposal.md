@@ -10,7 +10,7 @@ Requirement IDs this change adds: TCF-V1-001 to TCF-V1-010
 Requirement IDs this change modifies: none (TIN-V1-002, TIN-V1-004 and TIN-V1-013 in the change
 `tasks-integration` already defer the record format, schema files and command list to this change)
 Owner answers this change implements: G9, owner decision R17 (2026-11-09), owner decision R18
-(2026-11-09), answer 12, answer 13
+(2026-11-09), answer 12, answer 13, owner decision H1 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -54,7 +54,8 @@ Observed on 2026-11-09 (corvint-tasks build `1.0.0-rc.3.dev+build.144`, installe
   followed by a clean `receipt audit` and `queue status` with nothing lost or duplicated; `receipt
   audit` with zero failures.
 - The 21-day trial on the frozen RC binary runs in Corvint and `beamfall/core`, with the activity
-  floor of the change `release-process` (REL-V1-010).
+  floor of the change `release-process` (REL-V1-010). Stable waits for the later of the trial's
+  end and the Corvint RC publish date plus 21 days (owner decision H1 (2026-11-10)).
 - corvint-tasks ships linux/amd64, linux/arm64 and darwin/arm64 from its own repository, and
   `corvint-update` covers it (REL-V1-008).
 

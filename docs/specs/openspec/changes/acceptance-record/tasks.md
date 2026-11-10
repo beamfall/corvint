@@ -5,10 +5,10 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 ## Tasks
 
 - [ ] 1.1 File the ticket in `.taskman/` (milestone `v1-0`) and reserve prefix `ACR-V1` (001 to
-      011). Requirements: all. Proof: `corvint-tasks ticket show`.
+      012). Requirements: all. Proof: `corvint-tasks ticket show`.
 - [ ] 1.2 First commit: create `docs/specs/acceptance-record-v1.md` from the spec delta, add its row
       to `docs/specs/README.md`, regenerate the index and run `make spec-requirements-check`.
-      Requirements: ACR-V1-001 to 011. Proof: check output.
+      Requirements: ACR-V1-001 to 012. Proof: check output.
 - [ ] 1.3 Regenerate `docs/specs/REQUIREMENTS.tsv` with `make spec-requirements` on the integ base
       before the record is drafted, and again after every later spec edit in this change. The
       prodspecs copy stopped at AFU-V1-131 and lacked AFU-V1-1651 to 1655, which exist at integ
@@ -37,6 +37,12 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       Proof: the allowed-signers commit, or the recorded fallback.
 - [ ] 3.1 Owner signs the decision record with a signed tag on the acceptance decision commit
       (owner action). Requirements: ACR-V1-001, ACR-V1-011. Proof: the signed record and tag.
-- [ ] 3.2 Build-log entry `docs/build-log/YYYY-MM-DD-acceptance-record.md`; complete the ticket
+- [ ] 3.2 After the tag of 3.1, edit `AGENTS.md` product invariants 3, 4, 5 and 7 to the wording of
+      ACR-V1-012 and leave invariant 8 unchanged (the invariants carry no other editor; change
+      `spec-set-cleanup` task 2.2 leaves them alone). Add the audit checks for the phrase
+      "human-owned intent" in invariant 8 and for a foreign invariant edit. Requirements:
+      ACR-V1-012. Proof: diff read-back with invariant 8 byte-identical, and audit tests for a
+      dropped phrase and a foreign edit.
+- [ ] 3.3 Build-log entry `docs/build-log/YYYY-MM-DD-acceptance-record.md`; complete the ticket
       through the Tasks gate. Requirements: all. Proof: `corvint-tasks ticket show` and `receipt
       audit`.

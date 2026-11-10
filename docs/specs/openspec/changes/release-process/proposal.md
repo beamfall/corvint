@@ -8,8 +8,9 @@ Owning capability spec: `docs/specs/release-process-v1.md`, a new spec with pref
 Requirement IDs this change adds: REL-V1-001 to REL-V1-015
 Requirement IDs this change modifies: PRS-V1-004 (platforms)
 Owner answers this change implements: G8, G9, G10, G10a, G15a, owner decision R2 (2026-11-09),
-owner decision R3 (2026-11-09), owner decision R24 (2026-11-09), answer 16, and the decisions
-made 2026-11-09 under R42: D6, D7, D8, D9, D12, D13, D14, D16, E5, M5, M7
+owner decision R3 (2026-11-09), owner decision R24 (2026-11-09), answer 16, the decisions
+made 2026-11-09 under R42: D6, D7, D8, D9, D12, D13, D14, D16, E5, M5, M7, and owner decisions
+H1, H2 and H3 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -57,10 +58,14 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 - Milestone M0: the `v1-0` release object is rewritten through `corvint-tasks release update`; each
   open ticket is mapped to a plan requirement or moved to `post-1-0` with a recorded reason.
 - Milestone M5a: a qualification candidate tag about 2026-12-08, rebuilt only for blockers. Its
-  pushed tag SHA seeds the held-out draw.
-- One calendar rule: freeze 2026-12-15; stable no earlier than the latest of 2027-01-05, RC publish
-  plus 21 days, and the end of the soak.
-- Demotion verdicts recorded on a named freeze-candidate SHA and confirmed on the RC SHA.
+  pushed tag SHA seeds the held-out draw, which is never redrawn (owner decision H3 (2026-11-10)).
+- One calendar rule: freeze 2026-12-15; stable no earlier than the latest of 2027-01-05, the end
+  of the Tasks RC trial, Corvint RC publish plus 21 days, and the end of the soak. A late batch
+  (B8b, B11) restarts a clock only if it changes a shipped binary (owner decision H1
+  (2026-11-10)).
+- Demotion verdicts recorded on a named freeze-candidate SHA and confirmed on the RC SHA. A
+  regression on the RC blocks for each of the seven blocking runners and is never a demotion
+  (owner decision H2 (2026-11-10)).
 - A tag workflow that builds three targets (linux/amd64, linux/arm64, darwin/arm64) with
   `SHA256SUMS`, a manifest, licences and a build attestation, then stops; the publish job waits for
   the owner's approval in a protected environment. M8 becomes "RC approval and publish".

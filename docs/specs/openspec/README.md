@@ -10,17 +10,35 @@ wire format, or the release bar waits for the owner (G14). Unaccepted work stays
 
 ## Layout and stages
 
-- Layout (G14): `changes/<name>/proposal.md`, with `design.md`, `tasks.md` and
-  `specs/<capability>/spec.md` where the change needs them. The folder name is the change name.
-  There is no root `openspec/` directory, no `.openspec.yaml` and no OpenSpec npm tool; the folders
-  are not claimed to be compatible with the OpenSpec command.
-- Stages (owner decision R41 (2026-11-09)): every change passes through propose, apply and archive.
-  - propose: the folder is committed before any code for the change;
-  - apply: the lane ticks `tasks.md` in order and copies each requirement into the owning
-    capability spec under `docs/specs/` in the same change as the code;
-  - archive: a finished change moves under `changes/archive/`, and an archived folder is not edited.
-  The exact stage rules are proposed in `changes/openspec-check/`, the Go check that will enforce
-  them. Until that check lands, the stages rest on review.
+- Layout (G14, amended by owner decision H12 (2026-11-10)): each change is a folder
+  `changes/<name>/` with `proposal.md`, `design.md`, `tasks.md` and `specs/<capability>/spec.md`.
+  The folder name is the change name.
+- This directory is an OpenSpec root: `config.yaml` (schema `spec-driven`) sits beside `changes/`.
+  The OpenSpec command (`@fission-ai/openspec`, pinned at 1.17.0) is run from `docs/specs`, with
+  telemetry off (`OPENSPEC_TELEMETRY=0`). The repository root holds no `openspec/` directory. A
+  change folder may hold the `.openspec.yaml` file that `openspec new change` writes.
+- Stages (owner decision R41 (2026-11-09) and owner decision H12 (2026-11-10)): every change passes
+  through propose, apply and archive.
+  - propose: `openspec new change <name>` creates the folder; the four artifacts are written;
+    `openspec validate <name>` passes and `openspec status --change <name>` shows every artifact
+    done; the folder is committed before any code for the change;
+  - apply: the lane ticks the `- [ ]` items of `tasks.md` in order (`openspec list` shows the
+    count) and copies each requirement into the owning capability spec under `docs/specs/` in the
+    same change as the code;
+  - archive: when every task is ticked, `openspec archive <name> --skip-specs` moves the folder to
+    `changes/archive/YYYY-MM-DD-<name>/`. An archived folder is not edited, and `--yes` is never
+    used to pass over an unticked task.
+- One difference from stock OpenSpec, kept from G14: the canonical specs are the flat files
+  `docs/specs/*.md`, not `openspec/specs/<capability>/spec.md`. That is why archive runs with
+  `--skip-specs`, and why strict validation notes that the target spec of a MODIFIED requirement
+  does not exist.
+- Bar: `openspec validate --all` passes for every change folder. Warnings from `--strict` are
+  reported and do not fail. On 2026-11-10 strict mode gave 188 warnings in 41 of the 45 folders: 152
+  for requirement text over 500 characters, 21 for text above the first section and 15 for text
+  before the first requirement.
+- The exact stage rules are proposed in `changes/openspec-check/`: a Go check of the stages
+  (OSC-V1-001 to OSC-V1-011) and a Make target that runs the OpenSpec command (OSC-V1-012). Until
+  they land, the stages rest on review and on running the command by hand.
 - Each proposal header names its change, ticket, the plan requirements it serves, the owning
   capability spec, the requirement IDs it adds, its intent status and its delivery status. IDs are
   reserved before the lane's first commit and are never reused.
@@ -67,9 +85,9 @@ plan requirements the proposal header serves.
 | `mcp-tool-table` | One table of MCP tool names and schemas; one `corvint-docs mcp` server (R13, R30) | PROD-DOCS-001, 010; PROD-TEST-009 | proposed |
 | `narrowing-measurement` | Narrowing measurement, the tiered bar and the `CORVINT_SELECTION` kill switch (R13, R16) | PROD-TEST-002, 008, 011; PROD-INT-007, 008 | proposed |
 | `non-code-map` | Non-code files run everything by default; proven map entries narrow | PROD-TEST-002, 008, 012 | proposed |
-| `openspec-check` | Go check of the change folders and of the propose, apply and archive stages (R41) | PROD-INT-011, 010 | proposed |
+| `openspec-check` | Go check of the change folders and of the propose, apply and archive stages, and validation by the OpenSpec command (R41, H12) | PROD-INT-011, 010 | proposed |
 | `per-test-durations` | Per-test durations in every runner's receipt (R19) | PROD-TEST-016 | proposed |
-| `proof-repositories` | Pinned public repositories per runner and the held-out repositories (R21) | PROD-TEST-002, 011; PROD-INT-008 | proposed |
+| `proof-repositories` | Pinned public repositories per runner; held-out repositories drawn by seed from sealed pools (R21, H3) | PROD-TEST-002, 011; PROD-INT-008 | proposed |
 | `pytest-provider` | pytest runner provider, file-level selection with a tier label (R8, R9) | PROD-TEST-006, 008, 011 | proposed |
 | `release-process` | Milestones M0 and M5a, tag-started release and owner approval (R2, R3) | PROD-INT-012, 013, 017 | proposed |
 | `review-evidence-check` | Review evidence check behind `corvint review` (advisory by default, R4) | PROD-TEST-010, 012; PROD-INT-001 | proposed |

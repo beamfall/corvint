@@ -277,9 +277,9 @@ save.
 
 ### Requirement: LPCV-V0-1086 Watch loop
 
-Watch is no longer Go-only and no longer runs tests by default (WCH-V1-001, WCH-V1-002). The event
-sources (inotify, kqueue, `--events-stdin`) and `--once` are kept; `--dry-run` is removed with no
-alias (settled S2).
+Watch MUST NOT be Go-only and MUST NOT run tests by default (WCH-V1-001, WCH-V1-002). The event
+sources (inotify, kqueue, `--events-stdin`) and `--once` are kept; `--dry-run` MUST be removed with
+no alias (settled S2).
 
 #### Scenario: No dry-run flag
 
@@ -288,8 +288,8 @@ alias (settled S2).
 
 ### Requirement: LPCV-V0-1087 Event-source error
 
-Kept: exit 2 on an event-source error, now with the typed fallback named by WCH-V1-006 and
-WCH-V1-012.
+Kept: watch MUST exit 2 on an event-source error, now with the typed fallback named by
+WCH-V1-006 and WCH-V1-012.
 
 #### Scenario: Event-source error
 

@@ -8,7 +8,8 @@ Owning capability spec: `docs/specs/narrowing-measurement-v1.md`, a new spec wit
 `NMS-V1`
 Requirement IDs this change adds: NMS-V1-001 to NMS-V1-011
 Owner answers this change implements: G1, G3, G4, G10, G10a, G16 (`owner-answers-2026-11-09.md`),
-and owner decisions R2, R6, R8, R9, R13, R16, R19 and R20 (2026-11-09)
+owner decisions R2, R6, R8, R9, R13, R16, R19 and R20 (2026-11-09), and owner decisions H2 and
+H3 (2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.

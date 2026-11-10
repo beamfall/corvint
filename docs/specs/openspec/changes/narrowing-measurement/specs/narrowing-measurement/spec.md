@@ -123,17 +123,23 @@ with an owner reason, and in 1.0 MUST run its full suite with a printed reason. 
 recorded before the freeze. If fewer than four of the seven runners are selective, the report MUST
 state `release-slip` instead of a ship verdict. (G10, G10a)
 
+A verdict on the RC SHA that regresses from the M5a verdict MUST be reported as a blocking miss,
+for each of the seven blocking runners. The report MUST NOT record that runner as DEMOTED because
+of the regression; REL-V1-004 in change `release-process` holds the RC until it is fixed. (owner
+decision H2 (2026-11-10))
+
 #### Scenario: Three runners selective
 
 - **GIVEN** three runners at PASS or PUBLISH-ONLY with zero misses and four demoted
 - **WHEN** the release report is written
 - **THEN** it states `release-slip` and names the four runners
 
-#### Scenario: RC confirms M5a
+#### Scenario: RC regresses from M5a
 
 - **GIVEN** a runner at PASS on the M5a candidate SHA
 - **WHEN** its post-freeze verdict on the RC SHA records a miss
-- **THEN** the runner is DEMOTED and the report names both SHAs
+- **THEN** the report states a blocking miss for that runner and names both SHAs
+- **AND** the runner is not recorded as DEMOTED
 
 ### Requirement: NMS-V1-008 Kill switch
 
@@ -179,12 +185,21 @@ in the run output and listed in the release manifest with its reason. (G1, G2)
 
 ### Requirement: NMS-V1-010 Replay corpora and their role
 
-Plain replay over 200 Corvint, 100 Beamfall and 50 PRs on each of the three held-out repositories
-(fastapi, solidus and payload: the 50 most recent merged PRs before each pinned commit, the list
-frozen with the manifest; R42 (panel pick) A12) MUST report selection size and over-selection only;
-it MUST NOT be presented as miss evidence. Non-Go runners MUST be replayed on
+Plain replay over 200 Corvint, 100 Beamfall and 50 PRs on each held-out repository MUST report
+selection size and over-selection only; it MUST NOT be presented as miss evidence. The held-out
+repositories are the four drawn under PRR-V1-004, one for each family (Go, JS/TS, Python, Ruby),
+by a seeded draw that is never redrawn; no fixed list names them (owner decision H3
+(2026-11-10)). For each, the replay uses the 50 most recent merged PRs before its pinned commit,
+the list frozen with the manifest (R42 (panel pick) A12). Non-Go runners MUST be replayed on
 their pinned repository from `proof-repositories` (PRR-V1) with a frozen PR list built under
 NMS-V1-005 (at least 100 PRs, owner decision R19 (2026-11-09)). (G3, G12)
+
+#### Scenario: Held-out replay follows the draw
+
+- **GIVEN** a held-out draw that names one repository for each of the four families
+- **WHEN** the held-out replay lists are built
+- **THEN** each list holds the 50 most recent merged PRs before that repository's pinned commit
+- **AND** no list is built for a repository the draw did not name
 
 #### Scenario: Replay report wording
 
