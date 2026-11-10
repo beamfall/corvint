@@ -2110,7 +2110,7 @@ The first draft of this file (commit `1d9dc4c90`) contained these errors or omis
    list-by-default.
 3. `AGENTS.md` licence text. `LICENSING.md:5-10@6536f97b` says the whole repository is Apache-2.0 since
    decision 0586 (`docs/decisions/0586-relicense-apache-2-0-2026-10-29.md`). The pushed branch
-   `claude/bigcut-keepdocs`, `origin/main`, this worktree (`AGENTS.md:161@b8bc96f4`) and the
+   `claude/bigcut-keepdocs`, `origin/main`, this worktree (`AGENTS.md:166@b8bc96f4`) and the
    integration branch all carry the 0586 text in their `AGENTS.md` licence paragraph. Only the
    primary checkout's stale local `AGENTS.md` still shows the AGPL wording; it is not a branch head.
    Required amendment: the cut PR (M1) must not regress `AGENTS.md` to the AGPL text; the G8, G22

@@ -886,8 +886,8 @@ func TestManifestRefusesMalformedEntriesAndVerifyRefusesUndeclaredSkew(t *testin
 	requireRefusal(t, code, stderr, "version-skew: set core members disagree: corvint-alpha at 1.0.5@"+f.commit+"; corvint-beta at 1.0.0@"+f.commit)
 }
 
-// ARTIFACT-BIN-V0-001: AGENTS.md invariant 7 names the product binaries; the catalog is the
-// authority, so the two must name the same set.
+// ARTIFACT-BIN-V0-001: AGENTS.md names the product binaries; the catalog is the authority, so
+// the two must name the same set.
 func TestAgentsInvariantNamesTheCatalogProductBinaries(t *testing.T) {
 	catalog, err := loadCatalog("")
 	if err != nil {
@@ -924,7 +924,7 @@ func TestAgentsInvariantNamesTheCatalogProductBinaries(t *testing.T) {
 		products[name] = true
 	}
 	if !maps.Equal(named, products) {
-		t.Fatalf("AGENTS.md invariant 7 names %v; the catalog's product binaries are %v", slices.Sorted(maps.Keys(named)), slices.Sorted(maps.Keys(products)))
+		t.Fatalf("AGENTS.md names %v; the catalog's product binaries are %v", slices.Sorted(maps.Keys(named)), slices.Sorted(maps.Keys(products)))
 	}
 }
 
