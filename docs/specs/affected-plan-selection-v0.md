@@ -521,9 +521,9 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   (V1-0230, AFP-V0-931) are unchanged, and a declared read scope still bounds a unit. Rounds 6
   and 7 retained multi-component and file-name runs of a runtime-rooted token; round 8 closes the
   class by retaining every run. Amended by lane affprec2 (V1-5201, 2026-11-09): one root is
-  proven outside every checkout, a test-scoped temporary directory, so `AFP-V0-9810` in
+  proven to hold no checkout file, a test-scoped temporary directory, so `AFP-V0-9810` in
   `affected-reader-precision-v0.md` leaves out of a unit's tokens a literal joined only to
-  `t.TempDir()`, `os.TempDir()` or a once-bound local variable rooted there, within one file;
+  `t.TempDir()` or a once-bound local variable rooted there, within one file;
   every other root keeps this rule. The PR 86 measurement of the withdrawn placement (24 Go readers of
   `internal/jslinecov/testdata/repo/lib.js` became 6) no longer holds: those 24 readers are
   selected again, as before this lane.

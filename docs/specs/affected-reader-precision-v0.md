@@ -178,11 +178,12 @@ narrows placement only for CEM and record directories), so test fixtures that wr
   call whose first argument is temp-rooted, and every such argument of that call is a plain
   literal (no empty, `.`, `..` or glob component). An expression is temp-rooted when it is
   `X.TempDir()` with `X` a function parameter of type `*testing.T`, `*testing.B`, `*testing.F` or
-  `testing.TB` that the function never reassigns or addresses, `os.TempDir()`, such a join, or a
+  `testing.TB` that the function never reassigns or addresses, such a join, or a
   local variable bound exactly once (`:=`, or a one-name `var` with one value) to a temp-rooted
   expression and never reassigned, addressed or declared at package level, through chains of such
-  bindings within the file. The joined path lies below the temporary directory, outside every
-  checkout, so the literal names no repository read whatever consumes the joined value. The
+  bindings within the file. The joined path lies below a directory the test run created empty,
+  so the literal names no repository read whatever consumes the joined value. `os.TempDir()` is
+  not temp-rooted: it is the shared directory `TMPDIR` names, which may be or hold a checkout. The
   proof is per file: a literal reaching a join through a helper function, a parameter, a map or
   a slice stays a path token; so does the same text spelled anywhere else in the file, a join
   whose first argument is any other expression (`os.Getwd`, `"."`, a constant), a receiver whose

@@ -1943,8 +1943,9 @@ inventory-level route with file and line targets.
   consumer whose commands the change did not rebuild, are unchanged. The compact plan keeps
   `flows`; a selection without it is byte-identical to before.
 - **AFU-V1-1652**: When no bound flow is reached, every changed path that reaches a command the
-  consumer runs (the command's own path, or a path whose owning unit the command's import walk
-  reaches) MUST be explained by a `reviewed` link (AFU-V1-008) of some flow in the directory whose
+  consumer runs (the command's own path, a path whose owning unit the command's import walk
+  reaches, or a path no unit owns that a Go build may read: an embedded file, a file below an
+  embedding package or a file the go command lists) MUST be explained by a `reviewed` link (AFU-V1-008) of some flow in the directory whose
   target the path reaches; `declared` links without a valid anchor, stale links and `inferred`
   links have no narrowing authority. Each unexplained path is the unknown
   `{reason: "E2E_UNMAPPED_CHANGE", detail: PATH, hint}`, the hint naming the commands, the consumer

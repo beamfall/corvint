@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 set -eu
 
 # TSC-V1-009, TSC-V1-010, TSC-V1-013: script/cutover-payloads.sh applies the mapping table to a

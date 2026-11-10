@@ -283,12 +283,19 @@ func (b *e2eBinder) reachedFlows(flows []string) []string {
 
 // reachingPaths lists the changed paths that reach a command the consumer
 // runs, in plan order: a path the command unit owns, or one whose owning
-// unit the command's import walk reaches.
+// unit the command's import walk reaches. A path no unit owns that a Go build
+// may still read (Graph.SourcePath: an embedded file, a file below an
+// embedding package, a file the go command lists) is listed too, because the
+// import walk cannot show that it leaves the command unchanged; no link
+// explains an unowned path, so it keeps the consumer (AFU-V1-1652).
 func (b *e2eBinder) reachingPaths(file string) []string {
 	var reaching []string
 	for _, p := range b.plan.Dirty {
 		owner, ok := b.graph.OwnerOf(p)
 		if !ok {
+			if b.graph.SourcePath([]string{p}) != "" {
+				reaching = append(reaching, p)
+			}
 			continue
 		}
 		for _, command := range b.commands[file] {

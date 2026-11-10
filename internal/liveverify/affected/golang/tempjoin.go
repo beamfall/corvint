@@ -14,13 +14,14 @@ import (
 // `filepath.Join` or `path.Join` whose first argument is temp-rooted. An
 // expression is temp-rooted when it is a call of `TempDir()` on a function
 // parameter of type `*testing.T`, `*testing.B`, `*testing.F` or `testing.TB`
-// (the imported "testing" package under its local name), a call of
-// `os.TempDir()`, such a join itself, or a local variable bound once, by `:=`
-// or a single-name `var` with one value, to a temp-rooted expression and
-// never assigned again, addressed or declared at package level. A test that
-// writes `filepath.Join(t.TempDir(), "docs", "guide.md")` builds a fixture
-// below the temporary directory, which lies outside every checkout, so the
-// literal names no read of `docs/guide.md` in the repository. Only such
+// (the imported "testing" package under its local name), such a join itself,
+// or a local variable bound once, by `:=` or a single-name `var` with one
+// value, to a temp-rooted expression and never assigned again, addressed or
+// declared at package level. A test that writes
+// `filepath.Join(t.TempDir(), "docs", "guide.md")` builds a fixture below a
+// directory the test run created empty, so the literal names no read of
+// `docs/guide.md` in the repository. `os.TempDir()` is no such root: it is
+// the shared directory `TMPDIR` names, which may be or hold a checkout. Only such
 // arguments are returned, as the body offsets of their literals; every other
 // literal keeps AFP-V0-012's rule (c), including a literal spelled elsewhere
 // in the file, a component of `..`, `.`, an empty or glob component, a join
@@ -30,18 +31,16 @@ func tempJoinComponents(body []byte, aliases map[string]string) map[int]bool {
 	if !bytes.Contains(body, []byte("TempDir")) {
 		return nil
 	}
-	testing, osName, joins := "", "", map[string]bool{}
+	testing, joins := "", map[string]bool{}
 	for local, importPath := range aliases {
 		switch importPath {
 		case "testing":
 			testing = local
-		case "os":
-			osName = local
 		case "path/filepath", "path":
 			joins[local] = true
 		}
 	}
-	if testing == "" && osName == "" || len(joins) == 0 {
+	if testing == "" || len(joins) == 0 {
 		return nil
 	}
 	positions := token.NewFileSet()
@@ -222,10 +221,7 @@ func tempJoinComponents(body []byte, aliases map[string]string) map[int]bool {
 			if !ok {
 				return false
 			}
-			if receiver.Obj == nil {
-				return osName != "" && receiver.Name == osName
-			}
-			return parameters[receiver.Obj] && assigned[receiver.Obj] == 0 && !refused[receiver.Obj]
+			return receiver.Obj != nil && parameters[receiver.Obj] && assigned[receiver.Obj] == 0 && !refused[receiver.Obj]
 		}
 		return false
 	}

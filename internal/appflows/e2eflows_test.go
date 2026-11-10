@@ -164,6 +164,28 @@ func TestAFUV11652UnmappedChangeKeepsTheConsumer(t *testing.T) {
 	}
 }
 
+// AFU-V1-1652: a changed file the command embeds has no owning unit, so the
+// import walk does not list it; it still rebuilds the command, and no link
+// explains it. Beside a changed path a reviewed link does explain, it keeps
+// the consumer instead of letting the explained path alone leave it out.
+func TestAFUV11652EmbeddedChangeKeepsTheConsumer(t *testing.T) {
+	root := e2eFlowsRepo(t, true)
+	writeRaw(t, root, "cmd/tool/asset.txt", []byte("asset\n"))
+	writeRaw(t, root, "cmd/tool/asset.go", []byte("package main\n\nimport _ \"embed\"\n\n//go:embed asset.txt\nvar asset string\n"))
+	commitAll(t, root, "embed an asset")
+	_, plan := e2eFlowsPlan(t, root, "lib/lib.go")
+	if len(plan.E2EOmitted) != 1 || plan.E2EOmitted[0].File != "web/run-b.mjs" {
+		t.Fatalf("fixture: lib/lib.go alone omitted=%+v unknown=%+v", plan.E2EOmitted, plan.Unknown)
+	}
+	_, plan = e2eFlowsPlan(t, root, "cmd/tool/asset.txt", "lib/lib.go")
+	if got := unknownDetails(plan, affected.UnknownE2EUnmappedChange); !reflect.DeepEqual(got, []string{"cmd/tool/asset.txt"}) || len(plan.E2EOmitted) != 0 || plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("unknown=%+v omitted=%+v scope=%s", plan.Unknown, plan.E2EOmitted, plan.Scope)
+	}
+	if got := unknownDetails(plan, affected.UnknownUnselectedBinaryConsumer); !reflect.DeepEqual(got, []string{"web/run-b.mjs"}) {
+		t.Fatalf("run-b: unknown=%+v", plan.Unknown)
+	}
+}
+
 // AFU-V1-1654: a global path runs every bound consumer the change reaches;
 // an invalid declaration narrows nothing and is named; a plan without the
 // declaration is returned unchanged.

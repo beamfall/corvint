@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 #
 # cutover-payloads.sh: build the store-cutover seed payloads from dumped survivors by applying
 # the reviewed taxonomy mapping table (TSC-V1-009, TSC-V1-010, TSC-V1-013; change
