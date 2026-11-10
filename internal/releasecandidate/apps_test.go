@@ -18,7 +18,7 @@ import (
 func stubAppBinaries(t *testing.T) {
 	t.Helper()
 	previous := verifyAppBinary
-	verifyAppBinary = func(raw []byte, app, goos, goarch, binaryDigest, goVersion string) ([]byte, error) {
+	verifyAppBinary = func(raw []byte, app, goos, goarch, binaryDigest, goVersion, commit string) ([]byte, error) {
 		return []byte("app-binary-" + app + "-" + goos + "-" + goarch), nil
 	}
 	t.Cleanup(func() { verifyAppBinary = previous })
@@ -208,8 +208,34 @@ func TestARTIFACTBINV0510VerifyAppsBindsManifestAndArchivesToTheRelease(t *testi
 		t.Fatalf("manifest at another version than the candidate accepted: %v", err)
 	}
 	// The real app archive check reads the archive, not markers.
-	if _, err := verifyAppArchiveBinary([]byte("not an archive"), "corvint-docs", "linux", "amd64", strings.Repeat("a", 64), "go1.27.3"); err == nil {
+	if _, err := verifyAppArchiveBinary([]byte("not an archive"), "corvint-docs", "linux", "amd64", strings.Repeat("a", 64), "go1.27.3", strings.Repeat("c", 40)); err == nil {
 		t.Fatal("non-archive bytes accepted as an app archive")
+	}
+}
+
+// ARTIFACT-BIN-V0-510: an app executable is accepted only when it carries the
+// candidate's source commit; the manifest's claim alone is not enough.
+func TestARTIFACTBINV0510AppExecutableCarriesTheCandidateCommit(t *testing.T) {
+	commit, other := strings.Repeat("c", 40), strings.Repeat("d", 40)
+	stamped := []byte("\x00go build\x00" + commit + "\x00")
+	for name, test := range map[string]struct {
+		binary   []byte
+		settings map[string]string
+		commit   string
+		want     string
+	}{
+		"stamped":            {stamped, nil, commit, ""},
+		"stamped, same vcs":  {stamped, map[string]string{"vcs.revision": commit, "vcs.modified": "false"}, commit, ""},
+		"another commit":     {[]byte("\x00" + other + "\x00"), nil, commit, "not stamped with source commit " + commit},
+		"unstamped":          {[]byte("no stamp"), nil, commit, "not stamped with source commit"},
+		"no commit to match": {stamped, nil, "", "not stamped with source commit"},
+		"vcs disagrees":      {stamped, map[string]string{"vcs.revision": other}, commit, "built from " + other},
+		"modified tree":      {stamped, map[string]string{"vcs.revision": commit, "vcs.modified": "true"}, commit, "modified tree"},
+	} {
+		err := appCommitAgrees(test.binary, test.settings, test.commit)
+		if test.want == "" && err != nil || test.want != "" && (err == nil || !strings.Contains(err.Error(), test.want)) {
+			t.Errorf("%s: got %v, want %q", name, err, test.want)
+		}
 	}
 }
 

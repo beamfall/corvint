@@ -712,6 +712,15 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	if unread != "" {
 		input.SelectionIncomplete = append(input.SelectionIncomplete, unread)
 	}
+	units, unread = testE2EUnits(receipt.Plan.E2E)
+	for _, unit := range units {
+		if !slices.Contains(input.Selected, unit) {
+			input.Selected = append(input.Selected, unit)
+		}
+	}
+	if unread != "" {
+		input.SelectionIncomplete = append(input.SelectionIncomplete, unread)
+	}
 	input.GoSlices = testGoSlices(ctx, receipt.Plan, graph, root, base, typedReachExecutor{profile: input.RunnerProfile, declared: input.Declared, environ: os.Environ()})
 	for _, entry := range receipt.Plan.Unknown {
 		input.Unknown = append(input.Unknown, sessiontest.Unknown{Detail: entry.Detail, Reason: entry.Reason})
@@ -780,6 +789,34 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 			return nil, "advice.test_selection selects a test without a path; its Playwright tests cannot be selected"
 		}
 		if unit := "typescript:" + sessiontest.ProviderRunnerPlaywright + ":" + file; !slices.Contains(units, unit) {
+			units = append(units, unit)
+		}
+	}
+	slices.Sort(units)
+	return units, ""
+}
+
+// testE2EUnits reads the plan's joined E2E member (APK-V0-001, STR-V0-8706).
+// Each selected file is returned as its "typescript:playwright:<path>" unit,
+// which joins the plan's selected units exactly as an e2e-safe selection's
+// files do, so the run executes it or is INCOMPLETE for it. A member that
+// selects nothing while its scope is UNKNOWN (an invalid flows declaration)
+// returns a reason instead: tests the plan could not name never read as no
+// tests.
+func testE2EUnits(e2e *affected.E2EPlan) ([]string, string) {
+	if e2e == nil {
+		return nil, ""
+	}
+	if len(e2e.Selected) == 0 && e2e.Scope == affected.E2EScopeUnknown {
+		reason := "its E2E tests cannot be selected"
+		if len(e2e.Unknown) != 0 {
+			reason = e2e.Unknown[0].Reason + " " + e2e.Unknown[0].Detail + "; " + reason
+		}
+		return nil, "plan.e2e is UNKNOWN and selects nothing (" + reason + ")"
+	}
+	units := []string{}
+	for _, selection := range e2e.Selected {
+		if unit := "typescript:" + sessiontest.ProviderRunnerPlaywright + ":" + selection.Path; !slices.Contains(units, unit) {
 			units = append(units, unit)
 		}
 	}

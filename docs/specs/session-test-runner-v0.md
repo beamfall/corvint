@@ -772,7 +772,10 @@ two requirements make its version name its content and make each receipt carry i
   reason to the manifest's `incomplete` list, so the run and its dry run are `INCOMPLETE`, exit 3.
   An absent member changes nothing. `corvint test` passes the planner neither a selection profile
   nor a provider document today, so the member is absent and this requirement fixes how it is
-  read once the E2E join supplies it.
+  read once the E2E join supplies it. The joined plan member `plan.e2e` (APK-V0-001) is read the
+  same way: each `plan.e2e.selected[].path` is added once as `typescript:playwright:<path>`, and
+  a member whose scope is `UNKNOWN` while it selects nothing adds its first unknown to
+  `incomplete`, so a file the plan selects is run or the run is `INCOMPLETE`.
   Non-goals: producing the member (`application-flow-understanding-v1.md` owns it); running an
   `external-test-selection/0` member; passing `selected[].project`, so a selected file runs in
   every project of the declared configuration, a superset.

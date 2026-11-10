@@ -106,7 +106,10 @@ qualifies or promotes anything.
 Under `PRS-V1-005`, `internal/releasecandidate` admits a second closed manifest profile,
 `corvint-core-release-candidate/0` (now `/1`, which adds the core-set app archives and their
 release manifest, `ARTIFACT-BIN-V0-510`), beside the unchanged combined
-`corvint-qualified-release-candidate/0`. The profile selects a closed inventory; nothing else
+`corvint-qualified-release-candidate/0`. Each app executable must itself carry the candidate's
+source commit, the `main.sourceCommit` stamp of `ARTIFACT-BIN-V0-002` read from its bytes, and a
+Git stamp, when one is present, must name that commit with an unmodified tree; the manifest's
+claim alone admits no app. The profile selects a closed inventory; nothing else
 changes the reader's fail-closed checks. Since decision 0594 it is the only admitted profile: the combined profile is
 refused, and the "combined profile" checks below survive only as the Core checks this profile runs.
 
