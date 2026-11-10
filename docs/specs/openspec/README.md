@@ -28,7 +28,8 @@ wire format, or the release bar waits for the owner (G14). Unaccepted work stays
   - archive: when every task is ticked, `openspec archive <name> --skip-specs` moves the folder to
     `changes/archive/YYYY-MM-DD-<name>/`. An archived folder is not edited, and `--yes` is never
     used to pass over an unticked task.
-- One difference from stock OpenSpec, kept from G14: the canonical specs are the flat files
+- One difference from stock OpenSpec, kept from G14 and confirmed by owner decision H13
+  (2026-11-10): the canonical specs are the flat files
   `docs/specs/*.md`, not `openspec/specs/<capability>/spec.md`. That is why archive runs with
   `--skip-specs`, and why strict validation notes that the target spec of a MODIFIED requirement
   does not exist.

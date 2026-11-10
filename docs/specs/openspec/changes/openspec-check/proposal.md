@@ -8,7 +8,8 @@ Requirement IDs this change adds: OSC-V1-001 to OSC-V1-012
 Requirement IDs this change modifies: PRS-V1-018 (clauses (c) and (d) carried over, (a), (b) and (e)
 dropped)
 Owner answers this change implements: G14, owner decision R37 (2026-11-09), owner decision R41
-(2026-11-09), owner decision H9 (2026-11-10), owner decision H12 (2026-11-10)
+(2026-11-09), owner decision H9 (2026-11-10), owner decision H12 (2026-11-10), owner decision H13
+(2026-11-10)
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -109,9 +110,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 - No root `openspec/` directory (G14). No npm dependency in the product build, and no shipped
   binary that calls the OpenSpec command (AGENTS.md invariant 7 is unaffected).
 - The Go check does not call the OpenSpec command; the two run side by side.
-- No native spec merge: `openspec archive` is always run with `--skip-specs`, and no
-  `docs/specs/openspec/specs/` tree is created. Moving the canonical specs into that tree is a
-  separate decision for the owner.
+- No native spec merge (owner decision H13 (2026-11-10): "Keep flat specs"): `openspec archive`
+  is always run with `--skip-specs`, and no `docs/specs/openspec/specs/` tree is created.
 - Strict-mode warnings of the OpenSpec command (requirement text over 500 characters, text above
   the first section) do not fail anything in this change.
 - The delta does not replace the canonical spec; repository spec files and requirement IDs stay the
