@@ -346,7 +346,8 @@ def check($p; $index):
        | .labels = ($ls
          + (if ($klab | length) == 0 and $stored != null then ["key:\($stored)"] else [] end)
          + (if ($prod | length) == 0 and $cv != null and $cv.product != null
-              then ["product:\($cv.product)"] else [] end))
+              then ["product:\($cv.product)"] else [] end) | unique)
+       | if (.requirementRefs | type) == "array" then .requirementRefs |= unique else . end
        | .body = $body)};
 def lines($r):
   ($r.siblings[] | "SIBLING\t\(.id)\t\(.key)\t\(.title)"),
