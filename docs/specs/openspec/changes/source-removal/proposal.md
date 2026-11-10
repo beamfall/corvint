@@ -9,9 +9,10 @@ Product requirements served: PROD-TEST-002 (never leave out a required test), PR
 `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: a new `docs/specs/source-removal-v1.md` (prefix `RMV-V1`), written when this
 proposal is accepted. It is not written by this change.
-Companion decision: `docs/decisions/PROPOSED-supersede-0594-keeps-line.md`
+Companion decision: `docs/decisions/PROPOSED-supersede-0594-keeps-line.md`, which lands with
+the removal branch, not with the plan (R42, F1)
 Acceptance record: `docs/decisions/PROPOSED-accept-product-plan-1.0.md`
-Requirement IDs this change adds: RMV-V1-001 to RMV-V1-036 (no `RMV-` row exists in
+Requirement IDs this change adds: RMV-V1-001 to RMV-V1-037 (no `RMV-` row exists in
 `docs/specs/REQUIREMENTS.tsv` and no other change folder uses the prefix; no collision)
 Files in this change (G14 layout): `proposal.md` (this file: why, what changes, non-goals,
 impact), `design.md` (owner decisions applied, failure modes, batches, open items, verification,
