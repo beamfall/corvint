@@ -6,7 +6,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 - [ ] 1.1 File the ticket and reserve prefix `REL-V1` (001 to 015). Requirements: all. Proof:
       `corvint-tasks ticket show` with `requirementRefs` listing REL-V1-001 to 015.
-- [ ] 1.2 First commit: create `docs/specs/release-process-v1.md` from the spec delta, its
+- [x] 1.2 First commit: create `docs/specs/release-process-v1.md` from the spec delta, its
       `docs/specs/README.md` row and the regenerated index; amend PRS-V1-004 in the same commit.
       Requirements: REL-V1-001 to 015, PRS-V1-004. Proof: `make spec-requirements-check` passes.
 - [ ] 2.1 M0 mapping: list every open `v1-0` ticket; give each a `requirementRefs` entry naming a

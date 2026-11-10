@@ -2484,7 +2484,7 @@ CWC-X0-012	docs/specs/correlated-witness-collapse-x0.md	Every report MUST remain
 PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo	unrecorded	-
 PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader	unrecorded	-
 PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou	unrecorded	-
-PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core	unrecorded	-
+PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	Release platforms MUST be linux/amd64, linux/arm64 and darwin/arm64 native	unrecorded	-
 PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	A Core release candidate MUST NOT require companion input. Companions keep their	unrecorded	-
 PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau	unrecorded	-
 PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014	unrecorded	-
@@ -7370,6 +7370,21 @@ ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	the receipt is t
 ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	the release revision is the receipt's `revision`, not `HEAD`. `PASS`	unrecorded	-
 ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	every attached digest MUST be witnessed locally by the private archive	unrecorded	-
 ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	the reader is read-only and offline. It invokes only local `git`, with the	unrecorded	-
+REL-V1-001	docs/specs/release-process-v1.md	Milestone M0 re-scopes the v1-0 release object. Before any removal lane starts,	unrecorded	-
+REL-V1-002	docs/specs/release-process-v1.md	Milestone M5a qualification candidate. A qualification candidate tag MUST be pus	unrecorded	-
+REL-V1-003	docs/specs/release-process-v1.md	Release calendar. The freeze MUST be 2026-12-15. Stable MUST NOT be promoted bef	unrecorded	-
+REL-V1-004	docs/specs/release-process-v1.md	Demotion verdicts at the freeze. The owner's demotion notes MUST rest on the	unrecorded	-
+REL-V1-005	docs/specs/release-process-v1.md	Tag-started build that stops before publishing. A pushed `v*` tag MUST start a	unrecorded	-
+REL-V1-006	docs/specs/release-process-v1.md	Attestation supersedes decision 0433 for attestation only. The release MUST carr	unrecorded	-
+REL-V1-007	docs/specs/release-process-v1.md	Owner approval publishes, and M8 is approval and publish. Only the publish job M	unrecorded	-
+REL-V1-008	docs/specs/release-process-v1.md	Release artifacts per product for three targets.	unrecorded	-
+REL-V1-009	docs/specs/release-process-v1.md	Removals finish by 2026-12-01. Every M3 removal batch MUST be merged by 2026-12-	unrecorded	-
+REL-V1-010	docs/specs/release-process-v1.md	Soak and trial counts. The soak count MUST count PRs merged during the soak wind	unrecorded	-
+REL-V1-011	docs/specs/release-process-v1.md	Reserved benchmark hosts. Linux qualification timing MUST run on WSL2 on the Win	unrecorded	-
+REL-V1-012	docs/specs/release-process-v1.md	Release gates. The release gates MUST be the affected plan, exhaustive `go test`	unrecorded	-
+REL-V1-013	docs/specs/release-process-v1.md	Signed release record before publish. The RC publish and the stable promotion MU	unrecorded	-
+REL-V1-014	docs/specs/release-process-v1.md	Rebuild evidence rules. When a candidate is rebuilt to fix a blocker, evidence M	unrecorded	-
+REL-V1-015	docs/specs/release-process-v1.md	macOS release gate and advisory merge check. The exhaustive macOS `go test` and	unrecorded	-
 RGV-V0-001	docs/specs/repository-guidance-v0.md	Separate experimental `features`, `overview`, and `review --base FULL_SHA [--max	unrecorded	-
 RGV-V0-002	docs/specs/repository-guidance-v0.md	Read commands MUST capture clean HEAD, immutable commit/tree/blob inputs and rec	unrecorded	-
 RGV-V0-003	docs/specs/repository-guidance-v0.md	Discovery MUST reuse Genesis tracked inventory/classification. Candidates MUST c	unrecorded	-
@@ -8231,6 +8246,14 @@ TMR-V0-951	docs/specs/tasks-mcp-read-profile-v0.md	The group MUST list exactly `
 TMR-V0-952	docs/specs/tasks-mcp-read-profile-v0.md	Each call MUST run `corvint-tasks` from `PATH` with its verb (`queue status`,	unrecorded	-
 TMR-V0-953	docs/specs/tasks-mcp-read-profile-v0.md	A schema-invalid argument MUST be `-32602` with `MCPV0-952` data (`reason`,	unrecorded	-
 TMR-V0-954	docs/specs/tasks-mcp-read-profile-v0.md	The `corvint-mcp` usage MUST name the `tasks` group, and `docs/CAPABILITIES.md`	unrecorded	-
+TPV-V1-001	docs/specs/tasks-policy-v15.md	Policy version 15 MUST NOT require a CEM or an OCM for any attempt: `cemRequired	unrecorded	-
+TPV-V1-002	docs/specs/tasks-policy-v15.md	Version 15 MUST NOT declare the gates `cem-verdict` and `context-focused`, and M	unrecorded	-
+TPV-V1-003	docs/specs/tasks-policy-v15.md	The store policy MUST be updated with `corvint-tasks policy update` before	unrecorded	-
+TPV-V1-004	docs/specs/tasks-policy-v15.md	The update MUST run only after the M0 removal is merged on `origin/main`	unrecorded	-
+TPV-V1-005	docs/specs/tasks-policy-v15.md	Before the update, no release object and no OPEN or CLAIMED ticket MUST referenc	unrecorded	-
+TPV-V1-006	docs/specs/tasks-policy-v15.md	An attempt admitted under version 14 and refused with `STALE_POLICY` after the u	unrecorded	-
+TPV-V1-007	docs/specs/tasks-policy-v15.md	The version 14 bytes and their SHA-256 MUST be retained in the build-log entry	unrecorded	-
+TPV-V1-008	docs/specs/tasks-policy-v15.md	At least one ticket MUST be submitted, gated and completed under version 15 with	unrecorded	-
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	butterfly-effect MUST return exact direct static references/dependencies,	unrecorded	-
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse	unrecorded	-
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	selective-test guidance MUST name mandatory repository gates first and a smaller	unrecorded	-
