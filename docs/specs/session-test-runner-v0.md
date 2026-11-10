@@ -775,7 +775,9 @@ two requirements make its version name its content and make each receipt carry i
   read once the E2E join supplies it. The joined plan member `plan.e2e` (APK-V0-001) is read the
   same way: each `plan.e2e.selected[].path` is added once as `typescript:playwright:<path>`, and
   a member whose scope is `UNKNOWN` while it selects nothing adds its first unknown to
-  `incomplete`, so a file the plan selects is run or the run is `INCOMPLETE`.
+  `incomplete`, so a file the plan selects is run or the run is `INCOMPLETE`. A member that
+  carries `E2E_INVENTORY_UNDERIVABLE` lists only flow-linked files, so its files are added and
+  that unknown is added to `incomplete` too: a test no flow links is not claimed as run.
   Non-goals: producing the member (`application-flow-understanding-v1.md` owns it); running an
   `external-test-selection/0` member; passing `selected[].project`, so a selected file runs in
   every project of the declared configuration, a superset.
