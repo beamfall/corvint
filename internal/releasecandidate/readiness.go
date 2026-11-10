@@ -18,7 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 )
 
 // The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
@@ -375,14 +375,14 @@ func checkCEMGate(rows []ReadinessRow, evidence map[string]string, commit string
 		if err != nil || digest(raw) != row.SHA256 {
 			return fmt.Errorf("readiness row %s outcome does not reproduce its digest", cemGateRow)
 		}
-		outcome, err := companionrelease.ReadStableGateOutcome(raw)
+		outcome, err := corerelease.ReadStableGateOutcome(raw)
 		if err != nil {
 			return fmt.Errorf("readiness row %s: %w", cemGateRow, err)
 		}
 		if outcome.Revision != commit {
 			return fmt.Errorf("readiness row %s outcome judged %s, not the candidate commit %s", cemGateRow, outcome.Revision, commit)
 		}
-		if outcome.Verdict != companionrelease.StableGateReady {
+		if outcome.Verdict != corerelease.StableGateReady {
 			return fmt.Errorf("readiness row %s outcome is %s: %s", cemGateRow, outcome.Verdict, outcome.Reason)
 		}
 	}

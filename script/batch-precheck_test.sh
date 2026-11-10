@@ -180,15 +180,12 @@ grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/ou
 (cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
 grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
   fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
-grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
-  grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
-grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+grep -qx 'batch-drift TestCLIErrorContracts_ACXV0859' "$tmp/out" || fail "the @own drift test is not its own step: $(cat "$tmp/out")"
 grep -qx 'batch-cem-check' "$tmp/out" && fail "CI-only batch CEM step was derived locally: $(cat "$tmp/out")"
 
 fi
 if group 1d; then
 # 1d. ASD-V0-2010/2011 (V1-4331/4332): cheap spec checks fail before repins or Go.
-grep -A1 '^dogfood-closeout:$' "$script/../Makefile" | grep -qF 'spec-capacity-check spec-readme-check BASE="$(or $(DOGFOOD_BASE),$(BASE))"' || fail "closeout lost its static checks or lane BASE"
 static_repo=$tmp/static-specs
 mkdir -p "$static_repo/docs/specs" "$static_repo/script"
 cp "$script/gen-spec-requirements.sh" "$static_repo/script/"
@@ -277,43 +274,9 @@ if group 1c; then
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
 grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
 grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
-grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
 
 # Focused mode for spec-only changes avoids unrelated node/lifecycle fixture groups.
 [[ ${BATCH_PRECHECK_TEST_STATIC_ONLY:-} != 1 ]] || finish
-
-fi
-if group 1b; then
-# 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
-# docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the
-# native literal, the tuple set to the package version passes PWV-V0-011 and a stale version
-# fails it.
-pi=$tmp/pi-drift
-mkdir -p "$pi/integrations" "$pi/docs/specs" "$pi/cmd/corvint"
-/bin/cp -R "$script/../integrations/pi" "$pi/integrations/pi" || fail "copy Pi adapter"
-/bin/cp -f "$script/../integrations/compatibility.json" "$pi/integrations/" || fail "copy compatibility matrix"
-/bin/cp -f "$script/../cmd/corvint/pi_adapter.go" "$pi/cmd/corvint/" || fail "copy native adapter literal"
-pi_version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$pi/integrations/pi/package.json")
-[[ -n $pi_version ]] || fail "Pi package version not found"
-pi_tuple() { sed "s/\"tuple\": {\"adapterVersion\": \"[^\"]*\"/\"tuple\": {\"adapterVersion\": \"$1\"/" "$script/../docs/specs/pi-workflow-v0.md" > "$pi/docs/specs/pi-workflow-v0.md"; }
-pi_tuple "$pi_version"
-# The Pi capability test needs node; CI has it. A lane host without it (Unraid) skips this case by
-# name instead of failing the whole suite.
-if ! command -v node > /dev/null 2>&1; then
-  printf 'batch-precheck_test: SKIP case 1b: node is not on PATH, so the Pi tuple test is NOT_RUN\n'
-else
-# Run node:test in this process with an explicit TAP reporter. Node 22's isolated --test runner
-# can collapse a failing file to ERR_TEST_FAILURE without reporting the assertion's test name.
-# ASD-V0-1970: require a named pass as well as a named failure, never just a nonzero Node exit.
-pi_capabilities() { node --test-reporter=tap --test-name-pattern='^PWV-V0-011 registered tools' "$pi/integrations/pi/capabilities.test.mjs"; }
-pi_capabilities > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
-grep -q '^ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "matching tuple did not run PWV-V0-011: $(tail -40 "$tmp/out")"
-pi_tuple "0.0.0-stale"
-pi_capabilities > "$tmp/out" 2>&1
-[[ $? == 1 ]] || fail "a stale Pi spec tuple did not exit 1: $(tail -40 "$tmp/out")"
-grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple did not fail PWV-V0-011: $(tail -40 "$tmp/out")"
-grep -q "adapterVersion: '0.0.0-stale'" "$tmp/out" || fail "stale tuple assertion did not name its adapter version: $(tail -40 "$tmp/out")"
-fi
 
 fi
 if group 2; then
@@ -424,19 +387,13 @@ fixture --list
 grep -qxF 'make new-drift-check' "$tmp/out" || fail "new make target not derived: $(cat "$tmp/out")"
 grep -qxF 'go run ./tools/new-gen' "$tmp/out" || fail "new go run not derived: $(cat "$tmp/out")"
 # A doc-gates command that is neither fails the sync check.
-# CIN-V0-2304 / ASD-V0-036: only the exact reviewed inline checker has a
-# mirror. A change to its trusted build or appended syntax remains unknown.
-batch_check_body=$(sed -n '/^          set -eu$/,/^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/p; /^          "\$RUNNER_TEMP\/corvint-trusted" dogfood batch-check/q' "$script/../.github/workflows/ci.yml")
-[[ -n $batch_check_body ]] || fail "no inline batch CEM body"
-write_ci "" "" "" "$(printf '      - run: |\n%s\n      - run: make after-batch-cem' "$batch_check_body")"
-fixture --sync-check || fail "protected batch CEM command refused: $(cat "$tmp/out")"
-fixture --list || fail "protected batch CEM list refused: $(cat "$tmp/out")"
-grep -qxF 'batch-cem-check' "$tmp/out" || fail "protected batch CEM command not derived"
-grep -qxF 'make after-batch-cem' "$tmp/out" || fail "command after batch CEM swallowed"
-write_ci "" "" "" "$(printf '      - run: |\n%s' "${batch_check_body/-buildvcs=false/-buildvcs=true}")"
-fixture --sync-check && fail "changed batch CEM trusted build accepted"
-write_ci "" "" "" "$(printf '      - run: |\n%s;true' "$batch_check_body")"
-fixture --sync-check && fail "batch CEM command with appended shell syntax accepted"
+# CIN-V0-2304: the batch-check body has no local mirror (decision 0594); as an anonymous step it
+# is unknown, fails the sync check and derives no step.
+batch_check_body=$(sed -n '/^IFS= read -r -d '"''"' CI_ONLY_BATCH_CHECK/,/^EOF$/{ /^IFS=/d; /^EOF$/d; s/^/          /; p; }' "$pre")
+[[ $batch_check_body == *'dogfood batch-check'* ]] || fail "no CI_ONLY_BATCH_CHECK body in $pre"
+write_ci "" "" "" "$(printf '      - run: |\n%s' "$batch_check_body")"
+fixture --sync-check && fail "an anonymous batch-check step accepted"
+grep -q 'doc-gates runs `set -eu`, which batch-precheck cannot mirror' "$tmp/out" || fail "anonymous batch-check: $(cat "$tmp/out")"
 write_ci "" "" "" "      - run: bash .github/other-gate.sh"
 fixture --sync-check && fail "unlisted protected script command accepted"
 write_ci "" "" "" "      - run: script/new-gate.sh --check"
@@ -465,9 +422,11 @@ write_ci "" "" "" '      - {run: "make must-fail"}'
 fixture --list
 grep -q 'must-fail' "$tmp/out" && fail "a flow-mapping step was derived: $(cat "$tmp/out")"
 # ASD-V0-2472 (V1-4525): the checkout's CI-only CIN-V0-2304 trusted batch-check step is accepted
-# verbatim and derives no step; a changed body, or the same body under another step name, fails.
-ci_only=$(awk '/^      - name: .*\(CIN-V0-2304[,)]/ { on = 1; print; next } on && (/^      - / || /^  [^ ]/ || !NF) { exit } on' "$script/../.github/workflows/ci.yml")
-[[ $ci_only == *'set -eu'* ]] || fail "the checkout workflow has no CIN-V0-2304 step to copy: $ci_only"
+# verbatim (built from CI_ONLY_BATCH_CHECK, since the step leaves ci.yml under decision 0594) and
+# derives no step; a changed body, or the same body under another step name, fails.
+ci_only="      - name: Refuse a batch pull request whose commits no sealed CEM binds (CIN-V0-2304, V1-2805)
+        run: |
+$batch_check_body"
 write_ci "" "" "" "$ci_only"
 fixture --sync-check || fail "the pinned CI-only step refused: $(cat "$tmp/out")"
 fixture --list || fail "--list with the pinned CI-only step: $(cat "$tmp/out")"
@@ -533,8 +492,8 @@ case "\$2" in
   spec-requirements-check) [ -n "\${STUB_RESTAGE:-}" ] && { printf restaged >> derived.txt; git add derived.txt; } ;;
   slow-*) sleep 3 ;;
   go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
-  host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
-      sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi
+  lane-scripts-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
+      sleep 1; ls $tmp/running | grep -vx lane-scripts-test >> $tmp/overlap; fi
     # GL-V0-786: after every parallel step, count the passes in the ledger and in the run's stage;
     # STUB_HOLD then waits (at most 60 s) for the test to interrupt the run.
     if [ -n "\${STUB_LEDGER_PROBE:-}" ]; then
@@ -549,8 +508,6 @@ esac
 rm -f $tmp/running/\$2
 exit 0
 EOF
-# The stub node makes the host-adapter-node-test step run on a host without node (ASD-V0-973).
-printf '#!/bin/sh\nexit 0\n' > "$bin/node"
 cat > "$bin/gofmt" <<EOF
 #!/bin/sh
 echo "gofmt \$*" >> $tmp/calls
@@ -597,7 +554,6 @@ grep -q '^batch-precheck: | FAIL | *[0-9]*s | batch-drift (3 packages)$' "$tmp/o
 grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g ./pkg2$' "$tmp/calls" || fail "drift union: $(cat "$tmp/calls")"
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
-grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
 # AFP-V0-2702 (V1-4923): batch-precheck runs the live tier that PR shards skip.
 grep -q '^make -s live-test GOPROXY=unset$' "$tmp/calls" || fail "live-test not run: $(cat "$tmp/calls")"
 # ASD-V0-640 (V1-3744): with no base the lane shell tests run on the merged tree.
@@ -610,13 +566,12 @@ grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp
 wall=$(sed -n 's/.* in \([0-9]*\)s wall, \([0-9]*\)s summed$/\1 \2/p' "$tmp/out")
 read -r w s <<< "$wall"
 ((w < s)) || fail "steps did not run in parallel (wall $w, summed $s)"
-# ASD-V0-047 (V1-3142): host-adapter-node-test runs alone after the parallel steps, so no other
+# ASD-V0-047, ASD-V0-640: lane-scripts-test runs alone after the parallel steps, so no other
 # step is running while it does, even beside the two 3-second steps; the others stay parallel.
 : > "$tmp/overlap"
 STUB_SERIAL_PROBE=1 run
 [[ $? == 0 ]] || fail "serial probe run failed: $(cat "$tmp/out")"
-[[ -s $tmp/overlap ]] && fail "host-adapter-node-test ran beside: $(sort -u "$tmp/overlap" | paste -sd ' ' -)"
-grep -q '^batch-precheck: | PASS | *[0-9]*s | make host-adapter-node-test$' "$tmp/out" || fail "serial row: $(cat "$tmp/out")"
+[[ -s $tmp/overlap ]] && fail "lane-scripts-test ran beside: $(sort -u "$tmp/overlap" | paste -sd ' ' -)"
 grep -q '^batch-precheck: | PASS | *[0-9]*s | make lane-scripts-test$' "$tmp/out" || fail "lane-scripts-test serial row: $(cat "$tmp/out")"
 read -r w s <<< "$(sed -n 's/.* in \([0-9]*\)s wall, \([0-9]*\)s summed$/\1 \2/p' "$tmp/out")"
 ((w < s)) || fail "the other steps no longer ran in parallel (wall $w, summed $s)"
@@ -637,25 +592,7 @@ grep -qx "steps $rows" "$receipt" && grep -qx "passed $rows" "$receipt" || fail 
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
 fi
 if group 4a; then
-# 4a. ASD-V0-973 (V1-3801, V1-3241): with node absent, host-adapter-node-test does not run; its row
-# is NOT_AVAILABLE naming the tool, it is neither passed nor failed, and the receipt records it as
-# a not-run line the guard accepts and prints. A receipt claiming more steps than it accounts for
-# is refused.
-/bin/rm -f "$receipt"
-: > "$tmp/calls"
-BATCH_PRECHECK_NODE=corvint-absent-node-probe run || fail "absent-node run failed: $(cat "$tmp/out")"
-grep -q 'host-adapter-node-test' "$tmp/calls" && fail "absent-node run still ran the node step: $(cat "$tmp/calls")"
-grep -q '^batch-precheck: | NOT_AVAILABLE | *[0-9]*s | make host-adapter-node-test: corvint-absent-node-probe is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it$' "$tmp/out" ||
-  fail "absent-node row: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $((rows - 1)) passed, 0 failed, 1 not run in " "$tmp/out" || fail "absent-node summary: $(cat "$tmp/out")"
-grep -qx "steps $rows" "$receipt" && grep -qx "passed $((rows - 1))" "$receipt" &&
-  grep -qx 'not-run host-adapter-node-test corvint-absent-node-probe is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it' "$receipt" ||
-  fail "absent-node receipt: $(cat "$receipt" 2> /dev/null)"
-(cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused a not-run receipt: $(cat "$tmp/out")"
-grep -q '^batch-precheck: receipt records NOT_RUN host-adapter-node-test corvint-absent-node-probe is not on PATH' "$tmp/out" || fail "guard did not print the not-run step: $(cat "$tmp/out")"
-sed -i.bak '/^not-run /d' "$receipt" && /bin/rm -f "$receipt.bak"
-(cd "$repo" && "$pre" --verify-receipt) > /dev/null 2>&1 && fail "guard accepted a receipt whose steps exceed passed and not-run"
-# ASD-V0-837 (V1-3550): the pre-bind run of dogfood-closeout leaves out the batch-drift go test and
+# 4a. ASD-V0-837 (V1-3550): the pre-bind run of dogfood-closeout leaves out the batch-drift go test and
 # writes no receipt, so the receipt and each drift step come from the one run on the sealed head.
 /bin/rm -f "$receipt"
 : > "$tmp/calls"
@@ -1143,47 +1080,7 @@ twobase=$(git -C "$crepo" rev-parse HEAD)
 printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
 crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
-# ASD-V0-110 (V1-4153): host-adapter-node-test fails at HEAD and passes at the base, but the diff
-# touches none of its inputs (integrations/, Makefile and the outside paths its tests read): an
-# unattributed WARN with the host load, never introduced, and no receipt. The same failure is
-# introduced when the diff changes an input outside integrations/ (cmd/corvint/pi_adapter.go), adds a
-# git-quoted name under integrations/ (untracked or committed), or when a test the recipe runs reads a
-# path no declared input covers.
 /bin/rm -f "$crepo/fail-test-commands-check"
-mkdir -p "$crepo/integrations/pi" "$crepo/cmd/corvint"
-printf 'host-adapter-node-test:\n\tnode --test integrations/pi/*.test.mjs\n' > "$crepo/Makefile"
-printf "const v=read('../../cmd/corvint/pi_adapter.go'),r=new URL(\"../../conformance/r/\",import.meta.url),d=['../x.json']\n" > "$crepo/integrations/pi/cap.test.mjs"
-printf "const s=read('../../docs/specs/pi-workflow-v0.md')\n" > "$crepo/integrations/pi/src.js"
-printf 'package main\n\nconst piAdapterVersion = "1"\n' > "$crepo/cmd/corvint/pi_adapter.go"
-git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base3 || fail "base3 commit"
-base3=$(git -C "$crepo" rev-parse HEAD)
-printf 'not ok 7 - opencode interruption\n' > "$crepo/fail-host-adapter-node-test"
-mkdir -p "$crepo/docs/build-log" && printf 'note\n' > "$crepo/docs/build-log/x.md"
-crun --base "$base3" || fail "an unattributed failure failed the run: $(cat "$tmp/out")"
-grep -Eq "^batch-precheck: WARN make host-adapter-node-test \([0-9]+s\) unattributed: fails at HEAD, not the same way at $base3, but the diff changes none of its inputs \(integrations/, Makefile, cmd/corvint/pi_adapter.go, docs/specs/pi-workflow-v0.md, conformance/\), so the change cannot have caused it; host load [^ ]+: rerun it at a lower load$" "$tmp/out" ||
-  fail "unattributed not warned: $(cat "$tmp/out")"
-grep -q 'make host-adapter-node-test .* introduced' "$tmp/out" && fail "unattributed failure called introduced: $(cat "$tmp/out")"
-[[ -f $crepo/.git/batch-precheck-receipt ]] && fail "an unattributed failure wrote a receipt"
-attributed() {
-  crun --base "$base3" && fail "$1 hid the failure"
-  grep -q '^batch-precheck: FAIL make host-adapter-node-test .* introduced' "$tmp/out" || fail "$1 not introduced: $(cat "$tmp/out")"
-}
-printf 'x\n' > "$crepo/integrations/host.mjs"
-attributed "an integrations/ change"
-/bin/rm -f "$crepo/integrations/host.mjs"
-printf 'package main\n\nconst piAdapterVersion = "2"\n' > "$crepo/cmd/corvint/pi_adapter.go"
-attributed "a change to cmd/corvint/pi_adapter.go, read by the node tests"
-git -C "$crepo" checkout -q -- cmd/corvint/pi_adapter.go
-printf 'x\n' > "$crepo/integrations/pi/régression.test.mjs"
-attributed "an untracked git-quoted integrations/ name"
-git -C "$crepo" add integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm quoted || fail "quoted commit"
-attributed "a committed git-quoted integrations/ name"
-git -C "$crepo" reset -q --hard "$base3"
-printf "const t=read('../../internal/tool.go')\n" >> "$crepo/integrations/pi/cap.test.mjs"
-git -C "$crepo" add -A integrations && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm base4 || fail "base4 commit"
-base3=$(git -C "$crepo" rev-parse HEAD)
-attributed "a test reading an undeclared path (internal/tool.go)"
-/bin/rm -rf "$crepo/integrations" "$crepo/docs" "$crepo/cmd" "$crepo/Makefile" "$crepo/fail-host-adapter-node-test"
 
 fi
 if group 7; then
@@ -1627,7 +1524,7 @@ srun --base "$sbase"
 grep -q "^  | sealed-cem-names: .corvint/changes/$ghost.cem.json names $ghost, which is not a commit in HEAD's history" "$tmp/out" ||
   fail "refusal does not name the file: $(cat "$tmp/out")"
 grep -q "^  | sealed-cem-names: recover: git rm each named tracked file and commit$" "$tmp/out" &&
-  grep -q "^  | sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=$sbase " "$tmp/out" ||
+  grep -q "^  | sealed-cem-names: recover: then recreate the change evidence for this branch against its base $sbase$" "$tmp/out" ||
   fail "refusal does not name the reseal recovery: $(cat "$tmp/out")"
 grep -q 'rm each named untracked file' "$tmp/out" && fail "an untracked recovery for a committed seal: $(cat "$tmp/out")"
 grep -q "$sbase.cem.json names\|$inherited" "$tmp/out" && fail "a resolvable or base-held seal was refused: $(cat "$tmp/out")"
@@ -1852,13 +1749,6 @@ git clone -q --depth 1 "file://$trepo" "$srepo2" 2> /dev/null || fail "shallow c
 [[ $? == 2 ]] || fail "a shallow --base run did not exit 2: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REFUSE shallow-repository: .* fetch --unshallow origin' "$tmp/out" || fail "shallow refusal: $(cat "$tmp/out")"
 "$script/require-full-history.sh" probe "$trepo" || fail "a full clone was refused"
-# The dogfood range wrappers refuse the same clone before resolving their base.
-mkdir -p "$srepo2/script" && cp "$script/dogfood-change.sh" "$script/dogfood-check.sh" "$script/dogfood-bind-range.sh" "$script/dogfood-build-corvint.sh" "$srepo2/script/" ||
-  fail "copy dogfood wrappers"
-for w in dogfood-change dogfood-check dogfood-bind-range; do
-  "$srepo2/script/$w.sh" HEAD HEAD > "$tmp/out" 2>&1
-  [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
-done
 
 fi
 if group 13b; then
@@ -1969,9 +1859,6 @@ if group 15; then
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-# DWC-V0-746 (V1-4072): the sealed-head run is followed by the unwind on a refusal.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qF $'\t@BATCH_PRECHECK_REGEN= BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\') || { script/dogfood-closeout-unwind.sh ' ||
-  fail "dogfood-closeout-precheck does not select since the receipt or unwind a refusal (DCW-V0-923, DWC-V0-746)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"
@@ -2163,8 +2050,8 @@ BATCH_PRECHECK_SKIP_DRIFT=1 prun && fail "a failing pre-bind entry passed the pr
 row_is FAIL 'batch-drift (pre-bind, 2 packages)'
 grep -q 'batch-drift (skipped before the bind)' "$tmp/out" && fail "a skip row with nothing held: $(cat "$tmp/out")"
 [[ -f $prec ]] && fail "a failed pre-bind run left a record: $(cat "$prec")"
-# ASD-V0-825 (V1-4069): in explicit lane-closeout mode an @own entry runs only when a companion
-# input changed; its receipt is marked, and a batch since-receipt run does not narrow from it.
+# ASD-V0-825 (V1-4069), companion skip retired by decision 0594: a lane closeout runs the @own entry;
+# its receipt is still marked, and a batch since-receipt run does not narrow from it.
 odrift='./golden TestGoldenDrift @go
 ./golden TestFreeze @own @go'
 orun() { (unset GOFLAGS; cd "$rrepo" && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$odrift "$pre" "$@") > "$tmp/out" 2>&1; }
@@ -2173,35 +2060,24 @@ git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'lane go change'
 ohead=$(git -C "$rrepo" rev-parse HEAD)
 pbase=$rbase plan "$frontier" golden
 LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
-grep -qx "batch-precheck:   skipped ./golden TestFreeze (lane closeout: no companion input changed since $rbase; the batch precheck runs it, ASD-V0-825)" "$tmp/out" ||
-  fail "the lane run did not skip the @own entry: $(cat "$tmp/out")"
-grep -q '| batch-drift TestFreeze$' "$tmp/out" && fail "the lane run ran the @own entry: $(cat "$tmp/out")"
-row_is PASS 'batch-drift (1 packages, 1 of 2 tests)'
+grep -q 'no companion input changed' "$tmp/out" && fail "the lane run skipped the @own entry: $(cat "$tmp/out")"
+row_is PASS 'batch-drift TestFreeze'
 olane="$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt).lane"
 [[ $(cat "$olane" 2> /dev/null) == "$ohead" ]] || fail "the lane receipt carries no .lane mark for $ohead"
-# The batch run (no LANE) runs the @own entry and does not narrow from the lane receipt.
+# The batch run (no LANE) does not narrow from the lane receipt.
 mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$ohead.cem.json"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal lane change evidence'
 BATCH_PRECHECK_SINCE_RECEIPT=1 orun --base "$rbase" || fail "batch run over a lane receipt failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)$' "$tmp/out" ||
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check (ASD-V0-1990)$' "$tmp/out" ||
   fail "a batch run narrowed from a lane receipt: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 [[ ! -e $olane ]] || fail "a batch receipt kept the .lane mark"
-# A changed companion input runs the @own entry in a lane closeout too.
-mkdir -p "$rrepo/internal/companionrelease" && printf 'x\n' > "$rrepo/internal/companionrelease/note.txt"
-LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
-row_is PASS 'batch-drift TestFreeze'
-/bin/rm -rf "$rrepo/internal"
 
 
 fi
 if group 17; then
 # 17. ASD-V0-1990 (V1-4329): selection-baseline is deferred in both lane closeout passes,
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
-for target in dogfood-closeout dogfood-closeout-precheck; do
-  grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
-  grep -A8 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
-done
 baseline_deferred() {
   grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
     fail "lane deferral not named: $(cat "$tmp/out")"
@@ -2507,7 +2383,5 @@ lane_check || fail "unstaged lane diff refused"
 git -C "$lane_repo" add script
 lane_check || fail "staged lane diff refused"
 (cd "$lane_repo" && "$script/check-lane-script-tests.sh" missing-base) > "$tmp/out" 2>&1 && fail "invalid base admitted"
-grep -q 'check-lane-script-tests.sh' "$script/dogfood-check.sh" || fail "dogfood-check lost lane script preflight"
-grep -q 'script/dogfood-check.sh' "$script/dogfood-seal.sh" || fail "seal lost required check wrapper"
 fi
 finish

@@ -27,8 +27,6 @@ var PlatformRefusals = []PlatformRefusal{
 	{"groupreap: owned process groups are unavailable on this platform", "internal/groupreap/owner.go"},
 	{"cannot be read without no-follow support on this platform", "internal/gitstatus/read_other.go"},
 	{"worker platform unsupported", "internal/gitstatus/worker_other.go"},
-	{"platform has no qualified safe opening boundary", "internal/tasks/safeopen/open_other.go"},
-	{"Corvint Tasks is unsupported on this platform", "internal/tasks/wire/platform_other.go"},
 	{"secure publication is unsupported on this platform", "internal/cem/publish/secure_other.go"},
 	{"bounded input acquisition is unsupported on this platform", "internal/cem/publish/read_unsupported.go"},
 	{"serialized CEM map updates are unsupported on this platform", "internal/cem/publish/lock_other.go"},
@@ -36,8 +34,6 @@ var PlatformRefusals = []PlatformRefusal{
 	{"nonblocking confined shard reads unsupported on this platform", "internal/contextindex/blob_shards_open_unsupported.go"},
 	{"confined shard publication unsupported on this platform", "internal/contextindex/blob_shards_open_unsupported.go"},
 	{"git index stat routing is unsupported on this platform", "internal/contextindex/index_stat_other.go"},
-	{"file-transport-platform-unsupported", "internal/postmergeconnector/files_other.go"},
-	{"unsupported executable platform", "internal/analyzerexec/platform_other.go"},
 	{"receipt reads are unsupported on this platform", "internal/testvaliditydoc/platform.go"},
 	{"docs corpus reads are unsupported on this platform", "internal/doccorpus/encoding.go"},
 }

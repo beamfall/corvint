@@ -15,13 +15,13 @@ import (
 func TestCAPV08800HelpNode(t *testing.T) {
 	for _, flag := range []string{"--help", "-h"} {
 		var out, errout bytes.Buffer
-		args := []string{"--binary", "corvint-mcp", "help", flag}
+		args := []string{"--binary", "corvint-analyzer-go", "help", flag}
 		code := Profile(context.Background(), t.TempDir(), args, nil, &out, &errout)
-		if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "corvint-mcp help [COMMAND...] [--json]") || !strings.Contains(out.String(), "Required: none") {
+		if code != 0 || errout.Len() != 0 || !strings.Contains(out.String(), "corvint-analyzer-go help [COMMAND...] [--json]") || !strings.Contains(out.String(), "Required: none") {
 			t.Fatalf("%v: code=%d stdout=%q stderr=%q", args, code, out.String(), errout.String())
 		}
 		out.Reset()
-		args = []string{"--binary", "corvint-mcp", "help", "zz-unknown", flag}
+		args = []string{"--binary", "corvint-analyzer-go", "help", "zz-unknown", flag}
 		code = Profile(context.Background(), t.TempDir(), args, nil, &out, &errout)
 		var refusal clierror.Envelope
 		if code != 2 || out.Len() != 0 || json.Unmarshal(errout.Bytes(), &refusal) != nil || refusal.Code != "unknown-verb" {
@@ -101,8 +101,6 @@ func TestCLIProfile9300LiteralHelpValues(t *testing.T) {
 		{"context", []string{"context", "--instruction-profile", "default", "--help"}},
 		{"context", []string{"--instruction-profile", "default", "context", "--help"}},
 		{"cem prepare", []string{"cem", "prepare", "--replace", "--help"}},
-		{"eval", []string{"eval", "--reset-slot-weights", "--help"}},
-		{"eval", []string{"eval", "--learn-slot-weights", "--help"}},
 	} {
 		t.Run(strings.Join(row.args, " "), func(t *testing.T) {
 			var out, errout bytes.Buffer

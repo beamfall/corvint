@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -23,9 +22,6 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/observations"
-	"github.com/Beamfall/corvint/internal/worktreeimpact"
-
-	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 // PUB-V0-001 keeps this literal synchronized with VERSION.
@@ -34,28 +30,14 @@ const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
 type options struct {
-	proveAttackTests bool
-
 	command         string
 	helpTopic       string
-	proveMode       string
-	proveMutate     bool
-	prove           proveOptions
 	root            string
-	host            string
-	hostVersion     string
-	surface         string
-	adapterVersion  string
-	event           string
-	input           string
-	budgetBytes     int
 	impactPaths     []string
-	impactRawPaths  []string
 	impactProviders []string
 	impactCheckouts []extevidence.Checkout
 	impactLimit     int
 	impactBudget    *int
-	impactWorktree  bool
 	requireClean    bool
 	// impactCapabilities and impactProducer are the GPK-V0-084 listing and
 	// the opt-in PUB-V0-027 producer member.
@@ -69,12 +51,6 @@ type options struct {
 	featureIDSet       bool
 	featureLimit       int
 	featureBudget      *int
-	queryTask          string
-	queryLimit         int
-	queryTaskSet       bool
-	queryBudget        *int
-	queryIntent        string
-	queryOverlay       bool // --worktree-overlay (DIRTY-CACHE-940)
 	version            string
 }
 
@@ -88,7 +64,7 @@ func argumentError(message string) error {
 }
 
 func parse(arguments []string) (options, error) {
-	result := options{budgetBytes: defaultHarnessBudgetBytes, impactLimit: defaultImpactLimit, featureLimit: 10, queryLimit: 10}
+	result := options{impactLimit: defaultImpactLimit, featureLimit: 10}
 	if topic, requested, err := parseHelpInvocation(arguments); requested || err != nil {
 		result.helpTopic = topic
 		return result, err
@@ -103,12 +79,6 @@ func parse(arguments []string) (options, error) {
 	}
 	result.root = workingDirectory
 	index := 0
-	queryInvocation := queryCommandAfterRoots(arguments)
-	if queryInvocation {
-		// Set before root parsing so every standalone-query failure, including a
-		// lexical root failure, remains on the query's read-only error path.
-		result.command = "query"
-	}
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
 		value := ""
 		if arguments[index] == "--root" {
@@ -121,12 +91,7 @@ func parse(arguments []string) (options, error) {
 			value = strings.TrimPrefix(arguments[index], "--root=")
 			index++
 		}
-		var root string
-		if queryInvocation {
-			root, err = normalizeQueryRoot(value)
-		} else {
-			root, err = resolveExplicitRoot(value)
-		}
+		root, err := resolveExplicitRoot(value)
 		if err != nil {
 			return result, err
 		}
@@ -153,15 +118,6 @@ func parse(arguments []string) (options, error) {
 		result.command = "feature"
 		return parseFeatureArguments(result, arguments[index+1:])
 	}
-	if index < len(arguments) && arguments[index] == "query" {
-		result.command = "query"
-		parsed, parseErr := parseQueryArguments(result, arguments[index+1:])
-		if parseErr != nil {
-			return parsed, parseErr
-		}
-		parsed.root, parseErr = resolveQueryRoot(parsed.root)
-		return parsed, parseErr
-	}
 	if index >= len(arguments) {
 		return result, argumentError("the following arguments are required: command")
 	}
@@ -169,158 +125,7 @@ func parse(arguments []string) (options, error) {
 		// PRS-V1-910: agents type `corvint version` by analogy with corvint-tasks.
 		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + "; to print the version, run corvint --version (or corvint --version --json)")
 	}
-	if arguments[index] != "harness" {
-		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + didYouMean(arguments[index], topLevelCommands))
-	}
-	if index+1 >= len(arguments) {
-		return result, argumentError("the following arguments are required: harness_command")
-	}
-	if arguments[index+1] != "event" {
-		return result, invalidChoice("harness_command", arguments[index+1], harnessCommands)
-	}
-	result.command = "harness-event"
-	index += 2
-	for index < len(arguments) {
-		start := index
-		name, value, inline := strings.Cut(arguments[index], "=")
-		if !inline {
-			if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
-				return result, argumentError("argument " + name + ": expected one argument")
-			}
-			value = arguments[index+1]
-			index += 2
-		} else {
-			index++
-		}
-		switch name {
-		case "--host":
-			result.host = value
-		case "--host-version":
-			result.hostVersion = value
-		case "--surface":
-			result.surface = value
-		case "--adapter-version":
-			result.adapterVersion = value
-		case "--event":
-			result.event = value
-		case "--input":
-			result.input = value
-		case "--budget-bytes":
-			budget, err := strconv.Atoi(value)
-			if err != nil || budget < gokernel.MinOutputBytes || budget > gokernel.MaxOutputBytes {
-				return result, argumentError("invalid --budget-bytes")
-			}
-			result.budgetBytes = budget
-		default:
-			return result, argumentError("unrecognized arguments: " + strings.Join(arguments[start:], " "))
-		}
-	}
-	var missing []string
-	for _, required := range []struct{ name, value string }{
-		{"--host", result.host}, {"--host-version", result.hostVersion},
-		{"--surface", result.surface}, {"--adapter-version", result.adapterVersion},
-		{"--event", result.event}, {"--input", result.input},
-	} {
-		if required.value == "" {
-			missing = append(missing, required.name)
-		}
-	}
-	if len(missing) > 0 {
-		return result, argumentError("the following arguments are required: " + strings.Join(missing, ", "))
-	}
-	if !knownHost(result.host) {
-		return result, invalidChoice("--host", result.host, harnessHostChoices)
-	}
-	if !knownEvent(result.event) {
-		return result, invalidChoice("--event", result.event, harnessEventChoices)
-	}
-	if result.input != "-" {
-		return result, invalidChoice("--input", result.input, harnessInputChoices)
-	}
-	return result, nil
-}
-
-func parseQueryArguments(result options, arguments []string) (options, error) {
-	return parseQueryArgumentsForPlatform(result, arguments, runtime.GOOS)
-}
-
-func parseQueryArgumentsForPlatform(result options, arguments []string, platform string) (options, error) {
-	if !nativePlatformQualified(platform) {
-		return result, queryPlatformRefusal(platform)
-	}
-	for index := 0; index < len(arguments); {
-		if arguments[index] == worktreeOverlayFlag {
-			result.queryOverlay = true
-			index++
-			continue
-		}
-		name, value, inline := strings.Cut(arguments[index], "=")
-		if name != "--task" && name != "--limit" && name != "--budget-bytes" {
-			if !strings.HasPrefix(arguments[index], "-") {
-				// CAP-V0-121 (V1-3802): positional task text names the --task form.
-				return result, argumentError("unrecognized arguments: " + arguments[index] +
-					"; pass the task text with --task, as in: corvint query --task " + strconv.Quote(arguments[index]))
-			}
-			return result, argumentError("unrecognized arguments: " + arguments[index])
-		}
-		if !inline {
-			if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
-				return result, argumentError("argument " + name + ": expected one argument")
-			}
-			value = arguments[index+1]
-			index += 2
-		} else {
-			index++
-		}
-		switch name {
-		case "--task":
-			result.queryTask, result.queryTaskSet = value, true
-		case "--limit":
-			limit, ok := pythonInteger(value)
-			if !ok {
-				return result, argumentError("argument --limit: invalid int value: " + pythonRepr(value))
-			}
-			result.queryLimit = limit
-		case "--budget-bytes":
-			budget, ok := pythonBoundedInteger(value, contextindex.MaxPacketBytes)
-			if !ok {
-				return result, argumentError("argument --budget-bytes: invalid literal for int() with base 10: " + pythonRepr(value))
-			}
-			if budget < contextindex.MinPacketBytes || budget > contextindex.MaxPacketBytes {
-				return result, argumentError(fmt.Sprintf(
-					"argument --budget-bytes: budget_bytes must be between %d and %d",
-					contextindex.MinPacketBytes, contextindex.MaxPacketBytes,
-				))
-			}
-			result.queryBudget = &budget
-		}
-	}
-	if !result.queryTaskSet {
-		return result, argumentError("the following arguments are required: --task")
-	}
-	intent, err := contextindex.ValidateQueryCommand(result.queryTask, result.queryLimit)
-	result.queryIntent = intent
-	return result, err
-}
-
-// queryCommandAfterRoots identifies the one command whose root resolution is
-// deliberately deferred until its complete adapter contract is validated.
-func queryCommandAfterRoots(arguments []string) bool {
-	index := 0
-	for index < len(arguments) {
-		switch {
-		case arguments[index] == "--root":
-			if !rootPreambleValue(arguments, index+1) {
-				return false
-			}
-			index += 2
-		case strings.HasPrefix(arguments[index], "--root="):
-			index++
-		default:
-			return arguments[index] == "query"
-		}
-	}
-	return false
+	return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + didYouMean(arguments[index], topLevelCommands))
 }
 
 func parseImpactArguments(result options, arguments []string) (options, error) {
@@ -388,14 +193,6 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 				return result, argumentError("argument --require-clean: does not accept a value or repetition")
 			}
 			result.requireClean = true
-			index++
-			continue
-		}
-		if !positionalOnly && name == "--working-tree-untracked" {
-			if inline || result.impactWorktree {
-				return result, argumentError("argument --working-tree-untracked: does not accept a value or repetition")
-			}
-			result.impactWorktree = true
 			index++
 			continue
 		}
@@ -525,7 +322,6 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			return result, err
 		}
 		result.impactPaths = append(result.impactPaths, normalized)
-		result.impactRawPaths = append(result.impactRawPaths, argument)
 		index++
 	}
 	if result.impactCapabilities {
@@ -534,32 +330,29 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 	if len(result.impactCheckouts) != 0 && len(result.impactProviders) == 0 {
 		return result, argumentError("--repository requires --provider")
 	}
-	if result.requireClean && (result.impactBaseSet || result.impactWorktree) {
-		return result, argumentError("--require-clean is available only for path impact, not --base or --working-tree-untracked")
+	if result.requireClean && result.impactBaseSet {
+		return result, argumentError("--require-clean is available only for path impact, not --base")
 	}
-	if result.impactBudget != nil && (result.impactBaseSet || result.impactWorktree) {
+	if result.impactBudget != nil && result.impactBaseSet {
 		return result, impactBudgetOptionRefusal()
 	}
 	if result.impactBudget != nil && len(result.impactProviders) != 0 {
 		return result, argumentError("--budget-bytes cannot bound the --provider external section")
 	}
-	if len(result.impactProviders) != 0 && (result.impactBaseSet || result.impactWorktree) {
-		return result, argumentError("--provider is available only for the default path profile, not --base or --working-tree-untracked")
+	if len(result.impactProviders) != 0 && result.impactBaseSet {
+		return result, argumentError("--provider is available only for the default path profile, not --base")
 	}
 	if result.impactBaseSet {
 		if result.impactLanguage != "" {
 			return result, argumentError("--language-profile is for path impact; range impact names its language profile automatically")
 		}
-		if result.impactWorktree || len(result.impactPaths) != 0 {
-			return result, argumentError("--base is mutually exclusive with paths and --working-tree-untracked")
+		if len(result.impactPaths) != 0 {
+			return result, argumentError("--base is mutually exclusive with paths")
 		}
 		return result, nil
 	}
 	if result.impactProfile != "" {
 		return result, argumentError("--range-profile requires --base")
-	}
-	if result.impactWorktree && result.impactLanguage != "" {
-		return result, argumentError("--language-profile is unavailable with --working-tree-untracked")
 	}
 	if len(result.impactPaths) == 0 {
 		return result, argumentError("the following arguments are required: paths")
@@ -844,33 +637,14 @@ func invalidChoice(argument, value string, choices []string) error {
 }
 
 var (
-	harnessHostChoices  = gokernel.HarnessHosts()
-	harnessEventChoices = []string{"file-change", "post-tool", "session-end", "session-start", "stop", "user-prompt"}
-	harnessInputChoices = []string{"-"}
-	harnessCommands     = []string{"event"}
 	// topLevelCommands must name every top-level verb runContext dispatches, so
 	// the invalid-choice message never understates the binary. The leading run
 	// keeps the Python oracle's argparse declaration order; verbs this binary
 	// adds are appended in the order rootHelp documents them.
-	topLevelCommands = []string{"init", "adopt", "query", "feature", "impact", "eval", "lrf",
-		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
-		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
-		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-evidence", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp", "how"}
+	topLevelCommands = []string{"init", "adopt", "feature", "impact", "cem", "context",
+		"affected", "index", "docs",
+		"test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "runs", "test", "tests", "mcp", "how"}
 )
-
-func knownHost(value string) bool {
-	return gokernel.KnownHarnessHost(value)
-}
-
-func knownEvent(value string) bool {
-	switch value {
-	case "session-start", "user-prompt", "file-change", "post-tool", "stop", "session-end":
-		return true
-	default:
-		return false
-	}
-}
 
 func emit(stream io.Writer, value any) error {
 	encoded, err := gokernel.CanonicalJSON(value)
@@ -924,15 +698,10 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
 		return 2
 	}
-	arguments, err := withHeadAlias(arguments)
-	if err != nil {
-		emitError(stderr, err)
-		return 2
-	}
 	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {
 		return code
 	}
-	// The cem actions after the closed verifier and gate argv read one repository (WSD-V0-146).
+	// The cem actions after the closed verifier argv read one repository (WSD-V0-146).
 	if root, _, rest, isCEM, err := parseCEMInvocation(arguments); isCEM && err == nil {
 		if _, help, _ := parseHelpInvocation(arguments); !help {
 			guarded, err := guardWorkspace("cem", root, rest, true)
@@ -946,154 +715,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
 		return exit
 	}
-	if len(arguments) > 0 && arguments[0] == "native-hook" {
-		return runNativeHook(ctx, arguments[1:], stdin, stdout, stderr)
-	}
-	if len(arguments) > 0 && (arguments[0] == "authority-event" || arguments[0] == "qualified-event") {
-		return runProtectedEvent(ctx, arguments, stdin, stdout, stderr)
-	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
-		if root, rest, handled, err := parseGraphInvocation(arguments); handled {
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			return runGraphImports(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, handled, err := parseDeltaInvocation(arguments); handled {
-			if err != nil {
-				fmt.Fprintln(stderr, "delta-invalid-arguments")
-				return 2
-			}
-			return runDelta(ctx, root, rest, stdout, stderr)
-		}
-		if invocation, isRatchet, ratchetErr := parseMigrationRatchetInvocation(arguments); isRatchet {
-			if ratchetErr != nil {
-				emitError(stderr, ratchetErr)
-				return 2
-			}
-			return runMigrationRatchetInvocation(ctx, invocation, stdout, stderr)
-		}
-		if len(arguments) >= 2 && arguments[0] == "adapter" {
-			return runHostAdapter(ctx, arguments[1:], stdin, adapterStdout(stdout, stderr))
-		}
-		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
-			if corpusErr != nil {
-				emitError(stderr, corpusErr)
-				return 2
-			}
-			return runCorpus(ctx, options, stdout, stderr)
-		}
-		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
-			if maintainErr != nil {
-				emitError(stderr, maintainErr)
-				return 2
-			}
-			return runDocsMaintain(ctx, options, stdout, stderr)
-		}
-		if options, handled, err := parseDocsFlowsInvocation(arguments); handled {
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			return runDocsFlows(ctx, options, stdout, stderr)
-		}
-		if options, isDocs, docsErr := parseDocsInvocation(arguments); isDocs {
-			if docsErr != nil {
-				emitError(stderr, docsErr)
-				return 2
-			}
-			return runDocs(ctx, options, stdin, stdout, stderr)
-		}
-		if options, handled, err := parseStepInvocation(arguments); handled {
-			if err != nil {
-				return stepError(stderr, err)
-			}
-			return runStep(ctx, options, stdout, stderr)
-		}
-		if root, rest, isWork, workErr := parseWorkInvocation(arguments); isWork {
-			if workErr != nil {
-				return emitWorkError(stdout, "MALFORMED_INPUT")
-			}
-			if exit, adopted := runWorkAdoption(ctx, root, rest, stdout, stderr); adopted {
-				return exit
-			}
-			return runWork(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, isLocalCompletion, localCompletionErr := parseLocalCompletionInvocation(arguments); isLocalCompletion {
-			if localCompletionErr != nil {
-				emitError(stderr, localCompletionErr)
-				return 2
-			}
-			return runLocalCompletion(ctx, root, rest, stdin, stdout, stderr)
-		}
-		if root, rest, isDogfoodRecord, dogfoodRecordErr := parseDogfoodRecordInvocation(arguments); isDogfoodRecord {
-			if dogfoodRecordErr != nil {
-				emitError(stderr, dogfoodRecordErr)
-				return 2
-			}
-			return runDogfoodRecord(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, limit, isObservations, observationsErr := parseObservationsInvocation(arguments); isObservations {
-			if observationsErr != nil {
-				emitError(stderr, observationsErr)
-				return 2
-			}
-			return runObservations(ctx, root, limit, stdout, stderr)
-		}
-		if _, isDepsource, depsourceErr := parseDepsourceInvocation(arguments); isDepsource {
-			if depsourceErr != nil {
-				emitError(stderr, depsourceErr)
-				return 2
-			}
-			return runDepsource(ctx, arguments, stdout, stderr)
-		}
-		if _, isNecessity, necessityErr := parseNecessityInvocation(arguments); isNecessity {
-			if necessityErr != nil {
-				emitError(stderr, necessityErr)
-				return 2
-			}
-			return runNecessity(ctx, arguments, stdout, stderr)
-		}
-		if _, isSurprise, surpriseErr := parseSurpriseInvocation(arguments); isSurprise {
-			if surpriseErr != nil {
-				emitError(stderr, surpriseErr)
-				return 2
-			}
-			return runSurprise(ctx, arguments, stdout, stderr)
-		}
-		if _, isAnswerability, answerabilityErr := parseAnswerabilityInvocation(arguments); isAnswerability {
-			if answerabilityErr != nil {
-				emitError(stderr, answerabilityErr)
-				return 2
-			}
-			return runAnswerability(ctx, arguments, stdout, stderr)
-		}
-		if kernelRoot, kernelRest, isKernel, kernelErr := parseKernelInvocation(arguments); isKernel {
-			if kernelErr != nil {
-				emitError(stderr, kernelErr)
-				return 2
-			}
-			return runKernel(ctx, kernelRoot, kernelRest, stdin, stdout, stderr)
-		}
-		if isLeaseInvocation(arguments) {
-			return runLease(arguments, stdout, stderr)
-		}
-		if isReadsInvocation(arguments) {
-			return runReads(arguments, stdout, stderr)
-		}
-		if calibrateInvoked(arguments) {
-			return runCalibrate(ctx, arguments, stdout, stderr)
-		}
-		if skillExportInvoked(arguments) {
-			return runSkillExport(ctx, arguments, stdout, stderr)
-		}
-		if options, isProve, proveErr := parseProveBundleInvocation(arguments); isProve {
-			if proveErr != nil {
-				emitError(stderr, proveErr)
-				return 2
-			}
-			return runProveBundle(ctx, arguments, options, stdout, stderr)
+		if code, handled := runDocsShim(ctx, arguments, stdin, stdout, stderr); handled {
+			return code
 		}
 		if root, isIndex, indexErr := parseIndexInvocation(arguments); isIndex {
 			if indexErr != nil {
@@ -1101,13 +725,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				return 2
 			}
 			return runIndex(ctx, root, stdout, recordingStderr(root.root, stderr))
-		}
-		if options, isLookup, lookupErr := parseContextLookupInvocation(arguments); isLookup {
-			if lookupErr != nil {
-				emitError(stderr, lookupErr)
-				return 2
-			}
-			return runContextLookup(ctx, options, stdout, stderr)
 		}
 		if options, isTaskContext, contextErr := parseTaskContextInvocation(arguments); isTaskContext {
 			if contextErr != nil {
@@ -1130,14 +747,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runAffected(ctx, root, stdout, stderr)
 		}
-		if root, rest, requested := changesInvocation(arguments); requested {
-			return runChanges(ctx, root, rest, stdout, stderr)
-		}
 		if root, rest, requested := runsInvocation(arguments); requested {
 			return runRuns(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, requested := reproInvocation(arguments); requested {
-			return runRepro(ctx, root, rest, stdout, stderr)
 		}
 		if root, rest, requested := testInvocation(arguments); requested {
 			return runTest(ctx, root, rest, stdout, stderr)
@@ -1148,27 +759,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if root, rest, requested := flowInvocation(arguments); requested {
 			return runFlows(ctx, root, rest, stdout, stderr)
 		}
-		if root, rest, requested, err := parseBreakageInvocation(arguments); requested {
-			if err != nil {
-				emitError(stderr, err)
-				return 2
-			}
-			return runBreakage(ctx, root, rest, stdout, stderr)
-		}
-		if options, isObligations, obligationsErr := parseObligationsInvocation(arguments); isObligations {
-			if obligationsErr != nil {
-				emitError(stderr, obligationsErr)
-				return 2
-			}
-			return runObligations(options, stdout, stderr)
-		}
-		if root, isBatch, batchErr := parseBatchInvocation(arguments); isBatch {
-			if batchErr != nil {
-				emitError(stderr, batchErr)
-				return 2
-			}
-			return runBatch(ctx, root, stdin, stdout, stderr)
-		}
 		if root, activation, rest, isActivation, activationErr := parseActivationInvocation(arguments); isActivation {
 			if activationErr != nil {
 				emitError(stderr, activationErr)
@@ -1176,75 +766,10 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			return runActivation(ctx, root, activation, rest, stdout, stderr)
 		}
-		if root, rest, isRecord, recordErr := parseRecordInvocation(arguments); isRecord {
-			if recordErr != nil {
-				emitError(stderr, recordErr)
-				return 2
-			}
-			return runRecord(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isMigration, migrationErr := parseMigrateTracesInvocation(arguments); isMigration {
-			if migrationErr != nil {
-				emitError(stderr, migrationErr)
-				return 2
-			}
-			return runMigrateTraces(ctx, root, rest, stdout, stderr)
-		}
-		if root, rest, isLRF, lrfErr := parseLRFInvocation(arguments); isLRF {
-			if lrfErr != nil {
-				emitError(stderr, lrfErr)
-				return 2
-			}
-			return runLRF(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		// frontier carries no error out of interception: CF-V0-024 forbids the
-		// message emitError renders, so every frontier failure — argv included —
-		// leaves through the CF-V0-022 envelope inside runFrontier.
-		if parseFrontierNextInvocation(arguments) {
-			return runFrontierNext(arguments[1:], stdout)
-		}
-		if root, rest, isFrontier := parseFrontierInvocation(arguments); isFrontier {
-			return runFrontier(ctx, root, rest, stdout, stderr)
-		}
 		if code, isTestCommand := runTestCommand(ctx, arguments, stdout, stderr); isTestCommand {
 			return code
 		}
-		if root, rest, isWitness, witnessErr := parseWitnessInvocation(arguments); isWitness {
-			if witnessErr != nil {
-				emitError(stderr, witnessErr)
-				return 2
-			}
-			return runWitness(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isOCM, ocmErr := parseOCMInvocation(arguments); isOCM {
-			if ocmErr != nil {
-				emitError(stderr, ocmErr)
-				return 2
-			}
-			return runOCM(ctx, root, rest, stdout, unsupportedRecorder{root: root, stderr: stderr})
-		}
-		if root, rest, isDogfoodOCM, dogfoodOCMErr := parseDogfoodOCMInvocation(arguments); isDogfoodOCM {
-			if dogfoodOCMErr != nil {
-				emitError(stderr, dogfoodOCMErr)
-				return 2
-			}
-			return runDogfoodOCM(ctx, root, rest, stdout, recordingStderr(root, stderr))
-		}
-		if root, rest, isProveObserve, proveObserveErr := parseProveObserveInvocation(arguments); isProveObserve {
-			if proveObserveErr != nil {
-				emitError(stderr, proveObserveErr)
-				return 2
-			}
-			return runProveObserve(ctx, root, rest, stdin, stderr)
-		}
-		if root, rest, isDogfoodObserve, dogfoodObserveErr := parseDogfoodObserveInvocation(arguments); isDogfoodObserve {
-			if dogfoodObserveErr != nil {
-				emitError(stderr, dogfoodObserveErr)
-				return 2
-			}
-			return runDogfoodObserve(ctx, root, rest, stdout, stderr)
-		}
-		if code, handled := runEvalOrTwoRootImpact(ctx, arguments, stdout, stderr); handled {
+		if code, handled := runTwoRootImpactInvocation(ctx, arguments, stdout, stderr); handled {
 			return code
 		}
 		if root, callerRoot, rest, isCEM, cemErr := parseCEMInvocation(arguments); isCEM {
@@ -1257,9 +782,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	}
 	options, err := parse(arguments)
 	if err != nil {
-		if options.command != "query" {
-			observeUnsupported(options.root, err, options.queryTask)
-		}
+		observeUnsupported(options.root, err, "")
 		emitError(stderr, err)
 		return 2
 	}
@@ -1274,21 +797,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		// The last argument: --version for text, --json for corvint-version/1 (PRS-V1-020).
 		return emitVersion(stdout, stderr, options.version == "--json")
 	}
-	if options.command == "query" {
-		queryContext := withQueryWidening(withSnapshotMissNotice(ctx, stderr, "query", options.root))
-		var contextReceipt map[string]any
-		var err error
-		if options.queryOverlay {
-			contextReceipt, err = overlayQueryContext(queryContext, stderr, options)
-		} else {
-			contextReceipt, err = standaloneQueryContext(queryContext, options)
-		}
-		if err != nil {
-			emitError(stderr, err)
-			return 2
-		}
-		return emitContextPayload(stdout, stderr, "query", contextReceipt)
-	}
 	if options.command == "impact" && options.impactCapabilities {
 		return emitImpactCapabilities(stdout, stderr)
 	}
@@ -1302,7 +810,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				return index, nil
 			}
 			buildFailed = true
-			observeUnsupported(options.root, err, options.queryTask)
+			observeUnsupported(options.root, err, "")
 			var contextError *contextindex.Error
 			if errors.As(err, &contextError) && contextError.Code == "unsupported-impact-repository" {
 				switch options.command {
@@ -1318,9 +826,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			if options.requireClean && index.SourceDirty() {
 				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
-			}
-			if options.impactWorktree {
-				return worktreeimpact.Compile(ctx, index, options.impactRawPaths, options.impactLimit)
 			}
 			if options.impactBaseSet {
 				if err := impactRangeAncestryRefusal(ctx, index.Root); err != nil {
@@ -1355,16 +860,16 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		// ERI-V0-261 (V1-1881): a range whose over-bound refusal is proved
 		// without the index refuses before the snapshot is loaded, with the
 		// bytes the loaded path returns.
-		if options.command == "impact" && options.impactBaseSet && !options.impactWorktree {
+		if options.command == "impact" && options.impactBaseSet {
 			if err := contextindex.PerPathRangeBoundRefusalBeforeLoad(ctx, options.root, options.impactBase, options.impactLimit, options.impactProfile == "expanded-256"); err != nil {
-				observeUnsupported(options.root, err, options.queryTask)
+				observeUnsupported(options.root, err, "")
 				emitError(stderr, err)
 				return 2
 			}
 		}
 		eager := func() *contextindex.Index { return snapshotIndex(ctx, options.root) }
 		deferred := func() *contextindex.Index { return deferredSnapshotIndex(ctx, options.root) }
-		if options.impactWorktree || options.impactBaseSet {
+		if options.impactBaseSet {
 			deferred = eager
 		}
 		contextReceipt, err := overSnapshot(deferred, eager, build, compute)
@@ -1373,7 +878,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			return 2
 		}
 		if err != nil {
-			observeUnsupported(options.root, err, options.queryTask)
+			observeUnsupported(options.root, err, "")
 			emitError(stderr, err)
 			return 2
 		}
@@ -1381,32 +886,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			return emitContextPayloadWithProducer(stdout, stderr, options.command, contextReceipt, currentProducer())
 		}
 		return emitContextPayload(stdout, stderr, options.command, contextReceipt)
-	}
-	input, err := readInput(ctx, stdin)
-	if err != nil {
-		code := "invalid-harness-input"
-		message := "cannot read harness input"
-		if ctx.Err() != nil {
-			code = "harness-input-cancelled"
-			message = "harness input read was cancelled"
-		}
-		emitError(stderr, &gokernel.Error{Code: code, Message: message})
-		return 2
-	}
-	result, err := gokernel.HandleEventContext(ctx, gokernel.EventRequest{
-		Root: options.root, Host: options.host, HostVersion: options.hostVersion,
-		Surface: options.surface, AdapterVersion: options.adapterVersion,
-		Event: options.event, Input: input, BudgetBytes: options.budgetBytes, CorvintVersion: version,
-		IndexedContext: harnessIndexedContext, SharedIndexedContext: sharedIndexedContextFromEnvironment(),
-	})
-	if err != nil {
-		observeUnsupported(options.root, err, taskFromInput(input))
-		emitError(stderr, err)
-		return 2
-	}
-	if err := emit(stdout, result); err != nil {
-		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write harness output"})
-		return 2
 	}
 	return 0
 }
@@ -1446,95 +925,6 @@ func impactBudget(paths []string, budget *int) *int {
 	return nil
 }
 
-// standaloneQueryContext dispatches the standalone query profiles. An optional
-// loaded index is the batch seam (SBQ-V0-003): supplied, it replaces the
-// acquisition each profile would make and nothing else changes, so a batch
-// operation's receipt is this verb's own receipt.
-func standaloneQueryContext(ctx context.Context, options options, loaded ...*contextindex.Index) (map[string]any, error) {
-	switch options.queryIntent {
-	case "repository":
-		result, err := repositoryQueryContext(ctx, options.root, options.queryTask, options.queryLimit, options.queryBudget, loaded...)
-		return result, mapStandaloneQueryBuildError(err, false)
-	case "agent-tooling":
-		result, err := repositoryQueryContext(ctx, options.root, options.queryTask, options.queryLimit, options.queryBudget, loaded...)
-		return result, mapStandaloneQueryBuildError(err, false)
-	case "project-operations":
-		result, err := authorityStartQueryContext(ctx, options, loaded...)
-		if !authorityStartUnavailable(err) {
-			return result, err
-		}
-		return authorityDegradedQueryContext(ctx, options, loaded...)
-	default:
-		return nil, &contextindex.Error{Code: "unsupported-query-intent", Message: "native Go standalone query received an unvalidated task orientation"}
-	}
-}
-
-func authorityStartQueryContext(ctx context.Context, options options, loaded ...*contextindex.Index) (map[string]any, error) {
-	compute := func(index *contextindex.Index) (map[string]any, error) {
-		return contextindex.QueryAuthorityStartBudget(
-			ctx, index, options.queryTask, options.queryLimit, options.queryBudget,
-		)
-	}
-	if index := preloadedIndex(loaded); index != nil {
-		return compute(index)
-	}
-	query := func() (*contextindex.Index, error) {
-		return contextindex.BuildQuery(ctx, options.root, options.queryTask)
-	}
-	build := func() (*contextindex.Index, error) {
-		built, err := timedMissBuild(ctx, query)
-		return built, mapStandaloneQueryBuildError(err, true)
-	}
-	return overSnapshot(
-		func() *contextindex.Index { return deferredSnapshotIndex(ctx, options.root) },
-		func() *contextindex.Index { return snapshotIndex(ctx, options.root) },
-		build, compute,
-	)
-}
-
-// authorityStartUnavailable reports the one authority-start refusal GPK-V0-091
-// degrades: the tree ranks no uniquely highest root AGENTS.md. Every other
-// typed refusal (a symlink AGENTS.md, unsupported authority content, build,
-// stability and trace failures) is returned unchanged.
-func authorityStartUnavailable(err error) bool {
-	var contextError *contextindex.Error
-	return errors.As(err, &contextError) &&
-		contextError.Code == "unsupported-query-authority" &&
-		contextError.Message == contextindex.QueryAuthorityMissingRootMessage
-}
-
-// authorityDegradedQueryContext answers a project-operations task over the
-// shared repository profile after the authority-start profile refused for a
-// missing root authority (GPK-V0-091). The receipt names the degradation and
-// carries its uncertainty line; it never calls the authority-start helpers.
-func authorityDegradedQueryContext(ctx context.Context, options options, loaded ...*contextindex.Index) (map[string]any, error) {
-	ctx = contextindex.WithQueryDegradation(ctx, contextindex.QueryDegradation{
-		Code: "authority-start-unavailable",
-		Uncertainty: "authority-start profile unavailable: no uniquely highest-ranked root AGENTS.md; " +
-			"the repository profile answered without a governing authority document",
-	})
-	result, err := repositoryQueryContext(ctx, options.root, options.queryTask, options.queryLimit, options.queryBudget, loaded...)
-	return result, mapStandaloneQueryBuildError(err, false)
-}
-
-func mapStandaloneQueryBuildError(err error, authorityStart bool) error {
-	if err == nil {
-		return nil
-	}
-	var contextError *contextindex.Error
-	if !errors.As(err, &contextError) || contextError.Code != "unsupported-impact-repository" {
-		return err
-	}
-	profile := "query index"
-	if authorityStart {
-		profile = "authority-start query index"
-	}
-	return &contextindex.Error{
-		Code:    "unsupported-query-repository",
-		Message: strings.Replace(contextError.Message, "repository index", profile, 1),
-	}
-}
-
 func emitContextPayload(stdout, stderr io.Writer, tool string, contextReceipt map[string]any) int {
 	return emitPayload(stdout, stderr, tool, map[string]any{"ok": true, "mutates": false, "tool": tool, "context": contextReceipt})
 }
@@ -1567,6 +957,20 @@ func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) 
 		return 2
 	}
 	return 0
+}
+
+// runCEMInvocation runs the cem command that owns its whole argv before the
+// general router: the stable verifier.
+func runCEMInvocation(ctx context.Context, args []string, stdout, stderr io.Writer) (int, bool) {
+	// A help request for the action prints its help before the closed argv
+	// parser would refuse it (V1-2109).
+	if topic, requested, err := parseHelpInvocation(args); requested && err == nil && topic == cemActionHelpPrefix+"verify-stable" {
+		if _, err := io.WriteString(stdout, helpText(topic)); err != nil {
+			return 1, true
+		}
+		return 0, true
+	}
+	return cemcli.RunStableInvocation(ctx, args, stdout, stderr)
 }
 
 // parseCEMInvocation detects `[--root PATH] cem ...`. root is normalized and
@@ -1604,10 +1008,6 @@ func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []str
 		return "", "", nil, true, err
 	}
 	return root, callerRoot, arguments[index+1:], true, nil
-}
-
-func readInput(ctx context.Context, stdin io.Reader) ([]byte, error) {
-	return readInputBounded(ctx, stdin, gokernel.MaxInputBytes)
 }
 
 func readInputBounded(ctx context.Context, stdin io.Reader, limit int64) ([]byte, error) {
@@ -1742,15 +1142,6 @@ func (recorder unsupportedRecorder) Write(envelope []byte) (int, error) {
 	return written, err
 }
 
-func taskFromInput(input []byte) string {
-	var value map[string]any
-	if json.Unmarshal(input, &value) != nil {
-		return ""
-	}
-	task, _ := value["task"].(string)
-	return task
-}
-
 func pythonJSONString(value string) string {
 	var output strings.Builder
 	output.WriteByte('"')
@@ -1791,36 +1182,9 @@ func main() {
 		os.Exit(code)
 	}
 
-	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
-		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
-	}
-	// Startup-only owned-group verification precedes signal goroutines, Git
-	// resolution and every ordinary Core entrypoint.
-	if len(os.Args) > 1 && os.Args[1] == "dogfood-outcome-worker" {
-		os.Exit(runDogfoodOutcomeWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
-	}
-	if len(os.Args) > 1 && os.Args[1] == "dogfood-verifier-worker" {
-		os.Exit(runDogfoodVerifierWorker(os.Args[2:], os.Stdout, os.Stderr))
-	}
-
 	signalled, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
-	ctx, release := adapterHostKillContext(signalled, os.Args[1:], adapterProcessStart)
-	defer release()
-	exitProcess(runProfiledContext(signalled, ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
-}
-
-// sharedIndexedContextFromEnvironment enables the shared bracket only under
-// the explicit opt-in; the default path stays byte-identical and untouched.
-// The engine digest that names the snapshot file is a read of this binary,
-// not of the repository, so it is started here, before the bracket opens,
-// instead of inside its read stage.
-func sharedIndexedContextFromEnvironment() gokernel.SharedIndexedContext {
-	if runtimeenv.Value("HARNESS_SHARED_OBSERVATION") != "1" {
-		return nil
-	}
-	go contextindex.LoadedEngineID()
-	return harnessSharedIndexedContext
+	exitProcess(runProfiledContext(signalled, signalled, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
 }
 
 // providerSource turns one `--provider` or `--provider-command` value into a

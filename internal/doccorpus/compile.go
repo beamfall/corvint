@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/lineanchor"
 	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
@@ -1580,7 +1581,7 @@ func isTestPath(p string) bool {
 }
 
 // maxSpanBytes bounds one evidence excerpt.
-const maxSpanBytes = 64 << 10
+const maxSpanBytes = lineanchor.MaxSpanBytes
 
 func span(data []byte, start, end int) ([]byte, error) {
 	if start < 1 || end < start {

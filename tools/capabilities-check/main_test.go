@@ -74,15 +74,15 @@ func TestCAPV0002RepositoryCatalogMatchesInventory(t *testing.T) {
 // that silently returns nothing cannot pass the gate.
 func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	inv, _, _ := load(t)
-	if len(inv.Commands) < 40 || len(inv.Binaries) < 40 || len(inv.Tools) < 30 {
+	if len(inv.Commands) < 15 || len(inv.Binaries) < 10 || len(inv.Tools) < 25 {
 		t.Fatalf("inventory too small: %d commands, %d binaries, %d tools", len(inv.Commands), len(inv.Binaries), len(inv.Tools))
 	}
-	for _, c := range []string{"init", "context", "harness event", "delta"} {
+	for _, c := range []string{"init", "impact", "affected"} {
 		if !contains(inv.Commands, c) {
 			t.Errorf("command %q not collected", c)
 		}
 	}
-	for _, c := range []string{"init", "adopt", "index", "query", "context", "impact", "affected", "prove", "cem", "ocm", "frontier", "dogfood"} {
+	for _, c := range []string{"init", "adopt", "index", "impact", "affected"} {
 		if !inv.Core[c] {
 			t.Errorf("Core verb %q not collected", c)
 		}
@@ -90,17 +90,17 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	if inv.Core["feature"] || inv.Core["Experimental"] {
 		t.Errorf("Core list reads past its section: %v", inv.Core)
 	}
-	for _, c := range []string{"init", "harness", "delta", "tests"} {
+	for _, c := range []string{"init", "impact", "tests"} {
 		if !contains(inv.Dispatched, c) {
 			t.Errorf("dispatched verb %q not collected", c)
 		}
 	}
-	for _, b := range []string{"corvint", "corvint-mcp", "corvint-lsp", "corvint-tasks", "corvint-analyzer-go"} {
+	for _, b := range []string{"corvint", "corvint-mcp", "corvint-analyzer-go", "corvint-test-runner"} {
 		if !contains(inv.Binaries, b) {
 			t.Errorf("binary %q not collected", b)
 		}
 	}
-	for _, tool := range []string{"corvint.query", "corvint.cem.report", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace", "corvint.map_plan"} {
+	for _, tool := range []string{"corvint.impact", "corvint.flows.navigate", "corvint.docs_draft", "corvint.test_validity", "corvint.docs_trace"} {
 		if !contains(inv.Tools, tool) {
 			t.Errorf("MCP tool %q not collected", tool)
 		}
@@ -114,11 +114,11 @@ func TestCAPV0003SyntheticOmissionAndStaleRowFail(t *testing.T) {
 	cases := []struct {
 		name, drop, add, kind, want string
 	}{
-		{"command omitted", "| `corvint delta` |", "", "missing", "delta"},
-		{"binary omitted", "| `corvint-lsp` |", "", "missing", "corvint-lsp"},
+		{"command omitted", "| `corvint impact` |", "", "missing", "impact"},
+		{"binary omitted", "| `corvint-analyzer-go` |", "", "missing", "corvint-analyzer-go"},
 		{"tool omitted", "| `corvint.docs_trace` |", "", "missing", "corvint.docs_trace"},
 		{"stale command", "", "| `corvint retired-verb` | q | u | `corvint retired-verb` | o | experimental | r | s |\n", "stale", "retired-verb"},
-		{"duplicate command", "", "| `corvint delta` | q | u | `corvint delta` | o | experimental | r | s |\n", "duplicate", "delta"},
+		{"duplicate command", "", "| `corvint impact` | q | u | `corvint impact` | o | experimental | r | s |\n", "duplicate", "impact"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -201,11 +201,11 @@ func TestCAPV0002DispatchDriftFails(t *testing.T) {
 	removed := inv
 	removed.Dispatched = nil
 	for _, verb := range inv.Dispatched {
-		if verb != "delta" {
+		if verb != "review" {
 			removed.Dispatched = append(removed.Dispatched, verb)
 		}
 	}
-	if got := kinds(Check(catalog, nil, removed, linkBase)); !contains(got["dispatch-absent"], "delta") {
+	if got := kinds(Check(catalog, nil, removed, linkBase)); !contains(got["dispatch-absent"], "review") {
 		t.Fatalf("documented but undispatched verb not reported: %v", got)
 	}
 	if _, err := parseDispatched([]byte("package main\nvar other = []string{\"init\"}\n")); err == nil {
@@ -216,9 +216,9 @@ func TestCAPV0002DispatchDriftFails(t *testing.T) {
 // TestCAPV0003MaturityAndLinkDriftFail covers the maturity and broken-link findings.
 func TestCAPV0003MaturityAndLinkDriftFail(t *testing.T) {
 	inv, catalog, _ := load(t)
-	line := lineWith(t, catalog, "| `corvint delta` |")
+	line := lineWith(t, catalog, "| `corvint review` |")
 	doc := bytes.Replace(catalog, []byte(line), []byte(strings.Replace(line, "| experimental |", "| core |", 1)), 1)
-	if got := kinds(Check(doc, nil, inv, linkBase)); !contains(got["maturity"], "delta") {
+	if got := kinds(Check(doc, nil, inv, linkBase)); !contains(got["maturity"], "review") {
 		t.Fatalf("experimental command labelled core not reported: %v", got)
 	}
 	line = lineWith(t, catalog, "| `corvint impact` |")
@@ -226,9 +226,9 @@ func TestCAPV0003MaturityAndLinkDriftFail(t *testing.T) {
 	if got := kinds(Check(doc, nil, inv, linkBase)); !contains(got["maturity"], "impact") {
 		t.Fatalf("Core command labelled experimental not reported: %v", got)
 	}
-	line = lineWith(t, catalog, "| `corvint delta` |")
-	doc = bytes.Replace(catalog, []byte(line), []byte(strings.Replace(line, "immutable-delta-v0.md", "no-such-spec.md", 1)), 1)
-	if got := kinds(Check(doc, nil, inv, linkBase)); !contains(got["broken-link"], "delta") {
+	line = lineWith(t, catalog, "| `corvint review` |")
+	doc = bytes.Replace(catalog, []byte(line), []byte(strings.Replace(line, "repository-guidance-v0.md", "no-such-spec.md", 1)), 1)
+	if got := kinds(Check(doc, nil, inv, linkBase)); !contains(got["broken-link"], "review") {
 		t.Fatalf("broken link not reported: %v", got)
 	}
 }
@@ -241,7 +241,7 @@ func TestCAPV0004ReadmeRowsMapToCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) < 8 {
+	if len(rows) < 7 {
 		t.Fatalf("README capability table has %d rows", len(rows))
 	}
 	header := "| Capability | What you get | Try it | Maturity |\n|---|---|---|---|\n"
@@ -249,9 +249,9 @@ func TestCAPV0004ReadmeRowsMapToCatalog(t *testing.T) {
 	if got := kinds(Check(catalog, unmapped, inv, linkBase)); !contains(got["readme-unmapped"], "corvint teleport --now") {
 		t.Fatalf("unmapped README row not reported: %v", got)
 	}
-	oversold := []byte("<!-- capability-gate:readme -->\n" + header + "| X | y | `corvint harness event --host codex` | core |\n| Z | w | `corvint-mcp --root /r` | implemented |\n<!-- /capability-gate:readme -->\n")
+	oversold := []byte("<!-- capability-gate:readme -->\n" + header + "| X | y | `corvint impact PATH` | experimental |\n| Z | w | `corvint-analyzer-go < r.json` | core |\n<!-- /capability-gate:readme -->\n")
 	got := kinds(Check(catalog, oversold, inv, linkBase))
-	if !contains(got["readme-maturity"], "corvint harness event --host codex") || !contains(got["readme-maturity"], "corvint-mcp --root /r") {
+	if !contains(got["readme-maturity"], "corvint impact PATH") || !contains(got["readme-maturity"], "corvint-analyzer-go < r.json") {
 		t.Fatalf("overstated README maturity not reported: %v", got)
 	}
 }
@@ -348,8 +348,8 @@ func TestCAPV0005RoutingPointersNameTheCatalog(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if skills < 10 {
-		t.Fatalf("found %d shipped skill files, want at least 10", skills)
+	if skills < 5 {
+		t.Fatalf("found %d shipped skill files, want at least 5", skills)
 	}
 }
 
@@ -377,13 +377,13 @@ func syntheticRepository() map[string]string {
 		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
 			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
 		"cmd/corvint/main.go": "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
-		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\nvar docsSubcommands = []string{}\n" +
-			"var flowSubcommands = map[string]bool{}\nvar leaseActions = []string{}\n",
-		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.query\"\n",
+		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\n" +
+			"var flowSubcommands = map[string]bool{}\n",
+		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.impact\"\n",
 		"internal/mcp/tools.go":   "package mcp\n",
 		"docs/CAPABILITIES.md": "<!-- capability-gate:commands -->\n| Command | Maturity |\n|---|---|\n| `corvint init` | core |\n<!-- /capability-gate:commands -->\n" +
 			"<!-- capability-gate:binaries -->\n| Binary | Maturity |\n|---|---|\n| `corvint` | core |\n| `corvint-mcp` | experimental |\n<!-- /capability-gate:binaries -->\n" +
-			"<!-- capability-gate:mcp-tools -->\n| Tool | Maturity |\n|---|---|\n| `corvint.query` | experimental |\n<!-- /capability-gate:mcp-tools -->\n",
+			"<!-- capability-gate:mcp-tools -->\n| Tool | Maturity |\n|---|---|\n| `corvint.impact` | experimental |\n<!-- /capability-gate:mcp-tools -->\n",
 		"README.md":                "<!-- capability-gate:readme -->\n| Capability | Try it | Maturity |\n|---|---|---|\n| Init | `corvint init` | core |\n<!-- /capability-gate:readme -->\n",
 		ratchetPath:                "binary\treason\n",
 		treesDir + "/corvint.json": syntheticCorvintTree(),
@@ -526,26 +526,21 @@ func replaceOnce(t *testing.T, doc []byte, old, new string) []byte {
 // the fix: a subcommand dropped from its verb's row, or one registered in code but never listed.
 func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	for _, verb := range []string{"cem", "ocm", "step", "docs", "flows", "lease"} {
+	for _, verb := range []string{"flows", "runs", "tests", "test-plan", "affected"} {
 		if len(inv.Subcommands[verb]) == 0 {
 			t.Errorf("no subcommands collected for %q: %v", verb, inv.Subcommands)
-		}
-	}
-	for _, sub := range []string{"gate-verdict", "anchor"} {
-		if !contains(inv.Subcommands["cem"], sub) {
-			t.Errorf("cem subcommand %q not followed through cemHelpActions", sub)
 		}
 	}
 	if !contains(inv.Subcommands["flows"], "request-path") || !contains(inv.Subcommands["flows"], "appmap") {
 		t.Errorf("flows init registrations not collected: %v", inv.Subcommands["flows"])
 	}
-	dropped := replaceOnce(t, catalog, "`gate-verdict`, ", "")
-	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "cem gate-verdict") || len(got) != 1 {
-		t.Errorf("dropped cem subcommand: subcommand-undocumented %v", got)
+	dropped := replaceOnce(t, catalog, "`compare`, ", "")
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs compare") || len(got) != 1 {
+		t.Errorf("dropped runs subcommand: subcommand-undocumented %v", got)
 	}
-	inv.Subcommands["lease"] = append(inv.Subcommands["lease"], "transfer")
-	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "lease transfer") || len(got) != 1 {
-		t.Errorf("new lease subcommand: subcommand-undocumented %v", got)
+	inv.Subcommands["runs"] = append(inv.Subcommands["runs"], "transfer")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs transfer") || len(got) != 1 {
+		t.Errorf("new runs subcommand: subcommand-undocumented %v", got)
 	}
 }
 
@@ -555,8 +550,8 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	dir := t.TempDir()
 	src := "package main\n\nvar cemActions = map[string]bool{\"verify\": true}\n" +
 		"var helpSubcommands = map[string]map[string]bool{\"cem\": cemActions, \"ocm\": {\"link\": true}}\n" +
-		"var docsSubcommands = []string{\"nav\"}\nvar flowSubcommands = map[string]func(){\"map\": nil}\n" +
-		"func init() { flowSubcommands[\"navigate\"] = nil }\nvar leaseActions = []string{\"list\"}\n"
+		"var flowSubcommands = map[string]func(){\"map\": nil}\n" +
+		"func init() { flowSubcommands[\"navigate\"] = nil }\n"
 	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -567,16 +562,16 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"cem": "verify", "ocm": "link", "docs": "nav", "flows": "map,navigate", "lease": "list"}
+	want := map[string]string{"cem": "verify", "ocm": "link", "flows": "map,navigate"}
 	for verb, subs := range want {
 		if strings.Join(got[verb], ",") != subs {
 			t.Errorf("%s: got %v, want %s", verb, got[verb], subs)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "leaseActions", "leaseVerbs", 1)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte(strings.Replace(src, "flowSubcommands", "flowVerbs", 1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "leaseActions") {
+	if _, err := parseSubcommands(dir); err == nil || !strings.Contains(err.Error(), "flowSubcommands") {
 		t.Errorf("renamed table: err %v", err)
 	}
 }
@@ -585,11 +580,11 @@ func TestCAPV0007SubcommandTablesParse(t *testing.T) {
 // claims another maturity fails, where the Core-only comparison let it pass.
 func TestCAPV0008ExperimentalMaturityMismatchFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	if !inv.Experimental["lease"] || inv.Experimental["init"] {
+	if !inv.Experimental["review"] || inv.Experimental["init"] {
 		t.Fatalf("experimental group not collected: %v", inv.Experimental)
 	}
-	drifted := replaceOnce(t, catalog, "| `corvint lease list` | Lease JSON naming whether it mutated | experimental |", "| `corvint lease list` | Lease JSON naming whether it mutated | implemented |")
-	if got := kinds(Check(drifted, readme, inv, linkBase))["maturity"]; !contains(got, "lease") || len(got) != 1 {
+	drifted := replaceOnce(t, catalog, "| experimental | Missing sources and bounded branch paths", "| implemented | Missing sources and bounded branch paths")
+	if got := kinds(Check(drifted, readme, inv, linkBase))["maturity"]; !contains(got, "review") || len(got) != 1 {
 		t.Errorf("maturity findings %v", got)
 	}
 }
@@ -598,15 +593,15 @@ func TestCAPV0008ExperimentalMaturityMismatchFails(t *testing.T) {
 // fails: a code renamed in the row, and a code removed from the code while the row keeps it.
 func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	stale := replaceOnce(t, catalog, "`attest-public-key-unavailable`", "`public-key-unavailable`")
-	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+	stale := replaceOnce(t, catalog, "`runs-baseline-unavailable`", "`baseline-unavailable`")
+	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
 		t.Errorf("renamed code: refusal-unknown %v", got)
 	}
-	if !inv.Literals["attest-public-key-unavailable"] {
+	if !inv.Literals["runs-baseline-unavailable"] {
 		t.Fatal("refusal code literal not scanned")
 	}
-	delete(inv.Literals, "attest-public-key-unavailable")
-	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+	delete(inv.Literals, "runs-baseline-unavailable")
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
 		t.Errorf("removed code: refusal-unknown %v", got)
 	}
 	for _, prose := range []string{"--mutate", "cem/0.x", "context --task TASK --limit 5", ".corvint/x.json", "exit"} {
@@ -628,7 +623,7 @@ func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
 		t.Fatal("flows coverage is now in a declared table; pick another tree-only subcommand")
 	}
 	inv, catalog, readme := load(t)
-	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "identity") {
+	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "server-errors") {
 		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
 	}
 	dropped := replaceOnce(t, catalog, "include `coverage`, ", "include ")
@@ -712,14 +707,14 @@ func TestCAPV0080BacktickedProseWordIsNamed(t *testing.T) {
 // dropped it is reported, while option spans and parenthesised detail are not read as subcommands.
 func TestCAPV0961StaleDocumentedSubcommandFails(t *testing.T) {
 	inv, catalog, readme := load(t)
-	stale := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire`, `transfer`, `renew`,")
-	if got := kinds(Check(stale, readme, inv, linkBase))["subcommand-stale"]; !contains(got, "lease transfer") || len(got) != 1 {
-		t.Errorf("stale lease subcommand: subcommand-stale %v", got)
+	stale := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability`, `transfer`, `compare`,")
+	if got := kinds(Check(stale, readme, inv, linkBase))["subcommand-stale"]; !contains(got, "runs transfer") || len(got) != 1 {
+		t.Errorf("stale runs subcommand: subcommand-stale %v", got)
 	}
-	inv.Subcommands["lease"] = slices.DeleteFunc(slices.Clone(inv.Subcommands["lease"]), func(s string) bool { return s == "renew" })
+	inv.Subcommands["runs"] = slices.DeleteFunc(slices.Clone(inv.Subcommands["runs"]), func(s string) bool { return s == "compare" })
 	got := kinds(Check(catalog, readme, inv, linkBase))
-	if !contains(got["subcommand-stale"], "lease renew") || len(got["subcommand-stale"]) != 1 {
-		t.Errorf("removed lease subcommand: subcommand-stale %v", got["subcommand-stale"])
+	if !contains(got["subcommand-stale"], "runs compare") || len(got["subcommand-stale"]) != 1 {
+		t.Errorf("removed runs subcommand: subcommand-stale %v", got["subcommand-stale"])
 	}
 }
 
@@ -743,16 +738,16 @@ func TestCAPV0965SubcommandSpansAreNames(t *testing.T) {
 		t.Fatalf("committed catalog: subcommand-span-malformed %v", got)
 	}
 	for _, c := range []struct{ span, want string }{
-		{"`acquire --lease-minutes N`", "lease `acquire --lease-minutes N`"},
-		{"`--json`", "lease `--json`"},
-		{"`corvint lease acquire`", "lease `corvint lease acquire`"},
+		{"`stability --runs FILE`", "runs `stability --runs FILE`"},
+		{"`--json`", "runs `--json`"},
+		{"`corvint runs stability`", "runs `corvint runs stability`"},
 	} {
-		bad := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire`, "+c.span+", `renew`,")
+		bad := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability`, "+c.span+", `compare`,")
 		if got := kinds(Check(bad, readme, inv, linkBase))["subcommand-span-malformed"]; !contains(got, c.want) || len(got) != 1 {
 			t.Errorf("%s: subcommand-span-malformed %v", c.span, got)
 		}
 	}
-	parenthesised := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire` (`acquire --lease-minutes N`), `renew`,")
+	parenthesised := replaceOnce(t, catalog, "Subcommands `stability`, `compare`,", "Subcommands `stability` (`stability --runs FILE`), `compare`,")
 	if got := kinds(Check(parenthesised, readme, inv, linkBase))["subcommand-span-malformed"]; len(got) != 0 {
 		t.Errorf("parenthesised detail: subcommand-span-malformed %v", got)
 	}
@@ -762,9 +757,9 @@ func TestCAPV0965SubcommandSpansAreNames(t *testing.T) {
 // longer literal contains it as a word; only a literal equal to the code keeps it accepted.
 func TestCAPV0962RefusalCodeMatchesWholeLiteral(t *testing.T) {
 	inv, catalog, readme := load(t)
-	delete(inv.Literals, "attest-public-key-unavailable")
-	inv.Literals["refused: attest-public-key-unavailable for this key"] = true
-	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+	delete(inv.Literals, "runs-baseline-unavailable")
+	inv.Literals["refused: runs-baseline-unavailable for this run"] = true
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint runs") || len(got) != 1 {
 		t.Errorf("code only inside prose: refusal-unknown %v", got)
 	}
 	dir := t.TempDir()

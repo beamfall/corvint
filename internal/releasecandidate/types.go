@@ -1,14 +1,15 @@
-// Package releasecandidate closes the already-qualified core and companion
-// artifacts into one immutable, versioned local publication candidate.
+// Package releasecandidate closes the already-qualified core artifacts and the
+// source root's Corvint source archive into one immutable, versioned local
+// publication candidate. It takes no companion or Corvint Tasks input
+// (PRS-V1-005, decision 0594).
 package releasecandidate
 
 type Options struct {
-	CoreDirectory      string
-	CompanionDirectory string
-	SourceRoot         string
-	Scratch            string
-	OutputParent       string
-	Version            string
+	CoreDirectory string
+	SourceRoot    string
+	Scratch       string
+	OutputParent  string
+	Version       string
 }
 
 type Asset struct {

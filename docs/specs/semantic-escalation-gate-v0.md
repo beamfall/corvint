@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04)
-Delivery status: experimental (deterministic gate slice; no provider, calibration, or kill gate)
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted every implementation path of this spec. The body below is historical and its requirement IDs stay for reference.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/ARCHITECTURE.md`, `docs/specs/genesis-backfill.md`
 Owner amendment anchor: direct 2026-09-21 instruction to adopt the useful typed-decision,
@@ -12,7 +14,7 @@ dependency to Corvint Core.
 
 ## Agent digest
 - Claim: Models may propose evidence for named semantic gaps only through bounded calls and independent registered verifiers.
-- Status: accepted (decision 0047, 2026-09-04)/experimental (deterministic gate slice; no provider, calibration, or kill gate)
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the contract plus an unwired in-process gate (`internal/semescalate`) tested only against provider spies, including a typed-choice path over mechanically supplied anchored options.
 - Blocked on: a registered extractor profile, frozen calibration, held-out replay, and kill-gate evidence.
 - Read next: User and measurable job; Deterministic acceptance and adversarial matrix; Traceability.

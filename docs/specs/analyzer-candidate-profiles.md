@@ -197,7 +197,7 @@ are terminal rather than silently removed.
 {"profile":"corvint-analyzer-candidate/experimental","family":"go","request_id":"request-1","status":"CANDIDATE","scope_id":"root","compilation_unit_id":"unit-1","target":{"os":"darwin","architecture":"arm64","abi":"none","features":[]},"input_echoes":[{"handle":"input-1","sha256":"sha256:8d27e4f4ff6e3f8c1a8ced8f550a286065c62bff008c069e5f4c12061a00fa77"}],"facts":[{"kind":"go.language.declaration","input_handle":"input-1","related_handle":"-","subject":"go","predicate":"declares-language","value":"1.27.0","instance_id":"root","evidence_sha256":"sha256:d2a94a31be53d8284aed472d3335179733fa4cdfd216f0600777b5301c73fa73"},{"kind":"go.module","input_handle":"input-1","related_handle":"-","subject":"root","predicate":"declares-module","value":"example.com/module","instance_id":"root","evidence_sha256":"sha256:e8b895e223883c0f26260fdc3a46f8d9f46f8b6a8df88fb77fe946485f3bd5bc"}]}
 ```
 
-`internal/analyzercap/candidate_profile_vectors_test.go` freezes these exact LF-framed bytes and
+`internal/analyzercap/candidate_profile_vectors_test.go` (deleted by decision 0594) froze these exact LF-framed bytes and
 proves their decoded Go content, request digest, fact ordering, tuple values, and both 14-field
 evidence digests. Every Go candidate MUST additionally prove its parser emits this success byte for
 this request; the contract-vector test alone does not qualify a candidate implementation.

@@ -117,17 +117,6 @@ func TestCaseFoldCollidingPathsAreDisclosedNotSilentlyMerged(t *testing.T) {
 	if code, _, stderr := runCLI(t, "--root", root, "index"); code != 0 {
 		t.Fatalf("index exit %d: %s", code, stderr)
 	}
-	t.Run("query", func(t *testing.T) {
-		code, stdout, stderr := runCLITwice(t, "--root", root, "query", "--task", "mint token", "--limit", "5")
-		if code != 0 {
-			t.Fatalf("exit %d: %s", code, stderr)
-		}
-		receipt := decodeReceipt(t, stdout)["context"].(map[string]any)
-		if got := evidenceBlobs(t, receipt); !maps.Equal(got, blobs) {
-			t.Fatalf("query evidence = %v, want %v", got, blobs)
-		}
-		assertFreshness(t, receipt, dirty)
-	})
 	t.Run("context", func(t *testing.T) {
 		code, stdout, stderr := runCLITwice(t, "--root", root, "context", "--task", "mint token")
 		if code != 0 {

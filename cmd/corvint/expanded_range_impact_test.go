@@ -73,9 +73,7 @@ func TestExpandedRangeImpactCLIClosedSelection(t *testing.T) {
 			{"--range-profile", "expanded-800", "--base", base},
 			{"--range-profile", "expanded-256"},
 			{"--range-profile", "expanded-256", "pkg/main.go"},
-			{"--range-profile", "expanded-256", "--working-tree-untracked", "pkg/main.go"},
 			{"--base", base, "--range-profile", "expanded-256", "pkg/main.go"},
-			{"--base", base, "--range-profile", "expanded-256", "--working-tree-untracked"},
 			{"--base", base, "--range-profile", "expanded-256", "--range-profile=expanded-256"},
 		} {
 			var stdout, stderr bytes.Buffer
@@ -88,26 +86,6 @@ func TestExpandedRangeImpactCLIClosedSelection(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		if exit := run([]string{"--root", root, "impact", "--range-profile=expanded-256", "--base", base}, &forbiddenImpactReader{}, &stdout, &stderr); exit != 0 || stderr.Len() != 0 || !bytes.Contains(stdout.Bytes(), []byte(`"rangeProfile":"expanded-256"`)) {
 			t.Fatalf("explicit inline selector failed: exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
-		}
-	})
-}
-
-func TestExpandedRangeImpactProveRejectsSelector(t *testing.T) {
-	t.Parallel()
-	t.Run("ERI-V0-004 prove-retains-default-profile", func(t *testing.T) {
-		root := impactCLIRepository(t)
-		base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-		before := repositoryBytesDigest(t, root)
-		for _, selector := range [][]string{{"--range-profile", "expanded-256"}, {"--range-profile=expanded-256"}} {
-			var stdout, stderr bytes.Buffer
-			reader := &forbiddenImpactReader{}
-			arguments := append([]string{"--root", root, "prove", "--base", base}, selector...)
-			if exit := run(arguments, reader, &stdout, &stderr); exit != 2 || stdout.Len() != 0 || reader.reads != 0 || !strings.Contains(stderr.String(), `"code": "invalid-arguments"`) || !strings.Contains(stderr.String(), "prove does not support --range-profile") {
-				t.Fatalf("selector=%v exit=%d stdout=%s stderr=%s reads=%d", selector, exit, &stdout, &stderr, reader.reads)
-			}
-		}
-		if after := repositoryBytesDigest(t, root); after != before {
-			t.Fatal("rejected prove selector mutated repository bytes")
 		}
 	})
 }

@@ -6,17 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-func TestGoSymbolsMatchPythonUnicodeWordSemantics(t *testing.T) {
-	source := Source{Path: "value.go", BlobHash: strings.Repeat("0", 40)}
-	symbols, _, refusal := goSymbols(source, "package value\nfunc Fünf() {}\ntype T٣ struct{}\n")
-	if refusal != "" {
-		t.Fatalf("refusal = %q", refusal)
-	}
-	if len(symbols) != 2 || symbols[0].Name != "Fünf" || symbols[1].Name != "T٣" {
-		t.Fatalf("symbols = %#v", symbols)
-	}
-}
-
 func TestSourceImportsIncludesNonGoImporters(t *testing.T) {
 	imports := sourceImports("web/caller.ts", "éimport \"ignored\"\nimport \"example.test/fixture/internal/token\"").imports
 	if _, ok := imports["example.test/fixture/internal/token"]; !ok {

@@ -2,15 +2,19 @@
 
 Owner: Russell Lewis
 Date: 2026-09-30
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/criterionexperiment`
+and `cmd/corvint-cem-experiments` (4663b4e2b is the last tree with them). The body below is
+historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-0.2-canonical-binding.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/corvint-tasks-agent-leases-v0.md`, native tickets V1-0573 and V1-0575.
 
 ## Agent digest
 - Claim: An optional companion binds task criteria to Go experiments, preserves historical verification, and refuses stale Tasks gate evidence.
-- Status: proposed/experimental; precursor research for a possible CEM 0.4, not a promoted CEM wire.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/criterionexperiment` and `cmd/corvint-cem-experiments`; see the traceability and evidence record below for actual qualification.
 - Blocked on: qualified broader providers, owner acceptance of the technical profile, and the external three-arm outcome evaluation, which remains NOT_RUN.
 - Read next: Requirements; Trust and execution boundary; Outcome experiment; `../CHANGE-EVIDENCE-MAP.md`.

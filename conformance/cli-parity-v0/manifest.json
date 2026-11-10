@@ -65,8 +65,8 @@
     },
     {
       "command": "eval",
-      "status": "PARTIAL",
-      "reason": "the two negatives replay byte-exactly; eval-frozen-corpus is RETIRED under decision 0308 because the frozen fixture stores the corpus at .atlas/eval.json"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint eval command: every eval case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "feature",
@@ -75,8 +75,8 @@
     },
     {
       "command": "harness",
-      "status": "PASS",
-      "reason": "all six lifecycle events, both compact rehydration shapes, six argument and input negatives, two hostile bounds, and one non-ASCII stdout case replay byte-exactly with no qualification. The non-ASCII case proves Python-compatible escaping for BMP characters and an astral surrogate pair. One further user-prompt row, harness-user-prompt-out-of-scope, is deliberately known-divergent under DR-0008 / GPK-V0-039: it is the case that discriminates the relevance floor, which no unqualified row could. The harness-stop row is known-divergent under DR-0043 / AHI-054 by exactly the additive frontier cause member. The index-backed events (file-change, and a compact start with tracked dirty paths) inherit the Go impact profile: outside a slash-qualified Go module with changed paths in a non-root package, Go refuses where Python answers, so the fixture stays inside that profile and widening it is W4"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint harness command: every harness case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "impact",
@@ -90,28 +90,28 @@
     },
     {
       "command": "lrf",
-      "status": "PARTIAL",
-      "reason": "the required-argument negative replays byte-exactly with no normalization or accepted divergence. The positive supported-edge evaluation is RETIRED under decision 0525 because its frozen map is cem/0.x, which lrf now refuses with unsupported-spec (CEM-V1-212). The GPK-V0-041 / DR-0010 refusal of a .py claim in --ocm is RETIRED under decision 0308 because its frozen argv names the maps under .atlas/; the typed unsupported-ocm-python-claims refusal itself is unchanged"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint lrf command: every lrf case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "migrate-traces",
-      "status": "PARTIAL",
-      "reason": "the mode negatives and the hostile stale-plan rejection (declared oracle-only lock divergence) replay; apply-legacy and dry-run-legacy are RETIRED under decision 0308 because the frozen fixture holds legacy traces under .context-atlas/"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint migrate-traces command: every migrate-traces case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "ocm",
-      "status": "PARTIAL",
-      "reason": "the four read negatives replay byte-exactly; link, mark, prepare-resume, verify-cem-binding and verify-linked are RETIRED under decision 0308 because the frozen fixture materializes the maps under .atlas/. A claim must come from a Go or JavaScript test - GPK-V0-037 requires a typed unsupported-ocm-python-claims refusal for a .py claim - so the fixture's test blob is Go"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint ocm command: every ocm case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "query",
-      "status": "PARTIAL",
-      "reason": "the authority-start profile is byte-exact at every limit from 1 to 50, echoing the limit and adding up to three advisory learned paths; the repository profile adds default, limits 1/10/50, budget selection, the mixed-worktree trace case, malformed and bounded input negatives, and a relevance-floor known divergence under GPK-V0-039; UTF-8 tasks replay against the oracle instead of being refused. Four cases are RETIRED under decision 0308: the three trace cases whose frozen store is .context-atlas/traces, and the agent-tooling case whose frozen task carries the retired product name as a tooling term. The query-present-trace-store-refusal item is RETIRED too: its frozen setup creates .context-atlas/traces. The query-missing-authority-refusal item is RETIRED under decision 0561: GPK-V0-091 degrades the missing-root authority-start task to the repository profile with a stated degradation instead of refusing; the symlink and unsupported-content refusals are unchanged, and the repository-profile receipts carry the GPK-V0-090 widening member as the DR-0045 declaration"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint query command: every query case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     },
     {
       "command": "record",
-      "status": "PARTIAL",
-      "reason": "the negative and the hostile rejection (accepted oracle-only lock divergence) replay; record-create-trace is RETIRED under decision 0308 because the candidate writes .context-corvint/traces where the oracle expectation records .context-atlas/traces"
+      "status": "RETIRED",
+      "reason": "decision 0594 removes the corvint record command: every record case is RETIRED and none replays; earlier retirements keep their own decision, and the frozen expectations are kept unchanged"
     }
   ],
   "cases": [
@@ -1118,11 +1118,11 @@
         "rewrites": [],
         "stderrRewrites": [
           {
-            "candidate": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance', 'export', 'defer'",
+            "candidate": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover'",
             "oracle": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
           }
         ],
-        "reason": "DR-0040 / TCQ-V0-051 (decision 0347): the candidate exposes cem cover, discriminate, anchor, provenance, export and defer (TCQ-V0-051, TCQ-V0-055, FPK-V0-037, RCB-V0-001, CEM-V1-644; decisions 0347, 0353, 0355), so its invalid-subcommand refusal enumerates thirteen actions where the retired oracle enumerated seven. Both refuse 'bogus' with exit status 2, an empty stdout and an otherwise identical refusal; only the action list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+        "reason": "DR-0040 / TCQ-V0-051 (decision 0347): the candidate exposes cem cover (TCQ-V0-051, decision 0347), so its invalid-subcommand refusal enumerates eight actions where the retired oracle enumerated seven; decision 0594 removed the later discriminate, anchor, provenance, export and defer actions. Both refuse 'bogus' with exit status 2, an empty stdout and an otherwise identical refusal; only the action list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
       },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -2013,6 +2013,10 @@
       "fixtureSha256": "3e8aa9010f0efdca88d39911b493f53036e8459c5e2b97cbee7e5d1978ec2b09",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint eval command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "7ff04a3e3b204f55d6f62b206ba654f4c8baa67f48092fa8db2eed0f87e42094",
@@ -2047,6 +2051,10 @@
       "fixtureSha256": "3e8aa9010f0efdca88d39911b493f53036e8459c5e2b97cbee7e5d1978ec2b09",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint eval command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "7ff04a3e3b204f55d6f62b206ba654f4c8baa67f48092fa8db2eed0f87e42094",
@@ -2301,6 +2309,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2347,6 +2359,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2393,6 +2409,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2439,6 +2459,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -2507,6 +2531,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2553,6 +2581,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2599,6 +2631,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2643,6 +2679,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2689,6 +2729,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -2735,6 +2779,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -2792,6 +2840,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -2849,6 +2901,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -2906,6 +2962,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -2977,6 +3037,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -3045,6 +3109,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "knownDivergence": {
         "register": "DR-0043",
         "clause": "AHI-054",
@@ -3101,6 +3169,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -3147,6 +3219,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "160b61fee4691c54d7ed03ecd8bd821c1b6773bb022df253d3f075a35145ed60",
@@ -3193,6 +3269,10 @@
       "fixtureSha256": "2c6a9f6db6989a61bf241baf54db6d202e81046e0897c9f996d387c89a8b3351",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -3261,6 +3341,10 @@
       "fixtureSha256": "c6d905654b269ee007ff91bab3513a7d7c6606bee9dce04e114f001621de000b",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -3318,6 +3402,10 @@
       "fixtureSha256": "16a696f26572673470fd469c93a9d9277b8b6cdf6d9e4eb599decf410e564650",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint harness command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "identityRenameDivergence": {
         "register": "DR-0038",
         "clause": "CRB-DEC-002",
@@ -4141,6 +4229,10 @@
       "fixtureSha256": "9c176a83813d6babe709414791f76c84097d44d4b8cd1af528554221b4a10206",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint lrf command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ddabed74771f9a2d4f17295eb87f7e5e6b5a7238ed629ccf5305e8ff153eb08e",
@@ -4286,6 +4378,10 @@
       "fixtureSha256": "ef1a3759004b354f6c293ddef86c3959441286eb94d986a1e01d8ebb383d3d36",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint migrate-traces command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "3307544dc6beccc54be1c7453dd8c5c5e3002dce680e30a64d716d168cb24eee",
@@ -4319,6 +4415,10 @@
       "fixtureSha256": "ef1a3759004b354f6c293ddef86c3959441286eb94d986a1e01d8ebb383d3d36",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint migrate-traces command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "3307544dc6beccc54be1c7453dd8c5c5e3002dce680e30a64d716d168cb24eee",
@@ -4371,6 +4471,10 @@
       "fixtureSha256": "ef1a3759004b354f6c293ddef86c3959441286eb94d986a1e01d8ebb383d3d36",
       "exitStatus": 2,
       "mutation": "oracle-only-trace-operation-lock",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint migrate-traces command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "acceptedDivergence": {
         "oracleOnlyCreatedPath": ".context-atlas/traces/.trace-operation.lock",
         "candidateMutation": "none",
@@ -4521,6 +4625,10 @@
       "fixtureSha256": "75282bc0e9af4b5354bdece8a4c8b1e7c3512ec2bc32305a613f4957d80d2baf",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint ocm command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ab31d51001bd2c24135a5522c658f02119fb496866940ccfe8caaccd3c711eb8",
@@ -4611,6 +4719,10 @@
       "fixtureSha256": "75282bc0e9af4b5354bdece8a4c8b1e7c3512ec2bc32305a613f4957d80d2baf",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint ocm command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ab31d51001bd2c24135a5522c658f02119fb496866940ccfe8caaccd3c711eb8",
@@ -4645,6 +4757,10 @@
       "fixtureSha256": "75282bc0e9af4b5354bdece8a4c8b1e7c3512ec2bc32305a613f4957d80d2baf",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint ocm command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ab31d51001bd2c24135a5522c658f02119fb496866940ccfe8caaccd3c711eb8",
@@ -4763,6 +4879,10 @@
       "fixtureSha256": "75282bc0e9af4b5354bdece8a4c8b1e7c3512ec2bc32305a613f4957d80d2baf",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint ocm command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "ab31d51001bd2c24135a5522c658f02119fb496866940ccfe8caaccd3c711eb8",
@@ -4798,6 +4918,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -4846,6 +4970,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -4894,6 +5022,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -4942,6 +5074,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "42dd0bb7b7b42f7bcbf0186658acc501571486ec633d6cb5b8a718fc64707f4b",
@@ -4979,6 +5115,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5027,6 +5167,10 @@
       "fixtureSha256": "86c98108987c6d78f5a301bebef169beea253cb0157326a3aeb336a0073e6111",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5125,6 +5269,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5162,6 +5310,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5199,6 +5351,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5238,6 +5394,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5284,6 +5444,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5341,6 +5505,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5378,6 +5546,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "knownDivergence": {
         "register": "DR-0025",
         "clause": "GPK-V0-040",
@@ -5456,6 +5628,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5515,6 +5691,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5574,6 +5754,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5611,6 +5795,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5648,6 +5836,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "0803f95f3a74179dfeeb1e97d0c3d0e940a20292a7bc65a96f27418482d15857",
@@ -5683,6 +5875,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -5740,6 +5936,10 @@
       "fixtureSha256": "16a696f26572673470fd469c93a9d9277b8b6cdf6d9e4eb599decf410e564650",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "knownDivergence": {
         "register": "DR-0008",
         "clause": "GPK-V0-039",
@@ -5825,6 +6025,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "knownDivergence": {
         "register": "DR-0016",
         "clause": "GPK-V0-028",
@@ -6033,6 +6237,10 @@
       "fixtureSha256": "d2b91609fc45d1ecd90337af76b8a7abfb3ce267b9341b897e81aa49442647a1",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "exclusionCountDivergence": {
         "register": "DR-0023",
         "clause": "GPK-V0-063",
@@ -6152,6 +6360,10 @@
       "fixtureSha256": "57756874a84e3ce1a0071995fbde7e398f01702346dfc6f0d60b21cc49c6ce02",
       "exitStatus": 0,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint query command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "knownDivergence": {
         "register": "DR-0015",
         "clause": "GPK-V0-043",
@@ -6300,6 +6512,10 @@
       "fixtureSha256": "5c1edd2d153a36304cc4818c57ef4aac759d7031954c419e5e43977b58496294",
       "exitStatus": 2,
       "mutation": "none",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint record command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "cd30281dfa1e5d048ad53e8d7eee14c52505bdf08d743bed492e65c749da63f3",
@@ -6351,6 +6567,10 @@
       "fixtureSha256": "5c1edd2d153a36304cc4818c57ef4aac759d7031954c419e5e43977b58496294",
       "exitStatus": 2,
       "mutation": "oracle-only-trace-operation-lock",
+      "retired": {
+        "decision": "0594",
+        "reason": "decision 0594 removes the corvint record command, so the candidate refuses it as an invalid command choice; the frozen expectation is kept unchanged"
+      },
       "acceptedDivergence": {
         "oracleOnlyCreatedPath": ".context-atlas/traces/.trace-operation.lock",
         "candidateMutation": "none",

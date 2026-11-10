@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1920, V1-1907; GitHub #1186, #1177; SCC-V0-001..005 and SCC-V0-010..014)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Requirement prefix: SCC-V0
 Authoritative inputs: owner issues [#1186](https://github.com/beamfall/corvint/issues/1186)
 (patch-equivalent containment) and [#1177](https://github.com/beamfall/corvint/issues/1177)
@@ -14,7 +16,7 @@ here. The build record is `https://github.com/beamfall/corvint-history/blob/1c4d
 
 ## Agent digest
 - Claim: `source contains` reports ancestor or patch-equivalent containment; a HOLD may carry a typed condition that status and doctor re-evaluate at each read.
-- Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1920, V1-1907; GitHub #1186, #1177; SCC-V0-001..005 and SCC-V0-010..014); experimental source implementation with focused store, mutation and CLI tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `store.SourceContainmentOf` (ANCESTOR, EQUIVALENT, ABSENT, UNKNOWN); the read-only `source contains <rev> <commit>...` verb; the optional hold `condition` (COMMIT_CONTAINED, PATH_EXISTS, SYMBOL_DEFINED); queue status `holdConditions`; doctor HOLD_CONDITION_MET, HOLD_CONDITION_UNKNOWN and FREE_TEXT_HOLD_MET.
 - Blocked on: #1177 criterion 4 (stale base pins in role prompts and operator notes), policy routing of an unblocked ticket, and a configurable deploy ref (an owner decision on TQD-V0-020/TQD-V0-001) are not delivered.
 - Read next: Requirements; Containment-site inventory; Gaps and owner decision; Traceability.

@@ -59,7 +59,7 @@
       "requirements": ["VSC-V0-002", "VSC-V0-014"],
       "title": "remote workspace resolves and executes Corvint in the same remote extension host",
       "setup": {"trusted": true, "extensionHost": "remote", "binaryAvailableInRemoteHost": true, "binaryAvailableInLocalHost": true},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "sameHostPin": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
     },
     {
@@ -67,7 +67,7 @@
       "requirements": ["VSC-V0-008", "VSC-V0-009", "VSC-V0-042"],
       "title": "pinned executable survives PATH mutation without shell relookup",
       "setup": {"trusted": true, "pathCandidates": ["${fixture}/first/corvint", "${fixture}/second/corvint"], "mutatePathAfterDiscovery": true},
-      "action": {"kind": "run-twice", "command": "query"},
+      "action": {"kind": "run-twice", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 2, "sameExecutable": true, "sameIdentity": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
     },
     {
@@ -75,7 +75,7 @@
       "requirements": ["VSC-V0-008", "VSC-V0-020", "VSC-V0-039"],
       "title": "pinned file identity change fails closed until explicit rediscovery",
       "setup": {"trusted": true, "replacePinnedFileAfterDiscovery": true},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "PIN_DRIFT", "effectsEmpty": true}
     },
     {
@@ -83,7 +83,7 @@
       "requirements": ["VSC-V0-008"],
       "title": "same-UID replace-and-restore execution race remains explicit",
       "setup": {"trusted": true, "replaceBetweenPrecheckAndSpawnThenRestore": true},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "uncertaintyContains": "same-uid-replacement", "noAttestationClaim": true, "effectsEmpty": true}
     },
     {
@@ -107,7 +107,7 @@
       "requirements": ["VSC-V0-005", "VSC-V0-013"],
       "title": "multi-root workspace never guesses a root and rejects escaping roots",
       "setup": {"trusted": true, "workspaceRoots": ["${fixture}/one", "${fixture}/two"], "activeDocument": null, "escapingRealRoot": true},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "denied", "executionCount": 0, "status": "Unsupported", "failureCode": "ROOT_UNSUPPORTED", "rootChoiceRequired": true, "effectsEmpty": true}
     },
     {
@@ -115,7 +115,7 @@
       "requirements": ["VSC-V0-004", "VSC-V0-005", "VSC-V0-020", "VSC-V0-023"],
       "title": "mixed root revision receipt and command identities never join one snapshot",
       "setup": {"trusted": true, "cliBehavior": "mixed-snapshot-identities"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noMixedSnapshot": true, "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -139,7 +139,7 @@
       "requirements": ["VSC-V0-018", "VSC-V0-020", "VSC-V0-039", "VSC-V0-042"],
       "title": "VS Code cancellation terminates the exact direct child without containment overclaim",
       "setup": {"trusted": true, "cliBehavior": "wait"},
-      "action": {"kind": "cancel-explicit-query"},
+      "action": {"kind": "cancel-explicit-impact"},
       "expect": {"result": "cancelled", "executionCount": 1, "terminated": true, "terminationReason": "cancelled", "outputContains": "cancelled", "noDescendantContainmentClaim": true, "residueZero": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
     },
     {
@@ -153,29 +153,27 @@
     {
       "id": "VSC-CONF-PROCESS-001",
       "requirements": ["VSC-V0-015", "VSC-V0-016", "VSC-V0-042"],
-      "title": "fixed query uses exact argv cwd and published allowlisted environment",
-      "setup": {"trusted": true, "cliKind": "corvint", "workspaceRoot": "${fixture}/root", "task": "impact of parser", "inheritedEnvironment": {"HOME": "/fixture/home", "TMPDIR": "/fixture/tmp", "SECRET_TOKEN": "must-not-pass", "GIT_ASKPASS": "must-not-pass"}},
-      "action": {"kind": "run", "command": "query"},
-      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--root", "${root}", "query", "--task", "impact of parser", "--limit", "1"], "cwdIsRoot": true, "environmentAllowlisted": true, "environmentExact": {"GIT_TERMINAL_PROMPT": "0", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": "/fixture/home", "TMPDIR": "/fixture/tmp"}, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+      "title": "fixed impact uses exact argv cwd and published allowlisted environment",
+      "setup": {"trusted": true, "cliKind": "corvint", "workspaceRoot": "${fixture}/root", "paths": ["src/a.go"], "inheritedEnvironment": {"HOME": "/fixture/home", "TMPDIR": "/fixture/tmp", "SECRET_TOKEN": "must-not-pass", "GIT_ASKPASS": "must-not-pass"}},
+      "action": {"kind": "run", "command": "impact"},
+      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--root", "${root}", "impact", "--limit", "20", "--", "src/a.go"], "cwdIsRoot": true, "environmentAllowlisted": true, "environmentExact": {"GIT_TERMINAL_PROMPT": "0", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": "/fixture/home", "TMPDIR": "/fixture/tmp"}, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-PROCESS-002",
       "requirements": ["VSC-V0-009", "VSC-V0-016", "VSC-V0-039", "VSC-V0-042"],
-      "title": "all four CLI adapters use exact arrays and never retry another CLI kind",
-      "setup": {"trusted": true, "operations": ["corvint/query", "corvint/impact", "corvint/query", "corvint/impact"], "hostileTaskAndPaths": true},
+      "title": "repeated CLI impact adapters use exact arrays and never retry another CLI kind",
+      "setup": {"trusted": true, "operations": ["corvint/impact", "corvint/impact"], "hostilePaths": true},
       "action": {"kind": "run-adapter-matrix"},
-      "expect": {"result": "ready", "executionCount": 4, "adapterMatrix": [
-        {"cliKind": "corvint", "logicalOperation": "query", "argv": ["--root", "${root}", "query", "--task", "q;`$()", "--limit", "1"]},
+      "expect": {"result": "ready", "executionCount": 2, "adapterMatrix": [
         {"cliKind": "corvint", "logicalOperation": "impact", "argv": ["--root", "${root}", "impact", "--limit", "20", "--", "-leading.go", "space name.go"]},
-        {"cliKind": "corvint", "logicalOperation": "query", "argv": ["--root", "${root}", "query", "--task", "q;`$()", "--limit", "1"]},
         {"cliKind": "corvint", "logicalOperation": "impact", "argv": ["--root", "${root}", "impact", "--limit", "20", "--", "-leading.go", "space name.go"]}
       ], "noShell": true, "noPathLookup": true, "noRetryOrFailover": true, "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-PROCESS-003",
       "requirements": ["VSC-V0-016", "VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
-      "title": "invalid task path and resource settings fail before spawn",
-      "setup": {"trusted": true, "invalidTasks": ["", "${over2000Scalars}", "line\nbreak"], "invalidPaths": ["", ".", "..", "../escape", "/absolute", "control\u0001"], "invalidSettings": {"timeoutMilliseconds": 999, "maxOutputBytes": 1048577}},
+      "title": "invalid path and resource settings fail before spawn",
+      "setup": {"trusted": true, "invalidPaths": ["", ".", "..", "../escape", "/absolute", "control\u0001"], "invalidSettings": {"timeoutMilliseconds": 999, "maxOutputBytes": 1048577}},
       "action": {"kind": "exercise-invalid-inputs"},
       "expect": {"result": "degraded", "executionCount": 0, "status": "Incompatible", "failureCode": "CLI_INCOMPATIBLE", "noProjectedEvidence": true, "effectsEmpty": true}
     },
@@ -184,7 +182,7 @@
       "requirements": ["VSC-V0-077"],
       "title": "a failed process shows its stable code and only the first non-empty sanitized stderr line",
       "setup": {"trusted": true, "cliBehavior": "nonzero-exit", "stderr": "\r\n \t\r\nCLI detail\u202e\nsecond stderr line must not display"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "executionCount": 1, "failureCode": "CLI_FAILED", "failureMessageExact": "CLI_FAILED: CLI detail\ufffd", "forbiddenText": ["second stderr line must not display"], "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -192,7 +190,7 @@
       "requirements": ["VSC-V0-077"],
       "title": "a failed process with blank stderr keeps the stable fallback detail",
       "setup": {"trusted": true, "cliBehavior": "nonzero-exit", "stderr": " \t\r\n\n"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "executionCount": 1, "failureCode": "CLI_FAILED", "failureMessageExact": "CLI_FAILED: local Corvint process failed", "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -200,7 +198,7 @@
       "requirements": ["VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
       "title": "stdout overflow terminates parsing and degrades visibly",
       "setup": {"trusted": true, "cliBehavior": "stdout-overflow"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "executionCount": 1, "terminated": true, "terminationReason": "stdout-overflow", "effectsEmpty": true}
     },
     {
@@ -208,7 +206,7 @@
       "requirements": ["VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
       "title": "stderr overflow is bounded and degrades visibly",
       "setup": {"trusted": true, "cliBehavior": "stderr-overflow"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "executionCount": 1, "terminated": true, "terminationReason": "stderr-overflow", "effectsEmpty": true}
     },
     {
@@ -216,7 +214,7 @@
       "requirements": ["VSC-V0-017", "VSC-V0-019", "VSC-V0-039"],
       "title": "stdout and stderr exact bounds are admitted without off-by-one truncation",
       "setup": {"trusted": true, "cliBehavior": "exact-output-bounds"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "stdoutBytesExact": 262144, "stderrBytesExact": 65536, "effectsEmpty": true}
     },
     {
@@ -232,7 +230,7 @@
       "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
       "title": "malformed JSON produces no partial UI projection",
       "setup": {"trusted": true, "cliBehavior": "malformed-json"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -240,7 +238,7 @@
       "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
       "title": "duplicate JSON member names are rejected",
       "setup": {"trusted": true, "cliBehavior": "duplicate-json-members"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -248,7 +246,7 @@
       "requirements": ["VSC-V0-017", "VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
       "title": "oversized valid JSON is rejected before projection",
       "setup": {"trusted": true, "cliBehavior": "oversized-valid-json"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "status": "Degraded", "failureCode": "OUTPUT_LIMIT", "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -256,7 +254,7 @@
       "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
       "title": "excessive JSON nesting is rejected before projection",
       "setup": {"trusted": true, "cliBehavior": "excessive-json-depth"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "maxJsonDepth": 32, "noProjectedEvidence": true, "effectsEmpty": true}
     },
     {
@@ -280,7 +278,7 @@
       "requirements": ["VSC-V0-024", "VSC-V0-025", "VSC-V0-039", "VSC-V0-040"],
       "title": "ANSI and control characters cannot create terminal or command effects",
       "setup": {"trusted": true, "cliBehavior": "hostile-ansi-control"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "uiTextSafe": true, "noCommandUris": true, "effectsEmpty": true}
     },
     {
@@ -312,7 +310,7 @@
       "requirements": ["VSC-V0-025", "VSC-V0-033", "VSC-V0-034", "VSC-V0-039", "VSC-V0-040"],
       "title": "secrets are absent from every UI and log projection",
       "setup": {"trusted": true, "secret": "CORVINT-CONFORMANCE-SECRET-7f4c", "cliBehavior": "echo-secret-everywhere"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "degraded", "forbiddenText": ["CORVINT-CONFORMANCE-SECRET-7f4c"], "effectsEmpty": true}
     },
     {
@@ -495,8 +493,8 @@
       "id": "VSC-CONF-MCP-PROCESS-001",
       "requirements": ["VSC-V0-048", "VSC-V0-052"],
       "title": "one explicit operation owns one fresh local stdio child with root only in argv",
-      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "query", "workspaceRoot": "${fixture}/root"},
-      "action": {"kind": "run", "command": "query"},
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "impact", "workspaceRoot": "${fixture}/root"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--root", "${root}"], "cwdIsRoot": true, "mcpFreshProcess": true, "mcpStdioLifecycle": true, "noNetworkTransport": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
     },
     {
@@ -504,7 +502,7 @@
       "requirements": ["VSC-V0-049", "VSC-V0-050"],
       "title": "modern discovery is first with exact metadata and no legacy initialization",
       "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "valid-discovery", "extensionVersion": "0.1.0"},
-      "action": {"kind": "run", "command": "query"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "mcpPinned": true, "mcpRequestSequence": ["server/discover", "tools/list", "tools/call"], "mcpMetadataVersion": "0.1.0", "mcpDiscoveryExact": true, "mcpServerIdentityRecorded": true, "noServerOriginatedMessages": true, "effectsEmpty": true}
     },
     {
@@ -518,7 +516,7 @@
     {
       "id": "VSC-CONF-MCP-TOOLSET-001",
       "requirements": ["VSC-V0-051", "VSC-V0-052"],
-      "title": "tools list matches the exact MCPV0 registry and only query or impact may be called",
+      "title": "tools list is exactly help, impact and status and only impact may be called",
       "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "exact-three-tool-registry"},
       "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "mcpToolsetExact": true, "mcpInvokedTool": "corvint.impact", "mcpStatusCallCount": 0, "effectsEmpty": true}
@@ -534,10 +532,10 @@
     {
       "id": "VSC-CONF-MCP-CALL-001",
       "requirements": ["VSC-V0-052", "VSC-V0-053"],
-      "title": "query and impact use closed root-free arguments and canonical bridge results",
-      "setup": {"trusted": true, "transport": "mcp-stdio", "operations": ["query", "impact"]},
+      "title": "repeated impact calls use closed root-free arguments and canonical bridge results",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operations": ["impact", "impact"]},
       "action": {"kind": "run-mcp-call-matrix"},
-      "expect": {"result": "ready", "executionCount": 2, "mcpCallArguments": [{"name": "corvint.query", "arguments": {"task": "q;`$()"}}, {"name": "corvint.impact", "arguments": {"paths": ["-leading.go", "space name.go"], "limit": 20}}], "mcpBridgeResultExact": true, "authorityUnchanged": true, "effectsEmpty": true}
+      "expect": {"result": "ready", "executionCount": 2, "mcpCallArguments": [{"name": "corvint.impact", "arguments": {"paths": ["-leading.go", "space name.go"], "limit": 20}}, {"name": "corvint.impact", "arguments": {"paths": ["src/a.go"], "limit": 20}}], "mcpBridgeResultExact": true, "authorityUnchanged": true, "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-MCP-CALL-002",
@@ -551,15 +549,15 @@
       "id": "VSC-CONF-MCP-CALL-003",
       "requirements": ["VSC-V0-023", "VSC-V0-053"],
       "title": "null-receipt abstention preserves the bounded bridge gap without invented evidence",
-      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "query", "serverBehavior": "null-receipt-unsupported-intent"},
-      "action": {"kind": "run", "command": "query"},
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "impact", "serverBehavior": "null-receipt-unstable-repository"},
+      "action": {"kind": "run", "command": "impact"},
       "expect": {"result": "ready", "executionCount": 1, "mcpNullAbstentionExact": true, "mcpAuthorityProjected": true, "authorityUnchanged": true, "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-MCP-CALL-004",
       "requirements": ["VSC-V0-053", "VSC-V0-056"],
       "title": "READY authority laundering and malformed abstention correlations reject atomically",
-      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["ready-not-observed", "ready-none-authority", "ready-active-abstention", "ready-null-receipt", "abstained-observed", "abstained-repository-authority", "abstained-none-reason", "query-retained-receipt"]},
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["ready-not-observed", "ready-none-authority", "ready-active-abstention", "ready-null-receipt", "abstained-observed", "abstained-repository-authority", "abstained-none-reason", "abstained-ready-receipt"]},
       "action": {"kind": "run-hostile-mcp-authority-matrix"},
       "expect": {"result": "degraded", "executionCount": 8, "status": "Degraded", "failureCode": "MCP_PROTOCOL", "mcpAuthorityCorrelationRejected": true, "noProjectedEvidence": true, "snapshotCleared": true, "authorityUnchanged": true, "effectsEmpty": true}
     },
@@ -582,8 +580,8 @@
     {
       "id": "VSC-CONF-MCP-INPUT-001",
       "requirements": ["VSC-V0-052", "VSC-V0-056"],
-      "title": "unpaired-surrogate MCP query and path input reject before process spawn",
-      "setup": {"trusted": true, "transport": "mcp-stdio", "invalidTasks": ["bad\ud800task"], "invalidPaths": ["src/\ud800.go"]},
+      "title": "unpaired-surrogate MCP path input rejects before process spawn",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "invalidPaths": ["src/\ud800.go"]},
       "action": {"kind": "run-hostile-mcp-surrogate-inputs"},
       "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "MCP_INPUT_UNSUPPORTED", "mcpInputRejectedPreSpawn": true, "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
     },
@@ -600,7 +598,7 @@
       "requirements": ["VSC-V0-055", "VSC-V0-056"],
       "title": "cancellation sends one matching notification before EOF and escalates only the direct child",
       "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "ignore-cancel-and-eof-with-late-result"},
-      "action": {"kind": "cancel-explicit-query"},
+      "action": {"kind": "cancel-explicit-impact"},
       "expect": {"result": "cancelled", "executionCount": 1, "mcpCancellationSequence": ["notifications/cancelled:3", "stdin-close", "wait-eof:250", "TERM", "wait-term:250", "KILL"], "mcpCancelledRequestId": 3, "mcpLateResultIgnored": true, "noDescendantContainmentClaim": true, "noRetryOrFailover": true, "residueZero": true, "effectsEmpty": true}
     },
     {

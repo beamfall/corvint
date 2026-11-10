@@ -1,11 +1,10 @@
 # Corvint
 
 > Corvint gives a coding agent Git-pinned evidence about a repository: what governs it, what a
-> change reaches (`corvint impact`), which tests the change needs (`corvint affected`), and what
-> each diff hunk rests on (Change Evidence Map, `cem/1.0`). Every answer names its Git blob,
-> authority and reason, and missing evidence is reported as unknown. Corvint Tasks
-> (`corvint-tasks`) is a local ticket queue with claims and gated completion, and stdio MCP
-> servers and host adapters expose the same receipts to agents. It is one local native-Go binary
+> change reaches (`corvint impact`) and which tests the change needs (`corvint affected`).
+> Every answer names its Git blob,
+> authority and reason, and missing evidence is reported as unknown. Stdio MCP
+> servers expose the same receipts to agents. It is one local native-Go binary
 > with no account or network dependency. This file is the single entry point for an
 > LLM that has never seen Corvint. Every command, flag and MCP tool is reachable from the links
 > below, and `tools/capabilities-check` fails the tests when a new one ships without its help and
@@ -27,52 +26,25 @@
 
 - `corvint help --json`: the `corvint-capability-catalog/0` command catalog
   ([snapshot](internal/capcatalog/catalog.json)); its `commandTrees` member links every command tree
-- `corvint help --json` also carries `mcpTools`: every inventoried tool's name,
-  server/profile availability and summary, checked against the source inventory.
-  Live `tools/list` supplies argument schemas and actual configured availability.
-  The [MCP tool catalog](docs/CAPABILITIES.md#mcp-tools) and
-  [MCP setup](docs/MCP-SERVER.md) describe profiles and refusals.
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
-- `corvint-cem-candidate help --json`: the CEM candidate companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-cem-candidate.json))
-- `corvint-cem-experiments help --json`: the CEM criterion experiment companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-cem-experiments.json))
-- `corvint-corpus-republish help --json`: the trusted-local corpus republish companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-corpus-republish.json))
-- `corvint-dashboard-snapshot help --json`: the dashboard snapshot compiler's tree
-  ([snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json))
-- `corvint-gateway help --json`: the experimental loopback model gateway's tree
-  ([snapshot](internal/capcatalog/trees/corvint-gateway.json))
 - `corvint-go-test-provider help --json`: the Go live-test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-go-test-provider.json))
-- `corvint-intake help --json`: the local intake validator's tree
-  ([snapshot](internal/capcatalog/trees/corvint-intake.json))
 - `corvint-js-test-provider help --json`: the JavaScript test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-js-test-provider.json))
-- `corvint-postmerge-connect help --json`: the post-merge connector's tree
-  ([snapshot](internal/capcatalog/trees/corvint-postmerge-connect.json))
-- `corvint-postmerge-metrics help --json`: the post-merge metrics report's tree
-  ([snapshot](internal/capcatalog/trees/corvint-postmerge-metrics.json))
-- `corvint-postmerge-workflow help --json`: the post-merge replay companion's tree
-  ([snapshot](internal/capcatalog/trees/corvint-postmerge-workflow.json))
 - `corvint-ruby-test-provider help --json`: the Ruby test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-ruby-test-provider.json))
-- `corvint-tasks help --json`: the task store CLI's tree
-  ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
 - `corvint-update help --json`: the official release updater's tree
   ([snapshot](internal/capcatalog/trees/corvint-update.json))
-- `corvint-work-queue help --json`: the read-only work-queue observation producer's tree
-  ([snapshot](internal/capcatalog/trees/corvint-work-queue.json))
 
 ## Adoption
 
 - [README quickstart](README.md#try-it-in-sixty-seconds) and [Install](docs/INSTALL.md)
-- [MCP server](docs/MCP-SERVER.md) and [Tasks for external agents](docs/TASKS-EXTERNAL-AGENTS.md)
+- [MCP server](docs/MCP-SERVER.md); Corvint Tasks lives in [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks)
 - [Application map adoption](docs/APPLICATION-MAP.md)
 - [Adopting a legacy repository](docs/LEGACY-ADOPTION.md)
 - [Spec toolchain integration](docs/SPEC-TOOLCHAIN-INTEGRATION.md)
-- [Host adapters and skills](integrations/README.md)
+- [Agent plugins and skills](integrations/README.md)
 
 ## Optional
 
@@ -97,39 +69,20 @@
 - `corvint-cli --binary corvint-analyzer-sql-native help --json`: [corvint-analyzer-sql-native](internal/capcatalog/trees/corvint-analyzer-sql-native.json)
 - `corvint-cli --binary corvint-analyzer-structured-data help --json`: [corvint-analyzer-structured-data](internal/capcatalog/trees/corvint-analyzer-structured-data.json)
 - `corvint-cli --binary corvint-analyzer-swift help --json`: [corvint-analyzer-swift](internal/capcatalog/trees/corvint-analyzer-swift.json)
-- `corvint-cem-candidate help --json`: [corvint-cem-candidate](internal/capcatalog/trees/corvint-cem-candidate.json)
-- `corvint-cem-experiments help --json`: [corvint-cem-experiments](internal/capcatalog/trees/corvint-cem-experiments.json)
 - `corvint-cli help --json`: [corvint-cli](internal/capcatalog/trees/corvint-cli.json)
-- `corvint-companion-release help --json`: [corvint-companion-release](internal/capcatalog/trees/corvint-companion-release.json)
-- `corvint-console help --json`: [corvint-console](internal/capcatalog/trees/corvint-console.json)
-- `corvint-corpus-http help --json`: [corvint-corpus-http](internal/capcatalog/trees/corvint-corpus-http.json)
-- `corvint-corpus-mcp help --json`: [corvint-corpus-mcp](internal/capcatalog/trees/corvint-corpus-mcp.json)
-- `corvint-corpus-parity help --json`: [corvint-corpus-parity](internal/capcatalog/trees/corvint-corpus-parity.json)
-- `corvint-corpus-republish help --json`: [corvint-corpus-republish](internal/capcatalog/trees/corvint-corpus-republish.json)
-- `corvint-dashboard-snapshot help --json`: [corvint-dashboard-snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json)
 - `corvint-docs-mcp help --json`: [corvint-docs-mcp](internal/capcatalog/trees/corvint-docs-mcp.json)
-- `corvint-gateway help --json`: [corvint-gateway](internal/capcatalog/trees/corvint-gateway.json)
+- `corvint-docs help --json`: [corvint-docs](internal/capcatalog/trees/corvint-docs.json)
 - `corvint-go-test-provider help --json`: [corvint-go-test-provider](internal/capcatalog/trees/corvint-go-test-provider.json)
 - `corvint-go-toolchain-receipt help --json`: [corvint-go-toolchain-receipt](internal/capcatalog/trees/corvint-go-toolchain-receipt.json)
-- `corvint-intake help --json`: [corvint-intake](internal/capcatalog/trees/corvint-intake.json)
 - `corvint-js-test-provider help --json`: [corvint-js-test-provider](internal/capcatalog/trees/corvint-js-test-provider.json)
-- `corvint-lsp help --json`: [corvint-lsp](internal/capcatalog/trees/corvint-lsp.json)
 - `corvint-mcp help --json`: [corvint-mcp](internal/capcatalog/trees/corvint-mcp.json)
-- `corvint-postmerge-connect help --json`: [corvint-postmerge-connect](internal/capcatalog/trees/corvint-postmerge-connect.json)
-- `corvint-postmerge-host-launcher help --json`: [corvint-postmerge-host-launcher](internal/capcatalog/trees/corvint-postmerge-host-launcher.json)
-- `corvint-postmerge-metrics help --json`: [corvint-postmerge-metrics](internal/capcatalog/trees/corvint-postmerge-metrics.json)
-- `corvint-postmerge-workflow help --json`: [corvint-postmerge-workflow](internal/capcatalog/trees/corvint-postmerge-workflow.json)
-- `corvint-public-release-check help --json`: [corvint-public-release-check](internal/capcatalog/trees/corvint-public-release-check.json)
 - `corvint-readiness-record help --json`: [corvint-readiness-record](internal/capcatalog/trees/corvint-readiness-record.json)
 - `corvint-release-candidate help --json`: [corvint-release-candidate](internal/capcatalog/trees/corvint-release-candidate.json)
 - `corvint-release-install help --json`: [corvint-release-install](internal/capcatalog/trees/corvint-release-install.json)
-- `corvint-remote-provider help --json`: [corvint-remote-provider](internal/capcatalog/trees/corvint-remote-provider.json)
 - `corvint-ruby-test-provider help --json`: [corvint-ruby-test-provider](internal/capcatalog/trees/corvint-ruby-test-provider.json)
-- `corvint-tasks help --json`: [corvint-tasks](internal/capcatalog/trees/corvint-tasks.json)
 - `corvint-cli --binary corvint-test-runner help --json`: [corvint-test-runner](internal/capcatalog/trees/corvint-test-runner.json)
 - `corvint-test-validity-mcp help --json`: [corvint-test-validity-mcp](internal/capcatalog/trees/corvint-test-validity-mcp.json)
 - `corvint-update help --json`: [corvint-update](internal/capcatalog/trees/corvint-update.json)
 - `corvint-web-flows help --json`: [corvint-web-flows](internal/capcatalog/trees/corvint-web-flows.json)
-- `corvint-work-queue help --json`: [corvint-work-queue](internal/capcatalog/trees/corvint-work-queue.json)
 - `corvint help --tree`: [corvint](internal/capcatalog/trees/corvint.json)
 <!-- /cli-tree-links -->

@@ -3,13 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-09-30
 Requirement prefix: `QAT-V0`
-Intent status: accepted (decision 0450; V1-0523)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `dogfood` command group and
+`internal/dogfoodflow` (4663b4e2b is the last tree with them). The body below is historical and its
+requirement IDs stay for traceability.
 Authoritative inputs: owner request to merge the six experimental workflows (2026-09-30); `AGENTS.md` invariants 1, 2 and 4; `docs/DOGFOOD.md`; `daily-change-evidence-workflow-v0.md` DCW-V0-003/005/015/025/026; `go-production-kernel-migration-v0.md` GPK-V0-028.
 
 ## Agent digest
 - Claim: An exact intentional authority-start trace refusal can be retained during structural dogfood closure without claiming query support.
-- Status: accepted (decision 0450; V1-0523)/experimental; no release or query capability promotion.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `internal/dogfoodflow/query_abstention.go` and focused hostile binding/replay tests.
 - Blocked on: independent review and actual final original-task CLI qualification; general usefulness remains unqualified.
 - Read next: Requirements; Evidence contract; Acceptance evidence and rollback.

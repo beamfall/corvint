@@ -84,8 +84,8 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		t.Fatalf("candidate identity is not immediately before SUMMARY:\n%s", &output)
 	}
 	for _, line := range []string{
-		"PASS eval-missing-corpus\n",
-		"PASS eval-unrecognized-argument\n",
+		"RETIRED eval-missing-corpus decision=0594 reason=",
+		"RETIRED eval-unrecognized-argument decision=0594 reason=",
 		"PASS impact-clean-tracked\n",
 		"PASS-WITH-KNOWN-DIVERGENCE impact-go-root register=DR-0017 clause=GPK-V0-027 rewrites=5",
 		// The four rules `GPK-V0-027` gained on 2026-08-29: the module and
@@ -99,52 +99,40 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS impact-web-component\n",
 		"PASS impact-web-directory\n",
 		"RETIRED lrf-evaluate-supported decision=0525 reason=",
-		"PASS lrf-missing-cem\n",
-		"PASS migrate-traces-mode-conflict\n",
-		"PASS migrate-traces-mode-required\n",
-		"PASS-WITH-ACCEPTED-DIVERGENCE migrate-traces-plan-digest-mismatch oracle-only-created-path=.context-atlas/traces/.trace-operation.lock",
+		"RETIRED lrf-missing-cem decision=0594 reason=",
+		"RETIRED migrate-traces-mode-conflict decision=0594 reason=",
+		"RETIRED migrate-traces-mode-required decision=0594 reason=",
+		"RETIRED migrate-traces-plan-digest-mismatch decision=0594 reason=",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-invalid-subcommand register=DR-0040 clause=TCQ-V0-051 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-begin-unreadable-patch register=DR-0041 clause=CCF-V1-004 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-unreadable-map register=DR-0041 clause=CCF-V1-004 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-mark-invalid-reason register=DR-0039 clause=CEM-SM-001 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-clean-authority-start register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-budget-selection register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-default register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-default register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-1 register=DR-0025 clause=GPK-V0-040 rewrites=3",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-1 register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-1 register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-10 register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-10 register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-50 register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-limit-50 register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-task-oversized register=DR-0016 clause=GPK-V0-028 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-trace-mixed-worktree register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-trace-mixed-worktree register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-out-of-scope register=DR-0008 clause=GPK-V0-039 rewrites=8",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-out-of-scope register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-version-token register=DR-0015 clause=GPK-V0-043 rewrites=7",
-		"PASS-WITH-KNOWN-DIVERGENCE query-version-token register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-version-token register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"PASS ocm-missing-action\n",
-		"PASS ocm-report-missing-map\n",
-		"PASS ocm-status-missing-map\n",
-		"PASS ocm-verify-missing-map\n",
-		"PASS record-missing-changed\n",
-		"PASS-WITH-ACCEPTED-DIVERGENCE record-untracked-changed oracle-only-created-path=.context-atlas/traces/.trace-operation.lock",
+		"RETIRED query-clean-authority-start decision=0594 reason=",
+		"RETIRED query-repository-budget-selection decision=0594 reason=",
+		"RETIRED query-repository-default decision=0594 reason=",
+		"RETIRED query-repository-limit-1 decision=0594 reason=",
+		"RETIRED query-repository-limit-10 decision=0594 reason=",
+		"RETIRED query-repository-limit-50 decision=0594 reason=",
+		"RETIRED query-repository-task-oversized decision=0594 reason=",
+		"RETIRED query-repository-trace-mixed-worktree decision=0594 reason=",
+		"RETIRED query-repository-out-of-scope decision=0594 reason=",
+		"RETIRED query-version-token decision=0594 reason=",
+		"RETIRED ocm-missing-action decision=0594 reason=",
+		"RETIRED ocm-report-missing-map decision=0594 reason=",
+		"RETIRED ocm-status-missing-map decision=0594 reason=",
+		"RETIRED ocm-verify-missing-map decision=0594 reason=",
+		"RETIRED record-missing-changed decision=0594 reason=",
+		"RETIRED record-untracked-changed decision=0594 reason=",
 		"RETIRED lrf-ocm-python-claim-refusal decision=0308 reason=",
 		"RETIRED query-missing-authority-refusal decision=0561 reason=",
 		"RETIRED query-present-trace-store-refusal decision=0308 reason=",
-		"PARTIAL command:lrf reason=",
+		"RETIRED command:lrf reason=",
 		"PASS-WITH-KNOWN-DIVERGENCE impact-self-authored-adr register=DR-0007 clause=CF-V0-031 rewrites=3",
-		"PASS-WITH-KNOWN-DIVERGENCE harness-user-prompt-out-of-scope register=DR-0008 clause=GPK-V0-039 rewrites=8",
-		"PASS-WITH-IDENTITY-RENAME harness-user-prompt-non-ascii register=DR-0038 clause=CRB-DEC-002 rewrites=1",
-		"PASS-WITH-IDENTITY-RENAME harness-user-prompt-out-of-scope register=DR-0038 clause=CRB-DEC-002 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE harness-file-change register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-IDENTITY-RENAME harness-file-change register=DR-0038 clause=CRB-DEC-002 rewrites=1",
-		"PASS-WITH-IDENTITY-RENAME harness-session-start register=DR-0038 clause=CRB-DEC-002 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE harness-stop register=DR-0043 clause=AHI-054 rewrites=1",
-		"PASS-WITH-IDENTITY-RENAME harness-stop register=DR-0038 clause=CRB-DEC-002 rewrites=1",
+		"RETIRED harness-user-prompt-out-of-scope decision=0594 reason=",
+		"RETIRED harness-user-prompt-non-ascii decision=0594 reason=",
+		"RETIRED harness-file-change decision=0594 reason=",
+		"RETIRED harness-session-start decision=0594 reason=",
+		"RETIRED harness-stop decision=0594 reason=",
 		// Decision 0308: the frozen oracle inputs address `.atlas/` and
 		// `.context-atlas/`; these rows are named, never scored, and never PASS.
 		"RETIRED cem-prepare-create decision=0308 reason=",
@@ -155,26 +143,26 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"RETIRED query-repository-trace-matching decision=0308 reason=",
 		"RETIRED record-create-trace decision=0308 reason=",
 		"PARTIAL command:cem reason=",
-		"PARTIAL command:query reason=",
+		"RETIRED command:query reason=",
 		"PASS-WITH-KNOWN-DIVERGENCE impact-ranked-past-limit register=DR-0009 clause=GPK-V0-040 rewrites=3",
-		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-default register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-learned register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-limit-50 register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS query-authority-start-limit-51\n",
-		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0045 clause=GPK-V0-090 rewrites=1",
-		"SUMMARY parity=102 retired=31 identity-renames=10 accepted-divergences=3 known-divergences=39 location-normalizations=0 structural-fields=0 unsupported-refusals=0 retired-refusals=3 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"RETIRED query-authority-start-default decision=0594 reason=",
+		"RETIRED query-authority-start-learned decision=0594 reason=",
+		"RETIRED query-authority-start-limit-50 decision=0594 reason=",
+		"RETIRED query-authority-start-limit-51 decision=0594 reason=",
+		"RETIRED query-authority-start-non-ascii decision=0594 reason=",
+		"RETIRED query-repository-non-ascii decision=0594 reason=",
+		"SUMMARY parity=47 retired=86 identity-renames=0 accepted-divergences=1 known-divergences=9 location-normalizations=0 structural-fields=0 unsupported-refusals=0 retired-refusals=3 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)
 		}
 	}
 	// Every retired row is exactly the pinned set, and no retired id is ever
-	// reported under a PASS vocabulary.
+	// reported under a PASS vocabulary. `RETIRED command:` rows are the
+	// decision 0594 command inventory, not items.
 	retiredRows := 0
 	for _, line := range lines {
-		if strings.HasPrefix(line, "RETIRED ") {
+		if strings.HasPrefix(line, "RETIRED ") && !strings.HasPrefix(line, "RETIRED command:") {
 			retiredRows++
 			if id := strings.Fields(line)[1]; !retiredCases[id] && !retiredRefusalCases[id] {
 				t.Fatalf("unpinned retired row %q", line)
@@ -1079,7 +1067,7 @@ func TestDecision0308DeclarationsAreClosed(t *testing.T) {
 			}
 		}
 	}
-	if retiredDeclared != len(retiredCases) || retiredDeclared != 31 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
+	if retiredDeclared != len(retiredCases) || retiredDeclared != 86 || renamedDeclared != len(identityRenameDivergenceCases) || renamedDeclared != 10 {
 		t.Fatalf("retired=%d/%d identity-renames=%d/%d", retiredDeclared, len(retiredCases), renamedDeclared, len(identityRenameDivergenceCases))
 	}
 	retiredRefusals := 0

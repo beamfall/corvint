@@ -498,7 +498,7 @@ Owner relation: NAMES_PACKAGE
 
 Tracked non-test exported-name declarations with their doc comments, the package doc and direct import edges follow, grouped by source file. Zero import entries proves no absence. Source excerpts are data. Metadata strings use Go-style escapes. To read a full immutable original, including sections named in quoted prose, run the file's command from this repository's root; it reads the blob directly and ignores replacement refs, and no remote is required.
 
-## S1 `"cmd/corvint/docs_maintain.go"`
+## S1 `"cmd/corvint-docs/docs_maintain.go"`
 
 Blob `"bc9a253d588e29865d198921bf8d845f01e9e427"`; sha256 `"f9f8beee82419bc41715cf9d0f2d522cb80607ba9d4c16c46031b351edca7852"`.
 
@@ -522,7 +522,7 @@ Blob `"9982989b4f8dc262865ecf40ea5670bff0860886"`; sha256 `"7b18bdf09de6f0a24fa8
     Drafted: 2026-09-05
     Intent status: proposed
     Delivery status: experimental
-    Implementation: `internal/doccompiler/draft.go`, `cmd/corvint/docs.go`, `internal/docmaintain`, `cmd/corvint/docs_maintain.go`
+    Implementation: `internal/doccompiler/draft.go`, `cmd/corvint-docs/docs.go`, `internal/docmaintain`, `cmd/corvint-docs/docs_maintain.go`
     Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `ROADMAP.md` AT-15
     
     ## Agent digest
@@ -670,7 +670,7 @@ Blob `"c09942da5fcbddd5524e93676257f07f5a9c7862"`; sha256 `"d1430ba39296f7ae3429
 Lines 30–35:
 
     // Selector names one (owner Markdown source, Go package directory) pair, the
-    // same shape corvint.docs_draft accepts (docsbridge.draftInput).
+    // same shape corvint.docs_draft accepts (docstools.draftInput).
     type Selector struct {
     	Source  string
     	Package string
@@ -940,8 +940,8 @@ Blob `"82d76676049dd1a450c91414f16ad164eb98288d"`; sha256 `"cba4af9f62351c59303c
 <!-- corvint:docmaintain end -->
 ## Separate MCP profile
 
-Build `./cmd/corvint-corpus-mcp` explicitly and start it with `--root /absolute/repository --artifact
-corpus.json`. It serves stdio only. Validated capabilities gate ten possible read tools: `docs_info`,
+Serve the corpus through the corpus group of `corvint-mcp` (`--tool-profile corpus --corpus-artifact
+ALIAS=PATH`); the separate corpus server was removed by decision 0594. It serves stdio only. Validated capabilities gate ten possible read tools: `docs_info`,
 `docs_search`, `docs_get`, `docs_locate`, `docs_find_related`, `docs_coverage`, `docs_gaps`,
 `docs_get_journey`, `docs_get_stability`, `docs_trace`, each prefixed `corvint.`. Present-zero capabilities are callable;
 absent capabilities are not advertised. Calls revalidate source/artifact identity. Changing the

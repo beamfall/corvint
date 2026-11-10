@@ -40,7 +40,7 @@
     "repository-filter-no-execution",
     "effective-worktree-root-binding",
     "optional-empty-status-arguments",
-    "required-query-impact-arguments",
+    "required-impact-arguments",
     "duplicate-key",
     "nested-duplicate-key",
     "invalid-utf8",

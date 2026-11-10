@@ -11,9 +11,9 @@
 #      Spec Kit from the pinned commit's source archive with `pip --require-hashes`.
 #   2. Run the upstream validators on the STA-V0-010 fixtures: `openspec validate --all --strict`
 #      and Spec Kit's `check-prerequisites.sh --json`.
-#   3. Assert that `corvint ocm prepare --intent-form ...` derives exactly upstream's view: the
+#   3. (removed with the `ocm` verb, decision 0594; was the derived-obligation comparison with the
 #      `openspec show --json` requirement names for every main spec and delta, and the spec
-#      template's FR/SC line grammar for Spec Kit (also over upstream's own spec template).
+#      template's FR/SC line grammar for Spec Kit, also over upstream's own spec template).
 #   4. Install the STA-V0-008 extension with `specify extension add --dev`, and load the
 #      STA-V0-009 config snippet through `openspec instructions`.
 #
@@ -195,156 +195,9 @@ if prereq=$(cd "$speckit_project" && bash .specify/scripts/bash/check-prerequisi
 else
     fail "check-prerequisites.sh --json --require-tasks failed for $feature_dir"
 fi
-
-# --- 3. Corvint's derived obligations equal upstream's view -------------------------------------
-step "obligations: corvint ocm prepare --intent-form against upstream"
-
-if [ -n "${CORVINT_BIN:-}" ]; then
-    corvint=$CORVINT_BIN
-else
-    corvint=$work/corvint
-    (cd "$root" && go build -o "$corvint" ./cmd/corvint)
-fi
-
-repo=$work/repo
-mkdir -p "$repo"
-cp -R "$fixtures/openspec/." "$repo/"
-cp -R "$fixtures/speckit/." "$repo/"
-mkdir -p "$repo/specs/000-upstream-template"
-cp "$core_pack/templates/spec-template.md" "$repo/specs/000-upstream-template/spec.md"
-# Out-of-section IDs: the fixture plus an FR and an SC item under `## Assumptions`, which neither
-# Corvint's form nor the template grammar may count (STA-V0-005).
-out_of_section=specs/002-out-of-section/spec.md
-mkdir -p "$repo/${out_of_section%/spec.md}"
-{
-    cat "$fixtures/speckit/specs/001-session-timeout/spec.md"
-    printf '%s\n' '' '- **FR-999**: An assumption written as a requirement is not one.' \
-        '- **SC-999**: An assumption written as a criterion is not one.'
-} >"$repo/$out_of_section"
-[ "$(grep '^## ' "$repo/$out_of_section" | tail -n 1)" = "## Assumptions" ] ||
-    die "the Spec Kit fixture no longer ends in an ## Assumptions section"
-printf 'base\n' >"$repo/conformance-marker.txt"
-git -C "$repo" init -q -b main
-git -C "$repo" add -A
-git -C "$repo" -c commit.gpgsign=false commit -qm base
-base=$(git -C "$repo" rev-parse HEAD)
-printf 'target\n' >"$repo/conformance-marker.txt"
-git -C "$repo" -c commit.gpgsign=false commit -qam target
-target=$(git -C "$repo" rev-parse HEAD)
-(cd "$repo" && "$corvint" cem prepare --spec cem/1.0 --base "$base" --target "$target" </dev/null >/dev/null)
-
-maps=0
-prepare() { # prepare INTENT FORM -> envelope JSON on stdout (runs in a subshell; callers count)
-    (cd "$repo" && "$corvint" ocm prepare --map ".corvint/conformance-$(printf "%s" "$1" | sha256 | cut -c1-16).ocm.json" --intent "$1" \
-        --intent-form "$2" --expected-base "$base" --target "$target" </dev/null)
-}
-# The STA-V0-002 obligation ID rule, recomputed independently for every native name.
-check_ids() { # check_ids INTENT ENVELOPE
-    local id name want
-    while IFS=$'\t' read -r id name; do
-        want="OSR-$(printf '%s' "$name" | sha256 | cut -c1-12 | tr '[:lower:]' '[:upper:]')"
-        [ "$id" = "$want" ] || fail "$1: obligation $id for \"$name\" should be $want"
-    done < <(jq -r '.nativeNames | to_entries[] | [.key, .value] | @tsv' <<<"$2")
-}
-same() { # same LABEL CORVINT_JSON UPSTREAM_JSON (compared as sorted arrays)
-    if [ "$(jq -cS 'sort' <<<"$2")" = "$(jq -cS 'sort' <<<"$3")" ]; then
-        printf 'ok   %s: %s\n' "$1" "$(jq -c 'length' <<<"$2") item(s)"
-    else
-        fail "$1: corvint $(jq -cS sort <<<"$2") != upstream $(jq -cS sort <<<"$3")"
-    fi
-}
-names_of() { jq -c '[.worklist[].id as $id | .nativeNames[$id]]' <<<"$1"; }
-
-while IFS= read -r spec; do
-    id=${spec#openspec/specs/}
-    id=${id%/spec.md}
-    maps=$((maps + 1))
-    envelope=$(prepare "$spec" openspec-spec) || { fail "$spec: corvint ocm prepare --intent-form openspec-spec refused"; continue; }
-    upstream=$(cd "$work/openspec-project" && "$openspec" show "$id" --type spec --json </dev/null | jq -c '[.requirements[].name]')
-    same "openspec-spec $spec" "$(names_of "$envelope")" "$upstream"
-    check_ids "$spec" "$envelope"
-done < <(cd "$repo" && find openspec/specs -name spec.md -type f | LC_ALL=C sort)
-
-# A delta is shown through its change. OpenSpec shows only active changes, so an archived change
-# is copied, unchanged, into a scratch project as an active change of the same id.
-deltas=0
-while IFS= read -r delta; do
-    deltas=$((deltas + 1))
-    change_dir=${delta%%/specs/*}
-    capability=${delta#"$change_dir"/specs/}
-    capability=${capability%/spec.md}
-    change=${change_dir##*/}
-    project=$work/openspec-project
-    case $change_dir in
-        openspec/changes/archive/*)
-            change=${change#????-??-??-}
-            project=$work/archived-$deltas
-            mkdir -p "$project/openspec/changes"
-            cp "$fixtures/openspec/openspec/config.yaml" "$project/openspec/"
-            cp -R "$repo/$change_dir" "$project/openspec/changes/$change"
-            ;;
-    esac
-    maps=$((maps + 1))
-    envelope=$(prepare "$delta" openspec-delta) || { fail "$delta: corvint ocm prepare --intent-form openspec-delta refused"; continue; }
-    shown=$(cd "$project" && "$openspec" show "$change" --type change --json </dev/null |
-        jq -c --arg spec "$capability" '[.deltas[] | select(.spec == $spec)]')
-    same "openspec-delta $delta obligations" "$(names_of "$envelope")" \
-        "$(jq -c '[.[] | select(.operation == "ADDED" or .operation == "MODIFIED") | ((.requirements // []) + [.requirement // empty]) | map(.name) | unique[]]' <<<"$shown")"
-    same "openspec-delta $delta excludedRequirements" "$(jq -c '.excludedRequirements' <<<"$envelope")" \
-        "$(jq -c '[.[] | if .operation == "RENAMED" then {operation, from: .rename.from, to: .rename.to}
-            elif .operation == "REMOVED" then ((.requirements // []) + [.requirement // empty]) | map(.name) | unique[] as $n | {operation: "REMOVED", name: $n}
-            else empty end]' <<<"$shown")"
-    check_ids "$delta" "$envelope"
-done < <(cd "$repo" && find openspec/changes -path '*/specs/*' -name spec.md -type f | LC_ALL=C sort)
-[ "$deltas" -ge 2 ] || fail "expected an active and an archived OpenSpec delta, found $deltas"
-
-# Spec Kit has no parser for FR/SC IDs; its grammar is the spec template's
-# `- **FR-001**: ` / `- **SC-001**: ` lines under `## Requirements` / `## Success Criteria`.
-template=$core_pack/templates/spec-template.md
-grep -Eq '^## Requirements' "$template" && grep -Eq '^## Success Criteria' "$template" &&
-    grep -Eq '^- \*\*FR-[0-9]{3}\*\*: ' "$template" && grep -Eq '^- \*\*SC-[0-9]{3}\*\*: ' "$template" &&
-    grep -Fq '[NEEDS CLARIFICATION' "$template" ||
-    fail "upstream spec-template.md no longer uses the FR/SC line grammar STA-V0-005 reads"
-grammar_ids() { # grammar_ids FILE CLARIFY(0|1): unfenced FR/SC item IDs, or only those needing clarification
-    # FR lines count only inside `## Requirements` and SC lines only inside `## Success Criteria`
-    # (each with its ### subsections, and the template's `*(mandatory)*` annotation); every other
-    # level-2 heading ends the section.
-    awk -v clarify="$2" '
-        function flush() { if (id != "" && (clarify == 0 || text ~ /\[NEEDS CLARIFICATION/)) print id; id = ""; text = "" }
-        /^ {0,3}(```|~~~)/ { flush(); fenced = !fenced; next }
-        fenced { next }
-        /^##( |$)/ {
-            flush()
-            section = ""
-            if ($0 ~ /^## Requirements( \*\([^)]*\)\*)?[ \t]*$/) section = "FR"
-            else if ($0 ~ /^## Success Criteria( \*\([^)]*\)\*)?[ \t]*$/) section = "SC"
-            next
-        }
-        /^- \*\*(FR|SC)-[0-9][0-9][0-9]+\*\*: / {
-            flush()
-            if (substr($0, 5, 2) != section) next
-            id = $0; sub(/^- \*\*/, "", id); sub(/\*\*:.*/, "", id); text = $0; next
-        }
-        id != "" && /^  / { text = text "\n" $0; next }
-        { flush() }
-        END { flush() }
-    ' "$1" | jq -Rsc 'split("\n") | map(select(. != ""))'
-}
-while IFS= read -r spec; do
-    maps=$((maps + 1))
-    envelope=$(prepare "$spec" speckit-spec) || { fail "$spec: corvint ocm prepare --intent-form speckit-spec refused"; continue; }
-    same "speckit-spec $spec FR/SC IDs" "$(jq -c '[.worklist[].id] + [.excludedRequirements[].id]' <<<"$envelope")" "$(grammar_ids "$repo/$spec" 0)"
-    same "speckit-spec $spec needs-clarification" "$(jq -c '[.excludedRequirements[] | select(.reason == "needs-clarification") | .id]' <<<"$envelope")" "$(grammar_ids "$repo/$spec" 1)"
-    if [ "$spec" = "$out_of_section" ]; then
-        out_ids=$(jq -c --argjson oracle "$(grammar_ids "$repo/$spec" 0)" \
-            '[([.worklist[].id] + [.excludedRequirements[].id] + $oracle)[] | select(. == "FR-999" or . == "SC-999")]' <<<"$envelope")
-        if [ "$out_ids" = "[]" ]; then
-            echo "ok   speckit-spec $spec: FR-999 and SC-999 under ## Assumptions excluded by both sides"
-        else
-            fail "$spec: out-of-section IDs counted: $out_ids"
-        fi
-    fi
-done < <(cd "$repo" && find specs -mindepth 2 -maxdepth 2 -name spec.md -type f | LC_ALL=C sort)
+# --- 3. (removed) ---------------------------------------------------------------------------------
+# The derived-obligation comparison ran `corvint ocm prepare`; decision 0594 removed the `ocm` verb,
+# so this script no longer has a Corvint view to compare with upstream.
 
 # --- 4. host packaging against the upstream CLIs ------------------------------------------------
 step "integrations: specify extension add --dev; openspec instructions with the config snippet"
@@ -386,4 +239,4 @@ if [ "$failures" -ne 0 ]; then
     printf 'spec-toolchain-conformance: %d mismatch(es)\n' "$failures" >&2
     exit 1
 fi
-echo "spec-toolchain-conformance: PASS (openspec $os_version, spec-kit $sk_version, $maps intent forms checked)"
+echo "spec-toolchain-conformance: PASS (openspec $os_version, spec-kit $sk_version)"

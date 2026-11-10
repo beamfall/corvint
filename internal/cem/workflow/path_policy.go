@@ -38,8 +38,8 @@ func pathPolicyOption(value string) (bool, error) {
 // DataReaderFinder opens, for the target revision of the repository at root,
 // a lookup of the readers of a declared data path given its rule's declared
 // readers, with the origins of AGW-V0-044 (CAX-V0-064). The binary installs
-// one built on the head-revision index, so the CEM seams keep their
-// dependency closure (the index's own tests import this package).
+// none, so its data rows read data-reader-not-produced; a library caller may
+// install one without widening the CEM seams' dependency closure.
 type DataReaderFinder func(ctx context.Context, root, target string) (func(dataPath string, declared []string) []witnesspaths.Reader, error)
 
 // SetDataReaderFinder installs the data-reader lookup of the path-policy
@@ -49,8 +49,7 @@ func (s *Session) SetDataReaderFinder(finder DataReaderFinder) { s.dataReaders =
 // readBasePathPolicy reads the witness path policy blob from base's tree
 // through the repository's bounded object reads, never the worktree or
 // another tree (CAX-V0-061). It returns nil when base holds no policy and an
-// INVALID account with no rule for a defective one, as witness does
-// (AGW-V0-041).
+// INVALID account with no rule for a defective one (AGW-V0-041).
 func readBasePathPolicy(ctx context.Context, repository *gitauth.Repository, base string) (*witnesspaths.Policy, witnesspaths.Rules) {
 	entry, exists, err := repository.LookupTreeEntry(ctx, base, witnesspaths.PolicyPath)
 	switch {

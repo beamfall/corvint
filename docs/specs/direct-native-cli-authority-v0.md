@@ -3,13 +3,17 @@
 Owner: Russell Lewis
 Date: 2026-09-15
 Requirement prefix: `DCLI-V0`
-Intent status: prospective implementation profile; root Gate A approved bounded implementation 2026-09-15
-Delivery status: experimental; no operator admission
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `authority` command group,
+`internal/authoritystore` and `tools/local-authority` (4663b4e2b is the last tree with them). The
+body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `docs/specs/protected-local-execution-v0.md`, `docs/specs/qualified-lifecycle-v0.md`, `docs/decisions/0009-harness-authority-boundary.md`
 
 ## Agent digest
 - Claim: One closed direct-native Codex CLI topology reuses protected lifecycle computation without inheriting Desktop qualification or execution authority.
-- Status: prospective implementation profile; root Gate A approved bounded implementation 2026-09-15; experimental; no operator admission. No accepted execution root or completed native qualification.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: actual installed Codex CLI 0.153.2 hook parent feasibility; bounded implementation under review.
 - Blocked on: independent implementation review, exact native qualification, independent admission and operator activation.
 - Read next: Requirements; Wire contract; Acceptance and rollback.

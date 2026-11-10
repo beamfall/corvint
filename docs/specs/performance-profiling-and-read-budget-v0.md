@@ -69,7 +69,9 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   deadline) MUST NOT stop the profiles, and a panicking body still writes them.
 - `PRB-V0-005`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) The token `{pid}` in either path MUST be replaced by the process ID, so a child that
   inherits the environment writes its own file instead of truncating its parent's. Without the
-  token the path is used as given; one process writes one CPU and one heap file.
+  token the path is used as given; one process writes one CPU and one heap file, so the
+  `corvint-docs` that `corvint` forwards to (`CMS-V0-003`) inherits only the knobs holding the
+  token.
 - `PRB-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) A knob that cannot be honoured MUST refuse before the command runs, with status 2:
   `profile-unavailable` when a file cannot be created or the profiler cannot start,
   `profile-invalid` when both knobs name the same file or a value holds a NUL byte. `corvint`
@@ -91,7 +93,7 @@ command reads, returns, or mutates (AGENTS.md invariant 4). The budget fixture i
   `native-hook`, `authority-event` and `qualified-event`), every MCP server that honours them,
   and the entries that do not. Until the capability catalog of GitHub #1588 lands, `help --json`
   prints only this member; the catalog absorbs it unchanged.
-- `PRB-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`,
+- `PRB-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475; amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every MCP server binary (`corvint-mcp`, `corvint-corpus-mcp`, `corvint-docs-mcp`,
   `corvint-test-validity-mcp`) MUST apply the same bracket at its entry point, one profile per
   server process, written when the server exits (end of input) and on SIGINT or SIGTERM.
 - `PRB-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2475) `CRB-V0-018`'s exact runtime-settings list MUST name `CORVINT_CPUPROFILE` and
@@ -253,7 +255,7 @@ They amend `PRB-V0-030`, `PRB-V0-031` and `PRB-V0-034`.
   in `pending_on`) or `advisory` (a target no change is committed to enforce; no `pending_on`).
   An `enforced` or `advisory` limit carries no `pending_on`, and a ceiling is always `enforced`.
   Any other value or combination is refused when the budgets file is loaded.
-- `PRB-V0-055`: Every product target MUST record the product profile it belongs to as `profile`,
+- `PRB-V0-055`: (amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which removed `corvint-corpus-mcp`) Every product target MUST record the product profile it belongs to as `profile`,
   one of `core`, `required-companion`, `companion` or `experimental`, the surface labels of
   `docs/specs/corvint-1.0-product-and-release-v1.md`; a ceiling carries none, because it is a
   regression guard, not a product target. A target in any enforcement state, `enforced`
@@ -279,12 +281,11 @@ query, the lifecycle hook or a Go or TypeScript affected plan reached users unme
 - `PRB-V0-057`: After the seven scenarios of `PRB-V0-050`, the harness MUST measure, in order,
   over the fixture's code repository: `index-cold-build` (`index`, every sample after removing the
   repository's index snapshots, no unmeasured run); `index-warm-build` (`index --if-stale` against
-  a matching snapshot); `context-query` (`context --task <fixed task> --subject <Go path> --lsp
-  off`); `lifecycle-hook` (the Claude Code `UserPromptSubmit` adapter, `adapter claude-code
-  user-prompt`, with the host's event payload on stdin and `CLAUDE_PROJECT_DIR` set to the
-  repository); `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript
-  source). Each of the last five takes one unmeasured run. The budgets file MUST bound exactly the
-  thirteen scenarios in that order.
+  a matching snapshot); `context-query` (`context --task <fixed task> --subject <Go path>`);
+  `affected-go` and `affected-ts` (`affected --path` on a fixed Go and TypeScript source). Each of
+  the last four takes one unmeasured run. The budgets file MUST bound exactly the ten scenarios in
+  that order. (Amended 2026-11-09 by decision 0594: the corpus MCP pair, the `lifecycle-hook`
+  adapter scenario and `--lsp off` left with the surfaces they measured.)
 - `PRB-V0-058`: The fixture MUST generate the code repository deterministically (generator
   `corvint-perf-budget-fixture/2`; the app and Ruby repositories are unchanged): `GoPackages` Go
   packages and `TSModules` TypeScript modules whose imports form a binary tree, a test file per Go
@@ -334,8 +335,8 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
 - `PRB-V0-970`: `perf-budget --scenario ID`, repeatable, MUST measure and judge only the named
   `ScenarioIDs` scenarios (the two MCP scenarios are measured together and only the named ones
   are reported); the report lists them as `selected`, its checks cover only them, and an unknown or
-  repeated ID exits 2 before anything runs. A filter that selects `context-query` or
-  `lifecycle-hook` without either index scenario MUST first build the code repository's index
+  repeated ID exits 2 before anything runs. A filter that selects `context-query`
+  without either index scenario MUST first build the code repository's index
   snapshot once, unmeasured, as the index scenarios leave it in a whole run. Without `--scenario` the run is unchanged. With
   `--record-baseline`, a filtered run MUST replace only the selected scenarios' measurements in the
   existing baseline, each carrying `PRB-V0-053` provenance (the run's start time, its clean
@@ -477,12 +478,12 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-002` | `internal/procprofile` | `TestPRBV0002KnobsOffByDefault` |
 | `PRB-V0-003` | `internal/procprofile` | `TestPRBV0001BothKnobsWriteProfiles`, `TestPRBV0008EveryNamedCommandWritesProfiles` |
 | `PRB-V0-004` | `internal/procprofile` | `TestPRBV0004ContextEndWritesProfilesBeforeExit`, `TestPRBV0004SignalWritesProfiles` |
-| `PRB-V0-005` | `internal/procprofile` | `TestPRBV0005PIDPlaceholder` |
+| `PRB-V0-005` | `internal/procprofile`, `cmd/corvint/docs_shim.go` | `TestPRBV0005PIDPlaceholder`, `TestPRBV0005ForwardedDocsChildKeepsOnlyPIDKnobs` |
 | `PRB-V0-006` | `internal/procprofile`, `cmd/corvint/profile_knobs.go` | `TestPRBV0006UnusableKnobRefusesBeforeBody`, `TestPRBV0006RefusalWritesNothing`, `TestPRBV0006UnusableKnobRefusesCommand`, `TestPRBV0006LateStartupFailurePreservesProfiles`, `TestPRBV0006DeviceDestinationKeepsOtherProfile` |
 | `PRB-V0-007` | `internal/procprofile` | `TestPRBV0007WriteFailureReported`, `TestPRBV0007CPUWriteFailureReported` |
 | `PRB-V0-008` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/main.go`, `cmd/corvint/taskcontext.go` | `TestPRBV0008EveryNamedCommandWritesProfiles`, `TestPRBV0008NoNestedProfilerStart` |
 | `PRB-V0-009` | `cmd/corvint/profile_knobs.go`, `cmd/corvint/help.go` | `TestPRBV0009HelpJSONListsProfileKnobScope` |
-| `PRB-V0-010` | `cmd/corvint-mcp`, `cmd/corvint-corpus-mcp`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` | `TestPRBV0010ServerHonoursProfileKnobs`, `TestPRBV0010CorpusServerHonoursProfileKnobs`, `TestPRBV0009HelpJSONListsProfileKnobScope` |
+| `PRB-V0-010` | `cmd/corvint-mcp`, `cmd/corvint-corpus-mcp`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` | `TestPRBV0010ServerHonoursProfileKnobs`, `TestPRBV0010CorpusServerHonoursProfileKnobs` (removed), `TestPRBV0009HelpJSONListsProfileKnobScope` |
 | `PRB-V0-011` | `docs/specs/corvint-rebrand-v0.md` | `TestPRBV0011KnobsInExactSettingsList` |
 | `PRB-V0-012` | `cmd/corvint/main.go`, `cmd/corvint/profile_knobs.go` | `TestPRBV0009HelpJSONListsProfileKnobScope` |
 | `PRB-V0-013` | `internal/procprofile` | `TestPRBV0013DestinationInsideRepositoryRefused`, `TestPRBV0013ProfileInsideWorktreeRefusesBeforeRead` |
@@ -495,7 +496,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-026` | `internal/perfbudget/measure.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-027` | `internal/perfbudget/rusage_unix.go`, `internal/perfbudget/rusage_other.go` | `TestPRBV0026Percentiles`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-028` | `internal/perfbudget/host.go` | `TestPRBV0024HarnessSmokeRun`, `TestPRBV0031CommittedBudgets` |
-| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget`, `internal/perfbudget/harness.go`, `internal/perfbudget/process.go` | `TestPRBV0029HarnessCannotRunExitsTwo`, `TestPRBV0029UnstartableMCPExitsTwo`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-029` | `Makefile`, `internal/perfbudget/cmd/perf-budget`, `internal/perfbudget/harness.go`, `internal/perfbudget/process.go` | `TestPRBV0029HarnessCannotRunExitsTwo`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-030` | `internal/perfbudget/budget.go` | `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-031` | `internal/perfbudget/budgets.json` | `TestPRBV0031CommittedBudgets` |
 | `PRB-V0-032` | `internal/perfbudget/budgets.json`, `internal/perfbudget/budget.go` | `TestPRBV0031CommittedBudgets`, `TestPRBV0030BudgetsValidation` |
@@ -513,7 +514,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-057` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go`, `internal/perfbudget/measure.go` | `TestPRBV0057CodeScenarios`, `TestPRBV0024HarnessSmokeRun`, `TestPRBV0030BudgetsValidation` |
 | `PRB-V0-058` | `internal/perfbudget/code_fixture.go`, `internal/perfbudget/fixture.go` | `TestPRBV0058CodeFixtureShape` |
 | `PRB-V0-059` | `internal/perfbudget/budgets.json` | `TestPRBV0059CodeScenarioCeilings`, `TestPRBV0053BaselineProvenance` |
-| `PRB-V0-060` | `internal/perfbudget/relay_linux.go`, `internal/perfbudget/measure.go` | `TestPRBV0060PeakRSSExcludesHarness`, `TestPRBV0060RelayedMCPStartFailure`, `TestPRBV0060RelayReportNotInherited`, `TestPRBV0024HarnessSmokeRun` |
+| `PRB-V0-060` | `internal/perfbudget/relay_linux.go`, `internal/perfbudget/measure.go` | `TestPRBV0060PeakRSSExcludesHarness`, `TestPRBV0060RelayedMCPStartFailure` (removed), `TestPRBV0060RelayReportNotInherited`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-037` | `internal/perfbudget/process.go`, `internal/perfbudget/measure.go`, `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0037InterruptRetiresBuildDescendants`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-038` | `internal/perfbudget/budget.go`, `internal/perfbudget/harness.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |
 | `PRB-V0-039` | `internal/perfbudget/host.go`, `internal/perfbudget/budget.go` | `TestPRBV0039ContentionWithholdsJudgement`, `TestPRBV0024HarnessSmokeRun` |

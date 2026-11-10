@@ -59,13 +59,13 @@ func TestMMRV0010PerRootFollowRefServesBothRoots(t *testing.T) {
 	first := headRevision(t, e2eMain)
 
 	// The issue's argv starts.
-	issue := []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--follow-ref", "e2e=integration", "--protocol-version", "2025-11-25", "--tool-profile", "task-review"}
+	issue := []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--follow-ref", "e2e=integration", "--protocol-version", "2025-11-25", "--tool-profile", "flows"}
 	var stdout, stderr bytes.Buffer
 	if exit := run(context.Background(), issue, strings.NewReader(""), &stdout, &stderr); exit != 0 || stderr.Len() != 0 {
 		t.Fatalf("issue argv exit=%d stderr=%q", exit, stderr.String())
 	}
 
-	arguments := []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--follow-ref", "e2e=integration", "--tool-profile", "task-review"}
+	arguments := []string{"--root", "app=" + app, "--root", "e2e=" + e2e, "--follow-ref", "e2e=integration", "--tool-profile", "flows"}
 	responses := multiRootSession(t, arguments,
 		map[string]any{"id": 1, "method": "tools/list"},
 		toolCall(2, "corvint.status", map[string]any{"repository": "e2e"}),

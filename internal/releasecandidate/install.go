@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
 	"github.com/Beamfall/corvint/internal/versionline"
 )
 
@@ -28,59 +27,22 @@ type VerifiedCandidate struct {
 var verifyForInstall = VerifyContext
 
 // candidateProfile is one admitted manifest profile's closed source and role
-// inventory. The Core-only profile has no companion or Tasks input
-// (PRS-V1-005): its companion rows stay NOT_RUN as "companion not present",
-// and each single-file role is bound to the path Assemble writes for it.
+// inventory. The Core-only profile is the only admitted profile and has no
+// companion or Tasks input (PRS-V1-005, decision 0594): its companion rows
+// stay NOT_RUN as "companion not present", and each single-file role is bound
+// to the path Assemble writes for it.
 type candidateProfile struct {
-	sources   []string
-	roles     map[string]int
-	paths     map[string]string
-	companion bool
+	sources []string
+	roles   map[string]int
+	paths   map[string]string
 }
 
 var candidateProfiles = map[string]candidateProfile{
-	manifestProfile: {
-		sources: []string{"corvint", "corvint-tasks"}, companion: true,
-		roles: map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "companion-archive": 1, "companion-checksum": 1, "companion-installed-smoke": 1, "corvint-source": 1, "corvint-tasks-source": 1, "qualification-receipt": 1, "release-notes": 1},
-	},
 	coreManifestProfile: {
 		sources: []string{"corvint"},
 		roles:   map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "corvint-source": 1, "qualification-receipt": 1, "release-notes": 1},
 		paths:   map[string]string{"core-gate-checksums": "evidence/core-SHA256SUMS", "core-gate-report": "evidence/core-verification-report.json", "corvint-source": "source/corvint-src.tar.gz", "qualification-receipt": "QUALIFICATION.json", "release-notes": "README.md"},
 	},
-}
-
-type candidateCompanionEvidence struct {
-	manifest                   companionrelease.BundleManifest
-	corvintCommit, corvintTree string
-	corvintSourcePath          string
-	tasks                      SourceIdentity
-	tasksSourcePath            string
-	entries                    map[string][]byte
-}
-
-var loadCompanionEvidence = func(directory string) (*candidateCompanionEvidence, error) {
-	bundle, err := companionrelease.VerifyRetainedBundle(directory)
-	if err != nil {
-		return nil, err
-	}
-	commit, tree, corvintSourcePath, err := bundle.CorvintSourceIdentity()
-	if err != nil {
-		return nil, err
-	}
-	tasks, tasksSourcePath, err := companionTasksIdentity(bundle)
-	if err != nil {
-		return nil, err
-	}
-	entries := map[string][]byte{}
-	for _, member := range []string{corvintSourcePath, tasksSourcePath} {
-		entry, present := bundle.Entry(member)
-		if !present {
-			return nil, fmt.Errorf("verified companion lacks %s", member)
-		}
-		entries[member] = entry
-	}
-	return &candidateCompanionEvidence{manifest: bundle.Manifest, corvintCommit: commit, corvintTree: tree, corvintSourcePath: corvintSourcePath, tasks: tasks, tasksSourcePath: tasksSourcePath, entries: entries}, nil
 }
 
 // Verify admits a closed candidate only when its checksum, manifest asset
@@ -147,7 +109,7 @@ func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, e
 	if err := decodeClosed(files["QUALIFICATION.json"], &qualification); err != nil {
 		return nil, fmt.Errorf("candidate qualification: %w", err)
 	}
-	if err := validateQualification(qualification, profile); err != nil {
+	if err := validateQualification(qualification); err != nil {
 		return nil, err
 	}
 	if err := validateCandidateEvidence(ctx, files, manifest, assets, qualification, profile); err != nil {
@@ -251,11 +213,6 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	if err := probeCoreVersion(ctx, hostPath, probeDirectory, manifest.CorvintVersion); err != nil {
 		return fmt.Errorf("candidate host core version: %w", err)
 	}
-	if profile.companion {
-		if err := validateCandidateCompanion(files, manifest, assets); err != nil {
-			return err
-		}
-	}
 	for _, row := range qualification.Rows {
 		if row.Status == "PASS" {
 			if _, present := files[row.Evidence]; !present {
@@ -266,69 +223,7 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	return nil
 }
 
-// validateCandidateCompanion reverifies the combined profile's companion
-// bundle and binds its Corvint and Tasks identities and source archives.
-func validateCandidateCompanion(files map[string][]byte, manifest Manifest, assets map[string]Asset) error {
-	archivePath, checksumPath, smokePath, err := candidateCompanionPaths(assets)
-	if err != nil {
-		return err
-	}
-	companionDirectory, err := os.MkdirTemp("", "corvint-candidate-companion-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(companionDirectory)
-	for _, candidatePath := range []string{archivePath, checksumPath, smokePath} {
-		if err := os.WriteFile(filepath.Join(companionDirectory, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
-			return err
-		}
-	}
-	bundle, err := loadCompanionEvidence(companionDirectory)
-	if err != nil {
-		return fmt.Errorf("candidate companion evidence: %w", err)
-	}
-	if bundle.corvintCommit != manifest.Sources[0].Commit || bundle.corvintTree != manifest.Sources[0].Tree || bundle.manifest.GoVersion != manifest.GoVersion || bundle.manifest.GitVersion != manifest.GitVersion {
-		return fmt.Errorf("candidate companion Corvint identity disagrees")
-	}
-	if bundle.tasks != manifest.Sources[1] {
-		return fmt.Errorf("candidate companion Tasks identity disagrees")
-	}
-	for candidatePath, bundlePath := range map[string]string{"source/corvint-src.tar.gz": bundle.corvintSourcePath, "source/corvint-tasks-src.tar.gz": bundle.tasksSourcePath} {
-		entry, present := bundle.entries[bundlePath]
-		if !present || !bytes.Equal(entry, files[candidatePath]) {
-			return fmt.Errorf("candidate source archive %s disagrees", candidatePath)
-		}
-	}
-	return nil
-}
-
-func candidateCompanionPaths(assets map[string]Asset) (archive, checksum, smoke string, err error) {
-	for path, asset := range assets {
-		switch asset.Role {
-		case "companion-archive":
-			if archive != "" {
-				return "", "", "", fmt.Errorf("duplicate companion archive role")
-			}
-			archive = path
-		case "companion-checksum":
-			if checksum != "" {
-				return "", "", "", fmt.Errorf("duplicate companion checksum role")
-			}
-			checksum = path
-		case "companion-installed-smoke":
-			if smoke != "" {
-				return "", "", "", fmt.Errorf("duplicate companion smoke role")
-			}
-			smoke = path
-		}
-	}
-	if archive == "" || checksum == "" || smoke == "" || filepath.Base(checksum) != filepath.Base(archive)+".sha256" || strings.TrimSuffix(filepath.Base(smoke), ".smoke.json") != strings.TrimSuffix(filepath.Base(archive), ".tar.gz") {
-		return "", "", "", fmt.Errorf("candidate companion evidence set is incomplete")
-	}
-	return archive, checksum, smoke, nil
-}
-
-func validateQualification(qualification Qualification, profile candidateProfile) error {
+func validateQualification(qualification Qualification) error {
 	platforms := []string{"darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"}
 	workflows := []string{"core-archive", "companion-bundle", "version-identity", "affected-selection", "playwright-external-discovery", "documentation-corpus-discovery", "work-queue-observation"}
 	if qualification.Profile != qualificationProfile || len(qualification.Rows) != len(platforms)*len(workflows) {
@@ -338,7 +233,7 @@ func validateQualification(qualification Qualification, profile candidateProfile
 	for _, platform := range platforms {
 		for _, workflow := range workflows {
 			status := "NOT_RUN"
-			if workflow == "core-archive" || (profile.companion && platform == "darwin/arm64") {
+			if workflow == "core-archive" {
 				status = "PASS"
 			}
 			want[platform+"\x00"+workflow] = status
@@ -348,7 +243,7 @@ func validateQualification(qualification Qualification, profile candidateProfile
 	for _, row := range qualification.Rows {
 		key := row.Platform + "\x00" + row.Workflow
 		expected, admitted := want[key]
-		misreportedCompanion := !profile.companion && row.Workflow == "companion-bundle" && row.Evidence != "companion not present"
+		misreportedCompanion := row.Workflow == "companion-bundle" && row.Evidence != "companion not present"
 		if seen[key] || !admitted || (row.Status != "PASS" && row.Status != "FAIL" && row.Status != "NOT_RUN") || row.Status == "FAIL" || row.Status != expected || row.Evidence == "" || misreportedCompanion {
 			return fmt.Errorf("invalid qualification row %s/%s", row.Platform, row.Workflow)
 		}

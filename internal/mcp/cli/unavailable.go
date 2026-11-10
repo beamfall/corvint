@@ -10,7 +10,6 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
-	"github.com/Beamfall/corvint/internal/mcp/tasksread"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
 )
@@ -22,8 +21,7 @@ const invalidRoot = "invalid-root"
 // profileTools is each --tool-profile value's root-free tool surface, the
 // tools its registry in profileRegistries advertises (MCPV0-950).
 var profileTools = map[string]bridge.Profile{
-	"": {}, toolProfileTaskReview: {TaskReview: true}, toolProfileTaskReviewLSP: {LSP: true},
-	toolProfileFlows: {Flows: true}, toolProfileImportGraph: {ImportGraph: true},
+	"": {}, toolProfileFlows: {Flows: true},
 }
 
 // unavailableGroup lists a per-root group's tools for a server whose single
@@ -61,8 +59,6 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 			group = unavailableGroup{(&testvaliditybridge.Registry{}).Tools, toolgroup.TestValidityErrorProfile, reason}
 		case toolProfileDocs:
 			group = unavailableGroup{(&docsbridge.Registry{}).Tools, toolgroup.DocsErrorProfile, reason}
-		case toolProfileTasks:
-			group = unavailableGroup{toolgroup.Tasks{}.Tools, tasksread.ToolErrorProfile, reason}
 		default:
 			continue
 		}

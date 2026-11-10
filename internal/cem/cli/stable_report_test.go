@@ -278,11 +278,10 @@ func TestCoreStableReportPublishesRepositoryRefusals(t *testing.T) {
 	}
 }
 
-// CEM-V1-036: a stable report refuses an empty --ocm, --patch, an empty ceiling
-// and an output that names the map, with exit 2 and nothing published. A
-// supplied flag is refused even when its value is empty; an --ocm naming an
-// absent file is map-unavailable (V1-1305); the `--flag=` spelling is not a CEM
-// argument and is refused by the argument parser. The refusals
+// CEM-V1-036: a stable report refuses --ocm, --patch, an empty ceiling and an
+// output that names the map, with exit 2 and nothing published. A supplied
+// flag is refused even when its value is empty; the `--flag=` spelling is not
+// a CEM argument and is refused by the argument parser. The refusals
 // before the verifier are marked as stable refusals; a retired or unknown spec is an
 // unmarked unsupported-spec refusal (CEM-V1-215).
 func TestCoreStableReportRefusals(t *testing.T) {
@@ -297,11 +296,7 @@ func TestCoreStableReportRefusals(t *testing.T) {
 		code      string
 		message   string
 	}{
-		{"absent ocm", report("--ocm", "map.ocm.json"), cemcode.MapUnavailable, ""},
-		{"ocm outside root", report("--ocm", "../map.ocm.json"), cemcode.InvalidArguments, "path-traversal"},
-		{"empty ocm", report("--ocm", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --ocm"},
-		{"ocm=", report("--ocm="), cemcode.InvalidArguments, "unrecognized arguments: --ocm="},
-		{"json empty ocm", report("--format", "json", "--ocm", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --ocm"},
+		{"ocm", report("--ocm", "map.ocm.json"), cemcode.InvalidArguments, "unrecognized arguments: --ocm"},
 		{"patch", report("--patch", "x.patch"), cemcode.InvalidArguments, "cem/1.0 report does not accept --patch"},
 		{"empty patch", report("--patch", ""), cemcode.InvalidArguments, "cem/1.0 report does not accept --patch"},
 		{"patch=", report("--patch="), cemcode.InvalidArguments, "unrecognized arguments: --patch="},
@@ -346,31 +341,5 @@ func TestCoreStableReportRefusals(t *testing.T) {
 		if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
 			t.Fatalf("0.x preview %s = %v, want unsupported-spec", name, err)
 		}
-	}
-}
-
-// TestV11305StableReportOCMWithoutVerifier (V1-1305): a stable report whose
-// entry point installs no stable OCM verifier keeps the obligations
-// NOT_PRODUCED with reason ocm-verifier-unavailable, joins no obligation and
-// is not ok; the same report without --ocm keeps its projection unchanged.
-func TestV11305StableReportOCMWithoutVerifier(t *testing.T) {
-	f := materializeStableRead(t)
-	if err := os.WriteFile(filepath.Join(f.repo, "map.ocm.json"), []byte("{}\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	arguments := append(coreStableArguments("report", f, f.artifacts), "--format", "json")
-	exit, envelope, refusal := runCoreRead(t, f.repo, append(arguments, "--ocm", "map.ocm.json")...)
-	if exit != 1 || refusal != nil || envelope["ok"] != false {
-		t.Fatalf("exit %d ok %v refusal %v", exit, envelope["ok"], refusal)
-	}
-	review := envelope["review"].(map[string]any)
-	ocm := review["ocm"].(map[string]any)
-	if ocm["reason"] != "ocm-verifier-unavailable" || review["ocmValid"] != false || len(review["unmappedObligations"].([]any)) != 0 {
-		t.Fatalf("review without verifier: %v", review)
-	}
-	exit, plain, _ := runCoreRead(t, f.repo, arguments...)
-	plainReview := plain["review"].(map[string]any)
-	if exit != 0 || plainReview["ocmValid"] != nil || plainReview["recordSetSha256"] == review["recordSetSha256"] {
-		t.Fatalf("plain report: exit %d review %v", exit, plainReview)
 	}
 }

@@ -30,12 +30,12 @@ func TestReadFailuresKeepTheFixedTextAndAddTheirCode(t *testing.T) {
 	}
 }
 
-// CEM-PILOT-028,029: the native argument parser admits the new formats and
-// optional OCM input without changing the existing report default.
+// CEM-PILOT-028: the native argument parser admits the new formats without
+// changing the existing report default.
 func TestReviewProjectionArguments(t *testing.T) {
 	t.Run("CEM-PILOT-028 admitted formats retain report default", func(t *testing.T) {
 		spec := cemActions["report"]
-		for _, args := range [][]string{{"--map", "map.json", "--format", "json", "--ocm", "map.ocm.json"}, {"--map", "map.json", "--format", "markdown"}, {"--map", "map.json"}} {
+		for _, args := range [][]string{{"--map", "map.json", "--format", "json"}, {"--map", "map.json", "--format", "markdown"}, {"--map", "map.json"}} {
 			flags, unrecognized, err := parseCEMFlags(spec, args)
 			if err != nil {
 				t.Fatal(err)

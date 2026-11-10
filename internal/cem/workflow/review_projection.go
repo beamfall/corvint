@@ -19,71 +19,6 @@ func reviewDigest(value any) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func containsReviewID(value any, id string) bool {
-	switch values := value.(type) {
-	case []any:
-		for _, value := range values {
-			if value == id {
-				return true
-			}
-		}
-	case []string:
-		for _, value := range values {
-			if value == id {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// writeOCMSummary writes the OCM validity, state, issues and NOT_PRODUCED
-// reason lines a 0.x report, and a stable report with --ocm, render.
-func writeOCMSummary(out *strings.Builder, ocm map[string]any) {
-	if valid, found := ocm["valid"]; found {
-		out.WriteString("- OCM validity: " + mdreport.CodeSpan(fmt.Sprint(valid)) + "\n")
-	} else {
-		out.WriteString("- OCM validity: NOT_PRODUCED\n")
-	}
-	if state, _ := ocm["state"].(string); state != "" {
-		out.WriteString("- OCM state: " + mdreport.CodeSpan(state) + "\n")
-	}
-	if verification, ok := ocm["verification"].(map[string]any); ok {
-		if issues, ok := verification["issues"].([]any); ok {
-			for _, item := range issues {
-				issue, _ := item.(map[string]any)
-				out.WriteString("- OCM issue: " + mdreport.CodeSpan(fmt.Sprint(issue["code"])))
-				if message, _ := issue["message"].(string); message != "" {
-					out.WriteString(": " + mdreport.CodeSpan(message))
-				}
-				out.WriteByte('\n')
-			}
-		}
-	}
-	if reason, _ := ocm["reason"].(string); reason != "" {
-		out.WriteString("- Obligations: NOT_PRODUCED " + mdreport.CodeSpan(reason) + "\n")
-	}
-}
-
-// writeRowObligations writes one "Obligation" line per obligation joined to a
-// hunk row; a stable row without a supplied OCM carries none.
-func writeRowObligations(out *strings.Builder, row map[string]any) {
-	obligations, _ := row["obligations"].([]any)
-	for _, item := range obligations {
-		obligation := item.(map[string]any)
-		out.WriteString("  - Obligation " + mdreport.CodeSpan(fmt.Sprint(obligation["id"])) + "\n")
-	}
-}
-
-// writeUnmappedObligations writes the obligations no hunk links.
-func writeUnmappedObligations(out *strings.Builder, projection map[string]any) {
-	unmapped, _ := projection["unmappedObligations"].([]any)
-	for _, item := range unmapped {
-		obligation := item.(map[string]any)
-		out.WriteString("- Unmapped obligation " + mdreport.CodeSpan(fmt.Sprint(obligation["id"])) + ": " + mdreport.CodeSpan(fmt.Sprint(obligation["reason"])) + "\n")
-	}
-}
-
 // stableReviewNonClaims extend the 0.x non-claims with the stable axes.
 var stableReviewNonClaims = []string{
 	"structural links do not prove semantic support",
@@ -310,11 +245,7 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 	}
 	out.WriteString("\n## Hunk review projection\n\n")
 	out.WriteString("- Record set SHA-256: " + mdreport.CodeSpan(fmt.Sprint(projection["recordSetSha256"])) + "\n")
-	if _, supplied := projection["ocmValid"]; supplied {
-		writeOCMSummary(&out, projection["ocm"].(map[string]any))
-	} else {
-		out.WriteString("- Obligations: NOT_PRODUCED `ocm-not-supplied`\n")
-	}
+	out.WriteString("- Obligations: NOT_PRODUCED `ocm-not-supplied`\n")
 	writeStableTiers(&out, projection["citationTiers"])
 	out.WriteString("\nEach row describes a hunk the map declares; the outcome above says whether the verifier accepted it. Test execution is NOT_RUN; supplied witnesses and structural claims do not establish a current passing test.\n\n")
 	for _, entry := range projection["hunks"].([]any) {
@@ -330,10 +261,7 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 			out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + " at " + stableLocation(basis["location"].(map[string]any)) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
 		}
 		out.WriteString("  - Coverage " + mdreport.CodeSpan(fmt.Sprint(row["coverageState"])) + "; discrimination " + mdreport.CodeSpan(fmt.Sprint(row["discriminationState"])) + "\n")
-		writeRowObligations(&out, row)
 	}
-	writeUnmappedObligations(&out, projection)
-	writeDeferredIntents(&out, projection["deferredIntents"])
 	out.WriteString("\n## Non-claims\n\n")
 	for _, claim := range stableReviewNonClaims {
 		out.WriteString("- " + claim + "\n")
@@ -376,78 +304,4 @@ func stableLocation(location map[string]any) string {
 		return mdreport.CodeSpan(path) + " bytes NOT_LOCATED"
 	}
 	return mdreport.CodeSpan(path) + fmt.Sprintf(" bytes %v-%v", span["start"], span["end"])
-}
-
-// applyStableOCM joins a supplied OCM projection onto a stable review exactly
-// as a 0.x review does: ocm and ocmValid, per-hunk obligations with their state
-// and reason, and unmappedObligations, then re-binds the record set digest. A
-// report without --ocm never calls it, so its projection is unchanged
-// (V1-1305).
-func applyStableOCM(projection, ocm map[string]any, verifier bool) {
-	valid := verifier && ocm["valid"] == true
-	obligations, _ := ocm["obligations"].([]any)
-	projection["ocm"] = ocm
-	projection["ocmValid"] = valid
-	for _, entry := range projection["hunks"].([]any) {
-		row := entry.(map[string]any)
-		id, _ := row["id"].(string)
-		linked := []any{}
-		if valid {
-			for _, item := range obligations {
-				obligation, _ := item.(map[string]any)
-				if containsReviewID(obligation["hunkIds"], id) {
-					linked = append(linked, obligation)
-				}
-			}
-		}
-		row["obligations"] = linked
-		row["obligationsState"], row["obligationsReason"] = ocm["state"], ocm["reason"]
-	}
-	unmapped := []any{}
-	if valid {
-		for _, item := range obligations {
-			obligation, _ := item.(map[string]any)
-			if obligation["disposition"] != "linked" {
-				unmapped = append(unmapped, obligation)
-			}
-		}
-	}
-	projection["unmappedObligations"] = unmapped
-	delete(projection, "recordSetSha256")
-	projection["recordSetSha256"] = reviewDigest(projection)
-}
-
-// writeDeferredIntents renders the change's recorded intent-scope deferral
-// (CEM-V1-646). The section appears only when the map's hunks name a record or
-// a bound was supplied; every repository-derived string is a code span.
-func writeDeferredIntents(out *strings.Builder, value any) {
-	member, ok := value.(map[string]any)
-	if !ok {
-		return
-	}
-	out.WriteString("\n## Deferred intent scopes\n\n")
-	record := "none"
-	if path, ok := member["record"].(string); ok {
-		record = mdreport.CodeSpan(path)
-	}
-	fmt.Fprintf(out, "- State: %s; %v deferred of at most %v; record %s\n", mdreport.CodeSpan(fmt.Sprint(member["state"])), member["count"], member["max"], record)
-	out.WriteString("- These intent scopes were deferred: their obligations are not mapped in this change's review.\n")
-	for _, entry := range member["entries"].([]any) {
-		row := entry.(map[string]any)
-		base := "absent at base"
-		if oid, ok := row["baseBlobOid"].(string); ok {
-			base = "base blob " + mdreport.CodeSpan(oid)
-		}
-		fmt.Fprintf(out, "- %s: %v obligations (%s), %s (%s); reason %s\n",
-			mdreport.CodeSpan(fmt.Sprint(row["path"])), row["obligationCount"], mdreport.CodeSpan(fmt.Sprint(row["countState"])),
-			base, mdreport.CodeSpan(fmt.Sprint(row["baseState"])), mdreport.CodeSpan(fmt.Sprint(row["reason"])))
-	}
-	for _, entry := range member["issues"].([]any) {
-		item := entry.(map[string]any)
-		line := "- Issue: " + mdreport.CodeSpan(fmt.Sprint(item["code"]))
-		if path, _ := item["path"].(string); path != "" {
-			line += " " + mdreport.CodeSpan(path)
-		}
-		out.WriteString(line + "\n")
-	}
 }

@@ -70,36 +70,6 @@ func TestPackSnapshotDecodesEverySectionToTheGobValues(t *testing.T) {
 	}
 }
 
-func TestPackTermViewFindMatchesTermPostings(t *testing.T) {
-	index, _ := packFixture(t)
-	for name, postings := range map[string]termPostings{"terms": index.Vocabulary.Terms, "words": index.Vocabulary.Words, "pathterms": index.Vocabulary.PathTerms} {
-		var encoded bytes.Buffer
-		if err := termTableSection(name, postings).write(&encoded); err != nil {
-			t.Fatal(err)
-		}
-		view, err := viewTermTable(encoded.Bytes())
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if err := view.check(len(index.Vocabulary.Paths), name == "terms"); err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if !reflect.DeepEqual(view.postings(), postings) {
-			t.Fatalf("%s: view differs from the table", name)
-		}
-		for key := 0; key < postings.keyCount(); key++ {
-			wantLow, wantHigh, wantOK := postings.find(postings.key(key))
-			low, high, ok := view.find(postings.key(key))
-			if low != wantLow || high != wantHigh || ok != wantOK {
-				t.Fatalf("%s %q: view find = %d %d %v, table find = %d %d %v", name, postings.key(key), low, high, ok, wantLow, wantHigh, wantOK)
-			}
-		}
-		if _, _, ok := view.find("\x00no such key"); ok {
-			t.Fatalf("%s: found a missing key", name)
-		}
-	}
-}
-
 func copiedPostings(postings termPostings) termPostings {
 	copied := postings
 	copied.KeyOffsets = append([]uint32(nil), postings.KeyOffsets...)

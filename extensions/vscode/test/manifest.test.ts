@@ -15,12 +15,13 @@ test("manifest offers no Test Observation import command, activation or setting"
   assert.deepEqual(manifest.contributes.commands.map((entry) => entry.command), [
     "corvint.selectExecutable",
     "corvint.clearExecutable",
-    "corvint.query",
     "corvint.impact",
     "corvint.refresh",
     "corvint.clearResults",
   ]);
   assert.ok(!manifest.activationEvents.includes("onCommand:corvint.importTestObservation"));
+  // Decision 0594 retired `corvint query` and corvint.query (VSC-V0-021).
+  assert.ok(!manifest.activationEvents.includes("onCommand:corvint.query"));
   assert.ok(!("corvint.testObservationPath" in manifest.contributes.configuration.properties));
   assert.ok(!manifest.capabilities.untrustedWorkspaces.restrictedConfigurations.includes("corvint.testObservationPath"));
 });

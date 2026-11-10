@@ -176,53 +176,9 @@ func TestPWRV0069_RunsStabilityPoolByClosure(t *testing.T) {
 	}
 }
 
-// PWR-V0-071: runs identity --closure-digests declares caller closures and refuses a bad file.
-func TestPWRV0071_RunsIdentityClosureDigests(t *testing.T) {
-	root := t.TempDir()
-	reuseGit(t, root, "init", "-q")
-	reuseGit(t, root, "config", "user.email", "corvint@example.test")
-	reuseGit(t, root, "config", "user.name", "Corvint Test")
-	reuseCommit(t, root, map[string]string{"playwright.config.ts": "export default {}\n", "cart.spec.ts": "test('x', () => {})\n"})
-	writeRunsReports(t, root, map[string]string{
-		"closures.json": `{"cart.spec.ts":"` + runsClosureA + `"}`,
-		"unknown.json":  `{"other.spec.ts":"` + runsClosureA + `"}`,
-		"bad.json":      `{"cart.spec.ts":"sha256:abc"}`,
-	})
-	code, out, errs := runsCLI(t, "--root", root, "runs", "identity", "--config", "playwright.config.ts", "--closure-digests", "closures.json")
-	if code != 0 || !strings.Contains(out, `"testClosureRule":"DECLARED"`) || !strings.Contains(out, `"testClosureDigests":{"cart.spec.ts":"`+runsClosureA+`"}`) {
-		t.Fatalf("declared: %d %s %s", code, out, errs)
-	}
-	for _, file := range []string{"unknown.json", "bad.json", "absent.json", "."} {
-		code, out, errs := runsCLI(t, "--root", root, "runs", "identity", "--config", "playwright.config.ts", "--closure-digests", file)
-		var d runsRefusalDoc
-		decodeRuns(t, errs, &d)
-		if code != 2 || out != "" || d.Code != "runs-identity-unavailable" || d.Reason != "CLOSURE_DECLARATION_INVALID" {
-			t.Errorf("%s: %d %s %s", file, code, out, errs)
-		}
-	}
-}
-
-// PWR-V0-072: runs identity --compute-closures prints computed closure digests, and the usage
-// names it and the sidecar options on every command that takes them.
-func TestPWRV0072_RunsIdentityComputeClosures(t *testing.T) {
-	root := t.TempDir()
-	reuseGit(t, root, "init", "-q")
-	reuseGit(t, root, "config", "user.email", "corvint@example.test")
-	reuseGit(t, root, "config", "user.name", "Corvint Test")
-	reuseCommit(t, root, map[string]string{
-		"playwright.config.ts": "export default defineConfig({ testDir: 'e2e', projects: [{ name: 'main' }] });\n",
-		"e2e/cart.spec.ts":     "test('x', () => {})\n",
-	})
-	code, out, errs := runsCLI(t, "--root", root, "runs", "identity", "--config", "playwright.config.ts", "--test-dir", "e2e", "--compute-closures")
-	if code != 0 || !strings.Contains(out, `"testClosureRule":"corvint-test-closure/0"`) || !strings.Contains(out, `"testClosureDigests":{"cart.spec.ts":"sha256:`) ||
-		!strings.Contains(out, `"closure":{"source":"COMPUTED"}`) {
-		t.Fatalf("computed: %d %s %s", code, out, errs)
-	}
-	code, out, errs = runsCLI(t, "--root", root, "runs", "identity", "--config", "playwright.config.ts", "--test-dir", "e2e")
-	if code != 0 || strings.Contains(out, "closure") {
-		t.Fatalf("default output carries a closure: %d %s %s", code, out, errs)
-	}
-	if got := strings.Count(runsHelp, "[--identity REPORT=FILE...] [--identity-sidecars]"); got != 6 || !strings.Contains(runsHelp, "[--compute-closures]") {
+// PWR-V0-065: the usage names the sidecar options on every command that takes them.
+func TestPWRV0065_RunsHelpNamesSidecarOptions(t *testing.T) {
+	if got := strings.Count(runsHelp, "[--identity REPORT=FILE...] [--identity-sidecars]"); got != 6 {
 		t.Fatalf("usage names the sidecar options %d times, want 6", got)
 	}
 }

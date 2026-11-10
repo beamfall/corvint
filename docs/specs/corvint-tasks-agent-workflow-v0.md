@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-11-01
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 
 Authoritative inputs: the owner-requested native ticket V1-3975 and the owner's words recorded there:
 "a better defined process to manage tickets ... the status of them keeps getting lost, or dupes are
@@ -16,7 +18,7 @@ release membership and the §5.2 writer are reused unchanged unless a requiremen
 
 ## Agent digest
 - Claim: Lanes report ticket transitions as commit trailers that the store host ingests; agent work verbs dedupe findings, sync releases and guard status edits.
-- Status: intent proposed; delivery experimental: the verbs, the agent guard and the MCP group exist with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `corvint-tasks work start|deliver|block|finding|close-merged|release-sync`, package `internal/tasks/worktrail`, `CORVINT_TASKS_ROLE`, `--reason-code`, REFINE key `supersededBy`, corvint-mcp `--tool-profile tasks-work`.
 - Blocked on: owner acceptance; durable qualification on the live store.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.

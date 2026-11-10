@@ -57,8 +57,6 @@ func TestFixtureGitIdentityIsHermetic(t *testing.T) {
 	if got := gitFixture(t, root, "rev-parse", "HEAD"); got != want {
 		t.Fatalf("foreign identity changed fixture commit: got %s, want %s", got, want)
 	}
-	t.Run("context-golden", TestContextDefaultWireIsTheGolden)
-	t.Run("lsp-golden", TestContextLSPOffKeepsTheGoldenAndOnDegrades)
 	t.Run("core-profiles", TestCoreVerbsEmitTheFrozenProfiles)
 }
 

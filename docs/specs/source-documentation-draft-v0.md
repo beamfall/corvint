@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Drafted: 2026-09-05
 Intent status: proposed
 Delivery status: experimental
-Implementation: `internal/doccompiler/draft.go`, `cmd/corvint/docs.go`, `internal/docmaintain`, `cmd/corvint/docs_maintain.go`
+Implementation: `internal/doccompiler/draft.go`, `cmd/corvint-docs/docs.go`, `internal/docmaintain`, `cmd/corvint-docs/docs_maintain.go`
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `ROADMAP.md` AT-15
 
 ## Agent digest
@@ -83,7 +83,9 @@ name the bound, its value and the observed size (`documentation-limit-exceeded`,
 (`TestSDDV0005DocsMaintainLimitRefusalNamesLimitAndSize`).
 
 - `SDD-V0-006`: An MCP client can call `corvint.docs_draft` and `corvint.docs_consume`
-(`cmd/corvint-docs-mcp`, package `internal/mcp/docsbridge`) and receive the same claims,
+(`cmd/corvint-docs-mcp`, package `internal/mcp/docsbridge`; since V1-4907 the bridge runs the
+`corvint-docs docs-tool` verb through `internal/docsenvelope`, and `internal/docstools` is the
+native implementation, decision 0594 item 3) and receive the same claims,
 provenance and refusal codes as `corvint docs draft`/`docs consume`, calling the same
 native `contextindex.BuildContext`/`doccompiler.DraftSources`/`doccompiler.ConsumeDraft`
 functions directly rather than shelling out to the CLI binary. This is a separate,
@@ -111,8 +113,8 @@ owner source each refuse: an invalid path or unsupported tool name is a JSON-RPC
 `InvalidParams` protocol error; every other business-level refusal (stale draft, unsupported
 source, missing package, malformed or unknown-member arguments) is an MCP tool result with
 `isError: true` and the CLI's `*doccompiler.Error` code/message — never `isError: false`.
-Rollback: delete `cmd/corvint-docs-mcp` and `internal/mcp/docsbridge`; no migration or
-retained repository state exists.
+Rollback: delete `cmd/corvint-docs-mcp`, `internal/mcp/docsbridge` and `internal/docstools`; no
+migration or retained repository state exists.
 
 - `SDD-V0-007`: An explicitly enabled, bounded local session (`internal/docmaintain`,
 `corvint docs maintain --page PATH --source PATH --package DIRECTORY --enable
@@ -187,8 +189,8 @@ missing directory, or an identity change still refuses (`repository unavailable`
 `ROOT_IDENTITY_CHANGED`). Non-goal: no new tools and no change to the wire contract. Failure mode:
 before this the server refused every linked worktree that corvint-mcp accepted. Status:
 experimental under the standing lane auto-accept; V1-2816
-(`TestSDD013LinkedWorktreeRoot`). Rollback: restore the directory-only marker check in
-`docsbridge.New`.
+(`TestSDD013LinkedWorktreeRoot`, now in `internal/docstools`). Rollback: restore the
+directory-only marker check in `docstools.New` and `docsbridge.New`.
 - `SDD-V0-014`: A page holding `internal/docmaintain` generated blocks MAY declare Go examples that
 the Go test provider checks, one line per example, outside every fence and every block body:
 `<!-- corvint:docmaintain example source="S" package="DIR" name="ExampleX" -->`. Preview, Apply
@@ -554,7 +556,7 @@ Existing one-shot receipt and page-limit behavior remain compatible.
 
 `internal/docmaintain/watch_test.go` covers committed changes, pre-write drift, post-write
 supersession, idle human edits/deletion, unrelated/dirty changes, owner removal, bounds,
-cancellation, packed refs and linked worktrees. `cmd/corvint/docs_maintain_signal_unix_test.go`
+cancellation, packed refs and linked worktrees. `cmd/corvint-docs/docs_maintain_signal_unix_test.go`
 interrupts the actual command while a bounded Git child has a descendant and checks both exit.
 
 `internal/docmaintain/testdata/watch_mcp_proof.py --corvint ABS --docs-mcp ABS --output-root DIR`

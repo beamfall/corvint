@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,9 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
-	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
 )
 
@@ -107,21 +104,4 @@ func TestTestValidityDiscoverRSpecSourceRules(t *testing.T) {
 		t.Errorf("clean %+v", clean)
 	}
 
-	registry, registryErr := testvaliditybridge.New(root)
-	if registryErr != nil {
-		t.Fatal(registryErr)
-	}
-	structured, _, toolFailure, callErr := registry.Call(context.Background(), testvaliditybridge.ToolTestValidity, []byte(`{"discover":true}`))
-	if toolFailure != nil || callErr != nil {
-		t.Fatalf("failure=%+v err=%v", toolFailure, callErr)
-	}
-	var cliDocument any
-	if err := json.Unmarshal(stdout.Bytes(), &cliDocument); err != nil {
-		t.Fatal(err)
-	}
-	cli, cliErr := gokernel.CanonicalJSON(cliDocument)
-	mcp, mcpErr := gokernel.CanonicalJSON(structured["document"])
-	if cliErr != nil || mcpErr != nil || !bytes.Equal(cli, mcp) {
-		t.Fatalf("cli=%s\nmcp=%s", cli, mcp)
-	}
 }

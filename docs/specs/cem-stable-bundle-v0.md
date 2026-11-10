@@ -3,8 +3,12 @@
 Owner: Russell Lewis
 Date: 2026-10-25
 Requirement prefix: `CSB-V0`
-Intent status: accepted (owner's standing CEM-V1 auto-accept, 2026-10-11 and 2026-10-20)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted `internal/cemcandidate`,
+`cmd/corvint-cem-candidate` and the `cem gate-verdict` command (4663b4e2b is the last tree with
+them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: GitHub issue #1767 and ticket V1-2672, `docs/specs/cem-stable-v1.md`
 (`CEM-V1-240` plain assembly, `CEM-V1-341` ok envelope, `CEM-V1-350` nextActions,
 `CEM-V1-573..576` multi-runner requests), `internal/cemcandidate` (`AssemblePlain`) and `AGENTS.md`
@@ -12,7 +16,7 @@ invariant 4.
 
 ## Agent digest
 - Claim: `corvint cem bundle --request FILE --out DIR` assembles a cem/1.0 stable bundle from a plain assembly request outside the repository, writing only DIR.
-- Status: accepted (owner's standing CEM-V1 auto-accept, 2026-10-11 and 2026-10-20)/implemented
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the command in `internal/cemcandidate/bundle.go`, routed by `cmd/corvint/cem_gate_verdict.go`, its help in `cmd/corvint/help.go`, and the read-only disposable-clone end-to-end test in `internal/cemcandidate/bundle_test.go`.
 - Blocked on: nothing; the reply on issue #1767 naming the route belongs to the orchestrator.
 - Read next: Requirements; Failure modes; Acceptance evidence.

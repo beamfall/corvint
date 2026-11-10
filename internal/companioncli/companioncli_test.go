@@ -8,7 +8,7 @@ import (
 
 // CAP-V0-700: Answer handles exactly the five contract forms; any other
 // argument list is left to the binary. The built binaries are checked end to
-// end by internal/companionrelease's TestCAPV0700CompanionsAnswerTheSharedContract.
+// end by the binaries' own help tests.
 func TestCAPV0700AnswerHandlesOnlyTheContractForms(t *testing.T) {
 	spec := Spec{Binary: "corvint-x", Version: ExperimentalVersion, Usage: "usage: corvint-x\nExample: corvint-x run\n"}
 	for _, arguments := range [][]string{{"--help"}, {"-h"}, {"help"}, {"help", "--json"}, {"--version"}, {"--version", "--json"}} {

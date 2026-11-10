@@ -15,8 +15,7 @@ Run Corvint's read-only impact analysis for `$ARGUMENTS` in the current Git repo
 - A commit: resolve it to a full commit ID with `git rev-parse` and run
   `corvint impact --base FULL_COMMIT_ID --limit 20`. This needs a clean worktree whose `HEAD`
   ends the range.
-- Paths: run `corvint impact PATH... --limit 10`. Add `--working-tree-untracked` only for paths the
-  user identified as untracked.
+- Paths: run `corvint impact PATH... --limit 10`.
 
 Report the result for a person, not as raw JSON:
 
@@ -29,5 +28,5 @@ If Corvint refuses the request or the target is unsupported, show its reason and
 repository tool would answer instead. Never approximate a Corvint result.
 
 Other Corvint capabilities: `corvint help` lists every command, and the catalog at
-https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
-MCP tool with its maturity and refusals.
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command and binary with
+its maturity and refusals.

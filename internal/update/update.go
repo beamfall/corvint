@@ -159,22 +159,29 @@ func Run(ctx context.Context, command string, c Config) (Result, error) {
 			return errors.New("redirect limit")
 		}
 		return allowedURL(req.URL)
-	}}, api: "https://api.github.com/repos/" + officialSource + "/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
+	}}, api: "https://api.github.com/repos/" + officialSource(c.Component) + "/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
 	// Rollback is offline and local, so the token option never refuses it.
 	if c.TokenEnv != "" && command != "rollback" {
 		e.token = strings.TrimSpace(os.Getenv(c.TokenEnv))
 		if e.token == "" {
-			return Result{Component: c.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED", Source: officialSource, Channel: channel(c.Component), UnknownReason: "--github-token-env " + c.TokenEnv + " names an unset or empty variable; export the token or omit the option for anonymous requests"}, errors.New("release API token variable " + c.TokenEnv + " is unset or empty")
+			return Result{Component: c.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED", Source: officialSource(c.Component), Channel: channel(c.Component), UnknownReason: "--github-token-env " + c.TokenEnv + " names an unset or empty variable; export the token or omit the option for anonymous requests"}, errors.New("release API token variable " + c.TokenEnv + " is unset or empty")
 		}
 	}
 	return e.execute(ctx, command)
 }
 
-// officialSource is the one official release repository. Core RC and stable
-// releases are `v*` tags and Tasks developer releases are `tasks-dev-*` tags
-// there; prereleases are admitted, so checking an RC or developer build never
-// waits for a published stable release (UPD-V0-367).
-const officialSource = "beamfall/corvint"
+// officialSource is the component's one official release repository. Core RC
+// and stable releases are `v*` tags in beamfall/corvint; Tasks developer
+// releases are `tasks-dev-*` tags in beamfall/corvint-tasks, since Core no
+// longer bundles Tasks (decision 0594). Prereleases are admitted, so checking
+// an RC or developer build never waits for a published stable release
+// (UPD-V0-367).
+func officialSource(component string) string {
+	if component == "tasks" {
+		return "beamfall/corvint-tasks"
+	}
+	return "beamfall/corvint"
+}
 
 // channel is the tag prefix of the component's official releases.
 func channel(component string) string {
@@ -191,15 +198,15 @@ func (e engine) unknownReason(err error, observed int) string {
 	asset := name + "_" + e.platform + ".tar.gz"
 	switch {
 	case errors.Is(err, errNoRelease):
-		return fmt.Sprintf("%s lists %d published release(s) and none has a tag starting %q with asset %s; an official %s release must be published (an owner-authorized action, docs/RELEASE-RUNBOOK.md) before freshness can be known", officialSource, observed, channel(e.config.Component), asset, map[string]string{"core": "Core RC or stable (vX.Y.Z-rc.N)", "tasks": "Tasks developer (tasks-dev-YYYYMMDD.N)"}[e.config.Component])
+		return fmt.Sprintf("%s lists %d published release(s) and none has a tag starting %q with asset %s; an official %s release must be published (an owner-authorized action, docs/RELEASE-RUNBOOK.md) before freshness can be known", officialSource(e.config.Component), observed, channel(e.config.Component), asset, map[string]string{"core": "Core RC or stable (vX.Y.Z-rc.N)", "tasks": "Tasks developer (tasks-dev-YYYYMMDD.N)"}[e.config.Component])
 	case errors.Is(err, errPaginationCap):
-		return fmt.Sprintf("%s lists more than %d releases, beyond the bounded discovery window; freshness cannot be established", officialSource, observed)
+		return fmt.Sprintf("%s lists more than %d releases, beyond the bounded discovery window; freshness cannot be established", officialSource(e.config.Component), observed)
 	}
 	hint := "rerun with network access to api.github.com"
 	if !e.authenticated() {
 		hint += ", or with --github-token-env when the anonymous API rate limit applies"
 	}
-	return fmt.Sprintf("the release inventory of %s could not be read (%v); %s", officialSource, err, hint)
+	return fmt.Sprintf("the release inventory of %s could not be read (%v); %s", officialSource(e.config.Component), err, hint)
 }
 
 var errNoRelease = errors.New("no matching release; freshness UNKNOWN")
@@ -347,7 +354,7 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		return r, err
 	}
 	if command != "rollback" {
-		r.Source, r.Channel = officialSource, channel(c.Component)
+		r.Source, r.Channel = officialSource(c.Component), channel(c.Component)
 	}
 	if command != "rollback" && !c.AllowNetwork {
 		r.UnknownReason = "network not permitted; rerun with --allow-network to read the official release inventory"

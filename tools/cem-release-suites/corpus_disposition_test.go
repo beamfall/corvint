@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/corerelease"
 )
 
 // corpusRoot is the sealed structural corpus packet, read from the worktree.
@@ -128,7 +128,7 @@ func TestCEMV1860DeclaredPlatformsHaveCorpusDisposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	declaration, err := companionrelease.ReadStableReleaseDeclaration(raw)
+	declaration, err := corerelease.ReadStableReleaseDeclaration(raw)
 	if err != nil {
 		t.Fatal(err)
 	}

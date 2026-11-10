@@ -115,14 +115,10 @@ func stableMutators() map[string]func(*Session, string, string) error {
 			})
 			return err
 		},
-		"discriminate": func(session *Session, input, output string) error {
-			_, err := session.Discriminate(ctx(), DiscriminateOptions{MapPath: input, Target: "HEAD", Output: output})
-			return err
-		},
 	}
 }
 
-// CEM-V1-031: cite, mark, cover and discriminate refuse a cem/1.0 input
+// CEM-V1-031: cite, mark and cover refuse a cem/1.0 input
 // explicitly, in place and with a separate output, and write nothing.
 func TestMutatorsRefuseStableInput(t *testing.T) {
 	t.Parallel()

@@ -1979,15 +1979,6 @@ func (compiler *taskContextCompiler) reservedRows() []contextRow {
 	return demoteScreened(append(rows, compiler.screenAuthority(compiler.specCitedRows(rows))...))
 }
 
-// governingRow keeps the subjectless local-prompt caller's single-row API.
-func (compiler *taskContextCompiler) governingRow() (contextRow, bool) {
-	rows := compiler.screenAuthority(compiler.governingRows())
-	if len(rows) == 0 {
-		return contextRow{}, false
-	}
-	return rows[0], true
-}
-
 // governingRows reserves each applicable ancestor independently. An unread
 // ancestor remains a capped candidate; readable parents do not stand in for it.
 // Without ancestor instructions, the original root precedence has no fallback

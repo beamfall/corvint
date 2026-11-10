@@ -141,12 +141,9 @@ output directories outside the checkout; the reproducibility script refuses one 
    bash -o pipefail -c 'make core-n1-replay CORE_N1_TAG=vW.V.U 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/core-n1-replay.txt"
    ```
 
-   The optional companion and installed qualification keep their own gates:
-   `script/corvint-companion-release-gate` and `script/public-release-check`; run them when the
-   release includes those tuples and retain their reports. For companion bundle `/2`, run
-   `script/public-release-check` with `CORVINT_PUBLIC_RELEASE_QUALIFICATION=core` and set
-   `CORVINT_NODE_SHA256`, `CORVINT_NPM_SHA256`, `CORVINT_GO_AUTHORITY_BUNDLE` and
-   `CORVINT_GO_AUTHORITY_SHA256` alongside the ten common settings (PUB-V0-020).
+   Decision 0594 retired the optional companion bundle, its gate and its installed
+   qualification (`script/corvint-companion-release-gate`, `script/public-release-check`); a
+   release now carries only Core tuples.
 
 9. Changelog entry. Add the `## X.Y.Z` section at the top of `docs/RELEASE-NOTES.md` naming the
    version, `Corvint X.Y.Z (build N)` and `FULL_COMMIT`, where `N` is
@@ -184,15 +181,16 @@ output directories outside the checkout; the reproducibility script refuses one 
 
 ## Official update sources for RC and developer builds
 
-`corvint-update` reads only the GitHub releases of `beamfall/corvint` (`UPD-V0-367`), so a build
-is checkable and appliable through the supported update route only after it is published there as
+`corvint-update` reads Core only from the GitHub releases of `beamfall/corvint` and Tasks only
+from those of `beamfall/corvint-tasks` (`UPD-V0-367`, decision 0594), so a build is checkable and
+appliable through the supported update route only after it is published in its repository as
 a non-draft release (a prerelease is enough; no stable `v1.0.0` is needed first). Each component
 is its own release, published by the owner (step 10 for Core):
 
 | Component | Tag | Assets the updater reads |
 |---|---|---|
 | Core RC or stable | `vX.Y.Z-rc.N` or `vX.Y.Z` | `corvint_<goos>_<goarch>.tar.gz`, `SHA256SUMS` and `verification-report.json` from step 5 |
-| Tasks developer | `tasks-dev-YYYYMMDD.N` | `corvint-tasks_<goos>_<goarch>.tar.gz`, `SHA256SUMS` and `build-verification_<goos>_<goarch>.json` from `corvint-companion-release -tasks-only` ([INSTALL](INSTALL.md#standalone-tasks-archive)) |
+| Tasks developer | `tasks-dev-YYYYMMDD.N` | `corvint-tasks_<goos>_<goarch>.tar.gz`, `SHA256SUMS` and `build-verification_<goos>_<goarch>.json`, published from [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks) (decision 0594; [INSTALL](INSTALL.md#standalone-tasks-archive)) |
 
 Until such a release exists, `corvint-update check --allow-network --component core|tasks`
 reports freshness `UNKNOWN` with an `unknownReason` naming the empty channel; that is the expected
@@ -221,5 +219,5 @@ Public tags and published assets are never moved, deleted or rewritten. To roll 
 | Store symlinks, case aliases and overlap | `TestPUBV0025HostileStore`, no-replace promotion tests | Exclusive store ownership; concurrent malicious renames unqualified |
 | Probe output, cancellation and descendants | `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `internal/procgroup` | Escaped descendants remain outside owned-group proof |
 | Hostile repositories, paths, symlinks, case folds, bounded output, time, interruption, secrets, corrupt derived state | `script/check-hostile-regressions.sh` (SOP-V0-007..009), 29 rows | `memory-resident` (whole-process and git child memory) is NOT_COVERED; case-fold rows are NOT_RUN on a case-sensitive filesystem |
-| Hostile archives and repository exports | `internal/companionrelease` unsafe path, casefold, source count/byte tests; `go-archive-gate-injection-test` | Capability-specific exact artifact/security gates; injection gate is opt-in |
+| Hostile archives and repository exports | `internal/corerelease` unsafe path, casefold, source count/byte tests; `go-archive-gate-injection-test` | Capability-specific exact artifact/security gates; injection gate is opt-in |
 | Secrets and evidence | `internal/secretscreen`, `internal/trace`, local-completion screening | Review retained release evidence before sharing; fixtures are not a comprehensive audit |

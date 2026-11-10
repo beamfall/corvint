@@ -265,12 +265,12 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 | `URE-V0-004` | experimental | `TestAppendEnabledRotatesAtCap`, `TestSymlinkedLedgerIsRefused`, `TestLedgerRequiresIgnoreEntries`, `TestURE004AppendRefusesSwappedLedgerDirectory` |
 | `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses`, `TestReadRejectsRowsOutsideTheWriterContract`, `TestReadReportsLedgerCut` |
 | `URE-V0-006` | experimental | `TestHookPostToolNeverErrors`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
-| `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle`, `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` |
-| `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites`, `TestURE008WatchdogSettlesPacketOnce` |
-| `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` |
-| `URE-V0-996` | experimental | `internal/frictionmetric`: `TestURE996MetricDefinitions`, `TestURE996MissingInputIsNotObserved`, `TestURE996RefusesMalformedRecords` |
-| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric`, `TestURE997EvalFrictionReportsWithoutMutating` |
-| `URE-V0-998` | experimental | `internal/frictionmetric`: `TestURE998BenchmarkPrecisionRecall` |
+| `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle` (removed), `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` (removed) |
+| `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed), `TestURE008WatchdogSettlesPacketOnce` (removed) |
+| `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed) |
+| `URE-V0-996` | experimental | `internal/frictionmetric`: `TestURE996MetricDefinitions` (removed), `TestURE996MissingInputIsNotObserved` (removed), `TestURE996RefusesMalformedRecords` (removed) |
+| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric` (removed), `TestURE997EvalFrictionReportsWithoutMutating` (removed) |
+| `URE-V0-998` | experimental | `internal/frictionmetric`: `TestURE998BenchmarkPrecisionRecall` (removed) |
 
 ## Unresolved decisions
 

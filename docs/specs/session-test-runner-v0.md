@@ -92,11 +92,7 @@ of every requirement below and the binding gate until this spec is promoted.
   command. `{"none": reason}` is a gate-scoped assertion: the repository's full gate (`make gate`),
   its existing drivers (`script/gate-affected.sh`, `tools/corvint-pr-tests`) and CI run no suite
   for that language. It SHALL NOT be declared for a language whose suite any gate step, driver or
-  CI job does run; such a language declares that step's command (the `integrations/pi`
-  `typescript` suites run under `make gate`'s `host-adapter-node-test`; `typescript` retains
-  `["make", "host-adapter-test"]` as its focused command, which also runs the
-  `cmd/corvint` Go subset. The full gate runs that subset only through its root Go suite,
-  and keeps the separate Node suites, including `integrations/pi-protected`). A suite
+  CI job does run; such a language declares that step's command. A suite
   outside the gate (the `extensions/vscode` npm test and `tools/web-flows` `node --test` suites) is a recorded limit this runner does not run, not a
   contradiction of `none`. For a `none` language the manifest records `<language>: <reason>` in
   `noSuite`, nothing runs for it, and the run is not `INCOMPLETE` on its account; the STR-V0-006
@@ -839,7 +835,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-016 | local profile claims no containment (help text); the slice-3 shadow steps run under the workflow's existing read-only permissions with no persisted credentials | help text; `make ci-least-privilege-check`; the AFP-V0-047 shadow checkout keeps `persist-credentials: false`; hosted shadow runs observed from AFP-V0-047 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`: 142 hosted runs retained shadow selections; the permissions themselves rest on `make ci-least-privilege-check`) |
 | STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
 | STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
-| STR-V0-019 | `checkGoTestTimeouts` in `tools/test-commands-check/main.go`; `host-adapter-test` passes `-timeout $(GO_TEST_TIMEOUT)` (V1-1552) | `tools/test-commands-check/main_test.go` TestSTRV0019GateGoTestHasTimeout (repository pass; an unbounded gate-step `go test` refused; `-timeout=` passes) |
+| STR-V0-019 | `checkGoTestTimeouts` in `tools/test-commands-check/main.go`; `go-test` passes `-timeout $(GO_TEST_TIMEOUT)` (V1-1552) | `tools/test-commands-check/main_test.go` TestSTRV0019GateGoTestHasTimeout (repository pass; an unbounded gate-step `go test` refused; `-timeout=` passes) |
 | STR-V0-050 | `ListedFiles`, `PlanShards` in `internal/sessiontest/shards.go`; `runTestShards` in `cmd/corvint/test.go` | `internal/sessiontest/shards_test.go` TestSTRV0050ListedFiles, TestSTRV0050NearBoundaryPlanRoundTrip (4096 escaping names at the 1 MiB list bound, 4095 unknown, 64 shards: encodes over 1 MiB within the plan bound and reads back byte-identically; non-UTF-8 refused); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0050CLIShardsPlan (deterministic stdout, plan reads back, input directory unchanged, seven usage refusals), TestSTRV0050ShardsInputReadIsBounded (FIFO refused without blocking; a file growing past the bound is never returned over it) |
 | STR-V0-051 | `readHistory`, `historyWeights`, `median` | TestSTRV0051MedianOfLastKRuns (K=2 and K=3 over three runs, a partially recorded file, an unknown file, K bounds), TestSTRV0050CLIShardsPlan |
 | STR-V0-052 | `PlanShards` placement, `ShardPartitionDigest` | TestSTRV0052LongestFirstExactlyOnceDeterministic (a worked longest-first example; 97 files on 1 to 16 shards placed once with equal bytes and digest on repeat) |

@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1588; GitHub #1031)
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09) moved Corvint Tasks to [beamfall/corvint-tasks](https://github.com/beamfall/corvint-tasks), whose `docs/specs` holds the live copy; 4663b4e2b is the last Corvint tree with its code. The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: GitHub issue beamfall/corvint#1031 and native ticket V1-1588 ("tasks ensures a
 per-ticket worktree on a ticket-named branch in a declared repository"), decision 0397 (corvint-tasks
 built in tree), the [intent worktree contract](corvint-tasks-intent-worktree-v0.md), and the in-tree
@@ -11,7 +13,7 @@ sources under `internal/tasks/intent`, `internal/tasks/store` and `internal/task
 
 ## Agent digest
 - Claim: `corvint-tasks worktree ensure <ticket>` creates or reuses one worktree per ticket on a pattern-derived branch inside a declared root and never resets it.
-- Status: TWT-V0-001..007 accepted under the owner's standing auto-accept (2026-10-11) (V1-1588; GitHub #1031); experimental; implemented with focused tests.
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: the optional policy `worktrees {repository, base, branchPattern}`, `store.EnsureTicketWorktree`, and the `worktree ensure` verb.
 - Blocked on: nothing for V0; recording the worktree head on release or completion is a residual (see Non-goals).
 - Read next: Requirements; Failure modes; Traceability.

@@ -3,8 +3,12 @@
 Owner: Russell Lewis
 Date: 2026-11-03
 Requirement prefix: `DCW-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11)
-Delivery status: implemented
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the dogfood closeout tooling
+(4663b4e2b is the last tree with them). The body below is historical and its requirement IDs stay
+for traceability.
 Authoritative inputs: lane dfric charter (orchestrator, 2026-11-03) for V1-4406, V1-4441, V1-4442,
 V1-4443, V1-4444, V1-4401 and V1-4291; `daily-change-evidence-workflow-v0.md` (`DCW-V0-015`,
 `DCW-V0-112`, `DCW-V0-396`, `DCW-V0-406`, `DCW-V0-442`, `DCW-V0-731`, `DCW-V0-816`);
@@ -13,7 +17,7 @@ V1-4443, V1-4444, V1-4401 and V1-4291; `daily-change-evidence-workflow-v0.md` (`
 
 ## Agent digest
 - Claim: The change-evidence closeout and lane tooling name the real recovery for seven observed lane frictions.
-- Status: accepted under the owner's standing auto-accept (2026-10-11) / implemented
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: `script/dogfood-finish.sh`, `cmd/corvint/dogfood_flow.go`, `internal/dogfoodflow` (propose, check, change, reused worktree), `script/dogfood-retire-traces.sh`, `script/gen-spec-requirements.sh`, `script/requirement-ids-free.sh`.
 - Blocked on: measured lane time saved remains NOT_OBSERVED.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.

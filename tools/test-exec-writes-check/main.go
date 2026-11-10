@@ -1,8 +1,7 @@
 // Command test-exec-writes-check refuses a Go test file that writes an executable with
 // os.WriteFile (docs/specs/corvint-self-development-v0.md, ASD-V0-929). A file a test writes
 // and then executes can fail to start with ETXTBSY when a parallel test forks while the write
-// descriptor is open; internal/execfile.WriteFile (or, on the Tasks side, the
-// internal/tasks/fixture.WriteExecutable twin) holds syscall.ForkLock across the write and
+// descriptor is open; internal/execfile.WriteFile holds syscall.ForkLock across the write and
 // closes that race (WQO-V0-093, V1-2587). Run from the repository root, it parses every
 // tracked *_test.go file outside testdata and internal/execfile and prints one FAIL line per
 // os.WriteFile call whose permission argument is an integer literal with an execute bit. It
@@ -23,14 +22,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-// exemptDirs lists test directories the check skips, each with its reason. An entry is
-// removed when its owner converts the files.
-var exemptDirs = map[string]string{
-	// internal/tasks/cli/ was owned by an in-flight lane (taw-w15) when V1-2587 landed; its
-	// files convert to fixture.WriteExecutable once that lane merges.
-	"internal/tasks/cli/": "V1-2587 follow-up after taw-w15",
-}
 
 // nestedModules are the separate Go modules in the tree. They cannot import
 // internal/execfile, so each keeps a package-local ForkLock-guarded writer.
@@ -80,11 +71,6 @@ func skipped(path string) bool {
 	if path == "" || strings.HasPrefix(path, "internal/execfile/") {
 		return true
 	}
-	for dir := range exemptDirs {
-		if strings.HasPrefix(path, dir) {
-			return true
-		}
-	}
 	return strings.HasPrefix(path, "testdata/") || strings.Contains(path, "/testdata/")
 }
 
@@ -113,9 +99,6 @@ func scan(path string, source []byte) ([]string, error) {
 		return nil, nil
 	}
 	fix := "use execfile.WriteFile (github.com/Beamfall/corvint/internal/execfile)"
-	if strings.HasPrefix(path, "internal/tasks/") || strings.HasPrefix(path, "cmd/corvint-tasks/") {
-		fix = "use fixture.WriteExecutable (github.com/Beamfall/corvint/internal/tasks/fixture)"
-	}
 	for _, module := range nestedModules {
 		if strings.HasPrefix(path, module) {
 			fix = "use the package's writeExecutable test helper, which holds syscall.ForkLock.RLock across os.WriteFile (" + module + " is its own module and cannot import internal/execfile)"

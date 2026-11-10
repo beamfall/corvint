@@ -31,13 +31,15 @@ func profileKnobError(err error) error {
 
 // profileKnobWorkers are the internal child entry points main runs before the bracket: their
 // startup-only owned-group verification must precede every goroutine, the profiler's included.
-var profileKnobWorkers = []string{"dogfood-outcome-worker", "dogfood-verifier-worker", "index-refresh-worker (CORVINT_INTERNAL_INDEX_REFRESH)"}
+// Decision 0594 removed the last of them.
+var profileKnobWorkers = []string{}
 
 // profileKnobPlumbing are the hidden plumbing verbs runContext dispatches inside the bracket.
-var profileKnobPlumbing = []string{"native-hook", "authority-event", "qualified-event"}
+// None remain: native-hook, authority-event and qualified-event retired with decision 0594.
+var profileKnobPlumbing = []string{}
 
 // profileKnobServers are the MCP server binaries whose entry points apply the same bracket.
-var profileKnobServers = []string{"corvint-corpus-mcp", "corvint-docs-mcp", "corvint-mcp", "corvint-test-validity-mcp"}
+var profileKnobServers = []string{"corvint-docs-mcp", "corvint-test-validity-mcp"}
 
 // profileKnobCatalog is the `profiling` member of `corvint help --json` (PRB-V0-009): which
 // commands and servers honour the knobs, derived from the same command list the dispatcher

@@ -1319,7 +1319,7 @@ func TestInScopeBatchPrecheckForms(t *testing.T) {
 // Mandatory Node coverage cannot reuse an optional pass, in any ledger scope.
 func TestDigestKeyBindsHostCoverageEnvironment(t *testing.T) {
 	t.Parallel()
-	for _, step := range []string{"host-adapter-node-test", unresolved, packageStep} {
+	for _, step := range []string{"lane-scripts-test", unresolved, packageStep} {
 		t.Run(step, func(t *testing.T) {
 			fixtureRepository(t)
 			setenv(t, "CORVINT_REQUIRE_NODE", "")

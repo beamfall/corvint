@@ -316,14 +316,6 @@ func parserSource(text string) []byte {
 	return unsafe.Slice(unsafe.StringData(text), len(text))
 }
 
-// goSymbols' second table is the named fields of every top-level struct type
-// (TCP-V0-162). A source the grammar refuses contributes none: the scanner
-// fallback has no struct body to read.
-func goSymbols(source Source, text string) ([]Symbol, []Symbol, string) {
-	symbols, fields, refusal, _ := goSymbolsParsed(source, text)
-	return symbols, fields, refusal
-}
-
 // goSymbolsParsed also returns a successful parse for import extraction, so
 // the whole-checkout build does not parse each Go file twice (GPK-V0-8000).
 func goSymbolsParsed(source Source, text string) ([]Symbol, []Symbol, string, *ast.File) {

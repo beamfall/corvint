@@ -62,24 +62,6 @@ func (collector *pythonDefinitions) DefinitionEnd(startLine, endLine int) {
 	collector.symbols[index].EndLine = endLine
 }
 
-// pythonSymbols extracts definitions from one Python source through the closed
-// 3.12 grammar. It reports nothing for a source the grammar rejects, because a
-// partial walk would name a subset of the file's definitions as if it were all
-// of them.
-func pythonSymbols(source Source, text string) []Symbol {
-	// The grammar requires a newline-terminated final line where the oracle's
-	// parser does not, and appending one cannot change which definitions a
-	// Python source contains.
-	if !strings.HasSuffix(text, "\n") {
-		text += "\n"
-	}
-	collector := &pythonDefinitions{source: source}
-	if pythonsyntax.ParseValidated(source.Path, []byte(text), collector) != "" {
-		return nil
-	}
-	return collector.symbols
-}
-
 // pythonImports collects the grammar's static import facts. The grammar emits
 // the module exactly as written, so a relative import arrives with its leading
 // dots intact ("." , ".sibling", "..pkg.mod") where CPython's ast splits them
@@ -219,17 +201,6 @@ func pythonPathParts(sourcePath string) []string {
 		return nil
 	}
 	return strings.Split(stem, "/")
-}
-
-// pythonImportSet returns the modules a Python source imports, matching the
-// oracle's ast-based extraction. A file the grammar cannot parse yields no
-// imports, exactly as the oracle returns an empty set on SyntaxError.
-func pythonImportSet(sourcePath, text string) map[string]struct{} {
-	_, modules, _ := pythonSourceFacts(Source{Path: sourcePath}, text)
-	if modules == nil {
-		return map[string]struct{}{}
-	}
-	return modules
 }
 
 // PythonImportCandidates is the set of module spellings by which other Python

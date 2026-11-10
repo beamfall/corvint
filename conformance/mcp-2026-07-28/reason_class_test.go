@@ -112,7 +112,7 @@ func TestReasonClassToolErrorOverRefusedRepositories(t *testing.T) {
 				successResult(t, classClient.call(t, 1, "tools/list", map[string]any{"_meta": requestMeta()}))
 				gitRun(t, root, "config", "core.worktree", outside)
 			}
-			for id, tool := range []string{"corvint.status", "corvint.impact", "corvint.query"} {
+			for id, tool := range []string{"corvint.status", "corvint.impact"} {
 				assertToolError(t, defaultClient, id+10, tool, readToolArguments(t, root, tool), "")
 				assertToolError(t, classClient, id+10, tool, readToolArguments(t, root, tool), classes[kind])
 			}

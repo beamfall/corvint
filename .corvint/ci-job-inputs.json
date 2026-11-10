@@ -25,11 +25,6 @@
         "platforms": ["darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64", "windows/amd64"]
       },
       "exportedTree": true
-    },
-    {
-      "workflow": ".github/workflows/intake-containment.yml",
-      "job": "containment",
-      "goTests": ["./cmd/corvint-intake", "./internal/intake"]
     }
   ]
 }

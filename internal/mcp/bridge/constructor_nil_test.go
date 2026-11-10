@@ -6,7 +6,7 @@ import "testing"
 // MCPV0-7407: assigning a constructor's success to error stays nil.
 func TestMCPV07407ConstructorNil(t *testing.T) {
 	root := makeRepository(t)
-	for _, open := range []func(string) (*Registry, error){func(root string) (*Registry, error) { return NewTaskReview(root) }, func(root string) (*Registry, error) { return NewTaskReviewLSP(root) }} {
+	for _, open := range []func(string) (*Registry, error){New, NewFlows} {
 		var err error
 		var registry *Registry
 		registry, err = open(root)

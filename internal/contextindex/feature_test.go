@@ -1,7 +1,6 @@
 package contextindex
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -42,23 +41,6 @@ func featureIndex() *Index {
 			{Kind: "func", Name: "TestStableValue", Path: "pkg/sample_test.go", BlobHash: testBlob, Line: 4},
 		},
 		Imports: map[string]map[string]struct{}{},
-	}
-}
-
-func TestFeatureSelectsCanonicalRecordAndRankedGoImplementation(t *testing.T) {
-	receipt, err := Feature(featureIndex(), "a-first", 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if receipt["mode"] != "feature" || receipt["state"] != "READY" {
-		t.Fatalf("receipt=%v", receipt)
-	}
-	results := mapsFromAny(receipt["results"])
-	if len(results) != 2 || results[0]["kind"] != "feature" || results[0]["id"] != "a-first" || results[0]["score"] != 1000 {
-		t.Fatalf("canonical results=%v", results)
-	}
-	if results[1]["kind"] != "symbol" || results[1]["id"] != "pkg/sample.go:StableValue" || results[1]["score"] != 680 {
-		t.Fatalf("ranked implementation=%v", results[1])
 	}
 }
 
@@ -121,29 +103,6 @@ func TestFeatureUnknownIsSuccessfulOutOfScopeAndBudgetable(t *testing.T) {
 	}
 }
 
-func TestFeatureValidatesLimitBeforeIdentifier(t *testing.T) {
-	for _, test := range []struct {
-		id      string
-		limit   int
-		message string
-	}{
-		{"Bad_ID", 0, "limit must be an integer from 1 to 50"},
-		{"Bad_ID", 10, "feature_id must be a lowercase kebab-case identifier"},
-		{"a-first", 51, "limit must be an integer from 1 to 50"},
-	} {
-		_, err := Feature(featureIndex(), test.id, test.limit)
-		var featureError *Error
-		if !errors.As(err, &featureError) || featureError.Code != "" || err.Error() != test.message {
-			t.Fatalf("id=%q limit=%d err=%v", test.id, test.limit, err)
-		}
-	}
-	for _, limit := range []int{1, 50} {
-		if _, err := Feature(featureIndex(), "a-first", limit); err != nil {
-			t.Fatalf("limit=%d err=%v", limit, err)
-		}
-	}
-}
-
 func TestFeatureBudgetPreservesCriticalSelection(t *testing.T) {
 	for _, budget := range []int{MinPacketBytes, 1500, MaxPacketBytes} {
 		receipt, err := FeatureBudget(featureIndex(), "a-first", 10, &budget)
@@ -154,22 +113,6 @@ func TestFeatureBudgetPreservesCriticalSelection(t *testing.T) {
 		if coverage["budget_bytes"] != budget || coverage["within_budget"] != true || coverage["packet_bytes"].(int) > budget {
 			t.Fatalf("budget=%d coverage=%v", budget, coverage)
 		}
-	}
-}
-
-func TestFeatureRefusesKnownNonGoCandidateRankingButNotUnknownOrLimitOne(t *testing.T) {
-	index := featureIndex()
-	index.Sources["pkg/candidate.py"] = Source{Path: "pkg/candidate.py", BlobHash: strings.Repeat("7", 40)}
-	_, err := Feature(index, "a-first", 2)
-	var featureError *Error
-	if !errors.As(err, &featureError) || featureError.Code != "unsupported-feature-repository" {
-		t.Fatalf("err=%v", err)
-	}
-	if _, err := Feature(index, "a-first", 1); err != nil {
-		t.Fatalf("limit-one err=%v", err)
-	}
-	if _, err := Feature(index, "no-such-feature", 10); err != nil {
-		t.Fatalf("unknown err=%v", err)
 	}
 }
 

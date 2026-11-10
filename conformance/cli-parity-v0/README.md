@@ -57,6 +57,17 @@ every other count ranges over executed cases. A command with a retired case or r
 inventory status `PARTIAL` with the retired count in its reason, printed like the `UNSUPPORTED`
 and `NOT_RUN` rows.
 
+Decision 0594 (`docs/decisions/0594-refocus-on-test-selection-2026-11-09.md`) removes the
+`query`, `harness`, `ocm`, `migrate-traces`, `eval`, `record` and `lrf` commands. It retires the
+fifty-five cases of those commands that no earlier decision had retired, pinned by
+`decision0594RetiredCases` and `retiredCaseDecisions` to `decision=0594`, so 86 of the 133 cases
+are retired and 47 replay. The fourteen earlier retirements of those commands and the three
+retired refusal items keep their own decisions. A retired case keeps every divergence declaration
+it carried; a decision 0594 retirement is the only one that `validIdentityRenameDivergence` and
+`validWideningDivergence` admit alongside a declaration, and replay neither applies nor counts
+them. Each removed command carries inventory status `RETIRED`, printed like the `PARTIAL` rows.
+The `cem` cases stay: every executed `cem` case addresses a kept action.
+
 `replay` gives every parity case and refusal its own workspace root
 (`conformance/cli-parity-v0/runner.go:99-136`) and executes the candidate once per item.
 `replayParityCase` compares that one execution with the immutable manifest expectation;
@@ -138,8 +149,8 @@ Sixteen case declarations are admitted across thirteen distinct divergence class
   refuse `nope`, but the candidate's choice list enumerates the nine reasons cem/0.3 admits where
   the frozen oracle expectation lists five.
 - `DR-0040` / `TCQ-V0-051` (1 case: `cem-invalid-subcommand`) — one stderr rewrite: both sides
-  refuse `bogus`, but the candidate's action list enumerates twelve actions where the frozen oracle
-  expectation lists seven.
+  refuse `bogus`, but the candidate's action list enumerates eight actions (the seven plus `cover`;
+  decision 0594 removed the later Go-only actions) where the frozen oracle expectation lists seven.
 - `DR-0041` / `CCF-V1-004` (2 cases: `cem-begin-unreadable-patch` and `cem-unreadable-map`) — one
   stderr rewrite per case that adds the stable `patch-unavailable` or `map-unavailable` code member
   to an otherwise identical refusal.
@@ -445,7 +456,7 @@ unconstrained — so neither is a parity case.
 
 ## `lrf` error-path bytes are outside byte parity by spec
 
-`docs/specs/lexical-relevance-floor-v0.md:314-320` constrains structural failures to preserve their
+`docs/specs/lexical-relevance-floor-v0.md` constrains structural failures to preserve their
 **error code** and exit `2`, and states that I/O and operational aborts carry "no conformance claim
 about stderr bytes". Measured 2026-08-28, Go and Python agree on code and exit status but differ in
 message text on at least three error paths: a missing `--cem` file (Go `map-unavailable` with the

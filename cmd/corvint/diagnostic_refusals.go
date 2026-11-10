@@ -64,14 +64,6 @@ func enclosingRepositoryRoot(root string) string {
 	return ""
 }
 
-func queryPlatformRefusal(platform string) error {
-	return refused("unsupported-query-platform", "native Go authority-start query is qualified only on Darwin and Linux", diagnostic.Refusal{
-		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},
-		Evidence: []diagnostic.Evidence{{Name: "platform", Value: platform}},
-		Terminal: "unsupported-platform",
-	})
-}
-
 func featurePlatformRefusal(platform string) error {
 	return refused("unsupported-feature-platform", "native Go feature is qualified only on Darwin and Linux", diagnostic.Refusal{
 		Subject:  diagnostic.Subject{Kind: "host-capability", Value: "native-platform"},
@@ -89,17 +81,9 @@ func genesisPlatformRefusal(platform string) error {
 }
 
 func impactBudgetOptionRefusal() error {
-	return refused("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base or --working-tree-untracked", diagnostic.Refusal{
+	return refused("unsupported-impact-option", "--budget-bytes applies only to path impact, not --base", diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "argument", Value: "--budget-bytes"},
 		SupportedFixes: []string{"impact.omit-budget-bytes"},
-	})
-}
-
-// batchSnapshotRefusal: no snapshot matches, so there is no snapshot identity to report.
-func batchSnapshotRefusal() error {
-	return refused("unsupported-batch-snapshot", "no index snapshot matches this tree and this binary: run corvint index", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "repository-state", Value: "index-snapshot"},
-		SupportedFixes: []string{"index.write-snapshot"},
 	})
 }
 
@@ -220,49 +204,5 @@ func cemMapReadRefusal(mapPath string) error {
 	return refused(cemcode.MapUnavailable, "cannot read CEM map", diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: mapPath},
 		SupportedFixes: []string{"cem.use-readable-map"},
-	})
-}
-
-// The prove-observe document refusals: stdin is the whole request, and every one of them is
-// repaired by piping the document prove wrote.
-func proofDocumentSizeRefusal() error {
-	return refused("invalid-proof-document", "proof document exceeds 8 MiB", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
-	})
-}
-
-func proofDocumentJSONRefusal() error {
-	return refused("invalid-proof-document", "stdin is not a JSON object", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
-	})
-}
-
-func proofDocumentProfileRefusal() error {
-	return refused("invalid-proof-document", "stdin is not a "+proveProfile+" document", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
-	})
-}
-
-func proofDocumentMembersRefusal() error {
-	return refused("invalid-proof-document", "proof.rows or proof.counts is missing", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
-	})
-}
-
-func proofDocumentRowRefusal() error {
-	return refused("invalid-proof-document", "proof.rows carries an unknown falsifier or verdict", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
-	})
-}
-
-func proofDocumentCountsRefusal() error {
-	return refused("invalid-proof-document", "proof.counts does not match proof.rows", diagnostic.Refusal{
-		Subject:        diagnostic.Subject{Kind: "request", Value: "stdin"},
-		SupportedFixes: []string{"prove-observe.pipe-prove-packet"},
 	})
 }

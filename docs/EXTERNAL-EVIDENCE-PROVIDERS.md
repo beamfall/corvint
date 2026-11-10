@@ -64,7 +64,7 @@ never repairs a record (`EEP-V0-001`).
 `corvint impact --provider FILE PATH...` selects a record; `--provider` may repeat up to four times,
 and a relative `FILE` resolves against `--root` (`EEP-V0-002`). `--repository ID=DIR` binds an EEP-V1
 declared repository to a local checkout, up to eight times, and only alongside `--provider`
-(`EEP-V1-009`). `--provider` is incompatible with `--base` and `--working-tree-untracked`, and a
+(`EEP-V1-009`). `--provider` is incompatible with `--base`, and a
 fifth `--provider` is an argument error. No other verb reads a provider record in this slice except
 `corvint affected`, which reads the same records for test selection (see below).
 

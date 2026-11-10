@@ -123,6 +123,49 @@ case "$output" in *TestCol*) fail "the marked word was reported: $output" ;; esa
 git -C "$test_root" rm -q --cached -- docs/specs/prose.md
 /bin/rm -f "$test_root/docs/specs/prose.md"
 
+# TTG-V0-951: a spec with a `Delivery status: retired` header is not checked and is counted; the
+# same body under another status is checked.
+# shellcheck disable=SC2016
+printf '%s\n' '# Retired' '' 'Delivery status: retired' '' '## Traceability' '' \
+  '| FIX-V0-011 | `TestLeftWithItsCode` |' > "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+output=$(run) || fail "a retired spec was checked (TTG-V0-951): $output"
+case "$output" in
+  *"1 retired spec(s) not checked"*) ;;
+  *) fail "the retired spec was not counted: $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '%s\n' '# Retired' '' 'Delivery status: implemented' '' '## Traceability' '' \
+  '| FIX-V0-011 | `TestLeftWithItsCode` |' > "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+output=$(run) && fail "an undeclared name in a spec that is not retired passed"
+case "$output" in
+  *"docs/specs/retired.md:7: TestLeftWithItsCode"*) ;;
+  *) fail "the live spec row was not reported: $output" ;;
+esac
+
+# TTG-V0-952: `(removed)` after an undeclared name passes and is counted; after a declared name it
+# is refused.
+# shellcheck disable=SC2016
+printf '%s\n' '# Retired' '' 'Delivery status: implemented' '' '## Traceability' '' \
+  '| FIX-V0-011 | `TestLeftWithItsCode` (removed) |' > "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+output=$(run) || fail "a name marked (removed) was reported (TTG-V0-952): $output"
+case "$output" in
+  *"1 marked removed"*) ;;
+  *) fail "the removed marker was not counted: $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '%s\n' '| FIX-V0-012 | `TestGhostOnlyOnDisk` (removed) |' >> "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+output=$(run) && fail "a declared test marked (removed) passed"
+case "$output" in
+  *"docs/specs/retired.md:8: TestGhostOnlyOnDisk is marked (removed) but is declared; drop the marker"*) ;;
+  *) fail "the declared test marked (removed) was not named: $output" ;;
+esac
+git -C "$test_root" rm -q --cached -- docs/specs/retired.md
+/bin/rm -f "$test_root/docs/specs/retired.md"
+
 # TTG-V0-012 (V1-3235): a declaration added to a tracked file but not staged is named with its file
 # and the staging fix; staging it resolves the row.
 printf '%s\n' 'func TestAddedUnstaged() {}' >> "$test_root/internal/demo/ghost_test.go"

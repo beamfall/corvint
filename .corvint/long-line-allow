@@ -3,7 +3,6 @@
 # outside .corvint/agent-grep-exclude.
 conformance/cli-parity-v0/manifest.json
 conformance/lrf-v0/manifest.json
-conformance/postmerge-runtime-v2/semantic-example-preimages.json
 conformance/pulse-snapshot-v0/cases.json
 docs/specs/README.md
 docs/specs/affected-plan-v0.md
@@ -21,5 +20,4 @@ internal/analyzergo/analyzer_test.go
 internal/analyzershader/corpus_test.go
 internal/analyzershell/pinned_corpus_test.go
 internal/analyzerstructured/dogfood_literals_test.go
-internal/tasks/cli/command_help.go
 protocol/cem-1.0/stable/citation-vectors/stable.json

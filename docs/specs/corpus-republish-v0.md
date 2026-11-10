@@ -2,15 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-02
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) deleted `cmd/corvint-corpus-republish`, `internal/corpusrepublish` and `internal/corpusindex` with the hosted surfaces (4663b4e2 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: https://github.com/beamfall/corvint/issues/397; native ticket ticket:corvint:main:V1-0544 revision 2; AGENTS.md; docs/SPEC-DRIVEN-DEVELOPMENT.md.
 
 ## Agent digest
 - Claim: An optional companion builds approved documentation with reproducible provenance and previous-artifact parity and emits one replaceable connector request.
-- Status: proposed; experimental implementation. Human issue intent is explicit; the technical design remains unaccepted. Focused local controls and independent source review qualify only the stated trusted-local profile.
-- Exists: doccorpus.Build/Open/Encode, corpusindex.Build/Open/Query, postmergeconnector fixed renderer, stable-key writer and private atomic file output.
-- Blocked on: terminal frozen evidence, final review, integration and native completion. Approval authentication is host-owned and remote adapter qualification remains independent.
+- Status: retired 2026-11-09 (decision 0594) / retired
+- Exists: nothing; `cmd/corvint-corpus-republish`, `internal/corpusrepublish` and `internal/corpusindex` were deleted (read them at 4663b4e2).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Incremental design; Evidence and open interfaces.
 
 ## Job and verified current state
@@ -66,14 +68,8 @@ Rollout is a separately built experimental `cmd/corvint-corpus-republish` compan
 
 ## Testing matrix and traceability
 
-| Requirement | Proposed source | Required evidence |
-|---|---|---|
-| 001–004 | internal/corpusrepublish/{types,build}.go; command main.go | approved docs fixture builds; same product merge without approved docs refuses; missing/revoked/wrong revision/manifest/document path/source/provenance controls; two cold builds byte-identical |
-| 005–006 | internal/corpusrepublish/parity.go | whole-shard omitted from both manifest and inputs, empty/restricted-only shard omission, changed/added/retired IDs and typed details; explicit retirement does not conceal counts; pinned previous mismatch refuses |
-| 007 | internal/doccorpus/{incremental,verified,providers,adoption}.go; internal/corpusrepublish/build.go | actual isolated complete CLI importRecord/importAdoption counts first2/unchanged0/changed1/repeat1; warm/cold corpus/index/consumer byte equality; TestIncrementalCompleteSourceCorrespondence field tampering, TestIncrementalNonProviderInputInvalidation, TestRepublishVerifiedPriorRefusals with recomputed corpus/cache/result/index pins; cross-shard join failure, late restricted input, changed eligibility with unchanged shard bytes; mismatched sidecar profile/digest/bytes; removed adoption membership/typed detail/import-parity; altered builder/profile/source invalidation; unsupported-profile full fallback |
-| 008 | internal/corpusrepublish/build.go; internal/corpusindex/index.go using compiler-minted VerifiedCorpus | actual indexed Open/query with returned trust envelope; ordinary cold producer remains the byte oracle; TestVerifiedCorpusIsolationAndReconstruction and TestIndexedVerifiedCorpusIsolation refuse zero/serialized/forged tokens and prove returned-byte/snapshot mutation isolation; tampered indexed artifact refuses |
-| 009–010 | internal/postmergeconnector/republish.go and command queue | actual connector local upsert and disk readback: two doc revisions, one key/one pending draft; exact retry identical bytes; stale/invalid update preserves prior bytes; unsafe/collision/interruption controls |
-| 011 | command main.go; docs usage/spec | credential-name sentinel environment is not read or surfaced; local command no network client; host isolation explicitly NOT_OBSERVED unless qualified host evidence is supplied |
+Retired by decision 0594: this table cited code and tests deleted with the hosted
+surfaces. Read it at the last tree that held them: `git show 4663b4e2:docs/specs/corpus-republish-v0.md`.
 
 Exact focused test and vet boundaries include `./internal/corpusrepublish ./internal/doccorpus ./internal/corpusindex ./internal/postmergeconnector ./cmd/corvint-corpus-republish ./cmd/corvint-postmerge-connect ./internal/doccorpus/selfcorpus`. The existing `TestCLIReferenceWorkflow` connector command witness remains part of compatibility verification. Freeze `make error-code-ownership-check` and the owning spec's emitted-code rows; do not add new errors to the shrinking allowlist. Any newly necessary error-ownership path must be explicitly widened before its first write. Final three owning OCM maps, their scope/status manifest and dogfood report paths are explicit effects; runtime Git-admin outputs remain private generated evidence in the isolated leaf. Required docs/error ownership checks, CEM/OCM for all owning specs, keyed dogfood checks and native focused-docs gate remain required. No make gate absent a new governing release requirement. Root granted a bounded preparation phase on native/public execution base 1fda1b94984245d0cd0ac0a6d17cc72572ce6619 and explicitly settled evidence-base selection before first enrollment: commit this transparent proposed spec and minimal registry first, then capture that exact preparation commit as evidence BASE and freeze the unchanged checks and owning intent blobs now present at HEAD. Preserve the entire public1f-to-final diff, preparation provenance and review separately; no prepared-intent change is retroactively called accepted. No prior key exists, no active frozen plan is rewritten, and implementation requires a separate code-phase grant. Initial public1f dogfood observation is retained even when no CEM/outcome is produced. Later phases preserve the captured preparation evidence BASE and the same session key. Do not freeze an absent HEAD path, invent bootstrap approval, hide the preparation diff or relabel unrun evidence. Any supported-runtime refusal remains a blocker.
 

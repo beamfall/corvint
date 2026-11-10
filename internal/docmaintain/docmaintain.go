@@ -28,7 +28,7 @@ import (
 )
 
 // Selector names one (owner Markdown source, Go package directory) pair, the
-// same shape corvint.docs_draft accepts (docsbridge.draftInput).
+// same shape corvint.docs_draft accepts (docstools.draftInput).
 type Selector struct {
 	Source  string
 	Package string

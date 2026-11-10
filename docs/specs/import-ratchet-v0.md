@@ -5,13 +5,13 @@ Date: 2026-11-06
 Requirement prefix: `IRT-V0`
 Intent status: experimental
 Delivery status: experimental
-Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel restructuring plan); decision 0397 (the existing Tasks import-direction rule, which this contract does not change).
+Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel restructuring plan); decision 0397 (the existing Tasks import-direction rule, which this contract does not change); decision 0594 item 8 and ticket V1-5233 (the manifest keyed to the five layers shared, analyzers, tests, docs and release).
 
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
-- Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review.
-- Exists: `tools/import-ratchet/areas.json`, `tools/import-ratchet/baseline.json` (70 edges at origin/main 670559b9e), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
-- Blocked on: independent review; later restructuring steps shrink the baseline.
+- Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
+- Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
 ## Problem and current state
@@ -26,6 +26,18 @@ assignment, not of the code: five leaf or near-leaf packages (`internal/cem/cemc
 imports allow, so the baseline starts at 70 edges. The job is a cheap, hermetic check that freezes the
 current wrong-way set and lets it only shrink. The only existing direction check,
 `internal/tasks/boundary_test.go`, covers the Tasks/Core boundary alone.
+
+Decision 0594 (2026-11-09) cut Corvint down to test selection, documentation and flows, and
+chose layers over repositories: shared, analyzers, tests, docs and release tooling, with shared
+importing no other layer and analyzers, tests and docs not importing each other. Ticket V1-5233
+re-keyed the manifest from the panel's eleven areas to those five (`shared` layer 0; `analyzers`,
+`tests` and `docs` layer 1; `release` layer 2), so the baseline now measures the cross-layer
+imports the follow-ups must remove. A package is keyed by role; a leaf that two products need
+(the index's language dialects, `langplugin/decl`, `pythongrammar`) is `shared`; each `cmd`
+binary is keyed to its product; `.github`, `tools`, `script`, `conformance`, `benchmarks` and
+`examples` are `release`, which may import any layer and is not shipped. The re-key, the 44
+measured edges by layer pair and the per-layer test time are recorded in
+`docs/build-log/2026-11-09-layers-manifest.md`.
 
 ## Requirements
 
@@ -56,11 +68,11 @@ current wrong-way set and lets it only shrink. The only existing direction check
   delete the line for any listed edge that is absent or no longer wrong-way. Unsorted or duplicate
   entries fail with `BASELINE_FORMAT`.
 - `IRT-V0-005`: On the real graph the test SHALL prove its own effectiveness: adding one
-  wrong-way import from a layer-0 package into a `cli` package yields exactly one
-  `NEW_WRONG_WAY_EDGE` naming it, and removing the first baselined import yields exactly one
-  `STALE_BASELINE_EDGE` naming it.
+  wrong-way import from a layer-0 package into a package of the highest non-entry layer
+  (`release` since V1-5233; `cli` before) yields exactly one `NEW_WRONG_WAY_EDGE` naming it,
+  and removing the first baselined import yields exactly one `STALE_BASELINE_EDGE` naming it.
 - `IRT-V0-006`: The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7 s
-  on the lane host) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
+  on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
   `go:embed` inputs, so their edits select it as well.
 
@@ -93,11 +105,12 @@ reviewed change.
 | IRT-V0-003 | `TestScanModuleFollowsGoListRules` and `TestScanModuleRootPackage` (root package edges in both directions); under the panel's original area assignment the scanner's 78-edge set equals the panel's `go list -deps -json ./...` computation exactly, and the five-package reassignment removes exactly the eight listed edges (none added) |
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
-| IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages) |
+| IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
 
-Area names follow the panel's mapping (scripts of 2026-11-06): `kernel`, `github`, `spi`,
-`analyzers`, `contextindex`, `doccorpus`, `appmap`, `affected`, `cem`, `dogfood`, `tasks`,
-`release-ci`, `integrations`, `cli` and `entry` (all top-level entrypoint trees).
+Area names are the layers of decision 0594 item 8: `shared`, `analyzers`, `tests`, `docs` and
+`release` (V1-5233). Until then they followed the panel's mapping (scripts of 2026-11-06):
+`kernel`, `github`, `spi`, `analyzers`, `contextindex`, `doccorpus`, `appmap`, `affected`, `cem`,
+`dogfood`, `tasks`, `release-ci`, `integrations`, `cli` and `entry`.
 
 ## Rollback
 

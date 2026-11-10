@@ -385,6 +385,6 @@ ContextBench rows and already-fixed controls.
 |---|---:|---|---|
 | Authority Closure Compiler | experimental | Corvint/Beamfall dogfood + focused regressions | 100-prompt/10-repository authority corpus |
 | Portable Snapshot Context Capsule | experimental | shared core, protocol golden, single-snapshot regressions | four-host black-box matrix |
-| Proof-Carrying Compaction Survival | not-started | exact dirty-path compact recovery; Claude Code `PreCompact`/`PostCompact` pin verdict (`TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock`, `TestAHI028ClaudePostCompactReportsNonRehydratablePaths`), live cycle `NOT_RUN` | 30-task three-cycle survival trial |
+| Proof-Carrying Compaction Survival | not-started | exact dirty-path compact recovery; Claude Code `PreCompact`/`PostCompact` pin verdict (`TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (removed), `TestAHI028ClaudePostCompactReportsNonRehydratablePaths` (removed)), live cycle `NOT_RUN` | 30-task three-cycle survival trial |
 | Counterfactual Minimum Witness Compiler | not-started | frozen PCCO contract only | observed held-out cost-per-solved-task trial |
 | Live Context Frontier | not-started | composition hypothesis only | 30 five-session mutation sequences |

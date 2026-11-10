@@ -603,13 +603,6 @@ func needsGoModule(paths []string) bool {
 // reads it through IsImpactPathsUntracked.
 var ErrImpactPathsUntracked = errors.New("impact paths are not tracked at the indexed revision")
 
-// IsImpactPathsUntracked reports whether err is impact's untracked-path
-// refusal.
-func IsImpactPathsUntracked(err error) bool {
-	var failure *Error
-	return errors.As(err, &failure) && failure.Cause == ErrImpactPathsUntracked
-}
-
 // untrackedImpactMessage keeps the `impact paths are not tracked at revision
 // <tree>: ` prefix callers key on (the MCP bridge's NOT_TRACKED_AT_REVISION),
 // and says what that revision is -- a tree, of the working-tree snapshot when

@@ -13,10 +13,12 @@ import (
 // BudgetSchema names the committed budgets file.
 const BudgetSchema = "corvint-perf-budget/0"
 
-// ScenarioIDs are the six measured reads GitHub #1602 names, then the unchanged-pair delta of
-// GitHub #1634 (PRB-V0-050), then the code-repository index, context, lifecycle-hook and Go and
-// TypeScript affected scenarios (PRB-V0-057), in report order.
-var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "mcp-first-call", "mcp-warm-call", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "context-query", "lifecycle-hook", "affected-go", "affected-ts"}
+// ScenarioIDs are the measured reads GitHub #1602 names (less the corpus MCP pair the hosted cut
+// removed, decision 0594), then the unchanged-pair delta of
+// GitHub #1634 (PRB-V0-050), then the code-repository index, context and Go and TypeScript
+// affected scenarios (PRB-V0-057; the lifecycle hook left with the adapters, decision 0594), in
+// report order.
+var ScenarioIDs = []string{"cli-cold-read", "cli-warm-read", "full-delta", "affected-path", "unchanged-delta", "index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts"}
 
 // Metrics a limit may bound.
 const (

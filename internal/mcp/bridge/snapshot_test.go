@@ -21,14 +21,9 @@ func TestMCPExplicitSnapshotRetainsImmutableEvidenceInMixedWorktree(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, tool := range []string{ToolQuery, ToolImpact} {
+		for _, tool := range []string{ToolImpact} {
 			t.Run(tool, func(t *testing.T) {
-				args := map[string]any{"snapshot": snapshot}
-				if tool == ToolQuery {
-					args["task"] = "orient contributor roadmap ticket workflow"
-				} else {
-					args["paths"] = []string{"internal/widget/widget.go"}
-				}
+				args := map[string]any{"snapshot": snapshot, "paths": []string{"internal/widget/widget.go"}}
 				raw, _ := json.Marshal(args)
 				clean, err := registry.Call(context.Background(), tool, raw)
 				if err != nil || clean.State != "READY" {
@@ -51,22 +46,9 @@ func TestMCPExplicitSnapshotRetainsImmutableEvidenceInMixedWorktree(t *testing.T
 				if err != nil {
 					t.Fatal(err)
 				}
-				if tool == ToolQuery {
-					var decoded map[string]any
-					if err := json.Unmarshal(wire, &decoded); err != nil {
-						t.Fatal(err)
-					}
-					coverage := decoded["receipt"].(map[string]any)["coverage"].(map[string]any)
-					uncertainty := coverage["uncertainty"].([]any)
-					found := false
-					for _, item := range uncertainty {
-						if item == "history and local traces are outside the immutable planning snapshot" {
-							found = true
-						}
-					}
-					if !found || coverage["authoritative_results"].(float64) < 1 {
-						t.Fatalf("lost authoritative evidence or uncertainty: %v", coverage)
-					}
+				var decoded map[string]any
+				if err := json.Unmarshal(wire, &decoded); err != nil || decoded["receipt"] == nil {
+					t.Fatalf("canonical wire lost the receipt: %v", err)
 				}
 				args["snapshot"] = nil
 				raw, _ = json.Marshal(args)
@@ -106,13 +88,8 @@ func TestMCPSnapshotRejectsSymlinkAndGitlinkTrees(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, tool := range []string{ToolQuery, ToolImpact} {
-					args := map[string]any{"snapshot": snapshot}
-					if tool == ToolQuery {
-						args["task"] = "orient contributor roadmap ticket workflow"
-					} else {
-						args["paths"] = []string{"internal/widget/widget.go"}
-					}
+				for _, tool := range []string{ToolImpact} {
+					args := map[string]any{"snapshot": snapshot, "paths": []string{"internal/widget/widget.go"}}
 					raw, _ := json.Marshal(args)
 					result, err := registry.Call(context.Background(), tool, raw)
 					if err == nil || err.Code != "repository-unavailable" || result.State == "READY" {

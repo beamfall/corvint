@@ -2,14 +2,19 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members
-Delivery status: experimental
+Intent status: retired 2026-11-09 (decision 0594)
+Delivery status: retired
+Retirement base: 4663b4e2b1e96fe3ae2ecc024cffd4fda291202d
+Retirement note: decision 0594 (the test-selection refocus) deleted the `ocm` and `dogfood` command
+groups, `internal/dogfoodocm`, the OCM code in `internal/lrfrepo` and the dogfood scripts (4663b4e2b
+is the last tree with them). The body below is historical and its requirement IDs stay for
+traceability.
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members/experimental; accepted amendments implemented without promotion
+- Status: retired 2026-11-09 (decision 0594) / retired
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.

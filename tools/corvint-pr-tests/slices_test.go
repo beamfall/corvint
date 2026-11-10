@@ -260,8 +260,8 @@ func TestAFPV0048MismatchedSliceFileMatchesTheFullBranch(t *testing.T) {
 
 // The committed slice file places each slice of a split package exactly once.
 func TestAFPV0048CommittedSlicesArePlacedOnce(t *testing.T) {
-	store := "github.com/Beamfall/corvint/internal/tasks/store"
-	universe := []string{"github.com/Beamfall/corvint/cmd/corvint", store, "github.com/Beamfall/corvint/internal/tasks/authority", "github.com/Beamfall/corvint/tools/corvint-pr-tests"}
+	store := "github.com/Beamfall/corvint/cmd/corvint"
+	universe := []string{store, "github.com/Beamfall/corvint/internal/sessiontest", "github.com/Beamfall/corvint/tools/corvint-pr-tests"}
 	layout, err := shardLayout(universe, 8)
 	if err != nil {
 		t.Fatal(err)
@@ -271,7 +271,7 @@ func TestAFPV0048CommittedSlicesArePlacedOnce(t *testing.T) {
 		t.Fatalf("driver layout differs from the full branch: %v", err)
 	}
 	if !cishards.Splits(universe, 8) {
-		t.Fatal("the committed slice file no longer splits the store; this test needs a split package")
+		t.Fatal("the committed slice file no longer splits cmd/corvint; this test needs a split package")
 	}
 	whole, sliced := placements(t, layout, universe, []string{store})
 	if len(sliced) < 2 || whole[store] != 0 {
