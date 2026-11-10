@@ -13,7 +13,7 @@ RMV-V1-004 (importers re-checked on the batch base), RMV-V1-005 (tests rewritten
 
 - [ ] 1 Owner accepts or amends this change and the companion decision
    `docs/decisions/PROPOSED-supersede-0594-keeps-line.md`, through the acceptance record
-   `docs/decisions/PROPOSED-accept-product-plan-1.0.md`. The RMV-V1-014 mechanism (owner decision
+   `docs/decisions/0595-accept-product-plan-1-0-2026-11-10.md`. The RMV-V1-014 mechanism (owner decision
    R32 (2026-11-09)) and open items 4 and 5 (owner decision R33 (2026-11-09)) are already decided.
    Requirements: all. Proof: the accepted record names this change's commit SHA.
 - [ ] 2 Write `docs/specs/source-removal-v1.md` from the accepted requirements and regenerate

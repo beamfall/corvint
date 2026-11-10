@@ -1,12 +1,12 @@
-# Proposed: accept the Corvint 1.0 product plan
+# 0595: accept the Corvint 1.0 product plan
 
-- Date: 2026-11-09
-- Status: proposed. Not accepted. This file has no decision number and no row in
-  `docs/decisions/README.md`. Only the owner can accept it, in whole or in part. On acceptance it
-  becomes `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the next free number
-  (change `acceptance-record`, ACR-V1-001).
-- Authority it would record: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
-  recorded in the owner-answers file of that date, and owner decisions H1 to H14 of 2026-11-10,
+- Date: 2026-11-10 (drafted 2026-11-09)
+- Status: accepted (owner, 2026-11-10, "accepted"; owner decision H15). The owner accepted
+  sections 1 to 10 whole, with no amendment and no rejection. The acceptance takes effect when
+  the owner merges the pull request that carries this file (section 11, step 5). No key signs
+  it (H14): the owner's identity is by convention and `NOT_VERIFIED` (ACR-V1-011, fallback).
+- Authority it records: owner answers 1 to 18, G1 to G27, R1 to R41 and R42 of 2026-11-09,
+  recorded in the owner-answers file of that date, and owner decisions H1 to H15 of 2026-11-10,
   recorded in the same file. Owner decision R1 (2026-11-09): one decision
   record accepts the plan as amended by these answers, names the drafted wording, and states that
   in-flight work continues as experimental. Owner decision R42 (2026-11-09, final round) is a
@@ -28,8 +28,9 @@
   ACR-V1-012: record format, supersession table, acceptance log, owner signing key, the
   `AGENTS.md` invariant edits). The
   acceptance log `docs/specs/openspec/acceptance-log.tsv` holds one row for each of the 77 PROD
-  requirements and the 67 checklist O-rows, every one with mode `pending-owner`. No row has mode
-  `owner`; only the owner writes those (ACR-V1-006), at signing (section 11). Also read with
+  requirements and the 67 checklist O-rows, every one prepared with mode `owner` and this decision as its
+  reference. Only the owner writes those rows (ACR-V1-006): the owner reads the prepared diff
+  back and merges it (section 11, steps 4 and 5). Also read with
   `docs/decisions/PROPOSED-supersede-0594-keeps-line.md` and the change
   `docs/specs/openspec/changes/source-removal/`; that file and decision 0594 are not on this
   branch (section 7).
@@ -48,7 +49,7 @@ carried open (H1 to H11, section 9) and amended G14 and R41 on the OpenSpec comm
 section 1). Each answer below is one line; the owner-answers file holds the full text. That
 file is outside this repository.
 
-## Decision (proposed)
+## Decision
 
 ### 1. Grill-round decisions accepted (G1 to G27)
 
@@ -431,7 +432,7 @@ paperwork, and none of it is a new owner decision.
 
 ### 11. How the owner signs
 
-This file is a draft until the steps below are done. No agent performs steps 1, 2 or 5.
+No agent performs steps 1, 2 or 5. Steps 1 to 4 are done or prepared; step 5 is the owner's.
 
 Owner decision H14 (2026-11-10), the owner's words: "No key". The owner declines the signing key
 of R42, D12 and D13, so the fallback of ACR-V1-011 applies to the plan acceptance and, unless a
@@ -440,14 +441,23 @@ plus the protected-environment approval. No allowed-signers file is committed an
 tag is signed. Every record states that the owner's identity is by convention and `NOT_VERIFIED`.
 H14 answers step 2 only; it does not accept sections 1 to 10.
 
-1. Read sections 1 to 10 and say which parts are accepted, amended or rejected.
+Owner decision H15 (2026-11-10), the owner's words: "accepted". It answered the request to
+state acceptance of sections 1 to 10 of this record. It is read as accepting those sections
+whole: the grill and review decisions, each delegated pick of section 3, the drafted wording,
+the supersessions, the owner acts of section 8 as listed (each `NOT_DECIDED` cell stays
+`NOT_DECIDED`), the eleven review settlements of section 10, and the reading of the no-key
+fallback in step 6. H15 creates no repository, publishes nothing and promotes nothing.
+
+1. Read sections 1 to 10 and say which parts are accepted, amended or rejected. Done: all
+   accepted (H15).
 2. Choose the key path. Done: no key (H14).
 3. The file is renamed to `docs/decisions/NNNN-accept-product-plan-1-0-YYYY-MM-DD.md` with the
    next free number, its status line is changed to accepted, and its row is added to
    `docs/decisions/README.md` (ACR-V1-001). An agent may prepare this commit on the owner's word.
+   Prepared: number 0595 (0594 is taken by the refocus decision on the big-cut branch).
 4. The acceptance log rows the owner accepted are set to mode `owner` with the decision number as
    `ownerRef`. The owner writes these rows, or reads the prepared diff back and commits it
-   (ACR-V1-006, ACR-V1-008).
+   (ACR-V1-006, ACR-V1-008). Prepared as a diff for the owner to read back: 144 rows.
 5. The owner merges the pull request that carries steps 3 and 4.
 6. The plan acceptance is the owner-merged decision file (ACR-V1-011, fallback; H14). It states
    that the owner's identity is by convention and `NOT_VERIFIED`. The fallback also names a
@@ -462,16 +472,17 @@ After step 5 the change `acceptance-record` edits `AGENTS.md` invariants 3, 4, 5
 
 ## Rollback
 
-Before acceptance: delete this file; nothing else depends on it. After acceptance: a decision
+A decision
 record is never deleted (ACR-V1-001); a new decision record supersedes this one, names what it
 restores, and the acceptance log rows it changes go back to `pending-owner`.
 
 ## What the owner decides
 
-1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3.
+1. Accept, amend or reject sections 1 to 7, including each delegated pick of section 3:
+   accepted (H15).
 2. The plan commit SHA this record names (written in the header).
 3. The acts of section 8, and a value for each `NOT_DECIDED` cell the owner wants fixed.
-4. The eleven review settlements of section 10.
+4. The eleven review settlements of section 10: accepted (H15).
 5. The key path of section 11, step 2: decided, no key (H14).
 
 Section 9 lists the owner's answers of 2026-11-10 (H1 to H11) and leaves nothing open. Owner
