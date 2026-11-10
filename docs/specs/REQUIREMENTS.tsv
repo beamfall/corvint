@@ -7797,6 +7797,43 @@ SEA-V0-005	docs/specs/source-evidence-axes-v0.md	Source refusal, unsupported pro
 SEA-V0-006	docs/specs/source-evidence-axes-v0.md	The default command path MUST preserve its canonical wire, parity oracle,	unrecorded	-
 SEA-V0-007	docs/specs/source-evidence-axes-v0.md	Qualification MUST freeze deterministic source/consumer fixtures, legacy byte	unrecorded	-
 SEA-V0-008	docs/specs/source-evidence-axes-v0.md	Rollout and rollback MUST retain existing receipts and failed evidence; publicat	unrecorded	-
+RMV-V1-001	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Removal order (G27)	unrecorded	-
+RMV-V1-002	docs/specs/source-removal-v1.md	(proposed 2026-11-10) `.github` changes are separate (G22, G27)	unrecorded	-
+RMV-V1-003	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Per-batch proof (G27)	unrecorded	-
+RMV-V1-004	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Importer claims are re-checked on the batch base	unrecorded	-
+RMV-V1-005	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Tests are rewritten before deletion	unrecorded	-
+RMV-V1-006	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Dangling references are repaired first (G27, audit B4)	unrecorded	-
+RMV-V1-007	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Dead leaves are removed (audit tables; order from G27)	unrecorded	-
+RMV-V1-008	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Test-quality cut (G24)	unrecorded	-
+RMV-V1-009	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Test-quality keeps (G24)	unrecorded	-
+RMV-V1-010	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Runner protocol cut (G23)	unrecorded	-
+RMV-V1-011	docs/specs/source-removal-v1.md	(proposed 2026-11-10) The single compiled-in contract is decided separately (G23	unrecorded	-
+RMV-V1-012	docs/specs/source-removal-v1.md	(proposed 2026-11-10) VS Code extension moves out (G22, owner decision R33 (2026	unrecorded	-
+RMV-V1-013	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Third-party evidence and parity extras (G22 panel, folded	unrecorded	-
+RMV-V1-014	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Removed languages fail closed under `corvint test` (G26, o	unrecorded	-
+RMV-V1-015	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Languages and analyzers beyond the seven runners (G26)	unrecorded	-
+RMV-V1-016	docs/specs/source-removal-v1.md	(proposed 2026-11-10) `testrunner/native` keeps go-test (G26)	unrecorded	-
+RMV-V1-017	docs/specs/source-removal-v1.md	(proposed 2026-11-10) `liveverify/mutate` is ticketed, not removed here (G26)	unrecorded	-
+RMV-V1-018	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Retired language specs and CAPABILITIES (G26)	unrecorded	-
+RMV-V1-019	docs/specs/source-removal-v1.md	(proposed 2026-11-10) CEM, OCM and dogfood removal (G8)	unrecorded	-
+RMV-V1-020	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Shared packages move before B6 (G8, verified importers)	unrecorded	-
+RMV-V1-021	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Superseded tickets close (G8)	unrecorded	-
+RMV-V1-022	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Licence notes follow the removals	unrecorded	-
+RMV-V1-023	docs/specs/source-removal-v1.md	(proposed 2026-11-10) G25 "still removed" set waits for the revival proposals (G	unrecorded	-
+RMV-V1-024	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Lints (G27)	unrecorded	-
+RMV-V1-025	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Lane tooling leaves after the layering merge (G27)	unrecorded	-
+RMV-V1-026	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Retired specs are archived in place (G27)	unrecorded	-
+RMV-V1-027	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Tasks specs leave after corvint-tasks PR #4 (G27)	unrecorded	-
+RMV-V1-028	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Action cut-over (G18, G27)	unrecorded	-
+RMV-V1-029	docs/specs/source-removal-v1.md	(proposed 2026-11-10) perf-budget is kept (G27)	unrecorded	-
+RMV-V1-030	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Rollback by Git (G27)	unrecorded	-
+RMV-V1-031	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Every unlisted path has a verdict; orphans are deleted and	unrecorded	-
+RMV-V1-032	docs/specs/source-removal-v1.md	(proposed 2026-11-10) The `.github` split check outlives the action cut-over (re	unrecorded	-
+RMV-V1-033	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Requirement-ID reservation tooling stays while a change fo	unrecorded	-
+RMV-V1-034	docs/specs/source-removal-v1.md	(proposed 2026-11-10) One Go attribution after SLF-V1-007 (selection verdicts, f	unrecorded	-
+RMV-V1-035	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Four CI paths are kept for 1.0 (decided 2026-11-09 under R	unrecorded	-
+RMV-V1-036	docs/specs/source-removal-v1.md	(proposed 2026-11-10) Frozen corpora, retained evidence and the settled rows	unrecorded	-
+RMV-V1-037	docs/specs/source-removal-v1.md	(proposed 2026-11-10) The `e2e-safe` profile and the appmap navigation verdict l	unrecorded	-
 SRG-V0-7500	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4550) The same	standing	2026-10-11; V1-4550
 SRG-V0-8202	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1323)	standing	2026-10-11; V1-1323
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-

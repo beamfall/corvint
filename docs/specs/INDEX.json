@@ -4391,5 +4391,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/source-removal-v1.md",
+    "title": "Source removal V1",
+    "reqPrefix": "RMV-V1",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Batches B0 to B11 remove the source 1.0 no longer ships, in a fixed order with per-batch proof, importer re-checks, orphan deletion and rollback by Git.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
