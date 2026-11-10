@@ -184,3 +184,85 @@ func TestEnvelopeMembers(t *testing.T) {
 		t.Fatalf("%s %v", raw, err)
 	}
 }
+
+// scriptApp installs body as the corvint-docs stand-in of a fresh registry.
+func scriptApp(t *testing.T, body string) (*Registry, string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in is a shell script")
+	}
+	dir := t.TempDir()
+	executable := filepath.Join(dir, "corvint-docs")
+	if err := execfile.WriteFile(executable, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	registry, failure := New(repositoryRoot(t))
+	if failure != nil {
+		t.Fatal(failure)
+	}
+	registry.locate = func() (string, error) { return executable, nil }
+	return registry, dir
+}
+
+// A cancelled call asks the app to stop and lets it stop its own children: the stand-in's
+// TERM handler runs, which a kill would never allow, and the call still answers "cancelled"
+// well inside the grace.
+func TestCancelledCallLetsTheAppStopItsChildren(t *testing.T) {
+	registry, dir := scriptApp(t, `#!/bin/sh
+cat > /dev/null
+sleep 30 &
+child=$!
+trap 'kill "$child"; echo stopped > "$MARK"; exit 0' TERM
+echo started > "$MARK.started"
+wait
+`)
+	mark := filepath.Join(dir, "mark")
+	t.Setenv("MARK", mark)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+			if _, err := os.Stat(mark + ".started"); err == nil {
+				break
+			}
+		}
+		cancel()
+	}()
+	started := time.Now()
+	_, _, toolFailure, transport := registry.Call(ctx, ToolDraft, []byte(`{}`))
+	if toolFailure != nil || transport == nil || transport.Code != "cancelled" {
+		t.Fatalf("cancelled = %v %v", toolFailure, transport)
+	}
+	if elapsed := time.Since(started); elapsed >= waitDelay {
+		t.Fatalf("the call took %s, so the app was killed after the grace instead of stopping", elapsed)
+	}
+	if recorded, err := os.ReadFile(mark); err != nil || string(recorded) != "stopped\n" {
+		t.Fatalf("the app's TERM handler did not run: %q %v", recorded, err)
+	}
+}
+
+// PRB-V0-005: the server owns a profile file named by a fixed path, so the app does not
+// inherit that knob; a path with the {pid} token names one file per process and stays.
+func TestPRBV0005DocsToolChildKeepsOnlyPIDKnobs(t *testing.T) {
+	registry, dir := scriptApp(t, `#!/bin/sh
+cat > /dev/null
+printf '%s|%s|%s\n' "${CORVINT_CPUPROFILE-unset}" "${CORVINT_MEMPROFILE-unset}" "$CORVINT_TEST_KEEP" > "$MARK"
+printf '{"schema":"corvint-docs-tool/1","tool":"%s","structured":{}}\n' "$4"
+`)
+	mark := filepath.Join(dir, "mark")
+	t.Setenv("MARK", mark)
+	t.Setenv("CORVINT_TEST_KEEP", "kept")
+	for _, test := range []struct{ cpu, mem, want string }{
+		{"/profiles/cpu.prof", "/profiles/mem-{pid}.prof", "unset|/profiles/mem-{pid}.prof|kept\n"},
+		{"/profiles/cpu-{pid}.prof", "/profiles/mem.prof", "/profiles/cpu-{pid}.prof|unset|kept\n"},
+	} {
+		t.Setenv("CORVINT_CPUPROFILE", test.cpu)
+		t.Setenv("CORVINT_MEMPROFILE", test.mem)
+		if _, _, toolFailure, transport := registry.Call(context.Background(), ToolDraft, []byte(`{}`)); toolFailure != nil || transport != nil {
+			t.Fatalf("call = %v %v", toolFailure, transport)
+		}
+		if recorded, err := os.ReadFile(mark); err != nil || string(recorded) != test.want {
+			t.Errorf("child environment %q (%v); want %q", recorded, err, test.want)
+		}
+	}
+}

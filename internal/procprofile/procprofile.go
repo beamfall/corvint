@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -416,4 +417,22 @@ func Verify(path string) error {
 		return fmt.Errorf("%s is an empty profile", path)
 	}
 	return nil
+}
+
+// ChildEnvironment is environ without each profile knob whose path lacks the {pid} token:
+// this process already owns that one file, which a child inheriting the knob would truncate and
+// overwrite (PRB-V0-005). A knob with the token names a distinct file per process and stays.
+func ChildEnvironment(environ []string) []string {
+	child := make([]string, 0, len(environ))
+	for _, entry := range environ {
+		name, value, _ := strings.Cut(entry, "=")
+		knob := slices.ContainsFunc(Knobs, func(knob string) bool {
+			return name == knob || runtime.GOOS == "windows" && strings.EqualFold(name, knob)
+		})
+		if knob && value != "" && !strings.Contains(value, PIDPlaceholder) {
+			continue
+		}
+		child = append(child, entry)
+	}
+	return child
 }

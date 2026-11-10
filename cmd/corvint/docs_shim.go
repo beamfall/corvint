@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -82,7 +80,7 @@ func runDocsShim(ctx context.Context, args []string, stdin io.Reader, stdout, st
 
 // forwardToDocs runs corvint-docs with this invocation's argument vector and streams, and
 // returns its exit status. It adds no flags, environment or credentials (CMS-V0-003), and drops
-// only the profile knobs docsChildEnvironment names. A missing
+// only the profile knobs procprofile.ChildEnvironment names. A missing
 // executable is the named NOT_INSTALLED gap for forwarded, the form the user ran, exit 2. A
 // corvint-docs killed by signal N exits 128+N, as a shell reports it.
 func forwardToDocs(ctx context.Context, args []string, forwarded string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -93,8 +91,8 @@ func forwardToDocs(ctx context.Context, args []string, forwarded string, stdin i
 	}
 	command := exec.CommandContext(ctx, executable, args...)
 	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
-	command.Env = docsChildEnvironment(os.Environ())
-	command.WaitDelay = docsForwardWaitDelay
+	command.Env = procprofile.ChildEnvironment(os.Environ())
+	docsenvelope.StopOnCancel(command, docsForwardWaitDelay)
 	err = command.Run()
 	var exit *exec.ExitError
 	switch {
@@ -118,22 +116,4 @@ func forwardToDocs(ctx context.Context, args []string, forwarded string, stdin i
 		emitError(stderr, &gokernel.Error{Code: "internal-error", Message: "cannot run " + docsenvelope.Binary + ": " + err.Error()})
 	}
 	return 2
-}
-
-// docsChildEnvironment is environ without each profile knob whose path lacks the {pid} token:
-// this process already owns that one file, which a child inheriting the knob would truncate and
-// overwrite (PRB-V0-005). A knob with the token names a distinct file per process and stays.
-func docsChildEnvironment(environ []string) []string {
-	child := make([]string, 0, len(environ))
-	for _, entry := range environ {
-		name, value, _ := strings.Cut(entry, "=")
-		knob := slices.ContainsFunc(procprofile.Knobs, func(knob string) bool {
-			return name == knob || runtime.GOOS == "windows" && strings.EqualFold(name, knob)
-		})
-		if knob && value != "" && !strings.Contains(value, procprofile.PIDPlaceholder) {
-			continue
-		}
-		child = append(child, entry)
-	}
-	return child
 }

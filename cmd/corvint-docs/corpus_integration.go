@@ -310,7 +310,7 @@ func runCoreRead(ctx context.Context, args []string, stdin io.Reader, stdout, st
 	}
 	command := exec.CommandContext(ctx, executable, args...)
 	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
-	command.WaitDelay = 5 * time.Second
+	docsenvelope.StopOnCancel(command, 5*time.Second)
 	err = command.Run()
 	var exit *exec.ExitError
 	var refused *gokernel.Error
