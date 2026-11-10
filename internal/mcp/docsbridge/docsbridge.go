@@ -26,6 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/docsenvelope"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
+	"github.com/Beamfall/corvint/internal/procprofile"
 )
 
 const (
@@ -39,7 +40,8 @@ const (
 	maxPathRunes    = docsenvelope.MaxPathRunes
 	maxTaskBytes    = docsenvelope.MaxTaskBytes
 
-	// waitDelay bounds how long a cancelled app process may hold its pipes.
+	// waitDelay bounds how long a cancelled app process may take to stop its own children
+	// and exit before it is killed.
 	waitDelay = 5 * time.Second
 )
 
@@ -175,7 +177,8 @@ func (registry *Registry) run(ctx context.Context, executable, name string, argu
 	command := exec.CommandContext(ctx, executable, docsenvelope.ToolVerb, "--root", registry.root, name)
 	command.Stdin = bytes.NewReader(arguments)
 	command.Stderr = io.Discard
-	command.WaitDelay = waitDelay
+	command.Env = procprofile.ChildEnvironment(os.Environ())
+	docsenvelope.StopOnCancel(command, waitDelay)
 	var stdout bytes.Buffer
 	command.Stdout = &boundedWriter{limit: docsenvelope.MaxResultBytes, buffer: &stdout}
 	if err := command.Run(); err != nil {
