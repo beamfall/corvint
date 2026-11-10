@@ -50,7 +50,9 @@ repository context.
   `corvint agent manifest --json` (versioned description of the MCP servers, hook events, tools and
   supported hosts). Packages are thin shims generated from one source against a pinned Corvint
   release, with a drift check in CI (G20).
-- The full bar for Claude Code and Codex (G19): one install command plus `corvint agents doctor`;
+- The full bar for Claude Code and Codex (G19): one documented install step (two commands on
+  Claude Code, AGT-V1-008) plus `corvint agent doctor` (singular noun, decided 2026-11-09 under
+  R42, D4);
   MCP registered; three generated skills (tests, docs, tasks); an after-edit hook that records
   touched paths; an end-of-turn report of affected tests and the command to run them, "UNKNOWN, run
   all" when unsure, and a flag on edits that have no passing test receipt for the current tree,
@@ -96,7 +98,7 @@ retired as history; this change does not revive them.
 
 ## Impact
 
-- `beamfall/corvint` binary: `corvint agent hook`, `corvint agent manifest`, `corvint agents doctor`,
+- `beamfall/corvint` binary: `corvint agent hook`, `corvint agent manifest`, `corvint agent doctor`,
   session state handling (AGT-V1-022), and the `CORVINT_HOOKS` switch.
 - New repository `beamfall/corvint-agents`: generator, skill sources, packages for four hosts,
   qualification harness and fixture repository, CI with drift check and weekly qualification.

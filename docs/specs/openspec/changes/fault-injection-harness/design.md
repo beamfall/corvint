@@ -13,8 +13,14 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/fault-injection-
 4. N counts narrowed PRs with a confirmed kill; the pre-registration over-samples to about 140
    sealed PRs; below 100 the verdict is `INVALID` (owner decision R19 (2026-11-09), review
    release-tasks 10).
-5. Exactly 30 reverts per blocking runner, chosen by a recorded selection query; non-code faults
-   are a separate N with their own 3/N bound (review release-tasks 11).
+5. 30 reverts per blocking runner, chosen by one deterministic rule that is committed and hashed
+   before any Corvint run on the pin: fix PRs of the last 12 months (24 if fewer than 30 qualify)
+   whose source-only revert builds and fails a test three times out of three, ordered by SHA-256
+   of (rule-file hash, PR number), first 30, at most two per source file; a shortfall is filled
+   with changed-line mutants and reported (decided 2026-11-09 under R42, A17; FIH-V1-002). Earlier
+   wording, superseded by A17: "Exactly 30 reverts per blocking runner, chosen by a recorded
+   selection query". Non-code faults are a separate N with their own 3/N bound (review
+   release-tasks 11).
 6. The pre-registration names an operator list per language. Proposed families, to be fixed in the
    pre-registration: relational and arithmetic operator swap, boolean negation, constant
    replacement, and removed statement or return value. The Go list may reuse the operators in
@@ -23,10 +29,18 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/fault-injection-
    (review release-tasks 12).
 8. The release wording is the G3 sentence, copied exactly (review minor 20), with the Wilson upper
    bound printed beside 3/N (settled release-tasks S6).
-9. Held-out repositories fastapi, solidus and payload (owner decision R21 (2026-11-09)) get N = 100
+9. Held-out repositories fastapi, solidus and payload (owner decision R21 (2026-11-09)) and
+   helm/helm for Go (decided 2026-11-09 under R42, A14) get N = 100
    faults each, pass with at most 3 misses, a 5 percent excluded-test cap, and per-test durations
    in every receipt (owner decision R19 (2026-11-09)).
 10. "Line-level proven" means zero-miss with plans at line granularity (review release-tasks 21).
+11. The Playwright set holds at least 20 faults in code reached by a linked flow; the flows are the
+    10 flows and at least 40 owner-accepted links on the freeCodeCamp pin, frozen before the set is
+    sealed (decided 2026-11-09 under R42, A16; FIH-V1-002, PRR-V1-003).
+12. The cost check runs in two steps: full-suite timing of the eleven repositories by 2026-11-16,
+    then the one-PR-per-runner probe by 2026-11-27. Budget 96 host-hours inside the M7 window
+    (2026-12-08 to 2026-12-15); over budget, three measures apply in order, and a remaining excess
+    returns to the owner (decided 2026-11-09 under R42, A18; FIH-V1-010).
 
 ### Removed packages and whether this change needs them (G26)
 
@@ -52,9 +66,10 @@ otherwise it is removed with no loss here.
 
 ## Acceptance evidence
 
-- Seven sealed pre-registration files with hashes; one cost-probe report.
-- Seven verdict files at the RC SHA with the G3 wording and the four counts, plus three held-out
-  verdicts (fastapi, solidus, payload).
+- Seven sealed pre-registration files with hashes, each holding the reverted-fix rule hash; the
+  step 1 timing report and the step 2 cost-probe report (A18).
+- Seven verdict files at the RC SHA with the G3 wording and the four counts, plus four held-out
+  verdicts (fastapi, solidus, payload, helm).
 - Go tests for every failure mode above, using a small fixture repository per runner.
 - Go adapter parity with `affected-edit-oracle` on its existing cases.
 
@@ -66,11 +81,15 @@ reason under NMS-V1-007.
 
 ## Open questions for the owner
 
-- The revert selection query (which bug-fix commits qualify) is not chosen.
-- Owner decision R19 lets a held-out set pass with up to 3 misses, while G3 and G12 say any miss on
-  a blocking runner's set blocks. This change keeps "any miss blocks" for blocking-runner sets and
-  applies the 3-miss rule to held-out sets only; the owner has not confirmed that split.
-- The 5 percent excluded-test cap (R19) and the 2 percent quarantine cap (G3) apply to different
-  sets; whether both apply to one baseline is not decided.
-- R21 names one held-out repository per language family (Python, Ruby, JS); no held-out Go
-  repository is named.
+- Settled (decided 2026-11-09 under R42, A17): the reverted-fix rule of FIH-V1-002. Earlier
+  wording, superseded by A17: "The revert selection query (which bug-fix commits qualify) is not
+  chosen."
+- Decided, R42 (panel pick) A9: zero known misses on the seven pinned repositories' fault sets;
+  held-out sets pass at up to 3 in 100, each miss published with its Wilson interval, filed P1 and
+  fixed by widening before the release candidate (FIH-V1-012).
+- Decided, R42 (panel pick) A10: both caps apply to one baseline on different sets: 2 percent
+  quarantined tests (disqualifies) and 5 percent excluded tests (`INVALID`) (FIH-V1-004).
+- Settled (decided 2026-11-09 under R42, A14): the held-out Go repository is helm/helm, alternate
+  go-task/task. Earlier wording, superseded by A14: "no held-out Go repository is named."
+- Settled (decided 2026-11-09 under R42, A18): the cost check and its budget (FIH-V1-010). Only an
+  excess that remains after the three measures returns to the owner.

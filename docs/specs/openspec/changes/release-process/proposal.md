@@ -5,10 +5,11 @@ Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
 Product requirement served: PROD-INT-012, PROD-INT-013, PROD-INT-014, PROD-INT-017 and the
 platform and artifact clauses of PROD-INT-006 and PROD-INT-015 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/release-process-v1.md`, a new spec with prefix `REL-V1`
-Requirement IDs this change adds: REL-V1-001 to REL-V1-013
+Requirement IDs this change adds: REL-V1-001 to REL-V1-015
 Requirement IDs this change modifies: PRS-V1-004 (platforms)
 Owner answers this change implements: G8, G9, G10, G10a, G15a, owner decision R2 (2026-11-09),
-owner decision R3 (2026-11-09), owner decision R24 (2026-11-09), answer 16
+owner decision R3 (2026-11-09), owner decision R24 (2026-11-09), answer 16, and the decisions
+made 2026-11-09 under R42: D6, D7, D8, D9, D12, D13, D14, D16, E5, M5, M7
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.

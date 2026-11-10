@@ -428,9 +428,12 @@ Also part of the bar (owner decisions of 2026-11-09).
     - **WHEN** the E2E inventory holds a test that no variation attaches
     - **THEN** `corvint flows gaps` lists that test as `unassigned`
     - **AND** a variation with no test is listed with the existing `no-test` code
-  - Implemented by: AFU-V1-001, AFU-V1-002, AFU-V1-049 to AFU-V1-053; AFU-V1-150 to AFU-V1-154
-    (`docs/specs/openspec/changes/flows-unlinked-tests-report/proposal.md`). Answer 9 conflicts with
-    that proposal's E2E-only links; the proposal must be amended.
+  - Implemented by: AFU-V1-001, AFU-V1-002, AFU-V1-049 to AFU-V1-053; AFU-V1-155 to AFU-V1-159,
+    AFU-V1-166 and AFU-V1-167
+    (`docs/specs/openspec/changes/flows-unlinked-tests-report/proposal.md`). The proposal was
+    amended on 2026-11-09 for answers 9 and 15: AFU-V1-166 counts a linked test of any kind as
+    coverage and AFU-V1-167 adds the `no-e2e-proof` record. Earlier text here named AFU-V1-150 to
+    AFU-V1-154 (retired by R11) and said the proposal's E2E-only links conflicted with answer 9.
   - Open tickets: V1-5255.
   - Evidence today: (integ) commit `3c4cda623` adds the unlinked-test report on the CLI and MCP;
     `internal/flowdocs/flowinventory.go:59@d114c7d4` has an `unassigned` member.
@@ -497,8 +500,10 @@ Also part of the bar (owner decisions of 2026-11-09).
     target of 1000 ms and enforced provisional ceilings of 2500 ms and 64 MiB, and scenario
     `watch-replan-self`, followed by baseline samples (first sample 696.74 ms). No p50 target
     exists, and both scenarios are Go fixtures.
-  - Acceptance evidence at 1.0: measured p50 and p95 per blocking runner on the named macOS and
-    Linux reference machines and reference repository, recorded against the bar, with the macOS
+  - Acceptance evidence at 1.0: measured p50 and p95 per blocking runner on the reference machines
+    (the owner's Mac and WSL2 Linux on the Windows benchmark box, cores capped at 8) and the seven
+    pinned proof repositories, one per runner, sizes printed, Go also timed on the Corvint repository
+    (R42 (panel pick) A11), recorded against the bar, with the macOS
     figures from a real save-event run; the budget targets promoted from advisory to enforced on a
     quiet host (G27).
 
@@ -659,8 +664,10 @@ Also part of the bar (owner decisions of 2026-11-09).
     with the release wording of "The 1.0 bar".
 
 - `PROD-TEST-015`: (proposed 2026-11-09) Corvint MUST report selection size and over-selection on a
-  plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on a held-out repository. The
-  replay does not count as miss proof.
+  plain replay of merged PRs: 200 on Corvint, 100 on Beamfall and 50 on each of the three R21
+  held-out repositories (fastapi, solidus, payload): the 50 most recent merged PRs before each pin,
+  the list frozen with the manifest (R42 (panel pick) A12; review completeness F16). The replay does
+  not count as miss proof.
   - Source: G3 (supersedes answer 5's N as a miss proof).
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: replay report.
@@ -1276,7 +1283,8 @@ list.
   - Source: owner, "successful 1.0 launch"; G15a; answer 16.
   - Notes: (proposed, not from an owner answer; checklist O27) Corvint sends no telemetry.
     Uninstall means deleting the binaries and `.corvint/`; `corvint-update rollback` restores the
-    previous release first if wanted.
+    previous release first if wanted. The self-observation ledger under `.corvint/` stays; it is
+    local-only and is documented as such (decided 2026-11-09 under R42, E8; low confidence).
   - Binaries per product (owner decision R14 (2026-11-09); read from
     `tools/release-binary/binaries.json`, integ 9ec3a29d0), each built for the three targets:
     testing `corvint`, `corvint-mcp`; documentation `corvint-docs`, `corvint-docs-mcp`; update
@@ -1322,8 +1330,9 @@ list.
     are fastapi, solidus and payload (exact repository slugs pinned in the manifest), each verified against the
     licence and activity rules before they are frozen; a failing one goes back to the owner with a
     replacement. The sealed-pool draw seeded by the RC commit SHA is removed: the repositories are
-    fixed before the candidate exists, so the candidate cannot choose its own test set. A Go
-    held-out repository is not named (open). (changed 2026-11-09, owner decision R19 (2026-11-09))
+    fixed before the candidate exists, so the candidate cannot choose its own test set. The Go
+    held-out repository is `helm/helm`, alternate `go-task/task` (decided 2026-11-09 under R42,
+    A14; test count NOT_VERIFIED until the rule check). (changed 2026-11-09, owner decision R19 (2026-11-09))
     Fault injection uses 100 planted faults per held-out repository.
   - Source: PRS-V1-008, PRS-V1-017; answer 17; G12; G12a; owner decisions R19 and R21
     (2026-11-09).
@@ -1339,7 +1348,8 @@ list.
     M5a candidate is tagged; untouched means no Corvint run, config, flow or fix keyed to the
     repository before; no flows written there, so E2E runs unnarrowed. Fault injection (R19): 100
     planted faults per held-out repository; pass at most 3 misses, with the Wilson interval
-    reported; at most 5 percent of tests excluded; per-test durations in every runner's receipt.
+    reported, each miss filed P1 and fixed by widening before the candidate (R42 (panel pick) A9);
+    at most 5 percent of tests excluded; per-test durations in every runner's receipt.
     All repositories pinned by commit SHA, lockfiles, toolchain versions and image digest in a
     hashed manifest; source fetched, never vendored. Blocking: a fault result above the R19 limit
     or any confirmed miss outside fault injection; a refusal rate above 25 percent; a result
@@ -1427,8 +1437,9 @@ list.
 - `PROD-INT-012`: (proposed 2026-11-09) 1.0 is done only when every `PROD` requirement is PASS with
   evidence or DEMOTED by a written owner note recorded before the freeze; there are zero open P0 or
   P1 tickets in `v1-0`; each product completes its end-to-end scenario on an untouched repository;
-  and the RC soaks 7 days and at least 30 real PRs (Corvint, Beamfall, held-out) with zero confirmed
-  misses and zero new P0 or P1. Any code change restarts the soak.
+  and the RC soaks 7 days and at least 30 real PRs (merged Corvint and Beamfall PRs; held-out
+  repositories have no live PRs, so they add only replayed merged PRs, reported separately, O21)
+  with zero confirmed misses and zero new P0 or P1. Any code change restarts the soak.
   - Source: G10; owner decisions R1, R2 and R20 (2026-11-09). The signed decision file is the one
     acceptance record of R1.
   - Signature (G10): only the owner signs, twice (RC publish, stable promotion), in one decision file
@@ -1440,11 +1451,12 @@ list.
     The RC run after the freeze confirms them; any regression from those verdicts is a blocking
     miss. Soak count (checklist O21): PRs merged during the soak window in Corvint or Beamfall
     repositories, read from the GitHub API, plus held-out upstream PRs merged during the window
-    and replayed on the RC; the two are reported as separate counts. The soak also reports the PR
+    and replayed on the RC; the two are reported as separate counts, and at least 20 of the 30 are
+    live Corvint or Beamfall PRs (R42 (panel pick) C9). The soak also reports the PR
     agreement figure (owner decision R20 (2026-11-09)): the share of soak-window PRs where the
-    narrowed run's pass or fail equals the full run's pass or fail on the same commit. (proposed,
-    not from an owner answer) Trial activity (checklist O22): at least 50 ticket writes and 5
-    completions per trial repository, read from the store event log.
+    narrowed run's pass or fail equals the full run's pass or fail on the same commit. Trial
+    activity (checklist O22, R42 (panel pick) C9): at least 50 ticket writes and 5 completions per
+    trial repository, read from the store event log.
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: an unproven requirement at freeze.
     - **WHEN** a requirement has no evidence on 2026-12-15
@@ -1532,6 +1544,13 @@ list.
   - Notes: (proposed, not from an owner answer; checklist O29) Each product's scripted
     qualification is the PROD-INT-004 "install alone" scenario plus that product's primary verb
     on a pinned repository.
+  - Notes: (decided 2026-11-09 under R42, D7, D9, D14, M5 and M7) The macOS exhaustive test and
+    vet are a release gate on the freeze and release candidates, while the per-merge macOS check
+    stays advisory (REL-V1-015). `greptile-gate` stays required on main through stable 1.0 and is
+    not a release gate (REL-V1-013). The nightly gate and the archive install smoke for the
+    documentation product are part of the release record (REL-V1-005, 009, 013). `init` and
+    `adopt` are 1.0 first-run verbs; their first-run behaviour is product gap (a), served by
+    change `user-docs` (R42, E8).
   - Intent: proposed. Delivery: not-started. State: MISSING.
   - Scenario: a release candidate.
     - **WHEN** an RC is cut
@@ -1808,14 +1827,14 @@ differ, both sides are reconciled before acceptance (checklist O31, Q1). Nothing
 | Proposal | Header says it serves | Plan requirements that name it |
 |---|---|---|
 | `affected-plan-kinds` | PROD-TEST-003, 004 | PROD-TEST-003 |
-| `agent-packages` (AGT-V1-001 to 028) | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007 | PROD-INT-023 to 027 |
+| `agent-packages` (AGT-V1-001 to 030) | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007 | PROD-INT-023 to 027 |
 | `change-report-impact` (CRI-V1-001 to 008) | PROD-TEST-003, 010; PROD-INT-001, 002 | PROD-INT-028 |
 | `e2e-inventory-discovery` (AFU-V1-140 to 145) | PROD-TEST-004 | PROD-TEST-017 |
 | `fault-injection-harness` (FIH-V1-001 to 013) | PROD-TEST-002, 011; PROD-INT-008 | PROD-TEST-014 |
-| `feature-map-from-flows` (FMP-V1-001 to 006) | PROD-DOCS-004, 006, 011 | PROD-DOCS-013 |
+| `feature-map-from-flows` (FMP-V1-001 to 007) | PROD-DOCS-004, 006, 011 | PROD-DOCS-013 |
 | `flows-status-report` (AFL-V1-001 to 006) | PROD-TEST-010 | PROD-TEST-010 |
-| `flows-unlinked-tests-report` (AFU-V1-150 to 154) | PROD-TEST-005 | PROD-TEST-005, 018 |
-| `github-action` (GHA-V1, 31 requirements) | PROD-TEST-012; PROD-INT-006 | PROD-TEST-013; PROD-INT-014, 018 to 022 |
+| `flows-unlinked-tests-report` (AFU-V1-155 to 159, 166, 167) | PROD-TEST-005 | PROD-TEST-005, 018 |
+| `github-action` (GHA-V1, 35 requirements) | PROD-TEST-012; PROD-INT-006 | PROD-TEST-013; PROD-INT-014, 018 to 022 |
 | `how-rewrite` (HOW-V1-001 to 010) | PROD-DOCS-007; PROD-INT-004 | PROD-DOCS-007 |
 | `narrowing-measurement` (NMS-V1-001 to 010) | PROD-TEST-002, 008, 011; PROD-INT-007, 008 | PROD-TEST-013, 015, 016 |
 | `non-code-map` (NCM-V1-001 to 009) | PROD-TEST-002, 008, 012 | PROD-TEST-019 |
@@ -1824,7 +1843,7 @@ differ, both sides are reconciled before acceptance (checklist O31, Q1). Nothing
 | `review-evidence-check` (prefix settled as RVE-V1) | PROD-TEST-010, 012; PROD-INT-001 | PROD-INT-029 |
 | `ruby-providers` (RBR-V1-001 to 011) | PROD-TEST-006, 008, 011 | PROD-TEST-006 |
 | `runner-contract` (RNC-V1-001 to 011) | PROD-TEST-006, 011 | PROD-TEST-006, 013 |
-| `source-removal` (RMV-V1-001 to 030) | PROD-TEST-002; PROD-INT-009, 010 | PROD-INT-017, 031; "Removed from 1.0" |
+| `source-removal` (RMV-V1-001 to 037) | PROD-TEST-002; PROD-INT-009, 010 | PROD-INT-017, 031; "Removed from 1.0" |
 | `tasks-integration` (TIN-V1) | PROD-TASK-003, 004, 006 to 013; PROD-INT-004 | PROD-TASK-010 to 013 |
 | `ticket-brief-context` (TBC-V1-001 to 007) | PROD-TASK-006; PROD-INT-002 | PROD-INT-030 |
 | `watch-seven-runners` (WCH-V1-001 to 013) | PROD-TEST-007 | PROD-TEST-007, 013; PROD-INT-031 |
@@ -1853,7 +1872,8 @@ are written alongside this revision; each is proposed only. The order and prereq
 | `flow-schema-version` | PROD-INT-016 | G5 |
 | `macos-required-shards` | PROD-INT-015 | answer 16, R36 |
 | `mcp-tool-table` | PROD-DOCS-001, 010; PROD-TEST-009 | R13, R30 |
-| `user-docs` | product gaps (a) to (f); PROD-INT-004, 017 | none yet (O30, O64) |
+| `user-docs` | product gaps (a) to (f); PROD-INT-004, 017 | R42 B6 (O30, O64) |
+| `compatibility-promise` (CMP-V1-001 to 006) | product gap (g) | R42 D10, D10a (O30, O64) |
 | `tasks-conformance` (Tasks repository) | PROD-TASK-010 | R17, R18 |
 | `tasks-policy-v15` | milestone M0 | R3 |
 | `acceptance-record` | the one acceptance record (checklist O19) | R1, R9 |
@@ -1861,10 +1881,11 @@ are written alongside this revision; each is proposed only. The order and prereq
 
 ## Product gaps (open)
 
-These user-facing items have no requirement. They are owner decisions under Q35 (NEW-PROC-1 to
-3) and are not decided here (checklist O30, O64). Gaps (a) to (f) are planned in the `user-docs`
-change folder ("Proposal dependency table"); its content stays open until the owner decides. Gap
-(g) has no planned folder.
+These user-facing items have no requirement here. Q35 (NEW-PROC-1 to 3; checklist O30, O64) is
+decided by R42 (panel pick) B6: all items ship as pages in the repository, with no site. Gaps (a)
+to (f) are planned in the `user-docs` change folder ("Proposal dependency table"); the content of
+the compatibility statement (g) was decided 2026-11-09 under R42, D10 and D10a. Gap (g) is served
+by change `compatibility-promise`.
 
 | Gap | Item | Owner question |
 |---|---|---|
@@ -1917,13 +1938,13 @@ change folders is in "Proposal dependency table".
 | M1 | Cut PR | `claude/bigcut-keepdocs` lands unchanged; no removals added to it. It already carries the decision 0586 licence text in `AGENTS.md` (see "Corrections", item 3). | PR CI on the cut PR |
 | M2 | `.github`-only PR | Items 0594 deferred, `vscode-extension.yml`, `cem-release-gate.yml`, `intake-containment.yml`, the dangling `.github/workflows/release-gates.yml:90@3aa27b74` target, cishards entries; lane and batch steps out of CI; required-check list checked and the ruleset updated in the same window | Required CI checks |
 | M3 | Removal lanes on the integration branch | G8, G23, G24, G26 removals and lint trims as the first lanes, before directory moves; compile-check only. Removals complete by 2026-12-01; a batch not merged by then moves to 1.0.x. `spec-set-cleanup` verdicts land with the matching removal batch (R41). Per batch: `go vet ./...` in both modules, `make windows-vet` once before the batch's push (R36), `make -n gate doc-gates shell-test release-binaries-check`, a zero-hit `git grep -F` for each deleted path over live paths, and one build-log entry (R34) | Per-batch reference closure (no tests) |
-| M4 | Layering and release merge (about 2026-12-08) | The layering integration branch merges with the 1.0 feature lanes; lane tooling moves out after it | `corvint affected --base <pre-batch SHA>` with the selected tests, plus required CI |
+| M4 | Layering and release merge (about 2026-12-08) | The layering integration branch merges with the 1.0 feature lanes; lane tooling moves to a private operator repository after it, in batch B8b (R42, E9; RMV-V1-025) | `corvint affected --base <pre-batch SHA>` with the selected tests, plus required CI |
 | M5 | Action cut-over | After 30 shadow PRs with no would-be miss (PROD-INT-021): first a `.github` PR, then the non-`.github` tools; ideally before the freeze, otherwise first 1.0.x change | Shadow record |
-| M5a | Qualification candidate tag, about 2026-12-08 (owner decision R2 (2026-11-09)) | A qualification candidate is tagged from the integration result; it is rebuilt only for blockers. The held-out repositories (R21) are verified and frozen before the tag | Tag recorded; candidate builds |
-| M6 | Freeze, 2026-12-15 | Owner records demotions from the FIH and NMS verdicts on the M5a candidate (PROD-INT-012 notes, R2); nothing removed in the two weeks before except the action cut-over (removal panel r5) | none |
+| M5a | Qualification candidate tag, about 2026-12-08 (owner decision R2 (2026-11-09)) | A qualification candidate is tagged from the integration result; it is rebuilt only for blockers. The Tasks RC is tagged the same day (R42, C22); publishing that tag is the owner's act. The held-out repositories (R21) are verified and frozen before the tag | Tag recorded; candidate builds |
+| M6 | Freeze, 2026-12-15 | Owner records demotions from the FIH and NMS verdicts on the M5a candidate (PROD-INT-012 notes, R2); nothing removed in the two weeks before except the action cut-over (removal panel r5) and the two late removal batches: B8b (by 2026-12-10, or the first 1.0.x) and B11 (by 2026-12-15) (R42, E5; REL-V1-009) | none |
 | M7 | Per-product end-to-end qualification on the M5a candidate, before the freeze (R2) | PROD-TEST-014 to 016 per runner (R19); PROD-INT-008 pinned and held-out repositories; PROD-INT-017 scripted qualification per product; agent qualification on the owner's machines (R39, R40); Tasks conformance pack and tag (PROD-TASK-010, beamfall/core per R18) | Full qualification on the benchmark box, Linux and macOS (hosts proposed in PROD-INT-008 notes, O23); confirmed again on the RC |
 | M8 | RC tag, then approve and publish | The RC tag is pushed first and the tag workflow builds the artifacts; owner signature 1 is the approval in the protected environment that publishes them (PROD-INT-014, R2) | Full suite in the tag workflow |
-| M9 | Soak and trial | 7 days and at least 30 real PRs; 21-day Tasks trial on the frozen RC; any code change restarts both | Soak records |
+| M9 | Soak and trial | 7 days and at least 30 real PRs; 21-day Tasks trial on the frozen RC, 2026-12-08 to 2026-12-29 (R42, C22); any code change restarts both | Soak records |
 | M10 | Stable, no earlier than 2027-01-05 | Owner signature 2 | none beyond M9 |
 
 Also on the path: Tasks specs are deleted from this repository only after `corvint-tasks` PR #4
@@ -1938,31 +1959,35 @@ build order `canonical-test-id`, `test-inventory`, `run-evidence`, `line-evidenc
 (2026-11-09)); and `spec-set-cleanup` after `openspec-check` and `source-removal` (owner decision
 R41 (2026-11-09)). Every other edge is a proposed order, checked again when each proposal is
 written. Cypress has no change folder (owner decision R6 (2026-11-09)). Every folder is proposed;
-none is accepted before the acceptance record (R1). State "existing" means the folder was written
-before this revision; "planned" means this revision names it. A planned folder may be written
-alongside this revision; `docs/specs/openspec/README.md` lists the folders on disk.
+none is accepted before the acceptance record (R1). State "existing" means the folder is on disk
+with `proposal.md`, `design.md`, `tasks.md` and a spec delta; "planned" means this plan names it
+and nothing is written yet. The states were refreshed on 2026-11-09: every folder in the table is
+now on disk, so none is "planned". The four `-hardening` rows were added in the same refresh; their
+edges come from the review verdict files and are proposed. `ticket-taxonomy` and
+`tasks-store-cutover` are being written separately and get their rows when they land.
+`docs/specs/openspec/README.md` lists the folders on disk.
 
 | Change folder | State | Needs first | Unblocks |
 |---|---|---|---|
-| `acceptance-record` | planned | this plan reconciled with the proposal headers (O31) | acceptance of every other folder; the R9 Python release exception |
-| `tasks-policy-v15` | planned | none | `release-process` (M0) |
-| `release-process` | planned | `tasks-policy-v15` for M0; `proof-repositories`, `fault-injection-harness`, `narrowing-measurement` and `per-test-durations` for M5a qualification | M5a, M8 publish; the signed decision file |
-| `openspec-check` | planned | none | `spec-set-cleanup`; the archive stage of every later change |
+| `acceptance-record` | existing | this plan reconciled with the proposal headers (O31) | acceptance of every other folder; the R9 Python release exception |
+| `tasks-policy-v15` | existing | none | `release-process` (M0) |
+| `release-process` | existing | `tasks-policy-v15` for M0; `proof-repositories`, `fault-injection-harness`, `narrowing-measurement` and `per-test-durations` for M5a qualification | M5a, M8 publish; the signed decision file |
+| `openspec-check` | existing | none | `spec-set-cleanup`; the archive stage of every later change |
 | `source-removal` | existing | none | `spec-set-cleanup`; `runner-contract` (external protocol removed, G23); `user-docs` (upgrade notes) |
-| `spec-set-cleanup` | planned | `openspec-check`, `source-removal` | one workflow document; finished by 2026-12-01 |
+| `spec-set-cleanup` | existing | `openspec-check`, `source-removal` | one workflow document; finished by 2026-12-01 |
 | `runner-contract` | existing | none | `canonical-test-id`, `pytest-provider`, `ruby-providers`, `jest-provider`, `watch-seven-runners`, `github-action` |
-| `canonical-test-id` | planned | `runner-contract` (it adds RNC-V1-012) | `test-inventory`, `pytest-provider`, `ruby-providers`, `jest-provider` |
-| `test-inventory` | planned | `canonical-test-id` | `run-evidence`, `e2e-inventory-discovery`, `flows-unlinked-tests-report`, `watch-seven-runners` |
-| `run-evidence` | planned | `test-inventory` | `line-evidence`, `per-test-durations`, `flows-status-report`, `review-evidence-check` |
-| `line-evidence` | planned | `run-evidence` | `flow-link-proposals`, `narrowing-measurement` |
-| `flow-link-proposals` | planned | `line-evidence`, `flows-unlinked-tests-report`, `flow-schema-version` | none |
+| `canonical-test-id` | existing | `runner-contract` (it adds RNC-V1-012) | `test-inventory`, `pytest-provider`, `ruby-providers`, `jest-provider` |
+| `test-inventory` | existing | `canonical-test-id` | `run-evidence`, `e2e-inventory-discovery`, `flows-unlinked-tests-report`, `watch-seven-runners` |
+| `run-evidence` | existing | `test-inventory` | `line-evidence`, `per-test-durations`, `flows-status-report`, `review-evidence-check` |
+| `line-evidence` | existing | `run-evidence` | `flow-link-proposals`, `narrowing-measurement` |
+| `flow-link-proposals` | existing | `line-evidence`, `flows-unlinked-tests-report`, `flow-schema-version` | none |
 | `pytest-provider` | existing | `runner-contract`, `canonical-test-id` | `line-evidence` (pytest at file level), `watch-seven-runners` |
 | `ruby-providers` | existing | `runner-contract`, `canonical-test-id` | `line-evidence`, `watch-seven-runners` |
-| `jest-provider` | planned | `runner-contract`, `canonical-test-id` | `line-evidence`, `watch-seven-runners` |
-| `per-test-durations` | planned | `run-evidence` | `fault-injection-harness`, `narrowing-measurement` |
+| `jest-provider` | existing | `runner-contract`, `canonical-test-id` | `line-evidence`, `watch-seven-runners` |
+| `per-test-durations` | existing | `run-evidence` | `fault-injection-harness`, `narrowing-measurement` |
 | `e2e-inventory-discovery` | existing | `test-inventory` (to be reconciled with it; fresh IDs per R11) | `flows-unlinked-tests-report` |
 | `flows-unlinked-tests-report` | existing | `test-inventory`, `e2e-inventory-discovery` | `flow-link-proposals` |
-| `flow-schema-version` | planned | none | `flows-status-report`, `feature-map-from-flows`, `flow-link-proposals` |
+| `flow-schema-version` | existing | none | `flows-status-report`, `feature-map-from-flows`, `flow-link-proposals` |
 | `affected-plan-kinds` | existing | none | `flows-status-report`, `change-report-impact`, `review-evidence-check` |
 | `flows-status-report` | existing | `affected-plan-kinds`, `run-evidence`, `flow-schema-version` | `review-evidence-check`, `change-report-impact` |
 | `feature-map-from-flows` | existing | `flow-schema-version` | none |
@@ -1973,15 +1998,19 @@ alongside this revision; `docs/specs/openspec/README.md` lists the folders on di
 | `fault-injection-harness` | existing | `proof-repositories`, `per-test-durations` | `narrowing-measurement`, `release-process` |
 | `narrowing-measurement` | existing | `fault-injection-harness`, `line-evidence`, `non-code-map` | `release-process` (demotion verdicts), `github-action`, `mcp-tool-table` (kill switch) |
 | `watch-seven-runners` | existing | `runner-contract`, `test-inventory`, `pytest-provider`, `ruby-providers`, `jest-provider` | none |
-| `mcp-tool-table` | planned | none for the table; `narrowing-measurement` for the kill-switch rows | `agent-packages` |
+| `mcp-tool-table` | existing | none for the table; `narrowing-measurement` for the kill-switch rows | `agent-packages` |
 | `agent-packages` | existing | `mcp-tool-table`, `review-evidence-check` | agent qualification (M7) |
 | `github-action` | existing | `runner-contract`, `narrowing-measurement` | the action cut-over (M5) |
-| `macos-required-shards` | planned | none (a `.github`-only PR) | required macOS checks on the RC (`release-process`) |
+| `macos-required-shards` | existing | none (a `.github`-only PR) | required macOS checks on the RC (`release-process`) |
 | `how-rewrite` | existing | none | `user-docs` |
-| `user-docs` | planned | `how-rewrite`, `source-removal`, `mcp-tool-table` | release notes for the RC (`release-process`) |
+| `user-docs` | existing | `how-rewrite`, `source-removal`, `mcp-tool-table` | release notes for the RC (`release-process`) |
 | `tasks-integration` | existing | none | `tasks-conformance`, `ticket-brief-context` |
-| `tasks-conformance` | planned (Tasks repository) | `tasks-integration` | the 21-day trial on beamfall/core (M9) |
+| `tasks-conformance` | existing (built in the Tasks repository) | `tasks-integration` | the 21-day trial on beamfall/core (M9) |
 | `ticket-brief-context` | existing | `tasks-integration` | none |
+| `selection-hardening` | existing | `fault-injection-harness` (its SLF-V1-006 gate) | `affected-plan-kinds` (one vocabulary for unknowns), `source-removal` (second Go attribution) |
+| `watch-flows-hardening` | existing | `affected-plan-kinds`, `flow-link-proposals` | `watch-seven-runners` (warm-state invalidation, WFF-V1-002) |
+| `docs-mcp-hardening` | existing | `mcp-tool-table`; order against `how-rewrite` open (DMF-V1-012) | `change-report-impact` (docs check report), `user-docs` |
+| `tasks-hardening` | existing (built in the Tasks repository) | none | `tasks-conformance` (schema v1 freeze) |
 
 ## Corrections to the first draft
 
@@ -2148,8 +2177,8 @@ the acceptance record must confirm; it is not an owner answer. "Open" rows still
 | O18 | Whether an "analyzers" layer remains after G26 | The layer list in PROD-INT-001 is restated | Settled in review: four layers; confirm in the record |
 | O19 | The acceptance decision record itself (answer 18): this file becomes the 1.0 product contract | This file stays a proposal and governs nothing | Owner decision R1 (2026-11-09) fixes its form; the record is not written yet (planned `acceptance-record`) |
 | O20 | Demotion verdicts at the freeze come from the FIH and NMS verdicts on a named freeze-candidate SHA; a later regression is a blocking miss (PROD-INT-012 notes; timing waits for Q2) | Demotions rest on the owner's judgement alone | Owner decision R2 (2026-11-09): verdicts come from the M5a qualification candidate |
-| O21 | Soak count: GitHub API count of Corvint and Beamfall PRs merged in the window, plus replayed held-out PRs, reported separately; whether replays count toward 30 (Q19) | The 30-PR count has no stated source | Partly: owner decision R20 (2026-11-09) fixes the agreement figure; whether replays count toward 30 is open |
-| O22 | Trial minimum: 50 ticket writes and 5 completions per trial repository, from the store event log | The 21-day trial has no activity floor | Open |
+| O21 | Soak count: GitHub API count of Corvint and Beamfall PRs merged in the window, plus replayed held-out PRs, reported separately; whether replays count toward 30 (Q19) | The 30-PR count has no stated source | Settled: owner decision R20 (2026-11-09) fixes the agreement figure; R42 (panel pick) C9: replays count, reported separately, at least 20 of 30 live |
+| O22 | Trial minimum: 50 ticket writes and 5 completions per trial repository, from the store event log | The 21-day trial has no activity floor | Settled: R42 (panel pick) C9 |
 | O23 | Benchmark hosts: WSL2 Linux on the Windows benchmark box and the owner's Mac, reserved with no lanes from freeze candidate to RC (Q20) | The benchmark host stays unnamed | Open |
 | O24 | M3 removals complete by 2026-12-01; later batches move to 1.0.x | Removals may run into the freeze window | Settled in review; confirm in the record |
 | O25 | `narrowing-measurement` owns the `CORVINT_SELECTION` grammar, refusal and reason text; an MCP kill-switch requirement is missing; unknown values stay open (Q13) | Each proposal defines its own kill switch | Owner decision R13 (2026-11-09): exit 2 in CLI and CI, run all in hooks and MCP, `full:<runner>` everywhere |
@@ -2157,7 +2186,7 @@ the acceptance record must confirm; it is not an owner answer. "Open" rows still
 | O27 | No telemetry; uninstall by deleting binaries and `.corvint/` (PROD-INT-006 notes) | Telemetry and uninstall stay unstated | Settled in review; confirm in the record |
 | O28 | `SECURITY.md` copied into `corvint-action` and `corvint-agents` | The new repositories have no security policy | Settled in review; confirm in the record |
 | O29 | Per-product qualification is the "install alone" scenario plus the primary verb on a pinned repository | PROD-INT-017's scenario stays undefined | Open |
-| O30 | Product gaps (a) to (g) | Decided under Q35 | Open; planned `user-docs` covers part ("Product gaps (open)") |
+| O30 | Product gaps (a) to (g) | Decided under Q35 | Settled: R42 (panel pick) B6, all ship as repository pages; (g) decided 2026-11-09 under R42, D10 and D10a: a narrow promise in `docs/COMPATIBILITY.md`, change `compatibility-promise` |
 | O31 | Proposal headers and plan "Implemented by" lines are reconciled ("Proposal traceability"; Q1) | Traceability stays inconsistent | Partly: owner decision R35 (2026-11-09) adds the dependency table and fixed-commit citations; header reconciliation still to do |
 
 ### Open items with no row before this revision
@@ -2171,7 +2200,7 @@ reviewer settlement for the owner to confirm.
 | O32 | C5: RC and stable calendar against the 21-day trial | Q2 | Owner decision R2 (2026-11-09) |
 | O33 | C7: `agents doctor` (G19) against `agent hook` and `agent manifest` (G20) naming | Q27 | Partly: owner decision R27 (2026-11-09) pins one model per agent host; verb naming is open |
 | O34 | C8: G27 retires `gate-ledger` and `gate-receipt`, which `make gate` uses; decisions 0224 and 0352 need superseding. The interim handling is settled without the owner | No question number yet | Open |
-| O35 | C9: invariant 4 against agent-hook session state; the `--learn-slot-weights` exception; invariant 7 wording | Q28 | Open (R28 answered only the `context` part of Q28) |
+| O35 | C9: invariant 4 against agent-hook session state; the `--learn-slot-weights` exception; invariant 7 wording | Q28 | Settled: decided 2026-11-09 under R42, D17. Invariant 3 drops "and learned task traces"; invariant 4 drops the `--learn-slot-weights` clause and states that agent hook session state in the user cache directory is not repository or trace state; invariant 5 becomes "Corvint 1.0 learns nothing from use". The `AGENTS.md` edit lands with change `agent-packages` (AGT-V1-027) |
 | O36 | C10: Cypress must-run (answer 2) against conditional (G1) | Q6 | Owner decision R6 (2026-11-09): Cypress dropped from 1.0 |
 | O37 | C11: `review` is preview (G25) while review evidence blocks completion (G9) | Q4 | Owner decision R4 (2026-11-09): advisory by default, opt-in blocking |
 | O38 | C12: G5 partly reverses decision 0595 and breaks CMS-V0-915/916 layer tests | No question number yet | Open |
@@ -2191,16 +2220,19 @@ reviewer settlement for the owner to confirm.
 | O52 | D17: action fail-closed rules beyond O9 | Q24 | Owner decision R24 (2026-11-09) |
 | O53 | D18: 30-PR shadow match as PROD-TEST-012 acceptance; bespoke CI selection to replace | Q22 | Owner decision R22 (2026-11-09) |
 | O54 | D19: when to drop the `e2e-flows.json` read; inventory refresh and `flows ingest` locations | Q10 | Owner decision R10 (2026-11-09): one inventory, `corvint inventory refresh` |
-| O55 | D20: watch targets, reference machine and repository | Q16 | Partly: owner decision R16 (2026-11-09) fixes the tiers; the reference machine and repository are open |
-| O56 | D21: impact ticket matching; acceptance-criteria IDs; ticket-brief keep threshold | Q29 | Partly: owner decisions R28 and R29 (2026-11-09); ticket matching is open |
+| O55 | D20: watch targets, reference machine and repository | Q16 | Settled: owner decision R16 (2026-11-09) fixes the tiers; R42 (panel pick) A11 names the machines and repositories |
+| O56 | D21: impact ticket matching; acceptance-criteria IDs; ticket-brief keep threshold | Q29 | Settled: owner decisions R28 and R29 (2026-11-09); R42 (panel pick) C10 fixes ticket matching |
 | O57 | D22: the parts of D22 beyond O3 | Q7 | Owner decision R7 (2026-11-09) |
 | O58 | D24: only Go, Vitest and Playwright run through `corvint test` today; build order | Q38 | Owner decision R38 (2026-11-09) |
 | O59 | D25: add-only rule for provider files, receipts and inventories; settled without the owner | Confirm in the record | Confirm in the record |
 | O60 | PROD-INT-003 and PROD-INT-007 wording (marked PROPOSED) | Q1; PROD-INT-007 also Q35 | Owner decision R1 (2026-11-09): the record names the wording |
 | O61 | PROD-TASK-006 source (PROPOSED) and PROD-TASK-001 to 005 wording | Q17 | Owner decision R17 (2026-11-09) |
 | O62 | Feature map is preview as the output of `docs flows generate`; settled without the owner | Confirm in the record | Confirm in the record |
-| O63 | Where GHA-V1-040 to 043 live: `github-action` or `public-release-v0.md` | No question number yet | Open |
-| O64 | NEW-PROC-1 to 3: user documents in the bar, upgrade behaviour, 1.x compatibility | Q35 | Open (R35 answered only the dependency table and citations) |
+| O63 | Where GHA-V1-040 to 043 live: `github-action` or `public-release-v0.md` | No question number yet | Settled: decided 2026-11-09 under R42, D6: change `github-action` |
+| O64 | NEW-PROC-1 to 3: user documents in the bar, upgrade behaviour, 1.x compatibility | Q35 | Settled: R42 (panel pick) B6 (R35 answered the dependency table and citations); (g) decided 2026-11-09 under R42, D10 and D10a: a narrow promise in `docs/COMPATIBILITY.md`, change `compatibility-promise` |
 | O65 | NEW-PROC-4: keep or remove `make windows-vet` and its CI step after answer 16 | Q36 | Owner decision R36 (2026-11-09): once per removal batch, before its push |
+
+| O66 | A4: the `e2e-safe` selection profile and the appmap navigation verdict leave the public surface in 1.0 (RMV-V1-037). This supersedes the Core classification in decision 0385 (AFU-V1-019 to 024) and the `corvint impact`, `affected` row of `corvint-1.0-product-and-release-v1.md` | No question number | Settled: decided 2026-11-09 under R42, A4; the supersession takes effect only when the owner accepts this record |
+| O67 | E10: the "Implemented by" lines and the dependency table are generated from proposal headers, and a check fails on mismatch | O31 | Settled as a fix under R42, E10; the check is built by the planned change `openspec-check`; until then the table is hand-kept and may lag |
 
 O19 is on the critical path for every proposal: no proposal is accepted until the record exists.

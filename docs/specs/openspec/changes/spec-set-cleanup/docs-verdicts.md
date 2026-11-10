@@ -29,12 +29,12 @@ the `build-log/` directory itself has one row.
 
 ## Counts
 
-- keep: 19
+- keep: 20
 - rewrite: 10
 - archive: 9
 - delete: 6
 - move: 0
-- undetermined: 2
+- undetermined: 1
 
 ## Table
 
@@ -50,7 +50,7 @@ the `build-log/` directory itself has one row.
 | `CHANGE-EVIDENCE-MAP.md` | archive | B6 | CEM, out of scope; archived in the batch that removes CEM. | 35: docs/specs 12, .taskman 6, benchmarks 4 |
 | `CHANGE-FLOW.md` | delete | B6 | Competing workflow document: fixes the order of the dogfood closing steps (dogfood, out of scope). Its readers are CEM files B6 removes, `daily-change-evidence-workflow-v0` (retired) and `documentation-paths.json`. | 5: .corvint 4, docs/specs 1 |
 | `DOCUMENTATION-CORPUS.md` | keep | - | Documentation product (DCP-V1). | 14: .corvint 6, docs/specs 4, cmd 2 |
-| `DOGFOOD.md` | keep | - | Already an 11-line retirement stub (decision 0594) that redirects; 303 references, most in files B6 removes. Deleting it is re-decided after B6. | 303: .corvint 178, docs/specs 46, .taskman 30 |
+| `DOGFOOD.md` | keep | - | Already an 11-line retirement stub (decision 0594) that redirects; 303 references, most in files B6 removes. Deleting it is re-decided after B6 (decided 2026-11-09 under R42, E6: the stub stays until then; self-use is recorded as a progress note on the change's ticket, or in the PR body when there is no ticket, and friction is filed as tickets). | 303: .corvint 178, docs/specs 46, .taskman 30 |
 | `EXTENSION-ECOSYSTEM.md` | archive | B4 | B4 adds its status line; the `agent-packages` change supersedes lines 123-125. | 11: .taskman 3, benchmarks 3, conformance 2 |
 | `EXTERNAL-EVIDENCE-PROVIDERS.md` | delete | B4 | B4 removes it with `examples/evidence-provider`. | 6: benchmarks 2, .corvint 1, .taskman 1 |
 | `FLOW-COVERAGE.md` | keep | - | Documentation and testing product (flows). | 8: docs/specs 5, .corvint 1 |
@@ -58,7 +58,7 @@ the `build-log/` directory itself has one row.
 | `GLOSSARY.md` | rewrite | B6 | Keeps the 1.0 terms; drops the CEM, `lrf-0` and `tcq-0` entries. | 22: .corvint 17, docs/specs 3 |
 | `INSTALL.md` | keep | `user-docs` | Install is in scope; the `user-docs` change rewrites the uninstall paragraph. | 23: benchmarks 5, .corvint 4, docs/specs 4 |
 | `LANE-ORCHESTRATION.md` | rewrite | B8b | Becomes a stub when B8b removes the lane scripts; read by 21 scripts, the Makefile, `tools/flow-guide-check` and one `.claude` skill until then. | 115: .corvint 76, script 21, docs/specs 9 |
-| `LEGACY-ADOPTION.md` | undetermined | - | Brownfield documentation recovery through `init`/`adopt`. Missing: whether `init` and `adopt` serve a PROD ID (same open item as `genesis-backfill.md`). | 6: conformance 2, docs/specs 2, llms.txt 1 |
+| `LEGACY-ADOPTION.md` | keep | - | Brownfield documentation recovery through `init`/`adopt`. Decided 2026-11-09 under R42, E8: `init` and `adopt` are 1.0 first-run verbs with a product requirement, so the document stays (same decision as `genesis-backfill.md`; low confidence). | 6: conformance 2, docs/specs 2, llms.txt 1 |
 | `MCP-SERVER.md` | keep | `mcp-tool-table` | Agent packages use it; the `mcp-tool-table` change owns its table. | 19: .corvint 6, benchmarks 3, docs/specs 3 |
 | `PORTFOLIO-0.6.md` | archive | C1 | 0.6 reading map; not 1.0 guidance. | 6: .corvint 2, ROADMAP.md 1, benchmarks 1 |
 | `PRODUCT.md` | rewrite | C1 | Lines 5 and 34 call Corvint a "change-evidence verifier"; must state the three 1.0 products. | 73: docs/specs 32, benchmarks 16, conformance 7 |

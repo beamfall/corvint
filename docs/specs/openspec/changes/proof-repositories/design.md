@@ -13,13 +13,26 @@ Status: proposed (2026-11-09). Requirement text lives in `specs/proof-repositori
    checked before freezing; a failure goes back to the owner with a proposed replacement (owner
    decision R21 (2026-11-09)). This replaces the earlier text, which drew one held-out repository
    each for Go, JS/TS, Python and Ruby from a sealed pool at RC freeze, seeded by the RC commit SHA,
-   with a "deterministic draw" scenario (same pool and SHA select the same four).
+   with a "deterministic draw" scenario (same pool and SHA select the same four). The held-out Go
+   repository is helm/helm, treated as those three are (100 faults, the 50-PR replay), verified and
+   frozen before the M5a tag; its alternate is go-task/task (decided 2026-11-09 under R42, A14).
 5. Those three are withdrawn as alternates for the named set (owner decision R21 (2026-11-09)).
 6. Replacement pools of at least 5 candidates each, runner stated per entry, untouched search
    recorded (review release-tasks 16).
 7. Held-out sets carry N = 100 faults, block above 3 misses, and cap excluded tests at 5 percent
    (owner decision R19 (2026-11-09)).
 8. Cypress is dropped from 1.0 and listed as post-1.0 (owner decision R6 (2026-11-09)).
+9. Flows on the pinned Playwright repository (decided 2026-11-09 under R42, A16). Agents write the
+   flow declarations on the freeCodeCamp pin; the owner accepts links per flow. Target: 10 flows
+   with at least 40 accepted links, accepted in one sitting by 2026-12-04, then frozen and hashed
+   into the manifest before the Playwright fault set is sealed. The acceptances are the owner's
+   act. The 10 and the 40 are panel numbers; freeCodeCamp's spec count is NOT_VERIFIED.
+10. Qualification mirrors (decided 2026-11-09 under R42, N4; low confidence). Seven public mirrors
+    `beamfall/corvint-qual-<runner>` (`go`, `vitest`, `jest`, `playwright`, `pytest`, `rspec`,
+    `minitest`) are needed by 2026-11-27. Each is a pushed copy of the pinned commit, not a GitHub
+    fork, with upstream workflows disabled, issues off, the licence kept and a README line saying
+    it is an unaffiliated test mirror. Creating them is the owner's act. None exists at the time of
+    writing; a manifest records its mirror URL only after the mirror is created (PRR-V1-003).
 
 ## Verification of the named repositories (checked 2026-11-09)
 
@@ -58,6 +71,12 @@ Held-out repositories against the checked criteria (same sources, 2026-11-09): f
 three pass licence and activity on these readings. fastapi's pytest use and payload's running-app
 criterion are NOT_VERIFIED; task 5 repeats the checks before freezing.
 
+helm/helm, as recorded with decision A14 on 2026-11-09: Apache-2.0, language Go, 603 merged PRs in
+12 months, 94 of the latest 100 completed `build-test` runs on `main` green, median run 365 s, and
+no file on Corvint `origin/main` mentions it. Its test count is NOT_VERIFIED (227 Go files contain
+`func Test`). restic/restic failed the green-rate rule (20 of 43). cli/cli stays the named Go
+alternate and is not held out. Task 5 repeats the helm/helm checks before freezing.
+
 Open points on the primary seven:
 
 - freeCodeCamp: whether its Playwright suite drives a running application that can be started in a
@@ -74,8 +93,9 @@ is no longer untouched under G12 and must not enter any held-out pool.
 
 ## Failure modes
 
-- A named repository fails the rule when measured: it is swapped for its alternate (or the
-  suggested swap) only by a written owner note before the freeze; the manifest records the swap.
+- A named repository fails the rule when measured: it is swapped by rule for a repository that
+  passes the hashed rule and has no Corvint run, before the freeze; the manifest reports the swap
+  (R42 (panel pick) A13). Only the two cases of PRR-V1-010 go to the owner.
 - A pin cannot be fetched (deleted SHA, image digest gone): the run refuses with
   `pin-unavailable`; no substitute is fetched.
 - A held-out repository fails its licence, activity or untouched check before freezing: it is not
@@ -90,8 +110,10 @@ is no longer untouched under G12 and must not enter any held-out pool.
 
 - Measured rule values for each named repository, then the committed `rule.json` with hash; seven
   named manifests with measured values and sources.
-- The frozen held-out list (fastapi, solidus, payload) with check results and hash, and three pool
-  files of at least 5 candidates each.
+- The frozen held-out list (fastapi, solidus, payload, helm) with check results and hash, and four
+  pool files of at least 5 candidates each (PRR-V1-011 asks for one per held-out repository).
+- The freeCodeCamp flow file hash in its manifest, with 10 flows and at least 40 accepted links
+  (A16), and the seven mirror URLs once the owner has created the mirrors (N4).
 - Go tests for rule-hash mismatch, pin mismatch, held-out swap refusal, freeze refusal on a failed
   check, touched-repository refusal, short pool, refusal ceiling, miss bound and the rerun
   comparison.
@@ -103,12 +125,18 @@ V1-0019 single untouched repository. Requirement IDs are retired, not reused.
 
 ## Open questions for the owner
 
-- Playwright and pytest swaps: with payload and fastapi held out, no passing swap candidate is
-  named for either.
-- RSpec swap: dependabot/dependabot-core, if a swap is needed.
-- Minitest alternate: whether a second Rails component is acceptable.
-- Owner decision R21 names held-out repositories for Python, Ruby and JS/TS; whether a held-out Go
-  repository is still required (G12 named four families) is not decided.
-- Owner decision R19 lets a held-out set pass with up to 3 misses; G12 said any confirmed miss
-  blocks. This change follows R19 for held-out sets; the owner has not confirmed that G12 is
-  amended.
+- Decided, R42 (panel pick) A13: swaps (pytest, RSpec and others) are made by rule and reported
+  (PRR-V1-010). Two cases still go to the owner when they arise: a Minitest alternate that is a
+  second Rails component, and Playwright if freeCodeCamp fails with no passing candidate.
+- Settled (decided 2026-11-09 under R42, A14): the held-out Go repository is helm/helm, alternate
+  go-task/task. Earlier wording, superseded by A14: "whether a held-out Go repository is still
+  required (G12 named four families) is not decided."
+- Decided, R42 (panel pick) A12: the 50-PR replay of PROD-TEST-015 and NMS-V1-010 runs on all
+  three held-out repositories (fastapi, solidus, payload), the 50 most recent merged PRs before
+  each pin, with the list frozen with the manifest (review completeness F16). Settled (decided
+  2026-11-09 under R42, N7): N7 is closed by A12, and A14 adds helm/helm on the same terms.
+- Open for the owner to act on, not to decide: the link acceptances on the freeCodeCamp pin by
+  2026-12-04 (A16) and the creation of the seven mirrors by 2026-11-27 (N4).
+- Decided, R42 (panel pick) A9: held-out sets pass at up to 3 misses in 100, each published with
+  its interval, filed P1 and fixed before the candidate; named sets allow zero known misses
+  (PRR-V1-008).

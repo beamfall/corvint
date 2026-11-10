@@ -54,7 +54,8 @@ the B6, B7, B8b, B10 and B11 tasks land with their gated batches.
       SSC-V1-002, SSC-V1-006. Proof: as 3.1.
 - [ ] 3.8 With B8a: archive `eol-policy-gate-v0.md`. Requirements: SSC-V1-002, SSC-V1-006. Proof:
       as 3.1.
-- [ ] 3.9 With B8b: archive the eleven B8b spec rows; reduce `docs/LANE-ORCHESTRATION.md` to a
+- [ ] 3.9 With B8b: archive the ten B8b spec rows (`greptile-gate-v0.md` stays active, decided
+      2026-11-09 under R42, D11); reduce `docs/LANE-ORCHESTRATION.md` to a
       redirect; rewrite the lane rows of `AGENT-ROUTES.md` and `SELF-DEVELOPMENT.md`.
       Requirements: SSC-V1-001, SSC-V1-002, SSC-V1-006. Proof: as 3.1.
 - [ ] 3.10 With B9: archive the twelve B9 sweep rows. Requirements: SSC-V1-002, SSC-V1-006. Proof:

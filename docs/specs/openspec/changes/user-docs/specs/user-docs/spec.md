@@ -6,7 +6,7 @@
 
 Each product (testing, documentation, Tasks), the GitHub Action and the agent packages MUST have a
 first-run page with the install command, the first command, its expected output and the abstention
-and refusal cases. (product gap (a); awaits Q35; PROD-INT-004)
+and refusal cases. (product gap (a); R42 (panel pick) B6; PROD-INT-004)
 
 #### Scenario: Documentation alone
 
@@ -18,7 +18,7 @@ and refusal cases. (product gap (a); awaits Q35; PROD-INT-004)
 
 `docs/CONFIGURATION.md` MUST list every `.corvint/` file and environment variable a shipped binary
 reads in a user repository, including `CORVINT_SELECTION`. A check MUST fail when a declared constant
-has no row or a row has no constant. (product gap (b); awaits Q35)
+has no row or a row has no constant. (product gap (b); R42 (panel pick) B6)
 
 #### Scenario: A new variable
 
@@ -31,7 +31,7 @@ has no row or a row has no constant. (product gap (b); awaits Q35)
 Each verb removed before 1.0 (`cem`, `runs`, `test-plan`, `tests lint`, the analyzer verbs) MUST
 print one line naming its replacement or "no replacement" and the `docs/UPGRADING.md` anchor, and exit
 with the one code reserved for removed verbs. `docs/UPGRADING.md` MUST describe migrating
-`.corvint/e2e-flows.json` and CEM files. (product gap (c); awaits Q35)
+`.corvint/e2e-flows.json` and CEM files. (product gap (c); R42 (panel pick) B6)
 
 #### Scenario: An old script
 
@@ -43,8 +43,8 @@ with the one code reserved for removed verbs. `docs/UPGRADING.md` MUST describe 
 ### Requirement: UDC-V1-004 Error and exit-code catalogue checked against constants
 
 `docs/ERRORS.md` MUST list every exit code and typed reason each product returns, with meaning and
-user action. A check MUST fail on any difference from the reason registries. (product gap (d); awaits
-Q35)
+user action. A check MUST fail on any difference from the reason registries. (product gap (d); R42
+(panel pick) B6)
 
 #### Scenario: A new reason
 
@@ -55,7 +55,7 @@ Q35)
 ### Requirement: UDC-V1-005 Changelog and release notes per tag
 
 `CHANGELOG.md` MUST have one section per tag, and the release workflow MUST refuse a tag whose version
-has no section. (product gap (e); awaits Q35; PROD-INT-012)
+has no section. (product gap (e); R42 (panel pick) B6; PROD-INT-012)
 
 #### Scenario: A tag without notes
 
@@ -66,7 +66,7 @@ has no section. (product gap (e); awaits Q35; PROD-INT-012)
 ### Requirement: UDC-V1-006 Pages live in the repository
 
 User pages MUST live under `docs/` in the product repository and be readable without a site build.
-(product gap (f); awaits Q35)
+(product gap (f); R42 (panel pick) B6)
 
 #### Scenario: Offline reading
 
@@ -76,19 +76,24 @@ User pages MUST live under `docs/` in the product repository and be readable wit
 
 ### Requirement: UDC-V1-007 A 1.x compatibility statement
 
-`docs/COMPATIBILITY.md` MUST hold the owner's 1.x compatibility statement. Until the owner decides, it
-MUST say the promise is not yet decided. (product gap (g); awaits Q35, NEW-PROC-3)
+`docs/COMPATIBILITY.md` MUST hold the 1.x compatibility table defined by change
+`compatibility-promise` (CMP-V1-001 to 006). (product gap (g); decided 2026-11-09 under R42,
+D10 and D10a)
 
-#### Scenario: Before the owner decides
+Earlier wording, superseded by D10 and D10a: "`docs/COMPATIBILITY.md` MUST hold the owner's 1.x
+compatibility statement. Until the owner decides, it MUST say the promise is not yet decided."
 
-- **GIVEN** no owner decision on the promise
+#### Scenario: Reading the compatibility page
+
+- **GIVEN** the 1.0 release
 - **WHEN** a user reads `docs/COMPATIBILITY.md`
-- **THEN** it states that the 1.x compatibility promise is not yet decided
+- **THEN** it shows one row per surface with a `stable` or `preview` column
 
 ### Requirement: UDC-V1-008 No-telemetry statement
 
 `docs/INSTALL.md` and each first-run page MUST state that Corvint products send no data off the
-machine. (product gap (h); settled without the owner; checklist O27; PROD-INT-006)
+machine. (product gap (h); settled without the owner, confirmed by R42 (panel pick) B6; checklist
+O27; PROD-INT-006)
 
 #### Scenario: Reading the install guide
 
@@ -101,7 +106,7 @@ machine. (product gap (h); settled without the owner; checklist O27; PROD-INT-00
 `docs/INSTALL.md` MUST tell the user to remove the binaries, remove the MCP and hook entries they added
 to host configuration, and optionally delete `.corvint/` and `.taskman/` from each repository. It MUST
 NOT refer to a VSIX that 1.0 does not ship from this repository. (product gap (i); settled without
-the owner; checklist O27; PROD-INT-006)
+the owner, confirmed by R42 (panel pick) B6; checklist O27; PROD-INT-006)
 
 #### Scenario: Removing Corvint
 
@@ -113,8 +118,8 @@ the owner; checklist O27; PROD-INT-006)
 
 `beamfall/corvint-action`, `beamfall/corvint-agents`, `beamfall/corvint-tasks` and
 `beamfall/corvint-vscode` MUST each carry a `SECURITY.md` derived from the root `SECURITY.md` and
-naming that repository. (product gap (j); settled without the owner; checklist O28; PROD-INT-018;
-owner decision R33 (2026-11-09))
+naming that repository. (product gap (j); settled without the owner, confirmed by R42 (panel pick)
+B6; checklist O28; PROD-INT-018; owner decision R33 (2026-11-09))
 
 #### Scenario: A new public repository
 
@@ -125,7 +130,7 @@ owner decision R33 (2026-11-09))
 ### Requirement: UDC-V1-011 Native Windows statement
 
 `docs/INSTALL.md` and each first-run page MUST state that native Windows is unsupported in 1.0 and
-give the WSL path. (product gap (k); answer 16; PROD-INT-015)
+give the WSL path. (product gap (k); answer 16, confirmed by R42 (panel pick) B6; PROD-INT-015)
 
 #### Scenario: A Windows reader
 

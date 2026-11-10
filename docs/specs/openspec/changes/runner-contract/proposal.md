@@ -7,7 +7,8 @@ Product requirement served: PROD-TEST-006 and PROD-TEST-011 in `docs/specs/PRODU
 Owning capability spec: a new spec `docs/specs/runner-contract-v1.md` (prefix `RNC-V1`). It does not
 exist yet; the lane creates it in its first commit.
 Requirement IDs this change adds: RNC-V1-001 to RNC-V1-013, plus RNC-V1-014 to RNC-V1-017 (added
-2026-11-09 after the review round). RNC-V1-012 is the canonical test ID approved by owner decision
+2026-11-09 after the review round) and RNC-V1-018 (shell provider status; final decision round
+2026-11-09 under R42, M11). RNC-V1-012 is the canonical test ID approved by owner decision
 R11 (2026-11-09); its rules are CTI-V1-001 to CTI-V1-012 in change `canonical-test-id`, and
 RNC-V1-012 adds no rule of its own. `RNC-` has no entry in `docs/specs/REQUIREMENTS.tsv` (checked
 2026-11-09 on `claude/layers-integ` at `9ec3a29d0`).

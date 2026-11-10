@@ -43,21 +43,38 @@ range; `impact` MUST NOT remove that verb or the `corvint.flows.impact` tool (re
 
 Source: G25 item 1, owner answer 13. The `docs` section MUST come only from a saved `corvint-docs`
 docs check file bound to the head revision, and `impact` MUST NOT import `corvint-docs` code.
+`--docs-check FILE` MUST accept the one-report output of `corvint-docs docs check` (DMF-V1-002,
+change `docs-mcp-hardening`) as well as a `docs flows check` output, and MUST name in the docs
+section which of the two it read (docs-mcp verdicts, suggested amendments).
 
 #### Scenario: Stale claim
 
 - **WHEN** the docs check file marks one claim stale
 - **THEN** the docs section lists that claim and its page
 
+#### Scenario: The repository docs check report
+
+- **GIVEN** a `corvint-docs docs check` report bound to the head revision with one `STALE` part
+- **WHEN** `impact` runs with `--docs-check` naming that file
+- **THEN** the docs section lists each stale item with its path and line and names the report kind
+
 ### Requirement: CRI-V1-005 Tickets and requirements with their match source
 
 Source: G25 item 1, G9. Each ticket and requirement MUST carry how it was matched (commit message,
 claim scope, `requirementRefs`, or changed spec line), and the Tasks store MUST be read only.
+Tickets MUST be matched both by IDs in commit messages and by overlap of changed files with claim
+scope, each labelled, with commit-cited tickets listed first (R42 (panel pick) C10).
 
 #### Scenario: Ticket cited in a commit
 
 - **WHEN** a commit in the range cites V1-5257
 - **THEN** the tickets section lists V1-5257 with match `commit-message`
+
+#### Scenario: Ticket matched only by claim scope
+
+- **GIVEN** a ticket whose claim scope covers `internal/appflows/` and no commit citing it
+- **WHEN** the range changes `internal/appflows/model.go`
+- **THEN** the ticket is listed with match `claim-scope`, after every commit-cited ticket
 
 ### Requirement: CRI-V1-006 One body for CLI, MCP and Action
 

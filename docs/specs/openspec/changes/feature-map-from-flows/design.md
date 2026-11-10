@@ -9,6 +9,8 @@
 - MCP: docs tools live on one `corvint-docs mcp` server; any feature map tool follows its row in the
   table of change `mcp-tool-table` (owner decision R30, 2026-11-09; FMP-V1-007).
 - Preview: the map is never a release gate.
+- The output profile is `corvint-feature-map/0`. The `/0` marks preview (review docs F13).
+- The removed-verb notices last for 1.0.x and are deleted in 1.1 (review docs F13).
 
 ## Failure modes
 

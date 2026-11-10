@@ -124,12 +124,46 @@ testable. Flow-file versioning belongs to change `flow-schema-version`.
 
 ### Requirement: HOW-V1-011 One MCP home and one table row
 
-If `how` is offered over MCP, it MUST be served only by `corvint-docs mcp`, with the tool name, input
-schema, output profile and error codes given by its row in the table of change `mcp-tool-table`, and
-`corvint mcp` MUST NOT serve it. (owner decision R30, 2026-11-09; review docs F4)
+`how` MUST be offered over MCP as one tool, `corvint.docs_how`. It MUST be served only by
+`corvint-docs mcp`, MUST return the same profile as `how --json`, and MUST have one row in the
+table of change `mcp-tool-table` that gives its tool name, input schema, output profile and error
+codes. `corvint mcp` MUST NOT serve it. The tool lands with this change. (owner decision R30,
+2026-11-09; review docs F4; decided 2026-11-09 under R42, B10)
+
+Earlier wording, superseded by B10: "If `how` is offered over MCP, it MUST be served only by
+`corvint-docs mcp`".
 
 #### Scenario: Testing server
 
 - **GIVEN** both servers running
 - **WHEN** a client lists the tools of `corvint mcp`
-- **THEN** no `how` tool is listed, and any `how` tool on `corvint-docs mcp` matches its table row
+- **THEN** no `how` tool is listed, and `corvint.docs_how` on `corvint-docs mcp` matches its table
+  row
+
+#### Scenario: Same answer as the command
+
+- **GIVEN** one application map and one question
+- **WHEN** `corvint.docs_how` is called and `how --json` is run with the same input
+- **THEN** both return the same profile with the same content
+
+### Requirement: HOW-V1-012 `how` gaps name what to fix
+
+A `how` stale-source gap MUST name each cited anchor whose span changed, with its file. A
+freshness-unknown gap caused by an aliased source MUST name the alias and say that aliased sources
+are not freshness-checked. The anchors and alias MUST go in the existing gap `detail` text; no new
+schema member, state or gap code SHALL be added. This is the one output change of this change; the
+HOW-V1-004 goldens are recorded once with it. Serves PROD-DOCS-007. (formerly DMF-V1-012; R42
+(panel pick) B1; docs-mcp finding 9; `internal/appmap/site_knowledge_how.go:515-531`,
+`internal/appmap/project.go:208-215`)
+
+#### Scenario: Stale anchor
+
+- **GIVEN** a map step citing `e2e/login.spec.ts:12-18` whose lines changed at revision R
+- **WHEN** `how` answers a goal that uses that step
+- **THEN** the stale gap detail names `e2e/login.spec.ts:12-18` and R
+
+#### Scenario: Aliased source
+
+- **GIVEN** a source given as `--source shop:e2e` with `--repo shop=/abs/shop`
+- **WHEN** `how` answers a goal that uses it
+- **THEN** the freshness-unknown gap detail names `shop` and says aliased sources are not checked

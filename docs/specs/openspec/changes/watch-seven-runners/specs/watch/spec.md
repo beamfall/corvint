@@ -55,12 +55,43 @@ its tier (`line`, `file`, `flow`, or `full` when widened), the `exact` flag of i
 
 Source: G7. For each of the seven runners, on each named reference machine and the named reference
 repo, the time from the save event to the written answer in a warm, running watch MUST be at most
-1.0 s at p95 and 300 ms at p50, and the release MUST be blocked when a runner misses either bound.
+1.0 s at p95 and 300 ms at p50, and the release MUST be blocked when a runner misses either bound
+unless the owner has recorded a demotion for that runner before the freeze (G10; decided 2026-11-09
+under R42, A15). A demoted runner ships `watch` as preview with its measured p50 and p95 printed.
+Go, Vitest and Jest MUST NOT be demoted on this bar. If fewer than four of the seven runners pass,
+the release slips (G10 floor). Earlier wording, superseded by A15: "the release MUST be blocked
+when a runner misses either bound."
+The reference machines MUST be the owner's Mac and WSL2 Linux (ext4) on the Windows benchmark box,
+reserved and quiet, with hardware and core count recorded and cores capped at 8. The reference
+repos MUST be the seven pinned proof repositories, one per runner, with each repo's file and test
+counts printed beside its result; Go MUST also be timed on the Corvint repository. The report MUST
+NOT claim beyond the measured sizes. (R42 (panel pick) A11)
 
 #### Scenario: Gate run
 
 - **WHEN** the gate saves 100 recorded edits per runner on the Linux reference machine
-- **THEN** the report lists p50 and p95 per runner, and the gate fails if any exceeds its bound
+- **THEN** the report lists p50 and p95 per runner, and the gate fails if any runner without an
+  owner-recorded demotion exceeds its bound
+
+#### Scenario: Demoted runner
+
+- **GIVEN** Minitest above the p95 bound and an owner demotion for Minitest recorded before the
+  freeze
+- **WHEN** the gate runs
+- **THEN** the gate does not block on Minitest, and Minitest `watch` ships as preview with its
+  measured p50 and p95 printed
+
+#### Scenario: Runner that cannot be demoted
+
+- **GIVEN** Jest above the p50 bound and a demotion note naming Jest
+- **WHEN** the gate runs
+- **THEN** the gate fails and states that Go, Vitest and Jest cannot be demoted on this bar
+
+#### Scenario: Fewer than four runners pass
+
+- **GIVEN** three of the seven runners within both bounds and four demoted
+- **WHEN** the gate runs
+- **THEN** the gate fails with the G10 floor as its reason, and the release slips
 
 ### Requirement: WCH-V1-005 macOS proven by a real run
 
@@ -86,7 +117,22 @@ with a typed error naming the fallback `--events-stdin`, and MUST NOT keep runni
 
 Source: G25 item 5, G7. Watch MUST load each runner's planning state once at start and reuse it, and
 MUST NOT depend on the `contextindex` snapshot unless a recorded measurement on the reference
-machines shows the bar is missed without it and met with it.
+machines shows the bar is missed without it and met with it. Between saves the graph state MUST be
+updated by rescanning only the changed paths; a whole-entry rebuild is allowed only when a
+configuration or root input changed (selection verdicts, finding 4). Proof: the warm-save timing
+recorded by change `narrowing-measurement`.
+
+#### Scenario: One file saved
+
+- **GIVEN** watch is warm and no runner configuration or root input has changed
+- **WHEN** one source file is saved
+- **THEN** only that path is rescanned, and no runner's whole planning state is rebuilt
+
+#### Scenario: Configuration saved
+
+- **GIVEN** watch is warm
+- **WHEN** a runner configuration file is saved
+- **THEN** that runner's state is rebuilt whole, and the other runners' state is reused
 
 #### Scenario: Snapshot removed
 

@@ -26,6 +26,24 @@ applied in this change.
   covers removal lanes only (RMV-V1-003 item 2).
 - Owner plan line: removals finish by 2026-12-01 (RMV-V1-001), except B8b and B11, whose gates fall
   later.
+- Decided 2026-11-09 under R42 (final decision round):
+  - D11: four CI paths are kept for 1.0, each until a named condition ends (RMV-V1-035);
+    `greptile-gate-v0.md` stays an active spec and B8b does not archive it.
+  - D14 and D15: B11's `.github`-only PR deletes four workflow files, trims
+    `ci-control-plane.yml` (two jobs deleted, status still required) and leaves
+    `greptile-gate.yml` untouched (RMV-V1-028). The live ruleset is NOT_VERIFIED.
+  - E1: the rule for frozen corpora and retained evidence, and the settled rows (RMV-V1-036).
+  - E5: B8b lands by 2026-12-10 or moves to 1.0.x, and removes only files with no reader in
+    product code, CI or a gate target (RMV-V1-001).
+  - E6: self-use is a progress note on the change's ticket; the `docs/DOGFOOD.md` stub stays
+    until re-decided after B6 (RMV-V1-019).
+  - E9: the lane group moves to a private operator repository in B8b; `heavy.sh` stays for 1.0
+    as tooling that is not shipped (RMV-V1-025).
+  - M6: `conformance/use-cases-v0` leaves in B8 with its two lints (RMV-V1-019).
+  - N11: the test milestones after B6b and B8a are accepted; between milestones a batch runs
+    compile and vet only.
+  - Plan-text finding: owner decision R14 retires `cmd/corvint-test-runner` after G23; the
+    `path-verdicts.md` row says so and no row for it is `undetermined`.
 
 ## Failure modes
 
@@ -342,6 +360,10 @@ Tests rewritten first: `internal/testrunner/golang/plugin_test.go`;
 or `.agent-evidence` (NOT_VERIFIED).
 Extra proof: the RMV-V1-003 item 1 check drops `interop/cem01-go` from this batch on; the history
 exclusion list loses `.agent-evidence/` and `.corvint/changes/`.
+Milestone: B6b is a milestone batch; the milestone checks run on the head that has both B6a and
+B6b. B6a needs none of its own: it only moves packages, its proof is the RMV-V1-003 build and
+test run, and B6b follows it directly. (Review removal-arch finding 12; proposed here, not an owner
+decision.)
 Rollback: revert B6b, then B6a. For CEM verbs removed earlier and restored, recovery commit
 b03184699 ("Restore corvint cem create and verify commands"); for OCM, 389f59ba8^.
 
@@ -363,7 +385,20 @@ remove the three lints; remove the listed lints.
 B8b, after the layering merge (about 2026-12-08): remove the lane scripts, merge drivers
 (`tools/merge-drivers`), `tools/flow-guide-check`, `tools/requirement-id-collisions`,
 `docs/LANE-ORCHESTRATION.md` (stub left), `.claude/skills/corvint-lane-flow`. These paths are
-present (VERIFIED); their callers are NOT_VERIFIED.
+present (VERIFIED); their callers are NOT_VERIFIED. The removed lane group is moved to a private
+operator repository, not deleted (E9). B8b lands by 2026-12-10 or moves to 1.0.x, and removes
+only files with no reader in product code, CI or a gate target (E5). `heavy.sh` stays for 1.0.
+B8 also removes `conformance/use-cases-v0` with its two lints (M6).
+Held back from B8b: `script/github-split-check.sh` and its test stay until the B11 cut-over pull
+request has merged and leave in B11's script removal pull request (RMV-V1-032). The
+requirement-ID scripts under `script/` stay until the last change folder that calls them is
+archived (RMV-V1-033); `narrowing-measurement/tasks.md` step 1 calls
+`script/requirement-id-reservations.sh reserve`.
+Milestone: B8a is a milestone batch, because it edits `GATE_STEPS`, `doc-gates` and `shell-test`,
+which are the gate itself; the milestone checks (`corvint affected --base` output and a green CI
+run) show the reduced gate still runs. B8b needs none of its own: it removes files that no gate
+step names after B8a, and its RMV-V1-003 proof covers it. (Review removal-arch finding 12;
+accepted 2026-11-09 under R42, N11, together with the milestone after B6b.)
 Rollback: revert.
 
 ### B9: spec archive in place (RMV-V1-026)
@@ -378,7 +413,12 @@ Gate: `beamfall/corvint-tasks` PR #4 merged.
 ### B11: action cut-over (RMV-V1-028)
 
 Gate: 30 shadow PRs matched, by 2026-12-15. A `.github`-only PR first, then the script removal PR.
-This is a milestone batch.
+This is a milestone batch. The `.github`-only PR deletes `pr-tests-qualification.yml`,
+`ci-forward-bar.yml`, `ci-route-health.yml` and `flake-report.yml`, trims `ci-control-plane.yml`
+(the `main-miss` and `forward-rows` jobs go; the `control-plane` and `merge-group` jobs and the
+required status stay) and leaves `greptile-gate.yml`, `merge-queue-cleanup.yml`,
+`cache-prune.yml` and `.github/testconfine/` untouched (D11, D14, D15). If the gate is not met,
+all of it stays for 1.0 (G18).
 
 ## Open item: a repository that declares a removed runner (G26 asked for this check)
 
@@ -418,13 +458,18 @@ test.
    owner decision R33 (2026-11-09).
 5. `internal/docviews`: resolved, removed in B1 as orphaned code, by owner decision R33
    (2026-11-09); the companion decision amends decision 0594 item 3.
-6. Whether `conformance/tcq-0` and `conformance/use-cases-v0` are CEM-only (RMV-V1-019).
+6. Whether `conformance/tcq-0` is CEM-only (RMV-V1-019). `conformance/use-cases-v0` is resolved
+   (final round, M6): it is removed in B8 with its two lints, because the use-case receipt
+   contract is superseded by the qualification of REL-V1-012.
 7. Whether stale `.github/cishards` entries for missing packages fail CI (B0).
-8. The `undetermined` rows in `path-verdicts.md` (RMV-V1-031), including the owner rule for frozen
-   benchmark corpora and retained issue evidence.
+8. The `undetermined` rows in `path-verdicts.md` (RMV-V1-031): resolved. Decided 2026-11-09
+   under R42, D11: `.github/testconfine/`, `greptile-gate.yml`, `merge-queue-cleanup.yml` and
+   `cache-prune.yml` are kept for 1.0 (RMV-V1-035). Decided 2026-11-09 under R42, E1: a frozen
+   corpus nothing reads is removed with its last commit recorded, and evidence an active spec
+   cites is kept (RMV-V1-036). Which of B6 and B7 takes each corpus is NOT_VERIFIED.
 9. The reason name for a removed or unavailable runner differs between changes: `runner-removed`
    in RNC-V1-004 and `runner-unavailable` in NCM-V1-001. This change uses `runner-removed`,
-   the name in the option owner decision R32 (2026-11-09) chose; NCM-V1-001 should follow it.
+   the name in the option owner decision R32 (2026-11-09) chose; NCM-V1-001 now uses it too. `runner-unavailable` remains only as the pytest and Ruby refusal for a missing interpreter.
 
 ## Verification table
 

@@ -11,8 +11,11 @@
   (owner decision R32, 2026-11-09). NCM-V1-001 states this; `UNOWNED_DIRTY_PATH` comes off the
   allowlist in `internal/gateselect/allowlist.go` (integ 9ec3a29d0), which change `source-removal`
   also cites.
-- The map profile is proposed as `corvint-data-map/1` while other new declarations start at `/0`.
-  This is a minor naming point left to the build task; it does not change behaviour.
+- The map profile is `corvint-data-map/0`. Every other declaration new in 1.0 starts at `/0`
+  (`corvint-flows/0`, `corvint-test-inventory/0`), and nothing reads an earlier data map, so there
+  is no reason to start at `/1` (review docs F17). Earlier text proposed `corvint-data-map/1` and
+  left the choice to the build task. A later incompatible change takes `/1`; a 1.0 reader refuses
+  it (NCM-V1-007).
 
 ## Failure modes
 

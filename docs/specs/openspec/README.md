@@ -48,6 +48,7 @@ requirements the proposal header serves (for a planned change, the plan's planne
 | `affected-plan-kinds` | Test kind and kind source in the `affected` plan, reporting only (G13) | PROD-TEST-003, 004 | proposed |
 | `agent-packages` | Claude Code and Codex packages (blocking) and OpenCode and Pi packages (preview) in `beamfall/corvint-agents` | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007; PROD-INT-023 to 027 | proposed |
 | `canonical-test-id` | One canonical test ID for every runner (RNC-V1-012, fresh IDs per R11) | PROD-TEST-006 | proposed |
+| `compatibility-promise` | The 1.x compatibility promise: `docs/COMPATIBILITY.md` table of stable and preview surfaces (R42 D10, D10a) | plan gap (g); checklist O30, O64 | proposed |
 | `change-report-impact` | Impact section of the change report | PROD-TEST-003, 010; PROD-INT-001, 002 | proposed |
 | `e2e-inventory-discovery` | Discovery of browser E2E tests into the inventory | PROD-TEST-004 | proposed |
 | `fault-injection-harness` | Planted faults on the held-out repositories to test the no-missed-test claim (R19) | PROD-TEST-002, 011; PROD-INT-008 | proposed |

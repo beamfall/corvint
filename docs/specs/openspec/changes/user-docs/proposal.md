@@ -8,10 +8,10 @@ Owning capability spec: `docs/specs/user-docs-v1.md`, a new spec with prefix `UD
 Requirement IDs this change adds: UDC-V1-001 to UDC-V1-012
 Requirement IDs this change modifies: none
 Owner answers this change implements: answer 16 (Windows statement), owner decision R33
-(2026-11-09) for the `corvint-vscode` repository. Gaps (a) to (g) wait on owner question Q35
-(NEW-PROC-1 to 3; checklist O30, O64); their requirements are written so the owner can accept,
-change or drop each one. Items (h) to (k) were settled without the owner (checklist O27, O28) and
-need confirmation in the acceptance record.
+(2026-11-09) for the `corvint-vscode` repository, and R42 (panel pick) B6: all items (a) to (k)
+ship as pages in the repository (Q35; NEW-PROC-1 to 3; checklist O30, O64, O27, O28). The content
+of the compatibility statement (g) is the table of change `compatibility-promise` (decided
+2026-11-09 under R42, D10 and D10a).
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -54,8 +54,9 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
   and CEM files.
 - (d) `docs/ERRORS.md`: every exit code and typed reason, checked against the constants.
 - (e) `CHANGELOG.md` and per-tag release notes.
-- (f) Pages live in the repository under `docs/`; a documentation site is an owner question.
-- (g) A 1.x compatibility statement; its content is the owner's decision.
+- (f) Pages live in the repository under `docs/`; no documentation site (R42 (panel pick) B6).
+- (g) A 1.x compatibility statement; its content is the `compatibility-promise` table
+  (CMP-V1-001 to 006).
 - (h) A no-telemetry statement.
 - (i) The uninstall paragraph in `docs/INSTALL.md` is replaced.
 - (j) `SECURITY.md` in each public repository: `corvint-action`, `corvint-agents`, `corvint-tasks`
@@ -84,7 +85,7 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 ## Non-goals
 
-- No documentation site build in this change unless the owner decides (f).
+- No documentation site build (f; R42 (panel pick) B6).
 - No translated pages.
 - No documentation of Corvint's own self-development configuration files as user configuration.
-- No content for the compatibility statement beyond what the owner decides (g).
+- No content for the compatibility statement beyond the `compatibility-promise` table (g).

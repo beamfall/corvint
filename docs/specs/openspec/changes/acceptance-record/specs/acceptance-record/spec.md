@@ -43,6 +43,28 @@ replacement, covering at least decision 0433 item 1, answer 3, answer 11, the G9
 decision 0594 item 4 and the dogfood sections of `AGENTS.md`. (owner decision R1 (2026-11-09); G9;
 owner decisions R8, R9, R17, R39 and R40 (2026-11-09))
 
+The table MUST also hold this row (final round, M6): "The use-case receipt contract is
+superseded by the per-product end-to-end qualification of REL-V1-012; `conformance/use-cases-v0`
+is removed in B8 together with its two lints, and no 1.0 claim cites a use-case receipt." The
+name of the spec that governs the receipt contract is UNVERIFIED; the row names it once the lane
+has found it.
+
+The table MUST name change `github-action` as the home of GHA-V1-040 to GHA-V1-043, with their
+IDs unchanged, and MUST say that `release-process` cites them. (decided 2026-11-09 under R42, D6)
+
+The table MUST quote the old and new wording of product invariants 3, 4 and 5 in `AGENTS.md`
+(decided 2026-11-09 under R42, E3 and D17). Invariant 3 drops "and learned task traces".
+Invariant 4 drops its `--learn-slot-weights` clause and gains the agent hook session state
+sentence of AGT-V1-022. Invariant 5 becomes: "Corvint 1.0 learns nothing from use. Any later
+learning must be explicit, local, bounded, secret-screened and evaluation-gated under its own
+decision."
+
+#### Scenario: A 1.0 claim cites a use-case receipt
+
+- **GIVEN** a release record row whose evidence is a use-case receipt
+- **WHEN** the audit runs
+- **THEN** it names the row, because the receipt contract is superseded
+
 #### Scenario: A stale quote
 
 - **GIVEN** a table row whose quote does not match its source at the cited commit
@@ -118,3 +140,59 @@ workflow reads without network access beyond the repository. (G10)
 - **GIVEN** a release record missing the NOT_RUN list
 - **WHEN** the workflow reads it
 - **THEN** it refuses and names the missing section
+
+### Requirement: ACR-V1-011 Acts that need the owner's key
+
+Four acts MUST carry a tag signed by the owner with a touch-required key, held in hardware or in
+a Secure Enclave and listed in a committed allowed-signers file. (decided 2026-11-09 under R42,
+D12 and D13)
+
+1. Plan acceptance: a signed tag on the commit that holds the acceptance decision file.
+2. RC acceptance: a signed tag on the commit that holds the `docs/releases/<version>` record.
+3. Stable acceptance: a signed tag on the commit that holds the stable release record.
+4. Any change to the allowed-signers file. A key rotation commit MUST be tagged with the old key.
+
+The RC and stable release records (ACR-V1-010) MUST name the candidate tag's commit SHA and the
+`SHA256SUMS` digest. The publish job MUST verify the signed tag against the allowed-signers file
+as it stood at the previously accepted tag, or for the first release at the commit named in the
+acceptance decision file. It MUST NOT use the allowed-signers file in the released tree, and it
+MUST refuse on any mismatch.
+
+Every other act is by convention under the owner's account and MUST be recorded with identity
+`NOT_VERIFIED`: the candidate tag push, the environment approval click, merges, status waivers
+and `auto` log rows. Whether a token can approve an environment deployment is NOT_VERIFIED. A
+separate machine account for agents is a 1.0.x ticket.
+
+The owner's acts, done in person: generate the key on the owner's own device, check its
+fingerprint by eye, sign the three tags and give the two environment approvals. No agent creates,
+holds or uses the key (decision 0433).
+
+Fallback. If the owner declines a key, acceptance MUST be an owner-merged decision file plus the
+protected-environment approval, and every record MUST state that the owner's identity is by
+convention and NOT_VERIFIED.
+
+#### Scenario: Tag signed by an unlisted key
+
+- **GIVEN** an RC acceptance tag signed by a key that is not in the allowed-signers file as at
+  the previously accepted tag
+- **WHEN** the publish job verifies the tag
+- **THEN** it refuses and names the key fingerprint
+
+#### Scenario: Rotation without the old key
+
+- **GIVEN** a commit that replaces the key in the allowed-signers file
+- **AND** no tag on that commit signed with the old key
+- **WHEN** the next acceptance tag is verified
+- **THEN** verification uses the earlier file and the new key is refused
+
+#### Scenario: Convention act recorded
+
+- **GIVEN** a status waiver posted under the owner's account
+- **WHEN** the release record lists it
+- **THEN** the row gives the identity as `NOT_VERIFIED`
+
+#### Scenario: Owner declines a key
+
+- **GIVEN** the owner has recorded that no signing key will be used
+- **WHEN** the RC is accepted through the owner-merged decision file and environment approval
+- **THEN** the release record states that the owner's identity is by convention and NOT_VERIFIED

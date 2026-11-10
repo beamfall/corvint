@@ -27,7 +27,8 @@ the corvint-tasks repository unless a task says otherwise.
       artifacts with checksums and attestation.
 - [ ] 2.9 In this repository: vendor the fixture and command list with SHA-256 pins (TIN-V1-004,
       TIN-V1-013). Requirements: TCF-V1-001, TCF-V1-002. Proof: the pin check.
-- [ ] 2.10 Trial start in Corvint and `beamfall/core` on the frozen RC binary. Requirements:
+- [ ] 2.10 Trial start in Corvint and `beamfall/core` on the frozen RC binary, on 2026-12-08
+      (C22), after the `beamfall/core` store is initialized (TIN-V1-014, C23). Requirements:
       TCF-V1-009. Proof: start record with ID and hash list.
 - [ ] 3.1 Trial end records and the conformance record at the Tasks tag. Requirements: TCF-V1-008,
       TCF-V1-009. Proof: records read by the Corvint RC check.

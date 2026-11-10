@@ -37,6 +37,7 @@ data is written. IDs are retired, not reused.
 
 Still undecided by the owner (D21 part i); not settled by owner decisions R4 or R30.
 
-- Confirm how tickets are matched to a range: commit message IDs, claim scope, or both.
+- Decided, R42 (panel pick) C10: both commit-message IDs and claim scope, each labelled, cited
+  tickets first (CRI-V1-005).
 - Should `impact` default `--base` to the merge base with `origin/main` when omitted, or keep it
   required (proposed: required)?

@@ -146,7 +146,13 @@ NOT_OBSERVED and is not a failure. (G25; PROD-TASK-003; review docs F3)
 
 Corvint and `beamfall/core` (owner decision R18, 2026-11-09) MUST run Tasks on the frozen RC binary
 for 21 days with zero lost tickets, checked by a ticket ID and content hash diff at start and end. A store format change MUST
-restart the clock. (G9, answer 12; PROD-TASK-009)
+restart the clock. Each trial repository MUST record at least 50 ticket writes and 5 completions,
+read from the store event log, or the trial does not count (R42 (panel pick) C9). (G9, answer 12;
+PROD-TASK-009)
+
+The trial starts on 2026-12-08, the day the Tasks RC is tagged, and ends on 2026-12-29; the
+dates and what must land before the tag are in TCF-V1-009. Publishing the Tasks RC tag is the
+owner's act. (decided 2026-11-09 under R42, C22)
 
 #### Scenario: Format change on day 10
 
@@ -154,10 +160,35 @@ restart the clock. (G9, answer 12; PROD-TASK-009)
 - **WHEN** a store format version changes
 - **THEN** the trial record shows a restart and a new start date
 
+### Requirement: TIN-V1-014 Trial store in `beamfall/core` is initialized by pull request
+
+The Tasks store for the trial in `beamfall/core` MUST be initialized by a pull request from a
+worktree off `origin/main` of that repository, on 2026-12-08, with the tagged Tasks RC binary.
+The seed file (Beamfall's open roadmap items, taken over per V1-0464 and V1-4860) MUST be
+prepared and reviewed by 2026-12-01, and a dry run of the initialization on a copy MUST be done
+by 2026-12-04. The pull request is prepared without the owner; merging it is the owner's act,
+unless the owner says the standing merge rule covers `beamfall/core`. The conformance record on
+corvint-tasks main at the RC tag is produced by the same work. The trial floor of TIN-V1-009
+applies. Where Beamfall's current backlog lives is NOT_VERIFIED. (decided 2026-11-09 under R42,
+C23; PROD-TASK-009)
+
+#### Scenario: Store written before the freeze
+
+- **GIVEN** a `beamfall/core` store initialized with a build older than the tagged Tasks RC
+- **WHEN** the trial start record is checked
+- **THEN** the trial does not start on that store
+
+#### Scenario: Pull request not merged
+
+- **GIVEN** the initialization pull request open and not merged by the owner on 2026-12-08
+- **WHEN** the trial start is attempted in `beamfall/core`
+- **THEN** the trial clock for that repository does not start and a blocker is filed
+
 ### Requirement: TIN-V1-010 Tasks specs leave only after PR #4 merges
 
 Tasks specs in this repository MUST stay as retired-in-place files until corvint-tasks PR #4 is
-merged, and their deletion MUST cite that merge. (G27)
+merged, and their deletion MUST cite that merge. PR #4 is due to merge by 2026-11-13. (G27;
+decided 2026-11-09 under R42, C22)
 
 #### Scenario: Early deletion
 

@@ -29,6 +29,15 @@ rebuilt only to fix a blocker, and each rebuild MUST name the blocker ticket. Th
 pushed candidate tag MUST seed the held-out repository draw. (owner decision R2 (2026-11-09); G12;
 review finding 3)
 
+The seed MUST be the commit SHA of the first pushed candidate tag. The draw MUST NOT be redrawn
+on a rebuild; REL-V1-014 says what a rebuild repeats. (decided 2026-11-09 under R42, D16)
+
+#### Scenario: A blocker rebuild keeps the draw
+
+- **GIVEN** a held-out draw seeded by the first pushed candidate tag
+- **WHEN** a second candidate is built to fix a named blocker
+- **THEN** the held-out repositories, the pool, the rule hash and the pass rules are unchanged
+
 #### Scenario: A rebuild without a blocker
 
 - **GIVEN** a candidate tag already pushed
@@ -60,6 +69,10 @@ named freeze-candidate SHA, recorded before the freeze. The RC run MUST repeat t
 RC SHA, and any verdict that regresses from the freeze-candidate verdict MUST be a blocking miss. No
 demotion may be added after the freeze. (G10; review finding 2; plan checklist O20)
 
+A verdict MAY be carried forward from an earlier candidate to the RC SHA only under the
+REL-V1-014 rules. A carried-forward verdict MUST name the commit it was measured on. (decided
+2026-11-09 under R42, D16)
+
 #### Scenario: A regression after the freeze
 
 - **GIVEN** a runner that was selective on the freeze-candidate SHA
@@ -73,6 +86,10 @@ linux/arm64 and darwin/arm64 with `SHA256SUMS`, a manifest, the licence files an
 attestation, and then stops. The build job MUST hold only `contents: read`, `id-token: write` and
 `attestations: write`. Actions MUST be pinned by commit SHA and tags MUST be protected. (G15a;
 owner decision R24 (2026-11-09); ci-agents review F11)
+
+GHA-V1-040 to GHA-V1-043 in change `github-action` own the release workflow's requirements.
+They stay there with their IDs unchanged; this requirement and REL-V1-007 cite them and do not
+replace them. (decided 2026-11-09 under R42, D6)
 
 #### Scenario: A tag without approval
 
@@ -107,11 +124,24 @@ and publish": the owner's first signature (acceptance record) and the environmen
 soak clock MUST start at RC publish. Stable promotion MUST need the owner's second signature and a
 second explicit approval. (G10; G15a; review finding 3)
 
+The environment approval is a second step and MUST NOT be recorded as evidence of the owner's
+identity. The identity evidence is the signed acceptance tag of REL-V1-013 and ACR-V1-011. The
+release record MUST show the environment approval as given under the owner's account with
+identity `NOT_VERIFIED`. Whether a token can approve an environment deployment is NOT_VERIFIED.
+Giving the two environment approvals is the owner's act. (decided 2026-11-09 under R42, D12 and
+D13)
+
 #### Scenario: Approval by anyone else
 
 - **GIVEN** a reviewer other than the owner on the protected environment
 - **WHEN** the environment settings are checked before M8
 - **THEN** the check reports that only the owner can approve, or M8 does not start
+
+#### Scenario: Environment approval without a signed tag
+
+- **GIVEN** an environment approval given under the owner's account and no signed acceptance tag
+- **WHEN** the publish job starts
+- **THEN** it refuses, because the approval alone is not identity evidence
 
 ### Requirement: REL-V1-008 Release artifacts per product for three targets
 
@@ -131,6 +161,17 @@ targets from its own repository, and `corvint-update` MUST cover both components
 
 Every M3 removal batch MUST be merged by 2026-12-01. A batch not merged by then MUST move to 1.0.x
 and its removals MUST NOT land before the RC. (settled without the owner; plan checklist O24)
+
+Two batches are exceptions (decided 2026-11-09 under R42, E5). B8b MUST land by 2026-12-10 or
+move to 1.0.x; it removes only files with no reader in product code, CI or a gate target, and it
+MUST NOT remove `github-split-check`. B11 follows the G18 deadline of 2026-12-15 (GHA-V1-032).
+RMV-V1-001 in change `source-removal` names the same two exceptions.
+
+#### Scenario: B8b after 2026-12-01
+
+- **GIVEN** batch B8b merged on 2026-12-08
+- **WHEN** the milestone record is updated
+- **THEN** B8b is listed as delivered for 1.0 under the E5 exception
 
 #### Scenario: A late batch
 
@@ -154,13 +195,25 @@ from the store event log. (G10; review finding 14; plan checklist O21, O22)
 ### Requirement: REL-V1-011 Reserved benchmark hosts
 
 Linux qualification timing MUST run on WSL2 on the Windows benchmark box and macOS timing on the
-owner's Mac. Both MUST run no lanes from M5a to RC publish. (review finding 17; plan checklist O23)
+owner's Mac. (review finding 17; plan checklist O23)
+
+Both hosts MUST be reserved only during declared measurement sessions, and MUST run no lane
+during a session. Each timing result MUST record the host, the kernel, the load and the
+concurrent processes. A result from a session in which a lane ran MUST be marked NOT_VERIFIED
+and rerun. Earlier wording, superseded by D8: "Both MUST run no lanes from M5a to RC publish."
+(decided 2026-11-09 under R42, D8)
 
 #### Scenario: A lane on the benchmark host
 
-- **GIVEN** a lane recorded on the benchmark box during the reserved window
+- **GIVEN** a lane recorded on the benchmark box during a declared measurement session
 - **WHEN** the qualification record is assembled
-- **THEN** timing results from that window are NOT_VERIFIED and rerun
+- **THEN** timing results from that session are NOT_VERIFIED and rerun
+
+#### Scenario: A lane outside a session
+
+- **GIVEN** a lane that ran on the benchmark box between two declared measurement sessions
+- **WHEN** the qualification record is assembled
+- **THEN** no timing result is affected
 
 ### Requirement: REL-V1-012 Release gates
 
@@ -169,11 +222,56 @@ one scripted qualification per product: the PROD-INT-004 "install alone" scenari
 product's primary verb on a pinned repository. The CEM, OCM and dogfood steps MUST NOT be release
 gates. (G8; PROD-INT-017; plan checklist O29)
 
+The qualification repository MUST be untouched and pinned. There MUST be one qualification for
+each of the three products. The Tasks qualification MUST create a new store and then create,
+claim, submit, gate and complete a ticket and pass the receipt audit. (decided 2026-11-09 under
+R42, D9)
+
+Each per-product qualification MUST install from the candidate's built archive after verifying it
+against `SHA256SUMS`, and for documentation MUST run `corvint-docs`' primary verb and list its
+MCP tools on the pinned repository with no other Corvint binary on PATH. (final round, M7)
+
+The nightly `release-gates.yml` run MUST contain exactly the REL-V1-012 gates, and a candidate
+tag MUST NOT be pushed unless that run passed on the tagged commit's main ancestor within the
+previous 24 hours. (final round, M5)
+
+`greptile-gate` is a merge check on main and is not a release gate. It stays a required status
+on main through stable 1.0, with its waiver. A waiver used more than three times between M5a and
+stable MUST be recorded in the release record as a known limit. The live ruleset is
+NOT_VERIFIED. (decided 2026-11-09 under R42, D14)
+
 #### Scenario: A CEM gate in the release object
 
 - **GIVEN** the rewritten `v1-0` release object
 - **WHEN** its required gates are listed
 - **THEN** none of them runs a `corvint cem` or dogfood command
+
+#### Scenario: Tasks qualification on a new store
+
+- **GIVEN** the candidate's Tasks archive, verified against `SHA256SUMS`, and an untouched
+  pinned repository
+- **WHEN** the Tasks qualification runs
+- **THEN** it creates a store and creates, claims, submits, gates and completes one ticket
+- **AND** the receipt audit passes
+
+#### Scenario: Documentation qualification alone on PATH
+
+- **GIVEN** only `corvint-docs` from the verified archive on PATH
+- **WHEN** the documentation qualification runs on the pinned repository
+- **THEN** the primary verb succeeds and the MCP tool list is printed
+
+#### Scenario: No nightly pass in the last 24 hours
+
+- **GIVEN** a commit whose main ancestor has no passing `release-gates.yml` run in the previous
+  24 hours
+- **WHEN** a candidate tag is proposed on it
+- **THEN** the tag is not pushed and the record names the missing run
+
+#### Scenario: A greptile waiver during the release
+
+- **GIVEN** a `greptile-gate` waiver on a main merge between M5a and stable
+- **WHEN** the release gates are evaluated
+- **THEN** the waiver does not fail a release gate and is counted for the known-limit rule
 
 ### Requirement: REL-V1-013 Signed release record before publish
 
@@ -181,11 +279,101 @@ The RC publish and the stable promotion MUST each be preceded by the owner's sig
 acceptance record (change `acceptance-record`), listing each requirement's evidence or demotion, the
 NOT_RUN and NOT_OBSERVED items and the deferred P2 and P3 tickets. (G10; PROD-INT-012)
 
+The signature MUST be a tag signed by the owner with the key of ACR-V1-011, placed on the commit
+that holds the `docs/releases/<version>` record. That record MUST name the candidate tag's commit
+SHA and the `SHA256SUMS` digest. The publish job MUST verify the tag against the allowed-signers
+file as it stood at the previously accepted tag, or for the first release at the commit named in
+the acceptance decision file. It MUST NOT use the allowed-signers file in the released tree, and
+it MUST refuse on any mismatch. Signing the tags is the owner's act. If the owner declines a
+key, the fallback is an owner-merged decision file plus the protected-environment approval, and
+the record MUST state that the owner's identity is by convention and NOT_VERIFIED. (decided
+2026-11-09 under R42, D12 and D13)
+
 #### Scenario: No signature
 
 - **GIVEN** an approved-looking environment run with no RC signature in the acceptance record
 - **WHEN** the publish job starts
 - **THEN** it refuses and names the missing signature
+
+#### Scenario: Allowed-signers changed in the released tree
+
+- **GIVEN** a candidate whose tree adds a second key to the allowed-signers file
+- **AND** an acceptance tag signed with that second key
+- **WHEN** the publish job verifies the tag
+- **THEN** it uses the file as at the previously accepted tag and refuses
+
+### Requirement: REL-V1-014 Rebuild evidence rules
+
+When a candidate is rebuilt to fix a blocker, evidence MUST be treated in three classes.
+(decided 2026-11-09 under R42, D16)
+
+Never redone: the held-out draw. Its seed is the SHA of the first pushed candidate tag, and the
+pool, the rule hash and the pass rules stay frozen. A held-out repository in which the blocker
+was found MUST be rerun, labelled `refit` and reported separately; a replacement for it goes to
+the owner under R21.
+
+Always redone on the rebuilt candidate: the tag workflow (full suite, build, checksums and
+attestation); the exhaustive Linux and macOS test and vet of both modules; each product's
+install-alone qualification from the rebuilt archive; and the scripted agent package steps.
+
+Redone only when the diff touches the class's declared input paths: per-runner fault injection
+(R19), the narrowing measurement, the timing measurements, the model-driven agent scenarios and
+the action shadow match count. Otherwise the result MAY be carried forward with a record naming
+the measured commit and the diff.
+
+The input path set of each class MUST be written and frozen before M5a. A changed path that
+belongs to no class MUST cause every class to be redone. The reuse check MUST be a plain path-set
+comparison and MUST NOT use Corvint's own test selection.
+
+Before RC publish a rebuild does not affect the soak and trial clocks; after publication
+REL-V1-003 applies unchanged. Every carried-forward result MUST be listed in the signed release
+record. Every class MUST be rerun without condition on the final candidate before signing when
+there were more than two rebuilds or when any carried result is older than 14 days.
+
+#### Scenario: A rebuild outside a class's paths
+
+- **GIVEN** a rebuild whose diff touches no declared input path of the timing measurements
+- **WHEN** the qualification record is assembled
+- **THEN** the timing results are carried forward with the measured commit and the diff named
+- **AND** the tag workflow and the install-alone qualifications are redone
+
+#### Scenario: A changed path in no class
+
+- **GIVEN** a rebuild whose diff changes a path that no class declares
+- **WHEN** the reuse check runs
+- **THEN** every class is redone
+
+#### Scenario: A third rebuild
+
+- **GIVEN** a final candidate that is the third rebuild
+- **WHEN** the release record is prepared for signing
+- **THEN** every class has been rerun on that candidate and nothing is carried forward
+
+#### Scenario: Blocker found in a held-out repository
+
+- **GIVEN** a blocker found in one held-out repository
+- **WHEN** that repository is rerun on the rebuilt candidate
+- **THEN** its result is labelled `refit` and reported apart from the held-out results
+
+### Requirement: REL-V1-015 macOS release gate and advisory merge check
+
+The exhaustive macOS `go test` and `go vet` MUST be a release gate on the freeze-candidate
+commit and on the release-candidate commit. The per-merge macOS check MUST stay advisory until
+its flake tickets are closed and 20 consecutive main runs have passed; it then becomes required.
+If that has not happened by 2026-12-15, the per-merge check MUST stay advisory for 1.0. (decided
+2026-11-09 under R42, D7)
+
+#### Scenario: macOS fails on the release candidate
+
+- **GIVEN** a release-candidate commit whose exhaustive macOS `go test` fails
+- **WHEN** the release gates are evaluated
+- **THEN** the candidate is not offered for approval
+
+#### Scenario: Flakes still open at the freeze
+
+- **GIVEN** an open macOS flake ticket on 2026-12-15
+- **WHEN** the required-status list for 1.0 is fixed
+- **THEN** the per-merge macOS check is advisory and the release gate still applies
 
 ## MODIFIED Requirements
 

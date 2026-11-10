@@ -10,6 +10,13 @@
 - No Corvint receipt resolver: Tasks stores and audits receipts by content (release-tasks 6;
   TIN-V1-005 retired, TIN-V1-012).
 - Trial subject: `beamfall/core` (owner decision R18, 2026-11-09).
+- Trial dates (decided 2026-11-09 under R42, C22): PR #4 by 2026-11-13; Tasks RC tag and trial
+  start 2026-12-08; trial end 2026-12-29. Publishing the Tasks RC tag is the owner's act. The
+  full date list is in TCF-V1-009.
+- Trial store (decided 2026-11-09 under R42, C23): the `beamfall/core` store is initialized by
+  pull request on 2026-12-08 with the tagged RC binary, so no store is written by a pre-freeze
+  format. Seed reviewed by 2026-12-01; dry run on a copy by 2026-12-04. Merging that pull request
+  is the owner's act (TIN-V1-014).
 - Review evidence is advisory in the gate unless the policy opts in (owner decision R4,
   2026-11-09); the blocking input is `affected` plus the receipt. The review JSON belongs to change
   `review-evidence-check`; the policy keys belong to change `tasks-policy-v15`; the conformance
@@ -27,6 +34,8 @@
 - The gate requires Corvint and `corvint` is not installed: the gate fails with a typed reason; it
   never records a pass.
 - A store format change during the trial: the 21-day clock restarts.
+- The `beamfall/core` store is created on the first trial day with no rehearsal, and a failed
+  initialization costs trial days: the dry run on a copy by 2026-12-04 covers it (TIN-V1-014).
 - A Corvint-side caller uses a command not on the Tasks supported-command list, or the list is not
   published: the CI check fails or reports NOT_RUN, and the RC is refused (TIN-V1-013).
 - The vendored schema copy does not match its SHA-256 pin: Corvint CI fails (TIN-V1-004).
@@ -45,6 +54,22 @@
 - The three earlier open questions are settled: the nine Tasks requirements are PROD-TASK-001 to 009
   (owner decision R17), the second trial repository is `beamfall/core` (owner decision R18), and
   review evidence is advisory unless opted in (owner decision R4).
+
+## Open decisions
+
+All are now decided under R42 (panel pick); the rows in `docs/specs/PRODUCT-PLAN-1.0.md`
+are settled.
+
+- O21 decided, R42 (panel pick) C9: replayed held-out PRs count toward the 30 soak PRs but are
+  reported separately, and at least 20 of the 30 are live Corvint or Beamfall PRs.
+- O22 decided, R42 (panel pick) C9: the trial floor is 50 ticket writes and 5 completions per
+  trial repository, read from the store event log (TIN-V1-009).
+- O56 decided, R42 (panel pick) C10: the impact report matches tickets by commit-message IDs and by
+  claim scope, each match labelled, cited tickets first (CRI-V1-005).
+- Decided 2026-11-09 under R42, C22: the trial runs 2026-12-08 to 2026-12-29 (TIN-V1-009,
+  TCF-V1-009).
+- Decided 2026-11-09 under R42, C23: the trial store in `beamfall/core` is initialized by pull
+  request; the merge is the owner's act (TIN-V1-014).
 
 ## Rollback
 

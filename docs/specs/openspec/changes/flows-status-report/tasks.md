@@ -2,9 +2,9 @@
 
 Build tasks in order. Each names its requirement IDs and its proof.
 
-1. Reserve `AFL-V1` 001..007 and set `requirementRefs` on V1-5257. Proof: `corvint-tasks ticket show
-   V1-5257` lists the seven IDs.
-2. First commit: create `application-flow-status-v1.md` with the seven definition lines, its
+1. Reserve `AFL-V1` 001..008 and set `requirementRefs` on V1-5257. Proof: `corvint-tasks ticket show
+   V1-5257` lists the eight IDs.
+2. First commit: create `application-flow-status-v1.md` with the eight definition lines, its
    `docs/specs/README.md` entry and the regenerated index. Proof: `make spec-requirements` lists them.
 3. Native `corvint flows status` in the tests layer; remove the `corvint-docs` copy (AFL-V1-001,
    005, 006). Proof: Go tests and the corvint-alone smoke run.
@@ -17,6 +17,8 @@ Build tasks in order. Each names its requirement IDs and its proof.
 7. MCP rows for `corvint.flows.status` and `corvint.flows.impact` after change `mcp-tool-table`
    fixes the table (AFL-V1-003, 007; owner decision R30, 2026-11-09). Proof: a tool-list and parity
    test on `corvint mcp`.
+7a. Rename the three docs command families into one group with one-release aliases, before
+    `user-docs` (AFL-V1-008; R42 B4). Proof: the alias and help-text tests.
 8. Docs, build-log entry; complete V1-5257 through the Tasks gate. Proof: `corvint-tasks receipt
    audit` passes.
 

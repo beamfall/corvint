@@ -2,9 +2,9 @@
 
 ## Decisions
 
-- Pending owner items. Requirements for gaps (a) to (g) are written as proposed and each carries the
-  note "awaits Q35". The owner may accept, change or drop each one in the acceptance record. Items
-  (h) to (k) are settled without the owner and are confirmed in the same record.
+- Decided, R42 (panel pick) B6: all items (a) to (k) ship, as pages in the repository. Items (h) to
+  (k) are confirmed by the same pick. The content of the compatibility statement (g) is the table
+  of change `compatibility-promise` (decided 2026-11-09 under R42, D10 and D10a).
 - First run (a). One page per product, plus the Action and the agent packages, under
   `docs/first-run/`. Each page shows the install command for the three targets, the first command,
   a real output captured from the release smoke fixture, and the abstention and refusal cases.
@@ -25,9 +25,11 @@
   registry per product and fails on any difference.
 - Release notes (e). `CHANGELOG.md` has one section per tag; the release workflow of the change
   `release-process` refuses a tag whose version has no section.
-- Location (f). Pages stay in the repository under `docs/` as today. A site is an owner question.
-- Compatibility (g). `docs/COMPATIBILITY.md` holds the owner's statement. Until the owner writes it,
-  the file states that the 1.x compatibility promise is not yet decided.
+- Location (f). Pages stay in the repository under `docs/` as today; no site (R42 (panel pick) B6).
+- Compatibility (g). `docs/COMPATIBILITY.md` holds the 1.x compatibility table defined by change
+  `compatibility-promise` (CMP-V1-001 to 006): one row per surface with a `stable` or `preview`
+  column (decided 2026-11-09 under R42, D10 and D10a). Earlier wording, superseded: the file
+  held the owner's statement and said "not yet decided" until the owner wrote it.
 - No telemetry (h). One sentence in `docs/INSTALL.md` and each product's first-run page: Corvint
   products send no data off the machine.
 - Uninstall (i). The paragraph that starts at `docs/INSTALL.md` line 333 (integ 9ec3a29d0) is

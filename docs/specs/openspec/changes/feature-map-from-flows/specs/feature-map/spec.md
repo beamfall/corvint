@@ -29,13 +29,19 @@ declare, and the regex discovery at `cmd/corvint/repository_guidance.go:281-282`
 
 ### Requirement: FMP-V1-003 Old verbs removed with a notice
 
-Source: G25 item 4. `corvint feature`, `corvint features` and `corvint overview` MUST be removed, and
-for one release each MUST print a notice naming its replacement and exit 2.
+Source: G25 item 4; review docs F13. `corvint feature`, `corvint features` and `corvint overview`
+MUST be removed in 1.0. In every 1.0.x release each MUST print a notice naming its replacement and
+exit 2. The notices are removed in 1.1, after which each name is an unknown command.
 
 #### Scenario: Old verb
 
 - **WHEN** a user runs `corvint features`
 - **THEN** the output names the `corvint-docs` map command and the exit code is 2
+
+#### Scenario: Notice ends in 1.1
+
+- **WHEN** a user runs `corvint features` on a 1.1 build
+- **THEN** the command is refused as unknown, with no replacement notice
 
 ### Requirement: FMP-V1-004 Proposals need acceptance
 
@@ -59,13 +65,19 @@ Source: invariant 2. Without `.corvint/flows.json` the map MUST be `NOT_OBSERVED
 
 ### Requirement: FMP-V1-006 Preview, read-only, deterministic
 
-Source: G25, invariant 4. The map MUST be labelled preview, MUST write only to an explicit output
-path, and MUST be byte-identical for identical inputs.
+Source: G25, invariant 4; review docs F13. The map MUST be labelled preview, MUST carry the output
+profile name `corvint-feature-map/0`, MUST write only to an explicit output path, and MUST be
+byte-identical for identical inputs.
 
 #### Scenario: Repeated generation
 
 - **WHEN** the map is generated twice from the same commit
 - **THEN** both outputs are byte-identical
+
+#### Scenario: Profile name
+
+- **WHEN** the map is generated
+- **THEN** its profile member is `corvint-feature-map/0` and it is labelled preview
 
 ### Requirement: FMP-V1-007 One MCP home and one table row
 

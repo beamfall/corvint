@@ -6,7 +6,7 @@ Product requirement served: PROD-TEST-008 in `docs/specs/PRODUCT-PLAN-1.0.md` (G
 line-level at RC), PROD-TEST-017 and PROD-TEST-018 (tiered selection with a reason per selection).
 Owning capability spec: a new spec `docs/specs/line-evidence-v1.md` (prefix `LEV-V1`). It does not
 exist yet; the lane creates it in its first commit.
-Requirement IDs this change adds: LEV-V1-001 to LEV-V1-014. `LEV-` has no entry in
+Requirement IDs this change adds: LEV-V1-001 to LEV-V1-015. `LEV-` has no entry in
 `docs/specs/REQUIREMENTS.tsv` and appears in no other folder under `docs/specs/openspec/changes/`
 (checked 2026-11-09).
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
@@ -80,6 +80,8 @@ risk of file-level pytest be stated.
   supported language (LEV-V1-012).
 - The GitHub Action builds evidence on the default branch and caches it (LEV-V1-013).
 - Argument limits use argument files or widen to file level (LEV-V1-014).
+- One-shot `affected`, `test` and the MCP plan tool plan the working tree as `watch` does
+  (LEV-V1-015; R42 (panel pick) A7).
 
 ## Non-goals
 

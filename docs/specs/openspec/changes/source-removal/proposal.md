@@ -11,17 +11,18 @@ Owning capability spec: a new `docs/specs/source-removal-v1.md` (prefix `RMV-V1`
 proposal is accepted. It is not written by this change.
 Companion decision: `docs/decisions/PROPOSED-supersede-0594-keeps-line.md`
 Acceptance record: `docs/decisions/PROPOSED-accept-product-plan-1.0.md`
-Requirement IDs this change adds: RMV-V1-001 to RMV-V1-031 (no `RMV-` row exists in
+Requirement IDs this change adds: RMV-V1-001 to RMV-V1-036 (no `RMV-` row exists in
 `docs/specs/REQUIREMENTS.tsv` and no other change folder uses the prefix; no collision)
 Files in this change (G14 layout): `proposal.md` (this file: why, what changes, non-goals,
 impact), `design.md` (owner decisions applied, failure modes, batches, open items, verification,
 rollback), `tasks.md` (ordered build tasks and acceptance evidence),
 `specs/source-removal/spec.md` (ADDED, MODIFIED and REMOVED Requirements) and `path-verdicts.md`
 (a verdict for every top-level path the batches do not list, RMV-V1-031).
-Owner decisions applied: R14, R28, R29, R32, R33, R34 and R36 (2026-11-09); see `design.md`.
+Owner decisions applied: R14, R28, R29, R32, R33, R34 and R36 (2026-11-09), and the decisions
+made 2026-11-09 under R42: D11, D14, D15, E1, E5, E6, E9, M6 and N11; see `design.md`.
 Removals finish by 2026-12-01 (owner plan line, before the 2026-12-15 freeze), except the two
-batches whose gates fall later: B8b (after the layering merge, about 2026-12-08) and B11 (action
-cut-over, by 2026-12-15).
+batches whose gates fall later: B8b (after the layering merge, about 2026-12-08; by 2026-12-10
+or it moves to 1.0.x, E5) and B11 (action cut-over, by 2026-12-15).
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No removal lane has been started.

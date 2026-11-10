@@ -7,7 +7,7 @@
 A changed non-code path without a proven, accepted entry MUST select every test of every runner in
 the repository, with reason `non-code-unmapped` and the path printed. A path no runner owns, and a
 runner that was removed or is unavailable, MUST likewise select all tests, with a named reason
-(`UNOWNED_DIRTY_PATH` or `runner-unavailable`) and the path or runner printed; `UNOWNED_DIRTY_PATH`
+(`UNOWNED_DIRTY_PATH` or `runner-removed`) and the path or runner printed; `UNOWNED_DIRTY_PATH`
 no longer narrows through the allowlist in `internal/gateselect/allowlist.go` (integ 9ec3a29d0). Paths declared as
 documentation keep the `DECLARED_DOCUMENTATION` class and add no test. (G15b, G2; owner decision R31
 (2026-11-09); owner decision R32 (2026-11-09))
@@ -108,12 +108,13 @@ select everything."
 
 ### Requirement: NCM-V1-007 Versioned and strict
 
-The map MUST carry a profile version, and a reader MUST refuse an unknown version or unknown member
-with `data-map-invalid`. (G15b; strictness mirrors `internal/gateselect/readers.go:241`)
+The map MUST carry the profile version `corvint-data-map/0` (review docs F17: the first version is
+`/0`, as for every other declaration new in 1.0), and a reader MUST refuse an unknown version or
+unknown member with `data-map-invalid`. (G15b; strictness mirrors `internal/gateselect/readers.go:241`)
 
 #### Scenario: Newer version
 
-- **GIVEN** `corvint-data-map/2`
+- **GIVEN** `corvint-data-map/1`
 - **WHEN** a 1.0 reader loads it
 - **THEN** it exits 2 with `data-map-invalid`
 

@@ -176,6 +176,24 @@ level with reason `argv-limit`.
 - **WHEN** `corvint test` runs it
 - **THEN** it widens to the selected packages with reason `argv-limit`
 
+### Requirement: LEV-V1-015 One-shot commands plan the working tree
+Source: selection verdicts finding 10; R42 (panel pick) A7.
+Status: proposed 2026-11-09; delivery not-started.
+One-shot `corvint affected`, `corvint test` and the MCP plan tool MUST use the `corvint watch` rule
+of decision 3: the planned change is the working tree and index against HEAD, with HEAD checked to
+descend from the evidence commit. A changed file with no matching blob MUST widen to `file` with
+reason `line-evidence-stale`; HEAD not descending from the evidence commit MUST give FULL.
+
+#### Scenario: staged edit
+- **GIVEN** fresh evidence at HEAD and a staged edit to `src/math.ts`
+- **WHEN** `corvint affected` runs
+- **THEN** it plans the edited lines from that evidence instead of the `worktree-dirty` fallback
+
+#### Scenario: untracked file
+- **GIVEN** fresh evidence at HEAD and a new untracked source file `src/extra.ts`
+- **WHEN** `corvint test` runs
+- **THEN** `src/extra.ts` widens to tier `file` with reason `line-evidence-stale`
+
 ## MODIFIED Requirements
 
 None. GLS-V0-010 (explicit `--line-index FILE`) is unchanged. The Go-only `watch-index-language`

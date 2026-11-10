@@ -5,7 +5,7 @@ Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
 Product requirement served: checklist O19 and the acceptance rule of `docs/specs/PRODUCT-PLAN-1.0.md`
 (answer 18)
 Owning capability spec: `docs/specs/acceptance-record-v1.md`, a new spec with prefix `ACR-V1`
-Requirement IDs this change adds: ACR-V1-001 to ACR-V1-010
+Requirement IDs this change adds: ACR-V1-001 to ACR-V1-011
 Requirement IDs this change modifies: none (SRG-V0-009 and SRG-V0-010 are extended by ACR-V1-007, not
 changed)
 Owner answers this change implements: answer 18, G10, G14, owner decision R1 (2026-11-09), owner
@@ -83,5 +83,7 @@ exception, which needs a place in that record.
 
 - The record does not accept any change folder's intent; each change is accepted on its own row.
 - No new acceptance mode beyond the three log modes and their mapping to the existing markers.
-- How the owner's signature is made (signed commit, signed tag or another form) is not decided here
-  (Open).
+- How the owner's signature is made was open. Decided 2026-11-09 under R42, D12 and D13: a tag
+  signed by the owner with a touch-required key listed in a committed allowed-signers file
+  (ACR-V1-011). A separate machine account for agents is not part of this change; it is a 1.0.x
+  ticket.

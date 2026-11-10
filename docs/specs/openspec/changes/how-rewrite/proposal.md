@@ -6,8 +6,8 @@ Product requirement served: PROD-DOCS-007 and PROD-INT-004 in `docs/specs/PRODUC
 Owning capability spec: `docs/specs/how-v1.md`, a new spec with its own prefix `HOW-V1`. It replaces
 the retired `site-knowledge-howto-v0.md` (retired by decision 0593) as the living contract for the
 `how` verb. SKH-V0 IDs stay in place for traceability; they are not reused or renumbered.
-Requirement IDs this change adds: HOW-V1-001 to HOW-V1-011 (HOW-V1-011 added 2026-11-09 for owner
-decision R30)
+Requirement IDs this change adds: HOW-V1-001 to HOW-V1-012 (HOW-V1-011 added 2026-11-09 for owner
+decision R30; HOW-V1-012, formerly DMF-V1-012, for R42 (panel pick) B1)
 Owner answers and decisions this change implements: decision 0595 (CMS-V0-912 to 916), G5
 (`owner-answers-2026-11-09.md`), owner decision R30 (2026-11-09) and owner decision R31
 (2026-11-09)
@@ -28,8 +28,8 @@ schema, exit code and refusal. G5 then drew the boundary: flow reports are nativ
 authoring, discovery, proposals and `how` stay in corvint-docs.
 
 "Rewrite" here means a re-specification only: a new living spec that states today's behaviour as
-numbered requirements. **No behaviour change is proposed.** This reading is an assumption the owner
-should confirm.
+numbered requirements, with one output change: HOW-V1-012 names the stale anchors and the alias in
+the gap `detail` text (R42 (panel pick) B1).
 
 ## What exists today
 
@@ -70,7 +70,8 @@ Verified in `integ` at 9ec3a29d0 unless stated:
   carries forward.
 - Golden tests that pin the current argument vectors, refusals and output bytes, where missing.
 - No code change is expected beyond tests; any gap found becomes a ticket, not a silent fix.
-- If `how` is offered over MCP, it is served only by `corvint-docs mcp`, under the name, input schema,
+- `how` is offered over MCP as one tool, `corvint.docs_how` (decided 2026-11-09 under R42, B10).
+  It is served only by `corvint-docs mcp`, under the name, input schema,
   output profile and error codes fixed by change `mcp-tool-table` (owner decision R30, 2026-11-09).
   `corvint mcp` keeps the testing tools only and does not serve `how`. Integ 9ec3a29d0 has no `how`
   MCP tool today (`internal/capcatalog/mcp.go` lists none).
@@ -94,7 +95,7 @@ Verified in `integ` at 9ec3a29d0 unless stated:
 
 ## Non-goals
 
-- No new flag, schema member, state or gap code.
+- No new flag, schema member, state or gap code (HOW-V1-012 changes only the gap `detail` text).
 - No move of `how` into the corvint binary; G5 keeps it in corvint-docs.
 - No authority for `how` output: it remains a proposal, never accepted intent.
 - No change to flow reports (gaps, status, impact, test-evidence), which G5 makes native in corvint

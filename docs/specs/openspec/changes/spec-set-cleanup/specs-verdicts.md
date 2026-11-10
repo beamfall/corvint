@@ -38,11 +38,14 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 
 ## Counts
 
-- active: 75
-- archive in place: 164
+- active: 82
+- archive in place: 168
 - move to beamfall/corvint-tasks: 37
 - delete: 0
-- undetermined: 12
+- undetermined: 1 (`test-attack-v0.md`, decided with the fault-injection proposal)
+
+The counts changed on 2026-11-09 under R42, E8 and D11: eleven rows left `undetermined` and
+`greptile-gate-v0.md` moved from archive in place to active.
 
 ## Table
 
@@ -57,7 +60,7 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `REQUIREMENTS.tsv` | - | n/a (not a spec) | active | - | no paths | Generated; keeps archived IDs as history rows and never reuses them (SSC-V1-003). |
 | `SPEC-HEALTH-2026-11-09.md` | - | none | archive in place | C3 | no paths | Input to this cleanup; archived once every row here is applied. |
 | `additive-narrowing-v0.md` | ADN-V0 | KEEP | active | - | no paths; 23 hits | SPEC-HEALTH KEEP; serves PROD-TEST-001, PROD-TEST-002. |
-| `adoption-setup-report-v0.md` | ADS-V0 | OUT-OF-1.0 | undetermined | - | no paths; 6 hits | `corvint adopt --setup`; no PROD ID. Missing: owner verdict on adopt for 1.0. |
+| `adoption-setup-report-v0.md` | ADS-V0 | OUT-OF-1.0 | active | - | no paths; 6 hits | `corvint adopt --setup`. Decided 2026-11-09 under R42, E8: `adopt` is a 1.0 first-run verb and gets a first-run product requirement in the plan (wording is a deferred plan edit). Low confidence: what `main.go` still writes was not traced. |
 | `affected-cli-consistency-v0.md` | ACX-V0 | KEEP | active | - | no paths; 41 hits | SPEC-HEALTH KEEP; serves PROD-TEST-001. |
 | `affected-edit-oracle-v0.md` | AEO-V0 | KEEP | active | - | 1/1 paths; 2 hits | SPEC-HEALTH KEEP; serves PROD-TEST-002. |
 | `affected-plan-python-playwright-v0.md` | AFP-V0 | KEEP | active | - | no paths; 670 hits | SPEC-HEALTH KEEP; serves PROD-TEST-011. |
@@ -195,16 +198,16 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `flow-document-maintenance-v0.md` | FDM-V0 | KEEP | active | - | 3/3 paths; 3 hits | SPEC-HEALTH KEEP; serves PROD-DOCS-003, PROD-DOCS-005. |
 | `gate-ledger-v0.md` | GL-V0 | OUT-OF-1.0 | active | B11 | 5/5 paths; 24 hits | Active until the action cut-over replaces tools/gate-ledger (RMV-V1-028); stays for 1.0 if B11 slips. |
 | `gate-verdict-agreement-v0.md` | GVA-V0 | retired | archive in place | C1 | no paths; 1 hits | Already retired (decision 0594 or earlier); add the Health line only. |
-| `genesis-backfill.md` | GENESIS | OUT-OF-1.0 | undetermined | - | 2/2 paths; 2 hits | `corvint init` and `adopt` inventory; internal/genesis stays. Missing: whether init/adopt serve a PROD ID. |
+| `genesis-backfill.md` | GENESIS | OUT-OF-1.0 | active | - | 2/2 paths; 2 hits | `corvint init` and `adopt` inventory; internal/genesis stays. Decided 2026-11-09 under R42, E8: `init` is a 1.0 first-run verb with a product requirement. Low confidence, as for ADS-V0. |
 | `go-archive-gate-v0.md` | GAG-V0 | KEEP | active | B11 | 3/3 paths; 11 hits | Active until the action cut-over replaces script/go-archive-gate (RMV-V1-028); archived in B11, or stays for 1.0 if B11 slips past 2026-12-15. |
 | `go-format-gate-v0.md` | GFG-V0 | OUT-OF-1.0 | active | - | 2/2 paths; 0 hits | Lint kept by the removal panel. |
 | `go-line-selection-v0.md` | GLS-V0 | KEEP | active | - | no paths; 61 hits | SPEC-HEALTH KEEP; serves PROD-TEST-008. |
 | `go-live-test-provider-v0.md` | GLTP-V0 | KEEP | active | - | 2/2 paths; 24 hits | SPEC-HEALTH KEEP; serves PROD-TEST-006, PROD-TEST-007. |
 | `go-only-cutover-v0.md` | GOC-V0 | OUT-OF-1.0 | archive in place | B9 | 3/3 paths; 27 hits | Record of a finished migration. |
 | `go-production-kernel-migration-v0.md` | GPK-V0 | OUT-OF-1.0 | archive in place | B9 | 6/6 paths; 142 hits | Migration record; AGENTS.md invariant 7 stops citing it (design.md outline). |
-| `go-test-evidence-v0.md` | GTE-V0 | OUT-OF-1.0 | undetermined | - | no paths; 2 hits | Operator tool tools/gotest-evidence; intent proposed. Missing: whether test-evidence verbs (kept by RMV-V1-009) depend on it. |
+| `go-test-evidence-v0.md` | GTE-V0 | OUT-OF-1.0 | archive in place | C1 | no paths; 2 hits | Decided 2026-11-09 under R42, E8: `tools/gotest-evidence` has no importer in `cmd` or `internal`; only CI cost and line-coverage files name it. |
 | `gopls-client-session-v0.md` | GCS-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
-| `greptile-gate-v0.md` | GRG-V0 | MERGE | archive in place | B8b | no paths; 3 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
+| `greptile-gate-v0.md` | GRG-V0 | MERGE | active | - | no paths; 3 hits | Decided 2026-11-09 under R42, D11: `greptile-gate.yml` is kept for 1.0 until the owner removes the required status (RMV-V1-035), so its spec stays active and is not archived in B8b. Earlier class, superseded by D11: archive in place, B8b. |
 | `harness-authority-relation-v0.md` | HAR-V0 | RETIRE | archive in place | C1 | no paths; 0 hits | Superseded by decision 0009. |
 | `heading-navigation-experiment-v0.md` | HNE-V0 | OUT-OF-1.0 | archive in place | B9 | 1/1 paths; 1 hits | Experiment; tools/heading-nav-bench removal is not scheduled in any batch. |
 | `host-lifecycle-qualification-v1.md` | HLQ-V1 | retired | archive in place | C1 | no paths; 2 hits | Already retired (decision 0594 or earlier); add the Health line only. |
@@ -222,7 +225,7 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `lane-shell-portability-v0.md` | ASD-V0 | MERGE | archive in place | B8b | 1/1 paths; 179 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
 | `lane-verification-tooling-v0.md` | LVT-V0 | MERGE | archive in place | B8b | no paths; 23 hits | Merge target corvint-self-development-gates-v0 is itself out of 1.0; archived with the lane tooling. |
 | `language-plugins-v0.md` | LGP-V0 | KEEP | active | B5 | no paths; 34 hits | Kept; B5 edits the provider list (internal/langplugin/langplugin.go). |
-| `learned-trace-admission-v0.md` | LTA-V0 | OUT-OF-1.0 | undetermined | B1, B7 | 5/5 paths; 15 hits | B1 removes internal/trace and B7 removes slot_weights.go. Missing: whether `corvint eval --learn-slot-weights` survives the context revival. |
+| `learned-trace-admission-v0.md` | LTA-V0 | OUT-OF-1.0 | archive in place | B1, B7 | 5/5 paths; 15 hits | Decided 2026-11-09 under R42, E8: B1 and B7 remove its code; G25 item 3 makes `context` work from declared links only, with no ranking; 1.0 learns nothing from use (E3). |
 | `lexical-relevance-floor-v0.md` | LRF-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `live-proof-carrying-verification-v0.md` | LPCV-V0 | KEEP | active | - | 2/2 paths; 200 hits | SPEC-HEALTH KEEP; serves PROD-TEST-007, PROD-TEST-008. |
 | `local-admin-console-v0.md` | LAC-V0 | retired | archive in place | C1 | no paths; 1 hits | Already retired (decision 0594 or earlier); add the Health line only. |
@@ -252,17 +255,17 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `new-e2e-test-acceptance-v0.md` | NEA-V0 | retired | archive in place | C1 | 1/1 paths; 7 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `non-go-impact-v0.md` | NGI-V0 | OUT-OF-1.0 | archive in place | B7 | 7/7 paths; 55 hits | B7 removes the old impact engine; superseded by change-report-impact. |
 | `observation-corpus-authority-v0.md` | OCA-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
-| `observed-ui-evidence-v0.md` | OUE-V0 | OUT-OF-1.0 | undetermined | - | no paths; 19 hits | Close to PROD-DOCS-008 but proposed. Missing: owner verdict on PROD-DOCS-008 coverage. |
+| `observed-ui-evidence-v0.md` | OUE-V0 | OUT-OF-1.0 | archive in place | C1 | no paths; 19 hits | Decided 2026-11-09 under R42, E8: PROD-DOCS-008 is served by two active specs, `application-flow-understanding-v1` and `playwright-external-provider-v0`. |
 | `ocm-intent-forms-v0.md` | OIF-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `ocm-v0-dogfood.md` | OCM-V0 | retired | archive in place | C1 | no paths; 11 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `operator-update-v0.md` | UPD-V0 | KEEP | active | - | 2/2 paths; 4 hits | SPEC-HEALTH KEEP; serves PROD-INT-006. |
-| `optional-artifact-check-scripts-v0.md` | OACS-V0 | OUT-OF-1.0 | undetermined | B5 | 3/3 paths; 3 hits | Analyzer scripts go in B5; release reproducibility scripts stay. Missing: which requirements the kept scripts carry. |
+| `optional-artifact-check-scripts-v0.md` | OACS-V0 | OUT-OF-1.0 | active | B5 | 3/3 paths; 3 hits | Decided 2026-11-09 under R42, E8: active, trimmed in B5. The release reproducibility scripts stay; the analyzer requirements retire with B5. |
 | `outcome-calibration-v0.md` | OCL-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `performance-profiling-and-read-budget-v0.md` | PRB-V0 | KEEP | active | - | 6/6 paths; 41 hits | SPEC-HEALTH KEEP; serves PROD-TEST-007, PROD-DOCS-001. |
 | `pi-workflow-v0.md` | PWV-V0 | retired | archive in place | C1 | no paths; 1 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `playwright-external-provider-v0.md` | PWP-V0 | KEEP | active | - | 3/3 paths; 54 hits | SPEC-HEALTH KEEP; serves PROD-DOCS-008. |
 | `playwright-per-test-freshness-v0.md` | PTF-V0 | MERGE | archive in place | C2 | 1/1 paths; 9 hits | Merges into playwright-external-provider-v0.md, then archived. |
-| `playwright-run-evidence-v0.md` | PWR-V0 | KEEP | undetermined | B2 | 2/2 paths; 29 hits | B2 (G24) removes internal/playwrightruns, its only package, but SPEC-HEALTH keeps it for PROD-TEST-010. Missing: whether another spec serves PROD-TEST-010. |
+| `playwright-run-evidence-v0.md` | PWR-V0 | KEEP | archive in place | B2 | 2/2 paths; 29 hits | Decided 2026-11-09 under R42, E8: G24 removes internal/playwrightruns, its only package, in B2; run records move to PROD-TEST-020 (owner decision R7). |
 | `playwright-suite-interaction-minimizer-v0.md` | PSM-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `postmerge-ci-host-v0.md` | PCH-V0 | retired | archive in place | C1 | no paths; 1 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `postmerge-connectors-v0.md` | PMC-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
@@ -271,7 +274,7 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `postmerge-runtime-v1.md` | PMR-V1 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `postmerge-runtime-v2.md` | PMR-V2 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `process-group-owner-v0.md` | PGO-V0 | KEEP | active | - | 1/1 paths; 35 hits | SPEC-HEALTH KEEP; serves PROD-TEST-006. |
-| `proof-carrying-context-optimization-v0.md` | PCCO-V0 | RETIRE | undetermined | C1 | 2/2 paths; 6 hits | SPEC-HEALTH says RETIRE; decision 0047 accepted it. Missing: the owner's word to retire an accepted programme. |
+| `proof-carrying-context-optimization-v0.md` | PCCO-V0 | RETIRE | archive in place | C1 | 2/2 paths; 6 hits | Decided 2026-11-09 under R42, E8: G25 keeps the context ranking files removed. The superseding decision MUST name decision 0047, which accepted the programme. |
 | `proof-preserving-abstraction-v0.md` | PPA-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `proof-tour-v0.md` | PT-V0 | OUT-OF-1.0 | archive in place | B6 | 2/2 paths; 2 hits | B6 edits script/proof-tour.sh to drop `corvint cem`; the tour itself is not a 1.0 product. Script fate NOT_VERIFIED. |
 | `protected-local-execution-v0.md` | PLE-V0 | retired | archive in place | C1 | no paths; 2 hits | Already retired (decision 0594 or earlier); add the Health line only. |
@@ -294,7 +297,7 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `rust-affected-test-understanding-v0.md` | RUST-AFFECTED-V0 | KEEP | archive in place | B5 | 1/1 paths; 0 hits | B5 (G26) removes internal/liveverify/affected/rust; SPEC-HEALTH KEEP predates G26. |
 | `rust-analyzer-candidate-v0.md` | RAC | OUT-OF-1.0 | archive in place | B5 | 2/2 paths; 2 hits | B5 (G26) removes the analyzer. |
 | `scope-lease-v0.md` | SCL-V0 | retired | move to beamfall/corvint-tasks | B10 | 1/1 paths; 8 hits | Decision 0594 moved Tasks to beamfall/corvint-tasks, which holds the live copy; deleted here after corvint-tasks PR #4 (RMV-V1-027). |
-| `self-observation-ledger-v0.md` | SOL-V0 | OUT-OF-1.0 | undetermined | - | 2/2 paths; 26 hits | internal/observations stays and invariant 4 names it, but it serves no PROD ID. Missing: owner verdict on keeping the ledger in 1.0. |
+| `self-observation-ledger-v0.md` | SOL-V0 | OUT-OF-1.0 | active | - | 2/2 paths; 26 hits | Decided 2026-11-09 under R42, E8: the ledger stays in 1.0 and is documented as local-only data; it attaches to the telemetry and uninstall requirement PROD-INT-006. Low confidence: the ledger writer was not traced; the verdict changes if it is dead code. |
 | `semantic-escalation-gate-v0.md` | SEG | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `session-context-dividend-v0.md` | SESSION-V0 | retired | archive in place | C1 | no paths; 1 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `session-test-runner-v0.md` | STR-V0 | KEEP | active | - | 6/6 paths; 94 hits | SPEC-HEALTH KEEP; serves PROD-TEST-006, PROD-TEST-012. |
@@ -316,12 +319,12 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `tasks-criterion-binding-v0.md` | TCB-V0 | retired | move to beamfall/corvint-tasks | B10 | no paths; 4 hits | Decision 0594 moved Tasks to beamfall/corvint-tasks, which holds the live copy; deleted here after corvint-tasks PR #4 (RMV-V1-027). |
 | `tasks-mcp-read-profile-v0.md` | TMR-V0 | retired | move to beamfall/corvint-tasks | B10 | no paths; 0 hits | Decision 0594 moved Tasks to beamfall/corvint-tasks, which holds the live copy; deleted here after corvint-tasks PR #4 (RMV-V1-027). |
 | `technical-brain-dogfood.md` | BRAIN-DOG | retired | archive in place | C1 | no paths; 4 hits | Already retired (decision 0594 or earlier); add the Health line only. |
-| `test-attack-v0.md` | TAT-V0 | OUT-OF-1.0 | undetermined | - | 1/1 paths; 1 hits | internal/liveverify/mutate stays and is ticketed (RMV-V1-017). Missing: the ticket outcome. |
+| `test-attack-v0.md` | TAT-V0 | OUT-OF-1.0 | undetermined | - | 1/1 paths; 1 hits | Decided 2026-11-09 under R42, E8: decided with the fault-injection proposal. internal/liveverify/mutate stays and is ticketed (RMV-V1-017); the spec is kept if the miss-proof set reuses it. |
 | `test-claim-qualification-v0.md` | TCQ-V0 | OUT-OF-1.0 | archive in place | B2 | 1/1 paths; 87 hits | B2 (G24) removes tcq internals; the identifiers other packages use stay without a spec of their own. |
 | `test-consolidation-planner-v0.md` | TCN-V0 | OUT-OF-1.0 | archive in place | B2 | 2/2 paths; 19 hits | B2 (G24) removes `corvint test-plan` and internal/testplan. |
 | `test-runner-execution-v0.md` | TRE-V0 | KEEP | active | - | 2/2 paths; 91 hits | SPEC-HEALTH KEEP; serves PROD-TEST-006. |
 | `test-selection-precision-v0.md` | TSP-V0 | KEEP | active | - | no paths; 95 hits | SPEC-HEALTH KEEP; serves PROD-TEST-001, PROD-TEST-002. |
-| `test-source-analysis-v0.md` | TSA-V0 | OUT-OF-1.0 | undetermined | B2 | no paths; 178 hits | B2 removes internal/testsource/validity*.go; RMV-V1-009 keeps other testsource parts. Missing: which requirements the kept part carries. |
+| `test-source-analysis-v0.md` | TSA-V0 | OUT-OF-1.0 | active | B2 | no paths; 178 hits | Decided 2026-11-09 under R42, E8: active, trimmed in B2. The validity requirements retire; RMV-V1-009 keeps the rest. |
 | `touch-set-surprise-v0.md` | TSS-V0 | retired | archive in place | C1 | no paths; 0 hits | Already retired (decision 0594 or earlier); add the Health line only. |
 | `traceability-test-gate-v0.md` | TTG-V0 | KEEP | active | - | 1/1 paths; 3 hits | SPEC-HEALTH KEEP; serves PROD-INT-005. |
 | `trial-replay-journal-v0.md` | TRJ-V0 | RETIRE | archive in place | C1 | no paths; 0 hits | Not started; tools/cw-trial goes with confidently-wrong-trial-v0 (B9). |
@@ -333,6 +336,6 @@ One row per file tracked directly under `docs/specs/` in the prodspecs tree (288
 | `verification-planner-observer-v0.md` | VPO-V0 | OUT-OF-1.0 | archive in place | B9 | no paths; 5 hits | Deferred; no implementation path. |
 | `verified-absence-frontier-v0.md` | VAF | RETIRE | archive in place | C1 | no paths; 1 hits | Superseded; successor change-frontier-v0 is itself retired. |
 | `vscode-extension-v0.md` | VSC-V0 | OUT-OF-1.0 | archive in place | B4 | 2/2 paths; 18 hits | Extension moves to beamfall/corvint-vscode (R33); archived here when B4 removes extensions/vscode. |
-| `windows-test-portability-v0.md` | ASD-V0 | MERGE | undetermined | B8 | 2/2 paths; 179 hits | MERGE target corvint-self-development-gates-v0 is out of 1.0, but `make windows-vet` stays in the AGENTS.md Verify section. Missing: which active spec owns windows-vet. |
+| `windows-test-portability-v0.md` | ASD-V0 | MERGE | active | - | 2/2 paths; 179 hits | Decided 2026-11-09 under R42, E8: active and standalone. It owns `make windows-vet`, which owner decision R36 keeps; it is not merged into an archived spec. |
 | `work-queue-observation-v0.md` | WQO-V0 | retired | move to beamfall/corvint-tasks | B10 | 4/4 paths; 42 hits | Decision 0594 moved Tasks to beamfall/corvint-tasks, which holds the live copy; deleted here after corvint-tasks PR #4 (RMV-V1-027). |
 | `workspace-declaration-v0.md` | WSD-V0 | KEEP | active | - | no paths; 15 hits | SPEC-HEALTH KEEP; serves PROD-DOCS-006. |

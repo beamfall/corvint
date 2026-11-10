@@ -50,8 +50,10 @@ regex has no project authority (invariant 3) and duplicates what the flow file d
   each cited to the flow file at its commit.
 - The map is an output of the existing `corvint-docs docs flows generate` command, not a new verb
   (settled without the owner, 2026-11-09: that command already groups declarations by flow).
-- `corvint feature`, `corvint features` and `corvint overview` are removed. For one release each
-  prints a fixed notice naming the `corvint-docs` command that replaces it and exits 2.
+- `corvint feature`, `corvint features` and `corvint overview` are removed. In 1.0.x each prints a
+  fixed notice naming the `corvint-docs` command that replaces it and exits 2. The notices are
+  removed in 1.1 (review docs F13).
+- The map's output profile is named `corvint-feature-map/0` (review docs F13; FMP-V1-006).
 - The regex heuristics and the `repository-guidance/0` profile are removed.
 - Flow declarations proposed by a model enter the map only after a person accepts them (G25 item 6,
   PROD-DOCS-012). Link records are accepted by a person only (owner decision R12, 2026-11-09).

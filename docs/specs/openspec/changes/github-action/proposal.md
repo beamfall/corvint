@@ -9,9 +9,10 @@ Owning capability spec: `docs/specs/github-action-v1.md` (new, prefix `GHA-V1`).
 requirements GHA-V1-040 to GHA-V1-043 stay in this change for now; change `acceptance-record`
 records whether they stay here or move to `docs/specs/public-release-v0.md` (owner decision R1
 (2026-11-09): one acceptance record).
-Requirement IDs this change adds: GHA-V1-001 to GHA-V1-018, GHA-V1-020 to GHA-V1-026,
-GHA-V1-030 to GHA-V1-033, GHA-V1-040 to GHA-V1-043 (32 requirements; GHA-V1-018 added 2026-11-09
-for owner decision R22). The prefix had no entry in
+Requirement IDs this change adds: GHA-V1-001 to GHA-V1-018, GHA-V1-020 to GHA-V1-029,
+GHA-V1-030 to GHA-V1-033, GHA-V1-040 to GHA-V1-043 (35 requirements; GHA-V1-018 added 2026-11-09
+for owner decision R22; GHA-V1-027 to GHA-V1-029 added 2026-11-09 for review ci-agents F16).
+The prefix had no entry in
 `docs/specs/REQUIREMENTS.tsv` on 2026-11-09.
 Owner answers this comes from: answer 6, answer 16, G10, G15a, G15b, G16, G17, G18, G25 (item 2),
 G27, and the owner instruction after G15 ("we want to make sure we have a world class and full
@@ -90,7 +91,10 @@ by GHA-V1-018.
   The selection logic stays in the binary, as for the agent packages (G20); the action holds none.
 - `beamfall/corvint` `.github/`: a release workflow (new), the shadow jobs, then the cut-over. Each
   `.github` change goes in its own pull request, because `github-split-check` (`ASD-V0-706`)
-  refuses a range that mixes `.github` with code.
+  refuses a range that mixes `.github` with code. That check exists only until the cut-over:
+  change `source-removal` removes it in B11's script removal pull request, after the cut-over pull
+  request has merged (RMV-V1-032). After that the split is a review convention, not an enforced
+  check.
 - Removed at cut-over (G27): `tools/gate-ledger/**`, `script/gate-receipt` and its test,
   `script/go-archive-gate` and its three tests, `script/adopter-ci-advisory.sh` and its test, the
   Makefile targets that call them, and the bespoke selection inputs listed under GHA-V1-031.
@@ -142,5 +146,15 @@ Assumed, NOT_VERIFIED:
 - Writing to a Corvint Tasks store from CI.
 - Notarization, an install script or a Homebrew tap in 1.0 (G15a).
 - Ranking or reordering tests. The action runs the plan; it does not choose.
+- A CI feed of per-test durations for balanced shards. `corvint test shards --durations` keeps
+  working from a file the adopter supplies; the action does not collect or store durations at 1.0
+  (review ci-agents F16).
+- A JUnit artifact or failure annotations. The job summary (GHA-V1-011) is the only report at 1.0
+  (review ci-agents F16).
+- A flaky-test policy. The action neither retries nor quarantines a test; a failed selected test
+  fails the result job (review ci-agents F16).
+- A `token` input. Deepening a private clone uses the credentials the adopter's checkout step
+  already holds; this follows the no-token non-goal above (review ci-agents F16).
+- An OpenSSF Scorecard workflow on the action repository (review ci-agents F16).
 - Making macOS hosted-runner shards required in Corvint's own CI. That is a separate consequence of
   the owner answers and is tracked outside this change.

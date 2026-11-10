@@ -8,7 +8,8 @@ Requirement IDs this change adds: SSC-V1-001 to SSC-V1-008 (no `SSC-` row exists
 `docs/specs/REQUIREMENTS.tsv` and no other change folder uses the prefix)
 Requirement IDs this change modifies: none
 Owner answers this change implements: G8, G14, G24, G25, G26, G27, owner decision R33 (2026-11-09),
-owner decision R34 (2026-11-09), owner decision R37 (2026-11-09), owner decision R41 (2026-11-09)
+owner decision R34 (2026-11-09), owner decision R37 (2026-11-09), owner decision R41 (2026-11-09),
+and the decisions made 2026-11-09 under R42: D11, E6 and E8
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -113,9 +114,10 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 - `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `AGENTS.md`, `docs/README.md`, `docs/AGENT-ROUTES.md`,
   `docs/SELF-DEVELOPMENT.md`, `docs/PRODUCT.md` and `docs/specs/openspec/README.md` are rewritten.
-- 164 specs are archived in place (those already retired gain only the `Health:` line) and 9 docs
+- 168 specs are archived in place (those already retired gain only the `Health:` line) and 9 docs
   are archived; 6 docs are deleted, each in the batch that removes its last reader; 37 Tasks specs
-  are deleted in B10; 12 spec rows and 2 doc rows stay undetermined until the owner answers.
+  are deleted in B10; 1 spec row (`test-attack-v0.md`) and 1 doc row
+  (`tcq-0.schema.json`) stay undetermined; the other rows were decided 2026-11-09 under R42, E8.
 - `script/gen-spec-requirements.sh` gains the Health projection (OSC-V1-008) and, if the owner
   accepts SSC-V1-005, an archived listing. Readers of `INDEX.json` named above must be checked in
   the same change.

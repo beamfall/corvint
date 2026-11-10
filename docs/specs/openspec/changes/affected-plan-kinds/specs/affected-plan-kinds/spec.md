@@ -201,6 +201,15 @@ of that runner.
 - **WHEN** the plan is computed
 - **THEN** every E2E test of the Playwright runner is selected with reason `reach-unknown`
 
+#### Scenario: Unowned path that no link targets
+
+Added from the watch-flows verdicts, finding 1a.
+
+- **GIVEN** a changed `db/schema.sql` that has no owning unit and that no link targets
+- **WHEN** the plan is computed
+- **THEN** every E2E test is selected with reason `reach-unknown`; the path is not dropped as
+  unrelated
+
 ## MODIFIED Requirements
 
 ### Requirement: AFU-V1-1651 The flow declaration file

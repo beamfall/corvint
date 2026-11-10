@@ -5,11 +5,12 @@ Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
 Product requirement served: PROD-DOCS-001, PROD-DOCS-010, PROD-TEST-009 and PROD-TASK-007 in
 `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/mcp-tool-table-v1.md`, a new spec with prefix `MTT-V1`
-Requirement IDs this change adds: MTT-V1-001 to MTT-V1-010
+Requirement IDs this change adds: MTT-V1-001 to MTT-V1-011
 Requirement IDs this change modifies: none
 Owner answers this change implements: owner decision R30 (2026-11-09), owner decision R17
 (2026-11-09), owner decision R13 (2026-11-09) for the MCP behaviour of `CORVINT_SELECTION`, owner
-decision R14 (2026-11-09) for retired provider binaries
+decision R14 (2026-11-09) for retired provider binaries; M1 (MTT-V1-011) and M12 (MTT-V1-005),
+decided 2026-11-09 under R42
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started
 Written before dispatch: yes. No lane has been started for this change.
@@ -58,7 +59,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 - `docs/MCP-SERVER.md` is generated from the table; a drift check compares the table with the tools
   each server registers at start.
 - `corvint mcp` serves the testing and flow-report tools: `impact`, `status`, `affected`,
-  `test_evidence`, `test_validity`, the flow reports and `help`. The `docs` and `corpus` profiles
+  `test_evidence` (labelled preview), the flow reports and `help`. `test_validity` is removed with
+  the G24 batch (decided 2026-11-09 under R42, M12). The `docs` and `corpus` profiles
   leave `corvint mcp`.
 - A new `corvint-docs mcp` subcommand serves the `docs_*` tools, `docs_draft`, `docs_consume` and
   `help`.
@@ -66,6 +68,8 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 - No Tasks server and no tasks tools.
 - `CORVINT_SELECTION` with an unknown value makes the `affected` tool select all tests with a reason
   (R13), and `full:<runner>` has the same grammar as the CLI.
+- On a stale binary the `affected` tool selects all tests with reason `self-binary-stale` and a
+  rebuild hint; the CLI keeps exit 2 (decided 2026-11-09 under R42, M1; MTT-V1-011).
 - The separate MCP binaries leave `binaries.json` once their replacement ships.
 
 ## Capabilities
@@ -93,5 +97,7 @@ Verified against integ 9ec3a29d0 on 2026-11-09:
 
 - No Tasks MCP server or tasks tools (R17).
 - No new tool behaviour beyond the renames and the server move; tool outputs keep their profiles.
+  Carve-out: the behaviour that DMF-V1-009 to DMF-V1-011 (change `docs-mcp-hardening`) require is
+  built by that change and recorded in this table; it is not a breach of this non-goal.
 - No network transport; stdio only, as today.
 - The `how` tool's existence is decided by the change `how-rewrite`; this change only hosts its row.

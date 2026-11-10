@@ -8,8 +8,9 @@ PROD-TASK-008, PROD-TASK-009, PROD-TASK-010 to PROD-TASK-013 and PROD-INT-004 in
 Owning capability spec: `docs/specs/tasks-integration-v1.md`, a new spec in this repository with its
 own prefix `TIN-V1`. It covers only the Corvint side of the contract and the release coupling; the
 Tasks requirements themselves live in `beamfall/corvint-tasks`.
-Requirement IDs this change adds: TIN-V1-001 to TIN-V1-013, with TIN-V1-005 retired (twelve live
-IDs; TIN-V1-012 replaced TIN-V1-005, and TIN-V1-013 was added 2026-11-09 for owner decision R17)
+Requirement IDs this change adds: TIN-V1-001 to TIN-V1-014, with TIN-V1-005 retired (thirteen live
+IDs; TIN-V1-012 replaced TIN-V1-005, TIN-V1-013 was added 2026-11-09 for owner decision R17, and
+TIN-V1-014 was decided 2026-11-09 under R42, C23)
 Owner answers this change implements: G6, G9, G25, G27, answers 11, 12 and 13
 (`owner-answers-2026-11-09.md`), owner decision R4 (2026-11-09), owner decision R17 (2026-11-09)
 and owner decision R18 (2026-11-09)
