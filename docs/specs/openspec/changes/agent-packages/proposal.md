@@ -106,7 +106,7 @@ retired as history; this change does not revive them.
   `9ec3a29d0`: `integrations/claude-code/**`, `integrations/codex/**` (including
   `profiles/corvint-review.config.toml`, AHI-206), `integrations/README.md`; the fix text at
   `cmd/corvint/adopt_setup.go:185` and its test at `cmd/corvint/adopt_setup_test.go:219`;
-  `internal/liveverify/affected/integration_readme_documentation_repo_test.go:22,50`;
+  `internal/liveverify/affected/liverepo/integration_readme_documentation_repo_test.go:22,50`;
   `script/check-host-package-versions.sh:254-266` and its test; `Makefile:88-89,636-640`
   (host-package-versions targets); the stale comment at `.github/workflows/release-gates.yml:269`;
   `docs/experiments/v1-0607/qualify.py:140` (experiment history, kept or annotated).

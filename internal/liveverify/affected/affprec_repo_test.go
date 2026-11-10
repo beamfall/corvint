@@ -14,9 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
-	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func affprecFiles(t *testing.T, files map[string]string) string {
@@ -49,70 +47,18 @@ func affprecIDs(p affected.Plan) []string {
 	slices.Sort(ids)
 	return ids
 }
-func affprecRead(t *testing.T, path string) string {
-	t.Helper()
-	b, err := os.ReadFile(filepath.Join(repositoryRoot(t), filepath.FromSlash(path)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b)
-}
 
 // affprecBoundaryScanner is a stand-in for the retired Tasks import-direction
 // test (decision 0594): a repository-wide Go import scanner with the same
 // read-kinds header, directory skips, walk and parser mode.
-const affprecBoundaryScanner = `//corvint:read-kinds .go go.mod
-
-package boundary
-
-import (
-	"go/parser"
-	"go/token"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-)
-
-func skipDir(path string, d fs.DirEntry, root string) bool {
-	name := d.Name()
-	if path == root {
-		return false
-	}
-	if strings.HasPrefix(name, ".") || name == "testdata" || name == "node_modules" || name == "vendor" {
-		return true
-	}
-	_, err := os.Stat(filepath.Join(path, "go.mod"))
-	return err == nil
-}
-
-func TestImportDirection(t *testing.T) {
-	root := filepath.Join("..", "..")
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() && skipDir(path, d, root) {
-			return filepath.SkipDir
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-		for _, spec := range file.Imports {
-			_ = spec.Path.Value
-		}
-		return nil
-	})
+func affprecBoundaryScanner(t *testing.T) string {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("testdata", "boundary-scanner.go.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	return string(body)
 }
-`
 
 // affprecHelpSource is a stand-in for the retired Tasks command help source
 // (decision 0594): display text embedded verbatim beside inline usage strings
@@ -149,7 +95,7 @@ const (
 func TestBoundaryKindBound_AFPV09001(t *testing.T) {
 	root := affprecFiles(t, map[string]string{
 		"go.mod":                             "module example.test/m\n",
-		"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+		"internal/boundary/boundary_test.go": affprecBoundaryScanner(t),
 		"reader/r_test.go":                   "package reader\nimport \"os\"\nfunc read(){ _,_ = os.ReadFile(\"../.corvint/data.json\") }\n",
 		".corvint/data.json":                 "{}\n",
 		"other/o.go":                         "package other\n", "other/o_test.go": "package other\n",
@@ -175,19 +121,25 @@ func TestBoundarySymlinkTarget_AFPV09001(t *testing.T) {
 		t.Run(target, func(t *testing.T) {
 			root := affprecFiles(t, map[string]string{
 				"go.mod":                             "module example.test/m\n",
-				"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+				"internal/boundary/boundary_test.go": affprecBoundaryScanner(t),
 				target:                               "package probe\n",
 			})
 			if err := os.Mkdir(filepath.Join(root, "probe"), 0700); err != nil {
 				t.Fatal(err)
 			}
+			// The probe directory's relative path to the target, computed so no
+			// parent-only literal makes the package's tokens root-relative.
+			upTarget, err := filepath.Rel(filepath.Join(root, "probe"), filepath.Join(root, filepath.FromSlash(target)))
+			if err != nil {
+				t.Fatal(err)
+			}
 			if target == "data/chain.txt" {
-				if err := os.Symlink("../"+target, filepath.Join(root, "probe/hop.txt")); err != nil {
+				if err := os.Symlink(upTarget, filepath.Join(root, "probe/hop.txt")); err != nil {
 					t.Skipf("symlinks unavailable: %v", err)
 				}
 			}
 			alias := filepath.Join(root, "probe/check.go")
-			linkTarget := "../" + target
+			linkTarget := upTarget
 			if target == "data/chain.txt" {
 				linkTarget = "hop.txt"
 			}
@@ -227,7 +179,7 @@ func TestBoundaryAliasCache_AFPV09000(t *testing.T) {
 	pinnable(t)
 	root := affprecFiles(t, map[string]string{
 		"go.mod":                             "module example.test/m\n",
-		"internal/boundary/boundary_test.go": affprecBoundaryScanner,
+		"internal/boundary/boundary_test.go": affprecBoundaryScanner(t),
 		"data/imports.txt":                   "package probe\n",
 		"data/other.txt":                     "package other\n",
 	})
@@ -302,97 +254,6 @@ func TestHelpTextProvenance_AFPV09002(t *testing.T) {
 	real := affprecGraph(t, affprecFiles(t, files), golang.New())
 	if !slices.Contains(affprecIDs(affected.Select(real, []string{".corvint/data.json"})), importer) {
 		t.Fatal("production reader's importer omitted")
-	}
-}
-
-// AFP-V0-9003 / V1-4497 / V1-4143 / V1-4535: replay the reported change kinds
-// against the live repository graph. Counts and residual frontiers are measured,
-// never erased. The fixture pairs each change kind with its true reader.
-func TestPrecisionReplay_AFPV09003(t *testing.T) {
-	testsupport.RequireLiveTier(t)
-	g := affprecGraph(t, repositoryRoot(t), languages.All()...)
-	sets := map[string][]string{
-		"heavy-only":       {"script/heavy.sh"},
-		"test-only":        {"internal/cliapp/help_test.go", "internal/versionline/versionline_test.go", "internal/liveverify/affected/graphcache_test.go"},
-		"declaration-spec": {".corvint/shell-foreign-callers.json", ".corvint/test-read-scopes.json", "docs/specs/affected-plan-v0.md"},
-	}
-	for name, paths := range sets {
-		p := affected.Select(g, paths)
-		languageUnits, floorUnits, makeTargets, ciJobs := 0, 0, 0, 0
-		for _, s := range p.Selected {
-			switch s.Kind {
-			case affected.SelectionKindDriverTarget:
-				makeTargets++
-			case affected.SelectionKindCIJob:
-				ciJobs++
-			default:
-				languageUnits++
-				if s.Witness.Kind == affected.WitnessUnboundedReader {
-					floorUnits++
-				}
-			}
-		}
-		t.Logf("%s selected=%d language=%d make=%d ci=%d scope=%s unknown=%+v", name, len(p.Selected), languageUnits, makeTargets, ciJobs, p.Scope, p.Unknown)
-		if name == "heavy-only" {
-			// The historical 86-unit report predates the driver claimant.
-			// Keep its language-unit bound on the full integrated graph;
-			// AZU-V0-001's required drivers are additional selections. The
-			// bound counts the units beyond the rule (d) floor, which every
-			// change selects and the AFP-V0-025 ratchet
-			// (.corvint/unbounded-readers.json) holds unit by unit: AFP-V0-2991
-			// raised that floor when rule (d) began to follow execution edges.
-			// The selbatch merge (2026-11-06) measured 80 before and 95 after
-			// in total: AFP-V0-2203 round 8 retains 14 Go path-literal readers
-			// whose lone tokens placement used to drop (`"script"` names the
-			// script/ directory at any depth), and AZU-V0-9920 indexes
-			// .github/cishards, which executes the built binary.
-			// The batch-1107x integration of selbatch, mbrescue, mbapproved,
-			// selgo and unbrd measured 123 language units, 94 beyond a 29-unit
-			// floor (unbrd alone: 105 units, inside the earlier bound of 86):
-			// each lane's new packages and readers of script/ add units.
-			if beyond := languageUnits - floorUnits; beyond >= 100 {
-				t.Errorf("heavy-only selected %d language units beyond the %d-unit rule (d) floor, want below 100 (94 measured at batch-1107x)", beyond, floorUnits)
-			}
-			selected := affprecIDs(p)
-			reached := g.ReachedUnitIDs(paths)
-			requiredDrivers := 0
-			for _, id := range g.UnitIDs() {
-				unit, _ := g.Unit(id)
-				if !strings.HasPrefix(id, affected.DriverNamespace+":") ||
-					(!slices.Contains(unit.PathTokens, "script/heavy.sh") && !slices.Contains(unit.Frontier, affected.FrontierDriverComputedInvocation)) {
-					continue
-				}
-				// Pattern rules are reached templates, not runnable targets.
-				_, target, _ := strings.Cut(id, "#")
-				if target == "*" || strings.Contains(target, "%") {
-					if !slices.Contains(reached, id) {
-						t.Errorf("heavy-only did not reach driver template %s", id)
-					}
-					continue
-				}
-				requiredDrivers++
-				if !slices.Contains(selected, id) {
-					t.Errorf("heavy-only omitted required driver %s", id)
-				}
-			}
-			if requiredDrivers == 0 || makeTargets == 0 || ciJobs == 0 {
-				t.Errorf("heavy-only lost driver coverage: required=%d make=%d ci=%d", requiredDrivers, makeTargets, ciJobs)
-			}
-		}
-	}
-	files := map[string]string{
-		"go.mod":                 "module example.test/m\n",
-		"testreader/r_test.go":   "package testreader\nimport \"os\"\nfunc read(){_,_=os.ReadFile(\"../changed/c_test.go\")}\n",
-		"changed/c_test.go":      "package changed\n",
-		"scriptreader/r_test.go": "package scriptreader\nimport \"os\"\nfunc read(){_,_=os.ReadFile(\"../script/heavy.sh\")}\n",
-		"datareader/r_test.go":   "package datareader\nimport \"os\"\nfunc read(){_,_=os.ReadFile(\"../.corvint/data.json\")}\n",
-		"specreader/r_test.go":   "package specreader\nimport \"os\"\nfunc read(){_,_=os.ReadFile(\"../docs/specs/example.md\")}\n",
-	}
-	fixture := affprecGraph(t, affprecFiles(t, files), golang.New())
-	for path, id := range map[string]string{"changed/c_test.go": "testreader", "script/heavy.sh": "scriptreader", ".corvint/data.json": "datareader", "docs/specs/example.md": "specreader"} {
-		if !slices.Contains(affprecIDs(affected.Select(fixture, []string{path})), "go:example.test/m/"+id) {
-			t.Errorf("true reader %s of %s omitted", id, path)
-		}
 	}
 }
 

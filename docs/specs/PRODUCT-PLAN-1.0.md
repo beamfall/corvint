@@ -378,7 +378,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     (`affected-zero-unknown-v0.md`), AEO-V0-001 to AEO-V0-003 (`affected-edit-oracle-v0.md`),
     TSP-V0-001 to TSP-V0-003 (`test-selection-precision-v0.md`) and `additive-narrowing-v0.md`.
   - Open tickets: V1-5199, V1-5200.
-  - Evidence today: `internal/liveverify/affected/ownership_completeness_test.go`,
+  - Evidence today: `internal/liveverify/affected/liverepo/ownership_completeness_test.go`,
     `.corvint/test-selection.json`. (integ) commit `ee6d51d2f` widens for unreviewed flow links
     (APK-V0-004), and the `misskill` lane recorded confirmed misses on main and a replay of #104 and
     #109 (commit `1dfc1718e`).
