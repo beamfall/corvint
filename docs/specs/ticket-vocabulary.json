@@ -358,6 +358,7 @@
     "flows-unlinked-tests-report": "flows",
     "github-action": "action",
     "how-rewrite": "how",
+    "hub-read-scopes": "affected",
     "jest-provider": "runner",
     "line-evidence": "line-evidence",
     "macos-required-shards": "gates",

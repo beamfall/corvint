@@ -16,6 +16,8 @@ trap 'exit 143' TERM
 cd "$repo"
 export GOTOOLCHAIN=local GOCACHE=${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}
 go build -o "$scratch/corvint" ./cmd/corvint
+# corvint flows is served by corvint-docs, found beside the core executable.
+go build -o "$scratch/corvint-docs" ./cmd/corvint-docs
 go build -o "$scratch/corvint-web-flows" ./cmd/corvint-web-flows
 node --test tools/web-flows/test/scan.test.mjs tools/web-flows/test/lifecycle.test.mjs tools/web-flows/test/navigation.test.mjs tools/web-flows/test/proxy-headers.test.mjs
 export CORVINT_CORE_BIN="$scratch/corvint" CORVINT_FLOW_BIN="$scratch/corvint-web-flows"
