@@ -1,4 +1,4 @@
-package affected_test
+package liverepo_test
 
 import (
 	"go/scanner"
@@ -97,7 +97,7 @@ func TestLiveVerifyGitFixturesDisableDetachedMaintenance(t *testing.T) {
 		t.Fatal(err)
 	}
 	isolating := 0
-	err = filepath.WalkDir("..", func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(filepath.Join(repositoryRoot(t), "internal", "liveverify"), func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func TestLiveVerifyGitFixturesDisableDetachedMaintenance(t *testing.T) {
 	if isolating < 4 {
 		t.Fatalf("scanned %d config-isolating fixture files, want at least 4", isolating)
 	}
-	helper, err := os.ReadFile(filepath.Join("..", "..", "testsupport", "gitfixture.go"))
+	helper, err := os.ReadFile(filepath.Join(repositoryRoot(t), "internal", "testsupport", "gitfixture.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,36 +5,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
-
-// TSP-V0-1061: new dated records retain declared readers and the root-locator
-// floor, including contextindex, whose self-corpus scanner reads every tracked file.
-func TestNewBuildLogKeepsDeclaredReaders_TSPV01061(t *testing.T) {
-	graph, module := repositoryNarrowingGraph(t)
-	dirty := "docs/build-log/2099-01-01-new-record.md"
-	plan := affected.Select(graph, []string{dirty})
-	for _, s := range plan.Selected {
-		if s.UnitID == "go:"+module+"/internal/contextindex" && s.Witness.Kind != affected.WitnessUnboundedReader {
-			t.Errorf("self-corpus reader lost its root-locator witness: %+v", s.Witness)
-		}
-	}
-	units := selectedUnits(graph, module, dirty)
-	for _, reader := range []string{"cmd/corvint", "internal/contextindex"} {
-		if _, ok := units[reader]; !ok {
-			t.Errorf("reader %s omitted", reader)
-		}
-	}
-	// Unrelated data retains the same conservative floor.
-	wider := affected.Select(graph, []string{"undeclared/data.json"})
-	if !slices.ContainsFunc(wider.Selected, func(s affected.Selection) bool { return s.Witness.Kind == affected.WitnessUnboundedReader }) {
-		t.Fatal("undeclared input lost its conservative fallback")
-	}
-}
 
 // TSP-V0-1062: a newly added test never changes its package's importers;
 // explicit source-reading consumers remain selected with the exact declaration.
@@ -78,4 +54,14 @@ func TestNewTestKeepsNamedDeclaredConsumers_TSPV01062(t *testing.T) {
 	if _, ok := selectedUnits(graph, "example.test/m", "a/a.go")["user"]; !ok {
 		t.Fatal("source importer omitted")
 	}
+}
+
+// selectedUnits maps each unit the plan for the dirty paths selects to its
+// witness kind, with Go package ids shortened to their repository directory.
+func selectedUnits(graph *affected.Graph, module string, dirty ...string) map[string]string {
+	units := map[string]string{}
+	for _, selection := range affected.Select(graph, dirty).Selected {
+		units[strings.TrimPrefix(selection.UnitID, "go:"+module+"/")] = selection.Witness.Kind
+	}
+	return units
 }

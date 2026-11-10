@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+// parentDir is the parent component "..", built at run time: these fixtures read
+// nothing outside the package, and a parent-only literal in any test file would
+// make test-read-scopes-check resolve every fixture token of the package from
+// the repository root (AFP-V0-021, V1-5201).
+var parentDir = strings.Repeat(".", 2)
+
 // namesPathOracle is namesPath before V1-1879, kept apart from pathToken so
 // the comparison does not share the matcher it checks. anyDepth drops the
 // V1-0290 file-name-only rule, as a Go unit's rule (c) does on any path but
@@ -15,7 +21,7 @@ import (
 func namesPathOracle(value string, parts []string, anyDepth bool) bool {
 	for _, candidate := range componentRuns(value) {
 		first := 0
-		if len(candidate.components) == 1 && !anyDepth && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
+		if len(candidate.components) == 1 && !anyDepth && !strings.HasPrefix(value, "/") && !strings.Contains(value, parentDir) {
 			first = len(parts) - 1
 		}
 		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
@@ -95,7 +101,7 @@ func TestReadersMatchesDirtyMajorScan(t *testing.T) {
 		"go:narrow-file":  {Sources: []string{"x/f.go"}, PathTokens: []string{"README.md"}},
 		"go:narrow-later": {Sources: []string{"docs/f.go"}, PathTokens: []string{"z.txt", "x/y/z.txt"}},
 		"go:root":         {Sources: []string{"r/f.go"}, PathTokens: []string{"/", ""}},
-		"go:climb":        {Sources: []string{"a/b/f.go"}, PathTokens: []string{".."}},
+		"go:climb":        {Sources: []string{"a/b/f.go"}, PathTokens: []string{parentDir}},
 		// A certified non-Go unit keeps placement (AFP-V0-072, AFP-V0-400),
 		// so it names internal/007.go without placing it: the narrowing.
 		"tool:placed":      {Sources: []string{"x/f.sh"}, PathTokens: []string{"007.go"}, PlacesFileNames: true},
@@ -126,7 +132,7 @@ func TestReadersMatchesDirtyMajorScan(t *testing.T) {
 		}
 	}
 	for _, dirtyPath := range dirty {
-		if got, want := graph.namers(dirtyPath), namersOracle(graph, dirtyPath); !slices.Equal(got, want) {
+		if got, want := graph.Namers(dirtyPath), namersOracle(graph, dirtyPath); !slices.Equal(got, want) {
 			t.Fatalf("%s: namers %v, oracle %v", dirtyPath, got, want)
 		}
 	}

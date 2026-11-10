@@ -1129,3 +1129,17 @@ func (graph *Graph) testEmbedReadersOf(reached map[string]Witness, paths []strin
 		}
 	}
 }
+
+// Namers lists, in id order, the units carrying a path token that names
+// dirtyPath under the AFP-V0-021 reader match, so a test outside the package
+// can resolve a PATH_LITERAL_READER witness.
+func (graph *Graph) Namers(dirtyPath string) []string {
+	parts := strings.Split(dirtyPath, "/")
+	ids := make([]string, 0)
+	for i, tokens := range graph.pathTokens() {
+		if namesAny(tokens, parts, strings.HasPrefix(graph.order[i], "go:") && !resolvedEvidence(dirtyPath)) {
+			ids = append(ids, graph.order[i])
+		}
+	}
+	return ids
+}

@@ -1,8 +1,10 @@
-package affected_test
+package liverepo_test
 
 import (
 	"slices"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected/affectedcheck"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -26,7 +28,7 @@ func TestAppmapOnlyChangeSelectsOnlyJustifiedUnboundedReaders_V1_0999(t *testing
 	unbounded := graph.UnboundedReaders()
 	direct, readers := false, 0
 	for _, selection := range plan.Selected {
-		if !witnessResolves(graph, selection) {
+		if !affectedcheck.WitnessResolves(graph, selection) {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
 		}
 		if selection.UnitID == owner && selection.Witness.Kind == affected.WitnessDirectSource {

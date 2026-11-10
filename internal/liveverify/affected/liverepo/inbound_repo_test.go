@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package affected_test
+package liverepo_test
 
 import (
 	"context"
+	"strings"
+	"testing"
+
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 	"github.com/Beamfall/corvint/internal/testsupport"
-	"strings"
-	"testing"
 )
 
 // AZU-V0-004, AZU-V0-8901: actual one-file Go and shell probes close the

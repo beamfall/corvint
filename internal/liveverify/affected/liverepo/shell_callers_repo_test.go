@@ -1,4 +1,4 @@
-package affected_test
+package liverepo_test
 
 import (
 	"bytes"
