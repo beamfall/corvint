@@ -10,7 +10,7 @@ set -eu
 #   MODE_MISMATCH  a prod row whose mode disagrees with the index (owner with owner, auto with
 #                  standing, pending-owner with unrecorded); the line names both modes
 # then a total line. It reports and exits 0; --strict exits 1 on any finding. A missing or
-# malformed log, index or plan exits 2. It cannot tell who wrote a row (ACR-V1-008): identity
+# malformed log, index or plan, or a row with no date, ownerRef or rationale, exits 2. It cannot tell who wrote a row (ACR-V1-008): identity
 # is by convention. ROOT defaults to the repository that holds this script.
 
 usage() { printf 'usage: %s [--strict] [ROOT]\n' "$0" >&2; exit 2; }
@@ -28,7 +28,12 @@ done
 
 folders=
 if test -d "$changes"; then
-  folders=$(find "$changes" -mindepth 1 -maxdepth 2 -type d ! -name archive | sed 's|.*/||')
+  # A change is an immediate folder of changes/ or of changes/archive/, never a nested one.
+  folders=$(find "$changes" -mindepth 1 -maxdepth 1 -type d ! -name archive | sed 's|.*/||')
+  if test -d "$changes/archive"; then
+    folders="$folders
+$(find "$changes/archive" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||')"
+  fi
 fi
 
 status=0
@@ -61,6 +66,8 @@ FOLDERS=$folders awk -F'\t' -v strict="$strict" -v logname="$log" -v indexname="
     if (NF != 6) bad(logname ":" FNR ": want 6 columns, got " NF)
     if ($2 != "prod" && $2 != "o-row" && $2 != "change") bad(logname ":" FNR ": kind " $2 " is not prod, o-row or change")
     if (!($3 in want)) bad(logname ":" FNR ": mode " $3 " is not owner, auto or pending-owner")
+    if ($4 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) bad(logname ":" FNR ": date " $4 " is not YYYY-MM-DD")
+    if ($5 == "" || $6 == "") bad(logname ":" FNR ": ownerRef and rationale must not be empty")
     rows++
     if ($1 in seen) { printf "DUPLICATE_ROW\t%s\t%s\n", $1, $2; duplicate++; next }
     seen[$1] = $2; mode[$1] = $3; listed[++listedCount] = $1
