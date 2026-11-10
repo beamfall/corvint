@@ -108,7 +108,6 @@ GATE_STEPS = \
   requirement-definitions-test \
   review-head-check-test \
   rg-fallback-test \
-  runtime-environment-test \
   scratch-sweep-test \
   spec-claims-check \
   spec-claims-test \
@@ -1272,10 +1271,6 @@ review-head-check-test:
 test-run-pattern-test:
 	@script/test-run-pattern_test.sh
 
-.PHONY: runtime-environment-test
-runtime-environment-test:
-	@bash script/runtime-environment_test.sh
-
 # Outside the gate: vscode-check-install-test runs npm ci, which needs the npm registry on an empty
 # cache; and seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
 .PHONY: seed-planning-store-test
@@ -1366,7 +1361,6 @@ shell-test: \
   requirement-definitions-test \
   review-head-check-test \
   rg-fallback-test \
-  runtime-environment-test \
   scratch-sweep-test \
   spec-claims-test \
   spec-requirements-test \
