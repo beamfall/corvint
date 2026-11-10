@@ -8099,6 +8099,14 @@ TMR-V0-951	docs/specs/tasks-mcp-read-profile-v0.md	The group MUST list exactly `
 TMR-V0-952	docs/specs/tasks-mcp-read-profile-v0.md	Each call MUST run `corvint-tasks` from `PATH` with its verb (`queue status`,	unrecorded	-
 TMR-V0-953	docs/specs/tasks-mcp-read-profile-v0.md	A schema-invalid argument MUST be `-32602` with `MCPV0-952` data (`reason`,	unrecorded	-
 TMR-V0-954	docs/specs/tasks-mcp-read-profile-v0.md	The `corvint-mcp` usage MUST name the `tasks` group, and `docs/CAPABILITIES.md`	unrecorded	-
+TPV-V1-001	docs/specs/tasks-policy-v15.md	Policy version 15 MUST NOT require a CEM or an OCM for any attempt: `cemRequired	unrecorded	-
+TPV-V1-002	docs/specs/tasks-policy-v15.md	Version 15 MUST NOT declare the gates `cem-verdict` and `context-focused`, and M	unrecorded	-
+TPV-V1-003	docs/specs/tasks-policy-v15.md	The store policy MUST be updated with `corvint-tasks policy update` before	unrecorded	-
+TPV-V1-004	docs/specs/tasks-policy-v15.md	The update MUST run only after the M0 removal is merged on `origin/main`	unrecorded	-
+TPV-V1-005	docs/specs/tasks-policy-v15.md	Before the update, no release object and no OPEN or CLAIMED ticket MUST referenc	unrecorded	-
+TPV-V1-006	docs/specs/tasks-policy-v15.md	An attempt admitted under version 14 and refused with `STALE_POLICY` after the u	unrecorded	-
+TPV-V1-007	docs/specs/tasks-policy-v15.md	The version 14 bytes and their SHA-256 MUST be retained in the build-log entry	unrecorded	-
+TPV-V1-008	docs/specs/tasks-policy-v15.md	At least one ticket MUST be submitted, gated and completed under version 15 with	unrecorded	-
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	butterfly-effect MUST return exact direct static references/dependencies,	unrecorded	-
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse	unrecorded	-
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	selective-test guidance MUST name mandatory repository gates first and a smaller	unrecorded	-

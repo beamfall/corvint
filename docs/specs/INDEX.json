@@ -4391,5 +4391,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/tasks-policy-v15.md",
+    "title": "Tasks Policy Version 15 V1",
+    "reqPrefix": "TPV-V1",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Tasks policy version 15 drops the CEM and OCM requirements and the two gates that run removed tooling, after the M0 removal lands.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
