@@ -69,9 +69,12 @@ func TestRunnerIDRefusesUnreportedToolchainEnvironment(t *testing.T) {
 }
 
 // GLS-V0-052: the variables the Go runtime reads from its own copy of the
-// environment (GOTRACEBACK, GOROOT) and those the dynamic loader and C
-// library read (LD_*, DYLD_*, GLIBC_TUNABLES) are in runtime=, loader names
-// sorted after the runtime's; none set leaves runtime="".
+// environment (GOTRACEBACK, a GOROOT naming another toolchain) and those the
+// dynamic loader and C library read (LD_*, DYLD_*, GLIBC_TUNABLES) are in
+// runtime=, loader names sorted after the runtime's; none set leaves
+// runtime="". A GOROOT naming the go command's own root, directly or through
+// a symbolic link, is an alias and leaves the identity unchanged (linereen
+// review).
 func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	requireGo(t)
 	ctx := context.Background()
@@ -91,7 +94,16 @@ func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	root := "GOROOT=" + strings.TrimSpace(string(goroot))
 	plain := id()
 	seen := map[string]string{plain: "none"}
-	for _, kv := range []string{"GOTRACEBACK=all", root, "LD_LIBRARY_PATH=/linecov-absent", "GLIBC_TUNABLES=glibc.malloc.check=0", "DYLD_LIBRARY_PATH=/linecov-absent"} {
+	alias := filepath.Join(t.TempDir(), "goroot-alias")
+	if err := os.Symlink(strings.TrimSpace(string(goroot)), alias); err != nil {
+		t.Fatal(err)
+	}
+	for _, kv := range []string{root, "GOROOT=" + alias, "GOROOT=" + strings.TrimSpace(string(goroot)) + string(filepath.Separator)} {
+		if got := id(kv); got != plain {
+			t.Errorf("%s names the go command's own GOROOT, but changes the identity %q to %q", kv, plain, got)
+		}
+	}
+	for _, kv := range []string{"GOTRACEBACK=all", "LD_LIBRARY_PATH=/linecov-absent", "GLIBC_TUNABLES=glibc.malloc.check=0", "DYLD_LIBRARY_PATH=/linecov-absent"} {
 		got := id(kv)
 		if !strings.Contains(got, kv) {
 			t.Errorf("%s: identity %q does not name it", kv, got)
@@ -106,6 +118,14 @@ func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	}
 	if got := RuntimeSettings([]string{"LD_PRELOAD=/b.so", "GOGC=50", "DYLD_INSERT_LIBRARIES=/a.dylib", "GOTRACEBACK=crash", "HOME=/h"}); got != "GOGC=50 GOTRACEBACK=crash DYLD_INSERT_LIBRARIES=/a.dylib LD_PRELOAD=/b.so" {
 		t.Fatalf("RuntimeSettings = %q", got)
+	}
+	// A GOROOT naming another directory than the default stays bound.
+	other := t.TempDir()
+	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + other, "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50 GOROOT="+other {
+		t.Fatalf("another GOROOT: RuntimeSettings = %q", got)
+	}
+	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + alias, "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50" {
+		t.Fatalf("an alias GOROOT: RuntimeSettings = %q", got)
 	}
 }
 
