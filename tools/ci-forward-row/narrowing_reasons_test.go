@@ -483,3 +483,69 @@ func TestCINV08424NarrowShRequiresMappedConsumers_CINV08424(t *testing.T) {
 		}
 	})
 }
+
+// TestCINV08421DecisionOnlyFullIsNoRecord_CINV08421: a FULL fallback of narrow.sh uploads
+// decision.json without a record. classify.sh leaves that directory out, as it would a shard that
+// uploaded nothing, so the run is not read as narrowed. A directory with no file, an unreadable
+// decision or a NARROWED decision without a record stays an unreadable record.
+func TestCINV08421DecisionOnlyFullIsNoRecord_CINV08421(t *testing.T) {
+	decision := func(mode string) []byte {
+		b, err := json.Marshal(doc{"profile": "corvint-pr-narrowing-decision/0", "mode": mode,
+			"reasonCodes": []string{"record-unreadable"}, "reasons": []string{"the narrowing record is unreadable"},
+			"shard": 3, "shards": shards})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return append(b, '\n')
+	}
+	pr := func(dir string) map[string]string {
+		return map[string]string{"ROW_KIND": "pr", "ROW_SHA": "", "ROW_RUN": prRun, "ROW_OUTCOMES_RUN": prRun, "ROW_NARROWING_DIR": dir}
+	}
+	const unreadable = "narrowing record ci-narrowing-3 is unreadable"
+	t.Run("a FULL decision without a record is left out", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "ci-narrowing-3", "decision.json"), decision("FULL"))
+		row, _ := prFixture(t).classify(t, pr(dir))
+		if row["class"] != "CLEAN" || slices.Contains(strs(row["incomplete"]), unreadable) {
+			t.Fatalf("pull-request row = %v, incomplete %q", row["class"], row["incomplete"])
+		}
+		row, _ = queueFixture(t).classify(t, map[string]string{"ROW_NARROWING_DIR": dir})
+		if row["class"] != "CLEAN" || slices.Contains(strs(row["incomplete"]), unreadable) {
+			t.Fatalf("queue row = %v, incomplete %q", row["class"], row["incomplete"])
+		}
+	})
+	t.Run("a record beside the decision is still read", func(t *testing.T) {
+		f := prFixture(t)
+		f.nar = map[int]doc{3: narrowingRecord(3, "NARROWED", prRun, nil, []string{"github.com/Beamfall/corvint/x"})}
+		dir := t.TempDir()
+		_, _ = f.write(t, dir)
+		nar := filepath.Join(dir, "narrowing")
+		writeFile(t, filepath.Join(nar, "ci-narrowing-3", "decision.json"), decision("FULL"))
+		if row, _ := f.classify(t, pr(nar)); row["class"] != "NARROWED" {
+			t.Fatalf("pull-request row = %v", row["class"])
+		}
+	})
+	for name, files := range map[string]map[string][]byte{
+		"no file":                                     {},
+		"an unreadable decision":                      {"decision.json": []byte("{")},
+		"two decision documents":                      {"decision.json": append(decision("FULL"), decision("FULL")...)},
+		"a decision of another profile":               {"decision.json": []byte(`{"profile": "corvint-pr-narrowing/0", "mode": "FULL"}` + "\n")},
+		"a NARROWED decision without a record":        {"decision.json": decision("NARROWED")},
+		"an unreadable record beside a FULL decision": {"decision.json": decision("FULL"), "narrowing.json": []byte("{")},
+	} {
+		t.Run(name+" stays unreadable", func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "ci-narrowing-3"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for file, b := range files {
+				writeFile(t, filepath.Join(dir, "ci-narrowing-3", file), b)
+			}
+			if row, _ := prFixture(t).classify(t, pr(dir)); row["class"] != "NARROWED" {
+				t.Fatalf("pull-request row = %v", row["class"])
+			}
+			row, _ := queueFixture(t).classify(t, map[string]string{"ROW_NARROWING_DIR": dir})
+			wantIncomplete(t, row, unreadable)
+		})
+	}
+}
