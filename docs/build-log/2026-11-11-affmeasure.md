@@ -46,7 +46,7 @@ dropped or added, no witness changed, and no frontier site or unknown changed.
 **Disposition: NOT_MET as worded.** The replay drops no truly affected unit, but it also drops
 no frontier claim. That follows from AFP-V0-9402 as accepted: "Existing computed fallbacks and
 their `FRONTIER_SITE` witnesses SHALL remain intact"
-(`docs/specs/affected-plan-selection-v0.md:2764`). The file-set edge `/*` is applied only to a
+(the AFP-V0-9402 row of `docs/specs/affected-plan-selection-v0.md`). The file-set edge `/*` is applied only to a
 target or job that has no computed-invocation fallback (`internal/liveverify/affected/driver.go:345`).
 On this tree every literal enumerator also runs an uncertified command, so none loses its
 frontier. A crude text check of the root `Makefile` at `faaec550f` finds 8 of the 115 root
