@@ -2510,6 +2510,7 @@ PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNS
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
 PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
 PRS-V1-920	docs/specs/corvint-1.0-product-and-release-v1.md	Every receipt-read caller outside the docs corpus MUST report the	unrecorded	-
+PRS-V1-1900	docs/specs/corvint-1.0-product-and-release-v1.md	(proposed, experimental; V1-0374; refines `PRS-V1-004` and decision 0420 item 2;	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>, commit	unrecorded	-
