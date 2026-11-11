@@ -23,7 +23,9 @@
 # miss1..miss3: one ci-forward-MISS-pr<N>-<merge>-e<epoch>-f1 row name per confirmed pull request,
 # its document at $RUNNER_TEMP/main-miss/miss<K>/row.json, so bar.jq counts a confirmed miss as a
 # MISS row of the epoch (AFP-V0-029) and of the AFP-V0-030 window. A fourth confirmed pull request
-# and beyond are in check.json and the summary only.
+# and beyond are in check.json and the summary only. Each result names `selectionEpoch`, the
+# forward epoch the pull request's own run stamped (null when mainmiss.sh could not read it); a
+# miss of a known earlier epoch is left out of all of it (CIN-V0-001).
 set -u
 dir="$RUNNER_TEMP/main-miss"
 mkdir -p "$dir/confirm"
@@ -47,10 +49,18 @@ if ! digits "$RUN_ID" || ! hex40 "$HEAD_SHA" || ! digits "$FORWARD_EPOCH" || [ !
   say "main miss confirmation: run $RUN_ID at $HEAD_SHA with $MISS in $SOURCE is not a well-formed input; nothing confirmed"
   exit 0
 fi
-if ! jq -e '.profile == "corvint-main-miss/0" and (.misses | type) == "array" and (.misses | length) > 0' "$MISS" > /dev/null 2>&1; then
-  say "main miss confirmation: $MISS is not a corvint-main-miss/0 document naming a miss; nothing confirmed"
+# CIN-V0-7922: a miss whose `epoch` (the forward epoch its pull-request run stamped, CIN-V0-001)
+# is known and earlier than FORWARD_EPOCH was narrowed under an earlier epoch. It is not rerun and
+# gets no check entry and no MISS row, so a failed run of main examined after the epoch advanced
+# cannot put an earlier epoch's miss into this one. An unknown epoch (null) counts in this epoch.
+current='select((.pr | type) == "number" and (((.epoch | type) == "number" and .epoch < $E) | not))'
+if ! jq -e --argjson E "$FORWARD_EPOCH" '.profile == "corvint-main-miss/0" and (.misses | type) == "array" and ([.misses[] | '"$current"'] | length) > 0' "$MISS" > /dev/null 2>&1; then
+  say "main miss confirmation: $MISS is not a corvint-main-miss/0 document naming a miss of epoch $FORWARD_EPOCH; nothing confirmed"
   exit 0
 fi
+jq -r --argjson E "$FORWARD_EPOCH" '.misses[] | select((.pr | type) == "number" and (.epoch | type) == "number" and .epoch < $E)
+  | "main miss confirmation: #\(.pr) was narrowed under forward epoch \(.epoch), earlier than \($E); not rerun, no MISS row (CIN-V0-001)"' "$MISS" |
+  while read -r line; do say "$line"; done
 git -C "$SOURCE" cat-file -e "$HEAD_SHA^{commit}" 2> /dev/null || {
   say "main miss confirmation: $SOURCE does not hold the failed commit $HEAD_SHA; nothing confirmed"
   exit 0
@@ -101,7 +111,7 @@ rerun() {
 }
 n=0
 : > "$dir/results.jsonl"
-jq -c '.misses[] | select((.pr | type) == "number")' "$MISS" | while read -r miss; do
+jq -c --argjson E "$FORWARD_EPOCH" '.misses[] | '"$current" "$MISS" | while read -r miss; do
   pr=$(printf '%s' "$miss" | jq -r '.pr')
   head=$(printf '%s' "$miss" | jq -r '.head // ""')
   merge=$(printf '%s' "$miss" | jq -r '.merge // ""')
@@ -181,9 +191,10 @@ jq -c '.misses[] | select((.pr | type) == "number")' "$MISS" | while read -r mis
     say "CIN-V0-7922: #$pr $pkg: $verdict ($why)"
   done
   clean
-  jq -s -c --argjson pr "$pr" --arg head "$head" --arg merge "$merge" --arg base "$base" \
+  jq -s -c --argjson pr "$pr" --arg head "$head" --arg merge "$merge" --arg base "$base" --argjson miss "$miss" \
     '{pr: $pr, head: (if $head == "" then null else $head end), merge: (if $merge == "" then null else $merge end),
-      base: (if $base == "" then null else $base end), packages: .,
+      base: (if $base == "" then null else $base end),
+      selectionEpoch: (if ($miss.epoch | type) == "number" then $miss.epoch else null end), packages: .,
       verdict: (if any(.[]; .verdict == "confirmed") then "CONFIRMED"
                 elif length > 0 and all(.[]; .verdict == "flake") then "FLAKE"
                 else "UNCONFIRMED" end)}' "$dir/confirm/pkgs-$pr.jsonl" >> "$dir/results.jsonl"
