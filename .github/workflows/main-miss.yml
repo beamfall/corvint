@@ -1,0 +1,254 @@
+name: Main miss
+
+# AFP-V0-983 and CIN-V0-7922 (V1-3750, V1-5198): when a full push run of main fails, the narrowed
+# pull requests merged since the last green full run whose selection skipped a failed package are
+# suspected misses (mainmiss.sh, the MAINMISS row). Each suspicion is then confirmed or cleared by
+# reruns (mainmiss-confirm.sh): the skipped package must pass at the pull request's merge commit's
+# first parent and fail twice at the merge commit, under the shard's -race build and test-confine
+# wrapper, to be a miss. A confirmed miss files a GitHub issue and fails the job. While the
+# repository variable CORVINT_MAIN_MISS_KILL is `on` it is also uploaded as a MISS row of the
+# epoch, which the AFP-V0-029 bar and the AFP-V0-030 kill switch count like any MISS; unset (the
+# default) is observe mode: no MISS row, so a confirmation cannot turn narrowing off. An
+# unconfirmed one is classified (flake, preexisting, unconfirmed) in the MAINCHECK document. Only
+# this repository's own pushes to main reach the checkout and the reruns: a protected main holds
+# merged, reviewed commits. The scripts run from the default-branch commit (trusted), with gh, jq
+# and the Go toolchain; the reruns execute the tests of main commits only.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  CGO_ENABLED: "1"
+
+jobs:
+  miss:
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-24.04
+    # Up to MAX_PACKAGES packages, three reruns each under the shard's 50m test deadline; the
+    # confirm step stops starting packages it cannot finish, which leaves them unconfirmed.
+    timeout-minutes: 240
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      # Must equal FORWARD_EPOCH of forward-rows in ci-control-plane.yml and CORVINT_PR_FORWARD_EPOCH in ci.yml.
+      FORWARD_EPOCH: "2"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The default-branch commit this workflow_run runs from: the trusted scripts.
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Link the failed run to narrowed pull requests (AFP-V0-983)
+        id: miss
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: sh trusted/.github/forward-rows/mainmiss.sh
+      - name: Retain the main-miss row
+        if: steps.miss.outputs.name != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.miss.outputs.name }}
+          path: ${{ runner.temp }}/main-miss/miss.json
+          if-no-files-found: error
+      # CIN-V0-7922: the steps below run only for a named suspicion. They check out the failed main
+      # commit with its history (the merge commits and their first parents), build the shard's
+      # test-confine wrapper and host tools as linecov-miss.yml does, and rerun the skipped packages.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: steps.miss.outputs.name != ''
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.miss.outputs.name != ''
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Restore the pinned ripgrep release (V1-5188)
+        id: rgcache
+        if: steps.miss.outputs.name != '' && runner.environment != 'self-hosted'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+      - name: Provision the host tools the product's fixed PATH resolves
+        if: steps.miss.outputs.name != '' && runner.environment != 'self-hosted'
+        # Child processes run under worksource.PlatformPath, which reaches Go through
+        # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
+        # and the Git fixtures commit under the global identity. Automatic maintenance is off so
+        # no detached `git maintenance` outlives a fixture commit and races its TempDir cleanup.
+        # V1-1095: rg is the official ripgrep release binary, pinned by the SHA-256 that the
+        # release publishes (https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-ci-critical-path.md), not an apt install;
+        # a checksum mismatch fails the step before anything is extracted.
+        env:
+          RG_VERSION: "15.2.0"
+          RG_SHA256: 33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
+          # V1-5188: a restored release tarball that matches the pin skips the network; a
+          # missing or damaged one falls back to a download, and the pinned checksum below is
+          # verified again before anything is extracted.
+          if [ -f "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" ] &&
+            echo "$RG_SHA256  $RUNNER_TEMP/rg-release/$rg_name.tar.gz" | sha256sum --check --status --strict; then
+            cp "$RUNNER_TEMP/rg-release/$rg_name.tar.gz" "$RUNNER_TEMP/$rg_name.tar.gz"
+          else
+            curl -fsSL --retry 8 --retry-all-errors --retry-delay 5 --max-time 120 -o "$RUNNER_TEMP/$rg_name.tar.gz" \
+              "https://github.com/BurntSushi/ripgrep/releases/download/$RG_VERSION/$rg_name.tar.gz"
+          fi
+          echo "$RG_SHA256  $RUNNER_TEMP/$rg_name.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/rg-release"
+          cp "$RUNNER_TEMP/$rg_name.tar.gz" "$RUNNER_TEMP/rg-release/$rg_name.tar.gz"
+          tar -xzf "$RUNNER_TEMP/$rg_name.tar.gz" -C "$RUNNER_TEMP" "$rg_name/rg"
+          sudo install -m 0755 "$RUNNER_TEMP/$rg_name/rg" /usr/local/bin/rg
+          rg_found=$(PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin command -v rg)
+          test "$rg_found" = /usr/local/bin/rg
+          case "$("$rg_found" --version | head -n 1)" in
+            "ripgrep $RG_VERSION" | "ripgrep $RG_VERSION "*) ;;
+            *) echo "::error::$rg_found is not ripgrep $RG_VERSION"; exit 1 ;;
+          esac
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+          git --version
+      - name: Save the pinned ripgrep release (V1-5188)
+        if: steps.miss.outputs.name != '' && runner.environment != 'self-hosted' && steps.rgcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/rg-release
+          key: ripgrep-15.2.0-x86_64-unknown-linux-musl-33e15bcf1624b25cdd2a55813a47a2f95dbe126268203e76aa6a585d1e7b149c
+      - name: Build the protected test read-scope wrapper as the CI shards do
+        if: steps.miss.outputs.name != ''
+        working-directory: source
+        run: |
+          # AFP-V0-023, GLS-V0-046: the same test-confine build as ci.yml's shards, so a rerun
+          # executes under the wrapper the narrowed selection's runner identity hashes (exec=).
+          d="$RUNNER_TEMP/test-confine-source"
+          mkdir -p "$d/cmd"
+          cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
+          cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          declared=$([ -f .corvint/test-read-scopes.json ] && echo 1 || true)
+          cd "$d"
+          export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/test-confine" ./cmd
+          if [ -n "$declared" ]; then
+            "$RUNNER_TEMP/test-confine" -probe
+          fi
+      - name: Confirm each suspected miss by reruns (CIN-V0-7922)
+        id: confirm
+        if: steps.miss.outputs.name != ''
+        timeout-minutes: 200
+        working-directory: source
+        env:
+          MISS: ${{ runner.temp }}/main-miss/miss.json
+          SOURCE: ${{ github.workspace }}/source
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MAX_PACKAGES: "5"
+          BUDGET_SECONDS: "10800"
+          # The shards' test deadline (ci.yml run_slice).
+          TEST_TIMEOUT: "50m"
+          # AFP-V0-2702: the shards skip the live test tier, so the reruns skip it too; a rerun
+          # that ran it could fail on a live test the failed shard never ran.
+          CORVINT_SKIP_LIVE_TIER: "1"
+        run: |
+          unset GOMAXPROCS GOGC GOMEMLIMIT GORACE
+          test "$(go env GOVERSION)" = "go1.27.3"
+          # The shard's invocation: the -race build under the test-confine wrapper (AFP-V0-023).
+          GO_TEST_FLAGS="-race -exec $RUNNER_TEMP/test-confine" sh "$GITHUB_WORKSPACE/trusted/.github/forward-rows/mainmiss-confirm.sh"
+      - name: Retain the confirmation check (CIN-V0-7922)
+        if: always() && steps.confirm.outputs.check != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.confirm.outputs.check }}
+          path: ${{ runner.temp }}/main-miss/check.json
+          if-no-files-found: error
+          retention-days: 90
+      # While CORVINT_MAIN_MISS_KILL is `on`, a confirmed miss is a MISS row of the epoch: the bar
+      # and the kill switch count it from the name alone (AFP-V0-029, AFP-V0-030). Three names at
+      # most; check.json holds the rest. Unset or anything else uploads no MISS row (observe mode).
+      - name: Retain the first confirmed miss as a MISS row (CIN-V0-7922)
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss1 != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.confirm.outputs.miss1 }}
+          path: ${{ runner.temp }}/main-miss/miss1/row.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Retain the second confirmed miss as a MISS row (CIN-V0-7922)
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss2 != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.confirm.outputs.miss2 }}
+          path: ${{ runner.temp }}/main-miss/miss2/row.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Retain the third confirmed miss as a MISS row (CIN-V0-7922)
+        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss3 != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.confirm.outputs.miss3 }}
+          path: ${{ runner.temp }}/main-miss/miss3/row.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: File an issue for each confirmed miss (CIN-V0-7922)
+        if: always() && steps.confirm.outputs.confirmed == '1'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          jq -c '.results[] | select(.verdict == "CONFIRMED")' "$RUNNER_TEMP/main-miss/check.json" | while read -r r; do
+            pr=$(jq -r '.pr' <<< "$r")
+            merge=$(jq -r '.merge' <<< "$r")
+            base=$(jq -r '.base' <<< "$r")
+            packages=$(jq -r '[.packages[] | select(.verdict == "confirmed") | .package] | join(", ")' <<< "$r")
+            title="Confirmed narrowing miss: #$pr skipped $packages"
+            # One open issue per confirmed miss; a rerun of this workflow files nothing twice.
+            if [ "$(gh issue list -R "$REPO" --state open --search "in:title \"$title\"" --json number --jq length)" != 0 ]; then
+              echo "an open issue already names: $title"
+              continue
+            fi
+            body=$(printf '%s\n' \
+              "CIN-V0-7922 (V1-5198): the narrowed selection of #$pr skipped $packages, which passes at its base $base and failed twice at its merge commit $merge." \
+              "" \
+              "- Failed full run of main: $FAILED_RUN_URL" \
+              "- Confirmation run and MAINCHECK artifact: $RUN_URL" \
+              "- While the repository variable CORVINT_MAIN_MISS_KILL is on, the MISS row of this miss counts toward the AFP-V0-029 bar and the AFP-V0-030 kill switch until the epoch advances (AFP-V0-030 re-arming); otherwise the MAINCHECK artifact is its only record.")
+            gh issue create -R "$REPO" --title "$title" --body "$body"
+          done
+      - name: Fail on a confirmed miss
+        if: steps.confirm.outputs.confirmed == '1'
+        run: |
+          echo "::error::CIN-V0-7922: a narrowed pull request's selection skipped a package its change broke; while CORVINT_MAIN_MISS_KILL is on, the confirmed miss is a MISS row of epoch $FORWARD_EPOCH and narrowing stays off until the row is reviewed and the epoch advances (AFP-V0-030)"
+          exit 1

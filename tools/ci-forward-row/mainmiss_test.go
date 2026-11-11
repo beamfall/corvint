@@ -77,14 +77,21 @@ done
 	return bin
 }
 
-// AFP-V0-983 (V1-3750): a failed full push run of main whose failed package a narrowed pull
-// request merged since the last green run skipped records a MAINMISS row naming that pull request.
-// A narrowed pull request that skipped only passing packages, one whose shards all ran FULL, and
-// one without records are no miss; a run that names no failed package writes no row.
-func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
-	requireGitHubChange(t, ".github/forward-rows/mainmiss.jq", "CIN-V0-7922")
+// mainMissFixture is the GitHub state mainmiss.sh reads: failed full run 500 of main, the last
+// green run before it, and the pull requests merged between them. #12 (run 601) narrowed and
+// skipped the failed package, #13 (run 602) skipped only a passing one, #14 (run 603) ran in full.
+type mainMissFixture struct {
+	dir, gh string
+	// wantEpoch is the epoch #12's miss is expected to carry (CIN-V0-7922 (5)); nil is unknown.
+	wantEpoch any
+	// temp is the last run's RUNNER_TEMP.
+	temp string
+}
+
+func newMainMissFixture(t *testing.T) *mainMissFixture {
+	t.Helper()
 	dir := t.TempDir()
-	gh := mainMissGH(t, dir)
+	f := &mainMissFixture{dir: dir, gh: mainMissGH(t, dir)}
 	writeDoc(t, filepath.Join(dir, "runs", "500", "ci-failed-push-3", "failed.json"),
 		doc{"reasons": []any{doc{"package": failedPkg, "reason": "test-failures", "tests": []string{"TestIndexImplementationPathsExist"}, "testCount": 1}}})
 	writeDoc(t, filepath.Join(dir, "main-runs.json"), doc{"workflow_runs": []any{
@@ -105,30 +112,45 @@ func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
 	writeDoc(t, filepath.Join(dir, "runs", "601", "ci-narrowing-5", "narrowing.json"), mainMissRecord("NARROWED", 5, failedPkg))
 	writeDoc(t, filepath.Join(dir, "runs", "602", "ci-narrowing-5", "narrowing.json"), mainMissRecord("NARROWED", 5, passedPkg))
 	writeDoc(t, filepath.Join(dir, "runs", "603", "ci-narrowing-5", "narrowing.json"), mainMissRecord("FULL", 5, failedPkg))
+	return f
+}
 
-	mainMiss := func(t *testing.T) (string, string) {
-		temp := t.TempDir()
-		output := filepath.Join(temp, "output")
-		summary := filepath.Join(temp, "summary")
-		writeFile(t, output, nil)
-		run(t, []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "GH_TOKEN=x", "REPO=beamfall/corvint",
-			"RUN_ID=500", "HEAD_SHA=" + mainRunSHA, "FORWARD_EPOCH=2", "RUNNER_TEMP=" + temp,
-			"GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}, "sh", script(t, "mainmiss.sh"))
-		out, _ := os.ReadFile(output)
-		s, _ := os.ReadFile(summary)
-		if strings.TrimSpace(string(out)) != "" {
-			var miss doc
-			b, err := os.ReadFile(filepath.Join(temp, "main-miss", "miss.json"))
-			if err != nil || json.Unmarshal(b, &miss) != nil {
-				t.Fatalf("miss.json unreadable: %v", err)
-			}
-			want := []any{doc{"pr": float64(12), "head": prHeadA, "merge": mergeA, "runId": float64(narrowedRun), "packages": []any{failedPkg}}}
-			if !reflect.DeepEqual(miss["misses"], want) || miss["profile"] != "corvint-main-miss/0" {
-				t.Fatalf("misses = %v, want %v", miss["misses"], want)
-			}
+// run runs mainmiss.sh and returns its output and summary. When it names a row, the miss document
+// must name #12 alone.
+func (f *mainMissFixture) run(t *testing.T) (string, string) {
+	t.Helper()
+	temp := t.TempDir()
+	f.temp = temp
+	output := filepath.Join(temp, "output")
+	summary := filepath.Join(temp, "summary")
+	writeFile(t, output, nil)
+	run(t, []string{"PATH=" + f.gh + string(os.PathListSeparator) + os.Getenv("PATH"), "GH_TOKEN=x", "REPO=beamfall/corvint",
+		"RUN_ID=500", "HEAD_SHA=" + mainRunSHA, "FORWARD_EPOCH=2", "RUNNER_TEMP=" + temp,
+		"GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}, "sh", script(t, "mainmiss.sh"))
+	out, _ := os.ReadFile(output)
+	s, _ := os.ReadFile(summary)
+	if strings.TrimSpace(string(out)) != "" {
+		var miss doc
+		b, err := os.ReadFile(filepath.Join(temp, "main-miss", "miss.json"))
+		if err != nil || json.Unmarshal(b, &miss) != nil {
+			t.Fatalf("miss.json unreadable: %v", err)
 		}
-		return strings.TrimSpace(string(out)), string(s)
+		want := []any{doc{"pr": float64(12), "head": prHeadA, "merge": mergeA, "runId": float64(narrowedRun), "epoch": f.wantEpoch, "packages": []any{failedPkg}}}
+		if !reflect.DeepEqual(miss["misses"], want) || miss["profile"] != "corvint-main-miss/0" || len(miss["earlierEpoch"].([]any)) != 0 {
+			t.Fatalf("misses = %v, want %v", miss["misses"], want)
+		}
 	}
+	return strings.TrimSpace(string(out)), string(s)
+}
+
+// AFP-V0-983 (V1-3750): a failed full push run of main whose failed package a narrowed pull
+// request merged since the last green run skipped records a MAINMISS row naming that pull request.
+// A narrowed pull request that skipped only passing packages, one whose shards all ran FULL, and
+// one without records are no miss; a run that names no failed package writes no row.
+func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/mainmiss.jq", "CIN-V0-7922")
+	f := newMainMissFixture(t)
+	dir, mainMiss := f.dir, f.run
 	name, summary := mainMiss(t)
 	if want := "name=ci-forward-MAINMISS-r500-" + mainRunSHA + "-e2-n1-pr12"; name != want {
 		t.Fatalf("output %q, want %q; summary:\n%s", name, want, summary)
@@ -262,5 +284,45 @@ func TestAFPV0983FailedMainShardStepRunsInTheCheckout(t *testing.T) {
 	}
 	if _, ok := step3(t, workspace); ok {
 		t.Fatal("from the workspace root, where failed.jq is absent, the step still wrote a document")
+	}
+}
+
+// CIN-V0-7922 (5) (V1-5198): a miss belongs to the forward epoch its own pull-request run stamped
+// on its selection documents, read as collect.sh reads it (CIN-V0-001). The current epoch stays a
+// miss and carries it, as does a later one; mixed epochs are unknown, so the miss stays and its
+// epoch is null (fail-closed), as with no selection documents at all. A known earlier epoch is
+// listed in earlierEpoch and named in the summary, with no name and no row.
+func TestCINV07922MainMissBelongsToItsSelectionEpoch_CINV07922(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/mainmiss.jq", "CIN-V0-7922")
+	f := newMainMissFixture(t)
+	selection := func(shard string, epoch int) {
+		writeDoc(t, filepath.Join(f.dir, "runs", "601", "corvint-test-shadow-"+shard, "selection.json"), doc{"forwardEpoch": epoch})
+	}
+	row := "name=ci-forward-MAINMISS-r500-" + mainRunSHA + "-e2-n1-pr12"
+	if name, summary := f.run(t); name != row {
+		t.Fatalf("no selection documents: output %q\n%s", name, summary)
+	}
+	for _, c := range []struct {
+		zero, five int
+		want       any
+	}{{2, 2, float64(2)}, {2, 1, nil}, {3, 3, float64(3)}} {
+		selection("0", c.zero)
+		selection("5", c.five)
+		f.wantEpoch = c.want
+		if name, summary := f.run(t); name != row {
+			t.Fatalf("selection epochs %d and %d: output %q\n%s", c.zero, c.five, name, summary)
+		}
+	}
+	selection("0", 1)
+	selection("5", 1)
+	name, summary := f.run(t)
+	if name != "" || !strings.Contains(summary, "main miss: #12 skipped "+failedPkg+" under forward epoch 1, earlier than 2; it is no miss of this epoch (CIN-V0-001)") ||
+		!strings.Contains(summary, "no narrowed pull request of epoch 2 merged since "+mainGreen+" skipped them; no row") {
+		t.Fatalf("an earlier epoch's miss: output %q summary:\n%s", name, summary)
+	}
+	miss := readDoc(t, filepath.Join(f.temp, "main-miss", "miss.json"))
+	if len(miss["misses"].([]any)) != 0 || miss["name"] != nil || !reflect.DeepEqual(miss["earlierEpoch"], []any{doc{"pr": float64(12), "head": prHeadA,
+		"merge": mergeA, "runId": float64(narrowedRun), "epoch": float64(1), "packages": []any{failedPkg}}}) {
+		t.Fatalf("an earlier epoch's miss document = %v", miss)
 	}
 }
