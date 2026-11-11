@@ -72,11 +72,17 @@ Non-goals:
   in `REQUIREMENTS.tsv`. A retired ID, which keeps its `REQUIREMENTS.tsv` row, is therefore never
   ADDED again. (G14; R11)
 - `OSC-V1-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Every
-  non-merge commit in the checked range that touches a path outside `docs/` MUST bind to a change
-  or name an accepted requirement: a `Change: <name>` trailer naming an active or archived change
-  folder, a `Corvint-Ticket: <ID>` trailer naming the ticket of a change's `Ticket:` proposal
-  header, or a `Requirement: <ID>` trailer naming a requirement whose `REQUIREMENTS.tsv`
-  acceptance is `owner` or `standing`. Otherwise the check fails naming the commit and its paths.
+  non-merge commit in the checked range that opts in to a change and touches a path outside
+  `docs/` MUST bind to a change or name an accepted requirement. A commit opts in when it touches a
+  path under `docs/specs/openspec/changes/<name>/` (or under its archived folder
+  `changes/archive/YYYY-MM-DD-<name>/`), carries a `Change: <name>` trailer, or carries a
+  `Corvint-Ticket: <ID>` trailer naming the ticket of some proposal's `Ticket:` header; every other
+  commit is out of scope and gets no finding. An opted-in commit binds to each active or archived
+  change folder it touches, each change a `Change:` trailer names and each change whose proposal
+  names its ticket; a `Requirement: <ID>` trailer names a requirement whose `REQUIREMENTS.tsv`
+  acceptance is `owner` or `standing`. The check fails naming the commit when a `Change:` trailer
+  names no active or archived folder, when a `Requirement:` trailer names no such requirement, and
+  when the commit binds to no change and names no accepted requirement, naming its paths.
   (R41; PROD-INT-011)
 - `OSC-V1-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5399) For every
   commit in the range that binds to a change and touches a path outside `docs/`, the change's
@@ -127,10 +133,13 @@ Non-goals:
   When it cannot read the history it needs (a shallow clone, a range endpoint that is not a commit,
   no Git repository) it MUST refuse with `history-unavailable` and a non-zero exit. Without a range
   it MUST report the commit rules (OSC-V1-003, OSC-V1-004) as NOT_RUN. A stale
-  `REQUIREMENTS.tsv` is refused, naming `make spec-requirements`. Failures of a change folder or
-  spec listed in the committed baseline `tools/openspec-check/baseline.txt` are reported and do
-  not fail; an entry that no longer fails, and an entry added since the range base, fail, so the
-  baseline only shrinks. (G14)
+  `REQUIREMENTS.tsv` is refused, naming `make spec-requirements`. A finding listed in the
+  committed baseline `tools/openspec-check/baseline.txt` by its rule ID, subject (a change folder
+  or spec) and finding key is reported and does not fail; every other finding fails, including a
+  new finding on a subject the baseline lists. An entry that matches no finding fails, and so does
+  an entry added since the range base, every entry when the file was absent at the base, so the
+  baseline only shrinks. A Git failure other than a path absent at a commit is an error with a
+  non-zero exit, never read as an absent file. (G14)
 - `OSC-V1-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The Make
   target `openspec-validate` MUST run `openspec validate --all` from `docs/specs` with
   `@fission-ai/openspec` at the one version pinned in the Makefile and `OPENSPEC_TELEMETRY=0`, and
@@ -143,11 +152,15 @@ Non-goals:
 
 - Binding (OSC-V1-003). The design names `Change:` and `Requirement:`. Commits on this tree carry
   only `Corvint-Ticket:`, so a `Corvint-Ticket:` naming the ticket in a proposal's `Ticket:` header
-  also binds the commit to that change; a ticket named by no proposal binds nothing. Merge commits
-  are exempt. No other exemption is decided.
+  also binds the commit to that change; a ticket named by no proposal binds nothing. The rule
+  applies only to a commit that opts in to a change (a change-folder path, a `Change:` trailer, or
+  a proposal's ticket): ordinary commits whose tickets no proposal names are out of scope, since
+  the first range run failed 865 of 1023 commits that were never meant to bind (orchestrator
+  decision, owner-delegated, 2026-11-11). Merge commits are exempt. No other exemption is decided.
 - Task numbers. An item is `- [ ] N text` or `- [x] N text` where `N` is digits with optional
   `.digits` groups and an optional lowercase letter (`2.3a`), the forms the folders already use
-  and the OpenSpec command counts. A line starting `- [` in another form is malformed.
+  and the OpenSpec command counts. A bullet line (`-`, `*` or `+`) whose text starts with `[` in
+  another form, such as `* [x]`, `- [X]` or `- [-]`, is malformed.
   `Requirements: all` names every delta ID of the folder. `X-NNN to NNN`, `X-NNN to X-NNN` and the
   reservation form `` `X` NNN..NNN `` (also `NNN to NNN` or `NNN-NNN`, in parentheses or not) name
   the whole range. Ticket IDs (`V1-NNNN`) are not requirement IDs.
@@ -155,8 +168,11 @@ Non-goals:
   (layout, IDs, tick order, canonical spec, archive state and history, boundaries, health,
   acceptance) run on every invocation; the ID and archive rules read history, so every run needs a
   full clone.
-- Baseline. One subject per line: `change <name>` or `spec docs/specs/<file>.md`, with `#`
-  comments. Boundary and commit failures have no subject and are never baselined.
+- Baseline. One finding per line, `<rule ID> <subject>: <key>`, with `#` comments. The subject is
+  `change <name>` or `spec docs/specs/<file>.md`; the key is the finding's message with the line
+  number of a `file.md:N:` locator removed, so an edit that only moves a line keeps its entry. An
+  entry matches only a finding with the same rule, subject and key. Boundary and commit failures
+  have no subject and are never baselined.
 - Health projection. The README table keeps its columns: the class becomes a `; health CLASS`
   suffix of the Contract cell, and the `INDEX.json` key is optional, so no generated file changes
   until a spec carries the line.
@@ -170,8 +186,9 @@ Non-goals:
   file; an ADDED requirement with no `#### Scenario:` block fails naming the ID.
 - Scenario for OSC-V1-002: a delta that adds an ID present in `REQUIREMENTS.tsv` fails naming the ID
   and the spec that holds it.
-- Scenario for OSC-V1-003: a range holding a commit that changes a Go file with no binding trailer
-  fails naming the commit and the paths.
+- Scenario for OSC-V1-003: a range holding a commit that changes a Go file and touches only a
+  change folder no longer present fails naming the commit and the paths; a commit that changes a
+  Go file and carries only a `Corvint-Ticket:` that no proposal names gets no finding.
 - Scenario for OSC-V1-004: a commit that adds `docs/specs/openspec/changes/x/` and a Go file with
   `Change: x` fails; a folder committed first and code in a later commit passes.
 - Scenario for OSC-V1-005: `tasks.md` with 2.1 unticked and 2.2 ticked fails naming 2.2; a ticked
@@ -190,7 +207,8 @@ Non-goals:
   it.
 - Scenario for OSC-V1-010: an `INDEX.json` edited by hand fails `make spec-requirements-check`.
 - Scenario for OSC-V1-011: a depth-1 clone checked over a range exits non-zero with
-  `history-unavailable`.
+  `history-unavailable`; a new finding on a baselined subject fails; an unreadable baseline at the
+  range base exits non-zero naming the Git failure.
 - Scenario for OSC-V1-012: a folder whose delta has a requirement without a scenario fails the
   target with the command installed; without the command outside CI it prints NOT_RUN and exits
   zero; in CI it exits non-zero.
@@ -203,7 +221,10 @@ Non-goals:
 - A stale `REQUIREMENTS.tsv`: refused with `requirements-stale`, exit 2, naming
   `make spec-requirements`; without `script/gen-spec-requirements.sh` the staleness check reports
   NOT_RUN.
-- A malformed `tasks.md` line: fails naming the line.
+- A malformed `tasks.md` line, including a `*` or `+` bullet and a `[X]` or `[-]` box: fails naming
+  the line.
+- A Git failure other than a path absent at a commit (an unreadable object, a failed
+  `git status`, a baseline unreadable at the range base): an error, exit 2; never read as absent.
 - Two folders with one name: fails.
 - A rename that also edits archived content: fails as an archive that is not a pure rename.
 - `openspec archive` without `--skip-specs`: creates `docs/specs/openspec/specs/`, which
@@ -216,9 +237,9 @@ Non-goals:
 
 | Requirement | Evidence | State |
 |---|---|---|
-| OSC-V1-001 | `TestOSCV1001Layout`; `TestOSCV1001TaskIDForms` | fixture-tested |
+| OSC-V1-001 | `TestOSCV1001Layout`; `TestOSCV1001TaskIDForms`; `TestOSCV1001MalformedTaskLines` | fixture-tested |
 | OSC-V1-002 | `TestOSCV1002RequirementIDs` | fixture-tested |
-| OSC-V1-003 | `TestOSCV1003CommitBinding` | fixture-tested |
+| OSC-V1-003 | `TestOSCV1003CommitBinding`; `TestOSCV1003OptIn`; the repository range from `b627141d7`, the 51st non-merge commit before `b55635262` | fixture-tested; range run recorded in the 2026-11-11 build log |
 | OSC-V1-004 | `TestOSCV1004ProposeStage` | fixture-tested |
 | OSC-V1-005 | `TestOSCV1005ApplyStage` | fixture-tested |
 | OSC-V1-006 | `TestOSCV1006ArchiveStage` | fixture-tested |
@@ -226,7 +247,7 @@ Non-goals:
 | OSC-V1-008 | `TestOSCV1008HealthClass`; `script/gen-spec-requirements_test.sh` case OSC-V1-008 | check and projection fixture-tested; lines not written |
 | OSC-V1-009 | `TestOSCV1009AcceptanceLink` | fixture-tested |
 | OSC-V1-010 | `script/gen-spec-requirements_test.sh` cases 6, 7 and 8 (SRG-V0-009, 010, 012); `TestRequirementsAcceptanceColumns`; `make spec-requirements-check` | carried over, delivered |
-| OSC-V1-011 | `TestOSCV1011Baseline`; `TestOSCV1011HistoryUnavailable`; `TestOSCV1011StaleRequirements`; a depth-1 clone of the repository refused with `history-unavailable` | fixture-tested; the repository passes with 30 change folders and 288 specs baselined; the CI range is not wired |
+| OSC-V1-011 | `TestOSCV1011Baseline`; `TestOSCV1011BaselinePerFinding`; `TestOSCV1011BaselineGrowthGitErrors`; `TestOSCV1011GitAbsentVersusFailure`; `TestOSCV1011HistoryUnavailable`; `TestOSCV1011StaleRequirements`; a depth-1 clone of the repository refused with `history-unavailable` | fixture-tested; the repository passes with 363 baselined findings in 30 change folders and 288 specs; the CI range is not wired |
 | OSC-V1-012 | `script/openspec-validate_test.sh` (its real-command case runs when `openspec` 1.17.0 is installed); `make openspec-validate` | fake-command paths tested; the pinned run on the repository and the real-command case `NOT_RUN` on hosts without the command |
 
 ## Rollback
