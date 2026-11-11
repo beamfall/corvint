@@ -31,7 +31,10 @@ type Graph struct {
 	// status is each dirty path's change status, a plan input set by
 	// WithChangeStatus (AFP-V0-9960); an absent path is ChangeUnknown.
 	status map[string]ChangeStatus
-	owner  map[string]string
+	// symlinks is the tree's symbolic links (AFP-V0-9965), nil when the
+	// caller gave none. It is a selection input only.
+	symlinks *Symlinks
+	owner    map[string]string
 	// embedded maps each file a unit's production or test embeds list to those units, in
 	// unit order (AFP-V0-600).
 	embedded   map[string][]string

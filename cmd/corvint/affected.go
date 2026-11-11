@@ -1621,6 +1621,10 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 			graph = graph.WithChangeStatus(affected.ChangeStatuses(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 		}
 	}
+	// AFP-V0-9965: a shell unit names a path it reads through a symbolic
+	// link by the link's path, so a dirty path at or below a link's target
+	// is UNKNOWN.
+	graph = graph.WithSymlinks(affected.TreeSymlinks(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 	plan := affectedSelect(graph, changed, in.shared)
 	// AFU-V1-1651: a declared consumer bound to flows is kept, left out or
 	// widened against the flow intents committed at HEAD. A materialized
@@ -2427,6 +2431,10 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		// TSP-V0-608: the snapshot's base is the measured commit for a gated
 		// root-locator declaration edit, as for the import-set comparison.
 		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, invocation.Root, root, snapshot.Base, snapshot.Paths))
+		// AFP-V0-9965: the links unchanged since the base are read from the
+		// materialized tree.
+		gitExecutable, _ := exec.LookPath("git")
+		graph = graph.WithSymlinks(affected.TreeSymlinks(ctx, gitExecutable, invocation.Root, root, snapshot.Base, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
 		receipt = affectedReceipt{TestCounts: affectedTestCounts(root, plan), Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
