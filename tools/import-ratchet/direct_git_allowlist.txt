@@ -1,21 +1,39 @@
 .github/cishards/live.go:LiveTests: under .github, which needs a CI-wiring review to edit; inherits the environment with no timeout and unbounded stdout
+cmd/corvint/adopt_setup.go:setupIgnoreCheck: check-ignore --stdin with the inherited environment; exit code 1 read through exec.ExitError means no match
+cmd/corvint/affected_abbrev_base.go:affectedAbbrevGit: resolved gitstatus.Executable with a fixed environment and unbounded stdout; a failure reads as no candidates
 cmd/corvint/affected_linecov.go:affectedLineSelection: reads exec.ExitError exit code 1 of merge-base --is-ancestor and inherits the environment
+cmd/corvint/affected_path_directory.go:affectedTreeEntries: resolved gitstatus.Executable with a fixed environment and unbounded stdout; returns exec's error unchanged
+cmd/corvint/affected_path_directory.go:affectedUntrackedUnder: resolved gitstatus.Executable with a fixed environment and unbounded stdout; returns exec's error unchanged
+cmd/corvint/shared_helpers.go:hermeticGitCommand: returns the *exec.Cmd with a hermetic environment and ceiling directory for callers to wire and run
 conformance/release-artifact-v0/archive_run.go:catFileBatchExport: streams cat-file --batch through StdoutPipe with stdin input and its own stderr buffer
 conformance/release-artifact-v0/gate.go:gitOutput: inherits the environment with no output bound; the gate message wraps exec's error text
 conformance/release-artifact-v0/smoke.go:gitStatus: runs under configureLooseCommand and cleanupLooseCommand, which own the process wiring gitrun would replace
 conformance/release-artifact-v0/smoke.go:makeQueryFixture: CombinedOutput under configureLooseCommand with the inherited environment; the message carries exec's error and combined output
 internal/browsercov/cmd/browsercov/main.go:git: inherits the environment with no timeout and returns exec's error to the caller unchanged
 internal/cem/verify/hunkrevert_run.go:gitOutput: passes selected caller variables through and feeds stdin with its own stderr and exit handling
+internal/doccompiler/trusted_nav_git.go:navGitBlob: own isolated runner: temp working directory, isolated environment, bounded buffers and groupreap.Run, refusing with a doccompiler failure code
+internal/docstools/docstools.go:Registry.precheck: cat-file -e probe whose exec.ExitError under a live context means absent
 internal/flowcoverage/testfixture/fixture.go:Repository: fixture builder: CombinedOutput with the inherited environment; the failure text carries exec's error and output
 internal/gateselect/readscopes.go:baseGit: streams stdout through StdoutPipe under its own environment and ceiling directory
 internal/gitancestry/ancestrytest/ancestrytest.go:gitText: test helper: inherits the environment with no timeout; t.Fatalf prints exec's error text
+internal/gitprobe/gitprobe.go:GraftAdvice: probe repository built step by step with the inherited environment; success alone decides
+internal/gitprobe/gitprobe.go:GraftAdvice: rev-list under GIT_GRAFT_FILE whose stderr text decides the advice
+internal/gitprobe/gitprobe.go:Reftable: CombinedOutput with the inherited environment; the message carries exec's error and output
+internal/gitprobe/gitprobe.go:version: git version with the inherited environment; any error reads as version unknown
+internal/gokernel/repository.go:gitRaw: the gokernel runner itself: sanitized environment, isolation ceiling, configureProcess containment and bounded buffers with its own error types
 internal/linecov/git.go:BlobReader: cat-file --batch with stdin over unbounded output; the error text carries exec's error and stderr
 internal/linecov/git.go:gitOut: inherits the environment with no output bound; the error text carries exec's error and stderr
 internal/linecov/watch/relevant.go:relevantPaths: reads exec.ExitError exit code 1 of check-ignore and inherits the environment
+internal/liveverify/mutate/export.go:streamGit: streams stdout through StdoutPipe to a consumer with stdin input and a bounded stderr
+internal/mcp/cli/follow_ref.go:followRef.run: returns the exit code from exec.ExitError to the caller as a result, not an error
 internal/mergedrivers/append.go:Append: merge-file exit codes 1 to 127 mean conflicts, read through exec.ExitError, and other errors return exec's error unchanged
 internal/perfbudget/fixture.go:gitCommand: returns the *exec.Cmd for outputContained and other callers to wire and run
+internal/releasecandidate/candidate.go:runSourceGit: fixed release environment with HOME in scratch and unbounded stdout; returns exec's error unchanged
 internal/rubylinecov/collect.go:collectOnce: inherits the environment with no output bound; the error wraps exec's error text
+internal/runnerprotocol/snapshot.go:repositorySnapshot: own contained runner: groupreap.Contain, bounded buffers, WaitDelay and PATH limited to the Git directory
+internal/worksource/git.go:Source.gitRaw: the worksource runner itself: caller-supplied Git environment, isolation ceiling, WaitDelay, setupGitProcess and bounded output with cancel
 tools/affected-zero-unknown-replay/main.go:git: CombinedOutput with the inherited environment and no timeout
+tools/beamfall-shadow/main.go:gitLimitedBytes: fixed minimal environment with its own byte limits and git output limit exceeded error text
 tools/cem-release-suites/main.go:gitCommand: inherits the environment minus Git selection variables with no timeout; callers wire the command
 tools/conflict-markers-check/main.go:main: inherits the environment with no timeout or output bound and prints exec's error
 tools/cw-trial/generate.go:gitBytes: inherits the environment with no output bound; the error text carries exec's error and stderr
