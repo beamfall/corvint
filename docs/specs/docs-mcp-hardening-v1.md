@@ -271,7 +271,7 @@ answer from the old artifact. Serves PROD-DOCS-009 and PROD-DOCS-001. (finding 8
 - WHEN the artifact is replaced with one that fails verification and a docs tool is called
 - THEN the call refuses with the verification reason
 
-Delivery: not yet built.
+Delivery: when a call reads configured artifact bytes whose digest differs from the served one, the registry verifies those same bytes (header, then `doccorpus.OpenRead` as the first call does) under the load slot and replaces the served digest, header, artifact, pins and index and freshness memos at once; a call already holding the previous artifact finishes on it. Receipts already name the artifact identity they used (`artifact_sha256`). A verification failure is `corpus-refused` naming the reason and saying the previous artifact is not served; nothing changes, so every later call checks the file again. The reload reuses the bytes and stamp the call read (no second read, DCR-V1-417). DCP-V1-143 and DCX-V1-498 are amended (no restart). Tests: `TestDMFV1011RebuiltArtifactServedWithoutRestart`, `TestDMFV1011CorruptRebuildRefused` (`internal/mcp/corpusbridge`), `TestDCXV1498MCPServesArtifactsAcrossBuilderUpgrades` (`cmd/corvint-docs`, now expecting the running server to answer); a live `corvint-mcp` session rebuilt the artifact between two `docs_search` calls and the second answered with the new digest.
 
 DMF-V1-012 (`how` gaps name what to fix) is retired here: it moved to change `how-rewrite` as
 HOW-V1-012 (R42 (panel pick) B1). The ID is not reused.
@@ -305,7 +305,7 @@ Delivery: not yet built.
 | DMF-V1-008 | 10 | `internal/mcp/corpusbridge/descriptions.go`, `internal/mcp/docsbridge/docsbridge.go` | `TestDMFV1008DistinctToolDescriptions`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-009 | 11 | `internal/mcp/corpusbridge/corpusbridge.go`, `internal/capcatalog/mcp.go` | `TestDMFV1009NoDocsTestSelectionTool`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-010 | 12 | `internal/mcp/toolgroup/errordetail.go`, `internal/mcp/protocol/types.go`, `internal/mcp/server/server.go`, `internal/mcp/docsbridge/docsbridge.go`, the corpus group and the `corvint-mcp` handler | `TestDMFV1010*` |
-| DMF-V1-011 | 13 | not yet built | not yet built |
+| DMF-V1-011 | 13 | `internal/mcp/corpusbridge/corpusbridge.go` (`reload`) | `TestDMFV1011*`; `.agent-evidence/docs-mcp-hardening/live-reload.txt` |
 | DMF-V1-013 | 14 | not yet built | not yet built |
 
 ## Rollback
