@@ -18,5 +18,5 @@ Build tasks in order, one commit each. Each names its requirement IDs and its pr
 - [x] 5 Mark the retired specs, regenerate the spec index, amend the modified specs and write the
       build-log entry. Proof: `make spec-requirements` with no diff after, the line-citations
       check, the invariant check, `openspec validate --all`.
-- [ ] 6 On the separate branch `claude/ctxcut-cishards`, remove the CI shard table rows of the
+- [x] 6 On the separate branch `claude/ctxcut-cishards`, remove the CI shard table rows of the
       deleted tests and packages. Proof: the JSON files parse and name no deleted package.
