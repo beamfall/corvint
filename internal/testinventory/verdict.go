@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/testid"
 )
@@ -65,10 +67,10 @@ type Verdict struct {
 // their declared full command; Reason names why and Cause explains it.
 // Otherwise Tests counts the listed tests whose file is unchanged,
 // Unassigned lists the changed or new test files whose tests run as
-// unassigned, and Removed lists listed files the tree no longer holds. When
-// the instance's config sets a test-file pattern the reader cannot evaluate
-// (Declared.Pattern), every changed or new file of the runner's language
-// under the root is unassigned and Cause names the pattern.
+// unassigned, and Removed lists listed files the tree no longer holds. For
+// an instance the reader cannot prove keeps the default test-file names
+// (Declared.Pattern), every file of the runner's languages under the root
+// that the record does not bind is unassigned and Cause names why.
 type InstanceVerdict struct {
 	Key        string   `json:"key"`
 	Runner     string   `json:"runner"`
@@ -197,8 +199,8 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 	}
 	sort.Strings(verdict.Unassigned)
 	if instance.Pattern != "" && len(verdict.Unassigned) != 0 {
-		verdict.Cause = fmt.Sprintf("config %s sets %s, a test-file pattern the reader cannot evaluate statically; every changed or new %s file under %s outside the record is unassigned",
-			instance.Config, instance.Pattern, languageOf(instance.Runner), instance.Root)
+		verdict.Cause = fmt.Sprintf("config %s is not proven to keep the default test-file names (%s); every changed or new %s file under %s that the record does not bind is unassigned",
+			instance.Config, instance.Pattern, languageOf(instance), instance.Root)
 	}
 	for _, test := range record.Tests {
 		if _, present := files[test.File]; present && !changed[test.File] {
@@ -208,9 +210,14 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 	return verdict
 }
 
-// languageOf names the files a wide candidate pattern takes for runner.
-func languageOf(runner string) string {
-	if runner == testid.Pytest {
+// languageOf names the files an unproven instance's candidates take.
+func languageOf(instance Declared) string {
+	switch {
+	case slices.Contains(instance.Extensions, "*"):
+		return "any"
+	case instance.Runner == testid.Pytest && len(instance.Extensions) > 1:
+		return "Python or doctest (" + strings.Join(instance.Extensions[1:], ", ") + ")"
+	case instance.Runner == testid.Pytest:
 		return "Python"
 	}
 	return "JavaScript or TypeScript"
