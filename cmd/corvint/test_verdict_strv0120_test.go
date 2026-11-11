@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 // TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration pins V1-3530: a
@@ -32,7 +33,7 @@ func TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration(t *testing.T) {
 		t.Fatalf("human verdict:\n%s\nwant %q", &human, wantHuman)
 	}
 	var stdout, stderr bytes.Buffer
-	code := testDryRun(m, "sha256:abc", declared, root, testOptions{shardCount: 1}, &stdout, &stderr)
+	code := testDryRun(m, "sha256:abc", declared, root, testOptions{shardCount: 1}, testinventory.Verdict{}, &stdout, &stderr)
 	var document struct {
 		Scope      string   `json:"scope"`
 		Verdict    string   `json:"verdict"`

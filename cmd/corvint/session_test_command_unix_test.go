@@ -119,6 +119,7 @@ func TestSTRV0018CLIDryRunLaunchesNoRunner(t *testing.T) {
 	manifest := filepath.Join(t.TempDir(), "manifest.json")
 	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 || stderr != "corvint-test: NARROWED 1 execution units\n"+
+		"corvint-test: INVENTORY absent reasons=inventory-absent full=1/1 unassigned=0\n"+
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected example.test/m/a whole: whole: DIRECT_SOURCE_CHANGE via a/a.go' (STR-V0-073)\n" {
 		t.Fatalf("code %d stderr %q", code, stderr)
 	}
@@ -532,6 +533,7 @@ func TestSTRV0008CLIBalancedShards(t *testing.T) {
 	manifest := filepath.Join(dir, "manifest.json")
 	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--placement", "balanced", "--shard", "0/2", "--dry-run", "--full", "--manifest", manifest)
 	if code != 0 || stderr != "corvint-test: NARROWED 2 execution units\n"+
+		"corvint-test: INVENTORY absent reasons=inventory-absent full=1/1 unassigned=0\n"+
 		"corvint-test: whole-package go test planned; under script/heavy.sh run it with HEAVY_WHOLE_REASON='corvint test selected example.test/m/a whole: whole: DIRECT_SOURCE_CHANGE via a/a.go' (STR-V0-073)\n" || !strings.Contains(stdout, `"placement":"balanced"`) {
 		t.Fatalf("dry run %d %q %s", code, stderr, stdout)
 	}

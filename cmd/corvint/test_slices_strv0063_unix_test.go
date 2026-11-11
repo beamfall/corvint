@@ -98,7 +98,8 @@ func TestSTRV0063DryRunSlicesTestOnlyChanges(t *testing.T) {
 	more := "package b\n\nimport \"testing\"\n\nfunc TestBMore(t *testing.T) { _ = B() + 1 }\n\nfunc ExampleB() { _ = B() }\n"
 
 	stderr, invocations := plan(map[string]string{"b/b_more_test.go": more})
-	if stderr != "corvint-test: NARROWED 1 execution units\ncorvint-test: SLICED 1 of them to the test functions of their changed test files\n" {
+	if stderr != "corvint-test: NARROWED 1 execution units\ncorvint-test: SLICED 1 of them to the test functions of their changed test files\n"+
+		"corvint-test: INVENTORY absent reasons=inventory-absent full=1/1 unassigned=0\n" {
 		t.Fatalf("stderr %q", stderr)
 	}
 	got := unit(invocations, "go:example.test/m/b")

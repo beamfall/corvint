@@ -505,9 +505,13 @@ Example: corvint affected --base FULL_SHA --format text
 the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the
 sorted tier-0 and tier-1 unit names a lane runs locally and each one's
 canonical test ID (CTI-V1-009), range {base, paths count},
-degradations and warning; --format text writes it as lines ("affected
-<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
-It never changes the selection.
+degradations, warning, and inventory: the committed test inventory
+(.corvint/test-inventory.json) judged against the planned tree, each declared
+runner instance with inventory-absent, inventory-stale or inventory-invalid
+when it runs in full and its unassigned test files (TIV-V1-006 to TIV-V1-009);
+--format text writes it as lines ("affected <summary.line> ...", "tiers ...",
+one "tier0 UNIT" or "tier1 UNIT" per unit, "inventory STATE ..."). It never
+changes the selection and never writes the inventory.
 Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
