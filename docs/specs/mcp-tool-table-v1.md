@@ -246,7 +246,7 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-006 | 2.1, 2.8 | not yet built | not yet built |
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`) | `TestMTTV1007OneNamingConvention`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
 | MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008UnknownSelectionThroughTheServer` |
-| MTT-V1-009 | 2.7 | not yet built | not yet built |
+| MTT-V1-009 | 2.7 | table column `ParityTest` and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
 | MTT-V1-010 | 2.8 | not yet built | not yet built |
 | MTT-V1-011 | 2.9 | not yet built | not yet built |
 

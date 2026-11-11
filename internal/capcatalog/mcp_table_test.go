@@ -87,6 +87,11 @@ func TestMTTV1001TableRulesNameTheBrokenRow(t *testing.T) {
 			rows[index].Name = "corvint.repo.status"
 			return rows
 		}, "corvint.repo.status: name is not corvint.<area>_<verb> with one dot"},
+		"cli equivalent without parity test": {func(rows []MCPTool) []MCPTool {
+			index := slices.IndexFunc(rows, func(row MCPTool) bool { return row.Name == "corvint.impact" })
+			rows[index].ParityTest = ""
+			return rows
+		}, "corvint.impact: has a CLI equivalent but no parity test (MTT-V1-009)"},
 		"no output profile": {func(rows []MCPTool) []MCPTool {
 			index := slices.IndexFunc(rows, func(row MCPTool) bool { return row.Name == "corvint.status" })
 			rows[index].OutputProfile = ""

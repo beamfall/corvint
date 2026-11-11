@@ -3,7 +3,10 @@
 // Command mcp-server-doc writes docs/MCP-SERVER.md from the MCP tool table,
 // internal/capcatalog MCPTools (MTT-V1-002). With -check it writes nothing and
 // fails when the file differs from what it would write, which is the
-// staleness check `make mcp-server-doc-check` runs in doc-gates.
+// staleness check `make mcp-server-doc-check` runs in doc-gates. The check
+// also fails when a row names a parity test (MTT-V1-009) that its package
+// directory does not define, so a renamed or deleted test cannot leave a row
+// claiming parity.
 //
 // Usage:
 //
@@ -16,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -33,6 +37,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	check := flags.Bool("check", false, "fail when the file differs from the generator output; write nothing")
 	out := flags.String("out", defaultOut, "the generated file")
+	root := flags.String("root", ".", "the repository root the parity tests are found under")
 	if err := flags.Parse(arguments); err != nil || flags.NArg() != 0 {
 		_, _ = fmt.Fprintln(stderr, "usage: mcp-server-doc [-check] [-out FILE]")
 		return 2
@@ -41,6 +46,10 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	if *check {
 		if err := Check(*out, want); err != nil {
 			_, _ = fmt.Fprintln(stderr, "mcp-server-doc: "+err.Error())
+			return 1
+		}
+		if missing := MissingParityTests(*root, capcatalog.MCPTools()); len(missing) != 0 {
+			_, _ = fmt.Fprintln(stderr, "mcp-server-doc: "+strings.Join(missing, "\nmcp-server-doc: "))
 			return 1
 		}
 		_, _ = fmt.Fprintln(stdout, "mcp-server-doc: ok ("+*out+" matches the MCP tool table)")
@@ -63,6 +72,31 @@ func Check(path string, want []byte) error {
 		return fmt.Errorf("%s is stale: it differs from the MCP tool table (internal/capcatalog/mcp.go); edit the table, not the file, then run make mcp-server-doc", path)
 	}
 	return nil
+}
+
+// MissingParityTests names each row whose ParityTest function is not defined
+// by a _test.go file in its package directory under root (MTT-V1-009).
+func MissingParityTests(root string, rows []capcatalog.MCPTool) []string {
+	var missing []string
+	for _, row := range rows {
+		if row.ParityTest == "" {
+			continue
+		}
+		directory, test, _ := strings.Cut(row.ParityTest, " ")
+		files, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(directory), "*_test.go"))
+		found := false
+		for _, file := range files {
+			if err != nil || found {
+				break
+			}
+			source, readErr := os.ReadFile(file)
+			found = readErr == nil && bytes.Contains(source, []byte("\nfunc "+test+"(t *testing.T) {"))
+		}
+		if !found {
+			missing = append(missing, fmt.Sprintf("%s: parity test %s is not defined in %s; fix the row's ParityTest", row.Name, test, directory))
+		}
+	}
+	return missing
 }
 
 // Render is the generated document for rows.
@@ -117,6 +151,9 @@ func writeDetail(out *strings.Builder, row capcatalog.MCPTool) {
 	}
 	fmt.Fprintf(out, "- Output profile: `%s`\n", row.OutputProfile)
 	fmt.Fprintf(out, "- Tool errors: %s\n", codes(row.Errors))
+	if row.ParityTest != "" {
+		fmt.Fprintf(out, "- Parity test: `%s`\n", row.ParityTest)
+	}
 	if len(row.Replaces) != 0 {
 		fmt.Fprintf(out, "- Replaces: %s\n", codes(row.Replaces))
 	}
