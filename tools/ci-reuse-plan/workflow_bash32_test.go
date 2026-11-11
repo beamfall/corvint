@@ -18,13 +18,13 @@ var workflowBash32Rules = []struct {
 	label string
 	re    *regexp.Regexp
 }{
-	{"mapfile", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(mapfile|readarray)(\s|$)`)},
+	{"mapfile", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(mapfile|readarray)([\s<>;&|)]|$)`)},
 	{"associative-array", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset|readonly)(\s+-[A-Za-z]+)*\s+-[A-Za-z]*A`)},
 	{"nameref", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset)(\s+-[A-Za-z]+)*\s+-[A-Za-z]*n[A-Za-z]*(\s|$)`)},
 	{"case-modification", regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?[,^]`)},
 	{"parameter-transformation", regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?@[QEPAaUuLK]\}`)},
 	{"globstar", regexp.MustCompile(`shopt\s+-s\s+([A-Za-z]+\s+)*globstar`)},
-	{"coproc", regexp.MustCompile(`(^|[^A-Za-z0-9_-])coproc(\s|$)`)},
+	{"coproc", regexp.MustCompile(`(^|[^A-Za-z0-9_-])coproc([\s<>;&|)]|$)`)},
 	{"wait-next", regexp.MustCompile(`(^|[^A-Za-z0-9_-])wait\s+-n`)},
 	{"append-both", regexp.MustCompile(`&>>`)},
 }
@@ -88,6 +88,9 @@ func TestWorkflowRunScriptsAvoidBash4Constructs_ASCV0780(t *testing.T) {
 	for _, tc := range []struct{ line, label string }{
 		{`          mapfile -t failed < <(find "$d" -type f)`, "mapfile"},
 		{`          readarray -t rows < rows.txt`, "mapfile"},
+		{`          mapfile<rows.txt`, "mapfile"},
+		{`          readarray<rows.txt`, "mapfile"},
+		{`          (cd "$d" && mapfile) < rows.txt`, "mapfile"},
 		{`          declare -A seen`, "associative-array"},
 		{`          declare -r -A seen`, "associative-array"},
 		{`          local -n ref=$1`, "nameref"},
@@ -110,6 +113,7 @@ func TestWorkflowRunScriptsAvoidBash4Constructs_ASCV0780(t *testing.T) {
 	for _, line := range []string{
 		`          # mapfile would be shorter, but macOS has Bash 3.2`,
 		`          rows=() # no mapfile here`,
+		`          sort mapfile.txt > "$mapfile_sorted"`,
 		`          while IFS= read -r f; do failed+=("$f"); done < <(find "$d" -type f)`,
 		`          echo "${{ github.event.inputs.sha }}" "${name:-none}" "${#rows[@]}"`,
 		`          printf '%s\n' "$line" | tr '[:upper:]' '[:lower:]'`,
