@@ -31,7 +31,9 @@ day):
   section groups entries by requirement ID and reports the newest by committer date, which is a
   fixed rule and not a ranking.
 - Absence is judged per source. A section that still has one of its two sources keeps those items
-  and is `INCOMPLETE`, so a missing ticket store does not hide the kept links.
+  and is `INCOMPLETE`, so a missing ticket store does not hide the kept links. With no items from
+  the present source it is `NOT_OBSERVED`. The reason names the missing source either way, so a
+  section with no items is never `INCOMPLETE`.
 - The coverage check (TBC-V1-013) is a scratch script over existing commands and the sealed
   records. It needs neither the export nor the builder, so it can run first and stop both.
 - PROD-INT-030 is left as accepted. The extension is a new requirement, PROD-INT-032. It had a
