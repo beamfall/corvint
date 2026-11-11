@@ -64,7 +64,13 @@ PROVEN. An expired waiver MUST NOT apply, and the check MUST name it. Serves PRO
 - WHEN `flows docs --check` runs
 - THEN the check fails, the claim shows FAILED and the report names the expired waiver
 
-Delivery: not yet built.
+Delivery: `internal/appflows/docs.go` reads the waiver file in `buildDocs` for both `RenderDocs`
+and `CheckDocs`; `markWaived` sets `waived_until` and `mark` on the sidecar claim and the page line,
+and `lostClaims` excuses a lost PROVEN without restoring the committed form. `corvint flows docs`
+accepts `--waivers` in generation too. Expired waivers are listed in `expired_waivers`. Tests:
+`TestDMFV1001WaiverMarks`, `TestDMFV1001WaiverErrorLine` (`internal/appflows`) and
+`TestDMFV1001WaivedClaimRendersWaived` (`internal/command/flows`). `flows docs maintain` still
+refuses `--waivers` (not widened here).
 
 - `DMF-V1-002`: (accepted automatically under G14, decision 0596; V1-5409) One repository docs check
 
@@ -289,7 +295,7 @@ Delivery: not yet built.
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| DMF-V1-001 | 3 | not yet built | not yet built |
+| DMF-V1-001 | 3 | `internal/appflows/docs.go`, `internal/command/flows/flows_docs.go` | `TestDMFV1001*` |
 | DMF-V1-002 | 9 | not yet built | not yet built |
 | DMF-V1-003 | 4 | not yet built | not yet built |
 | DMF-V1-004 | 5 | not yet built | not yet built |

@@ -682,7 +682,7 @@ through Git; `--page`, `--claims`, `--docs-root` and `--waivers` are canonical r
 paths, and `--page` and `--claims` differ.
 
 - `corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR]
-  [--evidence FILE]...` renders the fixed template and writes the page and then the sidecar, each
+  [--waivers FILE] [--evidence FILE]...` renders the fixed template and writes the page and then the sidecar, each
   through an exclusively created temporary file in the target's directory and a rename; an existing
   non-regular target or a non-directory parent is refused. It prints the two written paths. An
   `invalid-anchor` or `unknown-anchor` under `--docs-root` refuses the render.
@@ -697,11 +697,14 @@ paths, and `--page` and `--claims` differ.
   link, and every declared link from those members is `reviewed`; else `UNPROVEN`.
 - `flow-doc-claims/0`: `schema`, `page` and `claims` sorted by `id`, each with `id`, `source`,
   `flow`, `variation`, `outcome`, `evidence` (the required `test_key` and optional `project` pairs,
-  never run IDs) and `state`.
+  never run IDs) and `state`. A claim an unexpired waiver names while its state is not `PROVEN`
+  also carries `waived_until` (the expiry) and `mark` (`WAIVED until DATE (now STATE)`), and its
+  page line is prefixed with that mark in bold instead of the bare state (DMF-V1-001).
 - `flow-doc-waivers/0`: `schema` and `waivers`, each with a unique `claim` ID, `reason`, `reviewer`
   and `expires` (`YYYY-MM-DD`). A waiver is unexpired while the current UTC date is before
   `expires`; on that date it has expired. The file is closed-schema and a malformed file refuses the
-  check.
+  check and the render, naming the file and line. Generation and `--check` read the same committed
+  file, so a regenerated page and a checked page agree (DMF-V1-001).
 - `flows docs --check ... [--waivers FILE]` writes nothing to the repository and prints
   `flow-doc-check/0`: `schema`, `revision`, `status` (`pass` or `fail`), `failures` (`code`,
   optional `claim`, `path` and `line`, and `detail`), `waived` (claim IDs) and, with `--docs-root`,
@@ -709,9 +712,12 @@ paths, and `--page` and `--claims` differ.
   (Markdown documents under the docs root, the page excluded), `revision`, `rule`, `limitation` and
   `paths`. A `.md` entry that is not a regular file, such as a symlink or a submodule, is not read and
   counts as unanchored. The failure codes are `claim-lost-proven`, `rendered-bytes-differ` (for an absent file
-  too), `unknown-anchor` and `invalid-anchor`. A committed claim whose state changed, or which is no
-  longer rendered, is waived by an unexpired entry naming its ID, and its committed form is then
-  used for the byte comparison. A failing check exits 2 with `flow-docs-check-failed`.
+  too), `unknown-anchor` and `invalid-anchor`. A committed `PROVEN` claim that is no longer `PROVEN`,
+  or is no longer rendered, is excused from `claim-lost-proven` by an unexpired entry naming its ID;
+  the byte comparison always uses the regenerated form, with waived claims in their `WAIVED` form,
+  never the committed form (DMF-V1-001, superseding the earlier keep-committed rule).
+  `expired_waivers` (present when non-empty) lists each expired waiver, `claim` and `expires`, whose
+  claim the check found. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
 
