@@ -277,7 +277,7 @@ func runBuild(ctx context.Context, options BuildOptions) (entry Entry, err error
 		return Entry{}, fmt.Errorf("unknown-binary: %q is not in the catalog", options.Binary)
 	}
 	if binary.Role != "product" {
-		return Entry{}, fmt.Errorf("support-binary: %q is release tooling and is never archived", options.Binary)
+		return Entry{}, refuseUnreleased(binary)
 	}
 	if !versionPattern.MatchString(options.Version) {
 		return Entry{}, fmt.Errorf("bad-version: %q is not MAJOR.MINOR.PATCH[-pre]", options.Version)
