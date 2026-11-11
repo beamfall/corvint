@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.3"
+          go-version: "1.27.4"
       - name: Restore the pinned ripgrep release (V1-5188)
         id: rgcache
         if: runner.environment != 'self-hosted'
@@ -68,7 +68,7 @@ jobs:
         run: |
           sudo rm -rf /usr/local/go
           sudo ln -s "$(go env GOROOT)" /usr/local/go
-          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.3"
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.4"
           rg_name="ripgrep-$RG_VERSION-x86_64-unknown-linux-musl"
           # V1-5188: a restored release tarball that matches the pin skips the network; a
           # missing or damaged one falls back to a download, and the pinned checksum below is
@@ -173,7 +173,7 @@ jobs:
           mkdir -p "$d/cmd"
           cp .github/testconfine/scopes.go .github/testconfine/scopes_test.go .github/testconfine/landlock_linux.go .github/testconfine/landlock_linux_test.go .github/testconfine/landlock_other.go "$d/"
           cp .github/testconfine/cmd/main.go .github/testconfine/cmd/exec_unix.go .github/testconfine/cmd/exec_other.go "$d/cmd/"
-          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.3\n' > "$d/go.mod"
+          printf 'module github.com/Beamfall/corvint/.github/testconfine\n\ngo 1.27.4\n' > "$d/go.mod"
           declared=$([ -f .corvint/test-read-scopes.json ] && echo 1 || true)
           cd "$d"
           export GOENV=off GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=
@@ -196,7 +196,7 @@ jobs:
           : > "$d/fetch-errors"
           unset GOMAXPROCS GOGC GOMEMLIMIT GORACE
           go_version=$(GOFLAGS=-race go env GOVERSION)
-          test "$go_version" = "go1.27.3"
+          test "$go_version" = "go1.27.4"
           # GLS-V0-046, GLS-V0-009: a rerun reproduces the runner the narrowed selection's
           # index names, which the shard ran under: this -race build, the test-confine wrapper
           # and the recorded test deadline. Every part but the deadline must equal this step's;
