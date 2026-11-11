@@ -14,8 +14,8 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection
 ## Agent digest
 - Claim: Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.
 - Status: accepted automatically under G14 (decision 0596; V1-5405) / experimental; partially delivered
-- Exists: `tools/fault-harness`: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file and the seal (tasks 3 and 4).
-- Blocked on: baseline and quarantine (task 5) and the verdict writer (task 7); then tasks 6, 8 and 9.
+- Exists: `tools/fault-harness`: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file, the seal, the baseline with quarantine and the `run` command (tasks 3 to 5).
+- Blocked on: the verdict writer (task 7); then tasks 6, 8 and 9.
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -171,6 +171,17 @@ measurement `INVALID` (R42 (panel pick) A10). (G3, review release-tasks 12)
 - GIVEN quarantined test Q whose dependency a sealed PR changes, and that PR's plan without Q
 - WHEN the verdict is written
 - THEN the count of omitted quarantined tests is 1 and names Q
+
+Delivery: delivered in the harness; the verdict status is FIH-V1-007. `fault-harness run` runs the
+whole suite three times at each case head (once per head) and `evaluateBaseline` quarantines every
+test that did not pass in all three runs (a failure, a missing result, or a pass beside a skip),
+counts tests skipped in every run or declared with `--unrunnable` as unrunnable, and sets
+`disqualified` above 2 percent quarantined and `invalid` above 5 percent excluded, in exact integer
+arithmetic. A quarantined test never passes every baseline run, so it never counts as a kill. The
+plan and the dependent units (for Go, from `go list -test -deps`) are recorded for every fault, and
+`omittedQuarantined` counts and names the quarantined tests a plan omitted for a PR that changed
+their dependencies. Tests: `TestBaselineQuarantine_FIH_V1_004`,
+`TestRunSealedSet_FIH_V1_004_005_006`.
 
 - `FIH-V1-005`: (accepted automatically under G14, decision 0596; V1-5405) A kill is confirmed three times
 
@@ -382,7 +393,7 @@ decision R16 (2026-11-09)). A runner proven at tier `file`, such as pytest under
 | FIH-V1-001 | 4 | `tools/fault-harness/prereg.go`, `cmds.go` | `TestPreregistrationHash_FIH_V1_001` |
 | FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014` |
 | FIH-V1-003 | 3 | `tools/fault-harness/faults.go` | `TestChangedLineSites_FIH_V1_003`, `TestFaultsOnChangedLinesInGit_FIH_V1_003` |
-| FIH-V1-004 | 5 | not yet built | not yet built |
+| FIH-V1-004 | 5 | `tools/fault-harness/baseline.go`, `run.go`, `cmds.go` | `TestBaselineQuarantine_FIH_V1_004`, `TestRunSealedSet_FIH_V1_004_005_006` |
 | FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005` |
 | FIH-V1-006 | 3 | `tools/fault-harness/run.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-007 | 7 | not yet built | not yet built |

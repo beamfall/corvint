@@ -37,6 +37,7 @@ const (
 type faultResult struct {
 	ID             string      `json:"id"`
 	Status         string      `json:"status"`
+	Planned        bool        `json:"planned"`
 	PlanKind       string      `json:"planKind,omitempty"` // NARROWED, FULL or UNKNOWN
 	Tier           string      `json:"tier,omitempty"`
 	Plan           []planEntry `json:"plan,omitempty"`
@@ -58,16 +59,19 @@ type caseResult struct {
 	ID             string        `json:"id"`
 	Kind           string        `json:"kind"`
 	PR             int           `json:"pr"`
+	HeadSHA        string        `json:"headSha"`
 	Status         string        `json:"status"`
 	ExcludedReason string        `json:"excludedReason,omitempty"`
 	Error          string        `json:"error,omitempty"`
 	Faults         []faultResult `json:"faults"`
 }
 
-// baselineRuns holds the three full-suite runs at one head.
+// baselineRuns holds the three full-suite runs at one head and their
+// evaluation.
 type baselineRuns struct {
-	SHA  string
-	Runs []RunResult
+	SHA    string
+	Runs   []RunResult
+	Record baselineRecord
 }
 
 // passedEveryRun lists the tests that passed in all runs.
@@ -168,12 +172,24 @@ type runConfig struct {
 	Clones  string // existing private parent for per-case clones
 	Binary  string // planner binary
 	Adapter Adapter
+	// Unrunnable names tests declared unrunnable in the pinned image.
+	Unrunnable []string
 }
 
 // harness carries the baselines measured so far, one per head.
 type harness struct {
 	cfg       runConfig
 	baselines map[string]baselineRuns
+	order     []string // heads in the order their baselines ran
+}
+
+// baselineRecords returns the evaluated baselines in the order they ran.
+func (h *harness) baselineRecords() []baselineRecord {
+	out := []baselineRecord{}
+	for _, sha := range h.order {
+		out = append(out, h.baselines[sha].Record)
+	}
+	return out
 }
 
 func newHarness(cfg runConfig) *harness {
@@ -184,7 +200,7 @@ func newHarness(cfg runConfig) *harness {
 // once, then puts each fault in and confirms kills and misses. The clone is
 // removed afterwards; the source is never written.
 func (h *harness) runCase(ctx context.Context, c harnessCase) (r caseResult) {
-	r = caseResult{ID: c.ID, Kind: c.Kind, PR: c.PR, Status: caseError, Faults: []faultResult{}}
+	r = caseResult{ID: c.ID, Kind: c.Kind, PR: c.PR, HeadSHA: c.HeadSHA, Status: caseError, Faults: []faultResult{}}
 	err := func() error {
 		root, cleanup, err := h.clone(ctx, c.ID, c.HeadSHA)
 		if err != nil {
@@ -209,7 +225,11 @@ func (h *harness) runCase(ctx context.Context, c harnessCase) (r caseResult) {
 				}
 				base.Runs = append(base.Runs, run)
 			}
+			if base.Record, err = evaluateBaseline(c.HeadSHA, base.Runs, h.cfg.Unrunnable); err != nil {
+				return err
+			}
 			h.baselines[c.HeadSHA] = base
+			h.order = append(h.order, c.HeadSHA)
 		}
 		killed := false
 		for _, f := range c.Faults {
@@ -253,22 +273,8 @@ func (h *harness) runFault(ctx context.Context, root string, c harnessCase, f fa
 	if len(paths) == 0 {
 		return fail(errors.New("fault changed no tracked path (possibly ignored file)"))
 	}
-	var faulted []RunResult
-	for i := 0; i < confirmRuns; i++ {
-		run, err := h.cfg.Adapter.Run(ctx, root, nil)
-		if err != nil {
-			// A fault that does not build, crashes or times out is not
-			// counted (G3, AEO-V0-004): it joins the dropped count.
-			fr.Status, fr.Detail = faultNoKill, fmt.Sprintf("faulted run %d: %v", i+1, err)
-			return fr
-		}
-		faulted = append(faulted, run)
-	}
-	fr.Kills = confirmKills(base.Runs, faulted)
-	if len(fr.Kills) == 0 {
-		fr.Status, fr.Detail = faultNoKill, "no test failed in all faulted runs after passing every baseline run"
-		return fr
-	}
+	// The plan and the dependent units are recorded for every fault, killed
+	// or not, so a quarantined test the plan omits is counted (FIH-V1-004).
 	p, err := plan(ctx, root, h.cfg.Binary, c.BaseSHA)
 	if err != nil {
 		return fail(err)
@@ -284,6 +290,23 @@ func (h *harness) runFault(ctx context.Context, root string, c harnessCase, f fa
 		if fr.DependentUnits, err = h.cfg.Adapter.DependentUnits(ctx, root, strings.Split(diff, "\n")); err != nil {
 			return fail(err)
 		}
+	}
+	fr.Planned = true
+	var faulted []RunResult
+	for i := 0; i < confirmRuns; i++ {
+		run, err := h.cfg.Adapter.Run(ctx, root, nil)
+		if err != nil {
+			// A fault that does not build, crashes or times out is not
+			// counted (G3, AEO-V0-004): it joins the dropped count.
+			fr.Status, fr.Detail = faultNoKill, fmt.Sprintf("faulted run %d: %v", i+1, err)
+			return fr
+		}
+		faulted = append(faulted, run)
+	}
+	fr.Kills = confirmKills(base.Runs, faulted)
+	if len(fr.Kills) == 0 {
+		fr.Status, fr.Detail = faultNoKill, "no test failed in all faulted runs after passing every baseline run"
+		return fr
 	}
 	if fr.PlanKind == "NARROWED" {
 		selected := RunResult{}

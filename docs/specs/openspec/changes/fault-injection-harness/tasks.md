@@ -11,7 +11,7 @@ Each task names its requirement IDs and its proof.
 - [x] 4 Pre-registration format, the reverted-fix rule file and its hash (A17), operator lists,
    over-sample and seal refusal. Requirements: FIH-V1-001, 002, 014. Proof: changed-seed,
    too-few-non-code, same-thirty, shortfall and too-few-flow-reaching tests.
-- [ ] 5 Baseline, quarantine and the omitted-quarantined count. Requirements: FIH-V1-004. Proof:
+- [x] 5 Baseline, quarantine and the omitted-quarantined count. Requirements: FIH-V1-004. Proof:
    flaky-baseline and omitted-quarantined tests.
 - [ ] 6 Cost check step 1 by 2026-11-16 (full-suite timing of the seven pinned repositories; the
    held-out part of the projection stays NOT_OBSERVED until the draw) and step 2 by
