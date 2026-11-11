@@ -105,6 +105,9 @@ type observation struct {
 	// dataTokens are the path-shaped strings of the JSON modules the module
 	// imports (TJAA-V0-622), candidate reads beside its own literals.
 	dataTokens []string
+	// pathGlobs are the anchored membership globs of the module's expanded glob calls
+	// (SLF-V1-003): a path added or removed under one reselects it.
+	pathGlobs []string
 }
 
 type config struct {
@@ -122,6 +125,9 @@ type config struct {
 	// testDir, when every testMatch in it is a literal root-free string glob, or nil (TJAA-V0-092).
 	literalProjects []PlaywrightProject
 	literalTestDir  string
+	// literal is a Vitest or Jest config's SLF-V1-005 evaluation, set only while
+	// literalConfigNarrowing is on and every recognised marker in it is literal.
+	literal *literalEvaluation
 }
 
 type packageScope struct {
@@ -433,6 +439,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	owned := make([]string, 0, len(files))
 	aliasConfigs := []string{}
 	sites := sourceSites{}
+	observed := make(map[string]bool, len(files))
+	var configPaths []string
+	for _, relative := range files {
+		observed[relative] = true
+		if _, known := configRunner(relative, ""); known || prefixedConfig(path.Base(relative), "vite.config") {
+			configPaths = append(configPaths, relative)
+		}
+	}
 	// opaque holds the owned modules whose imports are not all statically observed (AFP-V0-389).
 	opaque := map[string]bool{}
 	for _, relative := range files {
@@ -478,9 +492,14 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			if marker >= 0 && runner == runnerPlaywright {
 				configs[len(configs)-1].literalProjects, configs[len(configs)-1].literalTestDir = playwrightLiteralProjects(relative, text)
 			}
+			if marker >= 0 && literalConfigNarrowing {
+				// SLF-V1-005: a fully literal Vitest or Jest config is evaluated and raises nothing.
+				configs[len(configs)-1].literal, _ = evaluateLiteralConfig(relative, runner, text, configPaths, observed, language.Owns)
+			}
 			switch {
 			case marker >= 0 && runner == runnerPlaywright:
 				// AFP-V0-404: decided once the tests are classified, below.
+			case marker >= 0 && configs[len(configs)-1].literal != nil:
 			case marker >= 0:
 				frontier.at(FrontierConfig, relative, text, marker)
 			case runner == runnerMocha:
@@ -519,8 +538,35 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		if scan.err != nil {
 			frontier.at(FrontierUnparsedSource, relative, body, scan.syntax)
 		}
-		if scan.dynamic >= 0 {
-			frontier.at(FrontierDynamicImport, relative, body, scan.dynamic)
+		// SLF-V1-003: a glob call is computed loading unless its expansion rule is on and its
+		// arguments are literal; SLF-V1-004: a mock call with a computed target is its own
+		// frontier. Expanded matches join the module's references at the call's line.
+		dynamic := scan.dynamic
+		var pathGlobs []string
+		if globExpansionNarrowing {
+			dynamic = scan.requireDynamic
+			for _, call := range scan.globs {
+				expansion, literal := expandLoader(relative, call, files, language.Owns)
+				if !literal {
+					frontier.at(FrontierDynamicImport, relative, body, call.offset)
+					continue
+				}
+				for _, ref := range expansion.refs {
+					if _, seen := scan.offsets[ref]; !seen {
+						scan.offsets[ref] = call.offset
+						scan.refs = append(scan.refs, ref)
+					}
+				}
+				pathGlobs = append(pathGlobs, expansion.globs...)
+			}
+			sort.Strings(scan.refs)
+		}
+		if dynamic >= 0 {
+			frontier.at(FrontierDynamicImport, relative, body, dynamic)
+		}
+		for _, call := range scan.mocks {
+			opaque[relative] = true
+			frontier.raiseToken(FrontierMockTarget, lineSite(relative, body, call.offset), mockSiteToken(call))
 		}
 		if scan.unresolved >= 0 {
 			frontier.at(FrontierScanUnresolved, relative, body, scan.unresolved)
@@ -528,6 +574,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		observation := classify(relative, body, scan.refs, configs, scopes, sites, frontier)
 		observation.refs = scan.refs
 		observation.body = body
+		observation.pathGlobs = pathGlobs
 		observations = append(observations, observation)
 	}
 	for _, config := range configs {
@@ -731,6 +778,9 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		} else {
 			unit.Sources = []string{observation.path}
 		}
+		if len(observation.pathGlobs) != 0 {
+			unit.PathGlobs = sortedKeys(stringSet(observation.pathGlobs))
+		}
 		units = append(units, unit)
 		pathToID[observation.path] = id
 		dataTokens[id] = observation.dataTokens
@@ -738,6 +788,10 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 		direct[id] = make(map[string]bool)
 		for _, configPath := range observation.configs {
 			direct[id][configPath] = true
+			// SLF-V1-005: every test of an evaluated config loads its setup and mapped modules.
+			for _, load := range literalLoads(configPath, configs) {
+				direct[id][load] = true
+			}
 		}
 	}
 	for id, unit := range storybookGroups {
@@ -758,6 +812,7 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 	}
 
 	packages := newWorkspace(scopes, units)
+	mocks := manualMocks(pathToID)
 	for index := range units {
 		unit := &units[index]
 		edges := make(map[string]bool)
@@ -789,6 +844,8 @@ func buildResult(observations []observation, configs []config, scopes []packageS
 				edges[target] = true
 			}
 		}
+		// SLF-V1-004: an importer of a module, or of a bare package, also reads its manual mock.
+		mocks.add(owner, refs[unit.ID], edges, unit.ID)
 		unit.Imports = sortedKeys(edges)
 		unresolvedSpecifierTokens(unit, sites, resolved)
 		mergeDataTokens(unit, dataTokens[unit.ID])
@@ -839,7 +896,7 @@ func classify(relative, body string, refs []string, configs []config, scopes []p
 	explicit := explicitRunners(body, refs)
 	possible := possibleRunners(relative, configs, scopes)
 	observation.puppeteer = importsPackage(refs, "puppeteer") || importsPackage(refs, "puppeteer-core")
-	candidate := isTestCandidate(relative) || len(explicit) != 0 || observation.puppeteer || conventionCandidate(relative, conventionRunners(relative, possible, scopes))
+	candidate := isTestCandidate(relative) || len(explicit) != 0 || observation.puppeteer || conventionCandidate(relative, conventionRunners(relative, possible, scopes)) || literalMember(relative, configs)
 	if !candidate || isConfigPath(relative, body) {
 		return observation
 	}
@@ -1066,14 +1123,23 @@ func scanImports(relative, body string) ([]string, bool, error) {
 //
 // offsets holds, for each reference, the byte offset of its first parsed specifier, so a site is
 // the specifier's own line, found without searching the text again (TJAA-V0-040).
+//
+// dynamic also counts every glob call (SLF-V1-003), so a consumer that reads only dynamic fails
+// closed on one; requireDynamic is the first computed `require` or `import(` alone, and globs
+// holds the glob calls, which the general adapter expands while globExpansionNarrowing is on.
+// mocks holds the offset of every jest.mock or vi.mock call whose target is not a literal
+// (SLF-V1-004); a literal target is a reference in refs.
 type importScan struct {
-	refs       []string
-	offsets    map[string]int
-	specifiers map[int]string
-	dynamic    int
-	unresolved int
-	syntax     int
-	err        error
+	refs           []string
+	offsets        map[string]int
+	specifiers     map[int]string
+	dynamic        int
+	requireDynamic int
+	unresolved     int
+	syntax         int
+	err            error
+	globs          []loaderCall
+	mocks          []loaderCall
 }
 
 func scanImportSites(relative, body string) importScan {
@@ -1101,7 +1167,7 @@ func scanImportSites(relative, body string) importScan {
 	if !requiresParsed && parseErr == nil {
 		parseErr = strconv.ErrSyntax
 	}
-	scan.dynamic = computedLoading
+	scan.dynamic, scan.requireDynamic = computedLoading, computedLoading
 	// A slash the lexer keeps as division although it may open a regular expression can
 	// misplace string, comment and code boundaries after it, hiding an import, require or
 	// comment-stripped static import. Then any loading word keeps the module unresolved
@@ -1110,6 +1176,25 @@ func scanImportSites(relative, body string) importScan {
 		scan.unresolved = ambiguousSlash(body, withoutComments, jsxSource(relative))
 	}
 	for _, ref := range requires {
+		if call := ref.loader; call != nil {
+			switch target, literal := "", false; call.kind {
+			case loaderMock:
+				if !call.unparsed && len(call.args) != 0 {
+					target, literal = stringLiteral(call.args[0])
+				}
+				if literal && target != "" {
+					add(target, call.offset)
+				} else {
+					scan.mocks = append(scan.mocks, *call)
+				}
+			default:
+				scan.globs = append(scan.globs, *call)
+				if scan.dynamic < 0 || call.offset < scan.dynamic {
+					scan.dynamic = call.offset
+				}
+			}
+			continue
+		}
 		add(ref.text, ref.offset)
 		scan.specifiers[ref.offset] = ref.text
 	}
@@ -1314,10 +1399,12 @@ func scanRequires(body string, typed bool) ([]importRef, int, bool) {
 	return refs, dynamic, parsed
 }
 
-// importRef is one literal specifier and the byte offset where it starts.
+// importRef is one literal specifier and the byte offset where it starts, or, with loader set, a
+// glob or mock call (SLF-V1-003, SLF-V1-004).
 type importRef struct {
 	text   string
 	offset int
+	loader *loaderCall
 }
 
 // markDynamic records the offset of the first computed loading call.
@@ -1372,10 +1459,22 @@ func scanRequireCode(body string, index int, stopAtBrace bool, nesting int, type
 			continue
 		}
 		if strings.HasPrefix(body[index:], "import") && !(index > 0 && (isIdentifier(body[index-1]) || body[index-1] == '.')) {
+			if end, glob := metaGlobAt(body, index); glob {
+				call := loaderCallAt(body, loaderGlob, index, end)
+				*refs = append(*refs, importRef{offset: index, loader: &call})
+				index = end
+				continue
+			}
 			end, ok := scanImportCall(body, index, typed, refs, dynamic)
 			if !ok {
 				return len(body), false
 			}
+			index = end
+			continue
+		}
+		if end, kind, found := loaderCallee(body, index); found {
+			call := loaderCallAt(body, kind, index, end)
+			*refs = append(*refs, importRef{offset: index, loader: &call})
 			index = end
 			continue
 		}
@@ -2190,9 +2289,10 @@ func repositorySpecifier(directory, specifier string) bool {
 var dynamicConfigMarkers = []string{"testMatch", "testRegex", "testDir", "specPattern", "specs:", "src:", "projects:", "include:", "exclude:", "setupFiles", "globalSetup", "capabilities:", "browsers:"}
 
 // dynamicConfigMarker returns the offset of the first membership or project marker the adapter does
-// not model, or -1.
+// not model, or -1: a dynamicConfigMarkers text or a key-shaped `roots`, `testPathIgnorePatterns`,
+// `moduleNameMapper`, `dir` or `root` key (SLF-V1-005, R42 (panel pick) A6).
 func dynamicConfigMarker(body string) int {
-	offset := -1
+	offset := keyShapedConfigMarkerAt(body)
 	for _, marker := range dynamicConfigMarkers {
 		if found := strings.Index(body, marker); found >= 0 && (offset < 0 || found < offset) {
 			offset = found

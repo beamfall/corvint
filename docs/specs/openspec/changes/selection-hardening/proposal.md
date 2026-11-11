@@ -1,7 +1,7 @@
 # Change proposal: close Python and JavaScript selection misses and give one verdict per plan
 
 Change name: `selection-hardening`
-Ticket: none filed yet (task 1 files it in `.taskman/`, milestone `v1-0`)
+Ticket: V1-5401 (milestone `v1-0`)
 Product requirement served: PROD-TEST-001, PROD-TEST-002, PROD-TEST-009, PROD-TEST-014,
 PROD-TEST-015 and PROD-TEST-016 in `docs/specs/PRODUCT-PLAN-1.0.md`
 Owning capability spec: `docs/specs/selection-hardening-v1.md`, a new spec with its own prefix
@@ -10,9 +10,10 @@ Owning capability spec: `docs/specs/selection-hardening-v1.md`, a new spec with 
 Requirement IDs this change adds: SLF-V1-001 to SLF-V1-008
 Owner answers this change implements: G3, G4 (`owner-answers-2026-11-09.md`), and owner decisions
 R16 and R32 (2026-11-09)
-Intent status: proposed (written 2026-11-09; only the owner can accept it)
-Delivery status: not-started
-Written before dispatch: yes. No lane has been started for this change.
+Intent status: accepted automatically under G14 (decision 0596; logged 2026-11-11), since it only
+implements accepted plan requirements
+Delivery status: in delivery (V1-5401); see `docs/specs/selection-hardening-v1.md`
+Written before dispatch: yes. Lane `selhard` builds tasks 2 to 6a and 9 (2026-11-11).
 Layout: this folder follows G14 (`proposal.md`, `design.md`, `tasks.md`,
 `specs/selection-hardening/spec.md`).
 

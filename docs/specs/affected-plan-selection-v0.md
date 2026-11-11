@@ -2945,8 +2945,8 @@ AFP-V0-003, AFP-V0-398 and RGV-V0-015, so the headline goes to stderr.
   (2026-10-11); V1-4321) When `corvint affected` writes the compact `affected-plan/1` JSON plan
   (no `--full`, `--summary`, `--format text`, `--by-path` or `--playwright-config`), it SHALL
   first write to stderr a headline of at most ten lines, each at most 200 bytes and starting
-  `corvint affected: `: the AFP-V0-510 summary line with `revision=` and, for a range,
-  `base=`; `tiers` with the AFP-V0-162 counts when anything is selected; one
+  `corvint affected: `: the AFP-V0-510 summary line, with SLF-V1-008's `tests=` and `drivers=`
+  counts after its `selected=` total, then `revision=` and, for a range, `base=`; `tiers` with the AFP-V0-162 counts when anything is selected; one
   `unknown REASON xCOUNT: DETAIL` line for each of the five most frequent unknown reasons (count
   descending, then reason), with that reason's first detail, then one line counting the reasons
   and entries left out; `warning` with the receipt warning when present; and a last line naming
