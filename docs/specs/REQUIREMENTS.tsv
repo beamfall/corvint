@@ -7372,6 +7372,18 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	archive metadata 
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-BIN-V0-001	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-002	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-003	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-004	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-005	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-006	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-007	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-508	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-509	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-510	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-511	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-512	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
 ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
@@ -7436,6 +7448,7 @@ RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec wi
 RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
 RDG-V0-023	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2403) The gate	standing	2026-10-11; V1-2403
 RDG-V0-741	docs/specs/requirement-definition-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3699; refines	standing	2026-11-01; V1-3699
+RDG-V0-9980	docs/specs/requirement-definition-gate-v0.md	(proposed; V1-5324; widens RDG-V0-001 and RDG-V0-003 beyond the TSV) The gate	unrecorded	-
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-

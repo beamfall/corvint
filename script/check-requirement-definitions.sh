@@ -19,6 +19,18 @@ set -eu
 # `## Requirements` section, so an OCM-form definition (- `ID`: , - **ID:** , - **ID.** )
 # placed after that section falls out of every OCM. Such a definition must be listed in
 # script/requirement-definitions-outside-section.txt, a frozen baseline that may only shrink.
+#
+# Cited-id scan (RDG-V0-9980, V1-5324): every id of the same shape cited in a tracked Go file, a
+# Makefile or AGENTS.md (testdata/, vendor/, docs/build-log/, docs/decisions/ and generated Go
+# files skipped) must have a definition in some spec. A definition in a retired spec (header
+# `Delivery status: retired`) counts as defined; those ids are only counted, as information. A
+# cited id ends at its first three-digit group. An undefined cited id fails unless it is listed in
+# script/requirement-citations-undefined.txt, a frozen baseline that may only shrink, or in
+# script/requirement-citations-allowlist.tsv, the reviewed `id<TAB>reason` list of tokens that
+# are not requirement ids (a checksum name, a standard, a test fixture id). A baseline line that is
+# defined, no longer cited or allowlisted fails as stale; an allowlist line with no reason fails,
+# and one whose id is defined or no longer cited fails as stale. CEM-CB-* stays exempt, as above.
+# Four-digit ids are outside the id shape, so this scan does not see them.
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -99,14 +111,37 @@ sub tracked_spec_docs {
     return sort @files;
 }
 
+# RDG-V0-9980: the index files whose requirement citations are read. The scan is bounded to tracked
+# Go files, Makefiles and the root AGENTS.md, never fixture, vendored or record directories.
+sub tracked_citing_files {
+    open my $ls, '-|', 'git', 'ls-files', '-z', '--cached'
+        or die "git ls-files: $!\n";
+    local $/ = "\0";
+    my @files;
+    while (my $path = <$ls>) {
+        chomp $path;
+        next unless $path eq 'AGENTS.md' || $path =~ m{(?:\A|/)Makefile\z} || $path =~ /\.go\z/;
+        next if $path =~ m{(?:\A|/)(?:testdata|vendor)/} || $path =~ m{\Adocs/(?:build-log|decisions)/};
+        push @files, $path;
+    }
+    close $ls
+        or die $! ? "git ls-files: $!\n" : 'git ls-files failed: exit ' . ($? >> 8) . "\n";
+    return sort @files;
+}
+
 sub index_lines {
     return split /^/, index_blob($_[0]);
 }
 
-my (%defined, %outside, @misshapen);
+my (%defined, %live, %outside, @misshapen);
 for my $file (tracked_spec_docs()) {
     next if $file eq 'docs/specs/README.md';
     my $line_number = 0;
+    my @lines = index_lines($file);
+    # RDG-V0-9980: a spec whose header says `Delivery status: retired` is a record of removed code
+    # (the TTG-V0-951 rule), so its definitions are not live for the cited-id scan.
+    my $last = $#lines < 39 ? $#lines : 39;
+    my $is_live = !grep { /^(?:- )?\**Delivery status:\**\s*retired\b/ } @lines[0 .. $last];
     # A fence is tracked as OCM's fencedLines does (internal/lrfrepo/ocm.go): a run of at least
     # three backticks or tildes indented at most three spaces opens one (a backtick fence's info
     # string holds no backtick), and only a run of the same character at least as long, followed
@@ -114,7 +149,7 @@ for my $file (tracked_spec_docs()) {
     my ($fence, $in_section, $sections, $rollback) = ('', 0, 0, 0);
     my @outside;
     my $continues = 0;
-    for my $line (index_lines($file)) {
+    for my $line (@lines) {
         ++$line_number;
         # RDG-V0-023: an unbulleted line that directly follows a non-blank, non-heading line
         # outside a fence continues that paragraph or list item, so an id that starts it (a
@@ -154,6 +189,7 @@ for my $file (tracked_spec_docs()) {
         next if $rollback;
         next unless $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?(?:\s*:|\.(?!\.))/;
         push @{ $defined{$2} }, "$file:$line_number";
+        $live{$2} = 1 if $is_live;
     }
     # Only a spec with exactly one Requirements section is an OCM intent; others refuse anyway.
     $outside{$_} = 1 for $sections == 1 ? @outside : ();
@@ -169,6 +205,50 @@ if (system("git cat-file -e :script/requirement-definitions-outside-section.txt 
 }
 my @new_outside = grep { !$baseline{$_} } sort keys %outside;
 my @stale_baseline = grep { !$outside{$_} } sort keys %baseline;
+
+# RDG-V0-9980: the first citing path:line of every id cited in scope. The id must not continue a
+# longer token on either side, so a four-digit id is never read as its three-digit prefix, and it
+# ends at its first three-digit group: no segment before that group is three or more digits, so
+# `ABC-V0-001..003`, `ABC-V0-001-002` and `ABC-V0-001/002` each read as `ABC-V0-001` alone.
+my %cited;
+for my $file (tracked_citing_files()) {
+    my $blob = index_blob($file);
+    next if $file =~ /\.go\z/ && $blob =~ m{\A// Code generated .* DO NOT EDIT\.\r?\n};
+    while ($blob =~ /(?<![A-Za-z0-9-])([A-Z][A-Z0-9]*(?:-(?![0-9]{3,}(?![A-Z0-9]))[A-Z0-9]+)*-[0-9]{3})(?![0-9])/g) {
+        my $id = $1;
+        next if $cited{$id} || $id =~ /^CEM-CB-/;
+        my $line_number = 1 + (substr($blob, 0, $-[0]) =~ tr/\n//);
+        $cited{$id} = "$file:$line_number";
+    }
+}
+my %citation_baseline;
+if (system("git cat-file -e :script/requirement-citations-undefined.txt 2>/dev/null") == 0) {
+    for my $row (split /^/, index_blob('script/requirement-citations-undefined.txt')) {
+        chomp $row;
+        next if $row =~ /^\s*(?:#|\z)/;
+        $citation_baseline{$row} = 1;
+    }
+}
+# The allowlist names cited tokens that are not requirement ids, each with the reviewed reason.
+my (%allowlist, @reasonless);
+if (system("git cat-file -e :script/requirement-citations-allowlist.tsv 2>/dev/null") == 0) {
+    my $row_number = 0;
+    for my $row (split /^/, index_blob('script/requirement-citations-allowlist.tsv')) {
+        ++$row_number;
+        chomp $row;
+        next if $row =~ /^\s*(?:#|\z)/;
+        my ($id, $reason) = $row =~ /\A([^\t]+)\t(.*)\z/ ? ($1, $2) : ($row, '');
+        if ($reason !~ /\S/) {
+            push @reasonless, "script/requirement-citations-allowlist.tsv:$row_number $id";
+            next;
+        }
+        $allowlist{$id} = 1;
+    }
+}
+my @undefined_cited = grep { !$defined{$_} && !$citation_baseline{$_} && !$allowlist{$_} } sort keys %cited;
+my @stale_citation_baseline = grep { $defined{$_} || !$cited{$_} || $allowlist{$_} } sort keys %citation_baseline;
+my @stale_allowlist = grep { $defined{$_} || !$cited{$_} } sort keys %allowlist;
+my $retired_only = grep { $defined{$_} && !$live{$_} } keys %cited;
 
 my @undefined;
 for my $row (split /^/, index_blob('docs/specs/REQUIREMENTS.tsv')) {
@@ -216,6 +296,34 @@ if (@stale_baseline) {
     print STDERR "requirement definitions: no longer outside ## Requirements; delete from script/requirement-definitions-outside-section.txt:\n";
     print STDERR "  $_\n" for @stale_baseline;
 }
+if (@undefined_cited) {
+    $failed = 1;
+    print STDERR "requirement definitions: these ids are cited in Go code, a Makefile or AGENTS.md but no spec defines them; "
+        . "for each, define the requirement in its spec's ## Requirements section, or fix the citation to the id that is defined, "
+        . "or, only for a token that is not a requirement id, add an `id<TAB>reason` line to "
+        . "script/requirement-citations-allowlist.tsv (RDG-V0-9980):\n";
+    print STDERR "  $_ $cited{$_}\n" for @undefined_cited;
+}
+if (@stale_citation_baseline) {
+    $failed = 1;
+    print STDERR "requirement definitions: these script/requirement-citations-undefined.txt lines are stale, "
+        . "now defined in a spec, no longer cited or allowlisted; delete them (RDG-V0-9980):\n";
+    print STDERR "  $_\n" for @stale_citation_baseline;
+}
+if (@reasonless) {
+    $failed = 1;
+    print STDERR "requirement definitions: these script/requirement-citations-allowlist.tsv lines give no reason; "
+        . "write `id<TAB>reason` saying why the token is not a requirement id (RDG-V0-9980):\n";
+    print STDERR "  $_\n" for @reasonless;
+}
+if (@stale_allowlist) {
+    $failed = 1;
+    print STDERR "requirement definitions: these script/requirement-citations-allowlist.tsv lines are stale, "
+        . "now defined in a spec or no longer cited; delete them (RDG-V0-9980):\n";
+    print STDERR "  $_\n" for @stale_allowlist;
+}
+print "requirement definitions: $retired_only cited id(s) are defined only in a retired spec (RDG-V0-9980, information only)\n"
+    if $retired_only;
 @misshapen = map { $_->[1] } grep { !$defined{$_->[0]} } @misshapen;
 if (@misshapen) {
     $failed = 1;
