@@ -204,7 +204,9 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   that `.corvint` still names the validated directory, refusing otherwise. A `.corvint` swapped for a
   symlink after validation therefore leaves the symlink target byte-identical. A platform where
   `os.Root` cannot open the directory returns an error, so the writer fails closed. `Enabled` remains
-  an existence check that writes nothing; the append it gates is the refusing step.
+  an existence check that writes nothing; the append it gates is the refusing step. (Amended by
+  decision 0594: `internal/unplannedread` was deleted on 2026-11-11, so `internal/observations` is
+  the one ledger left under this rule.)
 - `SOL-V0-030`: (added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`
   Edit, Write or NotebookEdit target that `projectpath.Relative` does not admit. It is the exclusion
   code `post-tool-path-outside-project` only when the root resolves, the target resolves (itself, or
@@ -272,7 +274,7 @@ new clause needs no count edit (V1-2153); it does not validate their runtime beh
 | SOL-V0-011 | `TestAuthorityRateCountsOnlyMeasuredUserPromptRows`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` (removed) (V1-1977 external-adopter qualification: a Go module with `AGENTS.md` and accepted `docs/adr` decisions returns accepted-decision authority from a user-prompt hook event, records the measured count, and reports `zero-authoritative-rate=0/1`) |
 | SOL-V0-012 | `TestFixedFrontierDegradationIsReportedByDesign`; `TestRenderGoldenAndReadOnly`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` (removed) |
 | SOL-V0-013 | `TestSetupLineNamesSnapshotRefresh` |
-| SOL-V0-014 | `TestSOLV0014AppendRefusesSwappedLedgerDirectory`; `TestSOLV0014LedgerDirectoryRefusesEveryOperationAfterSwap`; `TestURE004AppendRefusesSwappedLedgerDirectory`; `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestSymlinkedLedgerIsRefused` |
+| SOL-V0-014 | `TestSOLV0014AppendRefusesSwappedLedgerDirectory`; `TestSOLV0014LedgerDirectoryRefusesEveryOperationAfterSwap`; `TestURE004AppendRefusesSwappedLedgerDirectory` (removed); `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestSymlinkedLedgerIsRefused` (removed) |
 | SOL-V0-120 | `TestSOLV0120HarnessEventCodesAndLegacyRowsTallyTogether`; `TestRenderTalliesAdapterDegradations`; `TestSetupLineNamesSnapshotRefresh` |
 | SOL-V0-030 | `TestSOL030PostToolTargetAbstentionClasses` (removed) (resolved outside absolute and relative targets are exclusions, in-project absolute and relative targets are accepted; a symlink-escaping in-project target, a missing parent, a `..` through a missing component, a case-only spelling and a symlink alias of the root are never exclusions); `TestSOL030OutOfProjectPostToolIsExclusion` (triage prints `ADAPTER-EXCLUSION` for the exclusion code and `ADAPTER-DEGRADATION` for the unresolvable code); `TestAdapterSilentAbstentionsAreLedgered` (removed) (the out-of-project Write records `post-tool-path-outside-project`) |
 

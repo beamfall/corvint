@@ -849,11 +849,14 @@ owner's standing lane auto-accept (2026-10-11).
   `DECLARED_RUNTIME_READERS` path whose literal, scoped and unbounded readers are selected, with no
   `UNOWNED_DIRTY_PATH` and no frontier fan-out; a `*-changed` frontier such a declaration already
   raises (`go:gated-root-locators-changed`, `shell:read-scopes-changed`,
-  `shell:foreign-callers-changed`, `shell:test-inputs-changed`) is unchanged. `Makefile`,
-  `.github/` workflow and action files, `.corvint/documentation-paths.json`,
-  `.corvint/runtime-readers.json` and
-  `.corvint/unbounded-reader-exclusions.json` stay `UNOWNED_DIRTY_PATH`: no sound mapping exists,
-  because a driver input runs every step it defines and a declaration would classify itself.
+  `shell:foreign-callers-changed`, `shell:test-inputs-changed`) is unchanged. `Makefile` and
+  `.github/` workflow and action files stay `UNOWNED_DIRTY_PATH`: no sound mapping exists, because
+  a driver input runs every step it defines. The parser-owned control declarations
+  (`.corvint/documentation-paths.json`, `.corvint/runtime-readers.json`,
+  `.corvint/unbounded-reader-exclusions.json` and the others AZU-V0-8910 names) are declared only by
+  their exact AZU-V0-8910 entries, so an edit to one, including a change that adds an entry to
+  `.corvint/runtime-readers.json`, is `DECLARED_RUNTIME_READERS` with its readers selected; without
+  its exact entry each keeps `UNOWNED_DIRTY_PATH` (V1-5009).
 - **AFP-V0-2405:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-3480) An `UNOWNED_DIRTY_PATH` entry whose path is a driver input (a make file, a
   `.github/workflows/` or `.github/actions/` file) and that carries no hint SHALL carry the hint
@@ -2894,6 +2897,14 @@ this lane's allowed paths. These facts and the pending integration checks are re
   binary writes neither. `--ownership-audit`, `discovery` and `cache` compute no selection and are
   unchanged. Failure mode: a lane running `affected jobs` with an installed binary from another
   commit gets the refusal where it got a plan before, and the message says how to proceed.
+  (Proposed, experimental; V1-5012, 2026-11-11.) Because `affected audit` replays this binary's
+  selector over historical changes by design, every `corvint-affected-audit/1` report SHALL also
+  carry the additive member `producer`, the PUB-V0-027 identity of the binary that replayed them
+  (`version`, `build`, `commit`, `commitState`, each stated or the explicit `unknown` marker per
+  PUB-V0-028), so the report names the commit its plans were computed with whether the binary was
+  fresh, accepted stale, unverified or unstamped. The audit has no text form, so no text line is
+  added. No existing member changes meaning. Rollback: drop `producer` from `affectedAuditReport`
+  (`cmd/corvint/affected_audit.go`).
 
 ### Hub read scopes (V1-5201)
 
@@ -2921,6 +2932,42 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   the plan after the change. (PROD-TEST-001)
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
+
+### A bounded stderr headline for the default plan (V1-4321)
+
+Intent (lane bin-w32 friction, 2026-11-02; lane affread charter, 2026-11-11; V1-4321): the
+default `corvint affected` stdout is one canonical JSON line (AFP-V0-003, AFP-V0-398) that measured
+255,266 bytes for this repository's `main~1` plan, so an agent reading its terminal could not see
+the verdict without a JSON tool. AFP-V0-872's `--summary` is opt-in. The stdout bytes stay pinned by
+AFP-V0-003, AFP-V0-398 and RGV-V0-015, so the headline goes to stderr.
+
+- **AFP-V0-3642:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-4321) When `corvint affected` writes the compact `affected-plan/1` JSON plan
+  (no `--full`, `--summary`, `--format text`, `--by-path` or `--playwright-config`), it SHALL
+  first write to stderr a headline of at most ten lines, each at most 200 bytes and starting
+  `corvint affected: `: the AFP-V0-510 summary line with `revision=` and, for a range,
+  `base=`; `tiers` with the AFP-V0-162 counts when anything is selected; one
+  `unknown REASON xCOUNT: DETAIL` line for each of the five most frequent unknown reasons (count
+  descending, then reason), with that reason's first detail, then one line counting the reasons
+  and entries left out; `warning` with the receipt warning when present; and a last line naming
+  `--format text` and `--summary --format text` as the ways to read the plan without a JSON
+  tool. A longer line is cut to 200 bytes ending `...`; a control character is quoted as
+  `--format text` quotes it. Stdout SHALL stay byte for byte the AFP-V0-398 document. The
+  headline SHALL be left out when stdout and stderr are the same pipe or regular file (as after
+  `2>&1`), as AFP-V0-871 leaves out the degradation line, so the merged output still parses as
+  one document, when stderr is not a file (an in-process caller), and when stderr is a pipe or
+  socket, where a write to a closed reader raises SIGPIPE and would end the run before the plan
+  reaches stdout; only a character device (a terminal or /dev/null) or a regular file receives it,
+  and a write failure there is
+  ignored. A refusal writes no
+  headline. Non-goals: any change to stdout, to the selection or to the other output forms; a
+  headline in the merged-stream case, which no single byte stream can carry without breaking
+  the `2>&1` readers AFP-V0-871 protects. Failure mode: a harness that captures stdout and stderr
+  into one file (this lane's agent shell does) shows no headline; the reader then runs
+  `--summary --format text`, or sends stdout to a file. A reader that greps stderr on success
+  sees the new lines. Acceptance evidence: `TestAffectedHeadlineIsBounded_AFPV03642` and
+  `TestAffectedHeadlineOnSeparateStderr_AFPV03642` in `cmd/corvint`. Rollback: delete
+  `cmd/corvint/affected_headline.go` and its call in `runAffected`.
 
 ## Non-goals
 
@@ -3149,6 +3196,12 @@ read-scope declaration remains string-only throughout.
 
 ## Acceptance evidence and traceability
 
+V1-4321: `TestAffectedHeadlineIsBounded_AFPV03642` pins the headline's text shape and its
+ten-line, 200-byte-per-line bound; `TestAffectedHeadlineOnSeparateStderr_AFPV03642` pins that
+stdout is unchanged byte for byte, that a separate stderr file carries the headline, and that a
+merged stream and an in-process writer carry none. `../build-log/2026-11-11-affread.md` records the
+design choice and the live output.
+
 AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
 `TestTestOnlyEmbedMalformedFailsClosed_AFPV03350`, `TestTestEmbedReadersStayTestScoped_AFPV03350`,
 `TestCommentOnlyTestEmbedIndex_AFPV03351`, `TestTestEmbedFactsAreDigestedValidatedAndCached_AFPV03352`
@@ -3357,7 +3410,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9730 | `selfBinaryStaleRefusal` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` and `--accept-stale-binary` in `cmd/corvint/affected.go`; `runAffectedByPath` in `cmd/corvint/affected_by_path.go`; the stale check and `--accept-stale-binary` in `runTest` and `parseTestOptions` (`cmd/corvint/test.go`); the opt-in in `tools/selection-baseline/main.go` and `tools/affected-edit-oracle/main.go` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go` (every form refused with the code and fix line, stdout empty, accepted plan degraded, unverified not refused, repeated flag refused; it fails on the exit-0 behaviour); the accepted forms in `TestSelfBinaryStaleIsReportedByAffectedAndTest`, `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`, `TestStaleBinaryNoticeOncePerInvocation_ACXV0751`, `TestAffectedStaleBinaryMergedStreamStillParses`, `TestAFPV0825StaleCheckReusesThePlanHEAD`; `make capabilities-check` |
 | AFP-V0-9731 | the `testFileCount` member of `affectedCompactSelection` (`cmd/corvint/affected_compact.go`) and `affectedByPathUnit` (`cmd/corvint/affected_by_path.go`); the `test-files=` word in `renderAffectedText` and `renderAffectedByPathText` | `TestAffectedTestCountsMatchGoTestList_AFPV09731` in `cmd/corvint/affected_test_file_counts_test.go` (go test -list parity, both counts in the compact, text and by-path forms, unchanged full plan); `TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range` with the regenerated golden |
 | AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
-| AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
+| AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; the V1-5012 `producer` member in `runAffectedAudit`: `TestAffectedAuditNamesItsPlanningBinary_V15012` in `cmd/corvint/affected_audit_producer_test.go` (fresh, accepted-stale and unstamped binaries name HEAD, the older commit and `unknown`; it fails without the member); `make capabilities-check` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
