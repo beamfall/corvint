@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -225,12 +227,12 @@ func runDocsCheckCLI(t *testing.T, root string) (int, docsCheckResult, string) {
 }
 
 // DMF-V1-002: with no markers, no flows manifest and no citations, every part is NOT_CHECKED with
-// reason none-found and the exit is 0.
+// reason none-found, the report status says NOT_CHECKED (never PASS) and the exit is 0.
 func TestDMFV1002DocsCheckNothingFound(t *testing.T) {
 	t.Parallel()
 	root := docsRepository(t)
 	code, report, stderr := runDocsCheckCLI(t, root)
-	if code != 0 || report.Profile != "corvint-docs-check/0" || report.Status != "PASS" || len(report.Commit) < 40 || len(report.Parts) != 3 || report.Worktree.State != "clean" {
+	if code != 0 || report.Profile != "corvint-docs-check/0" || report.Status != "NOT_CHECKED" || len(report.Commit) < 40 || len(report.Parts) != 3 || report.Worktree.State != "clean" {
 		t.Fatalf("nothing found %d %+v %s", code, report, stderr)
 	}
 	for i, name := range []string{"markers", "flows", "citations"} {
@@ -313,6 +315,71 @@ func TestDMFV1002DocsCheckPassThenOneStaleBlock(t *testing.T) {
 	}
 	if flows.State != "PASS" || citations.State != "PASS" {
 		t.Fatalf("other parts %+v %+v", flows, citations)
+	}
+}
+
+// DMF-V1-002: a flows check that could not run fails the docs check with exit 2 and no report: a
+// cancelled or expired context and a Git failure are never NOT_CHECKED. Only a flow-docs refusal
+// (output that genuinely cannot be compared) is NOT_CHECKED, and then the report status says
+// NOT_CHECKED, not PASS, with exit 0.
+func TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked(t *testing.T) {
+	root := docsRepository(t)
+	for _, dir := range []string{"app", "docs"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "app", "controller.rb"), []byte("class PaymentsController\n  def create\n    authorize(user)\n  end\nend\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	head, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").CombinedOutput()
+	if err != nil {
+		t.Fatalf("rev-parse: %v %s", err, head)
+	}
+	var out, errOut bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "docs", "flows", "generate", "--revision", strings.TrimSpace(string(head)), "--scope", "app", "--output-dir", filepath.Join(root, "docs", "flows")}, strings.NewReader(""), &out, &errOut); code != 0 {
+		t.Fatalf("generate %d %s", code, errOut.String())
+	}
+	docsCommit(t, root)
+	_, refusal := flowdocs.ParseFlowInventory([]byte("{"))
+	if !flowdocs.Refused(refusal) {
+		t.Fatalf("fixture refusal %v is not a flow-docs refusal", refusal)
+	}
+	saved := docsCheckRevision
+	t.Cleanup(func() { docsCheckRevision = saved })
+	for _, c := range []struct {
+		name string
+		err  error
+		code string
+	}{
+		{"cancelled", context.Canceled, "cancelled"},
+		{"deadline", fmt.Errorf("git cat-file: %w", context.DeadlineExceeded), "cancelled"},
+		{"git failure", errors.New("git ls-tree failed: exit status 128"), "docs-check-failed"},
+	} {
+		docsCheckRevision = func(context.Context, string, []byte, string, string) (flowdocs.Check, error) {
+			return flowdocs.Check{}, c.err
+		}
+		out.Reset()
+		errOut.Reset()
+		code := runContext(context.Background(), []string{"--root", root, "docs", "check"}, strings.NewReader(""), &out, &errOut)
+		if code != 2 || out.Len() != 0 || !strings.Contains(errOut.String(), c.code) {
+			t.Fatalf("%s: exit %d, stdout %q, stderr %q", c.name, code, out.String(), errOut.String())
+		}
+	}
+	docsCheckRevision = func(context.Context, string, []byte, string, string) (flowdocs.Check, error) {
+		return flowdocs.Check{}, refusal
+	}
+	code, report, stderr := runDocsCheckCLI(t, root)
+	if code != 0 || report.Status != "NOT_CHECKED" || len(report.Parts) != 3 {
+		t.Fatalf("refused flows manifest %d %+v %s", code, report, stderr)
+	}
+	if flows := report.Parts[1]; flows.State != "NOT_CHECKED" || len(flows.NotChecked) != 1 || flows.NotChecked[0].Path != "docs/flows/generation.json" || !strings.Contains(flows.NotChecked[0].Detail, "flowdocs-refused") {
+		t.Fatalf("flows part %+v", flows)
+	}
+	docsCheckRevision = saved
+	if code, report, stderr := runDocsCheckCLI(t, root); code != 0 || report.Parts[1].State != "PASS" {
+		t.Fatalf("real flows check %d %+v %s", code, report, stderr)
 	}
 }
 
