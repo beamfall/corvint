@@ -3,8 +3,10 @@
 Owner: Russell Lewis
 Date: 2026-09-05
 Status: accepted
-Intent status: accepted (decision 0058)
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted the trace packages; Corvint 1.0 learns nothing from use (decision 0596) (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Requirement prefix: `LTA-V0`
 Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-retention-2026-09-05.md`;
 `docs/decisions/0037-release-owner-calls-2026-09-03.md` item 4; AGENTS.md invariant 5;
@@ -16,7 +18,7 @@ frozen held-out gate.
 
 ## Agent digest
 - Claim: Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.
-- Status: accepted (decision 0058); experimental.
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: the local trace writer and reader, Python-parity learned-path query behavior, the baseline frozen-corpus evaluation arm, and the read-only `skill-export` projection of admitted `passed` rows to Agent Skills documents (decision 0349).
 - Blocked on: a first registered development run under both engines; blind-v4 remains sealed.
 - Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`; `LTA-V0-006` for the skill export; `LTA-V0-009` for ledger-labelled slot weights (decision 0368, accepted by 0373, experimental).

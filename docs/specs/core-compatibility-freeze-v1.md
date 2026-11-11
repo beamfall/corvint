@@ -76,6 +76,14 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   and leaves the frozen set; its `corvint-working-tree-impact/0` row no longer binds and its golden
   `impact-untracked-working-tree.json` is retired with it.
 
+  Amended by decision 0597 (2026-11-11): `context --task` is removed from Corvint by owner direction
+  ("for context we should focus on the parts that are proven to work, and scrap the rest") and
+  leaves the frozen set; its row no longer binds, and its goldens `context-task.json`,
+  `context-reserved-rows.json`, `context-downgraded-governing-row.json` and
+  `context-default-wire.golden` are retired with it. `corvint context --task TEXT` gets the usage
+  refusal and exit 2. `context` stays a Core verb for the path brief. (amended 2026-11-11, decision
+  0597)
+
   The genesis identifiers keep their `0.1-experimental` spelling: the bytes are frozen, not the word,
   and the `receiptId` digest domain `atlas-genesis-inventory/0.1-experimental`
   (`internal/genesis/inventory.go:257@744add89`) is frozen with them because changing it changes every receipt id.

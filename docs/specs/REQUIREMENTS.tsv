@@ -868,7 +868,7 @@ AHI-218	docs/specs/agent-harness-integration-v0.md	(experimental under the stand
 AHI-219	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2870) Short fr	standing	2026-10-27; V1-2870
 AHI-216	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2762) The Clau	standing	2026-10-27; V1-2762
 AHI-217	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2756) Paired a	standing	2026-10-27; V1-2756
-IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	The optional diagnostic MUST require explicit host, version, cwd, default	unrecorded	-
+IID-V0-001	docs/specs/agent-instruction-doctor-v0.md	`corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DI	unrecorded	-
 IID-V0-002	docs/specs/agent-instruction-doctor-v0.md	Only exact compiled, source-bound host/version profiles MAY predict loading.	unrecorded	-
 IID-V0-003	docs/specs/agent-instruction-doctor-v0.md	The Codex 0.153.2 default profile MUST walk assumed root to cwd, selecting the	unrecorded	-
 IID-V0-004	docs/specs/agent-instruction-doctor-v0.md	Candidate sources MUST carry visible bounded warnings for zero-width,	unrecorded	-
@@ -6894,7 +6894,7 @@ PRB-V0-057	docs/specs/performance-profiling-and-read-budget-v0.md	After the seve
 PRB-V0-058	docs/specs/performance-profiling-and-read-budget-v0.md	The fixture MUST generate the code repository deterministically (generator	unrecorded	-
 PRB-V0-059	docs/specs/performance-profiling-and-read-budget-v0.md	Each code-repository scenario MUST carry the two `PRB-V0-032` ceilings, enforced	unrecorded	-
 PRB-V0-060	docs/specs/performance-profiling-and-read-budget-v0.md	On Linux, the `PRB-V0-027` peak resident set MUST be the measured process's own,	unrecorded	-
-PRB-V0-1014	docs/specs/performance-profiling-and-read-budget-v0.md	After the ten scenarios of `PRB-V0-057`, the harness MUST measure, in order,	unrecorded	-
+PRB-V0-1014	docs/specs/performance-profiling-and-read-budget-v0.md	After the nine scenarios of `PRB-V0-057`, the harness MUST measure, in order,	unrecorded	-
 PRB-V0-970	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --scenario ID`, repeatable, MUST measure and judge only the named	unrecorded	-
 PRB-V0-971	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --record-baseline-from REPORT` MUST record the baseline from a repo	unrecorded	-
 PRB-V0-120	docs/specs/performance-profiling-and-read-budget-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3840) A	standing	2026-11-01; V1-3840
@@ -7387,12 +7387,12 @@ REL-V1-012	docs/specs/release-process-v1.md	Release gates. The release gates MUS
 REL-V1-013	docs/specs/release-process-v1.md	Signed release record before publish. The RC publish and the stable promotion MU	unrecorded	-
 REL-V1-014	docs/specs/release-process-v1.md	Rebuild evidence rules. When a candidate is rebuilt to fix a blocker, evidence M	unrecorded	-
 REL-V1-015	docs/specs/release-process-v1.md	macOS release gate and advisory merge check. The exhaustive macOS `go test` and	unrecorded	-
-RGV-V0-001	docs/specs/repository-guidance-v0.md	Separate experimental `features`, `overview`, and `review --base FULL_SHA [--max	unrecorded	-
+RGV-V0-001	docs/specs/repository-guidance-v0.md	The experimental `review --base FULL_SHA [--max-refs N]` command MUST emit canon	unrecorded	-
 RGV-V0-002	docs/specs/repository-guidance-v0.md	Read commands MUST capture clean HEAD, immutable commit/tree/blob inputs and rec	unrecorded	-
-RGV-V0-003	docs/specs/repository-guidance-v0.md	Discovery MUST reuse Genesis tracked inventory/classification. Candidates MUST c	unrecorded	-
-RGV-V0-004	docs/specs/repository-guidance-v0.md	Bounded heuristics MUST cover literal feature/scenario markers, route/MCP regist	unrecorded	-
-RGV-V0-005	docs/specs/repository-guidance-v0.md	Overview MUST compose exact commit/tree, detected languages, entrypoints/manifes	unrecorded	-
-RGV-V0-006	docs/specs/repository-guidance-v0.md	Suggested nextCalls MUST be bounded inert structured argv from a closed supporte	unrecorded	-
+RGV-V0-003	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): the inferred feature list is cut; review sti	unrecorded	-
+RGV-V0-004	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): regex feature discovery is cut. The ID stays	unrecorded	-
+RGV-V0-005	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): `overview` is cut; `corvint affected` and `c	unrecorded	-
+RGV-V0-006	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): only `features` and `overview` emitted `next	unrecorded	-
 RGV-V0-007	docs/specs/repository-guidance-v0.md	Review MUST require a full immutable ancestor base and compose actual affected-p	unrecorded	-
 RGV-V0-008	docs/specs/repository-guidance-v0.md	Review MUST enumerate only sorted local refs/heads, capture the full bounded tip	unrecorded	-
 RGV-V0-009	docs/specs/repository-guidance-v0.md	Review MUST explicitly skip current ref, ancestors of target, descendants of tar	unrecorded	-
@@ -7403,8 +7403,8 @@ RGV-V0-013	docs/specs/repository-guidance-v0.md	Review MUST NOT plan affected ad
 RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the	unrecorded	-
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
 RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
-RGV-V0-955	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3528) When ever	standing	2026-11-01; V1-3528
-RGV-V0-956	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3532) A guidanc	standing	2026-11-01; V1-3532
+RGV-V0-955	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): `overview` and `features`, the only commands	unrecorded	-
+RGV-V0-956	docs/specs/repository-guidance-v0.md	Retired 2026-11-11 (decision 0597): `features` and `feature` are cut. The ID sta	unrecorded	-
 RPB-V0-001	docs/specs/reproduction-bundle-v0.md	A bundle MUST be one JSON object with exactly the members `profile`	unrecorded	-
 RPB-V0-002	docs/specs/reproduction-bundle-v0.md	Bounds: a bundle of at most 4 MiB; 1 to 64 arguments of at most 4096 bytes and n	unrecorded	-
 RPB-V0-003	docs/specs/reproduction-bundle-v0.md	Inputs are pinned, never assumed. `record` MUST refuse with	unrecorded	-
@@ -8800,7 +8800,7 @@ TBC-V1-006	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-star
 TBC-V1-007	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Preview, read-only, de	unrecorded	-
 TBC-V1-008	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) One MCP table row.	unrecorded	-
 TBC-V1-009	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Path brief n	unrecorded	-
-TBC-V1-010	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Six sections	unrecorded	-
+TBC-V1-010	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Three sectio	unrecorded	-
 TBC-V1-011	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) A missing so	unrecorded	-
 TBC-V1-012	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Requirement	unrecorded	-
 TBC-V1-013	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5300; delivery experimental; non-blocking) Link coverag	unrecorded	-
