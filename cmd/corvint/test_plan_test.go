@@ -35,13 +35,28 @@ func runTestPlanCLI(t *testing.T, arguments ...string) (int, string, string) {
 
 func testPlanGit(t *testing.T, root string, args ...string) string {
 	t.Helper()
-	c := fixtureGitCommand(args...)
+	// V1-5363: no detached auto maintenance may write the fixture's .git while a test snapshots it.
+	c := fixtureGitCommand(append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	c.Dir, c.Env = root, append(fixtureGitEnvironment(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)
 	}
 	return string(out)
+}
+
+// V1-5363: every testPlanGit command carries maintenance.auto=false and gc.auto=0, so a fixture
+// commit spawns no detached `git maintenance run --auto` whose transient
+// .git/objects/maintenance.lock a later snapshotTree walk could list and then fail to lstat.
+func TestTestPlanGitDisablesAutoMaintenance(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	testPlanGit(t, root, "init", "-q")
+	for key, want := range map[string]string{"maintenance.auto": "false", "gc.auto": "0"} {
+		if got := strings.TrimSpace(testPlanGit(t, root, "config", "--get", key)); got != want {
+			t.Errorf("testPlanGit sees %s=%q, want %q", key, got, want)
+		}
+	}
 }
 
 func testPlanVariation(id string, extra map[string]any) map[string]any {
