@@ -35,8 +35,18 @@ done
 for d in "${ROW_OUTCOMES_DIR:-/nonexistent}"/ci-outcomes-*; do
   [ -d "$d" ] && add outcomes "${d##*/}" "$d/outcomes.json"
 done
+# CIN-V0-8421: a FULL fallback of narrow.sh drops its record and uploads decision.json alone.
+# That directory holds no record, so it is left out, as a shard that uploaded nothing is. A
+# directory with neither file, or with no record and a decision that is unreadable or not FULL,
+# stays an unreadable record: it could have narrowed.
+full_without_record() { # DIR
+  [ ! -e "$1/narrowing.json" ] && [ -f "$1/decision.json" ] &&
+    jq -e -s 'length == 1 and (.[0] | type == "object" and .profile == "corvint-pr-narrowing-decision/0" and .mode == "FULL")' \
+      "$1/decision.json" > /dev/null 2>&1
+}
 for d in "${ROW_NARROWING_DIR:-/nonexistent}"/ci-narrowing-*; do
-  [ -d "$d" ] && add narrowing "${d##*/}" "$d/narrowing.json"
+  [ -d "$d" ] || continue
+  full_without_record "$d" || add narrowing "${d##*/}" "$d/narrowing.json"
 done
 [ -z "${ROW_REUSE:-}" ] || add reuse ci-reuse "$ROW_REUSE"
 # AFP-V0-481: ROW_COSTS names package-costs.json for the additive shadowCost field. A file that
