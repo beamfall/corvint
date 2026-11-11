@@ -13,6 +13,15 @@
 # records. A pull-request row of a run that narrowed any shard (or whose record is
 # unreadable) is NARROWED. A queue row whose selection run narrowed counts every
 # package that run narrowed out as unselected, so a queue failure of one is a MISS.
+# CIN-V0-7921 (V1-5216, V1-5218, V1-5219): a selection document whose shadow dry-run planned
+# nothing (scope FULL with a reason, no plan or partition digest) passes the shape as a fallback
+# document. A row whose every selection document has scope FULL is the class FULL, never CLEAN,
+# FLAKY, MISS or INCOMPLETE: the shadow measured no narrowing, so the bar neither counts it as
+# complete nor as a kill-switch place. Its selection.full.type names why: skew when every reason
+# is the trusted tool's "no plan: unsupported-affected-graph" refusal of the tested tree's
+# affected-graph inputs, abstain when any shard planned nothing for another reason, plan when every
+# shard planned the whole universe. A fallback document beside planned non-FULL shards is an
+# incomplete reason, since the unplanned shard's selection is unknown.
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def str: if type == "string" and length > 0 then . else null end;
 def shortr: if length > 300 then .[0:300] + "..." else . end;
@@ -26,12 +35,9 @@ def coverage($docs; $n; $what):
   | if ($s | sort) == [range(0; $n)] then empty
     else "\($what) cover shards \($s | sort | map(tostring) | join(",")) of \($n), want each of 0..\($n - 1) once" end;
 def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - $gone);
-# V1-5216: a shadow tool that builds no plan (an unsupported affected graph, say) falls back to
-# FULL with reason `no plan: ...`, no plan digest and the declared whole Go suite in place of go:
-# units. Only that recognisable shape may lack the plan digest; the row then takes S as every package
-# with an outcome, so it cannot miss, and it is complete when every shard is that fallback.
-def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason | startswith("no plan: "))
-  and .planDigest == "";
+# CIN-V0-7921: a planned document names its plan and partition; a fallback document planned nothing.
+def planned: (.planDigest | digest) and (.partitionDigest | digest);
+def fallback: .scope == "FULL" and (.reason | type) == "string" and (.reason | length) > 0;
 
 [inputs] as $in
 | ($shards | num) as $n
@@ -74,8 +80,16 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
             and (.shard | type) == "number" and .shard >= 0 and .shard < $m
             and (.toolSource | hex40) and (.toolDigest | digest) and (.head | hex40) and (.target | hex40)
             and (.runId | type) == "number" and (.exit | type) == "number" and (.scope | type) == "string"
-            and (.manifestDigest | digest) and ((.planDigest | digest) or noPlanFull) and (.partitionDigest | digest)
+            and (.manifestDigest | digest) and (planned or fallback)
             and (.selected | type) == "array" and ((.incomplete // []) | type) == "array")] as $sel
+# CIN-V0-7921: the shards that planned nothing, and whether the run is FULL on every shard.
+| [$sel[] | select(planned | not)] as $unplanned
+| (($sel | length) > 0 and all($sel[]; .scope == "FULL")) as $fullRun
+| (if $fullRun | not then null
+   elif ($sel | length) == ($unplanned | length)
+        and all($sel[]; (.reason | type) == "string" and (.reason | test("^no plan: unsupported-affected-graph"))) then "skew"
+   elif ($unplanned | length) > 0 then "abstain"
+   else "plan" end) as $fullType
 | [$outA[] | select(.unreadable | not) | .doc
    | select(type == "object" and .profile == "corvint-ci-outcomes/0" and .shards == $no
             and (.shard | type) == "number" and .shard >= 0 and .shard < $no
@@ -86,8 +100,6 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
 | ([$out[].target] | unique) as $targets
 | (if $kind == "pr" then (if ($targets | length) == 1 then $targets[0] else null end) else ($sha | str) end) as $rowSha
 | ([$sel[] | (.incomplete // [])[] | select(type == "string")] | unique) as $gaps
-| ([$sel[] | select(noPlanFull)] | length) as $fallbacks
-| ($fallbacks > 0 and $fallbacks == ($sel | length)) as $fullFallback
 | ([$infra | split("\n")[] | select(test("^[0-9]+$")) | tonumber] | unique) as $infraShards
 | [$infraShards[] | "infrastructure: go-product-shard (\(.)) of run \($outcomesRunId) failed at Set up job"] as $infrastructure
 | (if $n == null then [] else [coverage($sel; $m; "selection documents"), coverage($out; $no; "outcomes documents")] end) as $coverage
@@ -117,8 +129,10 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
     ($sel[] | select(.shardIndex != .shard or .shardCount != .shards) | "selection shard \(.shard) planned shard \(.shardIndex) of \(.shardCount)"),
     ($sel[] | select(.exit != 0 and .exit != 3) | "selection shard \(.shard): corvint test --dry-run exited \(.exit)"),
     ($sel[] | select(.scope != "NARROWED" and .scope != "FULL" and .scope != "NOTHING") | "selection shard \(.shard) has scope \(.scope)"),
+    (if ($unplanned | length) > 0 and ($fullRun | not)
+     then "selection shards \([$unplanned[].shard] | sort | map(tostring) | join(",")) planned nothing (FULL: \($unplanned[0].reason | shortr)) beside planned shards, so their selection is unknown"
+     else empty end),
     (if ([$sel[].manifestDigest] | unique | length) > 1 then "selection shards disagree on the manifest digest" else empty end),
-    (if $fallbacks > 0 and ($fullFallback | not) then "selection shards mix a no-plan FULL fallback with a plan" else empty end),
     ($gaps[] | select(limit_only | not) | "selection incomplete: \(. | shortr)"),
     ($out[] | select(.status != 0 and ([.outcomes[] | select(. == "fail" or . == "missing")] | length) == 0)
       | "outcomes shard \(.shard) exited \(.status) with no failed or missing package"),
@@ -134,8 +148,7 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
     $infrastructure[]
   ] as $incomplete
 | ($incomplete - $infrastructure - (if $explained then $coverage else [] end)) as $unexplained
-| (([$sel[].selected[] | select(type == "string")] + (if $fullFallback then [$out[].outcomes | keys[]] else [] end)
-    | unique) - $narrowedOut) as $S
+| (([$sel[].selected[] | select(type == "string")] | unique) - $narrowedOut) as $S
 | ([$out[] | .outcomes | to_entries[] | select(.value == "fail" or .value == "missing") | .key] | unique) as $F
 | ($F - $S) as $missed
 | ($F - $missed) as $both
@@ -157,6 +170,8 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
 | (if $kind == "pr" and $narrowedRun then "NARROWED"
    elif ($incomplete | length) > 0 then
      (if $explained and ($unexplained | length) == 0 and ($missed - $flaky | length) == 0 then "INFRA" else "INCOMPLETE" end)
+   # CIN-V0-7921: a shadow that ran FULL on every shard measured no narrowing, so no miss.
+   elif $fullRun then "FULL"
    elif ($missed - $flaky | length) > 0 then "MISS"
    elif ($flaky | length) > 0 then "FLAKY"
    else "CLEAN" end) as $class
@@ -234,6 +249,10 @@ def noPlanFull: .scope == "FULL" and (.reason | type) == "string" and (.reason |
        planDigest: ([$sel[].planDigest] | unique | if length == 1 then .[0] else null end),
        partitionDigest: ([$sel[].partitionDigest] | unique | if length == 1 then .[0] else null end),
        scope: ([$sel[].scope] | unique | if length == 1 then .[0] else null end),
+       # CIN-V0-7921: why the row is FULL, with the shards' distinct reasons; null otherwise.
+       full: (if $fullType == null then null
+              else {type: $fullType, unplanned: ($unplanned | length),
+                    reasons: ([$sel[].reason | select(type == "string" and length > 0)] | unique | .[0:5] | map(shortr))} end),
        selected: ($S | length),
        limits: [$gaps[] | select(limit_only) | shortr],
        notProduced: ([$sel[].notProduced[]?] | unique),

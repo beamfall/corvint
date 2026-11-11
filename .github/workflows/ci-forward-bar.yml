@@ -37,7 +37,8 @@ jobs:
       actions: read
       contents: read
     env:
-      # Must equal CORVINT_PR_FORWARD_EPOCH in ci.yml and FORWARD_EPOCH in ci-control-plane.yml.
+      # Must equal CORVINT_PR_FORWARD_EPOCH in ci.yml and FORWARD_EPOCH in ci-control-plane.yml and
+      # main-miss.yml.
       FORWARD_EPOCH: "2"
       # CIN-V0-003: no later than the merge that advanced main to FORWARD_EPOCH (no row of the
       # epoch is older), so the verdict lists back to it, not the whole repository. Move both together.
