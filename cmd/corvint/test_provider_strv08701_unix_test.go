@@ -116,12 +116,12 @@ func TestSTRV08704CLIMixedGoAndPlaywrightRun(t *testing.T) {
 		t.Fatalf("receipt %+v", receipt)
 	}
 	goRun, provider := providerSessionInvocations(t, receipt)
-	if len(goRun.Outcomes) != 1 || goRun.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomePass, Slice: sessiontest.SliceWhole, Unit: "go:example.test/m/a"}) {
+	if len(goRun.Outcomes) != 1 || goRun.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomePass, Slice: sessiontest.SliceWhole, TestID: "go:a", Unit: "go:example.test/m/a"}) {
 		t.Fatalf("go invocation %+v", goRun)
 	}
 	if provider.AdapterManifest != sessiontest.AdapterManifestProfile || provider.Exit != 0 || provider.Version != "corvint-js-test-provider 0.0.0-fixture" ||
 		strings.Join(provider.Argv, " ") != providerSessionArgv || len(provider.Outcomes) != 1 ||
-		provider.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomePass, Slice: sessiontest.SliceWhole, Unit: providerSessionUnit}) {
+		provider.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomePass, Slice: sessiontest.SliceWhole, TestID: "playwright:" + providerSessionSpec, Unit: providerSessionUnit}) {
 		t.Fatalf("provider invocation %+v", provider)
 	}
 	// The e2e-runtime-dependency frontier of the spec still selects the
@@ -175,7 +175,7 @@ func TestSTRV08705CLIUnavailableProviderIsNotRun(t *testing.T) {
 		t.Fatalf("the Go invocation did not run and pass: %+v", goRun)
 	}
 	if provider.Exit != -1 || len(provider.Outcomes) != 1 ||
-		provider.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomeNotRun, Slice: sessiontest.SliceWhole, Unit: providerSessionUnit}) {
+		provider.Outcomes[0] != (sessiontest.Outcome{Outcome: sessiontest.OutcomeNotRun, Slice: sessiontest.SliceWhole, TestID: "playwright:" + providerSessionSpec, Unit: providerSessionUnit}) {
 		t.Fatalf("provider invocation %+v, want the unit NOT_RUN", provider)
 	}
 	if calls := sessionRunnerLog(t, log); strings.Contains(calls, "corvint-js-test-provider") || !strings.Contains(calls, "go test -json -p 1 -count=1 example.test/m/a\n") {

@@ -15,7 +15,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 4 Add duplicate detection and the unknown-widening rule.
    Requirements: CTI-V1-010, CTI-V1-011. Proof: unit tests for two equal Jest titles, an unknown
    runner token and a malformed ID, each showing the widened selection and its reason.
-- [ ] 5 Add the `testId` field to `corvint-test-run/0` outcomes and read legacy keys.
+- [x] 5 Add the `testId` field to `corvint-test-run/0` outcomes and read legacy keys.
    Requirements: CTI-V1-009, CTI-V1-012. Proof: a receipt test that reads an integ 9ec3a29d0
    receipt without `testId` and a new receipt with it; existing receipt tests stay green.
 - [ ] 6 Use the ID in the plan, watch output and the MCP affected tool.
