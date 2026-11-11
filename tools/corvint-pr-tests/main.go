@@ -676,11 +676,11 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 }
 
 // admittedGoVersions is the one definition of the toolchains the driver
-// runs under: exactly the go1.27.3 pin (decision 0557, superseding the
+// runs under: the go1.27.3 pin and, during the V1-5408 move, go1.27.4 (decision 0557, superseding the
 // 0547 two-revision set of V1-2194). Any other version is refused
 // "unsupported Go version", and containerRunResult refuses a container
 // result that recorded one (V1-1520).
-var admittedGoVersions = map[string]bool{"go1.27.3": true}
+var admittedGoVersions = map[string]bool{"go1.27.3": true, "go1.27.4": true}
 
 func topology(ctx context.Context, o options, merge bool) (string, error) {
 	if !oid.MatchString(o.base) || !oid.MatchString(o.target) {
