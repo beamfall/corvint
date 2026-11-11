@@ -208,28 +208,37 @@ func TestRunDirectCommandTimeoutKillsAndQuiescesGroup(t *testing.T) {
 	// exercised by TestRunDirectCommandBoundsStuckWaitAtShutdownDeadline.
 	original := directCommandRunTimer
 	t.Cleanup(func() { directCommandRunTimer = original })
+	const timeout = 200 * time.Millisecond
 	timers := make(chan *time.Timer, 1)
-	directCommandRunTimer = func(time.Duration) *time.Timer {
+	var armed time.Duration
+	directCommandRunTimer = func(d time.Duration) *time.Timer {
+		armed = d
 		timer := time.NewTimer(time.Hour)
 		timers <- timer
 		return timer
 	}
+	// A failed readiness wait cancels the run, so the held child is not left behind.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	resultDone := make(chan directCommandResult, 1)
 	errorDone := make(chan error, 1)
 	go func() {
 		result, err := runDirectCommand(
-			context.Background(),
+			ctx,
 			executable,
 			[]string{directCommandHelperArgument},
 			[]string{"DIRECT_COMMAND_HELPER_MODE=hold", "DIRECT_COMMAND_READY=" + ready},
 			filepath.Dir(ready),
-			200*time.Millisecond,
+			timeout,
 		)
 		resultDone <- result
 		errorDone <- err
 	}()
 	waitForDirectCommandFile(t, ready)
 	(<-timers).Reset(0)
+	if armed != timeout {
+		t.Fatalf("run timer armed with %v, want the requested %v", armed, timeout)
+	}
 	result, err := <-resultDone, <-errorDone
 	if !errors.Is(err, errDirectCommandTimeout) || result.Cancelled || !result.TimedOut ||
 		!result.WaitCompleted || !result.ProcessCleanupDone || !result.PipesDrained || result.Exited || result.ExitCode != -1 {
