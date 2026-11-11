@@ -574,7 +574,10 @@ func (handler *toolHandler) toolErrorObject(name, code, reasonClass string) map[
 		value["profile"] = toolErrorReasonClass
 		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
 	}
-	return toolgroup.Describe(value) // DMF-V1-010: message, retryable and next
+	// The /0 and /1 objects stay exactly as decision 0383 and the conformance vectors freeze
+	// them; DMF-V1-010's added members reach the docs, corpus, test-validity and affected
+	// tool errors only (a code-tool profile version would carry them).
+	return value
 }
 
 // structuredResult returns the structuredContent object, its full canonical
