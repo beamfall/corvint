@@ -1,0 +1,367 @@
+{
+  "candidates": {
+    "completed": 2562,
+    "excludedNoIdentifiableCommit": 26,
+    "withIdentifiableCommits": 36,
+    "withRequirementRefsAndTouchPaths": 62
+  },
+  "frozenAt": "2026-11-10",
+  "historyCommit": "f6be4233cf209f251d7a039515c3e832cdad8c33",
+  "profile": "ticket-brief-task-set/0",
+  "rule": "Completed tickets of queue:corvint:main with at least one requirementRefs ID and one effects.touchPaths entry, whose closing commits can be identified on historyCommit: the non-merge commits whose message cites the ticket ID, else the non-merge commits of the lane range that ends at the last recorded progress head on historyCommit. The 20 most recently completed are taken, ordered by completion time and then ticket ID, newest first. baseCommit is the first parent of the earliest closing commit.",
+  "tasks": [
+    {
+      "baseCommit": "ae6437cb8a97f0e5ccac22ac5d96009265173256",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "7722d5f0253fb0f17e3532a72bbd008429f1e582",
+        "57ef1d08517fa63b167cf44d063c1f79744e1009"
+      ],
+      "completedAt": "2026-11-08T13:49:56Z",
+      "requirementRefs": [
+        "AFP-V0-409",
+        "AFP-V0-425",
+        "TJAA-V0-090"
+      ],
+      "ticketId": "V1-2583"
+    },
+    {
+      "baseCommit": "3af3a036d8654ffceffd6a22099e46b41947c7bf",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "d26ff5da7b83721cbd24c764d59098d09f7b4d0b"
+      ],
+      "completedAt": "2026-11-08T13:49:54Z",
+      "requirementRefs": [
+        "ANL-V0-064",
+        "MMR-V0-005",
+        "MMR-V0-007"
+      ],
+      "ticketId": "V1-2718"
+    },
+    {
+      "baseCommit": "32e93e84d7b2bfc4deeff935b6ffa9c2c84239fe",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "8046107c769ab23dc42ab4f21679f396c70ea601",
+        "320ae3593b926394c1cef0d95dfdeed635961a11",
+        "437ad68c685b0c587cf51029e90db50203bb0304",
+        "940bb73173f72234bd0a239052eff4dff329496b",
+        "6579b33f0767db05964a3f8d918e6a1b7ead399c",
+        "9704f89d3a2c72ceab1c7ec1a576cb338cc80368"
+      ],
+      "completedAt": "2026-11-08T05:16:05Z",
+      "requirementRefs": [
+        "AFP-V0-022",
+        "AFP-V0-590"
+      ],
+      "ticketId": "V1-4355"
+    },
+    {
+      "baseCommit": "1a401eb5ee68ff4a0541534b33a5d6538793e9ea",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "25fc7b37756b04b6ac9157066f75c3469d2f0c2e",
+        "4523cd7a867c9fff595e0671354775b482f37257"
+      ],
+      "completedAt": "2026-11-07T11:53:18Z",
+      "requirementRefs": [
+        "SOL-V0-001"
+      ],
+      "ticketId": "V1-4910"
+    },
+    {
+      "baseCommit": "9db7a94169821d9b28701eaa88866aee2fec1083",
+      "closingCommitMethod": "lane-range-to-recorded-head",
+      "closingCommits": [
+        "38e890045ca3990f3c871e3993e79de8e9e8ba7d",
+        "3af19d3b92a2f500f4e71a05aa03065778b1583b",
+        "7bc0f2f79535c8176206c7aebb0bfec6f7f1785b",
+        "0ef51bd704f82dc3200a141c2105bbcb09bdbbd2",
+        "ad00feb2d3f407967e54e170ca30ff58d5f48feb",
+        "98e7e5f0b3035da66cd534112a0fbb61b3adbe22",
+        "7249a21ad238ae6a24d3f9a6de3be4a10dea4146"
+      ],
+      "completedAt": "2026-11-07T03:18:59Z",
+      "requirementRefs": [
+        "AZU-V0-002"
+      ],
+      "ticketId": "V1-4731"
+    },
+    {
+      "baseCommit": "9db7a94169821d9b28701eaa88866aee2fec1083",
+      "closingCommitMethod": "lane-range-to-recorded-head",
+      "closingCommits": [
+        "611e653ff7be40f3d4d8d8a6f4b0920d6a92e0bc",
+        "22472588cbaada66bfb8c9cbee198632d26fa67d",
+        "f1e6d975bd88a372e66699e0d7b6407974a781f3",
+        "ed7a993867a9f3a082ae676c75c21a7d41d9a753",
+        "3c1ba02dac5057d7c39664b37d49b7f990b9ebee",
+        "7e7982b9e03759aec87d59b2da2d8ca98e946df8",
+        "8c225498da97c7c1bda7ac3e97ca51a3c6c68d94",
+        "240c0005dcb3bf9a6db5a97695fd0cc4f426ff90",
+        "9245ad427c610187c136f6784a89bd0e420480c3",
+        "0f0a9af34a1e4e38cdec92cae0b11060e21f5855",
+        "d676b149708d82a68424a91230db80a627604c64",
+        "d1c0f986f74f55c1f5952bf01fed9668fcb48f74",
+        "00e8f45040d38b842c10ffd5a614db468bb6498a",
+        "bef43249fe7a478dd43b71f05e4d5bd9debec543",
+        "2e7905434d445b6ade5f7330d026dd6b820f4a00",
+        "51ea35b65128196e03d68c6d70cab106a5204df4",
+        "d0ac88e645ce5fbcfc285abfd0440a93c617950f"
+      ],
+      "completedAt": "2026-11-07T03:18:57Z",
+      "requirementRefs": [
+        "AZU-V0-002"
+      ],
+      "ticketId": "V1-4729"
+    },
+    {
+      "baseCommit": "6c33df33bc5670131482f5263b410cb980580657",
+      "closingCommitMethod": "lane-range-to-recorded-head",
+      "closingCommits": [
+        "aad5ebee0447cee8e2a4276a92359e95f45c6e7d",
+        "b40c7f2906a1f5f7e115c8a5b0e12d3f1c1e03d7",
+        "473a342b774217da9297c5cd287592f0893b624d",
+        "f47e0cb1257147a444a1e38edfcafc70da6e8ea6",
+        "f590d7e799ecdad397aad85c34e3c4d5f1bcdb87",
+        "06a24aa00636fafe7d45b2a6ed7e7ab4ae67a68f",
+        "523f3f993d50e5b272c1b41106e9f42f6229442d",
+        "82f3e5f5c38dd00e9c6eb1edbf6c2ed0c71524a7",
+        "0810e82c8ad7bbfbc9a5a374f2a607ba6ab850fe",
+        "9bea8332cf7ea1e8b7af93346538afe0ebaaa1de",
+        "f977161e600f4724f073a7ebfdea0b74ad4e3651",
+        "8d76de54d7c2f7d9f174669a8dc65919a5e25931"
+      ],
+      "completedAt": "2026-11-06T15:14:13Z",
+      "requirementRefs": [
+        "DCP-V1-021"
+      ],
+      "ticketId": "V1-0623"
+    },
+    {
+      "baseCommit": "bb729132b84e07ad849ed7d36882f3d4bae9ffd1",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "a2bd00ef5e2130a65e1cdf6417c8f07347e5052d"
+      ],
+      "completedAt": "2026-11-06T15:14:10Z",
+      "requirementRefs": [
+        "MCJ-V0-020",
+        "MCJ-V0-021",
+        "MCJ-V0-022",
+        "MCJ-V0-023",
+        "MCJ-V0-024"
+      ],
+      "ticketId": "V1-4386"
+    },
+    {
+      "baseCommit": "3626583ece7ec02b403537fd0d861109a92e371b",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "523f3f993d50e5b272c1b41106e9f42f6229442d"
+      ],
+      "completedAt": "2026-11-06T15:13:29Z",
+      "requirementRefs": [
+        "ASD-V0-891"
+      ],
+      "ticketId": "V1-4358"
+    },
+    {
+      "baseCommit": "6c33df33bc5670131482f5263b410cb980580657",
+      "closingCommitMethod": "lane-range-to-recorded-head",
+      "closingCommits": [
+        "3bea462bb3757ace9fdbf38522c22365cc003796",
+        "a3cd4b6239f6731da1eed979a54b1fb0f468b2ee",
+        "3783a935e30f77d5d6317dff0084aff8b41e37b4",
+        "11673cc9703b4f137f2cc0a00975626da578dcd3",
+        "baa85003865717bebd91cedd1513be3bb6310c63",
+        "ce5dadcac7b64ca6d8aa037ffadafb7a9c82571b",
+        "4c395fbdf21c69f0f8764bfe88dbbc32568a1f08"
+      ],
+      "completedAt": "2026-11-06T15:03:28Z",
+      "requirementRefs": [
+        "STR-V0-174"
+      ],
+      "ticketId": "V1-4356"
+    },
+    {
+      "baseCommit": "8fc0cf37642e7012f4c26671c9ed97a8706d6e09",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "55f8100c4d3050ac41d5f6a3c28379c1a2deb30f",
+        "88c40efd74609b434066e2ee315d6446afb9519e",
+        "bdaf683d1ef8d560e2fdf3010e7bffcab1317ce3"
+      ],
+      "completedAt": "2026-11-06T14:49:27Z",
+      "requirementRefs": [
+        "BKM-V0-010"
+      ],
+      "ticketId": "V1-4751"
+    },
+    {
+      "baseCommit": "6f12f4704235dc8f9bea19fc12995bfb68c746c3",
+      "closingCommitMethod": "lane-range-to-recorded-head",
+      "closingCommits": [
+        "cf711dc7cfac1c860aeb98c2544274d899e31eab",
+        "03792458ef9015319b65b2146fc738051be99b34",
+        "43e9108be78844ac8f61586689b2a6cf57c84056",
+        "2021fe2415db723d52772e8dde69ba59b2385ed9",
+        "fe17d5e756545abef5cf534c9e4938c8f27ecf72",
+        "982d8770521049813e39d95e195f938f2a9b76da",
+        "d5357bf141f4eb7410f4734f56d6c6f293ae7d7c",
+        "cd69e5de6b0d0ec8d34d24212df8344ccab65eef",
+        "0b0a10f6987804be0fde6408b860b5f189ee35bf",
+        "0b2e7dde24b73e64d460de441840a64fbcedfe9e",
+        "62b2898323795ea0c152371f251700be3ccb01c0",
+        "d8eea13a41c2e9abf753fc8eae92563eb83bbee3",
+        "2f41427756c4b0cf313e0677082b98f870020826",
+        "7ec7222363fbabffbe134bc15253730c91c02b62",
+        "02f48fdc85f367182d005dab22066dd379f595a3",
+        "3daef354a8d0e3716cf6823b748367fa3eb911a1",
+        "3facb801e676049b4fd00f9f08c2c846b90f7887",
+        "10ec9f866e18a6ee4ed856c6a19c582630e6682b",
+        "e30adafe212212d60d7a6ce939c20ff00b8e2e14",
+        "4c30c76156d3ee46e78ea9913588042aab5dc5a5",
+        "35455784fcf29706be5fa54820389339d3600734",
+        "b51987fd051c93cea6416619b0e5345c1c92f913",
+        "f5e5bc87487b342cfeabb4f7e49ab88ec5094a2f",
+        "72c7b80f4bfb8a58b1bfe313ae7ff5678ee860a7",
+        "d33fb62f0e2bd8c20d48d0136a5d858a0d19084a",
+        "af15c65c07642ba4ee63d5b5ea8f2ad668939148",
+        "c120ce3a829096977df1ceabb22d95d1fa7dbcb0",
+        "05127e8facb62267807eedb319e73d37b2b6d15c",
+        "b77b99516e83ef1406164bca61ff6303fdb71443",
+        "e113050d8d2c89eb356830442b845760b307041e"
+      ],
+      "completedAt": "2026-11-04T15:04:27Z",
+      "requirementRefs": [
+        "AFP-V0-160",
+        "TJAA-V0-101"
+      ],
+      "ticketId": "V1-2662"
+    },
+    {
+      "baseCommit": "23368e8dda547c6d58b0681aa2dd116eda592da7",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "71750dac31c8957a80022fe6627eb8be5f3707c4",
+        "2db5e0a47e84ab02b148cfe918ae4531f4592d62",
+        "59bf9f88899b12282e7ddaaf7873616011138794"
+      ],
+      "completedAt": "2026-11-03T23:02:49Z",
+      "requirementRefs": [
+        "AFP-V0-097",
+        "AFP-V0-2185"
+      ],
+      "ticketId": "V1-4360"
+    },
+    {
+      "baseCommit": "b82f846566f6521cc0981a09250061815927068d",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "c154409ad53c1e2d704ca17b9054801b1ef1e9d1"
+      ],
+      "completedAt": "2026-11-03T23:02:48Z",
+      "requirementRefs": [
+        "CIN-V0-010",
+        "CIN-V0-011"
+      ],
+      "ticketId": "V1-4354"
+    },
+    {
+      "baseCommit": "f044de2fe6526158f7dd7044c974214e7e423a2a",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "fc5478cf8d8689684d10e92356e69446cc3dabf6",
+        "f0c29d1e9bf91914ee2a9d813c880e44de7e550c",
+        "d2092c20f3e1f1af80d63f990c2c6fdb2f08d1cf"
+      ],
+      "completedAt": "2026-11-03T22:42:37Z",
+      "requirementRefs": [
+        "LPCV-V0-950",
+        "LPCV-V0-954",
+        "LPCV-V0-955",
+        "LPCV-V0-963"
+      ],
+      "ticketId": "V1-4368"
+    },
+    {
+      "baseCommit": "c82e85099bd0a13b54234eb6fb20e63c234e1a64",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "4ac9a126cabefd35e1bb30c00a864a041765577a",
+        "70caaf6fcb7b0b30f6b07a8e6ccdbc2aba56af37",
+        "b803aac38eac99af789055c16c181eac0aaaf85d",
+        "2a065f3a71cf278afdb78025eacdb7ae08321506",
+        "180ffa2df251d218220a2a230225050f7ab213b5"
+      ],
+      "completedAt": "2026-11-03T22:42:36Z",
+      "requirementRefs": [
+        "LPCV-V0-950",
+        "LPCV-V0-954",
+        "LPCV-V0-955",
+        "LPCV-V0-963"
+      ],
+      "ticketId": "V1-4367"
+    },
+    {
+      "baseCommit": "c82e85099bd0a13b54234eb6fb20e63c234e1a64",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "8d24d7193a813c6d32e3006a39f8026ffc94cf32",
+        "f350b5c80f73cc5d12d7150895904ae07b7024c5"
+      ],
+      "completedAt": "2026-11-03T22:42:35Z",
+      "requirementRefs": [
+        "LPCV-V0-950",
+        "LPCV-V0-954",
+        "LPCV-V0-955",
+        "LPCV-V0-963"
+      ],
+      "ticketId": "V1-4374"
+    },
+    {
+      "baseCommit": "23368e8dda547c6d58b0681aa2dd116eda592da7",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "e3c7b6df4682e6d32593c4c5014ced27bb5a515a"
+      ],
+      "completedAt": "2026-11-03T20:32:47Z",
+      "requirementRefs": [
+        "AFP-V0-023",
+        "AFP-V0-161",
+        "TSP-V0-980"
+      ],
+      "ticketId": "V1-4357"
+    },
+    {
+      "baseCommit": "ea09e3db5565637336f482a308f18ae2b08f33b2",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "2f4447b3ce53c30bd9e2ce35eb3280bc1fc6c103"
+      ],
+      "completedAt": "2026-11-03T20:32:46Z",
+      "requirementRefs": [
+        "AFP-V0-028",
+        "STR-V0-750"
+      ],
+      "ticketId": "V1-4361"
+    },
+    {
+      "baseCommit": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "closingCommitMethod": "commit-cites-ticket-id",
+      "closingCommits": [
+        "a239a33c1793ae4a06a4abad357010814602d1b3",
+        "05422b17e647e944fa0e1d9fd7e6ef0c097657e1",
+        "806ee9a95a2929bb02648922051e802b59ad2fc0",
+        "505be07a5254c5a58ba06ee1c66db17e8fa240e8"
+      ],
+      "completedAt": "2026-11-02T03:59:37Z",
+      "requirementRefs": [
+        "AHI-198"
+      ],
+      "ticketId": "V1-3244"
+    }
+  ]
+}
