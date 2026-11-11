@@ -5531,6 +5531,8 @@ GLS-V0-032	docs/specs/go-line-selection-v0.md	(accepted under the owner's standi
 GLS-V0-033	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The repo	standing	2026-10-11; V1-4365
 GLS-V0-034	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4365) The	standing	2026-10-11; V1-4365
 GLS-V0-035	docs/specs/go-line-selection-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-11; V1-4365)	standing	2026-11-11; V1-4365
+GLS-V0-056	docs/specs/go-line-selection-v0.md	(proposed, experimental; V1-5331) Every `go test` run of `linecov qualify`, the	unrecorded	-
+GLS-V0-057	docs/specs/go-line-selection-v0.md	(proposed, experimental; V1-5331) Because an isolated run no longer receives	unrecorded	-
 GLS-V0-040	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the	standing	2026-10-11; V1-4366
 GLS-V0-041	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366) The step	standing	2026-10-11; V1-4366
 GLS-V0-042	docs/specs/go-line-selection-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4366; the	standing	2026-10-11; V1-4366
