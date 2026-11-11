@@ -4521,5 +4521,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/canonical-test-id-v1.md",
+    "title": "Canonical test ID V1",
+    "reqPrefix": "CTI-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "One canonical ID names every test of the seven blocking runners, so plan, receipt and watch output join on the same string.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
