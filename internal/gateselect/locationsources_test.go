@@ -221,6 +221,28 @@ func TestEnvStruct(t *testing.T) {
 	os.ReadDir(data)
 	filepath.Abs("/etc/hosts")
 }`},
+	// Fix round 2 P1: can miss a test. The variable re-exported to the
+	// child is reassigned to the parent of its own value, so the shell
+	// lists every file above the named directory.
+	{name: "selfassign", held: true, test: `func TestSelfAssign(t *testing.T) {
+	v := os.Getenv("ROOT")
+	v = filepath.Dir(filepath.Dir(v))
+	c := exec.Command("sh", "-c", "ls -R \"$ROOT\"")
+	c.Env = []string{"ROOT=" + v}
+	_ = c.Run()
+}`},
+	// Fix round 2 P3: can miss a test. With Env nil, Cmd.Environ appends
+	// PWD=<Dir>, so the command's Caller-rooted Dir is read back and listed.
+	{name: "environpwd", held: true, test: `func TestEnvironPWD(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	c := exec.Command("go", "list", "-deps", "./cmd/x")
+	c.Dir = filepath.Dir(filepath.Dir(file))
+	for _, e := range c.Environ() {
+		if len(e) > 4 && e[:4] == "PWD=" {
+			os.ReadDir(e[4:])
+		}
+	}
+}`},
 	// The literal join walked is held since fix round 1: WalkDir hands its
 	// callback full paths filepath.Dir can climb (AFP-V0-3662).
 	{name: "literalwalk", held: true, test: `func TestWalkJoin(t *testing.T) {
@@ -354,6 +376,18 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"command stored", `type s struct{ c *exec.Cmd }; func F(v *s) { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); v.c = command }`, "hold"},
 	{"command directory read back", `func F() { _, file, _, _ := runtime.Caller(0); command := exec.Command("go", "list", "-deps", "./cmd/x"); command.Dir = filepath.Dir(file); os.ReadDir(command.Dir) }`, "hold"},
 	{"command directory and a read", `func F() { _, file, _, _ := runtime.Caller(0); root := filepath.Dir(file); command := exec.Command("go", "list"); command.Dir = root; os.ReadDir(root) }`, "hold"},
+	// Fix round 2 P1: a re-exported entry is safe only for the raw value; a
+	// reassignment of its variable, directly or through another variable,
+	// to a transform of itself carries a location value into the entry.
+	{"entry of a self-reassigned value", `func F() { v := os.Getenv("ROOT"); v = filepath.Dir(filepath.Dir(v)); c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + v}; _ = c.Run() }`, "hold"},
+	{"entry of a self-extended value", `func F() { v := os.Getenv("ROOT"); v = v + "/.."; c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + v}; _ = c.Run() }`, "hold"},
+	{"entry of a self-reassigned lookup", `func F() { v, _ := os.LookupEnv("ROOT"); v = filepath.Dir(v); c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + v}; _ = c.Run() }`, "hold"},
+	{"entry of a two-variable cycle", `func F() { v := os.Getenv("ROOT"); w := v; v = filepath.Dir(w); c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + v}; _ = c.Run() }`, "hold"},
+	{"entry of a raw value to a shell", `func F() { c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + os.Getenv("ROOT")}; _ = c.Run() }`, ""},
+	{"entry of a copied raw value", `func F() { v := os.Getenv("ROOT"); w := v; c := exec.Command("sh", "-c", "ls -R \"$ROOT\""); c.Env = []string{"ROOT=" + w}; _ = c.Run() }`, ""},
+	// Fix round 2 P3: with Env nil, Cmd.Environ appends PWD=<Dir>, so a
+	// command whose Environ is read gives its Dir back.
+	{"command directory read back through Environ", `func F() { _, file, _, _ := runtime.Caller(0); c := exec.Command("go", "list", "-deps", "./cmd/x"); c.Dir = filepath.Dir(filepath.Dir(file)); for _, e := range c.Environ() { if dir, ok := strings.CutPrefix(e, "PWD="); ok { os.ReadDir(dir) } } }`, "hold"},
 	{"aliased import", "func F() { os.ReadDir(system.Getenv(\"R\")) }", "hold"},
 	{"dot import", "func F() { os.ReadDir(Getenv(\"R\")) }", "hold"},
 	{"shadowed qualifier", `func F() { os := struct{ Getenv func(string) string }{}; _ = os.Getenv("R") + "" }`, ""},
@@ -363,7 +397,7 @@ var locationUseCases = []struct{ name, body, want string }{
 // TestLocationSourceUses_AFPV03661 runs the location-source pass over each
 // locationUseCases body (AFP-V0-3660 to AFP-V0-3664).
 func TestLocationSourceUses_AFPV03661(t *testing.T) {
-	const imports = "import (\n\t\"context\"\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"runtime\"\n\t\"slices\"\n\t\"strconv\"\n\t\"syscall\"\n\t\"time\"\n\tsystem \"os\"\n\t. \"os\"\n\t. \"path/filepath\"\n)\n\n"
+	const imports = "import (\n\t\"context\"\n\t\"os\"\n\t\"os/exec\"\n\t\"path/filepath\"\n\t\"runtime\"\n\t\"slices\"\n\t\"strconv\"\n\t\"strings\"\n\t\"syscall\"\n\t\"time\"\n\tsystem \"os\"\n\t. \"os\"\n\t. \"path/filepath\"\n)\n\n"
 	for _, c := range locationUseCases {
 		t.Run(c.name, func(t *testing.T) {
 			body := []byte("package p\n\n" + imports + c.body + "\n")
