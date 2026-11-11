@@ -91,13 +91,18 @@ type affectedAuditReport struct {
 	Changes   []affectedAuditChange    `json:"changes"`
 	// Degradations and DegradationDetails are the planner's AFP-V0-846
 	// self-binary verdict when it applies (AFP-V0-11033); absent otherwise.
-	Degradations       []string           `json:"degradations,omitempty"`
-	DegradationDetails map[string]string  `json:"degradationDetails,omitempty"`
-	Mutates            bool               `json:"mutates"`
-	OK                 bool               `json:"ok"`
-	Profile            string             `json:"profile"`
-	Selectors          []affectedAuditSel `json:"selectors"`
-	Tool               string             `json:"tool"`
+	Degradations       []string          `json:"degradations,omitempty"`
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
+	Mutates            bool              `json:"mutates"`
+	OK                 bool              `json:"ok"`
+	// Producer names the binary whose selector the audit replayed: its
+	// version, build and stamped commit and state, or the explicit unknown
+	// marker (AFP-V0-11033, V1-5012; PUB-V0-028). The audit plans historical
+	// changes by design, so the report states its freshness basis.
+	Producer  producerIdentity   `json:"producer"`
+	Profile   string             `json:"profile"`
+	Selectors []affectedAuditSel `json:"selectors"`
+	Tool      string             `json:"tool"`
 }
 
 type affectedAuditSel struct {
@@ -229,6 +234,8 @@ func runAffectedAudit(ctx context.Context, invocation affectedInvocation, stdout
 		return 2
 	}
 	report.Degradations, report.DegradationDetails = degradations, details
+	info, _ := selfBuildInfo()
+	report.Producer = producerFrom(version, build, info)
 	code := affectedAuditExitCode(report)
 	report.OK = code == 0
 	if err := gokernel.WriteCanonicalJSON(stdout, report); err != nil {

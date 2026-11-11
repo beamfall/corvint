@@ -79,7 +79,9 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   and discloses the number of ancestry rows truncated from the bounded probe. Repository query still
   maps that kind to `unsupported-query-trace-state`, preserving `GPK-V0-044` semantics. Only `record`
   may pass such a candidate into `LTA-V0-003`'s unreachable-first retention tier; below the cap it
-  remains a refusal.
+  remains a refusal. Retired 2026-11-11 by decision 0594: the ordinary Go trace read
+  (`internal/tracerecordrepo`) and the repository query were deleted; read the implementation at
+  `b55635262`.
 - `LTA-V0-006`: `corvint skill-export --out DIR` MUST be the only path that exports learned rules.
   It MUST read the pinned trace store and the committed index through the ordinary trace reader,
   MUST write only under the operator-named `DIR` and refuse a `DIR` inside the repository's
@@ -320,8 +322,8 @@ repaired by silently changing the oracle after evaluation.
 |---|---|---|
 | `LTA-V0-001` | `internal/evalrepo`, `cmd/corvint`, `benchmarks/run.py` | focused eval repository, CLI, and benchmark-runner tests |
 | `LTA-V0-002` | `internal/evalrepo`, frozen trace fixture registration | focused task-contamination, outcome-commit-contamination, and digest-drift tests; `TestTraceFixtureRefusesOverBoundFile` (removed) (a fixture over the 16 MiB trace-store bound is refused after bound+1 bytes) |
-| `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
-| `LTA-V0-005` | `internal/tracerecordrepo` | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (subtest `candidate outside bounded replay`) |
+| `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` (removed) | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
+| `LTA-V0-005` | `internal/tracerecordrepo` (removed) | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (removed) (subtest `candidate outside bounded replay`) |
 | `LTA-V0-006` | `internal/skillexport`, `cmd/corvint/skill_export.go` | `TestExportProducesDeterministicBytes_LTA006` (removed), `TestSkillExportWritesOnlyOperatorDirectory_LTA006` (removed), `TestSkillExportInvocationFlags_LTA006` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing tests; a path or function its row names remains; no test cites it now, V1-5333) |
 | `LTA-V0-007` | `internal/skillexport` | `TestExportNamesAdmissionDigestAndEvaluation_LTA007` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |
 | `LTA-V0-008` | `internal/skillexport` | `TestHostRoundTripLoadsExportedSkill_LTA008` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing test; a path or function its row names remains; no test cites it now, V1-5333) |

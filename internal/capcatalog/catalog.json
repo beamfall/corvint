@@ -393,9 +393,11 @@
         "--instruction-host-version",
         "--instruction-profile",
         "--json",
+        "--limit",
         "--path",
         "--subject",
-        "--task"
+        "--task",
+        "--worktree-overlay"
       ],
       "schemaIds": [
         "corvint-path-brief/1"
@@ -929,7 +931,9 @@
       ],
       "inputs": null,
       "outputs": null,
-      "exitCodesMentioned": [],
+      "exitCodesMentioned": [
+        2
+      ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
@@ -944,10 +948,6 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
         },
         {
           "field": "writes",
