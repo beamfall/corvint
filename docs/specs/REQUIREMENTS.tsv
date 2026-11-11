@@ -7361,6 +7361,18 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	archive metadata 
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-BIN-V0-001	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-002	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-003	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-004	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-005	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-006	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-007	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-508	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-509	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-510	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-511	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-512	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
 ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
