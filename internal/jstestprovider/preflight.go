@@ -9,51 +9,43 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
-// PreflightSchema is the declared-preflight document an external e2e run may
-// carry (PWP-V0-090). The receipt member keeps the same schema name.
-const PreflightSchema = "corvint-js-preflight/0"
+// PreflightSchema is jstestreceipt.PreflightSchema, kept under its old name.
+const PreflightSchema = jstestreceipt.PreflightSchema
 
-// Preflight probe kinds, states and the infrastructure phase (PWP-V0-090..093).
-const (
-	PreflightHTTP         = "http"
-	PreflightCommand      = "command"
-	PreflightStorageState = "storage-state"
+// PreflightHTTP is jstestreceipt.PreflightHTTP, kept under its old name.
+const PreflightHTTP = jstestreceipt.PreflightHTTP
 
-	PreflightPassed = "passed"
-	PreflightFailed = "failed"
-	PreflightNotRun = "not-run"
+// PreflightCommand is jstestreceipt.PreflightCommand, kept under its old name.
+const PreflightCommand = jstestreceipt.PreflightCommand
 
-	// InfrastructurePhasePreflight marks an infrastructure failure observed
-	// before any test ran (PWP-V0-092).
-	InfrastructurePhasePreflight = "preflight"
-	ReasonPreflightFailed        = "preflight-failed"
-)
+// PreflightStorageState is jstestreceipt.PreflightStorageState, kept under its old name.
+const PreflightStorageState = jstestreceipt.PreflightStorageState
 
-// Preflight declaration bounds (PWP-V0-090).
-const (
-	preflightMaxBytes        = 64 << 10
-	preflightMaxProbes       = 32
-	preflightMaxProbeTimeout = 10 * time.Minute
-	preflightMaxTotalTimeout = time.Hour
-	preflightMaxArgv         = 64
-	preflightMaxNames        = 32
-	preflightStateMaxBytes   = 16 << 20
-	preflightCommandOutput   = 64 << 10
-)
+// PreflightPassed is jstestreceipt.PreflightPassed, kept under its old name.
+const PreflightPassed = jstestreceipt.PreflightPassed
 
-var preflightProbeName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+// PreflightFailed is jstestreceipt.PreflightFailed, kept under its old name.
+const PreflightFailed = jstestreceipt.PreflightFailed
+
+// PreflightNotRun is jstestreceipt.PreflightNotRun, kept under its old name.
+const PreflightNotRun = jstestreceipt.PreflightNotRun
+
+// InfrastructurePhasePreflight is jstestreceipt.InfrastructurePhasePreflight, kept under its old name.
+const InfrastructurePhasePreflight = jstestreceipt.InfrastructurePhasePreflight
+
+// ReasonPreflightFailed is jstestreceipt.ReasonPreflightFailed, kept under its old name.
+const ReasonPreflightFailed = jstestreceipt.ReasonPreflightFailed
 
 // preflightNow is the storage-state validity clock; tests replace it.
 var preflightNow = time.Now
@@ -90,38 +82,11 @@ type Preflight struct {
 	Declaration PreflightDeclaration
 }
 
-// PreflightReceipt is the receipt member a preflight run writes (PWP-V0-091).
-type PreflightReceipt struct {
-	Schema            string                 `json:"schema"`
-	DeclarationFile   string                 `json:"declarationFile"`
-	DeclarationDigest string                 `json:"declarationDigest"`
-	BaseURL           string                 `json:"baseUrl"`
-	Outcome           string                 `json:"outcome"`
-	Probes            []PreflightProbeResult `json:"probes"`
-}
+// PreflightReceipt is jstestreceipt.PreflightReceipt, kept under its old name.
+type PreflightReceipt = jstestreceipt.PreflightReceipt
 
-// PreflightProbeResult is one probe's observation. Reason is closed; Observed
-// is a short provider-written fact (a status, an exit code, a cookie name),
-// never command output or a storage-state value.
-type PreflightProbeResult struct {
-	Name           string `json:"name"`
-	Kind           string `json:"kind"`
-	State          string `json:"state"`
-	Reason         string `json:"reason,omitempty"`
-	Artefact       string `json:"artefact"`
-	ArtefactDigest string `json:"artefactDigest,omitempty"`
-	Observed       string `json:"observed,omitempty"`
-	DurationMS     int64  `json:"durationMs"`
-}
-
-// preflightReasons is the closed reason vocabulary (PWP-V0-091).
-var preflightReasons = map[string]bool{
-	"http-unreachable": true, "http-status-unexpected": true,
-	"command-start-failed": true, "command-exit-nonzero": true, "command-timeout": true, "command-cleanup-unknown": true,
-	"storage-state-missing": true, "storage-state-unreadable": true, "storage-state-invalid": true,
-	"storage-state-cookie-missing": true, "storage-state-cookie-expiring": true, "storage-state-origin-missing": true,
-	"earlier-probe-failed": true, "preflight-timeout": true, "cancelled": true,
-}
+// PreflightProbeResult is jstestreceipt.PreflightProbeResult, kept under its old name.
+type PreflightProbeResult = jstestreceipt.PreflightProbeResult
 
 func preflightRefusal(detail string) error {
 	return &E2ERefusal{Code: "preflight-declaration-invalid", Detail: detail}
@@ -134,7 +99,7 @@ func LoadPreflight(path string) (*Preflight, error) {
 	if err != nil {
 		return nil, preflightRefusal(err.Error())
 	}
-	data, err := readBoundedReport(abs, preflightMaxBytes)
+	data, err := readBoundedReport(abs, jstestreceipt.PreflightMaxBytes)
 	if err != nil {
 		return nil, preflightRefusal(err.Error())
 	}
@@ -161,35 +126,27 @@ func validatePreflight(d PreflightDeclaration) error {
 	if d.Schema != PreflightSchema {
 		return fmt.Errorf("schema must be %s", PreflightSchema)
 	}
-	if err := preflightBaseURL(d.BaseURL); err != nil {
+	if err := jstestreceipt.PreflightBaseURL(d.BaseURL); err != nil {
 		return err
 	}
-	if d.TotalTimeoutMS <= 0 || time.Duration(d.TotalTimeoutMS)*time.Millisecond > preflightMaxTotalTimeout {
+	if d.TotalTimeoutMS <= 0 || time.Duration(d.TotalTimeoutMS)*time.Millisecond > jstestreceipt.PreflightMaxTotalTimeout {
 		return errors.New("totalTimeoutMs must be in 1..3600000")
 	}
-	if len(d.Probes) == 0 || len(d.Probes) > preflightMaxProbes {
-		return fmt.Errorf("probes must number 1..%d", preflightMaxProbes)
+	if len(d.Probes) == 0 || len(d.Probes) > jstestreceipt.PreflightMaxProbes {
+		return fmt.Errorf("probes must number 1..%d", jstestreceipt.PreflightMaxProbes)
 	}
 	seen := map[string]bool{}
 	for i, p := range d.Probes {
-		if !preflightProbeName.MatchString(p.Name) || seen[p.Name] {
-			return fmt.Errorf("probes[%d]: name must be unique and match %s", i, preflightProbeName)
+		if !jstestreceipt.PreflightProbeName.MatchString(p.Name) || seen[p.Name] {
+			return fmt.Errorf("probes[%d]: name must be unique and match %s", i, jstestreceipt.PreflightProbeName)
 		}
 		seen[p.Name] = true
-		if p.TimeoutMS <= 0 || time.Duration(p.TimeoutMS)*time.Millisecond > preflightMaxProbeTimeout {
+		if p.TimeoutMS <= 0 || time.Duration(p.TimeoutMS)*time.Millisecond > jstestreceipt.PreflightMaxProbeTimeout {
 			return fmt.Errorf("probe %s: timeoutMs must be in 1..600000", p.Name)
 		}
 		if err := validatePreflightProbe(p); err != nil {
 			return fmt.Errorf("probe %s: %w", p.Name, err)
 		}
-	}
-	return nil
-}
-
-func preflightBaseURL(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" || len(raw) > 4096 {
-		return errors.New("baseUrl must be an http(s) URL without credentials, query or fragment")
 	}
 	return nil
 }
@@ -215,8 +172,8 @@ func validatePreflightProbe(p PreflightProbe) error {
 		if http || state {
 			return errors.New("command probe carries members of another kind")
 		}
-		if len(p.Argv) == 0 || len(p.Argv) > preflightMaxArgv || p.Argv[0] == "" {
-			return fmt.Errorf("command probe argv must have 1..%d tokens", preflightMaxArgv)
+		if len(p.Argv) == 0 || len(p.Argv) > jstestreceipt.PreflightMaxArgv || p.Argv[0] == "" {
+			return fmt.Errorf("command probe argv must have 1..%d tokens", jstestreceipt.PreflightMaxArgv)
 		}
 	case PreflightStorageState:
 		if http || command {
@@ -226,7 +183,7 @@ func validatePreflightProbe(p PreflightProbe) error {
 		if p.File == "" || filepath.IsAbs(p.File) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 			return errors.New("storage-state file must be a path inside the test directory")
 		}
-		if len(p.RequireCookies) > preflightMaxNames || len(p.RequireOrigins) > preflightMaxNames || p.MinValidSeconds < 0 {
+		if len(p.RequireCookies) > jstestreceipt.PreflightMaxNames || len(p.RequireOrigins) > jstestreceipt.PreflightMaxNames || p.MinValidSeconds < 0 {
 			return errors.New("storage-state requirements out of bounds")
 		}
 	default:
@@ -340,7 +297,7 @@ func admittedStatus(status int, expect []int) bool {
 // probeCommand runs a setup or seed command as its own process group. Its
 // output is bounded and never retained.
 func probeCommand(ctx context.Context, argv []string, dir string, limit time.Duration) (string, string) {
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: limit, OutputLimit: preflightCommandOutput, OverflowPolicy: procgroup.OverflowTruncate})
+	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: limit, OutputLimit: jstestreceipt.PreflightCommandOutput, OverflowPolicy: procgroup.OverflowTruncate})
 	switch {
 	case !obs.Started:
 		return "command-start-failed", ""
@@ -370,7 +327,7 @@ type storageState struct {
 // holds every required cookie and origin, and that each required cookie with
 // an expiry stays valid for minValidSeconds. It returns the file digest.
 func probeStorageState(path string, p PreflightProbe) (string, string, string) {
-	data, err := readBoundedReport(path, preflightStateMaxBytes)
+	data, err := readBoundedReport(path, jstestreceipt.PreflightStateMaxBytes)
 	if errors.Is(err, os.ErrNotExist) {
 		return "storage-state-missing", "", ""
 	}
@@ -411,80 +368,10 @@ func probeStorageState(path string, p PreflightProbe) (string, string, string) {
 	return "", "", digest
 }
 
-// preflightShapeError checks a receipt's preflight member against its
-// infrastructure and tests (PWP-V0-093). A violation removes passing authority.
-func preflightShapeError(r Receipt) error {
-	phase := r.Infrastructure != nil && r.Infrastructure.Phase != ""
-	if r.Preflight == nil {
-		if phase {
-			return errors.New("preflight-phase-without-preflight")
-		}
-		return nil
-	}
-	p := r.Preflight
-	if r.Profile == "" || r.Profile == FreshnessProfile || r.External == nil {
-		return errors.New("preflight-requires-external-profile")
-	}
-	if p.Schema != PreflightSchema || len(p.DeclarationDigest) != 64 || preflightBaseURL(p.BaseURL) != nil || len(p.Probes) == 0 || len(p.Probes) > preflightMaxProbes {
-		return errors.New("preflight-invalid")
-	}
-	failed := -1
-	for i, probe := range p.Probes {
-		if !preflightProbeName.MatchString(probe.Name) || (probe.Kind != PreflightHTTP && probe.Kind != PreflightCommand && probe.Kind != PreflightStorageState) {
-			return errors.New("preflight-invalid")
-		}
-		switch probe.State {
-		case PreflightPassed:
-			if failed >= 0 || probe.Reason != "" {
-				return errors.New("preflight-invalid")
-			}
-		case PreflightFailed, PreflightNotRun:
-			if !preflightReasons[probe.Reason] {
-				return errors.New("preflight-invalid")
-			}
-			if failed < 0 {
-				failed = i
-			} else if probe.State != PreflightNotRun || probe.Reason != "earlier-probe-failed" {
-				return errors.New("preflight-invalid")
-			}
-		default:
-			return errors.New("preflight-invalid")
-		}
-	}
-	if failed < 0 {
-		if p.Outcome != PreflightPassed || phase {
-			return errors.New("preflight-invalid")
-		}
-		return nil
-	}
-	first := p.Probes[failed]
-	x := r.Infrastructure
-	if p.Outcome != PreflightFailed || x == nil || x.Reason != ReasonPreflightFailed || x.Phase != InfrastructurePhasePreflight || x.Probe != first.Name || x.Artefact != first.Artefact {
-		return errors.New("preflight-invalid")
-	}
-	if len(r.Tests) != 0 {
-		return errors.New("preflight-failure-has-test-verdicts")
-	}
-	return nil
-}
-
-// preflightAnchors names the probe and artefact behind a preflight
-// infrastructure projection (PWP-V0-092).
-func preflightAnchors(x *InfrastructureFailure) []string {
-	if x == nil || x.Phase != InfrastructurePhasePreflight {
-		return nil
-	}
-	anchors := []string{"preflight-probe:" + x.Probe}
-	if x.Artefact != "" {
-		anchors = append(anchors, "preflight-artefact:"+x.Artefact)
-	}
-	return anchors
-}
-
 // digestFileOrEmpty is the file's SHA-256, or "" when it cannot be read, so a
 // vanished declaration reads as changed.
 func digestFileOrEmpty(path string) string {
-	data, err := readBoundedReport(path, preflightMaxBytes)
+	data, err := readBoundedReport(path, jstestreceipt.PreflightMaxBytes)
 	if err != nil {
 		return ""
 	}

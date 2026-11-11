@@ -2,7 +2,7 @@ package flowcoverage
 
 import (
 	"fmt"
-	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"reflect"
 	"sort"
 	"strings"
@@ -11,7 +11,7 @@ import (
 type boundRun struct {
 	inputs  map[string]string
 	binding Run
-	receipt jstestprovider.Receipt
+	receipt jstestreceipt.Receipt
 	reasons []string
 }
 
@@ -51,7 +51,7 @@ func (s *source) loadRuns(in Runs) ([]boundRun, error) {
 		if total > 64<<20 {
 			return nil, fmt.Errorf("aggregate receipt bound exceeded")
 		}
-		r, e := jstestprovider.DecodeAttemptReceipt(raw)
+		r, e := jstestreceipt.DecodeAttemptReceipt(raw)
 		if e != nil {
 			return nil, e
 		}
@@ -199,7 +199,7 @@ func (s *source) observe(exact ExactTest, runs []boundRun) []Observation {
 			identity := struct {
 				Build, Config, Node, Runner string
 				Inputs, Environment         map[string]string
-				Project                     *jstestprovider.ProjectIdentity
+				Project                     *jstestreceipt.ProjectIdentity
 			}{b.receipt.AppBuildAtStart.Digest, b.binding.Paths[b.receipt.Identity.ConfigFile], b.receipt.Identity.NodeVersion, b.receipt.Identity.RunnerVersion, b.inputs, b.receipt.Identity.Environment, t.Project}
 			history, _ := Encode(identity)
 			o.HistoryGroup = digest(history)
@@ -209,14 +209,14 @@ func (s *source) observe(exact ExactTest, runs []boundRun) []Observation {
 			if t.Anchor.Line != exact.Anchor.Start || b.receipt.Identity.TestFileDigests[t.Anchor.File] != exact.Anchor.SHA256 {
 				o.Reasons = append(o.Reasons, "stale: test declaration/digest does not match accepted anchor")
 			}
-			if !jstestprovider.QualifiedReceiptBindingReady(b.receipt, t) {
+			if !jstestreceipt.QualifiedReceiptBindingReady(b.receipt, t) {
 				o.Reasons = append(o.Reasons, "provider lifecycle or identity unqualified")
 			}
 			if len(t.Attempts) != 1 || t.Retries != 0 {
 				o.Reasons = append(o.Reasons, "actual retries present")
 			}
 			for _, a := range t.Attempts {
-				if a.Retry != 0 || (a.State != jstestprovider.StatePassed && a.State != jstestprovider.StateFailed) || a.State == jstestprovider.StateFailed && a.FailureKind != "assertion-or-test" {
+				if a.Retry != 0 || (a.State != jstestreceipt.StatePassed && a.State != jstestreceipt.StateFailed) || a.State == jstestreceipt.StateFailed && a.FailureKind != "assertion-or-test" {
 					o.Reasons = append(o.Reasons, "nonassertion/infrastructure attempt cannot qualify")
 				}
 			}

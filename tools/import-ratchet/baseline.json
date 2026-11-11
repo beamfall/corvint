@@ -3,15 +3,11 @@
   "edges": [
     "cmd/corvint-docs -> internal/testsource",
     "internal/appflows -> internal/doccorpus",
-    "internal/appflows -> internal/jstestprovider",
     "internal/appmap -> internal/doccorpus",
-    "internal/appmap -> internal/jstestprovider",
     "internal/appmap -> internal/testvaliditydoc",
-    "internal/doccorpus -> internal/jstestprovider",
     "internal/doccorpus -> internal/testvaliditydoc",
     "internal/flowcoverage -> internal/doccorpus",
     "internal/flowcoverage -> internal/flowdocs",
-    "internal/flowcoverage -> internal/jstestprovider",
     "internal/mcp/cli -> internal/mcp/corpusbridge",
     "internal/sessiontest -> .github/cishards"
   ]

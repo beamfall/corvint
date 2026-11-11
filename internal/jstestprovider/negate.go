@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/stepnegation"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -196,7 +197,7 @@ func RunNegate(ctx context.Context, cfg NegateConfig) (stepnegation.Document, er
 		}
 		if repeat == 0 {
 			first = &run
-			if run.test != nil && !n.cfg.allowUnqualifiedTuple && !qualifiedPlaywrightTuple(run.receipt, *run.test) {
+			if run.test != nil && !n.cfg.allowUnqualifiedTuple && !jstestreceipt.QualifiedPlaywrightTuple(run.receipt, *run.test) {
 				return stepnegation.Document{}, refuse(NegateTupleUnqualified, "the baseline observed an unqualified runner, Node or browser tuple")
 			}
 		}
@@ -349,7 +350,7 @@ func (n *negation) list(ctx context.Context, lister string) (selectedTest, error
 		return selectedTest{}, err
 	}
 	argv = append(argv, "--list")
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: negateListTimeout, OutputLimit: externalOutputLimit})
+	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: negateListTimeout, OutputLimit: jstestreceipt.ExternalOutputLimit})
 	if !obs.OwnedProcessGroupCleanup {
 		n.cleanupIncomplete = true
 	}
@@ -576,12 +577,12 @@ func (n *negation) binding(repository *ApplicationRepositoryIdentity, first *obs
 		Test:                  stepnegation.TestBinding{File: n.key.File, FullTitle: stepnegation.Screen(n.key.FullTitle), Project: n.key.Project},
 		Runner:                stepnegation.Runner{Name: "playwright", Version: n.base.RunnerVersion, NodeVersion: r.Identity.NodeVersion, Tuple: ReceiptRuntimeTuple(r)},
 		ReadinessOrigin:       n.origin,
-		InjectionModuleDigest: sha256Hex(negationInjection),
+		InjectionModuleDigest: jstestreceipt.Sha256Hex(negationInjection),
 	}
 	if first.test != nil && first.test.Project != nil {
 		binding.Test.Browser, binding.Test.Device = first.test.Project.Browser, first.test.Project.Device
 	}
-	if binding.Runner.Tuple == RuntimeTupleCandidate && first.test != nil && !qualifiedPlaywrightTuple(r, *first.test) {
+	if binding.Runner.Tuple == RuntimeTupleCandidate && first.test != nil && !jstestreceipt.QualifiedPlaywrightTuple(r, *first.test) {
 		binding.Runner.Tuple = RuntimeTupleUnqualified
 	}
 	if n.base.ApplicationAttestation == nil {
@@ -601,7 +602,7 @@ func relativeTo(root, path string) string {
 	if relative, err := filepath.Rel(canonicalPath(root), canonicalPath(path)); err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return filepath.ToSlash(relative)
 	}
-	return "sha256:" + sha256Hex([]byte(path))
+	return "sha256:" + jstestreceipt.Sha256Hex([]byte(path))
 }
 
 // unresolved gives every requested step the baseline reason.

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 func annotation(annotationType, description string) playwrightAnnotation {
@@ -47,7 +49,7 @@ func TestLPCVV0120AnnotationIsClosed(t *testing.T) {
 		"line without file": one(`"matcher":"toBe","line":3,"actual":0,"expected":0`),
 		"file without line": one(`"matcher":"toBe","file":"a.ts","actual":0,"expected":0`),
 		"too many":          {annotation(AssertionOperandsAnnotation, `{"assertions":[`+strings.Join(many, ",")+`]}`)},
-		"oversized":         {annotation(AssertionOperandsAnnotation, `{"assertions":[]}`+strings.Repeat(" ", maxAssertionOperandDescription))},
+		"oversized":         {annotation(AssertionOperandsAnnotation, `{"assertions":[]}`+strings.Repeat(" ", jstestreceipt.MaxAssertionOperandDescription))},
 		"non-string":        {{Type: AssertionOperandsAnnotation, Description: valid, malformed: true}},
 		"surrogate":         one(`"matcher":"toBe","file":"a\ud800.ts","line":1,"actual":0,"expected":0`),
 	} {
@@ -104,7 +106,7 @@ func TestLPCVV0123AnnotationIsClosed(t *testing.T) {
 		"userinfo in host":  call(`"method":"GET","host":"user@h.example","path":"/p","stubbed":false`),
 		"empty host":        call(`"method":"GET","host":"","path":"/p","stubbed":false`),
 		"too many":          {annotation(OutboundCallsAnnotation, `{"responses":[`+strings.Join(many, ",")+`]}`)},
-		"oversized":         {annotation(OutboundCallsAnnotation, `{"responses":[]}`+strings.Repeat(" ", maxOutboundCallDescription))},
+		"oversized":         {annotation(OutboundCallsAnnotation, `{"responses":[]}`+strings.Repeat(" ", jstestreceipt.MaxOutboundCallDescription))},
 		"non-string":        {{Type: OutboundCallsAnnotation, Description: valid, malformed: true}},
 	} {
 		if got := outboundCallRecord(annotations); got != nil {
@@ -165,7 +167,7 @@ func TestLPCVV0120ProfiledReceiptsRefuseRunRecords(t *testing.T) {
 	withCalls.AttemptDetails[1].OutboundCalls = &OutboundCallRecord{Responses: []OutboundResponse{}}
 	for code, outcome := range map[string]TestOutcome{"external-profile-has-assertion-operands": withOperands, "external-profile-has-outbound-calls": withCalls} {
 		for _, profile := range []string{ExternalProfile, AttestedExternalProfile, SensitiveExternalProfile, AttemptExternalProfile} {
-			if err := qualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{outcome}}); err == nil {
+			if err := jstestreceipt.QualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{outcome}}); err == nil {
 				t.Fatalf("%s accepted %s", profile, code)
 			}
 		}

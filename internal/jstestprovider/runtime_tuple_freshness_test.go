@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -37,7 +38,7 @@ func fresh164Fixture(t *testing.T, node string) Receipt {
 		use = strings.ReplaceAll(use, pair[0], pair[1])
 	}
 	r.Tests[0].Project.Use = []byte(use)
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	return r
 }
 
@@ -46,22 +47,22 @@ func fresh164Fixture(t *testing.T, node string) Receipt {
 // from the same table; freshness on v24.11.1 stays unadmitted.
 func TestPWPV0050OneTupleAdmitsExternalAndFreshness(t *testing.T) {
 	for _, profile := range []string{ExternalProfile, AttemptExternalProfile, SensitiveExternalProfile, FreshnessProfile} {
-		if m := AdmittedRuntimeTupleMismatch(profile, "1.64.0", qualifiedNodeVersion, BrowserSourceBundled); m != nil {
+		if m := AdmittedRuntimeTupleMismatch(profile, "1.64.0", jstestreceipt.QualifiedNodeVersion, BrowserSourceBundled); m != nil {
 			t.Fatalf("%s refused the shared tuple: %+v", profile, m)
 		}
 	}
-	if got := ReceiptRuntimeTuple(Receipt{Profile: ExternalProfile, Identity: Identity{RunnerVersion: "1.64.0", NodeVersion: qualifiedNodeVersion}}); got != RuntimeTupleCandidate {
+	if got := ReceiptRuntimeTuple(Receipt{Profile: ExternalProfile, Identity: Identity{RunnerVersion: "1.64.0", NodeVersion: jstestreceipt.QualifiedNodeVersion}}); got != RuntimeTupleCandidate {
 		t.Fatalf("external receipt on the shared tuple read %s", got)
 	}
 	current := func(r Receipt) string { return ReceiptTestProjection(r, r.Tests[0]).Freshness.State }
-	requireFreshCurrent(t, current(fresh164Fixture(t, qualifiedNodeVersion)), "freshness on the shared tuple")
-	if got := current(fresh164Fixture(t, admittedBundledNodeVersion)); got != testvalidity.FreshnessUnknown {
+	requireFreshCurrent(t, current(fresh164Fixture(t, jstestreceipt.QualifiedNodeVersion)), "freshness on the shared tuple")
+	if got := current(fresh164Fixture(t, jstestreceipt.AdmittedBundledNodeVersion)); got != testvalidity.FreshnessUnknown {
 		t.Fatalf("freshness on 1.64.0/v24.11.1 without a live run read %s", got)
 	}
-	if got := current(fresh164Fixture(t, freshnessNodeVersion)); got != testvalidity.FreshnessUnknown {
+	if got := current(fresh164Fixture(t, jstestreceipt.FreshnessNodeVersion)); got != testvalidity.FreshnessUnknown {
 		t.Fatalf("freshness on 1.64.0/v22.23.3 without a row read %s", got)
 	}
-	if !runtimeTupleAdmitted(FreshnessProfile, "1.63.0", freshnessNodeVersion, BrowserSourceBundled) {
+	if !jstestreceipt.RuntimeTupleAdmitted(FreshnessProfile, "1.63.0", jstestreceipt.FreshnessNodeVersion, BrowserSourceBundled) {
 		t.Fatal("the 1.63.0 freshness row was dropped")
 	}
 }
@@ -72,7 +73,7 @@ func TestPWPV0050OneTupleAdmitsExternalAndFreshness(t *testing.T) {
 func TestPWPV0051FreshCommandExecutableStreamDigest(t *testing.T) {
 	dir := t.TempDir()
 	big := filepath.Join(dir, "node")
-	size := int64(applicationAttestationExecutableLimit) + 1024
+	size := int64(jstestreceipt.ApplicationAttestationExecutableLimit) + 1024
 	f, err := os.Create(big)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +105,7 @@ func TestPWPV0051FreshCommandExecutableStreamDigest(t *testing.T) {
 	if err := os.WriteFile(small, []byte("node"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := digestBoundedRegularFile(small, freshCommandExecutableLimit); err != nil || got != sha256Hex([]byte("node")) {
+	if got, err := digestBoundedRegularFile(small, freshCommandExecutableLimit); err != nil || got != jstestreceipt.Sha256Hex([]byte("node")) {
 		t.Fatalf("small file digest %q %v", got, err)
 	}
 	refused := []string{dir, filepath.Join(dir, "missing")}
@@ -128,7 +129,7 @@ func TestPWPV0051FreshCommandExecutableStreamDigest(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := freshCommandObserve(FreshCommandIdentity{Argv: []string{big, entry}})
-	if got == nil || got.ExecutableDigest != want || got.EntrypointDigest != sha256Hex([]byte("entry")) {
+	if got == nil || got.ExecutableDigest != want || got.EntrypointDigest != jstestreceipt.Sha256Hex([]byte("entry")) {
 		t.Fatalf("command observation over 64 MiB: %+v", got)
 	}
 }
@@ -136,7 +137,7 @@ func TestPWPV0051FreshCommandExecutableStreamDigest(t *testing.T) {
 // PWP-V0-052: the freshness reporter receives its (runner, Node) rows from
 // the shared table, and its pre-filter admits exactly those rows.
 func TestPWPV0052ReporterFreshnessTuplesFromTable(t *testing.T) {
-	want := [][2]string{{"1.63.0", freshnessNodeVersion}, {"1.64.0", qualifiedNodeVersion}}
+	want := [][2]string{{"1.63.0", jstestreceipt.FreshnessNodeVersion}, {"1.64.0", jstestreceipt.QualifiedNodeVersion}}
 	got := freshnessReporterTuples()
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("freshness reporter tuples %v", got)
