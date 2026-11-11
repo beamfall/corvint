@@ -40,9 +40,12 @@ type Registry struct {
 	root, path, digest string
 	identity           os.FileInfo
 	header             header
-	load               chan struct{}
-	artifact           *doccorpus.Artifact
-	pins               []string
+	// state guards digest and header, which a verified reload of a rebuilt
+	// artifact replaces while calls are served (DMF-V1-011).
+	state    sync.RWMutex
+	load     chan struct{}
+	artifact *doccorpus.Artifact
+	pins     []string
 	// pinStamp is the pin reuse key (pinReuseKey) captured before the last
 	// successful verification of pins; while the key is unchanged the
 	// verification is not repeated (DCP-V1-316). It is guarded by load.
@@ -207,7 +210,21 @@ func readHeader(raw []byte) (header, error) {
 	}
 	return h, nil
 }
-func (r *Registry) Tools() []bridge.ToolDescriptor { return descriptors(r.header) }
+func (r *Registry) Tools() []bridge.ToolDescriptor { return descriptors(r.currentHeader()) }
+
+// currentHeader and currentDigest read the served artifact's header and digest, which a reload
+// replaces (DMF-V1-011).
+func (r *Registry) currentHeader() header {
+	r.state.RLock()
+	defer r.state.RUnlock()
+	return r.header
+}
+
+func (r *Registry) currentDigest() string {
+	r.state.RLock()
+	defer r.state.RUnlock()
+	return r.digest
+}
 
 // AllTools lists every corpus tool as a SchemaV2 artifact declaring every
 // capability would. The unified corvint-mcp server lists it while its configured
@@ -314,7 +331,7 @@ func descriptors(h header) []bridge.ToolDescriptor {
 
 // ArtifactSHA256 is the configured artifact's digest, the corpus identity an
 // outcome log is bound to (DCP-V1-285).
-func (r *Registry) ArtifactSHA256() string { return r.digest }
+func (r *Registry) ArtifactSHA256() string { return r.currentDigest() }
 
 func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map[string]any, string, *ToolFailure, *Error) {
 	result, text, failure, protocol, _ := r.CallTimed(ctx, name, arguments)
@@ -332,7 +349,8 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		return timing
 	}
 	op, ok := tools[name]
-	if !ok || !r.header.has(op) {
+	served := r.currentHeader()
+	if !ok || !served.has(op) {
 		return nil, "", nil, &Error{"unsupported-tool"}, finish()
 	}
 	if ctx.Err() != nil {
@@ -367,7 +385,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && served.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -425,10 +443,23 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	read := r.artifactReader()
 	if !read.unchanged {
 		if _, err := read.bytes(); err != nil {
-			if errors.Is(err, errArtifactChanged) {
-				return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil, finish()
+			if !errors.Is(err, errArtifactChanged) {
+				return failure(err, finish())
 			}
-			return failure(err, finish())
+			// DMF-V1-011: a rebuilt artifact is verified as the first open does and then
+			// served; one that fails is refused with its reason, never answered from the
+			// artifact it replaced.
+			if err := r.reload(ctx, read.changedStamp, read.changed, &timing); err != nil {
+				if ctx.Err() != nil {
+					return nil, "", nil, &Error{"cancelled"}, finish()
+				}
+				_, reason := failureCode(err)
+				return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed and the new artifact failed verification: " + reason + "; the previous artifact is not served"}, nil, finish()
+			}
+			if !r.currentHeader().has(op) {
+				return nil, "", &ToolFailure{"corpus-refused", "the rebuilt artifact does not declare the capability " + name + " needs"}, nil, finish()
+			}
+			read = r.artifactReader()
 		}
 	}
 	// DCP-V1-653, DCP-V1-654: the receipt view and include ["capabilities"]
@@ -844,6 +875,51 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp s
 	return overlay, nil
 }
 
+// reload opens the configured artifact again after its bytes changed, from the bytes and stamp the
+// call already read (so a reload costs no second read, DCR-V1-417): it reads the header and
+// opens the artifact with the same verified read the first call uses, then replaces the served
+// digest, header, artifact, pins and memos in one step under the load slot. A call already holding
+// the previous artifact finishes on it; the next call answers from the new one. A failure changes
+// nothing, so every later call checks the file again and is refused while it still fails
+// (DMF-V1-011).
+func (r *Registry) reload(ctx context.Context, stamp string, raw []byte, timing *Timing) error {
+	select {
+	case r.load <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-r.load }()
+	step := time.Now()
+	if raw == nil {
+		return &doccorpus.Error{Code: "corpus-refused", Message: "changed artifact bytes unavailable"}
+	}
+	digest := doccorpus.Digest(raw)
+	if digest == r.currentDigest() {
+		return nil // another call already reloaded these bytes
+	}
+	h, err := readHeader(raw)
+	if err != nil || h.Schema == "" {
+		return &doccorpus.Error{Code: "corpus-refused", Message: "artifact header unreadable"}
+	}
+	a, err := doccorpus.OpenRead(ctx, r.root, raw, doccorpus.ReadOptions{})
+	if err != nil {
+		return err
+	}
+	timing.Load, timing.LoadMS = "first-call", time.Since(step).Milliseconds()
+	r.state.Lock()
+	r.digest, r.header = digest, h
+	r.state.Unlock()
+	r.artifact, r.pins, r.pinStamp = a, pinnedRevisions(a.Manifest), ""
+	r.index.artifact, r.index.value, r.index.err = nil, nil, nil
+	r.live.Lock()
+	r.live.key, r.live.artifact, r.live.overlay, r.live.stamp = "", nil, doccorpus.FreshnessOverlay{}, ""
+	r.live.Unlock()
+	r.artifactFile.Lock()
+	r.artifactFile.stamp = stamp
+	r.artifactFile.Unlock()
+	return nil
+}
+
 // readArtifactFile reads the configured artifact; tests replace it to count
 // reads (DCR-V1-417).
 var readArtifactFile = doccorpus.ReadCorpusFile
@@ -860,6 +936,11 @@ type artifactRead struct {
 	stamp     string
 	unchanged bool
 	raw       []byte
+	// changed holds the bytes of a read whose digest differs from the served one, and
+	// changedStamp the stamp captured before that read, for the reload that verifies them
+	// (DMF-V1-011).
+	changed      []byte
+	changedStamp string
 }
 
 func (r *Registry) artifactReader() *artifactRead {
@@ -872,9 +953,10 @@ func (r *Registry) artifactReader() *artifactRead {
 
 // artifactFlight is one shared artifact read and digest check.
 type artifactFlight struct {
-	done chan struct{}
-	raw  []byte
-	err  error
+	done  chan struct{}
+	raw   []byte
+	err   error
+	stamp string
 }
 
 // bytes reads the artifact and checks it against the startup digest. The
@@ -892,12 +974,15 @@ func (a *artifactRead) bytes() ([]byte, error) {
 		f.Unlock()
 		<-flight.done
 		if flight.err != nil {
+			if errors.Is(flight.err, errArtifactChanged) {
+				a.changed, a.changedStamp = flight.raw, flight.stamp
+			}
 			return nil, flight.err
 		}
 		a.raw = flight.raw
 		return a.raw, nil
 	}
-	flight := &artifactFlight{done: make(chan struct{})}
+	flight := &artifactFlight{done: make(chan struct{}), stamp: a.stamp}
 	f.flight = flight
 	f.Unlock()
 	flight.raw, flight.err = a.read()
@@ -909,6 +994,9 @@ func (a *artifactRead) bytes() ([]byte, error) {
 	f.Unlock()
 	close(flight.done)
 	if flight.err != nil {
+		if errors.Is(flight.err, errArtifactChanged) {
+			a.changed, a.changedStamp = flight.raw, flight.stamp
+		}
 		return nil, flight.err
 	}
 	a.raw = flight.raw
@@ -920,8 +1008,8 @@ func (a *artifactRead) read() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if doccorpus.Digest(raw) != a.r.digest {
-		return nil, errArtifactChanged
+	if doccorpus.Digest(raw) != a.r.currentDigest() {
+		return raw, errArtifactChanged
 	}
 	return raw, nil
 }
