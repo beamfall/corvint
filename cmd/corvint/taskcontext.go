@@ -21,10 +21,16 @@ type taskContextOptions struct {
 	// deprecatedAlias marks the `context --instruction-*` spelling, which prints one stderr line
 	// naming `corvint instructions` (IID-V0-001).
 	deprecatedAlias bool
+	// ignoredFlags is set when the alias was given --task, --limit or --worktree-overlay, which
+	// callers of the removed task packet always passed; they are accepted, ignored and warned about.
+	ignoredFlags bool
 }
 
 // instructionAliasDeprecation is the stderr line of the `context --instruction-*` alias.
 const instructionAliasDeprecation = "corvint: context --subject --instruction-* is deprecated and stays for one release; run corvint instructions --subject PATH --host HOST --host-version VERSION --cwd DIR --profile default\n"
+
+// ignoredTaskFlagsWarning is the stderr line when the alias ignores the removed packet flags.
+const ignoredTaskFlagsWarning = "corvint: context --task, --limit and --worktree-overlay are ignored: the task packet was removed (decision 0597)\n"
 
 // contextTaskRemoved is the refusal for the removed task packet (decision 0597).
 const contextTaskRemoved = "corvint context no longer compiles a task packet (decision 0597); for a change run corvint affected --base <sha> or corvint impact PATH, and for one file run corvint context --path PATH"
@@ -82,7 +88,8 @@ func verbInvocation(arguments []string, verb string) (taskContextOptions, []stri
 }
 
 // parseInstructionArguments reads --subject and the four instruction flags, each spelled prefix
-// plus host, host-version, cwd or profile. The context alias refuses the removed task packet.
+// plus host, host-version, cwd or profile. The context alias accepts and ignores --task, --limit and
+// --worktree-overlay with a stderr warning, and refuses task text with no instruction flags.
 func parseInstructionArguments(options taskContextOptions, rest []string, prefix string) (taskContextOptions, error) {
 	for index := 0; index < len(rest); index++ {
 		if !argparseOptionLike(rest[index]) {
@@ -94,8 +101,18 @@ func parseInstructionArguments(options taskContextOptions, rest []string, prefix
 		flag, value, inline := strings.Cut(rest[index], "=")
 		name := strings.TrimPrefix(flag, prefix)
 		switch {
-		case options.deprecatedAlias && (flag == "--task" || flag == "--limit" || flag == "--worktree-overlay"):
-			return options, argumentError(contextTaskRemoved)
+		case options.deprecatedAlias && flag == "--worktree-overlay" && !inline:
+			options.ignoredFlags = true
+			continue
+		case options.deprecatedAlias && (flag == "--task" || flag == "--limit"):
+			options.ignoredFlags = true
+			if !inline {
+				if index+1 >= len(rest) || argparseOptionLike(rest[index+1]) {
+					return options, argumentError("argument " + flag + ": expected one argument")
+				}
+				index++
+			}
+			continue
 		case flag == "--subject":
 		case strings.HasPrefix(flag, prefix) && (name == "host" || name == "host-version" || name == "cwd" || name == "profile"):
 		default:
@@ -143,6 +160,9 @@ func parseInstructionArguments(options taskContextOptions, rest []string, prefix
 // checkInstructionArguments refuses incomplete instruction-prediction flags and a bare context.
 func checkInstructionArguments(options taskContextOptions, prefix string) error {
 	if options.deprecatedAlias && len(options.instructionFlags) == 0 && options.subject == "" {
+		if options.ignoredFlags {
+			return argumentError(contextTaskRemoved)
+		}
 		return argumentError("the following arguments are required: --path")
 	}
 	if len(options.instructionFlags) != 4 || options.subject == "" {
@@ -162,6 +182,9 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 	}
 	if options.deprecatedAlias {
 		_, _ = io.WriteString(stderr, instructionAliasDeprecation)
+		if options.ignoredFlags {
+			_, _ = io.WriteString(stderr, ignoredTaskFlagsWarning)
+		}
 	}
 	loadSet, err := compileInstructionLoadSet(ctx, options, contextindex.LoadContextSnapshotDeferred)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
@@ -196,7 +219,8 @@ corvint impact command.
 The instruction load set moved to corvint instructions. For one release,
 context --subject PATH with --instruction-host, --instruction-host-version,
 --instruction-cwd and --instruction-profile default prints the same object and
-one deprecation line on stderr.
+one deprecation line on stderr. The alias accepts and ignores --task, --limit
+and --worktree-overlay (the removed task packet's flags) with one more warning line.
 
 Writes nothing. The task packet (--task) is removed (decision 0597): for a
 change run corvint affected --base SHA or corvint impact PATH.

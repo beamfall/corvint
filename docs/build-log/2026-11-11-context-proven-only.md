@@ -66,6 +66,20 @@ survives as `source_helpers.go`).
 - The CI shard tables are edited on the separate branch `claude/ctxcut-cishards`
   (`.github/**` changes go in their own PR).
 
+## Fix round 1 (review FIX)
+
+- DELEGATED 1.0 CHOICE (orchestrator, not an owner acceptance): the `UC-TASK-ORIENTATION` Core job
+  is retired by decision 0597, because every kept surface takes a path or a diff and none answers a
+  task-text orientation question. `corvint-1.0-product-and-release-v1.md` and the
+  `benchmarks/untouched-repository-v1` README say so. `harness.py` is not edited, since its sealed
+  digest is bound by the preregistrations. No threshold or bar changed.
+- The `context` alias accepts `--task`, `--limit` and `--worktree-overlay`, ignores them and warns on
+  stderr (IID-V0-001); `TestContextAliasIgnoresTheRemovedPacketFlags` covers it.
+- `LTA-V0-004` and `LTA-V0-014` to `-020` (except `-018`) moved to `secret-screen-writer-v0.md`, which
+  governs the live `internal/secretscreen/prefilter.go`; the retired spec points to it.
+- NOT_DONE: `corvint-path-brief/1` stays `/1`. `ticket-brief-v1.md` (amended 2026-11-11) states that
+  the profile MUST be `corvint-path-brief/1`, so a bump needs its own spec change and owner call.
+
 ## Rollback
 
 Revert the step commits in reverse order. The removed packages, tools and specs return unchanged

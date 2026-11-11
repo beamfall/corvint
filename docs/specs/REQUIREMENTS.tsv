@@ -5985,7 +5985,6 @@ LGP-V0-027	docs/specs/language-plugins-v0.md	(accepted under the owner's standin
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp	unrecorded	-
-LTA-V0-004	docs/specs/learned-trace-admission-v0.md	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`	unrecorded	-
 LTA-V0-005	docs/specs/learned-trace-admission-v0.md	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted	owner	2026-09-12; decision 0093
 LTA-V0-006	docs/specs/learned-trace-admission-v0.md	`corvint skill-export --out DIR` MUST be the only path that exports learned rule	unrecorded	-
 LTA-V0-007	docs/specs/learned-trace-admission-v0.md	An admitted learned rule is a stored row with outcome `passed` that the reader	unrecorded	-
@@ -5995,13 +5994,7 @@ LTA-V0-010	docs/specs/learned-trace-admission-v0.md	(decision 0368, accepted by 
 LTA-V0-011	docs/specs/learned-trace-admission-v0.md	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved	owner	decision 0368
 LTA-V0-012	docs/specs/learned-trace-admission-v0.md	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh	owner	decision 0368
 LTA-V0-013	docs/specs/learned-trace-admission-v0.md	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared	unrecorded	-
-LTA-V0-014	docs/specs/learned-trace-admission-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
-LTA-V0-015	docs/specs/learned-trace-admission-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
-LTA-V0-016	docs/specs/learned-trace-admission-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
-LTA-V0-017	docs/specs/learned-trace-admission-v0.md	The writer screen's `sk-` vendor branch MUST require, after a word boundary and	unrecorded	-
 LTA-V0-018	docs/specs/learned-trace-admission-v0.md	(V1-2958; accepted 2026-10-28 under the owner's standing lane-requirement	standing	V1-2958; 2026-10-28
-LTA-V0-019	docs/specs/learned-trace-admission-v0.md	The writer screen's private-key branches MUST redact from a	unrecorded	-
-LTA-V0-020	docs/specs/learned-trace-admission-v0.md	The prefilter's credential-name scan MUST scan the lowered text's field-byte run	unrecorded	-
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	the profile MUST accept only a structurally valid CEM and, for obligation checks	unrecorded	-
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	every term set MUST use the frozen identifier algorithm and subject text. A	unrecorded	-
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi	unrecorded	-
@@ -7602,6 +7595,13 @@ SCL-V0-900	docs/specs/scope-lease-v0.md	(proposed; V1-2489) On a deferred platfo
 SCL-V0-009	docs/specs/scope-lease-v0.md	`scopelease.Check(root, paths)` MUST report, without writing, every touched path	unrecorded	-
 SCL-V0-010	docs/specs/scope-lease-v0.md	Every action MUST emit one deterministic canonical JSON line on stdout with a st	unrecorded	-
 SCL-V0-011	docs/specs/scope-lease-v0.md	An unreadable or unparsable lease document MUST NOT block actions on other lease	unrecorded	-
+LTA-V0-004	docs/specs/secret-screen-writer-v0.md	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`	unrecorded	-
+LTA-V0-014	docs/specs/secret-screen-writer-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
+LTA-V0-015	docs/specs/secret-screen-writer-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
+LTA-V0-016	docs/specs/secret-screen-writer-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
+LTA-V0-017	docs/specs/secret-screen-writer-v0.md	The writer screen's `sk-` vendor branch MUST require, after a word boundary and	unrecorded	-
+LTA-V0-019	docs/specs/secret-screen-writer-v0.md	The writer screen's private-key branches MUST redact from a	unrecorded	-
+LTA-V0-020	docs/specs/secret-screen-writer-v0.md	The prefilter's credential-name scan MUST scan the lowered text's field-byte run	unrecorded	-
 SOL-V0-001	docs/specs/self-observation-ledger-v0.md	Event handlers for `session-start`, `user-prompt`, and `file-change` MUST attemp	unrecorded	-
 SOL-V0-002	docs/specs/self-observation-ledger-v0.md	Rows MUST contain no task text, source body, command, credential, or agent-memor	unrecorded	-
 SOL-V0-003	docs/specs/self-observation-ledger-v0.md	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write	unrecorded	-

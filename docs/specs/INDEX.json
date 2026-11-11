@@ -4460,5 +4460,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/secret-screen-writer-v0.md",
+    "title": "Secret Screen Writer V0",
+    "reqPrefix": "LTA-V0",
+    "intent": "accepted (decision 0058; moved from the learned-trace spec by decision 0597)",
+    "delivery": "experimental",
+    "claim": "`internal/secretscreen.Pattern` and its prefilter redact credential-shaped text, with a prefilter that returns exactly the complete pattern's matches.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
