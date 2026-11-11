@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // TestCEMV1260DriftResourceLimitNative runs the shared drift-resource-limit

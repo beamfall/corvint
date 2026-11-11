@@ -5782,6 +5782,8 @@ IRT-V0-003	docs/specs/import-ratchet-v0.md	The import graph SHALL hold the produ
 IRT-V0-004	docs/specs/import-ratchet-v0.md	`tools/import-ratchet/baseline.json` (profile	unrecorded	-
 IRT-V0-005	docs/specs/import-ratchet-v0.md	On the real graph the test SHALL prove its own effectiveness: adding one	unrecorded	-
 IRT-V0-006	docs/specs/import-ratchet-v0.md	The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7	unrecorded	-
+IRT-V0-020	docs/specs/import-ratchet-v0.md	Every scanned Git spawn in a production file of a module package outside	unrecorded	-
+IRT-V0-021	docs/specs/import-ratchet-v0.md	No package outside the `tests` and `release` layers SHALL import	unrecorded	-
 ICL-V0-001	docs/specs/incremental-closeout-v0.md	A closeout step MAY skip work only when a recorded result binds every input	unrecorded	-
 ICL-V0-010	docs/specs/incremental-closeout-v0.md	A repeated `dogfood-inputs-check` whose pre-flight key equals the key of a passi	unrecorded	-
 ICL-V0-020	docs/specs/incremental-closeout-v0.md	A batch-drift entry marked `@prebind` is one the bind cannot reach: its package	unrecorded	-

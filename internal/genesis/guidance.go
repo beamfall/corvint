@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1980BinaryGroupGrammar pins CEM-V1-980 and CEM-V1-981 (V1-2752):

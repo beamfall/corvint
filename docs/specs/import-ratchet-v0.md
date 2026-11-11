@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
-- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 59 scanned Git spawns listed in 57 functions of 48 files, none routed) and `affected_names_test.go` (IRT-V0-021).
 - Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 
@@ -75,6 +75,36 @@ measured edges by layer pair and the per-layer test time are recorded in
   on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
   `go:embed` inputs, so their edits select it as well.
+- `IRT-V0-020`: Every scanned Git spawn in a production file of a module package outside
+  `internal/gitrun` SHALL be listed in `tools/import-ratchet/direct_git_allowlist.txt` with a
+  reason (V1-4807). A scanned Git spawn is a call `exec.Command(P, ...)` or
+  `exec.CommandContext(ctx, P, ...)`, with `exec` the file's name for `os/exec`, whose program
+  argument `P` is the string literal `"git"`, an identifier or selector whose last name contains
+  `git` in any case (`git`, `gitExecutable`, `r.GitPath`), or a call of `gitstatus.Executable()`
+  with `gitstatus` the file's name for `internal/gitstatus`. The scan is syntactic: it does not
+  prove that every Git child process is listed (see Failure modes). The packages are those of
+  IRT-V0-003 (a nested module such as `interop/cem01-go` is outside them), and every
+  non-`_test.go` file counts whatever its build constraints. Each allowlist line is
+  `PATH:FUNC: REASON`, where `FUNC` is the enclosing top-level function or `TYPE.METHOD`; a
+  function holding N spawns is listed N times; lines are sorted and every reason is non-blank. The
+  test fails with `UNLISTED_DIRECT_GIT` for a spawn the list does not cover, `STALE_DIRECT_GIT`
+  for a listed spawn that no longer exists, and `ALLOWLIST_FORMAT` for a malformed, unsorted or
+  reasonless line. A spawn is routed through `internal/gitrun` only when the result is unchanged:
+  `gitrun` runs with an explicit environment (empty unless given), a per-operation timeout inside
+  a budget, bounded stdout and stderr, process-group containment and typed `cemcode` errors, so a
+  site that inherits the environment, has no timeout, streams through a pipe, reads
+  `exec.ExitError`, reports exec's error text or is itself another bounded runner stays listed.
+  The test carries the read-kinds directive of IRT-V0-006, and the list is a `go:embed` input of
+  the test.
+- `IRT-V0-021`: No package outside the `tests` and `release` layers SHALL import
+  `internal/liveverify/affected` in a production file only for the names `Language` and
+  `ValidRelativePath` (V1-4808). `ValidRelativePath` forwards to the `shared` leaf
+  `internal/repopath` (`Valid`), which such an importer uses instead; `Language` is the plugin
+  seam whose signature carries `Result` and `Unit`, so it has no leaf of its own. The test parses
+  each such importer's production files in full and fails with `LEAF_ONLY_AFFECTED_IMPORT` naming
+  the package when every `affected.` selector it uses is one of those two names, or when it imports
+  the package with a dot import. The `tests` layer holds `affected` itself and `release` may import
+  any layer (IRT-V0-002), so neither is checked.
 
 ## Non-goals
 
@@ -95,6 +125,20 @@ reviewed change.
   excluded from the graph, so its imports are neither checked nor counted.
 - A malformed Go file fails the scan (the build would fail too); an import of a missing module
   directory fails it with the read error.
+- IRT-V0-020 does not see these Git spawns: `os.StartProcess`, `syscall.Exec` or another
+  non-`os/exec` primitive; a dot import of `os/exec`; a program held in a name without `git`
+  (at c9775bd90, for example, `executable` in `internal/contextindex/git.go` `gitRaw` and
+  `identity.path` in `internal/releasegate/git_unix.go` `runGitProcess`); a program returned by
+  any call other than `gitstatus.Executable()`; and a wrapper that builds the `exec.Cmd` elsewhere
+  and receives the program from its caller. Spawns inside `internal/gitrun` are out of scope by
+  design. A name that contains `git` but holds another program would be listed needlessly; the
+  list makes that visible in review.
+- IRT-V0-021 finds uses of `affected` by selector name with the parser's file-scope object
+  resolution, not by type checking. A selector counts only when its `affected` identifier is
+  unresolved in the file, so a local variable, parameter or receiver named `affected` is not taken
+  for the package. A package-level declaration of that name would collide with the import and fail
+  the build. A name reached any other way, such as through a type alias or a value declared in
+  another package, is not seen.
 
 ## Acceptance evidence and traceability
 
@@ -106,6 +150,8 @@ reviewed change.
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
+| IRT-V0-020 | `TestIRTV0020DirectGitSpawnsAreAllowlisted` (checkout scan against `direct_git_allowlist.txt`, 59 spawns; a synthetic-module control naming an unlisted spawn of each program form (literal, identifier, selector, `gitstatus.Executable()`), a `goBin` program that is not reported, a stale and a malformed entry) |
+| IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer, a dot importer and an importer whose only non-leaf selector is on a parameter named `affected`) |
 
 Area names are the layers of decision 0594 item 8: `shared`, `analyzers`, `tests`, `docs` and
 `release` (V1-5233). Until then they followed the panel's mapping (scripts of 2026-11-06):

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1710RefusalNamesUnstableBoundAndAcceptedInnerSpan pins CEM-V1-710

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 func TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel(t *testing.T) {

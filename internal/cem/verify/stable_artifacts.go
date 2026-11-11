@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // stableArtifacts reads every artifact twice and returns the checks and the

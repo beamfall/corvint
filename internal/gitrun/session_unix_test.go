@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // fakeBatch answers `ok*` requests with one blob record, hangs on `hang`, and

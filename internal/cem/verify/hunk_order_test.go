@@ -3,9 +3,9 @@ package verify
 import (
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1750HunkOrder is CEM-V1-750: a map that names every patch hunk in

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
