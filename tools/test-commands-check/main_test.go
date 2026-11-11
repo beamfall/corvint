@@ -616,3 +616,31 @@ func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
 		t.Fatalf("make help with a quoted BASE printed %q, want prefix %q", out, want)
 	}
 }
+
+// RNC-V1-013: while Corvint's declaration lives at both paths the two must
+// be byte-identical; an absent new file is no problem.
+func TestRNCV1013DeclarationMirror(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(sessiontest.DeclarationPath, "{}\n")
+	if problem := checkMirror(root); problem != "" {
+		t.Fatalf("absent mirror: %s", problem)
+	}
+	write(sessiontest.CommandsPath, "{}\n")
+	if problem := checkMirror(root); problem != "" {
+		t.Fatalf("identical mirror: %s", problem)
+	}
+	write(sessiontest.CommandsPath, "{\"go\":{}}\n")
+	if problem := checkMirror(root); !strings.Contains(problem, "differs") {
+		t.Fatalf("diverged mirror: %q", problem)
+	}
+}
