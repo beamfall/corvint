@@ -75,17 +75,24 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
 
 - `AMAP-V0-8780`: (experimental under the standing lane auto-accept, 2026-11-11; V1-4838) Revision
   resolution MUST retain an underlying Git process failure instead of reporting that
-  the revision is not a commit. Resolution runs `rev-parse --quiet --verify`: only a
-  plain exit 1 is Git's verified answer that no such commit exists, and keeps each
-  caller's existing refusal (`appmap-invalid-revision`, `appmap-invalid-query` for an
-  impact revision, `appmap-root-unavailable` for an aliased root) with the message
+  the revision is not a commit. Resolution runs `rev-parse --quiet --verify`. A plain
+  exit 1 is Git's verified answer that no such commit exists. A plain exit 128 is also
+  a revision defect when, and only when, a second probe `rev-parse --git-dir` in the
+  same root exits 0: Git could read the repository, so the 128 came from the revision
+  itself (a reflog entry the repository lacks such as `HEAD@{1}` in a one-commit
+  repository, or `@{u}` with no upstream configured). Neither rule reads Git's
+  localised stderr. Both keep each caller's existing refusal
+  (`appmap-invalid-revision`, `appmap-invalid-query` for an impact revision,
+  `appmap-root-unavailable` for an aliased root) with the message
   "evaluated revision is not a commit". Every other outcome (a start, timeout,
-  cancellation or output-overflow error, which retains its error chain, or another
-  nonzero exit, which names its exit status) refuses with the owned code
-  `appmap-source-unavailable`, and every revision caller (build, incremental build,
-  impact, aliased roots, `branches`, `actions`, the route blocker and page-object
-  checks) MUST surface it unchanged. A `--root` Git cannot read, including a directory
-  outside every repository, is therefore a source failure, not an invalid revision.
+  cancellation or output-overflow error, which retains its error chain; an exit 128
+  whose repository probe fails or does not run cleanly; or another nonzero exit, which
+  names its exit status) refuses with the owned code `appmap-source-unavailable`, and
+  every revision caller (build, incremental build, impact, aliased roots, `branches`,
+  `actions`, the route blocker and page-object checks) MUST surface it unchanged.
+  Behaviour change: a `--root` Git cannot read, including a plain directory outside
+  every repository, is a source failure (`appmap-source-unavailable`); before this
+  requirement the callers above reported it as `appmap-invalid-revision`.
   Platform refusals retain their existing code and message. Empty and option-like
   revisions still refuse as invalid input, and successful resolution keeps its
   existing bytes. Raw Git stderr MUST NOT enter product diagnostics; a bounded test
@@ -93,7 +100,10 @@ resolve one specifier for one importer. This slice adds that thin read-only wrap
   diagnostics and JSON shapes are unchanged. The hosted cause and qualification
   remain NOT_OBSERVED until the go-macos run records the original stderr.
   Tests: `TestResolveRetainsGitFailureClass`, `TestRevisionCallersSurfaceGitSourceFailure`,
-  `TestResolveHostGitDiagnostics`, and
+  `TestResolveHostGitDiagnostics` (real Git: `HEAD@{1}` in a one-commit repository and `@{u}`
+  with no upstream are invalid revisions; a plain directory is a source failure),
+  `TestAMAPV0110BranchesReadOnlyContract` and `TestAMAPV0100ActionsReadOnlyContract` (a plain
+  directory root), and
   `TestGitPlatformRefusalIsNotReportedAsARevisionDefect` in `internal/appmap`.
   Rollback: restore the resolve fallback, the callers' platform-only passthrough and
   the `appmap-source-unavailable` code.
@@ -2693,7 +2703,7 @@ Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 
 | Requirement | Implementation and test evidence |
 | --- | --- |
-| AMAP-V0-8780 | `internal/appmap/gitread.go` (`resolve`, `orProcessFailure`) and its callers in `compile.go`, `incremental.go`, `impact.go`, `sourceroots.go`, `branch_tests.go`, `route_handlers.go`, `route_blocker.go`; `TestResolveRetainsGitFailureClass` (exit 1/128/129, start/timeout/cancel/overflow/platform, valid and invalid inputs); `TestRevisionCallersSurfaceGitSourceFailure` (ten callers under exit 128 and timeout, plus each caller's verified-missing refusal); `TestResolveHostGitDiagnostics` (real Git: HEAD, a missing ref, an unreadable repository, bounded stderr). Hosted qualification pending. |
+| AMAP-V0-8780 | `internal/appmap/gitread.go` (`resolve`, `orProcessFailure`) and its callers in `compile.go`, `incremental.go`, `impact.go`, `sourceroots.go`, `branch_tests.go`, `route_handlers.go`, `route_blocker.go`; `TestResolveRetainsGitFailureClass` (exit 1/128/129, exit 128 with a readable and an unreadable repository probe, start/timeout/cancel/overflow/platform, valid and invalid inputs); `TestRevisionCallersSurfaceGitSourceFailure` (ten callers under exit 128 and timeout, plus each caller's verified-missing refusal); `TestResolveHostGitDiagnostics` (real Git: HEAD, a missing ref, `HEAD@{1}` in a one-commit repository, `@{u}` without an upstream, an unreadable repository, a plain directory, bounded stderr); `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0100ActionsReadOnlyContract` (plain directory root). Hosted qualification pending. |
 
 ## Rollout, rollback and compatibility
 
