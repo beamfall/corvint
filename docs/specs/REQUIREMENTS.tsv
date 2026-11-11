@@ -1483,6 +1483,7 @@ CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
 CAP-V0-780	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3886) A	standing	2026-11-01; V1-3886
 CAP-V0-080	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3887) CAP-V0-	standing	2026-11-01; V1-3887
+CAP-V0-9940	docs/specs/capability-catalog-v0.md	(experimental; V1-5294; refines CAP-V0-015 and CAP-V0-016) Every non-null	unrecorded	-
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
