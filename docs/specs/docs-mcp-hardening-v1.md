@@ -289,7 +289,7 @@ be added here. Serves PROD-DOCS-003. (finding 11; R42 (panel pick) B5)
 - WHEN `corvint-docs docs consume` runs on that draft
 - THEN it refuses, the message names A and B, and it names the re-draft command
 
-Delivery: not yet built.
+Delivery: `ConsumeDraft` keeps its strict byte comparison; on a mismatch, `staleDraftMessage` reads the `Commit` and `Tree` header lines of the supplied draft and of the fresh rederivation and names both (or says the supplied draft names the current commit, so its bytes were edited or drafted under another policy or page), then names `corvint-docs docs draft --source S --package P` with any owner section and page, or `corvint.docs_draft`. The CLI `docs consume` and the `docs_consume` MCP tool share it. No cited-files mode is added. SDD-V0 and the HDCV0-052 secondary-code table are amended. Test: `TestDMFV1013ConsumeStaleNamesBothRevisions` (`cmd/corvint-docs`).
 
 ## Delivery and traceability
 
@@ -306,7 +306,7 @@ Delivery: not yet built.
 | DMF-V1-009 | 11 | `internal/mcp/corpusbridge/corpusbridge.go`, `internal/capcatalog/mcp.go` | `TestDMFV1009NoDocsTestSelectionTool`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-010 | 12 | `internal/mcp/toolgroup/errordetail.go`, `internal/mcp/protocol/types.go`, `internal/mcp/server/server.go`, `internal/mcp/docsbridge/docsbridge.go`, the corpus group and the `corvint-mcp` handler | `TestDMFV1010*` |
 | DMF-V1-011 | 13 | `internal/mcp/corpusbridge/corpusbridge.go` (`reload`) | `TestDMFV1011*`; `.agent-evidence/docs-mcp-hardening/live-reload.txt` |
-| DMF-V1-013 | 14 | not yet built | not yet built |
+| DMF-V1-013 | 14 | `internal/doccompiler/draft.go` (`staleDraftMessage`) | `TestDMFV1013ConsumeStaleNamesBothRevisions` |
 
 ## Rollback
 
