@@ -5561,6 +5561,7 @@ GPK-V0-008	docs/specs/go-production-kernel-migration-v0.md	Explicit mutators (`r
 GPK-V0-009	docs/specs/go-production-kernel-migration-v0.md	The Go kernel MUST remain local-only. It MUST make no network request, DNS looku	unrecorded	-
 GPK-V0-010	docs/specs/go-production-kernel-migration-v0.md	This migration MUST add no database, daemon, resident service, background watche	unrecorded	-
 GPK-V0-011	docs/specs/go-production-kernel-migration-v0.md	Harness wrappers and the Go kernel MUST preserve `AHI-014`: raw session IDs,	unrecorded	-
+GPK-V0-9930	docs/specs/go-production-kernel-migration-v0.md	(proposed; V1-5122) A size-capped output writer MUST enforce its cap on every	unrecorded	-
 GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	Production Go code MUST live outside `interop/**` and `conformance/**` under the	unrecorded	-
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	The promoted Go binary MUST have no Python interpreter, Python package, cgo,	unrecorded	-
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa	unrecorded	-
