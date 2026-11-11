@@ -75,6 +75,15 @@ measured edges by layer pair and the per-layer test time are recorded in
   on the lane host over 438 packages; 0.09 s over 298 after decision 0594) and carry `//corvint:read-kinds .go go.mod` (AFP-V0-9000), so affected
   selection reruns it on any Go source or module-boundary edit. The manifest and baseline are
   `go:embed` inputs, so their edits select it as well.
+- `IRT-V0-021`: No package outside the `tests` and `release` layers SHALL import
+  `internal/liveverify/affected` in a production file only for the names `Language` and
+  `ValidRelativePath` (V1-4808). `ValidRelativePath` forwards to the `shared` leaf
+  `internal/repopath` (`Valid`), which such an importer uses instead; `Language` is the plugin
+  seam whose signature carries `Result` and `Unit`, so it has no leaf of its own. The test parses
+  each such importer's production files in full and fails with `LEAF_ONLY_AFFECTED_IMPORT` naming
+  the package when every `affected.` selector it uses is one of those two names, or when it imports
+  the package with a dot import. The `tests` layer holds `affected` itself and `release` may import
+  any layer (IRT-V0-002), so neither is checked.
 
 ## Non-goals
 
@@ -106,6 +115,7 @@ reviewed change.
 | IRT-V0-004 | `TestCheckNamesNewWrongWayEdges`, `TestCheckRefusesStaleAndMalformedBaselines` |
 | IRT-V0-005 | `TestImportRatchet` controls |
 | IRT-V0-006 | `script/heavy.sh GOTOOLCHAIN=local go test -count=1 -v ./tools/import-ratchet/` (TestImportRatchet 0.71 s, 438 packages; 0.09 s, 298 packages and 44 edges after the V1-5233 re-key) |
+| IRT-V0-021 | `TestIRTV0021NoLeafOnlyAffectedImport` (checkout graph and a synthetic-module control that fails a `Language`-only importer) |
 
 Area names are the layers of decision 0594 item 8: `shared`, `analyzers`, `tests`, `docs` and
 `release` (V1-5233). Until then they followed the panel's mapping (scripts of 2026-11-06):
