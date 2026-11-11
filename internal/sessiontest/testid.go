@@ -34,11 +34,13 @@ func UnitTestID(unit string, goDir func(string) (string, bool)) string {
 	return id.String()
 }
 
-// stampTestIDs adds the testId of every outcome whose unit names one, as
-// the added corvint-test-run/0 field (CTI-V1-009, settled D25).
-func stampTestIDs(receipt *Receipt, goDir func(string) (string, bool)) {
-	for index := range receipt.Invocations {
-		outcomes := receipt.Invocations[index].Outcomes
+// stampTestIDs adds the testId of every outcome of a shard's invocations
+// whose unit names one, as the added corvint-test-run/0 field (CTI-V1-009,
+// settled D25). It is part of Runner.Execute's receipt writing, not a
+// receipt reader (STR-V0-011).
+func stampTestIDs(invocations []Invocation, goDir func(string) (string, bool)) {
+	for index := range invocations {
+		outcomes := invocations[index].Outcomes
 		for at := range outcomes {
 			outcomes[at].TestID = UnitTestID(outcomes[at].Unit, goDir)
 		}

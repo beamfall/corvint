@@ -47,7 +47,7 @@ func TestCTIV1012ReceiptWithAndWithoutTestID(t *testing.T) {
 			}
 		}
 	}
-	stampTestIDs(&before, goDir)
+	stampTestIDs(before.Invocations, goDir)
 	encoded, err := encodeBounded(before, MaxDocumentBytes)
 	if err != nil {
 		t.Fatal(err)
