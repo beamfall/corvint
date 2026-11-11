@@ -317,6 +317,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Canonical test ID V1 | [`canonical-test-id-v1.md`](canonical-test-id-v1.md) CTI-V1-001..012 | accepted | partial | One canonical ID names every test of the seven blocking runners, so plan, receipt and watch output join on the same string. |
 | Test inventory V1 | [`test-inventory-v1.md`](test-inventory-v1.md) TIV-V1-001..012 | accepted | partial | One committed inventory lists every test of the seven blocking runners by canonical ID; a missing or doubtful list runs everything. |
 | Runner contract V1 | [`runner-contract-v1.md`](runner-contract-v1.md) RNC-V1-001..018 | accepted | partial | One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason. |
+| Non-code map V1 | [`non-code-map-v1.md`](non-code-map-v1.md) NCM-V1-001..009 | accepted | partial | A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
