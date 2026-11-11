@@ -476,7 +476,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `topLevelCommands` verb in order, then the nested topics `harness event`, `docs corpus`,
   `docs flows` and `docs maintain`, each of which `corvint help` accepts both as separate words and
   as the one argument the list prints (`corvint help "docs corpus"`; V1-2308, GitHub #1476). Acceptance:
-  `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`.
+  `TestUnknownHelpTopicListsValidTopics`, `TestCLIKit` (its root row).
 - `DCP-V1-060`: (accepted under the owner's standing auto-accept (2026-10-11) after Codex review PASS round 11; GitHub #811) `corvint docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT
   --path PATH [--input REGISTRY.json]` is an experimental static producer. It reads the Jasmine or
   Mocha/Cypress test files at `--path` (one Git blob, or every test-named `.js`, `.ts`, `.jsx`,
@@ -3003,7 +3003,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-285 | `cmd/corvint-corpus-mcp/outcomes.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1285OutcomeLogAggregatesWithoutRequestText` (removed) |
 | DCP-V1-286 | `cmd/corvint-corpus-mcp/outcomes.go` | `TestDCPV1286OutcomeSummaryFloor` (removed) |
 | DCP-V1-056 | `cmd/corvint-docs/docs_corpus_help.go`, `cmd/corvint-docs/docs_corpus.go`, `cmd/corvint/help.go` | `TestDocsCorpusHelpListsOperations`, `TestDocsCorpusOperationHelpPrintsFlags`, `TestDocsCorpusOperationFlagMatrix` |
-| DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestUnknownHelpTopicIsConventionalError`, `TestListedHelpTopicResolvesAsOneArgument` |
+| DCP-V1-057 | `cmd/corvint/help.go` | `TestUnknownHelpTopicListsValidTopics`, `TestCLIKit`, `TestListedHelpTopicResolvesAsOneArgument` |
 | DCP-V1-060..061 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-060 DCP-V1-061`) |
 | DCP-V1-062 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_lex.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-062`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-062`), `TestLegacyResidueFailsClosed` (`DCP-V1-062`) |
 | DCP-V1-063 | `internal/doccorpus/behavior_legacy_discovery.go`, `behavior_legacy_allow.go` | `TestLegacyDiscoveryInventory` (`DCP-V1-063`), `TestLegacyDiscoveryStaticEdgeCases` (`DCP-V1-063`), `TestLegacyLexerCanonicalAndEscapes`, `TestLegacyResidueFailsClosed` (`DCP-V1-063`) |
