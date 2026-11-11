@@ -38,11 +38,10 @@ type script struct {
 	naming      string
 	// incomplete reports a here-document that no delimiter line ended: one
 	// that reached the end of the text, one cut by the `)` closing its
-	// command substitution, an ANSI-C delimiter this lexer does not decode
-	// exactly, or one whose operator line never ended. Shells disagree on
-	// such a body (bash ends an empty-delimited body inside `$(` at the
-	// `)`; dash refuses the file), so a file holding one is held as a dynamic source
-	// (AFP-V0-9971).
+	// command substitution, or one whose operator line never ended. Shells
+	// disagree on such a body (bash ends an empty-delimited body inside `$(`
+	// at the `)`; dash refuses the file), so a file holding one is held as a
+	// dynamic source (AFP-V0-9971).
 	incomplete bool
 }
 
@@ -104,9 +103,6 @@ type lexer struct {
 type heredoc struct {
 	delimiter string
 	dash      bool
-	// inexact marks an ANSI-C quoted delimiter with an escape, whose
-	// decoded spelling this lexer does not compute.
-	inexact bool
 	// expands reports an unquoted delimiter, whose body's command
 	// substitutions run.
 	expands bool
@@ -572,23 +568,7 @@ func (l *lexer) heredocOperator() (heredoc, bool) {
 		l.pos++
 	}
 	raw := l.src[begin:l.pos]
-	// bash decodes an ANSI-C (`$'EOF'`) or locale (`$"EOF"`) quoted
-	// delimiter, so `<<$'EOF'` ends at an `EOF` line; dash reads `$EOF`
-	// and keeps more of the file as data, so the bash reading lexes every
-	// command either shell runs. An escape inside `$'...'` is not decoded
-	// here, and the body is held (AFP-V0-9971).
-	decoded := raw
-	for _, quote := range []string{"'", `"`} {
-		for at := strings.Index(decoded, "$"+quote); at >= 0; at = strings.Index(decoded, "$"+quote) {
-			if quote == "'" {
-				if end := strings.IndexByte(decoded[at+2:], '\''); end < 0 || strings.ContainsRune(decoded[at+2:at+2+end], '\\') {
-					body.inexact = true
-				}
-			}
-			decoded = decoded[:at] + decoded[at+1:]
-		}
-	}
-	body.delimiter = unquote(decoded)
+	body.delimiter = unquote(raw)
 	body.expands = !strings.ContainsAny(raw, `'"\\`)
 	// A quoted empty delimiter (`<<''`, `<<""`) is a here-document whose
 	// body ends at the first empty line, as in bash and dash; its body is
@@ -608,9 +588,6 @@ func (l *lexer) heredocOperator() (heredoc, bool) {
 func (l *lexer) heredoc(body heredoc, inFunction, substitution bool) bool {
 	var lines []string
 	closed, cut := false, false
-	if body.inexact {
-		l.out.incomplete = true
-	}
 	for l.pos < len(l.src) {
 		start := l.pos
 		end := strings.IndexByte(l.src[l.pos:], '\n')

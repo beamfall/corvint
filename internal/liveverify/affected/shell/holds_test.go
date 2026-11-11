@@ -409,10 +409,9 @@ var incompleteHereDocuments = map[string]string{
 // commands after it are lexed.
 func TestIncompleteHereDocumentsHold_AFPV09971(t *testing.T) {
 	tests := map[string]string{
-		"closed_subst":  "x=$(cat <<EOF\nbody\nEOF\n)\ncat script/golden.txt\n",
-		"closed_empty":  "cat <<''\nbody\n\necho done\n",
-		"closed_plain":  "cat <<EOF\nbody\nEOF\necho done\n",
-		"closed_ansi_c": "cat <<$'EOF'\nbody\nEOF\necho done\n",
+		"closed_subst": "x=$(cat <<EOF\nbody\nEOF\n)\ncat script/golden.txt\n",
+		"closed_empty": "cat <<''\nbody\n\necho done\n",
+		"closed_plain": "cat <<EOF\nbody\nEOF\necho done\n",
 		// A body line holding a `)` that does not start with the delimiter
 		// is data, as in bash and dash.
 		"closed_paren": "x=$(cat <<'PS'\n$h = @($all | Where-Object {\n  $_.Id })\nPS\n)\ncat script/golden.txt\n",
@@ -424,7 +423,7 @@ func TestIncompleteHereDocumentsHold_AFPV09971(t *testing.T) {
 	}
 	graph := holdGraph(t, tests, nil)
 	wantUnbounded(t, graph, UnboundedDynamicSource, held...)
-	closed := []string{"closed_subst", "closed_empty", "closed_plain", "closed_ansi_c", "closed_paren"}
+	closed := []string{"closed_subst", "closed_empty", "closed_plain", "closed_paren"}
 	wantUnbounded(t, graph, "", closed...)
 	wantSelected(t, graph, "docs/x.md", held, closed)
 
@@ -444,9 +443,10 @@ func TestIncompleteHereDocumentsHold_AFPV09971(t *testing.T) {
 	}
 }
 
-// AFP-V0-9971: an ANSI-C quoted delimiter ends at its decoded spelling, as in
-// bash, so the source after it is a command.
-func TestAnsiCQuotedDelimiter_AFPV09971(t *testing.T) {
+// AFP-V0-9971: the lexer does not decode an ANSI-C or locale quoted delimiter
+// (`<<$'EOF'` stays `$EOF`, NOT_DONE), so its body reaches the end of the
+// text and holds the file by the end-of-file rule.
+func TestAnsiCQuotedDelimiterWidens_AFPV09971(t *testing.T) {
 	tests := map[string]string{
 		"ansi_c":       "cat <<$'EOF'\nbody\nEOF\n. \"$X\"\n",
 		"ansi_c_empty": "cat <<$''\nbody\n\n. \"$X\"\n",
@@ -454,25 +454,55 @@ func TestAnsiCQuotedDelimiter_AFPV09971(t *testing.T) {
 	}
 	graph := holdGraph(t, tests, nil)
 	wantUnbounded(t, graph, UnboundedDynamicSource, "ansi_c", "ansi_c_empty", "locale")
-	parsed := parse(tests["ansi_c"])
-	if parsed.incomplete || len(parsed.data) != 1 || parsed.data[0] != "body" {
-		t.Errorf("data %q incomplete %v; want the decoded delimiter to end the body", parsed.data, parsed.incomplete)
-	}
 }
 
-// AFP-V0-9971: bash runs the source after each substitution and ANSI-C
-// fixture, which the plugin now holds.
+// quotedDollarDelimiters spell the delimiter `$EOF` with a quoted or escaped
+// dollar sign: bash and dash end the body at the `$EOF` line and run the
+// source after it (AFP-V0-9971).
+var quotedDollarDelimiters = map[string]string{
+	"single_dollar":  "cat <<'$''EOF'\n$EOF\n. \"$X\"\nEOF\n",
+	"double_dollar":  "cat <<\"$\"'EOF'\n$EOF\n. \"$X\"\nEOF\n",
+	"escaped_dollar": "cat <<\\$'EOF'\n$EOF\n. \"$X\"\n'EOF\n",
+}
+
+// AFP-V0-9971: a delimiter spelled `$EOF` with a quoted or escaped dollar
+// ends at the `$EOF` line, so the source after it keeps the dynamic-source
+// hold (the round-1 ANSI-C decode read these as `EOF` and lost it).
+func TestQuotedDollarDelimiter_AFPV09971(t *testing.T) {
+	graph := holdGraph(t, quotedDollarDelimiters, nil)
+	var names []string
+	for name, body := range quotedDollarDelimiters {
+		names = append(names, name)
+		parsed := parse(body)
+		if len(parsed.data) == 0 || parsed.data[0] != "" {
+			t.Errorf("%s: data %q; want an empty body ended at the $EOF line", name, parsed.data)
+		}
+		if !slices.ContainsFunc(parsed.commands, func(cmd command) bool { return strings.Join(cmd.words, " ") == `. "$X"` }) {
+			t.Errorf("%s: the source after the $EOF line is no command", name)
+		}
+	}
+	wantUnbounded(t, graph, UnboundedDynamicSource, names...)
+	wantSelected(t, graph, "docs/x.md", names, nil)
+}
+
+// AFP-V0-9971: bash runs the source after each substitution, ANSI-C and
+// quoted-dollar fixture, which the plugin holds. Without bash on PATH the
+// test skips with a reason that -v prints; with it, it logs the binary.
 func TestHereDocumentFixturesAgreeWithBash_AFPV09971(t *testing.T) {
 	binary, err := exec.LookPath("bash")
 	if err != nil {
-		t.Skip("bash is not installed")
+		t.Skipf("bash is not on PATH (%v): the bash oracle for AFP-V0-9971 did not run", err)
 	}
+	t.Logf("running fixtures under %s", binary)
 	fixtures := map[string]string{
-		"subst_empty":  incompleteHereDocuments["subst_empty"],
-		"subst_body":   incompleteHereDocuments["subst_body"],
-		"delim_paren":  incompleteHereDocuments["subst_delim_paren"],
-		"ansi_c":       "cat <<$'EOF'\nbody\nEOF\n. \"$X\"\n",
-		"ansi_c_empty": "cat <<$''\nbody\n\n. \"$X\"\n",
+		"subst_empty":    incompleteHereDocuments["subst_empty"],
+		"subst_body":     incompleteHereDocuments["subst_body"],
+		"delim_paren":    incompleteHereDocuments["subst_delim_paren"],
+		"single_dollar":  quotedDollarDelimiters["single_dollar"],
+		"double_dollar":  quotedDollarDelimiters["double_dollar"],
+		"escaped_dollar": quotedDollarDelimiters["escaped_dollar"],
+		"ansi_c":         "cat <<$'EOF'\nbody\nEOF\n. \"$X\"\n",
+		"ansi_c_empty":   "cat <<$''\nbody\n\n. \"$X\"\n",
 	}
 	for name, body := range fixtures {
 		root := t.TempDir()
