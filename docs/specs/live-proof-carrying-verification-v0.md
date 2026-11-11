@@ -787,7 +787,11 @@ the last plan on screen as if it were current.
   working tree once; its exit status is 0 when every run passed, 1 when a run failed and 2 for a
   refusal. The default event source is `LPCV-V0-7607` on Linux and `LPCV-V0-1086` on macOS;
   `--events-stdin` reads one notification per line from stdin. A non-Go index is refused with a
-  message naming `linecov watch -command`; nothing under the repository is written. The verb has
+  message naming `linecov watch -command`; nothing under the repository is written. A refusal
+  carries one code on stderr: `watch-invalid-arguments`, `watch-index-unavailable`,
+  `watch-index-language`, `watch-events-unavailable` (no usable event source),
+  `watch-events-stopped` (the `LPCV-V0-1087` stop) or `watch-failed` (any other loop error). The
+  verb has
   its `--help`, catalog node and `docs/CAPABILITIES.md` row (CAP-V0-040..050). Rollback: remove
   `cmd/corvint/watch.go`, the dispatch and root-help lines and the catalog rows; `linecov watch`
   keeps working on the shared package. Witness: `TestWatchHelpAndRefusals`,
