@@ -165,7 +165,8 @@ func NormalizePath(root, value string) (string, error) {
 			if resolveErr != nil {
 				return "", ErrOutsideRepository
 			}
-			if relative, err = filepath.Rel(resolved, value); err != nil {
+			// The root or the value may be spelled through a link, as /tmp is on macOS.
+			if relative, err = filepath.Rel(resolved, resolveExisting(value)); err != nil {
 				return "", ErrOutsideRepository
 			}
 		}
@@ -179,6 +180,22 @@ func NormalizePath(root, value string) (string, error) {
 		return "", nil
 	}
 	return cleaned, nil
+}
+
+// resolveExisting resolves the links of the longest part of an absolute path that exists and
+// keeps the rest as written, so a path that is absent on disk still normalizes.
+func resolveExisting(value string) string {
+	rest := ""
+	for current := filepath.Clean(value); ; {
+		if resolved, err := filepath.EvalSymlinks(current); err == nil {
+			return filepath.Join(resolved, rest)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return value
+		}
+		rest, current = filepath.Join(filepath.Base(current), rest), parent
+	}
 }
 
 func escapes(relative string) bool {
@@ -436,10 +453,11 @@ func (b *builder) tests(s subject, result TestsResult) Section {
 		items = append(items, Item{Link: "test-evidence", Test: test.Test, Component: test.Component, RecordCommit: test.RecordCommit})
 	}
 	slices.SortFunc(items, func(a, b Item) int {
-		return cmp.Or(cmp.Compare(a.Test, b.Test), cmp.Compare(a.Link, b.Link), cmp.Compare(a.RecordCommit, b.RecordCommit))
+		return cmp.Or(cmp.Compare(a.Test, b.Test), cmp.Compare(a.Link, b.Link), cmp.Compare(a.RecordCommit, b.RecordCommit),
+			cmp.Compare(a.Component, b.Component), cmp.Compare(a.Reason, b.Reason))
 	})
 	items = slices.CompactFunc(items, func(a, b Item) bool {
-		return a.Test == b.Test && a.Link == b.Link && a.RecordCommit == b.RecordCommit
+		return a.Test == b.Test && a.Link == b.Link && a.RecordCommit == b.RecordCommit && a.Component == b.Component && a.Reason == b.Reason
 	})
 	var out Section
 	switch {
@@ -506,9 +524,8 @@ func (b *builder) requirements(s subject) Section {
 	// source is named as missing even when the store can be read.
 	if _, err := b.openTickets(); err != nil {
 		missing = append(missing, SourceTasks)
-	} else {
-		missing = append(missing, SourceTicketCommit)
 	}
+	missing = append(missing, SourceTicketCommit)
 	type spanKey struct {
 		file       string
 		start, end int

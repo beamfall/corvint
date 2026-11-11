@@ -8,6 +8,7 @@
 .agent-evidence/**
 .corvint/change.cem.json
 .corvint/changes/**
+.corvint/requirement-links.json
 .taskman/**
 artifacts/**
 assets/**

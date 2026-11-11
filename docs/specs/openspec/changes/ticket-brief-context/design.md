@@ -46,6 +46,26 @@ day):
   ranges are not re-anchored, because a moved range would be a guess (invariant 2).
 - Sections are capped at 64 items in ID or path order. A cap with a stated total is not a ranking.
 
+As built on 2026-11-10 (lane decisions; `docs/build-log/2026-11-10-path-brief-builder-and-link-export.md`):
+
+- One package, `internal/pathbrief`, holds the builder, the link file and the export. The command
+  side (`cmd/corvint/context_path.go`) supplies the affected plan and the test evidence, so the
+  package does not import the planner.
+- The link file is three tables (commits, evidence spans, paths). Besides the fields TBC-V1-012
+  names, a commit carries its committer time and a record carries the path's blob at that commit,
+  so the reader picks the newest entry and states `changedSince` without reading history.
+- The export is a separate program under `internal/pathbrief/cmd/requirement-links-export`, not a
+  verb of `corvint`. It takes an absolute root and one named commit.
+- `tests` lists Go packages and other test units. Make targets, CI jobs and frontier sites that the
+  plan selects are left out, and shared unbounded readers are a count (`sharedReaders`). Retained
+  test evidence is read for at most 512 files of a call.
+- `flows` has no reader yet. The section says so (`flows-reader-not-built`) when the file exists.
+- `requirements` reads the link file only. The completed-ticket source is named as missing in every
+  reason until Tasks records commits (V1-5301).
+- The plan is built from the worktree on disk. With uncommitted changes outside documentation it
+  is refused, and `tests` then names `affected-plan` as a missing source. A plan of the HEAD tree
+  is not built.
+
 ## Failure modes
 
 - Ticket not found or store unreadable: typed refusal, exit 2.
@@ -69,8 +89,8 @@ day):
 - The affected plan for a path may have scope `UNKNOWN` with many shared readers. The `tests`
   section states that verdict and the cap; it does not list the readers as covering tests.
 - The affected plan asked for several paths at once drops a path's own package from its list when
-  that package is a shared unbounded reader (V1-5302, seen in the coverage check). The builder asks
-  for one path at a time until that is settled.
+  that package is a shared unbounded reader (V1-5302, seen in the coverage check). The builder
+  builds one graph for a call and selects for one file at a time until that is settled.
 - The link export meets a malformed or unsealed record: it is skipped and counted in the build-log
   record, never repaired.
 - Coverage check below the owner's bar (TBC-V1-013): the path form is not built and TBC-V1-009 to

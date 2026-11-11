@@ -103,8 +103,7 @@ func pathContextTests(root string) func(context.Context, string, [][]string) []p
 					break
 				}
 				document := testevidencedoc.Read(ctx, root, testevidencedoc.Query{Path: file, Revision: revision})
-				if reads++; len(document.Records) == 0 {
-					// No record is retained at all, so no other path has one either.
+				if reads++; pathContextNothingRetained(document) {
 					evidenceMissing = pathContextReasons(document.Reasons, "no-retained-record")
 					break
 				}
@@ -121,6 +120,22 @@ func pathContextTests(root string) func(context.Context, string, [][]string) []p
 		}
 		return results
 	}
+}
+
+// pathContextNothingRetained reports whether a read saw no retained record at all, so that no
+// other file has one either. A record that does not reach the asked file is left out of the
+// document but still leaves its own reason, so an empty record list alone does not show it.
+func pathContextNothingRetained(document testevidencedoc.Document) bool {
+	if len(document.Records) != 0 || !slices.Contains(document.Reasons, "no-fresh-record") {
+		return false
+	}
+	return !slices.ContainsFunc(document.Reasons, func(reason string) bool {
+		switch reason {
+		case "identity-missing", "malformed-record", "run-context-unresolved", "stale-record", "component-unavailable":
+			return true
+		}
+		return false
+	})
 }
 
 func pathContextReasons(reasons []string, fallback string) string {

@@ -117,4 +117,5 @@ same-directory tests it is 11 of 20. The limits above stand: the bar counts list
 ## Not run
 
 No Go test, no `make gate` and no agent run. The export (TBC-V1-012) and the builder (TBC-V1-009
-to TBC-V1-011) were not started when the check was recorded.
+to TBC-V1-011) were not started when the check was recorded. Both were built later the same day:
+`docs/build-log/2026-11-10-path-brief-builder-and-link-export.md`.
