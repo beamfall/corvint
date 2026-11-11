@@ -8,7 +8,7 @@ Each task names its requirement IDs and its proof.
    regenerated index. Requirements: FIH-V1-001..015. Proof: spec diff.
 - [x] 3 Harness core and Go adapter from `tools/affected-edit-oracle`. Requirements: FIH-V1-003,
    005, 006, 011, 013. Proof: Go parity test and import check.
-- [ ] 4 Pre-registration format, the reverted-fix rule file and its hash (A17), operator lists,
+- [x] 4 Pre-registration format, the reverted-fix rule file and its hash (A17), operator lists,
    over-sample and seal refusal. Requirements: FIH-V1-001, 002, 014. Proof: changed-seed,
    too-few-non-code, same-thirty, shortfall and too-few-flow-reaching tests.
 - [ ] 5 Baseline, quarantine and the omitted-quarantined count. Requirements: FIH-V1-004. Proof:

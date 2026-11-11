@@ -26,7 +26,11 @@ import (
 const usage = `Usage: fault-harness COMMAND [FLAGS]
 
 Commands:
-  parity   run affected-edit-oracle mutation cases through the Go adapter (FIH-V1-011)
+  check           verify a pre-registration against its committed hash (FIH-V1-001)
+  select-reverts  apply the reverted-fix rule to observed PR facts (FIH-V1-002)
+  generate-go     generate 3 to 5 Go mutants on one PR's changed lines (FIH-V1-002, 003)
+  seal            check a fault set against its pre-registration and seal it (FIH-V1-002, 014)
+  parity          run affected-edit-oracle mutation cases through the Go adapter (FIH-V1-011)
 
 Run "fault-harness COMMAND --help" for a command's flags and an example.
 Exit 0 means the measurement passed; 1 a measured failure or a refusal; 2 an invocation error.
@@ -39,6 +43,10 @@ type subcommand struct {
 
 func commands() []subcommand {
 	return []subcommand{
+		{"check", runCheckCommand},
+		{"select-reverts", runSelectRevertsCommand},
+		{"generate-go", runGenerateGoCommand},
+		{"seal", runSealCommand},
 		{"parity", runParityCommand},
 	}
 }
