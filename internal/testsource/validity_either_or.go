@@ -16,26 +16,26 @@ import (
 // eoFindings reports every either-or assertion inside a JS/TS test body (TSA-V0-160, TSA-V0-161).
 // An assertion outside every test, or one carrying a valid justification annotation, is not
 // reported (TSA-V0-163).
-func (s *source) eoFindings() []testvalidity.SourceFinding {
+func eoFindings(s *source) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	for i := range s.tokens {
-		values, form := s.eoAssertion(i)
+	for i := range s.Tokens {
+		values, form := eoAssertion(s, i)
 		if len(values) < 2 {
 			continue
 		}
-		test, ok := s.eoEnclosingTest(i)
+		test, ok := eoEnclosingTest(s, i)
 		if !ok {
 			continue
 		}
-		line := s.tokens[i].Line
-		where := fmt.Sprintf("%s:%d", s.path, line)
-		if reason, ok := eoAllowed(s.comments, s.eoCodeLines(), line); ok {
-			s.exemptions = append(s.exemptions, testvalidity.RuleExemption{Rule: testvalidity.RuleEitherOrOutcome, Location: where, Reason: reason})
+		line := s.Tokens[i].Line
+		where := fmt.Sprintf("%s:%d", s.Path, line)
+		if reason, ok := eoAllowed(s.Comments, eoCodeLines(s), line); ok {
+			s.Exemptions = append(s.Exemptions, testvalidity.RuleExemption{Rule: testvalidity.RuleEitherOrOutcome, Location: where, Reason: reason})
 			continue
 		}
 		out = append(out, testvalidity.SourceFinding{
 			Rule: testvalidity.RuleEitherOrOutcome, Severity: testvalidity.SeverityInvalid,
-			Test: fmt.Sprintf("%s:%d", s.path, test.line), Title: test.title, Location: where, Cause: where,
+			Test: fmt.Sprintf("%s:%d", s.Path, test.Line), Title: test.Title, Location: where, Cause: where,
 			Message: eoMessage(form, values),
 		})
 	}
@@ -49,30 +49,30 @@ func eoMessage(form string, values []string) string {
 
 // eoAssertion reads the assertion starting at token i and returns the distinct literal outcomes
 // it accepts with the form's name, or nil when it is not an either-or form (TSA-V0-161).
-func (s *source) eoAssertion(i int) ([]string, string) {
-	if c, ok := s.readExpect(i); ok {
-		return s.eoExpect(c)
+func eoAssertion(s *source, i int) ([]string, string) {
+	if c, ok := s.ReadExpect(i); ok {
+		return eoExpect(s, c)
 	}
-	if !s.ident(i, "assert") || s.memberAccess(i) {
+	if !s.Ident(i, "assert") || s.MemberAccess(i) {
 		return nil, ""
 	}
 	member, open := "", i+1
-	if s.punct(i+1, ".") && s.ident(i+2, "") {
-		member, open = s.tokens[i+2].Text, i+3
+	if s.Punct(i+1, ".") && s.Ident(i+2, "") {
+		member, open = s.Tokens[i+2].Text, i+3
 	}
-	if !s.punct(open, "(") || s.match[open] < 0 {
+	if !s.Punct(open, "(") || s.Match[open] < 0 {
 		return nil, ""
 	}
-	args := s.splitArgs(open, s.match[open])
+	args := s.SplitArgs(open, s.Match[open])
 	switch {
 	case (member == "" || member == "ok" || member == "isTrue") && len(args) >= 1:
-		return s.eoTruthySubject(args[0])
+		return eoTruthySubject(s, args[0])
 	case member == "oneOf" && len(args) >= 2:
-		return s.eoArray(args[1]), "an assert.oneOf set"
+		return eoArray(s, args[1]), "an assert.oneOf set"
 	case (member == "include" || member == "includes") && len(args) >= 2:
-		return s.eoArray(args[0]), "an assert.include on a literal array"
+		return eoArray(s, args[0]), "an assert.include on a literal array"
 	case member == "match" && len(args) >= 2 && args[1][1]-args[1][0] == 1:
-		return eoRegex(s.tokens[args[1][0]]), "a regular expression alternation"
+		return eoRegex(s.Tokens[args[1][0]]), "a regular expression alternation"
 	}
 	return nil, ""
 }
@@ -80,40 +80,40 @@ func (s *source) eoAssertion(i int) ([]string, string) {
 // eoExpect reads one expect chain: toContain on a literal array, `[...].includes(x)` or `||` of
 // equalities asserted true, a oneOf matcher, or toMatch with an alternation. A negated chain
 // accepts everything but the set, so it is never either-or.
-func (s *source) eoExpect(c expectChain) ([]string, string) {
-	if c.matcher == "" || s.eoNegated(c) {
+func eoExpect(s *source, c expectChain) ([]string, string) {
+	if c.Matcher == "" || eoNegated(s, c) {
 		return nil, ""
 	}
-	margs := s.splitArgs(c.margs[0]-1, c.margs[1])
-	switch c.matcher {
+	margs := s.SplitArgs(c.Margs[0]-1, c.Margs[1])
+	switch c.Matcher {
 	case "toContain", "toContainEqual":
-		return s.eoArray(c.subject), "toContain on a literal array"
+		return eoArray(s, c.Subject), "toContain on a literal array"
 	case "oneOf", "toBeOneOf":
 		if len(margs) == 1 {
-			return s.eoArray(margs[0]), "a oneOf matcher"
+			return eoArray(s, margs[0]), "a oneOf matcher"
 		}
 	case "toMatch":
 		if len(margs) == 1 && margs[0][1]-margs[0][0] == 1 {
-			return eoRegex(s.tokens[margs[0][0]]), "a regular expression alternation"
+			return eoRegex(s.Tokens[margs[0][0]]), "a regular expression alternation"
 		}
 	case "toBeTruthy":
-		return s.eoTruthySubject(c.subject)
+		return eoTruthySubject(s, c.Subject)
 	case "toBe", "toEqual", "toStrictEqual":
-		if len(margs) == 1 && margs[0][1]-margs[0][0] == 1 && s.ident(margs[0][0], "true") {
-			return s.eoTruthySubject(c.subject)
+		if len(margs) == 1 && margs[0][1]-margs[0][0] == 1 && s.Ident(margs[0][0], "true") {
+			return eoTruthySubject(s, c.Subject)
 		}
 	}
 	return nil, ""
 }
 
 // eoNegated reports a `.not` member between the expect call and the matcher.
-func (s *source) eoNegated(c expectChain) bool {
-	end := c.end
-	if c.margs[0] > 0 {
-		end = c.margs[0]
+func eoNegated(s *source, c expectChain) bool {
+	end := c.End
+	if c.Margs[0] > 0 {
+		end = c.Margs[0]
 	}
-	for j := c.subject[1] + 1; j < end; j++ {
-		if s.ident(j, "not") && s.memberAccess(j) {
+	for j := c.Subject[1] + 1; j < end; j++ {
+		if s.Ident(j, "not") && s.MemberAccess(j) {
 			return true
 		}
 	}
@@ -121,33 +121,33 @@ func (s *source) eoNegated(c expectChain) bool {
 }
 
 // eoTruthySubject reads a subject asserted true: `[a, b].includes(x)` or `x === a || x === b`.
-func (s *source) eoTruthySubject(r [2]int) ([]string, string) {
-	if s.punct(r[0], "[") && s.match[r[0]] > 0 {
-		end := s.match[r[0]]
-		if s.punct(end+1, ".") && s.ident(end+2, "includes") && s.punct(end+3, "(") && s.match[end+3] == r[1]-1 {
-			return s.eoArray([2]int{r[0], end + 1}), "includes on a literal array"
+func eoTruthySubject(s *source, r [2]int) ([]string, string) {
+	if s.Punct(r[0], "[") && s.Match[r[0]] > 0 {
+		end := s.Match[r[0]]
+		if s.Punct(end+1, ".") && s.Ident(end+2, "includes") && s.Punct(end+3, "(") && s.Match[end+3] == r[1]-1 {
+			return eoArray(s, [2]int{r[0], end + 1}), "includes on a literal array"
 		}
 		return nil, ""
 	}
-	parts := s.eoSplitOperator(s.eoUnwrap(r), "||")
+	parts := eoSplitOperator(s, eoUnwrap(s, r), "||")
 	if len(parts) < 2 {
 		return nil, ""
 	}
 	operand, values, seen := "", []string{}, map[string]bool{}
 	for _, part := range parts {
-		part = s.eoUnwrap(part)
-		sides := s.eoSplitOperator(part, "===")
+		part = eoUnwrap(s, part)
+		sides := eoSplitOperator(s, part, "===")
 		if len(sides) != 2 {
-			sides = s.eoSplitOperator(part, "==")
+			sides = eoSplitOperator(s, part, "==")
 		}
 		if len(sides) != 2 {
 			return nil, ""
 		}
-		value, other, ok := s.eoLiteralSide(sides[0], sides[1])
+		value, other, ok := eoLiteralSide(s, sides[0], sides[1])
 		if !ok {
 			return nil, ""
 		}
-		rendered := s.render(other[0], other[1])
+		rendered := s.Render(other[0], other[1])
 		if operand != "" && rendered != operand {
 			return nil, ""
 		}
@@ -161,8 +161,8 @@ func (s *source) eoTruthySubject(r [2]int) ([]string, string) {
 }
 
 // eoUnwrap strips parentheses that enclose the whole range.
-func (s *source) eoUnwrap(r [2]int) [2]int {
-	for r[1]-r[0] > 2 && s.punct(r[0], "(") && s.match[r[0]] == r[1]-1 {
+func eoUnwrap(s *source, r [2]int) [2]int {
+	for r[1]-r[0] > 2 && s.Punct(r[0], "(") && s.Match[r[0]] == r[1]-1 {
 		r = [2]int{r[0] + 1, r[1] - 1}
 	}
 	return r
@@ -170,14 +170,14 @@ func (s *source) eoUnwrap(r [2]int) [2]int {
 
 // eoLiteralSide returns the literal of a comparison and the other side's range, when exactly one
 // side is a single literal.
-func (s *source) eoLiteralSide(a, b [2]int) (string, [2]int, bool) {
-	if v, ok := s.eoScalar(a); ok && b[1] > b[0] {
-		if _, both := s.eoScalar(b); !both {
+func eoLiteralSide(s *source, a, b [2]int) (string, [2]int, bool) {
+	if v, ok := eoScalar(s, a); ok && b[1] > b[0] {
+		if _, both := eoScalar(s, b); !both {
 			return v, b, true
 		}
 	}
-	if v, ok := s.eoScalar(b); ok && a[1] > a[0] {
-		if _, both := s.eoScalar(a); !both {
+	if v, ok := eoScalar(s, b); ok && a[1] > a[0] {
+		if _, both := eoScalar(s, a); !both {
 			return v, a, true
 		}
 	}
@@ -185,11 +185,11 @@ func (s *source) eoLiteralSide(a, b [2]int) (string, [2]int, bool) {
 }
 
 // eoScalar reads a range holding one number or exact string literal.
-func (s *source) eoScalar(r [2]int) (string, bool) {
+func eoScalar(s *source, r [2]int) (string, bool) {
 	if r[1]-r[0] != 1 {
 		return "", false
 	}
-	t := s.tokens[r[0]]
+	t := s.Tokens[r[0]]
 	switch {
 	case t.Kind == appmap.JSNumber:
 		// Compare numbers by value, so `200` and `200.0` are one outcome.
@@ -205,13 +205,13 @@ func (s *source) eoScalar(r [2]int) (string, bool) {
 
 // eoArray reads a range that is exactly one array literal of scalar literals and returns its
 // distinct values, or nil when any element is not a literal.
-func (s *source) eoArray(r [2]int) []string {
-	if !s.punct(r[0], "[") || s.match[r[0]] != r[1]-1 {
+func eoArray(s *source, r [2]int) []string {
+	if !s.Punct(r[0], "[") || s.Match[r[0]] != r[1]-1 {
 		return nil
 	}
 	values, seen := []string{}, map[string]bool{}
-	for _, element := range s.splitArgs(r[0], r[1]-1) {
-		v, ok := s.eoScalar(element)
+	for _, element := range s.SplitArgs(r[0], r[1]-1) {
+		v, ok := eoScalar(s, element)
 		if !ok {
 			return nil
 		}
@@ -226,14 +226,14 @@ func (s *source) eoArray(r [2]int) []string {
 // eoSplitOperator splits a range at every top-level occurrence of a punctuation operator written
 // as consecutive glued single-character tokens (`||`, `===`, `==`). A longer operator that starts
 // with op (`===` for `==`) is not a split point.
-func (s *source) eoSplitOperator(r [2]int, op string) [][2]int {
+func eoSplitOperator(s *source, r [2]int, op string) [][2]int {
 	parts, start := [][2]int{}, r[0]
 	for i := r[0]; i < r[1]; i++ {
-		if s.match[i] > i {
-			i = s.match[i]
+		if s.Match[i] > i {
+			i = s.Match[i]
 			continue
 		}
-		run, n := s.eoOperatorRun(i, r[1])
+		run, n := eoOperatorRun(s, i, r[1])
 		if n == 0 {
 			continue
 		}
@@ -247,11 +247,11 @@ func (s *source) eoSplitOperator(r [2]int, op string) [][2]int {
 }
 
 // eoOperatorRun reads the operator run of `=|&!<>` punctuation starting at token i.
-func (s *source) eoOperatorRun(i, end int) (string, int) {
+func eoOperatorRun(s *source, i, end int) (string, int) {
 	n := 0
 	var b strings.Builder
-	for j := i; j < end && s.tokens[j].Kind == appmap.JSPunct && strings.Contains("=|&!<>", s.tokens[j].Text) && (j == i || s.tokens[j].Glued); j++ {
-		b.WriteString(s.tokens[j].Text)
+	for j := i; j < end && s.Tokens[j].Kind == appmap.JSPunct && strings.Contains("=|&!<>", s.Tokens[j].Text) && (j == i || s.Tokens[j].Glued); j++ {
+		b.WriteString(s.Tokens[j].Text)
 		n++
 	}
 	return b.String(), n
@@ -344,19 +344,19 @@ func eoContains(values []string, v string) bool {
 }
 
 // eoEnclosingTest returns the innermost test declaration whose body holds token i.
-func (s *source) eoEnclosingTest(i int) (decl, bool) {
+func eoEnclosingTest(s *source, i int) (decl, bool) {
 	found, ok := decl{}, false
-	for _, d := range s.decls {
-		if d.kind == "test" && within(i, d.body) && (!ok || d.at > found.at) {
+	for _, d := range s.Decls {
+		if d.Kind == "test" && within(i, d.Body) && (!ok || d.At > found.At) {
 			found, ok = d, true
 		}
 	}
 	return found, ok
 }
 
-func (s *source) eoCodeLines() map[int]bool {
+func eoCodeLines(s *source) map[int]bool {
 	lines := map[int]bool{}
-	for _, t := range s.tokens {
+	for _, t := range s.Tokens {
 		lines[t.Line] = true
 	}
 	return lines

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/rubytestreceipt"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -326,7 +327,7 @@ func TestLPCVV0093TruncatedFailureFailsRun(t *testing.T) {
 	}
 	report := `{"version":"3.13.2","examples":[` + strings.Join(examples, ",") + `],"summary":{"example_count":` + strconv.Itoa(MaxExamples+1) + `,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0}}`
 	document := run(t, Config{Dir: root, RSpec: []string{fakeRSpec(t, report, 1)}})
-	if document.Infrastructure != nil || document.ExamplesOmitted != 1 || len(document.Examples) != MaxExamples || anyFailed(document.Examples) {
+	if document.Infrastructure != nil || document.ExamplesOmitted != 1 || len(document.Examples) != MaxExamples || rubytestreceipt.AnyFailed(document.Examples) {
 		t.Fatalf("infrastructure=%+v omitted=%d examples=%d", document.Infrastructure, document.ExamplesOmitted, len(document.Examples))
 	}
 	if projection := ProjectRun(document); projection.Execution.State != testvalidity.ExecutionFailed {
@@ -424,14 +425,14 @@ func TestLPCVV0092SnapshotWalkIsBounded(t *testing.T) {
 	for index := 0; index < 10; index++ {
 		write(t, filepath.Join(root, "spec", "fixtures", strconv.Itoa(index)+".json"), "{}\n", 0o644)
 	}
-	previous := maxSnapshotEntries
-	maxSnapshotEntries = 8
-	t.Cleanup(func() { maxSnapshotEntries = previous })
+	previous := rubytestreceipt.MaxSnapshotEntries
+	rubytestreceipt.MaxSnapshotEntries = 8
+	t.Cleanup(func() { rubytestreceipt.MaxSnapshotEntries = previous })
 	worktree := openRoot(t, root)
 	if bounded := takeSnapshot(context.Background(), worktree, "sha1"); bounded.unbound != "spec-snapshot-over-bound" {
 		t.Fatalf("bounded=%+v", bounded)
 	}
-	maxSnapshotEntries = previous
+	rubytestreceipt.MaxSnapshotEntries = previous
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if stopped := takeSnapshot(cancelled, worktree, "sha1"); stopped.unbound != "spec-snapshot-unavailable" {

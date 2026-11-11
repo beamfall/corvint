@@ -134,7 +134,7 @@ func ActorAuthorization(r Repo, options ActorAuthOptions) (ActorAuthReport, erro
 		}
 		return webExtensions[path.Ext(name)] && !strings.Contains("/"+name, "/node_modules/")
 	}
-	texts, _, err := r.readFiles(revision, keep)
+	texts, _, err := readFiles(r, revision, keep)
 	if err != nil {
 		return ActorAuthReport{}, err
 	}
@@ -183,7 +183,7 @@ func AnalyzeActorAuthorization(files map[string]string, routesPath, abilityPath 
 		if webExtensions[path.Ext(name)] {
 			s := parseSource(name, files[name])
 			sources[name] = s
-			if s.uncertain {
+			if s.Uncertain {
 				report.Uncertain = append(report.Uncertain, name)
 			}
 		}
@@ -192,7 +192,7 @@ func AnalyzeActorAuthorization(files map[string]string, routesPath, abilityPath 
 	roles := factoryDefaultRoles(sources, names)
 	for _, name := range names {
 		if s := sources[name]; s != nil && !IsTestFile(name) {
-			s.collectFixtures(fixtures, roles)
+			collectFixtures(s, fixtures, roles)
 		}
 	}
 	for _, name := range sortedKeys(fixtures) {
@@ -206,7 +206,7 @@ func AnalyzeActorAuthorization(files map[string]string, routesPath, abilityPath 
 	ability := parseAbility(abilityPath, abilityText)
 	for _, name := range names {
 		if s := sources[name]; s != nil && IsTestFile(name) {
-			for _, request := range s.actorRequests(fixtures) {
+			for _, request := range actorRequests(s, fixtures) {
 				request.resolve(files, routes, haveRoutes, ability, haveAbility, report.Actors)
 				report.Requests = append(report.Requests, request)
 			}
@@ -237,7 +237,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // exportedFunctions finds `export [async] function NAME(...) {` and
 // `export const NAME = [async] (...) => {` / `= [async] function (...) {` declarations, returning
 // each name with its body brace and line.
-func (s *source) exportedFunctions() []struct {
+func exportedFunctions(s *source) []struct {
 	name       string
 	open, line int
 } {
@@ -245,40 +245,40 @@ func (s *source) exportedFunctions() []struct {
 		name       string
 		open, line int
 	}{}
-	for i := range s.tokens {
-		if !s.ident(i, "export") {
+	for i := range s.Tokens {
+		if !s.Ident(i, "export") {
 			continue
 		}
 		j := i + 1
 		name := ""
 		switch {
-		case s.ident(j, "async") && s.ident(j+1, "function") && s.ident(j+2, ""):
-			name, j = s.tokens[j+2].Text, j+3
-		case s.ident(j, "function") && s.ident(j+1, ""):
-			name, j = s.tokens[j+1].Text, j+2
-		case (s.ident(j, "const") || s.ident(j, "let")) && s.ident(j+1, "") && s.punct(j+2, "="):
-			name, j = s.tokens[j+1].Text, j+3
-			if s.ident(j, "async") {
+		case s.Ident(j, "async") && s.Ident(j+1, "function") && s.Ident(j+2, ""):
+			name, j = s.Tokens[j+2].Text, j+3
+		case s.Ident(j, "function") && s.Ident(j+1, ""):
+			name, j = s.Tokens[j+1].Text, j+2
+		case (s.Ident(j, "const") || s.Ident(j, "let")) && s.Ident(j+1, "") && s.Punct(j+2, "="):
+			name, j = s.Tokens[j+1].Text, j+3
+			if s.Ident(j, "async") {
 				j++
 			}
-			if s.ident(j, "function") {
+			if s.Ident(j, "function") {
 				j++
 			}
 		default:
 			continue
 		}
-		if !s.punct(j, "(") || s.match[j] < 0 {
+		if !s.Punct(j, "(") || s.Match[j] < 0 {
 			continue
 		}
-		j = s.match[j] + 1
-		if s.arrow(j) {
+		j = s.Match[j] + 1
+		if s.Arrow(j) {
 			j += 2
 		}
-		if s.punct(j, "{") && s.match[j] > j {
+		if s.Punct(j, "{") && s.Match[j] > j {
 			out = append(out, struct {
 				name       string
 				open, line int
-			}{name, j, s.tokens[i].Line})
+			}{name, j, s.Tokens[i].Line})
 		}
 	}
 	return out
@@ -286,11 +286,11 @@ func (s *source) exportedFunctions() []struct {
 
 // refs collects the identifiers in [start, end) that name a value: not a property after `.` and
 // not an object key before `:`.
-func (s *source) refs(start, end int) map[string]bool {
+func refs(s *source, start, end int) map[string]bool {
 	out := map[string]bool{}
 	for i := start; i < end; i++ {
-		if s.ident(i, "") && !s.memberAccess(i) && !s.punct(i+1, ":") {
-			out[s.tokens[i].Text] = true
+		if s.Ident(i, "") && !s.MemberAccess(i) && !s.Punct(i+1, ":") {
+			out[s.Tokens[i].Text] = true
 		}
 	}
 	return out
@@ -298,45 +298,45 @@ func (s *source) refs(start, end int) map[string]bool {
 
 // collectFixtures records every exported fixture builder in s whose body seeds users
 // (TSA-V0-033).
-func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, roles map[string]*factoryRole) {
-	for _, f := range s.exportedFunctions() {
-		body := [2]int{f.open + 1, s.match[f.open]}
-		users := s.seededUsers(body, f.name, roles)
+func collectFixtures(s *source, fixtures map[string]*fixtureInfo, roles map[string]*factoryRole) {
+	for _, f := range exportedFunctions(s) {
+		body := [2]int{f.open + 1, s.Match[f.open]}
+		users := seededUsers(s, body, f.name, roles)
 		if len(users) == 0 {
 			continue
 		}
-		info := &fixtureInfo{path: s.path, line: f.line, actors: map[string]FixtureActor{}}
+		info := &fixtureInfo{path: s.Path, line: f.line, actors: map[string]FixtureActor{}}
 		if previous, ok := fixtures[f.name]; ok {
 			previous.actors, previous.reason = map[string]FixtureActor{}, "fixture-ambiguous"
-			previous.detail = "fixture " + f.name + " is exported by " + previous.path + " and " + s.path
+			previous.detail = "fixture " + f.name + " is exported by " + previous.path + " and " + s.Path
 			continue
 		}
 		fixtures[f.name] = info
 		returns := []int{}
 		for i := body[0]; i < body[1]; i++ {
-			if s.ident(i, "return") && s.punct(i+1, "{") && s.match[i+1] > i {
+			if s.Ident(i, "return") && s.Punct(i+1, "{") && s.Match[i+1] > i {
 				returns = append(returns, i+1)
 			}
-			if s.match[i] > i {
-				i = s.match[i]
+			if s.Match[i] > i {
+				i = s.Match[i]
 			}
 		}
 		if len(returns) != 1 {
 			info.reason = "fixture-return-not-literal"
-			info.detail = fmt.Sprintf("%s fixture %s has %d top-level object returns", locate(s.path, f.line), f.name, len(returns))
+			info.detail = fmt.Sprintf("%s fixture %s has %d top-level object returns", locate(s.Path, f.line), f.name, len(returns))
 			continue
 		}
 		open := returns[0]
-		for _, prop := range s.splitArgs(open, s.match[open]) {
-			if !s.ident(prop[0], "") || !(prop[1]-prop[0] == 1 || s.punct(prop[0]+1, ":")) {
+		for _, prop := range s.SplitArgs(open, s.Match[open]) {
+			if !s.Ident(prop[0], "") || !(prop[1]-prop[0] == 1 || s.Punct(prop[0]+1, ":")) {
 				continue
 			}
-			key := s.tokens[prop[0]].Text
+			key := s.Tokens[prop[0]].Text
 			value := prop
 			if prop[1]-prop[0] > 1 {
 				value = [2]int{prop[0] + 2, prop[1]}
 			}
-			refs := s.refs(value[0], value[1])
+			refs := refs(s, value[0], value[1])
 			if prop[1]-prop[0] == 1 {
 				refs = map[string]bool{key: true}
 			}
@@ -364,8 +364,8 @@ func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, roles map[str
 				actor.Fixture, actor.Key = f.name, key
 				info.actors[key] = actor
 			default:
-				info.actors[key] = FixtureActor{Fixture: f.name, Key: key, Path: s.path, Line: s.tokens[prop[0]].Line,
-					Reason: "actor-key-ambiguous", Detail: fmt.Sprintf("%s key %s refers to %d seeded users", locate(s.path, s.tokens[prop[0]].Line), key, len(matched))}
+				info.actors[key] = FixtureActor{Fixture: f.name, Key: key, Path: s.Path, Line: s.Tokens[prop[0]].Line,
+					Reason: "actor-key-ambiguous", Detail: fmt.Sprintf("%s key %s refers to %d seeded users", locate(s.Path, s.Tokens[prop[0]].Line), key, len(matched))}
 			}
 		}
 	}
@@ -373,23 +373,23 @@ func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, roles map[str
 
 // seededUsers finds the user-factory calls in a fixture body: a call whose callee chain names a
 // user, or whose arguments carry a `role:` key (TSA-V0-033).
-func (s *source) seededUsers(body [2]int, fixture string, roles map[string]*factoryRole) []seededUser {
+func seededUsers(s *source, body [2]int, fixture string, roles map[string]*factoryRole) []seededUser {
 	users := []seededUser{}
 	for i := body[0]; i < body[1]; i++ {
-		if !s.ident(i, "") || !s.punct(i+1, "(") || s.match[i+1] < 0 || s.ident(i-1, "function") {
+		if !s.Ident(i, "") || !s.Punct(i+1, "(") || s.Match[i+1] < 0 || s.Ident(i-1, "function") {
 			continue
 		}
-		open, close := i+1, s.match[i+1]
+		open, close := i+1, s.Match[i+1]
 		roleKeys := []int{}
 		for j := open + 1; j < close; j++ {
-			if s.ident(j, "role") && s.punct(j+1, ":") && !s.memberAccess(j) {
+			if s.Ident(j, "role") && s.Punct(j+1, ":") && !s.MemberAccess(j) {
 				roleKeys = append(roleKeys, j)
 			}
 		}
-		callee, start := []string{s.tokens[i].Text}, i
-		for s.punct(start-1, ".") && s.ident(start-2, "") {
+		callee, start := []string{s.Tokens[i].Text}, i
+		for s.Punct(start-1, ".") && s.Ident(start-2, "") {
 			start -= 2
-			callee = append(callee, s.tokens[start].Text)
+			callee = append(callee, s.Tokens[start].Text)
 		}
 		named := false
 		for _, part := range callee {
@@ -398,34 +398,34 @@ func (s *source) seededUsers(body [2]int, fixture string, roles map[string]*fact
 		if !named && len(roleKeys) == 0 {
 			continue
 		}
-		u := seededUser{idents: s.refs(open+1, close), actor: FixtureActor{Fixture: fixture, Path: s.path, Line: s.tokens[i].Line}}
+		u := seededUser{idents: refs(s, open+1, close), actor: FixtureActor{Fixture: fixture, Path: s.Path, Line: s.Tokens[i].Line}}
 		k := start
-		if s.ident(k-1, "await") {
+		if s.Ident(k-1, "await") {
 			k--
 		}
-		if s.punct(k-1, "=") && s.ident(k-2, "") {
-			u.variable = s.tokens[k-2].Text
+		if s.Punct(k-1, "=") && s.Ident(k-2, "") {
+			u.variable = s.Tokens[k-2].Text
 		}
 		switch {
 		case len(roleKeys) > 1:
-			u.actor.Reason, u.actor.Detail = "role-ambiguous", locate(s.path, s.tokens[i].Line)+" sets role more than once"
+			u.actor.Reason, u.actor.Detail = "role-ambiguous", locate(s.Path, s.Tokens[i].Line)+" sets role more than once"
 		case len(roleKeys) == 1:
 			v := roleKeys[0] + 2
-			if at := s.roleOverride(roleKeys[0], close); at >= 0 {
-				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[at].Line)+" a later spread or computed property can override role"
-			} else if t := s.tokens[v]; (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal && (s.punct(v+1, ",") || s.punct(v+1, "}")) {
+			if at := roleOverride(s, roleKeys[0], close); at >= 0 {
+				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.Path, s.Tokens[at].Line)+" a later spread or computed property can override role"
+			} else if t := s.Tokens[v]; (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal && (s.Punct(v+1, ",") || s.Punct(v+1, "}")) {
 				u.actor.Role, u.actor.RoleFrom = t.Text, "literal"
 			} else {
-				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[v].Line)+" role is not a string literal"
+				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.Path, s.Tokens[v].Line)+" role is not a string literal"
 			}
-		case s.roleOverride(open, close) >= 0:
-			at := s.roleOverride(open, close)
-			u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[at].Line)+" a spread or computed property can set role"
+		case roleOverride(s, open, close) >= 0:
+			at := roleOverride(s, open, close)
+			u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.Path, s.Tokens[at].Line)+" a spread or computed property can set role"
 		default:
-			if r := roles[s.tokens[i].Text]; r != nil && r.found == 1 && !r.other {
+			if r := roles[s.Tokens[i].Text]; r != nil && r.found == 1 && !r.other {
 				u.actor.Role, u.actor.RoleFrom, u.actor.Detail = r.role, "factory-default", r.at
 			} else {
-				u.actor.Reason, u.actor.Detail = "role-default-unresolved", locate(s.path, s.tokens[i].Line)+" "+s.tokens[i].Text+" has no role and no single literal default"
+				u.actor.Reason, u.actor.Detail = "role-default-unresolved", locate(s.Path, s.Tokens[i].Line)+" "+s.Tokens[i].Text+" has no role and no single literal default"
 			}
 		}
 		users = append(users, u)
@@ -436,12 +436,12 @@ func (s *source) seededUsers(body [2]int, fixture string, roles map[string]*fact
 
 // roleOverride returns the first spread (`...x`) or computed property (`[k]: v`) after token from
 // and before close, which could set role at run time, or -1 (TSA-V0-033).
-func (s *source) roleOverride(from, close int) int {
+func roleOverride(s *source, from, close int) int {
 	for j := from + 1; j < close; j++ {
-		if s.punct(j, ".") && s.punct(j+1, ".") && s.punct(j+2, ".") {
+		if s.Punct(j, ".") && s.Punct(j+1, ".") && s.Punct(j+2, ".") {
 			return j
 		}
-		if s.punct(j, "[") && s.match[j] > j && s.punct(s.match[j]+1, ":") && (s.punct(j-1, "{") || s.punct(j-1, ",")) {
+		if s.Punct(j, "[") && s.Match[j] > j && s.Punct(s.Match[j]+1, ":") && (s.Punct(j-1, "{") || s.Punct(j-1, ",")) {
 			return j
 		}
 	}
@@ -468,43 +468,43 @@ func factoryDefaultRoles(sources map[string]*source, names []string) map[string]
 		if s == nil {
 			continue
 		}
-		for i := range s.tokens {
-			if !s.ident(i, "") || s.memberAccess(i) {
+		for i := range s.Tokens {
+			if !s.Ident(i, "") || s.MemberAccess(i) {
 				continue
 			}
 			open := -1
 			switch {
-			case s.ident(i-1, "function") && s.punct(i+1, "("):
+			case s.Ident(i-1, "function") && s.Punct(i+1, "("):
 				open = i + 1
-			case s.punct(i+1, "=") && !s.tokens[i+1].Glued:
+			case s.Punct(i+1, "=") && !s.Tokens[i+1].Glued:
 				j := i + 2
-				if s.ident(j, "async") {
+				if s.Ident(j, "async") {
 					j++
 				}
-				if s.ident(j, "function") {
+				if s.Ident(j, "function") {
 					j++
 				}
-				if s.punct(j, "(") && s.match[j] > j && (s.arrow(s.match[j]+1) || s.ident(j-1, "function")) {
+				if s.Punct(j, "(") && s.Match[j] > j && (s.Arrow(s.Match[j]+1) || s.Ident(j-1, "function")) {
 					open = j
 				}
 			}
-			if open < 0 || s.match[open] < 0 {
+			if open < 0 || s.Match[open] < 0 {
 				continue
 			}
-			for j := open + 1; j < s.match[open]; j++ {
-				if !s.ident(j, "role") || !s.punct(j+1, "=") || s.punct(j+2, "=") || s.punct(j+2, ">") {
+			for j := open + 1; j < s.Match[open]; j++ {
+				if !s.Ident(j, "role") || !s.Punct(j+1, "=") || s.Punct(j+2, "=") || s.Punct(j+2, ">") {
 					continue
 				}
-				r := out[s.tokens[i].Text]
+				r := out[s.Tokens[i].Text]
 				if r == nil {
 					r = &factoryRole{}
-					out[s.tokens[i].Text] = r
+					out[s.Tokens[i].Text] = r
 				}
-				t := s.tokens[min(j+2, len(s.tokens)-1)]
+				t := s.Tokens[min(j+2, len(s.Tokens)-1)]
 				if (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal &&
-					(s.punct(j+3, ",") || s.punct(j+3, "}") || s.punct(j+3, ")")) {
+					(s.Punct(j+3, ",") || s.Punct(j+3, "}") || s.Punct(j+3, ")")) {
 					r.found++
-					r.role, r.at = t.Text, locate(s.path, t.Line)
+					r.role, r.at = t.Text, locate(s.Path, t.Line)
 				} else {
 					r.other = true
 				}
@@ -530,19 +530,19 @@ type login struct {
 
 // actorRequests finds each literal request a test sends and binds the actor it is sent as: the
 // latest login call before it in the same test or outside every test (TSA-V0-033, TSA-V0-036).
-func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest {
+func actorRequests(s *source, fixtures map[string]*fixtureInfo) []ActorRequest {
 	tests := []decl{}
-	for _, d := range s.decls {
-		if d.kind == "test" && d.body[1] > d.body[0] {
+	for _, d := range s.Decls {
+		if d.Kind == "test" && d.Body[1] > d.Body[0] {
 			tests = append(tests, d)
 		}
 	}
 	inScope := func(i, at int, d decl) bool {
-		if within(i, d.body) {
+		if within(i, d.Body) {
 			return true
 		}
 		for _, other := range tests {
-			if within(i, other.body) {
+			if within(i, other.Body) {
 				return false
 			}
 		}
@@ -555,27 +555,27 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 	}
 	bindings := []binding{}
 	logins := []login{}
-	for i := range s.tokens {
-		if (s.ident(i, "const") || s.ident(i, "let") || s.ident(i, "var")) && s.ident(i+1, "") && s.punct(i+2, "=") {
+	for i := range s.Tokens {
+		if (s.Ident(i, "const") || s.Ident(i, "let") || s.Ident(i, "var")) && s.Ident(i+1, "") && s.Punct(i+2, "=") {
 			j := i + 3
-			if s.ident(j, "await") {
+			if s.Ident(j, "await") {
 				j++
 			}
-			if s.ident(j, "") && s.punct(j+1, "(") && fixtures[s.tokens[j].Text] != nil {
-				bindings = append(bindings, binding{at: i, variable: s.tokens[i+1].Text, fixture: s.tokens[j].Text})
+			if s.Ident(j, "") && s.Punct(j+1, "(") && fixtures[s.Tokens[j].Text] != nil {
+				bindings = append(bindings, binding{at: i, variable: s.Tokens[i+1].Text, fixture: s.Tokens[j].Text})
 			}
 		}
-		lower := strings.ToLower(s.tokens[i].Text)
-		if s.ident(i, "") && s.punct(i+1, "(") && s.match[i+1] > i && !s.ident(i-1, "function") &&
+		lower := strings.ToLower(s.Tokens[i].Text)
+		if s.Ident(i, "") && s.Punct(i+1, "(") && s.Match[i+1] > i && !s.Ident(i-1, "function") &&
 			(strings.Contains(lower, "login") || strings.Contains(lower, "signin")) {
-			l := login{at: i, reason: "actor-not-literal", detail: locate(s.path, s.tokens[i].Line) + " login argument is not a fixture member"}
-			for j := i + 2; j < s.match[i+1]; j++ {
-				if !s.ident(j, "") || s.memberAccess(j) || !s.punct(j+1, ".") || !s.ident(j+2, "") {
+			l := login{at: i, reason: "actor-not-literal", detail: locate(s.Path, s.Tokens[i].Line) + " login argument is not a fixture member"}
+			for j := i + 2; j < s.Match[i+1]; j++ {
+				if !s.Ident(j, "") || s.MemberAccess(j) || !s.Punct(j+1, ".") || !s.Ident(j+2, "") {
 					continue
 				}
 				for k := len(bindings) - 1; k >= 0; k-- {
-					if bindings[k].variable == s.tokens[j].Text {
-						l = login{at: i, fixture: bindings[k].fixture, key: s.tokens[j+2].Text}
+					if bindings[k].variable == s.Tokens[j].Text {
+						l = login{at: i, fixture: bindings[k].fixture, key: s.Tokens[j+2].Text}
 						break
 					}
 				}
@@ -588,28 +588,28 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 	}
 	out := []ActorRequest{}
 	for _, d := range tests {
-		exempt := s.assertsRejection(d)
-		for i := d.body[0]; i < d.body[1]; i++ {
-			method, ok := requestMethods[s.tokens[i].Text]
-			if !ok || !s.ident(i, "") || !s.memberAccess(i) || !s.punct(i+1, "(") || s.match[i+1] < 0 {
+		exempt := assertsRejection(s, d)
+		for i := d.Body[0]; i < d.Body[1]; i++ {
+			method, ok := requestMethods[s.Tokens[i].Text]
+			if !ok || !s.Ident(i, "") || !s.MemberAccess(i) || !s.Punct(i+1, "(") || s.Match[i+1] < 0 {
 				continue
 			}
-			args := s.splitArgs(i+1, s.match[i+1])
-			literal := len(args) > 0 && s.loneString(args[0])
+			args := s.SplitArgs(i+1, s.Match[i+1])
+			literal := len(args) > 0 && s.LoneString(args[0])
 			if literal {
-				t := s.tokens[args[0][0]]
+				t := s.Tokens[args[0][0]]
 				literal = strings.HasPrefix(t.Text, "/") && !(t.Kind == appmap.JSString && !t.Literal)
 			}
-			if !literal && !s.requestReceiver(i) {
+			if !literal && !requestReceiver(s, i) {
 				continue
 			}
-			request := ActorRequest{Path: s.path, Line: s.tokens[i].Line, Test: d.title, Method: method,
+			request := ActorRequest{Path: s.Path, Line: s.Tokens[i].Line, Test: d.Title, Method: method,
 				GrantedBy: []GrantRef{}, LowestRoles: []string{}, Alternatives: []FixtureActor{}}
 			if exempt != "" {
 				request.Status, request.Reason, request.Detail = ActorExempt, "asserts-rejection", exempt
 			}
 			if literal {
-				t := s.tokens[args[0][0]]
+				t := s.Tokens[args[0][0]]
 				request.Line, request.URL = t.Line, t.Text
 				if t.Kind == appmap.JSTemplate && !t.Literal {
 					request.URL = strings.Trim(t.Source, "`")
@@ -622,27 +622,27 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 						request.segments = append(request.segments, "*")
 					case strings.Contains(segment, substitution):
 						request.pathUnknown = true
-						request.setUnknown("path-not-literal", locate(s.path, t.Line)+" a path segment mixes text and a substitution")
+						request.setUnknown("path-not-literal", locate(s.Path, t.Line)+" a path segment mixes text and a substitution")
 					default:
 						request.segments = append(request.segments, segment)
 					}
 				}
 			} else {
 				if len(args) > 0 {
-					request.Line, request.URL = s.tokens[args[0][0]].Line, s.render(args[0][0], args[0][1])
+					request.Line, request.URL = s.Tokens[args[0][0]].Line, s.Render(args[0][0], args[0][1])
 				}
 				request.pathUnknown = true
-				request.setUnknown("path-not-literal", locate(s.path, request.Line)+" the request path is not a literal beginning with /")
+				request.setUnknown("path-not-literal", locate(s.Path, request.Line)+" the request path is not a literal beginning with /")
 			}
 			chosen := -1
 			for k, l := range logins {
-				if l.at < i && inScope(l.at, d.at, d) {
+				if l.at < i && inScope(l.at, d.At, d) {
 					chosen = k
 				}
 			}
 			switch {
 			case chosen < 0:
-				request.setUnknown("actor-unbound", locate(s.path, request.Line)+" no login call precedes the request")
+				request.setUnknown("actor-unbound", locate(s.Path, request.Line)+" no login call precedes the request")
 			case logins[chosen].fixture == "":
 				request.setUnknown(logins[chosen].reason, logins[chosen].detail)
 			default:
@@ -662,7 +662,7 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 				}
 			}
 			out = append(out, request)
-			i = s.match[i+1]
+			i = s.Match[i+1]
 		}
 	}
 	return out
@@ -670,8 +670,8 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 
 // requestReceiver reports a method call at token i on a receiver named like a request context
 // (`request.put(`, `page.request.get(`), whose path argument must then resolve (TSA-V0-034).
-func (s *source) requestReceiver(i int) bool {
-	return s.memberAccess(i) && s.ident(i-2, "") && strings.Contains(strings.ToLower(s.tokens[i-2].Text), "request")
+func requestReceiver(s *source, i int) bool {
+	return s.MemberAccess(i) && s.Ident(i-2, "") && strings.Contains(strings.ToLower(s.Tokens[i-2].Text), "request")
 }
 
 // setUnknown records the first unresolved link; an exempt request keeps its status.
@@ -687,23 +687,23 @@ var rejectionStatuses = map[string]bool{"401": true, "403": true, "422": true}
 // assertsRejection reports where a test asserts a 401, 403 or 422 status with an equality matcher
 // that is not negated, on a subject that is a response status (`x.status()`, `x.status`,
 // `x.statusCode`) or, for toHaveStatus, the response itself.
-func (s *source) assertsRejection(d decl) string {
-	for i := d.body[0]; i < d.body[1]; i++ {
-		c, ok := s.readExpect(i)
+func assertsRejection(s *source, d decl) string {
+	for i := d.Body[0]; i < d.Body[1]; i++ {
+		c, ok := s.ReadExpect(i)
 		if !ok {
 			continue
 		}
 		negated := false
-		for j := c.subject[1]; j < c.margs[0]; j++ {
-			negated = negated || s.ident(j, "not") && s.memberAccess(j)
+		for j := c.Subject[1]; j < c.Margs[0]; j++ {
+			negated = negated || s.Ident(j, "not") && s.MemberAccess(j)
 		}
-		if negated || c.matcher != "toHaveStatus" && !s.statusSubject(c.subject) {
+		if negated || c.Matcher != "toHaveStatus" && !statusSubject(s, c.Subject) {
 			continue
 		}
-		switch c.matcher {
+		switch c.Matcher {
 		case "toBe", "toEqual", "toStrictEqual", "toHaveStatus":
-			if c.margs[1]-c.margs[0] == 1 && s.tokens[c.margs[0]].Kind == appmap.JSNumber && rejectionStatuses[s.tokens[c.margs[0]].Text] {
-				return locate(s.path, s.tokens[i].Line) + " asserts status " + s.tokens[c.margs[0]].Text
+			if c.Margs[1]-c.Margs[0] == 1 && s.Tokens[c.Margs[0]].Kind == appmap.JSNumber && rejectionStatuses[s.Tokens[c.Margs[0]].Text] {
+				return locate(s.Path, s.Tokens[i].Line) + " asserts status " + s.Tokens[c.Margs[0]].Text
 			}
 		}
 	}
@@ -711,12 +711,12 @@ func (s *source) assertsRejection(d decl) string {
 }
 
 // statusSubject reports an expect subject ending in `.status()`, `.status` or `.statusCode`.
-func (s *source) statusSubject(subject [2]int) bool {
+func statusSubject(s *source, subject [2]int) bool {
 	end := subject[1]
-	if end-subject[0] > 2 && s.punct(end-1, ")") && s.punct(end-2, "(") {
+	if end-subject[0] > 2 && s.Punct(end-1, ")") && s.Punct(end-2, "(") {
 		end -= 2
 	}
-	return end > subject[0] && s.memberAccess(end-1) && (s.ident(end-1, "status") || s.ident(end-1, "statusCode"))
+	return end > subject[0] && s.MemberAccess(end-1) && (s.Ident(end-1, "status") || s.Ident(end-1, "statusCode"))
 }
 
 // resolve follows the request to its route, controller check and the actor role's grant, and sets

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -57,18 +58,12 @@ var (
 	rspecEnqueueMethods = map[string]bool{"perform_later": true, "perform_async": true, "perform_in": true, "perform_at": true}
 )
 
-// rubyText is one logical line with its string and percent literals masked: masked has the same
-// length as raw, with every character inside a literal replaced by \x01, so a pattern matched on
-// masked never matches literal content and its positions slice raw. A `#{...}` interpolation in a
-// double-quoted string stays code, so its names are read.
-type rubyText struct {
-	line        int
-	raw, masked string
-}
+// rubyText is testdiscovery.RubyText, kept under its old name.
+type rubyText = testdiscovery.RubyText
 
 func maskRuby(l rubyLine) rubyText {
-	b := []byte(l.text)
-	for _, loc := range rspecPercent.FindAllStringIndex(l.text, -1) {
+	b := []byte(l.Text)
+	for _, loc := range rspecPercent.FindAllStringIndex(l.Text, -1) {
 		for i := loc[0] + 1; i < loc[1]-1; i++ {
 			b[i] = 1
 		}
@@ -107,7 +102,7 @@ func maskRuby(l rubyLine) rubyText {
 			}
 		}
 	}
-	return rubyText{line: l.line, raw: l.text, masked: string(b)}
+	return rubyText{Line: l.Line, Raw: l.Text, Masked: string(b)}
 }
 
 // balanced returns the index of the closer matching the opener at open in masked, or -1.
@@ -128,13 +123,13 @@ func balanced(masked string, open int) int {
 }
 
 // squash drops the whitespace outside literals, so formatting does not change a comparison.
-func (t rubyText) squash(from, to int) string {
+func squash(t rubyText, from, to int) string {
 	var b strings.Builder
 	for i := from; i < to; i++ {
-		if t.masked[i] == ' ' || t.masked[i] == '\t' {
+		if t.Masked[i] == ' ' || t.Masked[i] == '\t' {
 			continue
 		}
-		b.WriteByte(t.raw[i])
+		b.WriteByte(t.Raw[i])
 	}
 	return b.String()
 }
@@ -176,7 +171,7 @@ func rubyAssertions(body []rubyLine) []rubyAssertion {
 	out := []rubyAssertion{}
 	for _, l := range body {
 		t := maskRuby(l)
-		m := t.masked
+		m := t.Masked
 		for _, loc := range rspecExpectArg.FindAllStringIndex(m, -1) {
 			if loc[0] > 0 && m[loc[0]-1] == '.' {
 				continue
@@ -205,7 +200,7 @@ func rubyAssertions(body []rubyLine) []rubyAssertion {
 // readMatcher reads `.to MATCHER(ARGS)` or `.to MATCHER ARGS` from position from of the line and
 // an optional `.with(...)` after it.
 func (a *rubyAssertion) readMatcher(from int) bool {
-	m := a.t.masked
+	m := a.t.Masked
 	loc := rspecMatcher.FindStringSubmatchIndex(m[from:])
 	if loc == nil {
 		return false
@@ -255,12 +250,12 @@ func rubyStubs(lines []rubyLine) []rubyStub {
 	out := []rubyStub{}
 	for _, l := range lines {
 		t := maskRuby(l)
-		for _, loc := range rspecStubCall.FindAllStringSubmatchIndex(t.masked, -1) {
-			s := rubyStub{t: t, expect: t.masked[loc[2]:loc[3]] == "expect", anyInstance: loc[4] >= 0,
-				recv: t.masked[loc[6]:loc[7]], method: t.masked[loc[8]:loc[9]], end: loc[1]}
-			if r := rspecAndReturn.FindStringIndex(t.masked[loc[1]:]); r != nil {
+		for _, loc := range rspecStubCall.FindAllStringSubmatchIndex(t.Masked, -1) {
+			s := rubyStub{t: t, expect: t.Masked[loc[2]:loc[3]] == "expect", anyInstance: loc[4] >= 0,
+				recv: t.Masked[loc[6]:loc[7]], method: t.Masked[loc[8]:loc[9]], end: loc[1]}
+			if r := rspecAndReturn.FindStringIndex(t.Masked[loc[1]:]); r != nil {
 				open := loc[1] + r[1] - 1
-				if close := balanced(t.masked, open); close > 0 {
+				if close := balanced(t.Masked, open); close > 0 {
 					s.value, s.hasValue = [2]int{open + 1, close}, true
 				}
 			}
@@ -277,15 +272,6 @@ type rubyBinding struct {
 	span  [2]int
 }
 
-// rspecFlow indexes the file for TSA-V0-120..130, built on first use: each line's masked text and
-// words, the example owning each body line, and each group's subject names.
-type rspecFlow struct {
-	text     []rubyText
-	words    [][]string
-	owner    map[int]int
-	subjects map[int]map[string]bool
-}
-
 // flowContext is one example's view for the TSA-V0-120..130 readings.
 type flowContext struct {
 	r        *rspecReader
@@ -297,32 +283,32 @@ type flowContext struct {
 	asserted map[int]bool    // body lines holding an expectation
 }
 
-func (r *rspecReader) flowContext(name string, e rspecExample) *flowContext {
+func rspecReaderFlowContext(r *rspecReader, name string, e rspecExample) *flowContext {
 	c := &flowContext{r: r, name: name, e: e, subject: map[string]bool{}, asserted: map[int]bool{}}
-	if r.flow.subjects == nil {
-		r.flow.subjects = map[int]map[string]bool{}
+	if r.Flow.Subjects == nil {
+		r.Flow.Subjects = map[int]map[string]bool{}
 	}
-	if known, ok := r.flow.subjects[e.group]; ok {
+	if known, ok := r.Flow.Subjects[e.Group]; ok {
 		maps.Copy(c.subject, known)
 	} else {
 		c.groupSubjects()
-		r.flow.subjects[e.group] = maps.Clone(c.subject)
+		r.Flow.Subjects[e.Group] = maps.Clone(c.subject)
 	}
-	for _, l := range e.body[1:] {
+	for _, l := range e.Body[1:] {
 		t := maskRuby(l)
-		if m := rspecLocalSet.FindStringSubmatchIndex(t.masked); m != nil && c.names(t.masked[m[3]:]) {
-			c.subject[t.masked[m[2]:m[3]]] = true
+		if m := rspecLocalSet.FindStringSubmatchIndex(t.Masked); m != nil && c.names(t.Masked[m[3]:]) {
+			c.subject[t.Masked[m[2]:m[3]]] = true
 		}
-		if c.action == 0 && c.names(t.masked) {
-			c.action = l.line
+		if c.action == 0 && c.names(t.Masked) {
+			c.action = l.Line
 		}
-		if rspecExpectation.MatchString(t.masked) {
-			c.asserted[l.line] = true
+		if rspecExpectation.MatchString(t.Masked) {
+			c.asserted[l.Line] = true
 		}
 	}
-	r.flowIndex()
-	for i, t := range r.flow.text {
-		if owner, ok := r.flow.owner[t.line]; !ok || owner == e.line {
+	flowIndex(r)
+	for i, t := range r.Flow.Text {
+		if owner, ok := r.Flow.Owner[t.Line]; !ok || owner == e.Line {
 			c.scope = append(c.scope, i)
 		}
 	}
@@ -337,25 +323,25 @@ func (c *flowContext) groupSubjects() {
 	for _, n := range []string{"subject", "described_class", "is_expected"} {
 		c.subject[n] = true
 	}
-	for g := e.group; g >= 0; g = r.groups[g].parent {
-		if v := r.groups[g].decls["subject"]; strings.HasPrefix(v, "let:") {
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
+		if v := r.Groups[g].Decls["subject"]; strings.HasPrefix(v, "let:") {
 			c.subject[strings.TrimPrefix(v, "let:")] = true
 		}
 	}
 	// A let whose block names the subject is computed from it; two passes reach a let of a let.
 	for range 2 {
-		for g := e.group; g >= 0; g = r.groups[g].parent {
-			for _, declared := range slices.Sorted(maps.Keys(r.groups[g].bodies)) {
-				body := r.groups[g].bodies[declared]
-				if c.subject[declared] || r.declaring(e.group, declared) != g {
+		for g := e.Group; g >= 0; g = r.Groups[g].Parent {
+			for _, declared := range slices.Sorted(maps.Keys(r.Groups[g].Bodies)) {
+				body := r.Groups[g].Bodies[declared]
+				if c.subject[declared] || declaring(r, e.Group, declared) != g {
 					continue
 				}
 				for _, l := range body[1:] {
-					if c.names(maskRuby(l).masked) {
+					if c.names(maskRuby(l).Masked) {
 						c.subject[declared] = true
 					}
 				}
-				if len(body) == 1 && c.names(maskRuby(body[0]).masked[len(declared):]) {
+				if len(body) == 1 && c.names(maskRuby(body[0]).Masked[len(declared):]) {
 					c.subject[declared] = true
 				}
 			}
@@ -365,20 +351,20 @@ func (c *flowContext) groupSubjects() {
 
 // flowIndex masks every line and reads its words once per file, and maps each example body line
 // to its example, so the per-example readings stay linear in the file.
-func (r *rspecReader) flowIndex() {
-	if r.flow.text != nil {
+func flowIndex(r *rspecReader) {
+	if r.Flow.Text != nil {
 		return
 	}
-	r.flow.owner = map[int]int{}
-	for _, x := range r.examples {
-		for _, l := range x.body {
-			r.flow.owner[l.line] = x.line
+	r.Flow.Owner = map[int]int{}
+	for _, x := range r.Examples {
+		for _, l := range x.Body {
+			r.Flow.Owner[l.Line] = x.Line
 		}
 	}
-	for _, l := range r.lines {
+	for _, l := range r.Lines {
 		t := maskRuby(l)
-		r.flow.text = append(r.flow.text, t)
-		r.flow.words = append(r.flow.words, rubyWords(t.masked))
+		r.Flow.Text = append(r.Flow.Text, t)
+		r.Flow.Words = append(r.Flow.Words, rubyWords(t.Masked))
 	}
 }
 
@@ -398,36 +384,36 @@ func (c *flowContext) at(line int) string { return fmt.Sprintf("%s:%d", c.name, 
 // body above it, else the innermost let on the example's group chain whose block holds one value.
 func (c *flowContext) binding(name string, before int) (rubyBinding, bool) {
 	found, ok := rubyBinding{}, false
-	for _, l := range c.e.body[1:] {
-		if l.line >= before {
+	for _, l := range c.e.Body[1:] {
+		if l.Line >= before {
 			break
 		}
 		t := maskRuby(l)
-		if m := rspecLocalSet.FindStringSubmatchIndex(t.masked); m != nil && t.masked[m[2]:m[3]] == name {
-			eq := strings.Index(t.masked[m[3]:], "=") + m[3]
-			found, ok = rubyBinding{line: l.line, value: t, span: trimSpan(t.masked, eq+1, len(t.masked))}, true
+		if m := rspecLocalSet.FindStringSubmatchIndex(t.Masked); m != nil && t.Masked[m[2]:m[3]] == name {
+			eq := strings.Index(t.Masked[m[3]:], "=") + m[3]
+			found, ok = rubyBinding{line: l.Line, value: t, span: trimSpan(t.Masked, eq+1, len(t.Masked))}, true
 		}
 	}
 	if ok {
 		return found, true
 	}
-	g := c.r.declaring(c.e.group, name)
-	if g < 0 || c.r.groups[g].decls[name] != "let" {
+	g := declaring(c.r, c.e.Group, name)
+	if g < 0 || c.r.Groups[g].Decls[name] != "let" {
 		return rubyBinding{}, false
 	}
-	body := c.r.groups[g].bodies[name]
+	body := c.r.Groups[g].Bodies[name]
 	switch {
 	case len(body) == 1:
 		t := maskRuby(body[0])
-		open := strings.Index(t.masked, "{")
-		close := strings.LastIndex(t.masked, "}")
-		if open < 0 || close <= open || balanced(t.masked, open) != close {
+		open := strings.Index(t.Masked, "{")
+		close := strings.LastIndex(t.Masked, "}")
+		if open < 0 || close <= open || balanced(t.Masked, open) != close {
 			return rubyBinding{}, false
 		}
-		return rubyBinding{line: t.line, value: t, span: trimSpan(t.masked, open+1, close)}, true
-	case len(body) == 3 && rspecBlockClose.MatchString(body[2].text):
+		return rubyBinding{line: t.Line, value: t, span: trimSpan(t.Masked, open+1, close)}, true
+	case len(body) == 3 && rspecBlockClose.MatchString(body[2].Text):
 		t := maskRuby(body[1])
-		return rubyBinding{line: t.line, value: t, span: [2]int{0, len(t.masked)}}, true
+		return rubyBinding{line: t.Line, value: t, span: [2]int{0, len(t.Masked)}}, true
 	}
 	return rubyBinding{}, false
 }
@@ -464,12 +450,12 @@ func (c *flowContext) receiver(s rubyStub) receiver {
 	case constant(s.recv):
 		return receiver{kind: classify(s.recv), class: s.recv}
 	}
-	b, ok := c.binding(s.recv, s.t.line)
+	b, ok := c.binding(s.recv, s.t.Line)
 	if !ok {
 		return receiver{kind: "unresolved"}
 	}
-	value := b.value.masked[b.span[0]:b.span[1]]
-	raw := b.value.raw[b.span[0]:b.span[1]]
+	value := b.value.Masked[b.span[0]:b.span[1]]
+	raw := b.value.Raw[b.span[0]:b.span[1]]
 	switch {
 	case rspecNewCall.MatchString(value):
 		class := rspecNewCall.FindStringSubmatch(value)[1]
@@ -495,18 +481,18 @@ func (c *flowContext) receiver(s rubyStub) receiver {
 func (c *flowContext) flowFindings(test string) []testvalidity.SourceFinding {
 	r, e := c.r, c.e
 	finding := func(rule string, location, cause int, message string) testvalidity.SourceFinding {
-		return testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.title,
+		return testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.Title,
 			Location: c.at(location), Cause: c.at(cause), Message: message}
 	}
-	lines := append([]rubyLine{}, e.body...)
-	for g := e.group; g >= 0; g = r.groups[g].parent {
-		for _, h := range r.groups[g].hooks {
-			lines = append(lines, h.body...)
+	lines := append([]rubyLine{}, e.Body...)
+	for g := e.Group; g >= 0; g = r.Groups[g].Parent {
+		for _, h := range r.Groups[g].Hooks {
+			lines = append(lines, h.Body...)
 		}
 	}
 	stubs := rubyStubs(lines)
-	slices.SortStableFunc(stubs, func(a, b rubyStub) int { return a.t.line - b.t.line })
-	asserts := rubyAssertions(e.body[1:])
+	slices.SortStableFunc(stubs, func(a, b rubyStub) int { return a.t.Line - b.t.Line })
+	asserts := rubyAssertions(e.Body[1:])
 	onPath, never, notFrom := []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}
 	for _, s := range stubs {
 		rc := c.receiver(s)
@@ -516,20 +502,20 @@ func (c *flowContext) flowFindings(test string) []testvalidity.SourceFinding {
 		unused := !s.expect && !s.anyInstance && !constant(s.recv) && rc.fresh && rc.kind != "subject" && rc.kind != "boundary" && !c.mentioned(s.recv, rc.line)
 		if rc.kind == "first-party" && !unused {
 			if a, action, ok := c.onPath(s, asserts); ok {
-				onPath = append(onPath, finding(testvalidity.RuleStubOnPath, s.t.line, a.t.line, fmt.Sprintf(
+				onPath = append(onPath, finding(testvalidity.RuleStubOnPath, s.t.Line, a.t.Line, fmt.Sprintf(
 					"the first-party collaborator %s is stubbed, and the assertion at %s checks the stub's return value after the action at %s, so it observes the stub instead of the collaborator's behaviour",
-					symbol(s, rc), c.at(a.t.line), c.at(action))))
+					symbol(s, rc), c.at(a.t.Line), c.at(action))))
 			}
 		}
 		if unused {
-			never = append(never, finding(testvalidity.RuleStubNeverInvoked, s.t.line, rc.line, fmt.Sprintf(
+			never = append(never, finding(testvalidity.RuleStubNeverInvoked, s.t.Line, rc.line, fmt.Sprintf(
 				"%s is stubbed on an object the test builds at %s and never hands to any code, so the action cannot invoke the stub; static reading only, a run that records calls would confirm it",
 				symbol(s, rc), c.at(rc.line))))
 		}
 	}
 	for _, a := range asserts {
 		if f, ok := c.notFromSubject(a); ok {
-			notFrom = append(notFrom, finding(testvalidity.RuleAssertedValueNotFromSubject, a.t.line, f.cause, f.message))
+			notFrom = append(notFrom, finding(testvalidity.RuleAssertedValueNotFromSubject, a.t.Line, f.cause, f.message))
 		}
 	}
 	for _, f := range c.blockEnqueues() {
@@ -560,7 +546,7 @@ func (c *flowContext) onPath(s rubyStub, asserts []rubyAssertion) (rubyAssertion
 	call := regexp.MustCompile(`(?:^|[^\w.:])` + regexp.QuoteMeta(s.recv) + `\s*\.\s*` + regexp.QuoteMeta(s.method) + `(?:[^\w?!]|$)`)
 	value, ident := "", false
 	if s.hasValue {
-		value = s.t.squash(s.value[0], s.value[1])
+		value = squash(s.t, s.value[0], s.value[1])
 		ident = regexp.MustCompile(`^[a-z_]\w*$`).MatchString(value)
 		switch value {
 		case "", "nil", "true", "false", "[]", "{}", `""`, "''":
@@ -573,16 +559,16 @@ func (c *flowContext) onPath(s rubyStub, asserts []rubyAssertion) (rubyAssertion
 		}
 		actual := ""
 		if !a.self {
-			actual = a.t.masked[a.actual[0]:a.actual[1]]
+			actual = a.t.Masked[a.actual[0]:a.actual[1]]
 		}
 		if !s.anyInstance && actual != "" && call.MatchString(actual) {
-			return a, a.t.line, true
+			return a, a.t.Line, true
 		}
 		if value == "" || c.action == 0 || !(a.self || c.names(actual)) || a.expected[1] <= a.expected[0] {
 			continue
 		}
-		expected := a.t.squash(a.expected[0], a.expected[1])
-		if expected == value || ident && slices.Contains(rubyWords(a.t.masked[a.expected[0]:a.expected[1]]), value) {
+		expected := squash(a.t, a.expected[0], a.expected[1])
+		if expected == value || ident && slices.Contains(rubyWords(a.t.Masked[a.expected[0]:a.expected[1]]), value) {
 			return a, c.action, true
 		}
 	}
@@ -595,12 +581,12 @@ func (c *flowContext) mentioned(name string, binding int) bool {
 	own := regexp.MustCompile(`\b(?:allow|expect)\s*\(\s*` + regexp.QuoteMeta(name) + `\s*\)\s*\.\s*(?:to|not_to|to_not)\s*\(?\s*(?:receive|have_received)\b`)
 	set := regexp.MustCompile(`^` + regexp.QuoteMeta(name) + `\s*=`)
 	for _, i := range c.scope {
-		t := c.r.flow.text[i]
-		if !slices.Contains(c.r.flow.words[i], name) {
+		t := c.r.Flow.Text[i]
+		if !slices.Contains(c.r.Flow.Words[i], name) {
 			continue
 		}
-		m := own.ReplaceAllString(t.masked, "")
-		if t.line == binding {
+		m := own.ReplaceAllString(t.Masked, "")
+		if t.Line == binding {
 			m = set.ReplaceAllString(m, "")
 		}
 		if slices.Contains(rubyWords(m), name) {
@@ -621,7 +607,7 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 	if a.self || a.negated {
 		return origin{}, false
 	}
-	actual := strings.TrimSpace(a.t.masked[a.actual[0]:a.actual[1]])
+	actual := strings.TrimSpace(a.t.Masked[a.actual[0]:a.actual[1]])
 	if a.actualConstant {
 		if a.matcher != "have_been_enqueued" && a.matcher != "have_enqueued_sidekiq_job" {
 			return origin{}, false
@@ -631,15 +617,15 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 			want, has = a.expected, a.expected[1] > a.expected[0]
 		}
 		before := []rubyLine{}
-		for _, l := range c.e.body[1:] {
-			if l.line < a.t.line {
+		for _, l := range c.e.Body[1:] {
+			if l.Line < a.t.Line {
 				before = append(before, l)
 			}
 		}
 		return c.ownEnqueue(actual, before, a.t, want, has)
 	}
 	roots := map[string]int{}
-	if !c.built(a.t, a.actual, a.t.line, 0, roots) || len(roots) == 0 {
+	if !c.built(a.t, a.actual, a.t.Line, 0, roots) || len(roots) == 0 {
 		return origin{}, false
 	}
 	allowed := map[int]bool{}
@@ -652,33 +638,33 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 	}
 	for name := range roots {
 		for _, i := range c.scope {
-			t := c.r.flow.text[i]
-			if allowed[t.line] || !slices.Contains(c.r.flow.words[i], name) {
+			t := c.r.Flow.Text[i]
+			if allowed[t.Line] || !slices.Contains(c.r.Flow.Words[i], name) {
 				continue
 			}
-			if !c.asserted[t.line] || slices.Contains(rubyWords(assertionResidue(t)), name) {
+			if !c.asserted[t.Line] || slices.Contains(rubyWords(assertionResidue(t)), name) {
 				return origin{}, false
 			}
 		}
 	}
 	return origin{cause: first, message: fmt.Sprintf(
 		"the asserted value %s comes only from values the test builds itself (from %s) and no code under test receives them, so the assertion passes whatever the subject does",
-		strings.TrimSpace(a.t.raw[a.actual[0]:a.actual[1]]), c.at(first))}, true
+		strings.TrimSpace(a.t.Raw[a.actual[0]:a.actual[1]]), c.at(first))}, true
 }
 
 // assertionResidue returns an expectation line's masked text with the leading name of each
 // assertion's actual and expected value blanked: a value an assertion only reads. A name left in
 // the residue is passed to a call, such as `expect(subject.update(invoice))`.
 func assertionResidue(t rubyText) string {
-	b := []byte(t.masked)
+	b := []byte(t.Masked)
 	blank := func(span [2]int) {
-		if loc := rspecIdentifier.FindStringIndex(t.masked[span[0]:span[1]]); loc != nil && strings.TrimSpace(t.masked[span[0]:span[0]+loc[0]]) == "" {
+		if loc := rspecIdentifier.FindStringIndex(t.Masked[span[0]:span[1]]); loc != nil && strings.TrimSpace(t.Masked[span[0]:span[0]+loc[0]]) == "" {
 			for i := span[0] + loc[0]; i < span[0]+loc[1]; i++ {
 				b[i] = ' '
 			}
 		}
 	}
-	for _, a := range rubyAssertions([]rubyLine{{line: t.line, text: t.raw}}) {
+	for _, a := range rubyAssertions([]rubyLine{{Line: t.Line, Text: t.Raw}}) {
 		if !a.self {
 			blank(a.actual)
 		}
@@ -691,8 +677,8 @@ func assertionResidue(t rubyText) string {
 // of rspecBuilder over such values, and names bound to such values, with no subject, constant,
 // persisted read or unresolved name (TSA-V0-126). roots collects each bound name's line.
 func (c *flowContext) built(t rubyText, span [2]int, before, depth int, roots map[string]int) bool {
-	text := strings.TrimSpace(t.masked[span[0]:span[1]])
-	if text == "" || strings.Contains(t.raw[span[0]:span[1]], "#{") || depth > maxFlowDepth || rspecPersisted.MatchString(text) || rspecSelfWords.MatchString(text) || strings.Contains(text, "->") {
+	text := strings.TrimSpace(t.Masked[span[0]:span[1]])
+	if text == "" || strings.Contains(t.Raw[span[0]:span[1]], "#{") || depth > maxFlowDepth || rspecPersisted.MatchString(text) || rspecSelfWords.MatchString(text) || strings.Contains(text, "->") {
 		return false
 	}
 	if loc := rspecBuilder.FindStringIndex(text); loc != nil {
@@ -718,28 +704,28 @@ func (c *flowContext) ownEnqueue(job string, lines []rubyLine, at rubyText, want
 	call := regexp.MustCompile(`(?:^|[^\w:.])` + regexp.QuoteMeta(job) + `(?:\s*\.\s*set\s*\([^()]*\))?\s*\.\s*(perform_later|perform_async|perform_in|perform_at)\b\s*(\()?`)
 	expected := ""
 	if has {
-		expected = at.squash(want[0], want[1])
+		expected = squash(at, want[0], want[1])
 	}
 	for _, l := range lines {
 		t := maskRuby(l)
-		for _, m := range call.FindAllStringSubmatchIndex(t.masked, -1) {
+		for _, m := range call.FindAllStringSubmatchIndex(t.Masked, -1) {
 			args := ""
 			if m[4] >= 0 {
-				close := balanced(t.masked, m[4])
+				close := balanced(t.Masked, m[4])
 				if close < 0 {
 					continue
 				}
-				args = t.squash(m[4]+1, close)
-				if method := t.masked[m[2]:m[3]]; method == "perform_in" || method == "perform_at" {
+				args = squash(t, m[4]+1, close)
+				if method := t.Masked[m[2]:m[3]]; method == "perform_in" || method == "perform_at" {
 					args = dropFirstArg(t, m[4]+1, close)
 				}
 			} else {
-				args = t.squash(m[1], len(t.masked))
+				args = squash(t, m[1], len(t.Masked))
 			}
 			if !has || args == expected {
-				return origin{cause: l.line, message: fmt.Sprintf(
+				return origin{cause: l.Line, message: fmt.Sprintf(
 					"the enqueue expectation on %s is met by the test's own enqueue at %s, so it passes whatever the subject enqueues",
-					job, c.at(l.line))}, true
+					job, c.at(l.Line))}, true
 			}
 		}
 	}
@@ -749,14 +735,14 @@ func (c *flowContext) ownEnqueue(job string, lines []rubyLine, at rubyText, want
 func dropFirstArg(t rubyText, from, to int) string {
 	depth := 0
 	for i := from; i < to; i++ {
-		switch t.masked[i] {
+		switch t.Masked[i] {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
 			depth--
 		case ',':
 			if depth == 0 {
-				return t.squash(i+1, to)
+				return squash(t, i+1, to)
 			}
 		}
 	}
@@ -767,27 +753,27 @@ func dropFirstArg(t rubyText, from, to int) string {
 // have_enqueued_job(Job)` expectations whose block enqueues Job itself.
 func (c *flowContext) blockEnqueues() []origin {
 	out := []origin{}
-	for _, l := range c.e.body[1:] {
+	for _, l := range c.e.Body[1:] {
 		t := maskRuby(l)
-		for _, loc := range rspecBlockJob.FindAllStringIndex(t.masked, -1) {
+		for _, loc := range rspecBlockJob.FindAllStringIndex(t.Masked, -1) {
 			open := loc[1] - 1
-			close := balanced(t.masked, open)
+			close := balanced(t.Masked, open)
 			if close < 0 {
 				continue
 			}
-			m := rspecBlockJobM.FindStringSubmatchIndex(t.masked[close+1:])
+			m := rspecBlockJobM.FindStringSubmatchIndex(t.Masked[close+1:])
 			if m == nil {
 				continue
 			}
-			job := t.masked[close+1+m[2] : close+1+m[3]]
+			job := t.Masked[close+1+m[2] : close+1+m[3]]
 			after := close + 1 + m[1]
 			want, has := [2]int{}, false
-			if w := rspecWith.FindStringIndex(t.masked[after:]); w != nil {
-				if wc := balanced(t.masked, after+w[1]-1); wc > 0 {
+			if w := rspecWith.FindStringIndex(t.Masked[after:]); w != nil {
+				if wc := balanced(t.Masked, after+w[1]-1); wc > 0 {
 					want, has = [2]int{after + w[1], wc}, true
 				}
 			}
-			inner := rubyLine{line: l.line, text: l.text[open+1 : close]}
+			inner := rubyLine{Line: l.Line, Text: l.Text[open+1 : close]}
 			if o, ok := c.ownEnqueue(job, []rubyLine{inner}, t, want, has); ok {
 				out = append(out, o)
 			}

@@ -5,182 +5,43 @@
 package testsource
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/Beamfall/corvint/internal/gitstatus"
-	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 )
 
-const (
-	// MaxFiles bounds the test files one command reads (TSA-V0-012).
-	MaxFiles = 5000
-	// MaxFileBytes bounds one test file.
-	MaxFileBytes = 1 << 20
-	// maxTotalBytes bounds every blob one command reads together.
-	maxTotalBytes = 64 << 20
-	// maxDiffBytes bounds one `git diff` output.
-	maxDiffBytes = 64 << 20
-)
+// MaxFiles is testdiscovery.MaxFiles, kept under its old name.
+const MaxFiles = testdiscovery.MaxFiles
 
-// Error is a refusal with a stable code (TSA-V0-012).
-type Error struct {
-	Code, Message string
-	cause         error
-}
+// MaxFileBytes is testdiscovery.MaxFileBytes, kept under its old name.
+const MaxFileBytes = testdiscovery.MaxFileBytes
 
-func (e *Error) Error() string { return e.Code + ": " + e.Message }
+// maxTotalBytes is testdiscovery.MaxTotalBytes, kept under its old name.
+const maxTotalBytes = testdiscovery.MaxTotalBytes
 
-// Unwrap names the process refusal behind a platform-refused Git read (V1-2487).
-func (e *Error) Unwrap() error { return e.cause }
+// maxDiffBytes is testdiscovery.MaxDiffBytes, kept under its old name.
+const maxDiffBytes = testdiscovery.MaxDiffBytes
 
-// runGit runs one Git read; tests replace it to force a process outcome.
-var runGit = procgroup.Run
+// Error is testdiscovery.Error, kept under its old name.
+type Error = testdiscovery.Error
 
-// platformRefusal reports a Git read refused by the platform, not by its input (PRS-V1-021,
-// V1-2487); it wraps the procgroup refusal so the platform-refusal list names it.
-func platformRefusal() error {
-	return &Error{Code: "tests-source-unavailable", Message: "Git reads are unsupported on this platform: process-platform-unsupported",
-		cause: procgroup.ErrPlatformUnsupported}
-}
-
+// refuse is testdiscovery.Refuse, kept under its old name.
 func refuse(code, format string, args ...any) error {
-	return &Error{Code: code, Message: fmt.Sprintf(format, args...)}
+	return testdiscovery.Refuse(code, format, args...)
 }
 
-// Repo reads committed objects of one repository.
-type Repo struct {
-	ctx  context.Context
-	root string
-}
+// Repo is testdiscovery.Repo, kept under its old name.
+type Repo = testdiscovery.Repo
 
-// OpenRepo binds a repository root.
-func OpenRepo(ctx context.Context, root string) Repo { return Repo{ctx: ctx, root: root} }
+// OpenRepo is testdiscovery.OpenRepo, kept under its old name.
+func OpenRepo(ctx context.Context, root string) Repo { return testdiscovery.OpenRepo(ctx, root) }
 
-func (r Repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
-	gitPath := gitstatus.Executable()
-	if !filepath.IsAbs(gitPath) {
-		return nil, refuse("tests-source-unavailable", "Git is unavailable")
-	}
-	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.quotePath=false",
-		"-c", "credential.helper=", "-C", r.root}, args...)
-	o := runGit(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
-		Timeout: 120 * time.Second, OutputLimit: limit})
-	if errors.Is(o.Err, procgroup.ErrPlatformUnsupported) {
-		return nil, platformRefusal()
-	}
-	if o.Err != nil || o.ExitStatus != 0 {
-		return nil, refuse("tests-source-unavailable", "a Git read failed")
-	}
-	return o.Stdout, nil
-}
-
-// Resolve names the full commit a revision denotes.
-func (r Repo) Resolve(revision string) (string, error) {
-	if revision == "" || strings.HasPrefix(revision, "-") || strings.ContainsAny(revision, "\x00\n\r") {
-		return "", refuse("tests-invalid-revision", "the revision is not a commit")
-	}
-	out, err := r.git(4096, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
-	if errors.Is(err, procgroup.ErrPlatformUnsupported) {
-		return "", err
-	}
-	if err != nil {
-		return "", refuse("tests-invalid-revision", "the revision is not a commit")
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-// entry is one committed regular file.
-type entry struct {
-	path, oid string
-	size      int
-}
-
-// tree lists the committed regular files at rev that keep reports true (symlinks and submodules
-// are never followed). More than limit kept files refuses.
-func (r Repo) tree(rev string, keep func(string) bool, limit int) ([]entry, error) {
-	out, err := r.git(maxDiffBytes, nil, "ls-tree", "-r", "-z", "-l", "--full-tree", rev)
-	if err != nil {
-		return nil, err
-	}
-	entries := []entry{}
-	for _, line := range bytes.Split(bytes.TrimSuffix(out, []byte{0}), []byte{0}) {
-		if len(line) == 0 {
-			continue
-		}
-		meta, name, ok := strings.Cut(string(line), "\t")
-		fields := strings.Fields(meta)
-		if !ok || len(fields) != 4 {
-			return nil, refuse("tests-source-unavailable", "the tree is unreadable")
-		}
-		if fields[1] != "blob" || (fields[0] != "100644" && fields[0] != "100755") || !keep(name) {
-			continue
-		}
-		size, err := strconv.Atoi(fields[3])
-		if err != nil {
-			return nil, refuse("tests-source-unavailable", "the tree is unreadable")
-		}
-		entries = append(entries, entry{path: name, oid: fields[2], size: size})
-		if len(entries) > limit {
-			return nil, refuse("tests-bound-exceeded", "more than %d test files in all", MaxFiles)
-		}
-	}
-	return entries, nil
-}
-
-// blobs reads every entry through one `git cat-file --batch`, checking each size bound and that the
-// entries' unique blobs fit in limit bytes; it returns the bytes they count against that limit.
-func (r Repo) blobs(entries []entry, limit int) (map[string][]byte, int, error) {
-	out := map[string][]byte{}
-	if len(entries) == 0 {
-		return out, 0, nil
-	}
-	sum, request, unique := 0, &bytes.Buffer{}, map[string]bool{}
-	for _, e := range entries {
-		if e.size > MaxFileBytes {
-			return nil, 0, refuse("tests-bound-exceeded", "%s exceeds %d bytes", e.path, MaxFileBytes)
-		}
-		if !unique[e.oid] {
-			unique[e.oid] = true
-			sum += e.size + 128
-			request.WriteString(e.oid + "\n")
-		}
-	}
-	if sum > limit {
-		return nil, 0, refuse("tests-bound-exceeded", "test sources exceed %d bytes", maxTotalBytes)
-	}
-	raw, err := r.git(sum+1024, request.Bytes(), "cat-file", "--batch")
-	if err != nil {
-		return nil, 0, err
-	}
-	for len(raw) > 0 {
-		header, rest, ok := bytes.Cut(raw, []byte{'\n'})
-		fields := strings.Fields(string(header))
-		if !ok || len(fields) != 3 || fields[1] != "blob" {
-			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
-		}
-		size, err := strconv.Atoi(fields[2])
-		if err != nil || size+1 > len(rest) {
-			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
-		}
-		out[fields[0]] = rest[:size]
-		raw = rest[size+1:]
-	}
-	for oid := range unique {
-		if _, ok := out[oid]; !ok {
-			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
-		}
-	}
-	return out, sum, nil
-}
+// entry is testdiscovery.Entry, kept under its old name.
+type entry = testdiscovery.Entry
 
 // readBudget is what remains of one command's file and byte bounds; every read of the command
 // draws on the same budget, so the aggregate never exceeds MaxFiles files or maxTotalBytes bytes
@@ -190,17 +51,17 @@ type readBudget struct{ files, bytes int }
 func newReadBudget() *readBudget { return &readBudget{files: MaxFiles, bytes: maxTotalBytes} }
 
 // readFiles reads the kept committed files at rev, keyed by path, within a fresh budget.
-func (r Repo) readFiles(rev string, keep func(string) bool) (map[string]string, map[string]string, error) {
-	return r.readFilesWithin(rev, keep, newReadBudget())
+func readFiles(r Repo, rev string, keep func(string) bool) (map[string]string, map[string]string, error) {
+	return readFilesWithin(r, rev, keep, newReadBudget())
 }
 
 // readFilesWithin reads the kept committed files at rev and charges them to budget.
-func (r Repo) readFilesWithin(rev string, keep func(string) bool, budget *readBudget) (map[string]string, map[string]string, error) {
-	entries, err := r.tree(rev, keep, budget.files)
+func readFilesWithin(r Repo, rev string, keep func(string) bool, budget *readBudget) (map[string]string, map[string]string, error) {
+	entries, err := r.Tree(rev, keep, budget.files)
 	if err != nil {
 		return nil, nil, err
 	}
-	data, used, err := r.blobs(entries, budget.bytes)
+	data, used, err := r.Blobs(entries, budget.bytes)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -208,7 +69,7 @@ func (r Repo) readFilesWithin(rev string, keep func(string) bool, budget *readBu
 	budget.bytes -= used
 	texts, oids := map[string]string{}, map[string]string{}
 	for _, e := range entries {
-		texts[e.path], oids[e.path] = string(data[e.oid]), e.oid
+		texts[e.Path], oids[e.Path] = string(data[e.Oid]), e.Oid
 	}
 	return texts, oids, nil
 }
@@ -241,8 +102,8 @@ var diffArgs = []string{"diff", "--no-ext-diff", "--no-color", "--no-renames", "
 // changedLines returns, for every file added or modified from base to rev that keep accepts, what
 // the diff changed. Paths come from a NUL-delimited inventory; every patch header must decode to an
 // inventory path. A rename is a delete and an add.
-func (r Repo) changedLines(base, rev string, keep func(string) bool) (map[string]*lineChanges, error) {
-	inventory, err := r.git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--name-only", "-z", base, rev)...)
+func changedLines(r Repo, base, rev string, keep func(string) bool) (map[string]*lineChanges, error) {
+	inventory, err := r.Git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--name-only", "-z", base, rev)...)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +123,7 @@ func (r Repo) changedLines(base, rev string, keep func(string) bool) (map[string
 	if len(changed) == 0 {
 		return changed, nil
 	}
-	out, err := r.git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--unified=0", base, rev)...)
+	out, err := r.Git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--unified=0", base, rev)...)
 	if err != nil {
 		return nil, err
 	}
@@ -357,17 +218,17 @@ func hunkRange(text string) (int, int, bool) {
 }
 
 // readOne reads one committed regular file at rev, or reports it absent.
-func (r Repo) readOne(rev, name string, limit int) ([]byte, bool, error) {
-	data, _, found, err := r.readOneBlob(rev, name, limit)
+func readOne(r Repo, rev, name string, limit int) ([]byte, bool, error) {
+	data, _, found, err := readOneBlob(r, rev, name, limit)
 	return data, found, err
 }
 
 // readOneBlob is readOne that also returns the file's Git blob ID (TSA-V0-414).
-func (r Repo) readOneBlob(rev, name string, limit int) ([]byte, string, bool, error) {
+func readOneBlob(r Repo, rev, name string, limit int) ([]byte, string, bool, error) {
 	if name == "" || strings.ContainsAny(name, "\x00\n\r") {
 		return nil, "", false, errors.New("invalid path")
 	}
-	out, err := r.git(1<<16, nil, "ls-tree", "-z", "-l", "--full-tree", rev, "--", name)
+	out, err := r.Git(1<<16, nil, "ls-tree", "-z", "-l", "--full-tree", rev, "--", name)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -383,34 +244,18 @@ func (r Repo) readOneBlob(rev, name string, limit int) ([]byte, string, bool, er
 	if err != nil || size > limit {
 		return nil, "", false, refuse("tests-bound-exceeded", "%s exceeds %d bytes", name, limit)
 	}
-	data, _, err := r.blobs([]entry{{path: name, oid: fields[2], size: size}}, maxTotalBytes)
+	data, _, err := r.Blobs([]entry{{Path: name, Oid: fields[2], Size: size}}, maxTotalBytes)
 	if err != nil {
 		return nil, "", false, err
 	}
 	return data[fields[2]], fields[2], true, nil
 }
 
-var webExtensions = map[string]bool{".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}
+// webExtensions is testdiscovery.WebExtensions, kept under its old name.
+var webExtensions = testdiscovery.WebExtensions
 
-// IsTestFile reports a JavaScript or TypeScript test file: a base name holding `.spec.` or
-// `.test.` before its extension, or any such file under a `__tests__` directory, which Jest's
-// default testMatch selects (TSA-V0-010, TSA-V0-388). Every JS/TS test-source reader shares it.
-func IsTestFile(name string) bool {
-	extension := path.Ext(name)
-	if !webExtensions[extension] {
-		return false
-	}
-	stem := strings.TrimSuffix(path.Base(name), extension)
-	if strings.HasSuffix(stem, ".spec") || strings.HasSuffix(stem, ".test") {
-		return true
-	}
-	for _, segment := range strings.Split(path.Dir(name), "/") {
-		if segment == "__tests__" {
-			return true
-		}
-	}
-	return false
-}
+// IsTestFile is testdiscovery.IsTestFile, kept under its old name.
+func IsTestFile(name string) bool { return testdiscovery.IsTestFile(name) }
 
 // IsPageObjectFile reports a JavaScript or TypeScript page object: a file under a directory named
 // pages, page-objects, pageobjects or pom, or whose base name ends in `.page` or `Page`.

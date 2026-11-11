@@ -147,30 +147,30 @@ type testCase struct {
 // (TSA-V0-020). A test whose id repeats in its file gets a ` [n]` suffix.
 func extractTests(s *source) []testCase {
 	out, seen := []testCase{}, map[string]int{}
-	for _, d := range s.decls {
-		if d.kind != "test" || d.modifiers["skip"] || d.modifiers["fixme"] || !s.callback(d.body) {
+	for _, d := range s.Decls {
+		if d.Kind != "test" || d.Modifiers["skip"] || d.Modifiers["fixme"] || !s.Callback(d.Body) {
 			continue
 		}
-		titles := append(s.describes(d), d.title)
-		id := s.path + " :: " + strings.Join(titles, " > ")
+		titles := append(describes(s, d), d.Title)
+		id := s.Path + " :: " + strings.Join(titles, " > ")
 		if seen[id]++; seen[id] > 1 {
 			id += fmt.Sprintf(" [%d]", seen[id])
 		}
 		lines, unique := []string{}, map[string]bool{}
-		for i := d.body[0]; i < d.body[1]; i++ {
-			chain, ok := s.readExpect(i)
+		for i := d.Body[0]; i < d.Body[1]; i++ {
+			chain, ok := s.ReadExpect(i)
 			if !ok {
 				continue
 			}
-			line := s.render(i, chain.end+1)
+			line := s.Render(i, chain.End+1)
 			if !unique[line] {
 				unique[line] = true
 				lines = append(lines, line)
 			}
-			i = chain.end
+			i = chain.End
 		}
 		sort.Strings(lines)
-		out = append(out, testCase{id: id, path: s.path, line: d.line, end: d.endLine, assertions: lines})
+		out = append(out, testCase{id: id, path: s.Path, line: d.Line, end: d.EndLine, assertions: lines})
 	}
 	return out
 }
@@ -195,15 +195,15 @@ func Duplicates(r Repo, options DuplicatesOptions) (DuplicatesReport, error) {
 		if report.Base, err = r.Resolve(options.Base); err != nil {
 			return DuplicatesReport{}, err
 		}
-		if changed, err = r.changedLines(report.Base, revision, IsTestFile); err != nil {
+		if changed, err = changedLines(r, report.Base, revision, IsTestFile); err != nil {
 			return DuplicatesReport{}, err
 		}
 	}
-	texts, blobs, err := r.readFiles(revision, IsTestFile)
+	texts, blobs, err := readFiles(r, revision, IsTestFile)
 	if err != nil {
 		return DuplicatesReport{}, err
 	}
-	committed, err := r.readDecisions(revision)
+	committed, err := readDecisions(r, revision)
 	if err != nil {
 		return DuplicatesReport{}, err
 	}
@@ -231,7 +231,7 @@ func Duplicates(r Repo, options DuplicatesOptions) (DuplicatesReport, error) {
 	tests := []testCase{}
 	for _, name := range paths {
 		s := parseSource(name, texts[name])
-		if s.uncertain {
+		if s.Uncertain {
 			report.Uncertain = append(report.Uncertain, name)
 		}
 		tests = append(tests, extractTests(s)...)
@@ -419,8 +419,8 @@ func validDecisionTime(value string) bool {
 
 // readDecisions reads the committed decision file at revision; an absent file is no decisions and
 // a malformed one refuses (TSA-V0-022).
-func (r Repo) readDecisions(revision string) ([]Decision, error) {
-	data, ok, err := r.readOne(revision, DecisionsPath, maxDecisionBytes)
+func readDecisions(r Repo, revision string) ([]Decision, error) {
+	data, ok, err := readOne(r, revision, DecisionsPath, maxDecisionBytes)
 	if err != nil {
 		return nil, err
 	}

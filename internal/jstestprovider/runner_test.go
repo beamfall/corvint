@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -114,17 +115,17 @@ func TestRunUnit_StaleCallerOutputFileIsNotReadBack(t *testing.T) {
 // (4 MiB): a report between the two sizes must not overflow under the
 // unit-path bound while it would under the external one.
 func TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders(t *testing.T) {
-	if unitReportOutputLimit < externalOutputLimit {
-		t.Fatalf("unitReportOutputLimit = %d must be at least externalOutputLimit = %d", unitReportOutputLimit, externalOutputLimit)
+	if unitReportOutputLimit < jstestreceipt.ExternalOutputLimit {
+		t.Fatalf("unitReportOutputLimit = %d must be at least externalOutputLimit = %d", unitReportOutputLimit, jstestreceipt.ExternalOutputLimit)
 	}
 	path := filepath.Join(t.TempDir(), "report.json")
-	oversizedForExternal := bytes.Repeat([]byte("x"), externalOutputLimit+1)
+	oversizedForExternal := bytes.Repeat([]byte("x"), jstestreceipt.ExternalOutputLimit+1)
 	writeFile(t, path, string(oversizedForExternal))
 
 	if _, err := readBoundedReport(path, unitReportOutputLimit); err != nil {
 		t.Fatalf("report within the unit bound unexpectedly refused: %v", err)
 	}
-	if _, err := readBoundedReport(path, externalOutputLimit); err == nil || err.Error() != "report-output-overflow" {
+	if _, err := readBoundedReport(path, jstestreceipt.ExternalOutputLimit); err == nil || err.Error() != "report-output-overflow" {
 		t.Fatalf("want report-output-overflow under the external bound, got err=%v", err)
 	}
 }

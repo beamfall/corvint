@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -15,15 +16,15 @@ import (
 // receipts and freshness both admit from it, so a row change moves both.
 func TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable(t *testing.T) {
 	exact := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
-	for _, row := range admittedRuntimeTuples {
-		if !exact.MatchString(row.runner) || !strings.HasPrefix(row.node, "v") || !exact.MatchString(row.node[1:]) || (row.source != BrowserSourceBundled && row.source != BrowserSourceSystem) {
+	for _, row := range jstestreceipt.AdmittedRuntimeTuples {
+		if !exact.MatchString(row.Runner) || !strings.HasPrefix(row.Node, "v") || !exact.MatchString(row.Node[1:]) || (row.Source != BrowserSourceBundled && row.Source != BrowserSourceSystem) {
 			t.Fatalf("row is not an exact tuple: %+v", row)
 		}
-		if isExternalProfile(row.profile) && ReceiptRuntimeTuple(Receipt{Profile: row.profile, Identity: Identity{RunnerVersion: row.runner, NodeVersion: row.node}}) != RuntimeTupleCandidate {
+		if jstestreceipt.IsExternalProfile(row.Profile) && ReceiptRuntimeTuple(Receipt{Profile: row.Profile, Identity: Identity{RunnerVersion: row.Runner, NodeVersion: row.Node}}) != RuntimeTupleCandidate {
 			t.Fatalf("receipt classification disagrees with row %+v", row)
 		}
 	}
-	if runtimeTupleAdmitted(FreshnessProfile, "1.63.0", qualifiedNodeVersion, BrowserSourceBundled) || runtimeTupleAdmitted(FreshnessProfile, "1.64.0", admittedBundledNodeVersion, BrowserSourceBundled) || runtimeTupleAdmitted(FreshnessProfile, "1.64.0", qualifiedNodeVersion, BrowserSourceSystem) {
+	if jstestreceipt.RuntimeTupleAdmitted(FreshnessProfile, "1.63.0", jstestreceipt.QualifiedNodeVersion, BrowserSourceBundled) || jstestreceipt.RuntimeTupleAdmitted(FreshnessProfile, "1.64.0", jstestreceipt.AdmittedBundledNodeVersion, BrowserSourceBundled) || jstestreceipt.RuntimeTupleAdmitted(FreshnessProfile, "1.64.0", jstestreceipt.QualifiedNodeVersion, BrowserSourceSystem) {
 		t.Fatal("freshness admitted a tuple without a live freshness run")
 	}
 	current := func(r Receipt) string { return ReceiptTestProjection(r, r.Tests[0]).Freshness.State }
@@ -33,20 +34,20 @@ func TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable(t *testing.T) {
 		r.Identity.NodeVersion = node
 		r.Freshness.IdentityAfter = &r.Identity
 		r.Tests[0].Project.Use = []byte(strings.Replace(string(r.Tests[0].Project.Use), `"nodeVersion":"v22.23.3"`, `"nodeVersion":"`+node+`"`, 1))
-		r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+		r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 		return r
 	}
-	if got := current(onNode(qualifiedNodeVersion)); got != testvalidity.FreshnessUnknown {
+	if got := current(onNode(jstestreceipt.QualifiedNodeVersion)); got != testvalidity.FreshnessUnknown {
 		t.Fatalf("freshness on an unadmitted Node read %s", got)
 	}
-	saved := admittedRuntimeTuples
-	t.Cleanup(func() { admittedRuntimeTuples = saved })
-	admittedRuntimeTuples = append(slices.Clone(saved), admittedRuntimeTuple{FreshnessProfile, "1.63.0", qualifiedNodeVersion, BrowserSourceBundled})
-	requireFreshCurrent(t, current(onNode(qualifiedNodeVersion)), "freshness admitted from the shared table")
-	admittedRuntimeTuples = slices.DeleteFunc(slices.Clone(saved), func(row admittedRuntimeTuple) bool {
-		return row.profile == ExternalProfile && row.runner == "1.64.0" && row.node == admittedBundledNodeVersion
+	saved := jstestreceipt.AdmittedRuntimeTuples
+	t.Cleanup(func() { jstestreceipt.AdmittedRuntimeTuples = saved })
+	jstestreceipt.AdmittedRuntimeTuples = append(slices.Clone(saved), jstestreceipt.AdmittedRuntimeTuple{Profile: FreshnessProfile, Runner: "1.63.0", Node: jstestreceipt.QualifiedNodeVersion, Source: BrowserSourceBundled})
+	requireFreshCurrent(t, current(onNode(jstestreceipt.QualifiedNodeVersion)), "freshness admitted from the shared table")
+	jstestreceipt.AdmittedRuntimeTuples = slices.DeleteFunc(slices.Clone(saved), func(row jstestreceipt.AdmittedRuntimeTuple) bool {
+		return row.Profile == ExternalProfile && row.Runner == "1.64.0" && row.Node == jstestreceipt.AdmittedBundledNodeVersion
 	})
-	if got := ReceiptRuntimeTuple(Receipt{Profile: ExternalProfile, Identity: Identity{RunnerVersion: "1.64.0", NodeVersion: admittedBundledNodeVersion}}); got != RuntimeTupleUnqualified {
+	if got := ReceiptRuntimeTuple(Receipt{Profile: ExternalProfile, Identity: Identity{RunnerVersion: "1.64.0", NodeVersion: jstestreceipt.AdmittedBundledNodeVersion}}); got != RuntimeTupleUnqualified {
 		t.Fatalf("receipt did not admit from the shared table: %s", got)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testplatform"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -79,7 +80,7 @@ func TestASDV02235FreshnessFailsClosedOnWindows(t *testing.T) {
 	if got := ReceiptTestProjection(r, r.Tests[0]).Freshness.State; got == testvalidity.FreshnessCurrent {
 		t.Fatalf("native Windows projected %s", got)
 	}
-	if freshManifestComplete(r.Freshness.Dependencies) {
+	if jstestreceipt.FreshManifestComplete(r.Freshness.Dependencies) {
 		t.Fatal("native Windows admitted a POSIX dependency manifest")
 	}
 }

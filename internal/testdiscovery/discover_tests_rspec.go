@@ -1,4 +1,4 @@
-package testsource
+package testdiscovery
 
 import (
 	"regexp"
@@ -8,10 +8,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/lineanchor"
 )
-
-// The RSpec half of the static test discovery (DCX-V1-371..376). It reuses the TSA-V0-048
-// logical-line reader (rspecReader) for groups, examples, inclusions and hooks; facts are read
-// from string-masked logical lines so a quoted description never reads as code.
 
 var (
 	rspecWordHead      = regexp.MustCompile(`^(?:RSpec\.)?\w+[?!]?`)
@@ -35,7 +31,7 @@ var (
 
 type rspecDiscovery struct {
 	f        *discoveryFile
-	r        *rspecReader
+	r        *RSpecReader
 	ids      map[int]string // example index to scoped id
 	idReason map[int]string
 	requires []int // indexes of require and require_relative lines
@@ -43,19 +39,19 @@ type rspecDiscovery struct {
 
 // discoverRSpec reads one RSpec file and returns "" or the reader's uncertainty reason.
 func (f *discoveryFile) discoverRSpec() string {
-	r := newRSpecReader(f.path, f.text)
-	if reason := r.read(); reason != "" {
+	r := NewRSpecReader(f.path, f.text)
+	if reason := r.Read(); reason != "" {
 		f.unknown("", reason, "the RSpec reader could not balance or bound the file's blocks, so no example is read", 0, 0)
 		return reason
 	}
 	d := &rspecDiscovery{f: f, r: r, ids: map[int]string{}, idReason: map[int]string{}}
 	d.assignIDs()
-	for i, l := range r.lines {
-		if rspecRequire.MatchString(l.text) {
+	for i, l := range r.Lines {
+		if rspecRequire.MatchString(l.Text) {
 			d.requires = append(d.requires, i)
 		}
 	}
-	for k := range r.examples {
+	for k := range r.Examples {
 		d.example(k)
 	}
 	return ""
@@ -65,10 +61,10 @@ func (f *discoveryFile) discoverRSpec() string {
 // line, with trailing blank and comment lines dropped.
 func (d *rspecDiscovery) physicalEnd(i int) int {
 	end := d.f.index.Lines()
-	if i+1 < len(d.r.lines) {
-		end = d.r.lines[i+1].line - 1
+	if i+1 < len(d.r.Lines) {
+		end = d.r.Lines[i+1].Line - 1
 	}
-	start := d.r.lines[i].line
+	start := d.r.Lines[i].Line
 	for end > start {
 		t := strings.TrimSpace(d.f.index.Line(end))
 		if t != "" && !strings.HasPrefix(t, "#") {
@@ -83,47 +79,47 @@ func (d *rspecDiscovery) physicalEnd(i int) int {
 func (d *rspecDiscovery) assignIDs() {
 	r := d.r
 	n, blocked := 0, ""
-	for _, item := range r.children(0) {
-		if item.group < 0 && (item.include < 0 || !r.includes[item.include].nests()) {
+	for _, item := range r.Children(0) {
+		if item.Group < 0 && (item.Include < 0 || !r.Includes[item.Include].Nests()) {
 			continue
 		}
-		if item.loop && blocked == "" {
-			blocked = discoverReasonScopedLoop
+		if item.Loop && blocked == "" {
+			blocked = DiscoverReasonScopedLoop
 		}
 		n++
 		d.assignItem(item, strconv.Itoa(n), blocked)
 	}
 }
 
-func (d *rspecDiscovery) assignItem(item rspecItem, id, blocked string) {
+func (d *rspecDiscovery) assignItem(item RSpecItem, id, blocked string) {
 	r := d.r
 	switch {
-	case item.example >= 0:
+	case item.Example >= 0:
 		if blocked != "" {
-			d.idReason[item.example] = blocked
+			d.idReason[item.Example] = blocked
 		} else {
-			d.ids[item.example] = id
+			d.ids[item.Example] = id
 		}
-	case item.group >= 0:
-		d.assignGroup(item.group, id, blocked)
-	case item.include >= 0 && r.includes[item.include].nested >= 0:
+	case item.Group >= 0:
+		d.assignGroup(item.Group, id, blocked)
+	case item.Include >= 0 && r.Includes[item.Include].Nested >= 0:
 		// The customization block's examples follow the shared body's, whose size is not read.
 		if blocked == "" {
 			blocked = discoverReasonScopedShared
 		}
-		d.assignGroup(r.includes[item.include].nested, id, blocked)
+		d.assignGroup(r.Includes[item.Include].Nested, id, blocked)
 	}
 }
 
 func (d *rspecDiscovery) assignGroup(g int, prefix, blocked string) {
 	r := d.r
 	n := 0
-	for _, kid := range r.children(g) {
-		if kid.loop && blocked == "" {
-			blocked = discoverReasonScopedLoop
+	for _, kid := range r.Children(g) {
+		if kid.Loop && blocked == "" {
+			blocked = DiscoverReasonScopedLoop
 		}
-		if kid.include >= 0 && !r.includes[kid.include].nests() {
-			slots, reason := d.sharedSlots(r.includes[kid.include], map[int]bool{})
+		if kid.Include >= 0 && !r.Includes[kid.Include].Nests() {
+			slots, reason := d.sharedSlots(r.Includes[kid.Include], map[int]bool{})
 			if reason != "" {
 				if blocked == "" {
 					blocked = reason
@@ -142,21 +138,21 @@ func (d *rspecDiscovery) assignGroup(g int, prefix, blocked string) {
 // group or nesting inclusion in the shared body, and an inline inclusion's own slots, counted
 // through the same rule. A loop-generated child, or an inclusion whose definition is not one
 // same-file group (or includes itself), leaves the count unknown, with its reason.
-func (d *rspecDiscovery) sharedSlots(inc rspecInclude, active map[int]bool) (int, string) {
+func (d *rspecDiscovery) sharedSlots(inc RSpecInclude, active map[int]bool) (int, string) {
 	r := d.r
 	def, ok := d.definition(inc)
 	if !ok || active[def] {
-		return 0, discoverReasonScopedInline
+		return 0, DiscoverReasonScopedInline
 	}
 	active[def] = true
 	defer delete(active, def)
 	n := 0
-	for _, kid := range r.children(def) {
-		if kid.loop {
-			return 0, discoverReasonScopedLoop
+	for _, kid := range r.Children(def) {
+		if kid.Loop {
+			return 0, DiscoverReasonScopedLoop
 		}
-		if kid.include >= 0 && !r.includes[kid.include].nests() {
-			slots, reason := d.sharedSlots(r.includes[kid.include], active)
+		if kid.Include >= 0 && !r.Includes[kid.Include].Nests() {
+			slots, reason := d.sharedSlots(r.Includes[kid.Include], active)
 			if reason != "" {
 				return 0, reason
 			}
@@ -174,16 +170,16 @@ func headArgs(head string) string {
 }
 
 // definition is the one same-file shared group definition inclusion inc names.
-func (d *rspecDiscovery) definition(inc rspecInclude) (int, bool) {
-	if !inc.literal {
+func (d *rspecDiscovery) definition(inc RSpecInclude) (int, bool) {
+	if !inc.Literal {
 		return 0, false
 	}
 	found := -1
-	for k, g := range d.r.groups {
-		if k == 0 || !sharedDefinitionWords[declarator(g.head)] {
+	for k, g := range d.r.Groups {
+		if k == 0 || !SharedDefinitionWords[Declarator(g.Head)] {
 			continue
 		}
-		if name, ok := sharedName(headArgs(g.head)); ok && name == inc.name {
+		if name, ok := SharedName(headArgs(g.Head)); ok && name == inc.Name {
 			if found >= 0 {
 				return 0, false
 			}
@@ -196,7 +192,7 @@ func (d *rspecDiscovery) definition(inc rspecInclude) (int, bool) {
 // chain is example group g and its enclosing groups, innermost first, the file root excluded.
 func (d *rspecDiscovery) chain(g int) []int {
 	out := []int{}
-	for ; g > 0; g = d.r.groups[g].parent {
+	for ; g > 0; g = d.r.Groups[g].Parent {
 		out = append(out, g)
 	}
 	return out
@@ -204,16 +200,16 @@ func (d *rspecDiscovery) chain(g int) []int {
 
 func (d *rspecDiscovery) example(k int) {
 	f, r := d.f, d.r
-	e := r.examples[k]
-	last := e.index + len(e.body) - 1
-	out, ok := f.newExample(e.line, d.physicalEnd(last))
+	e := r.Examples[k]
+	last := e.Index + len(e.Body) - 1
+	out, ok := f.newExample(e.Line, d.physicalEnd(last))
 	if !ok {
 		return
 	}
-	chain := d.chain(e.group)
+	chain := d.chain(e.Group)
 	shared := false
 	for _, g := range chain {
-		shared = shared || sharedDefinitionWords[declarator(r.groups[g].head)]
+		shared = shared || SharedDefinitionWords[Declarator(r.Groups[g].Head)]
 	}
 	out.Identity = ExampleIdentity{Kind: ExampleIdentityRSpec, File: f.path}
 	if id, ok := d.ids[k]; ok {
@@ -223,41 +219,41 @@ func (d *rspecDiscovery) example(k int) {
 		if reason == "" {
 			reason = discoverReasonScopedUnplaced
 			if shared {
-				reason = discoverReasonSharedDefinition
+				reason = DiscoverReasonSharedDefinition
 			}
 		}
 		out.Identity.Unknown = reason
-		f.unknown(out.ID, reason, "the source does not fix the example's RSpec scoped id", e.line, e.line)
+		f.unknown(out.ID, reason, "the source does not fix the example's RSpec scoped id", e.Line, e.Line)
 	}
-	if titles := r.titlePath(e); shared {
+	if titles := r.TitlePath(e); shared {
 		// The including group's description prefixes the title, so it is not fixed here.
-		out.TitleUnknown = discoverReasonSharedDefinition
+		out.TitleUnknown = DiscoverReasonSharedDefinition
 	} else if titles == nil {
-		out.TitleUnknown = discoverReasonTitleNotLiteral
-		f.unknown(out.ID, discoverReasonTitleNotLiteral, "a description on the example's path is not one literal string or constant", e.line, e.line)
+		out.TitleUnknown = DiscoverReasonTitleNotLiteral
+		f.unknown(out.ID, DiscoverReasonTitleNotLiteral, "a description on the example's path is not one literal string or constant", e.Line, e.Line)
 	} else {
 		out.Identity.FullName = strings.Join(titles, " ")
 		lines := []int{}
 		for _, g := range chain {
-			lines = append(lines, r.groups[g].line)
+			lines = append(lines, r.Groups[g].Line)
 		}
 		slices.Reverse(lines)
-		lines = append(lines, e.line)
+		lines = append(lines, e.Line)
 		for i, title := range titles {
 			a, _ := f.anchor(lines[i], lines[i], "static test discovery title")
 			out.TitlePath = append(out.TitlePath, DiscoveredTitle{Title: title, Evidence: a})
 		}
 	}
 	for i := len(chain) - 1; i >= 0; i-- {
-		g := r.groups[chain[i]]
-		word := declarator(g.head)
-		if sharedDefinitionWords[word] || word == "it_behaves_like" || word == "it_should_behave_like" {
+		g := r.Groups[chain[i]]
+		word := Declarator(g.Head)
+		if SharedDefinitionWords[word] || word == "it_behaves_like" || word == "it_should_behave_like" {
 			continue
 		}
-		d.declFacts(&out, g.index)
+		d.declFacts(&out, g.Index)
 	}
-	d.declFacts(&out, e.index)
-	d.skipStatements(&out, e.index, e.body)
+	d.declFacts(&out, e.Index)
+	d.skipStatements(&out, e.Index, e.Body)
 	chainSet := map[int]bool{0: true}
 	for _, g := range chain {
 		chainSet[g] = true
@@ -268,8 +264,8 @@ func (d *rspecDiscovery) example(k int) {
 		}
 		d.hook(&out, h)
 	}
-	d.expectations(&out, e.index, e.body)
-	d.navigations(&out, e.index, e.body, "example")
+	d.expectations(&out, e.Index, e.Body)
+	d.navigations(&out, e.Index, e.Body, "example")
 	d.reaches(&out, chainSet)
 	f.capFacts(&out)
 	f.out.Examples = append(f.out.Examples, out)
@@ -278,10 +274,10 @@ func (d *rspecDiscovery) example(k int) {
 // declFacts adds the metadata tags and annotations of the declaring line at index i.
 func (d *rspecDiscovery) declFacts(out *DiscoveredExample, i int) {
 	f, r := d.f, d.r
-	text := r.lines[i].text
-	masked := maskRubyStrings(text)
-	where, _ := f.anchor(r.lines[i].line, r.lines[i].line, "static test discovery declaration")
-	word := declarator(text)
+	text := r.Lines[i].Text
+	masked := MaskRubyStrings(text)
+	where, _ := f.anchor(r.Lines[i].Line, r.Lines[i].Line, "static test discovery declaration")
+	word := Declarator(text)
 	switch {
 	case rspecSkipWords[word]:
 		out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: "skip", Evidence: where})
@@ -306,7 +302,7 @@ func (d *rspecDiscovery) declFacts(out *DiscoveredExample, i int) {
 			}
 		}
 		for _, p := range pairs {
-			d.metadataArg(out, p[0], p[1], where, r.lines[i].line)
+			d.metadataArg(out, p[0], p[1], where, r.Lines[i].Line)
 		}
 	}
 }
@@ -320,14 +316,14 @@ func (d *rspecDiscovery) metadataArg(out *DiscoveredExample, masked, text string
 	}
 	m := rspecPairArg.FindStringSubmatch(masked)
 	if m == nil {
-		d.f.unknown(out.ID, discoverReasonMetadata, "metadata argument "+text, line, line)
+		d.f.unknown(out.ID, DiscoverReasonMetadata, "metadata argument "+text, line, line)
 		return
 	}
 	key := m[1] + m[2]
 	value := strings.TrimSpace(text[len(text)-len(m[3]):])
 	if !rspecLiteralValue.MatchString(value) {
 		out.Tags = append(out.Tags, DiscoveredTag{Name: key, Evidence: where})
-		d.f.unknown(out.ID, discoverReasonMetadata, "metadata "+key+" has the value "+value, line, line)
+		d.f.unknown(out.ID, DiscoverReasonMetadata, "metadata "+key+" has the value "+value, line, line)
 		return
 	}
 	if len(value) >= 2 && (value[0] == '\'' || value[0] == '"') {
@@ -349,16 +345,16 @@ func (d *rspecDiscovery) metadataAnnotation(out *DiscoveredExample, key, value s
 }
 
 // skipStatements adds the skip and pending statements of an example body.
-func (d *rspecDiscovery) skipStatements(out *DiscoveredExample, index int, body []rubyLine) {
+func (d *rspecDiscovery) skipStatements(out *DiscoveredExample, index int, body []RubyLine) {
 	depth := 0
 	for k := 1; k < len(body); k++ {
-		text := body[k].text
-		if rubyEnd.MatchString(text) {
+		text := body[k].Text
+		if RubyEnd.MatchString(text) {
 			depth--
 			continue
 		}
 		if m := rspecSkipCall.FindStringSubmatch(text); m != nil {
-			masked := maskRubyStrings(text)
+			masked := MaskRubyStrings(text)
 			conditional := depth > 0 || regexp.MustCompile(`\s(?:if|unless)\s`).MatchString(masked)
 			description := ""
 			if args := rubyArgList(masked, len(m[1])); len(args) > 0 {
@@ -367,10 +363,10 @@ func (d *rspecDiscovery) skipStatements(out *DiscoveredExample, index int, body 
 					description = v[1 : len(v)-1]
 				}
 			}
-			where, _ := d.f.anchor(body[k].line, d.physicalEnd(index+k), "static test discovery runtime annotation")
+			where, _ := d.f.anchor(body[k].Line, d.physicalEnd(index+k), "static test discovery runtime annotation")
 			out.Annotations = append(out.Annotations, DiscoveredAnnotation{Type: m[1], Description: description, Conditional: conditional, Evidence: where})
 		}
-		if rubyOpens(text) {
+		if RubyOpens(text) {
 			depth++
 		}
 	}
@@ -378,7 +374,7 @@ func (d *rspecDiscovery) skipStatements(out *DiscoveredExample, index int, body 
 
 // hook adds one applicable hook and its navigations.
 func (d *rspecDiscovery) hook(out *DiscoveredExample, h rspecHookSite) {
-	head := h.body[0].text
+	head := h.body[0].Text
 	m := rspecHookHead.FindStringSubmatch(head)
 	scope := m[2]
 	switch scope {
@@ -389,22 +385,22 @@ func (d *rspecDiscovery) hook(out *DiscoveredExample, h rspecHookSite) {
 	}
 	asserts := false
 	for _, l := range h.body {
-		masked := maskRubyStrings(l.text)
-		if rspecExpectation.MatchString(masked) || rspecExpectHead.MatchString(masked) && strings.Contains(masked, "assert") {
+		masked := MaskRubyStrings(l.Text)
+		if RSpecExpectation.MatchString(masked) || rspecExpectHead.MatchString(masked) && strings.Contains(masked, "assert") {
 			asserts = true
 		}
 	}
-	conditional := h.loop || rspecHookCondition.MatchString(maskRubyStrings(head))
-	where, _ := d.f.anchor(h.body[0].line, d.physicalEnd(h.index+len(h.body)-1), "static test discovery hook")
+	conditional := h.loop || rspecHookCondition.MatchString(MaskRubyStrings(head))
+	where, _ := d.f.anchor(h.body[0].Line, d.physicalEnd(h.index+len(h.body)-1), "static test discovery hook")
 	out.Hooks = append(out.Hooks, DiscoveredHook{Kind: m[1], Scope: scope, Asserts: asserts, Conditional: conditional, Evidence: where})
 	d.navigations(out, h.index, h.body, "hook")
 }
 
 // expectations adds every expectation of an example body (DCX-V1-372).
-func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []rubyLine) {
+func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []RubyLine) {
 	f := d.f
 	for k, l := range body {
-		text, masked := l.text, maskRubyStrings(l.text)
+		text, masked := l.Text, MaskRubyStrings(l.Text)
 		for _, loc := range rspecExpectHead.FindAllStringSubmatchIndex(masked, -1) {
 			x := DiscoveredExpectation{}
 			endIndex := index + k
@@ -420,7 +416,7 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 				open := loc[4]
 				close := matchingClose(masked, open)
 				if close < 0 {
-					x.Unknown = discoverReasonMatcherUnread
+					x.Unknown = DiscoverReasonMatcherUnread
 					break
 				}
 				x.Receiver = boundText(strings.TrimSpace(text[open+1 : close]))
@@ -439,9 +435,9 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 				// A block expectation spanning lines: its matcher follows the `}` or `end` that
 				// closes this block, not one closing a block nested inside it.
 				x.Receiver = "block"
-				x.Unknown = discoverReasonMatcherUnread
+				x.Unknown = DiscoverReasonMatcherUnread
 				if j := blockClose(body, k); j >= 0 {
-					if c := rspecBlockClosing.FindStringSubmatch(maskRubyStrings(body[j].text)); c != nil {
+					if c := rspecBlockClosing.FindStringSubmatch(MaskRubyStrings(body[j].Text)); c != nil {
 						x.Matcher, x.Negated, x.Unknown = c[2], c[1] != "to", ""
 						endIndex = index + j
 					}
@@ -458,7 +454,7 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 				if s := rspecShouldMatcher.FindStringSubmatch(rest); s != nil {
 					x.Matcher = s[1]
 				} else {
-					x.Unknown = discoverReasonMatcherUnread
+					x.Unknown = DiscoverReasonMatcherUnread
 				}
 			default:
 				x.Matcher = group(5)
@@ -467,7 +463,7 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 					x.Receiver = boundText(strings.TrimSpace(text[args[0][0]:args[0][1]]))
 				}
 			}
-			x.Evidence, _ = f.anchor(l.line, d.physicalEnd(endIndex), "static test discovery expectation")
+			x.Evidence, _ = f.anchor(l.Line, d.physicalEnd(endIndex), "static test discovery expectation")
 			out.Expectations = append(out.Expectations, x)
 		}
 	}
@@ -475,17 +471,17 @@ func (d *rspecDiscovery) expectations(out *DiscoveredExample, index int, body []
 
 // blockClose is the index of the body line that closes the block opened on line k, counting the
 // `do`/`end` and brace blocks opened and closed in between, or -1 when no line closes it.
-func blockClose(body []rubyLine, k int) int {
+func blockClose(body []RubyLine, k int) int {
 	depth := 1
 	for j := k + 1; j < len(body); j++ {
-		masked := maskRubyStrings(body[j].text)
-		if strings.HasPrefix(masked, "}") || rubyEnd.MatchString(masked) {
+		masked := MaskRubyStrings(body[j].Text)
+		if strings.HasPrefix(masked, "}") || RubyEnd.MatchString(masked) {
 			if depth--; depth == 0 {
 				return j
 			}
 			continue
 		}
-		if rubyOpens(masked) || strings.Count(masked, "{") > strings.Count(masked, "}") {
+		if RubyOpens(masked) || strings.Count(masked, "{") > strings.Count(masked, "}") {
 			depth++
 		}
 	}
@@ -498,13 +494,13 @@ func (d *rspecDiscovery) matcher(x *DiscoveredExpectation, rest string) {
 		x.Matcher, x.Negated = m[2], m[1] != "to"
 		return
 	}
-	x.Unknown = discoverReasonMatcherUnread
+	x.Unknown = DiscoverReasonMatcherUnread
 }
 
 // navigations adds every visit and request statement of a body (DCX-V1-373).
-func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []rubyLine, source string) {
+func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []RubyLine, source string) {
 	for k, l := range body {
-		text, masked := l.text, maskRubyStrings(l.text)
+		text, masked := l.Text, MaskRubyStrings(l.Text)
 		add := func(kind, method string, from, at int) {
 			n := DiscoveredNavigation{Kind: kind, Method: method, Source: source}
 			args := rubyArgList(masked, from)
@@ -523,9 +519,9 @@ func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []r
 				}
 			}
 			if n.Target == "" {
-				n.Unknown = discoverReasonTargetNotLiteral
+				n.Unknown = DiscoverReasonTargetNotLiteral
 			}
-			n.Evidence, _ = d.f.anchor(l.line, d.physicalEnd(index+k), "static test discovery navigation")
+			n.Evidence, _ = d.f.anchor(l.Line, d.physicalEnd(index+k), "static test discovery navigation")
 			out.Navigations = append(out.Navigations, n)
 		}
 		for _, loc := range rspecVisit.FindAllStringSubmatchIndex(masked, -1) {
@@ -543,35 +539,35 @@ func (d *rspecDiscovery) navigations(out *DiscoveredExample, index int, body []r
 // (DCX-V1-374).
 func (d *rspecDiscovery) reaches(out *DiscoveredExample, chainSet map[int]bool) {
 	f, r := d.f, d.r
-	for _, inc := range r.includes {
-		applies := !inc.nests() && chainSet[inc.group] || inc.nested >= 0 && chainSet[inc.nested]
+	for _, inc := range r.Includes {
+		applies := !inc.Nests() && chainSet[inc.Group] || inc.Nested >= 0 && chainSet[inc.Nested]
 		if !applies {
 			continue
 		}
-		where, _ := f.anchor(inc.line, inc.line, "static test discovery inclusion")
-		reach := DiscoveredReach{Kind: "shared-example", Name: inc.name, Evidence: where}
-		if inc.kind == "include_context" {
+		where, _ := f.anchor(inc.Line, inc.Line, "static test discovery inclusion")
+		reach := DiscoveredReach{Kind: "shared-example", Name: inc.Name, Evidence: where}
+		if inc.Kind == "include_context" {
 			reach.Kind = "shared-context"
 		}
 		switch def, ok := d.definition(inc); {
-		case !inc.literal:
-			reach.State, reach.Reason = "unresolved", discoverReasonComputedLookup
-			reach.Specifier = boundText(headArgs(r.lines[inc.index].text))
+		case !inc.Literal:
+			reach.State, reach.Reason = "unresolved", DiscoverReasonComputedLookup
+			reach.Specifier = boundText(headArgs(r.Lines[inc.Index].Text))
 		case ok:
 			reach.State, reach.Target = "repository", f.path
-			decl, _ := f.anchor(r.groups[def].line, r.groups[def].line, "static test discovery shared group definition")
+			decl, _ := f.anchor(r.Groups[def].Line, r.Groups[def].Line, "static test discovery shared group definition")
 			reach.Declaration = &decl
 		default:
-			reach.State, reach.Reason = "unresolved", discoverReasonRegistry
+			reach.State, reach.Reason = "unresolved", DiscoverReasonRegistry
 		}
 		out.Reaches = append(out.Reaches, reach)
 	}
 	for _, i := range d.requires {
-		text := r.lines[i].text
+		text := r.Lines[i].Text
 		word := rspecRequire.FindString(text)
-		where, _ := f.anchor(r.lines[i].line, r.lines[i].line, "static test discovery require")
+		where, _ := f.anchor(r.Lines[i].Line, r.Lines[i].Line, "static test discovery require")
 		reach := DiscoveredReach{Kind: "import", Evidence: where}
-		args := rubyArgList(maskRubyStrings(text), len(word))
+		args := rubyArgList(MaskRubyStrings(text), len(word))
 		v := ""
 		if len(args) > 0 {
 			v = strings.TrimSpace(text[args[0][0]:args[0][1]])
@@ -579,13 +575,13 @@ func (d *rspecDiscovery) reaches(out *DiscoveredExample, chainSet map[int]bool) 
 		switch {
 		case len(args) != 1 || len(v) < 2 || !rspecLiteralValue.MatchString(v) || v[0] != '\'' && v[0] != '"':
 			reach.Specifier = boundText(headArgs(text))
-			reach.State, reach.Reason = "unresolved", discoverReasonComputedLookup
+			reach.State, reach.Reason = "unresolved", DiscoverReasonComputedLookup
 		case word == "require_relative":
 			reach.Specifier = v[1 : len(v)-1]
 			reach.Target, reach.State, reach.Reason = f.resolver.ruby(f.path, reach.Specifier)
 		default:
 			reach.Specifier = v[1 : len(v)-1]
-			reach.State, reach.Reason = "unresolved", discoverReasonLoadPath
+			reach.State, reach.Reason = "unresolved", DiscoverReasonLoadPath
 		}
 		out.Reaches = append(out.Reaches, reach)
 	}

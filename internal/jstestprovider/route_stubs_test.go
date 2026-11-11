@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -125,7 +126,7 @@ func TestLPCVV0072AnnotationIsClosed(t *testing.T) {
 		"line no file":      {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":0,"line":4}]}`)},
 		"file no line":      {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":0,"file":"a"}]}`)},
 		"too many stubs":    {routeStubAnnotation(`{"stubs":[` + strings.Join(many, ",") + `]}`)},
-		"oversized":         {routeStubAnnotation(`{"stubs":[]}` + strings.Repeat(" ", maxRouteStubDescription))},
+		"oversized":         {routeStubAnnotation(`{"stubs":[]}` + strings.Repeat(" ", jstestreceipt.MaxRouteStubDescription))},
 		"fractional hits":   {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":0.5}]}`)},
 		"missing hits":      {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x"}]}`)},
 		"null hits":         {routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":null}]}`)},
@@ -241,7 +242,7 @@ func TestLPCVV0072ProfiledReceiptsRefuseRouteStubs(t *testing.T) {
 	o := attemptTestOutcome()
 	o.AttemptDetails[1].RouteStubs = &RouteStubRecord{Stubs: []RouteStub{}}
 	for _, profile := range []string{ExternalProfile, AttestedExternalProfile, SensitiveExternalProfile, AttemptExternalProfile} {
-		if err := qualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{o}}); err == nil {
+		if err := jstestreceipt.QualifiedProfileShapeError(Receipt{Profile: profile, Tests: []TestOutcome{o}}); err == nil {
 			t.Fatalf("%s accepted route stubs", profile)
 		}
 	}

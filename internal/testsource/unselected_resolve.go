@@ -49,7 +49,7 @@ type moduleResolver struct {
 
 func newRepoResolver(r Repo, commit string) *moduleResolver {
 	return &moduleResolver{sources: map[string]*source{}, tables: map[string]moduleTable{}, read: func(name string) (string, bool) {
-		data, found, err := r.readOne(commit, name, MaxFileBytes)
+		data, found, err := readOne(r, commit, name, MaxFileBytes)
 		return string(data), found && err == nil
 	}}
 }
@@ -70,7 +70,7 @@ func (m *moduleResolver) module(name string) *source {
 	}
 	m.sources[name] = s
 	if s != nil {
-		m.tables[name] = s.moduleTable()
+		m.tables[name] = sourceModuleTable(s)
 	}
 	return s
 }
@@ -96,9 +96,9 @@ func (m *moduleResolver) follow(from string, b importedName, depth int) string {
 
 // export resolves the binding a module exports under name.
 func (m *moduleResolver) export(s *source, name string, depth int) string {
-	t := m.tables[s.path]
+	t := m.tables[s.Path]
 	if b, ok := t.reexports[name]; ok {
-		return m.follow(s.path, b, depth)
+		return m.follow(s.Path, b, depth)
 	}
 	local := name
 	if alias, ok := t.exportAliases[name]; ok {
@@ -108,14 +108,14 @@ func (m *moduleResolver) export(s *source, name string, depth int) string {
 	}
 	if local != "" {
 		if b, ok := t.origin(local); ok {
-			return m.follow(s.path, b, depth)
+			return m.follow(s.Path, b, depth)
 		}
 	}
 	if name == "default" {
 		return ""
 	}
 	for _, spec := range t.stars {
-		if framework := m.follow(s.path, importedName{spec, name}, depth); framework != "" {
+		if framework := m.follow(s.Path, importedName{spec, name}, depth); framework != "" {
 			return framework
 		}
 	}
@@ -154,33 +154,33 @@ func relativeSpecifier(spec string) bool {
 }
 
 // moduleTable reads the module's imports, requires, exports and top-level aliases.
-func (s *source) moduleTable() moduleTable {
+func sourceModuleTable(s *source) moduleTable {
 	t := moduleTable{imports: map[string]importedName{}, reexports: map[string]importedName{},
 		exportAliases: map[string]string{}, aliases: map[string]string{}, declared: map[string]bool{}}
-	depth := s.bracketDepths()
-	for i, tok := range s.tokens {
+	depth := bracketDepths(s)
+	for i, tok := range s.Tokens {
 		if tok.Kind == appmap.JSString && tok.Literal {
-			if r, ok := s.moduleBinding(i); ok && r[1] > r[0] {
-				s.readBinding(&t, tok.Text, r)
+			if r, ok := moduleBinding(s, i); ok && r[1] > r[0] {
+				readBinding(s, &t, tok.Text, r)
 			}
 			continue
 		}
-		if depth[i] != 0 || s.memberAccess(i) {
+		if depth[i] != 0 || s.MemberAccess(i) {
 			continue
 		}
 		switch {
-		case s.ident(i, "const") || s.ident(i, "let") || s.ident(i, "var"):
-			s.readDeclaration(&t, i)
-		case s.ident(i, "function") || s.ident(i, "class"):
-			if s.ident(i+1, "") {
-				t.declared[s.tokens[i+1].Text] = true
+		case s.Ident(i, "const") || s.Ident(i, "let") || s.Ident(i, "var"):
+			readDeclaration(s, &t, i)
+		case s.Ident(i, "function") || s.Ident(i, "class"):
+			if s.Ident(i+1, "") {
+				t.declared[s.Tokens[i+1].Text] = true
 			}
-		case s.ident(i, "export") && s.punct(i+1, "{") && s.match[i+1] > i+1 && !s.ident(s.match[i+1]+1, "from"):
-			for _, e := range s.namedEntries(i+1, "as") {
+		case s.Ident(i, "export") && s.Punct(i+1, "{") && s.Match[i+1] > i+1 && !s.Ident(s.Match[i+1]+1, "from"):
+			for _, e := range namedEntries(s, i+1, "as") {
 				t.exportAliases[e[1]] = e[0]
 			}
-		case s.ident(i, "export") && s.ident(i+1, "default"):
-			if target, ok := s.aliasTarget(i + 2); ok {
+		case s.Ident(i, "export") && s.Ident(i+1, "default"):
+			if target, ok := aliasTarget(s, i+2); ok {
 				t.defaultLocal = target
 			}
 		}
@@ -190,48 +190,48 @@ func (s *source) moduleTable() moduleTable {
 
 // readBinding records the names one import, re-export or require of spec binds; r is the token
 // range moduleBinding returns.
-func (s *source) readBinding(t *moduleTable, spec string, r [2]int) {
+func readBinding(s *source, t *moduleTable, spec string, r [2]int) {
 	keyword := r[0] - 1
 	switch {
-	case s.ident(keyword, "import"):
+	case s.Ident(keyword, "import"):
 		k := r[0]
-		if s.ident(k, "type") && !s.punct(k+1, ",") && !s.ident(k+1, "from") {
+		if s.Ident(k, "type") && !s.Punct(k+1, ",") && !s.Ident(k+1, "from") {
 			return
 		}
-		if s.ident(k, "") {
-			t.imports[s.tokens[k].Text] = importedName{spec, "default"}
+		if s.Ident(k, "") {
+			t.imports[s.Tokens[k].Text] = importedName{spec, "default"}
 			k++
-			if s.punct(k, ",") {
+			if s.Punct(k, ",") {
 				k++
 			}
 		}
 		switch {
-		case s.punct(k, "*") && s.ident(k+1, "as") && s.ident(k+2, ""):
-			t.imports[s.tokens[k+2].Text] = importedName{spec, ""}
-		case s.punct(k, "{"):
-			for _, e := range s.namedEntries(k, "as") {
+		case s.Punct(k, "*") && s.Ident(k+1, "as") && s.Ident(k+2, ""):
+			t.imports[s.Tokens[k+2].Text] = importedName{spec, ""}
+		case s.Punct(k, "{"):
+			for _, e := range namedEntries(s, k, "as") {
 				t.imports[e[1]] = importedName{spec, e[0]}
 			}
 		}
-	case s.ident(keyword, "export"):
+	case s.Ident(keyword, "export"):
 		k := r[0]
 		switch {
-		case s.punct(k, "*") && s.ident(k+1, "as") && s.ident(k+2, ""):
-			t.reexports[s.tokens[k+2].Text] = importedName{spec, ""}
-		case s.punct(k, "*"):
+		case s.Punct(k, "*") && s.Ident(k+1, "as") && s.Ident(k+2, ""):
+			t.reexports[s.Tokens[k+2].Text] = importedName{spec, ""}
+		case s.Punct(k, "*"):
 			t.stars = append(t.stars, spec)
-		case s.punct(k, "{"):
-			for _, e := range s.namedEntries(k, "as") {
+		case s.Punct(k, "{"):
+			for _, e := range namedEntries(s, k, "as") {
 				t.reexports[e[1]] = importedName{spec, e[0]}
 			}
 		}
 	default: // const|let|var … = require("m")
 		k := r[0]
 		switch {
-		case s.ident(k, "") && s.punct(k+1, "="):
-			t.imports[s.tokens[k].Text] = importedName{spec, ""}
-		case s.punct(k, "{"):
-			for _, e := range s.namedEntries(k, ":") {
+		case s.Ident(k, "") && s.Punct(k+1, "="):
+			t.imports[s.Tokens[k].Text] = importedName{spec, ""}
+		case s.Punct(k, "{"):
+			for _, e := range namedEntries(s, k, ":") {
 				t.imports[e[1]] = importedName{spec, e[0]}
 			}
 		}
@@ -240,19 +240,19 @@ func (s *source) readBinding(t *moduleTable, spec string, r [2]int) {
 
 // readDeclaration records the names a top-level `const|let|var` at i declares and, for
 // `name = target` or `name = target.extend(…)`, the alias.
-func (s *source) readDeclaration(t *moduleTable, i int) {
+func readDeclaration(s *source, t *moduleTable, i int) {
 	switch k := i + 1; {
-	case s.ident(k, ""):
-		t.declared[s.tokens[k].Text] = true
-		if s.punct(k+1, "=") && !s.punct(k+2, "=") && !s.punct(k+2, ">") {
-			if target, ok := s.aliasTarget(k + 2); ok {
-				t.aliases[s.tokens[k].Text] = target
+	case s.Ident(k, ""):
+		t.declared[s.Tokens[k].Text] = true
+		if s.Punct(k+1, "=") && !s.Punct(k+2, "=") && !s.Punct(k+2, ">") {
+			if target, ok := aliasTarget(s, k+2); ok {
+				t.aliases[s.Tokens[k].Text] = target
 			}
 		}
-	case (s.punct(k, "{") || s.punct(k, "[")) && s.match[k] > k:
-		for j := k + 1; j < s.match[k]; j++ {
-			if s.ident(j, "") && !s.punct(j+1, ":") && !s.memberAccess(j) {
-				t.declared[s.tokens[j].Text] = true
+	case (s.Punct(k, "{") || s.Punct(k, "[")) && s.Match[k] > k:
+		for j := k + 1; j < s.Match[k]; j++ {
+			if s.Ident(j, "") && !s.Punct(j+1, ":") && !s.MemberAccess(j) {
+				t.declared[s.Tokens[j].Text] = true
 			}
 		}
 	}
@@ -260,19 +260,19 @@ func (s *source) readDeclaration(t *moduleTable, i int) {
 
 // aliasTarget reads an alias value at k: an identifier ending the statement, or one whose
 // `.extend(` or `.extend<` call derives the value.
-func (s *source) aliasTarget(k int) (string, bool) {
-	if !s.ident(k, "") || jsNotAliasWords[s.tokens[k].Text] {
+func aliasTarget(s *source, k int) (string, bool) {
+	if !s.Ident(k, "") || jsNotAliasWords[s.Tokens[k].Text] {
 		return "", false
 	}
 	next := k + 1
 	switch {
-	case next >= len(s.tokens) || s.punct(next, ";") || s.punct(next, ","):
-	case s.punct(next, ".") && s.ident(next+1, "extend") && (s.punct(next+2, "(") || s.punct(next+2, "<")):
-	case s.tokens[next].Line != s.tokens[k].Line && s.ident(next, "") && !jsContinuationWords[s.tokens[next].Text]:
+	case next >= len(s.Tokens) || s.Punct(next, ";") || s.Punct(next, ","):
+	case s.Punct(next, ".") && s.Ident(next+1, "extend") && (s.Punct(next+2, "(") || s.Punct(next+2, "<")):
+	case s.Tokens[next].Line != s.Tokens[k].Line && s.Ident(next, "") && !jsContinuationWords[s.Tokens[next].Text]:
 	default:
 		return "", false
 	}
-	return s.tokens[k].Text, true
+	return s.Tokens[k].Text, true
 }
 
 // jsNotAliasWords are identifiers that start an expression rather than name a binding.
@@ -282,24 +282,24 @@ var jsNotAliasWords = map[string]bool{"new": true, "await": true, "function": tr
 
 // namedEntries reads a `{ a, b as c }` (sep "as") or `{ a, b: c }` (sep ":") list at open into
 // (source name, local name) pairs; type-only and nested entries are skipped.
-func (s *source) namedEntries(open int, sep string) [][2]string {
+func namedEntries(s *source, open int, sep string) [][2]string {
 	out := [][2]string{}
-	close := s.match[open]
+	close := s.Match[open]
 	if close <= open {
 		return out
 	}
 	name := func(k int) (string, bool) {
-		if s.ident(k, "") {
-			return s.tokens[k].Text, true
+		if s.Ident(k, "") {
+			return s.Tokens[k].Text, true
 		}
-		if k < len(s.tokens) && s.tokens[k].Kind == appmap.JSString && s.tokens[k].Literal {
-			return s.tokens[k].Text, true
+		if k < len(s.Tokens) && s.Tokens[k].Kind == appmap.JSString && s.Tokens[k].Literal {
+			return s.Tokens[k].Text, true
 		}
 		return "", false
 	}
-	for _, entry := range s.splitArgs(open, close) {
+	for _, entry := range s.SplitArgs(open, close) {
 		a, b := entry[0], entry[1]
-		if b-a > 1 && s.ident(a, "type") {
+		if b-a > 1 && s.Ident(a, "type") {
 			a++
 		}
 		first, ok := name(a)
@@ -307,23 +307,23 @@ func (s *source) namedEntries(open int, sep string) [][2]string {
 		case !ok:
 		case b-a == 1:
 			out = append(out, [2]string{first, first})
-		case b-a == 3 && (sep == "as" && s.ident(a+1, "as") || sep == ":" && s.punct(a+1, ":")) && s.ident(a+2, ""):
-			out = append(out, [2]string{first, s.tokens[a+2].Text})
+		case b-a == 3 && (sep == "as" && s.Ident(a+1, "as") || sep == ":" && s.Punct(a+1, ":")) && s.Ident(a+2, ""):
+			out = append(out, [2]string{first, s.Tokens[a+2].Text})
 		}
 	}
 	return out
 }
 
 // bracketDepths returns, for every token, how many brackets enclose it.
-func (s *source) bracketDepths() []int {
-	depths := make([]int, len(s.tokens))
+func bracketDepths(s *source) []int {
+	depths := make([]int, len(s.Tokens))
 	depth := 0
-	for i := range s.tokens {
-		if s.punct(i, ")") || s.punct(i, "]") || s.punct(i, "}") {
+	for i := range s.Tokens {
+		if s.Punct(i, ")") || s.Punct(i, "]") || s.Punct(i, "}") {
 			depth = max(depth-1, 0)
 		}
 		depths[i] = depth
-		if s.punct(i, "(") || s.punct(i, "[") || s.punct(i, "{") {
+		if s.Punct(i, "(") || s.Punct(i, "[") || s.Punct(i, "{") {
 			depth++
 		}
 	}

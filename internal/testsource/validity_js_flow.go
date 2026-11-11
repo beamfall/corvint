@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/testdiscovery"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -31,10 +32,8 @@ var (
 	jsValueWords    = map[string]bool{"true": true, "false": true, "null": true, "undefined": true, "NaN": true, "Infinity": true}
 )
 
-// jsTestLibrary reports a test-framework module, whose calls never reach the code under test.
-func jsTestLibrary(spec string) bool {
-	return strings.HasPrefix(spec, "@testing-library/") || spec == "vitest" || spec == "@jest/globals" || spec == "jest" || spec == "bun:test"
-}
+// jsTestLibrary is testdiscovery.JSTestLibrary, kept under its old name.
+func jsTestLibrary(spec string) bool { return testdiscovery.JSTestLibrary(spec) }
 
 // jsFirstParty reports a project module specifier: relative or a project alias root.
 func jsFirstParty(spec string) bool {
@@ -60,39 +59,39 @@ type jsFlow struct {
 	dom [2]int
 }
 
-func (r *jsReader) flow(e jsDecl, chain []int) *jsFlow {
-	s := r.s
-	f := &jsFlow{r: r, e: e, chain: chain, blocks: [][2]int{e.body}, subject: map[string]bool{}}
+func flow(r *jsReader, e jsDecl, chain []int) *jsFlow {
+	s := r.S
+	f := &jsFlow{r: r, e: e, chain: chain, blocks: [][2]int{e.Body}, subject: map[string]bool{}}
 	for _, g := range chain {
-		f.blocks = append(f.blocks, r.decls[g].body)
+		f.blocks = append(f.blocks, r.Decls[g].Body)
 	}
-	f.blocks = append(f.blocks, [2]int{-1, len(s.tokens)})
+	f.blocks = append(f.blocks, [2]int{-1, len(s.Tokens)})
 	// The describes' subject locals depend only on the chain, so they are read once per describe.
 	key := -1
 	if len(chain) > 0 {
 		key = chain[0]
 	}
-	if r.flowSubjects == nil {
-		r.flowSubjects = map[int]map[string]bool{}
+	if r.FlowSubjects == nil {
+		r.FlowSubjects = map[int]map[string]bool{}
 	}
-	if known, ok := r.flowSubjects[key]; ok {
+	if known, ok := r.FlowSubjects[key]; ok {
 		maps.Copy(f.subject, known)
 	} else {
-		for n := range r.subjectNames {
+		for n := range r.SubjectNames {
 			f.subject[n] = true
 		}
 		f.subjectLocals(f.blocks[1 : len(f.blocks)-1])
-		r.flowSubjects[key] = maps.Clone(f.subject)
+		r.FlowSubjects[key] = maps.Clone(f.subject)
 	}
 	f.subjectLocals(f.blocks[:1])
-	for k := e.body[0]; k < e.body[1]; k++ {
-		if f.action == 0 && f.word(k) && f.subject[s.tokens[k].Text] {
-			f.action = s.tokens[k].Line
+	for k := e.Body[0]; k < e.Body[1]; k++ {
+		if f.action == 0 && f.word(k) && f.subject[s.Tokens[k].Text] {
+			f.action = s.Tokens[k].Line
 		}
-		if c, ok := s.readExpect(k); ok {
+		if c, ok := s.ReadExpect(k); ok {
 			x := jsExpect{at: k, c: c}
-			for j := c.subject[1]; j < c.end; j++ {
-				x.not = x.not || s.ident(j, "not") && s.memberAccess(j)
+			for j := c.Subject[1]; j < c.End; j++ {
+				x.not = x.not || s.Ident(j, "not") && s.MemberAccess(j)
 			}
 			f.asserts = append(f.asserts, x)
 		}
@@ -105,7 +104,7 @@ func (r *jsReader) flow(e jsDecl, chain []int) *jsFlow {
 func (f *jsFlow) subjectLocals(blocks [][2]int) {
 	for range 2 {
 		for _, b := range blocks {
-			f.r.s.localValues(b, func(name string, v [2]int) {
+			localValues(f.r.S, b, func(name string, v [2]int) {
 				if !f.subject[name] && f.names(v) {
 					f.subject[name] = true
 				}
@@ -116,19 +115,19 @@ func (f *jsFlow) subjectLocals(blocks [][2]int) {
 
 // word reports token k as a bare identifier reference: not a property, an object key or a keyword.
 func (f *jsFlow) word(k int) bool {
-	s := f.r.s
-	if !s.ident(k, "") || s.memberAccess(k) || keywords[s.tokens[k].Text] || jsValueWords[s.tokens[k].Text] {
+	s := f.r.S
+	if !s.Ident(k, "") || s.MemberAccess(k) || keywords[s.Tokens[k].Text] || jsValueWords[s.Tokens[k].Text] {
 		return false
 	}
-	if s.punct(k+1, ":") && (s.punct(k-1, "{") || s.punct(k-1, ",")) {
+	if s.Punct(k+1, ":") && (s.Punct(k-1, "{") || s.Punct(k-1, ",")) {
 		return false
 	}
-	return s.tokens[k].Text != "this"
+	return s.Tokens[k].Text != "this"
 }
 
 func (f *jsFlow) names(rng [2]int) bool {
 	for k := rng[0]; k < rng[1]; k++ {
-		if f.word(k) && f.subject[f.r.s.tokens[k].Text] {
+		if f.word(k) && f.subject[f.r.S.Tokens[k].Text] {
 			return true
 		}
 	}
@@ -138,14 +137,14 @@ func (f *jsFlow) names(rng [2]int) bool {
 // binding returns the token of name's `const|let|var` declaration and its initializer, from the
 // innermost block that declares it.
 func (f *jsFlow) binding(name string) (int, [2]int, bool) {
-	s := f.r.s
+	s := f.r.S
 	for _, b := range f.blocks {
-		v, ok := s.localValue(b, name)
+		v, ok := localValue(s, b, name)
 		if !ok {
 			continue
 		}
 		for k := v[0] - 1; k > b[0]; k-- {
-			if s.ident(k, name) && (s.ident(k-1, "const") || s.ident(k-1, "let") || s.ident(k-1, "var")) {
+			if s.Ident(k, name) && (s.Ident(k-1, "const") || s.Ident(k-1, "let") || s.Ident(k-1, "var")) {
 				return k, v, true
 			}
 		}
@@ -155,81 +154,81 @@ func (f *jsFlow) binding(name string) (int, [2]int, bool) {
 
 // scope reports token k outside every other example's body.
 func (f *jsFlow) scope(k int) bool {
-	owner := f.r.owners()[k]
-	return owner == -1 || owner == f.e.at
+	owner := owners(f.r)[k]
+	return owner == -1 || owner == f.e.At
 }
 
 // owners maps each token to the declaring token of the one example body that holds it, -1 for
 // none and -2 for more than one, so scope reads it in constant time; it is built on first use.
-func (r *jsReader) owners() []int {
-	if r.flowOwner != nil {
-		return r.flowOwner
+func owners(r *jsReader) []int {
+	if r.FlowOwner != nil {
+		return r.FlowOwner
 	}
-	r.flowOwner = make([]int, len(r.s.tokens))
-	for k := range r.flowOwner {
-		r.flowOwner[k] = -1
+	r.FlowOwner = make([]int, len(r.S.Tokens))
+	for k := range r.FlowOwner {
+		r.FlowOwner[k] = -1
 	}
-	for _, d := range r.decls {
-		if d.kind != "test" || !d.hasBody {
+	for _, d := range r.Decls {
+		if d.Kind != "test" || !d.HasBody {
 			continue
 		}
-		for k := max(d.body[0], 0); k < d.body[1] && k < len(r.flowOwner); k++ {
-			if within(k, d.body) {
-				if r.flowOwner[k] == -1 {
-					r.flowOwner[k] = d.at
+		for k := max(d.Body[0], 0); k < d.Body[1] && k < len(r.FlowOwner); k++ {
+			if within(k, d.Body) {
+				if r.FlowOwner[k] == -1 {
+					r.FlowOwner[k] = d.At
 				} else {
-					r.flowOwner[k] = -2
+					r.FlowOwner[k] = -2
 				}
 			}
 		}
 	}
-	return r.flowOwner
+	return r.FlowOwner
 }
 
 // localValues calls visit with each variable the block declares with an initializer, first
 // declaration only, skipping nested functions as localValue does.
-func (s *source) localValues(block [2]int, visit func(name string, v [2]int)) {
+func localValues(s *source, block [2]int, visit func(name string, v [2]int)) {
 	seen := map[string]bool{}
 	for k := block[0] + 1; k < block[1]; k++ {
-		if end := s.nestedFunctionEnd(k); end >= k {
+		if end := nestedFunctionEnd(s, k); end >= k {
 			k = end
 			continue
 		}
-		if !(s.ident(k, "const") || s.ident(k, "let") || s.ident(k, "var")) || !s.ident(k+1, "") || seen[s.tokens[k+1].Text] {
+		if !(s.Ident(k, "const") || s.Ident(k, "let") || s.Ident(k, "var")) || !s.Ident(k+1, "") || seen[s.Tokens[k+1].Text] {
 			continue
 		}
-		name := s.tokens[k+1].Text
+		name := s.Tokens[k+1].Text
 		seen[name] = true
 		j := k + 2
-		if s.punct(j, ":") {
-			j = s.skipType(j + 1)
+		if s.Punct(j, ":") {
+			j = s.SkipType(j + 1)
 		}
-		if s.punct(j, "=") && !s.punct(j+1, "=") && !s.punct(j+1, ">") {
-			visit(name, [2]int{j + 1, s.exprEnd(j+1, block[1])})
+		if s.Punct(j, "=") && !s.Punct(j+1, "=") && !s.Punct(j+1, ">") {
+			visit(name, [2]int{j + 1, s.ExprEnd(j+1, block[1])})
 		}
 	}
 }
 
-func (f *jsFlow) line(k int) string { return f.r.at(f.r.s.tokens[k].Line) }
+func (f *jsFlow) line(k int) string { return jsReaderAt(f.r, f.r.S.Tokens[k].Line) }
 
 // jsFlowFindings returns example e's STUB-ON-PATH, STUB-NEVER-INVOKED and
 // ASSERTED-VALUE-NOT-FROM-SUBJECT findings, in that rule order and each in source order
 // (TSA-V0-120).
-func (r *jsReader) flowFindings(e jsDecl, test string) []testvalidity.SourceFinding {
+func flowFindings(r *jsReader, e jsDecl, test string) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	if !e.hasBody {
+	if !e.HasBody {
 		return out
 	}
-	f := r.flow(e, r.ancestors(e.at))
+	f := flow(r, e, r.Ancestors(e.At))
 	finding := func(rule string, location, cause int, message string) testvalidity.SourceFinding {
-		return testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.title,
+		return testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.Title,
 			Location: f.line(location), Cause: f.line(cause), Message: message}
 	}
-	s := r.s
+	s := r.S
 	never := []testvalidity.SourceFinding{}
 	unused := map[int]bool{}
-	for k := range s.tokens {
-		if !s.ident(k+2, "spyOn") || !r.applies(k, e, f.chain) {
+	for k := range s.Tokens {
+		if !s.Ident(k+2, "spyOn") || !applies(r, k, e, f.chain) {
 			continue
 		}
 		if name, bound, ok := f.neverInvoked(k); ok {
@@ -239,15 +238,15 @@ func (r *jsReader) flowFindings(e jsDecl, test string) []testvalidity.SourceFind
 				name, f.line(bound))))
 		}
 	}
-	for k := range s.tokens {
-		if !jsStubSetters[s.tokens[k].Text] || !(within(k, e.body) || r.applies(k, e, f.chain) && f.beforeHook(k)) {
+	for k := range s.Tokens {
+		if !jsStubSetters[s.Tokens[k].Text] || !(within(k, e.Body) || applies(r, k, e, f.chain) && f.beforeHook(k)) {
 			continue
 		}
 		if st, ok := f.stub(k); ok && !unused[st.start] {
 			if a, action, ok := f.onPath(st); ok {
 				out = append(out, finding(testvalidity.RuleStubOnPath, k, a.at, fmt.Sprintf(
 					"the first-party collaborator %s is stubbed, and the assertion at %s checks the stub's return value after the action at %s, so it observes the stub instead of the collaborator's behaviour",
-					st.symbol(), f.line(a.at), f.r.at(action))))
+					st.symbol(), f.line(a.at), jsReaderAt(f.r, action))))
 			}
 		}
 	}
@@ -263,15 +262,15 @@ func (r *jsReader) flowFindings(e jsDecl, test string) []testvalidity.SourceFind
 // beforeHook reports token k inside a beforeEach or beforeAll callback, whose stubs are set before
 // the example's action; a stub elsewhere outside the example body is not read.
 func (f *jsFlow) beforeHook(k int) bool {
-	s := f.r.s
+	s := f.r.S
 	for j := k - 1; j > 0; j-- {
-		if !s.punct(j, "(") || s.match[j] <= k {
+		if !s.Punct(j, "(") || s.Match[j] <= k {
 			continue
 		}
 		switch {
-		case s.ident(j-1, "beforeEach") || s.ident(j-1, "beforeAll"):
+		case s.Ident(j-1, "beforeEach") || s.Ident(j-1, "beforeAll"):
 			return true
-		case s.ident(j-1, "afterEach") || s.ident(j-1, "afterAll"):
+		case s.Ident(j-1, "afterEach") || s.Ident(j-1, "afterAll"):
 			return false
 		}
 	}
@@ -295,52 +294,52 @@ func (st jsStub) symbol() string {
 
 // stub reads a first-party stub at token k, the `mockX` member (TSA-V0-121).
 func (f *jsFlow) stub(k int) (jsStub, bool) {
-	s := f.r.s
-	if !s.ident(k, "") || !jsStubSetters[s.tokens[k].Text] || !s.memberAccess(k) || !s.punct(k+1, "(") || s.match[k+1] < 0 {
+	s := f.r.S
+	if !s.Ident(k, "") || !jsStubSetters[s.Tokens[k].Text] || !s.MemberAccess(k) || !s.Punct(k+1, "(") || s.Match[k+1] < 0 {
 		return jsStub{}, false
 	}
 	dot := k - 1
-	start := s.receiverStart(dot)
+	start := receiverStart(s, dot)
 	st := jsStub{start: start}
 	chain := [2]int{start, dot}
-	if (s.ident(start, "jest") || s.ident(start, "vi")) && s.punct(start+1, ".") && s.punct(start+3, "(") && s.match[start+3] == dot-1 {
-		args := s.splitArgs(start+3, dot-1)
+	if (s.Ident(start, "jest") || s.Ident(start, "vi")) && s.Punct(start+1, ".") && s.Punct(start+3, "(") && s.Match[start+3] == dot-1 {
+		args := s.SplitArgs(start+3, dot-1)
 		switch {
-		case s.ident(start+2, "spyOn") && len(args) >= 2 && s.loneString(args[1]):
-			chain, st.method = args[0], s.tokens[args[1][0]].Text
-		case s.ident(start+2, "mocked") && len(args) >= 1:
+		case s.Ident(start+2, "spyOn") && len(args) >= 2 && s.LoneString(args[1]):
+			chain, st.method = args[0], s.Tokens[args[1][0]].Text
+		case s.Ident(start+2, "mocked") && len(args) >= 1:
 			chain = args[0]
 		default:
 			return jsStub{}, false
 		}
-	} else if s.punct(start, "(") && s.match[start] == dot-1 {
+	} else if s.Punct(start, "(") && s.Match[start] == dot-1 {
 		chain = [2]int{start + 1, dot - 1}
 		for j := chain[0]; j < chain[1]; j++ {
-			if s.ident(j, "as") {
+			if s.Ident(j, "as") {
 				chain[1] = j
 			}
 		}
 	}
 	for j := chain[0]; j < chain[1]; j++ {
-		if (j-chain[0])%2 == 0 && !s.ident(j, "") || (j-chain[0])%2 == 1 && !s.punct(j, ".") {
+		if (j-chain[0])%2 == 0 && !s.Ident(j, "") || (j-chain[0])%2 == 1 && !s.Punct(j, ".") {
 			return jsStub{}, false
 		}
 	}
 	if chain[1] <= chain[0] || (chain[1]-chain[0])%2 == 0 {
 		return jsStub{}, false
 	}
-	st.root = s.tokens[chain[0]].Text
+	st.root = s.Tokens[chain[0]].Text
 	if st.method == "" {
-		st.method = s.tokens[chain[1]-1].Text
+		st.method = s.Tokens[chain[1]-1].Text
 	}
 	if kind, _ := f.classify(st.root); kind != "first-party" {
 		return jsStub{}, false
 	}
-	args := s.splitArgs(k+1, s.match[k+1])
+	args := s.SplitArgs(k+1, s.Match[k+1])
 	if len(args) == 1 {
 		st.value, st.hasValue = args[0], true
-		if strings.HasPrefix(s.tokens[k].Text, "mockImplementation") {
-			body, expr, ok := s.functionBody(args[0][0])
+		if strings.HasPrefix(s.Tokens[k].Text, "mockImplementation") {
+			body, expr, ok := s.FunctionBody(args[0][0])
 			st.value, st.hasValue = body, ok && expr
 		}
 	}
@@ -350,10 +349,10 @@ func (f *jsFlow) stub(k int) (jsStub, bool) {
 // classify returns a receiver root's class: "first-party", "subject", "boundary" or
 // "unresolved", and whether it is a fresh object the test builds (TSA-V0-121, TSA-V0-123).
 func (f *jsFlow) classify(root string) (string, bool) {
-	s := f.r.s
+	s := f.r.S
 	module := func(spec string) string {
 		switch {
-		case f.r.subjectSpecs[spec]:
+		case f.r.SubjectSpecs[spec]:
 			return "subject"
 		case boundaryModule(spec) || !jsFirstParty(spec):
 			return "boundary"
@@ -363,8 +362,8 @@ func (f *jsFlow) classify(root string) (string, bool) {
 	if f.subject[root] {
 		return "subject", false
 	}
-	if b, ok := f.r.bindings[root]; ok {
-		return module(b.spec), false
+	if b, ok := f.r.Bindings[root]; ok {
+		return module(b.Spec), false
 	}
 	if jsBoundaryGlobals[root] || root == "Date" || jsBoundarySpied[root] {
 		return "boundary", false
@@ -373,12 +372,12 @@ func (f *jsFlow) classify(root string) (string, bool) {
 	switch {
 	case !ok:
 		return "unresolved", false
-	case s.ident(v[0], "new") && s.ident(v[0]+1, ""):
-		if b, ok := f.r.bindings[s.tokens[v[0]+1].Text]; ok {
-			return module(b.spec), true
+	case s.Ident(v[0], "new") && s.Ident(v[0]+1, ""):
+		if b, ok := f.r.Bindings[s.Tokens[v[0]+1].Text]; ok {
+			return module(b.Spec), true
 		}
 		return "unresolved", true
-	case s.punct(v[0], "{") && s.match[v[0]] == v[1]-1:
+	case s.Punct(v[0], "{") && s.Match[v[0]] == v[1]-1:
 		return "unresolved", true
 	}
 	return "unresolved", false
@@ -387,33 +386,33 @@ func (f *jsFlow) classify(root string) (string, bool) {
 // onPath returns the first assertion that checks stub st's value on the subject's result, or that
 // calls the stubbed function itself, with the action line (TSA-V0-122).
 func (f *jsFlow) onPath(st jsStub) (jsExpect, int, bool) {
-	s := f.r.s
+	s := f.r.S
 	value := ""
 	if st.hasValue {
-		value = s.render(st.value[0], st.value[1])
+		value = s.Render(st.value[0], st.value[1])
 	}
-	ident := st.hasValue && st.value[1]-st.value[0] == 1 && s.ident(st.value[0], "")
+	ident := st.hasValue && st.value[1]-st.value[0] == 1 && s.Ident(st.value[0], "")
 	for _, a := range f.asserts {
 		if a.not {
 			continue
 		}
-		actual := a.c.subject
+		actual := a.c.Subject
 		for k := actual[0]; k < actual[1]; k++ {
-			if !f.word(k) || s.tokens[k].Text != st.root {
+			if !f.word(k) || s.Tokens[k].Text != st.root {
 				continue
 			}
-			if st.method == st.root && s.punct(k+1, "(") || s.punct(k+1, ".") && s.ident(k+2, st.method) && s.punct(k+3, "(") {
-				return a, s.tokens[a.at].Line, true
+			if st.method == st.root && s.Punct(k+1, "(") || s.Punct(k+1, ".") && s.Ident(k+2, st.method) && s.Punct(k+3, "(") {
+				return a, s.Tokens[a.at].Line, true
 			}
 		}
-		if jsUninformative[value] || f.action == 0 || !f.names(actual) || a.c.margs[1] <= a.c.margs[0] {
+		if jsUninformative[value] || f.action == 0 || !f.names(actual) || a.c.Margs[1] <= a.c.Margs[0] {
 			continue
 		}
-		if s.render(a.c.margs[0], a.c.margs[1]) == value {
+		if s.Render(a.c.Margs[0], a.c.Margs[1]) == value {
 			return a, f.action, true
 		}
-		for k := a.c.margs[0]; ident && k < a.c.margs[1]; k++ {
-			if f.word(k) && s.tokens[k].Text == s.tokens[st.value[0]].Text {
+		for k := a.c.Margs[0]; ident && k < a.c.Margs[1]; k++ {
+			if f.word(k) && s.Tokens[k].Text == s.Tokens[st.value[0]].Text {
 				return a, f.action, true
 			}
 		}
@@ -424,37 +423,37 @@ func (f *jsFlow) onPath(st jsStub) (jsExpect, int, bool) {
 // neverInvoked reads `jest|vi.spyOn(NAME, ...)` at token k on a fresh object no other code
 // receives (TSA-V0-124); it returns the spied symbol and the object's declaration token.
 func (f *jsFlow) neverInvoked(k int) (string, int, bool) {
-	s := f.r.s
-	if !(s.ident(k, "jest") || s.ident(k, "vi")) || s.memberAccess(k) || !s.punct(k+1, ".") || !s.ident(k+2, "spyOn") || !s.punct(k+3, "(") || s.match[k+3] < 0 {
+	s := f.r.S
+	if !(s.Ident(k, "jest") || s.Ident(k, "vi")) || s.MemberAccess(k) || !s.Punct(k+1, ".") || !s.Ident(k+2, "spyOn") || !s.Punct(k+3, "(") || s.Match[k+3] < 0 {
 		return "", 0, false
 	}
-	args := s.splitArgs(k+3, s.match[k+3])
-	if len(args) < 2 || args[0][1]-args[0][0] != 1 || !s.ident(args[0][0], "") {
+	args := s.SplitArgs(k+3, s.Match[k+3])
+	if len(args) < 2 || args[0][1]-args[0][0] != 1 || !s.Ident(args[0][0], "") {
 		return "", 0, false
 	}
-	name := s.tokens[args[0][0]].Text
+	name := s.Tokens[args[0][0]].Text
 	if kind, fresh := f.classify(name); !fresh || kind == "subject" || kind == "boundary" {
 		return "", 0, false
 	}
 	decl, _, _ := f.binding(name)
 	spies, expects := [][2]int{}, [][2]int{}
-	for j := range s.tokens {
-		if (s.ident(j, "jest") || s.ident(j, "vi")) && s.punct(j+1, ".") && s.ident(j+2, "spyOn") && s.punct(j+3, "(") && s.match[j+3] > j {
-			spies = append(spies, [2]int{j, s.match[j+3]})
+	for j := range s.Tokens {
+		if (s.Ident(j, "jest") || s.Ident(j, "vi")) && s.Punct(j+1, ".") && s.Ident(j+2, "spyOn") && s.Punct(j+3, "(") && s.Match[j+3] > j {
+			spies = append(spies, [2]int{j, s.Match[j+3]})
 		}
-		if c, ok := s.readExpect(j); ok && f.callFree(c.subject) {
-			expects = append(expects, c.subject)
+		if c, ok := s.ReadExpect(j); ok && f.callFree(c.Subject) {
+			expects = append(expects, c.Subject)
 		}
 	}
-	for j := range s.tokens {
-		if j == decl || !f.scope(j) || !f.word(j) || s.tokens[j].Text != name || inAny(j, spies) || inAny(j, expects) {
+	for j := range s.Tokens {
+		if j == decl || !f.scope(j) || !f.word(j) || s.Tokens[j].Text != name || inAny(j, spies) || inAny(j, expects) {
 			continue
 		}
 		return "", 0, false
 	}
 	symbol := name
-	if s.loneString(args[1]) {
-		symbol += "." + s.tokens[args[1][0]].Text
+	if s.LoneString(args[1]) {
+		symbol += "." + s.Tokens[args[1][0]].Text
 	}
 	return symbol, decl, true
 }
@@ -462,10 +461,10 @@ func (f *jsFlow) neverInvoked(k int) (string, int, bool) {
 // callFree reports a range with no call or construction in it, so a reference inside it is not
 // handed to other code.
 func (f *jsFlow) callFree(rng [2]int) bool {
-	s := f.r.s
+	s := f.r.S
 	for k := rng[0]; k < rng[1]; k++ {
-		call := s.punct(k, "(") && k > rng[0] && (s.ident(k-1, "") || s.punct(k-1, ")") || s.punct(k-1, "]"))
-		if call || s.ident(k, "new") || s.tokens[k].Kind == appmap.JSTemplate && !s.tokens[k].Literal {
+		call := s.Punct(k, "(") && k > rng[0] && (s.Ident(k-1, "") || s.Punct(k-1, ")") || s.Punct(k-1, "]"))
+		if call || s.Ident(k, "new") || s.Tokens[k].Kind == appmap.JSTemplate && !s.Tokens[k].Literal {
 			return false
 		}
 	}
@@ -485,29 +484,29 @@ func inAny(k int, ranges [][2]int) bool {
 // (TSA-V0-128), an assertion on a DOM the test built with nothing that could reach the subject
 // (TSA-V0-127), or an actual value built only from test-built locals (TSA-V0-126).
 func (f *jsFlow) notFromSubject(a jsExpect) (int, string, bool) {
-	s := f.r.s
-	actual := s.unwrap(a.c.subject)
+	s := f.r.S
+	actual := unwrap(s, a.c.Subject)
 	if a.not || actual[1] <= actual[0] {
 		return 0, "", false
 	}
-	if drop, ok := jsCallMatchers[a.c.matcher]; ok {
+	if drop, ok := jsCallMatchers[a.c.Matcher]; ok {
 		if drop < 0 {
 			return 0, "", false
 		}
 		if call, ok := f.ownCall(actual, a, drop); ok {
 			return call, fmt.Sprintf("the call expectation on %s is met by the test's own call at %s, so it passes whatever the subject calls",
-				s.render(actual[0], actual[1]), f.line(call)), true
+				s.Render(actual[0], actual[1]), f.line(call)), true
 		}
 		return 0, "", false
 	}
-	if s.ident(actual[0], "screen") || s.ident(actual[0], "document") && !s.ident(actual[0]+2, "createElement") {
+	if s.Ident(actual[0], "screen") || s.Ident(actual[0], "document") && !s.Ident(actual[0]+2, "createElement") {
 		if made, ok := f.domOnly(); ok {
 			return made, fmt.Sprintf("the asserted DOM is the one the test builds at %s, and nothing in the example renders or calls code under test, so the assertion passes whatever the subject does",
 				f.line(made)), true
 		}
 		return 0, "", false
 	}
-	if f.r.constantChain(a.c, f.e.body) {
+	if constantChain(f.r, a.c, f.e.Body) {
 		return 0, "", false // JS-CONSTANT-EXPECTATION reads it (TSA-V0-129)
 	}
 	roots, dom := map[string][2]int{}, false
@@ -524,36 +523,36 @@ func (f *jsFlow) notFromSubject(a jsExpect) (int, string, bool) {
 		if first < 0 || b[0] < first {
 			first = b[0]
 		}
-		for k := range s.tokens {
-			if f.word(k) && s.tokens[k].Text == name && f.scope(k) && !f.allowedUse(k, roots, dom) {
+		for k := range s.Tokens {
+			if f.word(k) && s.Tokens[k].Text == name && f.scope(k) && !f.allowedUse(k, roots, dom) {
 				return 0, "", false
 			}
 		}
 	}
 	return first, fmt.Sprintf("the asserted value %s comes only from values the test builds itself (from %s) and no code under test receives them, so the assertion passes whatever the subject does",
-		s.render(actual[0], actual[1]), f.line(first)), true
+		s.Render(actual[0], actual[1]), f.line(first)), true
 }
 
 // built reports that range holds a value the test builds alone (TSA-V0-126); roots collects each
 // bound name's declaration token and initializer, and dom records a test-built DOM node.
 func (f *jsFlow) built(rng [2]int, depth int, roots map[string][2]int, dom *bool) bool {
-	s := f.r.s
+	s := f.r.S
 	if depth > maxFlowDepth || rng[1] <= rng[0] {
 		return false
 	}
 	for k := rng[0]; k < rng[1]; k++ {
-		t := s.tokens[k]
+		t := s.Tokens[k]
 		switch {
 		case t.Kind == appmap.JSTemplate && !t.Literal:
 			return false
-		case s.arrow(k) || s.ident(k, "function") || s.ident(k, "new") || s.ident(k, "await") || s.ident(k, "this") || s.ident(k, "super"):
+		case s.Arrow(k) || s.Ident(k, "function") || s.Ident(k, "new") || s.Ident(k, "await") || s.Ident(k, "this") || s.Ident(k, "super"):
 			return false
-		case s.ident(k, "document") && !s.memberAccess(k):
+		case s.Ident(k, "document") && !s.MemberAccess(k):
 			switch {
-			case s.punct(k+1, ".") && s.ident(k+2, "createElement") && s.punct(k+3, "(") && s.match[k+3] == k+5 &&
-				s.tokens[k+4].Kind == appmap.JSString && s.tokens[k+4].Literal && !strings.Contains(s.tokens[k+4].Text, "-"):
+			case s.Punct(k+1, ".") && s.Ident(k+2, "createElement") && s.Punct(k+3, "(") && s.Match[k+3] == k+5 &&
+				s.Tokens[k+4].Kind == appmap.JSString && s.Tokens[k+4].Literal && !strings.Contains(s.Tokens[k+4].Text, "-"):
 				k = k + 5
-			case s.punct(k+1, ".") && s.ident(k+2, "createDocumentFragment") && s.punct(k+3, "(") && s.match[k+3] == k+4:
+			case s.Punct(k+1, ".") && s.Ident(k+2, "createDocumentFragment") && s.Punct(k+3, "(") && s.Match[k+3] == k+4:
 				k = k + 4
 			default:
 				return false
@@ -561,7 +560,7 @@ func (f *jsFlow) built(rng [2]int, depth int, roots map[string][2]int, dom *bool
 			*dom = true
 		case !f.word(k):
 			continue
-		case s.punct(k+1, "(") || f.subject[t.Text]:
+		case s.Punct(k+1, "(") || f.subject[t.Text]:
 			return false
 		default:
 			decl, v, ok := f.binding(t.Text)
@@ -584,19 +583,19 @@ func (f *jsFlow) built(rng [2]int, depth int, roots map[string][2]int, dom *bool
 // value, another root's initializer, or (for a test-built DOM node) the node appended to the
 // test's own DOM.
 func (f *jsFlow) allowedUse(k int, roots map[string][2]int, dom bool) bool {
-	s := f.r.s
-	name := s.tokens[k].Text
+	s := f.r.S
+	name := s.Tokens[k].Text
 	if roots[name][0] == k {
 		return true
 	}
 	for _, a := range f.asserts {
-		if within(k, a.c.subject) && f.callFree(a.c.subject) || within(k, a.c.margs) && f.callFree(a.c.margs) {
+		if within(k, a.c.Subject) && f.callFree(a.c.Subject) || within(k, a.c.Margs) && f.callFree(a.c.Margs) {
 			return true
 		}
 	}
-	if s.punct(k+1, ".") && s.ident(k+2, "") && s.punct(k+3, "=") && !s.punct(k+4, "=") {
+	if s.Punct(k+1, ".") && s.Ident(k+2, "") && s.Punct(k+3, "=") && !s.Punct(k+4, "=") {
 		// A member write keeps the root test-built only when the written value is test-built too.
-		written, more, wroteDOM := [2]int{k + 4, s.exprEnd(k+4, len(s.tokens))}, map[string][2]int{}, false
+		written, more, wroteDOM := [2]int{k + 4, s.ExprEnd(k+4, len(s.Tokens))}, map[string][2]int{}, false
 		if !f.built(written, 0, more, &wroteDOM) || wroteDOM && !dom {
 			return false
 		}
@@ -612,7 +611,7 @@ func (f *jsFlow) allowedUse(k int, roots map[string][2]int, dom bool) bool {
 			return true
 		}
 	}
-	appended := s.punct(k-1, "(") && s.punct(k+1, ")") && (s.ident(k-2, "appendChild") || s.ident(k-2, "append") || s.ident(k-2, "prepend"))
+	appended := s.Punct(k-1, "(") && s.Punct(k+1, ")") && (s.Ident(k-2, "appendChild") || s.Ident(k-2, "append") || s.Ident(k-2, "prepend"))
 	return dom && appended
 }
 
@@ -630,37 +629,37 @@ func (f *jsFlow) domOnly() (int, bool) {
 }
 
 func (f *jsFlow) readDOM() (int, bool) {
-	s := f.r.s
+	s := f.r.S
 	made := -1
-	defs := s.definitions()
-	for k := 0; k < len(s.tokens); k++ {
-		if s.ident(k, "import") && !s.memberAccess(k) && !s.punct(k+1, "(") && !s.punct(k+1, ".") {
-			if k+1 < len(s.tokens) && s.tokens[k+1].Kind == appmap.JSString {
+	defs := definitions(s)
+	for k := 0; k < len(s.Tokens); k++ {
+		if s.Ident(k, "import") && !s.MemberAccess(k) && !s.Punct(k+1, "(") && !s.Punct(k+1, ".") {
+			if k+1 < len(s.Tokens) && s.Tokens[k+1].Kind == appmap.JSString {
 				return 0, false // a bare import runs the module for its effects
 			}
-			for k < len(s.tokens) && s.tokens[k].Kind != appmap.JSString && !s.punct(k, ";") {
+			for k < len(s.Tokens) && s.Tokens[k].Kind != appmap.JSString && !s.Punct(k, ";") {
 				k++
 			}
 			continue
 		}
-		if !f.scope(k) || !s.ident(k, "") {
+		if !f.scope(k) || !s.Ident(k, "") {
 			continue
 		}
-		name := s.tokens[k].Text
-		call := s.punct(k+1, "(")
+		name := s.Tokens[k].Text
+		call := s.Punct(k+1, "(")
 		switch {
-		case call && jsReachCalls[name], s.ident(k, "new"), f.word(k) && f.subject[name]:
+		case call && jsReachCalls[name], s.Ident(k, "new"), f.word(k) && f.subject[name]:
 			return 0, false
 		case call && f.word(k) && len(defs[name]) > 0:
 			return 0, false
 		case f.word(k):
 			// Any use of an imported binding, a namespace member call included, can run module code.
-			if b, ok := f.r.bindings[name]; ok && !jsTestLibrary(b.spec) {
+			if b, ok := f.r.Bindings[name]; ok && !jsTestLibrary(b.Spec) {
 				return 0, false
 			}
 		}
-		dom := name == "createElement" || name == "insertAdjacentHTML" || name == "innerHTML" && s.punct(k+1, "=") && !s.punct(k+2, "=")
-		if made < 0 && dom && s.memberAccess(k) && f.r.applies(k, f.e, f.chain) {
+		dom := name == "createElement" || name == "insertAdjacentHTML" || name == "innerHTML" && s.Punct(k+1, "=") && !s.Punct(k+2, "=")
+		if made < 0 && dom && s.MemberAccess(k) && applies(f.r, k, f.e, f.chain) {
 			made = k
 		}
 	}
@@ -671,7 +670,7 @@ func (f *jsFlow) readDOM() (int, bool) {
 // recorded before it.
 func (f *jsFlow) resetBetween(from, to int) bool {
 	for k := from; k < to; k++ {
-		if f.r.s.ident(k, "") && jsMockResets[f.r.s.tokens[k].Text] {
+		if f.r.S.Ident(k, "") && jsMockResets[f.r.S.Tokens[k].Text] {
 			return true
 		}
 	}
@@ -681,42 +680,42 @@ func (f *jsFlow) resetBetween(from, to int) bool {
 // ownCall returns the example's own direct call of the expected callee whose arguments the
 // expectation repeats (TSA-V0-128).
 func (f *jsFlow) ownCall(callee [2]int, a jsExpect, drop int) (int, bool) {
-	s := f.r.s
+	s := f.r.S
 	n := callee[1] - callee[0]
 	for j := callee[0]; j < callee[1]; j++ {
-		if (j-callee[0])%2 == 0 && !s.ident(j, "") || (j-callee[0])%2 == 1 && !s.punct(j, ".") {
+		if (j-callee[0])%2 == 0 && !s.Ident(j, "") || (j-callee[0])%2 == 1 && !s.Punct(j, ".") {
 			return 0, false
 		}
 	}
-	if n%2 == 0 || s.memberAccess(callee[0]) {
+	if n%2 == 0 || s.MemberAccess(callee[0]) {
 		return 0, false
 	}
-	want, has := "", a.c.margs[1] > a.c.margs[0]
+	want, has := "", a.c.Margs[1] > a.c.Margs[0]
 	if has {
-		args := s.splitArgs(a.c.margs[0]-1, a.c.margs[1])
+		args := s.SplitArgs(a.c.Margs[0]-1, a.c.Margs[1])
 		if len(args) < drop {
 			return 0, false
 		}
 		if len(args) > drop {
-			want = s.render(args[drop][0], a.c.margs[1])
+			want = s.Render(args[drop][0], a.c.Margs[1])
 		}
 	}
-	for k := f.e.body[0] + 1; k < a.at; k++ {
-		if end := s.nestedFunctionEnd(k); end >= k {
+	for k := f.e.Body[0] + 1; k < a.at; k++ {
+		if end := nestedFunctionEnd(s, k); end >= k {
 			k = end
 			continue
 		}
-		if s.memberAccess(k) || !s.punct(k+n, "(") || s.match[k+n] < 0 {
+		if s.MemberAccess(k) || !s.Punct(k+n, "(") || s.Match[k+n] < 0 {
 			continue
 		}
 		same := true
 		for j := 0; j < n && same; j++ {
-			same = s.tokens[k+j].Kind == s.tokens[callee[0]+j].Kind && s.tokens[k+j].Text == s.tokens[callee[0]+j].Text
+			same = s.Tokens[k+j].Kind == s.Tokens[callee[0]+j].Kind && s.Tokens[k+j].Text == s.Tokens[callee[0]+j].Text
 		}
 		if !same {
 			continue
 		}
-		if (!has || s.render(k+n+1, s.match[k+n]) == want) && !f.resetBetween(k, a.at) {
+		if (!has || s.Render(k+n+1, s.Match[k+n]) == want) && !f.resetBetween(k, a.at) {
 			return k, true
 		}
 	}

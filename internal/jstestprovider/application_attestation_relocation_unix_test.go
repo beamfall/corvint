@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/execfile"
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 // TestApplicationAttestationRelocatedLauncherFailsClosed pins the documented
@@ -34,7 +35,7 @@ func TestApplicationAttestationRelocatedLauncherFailsClosed(t *testing.T) {
 	}
 	configPath := filepath.Join(root, "config.json")
 	statePath := filepath.Join(root, "state.json")
-	writeCanonicalFixture(t, configPath, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: applicationExpectationFixture()})
+	writeCanonicalFixture(t, configPath, jstestreceipt.ApplicationAttestationConfig{Profile: jstestreceipt.ApplicationAttestationConfigProfile, Expectation: applicationExpectationFixture()})
 	writeCanonicalFixture(t, statePath, applicationAttestationFixture())
 	if output, err := exec.Command(launcher, statePath).Output(); err != nil || len(output) == 0 {
 		t.Fatalf("original launcher must run in place: err=%v output=%q", err, output)

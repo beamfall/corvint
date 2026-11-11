@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 )
 
 func TestSensitiveInputPolicyGrammarAgreement(t *testing.T) {
@@ -58,21 +60,21 @@ func TestSensitiveInputUnsupportedReceiverSyntaxRejected(t *testing.T) {
 			t.Error("finding echoed input")
 		}
 	}
-	policy, _ := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom+entry"}})
+	policy, _ := jstestreceipt.SensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom+entry"}})
 	for _, title := range []string{`Expect page.getByLabel("Password").fill to fail`, `Navigate to page.getByLabel("Password").fill`, `page.goto("/fill")`, `page.getByText("fill").click()`, `Expect custom+entry to succeed`} {
 		r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: title}}}}}}}
 		safe, err := RedactSensitiveInputEvidence(r)
 		if err != nil || safe.Tests[0].Attempts[0].Steps[0].Title != title {
 			t.Errorf("negative control changed: %q %v", title, err)
 		}
-		if display, _ := boundaryActionMatch(title, policy); display != "" {
+		if display, _ := jstestreceipt.BoundaryActionMatch(title, policy); display != "" {
 			t.Errorf("negative control classified: %q", title)
 		}
 	}
 }
 
 func TestSensitiveInputArgumentCandidatesRespectStructure(t *testing.T) {
-	policy, _ := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
+	policy, _ := jstestreceipt.SensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
 	for _, test := range []struct {
 		title               string
 		required, forbidden []string
@@ -106,7 +108,7 @@ func TestSensitiveInputArgumentCandidatesRespectStructure(t *testing.T) {
 // V1-3197: JavaScript-only escapes in a bracketed property name decode before
 // the action comparison, and an undecodable name fails closed.
 func TestSensitiveInputPropertyJSEscapes(t *testing.T) {
-	policy, _ := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
+	policy, _ := jstestreceipt.SensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
 	for name, property := range map[string]string{
 		"hex":               `custom\x20entry`,
 		"code point":        `custom\u{20}entry`,
@@ -121,7 +123,7 @@ func TestSensitiveInputPropertyJSEscapes(t *testing.T) {
 		"identity":          `\custom entry`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			if !boundarySensitiveProperty(property, policy) {
+			if !jstestreceipt.BoundarySensitiveProperty(property, policy) {
 				t.Errorf("escaped property not classified: %q", property)
 			}
 			title := `page["` + property + `"]("unquoted-secret")`
@@ -132,21 +134,21 @@ func TestSensitiveInputPropertyJSEscapes(t *testing.T) {
 		})
 	}
 	for _, property := range []string{`custom entry\`, `harmless\`, `bad\x2`, `bad\u{110000}`, `bad\u{}`, `bad\u{20`, `bad\u12`, `bad\1`, `bad\08`, `bad\uD83D`, `bad\uDCA0x`, `bad\u{D800}`, `bad\u{DCA0}\u{D83D}`} {
-		if !boundarySensitiveProperty(property, policy) {
+		if !jstestreceipt.BoundarySensitiveProperty(property, policy) {
 			t.Errorf("undecodable property did not fail closed: %q", property)
 		}
 	}
 	for _, property := range []string{`harmless\x20name`, `harmless\u{20}name`, `harmless\0name`, "harmless\\`name", `harmless`} {
-		if boundarySensitiveProperty(property, policy) {
+		if jstestreceipt.BoundarySensitiveProperty(property, policy) {
 			t.Errorf("negative control classified: %q", property)
 		}
 	}
 	for _, pair := range []string{`\uD83D\uDCA0`, `\u{D83D}\u{DCA0}`, `\uD83D\u{DCA0}`, `\u{1F4A0}`} {
-		if decoded, ok := boundaryDecodeJSString(pair); !ok || decoded != "💠" {
+		if decoded, ok := jstestreceipt.BoundaryDecodeJSString(pair); !ok || decoded != "💠" {
 			t.Errorf("surrogate pair %q = %q %v", pair, decoded, ok)
 		}
 	}
-	if decoded, ok := boundaryDecodeJSString(`a\b\f\n\r\t\v\0\x41B\u{1F4A0}\'\"\\`); !ok || decoded != "a\b\f\n\r\t\v\x00AB💠'\"\\" {
+	if decoded, ok := jstestreceipt.BoundaryDecodeJSString(`a\b\f\n\r\t\v\0\x41B\u{1F4A0}\'\"\\`); !ok || decoded != "a\b\f\n\r\t\v\x00AB💠'\"\\" {
 		t.Errorf("decode = %q %v", decoded, ok)
 	}
 }
@@ -154,19 +156,19 @@ func TestSensitiveInputPropertyJSEscapes(t *testing.T) {
 // A bare double quote inside a single-quoted or template property literal must
 // not stop the JavaScript escapes in it from being decoded (CodeQL alert 31).
 func TestSensitiveInputPropertyDecodesEscapesBesideBareDoubleQuote(t *testing.T) {
-	policy, err := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
+	policy, err := jstestreceipt.SensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, quote := range []rune{'\'', '`'} {
-		if !boundarySensitiveProperty(`custom\u0020"entry"`, policy) {
+		if !jstestreceipt.BoundarySensitiveProperty(`custom\u0020"entry"`, policy) {
 			t.Errorf("escaped property beside a bare double quote evaded the classifier (quote %q)", quote)
 		}
-		if boundarySensitiveProperty(`custom\u0020"other"`, policy) {
+		if jstestreceipt.BoundarySensitiveProperty(`custom\u0020"other"`, policy) {
 			t.Errorf("negative control classified (quote %q)", quote)
 		}
 	}
-	if !boundarySensitiveProperty(`custom\u0020entry`, policy) {
+	if !jstestreceipt.BoundarySensitiveProperty(`custom\u0020entry`, policy) {
 		t.Error("double-quoted escape no longer decoded")
 	}
 }

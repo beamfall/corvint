@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jstestreceipt"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -23,17 +24,17 @@ func freshFixture(t *testing.T) Receipt {
 	r.Identity.NodeVersion = "v22.23.3"
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.Environment = map[string]string{"PATH": "/bin", "LANG": "C", "LC_ALL": "C", "TMPDIR": "/tmp"}
-	r.Identity.PackageDigest = sha256Hex([]byte("package"))
-	r.Identity.ConfigDigest = sha256Hex([]byte("config"))
-	r.Identity.TestFileDigests[r.Tests[0].Anchor.File] = sha256Hex([]byte("test"))
+	r.Identity.PackageDigest = jstestreceipt.Sha256Hex([]byte("package"))
+	r.Identity.ConfigDigest = jstestreceipt.Sha256Hex([]byte("config"))
+	r.Identity.TestFileDigests[r.Tests[0].Anchor.File] = jstestreceipt.Sha256Hex([]byte("test"))
 	r.Identity.ConfigInputDigests = map[string]string{r.Identity.ConfigFile: r.Identity.ConfigDigest}
 	r.Tests[0].Project.ConfigDigest = r.Identity.ConfigDigest
 	r.Tests[0].Project.Use = json.RawMessage(`{"baseURL":"http://127.0.0.1:3002","browserName":"chromium","channel":"","headless":true,"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.3","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/cache/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
-	cmd := FreshCommandIdentity{Argv: []string{"/node", "/entry.cjs"}, ExecutableDigest: sha256Hex([]byte("node")), EntrypointDigest: sha256Hex([]byte("entry"))}
+	cmd := FreshCommandIdentity{Argv: []string{"/node", "/entry.cjs"}, ExecutableDigest: jstestreceipt.Sha256Hex([]byte("node")), EntrypointDigest: jstestreceipt.Sha256Hex([]byte("entry"))}
 	r.Identity.Argv = append([]string{}, cmd.Argv...)
 	bind := FreshCommandBinding{Expected: cmd, Before: &cmd, After: &cmd}
 	source := []byte("<button>one</button>")
-	digest := sha256Hex(source)
+	digest := jstestreceipt.Sha256Hex(source)
 	serverInput, _ := json.Marshal(struct {
 		Response []byte `json:"response"`
 	}{source})
@@ -41,7 +42,7 @@ func freshFixture(t *testing.T) Receipt {
 	product := r.ApplicationAttestation.Before.Attestation.Repository
 	process := FreshProcessIdentity{PID: 42, Start: "observed-start"}
 	served := FreshServeObservation{URL: r.External.ReadyURL, Process: process, Body: source}
-	r.Freshness = &FreshnessBinding{ServerInputDigest: sha256Hex(append(serverInput, '\n')), ProductExpected: product, TestExpected: *r.TestRepositoryAtStart, ProductBefore: &product, ProductAfter: &product, ArtifactPath: "app.html", Source: source, SourceDigest: digest, ArtifactBefore: digest, ArtifactAfter: digest, DocumentURL: r.External.ReadyURL, Leader: &process, ServedBefore: &served, ServedAfter: &served, Runner: bind, Server: bind, Observer: bind, ObserverConfigBefore: sha256Hex([]byte("observer-config")), ObserverConfigAfter: sha256Hex([]byte("observer-config")), EnvironmentBefore: r.Identity.Environment, EnvironmentAfter: r.Identity.Environment, IdentityAfter: &r.Identity, ServerGone: &gone, Failures: []string{}}
+	r.Freshness = &FreshnessBinding{ServerInputDigest: jstestreceipt.Sha256Hex(append(serverInput, '\n')), ProductExpected: product, TestExpected: *r.TestRepositoryAtStart, ProductBefore: &product, ProductAfter: &product, ArtifactPath: "app.html", Source: source, SourceDigest: digest, ArtifactBefore: digest, ArtifactAfter: digest, DocumentURL: r.External.ReadyURL, Leader: &process, ServedBefore: &served, ServedAfter: &served, Runner: bind, Server: bind, Observer: bind, ObserverConfigBefore: jstestreceipt.Sha256Hex([]byte("observer-config")), ObserverConfigAfter: jstestreceipt.Sha256Hex([]byte("observer-config")), EnvironmentBefore: r.Identity.Environment, EnvironmentAfter: r.Identity.Environment, IdentityAfter: &r.Identity, ServerGone: &gone, Failures: []string{}}
 	r.ApplicationAttestation.Expectation.Build = ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest}
 	r.ApplicationAttestation.Expectation.Configuration = ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + r.Identity.ConfigDigest}
 	r.ApplicationAttestation.Expectation.InstanceKind = "process"
@@ -54,7 +55,7 @@ func freshFixture(t *testing.T) Receipt {
 	}
 	r.DescendantObservation = &procgroup.DescendantObservation{Scope: "fixture", IntervalMS: 20, Absent: true, Limitations: []string{"sampled"}}
 	r.Freshness.ServerDescendants = r.DescendantObservation
-	manifest := &FreshDependencyManifest{Roots: []string{"/cache/node_modules/playwright"}, Files: map[string]string{"/cache/node_modules/playwright/lib/impl.js": sha256Hex([]byte("implementation")), cmd.Argv[1]: cmd.EntrypointDigest, r.Tests[0].Anchor.File: r.Identity.TestFileDigests[r.Tests[0].Anchor.File], r.Identity.ConfigFile: r.Identity.ConfigDigest}}
+	manifest := &FreshDependencyManifest{Roots: []string{"/cache/node_modules/playwright"}, Files: map[string]string{"/cache/node_modules/playwright/lib/impl.js": jstestreceipt.Sha256Hex([]byte("implementation")), cmd.Argv[1]: cmd.EntrypointDigest, r.Tests[0].Anchor.File: r.Identity.TestFileDigests[r.Tests[0].Anchor.File], r.Identity.ConfigFile: r.Identity.ConfigDigest}}
 	observed := &FreshDependencyObservation{Files: manifest.Files, Failures: []string{}}
 	r.Freshness.Dependencies = manifest
 	r.Freshness.DependencyDigest = FreshDependencyDigest(manifest)
@@ -66,7 +67,7 @@ func freshFixture(t *testing.T) Receipt {
 		served.ObserverImports = map[string]string{cmd.Argv[1]: cmd.EntrypointDigest}
 	}
 
-	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 	return r
 }
 
@@ -86,14 +87,14 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 			for path, digest := range r.Freshness.Dependencies.Files {
 				o.Files[path] = digest
 			}
-			o.Files["/cache/node_modules/playwright/lib/impl.js"] = sha256Hex([]byte("changed"))
+			o.Files["/cache/node_modules/playwright/lib/impl.js"] = jstestreceipt.Sha256Hex([]byte("changed"))
 			r.Freshness.DependenciesAfter = &o
 		}, testvalidity.FreshnessStale},
 		"worker import unsupported": {func(r *Receipt) {
-			r.Tests[0].ImportedFiles = map[string]string{"/unapproved/import.js": sha256Hex([]byte("module"))}
+			r.Tests[0].ImportedFiles = map[string]string{"/unapproved/import.js": jstestreceipt.Sha256Hex([]byte("module"))}
 		}, testvalidity.FreshnessUnknown},
 		"worker import drift": {func(r *Receipt) {
-			r.Tests[0].ImportedFiles = map[string]string{r.Tests[0].Anchor.File: r.Identity.TestFileDigests[r.Tests[0].Anchor.File], "/cache/node_modules/playwright/lib/impl.js": sha256Hex([]byte("changed"))}
+			r.Tests[0].ImportedFiles = map[string]string{r.Tests[0].Anchor.File: r.Identity.TestFileDigests[r.Tests[0].Anchor.File], "/cache/node_modules/playwright/lib/impl.js": jstestreceipt.Sha256Hex([]byte("changed"))}
 		}, testvalidity.FreshnessStale},
 		"observer import unavailable": {func(r *Receipt) {
 			o := *r.Freshness.ServedBefore
@@ -102,7 +103,7 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 		}, testvalidity.FreshnessUnknown},
 		"server dependency unsupported": {func(r *Receipt) {
 			o := *r.Freshness.ServedBefore
-			o.ServerImports = map[string]string{"/entry.cjs": r.Freshness.Server.Expected.EntrypointDigest, "/other/import.js": sha256Hex([]byte("module"))}
+			o.ServerImports = map[string]string{"/entry.cjs": r.Freshness.Server.Expected.EntrypointDigest, "/other/import.js": jstestreceipt.Sha256Hex([]byte("module"))}
 			r.Freshness.ServedBefore = &o
 		}, testvalidity.FreshnessUnknown},
 		"missing binding": {func(r *Receipt) { r.Freshness = nil }, testvalidity.FreshnessUnknown},
@@ -120,18 +121,18 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 		}, testvalidity.FreshnessStale},
 		"foreign healthy server": {func(r *Receipt) { s := *r.Freshness.ServedBefore; s.Process.PID++; r.Freshness.ServedBefore = &s }, testvalidity.FreshnessStale},
 		"source drift then unavailable": {func(r *Receipt) {
-			r.Freshness.ArtifactBefore = sha256Hex([]byte("old"))
+			r.Freshness.ArtifactBefore = jstestreceipt.Sha256Hex([]byte("old"))
 			r.Freshness.ProductAfter = nil
 		}, testvalidity.FreshnessStale},
 		"config drift": {func(r *Receipt) {
 			i := r.Identity
-			i.ConfigDigest = sha256Hex([]byte("changed"))
+			i.ConfigDigest = jstestreceipt.Sha256Hex([]byte("changed"))
 			r.Freshness.IdentityAfter = &i
 		}, testvalidity.FreshnessStale},
 		"missing runner bytes": {func(r *Receipt) { r.Freshness.Runner.After = nil }, testvalidity.FreshnessUnknown},
 		"runner changed": {func(r *Receipt) {
 			c := *r.Freshness.Runner.After
-			c.EntrypointDigest = sha256Hex([]byte("changed"))
+			c.EntrypointDigest = jstestreceipt.Sha256Hex([]byte("changed"))
 			r.Freshness.Runner.After = &c
 		}, testvalidity.FreshnessStale},
 		"environment changed": {func(r *Receipt) {
@@ -141,7 +142,7 @@ func TestPTFV0ObservedCurrency(t *testing.T) {
 		"old node tuple": {func(r *Receipt) {
 			r.Identity.NodeVersion = "v22.23.2"
 			r.Freshness.IdentityAfter = &r.Identity
-			r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+			r.Tests[0].ID = jstestreceipt.QualifiedTestID(r.Identity, r.Tests[0])
 		}, testvalidity.FreshnessUnknown},
 		"native row changed": {func(r *Receipt) { r.Tests[0].ID = "different" }, testvalidity.FreshnessUnknown},
 	} {
@@ -200,11 +201,11 @@ func TestPTFV0ClosedCodec(t *testing.T) {
 func TestPTFV0ResponseDeltaAndAssertion(t *testing.T) {
 	source := []byte("<p>one</p>")
 	mutant := []byte("<p>two</p>")
-	d := ResponseMutationDefinition{ArtifactPath: "app.html", SourceSHA256: sha256Hex(source), From: "one", To: "two", MutantSHA256: sha256Hex(mutant)}
+	d := ResponseMutationDefinition{ArtifactPath: "app.html", SourceSHA256: jstestreceipt.Sha256Hex(source), From: "one", To: "two", MutantSHA256: jstestreceipt.Sha256Hex(mutant)}
 	if got, e := ResponseMutation(source, "app.html", d); e != nil || !bytes.Equal(got, mutant) {
 		t.Fatal("approved response derivation failed")
 	}
-	for name, change := range map[string]func(*ResponseMutationDefinition){"path": func(d *ResponseMutationDefinition) { d.ArtifactPath = "other" }, "source": func(d *ResponseMutationDefinition) { d.SourceSHA256 = sha256Hex([]byte("old")) }, "mutant": func(d *ResponseMutationDefinition) { d.MutantSHA256 = sha256Hex([]byte("other")) }, "absent": func(d *ResponseMutationDefinition) { d.From = "absent" }, "no-op": func(d *ResponseMutationDefinition) { d.To = d.From }} {
+	for name, change := range map[string]func(*ResponseMutationDefinition){"path": func(d *ResponseMutationDefinition) { d.ArtifactPath = "other" }, "source": func(d *ResponseMutationDefinition) { d.SourceSHA256 = jstestreceipt.Sha256Hex([]byte("old")) }, "mutant": func(d *ResponseMutationDefinition) { d.MutantSHA256 = jstestreceipt.Sha256Hex([]byte("other")) }, "absent": func(d *ResponseMutationDefinition) { d.From = "absent" }, "no-op": func(d *ResponseMutationDefinition) { d.To = d.From }} {
 		t.Run(name, func(t *testing.T) {
 			altered := d
 			change(&altered)
@@ -257,7 +258,7 @@ func TestPTFV0DependencyManifestBound(t *testing.T) {
 	if e := os.WriteFile(path, source, 0600); e != nil {
 		t.Fatal(e)
 	}
-	manifest := &FreshDependencyManifest{Roots: []string{root}, Files: map[string]string{path: sha256Hex(source)}}
+	manifest := &FreshDependencyManifest{Roots: []string{root}, Files: map[string]string{path: jstestreceipt.Sha256Hex(source)}}
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		if observed := ObserveFreshDependencies(manifest); len(observed.Failures) == 0 || FreshDependenciesMatch(manifest, observed) {
 			t.Fatal("unsupported platform admitted manifest")
