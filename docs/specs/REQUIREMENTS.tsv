@@ -2535,7 +2535,7 @@ PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	Release platforms MU
 PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	A Core release candidate MUST NOT require companion input. Companions keep their	unrecorded	-
 PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau	unrecorded	-
 PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014	unrecorded	-
-PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on	unrecorded	-
+PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	The 1.0 Core candidate MUST pass the three Core jobs (two since decision 0597) o	unrecorded	-
 PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	Core installed qualification MUST be the native archive lifecycle of	unrecorded	-
 PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	Any new shipped verb, binary or integration tree MUST be added to the	unrecorded	-
 PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate	unrecorded	-
