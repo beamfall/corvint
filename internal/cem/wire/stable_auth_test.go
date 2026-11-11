@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 func receiptAuthCaseFile(t *testing.T, name string) []byte {

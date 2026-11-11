@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestPrepareRefusesMetadataOnlyChanges reproduces V1-0609 on real Git

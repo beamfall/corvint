@@ -101,7 +101,7 @@ func TestBaselineUnknownReadSetASDV0944(t *testing.T) {
 		{"unresolved m/tools/selection-baseline: \"dynamic read\"\n"},
 		{"bound m/other declared docs/a.md\n"},
 	} {
-		if run, why := decideInputs([]string{"docs/a.md"}, []string{"internal/engine/"}, bounds, "m/tools/selection-baseline", "base"); !run || !strings.Contains(why, "unknown read set") {
+		if run, why := decideInputs([]string{"docs/a.md"}, []string{"internal/engine/"}, bounds, "m/tools/selection-baseline", "base", ""); !run || !strings.Contains(why, "unknown read set") {
 			t.Fatalf("unknown bounds skipped: %v %s", run, why)
 		}
 	}
@@ -220,7 +220,7 @@ func TestBaselineMemoryWorkersASDV0925(t *testing.T) {
 func TestBaselineInputReasonIsDeterministic(t *testing.T) {
 	bounds := []string{"bound m/tools/selection-baseline declared tools/selection-baseline/main.go\n"}
 	for _, paths := range [][]string{{"go.mod", "Makefile"}, {"Makefile", "go.mod"}} {
-		_, reason := decideInputs(paths, []string{"cmd/corvint/"}, bounds, "m/tools/selection-baseline", "base") //corvint:fixture-path
+		_, reason := decideInputs(paths, []string{"cmd/corvint/"}, bounds, "m/tools/selection-baseline", "base", "") //corvint:fixture-path
 		if reason != "matching input Makefile" {
 			t.Fatal(reason)
 		}
@@ -246,5 +246,122 @@ func TestBaselineInputReasonIsDeterministic(t *testing.T) {
 	}
 	if _, err := compilationDirs(root, strings.NewReader(string(data))); err == nil {
 		t.Fatal("symbolic compilation input accepted")
+	}
+}
+
+// TestBaselineDeclarationEntryASCV9850 (V1-5162): the replay reads the read-scope
+// declaration only through the driver's entry, so an edit confined to another
+// package's entry skips, while an edit to the driver's entry, its removal, the
+// file's deletion or an undecodable side runs.
+func TestBaselineDeclarationEntryASCV9850(t *testing.T) {
+	const scopes = ".corvint/test-read-scopes.json" //corvint:fixture-path
+	declaration := func(driver, engine string) string {
+		packages := `"internal/engine":` + engine
+		if driver != "" {
+			packages += `,"tools/selection-baseline":` + driver
+		}
+		return `{"profile":"corvint-test-read-scopes/0","packages":{` + packages + `}}` + "\n"
+	}
+	root := t.TempDir()
+	files := map[string]string{
+		"go.mod":                             "module example.com/baseline\n",
+		"cmd/corvint/main.go":                "package main\nfunc main() {}\n", //corvint:fixture-path
+		"internal/engine/engine.go":          "package engine\n",
+		"tools/gate-affected-select/main.go": "package main\nfunc main() {}\n", //corvint:fixture-path
+		"tools/selection-baseline/main.go":   "package main\nfunc main() {}\n",
+		scopes:                               declaration(`["baseline-input/"]`, `[]`),
+	}
+	for p, b := range files {
+		baselineFile(t, root, p, b)
+	}
+	baselineGit(t, root, "init", "-q")
+	baselineGit(t, root, "add", ".")
+	baselineGit(t, root, "commit", "-qm", "base")
+	base := baselineGit(t, root, "rev-parse", "HEAD")
+	for _, tc := range []struct {
+		name, body string
+		want       bool
+		reason     string
+	}{
+		{"unrelated entry", declaration(`["baseline-input/"]`, `["docs/"]`), false, "disjoint"},
+		{"reformatted", "{\n  \"packages\": {\"tools/selection-baseline\": [\"baseline-input/\"], \"internal/engine\": []},\n  \"profile\": \"corvint-test-read-scopes/0\"\n}\n", false, "disjoint"},
+		{"driver entry widened", declaration(`["baseline-input/","more-input/"]`, `[]`), true, "matching input " + scopes + ": its tools/selection-baseline entry changed"},
+		{"driver entry removed", declaration("", `[]`), true, "matching input " + scopes},
+		{"invalid", "invalid", true, "unknown read set"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			baselineFile(t, root, scopes, tc.body)
+			defer baselineFile(t, root, scopes, files[scopes])
+			got, reason := inputDecision(context.Background(), root, base)
+			if got != tc.want || !strings.Contains(reason, tc.reason) {
+				t.Fatalf("run=%v reason=%q, want %v / %q", got, reason, tc.want, tc.reason)
+			}
+		})
+	}
+	t.Run("deleted", func(t *testing.T) {
+		defer baselineFile(t, root, scopes, files[scopes])
+		if err := os.Remove(filepath.Join(root, scopes)); err != nil {
+			t.Fatal(err)
+		}
+		if got, reason := inputDecision(context.Background(), root, base); !got {
+			t.Fatalf("deleted declaration skipped: %s", reason)
+		}
+	})
+	t.Run("unrelated entry with another input", func(t *testing.T) {
+		baselineFile(t, root, scopes, declaration(`["baseline-input/"]`, `["docs/"]`))
+		baselineFile(t, root, "baseline-input/config.txt", "changed")
+		defer func() {
+			baselineFile(t, root, scopes, files[scopes])
+			os.RemoveAll(filepath.Join(root, "baseline-input"))
+		}()
+		if got, reason := inputDecision(context.Background(), root, base); !got || !strings.Contains(reason, "baseline-input/config.txt") {
+			t.Fatalf("a declared driver input beside the skipped declaration: run=%v %s", got, reason)
+		}
+	})
+	// The limit holds before either side is read: padding keeps both sides
+	// decodable and equal, so only the size check can name the doubt.
+	padded := strings.TrimSuffix(files[scopes], "\n") + strings.Repeat(" ", declarationLimit) + "\n"
+	t.Run("oversize worktree side", func(t *testing.T) {
+		baselineFile(t, root, scopes, padded)
+		defer baselineFile(t, root, scopes, files[scopes])
+		if got := driverDeclarationChange(context.Background(), root, base, "tools/selection-baseline"); got != "the declaration is oversize" {
+			t.Fatalf("oversize worktree declaration: %q", got)
+		}
+	})
+	t.Run("oversize base side", func(t *testing.T) {
+		baselineFile(t, root, scopes, padded)
+		baselineGit(t, root, "commit", "-qam", "oversize")
+		big := baselineGit(t, root, "rev-parse", "HEAD")
+		baselineFile(t, root, scopes, files[scopes])
+		if got := driverDeclarationChange(context.Background(), root, big, "tools/selection-baseline"); got != "the declaration is oversize at "+big {
+			t.Fatalf("oversize base declaration: %q", got)
+		}
+	})
+}
+
+// TestCompareDriverEntryASCV9850: doubt on either side runs.
+func TestCompareDriverEntryASCV9850(t *testing.T) {
+	ok := `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":[]}}`
+	for name, tc := range map[string]struct {
+		before, after string
+		same          bool
+	}{
+		"other entry":    {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["x"]}}`, true},
+		"absent both":    {`{"profile":"corvint-test-read-scopes/0","packages":{}}`, `{"profile":"corvint-test-read-scopes/0","packages":{"e":[]}}`, true},
+		"entry widened":  {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/","b/"],"e":[]}}`, false},
+		"added":          {`{"profile":"corvint-test-read-scopes/0","packages":{}}`, ok, false},
+		"emptied":        {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":[],"e":[]}}`, false},
+		"duplicate name": {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"d":["b/"]}}`, false},
+		"unknown member": {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"]},"x":1}`, false},
+		"other profile":  {ok, `{"profile":"corvint-test-read-scopes/1","packages":{"d":["a/"]}}`, false},
+		"no packages":    {ok, `{"profile":"corvint-test-read-scopes/0"}`, false},
+		"bad base":       {"{", ok, false},
+		"repaired base":  {`{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["../outside"]}}`, ok, false},
+		"unsorted base":  {`{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["y","x"]}}`, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"e":["x","y"]}}`, false},
+		"bad after path": {ok, `{"profile":"corvint-test-read-scopes/0","packages":{"d":["a/"],"../e":[]}}`, false},
+	} {
+		if got := compareDriverEntry([]byte(tc.before), []byte(tc.after), "d"); (got == "") != tc.same {
+			t.Errorf("%s: compareDriverEntry = %q, want same=%v", name, got, tc.same)
+		}
 	}
 }

@@ -3,7 +3,7 @@
 package verify
 
 import (
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"os"
 	"path/filepath"
 	"testing"

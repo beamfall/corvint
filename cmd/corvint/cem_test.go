@@ -160,6 +160,8 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 		t.Fatalf("status: %d %s", code, stderr)
 	}
 	normalized := strings.ReplaceAll(out, root, "$ROOT")
+	// V1-5408 stage B: the envelope records the live toolchain; the golden records go1.27.3.
+	normalized = strings.ReplaceAll(normalized, `"goVersion":"go1.27.4"`, `"goVersion":"go1.27.3"`)
 	golden := filepath.Join("testdata", "cem-status-canonical.golden")
 	if os.Getenv("UPDATE_CEM_GOLDENS") == "1" {
 		if err := os.MkdirAll("testdata", 0o755); err != nil {
@@ -193,8 +195,9 @@ func TestCEMEndToEndAndGoldenEnvelope(t *testing.T) {
 
 // TestCEMSeamsDependOnlyOnStdlibAndGit enforces the native-cem-adapter
 // dependency claim: the CEM seams import nothing beyond the standard library,
-// each other and the process-group helper groupreap, whose own imports this
-// closure also checks.
+// each other, the two leaves that moved out of internal/cem (gitrun and
+// cemcode, V1-4807) and the process-group helper groupreap. go list -deps
+// prints the whole closure, so the imports of those three are checked too.
 func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 	t.Parallel()
 	goTool, err := exec.LookPath("go")
@@ -211,10 +214,11 @@ func TestCEMSeamsDependOnlyOnStdlibAndGit(t *testing.T) {
 		if !strings.Contains(strings.SplitN(dependency, "/", 2)[0], ".") {
 			continue // standard library: no dot in the first path segment
 		}
-		if strings.HasPrefix(dependency, "github.com/Beamfall/corvint/internal/cem") {
+		const internal = "github.com/Beamfall/corvint/internal/"
+		if dependency == internal+"cem" || strings.HasPrefix(dependency, internal+"cem/") {
 			continue
 		}
-		if dependency == "github.com/Beamfall/corvint/internal/groupreap" {
+		if dependency == internal+"gitrun" || dependency == internal+"cemcode" || dependency == internal+"groupreap" {
 			continue
 		}
 		t.Errorf("CEM seams depend on %s", dependency)

@@ -94,8 +94,13 @@ func TestAMAPV0110BranchesReadOnlyContract(t *testing.T) {
 	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: root, Budget: 10}); codeOf(err) == "" {
 		t.Fatalf("budget below floor must refuse")
 	}
-	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: t.TempDir()}); codeOf(err) != "appmap-invalid-revision" {
+	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: foreignRepo(t)}); codeOf(err) != "appmap-invalid-revision" {
 		t.Fatalf("foreign root: %v", err)
+	}
+	// AMAP-V0-8780: a plain directory outside every repository is a source failure; before
+	// that requirement it read as appmap-invalid-revision.
+	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: t.TempDir()}); codeOf(err) != "appmap-source-unavailable" {
+		t.Fatalf("plain-directory root: %v", err)
 	}
 }
 

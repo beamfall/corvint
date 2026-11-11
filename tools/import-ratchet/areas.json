@@ -12,6 +12,7 @@
         "internal/appmap",
         "internal/capcatalog",
         "internal/cem",
+        "internal/cemcode",
         "internal/cliapp",
         "internal/cliconformance",
         "internal/clierror",
@@ -27,6 +28,7 @@
         "internal/genesis",
         "internal/gitancestry",
         "internal/gitprobe",
+        "internal/gitrun",
         "internal/gitstatus",
         "internal/gokernel",
         "internal/groupreap",
@@ -171,7 +173,6 @@
         "internal/doccorpus",
         "internal/docmaintain",
         "internal/docstools",
-        "internal/docviews",
         "internal/flowdocs",
         "internal/mcp/corpusbridge",
         "internal/requestpath"

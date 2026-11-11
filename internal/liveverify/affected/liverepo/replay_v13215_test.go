@@ -25,12 +25,12 @@ func TestCEMCodeRegistryChangeSelectsObservations_V13215(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := affected.Select(graph, []string{"internal/cem/cemcode/cemcode.go"})
+	plan := affected.Select(graph, []string{"internal/cemcode/cemcode.go"})
 	witnesses := map[string]string{}
 	for _, selection := range plan.Selected {
 		witnesses[selection.UnitID] = selection.Witness.Kind
 	}
-	if kind := witnesses["go:"+module+"/internal/cem/cemcode"]; kind != affected.WitnessDirectSource {
+	if kind := witnesses["go:"+module+"/internal/cemcode"]; kind != affected.WitnessDirectSource {
 		t.Errorf("cemcode witness %q, want %s", kind, affected.WitnessDirectSource)
 	}
 	// The selection rests on the Go import, not on a test reading the

@@ -70,7 +70,7 @@ proposal, and differences from the proposal headers: "Proposal traceability" in 
 The Status column is the folder's acceptance-log row: "waiting for owner" for `pending-owner`
 (the proposal's intent is proposed only), "auto-accepted" for `auto` and "accepted" for `owner`
 (ACR-V1-015). No folder is planned without a `proposal.md` now. Status "archived" means every task
-is ticked and the folder is under `changes/archive/`. The table has one row for each of the 46
+is ticked and the folder is under `changes/archive/`. The table has one row for each of the 48
 folders under `changes/` and for each archived change. The PROD column gives the plan requirements
 the proposal header serves.
 
@@ -120,6 +120,8 @@ the proposal header serves.
 | `test-inventory` | One committed inventory under `.corvint/` for all seven runners, written by `corvint inventory refresh` (R10) | PROD-TEST-017 | waiting for owner |
 | `ticket-brief-context` | Ticket brief through `corvint context`, non-blocking (R28, R29) | PROD-TASK-006; PROD-INT-002 | waiting for owner |
 | `ticket-taxonomy` | Ticket categories, identity key, required fields and search; built in the Tasks repository (R42, C18 to C21) | PROD-TASK-005, 006, 007; PROD-INT-005, 011 | waiting for owner |
+| `traceability-gate-upgrade` | The traceability gate resolves `TestX/REQ-ID` citations against the test body and refuses the removal of a requirement's last test citation (V1-4803) | PROD-INT-005 | waiting for owner |
+| `trusted-shell-selection` | CI shell-test selection and the doc-gates target list come from the base tree, so a PR cannot weaken its own checks (V1-5097) | none named (V1-5097 acceptance criteria) | waiting for owner |
 | `user-docs` | User documents: first run, configuration, upgrade, errors, release notes and policy statements (product gaps) | PROD-INT-004, 006, 015, 017, 018 | waiting for owner |
 | `watch-flows-hardening` | Watch survives planning errors; flow-linked E2E selection leaves no linked test out | PROD-TEST-002, 003, 004, 005, 007 | waiting for owner |
 | `watch-seven-runners` | Watch mode for the seven blocking runners | PROD-TEST-007 | waiting for owner |

@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // Default artifact locations beneath the per-worktree Git directory.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // literalTree writes a raw tree body that ordinary Git would refuse to build.

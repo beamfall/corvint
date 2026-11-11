@@ -50,6 +50,12 @@ func goModPin(goMod string) (string, []string) {
 
 // goVersionPinDrift names every GOVERSION check in files whose version is not
 // go.mod's pin, and an AGENTS.md without such a check (ASD-V0-880).
+//
+// V1-5408 stage B: while the pin moves go1.27.3 to go1.27.4 in three landings (code, then
+// .github, then go.mod), a check may name either version of the move when go.mod pins one of
+// them. Stage C deletes pinMove so the gate is exact again.
+var pinMove = map[string]bool{"go1.27.3": true, "go1.27.4": true}
+
 func goVersionPinDrift(goMod string, files map[string]string) []string {
 	pin, failures := goModPin(goMod)
 	names := make([]string, 0, len(files))
@@ -61,7 +67,7 @@ func goVersionPinDrift(goMod string, files map[string]string) []string {
 		checks := 0
 		pins := func(number int, version string) {
 			checks++
-			if pin != "" && version != pin {
+			if pin != "" && version != pin && !(pinMove[pin] && pinMove[version]) {
 				failures = append(failures, fmt.Sprintf("%s:%d: pins %s, go.mod pins %s", name, number+1, version, pin))
 			}
 		}
