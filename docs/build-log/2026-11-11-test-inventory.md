@@ -240,6 +240,44 @@ that already held.
 Not covered: monorepo runners that forward flags (`turbo run test -- ...`, `lerna run`, `nx`)
 without mentioning the runner, and a `node script.js` that spawns the runner.
 
+## Review fixes (round 5, V1-5435): wrapper placeholders, escapes, forwarded vitest commands
+
+The independent review of round 4 found four fail-open paths in `proof.go`. The orchestrator's
+decision: fail closed on each, with a named cause.
+
+- Wrapper placeholders and flags after the outer `--` (P2). `concurrently "jest {@}" -- --testMatch
+  x` was proven: the spaced word was rescanned, but the flags sat after the wrapper's standalone
+  `--`. A modelled wrapper before the runner now goes through `wrapperArgs`. When any of its
+  words reaches the runner (mentions it or starts a package-manager run), each `-`-prefixed word
+  after a standalone `--` is unproven, and so is each `{@}`, `{*}` or `{N}` placeholder in a word
+  that reaches it. A wrapper with no word that reaches the runner is not judged, so
+  `concurrently "tsc -w" -- --preserveWatchOutput` stays proven. That narrows the orchestrator's
+  wording, which put no reach condition on the `--` rule. `npm-run-all` was already unproven
+  for any flag after `--`, through `forwardedFlags`.
+- Backslash and brace words (P3-1). A runner argument holding `\` or `{` is now unproven
+  ("escaped or braced word"), like `$` and a backtick. A forwarded word holding `$`, a backtick,
+  `\` or `{` now counts as a flag, so `npm test -- $JEST_FLAGS` and `npm test -- \-\-config=x` are
+  unproven. Before this, `forwardedFlags` checked only for a `-` prefix. A runner name with a
+  backslash in it (`j\est`) now counts as mentioning the runner, so it is an unmodelled command.
+- Forwarded Vitest commands (P3-2). `forwardedFlags` now also carries the positionals it forwards.
+  For Vitest, a forwarded `bench` or `typecheck` is unproven unless the target script is exempt.
+  npm now forwards the positionals after the script name even with no `--`, and any flag before
+  `--` (not only one before the script name) leaves the target unresolved.
+- Unscannable `pyproject.toml` (P3-3). When the scan fails, `declaresPytest` now also declares
+  pytest for any backslash in the file. A TOML key spells `pytest` only literally or through a
+  basic-string escape, so `text pytest or any backslash` covers every way to spell it. The broader
+  option ("any scan failure declares pytest") was not taken.
+
+Tests: `TestTIVV1008ScriptEscapesFailClosed` (14 rows, each asserting its cause string) and one new
+`TestTIVV1008ProvenDefaultControl` row (forwarded positionals that are not Vitest commands, a
+forward to an exempt script, and a wrapper that does not reach the runner). All 14 rows fail on
+88c6f838c, run in a detached worktree of that SHA (rc=1; worktree removed afterwards). The new
+control row passes there too, as a control should (rc=0). The existing controls still pass: safe
+flags, CRLF, `npm exec jest -- --ci`.
+
+Not covered: brace expansion that spells the runner name itself (`je{s,}t`), and the round-4 limits
+(monorepo forwarders, a `node` script that spawns the runner).
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent
