@@ -54,6 +54,11 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 		options, err = parseDocsCitationsArgs(options, arguments[position+2:])
 		return options, true, err
 	}
+	if options.mode == "check" {
+		var err error
+		options, err = parseDocsCheckArgs(options, arguments[position+2:])
+		return options, true, err
+	}
 	if options.mode != "draft" && options.mode != "consume" {
 		// A listed subcommand whose own parser did not claim it is a dispatch defect.
 		return options, true, errors.New("docs " + options.mode + " is listed but has no parser")
@@ -210,6 +215,9 @@ func runDocs(ctx context.Context, options docsOptions, stdin io.Reader, stdout, 
 	if options.mode == "citations" {
 		return runDocsCitations(ctx, options, stdout, stderr)
 	}
+	if options.mode == "check" {
+		return runDocsCheck(ctx, options, stdout, stderr)
+	}
 	output, err := compileDocs(ctx, options, stdin)
 	if err != nil {
 		var problem *doccompiler.Error
@@ -308,7 +316,7 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 // runs after those parsers, refuses any name outside this table with a refusal built from it,
 // so a name dispatches only if listed. docsHelp lists every entry with its maturity, and
 // TestDocsHelpListsEveryDispatchedSubcommand drives each entry into its own parser (V1-2134).
-var docsSubcommands = []string{"nav", "draft", "consume", "citations", "corpus", "maintain", "flows"}
+var docsSubcommands = []string{"nav", "draft", "consume", "citations", "check", "corpus", "maintain", "flows"}
 
 const docsHelp = `Experimental source documentation orientation.
 
@@ -319,10 +327,11 @@ Usage:
   corvint-docs [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
   corvint-docs [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
   corvint-docs [--root PATH] docs citations check [--json] [PATH...]
+  corvint-docs [--root PATH] docs check                      (corvint-docs help docs check)
   corvint-docs [--root PATH] docs corpus OPERATION ...      (corvint-docs help docs corpus)
   corvint-docs [--root PATH] docs maintain --page PATH ...  (corvint-docs help docs maintain)
   corvint-docs [--root PATH] docs flows generate|check|finalize ...  (corvint-docs help docs flows)
-Maturity: every docs subcommand (nav, draft, consume, citations, corpus, maintain, flows) is experimental.
+Maturity: every docs subcommand (nav, draft, consume, citations, check, corpus, maintain, flows) is experimental.
 
 Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
 source, emits an exact proposal patch, and validates navigation by a full candidate reload.

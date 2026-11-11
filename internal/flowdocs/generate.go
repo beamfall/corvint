@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 const Schema = "corvint-flow-documentation/1"
@@ -520,4 +521,54 @@ func corpusSourceMatches(data []byte, source doccorpus.Repository) error {
 		}
 	}
 	return &doccorpus.Error{Code: CorpusRepositoryMismatchCode, Message: message + "; build the corpus with the generation repository and revision as its primary"}
+}
+
+// TrackedManifest is one generation manifest committed at a revision (DMF-V1-002).
+type TrackedManifest struct {
+	Path string
+	Raw  []byte
+}
+
+// TrackedManifests lists, sorted by path, every regular file named generation.json at revision
+// whose bytes are a manifest of this schema (DMF-V1-002); other files of that name are skipped.
+func TrackedManifests(ctx context.Context, root, revision string) ([]TrackedManifest, error) {
+	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		return nil, err
+	}
+	release := auth.BeginObjectSession()
+	defer release()
+	listing, err := gitrun.Run(ctx, gitrun.NewDefaultBudget(), gitrun.Options{Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 20},
+		"--no-replace-objects", "-c", "core.quotePath=false", "ls-tree", "-r", "-z", "--name-only", "--full-tree", revision)
+	if err != nil {
+		return nil, err
+	}
+	names := []string{}
+	for name := range strings.SplitSeq(strings.TrimSuffix(string(listing), "\x00"), "\x00") {
+		if path.Base(name) == "generation.json" {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	if len(names) > MaxFlows {
+		return nil, fail("tracked generation manifests exceed bound")
+	}
+	found := []TrackedManifest{}
+	for _, name := range names {
+		entry, ok, err := auth.LookupTreeEntry(ctx, revision, name)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || entry.Type != "blob" || entry.Mode != "100644" && entry.Mode != "100755" {
+			continue
+		}
+		raw, err := auth.BlobBytes(ctx, entry.OID)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := ManifestScope(raw); ok {
+			found = append(found, TrackedManifest{Path: name, Raw: raw})
+		}
+	}
+	return found, nil
 }

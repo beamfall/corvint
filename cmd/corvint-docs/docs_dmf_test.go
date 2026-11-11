@@ -197,3 +197,121 @@ func TestDMFV1007DocsFlowsCheckRecordedOutput(t *testing.T) {
 		t.Fatalf("no recorded directory %d %+v", code, check)
 	}
 }
+
+type docsCheckResult struct {
+	Profile string `json:"profile"`
+	Commit  string `json:"commit"`
+	Status  string `json:"status"`
+	Parts   []struct {
+		Part       string          `json:"part"`
+		State      string          `json:"state"`
+		Reason     string          `json:"reason"`
+		Checked    int             `json:"checked"`
+		Stale      []docsCheckItem `json:"stale"`
+		NotChecked []docsCheckItem `json:"not_checked"`
+	} `json:"parts"`
+	Worktree docworktree.Status `json:"worktree"`
+}
+
+func runDocsCheckCLI(t *testing.T, root string) (int, docsCheckResult, string) {
+	t.Helper()
+	var out, errOut bytes.Buffer
+	code := runContext(context.Background(), []string{"--root", root, "docs", "check"}, strings.NewReader(""), &out, &errOut)
+	var report docsCheckResult
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("docs check %d %q %s: %v", code, out.String(), errOut.String(), err)
+	}
+	return code, report, errOut.String()
+}
+
+// DMF-V1-002: with no markers, no flows manifest and no citations, every part is NOT_CHECKED with
+// reason none-found and the exit is 0.
+func TestDMFV1002DocsCheckNothingFound(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	code, report, stderr := runDocsCheckCLI(t, root)
+	if code != 0 || report.Profile != "corvint-docs-check/0" || report.Status != "PASS" || len(report.Commit) < 40 || len(report.Parts) != 3 || report.Worktree.State != "clean" {
+		t.Fatalf("nothing found %d %+v %s", code, report, stderr)
+	}
+	for i, name := range []string{"markers", "flows", "citations"} {
+		if p := report.Parts[i]; p.Part != name || p.State != "NOT_CHECKED" || p.Reason != "none-found" {
+			t.Fatalf("part %d %+v", i, p)
+		}
+	}
+	var out, errOut bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "docs", "check", "docs/page.md"}, strings.NewReader(""), &out, &errOut); code != 2 {
+		t.Fatalf("docs check accepted a per-page argument: %d", code)
+	}
+	for _, args := range [][]string{{"help", "docs", "check"}, {"docs", "check", "--help"}} {
+		out.Reset()
+		if code := runContext(context.Background(), args, strings.NewReader(""), &out, &errOut); code != 0 || out.String() != docsCheckHelp {
+			t.Fatalf("%v printed %d %q", args, code, out.String())
+		}
+	}
+}
+
+// DMF-V1-002: a repository with a fresh marker block, a fresh committed flows manifest whose
+// recorded output directory matches, and a fresh citation passes every part; once the block's cited
+// source changes at HEAD, the check exits 1 and lists that block's page and line under STALE while
+// the other parts still pass.
+func TestDMFV1002DocsCheckPassThenOneStaleBlock(t *testing.T) {
+	root := docsRepository(t)
+	ruby := "class PaymentsController\n  def create\n    authorize(user)\n  end\nend\n"
+	for name, body := range map[string]string{
+		"app/controller.rb": ruby,
+		"docs/page.md":      "# Page\n\nSee `owner.md:4`.\n\n<!-- corvint:docmaintain:insertion-point -->\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	docsCommit(t, root)
+	head := func() string {
+		out, err := fixtureGitCommand("-C", root, "rev-parse", "HEAD").CombinedOutput()
+		if err != nil {
+			t.Fatalf("rev-parse: %v %s", err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	run := func(args ...string) {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		if code := runContext(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &out, &errOut); code != 0 {
+			t.Fatalf("%v %d %s", args, code, errOut.String())
+		}
+	}
+	run("docs", "maintain", "--page", "docs/page.md", "--source", "owner.md", "--package", "cache", "--enable", "--apply")
+	run("docs", "flows", "generate", "--revision", head(), "--scope", "app", "--output-dir", filepath.Join(root, "docs", "flows"))
+	docsCommit(t, root)
+	code, report, stderr := runDocsCheckCLI(t, root)
+	if code != 0 || report.Status != "PASS" {
+		t.Fatalf("all pass %d %+v %s", code, report, stderr)
+	}
+	for _, p := range report.Parts {
+		if p.State != "PASS" || p.Checked == 0 {
+			t.Fatalf("part %+v", p)
+		}
+	}
+	owner, err := os.ReadFile(filepath.Join(root, "owner.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "owner.md"), append(owner, []byte("A new requirement line.\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	code, report, stderr = runDocsCheckCLI(t, root)
+	if code != 1 || report.Status != "STALE" {
+		t.Fatalf("one stale block %d %+v %s", code, report, stderr)
+	}
+	markers, flows, citations := report.Parts[0], report.Parts[1], report.Parts[2]
+	if markers.State != "STALE" || len(markers.Stale) != 1 || markers.Stale[0].Path != "docs/page.md" || markers.Stale[0].Line != 6 || !strings.HasPrefix(markers.Stale[0].Detail, "stale") {
+		t.Fatalf("markers %+v", markers)
+	}
+	if flows.State != "PASS" || citations.State != "PASS" {
+		t.Fatalf("other parts %+v %+v", flows, citations)
+	}
+}
