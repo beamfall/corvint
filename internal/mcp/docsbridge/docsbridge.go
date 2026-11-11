@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,6 +96,11 @@ func (registry *Registry) Tools() []bridge.ToolDescriptor {
 	if registry == nil {
 		return nil
 	}
+	return DescribedTools()
+}
+
+// DescribedTools is the draft and consume descriptors, which need no repository root.
+func DescribedTools() []bridge.ToolDescriptor {
 	pathSchema := map[string]any{
 		"type": "string", "minLength": 1, "maxLength": maxPathRunes,
 		"pattern": bridge.SubjectPathRule.Pattern(), // MCPV0-954
@@ -102,27 +108,37 @@ func (registry *Registry) Tools() []bridge.ToolDescriptor {
 	return []bridge.ToolDescriptor{
 		{
 			Name:        ToolConsume,
-			Description: "Freshly rederive the canonical source-documentation draft from original immutable sources, reject byte drift, and return the same bounded task match as the CLI (docs/specs/source-documentation-draft-v0.md, experimental).",
+			Description: "Check a draft you hold before relying on it: freshly rederive the canonical source-documentation draft from original immutable sources, reject byte drift, and return the same bounded task match as the CLI (docs/specs/source-documentation-draft-v0.md, experimental). To produce the draft, use corvint.docs_draft. " + TestingServerNote,
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
-				"source":  pathSchema,
-				"package": pathSchema,
-				"task":    map[string]any{"type": "string", "minLength": 1, "maxLength": maxTaskBytes},
-				"draft":   map[string]any{"type": "string", "minLength": 1, "maxLength": draftMaxBytes},
+				"source":  described(pathSchema, "Owner Markdown source the draft was made from, repository-relative."),
+				"package": described(pathSchema, "Module directory the draft was made from, repository-relative."),
+				"task":    map[string]any{"type": "string", "minLength": 1, "maxLength": maxTaskBytes, "description": "The task the draft is matched against."},
+				"draft":   map[string]any{"type": "string", "minLength": 1, "maxLength": draftMaxBytes, "description": "The exact draft bytes docs_draft returned."},
 			}, []any{"source", "package", "task", "draft"}),
 		},
 		{
 			Name:        ToolDraft,
-			Description: "Draft source-pinned Markdown orientation from an owner Markdown source and a tracked module directory in any language the native index extracts declarations from (others are refused by name), identical to `corvint docs draft` (docs/specs/source-documentation-draft-v0.md, experimental). dry_run true previews over an untracked working-tree owner file or inline owner_markdown; that result is NOT_ADMISSIBLE, governs nothing, and docs_consume refuses it (SDD-V0-019).",
+			Description: "Draft source-pinned Markdown orientation from an owner Markdown source and a tracked module directory in any language the native index extracts declarations from (others are refused by name), identical to `corvint docs draft` (docs/specs/source-documentation-draft-v0.md, experimental). dry_run true previews over an untracked working-tree owner file or inline owner_markdown; that result is NOT_ADMISSIBLE, governs nothing, and docs_consume refuses it (SDD-V0-019). Returns the draft Markdown. To check a held draft against current sources, use corvint.docs_consume. " + TestingServerNote,
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
-				"source":         pathSchema,
-				"package":        pathSchema,
-				"dry_run":        map[string]any{"type": "boolean"},
-				"owner_markdown": map[string]any{"type": "string", "minLength": 1, "maxLength": draftMaxBytes},
+				"source":         described(pathSchema, "Owner Markdown source, repository-relative; tracked unless dry_run."),
+				"package":        described(pathSchema, "Tracked module directory to draft, repository-relative."),
+				"dry_run":        map[string]any{"type": "boolean", "description": "Preview over an untracked owner file or owner_markdown; the result is NOT_ADMISSIBLE."},
+				"owner_markdown": map[string]any{"type": "string", "minLength": 1, "maxLength": draftMaxBytes, "description": "Inline owner Markdown for a dry_run preview."},
 			}, []any{"source", "package"}),
 		},
 	}
+}
+
+// TestingServerNote points test-selection questions to the testing server (DMF-V1-009, R42 B2).
+const TestingServerNote = "Which tests to run is not a docs question: ask corvint.affected on the testing server `corvint mcp`."
+
+// described is a copy of schema with a description (DMF-V1-008).
+func described(schema map[string]any, text string) map[string]any {
+	copied := maps.Clone(schema)
+	copied["description"] = text
+	return copied
 }
 
 func readAnnotations() bridge.ToolAnnotations {

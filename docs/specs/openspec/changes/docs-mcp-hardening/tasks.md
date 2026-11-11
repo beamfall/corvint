@@ -23,7 +23,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
    fixture tests with a recorded directory, a missing directory and no directory.
 - [x] 9 `corvint-docs docs check` (DMF-V1-002), after tasks 4 to 8. Proof: fixture tests for
    all-pass, one stale part and nothing found; run on the Corvint repository with the JSON kept.
-- [ ] 10 Tool and property descriptions for the 19 remaining docs tools (DMF-V1-008; R42 B9). Proof:
+- [x] 10 Tool and property descriptions for the 19 remaining docs tools (DMF-V1-008; R42 B9). Proof:
     `tools/list` golden re-recorded; a test that fails on any two docs tools with the same
     description or a property with none. No tool is removed without a strict-subset fixture test.
 - [ ] 11 Remove `docs_recommend_tests` and point descriptions to `corvint mcp` (DMF-V1-009; R42 B2).
