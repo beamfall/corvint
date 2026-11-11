@@ -93,17 +93,6 @@ func QualifiedPlaywrightVersions() []string {
 	return slices.Clone(qualifiedPlaywrightVersions)
 }
 
-// QualifiedBundledBrowserExecutable returns the headless shell executable, relative to the
-// Playwright browsers path, whose identity qualifies runner version's bundled tuple, and false
-// when the version has none. A caller can check the browser is installed before running.
-func QualifiedBundledBrowserExecutable(version string) (string, bool) {
-	b, ok := qualifiedBundledBrowsers[version]
-	if !ok {
-		return "", false
-	}
-	return strings.TrimPrefix(b.executableSuffix, "/"), true
-}
-
 func qualifiedPlaywrightVersion(version string) bool {
 	return slices.Contains(qualifiedPlaywrightVersions, version)
 }

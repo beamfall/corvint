@@ -478,15 +478,15 @@ The Go projector `internal/testvalidity` sets axis reasons from the kebab-case c
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `no-association-input` | `internal/testvalidity/projection.go:202` | no claim facts; the association and hygiene axes are `UNSUPPORTED` |
+| `no-association-input` | `internal/testvalidity/projection.go:183@0288a3b5` | no claim facts; the association and hygiene axes are `UNSUPPORTED` |
 | `no-execution-input` | `internal/testvalidity/projection.go:234` | neither an execution outcome nor a claim report state; the execution axis is `UNSUPPORTED` |
 | `no-execution-report` | `internal/testvalidity/projection.go:218` | no execution facts or an empty currency; the freshness axis is `UNKNOWN` |
 | `no-input-supplied` | `internal/testvalidity/projection.go:182` | the input carries no claim, execution, or mutation facts; every axis is `UNSUPPORTED` |
-| `no-mutation-run` | `internal/testvalidity/projection.go:280` | no mutation facts; the strength axis is `NOT_MEASURED` |
+| `no-mutation-run` | `internal/testvalidity/projection.go:261@c9d7c408` | no mutation facts; the strength axis is `NOT_MEASURED` |
 | `test-skipped` | `internal/testvalidity/projection.go:249` | the execution outcome is `SKIPPED` with an empty cause; the execution axis is `SKIPPED` (`LPCV-V0-052`) |
 | `unsupported-execution-outcome` | `internal/testvalidity/projection.go:247` | the execution outcome is `SKIPPED` with a non-empty cause, or (`:256`) none of `PASSED`, `FAILED`, `SKIPPED`, or `INCOMPLETE`; the execution axis is `UNSUPPORTED` |
-| `unsupported-report-state` | `internal/testvalidity/projection.go:274` | the claim report state is none of the known `tcq` report states; the execution axis is `UNSUPPORTED` |
-| `workspace-execution-identity-mismatch` | `internal/testvalidity/projection.go:222` | the execution currency is `STALE`; the freshness axis is `STALE` (`LPCV-V0-054`; pinned by the `stale-execution` vector in `TestProjectMatchesSharedVectors`) |
+| `unsupported-report-state` | `internal/testvalidity/projection.go:255@378827d5` | the claim report state is none of the known `tcq` report states; the execution axis is `UNSUPPORTED` |
+| `workspace-execution-identity-mismatch` | `internal/testvalidity/projection.go:203@3ed70196` | the execution currency is `STALE`; the freshness axis is `STALE` (`LPCV-V0-054`; pinned by the `stale-execution` vector in `TestProjectMatchesSharedVectors`) |
 
 ### Request-stub unroute marking (V1-1474)
 

@@ -213,6 +213,22 @@ cross-vet:
 		(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...); \
 	done
 
+# deadcode installs golang.org/x/tools/cmd/deadcode at DEADCODE_VERSION for the host into a scratch
+# directory, runs it with -test for linux, darwin and windows on amd64 and arm64 one after another,
+# and fails unless the functions all six runs report equal tools/deadcode-ratchet/baseline.json,
+# which only shrinks (DCR-V0-001 to DCR-V0-005, docs/specs/deadcode-ratchet-v0.md). Each run's
+# JSON stays under the git dir, never in the tracked tree. deadcode-baseline rewrites the baseline
+# from the report; the count asserted in tools/deadcode-ratchet/baseline_test.go must change with it.
+# Neither is a GATE_STEPS step: six whole-program loads take about a minute.
+DEADCODE_VERSION := v0.52.0
+DEADCODE_RUN = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/deadcode-ratchet -version $(DEADCODE_VERSION) -out "$$(git rev-parse --absolute-git-dir)/deadcode"
+.PHONY: deadcode
+deadcode: ## Fail on an unreachable function the shrink-only dead-code baseline lacks, or a stale entry
+	@$(DEADCODE_RUN)
+.PHONY: deadcode-baseline
+deadcode-baseline: ## Rewrite tools/deadcode-ratchet/baseline.json from the six-configuration report
+	@$(DEADCODE_RUN) -write-baseline
+
 .PHONY: go-archive-gate
 go-archive-gate:
 	@script/go-archive-gate

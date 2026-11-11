@@ -543,10 +543,6 @@ type responseErrorBody struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-func (connection *connection) writeResult(id protocol.ID, result map[string]any) error {
-	return connection.writeResultContext(nil, id, result, "", nil)
-}
-
 // writeResultContext writes one result frame. A tools/call result over the
 // message bound is answered as the tool failure output-bound-exceeded, naming
 // the result size and the bound, so every server on this package refuses an
@@ -596,16 +592,8 @@ func (connection *connection) writeRPCErrorContext(ctx context.Context, id *prot
 	return connection.writeValueContext(ctx, value)
 }
 
-func (connection *connection) writeNotification(method string, params map[string]any) error {
-	return connection.writeNotificationContext(nil, method, params)
-}
-
 func (connection *connection) writeNotificationContext(ctx context.Context, method string, params map[string]any) error {
 	return connection.writeValueContext(ctx, map[string]any{"jsonrpc": protocol.JSONRPCVersion, "method": method, "params": params})
-}
-
-func (connection *connection) writeValue(value any) error {
-	return connection.writeValueContext(nil, value)
 }
 
 func (connection *connection) writeValueContext(ctx context.Context, value any) error {

@@ -438,30 +438,3 @@ func makeTreeWritable(root string) error {
 		return os.Chmod(path, mode)
 	})
 }
-
-func digestTree(root string) (string, error) {
-	entries, err := snapshotTree(root, "source", nil)
-	if err != nil {
-		return "", err
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-	payload, err := json.Marshal(entries)
-	if err != nil {
-		return "", err
-	}
-	return digest(payload), nil
-}
-
-func fullGitSHA1(value string) bool {
-	if len(value) != 40 {
-		return false
-	}
-	for _, character := range value {
-		if character < '0' || character > '9' {
-			if character < 'a' || character > 'f' {
-				return false
-			}
-		}
-	}
-	return true
-}

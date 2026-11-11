@@ -4487,5 +4487,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/deadcode-ratchet-v0.md",
+    "title": "Dead-Function Ratchet V0",
+    "reqPrefix": "DCR-V0",
+    "intent": "proposed",
+    "delivery": "experimental (ratchet and deletion on the lane branch; 35 functions kept with reasons)",
+    "claim": "`make deadcode` runs a pinned dead-code analyzer for six GOOS/GOARCH configurations and fails unless the functions all six report equal a shrink-only baseline.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

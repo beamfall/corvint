@@ -25,9 +25,6 @@ type operationBudgetKey struct{}
 // must still remain inside the parent's owned process group.
 type inheritedWorkerGroupKey struct{}
 
-func WithInheritedWorkerGroup(ctx context.Context) context.Context {
-	return context.WithValue(ctx, inheritedWorkerGroupKey{}, true)
-}
 func inheritsWorkerGroup(ctx context.Context) bool {
 	inherited, _ := ctx.Value(inheritedWorkerGroupKey{}).(bool)
 	return inherited

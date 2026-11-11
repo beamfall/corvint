@@ -524,13 +524,6 @@ func utf16LineStarts(s string) []int {
 	return starts
 }
 
-// decode reads one hook or CDP dump of browser script coverage.
-func decodeBrowser(b []byte) ([]Script, error) {
-	var out []Script
-	err := json.Unmarshal(b, &out)
-	return out, err
-}
-
 // nodeDump is one NODE_V8_COVERAGE file.
 type nodeDump struct {
 	Result []struct {

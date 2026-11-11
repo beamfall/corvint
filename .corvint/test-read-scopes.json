@@ -2096,6 +2096,7 @@
       "internal/",
       "tools/"
     ],
+    "tools/deadcode-ratchet": [],
     "tools/declaration-compat-check": [],
     "tools/docs-ci-plan": [
       "go.mod",

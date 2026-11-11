@@ -112,18 +112,6 @@ func moduleRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 }
 
-func assertPrivateFileMode(t *testing.T, name string, mode os.FileMode, want os.FileMode) {
-	t.Helper()
-	t.Run(name, func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("Windows does not expose POSIX file-mode semantics")
-		}
-		if mode.Perm() != want {
-			t.Fatalf("mode=%v, want %v", mode, want)
-		}
-	})
-}
-
 type processResult struct {
 	exit   int
 	stdout []byte

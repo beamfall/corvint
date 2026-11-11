@@ -23,8 +23,7 @@ func CaptureRecord(data []byte) (CapturedRecord, error) {
 	sum := sha256.Sum256(data)
 	return CapturedRecord{data: append([]byte(nil), data...), digest: hex.EncodeToString(sum[:])}, nil
 }
-func FailedCapture() CapturedRecord     { return CapturedRecord{failure: true} }
-func (c CapturedRecord) Digest() string { return c.digest }
+func FailedCapture() CapturedRecord { return CapturedRecord{failure: true} }
 
 type DeclaredAssertion struct{ Subject, Test, Repository string }
 type CapturedSelection struct {
