@@ -184,17 +184,40 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   level), Playwright `playwright test --list --reporter=json` converted through
   `playwright-discovery/0` (its source digest is recorded), pytest `--collect-only -q -p
   no:cacheprovider` (all executing, from the project's own `node_modules/.bin` or `.venv`). Each
-  record binds the commit, config and lockfile blobs, the lister identity and every candidate or
-  listed test file's blob.
-- Custom test-file patterns (TIV-V1-005, TIV-V1-008): candidates are the runner's default test-file
-  names unless the executing instance's config names a member that may move them, which the reader
-  does not evaluate: Vitest `include`, `projects` or `workspace`; Jest `testMatch`, `testRegex` or
-  `projects`; Playwright `testMatch`; pytest `python_files`; a JavaScript config that imports a
-  relative module; or a config it cannot read. The match is a whole-word scan of the config bytes,
-  so a name in a comment also counts (fail closed). Such an instance's candidates are every
-  JavaScript or TypeScript file (Python for pytest) under its root, refresh binds each of them, and a
-  changed or new one is unassigned with the verdict's `cause` naming the config and the members it
-  sets. The instance is never fresh with an unlisted file of its language under the root.
+  record binds the commit, config and lockfile blobs, the lister identity and the blob of every
+  listed test file and, for a static or proven instance, every candidate file.
+- Default-pattern proof (TIV-V1-005, TIV-V1-008): an executing instance keeps the runner's default
+  test-file names only when the reader proves it; otherwise it is unproven and the verdict's
+  `cause` names why (the config, then up to four causes). A JavaScript or TypeScript config is
+  proven when it is read whole and its tokens (comments aside) hold no import but the runner's own
+  package (`vitest`, `vitest/config`; `jest`, `@jest/types`; `@playwright/test`; a type-only import
+  is not checked), no call but the identity helper `defineConfig`, no spread (except a Playwright
+  `...devices['Name']`), function, class, constructor, tagged template, template expression,
+  escape, computed key or computed member, and no pattern member named as an identifier or string:
+  Vitest `include`, `includeSource`, `projects`, `workspace`, `typecheck`, `dir`, `root`; Jest
+  `testMatch`, `testRegex`, `projects`, `preset`, `rootDir`, `roots`; Playwright `testMatch`. A
+  `jest.config.json` is proven when it is an object naming none of the Jest members. Vitest also
+  needs no `vitest.workspace.*` or `vitest.projects.*` file beside the config, and Jest no `jest`
+  member in the `package.json` beside it. A `package.json` with a `jest` member, or a script that
+  runs vitest, declares the runner's instance when its directory holds no config file of that
+  runner (last in precedence); such an instance is always unproven, and the Vitest lister then runs
+  without `--config`. A pytest section is proven when it sets no `python_files` and no `testpaths`,
+  its `addopts` hold only output, reporting, strictness, failure and import-mode options (a
+  positional path, `-p`, `--doctest-modules` or `--doctest-glob` is none of them), and no
+  `conftest.py` under the root defines a collection hook (`pytest_collect_file`,
+  `pytest_pycollect_makemodule`, `pytest_collect_directory`, `pytest_ignore_collect`) or
+  `pytest_plugins`. An unreadable config is unproven.
+- Unproven instances (TIV-V1-005, TIV-V1-008): refresh binds only the files the lister names, so the
+  record stays small in a large root. The verdict judges every file under the root with one of the
+  instance's candidate extensions that the record does not bind (its config and lockfile aside) as
+  unassigned: JavaScript or TypeScript for the JavaScript runners; Python for pytest, plus `.txt`,
+  `.rst` and `.md` when a doctest option appears or an `addopts` option or the config cannot be
+  ruled out; any file when a `conftest.py` hook may collect it. No directory is skipped for an
+  unproven instance but `.git` and the inventory's temporary files, nested roots of the same runner
+  included. A proven executing instance skips only `.git` and `node_modules`; the static runners
+  keep their skipped directories. The reader cannot tell an unbound file that existed at refresh
+  from a new one, so an unproven instance reads every unbound file of its languages as unassigned
+  on every plan: the cost is selection breadth, never a missed test file.
 - `corvint inventory refresh [--runner RUNNER] [--root DIR]` (TIV-V1-002, TIV-V1-010,
   TIV-V1-011) is the only writer: it replaces the file through a temporary file in the same
   directory, refuses `inventory-refresh-drift` when the working tree's source digest or HEAD moved
@@ -215,13 +238,13 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   runner full with `selection-full`; parsing the variable belongs to change
   `narrowing-measurement`, which owns its grammar and refusal, and no command reads it yet.
 - NOT_PRODUCED: the GitHub Action refresh step (task 7, change `github-action`).
-- Known limits: the pattern scan reads only the instance's config, so a pattern set by a non-relative
-  package the config imports (a shared preset), by a `package.json` `jest` member, or on the command
-  line is not seen. A test directory outside the instance root (Playwright `testDir: '../e2e'`) is
-  not a candidate; its listing fails the lister, which leaves the instance absent. The static RSpec
-  and Minitest listers keep the default names: an `.rspec` `--pattern` or a Rake `TestTask` pattern
-  is not read. A wide candidate set can approach the 8 MiB cap in a large root, which refresh then
-  refuses with `inventory-too-large`.
+- Known limits: the proof reads the tree, not the host: a pytest plugin loaded through an installed
+  entry point, `PYTEST_ADDOPTS` and command-line patterns are not seen. Candidate extensions are
+  the runner's languages, so a Jest pattern over another extension (`.vue`) is not a candidate. A
+  pytest `[tool.pytest]` table alone (no `ini_options`) declares no instance. A test directory
+  outside the instance root (Playwright `testDir: '../e2e'`) is not a candidate; its listing fails
+  the lister, which leaves the instance absent. The static RSpec and Minitest listers keep the
+  default names: an `.rspec` `--pattern` or a Rake `TestTask` pattern is not read.
 
 ## Traceability
 
@@ -229,12 +252,12 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
 |---|---|
 | TIV-V1-001 | `TestTIVV1001RoundTripCanonicalBytes` (`internal/testinventory`); `TestTIVV1001InventoryRefreshCLI` (`cmd/corvint`, one Go module and one Vitest project) |
 | TIV-V1-002 | `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (affected, watch and test read only), `TestTIVV1002InventoryHelpAndRefusals` (`cmd/corvint`); the GitHub Action part is NOT_PRODUCED (task 7) |
-| TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots` (`internal/testinventory`) |
+| TIV-V1-003 | `TestTIVV1003SeveralInstancesOfOneRunner`, `TestTIVV1003DetectInstances`, `TestTIVV1003ForceFullCoversEveryInstance`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004VitestDeclaredByPackageScript` (`internal/testinventory`) |
 | TIV-V1-004 | `TestTIVV1004GoStaticLister`, `TestTIVV1004GoUnmappedFilesCollapse`, `TestTIVV1004RSpecStaticLister`, `TestTIVV1004MinitestStaticLister`, `TestTIVV1004VitestLister`, `TestTIVV1004JestListerTwoRoots`, `TestTIVV1004PlaywrightLister`, `TestTIVV1004PytestLister` (`internal/testinventory`; each refreshes twice to identical bytes) |
-| TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID`, `TestTIVV1005CustomPatternRecordsEveryLanguageFile`, `TestTIVV1005WorkTreeRefusesSubdirectoryRoot` (`internal/testinventory`) |
+| TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles`, `TestTIVV1005UnprovenRecordHoldsOnlyListedFiles` (a 150,000-file root stays under MaxBytes), `TestTIVV1005WorkTreeRefusesSubdirectoryRoot` (`internal/testinventory`) |
 | TIV-V1-006 | `TestTIVV1006To009ReaderRules` rows `absent file`, `absent record`, `absent after lister failure`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`absent`) |
 | TIV-V1-007 | `TestTIVV1006To009ReaderRules` rows `stale config`, `stale lockfile`, `stale lockfile appeared`, `stale lister version`, `stale config moved`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`stale`) |
-| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008CustomPatternFailsClosed` (Vitest, Jest, Playwright and pytest custom patterns), `TestTIVV1005CustomPatternRecordsEveryLanguageFile` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
+| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008UnprovenConfigFailsClosed` (custom patterns, a Vitest workspace file, `mergeConfig` from a package, `includeSource`, a Jest preset, `package.json` jest and vitest declarations, pytest doctest options and a conftest hook, a skipped-directory include, a computed key, an escape), `TestTIVV1008ProvenDefaultControl`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
 | TIV-V1-009 | `TestTIVV1006To009ReaderRules` rows `invalid truncated`, `invalid profile`, `invalid oversize`; `TestTIVV1009DecodeRefusesInvalid`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`invalid`) |
 | TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift), `TestTIVV1010FinalDriftCheckBeforeWrite`, `TestTIVV1010TemporaryInventoryFileIsNotDrift`; `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
 | TIV-V1-011 | `TestTIVV1011ListerFailureRecorded`, `TestTIVV1011EncodeRefusesOversize` (`internal/testinventory`); `TestTIVV1011InventoryRefreshTooLargeCLI` (`cmd/corvint`) |
