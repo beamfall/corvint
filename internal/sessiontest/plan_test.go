@@ -85,7 +85,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		// but the tree no longer declares runs every test.
 		{name: "a removed runner runs every test", edit: func(in *Input) {
 			in.Removed = []string{"jest@."}
-		}, scope: ScopeFull, reason: "runner-removed: jest@. is named by the inventory or .corvint/test-commands.json but no longer declared, so every test runs", units: whole("a", "b", "c")},
+		}, scope: ScopeFull, reason: "runner-removed: jest@. is named by the inventory or .corvint/test-commands.json but no longer declared, so every test runs", units: whole("a", "b", "c")}, //corvint:fixture-path
 		// AZU-V0-001: make targets and CI jobs are driver units, including
 		// historical targets with no selectable tests. They need no adapter.
 		{name: "selected and unknown driver targets need no language adapter", edit: func(in *Input) {
@@ -94,7 +94,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		}, scope: ScopeNarrowed, units: whole("a")},
 		{name: "unknown driver does not hide an undeclared language", edit: func(in *Input) {
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "driver:make:Makefile:build"}, {Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-		}, scope: ScopeNarrowed, units: whole("a"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
+		}, scope: ScopeNarrowed, units: whole("a"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}}, //corvint:fixture-path
 		{name: "attribution fallback", edit: func(in *Input) { in.GoSelection = "FALLBACK go.mod changed" },
 			scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c")},
 		{name: "unknown outside the allowlist", edit: func(in *Input) {
@@ -131,7 +131,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "a bearing non-Go frontier needs its language's declaration (AFP-V0-2750)", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "swift:conditional-compilation"}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}}, //corvint:fixture-path
 		{name: "a driver frontier names no suite", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "driver:unparsable-file"}}
@@ -139,7 +139,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "selected unit with no adapter and no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Selected = []string{"swift:Sources/App"}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}}, //corvint:fixture-path
 		{name: "unknown-only non-Go unit runs its declared command", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
@@ -148,7 +148,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "unknown-only non-Go unit with no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}}, //corvint:fixture-path
 		{name: "FULL still covers a selected non-Go language", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Selected = []string{"python:pkg/mod.py"}
@@ -161,7 +161,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "FULL covers an undeclared language owning a dirty path", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
 			in.DirtyLanguages = []string{"python"}
-		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}}, //corvint:fixture-path
 		{name: "ci profile with no plan runs the declared Go suite and reports declared commands as checks", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
 			in.RunnerProfile = ProfileCI
