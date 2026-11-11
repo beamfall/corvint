@@ -1,9 +1,9 @@
 # Link-coverage check of the path brief on the frozen 20-task set (TBC-V1-013)
 
 Result of the check that TBC-V1-013 requires before the link export and the path brief builder are
-written (change `ticket-brief-context`, PROD-INT-032, tickets V1-5299 and V1-5300). The owner has
-not set the coverage bar, so this entry records the result and compares it with no bar. Nothing
-was built.
+written (change `ticket-brief-context`, PROD-INT-032, tickets V1-5299 and V1-5300). When the
+check ran the owner had not set the coverage bar; the bar and the comparison are under "Owner's
+bar" below. Nothing was built for the check.
 
 ## Method
 
@@ -105,7 +105,16 @@ figures are the same in both runs.
 - Completed tickets do not record their commits (V1-5301), which is why the commits had to be
   inferred.
 
+## Owner's bar
+
+On 2026-11-10, after this result was reported, the owner was asked "Which coverage bar do you set
+for the path brief?" and answered "Accept proposed bar". The bar is therefore: at least half of
+the tasks have a listed test that the closing commits changed or a listed requirement that the
+ticket cites. The result is 16 of 20 tasks, so the bar is met; on the stricter count without
+same-directory tests it is 11 of 20. The limits above stand: the bar counts lists before the
+64-item cap and says nothing about agent benefit.
+
 ## Not run
 
-No Go test, no `make gate`, no agent run, no comparison with a bar. The export (TBC-V1-012) and
-the builder (TBC-V1-009 to TBC-V1-011) are not started and wait for the owner's bar.
+No Go test, no `make gate` and no agent run. The export (TBC-V1-012) and the builder (TBC-V1-009
+to TBC-V1-011) were not started when the check was recorded.

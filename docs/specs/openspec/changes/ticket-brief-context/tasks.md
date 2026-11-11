@@ -26,11 +26,11 @@ Tasks of the amendment of 2026-11-10 (the owner accepted PROD-INT-032 into 1.0 o
 Task 9 runs first and needs only the frozen task list of task 6; it needs neither the export nor
 the builder. Tasks 10 to 12 run after task 3 and only if task 9 meets the bar the owner sets.
 
-- [ ] 9 Link-coverage check of the `tests` and `requirements` sections on the frozen task set, by a
+- [x] 9 Link-coverage check of the `tests` and `requirements` sections on the frozen task set, by a
       scratch script over existing commands and the sealed records, with no agent run
       (TBC-V1-013). Proof: the build-log record and the owner's bar. Run and recorded on
       2026-11-10 in `docs/build-log/2026-11-10-path-brief-link-coverage-check.md` (V1-5300); the
-      owner's bar is not set, so this task stays open.
+      owner set the proposed bar on 2026-11-10 and the result meets it (16 of 20).
 - [ ] 10 One-time export of the sealed requirement links to `.corvint/requirement-links.json`
       (TBC-V1-012). Proof: the two-run byte-identity scenario; input commit and output hash in the
       build log.
