@@ -10,8 +10,8 @@ Amendment of 2026-11-10: TBC-V1-009 to TBC-V1-014 serve PROD-INT-032, which the 
 into 1.0 on 2026-11-10 ("Accept into 1.0"). They add a second form of the brief that needs no
 ticket and change no statement of TBC-V1-001 to TBC-V1-008. The lane copies each one with a
 definition line that begins `(proposed 2026-11-10; delivery not-started; non-blocking)`. The
-coverage check of TBC-V1-013 runs first; the export and the builder wait for its result against
-the owner's bar, which is not set yet.
+coverage check of TBC-V1-013 ran first. The owner set its bar on 2026-11-10 and the result met it
+(16 of 20 tasks), so the export and the builder are built.
 
 ### Requirement: TBC-V1-001 Brief from declared links only
 
@@ -284,8 +284,9 @@ because the plan's scope is `UNKNOWN` does not count. The result MUST be recorde
 whatever it is. The export and the path brief are built only if the result meets the bar the owner
 sets.
 
-Proposed bar for the owner: at least half of the tasks have a listed test that the closing commits
-changed or a listed requirement that the ticket cites.
+Bar set by the owner on 2026-11-10 ("Accept proposed bar"): at least half of the tasks have a
+listed test that the closing commits changed or a listed requirement that the ticket cites.
+Earlier text: "Proposed bar for the owner: at least half of the tasks ...".
 
 #### Scenario: Bar missed
 

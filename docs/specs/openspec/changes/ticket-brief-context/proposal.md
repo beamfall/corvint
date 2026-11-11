@@ -17,7 +17,8 @@ ticket, keep the requirement links of the sealed change records, and move a cove
 pilot ahead of the build. They serve PROD-INT-032, which the owner accepted into 1.0 on 2026-11-10
 ("Accept into 1.0") and which has an `owner` row in `docs/specs/openspec/acceptance-log.tsv`.
 PROD-INT-030 and TBC-V1-001 to TBC-V1-008 are unchanged. The coverage check runs first; the export
-and the builder are written only if it meets the owner's bar, which is not set yet.
+and the builder are written only if it meets the owner's bar. The owner set the proposed bar on
+2026-11-10 and the result met it (16 of 20 tasks).
 Intent status: proposed (written 2026-11-09; only the owner can accept it)
 Delivery status: not-started. Release label: ships in 1.0 as redesigned and non-blocking, with no
 claim of measured benefit; the keep-or-remove measurement in TBC-V1-006 runs in 1.0.x (owner

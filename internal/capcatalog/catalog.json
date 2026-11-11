@@ -431,11 +431,14 @@
         "--instruction-profile",
         "--json",
         "--limit",
+        "--path",
         "--subject",
         "--task",
         "--worktree-overlay"
       ],
-      "schemaIds": [],
+      "schemaIds": [
+        "corvint-path-brief/0"
+      ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [],

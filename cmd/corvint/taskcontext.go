@@ -24,6 +24,8 @@ type taskContextOptions struct {
 	limitSet                                                                bool
 	// overlay is --worktree-overlay (DIRTY-CACHE-940); absent, the wire is unchanged.
 	overlay bool
+	// paths is --path, the path brief (TBC-V1-009); set, no other field but root applies.
+	paths []string
 }
 
 const taskContextDefaultLimit = 20
@@ -49,6 +51,14 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	taskSet, flagTaskSet := false, false
 	positionals := []string{}
 	rest := arguments[position+1:]
+	if isPathContext(rest) {
+		options, err := parsePathContextArguments(options, rest)
+		if err != nil {
+			return options, true, err
+		}
+		options.root, err = resolveExplicitRoot(options.root)
+		return options, true, err
+	}
 	for index := 0; index < len(rest); index++ {
 		if !argparseOptionLike(rest[index]) {
 			positionals = append(positionals, rest[index])
@@ -144,6 +154,9 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 // snapshot when `corvint index` wrote one, else one index build over the
 // committed tree; no trace, ledger, or snapshot write on any path.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
+	if len(options.paths) > 0 {
+		return runPathContext(ctx, options, stdout, stderr)
+	}
 	load := loadContextSnapshot
 	if options.overlay {
 		// The overlay reuses every HEAD source, so it loads them eagerly.
@@ -183,6 +196,17 @@ Usage:
     --instruction-host HOST --instruction-host-version VERSION
     --instruction-cwd DIR --instruction-profile default
   corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)
+  corvint [--root PATH] context --path PATH [--path PATH ...]
+
+The --path form prints the path brief (corvint-path-brief/0, non-blocking): for
+each file or directory, read from the committed tree at HEAD, six sections in a
+fixed order: instructions, owners, tests, flows, requirements, tickets. Each
+section states OBSERVED, INCOMPLETE or NOT_OBSERVED with a reason, a total and
+whether it was cut at 64 items, and every item names the link that put it
+there. Nothing is ranked. A missing optional source (corvint-tasks, CODEOWNERS,
+the flows file, test evidence, the requirement-link file) is named in its
+section and never fails the command. --path takes no task text, ticket or
+change range; the report for a change range is the corvint impact command.
 
 Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
