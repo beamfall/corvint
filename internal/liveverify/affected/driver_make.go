@@ -976,6 +976,10 @@ type driverExpander struct {
 	trail  []driverChoice
 	cursor int
 	picked map[string]int
+	// opaque expands every variable as unknown except the target's own
+	// name, for the AFP-V0-3600 proof: no make, environment or command-line
+	// value is taken as known.
+	opaque bool
 }
 
 // driverChoice is one choice point of an expansion: how many alternatives it
@@ -1261,6 +1265,15 @@ func (e *driverExpander) reference(inner string) string {
 func (e *driverExpander) lookup(name string) string {
 	if value, present := e.locals[name]; present {
 		return value
+	}
+	if e.opaque {
+		// AFP-V0-3600: only the target's own name is fixed text; every
+		// variable, MAKE and prerequisite-derived automatic value can be
+		// supplied by the environment or the command line.
+		if value, present := e.auto[name]; present && (name == "@" || name == "@D" || name == "@F") {
+			return value
+		}
+		return driverComputed
 	}
 	switch name {
 	case "@", "<", "^", "+", "?", "*", "@D", "@F", "<D", "<F", "^D", "^F", "*D", "*F", "|", "%":

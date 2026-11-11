@@ -420,6 +420,9 @@ AFP-V0-3662	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; deliv
 AFP-V0-3663	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A held source SHALL give	unrecorded	-
 AFP-V0-3664	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) A location whose only use	unrecorded	-
 AFP-V0-3665	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-3999) The residuals of the	unrecorded	-
+AFP-V0-3600	docs/specs/affected-plan-selection-v0.md	**Evaluation confined to an admitted cache value.** (proposed 2026-11-11;	unrecorded	-
+AFP-V0-3601	docs/specs/affected-plan-selection-v0.md	**Go toolchain selection assignments.** (proposed 2026-11-11; experimental;	unrecorded	-
+AFP-V0-3602	docs/specs/affected-plan-selection-v0.md	**`node --test` over literal files.** (proposed 2026-11-11; experimental; lane	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
