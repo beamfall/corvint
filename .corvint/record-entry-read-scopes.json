@@ -59,7 +59,7 @@
     "shell:script/lane-scripts_test.sh": {
       "reads": [],
       "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages in the lane-dispatch fixtures it creates in ld, a scratch repository, not this checkout's records.",
-      "sourceSha256": "980fd404305b0d79947446c06370d1b0455b35fb5610ee5f89d4881be202b3a1"
+      "sourceSha256": "864acf26cc3f3f9548a51451e0c7a2df610a3671e7c46dc8772ba6b746f2b662"
     },
     "shell:script/requirement-id-collisions_test.sh": {
       "reads": [],
