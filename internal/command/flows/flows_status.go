@@ -14,18 +14,20 @@ func init() { flowSubcommands["status"] = runFlowsStatus }
 
 // runFlowsStatus is `flows status`: one report of each flow, its variations, the tests attached to
 // each and the last recorded result of each test, optionally limited to the flows a change reaches
-// (AFU-V1-160 to AFU-V1-165). It reads intents at HEAD and run evidence files; it writes nothing.
+// (AFU-V1-160 to AFU-V1-165). It reads intents at HEAD, the run evidence store unless --no-store
+// (RVD-V1-007) and the named run evidence files; it writes nothing (RVD-V1-012).
 func runFlowsStatus(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	f, dir, evidence, _ := flowQueryFlags("flows status")
 	base := f.String("base", "", "base commit that limits the report to the flows the change reaches")
+	noStore := f.Bool("no-store", false, "read only the named --evidence files, not the run evidence store")
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 || f.Lookup("registry").Value.String() != "" {
-		return errors.New("flows status requires --flows DIR, optional repeatable --evidence FILE and optional --base SHA")
+		return errors.New("flows status requires --flows DIR, optional repeatable --evidence FILE, optional --no-store and optional --base SHA")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
 		return err
 	}
-	records, err := appflows.ReadRunEvidence(*evidence)
+	records, store, err := appflows.RunEvidenceFor(ctx, root, *evidence, *noStore)
 	if err != nil {
 		return err
 	}
@@ -35,7 +37,7 @@ func runFlowsStatus(ctx context.Context, root string, args []string, out, diag i
 			return &unresolvedBase{*base}
 		}
 	}
-	data, err := appflows.FlowStatus(ctx, root, set, records, resolved)
+	data, err := appflows.FlowStatusFrom(ctx, root, set, records, resolved, store)
 	if err != nil {
 		return err
 	}

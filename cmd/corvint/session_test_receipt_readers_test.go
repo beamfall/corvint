@@ -358,6 +358,9 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		"internal/sessiontest/run.go NewReceipt ReceiptProfile",
 		"internal/sessiontest/run.go Runner.Execute Receipt",
 		"internal/sessiontest/verify.go Verify Receipt",
+		// RVD-V1-006: the run evidence store normalises a stored receipt to report rows for flows
+		// status and test-evidence; no selection path reads it (RVD-V1-011).
+		"internal/runevidence/record.go ProfileReceipt literal",
 	}
 	var extra, missing []string
 	for _, site := range sites {

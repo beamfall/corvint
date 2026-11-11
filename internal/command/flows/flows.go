@@ -18,6 +18,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/runevidence"
 )
 
 // Env carries the root-owned behaviour the flows handlers share with every other command: the
@@ -253,10 +254,11 @@ func runFlowsMap(ctx context.Context, root string, args []string, out, diag io.W
 	f, dir, evidence, registry := flowQueryFlags("flows map")
 	path := f.String("path", "", "reverse lookup from a source path")
 	testKey := f.String("test-key", "", "reverse lookup from a test key")
+	noStore := f.Bool("no-store", false, "read only the named --evidence files, not the run evidence store")
 	parseErr := f.Parse(args)
 	lookup := *path != "" || *testKey != ""
 	if parseErr != nil || *dir == "" || f.NArg() != 0 || (*path != "" && *testKey != "") || (lookup && (len(*evidence) != 0 || *registry != "")) {
-		return errors.New("flows map requires --flows DIR, then --registry FILE and/or --evidence FILE (repeatable) or one of --path P or --test-key K")
+		return errors.New("flows map requires --flows DIR, then --registry FILE, --no-store and/or --evidence FILE (repeatable) or one of --path P or --test-key K")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -266,7 +268,7 @@ func runFlowsMap(ctx context.Context, root string, args []string, out, diag io.W
 	if lookup {
 		data, err = appflows.FlowLookup(ctx, root, set, *path, *testKey)
 	} else {
-		data, err = flowMap(ctx, root, set, *evidence, *registry)
+		data, err = flowMap(ctx, root, set, *evidence, *noStore, *registry)
 	}
 	if err != nil {
 		return err
@@ -275,8 +277,8 @@ func runFlowsMap(ctx context.Context, root string, args []string, out, diag io.W
 	return err
 }
 
-func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence []string, registry string) ([]byte, error) {
-	records, err := appflows.ReadRunEvidence(evidence)
+func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence []string, noStore bool, registry string) ([]byte, error) {
+	records, _, err := appflows.RunEvidenceFor(ctx, root, evidence, noStore)
 	if err != nil {
 		return nil, err
 	}
@@ -286,14 +288,15 @@ func flowMap(ctx context.Context, root string, set appflows.IntentSet, evidence 
 func runFlowsGaps(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	f, dir, evidence, registry := flowQueryFlags("flows gaps")
 	provider := f.String("provider", "", "repository-relative application-flow-selection-provider/1 file whose inventory is compared")
+	noStore := f.Bool("no-store", false, "read only the named --evidence files, not the run evidence store")
 	if f.Parse(args) != nil || *dir == "" || f.NArg() != 0 {
-		return errors.New("flows gaps requires --flows DIR and optional --registry FILE, --provider FILE and repeatable --evidence FILE")
+		return errors.New("flows gaps requires --flows DIR and optional --registry FILE, --provider FILE, --no-store and repeatable --evidence FILE")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
 		return err
 	}
-	records, err := appflows.ReadRunEvidence(*evidence)
+	records, _, err := appflows.RunEvidenceFor(ctx, root, *evidence, *noStore)
 	if err != nil {
 		return err
 	}
@@ -342,8 +345,9 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out, diag i
 	f.SetOutput(io.Discard)
 	dir := f.String("flows", "", "intent directory inside the root")
 	base := f.String("base", "", "base commit of the changed range")
+	noStore := f.Bool("no-store", false, "do not read the run evidence store")
 	if f.Parse(args) != nil || *dir == "" || *base == "" || f.NArg() != 0 {
-		return errors.New("flows impact requires --flows DIR --base SHA")
+		return errors.New("flows impact requires --flows DIR --base SHA and optional --no-store")
 	}
 	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
@@ -353,7 +357,11 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out, diag i
 	if err != nil {
 		return &unresolvedBase{*base}
 	}
-	data, err := appflows.FlowImpactAt(ctx, root, set, resolved)
+	records, _, err := appflows.RunEvidenceFor(ctx, root, nil, *noStore)
+	if err != nil {
+		return err
+	}
+	data, err := appflows.FlowImpactResults(ctx, root, set, resolved, records)
 	if err != nil {
 		return err
 	}
@@ -361,11 +369,12 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out, diag i
 	return err
 }
 
-func runFlowsIngest(_ context.Context, root string, args []string, out, diag io.Writer) error {
+func runFlowsIngest(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	f := flag.NewFlagSet("flows ingest", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	format := f.String("format", "", "playwright-json, playwright-receipt, junit-xml or go-test-json")
 	from := f.String("from", "", "test report")
+	record := f.Bool("record", false, "also append the document to the run evidence store")
 	h := appflows.RunHeader{}
 	f.StringVar(&h.RunID, "run-id", "", "run ID")
 	f.StringVar(&h.RunnerVersion, "runner-version", "", "runner version")
@@ -435,8 +444,29 @@ func runFlowsIngest(_ context.Context, root string, args []string, out, diag io.
 		}
 		lines.Write(line)
 	}
+	// RVD-V1-005: --record appends the document it prints as one store record before printing;
+	// without it nothing is written.
+	if *record {
+		id, err := appendIngested(ctx, root, lines.Bytes())
+		if err != nil {
+			return &gokernel.Error{Code: runevidence.ReasonWriteFailed, Message: "flows ingest --record: " + err.Error()}
+		}
+		fmt.Fprintf(diag, "flows ingest: recorded run evidence %s\n", id)
+	}
 	_, err = out.Write(lines.Bytes())
 	return err
+}
+
+// appendIngested appends one ingested document to the repository's run evidence store.
+func appendIngested(ctx context.Context, root string, document []byte) (string, error) {
+	if len(document) == 0 {
+		return "", errors.New("the report gave no test record to store")
+	}
+	store, err := appflows.RunEvidenceStore(ctx, root)
+	if err != nil {
+		return "", err
+	}
+	return store.Append(document)
 }
 
 // IntentHelp documents the AFU-V1 intent subcommands; help.go appends it to flowsHelp.
@@ -464,16 +494,25 @@ per listed test, its file resolved against config.rootDir under the root and key
 written, and the command exits 1.
 
 Query usage:
-  corvint-docs [--root PATH] flows map --flows DIR [--evidence FILE]... [--registry FILE]
+  corvint-docs [--root PATH] flows map --flows DIR [--evidence FILE]... [--no-store] [--registry FILE]
   corvint-docs [--root PATH] flows map --flows DIR [--path P | --test-key K]
-  corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--registry FILE] [--provider FILE]
-  corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--base SHA]
-  corvint-docs [--root PATH] flows impact --flows DIR --base SHA
+  corvint-docs [--root PATH] flows gaps --flows DIR [--evidence FILE]... [--no-store] [--registry FILE] [--provider FILE]
+  corvint-docs [--root PATH] flows status --flows DIR [--evidence FILE]... [--no-store] [--base SHA]
+  corvint-docs [--root PATH] flows impact --flows DIR --base SHA [--no-store]
   corvint-docs [--root PATH] flows stability --registry FILE [--evidence FILE]...
   corvint-docs [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE
     --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean]
     --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST
-    --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]...
+    --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]... [--record]
+
+Run evidence store: map, gaps, status and impact read the private run evidence store at
+<git-dir>/corvint/evidence by default, which corvint test and flows ingest --record append
+to; each --evidence FILE adds to it and --no-store reads only the named files. The newest
+record naming a test gives its last result, shown with its source tree; status lists any
+store record that no longer hashes to its name under run_evidence and marks a test only it
+held run-evidence-corrupt; impact adds last_results per flow when the store holds a record.
+No read writes the store (RVD-V1-007, RVD-V1-012).
+Example: corvint flows status --flows flows --no-store --evidence runs/runs.jsonl
 
 map writes application-flow-map/1: every link with its basis, review state and the
 self-attested review summary, and per variation the test-run-evidence/0 state and
@@ -506,7 +545,10 @@ default). One refusal (exit 2, invalid-arguments) names every missing or invalid
 with its format. Optional: --source-clean, repeatable
 --control "SUBJECT<TAB>CONTROL<TAB>EXPECTED" and repeatable --coverage-artifact
 ID=FILE, which pins a coverage file the run wrote by sha256. A bound exceeded exits nonzero with
-the incomplete code and writes nothing. None of these writes to the repository.
+the incomplete code and writes nothing. --record also appends the printed document as one record
+of the run evidence store and names its ID on stderr; a failed append exits 2 with
+run-evidence-write-failed and prints nothing (RVD-V1-005). None of these writes to the repository.
+Example: corvint flows ingest --format junit-xml --from report.xml --record --run-id ci-1 ...
 
 Coverage usage:
   corvint-docs [--root PATH] flows ingest-coverage --format v8|istanbul|rspec|lcov --from FILE

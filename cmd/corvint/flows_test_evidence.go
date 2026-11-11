@@ -18,9 +18,9 @@ import (
 const flowsTestEvidenceHelp = `
 Read retained test evidence linked to application flows (RSP-V0-051).
 Usage:
-  corvint [--root PATH] flows test-evidence --flows DIR PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--format json|text]
-  corvint [--root PATH] flows test-evidence --flows DIR --test TEST [--revision COMMIT] [--index FILE] [--format json|text]
-  corvint [--root PATH] flows test-evidence --flows DIR --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--format json|text]
+  corvint [--root PATH] flows test-evidence --flows DIR PATH [--lines START:END] [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
+  corvint [--root PATH] flows test-evidence --flows DIR --test TEST [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
+  corvint [--root PATH] flows test-evidence --flows DIR --explain TEST --base COMMIT [--revision COMMIT] [--index FILE] [--no-store] [--format json|text]
 Requires --flows and one query. Links are evaluated at HEAD; a different resolved
 revision refuses the join. UNKNOWN evidence never upgrades flow authority.
 Output: application-flow-test-evidence/1, containing the existing flow lookup and

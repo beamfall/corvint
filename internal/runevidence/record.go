@@ -130,7 +130,7 @@ var receiptOutcomes = map[string]string{
 	"TIMED_OUT": "timedOut", "NOT_RUN": "not-run",
 }
 
-var errNotRunDocument = errors.New("not a corvint-test-run/0 receipt or test-run-evidence/0 document")
+var errNotRunDocument = errors.New("not a " + ProfileReceipt + " receipt or " + ProfileIngested + " document")
 
 // Parse normalises one run document to rows (RVD-V1-006): a corvint-test-run/0 receipt gives one
 // row per unit outcome, marked file because a receipt unit is a package or a test file; a

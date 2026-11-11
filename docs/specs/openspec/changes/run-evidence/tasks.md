@@ -20,13 +20,13 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    Open: the `corvint test` half and its proof are delivered (V1-5448). `corvint watch` runs
    `go test` itself and writes no receipt on this tree, so it has no run document to append; its
    append is not yet built, and this task stays unticked until it is.
-- [ ] 5 Add `flows ingest --record`.
+- [x] 5 Add `flows ingest --record`.
    Requirements: RVD-V1-005. Proof: CLI test that ingest with `--record` adds one record and without
    it prints as before.
-- [ ] 6 Make `flows status`, map, gaps, impact, `corvint test-evidence` and the MCP tools read the
+- [x] 6 Make `flows status`, map, gaps, impact, `corvint test-evidence` and the MCP tools read the
    store by default, with `--no-store`. Requirements: RVD-V1-007, RVD-V1-008, RVD-V1-012. Proof: the
    PROD-TEST-020 end-to-end test; a read-only test showing the store unchanged after each reader.
-- [ ] 7 Check that no selection path reads the store.
+- [x] 7 Check that no selection path reads the store.
    Requirements: RVD-V1-011. Proof: a test that a failing stored result does not change the plan.
 - [ ] 8 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every RVD-V1 ID to a test.

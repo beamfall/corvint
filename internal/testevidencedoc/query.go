@@ -34,6 +34,8 @@ type Query struct {
 	Revision string `json:"revision"`
 	Base     string `json:"base,omitempty"`
 	Index    string `json:"index,omitempty"`
+	// NoStore is --no-store: the run evidence store is not read (RVD-V1-007).
+	NoStore bool `json:"no_store,omitempty"`
 }
 
 type Match struct {
@@ -61,6 +63,31 @@ type Document struct {
 	Matches     []Match               `json:"matches"`
 	Records     []RecordView          `json:"records"`
 	Explanation *runnerselection.Plan `json:"explanation,omitempty"`
+	// Runs is the last stored run result of each test the answer names, from the run evidence
+	// store; absent with --no-store or when the store holds none of them (RVD-V1-007).
+	Runs *Runs `json:"runs,omitempty"`
+}
+
+// Runs is the run evidence store's part of an answer (RVD-V1-007, RVD-V1-010).
+type Runs struct {
+	Reasons        []string `json:"reasons"`
+	CorruptRecords []string `json:"corrupt_records,omitempty"`
+	Results        []Run    `json:"results"`
+}
+
+// Run is one test's result in the newest stored record that names it, with that record's tree and
+// whether the tree is the queried revision's.
+type Run struct {
+	Test           string `json:"test"`
+	Outcome        string `json:"outcome"`
+	NativeOutcome  string `json:"native_outcome"`
+	Granularity    string `json:"granularity"`
+	Record         string `json:"record"`
+	Tree           string `json:"tree"`
+	Commit         string `json:"commit"`
+	AtRevision     bool   `json:"at_revision"`
+	DurationMs     *int64 `json:"duration_ms,omitempty"`
+	DurationSource string `json:"duration_source,omitempty"`
 }
 
 func Unknown(q Query, reason string) Document {
@@ -100,6 +127,13 @@ func Parse(args []string) (q Query, format string, err error) {
 		s := args[i]
 		if s == "--" && !positional {
 			positional = true
+			continue
+		}
+		if s == "--no-store" && !positional {
+			if q.NoStore {
+				return q, format, errors.New("repeated option")
+			}
+			q.NoStore = true
 			continue
 		}
 		if positional || !strings.HasPrefix(s, "-") {
@@ -390,6 +424,18 @@ func Write(w io.Writer, d Document, format string) error {
 	if d.Explanation != nil {
 		data, _ := json.Marshal(d.Explanation)
 		fmt.Fprintln(&b, string(data))
+	}
+	if d.Runs != nil {
+		for _, reason := range d.Runs.Reasons {
+			fmt.Fprintf(&b, "run-evidence %s\n", reason)
+		}
+		for _, r := range d.Runs.Results {
+			at := "other-tree"
+			if r.AtRevision {
+				at = "at-revision"
+			}
+			fmt.Fprintf(&b, "run %s %s %s %s %s\n", r.Test, r.Outcome, r.Tree, at, r.Record)
+		}
 	}
 	_, err := io.WriteString(w, b.String())
 	return err
