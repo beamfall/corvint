@@ -27,7 +27,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       test per row.
 - [ ] 2.8 No tasks tools; retire MCP binaries from `binaries.json` in their removal batch.
       Requirements: MTT-V1-006, MTT-V1-010. Proof: tool-list test and the release binaries check.
-- [ ] 2.9 Stale binary in the `affected` tool: select-all with reason `self-binary-stale` and a
+- [x] 2.9 Stale binary in the `affected` tool: select-all with reason `self-binary-stale` and a
       rebuild hint; the CLI keeps exit 2 (M1). Requirements: MTT-V1-011. Proof: one tool test and
       one CLI exit-code test on a stale binary.
 - [ ] 3.1 Mark PROD-DOCS-001 DELIVERED in the plan evidence once 2.4 and 2.5 land. Requirements:

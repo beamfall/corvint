@@ -40,8 +40,11 @@ profile-moved reason naming it, and the removed test-validity group exits 2
 with group-removed (MTT-V1-005). docs/MCP-SERVER.md lists every tool.
 One planner runs at a time per root; a verdict too large for one MCP message is
 the tool error verdict-oversized, read with the CLI instead. The server keeps the
-binary it started with: when a call answers the tool error self-binary-stale,
-rebuild this binary and restart the server, since a rebuild alone changes nothing.
+binary it started with: on a binary older than the repository's Go source the
+tool selects every test (affected-select-all/1, reason self-binary-stale) where
+the CLI exits 2 (MTT-V1-011); rebuild this binary and restart the server, since
+a rebuild alone changes nothing. A CORVINT_SELECTION value in the server's
+environment selects every test the same way (MTT-V1-008).
 
 Example:
   corvint mcp --root /absolute/repo --protocol-version 2025-11-25

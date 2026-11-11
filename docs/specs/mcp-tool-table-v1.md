@@ -248,7 +248,7 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008UnknownSelectionThroughTheServer` |
 | MTT-V1-009 | 2.7 | table column `ParityTest` and its rule in `internal/capcatalog/mcp.go`; `MissingParityTests` in `tools/mcp-server-doc` (doc gate) | `TestMTTV1009HelpToolMatchesCLI`, `TestMTTV1009ImpactToolMatchesCLI`, `TestMTTV1009TestEvidenceToolMatchesCLI`, `TestV15254MCPAffectedMatchesCLI` (cmd/corvint); `TestMTTV1009FlowsToolsMatchCLI`, `TestMTTV1009DocsConsumeToolMatchesCLI`, `TestDocsToolVerbAnswersInOneEnvelope`, `TestCorpusTypedCLIMCPEndToEnd` (cmd/corvint-docs); `TestMTTV1009MissingParityTestIsNamed` |
 | MTT-V1-010 | 2.8 | not built here: `corvint-mcp` and `corvint-test-validity-mcp` leave `tools/release-binary/binaries.json` in their removal batch | NOT_PRODUCED until that batch |
-| MTT-V1-011 | 2.9 | not yet built | not yet built |
+| MTT-V1-011 | 2.9 | `internal/mcp/toolgroup/affected.go` (`AffectedStaleCode`, select-all on the planner's refusal); `cmd/corvint/mcp.go` help | `TestMTTV1011AffectedToolOnAStaleBinarySelectsAll`; `TestV15254MCPAffectedStaleBinaryDegrades` (tool select-all and CLI exit 2 on one stale binary); `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` |
 
 ## Rollback
 

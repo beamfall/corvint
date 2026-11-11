@@ -30,6 +30,16 @@ const AffectedErrorProfile = "corvint-affected-mcp-tool-error/0"
 // everything, here is why" never narrows.
 const AffectedSelectAllProfile = "affected-select-all/1"
 
+// AffectedStaleCode is the planner's refusal for a corvint binary older than
+// the repository's Go source (AFP-V0-9730); the tool answers it as a
+// select-all with this reason (MTT-V1-011).
+const AffectedStaleCode = "self-binary-stale"
+
+// affectedStaleHint is the one-line recovery a stale-binary answer carries:
+// the server keeps the binary it started with, so a rebuild alone changes
+// nothing.
+const affectedStaleHint = "rebuild corvint from this checkout (go install ./cmd/corvint) and restart corvint mcp; the running server keeps the binary it started with"
+
 // AffectedOversizedCode is the tool error for a verdict whose result cannot
 // fit one MCP message; it names the CLI as the way to read it (MMR-V0-1118).
 const AffectedOversizedCode = "verdict-oversized"
@@ -87,7 +97,7 @@ func (group Affected) Tools() []bridge.ToolDescriptor {
 			"missing evidence widens the scope or stays UNKNOWN, never selects fewer tests. Read-only; served by corvint mcp only. " +
 			"One planner runs at a time per root. A verdict too large for one MCP message is the tool error verdict-oversized: read it with the CLI instead. " +
 			"CORVINT_SELECTION in the server's environment (full, full:<runner>[,<runner>], or any unknown value) makes the answer an affected-select-all/1 result that selects every test with its reason and a hint, never a narrowed plan. " +
-			"The tool error self-binary-stale means this server is running a corvint binary older than the repository's Go source; " +
+			"On a corvint binary older than the repository's Go source the answer is affected-select-all/1 with reason self-binary-stale and a rebuild hint, never a narrowed plan; " +
 			"rebuilding changes nothing until the server restarts, so rebuild corvint and restart corvint mcp.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{
@@ -150,6 +160,13 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 		}
 		code, message := affectedFailure(stderr.Bytes())
+		if code == AffectedStaleCode {
+			// MTT-V1-011: a stale binary's plan may be narrower than the
+			// checkout's, and a tool error makes an agent retry or skip
+			// tests; select every test and say why instead. The CLI keeps
+			// its exit 2.
+			return group.selectAll(ctx, name, base, AffectedStaleCode, message, affectedStaleHint, selectionswitch.Switch{})
+		}
 		return Failure(AffectedErrorProfile, name, code, message)
 	}
 	var structured map[string]any
