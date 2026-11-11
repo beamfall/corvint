@@ -31,6 +31,10 @@ func TestLocationReexportHeld_AFPV03661(t *testing.T) {
 		{"command directory read back through Environ", "_, file, _, _ := runtime.Caller(0)\n" +
 			"c := exec.Command(\"go\", \"list\", \"-deps\", \"./cmd/tool\")\nc.Dir = filepath.Dir(filepath.Dir(file))\n" +
 			"for _, e := range c.Environ() {\nif dir, ok := strings.CutPrefix(e, \"PWD=\"); ok {\n_, _ = os.ReadDir(dir)\n}\n}\n", true},
+		// nomiss review P1: with Env nil, Cmd.Environ is the process environment.
+		{"process environment read through a command's Environ", "for _, e := range exec.Command(\"true\").Environ() {\n" +
+			"if dir, ok := strings.CutPrefix(e, \"ROOT=\"); ok {\n_, _ = os.ReadDir(dir)\n}\n}\n", true},
+		{"command environment length", "_ = len(exec.Command(\"true\").Environ())\n", false},
 		{"raw value re-exported", "v := os.Getenv(\"ROOT\")\n" + shell, false},
 		{"copied raw value re-exported", "u := os.Getenv(\"ROOT\")\nv := u\n" + shell, false},
 	} {

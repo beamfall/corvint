@@ -54,6 +54,12 @@ const (
 	builtinSource  = "a package-level declaration of len or append"
 )
 
+// commandEnvironSource is any X.Environ() call in a file that imports os/exec.
+// With Env nil, (*exec.Cmd).Environ returns the process environment, and the
+// receiver's type is not known without type checking, so every such call is
+// an environment list judged as os.Environ is (AFP-V0-3660).
+const commandEnvironSource = "os/exec.Cmd.Environ"
+
 // trustedBuiltins are the predeclared functions sourceFlow recognises by an
 // unresolved name.
 var trustedBuiltins = map[string]bool{"len": true, "append": true}
@@ -249,10 +255,14 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 			dotted[name] = importPath
 		}
 	}
-	if len(qualified) == 0 && len(dotted) == 0 {
+	commandEnviron := dotImported["os/exec"]
+	for _, importPath := range imports {
+		commandEnviron = commandEnviron || importPath == "os/exec"
+	}
+	if len(qualified) == 0 && len(dotted) == 0 && !commandEnviron {
 		return found
 	}
-	mentioned := false
+	mentioned := commandEnviron && bytes.Contains(body, []byte("Environ"))
 	for _, importPath := range qualified {
 		for name := range locationSourceFuncs[importPath] {
 			mentioned = mentioned || bytes.Contains(body, []byte(name))
@@ -287,6 +297,9 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 			if bytes.Contains(body, []byte(name)) {
 				found[importPath+"."+name+" (dot import)"] = nil
 			}
+		}
+		if commandEnviron && bytes.Contains(body, []byte(".Environ")) {
+			found[commandEnvironSource] = nil
 		}
 		return found
 	}
@@ -325,15 +338,25 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 	})
 	ast.Inspect(file, func(node ast.Node) bool {
 		var reference ast.Expr
-		var importPath, name, label string
+		var label string
+		var kind locationSourceKind
 		switch expression := node.(type) {
 		case *ast.SelectorExpr:
 			qualifier, ok := expression.X.(*ast.Ident)
-			if !ok || qualifier.Obj != nil || qualified[qualifier.Name] == "" {
+			if !ok || qualifier.Obj != nil || imports[qualifier.Name] == "" {
+				// A method call X.Environ() may be (*exec.Cmd).Environ.
+				if call, ok := flow.parents[expression].(*ast.CallExpr); commandEnviron && expression.Sel.Name == "Environ" && ok && call.Fun == expression {
+					reference, label, kind = expression, commandEnvironSource, sourceEnvironment
+					break
+				}
 				return true
 			}
-			importPath, name = qualified[qualifier.Name], expression.Sel.Name
-			if _, ok := locationSourceFuncs[importPath][name]; !ok {
+			if qualified[qualifier.Name] == "" {
+				return true
+			}
+			importPath, name := qualified[qualifier.Name], expression.Sel.Name
+			var listed bool
+			if kind, listed = locationSourceFuncs[importPath][name]; !listed {
 				return true
 			}
 			reference, label = expression, importPath+"."+name
@@ -344,15 +367,15 @@ func locationSourceUses(body []byte, imports map[string]string, dotImported map[
 			if selector, ok := flow.parents[expression].(*ast.SelectorExpr); ok && selector.Sel == expression {
 				return true
 			}
-			importPath, name = dotted[expression.Name], expression.Name
-			reference, label = expression, importPath+"."+name+" (dot import)"
+			importPath, name := dotted[expression.Name], expression.Name
+			reference, label, kind = expression, importPath+"."+name+" (dot import)", locationSourceFuncs[importPath][name]
 		default:
 			return true
 		}
 		*flow.commands = nil
 		offset := positions.Position(reference.Pos()).Offset - shift
 		switch {
-		case !flow.referenceSafe(reference, locationSourceFuncs[importPath][name]):
+		case !flow.referenceSafe(reference, kind):
 			found[label] = append(found[label], sourceUse{Offset: offset})
 		case len(*flow.commands) != 0:
 			commands := make([]int, len(*flow.commands))
