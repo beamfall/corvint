@@ -99,7 +99,9 @@ func TestUnownedPathRunsAllOnlyWhenNoRuleAttributesIt_RNCV1004(t *testing.T) {
 		})
 		t.Run(name+"/path no rule attributes", func(t *testing.T) {
 			m := unownedSession(t, root, graph, selector, "notes.txt")
-			if m.Scope != sessiontest.ScopeFull || m.Reason != gateselect.UnownedPathFallback+": notes.txt" {
+			// The NCM-V1-001 non-code decision names the dirty path first,
+			// with the same reason.
+			if m.Scope != sessiontest.ScopeFull || m.Reason != gateselect.ReasonUnownedPath+" notes.txt" {
 				t.Fatalf("scope %s reason %q, want FULL with %s", m.Scope, m.Reason, gateselect.ReasonUnownedPath)
 			}
 			if got := units(m); !slices.Contains(got, "go:example.test/m/solo") || !slices.Contains(got, "go:example.test/m/reader") {
@@ -137,15 +139,16 @@ func TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004(t *testing.T) {
 
 // TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004: the planner
 // witnesses an unbounded reader (rule (d), here a test that reads a path built
-// from os.Getwd) with whichever dirty path sorts first, whatever path it reads. A change of only the root Makefile, which no
+// from os.Getwd) with whichever dirty path sorts first, whatever path it reads. A change of only the root notes.txt, which no
 // package encloses or names, therefore selects the unbounded package with
-// Makefile as its witness; that selection attributes nothing, so every
+// notes.txt as its witness; that selection attributes nothing, so every
 // selector still runs every test with the named reason unowned-path instead of
-// narrowing to the unbounded package.
+// narrowing to the unbounded package. (A root Makefile, the original fixture,
+// is on the NCM-V1-005 never-narrow list, which decides it first.)
 func TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004(t *testing.T) {
 	root, _ := selwideFiles(t, map[string]string{
 		"go.mod":                      "module example.test/m\n\ngo 1.27.0\n",
-		"Makefile":                    "all:\n",
+		"notes.txt":                   "notes\n",
 		"unbounded/unbounded.go":      "package unbounded\n",
 		"unbounded/unbounded_test.go": "package unbounded\nimport (\n\t\"os\"\n\t\"testing\"\n)\nfunc TestRead(t *testing.T) {\n\twd, _ := os.Getwd()\n\t_, _ = os.ReadFile(wd + \"/../in.json\")\n}\n",
 		"solo/solo.go":                "package solo\n",
@@ -155,18 +158,18 @@ func TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := affected.Select(graph, []string{"Makefile"})
+	plan := affected.Select(graph, []string{"notes.txt"})
 	if !slices.ContainsFunc(plan.Unknown, func(u affected.Unknown) bool {
-		return u.Reason == affected.UnknownUnownedDirtyPath && u.Detail == "Makefile"
+		return u.Reason == affected.UnknownUnownedDirtyPath && u.Detail == "notes.txt"
 	}) {
-		t.Fatalf("Makefile is no longer UNOWNED_DIRTY_PATH, so the fixture proves nothing: %+v", plan.Unknown)
+		t.Fatalf("notes.txt is no longer UNOWNED_DIRTY_PATH, so the fixture proves nothing: %+v", plan.Unknown)
 	}
 	if !slices.ContainsFunc(plan.Selected, func(s affected.Selection) bool {
-		return s.UnitID == "go:example.test/m/unbounded" && s.Witness.Kind == affected.WitnessUnboundedReader && s.Witness.DirtyPath == "Makefile"
+		return s.UnitID == "go:example.test/m/unbounded" && s.Witness.Kind == affected.WitnessUnboundedReader && s.Witness.DirtyPath == "notes.txt"
 	}) {
-		t.Fatalf("the unbounded package is not witnessed by Makefile, so the fixture proves nothing: %+v", plan.Selected)
+		t.Fatalf("the unbounded package is not witnessed by notes.txt, so the fixture proves nothing: %+v", plan.Selected)
 	}
-	want := gateselect.UnownedPathFallback + ": Makefile"
+	want := gateselect.ReasonUnownedPath + " notes.txt"
 	for name, selector := range map[string]func(gateselect.Receipt, string, string) []string{"select": gateselect.Select, "structural": gateselect.SelectStructural, "qualified": gateselect.SelectQualified} {
 		t.Run(name, func(t *testing.T) {
 			verdict := ""
@@ -174,7 +177,7 @@ func TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004(t *testing.T) {
 				lines := selector(receipt, module, root)
 				verdict = lines[len(lines)-1]
 				return lines
-			}, "Makefile")
+			}, "notes.txt")
 			if verdict != "FALLBACK "+want {
 				t.Fatalf("verdict %q, want %q", verdict, "FALLBACK "+want)
 			}

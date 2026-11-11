@@ -191,8 +191,18 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 	for _, unit := range verdict.Tiers.Tier1 {
 		fmt.Fprintf(&out, "tier1 %s\n", textWord(unit))
 	}
+	if verdict.Inventory != nil {
+		fmt.Fprintf(&out, "inventory %s\n", inventoryVerdictLine(*verdict.Inventory))
+		for _, instance := range verdict.Inventory.Instances {
+			if instance.Full {
+				fmt.Fprintf(&out, "inventory %s full %s\n", textWord(instance.Key), instance.Reason)
+			} else if len(instance.Unassigned) != 0 {
+				fmt.Fprintf(&out, "inventory %s unassigned %d\n", textWord(instance.Key), len(instance.Unassigned))
+			}
+		}
+	}
 	if e2e := verdict.E2E; e2e != nil {
-		// APK-V0-9970: the E2E selections after the tier lines.
+		// APK-V0-9970: the E2E selections after the tier and inventory lines.
 		fmt.Fprintf(&out, "e2e-scope %s inventory=%d selected=%d\n", textWord(e2e.Scope), e2e.Inventory, len(e2e.Selected))
 		for _, pair := range e2e.Variations {
 			fmt.Fprintf(&out, "e2e-variation %s %s\n", textWord(pair.Flow), textWord(pair.Variation))
@@ -206,16 +216,6 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 		}
 		for _, reason := range e2e.Unknown {
 			fmt.Fprintf(&out, "e2e-unknown %s\n", textWord(reason))
-		}
-	}
-	if verdict.Inventory != nil {
-		fmt.Fprintf(&out, "inventory %s\n", inventoryVerdictLine(*verdict.Inventory))
-		for _, instance := range verdict.Inventory.Instances {
-			if instance.Full {
-				fmt.Fprintf(&out, "inventory %s full %s\n", textWord(instance.Key), instance.Reason)
-			} else if len(instance.Unassigned) != 0 {
-				fmt.Fprintf(&out, "inventory %s unassigned %d\n", textWord(instance.Key), len(instance.Unassigned))
-			}
 		}
 	}
 	return out.String()
