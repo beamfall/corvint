@@ -125,7 +125,7 @@ Requirement IDs are stable. Each scenario under "Scenarios" names the requiremen
   pairing, and a `proposal.md` with no `Intent status:` line, as `HEADER_MISMATCH` naming the
   folder, the row mode and the header status.
 - `ACR-V1-015`: (proposed; V1-5296) The index table of `docs/specs/openspec/README.md` MUST
-  give each change folder the status its log row implies: `waiting for owner` for
+  give each active (not archived) change folder the status its log row implies: `waiting for owner` for
   `pending-owner`, `auto-accepted` for `auto` and `accepted` for `owner`. The audit MUST report a
   folder whose index row is missing or says otherwise as `INDEX_MISMATCH`. The README text above
   the table MUST say which record accepted the plan and that the log, not the README, is the
