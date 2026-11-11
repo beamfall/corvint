@@ -1892,6 +1892,24 @@ is designed in detail or checked against code yet.
   - Implemented by: RMV-V1 requirements in `docs/specs/openspec/changes/source-removal/` and
     WCH-V1 requirements in `docs/specs/openspec/changes/watch-seven-runners/`.
   - Acceptance evidence at 1.0: the with-and-without measurement.
+- `PROD-INT-032`: (proposed 2026-11-10; awaiting owner) `corvint context` MUST also take paths and
+  print, with no ticket, no task text and no ranking, the declared links of each path: its
+  instruction files, owners, tests, flows, requirements and open tickets. An absent source MUST be
+  stated and MUST NOT fail the command. It is non-blocking, with no claim of measured benefit.
+  - Source: owner request 2026-11-10 (a context command useful to every agent); owner instruction
+    2026-11-10 (the CEM may be amended where a useful context needs it).
+  - Notes: (proposed 2026-11-10, lane-drafted) PROD-INT-030 is unchanged and keeps its acceptance.
+    G8 is unchanged: the `cem` verb and the ceremony stay removed, and only the requirement links
+    of the sealed records are kept in one file (TBC-V1-012). The path form is built only if its
+    link-coverage check meets the bar the owner sets (TBC-V1-013).
+  - Intent: proposed. Delivery: not-started. State: MISSING.
+  - Scenario: an agent with no ticket.
+    - **WHEN** an agent runs `corvint context --path PATH` in a repository with no ticket store
+    - **THEN** it gets the six sections for that path, each with a stated state and reason, and
+      exit code 0
+  - Implemented by: TBC-V1-009 to TBC-V1-014 (`docs/specs/openspec/changes/ticket-brief-context/`).
+  - Acceptance evidence at 1.0: the link-coverage record; the path form on Corvint and on one
+    repository with no Corvint files, labelled non-blocking; the pilot record or NOT_RUN.
 
 ## Proposal traceability
 
@@ -1920,7 +1938,7 @@ differ, both sides are reconciled before acceptance (checklist O31, Q1). Nothing
 | `runner-contract` (RNC-V1-001 to 018) | PROD-TEST-006, 011 | PROD-TEST-006, 013 |
 | `source-removal` (RMV-V1-001 to 037) | PROD-TEST-002; PROD-INT-009, 010 | PROD-INT-017, 031; "Removed from 1.0" |
 | `tasks-integration` (TIN-V1) | PROD-TASK-003, 004, 006 to 013; PROD-INT-004 | PROD-TASK-010 to 013 |
-| `ticket-brief-context` (TBC-V1-001 to 008) | PROD-TASK-006; PROD-INT-002 | PROD-INT-030 |
+| `ticket-brief-context` (TBC-V1-001 to 008; 009 to 014 proposed 2026-11-10) | PROD-TASK-006; PROD-INT-002 | PROD-INT-030; PROD-INT-032 (proposed) |
 | `watch-seven-runners` (WCH-V1-001 to 014) | PROD-TEST-007 | PROD-TEST-007, 013; PROD-INT-031 |
 
 `narrowing-measurement` owns the `CORVINT_SELECTION` grammar, the refusal and the reason text
