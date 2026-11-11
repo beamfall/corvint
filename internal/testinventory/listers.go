@@ -125,11 +125,21 @@ func listInstance(ctx context.Context, input listInput, instance Declared) (Inst
 		record.Files = append(record.Files, File{Path: name, Blob: blob})
 	}
 	// testid.List keeps the order of its input, so entry i is named[i]
-	// and lives in sources[i].
+	// and lives in sources[i]. It does not suffix an ID that carries a
+	// reason, so a file-level ID with test-id-unmapped repeats when several
+	// files share it (two unparseable _test.go files of one Go package):
+	// those collapse into the first entry, and every file stays in Files.
+	unmapped := map[string]bool{}
 	for index, entry := range testid.List(result.named) {
 		file := result.sources[index]
 		if !seen[file] {
 			return Instance{}, lister, fmt.Errorf("test %s lives in %s, which is not a listed file under %s", entry.ID, file, instance.Root)
+		}
+		if entry.Reason == testid.ReasonUnmapped {
+			if unmapped[entry.ID] {
+				continue
+			}
+			unmapped[entry.ID] = true
 		}
 		record.Tests = append(record.Tests, Test{ID: entry.ID, File: file, Duplicate: entry.Duplicate, Reason: entry.Reason})
 	}
