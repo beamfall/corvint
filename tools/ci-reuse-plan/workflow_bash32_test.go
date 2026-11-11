@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,12 +29,22 @@ var workflowBash32Rules = []struct {
 	{"append-both", regexp.MustCompile(`&>>`)},
 }
 
+// workflowBash32Hits reports each rule a command breaks, by the line the
+// command starts on. A command continued with a trailing backslash is read as
+// one: its lines are joined both with and without a space, because the shell
+// drops the backslash and the newline and keeps only the indentation YAML
+// leaves, so either spelling can be the one Bash runs.
 func workflowBash32Hits(text string) []string {
-	var hits []string
-	for i, line := range strings.Split(text, "\n") {
+	var hits, parts []string
+	lines := strings.Split(text, "\n")
+	first := 0
+	for i, line := range lines {
 		code := strings.TrimSpace(line)
+		if len(parts) == 0 {
+			first = i
+		}
 		if strings.HasPrefix(code, "#") {
-			continue
+			code = ""
 		}
 		// A trailing comment is cut only where the quotes before it balance, so
 		// a " # " inside a string cannot hide a construct later on the line.
@@ -48,9 +59,18 @@ func workflowBash32Hits(text string) []string {
 			}
 			at += 1 + next
 		}
+		// An odd run of trailing backslashes continues the command; an even
+		// run is escaped backslashes.
+		if body := strings.TrimRight(code, `\`); (len(code)-len(body))%2 == 1 && i+1 < len(lines) {
+			parts = append(parts, code[:len(code)-1])
+			continue
+		}
+		parts = append(parts, code)
+		tight, spaced := strings.Join(parts, ""), strings.Join(parts, " ")
+		parts = parts[:0]
 		for _, rule := range workflowBash32Rules {
-			if rule.re.MatchString(code) {
-				hits = append(hits, rule.label+" line "+strconv.Itoa(i+1))
+			if rule.re.MatchString(tight) || rule.re.MatchString(spaced) {
+				hits = append(hits, rule.label+" line "+strconv.Itoa(first+1))
 			}
 		}
 	}
@@ -100,6 +120,25 @@ func TestWorkflowRunScriptsAvoidBash4Constructs_ASCV0780(t *testing.T) {
 	} {
 		if hits := workflowBash32Hits(line); len(hits) != 0 {
 			t.Errorf("%q: unexpected hits %v", line, hits)
+		}
+	}
+
+	// A continued command is one command, reported at its first line.
+	for _, tc := range []struct {
+		text string
+		want []string
+	}{
+		{"          shopt -s \\\n            globstar", []string{"globstar line 1"}},
+		{"          declare \\\n            -A seen", []string{"associative-array line 1"}},
+		{"          declare\\\n            -A seen", []string{"associative-array line 1"}},
+		{"          read\\\n          array -t rows < rows.txt", []string{"mapfile line 1"}},
+		{"          echo one\n          wait \\\n            -n \\\n            \"$a\"\n          mapfile -t rows", []string{"wait-next line 2", "mapfile line 5"}},
+		{"          echo one \\\n            two\n          echo three", nil},
+		{"          echo C:\\\\\n          mapfile -t rows", []string{"mapfile line 2"}},
+		{"          shopt -s nullglob \\", nil},
+	} {
+		if hits := workflowBash32Hits(tc.text); !slices.Equal(hits, tc.want) {
+			t.Errorf("%q: hits %v, want %v", tc.text, hits, tc.want)
 		}
 	}
 
