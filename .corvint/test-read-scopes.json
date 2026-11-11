@@ -1703,6 +1703,7 @@
       "internal/mcp/testvaliditybridge/",
       "internal/mcp/toolgroup/",
       "internal/mergedrivers/",
+      "internal/noncodemap/",
       "internal/observations/",
       "internal/observedstale/",
       "internal/pathbrief/",
