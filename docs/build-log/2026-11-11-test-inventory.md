@@ -204,6 +204,42 @@ its cause text, because that base already read the config as unproven. The Jest,
 Not covered: a Playwright script's `-c`/`--config`. The parent-directory search that pytest itself
 does is also not modelled; only configs in an instance's own root are proven.
 
+## Review fixes (round 4, V1-5427): script indirection, runTestsByPath, pytest TOML edges
+
+The independent review of round 3 found scripts that reached Jest or Vitest while the proof only
+looked at a word naming the runner. Orchestrator decision: fail closed.
+- **Package-manager runs.** `npm run test -- --testMatch x`, `yarn test --config x` and
+  `pnpm test --config x` beside `"test": "jest"` stayed proven. A script run through npm, yarn, pnpm
+  or bun (with or without `run`), a `concurrently` `npm:name` word, or `npm-run-all`, `run-s` or
+  `run-p` that forwards any `-`-prefixed word is now unproven. npm forwards only the words after
+  `--`. One exemption keeps common build scripts proven: the target is a script in the same
+  manifest that mentions neither the runner nor a package manager. A run of the runner itself
+  (`yarn jest --ci`) is still judged by the runner's flag list, as before.
+- **Quoted wrappers.** `sh -c "jest --config ci.js"`, `bash -c`, `concurrently "jest --config a"`
+  and `nodemon --exec "..."` kept the quoted command as one word. A quoted word holding whitespace
+  is now split and scanned again. A command the reader does not model that mentions the runner
+  anywhere (`node -e "require('jest')..."`, `sh -c jest\ --config`) is unproven. The cost is that an
+  unrelated command naming the runner, such as `eslint jest.config.js`, also leaves the instance
+  unproven, and so does any forwarded flag, even a safe one like `npm test -- --coverage`.
+- **`--runTestsByPath`** left the Jest safe list, because it runs the files it names whatever their
+  names. `--findRelatedTests` stays, because it only narrows the configured files.
+- **pytest TOML edges.** A UTF-8 byte order mark keeps failing closed: the scanner cannot read the
+  file, and Python's `tomllib` rejects it too. CRLF line ends, literal-string keys and comments
+  inside multi-line values already worked and now have tests. A table below the pytest table
+  (`[tool.pytest.ini_options.testpaths]`) now sets the option it names even with no key under it.
+  An escaped `pyproject.toml` key now declares pytest, so `[tool."py\u0074est".ini_options]` is
+  unproven rather than missed.
+
+Tests: `TestTIVV1008ScriptRunsFailClosed` (17 rows), `TestTIVV1008PytestConfigEdgesFailClosed`
+(10 rows), and two new `TestTIVV1008ProvenDefaultControl` rows (Jest scripts through package
+managers and wrappers; CRLF `pytest.ini` and `pyproject.toml`). All 17 script rows fail on
+42b0bd8a0, run in a detached worktree of that SHA (rc=1). Of the pytest rows, only the empty
+sub-table and escaped table name fail there; the other eight pass on that base and guard behaviour
+that already held.
+
+Not covered: monorepo runners that forward flags (`turbo run test -- ...`, `lerna run`, `nx`)
+without mentioning the runner, and a `node script.js` that spawns the runner.
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent
