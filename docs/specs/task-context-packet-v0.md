@@ -1326,8 +1326,9 @@ as withheld. This amendment reserves what the routed spec cites.
   The definition slot MUST NOT admit an unquoted all-capitals token (two or more of `A`-`Z` and
   nothing else) that at least `max(sources/16, 2)` indexed sources name as written, the
   answerability cut of TCP-V0-016: such an acronym (`CEM`, `PR`) is prose vocabulary, and its one
-  declarer (`type CEM` in `internal/revieworder/order.go`) must not outrank the files the task is
-  about. A backticked acronym and a rarer one keep the slot; `definitionEligible`'s other callers
+  declarer must not outrank the files the task is about. The observed case was `type CEM` in
+  `internal/revieworder`, a package decision 0594 deleted; the test keeps that declarer as a
+  fixture file. A backticked acronym and a rarer one keep the slot; `definitionEligible`'s other callers
   are unchanged. Falsifier: on the `CEM canonical binding` probe a definition row for the `CEM`
   declarer above `internal/cem/wire/canonical.go`. Test:
   `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. TCP-V0-8200 preserves frozen scores while ordering selected lookup pairs; the earlier unmeasured
