@@ -240,7 +240,7 @@ not reused and their text stays in their own specs as history.
 |---|---|---|---|
 | MTT-V1-001 | 2.1 | `internal/capcatalog/mcp.go` (`MCPTools`, `CheckMCPTools`) | `TestMTTV1001TableRules`, `TestMTTV1001TableRulesNameTheBrokenRow`, `TestCAPV08800MCPToolsReachable` |
 | MTT-V1-002 | 2.2 | `tools/mcp-server-doc`, `make mcp-server-doc`, doc gate `mcp-server-doc-check` | `TestMTTV1002StalenessCheckFailsOnAHandEdit`, `TestMTTV1002DocumentCarriesEveryRow` |
-| MTT-V1-003 | 2.3 | not yet built | not yet built |
+| MTT-V1-003 | 2.3 | `internal/mcp/cli/tooltable_drift_test.go` (`tableDrift`) | `TestMTTV1003CoreServerRegistersExactlyTheTable`, `TestMTTV1003TestValidityServerRegistersExactlyTheTable`, `TestMTTV1003DriftNamesTheTool` |
 | MTT-V1-004 | 2.4 | not yet built | not yet built |
 | MTT-V1-005 | 2.5 | not yet built | not yet built |
 | MTT-V1-006 | 2.1, 2.8 | not yet built | not yet built |

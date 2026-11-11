@@ -14,7 +14,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       Requirements: MTT-V1-001, MTT-V1-006. Proof: table unit test (unique names, every column set).
 - [x] 2.2 Generated `docs/MCP-SERVER.md` and its staleness check. Requirements: MTT-V1-002. Proof:
       the check fails on a hand edit.
-- [ ] 2.3 Drift test against registered tools on both servers. Requirements: MTT-V1-003. Proof: the
+- [x] 2.3 Drift test against registered tools on both servers. Requirements: MTT-V1-003. Proof: the
       test fails when a tool is added without a row.
 - [ ] 2.4 `corvint-docs mcp` subcommand serving the docs tools. Requirements: MTT-V1-004. Proof:
       server tool-list test.
