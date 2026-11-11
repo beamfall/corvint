@@ -19,9 +19,24 @@
 # gate-reuse, qualifications) is not an input and does not force FULL. This list lives in the
 # trusted copy of this script, which narrow.sh runs from the pinned tool checkout; the tested
 # tree's copy is never read.
+# CIN-V0-8423 (V1-5202): each input is classified. A global input decides or executes what a
+# shard runs, or admits narrowing at all, so any change to it forces FULL: the decision scripts
+# (narrow.sh, narrow.jq, mq-narrow.sh, shard-plan.sh, pr-base.sh, pin-lag.sh, this guard), the
+# verdict (accept.sh, verdict.sh, bar.jq and names.sh, which they source), the placement helper
+# and its tables (cishards), the confine wrapper (testconfine), local actions and every guarded
+# section of ci.yml. A mapped input only produces or reports the forward-row evidence
+# (collect.sh, classify.sh, row.jq, selection.jq, outcomes.*, tiers.*, failed.*, flaky.sh,
+# mainmiss.*, absence.jq, bar.sh, full-reasons.sh, infra-reclassified.txt) or is one of the two
+# workflows that run them on main; `consumers` below names the test packages that read each one
+# (every package whose .corvint/test-read-scopes.json entry covers the path; the
+# tools/ci-forward-row tests check the table against that declaration), and narrow.sh narrows
+# such a range only when the selection holds every named consumer (CIN-V0-8424). An input in
+# neither list (a new forward-rows file, a renamed one, a non-ASCII name) is global: FULL.
 # Usage: github-guard.sh BASE TARGET. Prints one word on the first line: 0 (no input changed),
-# 1 (an input changed; the inputs follow, one per line) or unreadable (git could not answer; the
-# caller records FULL). It exits 0 in every case and reads Git objects only.
+# 1 (a global input changed; every changed input follows, one per line), mapped (only mapped
+# inputs changed; each follows as `INPUT CONSUMER...`, space-separated) or unreadable (git could
+# not answer; the caller records FULL). It exits 0 in every case and reads Git objects only. A
+# caller that knows only 0 and 1 treats mapped as unreadable, which is FULL.
 set -u
 export GIT_NO_REPLACE_OBJECTS=1
 base=${1:-}
@@ -82,9 +97,49 @@ case $rc in
   ;;
 *) unreadable "git diff failed for $ci" ;;
 esac
-if [ -s "$tmp/changed.txt" ]; then
+# consumers INPUT: the test package directories that read a mapped input, or nothing for a
+# global or unmapped one (CIN-V0-8423).
+consumers() {
+  case $1 in
+  .github/forward-rows/absence.jq | .github/forward-rows/bar.sh | .github/forward-rows/classify.sh | \
+    .github/forward-rows/collect.sh | .github/forward-rows/failed.jq | .github/forward-rows/failed.sh | \
+    .github/forward-rows/flaky.sh | .github/forward-rows/full-reasons.sh | \
+    .github/forward-rows/infra-reclassified.txt | .github/forward-rows/mainmiss.jq | \
+    .github/forward-rows/mainmiss.sh | .github/forward-rows/outcomes.jq | .github/forward-rows/outcomes.sh | \
+    .github/forward-rows/row.jq | .github/forward-rows/selection.jq)
+    echo tools/ci-forward-row
+    ;;
+  .github/forward-rows/tiers.jq | .github/forward-rows/tiers.sh)
+    echo "tools/ci-forward-row tools/tiers-replay"
+    ;;
+  .github/workflows/ci-control-plane.yml | .github/workflows/ci-forward-bar.yml)
+    echo "tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"
+    ;;
+  esac
+}
+[ -s "$tmp/changed.txt" ] || {
+  echo 0
+  exit 0
+}
+global=0
+: > "$tmp/mapped.txt"
+while IFS= read -r input; do
+  case $input in
+  '' | *' '* | *'	'*) global=1 ;; # a blank or spaced line cannot be a mapped input
+  *)
+    found=$(consumers "$input")
+    if [ -n "$found" ]; then
+      echo "$input $found" >> "$tmp/mapped.txt"
+    else
+      global=1
+    fi
+    ;;
+  esac
+done < "$tmp/changed.txt"
+if [ "$global" = 1 ]; then
   echo 1
   cat "$tmp/changed.txt"
 else
-  echo 0
+  echo mapped
+  cat "$tmp/mapped.txt"
 fi

@@ -765,7 +765,11 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-shard-plan
-          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          # CIN-V0-8421 (V1-5196): decision.json keeps the mode and reason codes of a FULL decision
+          # whose record narrow.sh dropped, so full-reasons.sh can tally FULL causes.
+          path: |
+            ${{ runner.temp }}/corvint-narrowing/narrowing.json
+            ${{ runner.temp }}/corvint-narrowing/decision.json
           if-no-files-found: ignore
           retention-days: 90
 
@@ -1325,7 +1329,12 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-narrowing-${{ strategy.job-index }}
-          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          # CIN-V0-8421 (V1-5196): decision.json beside the record names the mode and reason codes,
+          # also for a FULL decision whose record narrow.sh dropped; the collectors read only
+          # narrowing.json, and full-reasons.sh tallies decision.json over run history.
+          path: |
+            ${{ runner.temp }}/corvint-narrowing/narrowing.json
+            ${{ runner.temp }}/corvint-narrowing/decision.json
           if-no-files-found: error
           retention-days: 90
       - name: Line-level selection (GLS-V0-040..043; narrows only while CORVINT_LINECOV_NARROWING is on)
