@@ -349,12 +349,25 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		return timing
 	}
 	op, ok := tools[name]
-	served := r.currentHeader()
-	if !ok || !served.has(op) {
+	if !ok {
 		return nil, "", nil, &Error{"unsupported-tool"}, finish()
 	}
 	if ctx.Err() != nil {
 		return nil, "", nil, &Error{"cancelled"}, finish()
+	}
+	// Every check that depends on the artifact header uses the header in force after a rebuilt
+	// artifact is served (DMF-V1-011): a tool the served header lacks is decided after the
+	// configured artifact is checked, since a rebuild may declare it.
+	var read *artifactRead
+	if !r.currentHeader().has(op) {
+		var refusal *ToolFailure
+		read, refusal, _ = r.refresh(ctx, name, op, &timing)
+		if !r.currentHeader().has(op) {
+			return nil, "", nil, &Error{"unsupported-tool"}, finish()
+		}
+		if refusal != nil {
+			return nil, "", refusal, nil, finish()
+		}
 	}
 	var input struct {
 		Retirement *doccorpus.RetirementPolicy `json:"retirement,omitempty"`
@@ -385,7 +398,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && served.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "caller_revision" || key == "offset" || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -436,31 +449,17 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if _, has := members["caller_revision"]; has && (input.Caller == "" || !doccorpus.ValidCallerRevision(input.Caller)) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	identity, err := os.Lstat(r.root)
-	if err != nil || !os.SameFile(identity, r.identity) {
-		return nil, "", &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil, finish()
-	}
-	read := r.artifactReader()
-	if !read.unchanged {
-		if _, err := read.bytes(); err != nil {
-			if !errors.Is(err, errArtifactChanged) {
-				return failure(err, finish())
-			}
-			// DMF-V1-011: a rebuilt artifact is verified as the first open does and then
-			// served; one that fails is refused with its reason, never answered from the
-			// artifact it replaced.
-			if err := r.reload(ctx, read.changedStamp, read.changed, &timing); err != nil {
-				if ctx.Err() != nil {
-					return nil, "", nil, &Error{"cancelled"}, finish()
-				}
-				_, reason := failureCode(err)
-				return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed and the new artifact failed verification: " + reason + "; the previous artifact is not served"}, nil, finish()
-			}
-			if !r.currentHeader().has(op) {
-				return nil, "", &ToolFailure{"corpus-refused", "the rebuilt artifact does not declare the capability " + name + " needs"}, nil, finish()
-			}
-			read = r.artifactReader()
+	if read == nil {
+		var refusal *ToolFailure
+		var protocol *Error
+		if read, refusal, protocol = r.refresh(ctx, name, op, &timing); refusal != nil || protocol != nil {
+			return nil, "", refusal, protocol, finish()
 		}
+	}
+	// offset pages a SchemaV2 artifact only (a /1 artifact has none), judged by the header in
+	// force after the artifact check above (DMF-V1-011).
+	if _, has := members["offset"]; has && r.currentHeader().Schema != doccorpus.SchemaV2 {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
 	// DCP-V1-653, DCP-V1-654: the receipt view and include ["capabilities"]
 	// shape only the corpus wire receipt; the corpus query sees
@@ -875,13 +874,53 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp s
 	return overlay, nil
 }
 
-// reload opens the configured artifact again after its bytes changed, from the bytes and stamp the
-// call already read (so a reload costs no second read, DCR-V1-417): it reads the header and
+// refresh refuses a call whose repository root was replaced, then checks the configured artifact
+// and, when its bytes changed, verifies and serves the rebuilt artifact (DMF-V1-011). It returns
+// the artifact read the call continues with, or the call's refusal.
+func (r *Registry) refresh(ctx context.Context, name, op string, timing *Timing) (*artifactRead, *ToolFailure, *Error) {
+	identity, err := os.Lstat(r.root)
+	if err != nil || !os.SameFile(identity, r.identity) {
+		return nil, &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil
+	}
+	read := r.artifactReader()
+	if read.unchanged {
+		return read, nil, nil
+	}
+	if _, err := read.bytes(); err != nil {
+		if !errors.Is(err, errArtifactChanged) {
+			code, message := failureCode(err)
+			return nil, &ToolFailure{code, message}, nil
+		}
+		// DMF-V1-011: a rebuilt artifact is verified as the first open does and then
+		// served; one that fails is refused with its reason, never answered from the
+		// artifact it replaced.
+		if err := r.reload(ctx, read.changedStamp, read.changed, timing); err != nil {
+			if ctx.Err() != nil {
+				return nil, nil, &Error{"cancelled"}
+			}
+			_, reason := failureCode(err)
+			return nil, &ToolFailure{"corpus-refused", "configured artifact changed and the new artifact failed verification: " + reason + "; the previous artifact is not served"}, nil
+		}
+		if !r.currentHeader().has(op) {
+			return nil, &ToolFailure{"corpus-refused", "the rebuilt artifact does not declare the capability " + name + " needs"}, nil
+		}
+		read = r.artifactReader()
+	}
+	return read, nil, nil
+}
+
+// reload opens the configured artifact again after its bytes changed: it reads the header and
 // opens the artifact with the same verified read the first call uses, then replaces the served
 // digest, header, artifact, pins and memos in one step under the load slot. A call already holding
 // the previous artifact finishes on it; the next call answers from the new one. A failure changes
 // nothing, so every later call checks the file again and is refused while it still fails
 // (DMF-V1-011).
+//
+// The bytes the call read are used only while the file still has the stamp captured before that
+// read; otherwise the file is read again under the load slot. A call that read older bytes and
+// waited for the slot while another call verified and installed newer ones therefore never
+// installs its older bytes over them: it reads the file again and, finding the installed digest,
+// changes nothing. An unchanged stamp costs no second read (DCR-V1-417).
 func (r *Registry) reload(ctx context.Context, stamp string, raw []byte, timing *Timing) error {
 	select {
 	case r.load <- struct{}{}:
@@ -890,8 +929,12 @@ func (r *Registry) reload(ctx context.Context, stamp string, raw []byte, timing 
 	}
 	defer func() { <-r.load }()
 	step := time.Now()
-	if raw == nil {
-		return &doccorpus.Error{Code: "corpus-refused", Message: "changed artifact bytes unavailable"}
+	if current := artifactFileStamp(r.root, r.path); raw == nil || stamp == "" || current != stamp {
+		fresh, err := readArtifactFile(r.root, r.path)
+		if err != nil {
+			return err
+		}
+		stamp, raw = current, fresh
 	}
 	digest := doccorpus.Digest(raw)
 	if digest == r.currentDigest() {
