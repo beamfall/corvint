@@ -1148,6 +1148,12 @@
       ]
     },
     {
+      "paths": "tools/fault-harness/README.md",
+      "tests": [
+        "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
+      ]
+    },
+    {
       "paths": "tools/flow-guide-check/unhinted-refusals.tsv",
       "tests": [
         "internal/liveverify/affected/liverepo/ownership_completeness_test.go"
