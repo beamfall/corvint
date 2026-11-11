@@ -430,8 +430,6 @@ func freshnessProjections(r Receipt) []testvalidity.Projection {
 	return out
 }
 
-func freshProcessLabel(p FreshProcessIdentity) string { return strconv.Itoa(p.PID) + ":" + p.Start }
-
 func freshDescendantsAbsent(d *procgroup.DescendantObservation) bool {
 	return d != nil && d.Absent && len(d.Failures) == 0 && d.IntervalMS == 20 && d.Scope != "" && len(d.Limitations) != 0
 }

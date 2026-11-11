@@ -39,11 +39,6 @@ func NewStringID(value string) (ID, error) {
 	return ID{raw: string(raw), key: "s:" + value}, nil
 }
 
-func NewIntegerID(value int64) ID {
-	raw := fmt.Sprintf("%d", value)
-	return ID{raw: raw, key: "n:" + raw}
-}
-
 func (id ID) Valid() bool { return id.raw != "" }
 func (id ID) Key() string { return id.key }
 

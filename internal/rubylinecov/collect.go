@@ -479,12 +479,3 @@ func Index(module, commit string, run *Run, oids map[string]string) (*linecov.In
 	sort.Strings(ix.Unordered)
 	return ix, nil
 }
-
-func ids(set map[int32]bool) []int32 {
-	out := make([]int32, 0, len(set))
-	for id := range set {
-		out = append(out, id)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-	return out
-}

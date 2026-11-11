@@ -712,10 +712,6 @@ func canonicalJSON(value any) ([]byte, error) {
 	return jsonv2.Marshal(value, jsonv2.Deterministic(true))
 }
 
-func prefixedID(kind, profile string, body []byte) string {
-	return kind + ":sha256:" + bareID(kind, profile, body)
-}
-
 func bareID(kind, profile string, body []byte) string {
 	digest := sha256.New()
 	var length32 [4]byte

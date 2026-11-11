@@ -295,8 +295,8 @@ use the change as cover for a lower number.
 option and was set aside on evidence. One file refuses four different sorts of thing: an argument
 whose count is wrong, one supplied path, a missing captured revision index, and a module that is
 not slash-qualified (all in the removed working-tree impact compiler). Two more sorts appear in the doc compiler: a document read
-as authority at `internal/doccompiler/build.go:158` and a host facility at
-`internal/doccompiler/build.go:32`. One string can hold any of those only by encoding its own sort
+as authority at `internal/doccompiler/build.go:157@3823605e` and a host facility at
+`internal/doccompiler/build.go:31@d2e49008`. One string can hold any of those only by encoding its own sort
 inside the text, which is the parsing `DRC-V0-012` forbids. The revision-alongside-a-path worry
 that kept this open is answered without a third field: the revision a path was checked against is a
 measured fact, so it is `evidence` under `DRC-V0-002` and the pair stays two fields. The owner

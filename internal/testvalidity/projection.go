@@ -117,25 +117,6 @@ type ClaimFacts struct {
 	Anchors          []string
 }
 
-// FromClaimResult projects the three TCQ-V0-006 axes out of one real TCQ
-// claim result. TCQ's own frozen reason vocabulary is carried through
-// verbatim; this adapter adds no reason of its own.
-func FromClaimResult(claim tcq.ClaimResult) ClaimFacts {
-	anchors := make([]string, 0, 4)
-	for _, anchor := range []string{claim.ObligationID, claim.ClaimID, claim.TestUnitID, claim.AnchorProfile} {
-		if anchor != "" {
-			anchors = append(anchors, anchor)
-		}
-	}
-	return ClaimFacts{
-		AssociationState: claim.AssociationState,
-		HygieneState:     claim.HygieneState,
-		ReportState:      claim.ReportState,
-		Reasons:          append([]string(nil), claim.Reasons...),
-		Anchors:          anchors,
-	}
-}
-
 // ExecutionFacts is the caller-normalized shape of one LPCV/GLTP execution
 // result: LPCV's frozen "Result axes" currency term plus GLTP's
 // executionOutcome cause vocabulary. A projector consumes this decoded shape

@@ -4436,8 +4436,8 @@ DCR-V0-003	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery expe
 DCR-V0-004	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Strict, sorted baseline.	unrecorded	-
 DCR-V0-005	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Shrink-only verdict. The t	unrecorded	-
 DCR-V0-006	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4801) Hermetic proof. The tool's	unrecorded	-
-DCR-V0-007	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery not-started; V1-4827) Fail-closed deletion. A	unrecorded	-
-DCR-V0-008	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery not-started; V1-4827) Deletion proof. After the	unrecorded	-
+DCR-V0-007	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4827) Fail-closed deletion. A	unrecorded	-
+DCR-V0-008	docs/specs/deadcode-ratchet-v0.md	(proposed 2026-11-11; delivery experimental; V1-4827) Deletion proof. After the	unrecorded	-
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-

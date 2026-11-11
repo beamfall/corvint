@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -593,15 +592,6 @@ func rankedPaths(context map[string]any) []string {
 		}
 	}
 	return paths
-}
-
-func SupportedEvents() []string {
-	events := make([]string, 0, len(supportedEventSet))
-	for event := range supportedEventSet {
-		events = append(events, event)
-	}
-	sort.Strings(events)
-	return events
 }
 
 var supportedEventSet = map[string]struct{}{

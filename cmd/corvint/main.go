@@ -573,34 +573,6 @@ func resolveExplicitRoot(value string) (string, error) {
 	return root, nil
 }
 
-// normalizeQueryRoot is the query adapter's lexical phase. Repository access
-// and symlink resolution happen only after every query option and intent has
-// been validated, preserving Python's argument-before-repository precedence.
-func normalizeQueryRoot(value string) (string, error) {
-	if value == "~" || strings.HasPrefix(value, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", argumentError("cannot expand --root")
-		}
-		value = filepath.Join(home, strings.TrimPrefix(value, "~/"))
-	}
-	root, err := filepath.Abs(value)
-	if err != nil {
-		return "", argumentError("invalid --root")
-	}
-	return root, nil
-}
-
-func resolveQueryRoot(root string) (string, error) {
-	if resolved, err := filepath.EvalSymlinks(root); err == nil {
-		root = resolved
-	}
-	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
-		return "", notQueryRepositoryRootRefusal(root)
-	}
-	return root, nil
-}
-
 // normalizeRoot performs only syntactic --root handling: tilde expansion,
 // absolutization, and best-effort symlink resolution. It never inspects the
 // repository, so CEM invocations keep the frozen validation precedence — a
@@ -1011,23 +983,6 @@ func parseCEMInvocation(arguments []string) (root, callerRoot string, rest []str
 		return "", "", nil, true, err
 	}
 	return root, callerRoot, arguments[index+1:], true, nil
-}
-
-func readInputBounded(ctx context.Context, stdin io.Reader, limit int64) ([]byte, error) {
-	result := make(chan readResult, 1)
-	go func() {
-		value, err := io.ReadAll(io.LimitReader(stdin, limit+1))
-		result <- readResult{value: value, err: err}
-	}()
-	select {
-	case completed := <-result:
-		return completed.value, completed.err
-	case <-ctx.Done():
-		if closer, ok := stdin.(io.Closer); ok {
-			_ = closer.Close()
-		}
-		return nil, ctx.Err()
-	}
 }
 
 // dubiousOwnershipMarker is the text Git prints, before the repository path in

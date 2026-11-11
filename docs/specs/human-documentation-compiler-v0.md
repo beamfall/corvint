@@ -1023,7 +1023,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `absence-unproven` | `internal/doccompiler/admittedplan.go:303@7b2dad06` | 1 | "index carries no tracked tree to prove <value> absent" |
 | `ambiguous-nav-owner` | `internal/doccompiler/plan.go:268@298c094e` | 1 | "config contains duplicate top-level nav keys" |
 | `build-encoding-failed` | `internal/doccompiler/build.go:411` | 1 | "cannot encode build result" |
-| `build-output-too-large` | `internal/doccompiler/build.go:364` | 1 | "build output exceeds its bounds" |
+| `build-output-too-large` | `internal/doccompiler/build.go:363@291698bd` | 1 | "build output exceeds its bounds" |
 | `byte-patch-digest-mismatch` | `internal/doccompiler/build.go:430` | 1 | "byte patch does not bind its original and replacement bytes" |
 | `canonical-json-duplicate-key` | `internal/doccompiler/canonical.go:73` | 1 | "object key <value> is duplicated" |
 | `canonical-json-invalid-utf8` | `internal/doccompiler/canonical.go:21` | 1 | "canonical JSON is not valid UTF-8" |
@@ -1039,8 +1039,8 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `command-output-too-large` | `internal/doccompiler/process.go:89` | 1 | "command output exceeds its stdout or stderr byte limit" |
 | `command-start-failed` | `internal/doccompiler/process.go:84` | 1 | "cannot start pinned command" |
 | `command-timeout` | `internal/doccompiler/process.go:92` | 1 | "command exceeded its deadline" |
-| `corpus-too-large` | `internal/doccompiler/build.go:255` | 2 | "staged corpus exceeds its byte limit" |
-| `corpus-unavailable` | `internal/doccompiler/build.go:244` | 3 | "cannot read staged document target" |
+| `corpus-too-large` | `internal/doccompiler/build.go:254@048a1ed1` | 2 | "staged corpus exceeds its byte limit" |
+| `corpus-unavailable` | `internal/doccompiler/build.go:243@0d5e400f` | 3 | "cannot read staged document target" |
 | `documentation-limit-exceeded` | `internal/doccompiler/draft.go:248@9fd0f2ff` | 5 | "draft exceeds the DraftMaxBytes limit of <value> bytes (64 KiB): observed <value> bytes" |
 | `duplicate-claim` | `internal/doccompiler/plan.go:161@e2c46350` | 1 | "claim ID is duplicated: <value>" |
 | `duplicate-clause` | `internal/doccompiler/admission.go:115` | 2 | "clause ID is duplicated: <value>" |
@@ -1048,19 +1048,19 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `duplicate-nav-entry` | `internal/doccompiler/plan.go:198@e7ecb0af` | 1 | "nav path is duplicated: <value>" |
 | `duplicate-operation` | `internal/doccompiler/admittedplan.go:182@c5c36f25` | 2 | "operation ID is duplicated: <value>" |
 | `environment-inventory-invalid` | `internal/doccompiler/discover.go:154` | 1 | "pinned Python returned an invalid environment inventory" |
-| `environment-untrusted` | `internal/doccompiler/build.go:158` | 3 | "a project-owned environment trust attestation is required" |
-| `false-strict-pass` | `internal/doccompiler/build.go:391` | 1 | "mkdocs exited zero without producing index.html" |
+| `environment-untrusted` | `internal/doccompiler/build.go:157@3823605e` | 3 | "a project-owned environment trust attestation is required" |
+| `false-strict-pass` | `internal/doccompiler/build.go:390@68e4fd91` | 1 | "mkdocs exited zero without producing index.html" |
 | `file-too-large` | `internal/doccompiler/paths.go:136@3d65c311` | 1 | "<value> exceeds its byte limit" |
 | `file-unavailable` | `internal/doccompiler/paths.go:78@41a960a6` | 5 | "cannot inspect <value>" |
 | `immutable-evidence-unavailable` | `internal/doccompiler/plan.go:171@8c6af7e5` | 4 | "experimental planning cannot qualify <value> claim <value> without immutable evidence and authority verification" |
 | `invalid-build-evidence` | `internal/doccompiler/receipt.go:96` | 1 | "passing strict build lacks bounded output evidence" |
-| `invalid-build-output` | `internal/doccompiler/build.go:354` | 4 | "cannot inspect build output" |
+| `invalid-build-output` | `internal/doccompiler/build.go:353@73a7b093` | 4 | "cannot inspect build output" |
 | `invalid-build-status` | `internal/doccompiler/receipt.go:89` | 1 | "BUILD_STRICT status is invalid" |
-| `invalid-byte-patch` | `internal/doccompiler/build.go:425` | 1 | "byte patch range is outside its target" |
+| `invalid-byte-patch` | `internal/doccompiler/build.go:413@adc7539b` | 1 | "byte patch range is outside its target" |
 | `invalid-claim-status` | `internal/doccompiler/plan.go:165@46e95746` | 1 | "claim <value> has an invalid status" |
 | `invalid-claim` | `internal/doccompiler/plan.go:158@5f540871` | 1 | "claim ID and text are required" |
 | `invalid-clause` | `internal/doccompiler/admission.go:126` | 5 | "clause ID must be 1..<value> bytes of UTF-8 without whitespace, controls, or format characters" |
-| `invalid-corpus-entry` | `internal/doccompiler/build.go:294` | 1 | "staged corpus contains a non-file: <value>" |
+| `invalid-corpus-entry` | `internal/doccompiler/build.go:293@f624ff9f` | 1 | "staged corpus contains a non-file: <value>" |
 | `invalid-docs-dir` | `internal/doccompiler/plan.go:30@cccfd84c` | 1 | "docs_dir is not contained" |
 | `invalid-document-path` | `internal/doccompiler/plan.go:93@3515780d` | 1 | "document proposal must be Markdown: <value>" |
 | `invalid-environment` | `internal/doccompiler/plan.go:23@f31d881d` | 1 | "discovery environment is incomplete" |
@@ -1069,7 +1069,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `invalid-offline-evidence` | `internal/doccompiler/receipt.go:100` | 1 | "offline PASS is unavailable without a concrete build-bound external observer" |
 | `invalid-offline-status` | `internal/doccompiler/receipt.go:92` | 1 | "offline qualification is invalid" |
 | `invalid-operation` | `internal/doccompiler/admittedplan.go:179@3a80561f` | 4 | "operation ID must be 1..<value> bytes of UTF-8 without whitespace or controls" |
-| `invalid-output-parent` | `internal/doccompiler/build.go:183` | 3 | "cannot resolve output parent" |
+| `invalid-output-parent` | `internal/doccompiler/build.go:182@a5be9418` | 3 | "cannot resolve output parent" |
 | `invalid-path` | `internal/doccompiler/paths.go:33` | 1 | "empty path" |
 | `invalid-project-root` | `internal/doccompiler/paths.go:14` | 4 | "project root is required" |
 | `invalid-receipt-digest` | `internal/doccompiler/receipt.go:103` | 1 | "receipt plan or config digest is invalid" |
@@ -1080,7 +1080,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `invalid-tool` | `internal/doccompiler/paths.go:177@86155ef1` | 1 | "<value> does not resolve to a regular file" |
 | `invalid-toolchain-inventory` | `internal/doccompiler/receipt.go:112` | 1 | "distribution count does not match inventory" |
 | `invalid-toolchain-pin` | `internal/doccompiler/receipt.go:106` | 2 | "receipt lacks an exact project lock and environment digest" |
-| `isolation-failed` | `internal/doccompiler/build.go:69@79813716` | 8 | "cannot create staged corpus root" |
+| `isolation-failed` | `internal/doccompiler/build.go:68@79813716` | 8 | "cannot create staged corpus root" |
 | `markdown-pin-mismatch` | `internal/doccompiler/discover.go:173` | 1 | "expected Python-Markdown <value>, found <value>" |
 | `material-pin-mismatch` | `internal/doccompiler/discover.go:170` | 1 | "expected Material <value>, found <value>" |
 | `material-version-unknown` | `internal/doccompiler/discover.go:161` | 1 | "mkdocs-material is absent from the pinned environment inventory" |
@@ -1097,33 +1097,33 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `mkdocs-version-mismatch` | `internal/doccompiler/discover.go:164` | 1 | "mkdocs executable and environment inventory disagree" |
 | `mkdocs-version-unknown` | `internal/doccompiler/discover.go:143` | 1 | "pinned mkdocs did not report an exact version" |
 | `nav-authority-required` | `internal/doccompiler/admittedplan.go:530@5f65f0b6` | 1 | "edit_nav <value> needs the HDCV0-030 configuration authority snapshot" |
-| `nav-candidate-mismatch` | `internal/doccompiler/build.go:110` | 1 | "MkDocs authority did not load the exact proposed nav" |
-| `offline-asset-scan-failed` | `internal/doccompiler/build.go:443` | 2 | "cannot inspect generated output" |
+| `nav-candidate-mismatch` | `internal/doccompiler/build.go:109@4ab63e2d` | 1 | "MkDocs authority did not load the exact proposed nav" |
+| `offline-asset-scan-failed` | `internal/doccompiler/build.go:431@834cfeb2` | 2 | "cannot inspect generated output" |
 | `offline-observer-required` | `internal/doccompiler/build.go:420` | 1 | "offline qualification requires an external observer around the complete build process" |
-| `output-inside-project` | `internal/doccompiler/build.go:190` | 1 | "output parent must be outside the project" |
+| `output-inside-project` | `internal/doccompiler/build.go:189@a4a3c476` | 1 | "output parent must be outside the project" |
 | `overlapping-operation` | `internal/doccompiler/admittedplan.go:190@4a3e1802` | 2 | "more than one operation targets <value>" |
-| `path-escape` | `internal/doccompiler/build.go:281@3289850e` | 7 | "cannot resolve corpus path" |
-| `plan-digest-mismatch` | `internal/doccompiler/build.go:45` | 1 | "patch plan bytes do not match their digest" |
+| `path-escape` | `internal/doccompiler/build.go:280@3289850e` | 7 | "cannot resolve corpus path" |
+| `plan-digest-mismatch` | `internal/doccompiler/build.go:44@27657915` | 1 | "patch plan bytes do not match their digest" |
 | `plan-encoding-failed` | `internal/doccompiler/plan.go:415` | 1 | "cannot encode patch plan" |
-| `plan-environment-mismatch` | `internal/doccompiler/build.go:41` | 1 | "patch plan does not bind the discovered config" |
+| `plan-environment-mismatch` | `internal/doccompiler/build.go:40@a4afe925` | 1 | "patch plan does not bind the discovered config" |
 | `plan-environment-unsupported` | `internal/doccompiler/admittedplan.go:519@8dacdc04` | 1 | "only the plan-only environment variant is admitted" |
 | `plan-limit-exceeded` | `internal/doccompiler/admittedplan.go:127@f159ccd3` | 3 | "more than <value> operations" |
 | `plan-not-reproducible` | `internal/doccompiler/admittedplan.go:509@a654944b` | 1 | "plan or proposal patch differs from its admitted recompilation" |
 | `plan-profile` | `internal/doccompiler/admittedplan.go:516@3019ed73` | 1 | "plan profile must be <value>" |
 | `plan-snapshot-unsupported` | `internal/doccompiler/admittedplan.go:522@1b2eca3d` | 1 | "a plan-only configuration snapshot is <value>" |
 | `plan-unknown-field` | `internal/doccompiler/admittedplan.go:489@9850c241` | 1 | "plan is not the closed <value> shape: <value>" |
-| `process-containment-unsupported` | `internal/doccompiler/build.go:32` | 1 | "<value>" |
-| `profile-unqualified` | `internal/doccompiler/build.go:35` | 1 | "Material P0 profile is not qualified: <value>" |
+| `process-containment-unsupported` | `internal/doccompiler/build.go:31@d2e49008` | 1 | "<value>" |
+| `profile-unqualified` | `internal/doccompiler/build.go:34@26c66310` | 1 | "Material P0 profile is not qualified: <value>" |
 | `project-lock-pin-mismatch` | `internal/doccompiler/discover.go:99` | 1 | "project-owned lock does not match its expected SHA-256" |
 | `project-lock-pin-required` | `internal/doccompiler/discover.go:85` | 1 | "an exact project-owned lock path and SHA-256 are required" |
-| `proposal-digest-mismatch` | `internal/doccompiler/build.go:252` | 1 | "document byte patch changed after planning: <value>" |
+| `proposal-digest-mismatch` | `internal/doccompiler/build.go:251@da095993` | 1 | "document byte patch changed after planning: <value>" |
 | `pymdown-pin-mismatch` | `internal/doccompiler/discover.go:176` | 1 | "expected PyMdown Extensions <value>, found <value>" |
 | `receipt-encoding-failed` | `internal/doccompiler/receipt.go:75` | 1 | "cannot encode canonical receipt" |
 | `receipt-input-invalid` | `internal/doccompiler/receipt.go:37` | 1 | "environment and plan must be closed before receipt creation" |
 | `stale-documentation-draft` | `internal/doccompiler/draft.go:958@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
 | `stale-source` | `internal/doccompiler/admittedplan.go:498@9a12a50a` | 4 | "plan revision <value> is not the index revision" |
 | `stale-toolchain` | `internal/doccompiler/paths.go:199@08aa9ed3` | 1 | "<value> no longer matches its pin" |
-| `symlink-rejected` | `internal/doccompiler/build.go:288` | 3 | "staged corpus contains a symlink: <value>" |
+| `symlink-rejected` | `internal/doccompiler/build.go:287@be739b97` | 3 | "staged corpus contains a symlink: <value>" |
 | `target-conflict` | `internal/doccompiler/admittedplan.go:321@64b50e9f` | 2 | "target <value> is under the tracked file <value>" |
 | `target-unverified` | `internal/doccompiler/admittedplan.go:295@0222c3cb` | 1 | "target <value> is not a verified regular text blob" |
 | `tool-not-executable` | `internal/doccompiler/paths.go:161@0f40a530` | 1 | "<value> is not executable" |

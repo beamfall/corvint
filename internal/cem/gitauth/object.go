@@ -659,13 +659,6 @@ func (r *Repository) BlobBytes(ctx context.Context, oid string) ([]byte, error) 
 	return out, nil
 }
 
-// Git's streaming cat-file blob path does not necessarily verify a loose
-// object's filename against its decompressed content. Verify the typed Git
-// object ourselves before these bytes can become evidence or enter a cache.
-func requireBlobIdentity(ctx context.Context, oid string, raw []byte) error {
-	return requireObjectIdentity(ctx, "blob", oid, raw)
-}
-
 // requireObjectIdentity re-hashes one typed Git object (`kind <len>\0<body>`)
 // with the object format implied by the OID width and requires equality.
 func requireObjectIdentity(ctx context.Context, kind, oid string, raw []byte) error {

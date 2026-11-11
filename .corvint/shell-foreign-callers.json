@@ -494,7 +494,6 @@
       "mentions": [
         ".github/macos/select_test.py",
         ".github/macos/shard_test.py",
-        "cmd/corvint/compiled_binary_test.go",
         "cmd/corvint/session_test_command_unix_test.go",
         "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",

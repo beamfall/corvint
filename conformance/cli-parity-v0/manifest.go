@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -1707,13 +1706,4 @@ func lowerHex(value string, length int) bool {
 
 func sha256Hex(value []byte) string {
 	return fmt.Sprintf("%x", sha256.Sum256(value))
-}
-
-func sortedKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

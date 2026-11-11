@@ -125,11 +125,6 @@ func (source *Source) Close() error {
 	return os.RemoveAll(source.temporary)
 }
 
-// ResolveRoot resolves an ordinary repository using the same closed Git boundary.
-func ResolveRoot(ctx context.Context, directory string) (string, error) {
-	return ResolveRootWithScratch(ctx, directory, "")
-}
-
 // ResolveRootWithScratch uses an explicitly owned scratch parent; it never reads
 // ambient TMPDIR. The caller retains cleanup ownership of that parent.
 func ResolveRootWithScratch(ctx context.Context, directory, scratch string) (string, error) {
