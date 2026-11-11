@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -41,22 +42,23 @@ func (options Options) selected(instance Declared) bool {
 // instances are kept from the current inventory when it is valid; an
 // invalid or absent one keeps none, so those instances read as absent.
 func Build(ctx context.Context, options Options) (Inventory, error) {
-	inventory, _, err := build(ctx, options)
+	inventory, _, _, err := build(ctx, options)
 	return inventory, err
 }
 
-// build is Build that also returns the HEAD it listed at.
-func build(ctx context.Context, options Options) (Inventory, string, error) {
+// build is Build that also returns the HEAD it listed at and the source
+// digest it listed from.
+func build(ctx context.Context, options Options) (Inventory, string, string, error) {
 	if options.Exec == nil {
 		options.Exec = RunLister
 	}
 	head, err := options.Git.Head(ctx)
 	if err != nil {
-		return Inventory{}, "", err
+		return Inventory{}, "", "", err
 	}
 	tree, err := NewWorkTree(ctx, options.Git)
 	if err != nil {
-		return Inventory{}, "", err
+		return Inventory{}, "", "", err
 	}
 	files, _ := tree.Files()
 	declared := Detect(files, tree.Read)
@@ -76,7 +78,7 @@ func build(ctx context.Context, options Options) (Inventory, string, error) {
 				}
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			return Inventory{}, "", err
+			return Inventory{}, "", "", err
 		}
 	}
 	input := listInput{Root: options.Git.Root, Tree: tree, Files: files, Declared: declared, Commit: head, Exec: options.Exec}
@@ -86,8 +88,9 @@ func build(ctx context.Context, options Options) (Inventory, string, error) {
 			continue
 		}
 		record, lister, err := listInstance(ctx, input, instance)
-		if drift := checkDrift(ctx, options.Git, head, before, instance); drift != nil {
-			return Inventory{}, "", drift
+		afterLister(instance)
+		if drift := checkDrift(ctx, options.Git, head, before, "the "+instance.Key+" lister ran"); drift != nil {
+			return Inventory{}, "", "", drift
 		}
 		if err != nil {
 			inventory.Failures = append(inventory.Failures, Failure{
@@ -98,7 +101,7 @@ func build(ctx context.Context, options Options) (Inventory, string, error) {
 		}
 		inventory.Instances = append(inventory.Instances, record)
 	}
-	return inventory.canonical(), head, nil
+	return inventory.canonical(), head, before, nil
 }
 
 // Refusal is a refresh that writes nothing: Code is ReasonDrift or
@@ -110,37 +113,50 @@ type Refusal struct {
 
 func (r *Refusal) Error() string { return r.Code + ": " + r.Message }
 
-// afterLister runs after each lister, before its drift check; tests replace
-// it to move HEAD or a source at that point.
-var afterLister = func(Declared) {}
+// afterLister runs after each lister, before its drift check; beforeWrite
+// runs before the final drift check ahead of the write. Tests replace them
+// to move HEAD or a source at that point.
+var (
+	afterLister = func(Declared) {}
+	beforeWrite = func() {}
+)
 
 // checkDrift refuses with ReasonDrift when HEAD or the working tree's
-// source digest moved since listing began (TIV-V1-010). The digest is read
-// before HEAD, so a commit landing while the sources are read is caught.
-func checkDrift(ctx context.Context, git Git, head, before string, instance Declared) error {
-	afterLister(instance)
+// source digest moved since listing began (TIV-V1-010); during names the
+// step it checks after. The digest is read before HEAD, so a commit landing
+// while the sources are read is caught.
+func checkDrift(ctx context.Context, git Git, head, before, during string) error {
 	tree, err := NewWorkTree(ctx, git)
 	if err != nil {
 		return err
 	}
 	files, _ := tree.Files()
 	if sourceDigest(files) != before {
-		return &Refusal{Code: ReasonDrift, Message: "the working tree changed while the " + instance.Key + " lister ran; the inventory was not written"}
+		return &Refusal{Code: ReasonDrift, Message: "the working tree changed while " + during + "; the inventory was not written"}
 	}
 	if now, err := git.Head(ctx); err != nil || now != head {
-		return &Refusal{Code: ReasonDrift, Message: "HEAD moved while the " + instance.Key + " lister ran; the inventory was not written"}
+		return &Refusal{Code: ReasonDrift, Message: "HEAD moved while " + during + "; the inventory was not written"}
 	}
 	return nil
 }
 
+// tempPattern is the name writeAtomic gives its temporary file beside Path.
+const tempPattern = ".test-inventory-*.tmp"
+
 // sourceDigest is the SHA-256 of every listed file and its blob, the
-// inventory file itself excluded.
+// inventory file itself and writeAtomic's temporary files excluded.
 func sourceDigest(files map[string]string) string {
 	names := make([]string, 0, len(files))
 	for name := range files {
-		if name != Path {
-			names = append(names, name)
+		if name == Path {
+			continue
 		}
+		if dir, base := path.Split(name); dir == path.Dir(Path)+"/" {
+			if temp, _ := path.Match(tempPattern, base); temp {
+				continue
+			}
+		}
+		names = append(names, name)
 	}
 	sort.Strings(names)
 	digest := sha256.New()
@@ -162,9 +178,10 @@ type Result struct {
 // temporary file beside it and renaming it into place (TIV-V1-002). It
 // refuses, leaving the previous file unchanged, on drift (ReasonDrift) and
 // when the encoded inventory exceeds MaxBytes (ReasonTooLarge,
-// TIV-V1-011).
+// TIV-V1-011). One final drift check runs just before the write, also when
+// the options select no instance and no lister ran.
 func Refresh(ctx context.Context, options Options) (Result, error) {
-	inventory, head, err := build(ctx, options)
+	inventory, head, before, err := build(ctx, options)
 	if err != nil {
 		return Result{}, err
 	}
@@ -181,6 +198,10 @@ func Refresh(ctx context.Context, options Options) (Result, error) {
 	if !result.Changed {
 		return result, nil
 	}
+	beforeWrite()
+	if drift := checkDrift(ctx, options.Git, head, before, "refresh encoded the inventory"); drift != nil {
+		return Result{}, drift
+	}
 	return result, writeAtomic(target, data)
 }
 
@@ -191,7 +212,7 @@ func writeAtomic(target string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	file, err := os.CreateTemp(dir, ".test-inventory-*.tmp")
+	file, err := os.CreateTemp(dir, tempPattern)
 	if err != nil {
 		return err
 	}
