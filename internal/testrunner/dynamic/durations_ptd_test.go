@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package dynamic
+
+import (
+	"bytes"
+	"slices"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/testduration"
+	tr "github.com/Beamfall/corvint/internal/testrunner"
+)
+
+// The report fixtures are each runner's documented report shape, written by hand: Vitest, Jest,
+// Playwright, pytest, RSpec and Ruby are not installed on the delivering host.
+const (
+	ptdJestReport = `{"numTotalTests":2,"numPassedTests":2,"numFailedTests":0,"numPendingTests":0,"numTodoTests":0,"success":true,
+"testResults":[{"name":"/r/math.test.ts","status":"passed","message":"","assertionResults":[
+{"title":"adds","fullName":"math > adds","status":"passed","failureMessages":[],"duration":DURATION},
+{"title":"subtracts","fullName":"math > subtracts","status":"passed","failureMessages":[]}]}]}`
+	ptdPlaywrightReport = `{"suites":[{"title":"login.spec.ts","file":"login.spec.ts","specs":[{"id":"s1","title":"signs in","file":"login.spec.ts","tests":[
+{"projectId":"chromium","projectName":"chromium","status":"flaky","expectedStatus":"passed","results":[
+{"status":"failed","retry":0,"duration":900,"error":{"message":"boom"}},{"status":"passed","retry":1,"duration":700}]}]},
+{"id":"s2","title":"signs out","file":"login.spec.ts","tests":[
+{"projectId":"chromium","projectName":"chromium","status":"expected","expectedStatus":"passed","results":[{"status":"passed","retry":0,"duration":40}]}]}],"suites":[]}],
+"errors":[],"stats":{"expected":1,"unexpected":0,"flaky":1,"skipped":0}}`
+	ptdPytestReport = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="2" errors="0" failures="0" skipped="0">
+<testcase classname="tests.test_a" name="test_timed" file="tests/test_a.py" time="0.25"></testcase>
+<testcase classname="tests.test_a" name="test_untimed" file="tests/test_a.py"></testcase>
+</testsuite></testsuites>`
+	ptdRSpecReport = `{"version":"3.13.0","examples":[
+{"id":"./spec/a_spec.rb[1:1]","description":"works","status":"passed","file_path":"./spec/a_spec.rb","run_time":0.012},
+{"id":"./spec/a_spec.rb[1:2]","description":"lingers","status":"passed","file_path":"./spec/a_spec.rb"}],
+"summary":{"example_count":2,"failure_count":0,"pending_count":0,"errors_outside_of_examples_count":0}}`
+	ptdMinitestReport = `{"Profile":"corvint-minitest/0","Complete":true,"Count":3,"Tests":[
+{"ID":"CalcTest#test_add","Name":"test_add","State":"PASSED","DurationMs":7},
+{"ID":"CalcTest#test_sub","Name":"test_sub","State":"PASSED"},
+{"ID":"CalcTest#test_neg","Name":"test_neg","State":"PASSED","DurationMs":-2}],"Problems":[]}`
+)
+
+func ptdParse(t *testing.T, runner, report, body string) tr.Observation {
+	t.Helper()
+	o, err := Parse(tr.Input{Runner: runner, Reports: map[string][]byte{report: []byte(body)}})
+	if err != nil {
+		t.Fatalf("%s: %v", runner, err)
+	}
+	return o
+}
+
+func ptdTest(t *testing.T, o tr.Observation, id string) tr.Test {
+	t.Helper()
+	for _, test := range o.Tests {
+		if test.ID == id {
+			return test
+		}
+	}
+	t.Fatalf("%s: no test %q in %+v", o.Runner, id, o.Tests)
+	return tr.Test{}
+}
+
+func ptdWant(t *testing.T, test tr.Test, ms int64, source string) {
+	t.Helper()
+	if source == testduration.NotMeasured {
+		if test.DurationMs != nil || test.DurationSource != testduration.NotMeasured {
+			t.Fatalf("%s: want NOT_MEASURED, got %+v", test.ID, test)
+		}
+		return
+	}
+	if test.DurationMs == nil || *test.DurationMs != ms || test.DurationSource != source {
+		t.Fatalf("%s: want %d ms from %s, got %+v", test.ID, ms, source, test)
+	}
+}
+
+// PTD-V1-002, PTD-V1-003, PTD-V1-006, PTD-V1-007: each runner's time comes from its own report:
+// Vitest and Jest assertion duration, the sum of Playwright attempt durations with each attempt
+// kept, the pytest JUnit time attribute and the RSpec run_time; a test whose report has no time is
+// NOT_MEASURED; a negative Jest duration is NOT_MEASURED and listed under durationInvalid.
+func TestPTDV1002RunnerReportDurations(t *testing.T) {
+	vitest := ptdParse(t, "vitest", "vitest.json", string(bytes.Replace([]byte(ptdJestReport), []byte("DURATION"), []byte("3"), 1)))
+	ptdWant(t, ptdTest(t, vitest, "/r/math.test.ts::math > adds"), 3, testduration.SourceVitest)
+	ptdWant(t, ptdTest(t, vitest, "/r/math.test.ts::math > subtracts"), 0, testduration.NotMeasured)
+	if len(vitest.DurationInvalid) != 0 {
+		t.Fatalf("vitest durationInvalid %v", vitest.DurationInvalid)
+	}
+
+	jest := ptdParse(t, "jest", "jest.json", string(bytes.Replace([]byte(ptdJestReport), []byte("DURATION"), []byte("-5"), 1)))
+	ptdWant(t, ptdTest(t, jest, "/r/math.test.ts::math > adds"), 0, testduration.NotMeasured)
+	if !slices.Equal(jest.DurationInvalid, []string{"/r/math.test.ts::math > adds"}) || !jest.Complete {
+		t.Fatalf("jest durationInvalid %v complete %v problems %v", jest.DurationInvalid, jest.Complete, jest.Problems)
+	}
+	if fraction := ptdParse(t, "jest", "jest.json", string(bytes.Replace([]byte(ptdJestReport), []byte("DURATION"), []byte("12.4"), 1))); true {
+		ptdWant(t, ptdTest(t, fraction, "/r/math.test.ts::math > adds"), 12, testduration.SourceJest)
+	}
+
+	playwright := ptdParse(t, "playwright", "playwright.json", ptdPlaywrightReport)
+	retried := ptdTest(t, playwright, "s1::chromium")
+	ptdWant(t, retried, 1600, testduration.SourcePlaywright)
+	if !slices.Equal(retried.AttemptDurationsMs, []int64{900, 700}) || retried.State != tr.Flaky {
+		t.Fatalf("playwright retry %+v", retried)
+	}
+	once := ptdTest(t, playwright, "s2::chromium")
+	ptdWant(t, once, 40, testduration.SourcePlaywright)
+	if once.AttemptDurationsMs != nil {
+		t.Fatalf("a single attempt lists attempts: %+v", once)
+	}
+
+	pytest := ptdParse(t, "pytest", "pytest.xml", ptdPytestReport)
+	ptdWant(t, ptdTest(t, pytest, "pytest::tests.test_a::test_timed"), 250, testduration.SourcePytest)
+	ptdWant(t, ptdTest(t, pytest, "pytest::tests.test_a::test_untimed"), 0, testduration.NotMeasured)
+
+	rspec := ptdParse(t, "rspec", "rspec.json", ptdRSpecReport)
+	ptdWant(t, ptdTest(t, rspec, "./spec/a_spec.rb[1:1]"), 12, testduration.SourceRSpec)
+	ptdWant(t, ptdTest(t, rspec, "./spec/a_spec.rb[1:2]"), 0, testduration.NotMeasured)
+
+	// A runner outside the seven records no duration at all.
+	bun := ptdParse(t, "bun-test", "bun.xml", ptdPytestReport)
+	if test := ptdTest(t, bun, "pytest::tests.test_a::test_timed"); test.DurationMs != nil || test.DurationSource != "" {
+		t.Fatalf("bun-test recorded a duration: %+v", test)
+	}
+}
+
+// PTD-V1-002, PTD-V1-007: Corvint's Minitest reporter fills DurationMs from Minitest::Result#time;
+// the reader records it as minitest-reporter, a test without it NOT_MEASURED, and a negative one
+// NOT_MEASURED and listed under durationInvalid. Another owned reporter's duration is not read.
+func TestPTDV1002MinitestReporterDuration(t *testing.T) {
+	minitest := ptdParse(t, "minitest", "minitest.json", ptdMinitestReport)
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_add"), 7, testduration.SourceMinitest)
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_sub"), 0, testduration.NotMeasured)
+	ptdWant(t, ptdTest(t, minitest, "CalcTest#test_neg"), 0, testduration.NotMeasured)
+	if !slices.Equal(minitest.DurationInvalid, []string{"CalcTest#test_neg"}) {
+		t.Fatalf("minitest durationInvalid %v", minitest.DurationInvalid)
+	}
+	rails := ptdParse(t, "rails-test", "minitest.json", ptdMinitestReport)
+	ptdWant(t, ptdTest(t, rails, "CalcTest#test_add"), 7, testduration.SourceMinitest)
+	unittest := ptdParse(t, "unittest", "unittest.json", bytesReplace(ptdMinitestReport, "corvint-minitest/0", "corvint-unittest/0"))
+	if test := ptdTest(t, unittest, "CalcTest#test_add"); test.DurationMs != nil || test.DurationSource != "" {
+		t.Fatalf("unittest kept a reporter duration: %+v", test)
+	}
+	reporter, err := reporters.ReadFile("reporters/minitest_reporter.rb")
+	if err != nil || !bytes.Contains(reporter, []byte("row[:DurationMs] = (time * 1000).round")) {
+		t.Fatalf("the embedded Minitest reporter does not record Minitest::Result#time: %v", err)
+	}
+}
+
+func bytesReplace(s, old, new string) string {
+	return string(bytes.Replace([]byte(s), []byte(old), []byte(new), 1))
+}

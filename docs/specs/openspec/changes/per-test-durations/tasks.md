@@ -12,8 +12,19 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    test that ignores the fields.
 - [ ] 3 Read durations in the Go, Vitest, Jest, Playwright, pytest and RSpec adapters.
    Requirements: PTD-V1-002, PTD-V1-006. Proof: one report fixture per runner, including a retry.
+   Open (V1-5449): the Go adapter of `corvint test` records each package's `Elapsed` in the receipt,
+   and the `internal/testrunner` adapters read the Vitest, Jest, Playwright (attempt sum and each
+   attempt), pytest and RSpec report times, with a fixture each. A `corvint test` receipt still
+   records NOT_MEASURED for the other runners: the Vitest and Playwright provider receipt names no
+   per-test time, and Jest, pytest and RSpec run through the declared-command adapter, which reads
+   no report. Those receipt adapters are not yet built (changes `jest-provider`, `pytest-provider`
+   and `ruby-providers`), so this task stays unticked.
 - [ ] 4 Add the time field to the Minitest reporter and read it.
    Requirements: PTD-V1-002. Proof: Minitest fixture with measured durations.
+   Open (V1-5449): Corvint's Minitest reporter records `DurationMs` from `Minitest::Result#time` and
+   the reader takes it as `minitest-reporter`, with a fixture. A `corvint test` receipt runs
+   Minitest through the declared-command adapter, which reads no report, so its Minitest outcomes
+   stay NOT_MEASURED until the `ruby-providers` adapter exists; this task stays unticked.
 - [x] 5 Mark file-granularity durations and keep invocation time separate.
    Requirements: PTD-V1-004, PTD-V1-005. Proof: a file-level fixture; an invocation time test.
 - [x] 6 Copy durations into run evidence rows and wire the consumers.
