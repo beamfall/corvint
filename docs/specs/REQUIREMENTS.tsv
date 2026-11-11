@@ -89,6 +89,9 @@ ACR-V1-009	docs/specs/acceptance-record-v1.md	(accepted under the owner's standi
 ACR-V1-010	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
 ACR-V1-011	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) Four	standing	2026-10-11; V1-5272
 ACR-V1-012	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) Every	standing	2026-10-11; V1-5272
+ACR-V1-013	docs/specs/acceptance-record-v1.md	(proposed; V1-5296) Every change folder under	unrecorded	-
+ACR-V1-014	docs/specs/acceptance-record-v1.md	(proposed; V1-5296) The `Intent status:` line of each change folder's	unrecorded	-
+ACR-V1-015	docs/specs/acceptance-record-v1.md	(proposed; V1-5296) The index table of `docs/specs/openspec/README.md` MUST	unrecorded	-
 ADN-V0-001	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-002	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
 ADN-V0-003	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3123)	standing	2026-10-11; V1-3123
@@ -7387,6 +7390,11 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	archive metadata 
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-BIN-V0-520	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5295) The catalog's `targets` MUST equal the accepted	unrecorded	-
+ARTIFACT-BIN-V0-521	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5295) A test MUST read the `PROD-INT-006` block of	unrecorded	-
+ARTIFACT-BIN-V0-522	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5295) The catalog's `core` version set MUST be `corvint`,	unrecorded	-
+ARTIFACT-BIN-V0-523	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release-binary release --tag TAG --output DIR	unrecorded	-
+ARTIFACT-BIN-V0-524	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236) `release` MUST refuse a DIR that exists and is not	unrecorded	-
 ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
 ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-

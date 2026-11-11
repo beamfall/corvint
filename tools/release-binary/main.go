@@ -30,6 +30,10 @@ commands:
   manifest  --output DIR [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]
             Merge DIR/*.release-entry.json over the previous release-manifest.json in FILE,
             refuse undeclared version skew, write DIR/release-manifest.json and its .sha256.
+  release   --tag TAG --output DIR [--base FILE] [--declare-skew SET=REASON]... [--root DIR] [--binaries FILE]
+            Run one tag end to end: select its binaries, build each of them (and nothing else)
+            into DIR, merge the release manifest over FILE and recheck DIR; print the
+            corvint.release-run/1 summary. DIR must be absent or empty; a failure leaves it as found.
   verify    --manifest FILE [--output DIR] [--binaries FILE]
             Recheck a manifest's shape and skew rule and, with DIR, its digest file, every
             archive and NAME.SHA256SUMS of each recorded binary whose archives are present.
@@ -39,6 +43,7 @@ DIR must lie outside the repository; no output ever replaces an existing file.
 example:
   go run ./tools/release-binary build --binary corvint-docs --version 1.0.1 --output /tmp/rel
   go run ./tools/release-binary manifest --output /tmp/rel --base previous/release-manifest.json
+  go run ./tools/release-binary release --tag corvint-docs/v1.0.1 --output /tmp/rel-docs --base previous/release-manifest.json
 
 exit status: 0 success; 2 refusal or usage error, with the reason on stderr.
 `
@@ -141,6 +146,22 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 			return refuse(stderr, command, err)
 		}
 		return printJSON(stdout, stderr, command, manifest)
+	case "release":
+		if *tag == "" || *output == "" {
+			return refuse(stderr, command, errors.New("--tag and --output are required"))
+		}
+		if *hostOnly {
+			return refuse(stderr, command, errors.New("--host-only is not a release: a release run builds every catalog target"))
+		}
+		repository, err := resolveRoot(*root)
+		if err != nil {
+			return refuse(stderr, command, err)
+		}
+		run, err := runRelease(ctx, ReleaseOptions{Root: repository, Catalog: catalog, Tag: *tag, Output: *output, Base: *base, Declarations: declarations})
+		if err != nil {
+			return refuse(stderr, command, err)
+		}
+		return printJSON(stdout, stderr, command, run)
 	case "verify":
 		if *manifestPath == "" {
 			return refuse(stderr, command, errors.New("--manifest is required"))

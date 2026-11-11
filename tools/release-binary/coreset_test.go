@@ -43,10 +43,28 @@ func TestCoreSetAppsMatchTheCatalogVersionSet(t *testing.T) {
 	}
 }
 
+// ARTIFACT-BIN-V0-522: the release candidate carries app archives for exactly the catalog's
+// targets, so a manifest release-binary writes for those targets assembles into a candidate.
+func TestAppPlatformsMatchTheCatalogTargets(t *testing.T) {
+	catalog, err := loadCatalog("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var platforms []string
+	for _, target := range catalog.Targets {
+		platforms = append(platforms, target.GOOS+"_"+target.GOARCH)
+	}
+	slices.Sort(platforms)
+	if !slices.Equal(platforms, releasecandidate.AppPlatforms) {
+		t.Fatalf("catalog targets %v; releasecandidate.AppPlatforms %v", platforms, releasecandidate.AppPlatforms)
+	}
+}
+
 // ARTIFACT-BIN-V0-508, -002: every stamped product binary declares the variables the release
 // builder stamps (main.build and main.sourceCommit; main.version too when it is released outside
-// the core set), so the -X stamps bind and --version reports them; the catalog's `stamp: none`
-// binaries are the analyzers, whose --version is a protocol receipt owned by their contract.
+// the core set), so the -X stamps bind and --version reports them. A `stamp: none` product may
+// only be an analyzer, whose --version is a protocol receipt owned by its contract; since the
+// plan withholds the analyzers (ARTIFACT-BIN-V0-520) no released binary is unstamped.
 func TestProductBinariesDeclareTheVersionStamp(t *testing.T) {
 	catalog, err := loadCatalog("")
 	if err != nil {
