@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-11-11
 Requirement prefix: `FSV-V1`
 Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410)
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: change folder `docs/specs/openspec/changes/flow-schema-version/`
 (`proposal.md`, `design.md`, `tasks.md` and `specs/flow-schema-version/spec.md`),
 `docs/specs/PRODUCT-PLAN-1.0.md` (PROD-INT-016, PROD-DOCS-011, PROD-INT-004),
@@ -13,9 +13,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/flow-schema-ver
 
 ## Agent digest
 - Claim: The flow file carries its schema version; one shared reader refuses unknown versions, so plans run every E2E test and flow reports print nothing partial.
-- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410) / not-started
-- Exists: the change folder; the exact-profile reader `ReadFlowsDeclaration` in `internal/appflows/flowplan.go`.
-- Blocked on: tasks 2.1 to 2.6 of the change.
+- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5410) / experimental
+- Exists: the versioned reader and writer (`internal/appflows/flowschema.go`), the source scan, the planner and report refusals, and the smoke tool `tools/flows-smoke`.
+- Blocked on: the release-workflow smoke job and native `corvint flows status|gaps` (task 2.6); the error-catalogue entry (task 3.1).
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
