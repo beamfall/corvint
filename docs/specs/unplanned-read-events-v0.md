@@ -3,15 +3,17 @@
 Owner: Russell Lewis
 Frozen: 2026-09-11
 Requirement prefix: `URE-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted `internal/unplannedread`, whose ledger fed only ranking evaluation; an existing `.corvint/unplanned-reads.jsonl` is left in place (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 4 and 7, `docs/specs/self-observation-ledger-v0.md`
 (the bounds this ledger copies), `docs/specs/task-context-packet-v0.md` (the packet whose paths
 define "planned"), `docs/PRODUCT.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.
-- Status: proposed/experimental
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: `internal/unplannedread`, `corvint reads`, `corvint reads enable|disable`, and the marker-gated Claude Code adapter call sites (`URE-V0-008`, `URE-V0-009`).
 - Blocked on: an enabled-ledger sample of at least ten registered sessions for the gate below.
 - Read next: Requirements; Non-goals and authority; Proposed invariant 4 amendment; Failure modes.

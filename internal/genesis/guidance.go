@@ -23,30 +23,12 @@ type GuidanceSnapshot struct {
 	Records  []Record
 	Blobs    map[string][]byte
 	Omitted  int
-	// Untracked holds the untracked-only dirt that OpenGuidanceTolerating
-	// admitted (RGV-V0-955): its count, and the bounded refusal text naming
-	// the paths. It is empty for a clean worktree.
-	Untracked       int
-	UntrackedDetail string
-	tolerate        bool
-	checked         bool
-	untrackedRaw    string
-	repo            *repository
-	output          int
+	repo     *repository
+	output   int
 }
 
+// OpenGuidance opens the bounded snapshot of a clean worktree; any dirt refuses.
 func OpenGuidance(ctx context.Context, root string) (*GuidanceSnapshot, error) {
-	return openGuidance(ctx, root, false)
-}
-
-// OpenGuidanceTolerating opens like OpenGuidance, but admits a worktree whose
-// only dirt is untracked paths and records it in Untracked (RGV-V0-955): the
-// snapshot reads only the pinned HEAD tree, which no untracked path changes.
-func OpenGuidanceTolerating(ctx context.Context, root string) (*GuidanceSnapshot, error) {
-	return openGuidance(ctx, root, true)
-}
-
-func openGuidance(ctx context.Context, root string, tolerate bool) (*GuidanceSnapshot, error) {
 	limits := defaultLimits()
 	limits.MaxEntries = 4096
 	limits.MaxTreeBytes = 8 << 20
@@ -60,7 +42,7 @@ func openGuidance(ctx context.Context, root string, tolerate bool) (*GuidanceSna
 	}
 	// Reserve the eight-operation opening budget within the invocation total.
 	repo.budget = gitrun.NewBudget(2040, 60*time.Second)
-	s := &GuidanceSnapshot{repo: repo, tolerate: tolerate}
+	s := &GuidanceSnapshot{repo: repo}
 	layout, err := s.run(ctx, 8192, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
 		return nil, err
@@ -149,19 +131,8 @@ func (s *GuidanceSnapshot) Check(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	first := !s.checked
-	s.checked = true
 	if len(raw) != 0 {
-		total, untrackedOnly, detail := dirtyWorktreeDetail(raw)
-		if !s.tolerate || !untrackedOnly {
-			return errors.New(detail)
-		}
-		if first {
-			s.Untracked, s.UntrackedDetail, s.untrackedRaw = total, detail, string(raw)
-		}
-	}
-	if string(raw) != s.untrackedRaw {
-		return fmt.Errorf("dirty worktree or status drift: the untracked paths changed during the read")
+		return dirtyWorktreeError(raw)
 	}
 	return nil
 }
@@ -176,16 +147,9 @@ const dirtyStatusPathsShown = 8
 // decision 0158), so a path ignored only by a global excludes file counts as
 // untracked, and names the fix.
 func dirtyWorktreeError(raw []byte) error {
-	_, _, detail := dirtyWorktreeDetail(raw)
-	return errors.New(detail)
-}
-
-// dirtyWorktreeDetail returns the entry count, whether every entry is
-// untracked, and the bounded detail dirtyWorktreeError reports.
-func dirtyWorktreeDetail(raw []byte) (int, bool, string) {
 	fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
 	shown := make([]string, 0, dirtyStatusPathsShown)
-	total, untracked, onlyUntracked := 0, false, true
+	total, untracked := 0, false
 	for i := 0; i < len(fields); i++ {
 		entry := fields[i]
 		if len(entry) < 4 {
@@ -196,7 +160,6 @@ func dirtyWorktreeDetail(raw []byte) (int, bool, string) {
 			i++ // a rename or copy carries its origin path in the next field
 		}
 		untracked = untracked || status == "??"
-		onlyUntracked = onlyUntracked && status == "??"
 		total++
 		if len(shown) < dirtyStatusPathsShown {
 			shown = append(shown, strings.TrimSpace(status)+" "+strconv.Quote(entry[3:]))
@@ -209,7 +172,7 @@ func dirtyWorktreeDetail(raw []byte) (int, bool, string) {
 	if untracked {
 		detail += "; Corvint runs Git without global configuration, so a path ignored only by a global excludes file (core.excludesFile or ~/.config/git/ignore) is untracked here: ignore it in a tracked .gitignore or in .git/info/exclude"
 	}
-	return total, total > 0 && onlyUntracked, detail
+	return errors.New(detail)
 }
 
 func (s *GuidanceSnapshot) RefTips(ctx context.Context) (string, error) {
