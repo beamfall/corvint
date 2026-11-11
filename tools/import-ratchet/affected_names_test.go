@@ -92,14 +92,19 @@ func affectedSelectors(root, rel, module, target string) (names []string, dot bo
 }
 
 // leafOnlyAffectedImports returns one LEAF_ONLY_AFFECTED_IMPORT problem, sorted, for each package
-// outside the tests and release layers that imports affectedPackage only for leafOnlyNames, and
-// the number of importers it inspected (IRT-V0-021).
+// outside the tests and release layers and the area that holds affectedPackage itself (shared
+// since V1-5248) that imports affectedPackage only for leafOnlyNames, and the number of importers
+// it inspected (IRT-V0-021). A same-area import crosses no layer.
 func leafOnlyAffectedImports(root string, m *manifest, graph map[string][]string) ([]string, int, error) {
 	var problems []string
 	inspected := 0
+	home := ""
+	if a, _, ok := m.areaOf(affectedPackage); ok {
+		home = a.Name
+	}
 	for from, imports := range graph {
 		a, _, ok := m.areaOf(from)
-		if !ok || a.Name == "tests" || a.Name == "release" || !slices.Contains(imports, affectedPackage) {
+		if !ok || a.Name == "tests" || a.Name == "release" || a.Name == home || !slices.Contains(imports, affectedPackage) {
 			continue
 		}
 		inspected++

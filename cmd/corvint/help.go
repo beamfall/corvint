@@ -513,8 +513,8 @@ declared runner instance with inventory-absent, inventory-stale or
 inventory-invalid when it runs in full and its unassigned test files
 (TIV-V1-006 to TIV-V1-009); --format text writes it as lines ("affected
 <summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit,
-then the "e2e-scope", "e2e-variation", "e2e" and "e2e-unknown" lines, then
-"inventory STATE ..."). It never changes the selection and never writes the
+"inventory STATE ...", then the "e2e-scope", "e2e-variation", "e2e" and
+"e2e-unknown" lines). It never changes the selection and never writes the
 inventory.
 Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every

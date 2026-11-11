@@ -42,6 +42,7 @@ tools/declaration-compat-check/main.go:atPin: cat-file -e then show with the inh
 tools/declaration-compat-check/main.go:atPin: cat-file -e then show with the inherited environment and no timeout; the error text carries stderr
 tools/declaration-compat-check/main.go:tracked: inherits the environment with no timeout or output bound; the error wraps exec's error
 tools/docs-ci-plan/main.go:repo.git: classifierSha256 in .github/qualifications/docs-only.json binds tools/docs-ci-plan only (DCI-V0-855), so an edit requalifies it and a gitrun import adds unbound code
+tools/flows-smoke/main.go:buildFixture: CombinedOutput with a fixed fixture environment and pinned author dates and no timeout; the message carries exec's error and combined output
 tools/heading-nav-bench/main.go:git: inherits the environment with no output bound and returns exec's error unchanged
 tools/py-signal-lint/main.go:main: inherits the environment with no timeout or output bound and prints exec's error
 tools/release-binary/build.go:gitOutput: inherits the environment with no output bound; the error text carries exec's error and stderr

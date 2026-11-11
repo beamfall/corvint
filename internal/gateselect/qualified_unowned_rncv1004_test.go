@@ -49,5 +49,8 @@ func TestQualifiedUnownedPathIsThePlannersVerdict_RNCV1004(t *testing.T) {
 		Reason string `json:"reason"`
 		Detail string `json:"detail"`
 	}{"UNOWNED_DIRTY_PATH", "web/app.ts"})
-	check(unowned, "FALLBACK "+UnownedPathFallback+": web/app.ts")
+	// The NCM-V1-001 non-code decision names the dirty unowned path first, with
+	// the same reason ReasonUnownedPath; UnownedPathFallback names one only an
+	// unknown entry carries (TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860).
+	check(unowned, "FALLBACK "+ReasonUnownedPath+" web/app.ts")
 }

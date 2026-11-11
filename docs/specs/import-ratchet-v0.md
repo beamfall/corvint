@@ -103,8 +103,9 @@ measured edges by layer pair and the per-layer test time are recorded in
   seam whose signature carries `Result` and `Unit`, so it has no leaf of its own. The test parses
   each such importer's production files in full and fails with `LEAF_ONLY_AFFECTED_IMPORT` naming
   the package when every `affected.` selector it uses is one of those two names, or when it imports
-  the package with a dot import. The `tests` layer holds `affected` itself and `release` may import
-  any layer (IRT-V0-002), so neither is checked.
+  the package with a dot import. The `tests` layer held `affected` itself and `release` may import
+  any layer (IRT-V0-002), so neither is checked; since V1-5248 re-keyed `affected` to `shared`,
+  the area that holds `affected` is not checked either, because an import inside it crosses no layer.
 
 ## Non-goals
 
