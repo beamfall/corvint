@@ -2499,7 +2499,7 @@ PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 requireme
 PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	Automatic developer and user-facing flow documentation MUST use revision-pinned	unrecorded	-
 PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21	unrecorded	-
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabilities MUST retain exact-candidate acceptance evidence and	unrecorded	-
-PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
+PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); amended per owner	standing	2026-10-11
 PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-910	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint	standing	2026-10-31; V1-3313
@@ -6809,6 +6809,18 @@ OCM-V0-952	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing
 OCM-V0-080	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4140) An	standing	2026-11-01; V1-4140
 OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-700	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3693; refines	standing	2026-11-01; V1-3693
+OSC-V1-001	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Each	standing	2026-10-11; V1-5399
+OSC-V1-002	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) An ADDED	standing	2026-10-11; V1-5399
+OSC-V1-003	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Every	standing	2026-10-11; V1-5399
+OSC-V1-004	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) For ever	standing	2026-10-11; V1-5399
+OSC-V1-005	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) In	standing	2026-10-11; V1-5399
+OSC-V1-006	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) A change	standing	2026-10-11; V1-5399
+OSC-V1-007	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The	standing	2026-10-11; V1-5399
+OSC-V1-008	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) Each spe	standing	2026-10-11; V1-5399
+OSC-V1-009	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) A propos	standing	2026-10-11; V1-5399
+OSC-V1-010	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399)	standing	2026-10-11; V1-5399
+OSC-V1-011	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The chec	standing	2026-10-11; V1-5399
+OSC-V1-012	docs/specs/openspec-check-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5399) The Make	standing	2026-10-11; V1-5399
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
 UPD-V0-003	docs/specs/operator-update-v0.md	Downloads, release discovery, extracted bytes/members and subprocess output/time	unrecorded	-
