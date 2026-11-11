@@ -52,7 +52,9 @@ func affectedSelectors(root, rel, module, target string) (names []string, dot bo
 		if !selected {
 			continue
 		}
-		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, name), nil, parser.SkipObjectResolution)
+		// Object resolution leaves a package reference unresolved (Obj nil), so a local
+		// variable, parameter or receiver named like the import is not taken for it.
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join(dir, name), nil, 0)
 		if err != nil {
 			return nil, false, err
 		}
@@ -75,7 +77,7 @@ func affectedSelectors(root, rel, module, target string) (names []string, dot bo
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			if sel, ok := n.(*ast.SelectorExpr); ok {
-				if x, ok := sel.X.(*ast.Ident); ok && x.Name == local {
+				if x, ok := sel.X.(*ast.Ident); ok && x.Name == local && x.Obj == nil {
 					set[sel.Sel.Name] = true
 				}
 			}
@@ -120,7 +122,7 @@ func leafOnlyAffectedImports(root string, m *manifest, graph map[string][]string
 
 // TestIRTV0021NoLeafOnlyAffectedImport holds IRT-V0-021 on this checkout and proves its control on
 // a synthetic module: an importer that selects only Language fails, one that also selects Plan
-// passes, and a dot import fails.
+// passes, a dot import fails, and a Plan selected from a parameter named affected is not counted.
 func TestIRTV0021NoLeafOnlyAffectedImport(t *testing.T) {
 	m, _ := loadEmbedded(t)
 	t.Run("IRT-V0-021 no checkout importer outside tests and release uses only leaf names", func(t *testing.T) {
@@ -145,6 +147,7 @@ func TestIRTV0021NoLeafOnlyAffectedImport(t *testing.T) {
 			"go.mod":                            "module " + module + "\n",
 			affectedPackage + "/a.go":           "package affected\n\ntype Language interface{}\n\ntype Plan struct{}\n\nfunc ValidRelativePath(string) bool { return true }\n",
 			"internal/seamonly/s.go":            "package seamonly\n\nimport \"" + module + "/" + affectedPackage + "\"\n\nvar _ affected.Language\n\nvar _ = affected.ValidRelativePath\n",
+			"internal/shadowed/s.go":            "package shadowed\n\nimport \"" + module + "/" + affectedPackage + "\"\n\ntype plan struct{ Plan int }\n\nvar _ affected.Language\n\nfunc use(affected plan) int { return affected.Plan }\n",
 			"internal/planner/p.go":             "package planner\n\nimport aff \"" + module + "/" + affectedPackage + "\"\n\nvar _ aff.Language\n\nvar _ aff.Plan\n",
 			"internal/dotted/d.go":              "package dotted\n\nimport . \"" + module + "/" + affectedPackage + "\"\n\nvar _ Plan\n",
 			"internal/seamonly/s_test.go":       "package seamonly\n\nimport \"" + module + "/" + affectedPackage + "\"\n\nvar _ affected.Plan\n",
@@ -173,14 +176,15 @@ func TestIRTV0021NoLeafOnlyAffectedImport(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if inspected != 3 {
-			t.Errorf("SPY_INEFFECTIVE inspected %d importers, want 3 (seamonly, planner, dotted)", inspected)
+		if inspected != 4 {
+			t.Errorf("SPY_INEFFECTIVE inspected %d importers, want 4 (seamonly, shadowed, planner, dotted)", inspected)
 		}
 		var named []string
 		for _, p := range problems {
 			named = append(named, strings.Fields(p)[1])
 		}
-		if want := []string{"internal/dotted", "internal/seamonly"}; !slices.Equal(named, want) {
+		// internal/shadowed selects Plan only from a parameter named affected, so it is leaf-only.
+		if want := []string{"internal/dotted", "internal/seamonly", "internal/shadowed"}; !slices.Equal(named, want) {
 			t.Errorf("SPY_INEFFECTIVE flagged %q, want %q; problems %q", named, want, problems)
 		}
 	})
