@@ -245,7 +245,7 @@ not reused and their text stays in their own specs as history.
 | MTT-V1-005 | 2.5 | `internal/mcp/cli/groups.go` (`removedGroups`), `main.go`, `unavailable.go`; `internal/mcp/toolgroup/test_evidence.go` (preview label) | `TestMTTV1005RemovedGroupsRefuseWithATypedReason`, `TestMTTV1005TestValidityIsAnUnknownTool`, `TestMTTV1003CoreServerRegistersExactlyTheTable` |
 | MTT-V1-006 | 2.1, 2.8 | not yet built | not yet built |
 | MTT-V1-007 | 2.5 | `internal/mcp/bridge/flows.go` (renamed constants), `internal/capcatalog/mcp.go` (`toolName`, `Replaces`) | `TestMTTV1007OneNamingConvention`, `TestMTTV1001TableRulesNameTheBrokenRow/two_dots` |
-| MTT-V1-008 | 2.6 | not yet built | not yet built |
+| MTT-V1-008 | 2.6 | `internal/selectionswitch` (grammar), `internal/mcp/toolgroup/affected.go` (`selectAll`, `affected-select-all/1`) | `TestMTTV1008Grammar`, `TestMTTV1008AffectedToolReadsTheKillSwitch`, `TestMTTV1008UnknownSelectionThroughTheServer` |
 | MTT-V1-009 | 2.7 | not yet built | not yet built |
 | MTT-V1-010 | 2.8 | not yet built | not yet built |
 | MTT-V1-011 | 2.9 | not yet built | not yet built |

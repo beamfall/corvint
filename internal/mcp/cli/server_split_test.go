@@ -4,6 +4,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -55,5 +56,25 @@ func TestMTTV1005TestValidityIsAnUnknownTool(t *testing.T) {
 	rpc, _ := responses[1]["error"].(map[string]any)
 	if exit != 0 || stderr != "" || rpc["code"] != float64(-32602) {
 		t.Fatalf("exit=%d stderr=%q response=%#v", exit, stderr, responses[1])
+	}
+}
+
+// MTT-V1-008 scenario: with CORVINT_SELECTION=fastest in the server's
+// environment, a corvint.affected call selects every test with the
+// unknown-value reason and never runs the planner.
+func TestMTTV1008UnknownSelectionThroughTheServer(t *testing.T) {
+	t.Setenv("CORVINT_SELECTION", "fastest")
+	root, _, _ := followRootsFixture(t)
+	planned := false
+	runner := func(ctx context.Context, root, base string, stdout, stderr io.Writer) int {
+		planned = true
+		return stubAffectedRunner(ctx, root, base, stdout, stderr)
+	}
+	exit, responses, stderr := hookedSession(t, Hooks{Affected: runner}, []string{"--root", root, "--tool-profile", "affected"},
+		toolCall(1, "corvint.affected", map[string]any{}))
+	result := resultOf(t, responses[1])
+	structured, _ := result["structuredContent"].(map[string]any)
+	if exit != 0 || stderr != "" || result["isError"] != false || structured["selectAll"] != true || structured["reason"] != "kill-switch-value-unknown" || planned {
+		t.Fatalf("exit=%d stderr=%q planned=%v result=%#v", exit, stderr, planned, result)
 	}
 }

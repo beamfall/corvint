@@ -1915,7 +1915,7 @@
           "description": "Optional base revision; with it the plan is base..HEAD plus the dirty worktree, without it the dirty worktree alone."
         }
       ],
-      "outputProfile": "affected-summary/1",
+      "outputProfile": "affected-summary/1, affected-select-all/1",
       "errors": [
         "cancelled",
         "server-busy",
