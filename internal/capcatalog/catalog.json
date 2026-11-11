@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "ed390a2ee25347014ef4af4177a6865810ffc14fe853ea81094a2a840b18fa0a"
+    "sha256": "36bd7a098a10acc055d543b7ebe93a5003966d1ed4c01d919bbf3048ad26e13e"
   },
   "commands": [
     {
@@ -142,48 +142,6 @@
         {
           "field": "exitCodesMentioned",
           "reason": "the help text states no exit status"
-        }
-      ]
-    },
-    {
-      "name": "feature",
-      "helpTopic": "corvint help feature",
-      "purpose": "one declared feature's context",
-      "maturity": "experimental",
-      "owningSpec": "GPK-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--budget-bytes",
-        "--limit"
-      ],
-      "schemaIds": [],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "best-effort-append",
-      "writeStatements": [
-        "Repository and trace state are read-only; do not substitute a legacy runtime for a typed unsupported result."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
     },
@@ -417,7 +375,7 @@
     {
       "name": "context",
       "helpTopic": "corvint help context",
-      "purpose": "task-context packet: files to read",
+      "purpose": "path brief of a file or directory",
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
@@ -425,16 +383,15 @@
       "nestedOperations": {},
       "requiredFlags": {},
       "flags": [
+        "--base",
         "--instruction-cwd",
         "--instruction-host",
         "--instruction-host-version",
         "--instruction-profile",
         "--json",
-        "--limit",
         "--path",
         "--subject",
-        "--task",
-        "--worktree-overlay"
+        "--task"
       ],
       "schemaIds": [
         "corvint-path-brief/0"
@@ -445,8 +402,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Writes nothing; Go-only (task-context-packet-v0, experimental).",
-        "It writes nothing.",
+        "Writes nothing.",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
         "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
         "Every command and MCP server honours both, one file per process, written on exit and on SIGINT or SIGTERM; {pid} in PATH becomes the process ID.",
@@ -880,107 +836,9 @@
       ]
     },
     {
-      "name": "features",
-      "helpTopic": "corvint help features",
-      "purpose": "inferred repository guidance",
-      "maturity": "experimental",
-      "owningSpec": "RGV-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--base",
-        "--limit",
-        "--max-refs",
-        "--no-workspace",
-        "--workspace"
-      ],
-      "schemaIds": [
-        "affected-plan/0",
-        "affected-plan/1"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
-        "No index, trace or observation ledger is written."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
-      "name": "overview",
-      "helpTopic": "corvint help overview",
-      "purpose": "inferred repository guidance",
-      "maturity": "experimental",
-      "owningSpec": "RGV-V0",
-      "freezeContract": null,
-      "operations": [],
-      "nestedOperations": {},
-      "requiredFlags": {},
-      "flags": [
-        "--base",
-        "--limit",
-        "--max-refs",
-        "--no-workspace",
-        "--workspace"
-      ],
-      "schemaIds": [
-        "affected-plan/0",
-        "affected-plan/1"
-      ],
-      "inputs": null,
-      "outputs": null,
-      "exitCodesMentioned": [],
-      "writes": null,
-      "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
-        "No index, trace or observation ledger is written."
-      ],
-      "unknowns": [
-        {
-          "field": "inputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "outputs",
-          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
-        },
-        {
-          "field": "writes",
-          "reason": "the root help Support boundary does not classify this command; see writeStatements"
-        }
-      ]
-    },
-    {
       "name": "review",
       "helpTopic": "corvint help review",
-      "purpose": "inferred repository guidance",
+      "purpose": "change review: affected plan and branch overlap",
       "maturity": "experimental",
       "owningSpec": "RGV-V0",
       "freezeContract": null,
@@ -993,7 +851,6 @@
       },
       "flags": [
         "--base",
-        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -1008,7 +865,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
+        "Read-only; needs a clean HEAD (any dirt refuses).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -1689,7 +1546,6 @@
     "commands": [
       "init",
       "adopt",
-      "feature",
       "impact",
       "cem",
       "context",
@@ -1699,8 +1555,6 @@
       "test-evidence",
       "test-validity",
       "test-plan",
-      "features",
-      "overview",
       "review",
       "flows",
       "runs",

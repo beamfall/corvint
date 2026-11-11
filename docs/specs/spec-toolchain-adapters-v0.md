@@ -95,7 +95,7 @@ Corvint at `d35b0ee3`:
   Each result keeps the native state field so the reader sees the upstream lifecycle, not only Corvint's label. An instructions file under `openspec/changes/` takes the row's status and is never binding.
 - `STA-V0-008`: `protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0, `LICENSING.md` boundary).
   - Manifest: `schema_version: "1.0"`, id `corvint`, `extension.effect: read-only` (where Spec Kit validates it), `requires.speckit_version: ">=1.2.1,<2"`, and a `requires.tools` entry for `corvint`.
-  - Commands: `speckit.corvint.context`, which runs `corvint context` for the feature's spec and plan paths, and `speckit.corvint.review`, which runs `corvint affected` and `corvint review` over the working diff.
+  - Commands: `speckit.corvint.context`, which runs `corvint context --path` (the path brief) for the feature's spec and plan paths, and `speckit.corvint.review`, which runs `corvint affected` and `corvint review` over the working diff.
   - Hooks: `before_implement` → context and `after_implement` → review, both `optional: true`.
   - The commands only read, report Corvint's output including every `unknown`/`NOT_PRODUCED`, and never block, edit or commit. `corvint review` refuses a dirty worktree, which is normal after implementing; the command reports that refusal as printed and never commits to satisfy it.
 - `STA-V0-009`: `protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).

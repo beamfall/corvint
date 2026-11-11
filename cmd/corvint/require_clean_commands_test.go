@@ -25,23 +25,21 @@ var requireCleanRefusalForms = map[string]struct {
 	noRoot bool
 }{
 	"init": {args: []string{"init"}}, "adopt": {args: []string{"adopt"}},
-	"feature":       {args: []string{"feature", "impact"}},
 	"mcp":           {args: []string{"mcp"}, noRoot: true},
-	"context":       {args: []string{"context", "--task", "change main"}},
+	"context":       {args: []string{"context", "--path", "main.go"}},
 	"index":         {args: []string{"index"}},
 	"cem":           {args: []string{"cem", "status", "--map", "change.cem.json"}},
 	"docs":          {args: []string{"docs", "nav", "--trusted-project", "--request", "request.json"}},
 	"test-evidence": {args: []string{"test-evidence", "file.go"}},
 	"test-validity": {args: []string{"test-validity"}},
 	"test-plan":     {args: []string{"test-plan", "check", "--plan", "a.json", "--input", "b.json"}},
-	"features":      {args: []string{"features"}}, "overview": {args: []string{"overview"}},
-	"review": {args: []string{"review", "--base", "HEAD"}},
-	"flows":  {args: []string{"flows", "--manifest", "manifest.json"}},
-	"how":    {args: []string{"how", "--source", "e2e", "ship an order"}},
-	"runs":   {args: []string{"runs", "stability", "--runs", "a.json"}},
-	"test":   {args: []string{"test", "--base", "HEAD", "--dry-run"}},
-	"tests":  {args: []string{"tests", "lint", "--base", "HEAD"}},
-	"watch":  {args: []string{"watch", "--index", "missing.idx", "--once", "--dry-run"}},
+	"review":        {args: []string{"review", "--base", "HEAD"}},
+	"flows":         {args: []string{"flows", "--manifest", "manifest.json"}},
+	"how":           {args: []string{"how", "--source", "e2e", "ship an order"}},
+	"runs":          {args: []string{"runs", "stability", "--runs", "a.json"}},
+	"test":          {args: []string{"test", "--base", "HEAD", "--dry-run"}},
+	"tests":         {args: []string{"tests", "lint", "--base", "HEAD"}},
+	"watch":         {args: []string{"watch", "--index", "missing.idx", "--once", "--dry-run"}},
 }
 
 // requireCleanParseWitness covers verbs whose CLI diagnostic names no argv
@@ -51,7 +49,7 @@ var requireCleanParseWitness = map[string]func([]string) error{
 	"test-evidence": func(args []string) error { _, _, err := testevidencedoc.Parse(args[1:]); return err },
 }
 
-// DIRTY-CACHE-016 (V1-1174): every dispatched verb and the feature form
+// DIRTY-CACHE-016 (V1-1174): every dispatched verb
 // either honours --require-clean or refuses it with exit 2 and a
 // diagnostic the flag itself causes; none accepts and ignores it.
 func TestRequireCleanHonouredOrRefusedByEveryCommand(t *testing.T) {

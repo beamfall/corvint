@@ -75,7 +75,7 @@ with the code.
 | Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
-| Context compilation with pinned evidence | The files to read, each pinned to a Git blob with the relation and reason that admitted it | `corvint context --task "fix the date parser" --subject internal/date/parse.go` | core |
+| Path brief | The instructions, tests and requirements linked to a file or directory, each section with its state; nothing is ranked | `corvint context --path internal/date/parse.go` | core verb; the path brief is experimental |
 <!-- /capability-gate:readme -->
 
 ## Try it in sixty seconds

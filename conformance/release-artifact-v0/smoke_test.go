@@ -52,9 +52,8 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 	smoke := Smoke{
 		VersionArgument:    "--version",
 		ExpectedVersion:    "Stub 1.0.0",
-		QueryTask:          "task",
-		QueryLimit:         "1",
-		ExpectedIntent:     "fixture-intent",
+		QueryPath:          "AGENTS.md",
+		ExpectedState:      "OBSERVED",
 		FixtureInstruction: "# Agents\n",
 	}
 	binary := writeStubBinary(t)
@@ -68,7 +67,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 	}{
 		{
 			name: "genuine pass", version: "Stub 1.0.0 (build 7)",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusPass || !report.RepositoryUnchanged || !report.QueryOK {
 					t.Fatalf("expected a genuine pass, got %+v", report)
@@ -78,7 +77,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		{
 			// PUB-V0-053: the current line names the commit; a development build adds .dev/-dev.
 			name: "commit-bearing banner passes", version: "Stub 1.0.0-dev (build 7, commit " + strings.Repeat("a", 40) + ", modified)",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusPass {
 					t.Fatalf("expected a pass, got %+v", report)
@@ -87,7 +86,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		},
 		{
 			name: "missing build number fails", version: "Stub 1.0.0",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusFail || !strings.Contains(report.Reason, "version banner") {
 					t.Fatalf("expected a version-banner failure, got %+v", report)
@@ -96,7 +95,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		},
 		{
 			name: "wrong build number fails", version: "Stub 1.0.0 (build 6)",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusFail || !strings.Contains(report.Reason, "version banner") {
 					t.Fatalf("expected a version-banner failure, got %+v", report)
@@ -105,7 +104,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		},
 		{
 			name: "wrong version banner fails", version: "Stub 9.9.9 (build 7)",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusFail || !strings.Contains(report.Reason, "version banner") {
 					t.Fatalf("expected a version-banner failure, got %+v", report)
@@ -114,7 +113,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		},
 		{
 			name: "wrong resolved intent fails", version: "Stub 1.0.0 (build 7)",
-			output: `{"ok":true,"results":[{"kind":"other"}]}`,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"NOT_OBSERVED"}]}]}`,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusFail || report.QueryOK {
 					t.Fatalf("expected a wrong-intent failure, got %+v", report)
@@ -123,7 +122,7 @@ func TestSmokeTestExecutesRealSubprocessAndDetectsFailures(t *testing.T) {
 		},
 		{
 			name: "repository mutation fails", version: "Stub 1.0.0 (build 7)",
-			output: `{"ok":true,"results":[{"kind":"fixture-intent"}]}`, mutate: true,
+			output: `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`, mutate: true,
 			check: func(t *testing.T, report SmokeReport) {
 				if report.Status != statusFail || !strings.Contains(report.Reason, "mutated") {
 					t.Fatalf("expected a repository-mutation failure, got %+v", report)

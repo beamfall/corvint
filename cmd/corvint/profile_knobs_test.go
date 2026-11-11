@@ -49,7 +49,7 @@ func TestPRBV0008EveryNamedCommandWritesProfiles(t *testing.T) {
 	root := profileFixture(t)
 	rows := map[string][]string{
 		"affected --path": {"--root", root, "affected", "--path", "source.md"},
-		"context":         {"--root", root, "context", "--task", "Original source evidence"},
+		"context":         {"--root", root, "context", "--path", "source.md"},
 		"help --json":     {"help", "--json"},
 	}
 	names := make([]string, 0, len(rows))

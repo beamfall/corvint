@@ -130,7 +130,7 @@ make_fixture() {
 
 # read_packet STORE OUT [ROOT]: one read verb whose bytes are compared across every later step.
 read_packet() {
-  "$1/corvint" --root "${3:-$fixture}" context --task "Identify the active work queue" --limit 1 > "$2"
+  "$1/corvint" --root "${3:-$fixture}" context --path AGENTS.md > "$2"
 }
 
 # index STORE MODE OUT: `corvint index` (MODE=full) or `corvint index --if-stale` (MODE=if-stale).

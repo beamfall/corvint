@@ -684,27 +684,4 @@ func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
 			t.Fatalf("a run without index-reading scenarios ran setup: %q", line)
 		}
 	}
-	// A filter that selects the index-reading scenarios without the index scenarios still builds
-	// their snapshot first, once, unmeasured.
-	if err := removeIndexState(r.Fixture.Code); err != nil {
-		t.Fatal(err)
-	}
-	lines = nil
-	indexReaders := []string{"context-query"}
-	r, err = Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: indexReaders, Progress: progress})
-	if err != nil {
-		t.Fatal(err)
-	}
-	setup := slices.Index(lines, "setup: index snapshot for context-query")
-	if setup < 0 || setup > slices.Index(lines, "scenario: context-query") || slices.ContainsFunc(lines[setup+1:], func(l string) bool { return strings.HasPrefix(l, "setup: ") }) {
-		t.Fatalf("index setup must run once, before context-query: %q", lines)
-	}
-	if _, err := os.Stat(filepath.Join(r.Fixture.Code, ".git", "corvint")); err != nil {
-		t.Fatalf("index setup left no snapshot store: %v", err)
-	}
-	for _, m := range r.Scenarios {
-		if !slices.Contains(indexReaders, m.ID) || m.Error != "" || len(m.Samples) == 0 {
-			t.Fatalf("index-reading scenario %s: %+v", m.ID, m)
-		}
-	}
 }

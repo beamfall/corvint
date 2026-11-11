@@ -26,18 +26,11 @@ Read the matching row, then expand only the relevant original sources.
 
 ## A task names a requirement
 
-For file discovery when the task names a requirement ID, use the experimental task-context packet:
-
-```sh
-corvint context --task "THE ORIGINAL TASK INCLUDING ITS REQUIREMENT ID" --limit 5
-```
-
-Inspect `spec-mentioned` rows and `critical_missing`/unexamined scope. Start at the returned
-path and clause line with a bounded original-source window; extend it when needed to read the
-complete clause and relevant qualifications. Use [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) when a
-clause location is unresolved, rather than repeating a locator the packet already supplied.
-When binding an expansion to evidence, compare the packet's `revision` with the captured commit's
-Git **tree** identity, then verify the path's blob identity; `revision` is not a commit ID.
+When the task names a requirement ID, look it up in [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv)
+for its spec and clause line, then read a bounded original-source window there; extend it when
+needed to read the complete clause and relevant qualifications. For a file you will edit,
+`corvint context --path PATH` lists the instructions, tests and requirements linked to it. The
+ranked task-context packet is removed (decision 0597).
 
 A named requirement does not establish implementation or execution. Follow its witnesses to the
 necessary code, tests and actual run records, retaining unknowns. Scope searches to the named
@@ -74,15 +67,10 @@ the failure. A valid emitted `.gitignore` row rejected by an older reader is V1-
 reader, not trace migration. The recorder and reader must share GPK-V0-050 path authority.
 
 Those original sources establish the workflow; the failed query stays failed. When file discovery
-is also useful, the separate experimental command can use the same task unchanged:
-
-```sh
-corvint context --task "THE SAME TASK" --limit 5
-```
-
-Keep its syntax/relationship evidence and uncertainty separate from governing owner prose.
-`context` does not consume local trace learning and its success does not qualify authority-start
-query support. Charge the refusal, fallback, and subsequent source reads to the same task.
+is also useful, run `corvint context --path PATH` for a file you will edit, or `corvint impact
+PATH` for what it reaches; the ranked task-context packet is removed (decision 0597). Keep that
+evidence and its uncertainty separate from governing owner prose. Charge the refusal, fallback,
+and subsequent source reads to the same task.
 
 ## Token-efficient process without model or cache changes
 

@@ -17,7 +17,7 @@ import (
 // records-free self index decodes for the repository's HEAD; and a self root that cannot be
 // resolved records the scenario's error instead of measuring something else.
 func TestPRBV01014WatchScenarios(t *testing.T) {
-	if !slices.Equal(ScenarioIDs[10:], []string{"watch-replan", "watch-replan-self"}) {
+	if !slices.Equal(ScenarioIDs[9:], []string{"watch-replan", "watch-replan-self"}) {
 		t.Fatalf("scenario order %v", ScenarioIDs)
 	}
 	b, err := LoadBudgets("budgets.json")

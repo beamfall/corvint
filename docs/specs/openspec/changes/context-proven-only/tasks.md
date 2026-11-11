@@ -4,7 +4,7 @@
 
 Build tasks in order, one commit each. Each names its requirement IDs and its proof.
 
-- [ ] 1 Strip the removed surfaces and their strings: `context --task`, `--worktree-overlay`,
+- [x] 1 Strip the removed surfaces and their strings: `context --task`, `--worktree-overlay`,
       `feature`, `features`, `overview`, help text, integration skills and commands, process docs,
       and the CCF-V1 `context --task` row and goldens (CCF-V1-002, TCP-V0 retired). Proof: build,
       vet, focused `cmd/corvint` freeze tests.

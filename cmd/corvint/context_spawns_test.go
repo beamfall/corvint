@@ -50,7 +50,8 @@ func TestContextMissSpawnsTheObservationPairOnce(t *testing.T) {
 	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	arguments := []string{"--root", root, "context", "--task", "does `Split` keep empty keys", "--subject", "cache/demux.go"}
+	arguments := []string{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
+		"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
 	if _, stderr, code := runCandidateWithEnvironment(t, "", []string{"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")}, arguments...); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -66,7 +67,7 @@ func TestContextMissSpawnsTheObservationPairOnce(t *testing.T) {
 		}
 		counts[command]++
 	}
-	want := map[string]int{"rev-parse": 2, "status": 2, "ls-tree": 1, "cat-file": 1, "log": 1}
+	want := map[string]int{"rev-parse": 2, "status": 2, "ls-tree": 1, "cat-file": 1}
 	if !reflect.DeepEqual(counts, want) {
 		t.Fatalf("git spawns on a miss = %v, want %v:\n%s", counts, want, spawned)
 	}
