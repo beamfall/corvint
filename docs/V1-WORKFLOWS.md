@@ -67,7 +67,7 @@ No checkout discovery, fetching, provider execution or tests occur. See the
 ## Inspect conditional project instruction loading
 
 ```sh
-corvint context --task "inspect project instructions" --subject app/source.go \
+corvint context --subject app/source.go \
   --instruction-host codex --instruction-host-version 0.153.2 \
   --instruction-cwd app --instruction-profile default
 ```

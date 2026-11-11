@@ -31,7 +31,7 @@ func isPathContext(rest []string) bool {
 		if token == "--path" || strings.HasPrefix(token, "--path=") {
 			return true
 		}
-		if argparseOptionLike(token) && token != worktreeOverlayFlag && !strings.Contains(token, "=") {
+		if argparseOptionLike(token) && !strings.Contains(token, "=") {
 			index++
 		}
 	}

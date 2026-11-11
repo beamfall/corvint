@@ -1,0 +1,87 @@
+{
+  "blocking": false,
+  "notice": "non-blocking; nothing here was shown to help an agent; a section lists links, it does not rank or judge them",
+  "paths": [
+    {
+      "files": 1,
+      "kind": "file",
+      "path": "pkg/main.go",
+      "sections": [
+        {
+          "items": [],
+          "name": "instructions",
+          "reason": "no-instruction-file-on-ancestry",
+          "state": "OBSERVED",
+          "total": 0,
+          "truncated": false
+        },
+        {
+          "items": [],
+          "missingSources": [
+            "CODEOWNERS"
+          ],
+          "name": "owners",
+          "reason": "source-absent; missing-source: CODEOWNERS",
+          "state": "NOT_OBSERVED",
+          "total": 0,
+          "truncated": false
+        },
+        {
+          "items": [
+            {
+              "link": "affected-plan",
+              "reason": "DIRECT_SOURCE_CHANGE",
+              "test": "go:example.test/cli/pkg"
+            }
+          ],
+          "missingSources": [
+            "test-evidence (inventory-unavailable+no-fresh-record)"
+          ],
+          "name": "tests",
+          "reason": "one-source-read; missing-source: test-evidence (inventory-unavailable+no-fresh-record)",
+          "scope": "BOUNDED",
+          "state": "INCOMPLETE",
+          "total": 1,
+          "truncated": false
+        },
+        {
+          "items": [],
+          "missingSources": [
+            ".corvint/flows.json"
+          ],
+          "name": "flows",
+          "reason": "source-absent; missing-source: .corvint/flows.json",
+          "state": "NOT_OBSERVED",
+          "total": 0,
+          "truncated": false
+        },
+        {
+          "items": [],
+          "missingSources": [
+            ".corvint/requirement-links.json",
+            "corvint-tasks",
+            "completed-ticket-commits"
+          ],
+          "name": "requirements",
+          "reason": "no-link-for-path; missing-source: .corvint/requirement-links.json, corvint-tasks, completed-ticket-commits",
+          "state": "NOT_OBSERVED",
+          "total": 0,
+          "truncated": false
+        },
+        {
+          "items": [],
+          "missingSources": [
+            "corvint-tasks"
+          ],
+          "name": "tickets",
+          "reason": "source-absent; missing-source: corvint-tasks",
+          "state": "NOT_OBSERVED",
+          "total": 0,
+          "truncated": false
+        }
+      ]
+    }
+  ],
+  "profile": "corvint-path-brief/0",
+  "revision": "<varies:string>"
+}

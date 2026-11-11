@@ -47,10 +47,6 @@ type options struct {
 	impactBaseSet      bool
 	impactProfile      string
 	impactLanguage     string
-	featureID          string
-	featureIDSet       bool
-	featureLimit       int
-	featureBudget      *int
 	version            string
 }
 
@@ -64,7 +60,7 @@ func argumentError(message string) error {
 }
 
 func parse(arguments []string) (options, error) {
-	result := options{impactLimit: defaultImpactLimit, featureLimit: 10}
+	result := options{impactLimit: defaultImpactLimit}
 	if topic, requested, err := parseHelpInvocation(arguments); requested || err != nil {
 		result.helpTopic = topic
 		return result, err
@@ -113,10 +109,6 @@ func parse(arguments []string) (options, error) {
 			return result, err
 		}
 		return parsed, parseErr
-	}
-	if index < len(arguments) && arguments[index] == "feature" {
-		result.command = "feature"
-		return parseFeatureArguments(result, arguments[index+1:])
 	}
 	if index >= len(arguments) {
 		return result, argumentError("the following arguments are required: command")
@@ -360,69 +352,6 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 	return result, nil
 }
 
-func parseFeatureArguments(result options, arguments []string) (options, error) {
-	return parseFeatureArgumentsForPlatform(result, arguments, runtime.GOOS)
-}
-
-func parseFeatureArgumentsForPlatform(result options, arguments []string, platform string) (options, error) {
-	if !nativePlatformQualified(platform) {
-		return result, featurePlatformRefusal(platform)
-	}
-	positionalOnly := false
-	for index := 0; index < len(arguments); {
-		argument := arguments[index]
-		if !positionalOnly && argument == "--" {
-			positionalOnly = true
-			index++
-			continue
-		}
-		name, value, inline := strings.Cut(argument, "=")
-		if !positionalOnly && (name == "--limit" || name == "--budget-bytes") {
-			if !inline {
-				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
-					return result, argumentError("argument " + name + ": expected one argument")
-				}
-				value = arguments[index+1]
-				index += 2
-			} else {
-				index++
-			}
-			if name == "--limit" {
-				limit, ok := pythonInteger(value)
-				if !ok {
-					return result, argumentError("argument --limit: invalid int value: " + pythonRepr(value))
-				}
-				result.featureLimit = limit
-				continue
-			}
-			budget, ok := pythonBoundedInteger(value, contextindex.MaxPacketBytes)
-			if !ok {
-				return result, argumentError("argument --budget-bytes: invalid literal for int() with base 10: " + pythonRepr(value))
-			}
-			if budget < contextindex.MinPacketBytes || budget > contextindex.MaxPacketBytes {
-				return result, argumentError(fmt.Sprintf(
-					"argument --budget-bytes: budget_bytes must be between %d and %d",
-					contextindex.MinPacketBytes, contextindex.MaxPacketBytes,
-				))
-			}
-			result.featureBudget = &budget
-			continue
-		}
-		if !positionalOnly && strings.HasPrefix(argument, "-") {
-			return result, argumentError("unrecognized arguments: " + argument)
-		}
-		if result.featureIDSet {
-			return result, argumentError("unrecognized arguments: " + argument)
-		}
-		result.featureID, result.featureIDSet = argument, true
-		index++
-	}
-	if !result.featureIDSet {
-		return result, argumentError("the following arguments are required: feature_id")
-	}
-	return result, contextindex.ValidateFeature(result.featureID, result.featureLimit)
-}
-
 func nativePlatformQualified(platform string) bool {
 	return platform == "darwin" || platform == "linux"
 }
@@ -641,9 +570,9 @@ var (
 	// the invalid-choice message never understates the binary. The leading run
 	// keeps the Python oracle's argparse declaration order; verbs this binary
 	// adds are appended in the order rootHelp documents them.
-	topLevelCommands = []string{"init", "adopt", "feature", "impact", "cem", "context",
+	topLevelCommands = []string{"init", "adopt", "impact", "cem", "context",
 		"affected", "index", "docs",
-		"test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "runs", "test", "tests", "watch", "mcp", "how"}
+		"test-evidence", "test-validity", "test-plan", "review", "flows", "runs", "test", "tests", "watch", "mcp", "how"}
 )
 
 func emit(stream io.Writer, value any) error {
@@ -803,7 +732,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	if options.command == "impact" && options.impactCapabilities {
 		return emitImpactCapabilities(stdout, stderr)
 	}
-	if options.command == "impact" || options.command == "feature" {
+	if options.command == "impact" {
 		buildFailed := false
 		build := func() (*contextindex.Index, error) {
 			started := time.Now()
@@ -814,19 +743,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			}
 			buildFailed = true
 			observeUnsupported(options.root, err, "")
-			var contextError *contextindex.Error
-			if errors.As(err, &contextError) && contextError.Code == "unsupported-impact-repository" {
-				switch options.command {
-				case "feature":
-					err = &contextindex.Error{Code: "unsupported-feature-repository", Message: strings.Replace(contextError.Message, "repository index", "feature index", 1)}
-				}
-			}
 			return nil, err
 		}
 		compute := func(index *contextindex.Index) (map[string]any, error) {
-			if options.command == "feature" {
-				return contextindex.FeatureBudget(index, options.featureID, options.featureLimit, options.featureBudget)
-			}
 			if options.requireClean && index.SourceDirty() {
 				return contextindex.ImpactCleanAbstention(index, options.impactPaths, options.impactLimit, impactBudget(options.impactPaths, options.impactBudget))
 			}
@@ -856,14 +775,14 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			contextReceipt["external"] = extevidence.Section(ctx, index, options.impactProviders, options.impactCheckouts, options.impactPaths, options.impactLimit)
 			return contextReceipt, nil
 		}
-		// Path impact and feature read the snapshot on the terms of
+		// Path impact reads the snapshot on the terms of
 		// IDX-SNAP-V0-019. The working-tree and range profiles read Source.Data
 		// directly, which a deferred pack body leaves nil, so they take only the
 		// whole-file read (IDX-SNAP-V0-021). A miss builds exactly as before.
 		// ERI-V0-261 (V1-1881): a range whose over-bound refusal is proved
 		// without the index refuses before the snapshot is loaded, with the
 		// bytes the loaded path returns.
-		if options.command == "impact" && options.impactBaseSet {
+		if options.impactBaseSet {
 			if err := contextindex.PerPathRangeBoundRefusalBeforeLoad(ctx, options.root, options.impactBase, options.impactLimit, options.impactProfile == "expanded-256"); err != nil {
 				observeUnsupported(options.root, err, "")
 				emitError(stderr, err)

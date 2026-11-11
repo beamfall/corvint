@@ -150,7 +150,7 @@ func TestSTAV0008_SpecKitExtensionManifest(t *testing.T) {
 		}
 	}
 	context := readFile(t, dir+"commands/speckit.corvint.context.md")
-	for _, want := range []string{"FEATURE_SPEC", "IMPL_PLAN", "context --task"} {
+	for _, want := range []string{"FEATURE_SPEC", "IMPL_PLAN", "context --path"} {
 		if !strings.Contains(context, want) {
 			t.Errorf("context command: missing %q", want)
 		}
@@ -182,7 +182,7 @@ func TestSTAV0009_OpenSpecIntegration(t *testing.T) {
 		"    guidance:",
 	)
 	rules := config[strings.Index(config, "\nrules:\n"):]
-	for _, want := range []string{"corvint context --task", "corvint review --base", "before apply", "after apply"} {
+	for _, want := range []string{"corvint context --path", "corvint review --base", "before apply", "after apply"} {
 		if !strings.Contains(rules, want) {
 			t.Errorf("config.yaml rules: missing %q", want)
 		}

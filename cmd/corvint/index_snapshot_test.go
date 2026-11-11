@@ -160,7 +160,8 @@ func TestIndexBootstrapsIgnoredObservationLedger(t *testing.T) {
 func TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte(t *testing.T) {
 	t.Parallel()
 	root := taskContextRepository(t)
-	arguments := []string{"--root", root, "context", "--task", "does `Split` keep empty keys", "--subject", "cache/demux.go"}
+	arguments := []string{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
+		"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
 	var cold, stderr bytes.Buffer
 	if code := runContext(context.Background(), arguments, strings.NewReader(""), &cold, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
@@ -196,11 +197,11 @@ func TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte(t *testing.T
 	}
 }
 
-// TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte pins IDX-SNAP-V0-019:
-// path impact (the reverse-import rule and the eval profile) and feature
-// answer a dirty worktree's snapshot hit exactly as their build did, and the
-// cold reads create no snapshot directory.
-func TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte(t *testing.T) {
+// TestImpactReadsTheSnapshotWithoutChangingAByte pins IDX-SNAP-V0-019: path
+// impact (the reverse-import rule and the eval profile) answers a dirty
+// worktree's snapshot hit exactly as its build did, and the cold reads create
+// no snapshot directory.
+func TestImpactReadsTheSnapshotWithoutChangingAByte(t *testing.T) {
 	t.Parallel()
 	root := ledgerRepository(t)
 	if err := os.WriteFile(filepath.Join(root, "internal", "auth", "session.go"), []byte("package auth\n\nfunc EnforceSessionRevocation() bool { return false }\n"), 0o644); err != nil {
@@ -209,7 +210,6 @@ func TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte(t *testing.T) {
 	invocations := [][]string{
 		{"--root", root, "impact", "internal/auth/session.go"},
 		{"--root", root, "impact", "testing/features.yaml"},
-		{"--root", root, "feature", "session-revocation"},
 	}
 	run := func(arguments []string) string {
 		var stdout, stderr bytes.Buffer

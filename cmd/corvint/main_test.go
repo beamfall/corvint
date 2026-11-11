@@ -260,7 +260,7 @@ func TestRepositoryFailureEnvelopeCarriesItsCode(t *testing.T) {
 func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 	t.Parallel()
 	// GPK-V0-059: the migration base's argparse verbs lead, and no verb repeats.
-	oracleVerbs := []string{"init", "adopt", "feature", "impact"}
+	oracleVerbs := []string{"init", "adopt", "impact"}
 	if !slices.Equal(topLevelCommands[:len(oracleVerbs)], oracleVerbs) {
 		t.Fatalf("leading verbs = %q, want %q", topLevelCommands[:len(oracleVerbs)], oracleVerbs)
 	}

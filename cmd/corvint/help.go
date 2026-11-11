@@ -203,11 +203,9 @@ func topicText(topic string) string {
 		return rootHelp
 	case "impact":
 		return impactHelp
-	case "feature":
-		return featureHelp
 	case "cem":
 		return cemHelp
-	case "features", "overview", "review":
+	case "review":
 		return repositoryGuidanceHelp
 	case "affected":
 		return affectedHelp
@@ -258,13 +256,12 @@ Commands:
     init  alias of adopt
     adopt  bounded repository inventory; --setup lists setup gaps
     index  write the index snapshot
-    context  task-context packet: files to read
+    context  path brief of a file or directory
     impact  path or range impact
     affected  affected-test plan
     cem  Change Evidence Map tool
   Experimental, context and review:
-    feature  one declared feature's context (GPK-V0)
-    features | overview | review  inferred repository guidance (RGV-V0)
+    review  change review: affected plan and branch overlap (RGV-V0)
     docs  source-derived documentation (SDD-V0)
     flows  application flows and assertions (AFU-V0)
     how  how do I GOAL: alias of flows appmap how (SKH-V0)
@@ -372,29 +369,6 @@ watch refuses before any run (exit 2, no stdout), as does a selection that
 matches no test or several. Incomplete cleanup or a retention failure exits 1
 after the document. Results are diagnostic: no strength axis joins them until
 the live matrix is qualified. Experimental.
-`
-
-const featureHelp = `Compile the implemented experimental feature context slice.
-
-Usage:
-  corvint [--root PATH] feature FEATURE_ID [--limit N] [--budget-bytes N]
-
-Known and unknown feature IDs are supported on Darwin and Linux. --limit 1
-returns known ledger-only context even with non-Go sources. Larger limits admit
-Go candidate ranking; known non-Go ranking is refused with
-unsupported-feature-repository. Unknown IDs remain OUT_OF_SCOPE; feature
-inventory is unsupported in this explicit-ID command; use experimental features
-for inferred discovery. --limit defaults to 10 (range 1-50).
---budget-bytes bounds the complete packet and retains omitted-result counts.
-Repository and trace state are read-only; do not substitute a legacy runtime
-for a typed unsupported result. See docs/specs/go-production-kernel-migration-v0.md.
-
-FEATURE_ID is the lowercase kebab-case ID a source declares with a feature:ID
-marker, such as feature:checkout-flow; a requirement prefix such as GPK-V0 is
-refused. Use features to list inferred candidates.
-
-Example:
-  corvint feature --limit 1 checkout-flow
 `
 
 const activationHelp = `Compile one bounded mechanical repository inventory.
@@ -1207,26 +1181,19 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance: features, overview and review.
+const repositoryGuidanceHelp = `Experimental change review: affected plan and local branch overlap.
 
 Usage:
-  corvint [--root PATH] features
-  corvint [--root PATH] overview
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
 
-All three are read-only and need a clean HEAD; features and overview degrade to
-a MIXED unknown when the only dirt is untracked.
-
-Features are bounded heuristic candidates with immutable blob/line evidence, not
-accepted feature IDs. A label that is a canonical feature ID also carries featureId
-and featureCall, the inert argv of corvint feature for it with --limit 1, which answers READY only
-for a declared feature record. Overview includes inert suggested argv. Review composes
-advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
+Read-only; needs a clean HEAD (any dirt refuses). Review composes advisory
+affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.
-Missing sources, index data and bounded branch paths remain unknown. No scripts,
-tests or suggestions execute. No index, trace or observation ledger is written.
-CEM, OCM, frontier and mandatory test obligations remain open.
+Missing sources and bounded branch paths remain unknown. No scripts or tests
+execute. No index, trace or observation ledger is written. CEM, OCM, frontier
+and mandatory test obligations remain open. The inferred features, overview
+and feature commands are removed (decision 0597).
 review reads one repository: --workspace FILE, or a discovered
 --root/.corvint/workspace.json without --no-workspace, refuses as
 workspace-unsupported naming the ignored aliases.

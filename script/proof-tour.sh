@@ -249,7 +249,7 @@ required_step base-add git -C "$fixture" -c core.excludesFile=/dev/null -c core.
 required_step base-commit git -C "$fixture" -c core.excludesFile=/dev/null -c core.hooksPath=/dev/null -c commit.gpgsign=false -c user.name='Proof tour fixture' -c user.email=fixture@invalid.test commit -qm 'Synthetic policy and incorrect lifetime'
 base=$(git -C "$fixture" rev-parse HEAD) || operational base-unavailable
 required_step query "$core" --root "$fixture" query --task 'auth token lifetime policy' --limit 5
-required_step context "$core" --root "$fixture" context --task 'repair auth token lifetime to match docs/policy.md' --subject auth/auth.go --limit 10
+required_step context "$core" --root "$fixture" context --path auth/auth.go
 status=0
 run_step go-baseline env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE="${GOCACHE:-$out/go-cache}" go -C "$fixture" test -count=1 -timeout 30m ./... || status=$?
 [ "$status" -ne 124 ] || operational timeout:go-baseline

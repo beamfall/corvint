@@ -9,7 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-func TestBlobShardsReadOnlyTwentyTaskMatrix(t *testing.T) {
+func TestBlobShardsReadOnlyMatrix(t *testing.T) {
 	t.Parallel()
 	root := taskContextRepository(t)
 	_, stderr, code := runCandidateWithEnvironment(t, "", []string{"CORVINT_INDEX_SHARDS=1"}, "--root", root, "index")
@@ -28,12 +28,7 @@ func TestBlobShardsReadOnlyTwentyTaskMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	invocations := make([][]string, 0, 40)
-	for _, item := range packDogfoodTasks {
-		invocations = append(invocations,
-			[]string{"--root", root, "context", "--task", item.task},
-			[]string{"--root", root, "context", "--task", item.task, "--subject", item.subject})
-	}
+	invocations := packReadInvocations(root)
 	run := func(shards string) []string {
 		t.Helper()
 		return candidatePackets(t, invocations, []string{"CORVINT_INDEX_SHARDS=" + shards})

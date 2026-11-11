@@ -50,8 +50,8 @@ func TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin(t *testing.T)
 		{"context command", []string{"help", "context"}, helpText("context")},
 		{"impact flag", []string{"impact", "--help"}, helpText("impact")},
 		{"impact command", []string{"help", "impact"}, helpText("impact")},
-		{name: "ASD-V0-009 feature flag without repository access", args: []string{"--root", "/definitely/not/a/repository", "feature", "--help"}, want: helpText("feature")},
-		{name: "ASD-V0-009 feature command without repository access", args: []string{"--root", "/definitely/not/a/repository", "help", "feature"}, want: helpText("feature")},
+		{name: "ASD-V0-009 review flag without repository access", args: []string{"--root", "/definitely/not/a/repository", "review", "--help"}, want: helpText("review")},
+		{name: "ASD-V0-009 review command without repository access", args: []string{"--root", "/definitely/not/a/repository", "help", "review"}, want: helpText("review")},
 		{"LPCV-V0-051 test-validity flag", []string{"test-validity", "--help"}, helpText("test-validity")},
 		{"test-validity command", []string{"help", "test-validity"}, helpText("test-validity")},
 		{"invalid root is not opened", []string{"--root", "/definitely/not/a/repository", "context", "--help"}, helpText("context")},
@@ -82,10 +82,10 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 			args []string
 			want string
 		}{
-			{[]string{"context", "--task", "x", "--help"}, helpText("context")},
-			{[]string{"context", "--help", "--task", "x"}, helpText("context")},
-			{[]string{"context", "--limit", "-1", "--help"}, helpText("context")},
-			{[]string{"context", "--task", "x", "--subject", "a.go", "--help"}, helpText("context")},
+			{[]string{"context", "--path", "x", "--help"}, helpText("context")},
+			{[]string{"context", "--help", "--path", "x"}, helpText("context")},
+			{[]string{"context", "--instruction-cwd", "-1", "--help"}, helpText("context")},
+			{[]string{"context", "--path", "x", "--subject", "a.go", "--help"}, helpText("context")},
 			{[]string{"impact", "path/a.go", "--help"}, helpText("impact")},
 			{[]string{"index", "--if-stale", "--help"}, helpText("index")},
 			{[]string{"docs", "maintain", "--page", "p", "--help"}, helpText("docs")},
@@ -101,9 +101,9 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 	})
 	t.Run("GPK-V0-062 --help as an option value, after --, or after an invalid choice is not help", func(t *testing.T) {
 		for _, args := range [][]string{
-			{"context", "--task", "--help"},
-			{"context", "--task=--help"},
-			{"context", "--task", "x", "--", "--help"},
+			{"context", "--path", "--help"},
+			{"context", "--path=--help"},
+			{"context", "--path", "x", "--", "--help"},
 			{"impact", "--", "--help"},
 		} {
 			if topic, requested, err := parseHelpInvocation(args); requested || err != nil {
@@ -203,7 +203,7 @@ func TestHFlagAliasesHelpFlag(t *testing.T) {
 	}{
 		{"root", []string{"-h"}, rootHelp},
 		{"command", []string{"context", "-h"}, helpText("context")},
-		{"anywhere before --", []string{"context", "--task", "x", "-h"}, helpText("context")},
+		{"anywhere before --", []string{"context", "--path", "x", "-h"}, helpText("context")},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reader := &forbiddenHelpReader{}
@@ -244,14 +244,14 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 func TestRootHelpListsContextAndWorkCommands(t *testing.T) {
 	t.Parallel()
 	for _, required := range []string{
-		"\n    context  task-context packet",
+		"\n    context  path brief",
 		"corvint COMMAND --help | corvint help COMMAND",
 	} {
 		if !strings.Contains(rootHelp, required) {
 			t.Fatalf("root help does not contain %q", required)
 		}
 	}
-	for _, required := range []string{"context --task TEXT [--subject PATH] [--limit N]"} {
+	for _, required := range []string{"context --path PATH [--path PATH ...]"} {
 		if !strings.Contains(helpText(strings.Fields(required)[0]), required) {
 			t.Fatalf("%s help does not contain %q", strings.Fields(required)[0], required)
 		}

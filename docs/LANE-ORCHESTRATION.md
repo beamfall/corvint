@@ -1145,7 +1145,7 @@ One lane runs this flow, in order; each step names the command and the section t
    its absolute executable path. Use that path for the following reads; rerun it after source edits.
    A build failure stops orientation. Keep the emitted freshness verdict with the task evidence.
    Run `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
-   `corvint context --task "..."`; retain the `query` and `impact` receipts.
+   `corvint context --path PATH` for each file you will edit; retain the `affected` receipt.
    A wide or UNKNOWN selection means focused tests only.
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
