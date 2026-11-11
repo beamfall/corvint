@@ -142,40 +142,43 @@ func requireRefusal(t *testing.T, code int, stderr, reason string) {
 	}
 }
 
-// ARTIFACT-BIN-V0-001: the committed catalog is valid and names the product binaries.
+// ARTIFACT-BIN-V0-001, -520, -522: the committed catalog is valid, ships the four core-set
+// binaries and the independent corvint-update, and withholds every other cmd/ executable except
+// the release tooling.
 func TestEmbeddedCatalogNamesTheProductBinaries(t *testing.T) {
 	catalog, err := loadCatalog("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"corvint", "corvint-docs", "corvint-mcp", "corvint-docs-mcp", "corvint-test-validity-mcp", "corvint-test-runner"} {
+	for _, name := range []string{"corvint", "corvint-docs", "corvint-mcp", "corvint-docs-mcp"} {
 		binary, ok := catalog.find(name)
-		if !ok || binary.Role != "product" || binary.VersionSet != "core" {
-			t.Errorf("%s: want product in the core set, got %+v", name, binary)
+		if !ok || binary.Role != "product" || binary.VersionSet != "core" || binary.Stamp != "" {
+			t.Errorf("%s: want a stamped product in the core set, got %+v", name, binary)
 		}
 	}
-	for _, name := range []string{"corvint-analyzer-go", "corvint-go-test-provider", "corvint-update"} {
-		binary, ok := catalog.find(name)
-		if !ok || binary.Role != "product" || binary.VersionSet != "" {
-			t.Errorf("%s: want an independent product binary, got %+v", name, binary)
-		}
+	if binary, ok := catalog.find("corvint-update"); !ok || binary.Role != "product" || binary.VersionSet != "" || binary.Stamp != "" {
+		t.Errorf("corvint-update: want an independent stamped product binary, got %+v", binary)
 	}
 	if binary, ok := catalog.find("corvint-release-candidate"); !ok || binary.Role != "support" {
 		t.Errorf("corvint-release-candidate: want support, got %+v", binary)
 	}
-	analyzers := 0
+	withheld := 0
 	for _, binary := range catalog.Binaries {
-		if strings.HasPrefix(binary.Name, "corvint-analyzer-") {
-			analyzers++
-			if binary.Role != "product" || binary.VersionSet != "" || binary.Stamp != "none" {
-				t.Errorf("%s: every analyzer is an independent, unstamped (stamp none) product binary", binary.Name)
-			}
-		} else if binary.Stamp != "" {
-			t.Errorf("%s: only analyzers are unstamped, found stamp %q", binary.Name, binary.Stamp)
+		if binary.Role != "withheld" {
+			continue
+		}
+		withheld++
+		if binary.Decision != "0596" || binary.VersionSet != "" || binary.Stamp != "" {
+			t.Errorf("%s: a withheld binary cites decision 0596 and has no set or stamp rule, got %+v", binary.Name, binary)
 		}
 	}
-	if analyzers == 0 {
-		t.Fatal("catalog names no analyzer")
+	for _, name := range []string{"corvint-analyzer-go", "corvint-test-validity-mcp", "corvint-test-runner", "corvint-go-test-provider", "corvint-cli", "corvint-web-flows"} {
+		if binary, ok := catalog.find(name); !ok || binary.Role != "withheld" {
+			t.Errorf("%s: want withheld (PROD-INT-006 does not ship it), got %+v", name, binary)
+		}
+	}
+	if withheld == 0 {
+		t.Fatal("catalog withholds nothing")
 	}
 }
 
