@@ -2982,9 +2982,10 @@ owner-accepted.
   `CGO_ENABLED=0` stops cgo files compiling and the C toolchain running. `GOENV=off` stops the go
   command reading the user's `go env` file, `GOWORK=off` stops it reading `go.work`, so only the
   main module's packages match, and `GOPROXY=off` forbids module downloads. None of them names a
-  file that a command then reads or runs. Any other value keeps `shell:assignment`: empty, a
-  variable or expansion, a quoted value, `GOOS=js`, `GOARCH=wasm`, `CGO_ENABLED=1`, or a path or
-  URL for `GOENV`, `GOWORK` or `GOPROXY`.
+  file that a command then reads or runs. Quoting the value changes nothing. Any other value
+  keeps `shell:assignment`: empty, a shell expansion, command substitution or arithmetic, a make
+  value only the environment supplies, `GOOS=js`, `GOARCH=wasm`, `CGO_ENABLED=1`, or a path or URL
+  for `GOENV`, `GOWORK` or `GOPROXY`. `export`, `read` and loop forms keep their own reasons.
 - **AFP-V0-3602:** **`node --test` over literal files.** (proposed 2026-11-11; experimental; lane
   compsite, V1-5179) A `node` invocation whose first argument is exactly `--test` and whose every
   later word is a literal relative path, with no glob character, ending in `.js`, `.mjs` or

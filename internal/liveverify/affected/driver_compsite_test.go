@@ -166,3 +166,47 @@ func TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-3601 fail-closed neighbours: a Go toolchain name with a value the
+// allowlist does not hold, a value only the environment, a command
+// substitution, arithmetic or a make value the environment supplies, and the
+// `export`, `read`, loop and `$GITHUB_ENV` forms keep their computed reason.
+func TestDriverGoSelectionAssignmentsFailClosed_AFP_V0_3601(t *testing.T) {
+	for _, tc := range []struct{ recipe, reason string }{
+		{"GOOS=js go vet ./...", "shell:assignment"},
+		{"GOOS=wasip1 go vet ./...", "shell:assignment"},
+		{"GOARCH=wasm go vet ./...", "shell:assignment"},
+		{"CGO_ENABLED=1 go vet ./...", "shell:assignment"},
+		{"GOENV=/tmp/goenv go vet ./...", "shell:assignment"},
+		{"GOWORK=go.work go vet ./...", "shell:assignment"},
+		{"GOPROXY=https://proxy.example go vet ./...", "shell:assignment"},
+		{"GOOS= go vet ./...", "shell:assignment"},
+		{"GOOS=windows1 go vet ./...", "shell:assignment"},
+		{"GOOSX=windows go vet ./...", "shell:assignment"},
+		{"GOOS=$$OS go vet ./...", "shell:assignment"},
+		{"GOOS=$$(uname -s) go vet ./...", "shell:assignment"},
+		{"GOOS=$$((1)) go vet ./...", "shell:assignment"},
+		{"GOOS=$(OS) go vet ./...", "shell:assignment"},
+		{"env GOOS=js go vet ./...", "shell:assignment"},
+		{"PATH=tools:$$PATH go vet ./...", "shell:assignment"},
+		{"GOFLAGS=-toolexec=script/a.sh go vet ./...", "shell:assignment"},
+		{"export GOOS=windows && go vet ./...", "shell:builtin-export"},
+		{"read GOOS && go vet ./...", "shell:builtin-read"},
+		{"for GOOS in linux js; do go vet ./...; done", "shell:loop-variable"},
+	} {
+		t.Run(tc.recipe, func(t *testing.T) {
+			files := map[string]string{"go.mod": "module example.test/m\n", "core/core.go": "package core\n", "script/a.sh": "#!/bin/sh\n",
+				"Makefile": "check:\n\t" + tc.recipe + "\n"}
+			reasons := driverComputedReasons(t, memorySource(t, files))
+			if !slices.Contains(reasons["driver:make:Makefile#check"], tc.reason) {
+				t.Fatalf("reasons %v; want %s", reasons, tc.reason)
+			}
+		})
+	}
+	files := map[string]string{"go.mod": "module example.test/m\n", "core/core.go": "package core\n",
+		".github/workflows/ci.yml": "jobs:\n  job:\n    steps:\n      - run: |\n          echo GOOS=windows >> \"$GITHUB_ENV\"\n      - run: go vet ./...\n"}
+	reasons := driverComputedReasons(t, memorySource(t, files))
+	if !slices.Contains(reasons["driver:ci:.github/workflows/ci.yml#job"], "shell:github-env-file") {
+		t.Fatalf("GITHUB_ENV reasons %v; want shell:github-env-file", reasons)
+	}
+}
