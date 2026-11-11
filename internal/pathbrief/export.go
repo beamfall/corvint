@@ -23,7 +23,8 @@ type ExportStats struct {
 	// RecordsRead counts the sealed records the links come from.
 	RecordsRead int `json:"recordsRead"`
 	// RecordsSkipped counts files under the record directory that are not a readable sealed
-	// record: another name, not JSON, another protocol, or a record commit the repository lacks.
+	// record: another name, not JSON, another protocol, a required field missing or malformed, or
+	// a record commit the repository lacks.
 	RecordsSkipped int `json:"recordsSkipped"`
 	Links          int `json:"links"`
 	// LinksWithoutRequirement counts entries whose span holds no requirement definition.
@@ -46,8 +47,10 @@ var recordName = regexp.MustCompile(`^` + regexp.QuoteMeta(recordDirectory) + `/
 var requirementID = regexp.MustCompile(`\b[A-Z][A-Z0-9-]*-[0-9]{3,}\b`)
 
 type sealedRecord struct {
-	Spec  string `json:"spec"`
-	Hunks []struct {
+	Spec         string `json:"spec"`
+	BaseRevision string `json:"baseRevision"`
+	PatchSha256  string `json:"patchSha256"`
+	Hunks        []struct {
 		Path  string `json:"path"`
 		Basis []struct {
 			EvidenceID string `json:"evidenceId"`
@@ -55,14 +58,39 @@ type sealedRecord struct {
 		} `json:"basis"`
 	} `json:"hunks"`
 	Evidence []struct {
-		ID      string `json:"id"`
-		Path    string `json:"path"`
-		BlobOid string `json:"blobOid"`
-		Span    *struct {
+		ID         string `json:"id"`
+		Path       string `json:"path"`
+		BlobOid    string `json:"blobOid"`
+		SpanSha256 string `json:"spanSha256"`
+		Span       *struct {
 			Start int `json:"start"`
 			End   int `json:"end"`
 		} `json:"span"`
 	} `json:"evidence"`
+}
+
+// wellFormed reports whether the record has the fields a sealed `cem/1.0` record must have. A
+// record that lacks one is damaged, and a damaged record gives no link (TBC-V1-012).
+func (r *sealedRecord) wellFormed() bool {
+	if r.Spec != "cem/1.0" || !validOID(r.BaseRevision) || !validSHA256(r.PatchSha256) {
+		return false
+	}
+	for _, entry := range r.Evidence {
+		if entry.ID == "" || entry.Path == "" || entry.Span == nil || entry.Span.Start < 0 ||
+			entry.Span.End < entry.Span.Start || !validOID(entry.BlobOid) || !validSHA256(entry.SpanSha256) {
+			return false
+		}
+	}
+	for _, hunk := range r.Hunks {
+		if hunk.Path == "" || strings.ContainsAny(hunk.Path, "\n\r") {
+			return false
+		}
+	}
+	return true
+}
+
+func validSHA256(digest string) bool {
+	return len(digest) == 64 && validOID(digest)
 }
 
 type evidenceKey struct {
@@ -116,7 +144,7 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 	for i, sha := range shas {
 		record := sealedRecord{}
 		data, ok := r.blob(recordBlob[sha])
-		if present[i] != sha || !ok || json.Unmarshal(data, &record) != nil || record.Spec != "cem/1.0" {
+		if present[i] != sha || !ok || json.Unmarshal(data, &record) != nil || !record.wellFormed() {
 			stats.RecordsSkipped++
 			continue
 		}
@@ -124,10 +152,6 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 		commits = append(commits, sha)
 		evidence := map[string]evidenceKey{}
 		for _, entry := range record.Evidence {
-			if entry.ID == "" || entry.Path == "" || entry.Span == nil || entry.Span.Start < 0 ||
-				entry.Span.End < entry.Span.Start || !validOID(entry.BlobOid) {
-				continue
-			}
 			evidence[entry.ID] = evidenceKey{file: entry.Path, start: entry.Span.Start, end: entry.Span.End, blobOid: entry.BlobOid}
 		}
 		for _, hunk := range record.Hunks {
@@ -136,7 +160,7 @@ func Export(ctx context.Context, root, revision string) ([]byte, ExportStats, er
 					continue
 				}
 				key, ok := evidence[basis.EvidenceID]
-				if !ok || hunk.Path == "" || strings.ContainsAny(hunk.Path, "\n\r") {
+				if !ok {
 					stats.LinksDropped++
 					continue
 				}

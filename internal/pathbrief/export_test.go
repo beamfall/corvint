@@ -31,10 +31,11 @@ func span(text, from, to string) [2]int {
 }
 
 func record(t *testing.T, blob string, first, prose [2]int, hunks string) string {
-	return fmt.Sprintf(`{"spec":"cem/1.0","evidence":[
-	 {"id":"e1","path":"docs/spec.md","blobOid":%q,"span":{"start":%d,"end":%d}},
-	 {"id":"e2","path":"docs/spec.md","blobOid":%q,"span":{"start":%d,"end":%d}}],
-	 "hunks":[%s]}`, blob, first[0], first[1], blob, prose[0], prose[1], hunks)
+	digest := strings.Repeat("d", 64)
+	return fmt.Sprintf(`{"spec":"cem/1.0","baseRevision":%q,"patchSha256":%q,"evidence":[
+	 {"id":"e1","path":"docs/spec.md","blobOid":%q,"spanSha256":%q,"span":{"start":%d,"end":%d}},
+	 {"id":"e2","path":"docs/spec.md","blobOid":%q,"spanSha256":%q,"span":{"start":%d,"end":%d}}],
+	 "hunks":[%s]}`, c1, digest, blob, digest, first[0], first[1], blob, digest, prose[0], prose[1], hunks)
 }
 
 // newExportFixture builds a repository with three commits, then one commit that adds two sealed
@@ -152,6 +153,47 @@ func TestExport(t *testing.T) {
 	// The path src/b.go was deleted: no link follows it anywhere.
 	if got := pick(t, build(t, root, Sources{}, "src/b.go"), 0, "requirements"); got.Reason != "path-not-at-head" {
 		t.Errorf("deleted path %+v", got)
+	}
+}
+
+// TBC-V1-012: a record that lacks a required field, or holds a malformed one, is skipped whole
+// and gives no link.
+func TestExportSkipsDamagedRecords(t *testing.T) {
+	f := newExportFixture(t)
+	_, before, err := Export(context.Background(), f.root, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := record(t, f.specBlob, f.first, f.prose, `{"path":"src/c.go","basis":[{"evidenceId":"e1","relation":"specification"}]}`)
+	digest := strings.Repeat("d", 64)
+	for name, damage := range map[string][2]string{
+		"no base revision":      {`"baseRevision":"` + c1 + `",`, ""},
+		"short base revision":   {c1, c1[:39]},
+		"no patch digest":       {`"patchSha256":"` + digest + `",`, ""},
+		"no span digest":        {`"spanSha256":"` + digest + `",`, ""},
+		"malformed span digest": {`"spanSha256":"` + digest, `"spanSha256":"` + digest[:63] + "X"},
+		"no blob":               {`"blobOid":"` + f.specBlob + `",`, ""},
+		"no evidence id":        {`"id":"e2",`, ""},
+		"no evidence path":      {`"path":"docs/spec.md",`, ""},
+		"no span":               {fmt.Sprintf(`,"span":{"start":%d,"end":%d}`, f.prose[0], f.prose[1]), ""},
+		"reversed span":         {fmt.Sprintf(`"span":{"start":%d,"end":%d}`, f.prose[0], f.prose[1]), `"span":{"start":9,"end":3}`},
+		"no hunk path":          {`"path":"src/c.go",`, ""},
+	} {
+		damaged := strings.Replace(good, damage[0], damage[1], 1)
+		if damaged == good {
+			t.Fatalf("%s: fixture not changed", name)
+		}
+		commitAll(t, f.root, map[string]string{".corvint/changes/" + f.c3 + ".cem.json": damaged})
+		_, stats, err := Export(context.Background(), f.root, "HEAD")
+		if err != nil || stats.RecordsRead != before.RecordsRead || stats.RecordsSkipped != before.RecordsSkipped || stats.Links != before.Links {
+			t.Errorf("%s: stats %+v %v", name, stats, err)
+		}
+	}
+	// The undamaged record is read and adds its link.
+	commitAll(t, f.root, map[string]string{".corvint/changes/" + f.c3 + ".cem.json": good})
+	_, stats, err := Export(context.Background(), f.root, "HEAD")
+	if err != nil || stats.RecordsRead != before.RecordsRead+1 || stats.Links != before.Links+1 {
+		t.Errorf("good record: stats %+v %v", stats, err)
 	}
 }
 

@@ -3,6 +3,7 @@ package pathbrief
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 )
 
 // LinksPath is the repository path of the requirement-link file (TBC-V1-012).
@@ -65,8 +66,8 @@ type Link struct {
 	PathBlob      string
 }
 
-// ParseLinks reads a requirement-link file and refuses one whose schema or table indexes are not
-// valid, so a damaged file is a missing source and never a partial answer.
+// ParseLinks reads a requirement-link file and refuses one whose schema, table rows or table
+// indexes are not valid, so a damaged file is a missing source and never a partial answer.
 func ParseLinks(data []byte) (*LinkFile, error) {
 	file := &LinkFile{}
 	if err := json.Unmarshal(data, file); err != nil {
@@ -74,6 +75,17 @@ func ParseLinks(data []byte) (*LinkFile, error) {
 	}
 	if file.Schema != LinksSchema {
 		return nil, errors.New("requirement-link file has an unknown schema")
+	}
+	for _, commit := range file.Commits {
+		if !validOID(commit.SHA) || commit.CommitterTime < 0 {
+			return nil, errors.New("requirement-link file has a malformed commit row")
+		}
+	}
+	for _, evidence := range file.Evidence {
+		if evidence.File == "" || evidence.Start < 0 || evidence.End < evidence.Start ||
+			!validOID(evidence.BlobOid) || slices.Contains(evidence.Requirements, "") {
+			return nil, errors.New("requirement-link file has a malformed evidence row")
+		}
 	}
 	file.byPath = make(map[string]int, len(file.Paths))
 	for index, entry := range file.Paths {
@@ -84,6 +96,9 @@ func ParseLinks(data []byte) (*LinkFile, error) {
 		for _, record := range entry.Records {
 			if record.Commit < 0 || record.Commit >= len(file.Commits) {
 				return nil, errors.New("requirement-link file names a commit outside its table")
+			}
+			if record.Blob != "" && !validOID(record.Blob) {
+				return nil, errors.New("requirement-link file has a malformed path blob")
 			}
 			for _, evidence := range record.Evidence {
 				if evidence < 0 || evidence >= len(file.Evidence) {

@@ -78,3 +78,12 @@ outside the repository, `--base`, `--task`, `--ticket`, task text and a missing 
 
 `make gate`, the exhaustive Go suite, the pilot (TBC-V1-014) and the 1.0.x measurement
 (TBC-V1-006). No agent used the brief. The ticket form (TBC-V1-001 to TBC-V1-008) is not started.
+
+## Later the same day: required-field checks
+
+A review found that the export took a record with a readable `spec` and no other required field,
+and that the reader took link-file rows with an empty file, a reversed span or no blob. The export
+now skips a record that lacks `baseRevision`, `patchSha256`, or an evidence `id`, `path`,
+`blobOid`, `span` or `spanSha256`, or a hunk path. The reader refuses a link file with a malformed
+commit row, evidence row or path blob. A rerun on the same input commit read 630 records, skipped
+0 and gave the same sha256, so the committed file is unchanged.
