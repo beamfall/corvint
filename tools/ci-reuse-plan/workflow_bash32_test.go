@@ -18,8 +18,8 @@ var workflowBash32Rules = []struct {
 	re    *regexp.Regexp
 }{
 	{"mapfile", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(mapfile|readarray)(\s|$)`)},
-	{"associative-array", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset|readonly)\s+-[A-Za-z]*A`)},
-	{"nameref", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset)\s+-[A-Za-z]*n[A-Za-z]*(\s|$)`)},
+	{"associative-array", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset|readonly)(\s+-[A-Za-z]+)*\s+-[A-Za-z]*A`)},
+	{"nameref", regexp.MustCompile(`(^|[^A-Za-z0-9_-])(declare|local|typeset)(\s+-[A-Za-z]+)*\s+-[A-Za-z]*n[A-Za-z]*(\s|$)`)},
 	{"case-modification", regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?[,^]`)},
 	{"parameter-transformation", regexp.MustCompile(`\$\{[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?@[QEPAaUuLK]\}`)},
 	{"globstar", regexp.MustCompile(`shopt\s+-s\s+([A-Za-z]+\s+)*globstar`)},
@@ -35,8 +35,18 @@ func workflowBash32Hits(text string) []string {
 		if strings.HasPrefix(code, "#") {
 			continue
 		}
-		if at := strings.Index(code, " # "); at >= 0 {
-			code = code[:at]
+		// A trailing comment is cut only where the quotes before it balance, so
+		// a " # " inside a string cannot hide a construct later on the line.
+		for at := strings.Index(code, " # "); at >= 0; {
+			if before := code[:at]; strings.Count(before, `"`)%2 == 0 && strings.Count(before, `'`)%2 == 0 {
+				code = before
+				break
+			}
+			next := strings.Index(code[at+1:], " # ")
+			if next < 0 {
+				break
+			}
+			at += 1 + next
 		}
 		for _, rule := range workflowBash32Rules {
 			if rule.re.MatchString(code) {
@@ -59,7 +69,11 @@ func TestWorkflowRunScriptsAvoidBash4Constructs_ASCV0780(t *testing.T) {
 		{`          mapfile -t failed < <(find "$d" -type f)`, "mapfile"},
 		{`          readarray -t rows < rows.txt`, "mapfile"},
 		{`          declare -A seen`, "associative-array"},
+		{`          declare -r -A seen`, "associative-array"},
 		{`          local -n ref=$1`, "nameref"},
+		{`          local -i -n ref=$1`, "nameref"},
+		{`          echo "build # 1"; mapfile -t rows < rows.txt`, "mapfile"},
+		{`          echo 'it # is' "so # so"; mapfile -t rows < rows.txt # read them`, "mapfile"},
 		{`          echo "${name,,}"`, "case-modification"},
 		{`          echo "${name^^}"`, "case-modification"},
 		{`          echo "${name@Q}"`, "parameter-transformation"},
@@ -80,6 +94,8 @@ func TestWorkflowRunScriptsAvoidBash4Constructs_ASCV0780(t *testing.T) {
 		`          echo "${{ github.event.inputs.sha }}" "${name:-none}" "${#rows[@]}"`,
 		`          printf '%s\n' "$line" | tr '[:upper:]' '[:lower:]'`,
 		`          local name=$1`,
+		`          local -r name=$1`,
+		`          echo "build # 1" # mapfile is not used`,
 		`          wait "$pid"`,
 	} {
 		if hits := workflowBash32Hits(line); len(hits) != 0 {
