@@ -22,7 +22,8 @@
 # (one per failed full run of main; a re-run's newer name replaces) the same way.
 # CIN-V0-7922 (V1-5198): a suspected main miss is confirmed by reruns (mainmiss-confirm.sh); a
 # confirmed one is uploaded as a MISS row, ci-forward-MISS-pr<N>-<merge>-e<E>-f1, which the row
-# pattern above counts like any MISS. The check names, ci-forward-MAINCHECK-r<run>-<sha>-e<E>-
+# pattern above counts like any MISS (main-miss.yml uploads it only while the repository variable
+# CORVINT_MAIN_MISS_KILL is `on`). The check names, ci-forward-MAINCHECK-r<run>-<sha>-e<E>-
 # c<confirmed>-k<flake>-u<unconfirmed>-pr<N>[_<N>...] (one per failed run; a re-run's newer name
 # replaces), are reported as mainMiss.checks so a MAINMISS suspicion can be read against its verdict.
 # CIN-V0-7921 (V1-5218): a FULL row (ci-forward-FULL-pr<N>-<sha>-e<E>-f<f>-r<skew|abstain|plan>,

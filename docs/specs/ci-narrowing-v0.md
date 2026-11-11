@@ -786,7 +786,9 @@ package-level one follows it.
   `MAX_PACKAGES` (5) per run and within `BUDGET_SECONDS` (10800), the package runs once at the merge
   commit's first parent (the base) and twice at the merge commit, each as
   `go test -race -exec <test-confine> -json -count=1 -timeout 50m ./<dir>` under
-  `CORVINT_CONFINE_ROOT`, the shard's invocation. A package that passes at the base (a
+  `CORVINT_CONFINE_ROOT` and `CORVINT_SKIP_LIVE_TIER=1`, the shard's invocation (the shard step
+  skips the live test tier, AFP-V0-2702 of `affected-plan-selection-v0.md`, so the reruns skip it
+  too and run the tests the failed shard ran). A package that passes at the base (a
   package-level `pass` event, exit 0) and fails at the merge twice (a package-level `fail` or a
   `build-fail` of the package, nonzero exit) is `confirmed`; one that passes at the merge is
   `flake`; one that fails at the base is `preexisting`; a package absent at the base counts the base
@@ -796,7 +798,11 @@ package-level one follows it.
   confirmed, `FLAKE` when every package is a flake, else `UNCONFIRMED`. (3) The workflow SHALL
   retain the `corvint-main-miss-check/0` document as
   `ci-forward-MAINCHECK-r<run>-<sha>-e<epoch>-c<confirmed>-k<flake>-u<unconfirmed>-pr<N>[_<N>...]`
-  (pull requests ascending, at most 10 named) and, for each confirmed pull request up to three, a
+  (pull requests ascending, at most 10 named) and, only while the repository variable
+  `CORVINT_MAIN_MISS_KILL` is `on` (unset, the default, is observe mode: the check, the issue and
+  the failed job, no MISS row, so a confirmation cannot turn narrowing off before the
+  confirmation path has been observed on hosted runs; V1-5198 stays open for that), for each
+  confirmed pull request up to three, a
   `corvint-main-miss-row/0` document (`class` `MISS`, the merge commit as `sha`, the confirmed
   packages as `missed`, the confirmation) as `ci-forward-MISS-pr<N>-<merge>-e<epoch>-f1`, which
   `bar.jq` counts as a `MISS` row of the epoch and of the AFP-V0-030 window like any other: one
@@ -970,7 +976,8 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 CIN-V0-7921: remove the fallback shape and FULL branch of `row.jq`, the FULL naming of `collect.sh` and the
 `full` lines of `bar.jq`; FULL names already uploaded match no pattern and are ignored.
 
-CIN-V0-7922: delete `main-miss.yml`, restore the `main-miss` job of `ci-control-plane.yml`, remove
+CIN-V0-7922: delete the repository variable `CORVINT_MAIN_MISS_KILL` to stop MISS-row uploads
+(observe mode); to remove the capability, delete `main-miss.yml`, restore the `main-miss` job of `ci-control-plane.yml`, remove
 `mainmiss-confirm.sh`, the `merge` member of `mainmiss.sh`/`mainmiss.jq` and the MAINCHECK lines of
 `bar.jq`; MISS rows already uploaded stay counted until the epoch advances.
 

@@ -1369,7 +1369,7 @@ and container qualification; full fallback remains available.
   in the window and never counts as `INCOMPLETE` or toward the 8 complete rows of AFP-V0-029.
   (Amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812).)
   (Amended by the orchestrator under owner delegation (owner chat, 2026-10-31): the AFP-V0-029
-  count follows its lowered bar.) A `NARROWED` row (AFP-V0-099) likewise takes no place in the window, nor does a `FULL` row (CIN-V0-7921); a confirmed main miss is a `MISS` row of the window (CIN-V0-7922). The window is read twice:
+  count follows its lowered bar.) A `NARROWED` row (AFP-V0-099) likewise takes no place in the window, nor does a `FULL` row (CIN-V0-7921); a confirmed main miss is a `MISS` row of the window while the repository variable `CORVINT_MAIN_MISS_KILL` is `on` (CIN-V0-7922). The window is read twice:
   in the trusted AFP-V0-097 verdict, and live by the PR job over the newest 25 pages of artifact
   names, so rows newer than the verdict can still trip it. (Amended 2026-10-28 on the owner report "every
   PR ran full CI": the page budget rose from 5 to 25 because 500 artifacts held about 8 forward rows.)
@@ -6118,7 +6118,8 @@ failing package, so selection misses are never counted.
   replaces) and report the misses and the pull requests they name, in its markdown and as
   `mainMiss` in its JSON form; the count is a suspicion that feeds neither the AFP-V0-029 status nor
   the AFP-V0-030 kill switch (amended by CIN-V0-7922, V1-5198: a suspicion confirmed by reruns is
-  uploaded as a `MISS` row, which feeds both). Non-goals: attributing a failure to the one
+  uploaded as a `MISS` row, which feeds both, while the repository variable
+  `CORVINT_MAIN_MISS_KILL` is `on`). Non-goals: attributing a failure to the one
   pull request that caused it; test-level (rather than package-level) misses; the merge-queue case
   AFP-V0-099 already classifies. Failure modes: a failure caused by a later direct push or a flake
   is still counted against every narrowed pull request that skipped the package (over-counting);
