@@ -171,7 +171,11 @@ func (h *Host) Close(ctx context.Context) []Line {
 		line := Line{Runner: r, Mode: ModeFull, Reason: h.reasons[r], Run: RunFail}
 		if line.Reason == "" {
 			s := h.byRunner[r]
-			if failure := s.FullReason(); failure != "" {
+			if s == nil {
+				// Only a caller-built plan (for example two pins sharing a
+				// name) can leave a pinned runner without a session.
+				line.Reason = "adapter-session-missing"
+			} else if failure := s.FullReason(); failure != "" {
 				line.Reason = reasonCode(fmt.Errorf("%s", failure))
 			} else if h.input.Plan.Full[r] != "" {
 				line.Reason = h.input.Plan.Full[r]

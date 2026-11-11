@@ -350,8 +350,10 @@ Baseline at `origin/main` c6b6cbb0:
   `RSP-V0-030`), `reason`, `run` (`ok` or `fail`) and, when `run` is `fail`, `run_reason`
   `runner-adapter-unavailable`. `reason` is the first applicable of: malformed discovery
   (`discovery-invalid:<cause>` or `candidate-pins-invalid`), `unsupported-schema`, `unpinned`, the
-  resolution failure (for example `digest-mismatch` or `missing-executable`), the session's
-  `RSP-V0-031` failure code, `candidate-pins-changed`, and otherwise `runner-not-qualified`. `run`
+  resolution failure (for example `digest-mismatch` or `missing-executable`),
+  `adapter-session-missing` (a caller-built plan that leaves a pinned runner without a session),
+  the session's `RSP-V0-031` failure code, `candidate-pins-changed`, and otherwise
+  `runner-not-qualified`. `run`
   is `ok` only when a pinned, resolved session closed without failure, or when the runner keeps a
   pre-plugin execution path; every other line is `fail`, so a required runner is never silently
   skipped. A runner the candidate's pins changed still runs FULL from its trusted pin. Failure

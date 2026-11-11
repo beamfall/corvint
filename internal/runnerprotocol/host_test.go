@@ -178,6 +178,16 @@ func TestRSPV0063FailureLines(t *testing.T) {
 		}
 		wantFail(t, h.Close(context.Background()), "unsupported-schema")
 	})
+	t.Run("duplicate-pin-name", func(t *testing.T) {
+		pin, store, _ := hostPins(t)
+		twin := pin
+		twin.Runners = []string{"second-runner"}
+		h := OpenHost(context.Background(), HostInput{Required: []string{ReferenceRunner, "second-runner"}, Plan: DiscoveryPlan{Pins: []Pin{pin, twin}}, Store: store, Options: hostOptions(t, "reference", Limits{})})
+		want := []Line{{Runner: ReferenceRunner, Mode: ModeFull, Reason: ReasonNotQualified, Run: RunOK}, {Runner: "second-runner", Mode: ModeFull, Reason: "adapter-session-missing", Run: RunFail, RunReason: RunnerAdapterUnavailable}}
+		if lines := h.Close(context.Background()); !reflect.DeepEqual(lines, want) {
+			t.Fatalf("lines=%+v want %+v", lines, want)
+		}
+	})
 	t.Run("pre-plugin-path", func(t *testing.T) {
 		_, store, _ := hostPins(t)
 		h := OpenHost(context.Background(), HostInput{Required: []string{ReferenceRunner}, Plan: DiscoveryPlan{}, Store: store, Options: hostOptions(t, "reference", Limits{}), CorePath: func(r string) bool { return r == ReferenceRunner }})
