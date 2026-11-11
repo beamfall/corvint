@@ -13,7 +13,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
    re-recorded.
 - [x] 4 `docs maintain --check` (DMF-V1-003). Proof: fixture test, stale block exits 1, fresh exits
    0, `--preview` still exits 0.
-- [ ] 5 Citation check changes and `--json` (DMF-V1-004). Proof: fixture tests for a missing
+- [x] 5 Citation check changes and `--json` (DMF-V1-004). Proof: fixture tests for a missing
    top-level file, a fenced citation and an unpinned citation; JSON output test.
 - [ ] 6 `worktree` member on every check report (DMF-V1-005). Proof: fixture test with a dirty
    tracked file for each check.

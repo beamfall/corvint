@@ -1,8 +1,10 @@
 // Package doccitations is the product line-citation check for any Git
 // repository (SDD-V0-633): it reads tracked Markdown and the cited files' index
 // blobs, and reports out-of-range, trivial, anchor-mismatched and missing-file
-// citations. It reads only; Corvint's own script/check-line-citations.sh keeps
-// its repository-specific scope rules.
+// citations. A citation inside fenced code is example text and is skipped, and
+// an unpinned citation is counted and listed (DMF-V1-004). It reads only;
+// Corvint's own script/check-line-citations.sh keeps its repository-specific
+// scope rules, repinning and move detection.
 package doccitations
 
 import (
@@ -37,11 +39,18 @@ const (
 
 // Failure is one citation the check refuses.
 type Failure struct {
-	Document string
-	Line     int
-	Token    string
-	Kind     string
-	Detail   string
+	Document string `json:"document"`
+	Line     int    `json:"line"`
+	Token    string `json:"token"`
+	Kind     string `json:"kind"`
+	Detail   string `json:"detail"`
+}
+
+// Citation is one checked citation with no @HEX pin (DMF-V1-004).
+type Citation struct {
+	Document string `json:"document"`
+	Line     int    `json:"line"`
+	Token    string `json:"token"`
 }
 
 // String renders a failure as "doc:line  `token`  kind: detail".
@@ -49,11 +58,16 @@ func (f Failure) String() string {
 	return fmt.Sprintf("%s:%d  %s  %s: %s", f.Document, f.Line, f.Token, f.Kind, f.Detail)
 }
 
-// Report is the result over the scanned documents.
+// Report is the result over the scanned documents. Citations counts every
+// checked citation, a missing file included; Fenced counts citation-shaped
+// tokens skipped inside fenced code; Unpinned lists the checked citations of
+// tracked files that carry no @HEX pin, which are not failures (DMF-V1-004).
 type Report struct {
 	Documents int
 	Citations int
+	Fenced    int
 	Failures  []Failure
+	Unpinned  []Citation
 }
 
 var (
@@ -71,7 +85,7 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 	if err != nil {
 		return Report{}, fmt.Errorf("cannot read the Git index under %s: %w", root, err)
 	}
-	index, directories := map[string]indexEntry{}, map[string]bool{}
+	index := map[string]indexEntry{}
 	for _, record := range bytes.Split(bytes.TrimSuffix(raw, []byte{0}), []byte{0}) {
 		meta, path, ok := strings.Cut(string(record), "\t")
 		fields := strings.Fields(meta)
@@ -79,9 +93,6 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 			continue
 		}
 		index[path] = indexEntry{blob: fields[1]}
-		if first, _, nested := strings.Cut(path, "/"); nested {
-			directories[first] = true
-		}
 	}
 	documents := paths
 	if len(documents) == 0 {
@@ -112,11 +123,20 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	report := Report{Documents: len(documents)}
+	report := Report{Documents: len(documents), Failures: []Failure{}, Unpinned: []Citation{}}
 	var citations []citation
 	cited := map[string]bool{}
 	for _, document := range documents {
+		var fence fenceState
 		for n, line := range splitLines(texts[document]) {
+			if fence.step(line) {
+				for _, match := range tokenPattern.FindAllStringSubmatch(line, -1) {
+					if citationPattern.MatchString(match[1]) {
+						report.Fenced++
+					}
+				}
+				continue
+			}
 			for _, match := range tokenPattern.FindAllStringSubmatch(line, -1) {
 				parts := citationPattern.FindStringSubmatch(match[1])
 				if parts == nil {
@@ -124,13 +144,14 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 				}
 				path := parts[1]
 				if _, tracked := index[path]; !tracked {
-					if first, _, nested := strings.Cut(path, "/"); nested && directories[first] {
-						report.Citations++
-						report.Failures = append(report.Failures, Failure{document, n + 1, match[0], MissingFile, "no such tracked file: " + path})
-					}
+					report.Citations++
+					report.Failures = append(report.Failures, Failure{document, n + 1, match[0], MissingFile, "no such tracked file: " + path})
 					continue
 				}
 				report.Citations++
+				if parts[5] == "" {
+					report.Unpinned = append(report.Unpinned, Citation{document, n + 1, match[0]})
+				}
 				c := citation{document: document, token: match[0], path: path, pin: parts[5], line: n + 1}
 				c.first, _ = strconv.Atoi(parts[2])
 				c.last, c.ranged = c.first, parts[3] != ""
@@ -214,6 +235,40 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 		return left.Line < right.Line
 	})
 	return report, nil
+}
+
+// fenceState follows CommonMark fenced code (``` or ~~~ after at most three
+// spaces, closed by the same character at least as long with nothing after
+// it) line by line, so a citation shown as example code is not checked.
+type fenceState struct {
+	char   byte
+	length int
+}
+
+// step reports whether line is inside fenced code, its opening and closing
+// fence lines included, and advances the state.
+func (f *fenceState) step(line string) bool {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 {
+		return f.length > 0
+	}
+	if f.length > 0 {
+		rest := strings.TrimLeft(trimmed, string(f.char))
+		if len(trimmed)-len(rest) >= f.length && strings.Trim(rest, " \t\r") == "" {
+			f.length = 0
+		}
+		return true
+	}
+	if len(trimmed) < 3 || (trimmed[0] != '`' && trimmed[0] != '~') {
+		return false
+	}
+	char := trimmed[0]
+	length := len(trimmed) - len(strings.TrimLeft(trimmed, string(char)))
+	if length < 3 || (char == '`' && strings.ContainsRune(trimmed[length:], '`')) {
+		return false
+	}
+	f.char, f.length = char, length
+	return true
 }
 
 // Anchor is the SHA-256 of the cited right-trimmed lines joined by LF, the
