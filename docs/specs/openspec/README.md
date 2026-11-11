@@ -39,8 +39,9 @@ wire format, or the release bar waits for the owner (G14). Unaccepted work stays
   before the first requirement.
 - `make openspec-check` (`tools/openspec-check`, part of `make doc-gates`) checks the layout, IDs,
   stages, the one root and the spec `Health:` lines (OSC-V1-001 to OSC-V1-011 in
-  `docs/specs/openspec-check-v1.md`); `OPENSPEC_BASE=<rev>` adds the commit rules, and folders in
-  `tools/openspec-check/baseline.txt` are reported only. `make openspec-validate` runs the pinned
+  `docs/specs/openspec-check-v1.md`); `OPENSPEC_BASE=<rev>` adds the commit rules for commits that
+  opt in to a change, and the findings listed in `tools/openspec-check/baseline.txt` are reported
+  only. `make openspec-validate` runs the pinned
   command (OSC-V1-012) and reports NOT_RUN where it is not installed.
 - Each proposal header names its change, ticket, the plan requirements it serves, the owning
   capability spec, the requirement IDs it adds, its intent status and its delivery status. IDs are

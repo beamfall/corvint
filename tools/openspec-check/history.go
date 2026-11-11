@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -62,21 +63,49 @@ func (g gitRepo) preflight(base string) error {
 	return nil
 }
 
-func (g gitRepo) exists(object string) bool {
-	_, err := g.git("cat-file", "-e", object)
-	return err == nil
+// object returns the object name of path in the tree of rev. ok is false only when rev holds no
+// such path (or rev is empty, the parent of a root commit); any other Git failure, such as a rev
+// that is not a commit, is an error (OSC-V1-011).
+func (g gitRepo) object(rev, path string) (name string, ok bool, err error) {
+	if rev == "" {
+		return "", false, nil
+	}
+	out, err := g.git("--literal-pathspecs", "ls-tree", "--full-tree", "-z", rev, "--", path)
+	if err != nil {
+		return "", false, historyUnavailable("cannot read %s at %s: %v", path, rev, err)
+	}
+	for _, entry := range strings.Split(out, "\x00") {
+		meta, entryPath, found := strings.Cut(entry, "\t")
+		if !found || entryPath != path {
+			continue
+		}
+		fields := strings.Fields(meta)
+		if len(fields) != 3 {
+			return "", false, historyUnavailable("cannot parse git ls-tree output %q for %s at %s", entry, path, rev)
+		}
+		return fields[2], true, nil
+	}
+	return "", false, nil
 }
 
-// showFile returns a file at a commit, and false when the commit does not hold it.
-func (g gitRepo) showFile(commit, path string) (string, bool) {
-	if commit == "" || !g.exists(commit+":"+path) {
-		return "", false
+// exists reports whether rev holds path; a Git failure is an error, never absent.
+func (g gitRepo) exists(rev, path string) (bool, error) {
+	_, ok, err := g.object(rev, path)
+	return ok, err
+}
+
+// showFile returns a file at a commit, and false when the commit does not hold it; a Git failure
+// is an error, never absent.
+func (g gitRepo) showFile(rev, path string) (string, bool, error) {
+	name, ok, err := g.object(rev, path)
+	if err != nil || !ok {
+		return "", false, err
 	}
-	out, err := g.git("cat-file", "blob", commit+":"+path)
+	out, err := g.git("cat-file", "blob", name)
 	if err != nil {
-		return "", false
+		return "", false, historyUnavailable("cannot read %s at %s: %v", path, rev, err)
 	}
-	return out, true
+	return out, true, nil
 }
 
 type addition struct {
@@ -128,14 +157,17 @@ func idRules(r *repo, g gitRepo) ([]finding, error) {
 	}
 	head = strings.TrimSpace(head)
 	before := map[string]map[string]requirementRow{}
-	rowsBefore := func(commit string) map[string]requirementRow {
+	rowsBefore := func(commit string) (map[string]requirementRow, error) {
 		if rows, ok := before[commit]; ok {
-			return rows
+			return rows, nil
 		}
-		text, _ := g.showFile(commit, requirementsTSV)
+		text, _, err := g.showFile(commit, requirementsTSV)
+		if err != nil {
+			return nil, err
+		}
 		rows := parseRequirements(text)
 		before[commit] = rows
-		return rows
+		return rows, nil
 	}
 	addedBy := map[string][]string{}
 	all := append(append([]*change{}, r.active...), r.archived...)
@@ -155,7 +187,10 @@ func idRules(r *repo, g gitRepo) ([]finding, error) {
 			parent = a.parent
 			where = "the parent of " + short(a.commit) + ", the commit that added the folder"
 		}
-		earlier := rowsBefore(parent)
+		earlier, err := rowsBefore(parent)
+		if err != nil {
+			return nil, err
+		}
 		for _, d := range c.deltas {
 			switch d.kind {
 			case "ADDED":
@@ -234,7 +269,11 @@ func archiveHistoryRules(r *repo, g gitRepo) ([]finding, error) {
 		}
 		if len(list) == 0 {
 			// Not committed yet: compare the work tree with the active folder at HEAD.
-			if !g.exists("HEAD:" + active) {
+			held, err := g.exists("HEAD", active)
+			if err != nil {
+				return nil, err
+			}
+			if !held {
 				findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 					"%s is not committed and HEAD holds no active folder %s to have been moved from", c.dir, active)})
 				continue
@@ -259,18 +298,32 @@ func archiveHistoryRules(r *repo, g gitRepo) ([]finding, error) {
 			continue
 		}
 		first := list[0]
-		archivedTree, err1 := g.git("rev-parse", "--verify", "-q", first.commit+":"+c.dir)
-		activeTree, err2 := g.git("rev-parse", "--verify", "-q", first.commit+"^1:"+active)
+		archivedTree, hasArchived, err := g.object(first.commit, c.dir)
+		if err != nil {
+			return nil, err
+		}
+		activeTree, hasActive := "", false
+		if parents, err := g.git("rev-list", "--parents", "-n", "1", first.commit); err != nil {
+			return nil, historyUnavailable("cannot read the parents of %s: %v", short(first.commit), err)
+		} else if ids := strings.Fields(parents); len(ids) > 1 {
+			if activeTree, hasActive, err = g.object(ids[1], active); err != nil {
+				return nil, err
+			}
+		}
+		stillActive, err := g.exists(first.commit, active)
+		if err != nil {
+			return nil, err
+		}
 		switch {
-		case err2 != nil:
+		case !hasActive:
 			findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 				"archive commit %s has no active folder %s in its first parent to move", short(first.commit), active)})
-		case err1 != nil || strings.TrimSpace(archivedTree) != strings.TrimSpace(activeTree):
+		case !hasArchived || archivedTree != activeTree:
 			findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 				"archive commit %s is not a pure rename of %s: the archived content differs; "+
 					"archive with openspec archive %s --skip-specs and edit nothing in that commit",
 				short(first.commit), active, c.name)})
-		case g.exists(first.commit + ":" + active):
+		case stillActive:
 			findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 				"archive commit %s copies %s instead of moving it", short(first.commit), active)})
 		}
@@ -283,7 +336,11 @@ func archiveHistoryRules(r *repo, g gitRepo) ([]finding, error) {
 			findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 				"commit %s edits archived folder %s; an archived change is never edited", short(later.commit), c.dir)})
 		}
-		if dirty, _ := g.git("status", "--porcelain", "--", c.dir); strings.TrimSpace(dirty) != "" {
+		dirty, err := g.git("status", "--porcelain", "--", c.dir)
+		if err != nil {
+			return nil, historyUnavailable("cannot read the work-tree status of %s: %v", c.dir, err)
+		}
+		if strings.TrimSpace(dirty) != "" {
 			findings = append(findings, finding{"OSC-V1-006", subject, fmt.Sprintf(
 				"the work tree edits archived folder %s; an archived change is never edited", c.dir)})
 		}
@@ -376,7 +433,40 @@ func (g gitRepo) commits(base string) ([]commitRecord, error) {
 	return records, nil
 }
 
-// commitRules is OSC-V1-003 and OSC-V1-004 over BASE..HEAD.
+// touchedChanges returns the change names whose folder a commit touches: a path under
+// changes/<name>/ or changes/archive/YYYY-MM-DD-<name>/.
+func touchedChanges(paths []string) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, path := range paths {
+		rest, ok := strings.CutPrefix(path, changesDir+"/")
+		if !ok {
+			continue
+		}
+		dir, inner, ok := strings.Cut(rest, "/")
+		if !ok {
+			continue
+		}
+		if dir == "archive" {
+			dated, _, ok := strings.Cut(inner, "/")
+			m := archivedName.FindStringSubmatch(dated)
+			if !ok || m == nil {
+				continue
+			}
+			dir = m[2]
+		}
+		if !seen[dir] {
+			seen[dir] = true
+			names = append(names, dir)
+		}
+	}
+	return names
+}
+
+// commitRules is OSC-V1-003 and OSC-V1-004 over BASE..HEAD. Only a commit that opts in to a
+// change is in scope: it touches a change folder, carries a `Change:` trailer, or carries a
+// `Corvint-Ticket:` that some proposal's `Ticket:` header names. Every other commit gets no
+// finding.
 func commitRules(r *repo, g gitRepo, base string) ([]finding, error) {
 	records, err := g.commits(base)
 	if err != nil {
@@ -401,19 +491,35 @@ func commitRules(r *repo, g gitRepo, base string) ([]finding, error) {
 		if len(code) == 0 {
 			continue
 		}
+		touched := touchedChanges(rec.paths)
+		var ticketed []string
+		for _, ticket := range rec.trailers["corvint-ticket"] {
+			ticketed = append(ticketed, byTicket[strings.TrimSpace(ticket)]...)
+		}
+		if len(touched) == 0 && len(rec.trailers["change"]) == 0 && len(ticketed) == 0 {
+			continue // out of scope: the commit opts in to no change
+		}
 		bound := map[string]bool{}
+		var missing []string
+		for _, name := range touched {
+			if known[name] {
+				bound[name] = true
+			} else {
+				missing = append(missing, name)
+			}
+		}
+		for _, name := range ticketed {
+			bound[name] = true
+		}
+		named := false
 		for _, name := range rec.trailers["change"] {
 			if known[name] {
 				bound[name] = true
 				continue
 			}
+			named = true
 			out = append(out, finding{req: "OSC-V1-003", msg: fmt.Sprintf(
 				"commit %s: trailer `Change: %s` names no active or archived change folder", short(rec.commit), name)})
-		}
-		for _, ticket := range rec.trailers["corvint-ticket"] {
-			for _, name := range byTicket[strings.TrimSpace(ticket)] {
-				bound[name] = true
-			}
 		}
 		accepted := false
 		for _, id := range rec.trailers["requirement"] {
@@ -427,9 +533,13 @@ func commitRules(r *repo, g gitRepo, base string) ([]finding, error) {
 				short(rec.commit), id)})
 		}
 		if len(bound) == 0 && !accepted {
-			out = append(out, finding{req: "OSC-V1-003", msg: fmt.Sprintf(
-				"commit %s changes %s outside docs/ but binds to no change: add `Change: <name>`, a `Corvint-Ticket:` "+
-					"naming a proposal's ticket, or `Requirement: <accepted ID>`", short(rec.commit), listPaths(code))})
+			if !named {
+				out = append(out, finding{req: "OSC-V1-003", msg: fmt.Sprintf(
+					"commit %s changes %s outside docs/ and touches change folder(s) %s, which no active or archived "+
+						"folder holds at HEAD, so it binds to no change: add `Change: <name>`, a `Corvint-Ticket:` "+
+						"naming a proposal's ticket, or `Requirement: <accepted ID>`",
+					short(rec.commit), listPaths(code), strings.Join(missing, ", "))})
+			}
 			continue
 		}
 		names := make([]string, 0, len(bound))
@@ -438,7 +548,13 @@ func commitRules(r *repo, g gitRepo, base string) ([]finding, error) {
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			if len(rec.parents) == 0 || !g.exists(rec.parents[0]+":"+changesDir+"/"+name+"/proposal.md") {
+			held := false
+			if len(rec.parents) > 0 {
+				if held, err = g.exists(rec.parents[0], changesDir+"/"+name+"/proposal.md"); err != nil {
+					return nil, err
+				}
+			}
+			if !held {
 				out = append(out, finding{req: "OSC-V1-004", msg: fmt.Sprintf(
 					"commit %s changes %s for change %s, but its first parent holds no active %s/%s/proposal.md: "+
 						"commit the proposal before the code", short(rec.commit), listPaths(code), name, changesDir, name)})
@@ -448,20 +564,38 @@ func commitRules(r *repo, g gitRepo, base string) ([]finding, error) {
 	return out, nil
 }
 
-// loadBaseline reads the baseline subjects. A malformed line is a finding.
+// lineLocator is the line number of a `file.md:N:` locator in a finding message; the baseline key
+// drops it so an edit that only moves a line keeps its entry.
+var lineLocator = regexp.MustCompile(`(\.(?:md|tsv|yaml)):[0-9]+:`)
+
+// baselineKey is the baseline entry that matches f: `<rule ID> <subject>: <key>`. A finding with no
+// subject has no key and is never baselined.
+func baselineKey(f finding) string {
+	if f.subject == "" {
+		return ""
+	}
+	return f.req + " " + f.subject + ": " + lineLocator.ReplaceAllString(f.msg, "$1:")
+}
+
+var baselineRule = regexp.MustCompile(`^OSC-V1-[0-9]{3}$`)
+
+// loadBaseline reads the baseline entries. A malformed line is a finding.
 func loadBaseline(root, path string) (map[string]bool, []finding, error) {
-	entries := map[string]bool{}
 	data, err := os.ReadFile(filepath.Join(root, path))
 	if os.IsNotExist(err) {
-		return entries, nil, nil
+		return map[string]bool{}, nil, nil
 	}
 	if err != nil {
 		return nil, nil, err
 	}
-	return parseBaseline(string(data), path)
+	entries, malformed := parseBaseline(string(data), path)
+	return entries, malformed, nil
 }
 
-func parseBaseline(text, path string) (map[string]bool, []finding, error) {
+// parseBaseline reads `<rule ID> change <name>: <key>` and `<rule ID> spec docs/specs/<file>.md:
+// <key>` lines and `#` comments; it returns the entries and a finding per malformed or duplicate
+// line.
+func parseBaseline(text, path string) (map[string]bool, []finding) {
 	entries := map[string]bool{}
 	var out []finding
 	for i, line := range strings.Split(text, "\n") {
@@ -469,12 +603,17 @@ func parseBaseline(text, path string) (map[string]bool, []finding, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		kind, value, _ := strings.Cut(line, " ")
-		ok := (kind == "change" && changeName.MatchString(value)) ||
-			(kind == "spec" && strings.HasPrefix(value, "docs/specs/") && strings.HasSuffix(value, ".md") && !strings.Contains(strings.TrimPrefix(value, "docs/specs/"), "/"))
+		rule, rest, _ := strings.Cut(line, " ")
+		kind, rest, _ := strings.Cut(rest, " ")
+		value, key, _ := strings.Cut(rest, ": ")
+		ok := baselineRule.MatchString(rule) && strings.TrimSpace(key) != "" &&
+			((kind == "change" && changeName.MatchString(value)) ||
+				(kind == "spec" && strings.HasPrefix(value, "docs/specs/") && strings.HasSuffix(value, ".md") &&
+					!strings.Contains(strings.TrimPrefix(value, "docs/specs/"), "/")))
 		if !ok {
 			out = append(out, finding{req: "OSC-V1-011", msg: fmt.Sprintf(
-				"%s:%d: %q is not `change <name>` or `spec docs/specs/<file>.md`", path, i+1, line)})
+				"%s:%d: %q is not `<rule ID> change <name>: <finding>` or `<rule ID> spec docs/specs/<file>.md: <finding>`",
+				path, i+1, line)})
 			continue
 		}
 		if entries[line] {
@@ -482,19 +621,17 @@ func parseBaseline(text, path string) (map[string]bool, []finding, error) {
 		}
 		entries[line] = true
 	}
-	return entries, out, nil
+	return entries, out
 }
 
-// baselineGrowth fails every baseline entry the range adds: the baseline only shrinks.
+// baselineGrowth fails every baseline entry the range adds: the baseline only shrinks. When the
+// file was absent at base every entry is added; any other Git failure is an error.
 func baselineGrowth(g gitRepo, base, path string, entries map[string]bool) ([]finding, error) {
-	text, ok := g.showFile(base, path)
-	if !ok {
-		return nil, nil
-	}
-	before, _, err := parseBaseline(text, path)
+	text, _, err := g.showFile(base, path)
 	if err != nil {
 		return nil, err
 	}
+	before, _ := parseBaseline(text, path)
 	var added []string
 	for entry := range entries {
 		if !before[entry] {

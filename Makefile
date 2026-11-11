@@ -848,8 +848,9 @@ flow-guide-check:
 # OSC-V1-011 (V1-5399): the Go check of the OpenSpec change folders, their propose, apply and archive
 # stages, the one OpenSpec root and the spec Health: lines (docs/specs/openspec-check-v1.md). It needs
 # full history: a shallow clone refuses with history-unavailable. OPENSPEC_BASE=<rev> also checks the
-# commits of <rev>..HEAD (OSC-V1-003, OSC-V1-004), which otherwise report NOT_RUN; failures of a
-# subject in tools/openspec-check/baseline.txt are reported only, and that file only shrinks.
+# commits of <rev>..HEAD that opt in to a change (OSC-V1-003, OSC-V1-004), which otherwise report
+# NOT_RUN; a finding listed in tools/openspec-check/baseline.txt is reported only, and that file
+# only shrinks.
 .PHONY: openspec-check
 openspec-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/openspec-check $(if $(OPENSPEC_BASE),--base "$(OPENSPEC_BASE)")
