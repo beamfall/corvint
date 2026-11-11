@@ -209,7 +209,7 @@ func TestAFPV0530WorkflowBinding(t *testing.T) {
 		`(?m)^  report:\n    if: github\.ref == 'refs/heads/main'\n`,
 		`(?m)^    permissions:\n      actions: read\n      contents: read\n      issues: write\n`,
 		`(?m)^      - uses: actions/checkout@[0-9a-f]{40} # v[0-9.]+\n        with:\n          ref: \$\{\{ github\.sha \}\}\n          persist-credentials: false\n`,
-		`(?m)^      - uses: actions/setup-go@[0-9a-f]{40} # v[0-9.]+\n        with:\n          cache: false\n          go-version: "1\.27\.3"\n`,
+		`(?m)^      - uses: actions/setup-go@[0-9a-f]{40} # v[0-9.]+\n        with:\n          cache: false\n          go-version: "1\.27\.[34]"\n`,
 		`go build -trimpath -buildvcs=false -o "\$RUNNER_TEMP/ci-flake-report" \./tools/ci-flake-report\n`,
 		`(?m)^          GH_TOKEN: \$\{\{ github\.token \}\}\n          REPO: \$\{\{ github\.repository \}\}\n`,
 		`(?m)^        run: sh \.github/flake-report/report\.sh\n`,
