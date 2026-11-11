@@ -13,7 +13,7 @@ PROD-TEST-015, PROD-TEST-016) and `docs/decisions/0596-accept-product-plan-1-0-2
 - Claim: Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.
 - Status: accepted (decision 0596, G14; V1-5401) / experimental; partially delivered
 - Exists: `python:absolute-import-unresolved`, glob and mock edges, the literal-config reader and its gates, and the coverage hook in `internal/liveverify/affected`.
-- Blocked on: SLF-V1-006 (change `fault-injection-harness`); SLF-V1-007 (changes `runner-contract` and `source-removal`); the JSON half of SLF-V1-008 (frozen profile).
+- Blocked on: SLF-V1-006 (change `fault-injection-harness`); SLF-V1-007 (changes `runner-contract` and `source-removal`); the JSON `tests`/`drivers` members of SLF-V1-008 (next affected-plan profile version; CCF-V1-006 is frozen).
 - Read next: Requirements; Narrowing gates; Delivery record.
 
 ## User and boundary
@@ -90,7 +90,12 @@ on and its arguments are literal. The path budget is 1024 matched files per call
 pattern is relative (`./` or `../`); a root-relative, aliased or negated pattern, a `base` option,
 a `require.context` directory that is not a string or a mode or regular expression the planner
 cannot read counts as computed. The membership reader is the pattern itself as an anchored
-`PathGlobs` entry, or its literal directory when the pattern holds `**`.
+`PathGlobs` entry, or its literal directory when the pattern holds `**`, an extglob, a negated
+class (`[!x]`, which `path.Match` would read as the characters `!` and `x`) or a POSIX class.
+A brace range such as `{1..3}` or a POSIX class such as `[[:alpha:]]` counts as computed, since
+reading it as literal text would narrow without notice. A non-recursive `require.context` at the
+repository root reads `/*`, which every path matches, so a new file at the root reselects the
+importer.
 
 **Scenario: Literal glob**
 - GIVEN `src/routes.ts` calls `import.meta.glob("./pages/*.tsx")` and a test imports
@@ -119,8 +124,12 @@ the calling file. A changed mock file with no modelled consumer MUST be reported
 `NO_SELECTABLE_TEST`, never as Uncovered. (PROD-TEST-002)
 
 Built and on: every rule here only adds edges. The plugin adds the mock edges whatever the
-runner, which can only widen a plan. A root `__mocks__/p` is looked up in the importing file's
-directory and every ancestor. `jest.doMock` and `vi.doMock` are read as `jest.mock`.
+runner, which can only widen a plan: design decision 6 limits them to Jest and Vitest projects,
+and a project under another runner gains edges it may not need, never loses one. A root
+`__mocks__/p` is looked up in the importing file's directory and every ancestor. `jest.doMock`,
+`jest.setMock`, `jest.unstable_mockModule`, `jest.requireMock`, `vi.doMock` and `vi.importMock`
+name their module as `jest.mock` does and are read the same way: a literal target is an edge, a
+computed one raises `typescript:mock-target-unresolved`.
 
 **Scenario: Adjacent manual mock**
 - GIVEN `src/__mocks__/api.ts` and a test that imports `src/api.ts` under Jest
@@ -154,8 +163,9 @@ gains an edge to each literal `setupFiles`, `setupFilesAfterEnv`, `globalSetup` 
 stricter than the design in four places, each keeping the frontier: a file with any spread or a
 relative import or `require`; a negated (`!(`) glob; a marker in an object other than the known
 Vitest and Jest ones; and a capturing `moduleNameMapper` entry whose key could name an npm
-package. The dirty-config rule holds through the existing edge from each test to its nearest
-config.
+package. A membership key is read only under a known parent (`test`, `typecheck` or a Jest
+config object): a top-level `include`, which Vitest ignores, keeps the frontier. The dirty-config
+rule holds through the existing edge from each test to its nearest config.
 
 **Scenario: Literal include narrows**
 - GIVEN `vitest.config.js` is `include: ["src/**/*.test.ts"]` and is clean
@@ -211,20 +221,27 @@ Not yet built: it waits for changes `runner-contract` and `source-removal` (owne
 
 - `SLF-V1-008`: (accepted, decision 0596 G14; V1-5401) Test and driver counts reported separately
 
-The plan summary and JSON MUST report the number of selected test units and the number of selected
-driver units as separate values. Driver units MUST NOT be counted as tests. The summary MUST list
-driver units only in verbose output. (PROD-TEST-015)
+The `corvint affected` stderr headline MUST report the number of selected test units and the
+number of selected driver units as separate values, `tests=<n> drivers=<m>`, placed where the
+headline's line bound (AFP-V0-3642) cannot cut them. Driver units MUST NOT be counted as tests. The
+headline MUST list driver units only in verbose output. The JSON plan's `tests` and `drivers`
+members wait for the next affected-plan profile version. (PROD-TEST-015)
 
-Partially built. `corvint affected` prints `selected tests=<n> drivers=<m>` on its stderr
-headline from `affected.Plan.SelectionCounts`, which counts a `driver:` unit only as a driver;
-the headline lists no driver unit. The JSON members are not yet emitted: the affected-plan/1 and
-affected-plan/0 documents are frozen profiles (CCF-V1-006), and their summary `line` and member set
-are pinned by the core-freeze goldens, so adding `tests` and `drivers` members waits for the owner
-to regenerate those goldens.
+Amended 2026-11-11 by the orchestrator under the owner's delegation (build-log
+`docs/build-log/2026-11-11-selection-hardening-counts-decision.md`): the affected-plan/0 and
+affected-plan/1 profiles stay frozen for 1.0 (CCF-V1-006), so the counts are required on the
+stderr headline and the JSON members move to the next profile version.
+
+Built for the headline. `corvint affected` counts with `affected.Plan.SelectionCounts`, which
+counts a `driver:` unit only as a driver, and prints `tests=<n> drivers=<m>` right after the
+summary line's `selected=` total on the headline's first line. That is ahead of the unknown-reason
+counts, `revision=` and `base=`, which can push the line past 200 bytes, so a cut line keeps both
+counts. The headline lists no driver unit. JSON `tests` and `drivers` members: Not yet built
+(frozen profile CCF-V1-006).
 
 **Scenario: Driver units excluded from the test count**
 - GIVEN a plan with three selected test units and two driver units
-- WHEN `corvint affected` prints its summary
+- WHEN `corvint affected` prints its stderr headline
 - THEN it shows `tests=3 drivers=2`
 
 ## Narrowing gates
@@ -250,7 +267,9 @@ static planner runs no runner; and the FIH-V1 reports, which wait for SLF-V1-006
 
 ## Delivery record
 
-Build-log: `docs/build-log/2026-11-11-selection-hardening.md`. Tests:
+Build-log: `docs/build-log/2026-11-11-selection-hardening.md`, the review fixes in
+`docs/build-log/2026-11-11-selection-hardening-review-fixes.md` and the orchestrator decision in
+`docs/build-log/2026-11-11-selection-hardening-counts-decision.md`. Tests:
 `internal/liveverify/affected/python/selection_hardening_test.go`,
 `internal/liveverify/affected/typescript/selection_hardening_test.go`,
 `internal/liveverify/affected/selection_hardening_test.go` and
