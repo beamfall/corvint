@@ -140,8 +140,10 @@ func TestPlain(t *testing.T) {}
 				t.Fatalf("lost fixture uncertainty: %+v", plan)
 			}
 			manifest := swfixSession(t, root, "example.test/m", graph, plan)
-			if manifest.Scope != sessiontest.ScopeNarrowed {
-				t.Fatalf("fixture forced FULL: %+v", manifest)
+			// NCM-V1-001 (V1-5424): an UNOWNED_DIRTY_PATH fixture runs
+			// everything, named; the readers and the Swift suite are in it.
+			if manifest.Scope != sessiontest.ScopeFull || manifest.Reason != "non-code-unmapped "+dirty {
+				t.Fatalf("fixture did not run everything: %+v", manifest)
 			}
 			var units []string
 			for _, u := range manifest.Units {
@@ -151,10 +153,10 @@ func TestPlain(t *testing.T) {}
 			if strings.HasSuffix(dirty, "Package.swift") {
 				want = []string{"go:example.test/m/host", "go:example.test/m/reader", "declared:swift"}
 			}
-			slices.Sort(units)
-			slices.Sort(want)
-			if !slices.Equal(units, want) {
-				t.Fatalf("dirty %s: units %v, want %v", dirty, units, want)
+			for _, unit := range want {
+				if !slices.Contains(units, unit) {
+					t.Fatalf("dirty %s: units %v lack %s", dirty, units, unit)
+				}
 			}
 		}
 	}

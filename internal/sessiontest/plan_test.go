@@ -69,8 +69,13 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 	}{
 		{name: "narrowed", edit: func(*Input) {}, scope: ScopeNarrowed, units: whole("a")},
 		{name: "allowlisted unknowns stay narrowed", edit: func(in *Input) {
-			in.Unknown = []Unknown{{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}, {Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
+			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "go:build-constraint-variants"}, {Reason: "NO_SELECTABLE_TEST", Detail: "go:example.test/m/b"}}
 		}, scope: ScopeNarrowed, units: whole("a")},
+		// NCM-V1-001 (owner decision R32, V1-5424): an unowned path is off the
+		// allowlist and runs everything, named.
+		{name: "an unowned path runs everything", edit: func(in *Input) {
+			in.Unknown = []Unknown{{Reason: "UNOWNED_DIRTY_PATH", Detail: "notes.txt"}}
+		}, scope: ScopeFull, reason: "plan.unknown entry outside the AFP-V0-028 allowlist: UNOWNED_DIRTY_PATH notes.txt", units: whole("a", "b", "c")},
 		// AZU-V0-001: make targets and CI jobs are driver units, including
 		// historical targets with no selectable tests. They need no adapter.
 		{name: "selected and unknown driver targets need no language adapter", edit: func(in *Input) {

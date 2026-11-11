@@ -101,11 +101,30 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	observed := plan
 	observed.Plan.Scope = proof.Scope
 	observed.Plan.Unknown = nil
+	// Ownership is the full plan's: this Go-only observation reports another
+	// language's source as UNOWNED_DIRTY_PATH, so only an unowned path the
+	// receipt also reports counts, which the NCM-V1 decision has already
+	// run everything for (NCM-V1-001).
+	unowned := map[string]bool{}
+	for _, entry := range plan.Plan.Unknown {
+		if entry.Reason == unownedDirtyPath {
+			unowned[entry.Detail] = true
+		}
+	}
+	dropped := false
 	for _, unknown := range proof.Unknown {
+		if unknown.Reason == unownedDirtyPath && !unowned[unknown.Detail] {
+			dropped = true
+			continue
+		}
 		observed.Plan.Unknown = append(observed.Plan.Unknown, struct {
 			Reason string `json:"reason"`
 			Detail string `json:"detail"`
 		}{unknown.Reason, unknown.Detail})
+	}
+	if dropped && len(observed.Plan.Unknown) == 0 {
+		// The set-aside entries were the observation's only uncertainty.
+		observed.Plan.Scope = "BOUNDED"
 	}
 	if reason, _ := unknownNarrowing(observed, index, root); reason != "" {
 		return fallback(reason)
