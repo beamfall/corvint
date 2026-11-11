@@ -237,8 +237,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:80@884d7796` |
-  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:254@7320d4cb` |
-  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:277@797e536b` |
+  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:257@7320d4cb` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:280@797e536b` |
   | `coverage.answerability.verdict` | `context` | `no-specific-terms`, `relations-answer`, `unsupported-conjunction`, `not-withheld`, `supported` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/taskcontext.go:3927@c020e4b8` |
   | `context.range.status` | `impact` | `CLEAN`, `UNTRACKED-ALLOWED` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:414@71c6f8b4`, `internal/contextindex/range_impact.go:427@8fd264ef` |
   | `context.omissions.samples[].reason` | `impact` | `non-Go path outside native Go range profile` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `internal/contextindex/range_impact.go:271@7b21b9c6` |
