@@ -381,7 +381,8 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			}
 		}
 	}
-	listings := nameListingAdmitted(parsed, test)
+	firstLine, _, _ := strings.Cut(text, "\n")
+	listings := nameListingAdmitted(parsed, firstLine, test)
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
 	if builds && !test {

@@ -215,7 +215,14 @@ measure. None of them drops a unit the change can reach.
   that no listing of the test names is admitted because every admitted reader fails on a
   directory operand and reads nothing below it; and an operand that is a tracked symbolic link
   is matched by its own path and not by its target's, so a link into a listed directory is not
-  seen as a content read of it.
+  seen as a content read of it. (6) A first line that begins with `#!` MUST name a shell the
+  lexer reads, as `#!/PATH/sh`, `bash`, `dash`, `zsh` or `ksh`, or as `#!/usr/bin/env SHELL`
+  with no option and no NAME=value field; every other `#!` line MUST be refused, because the
+  lexer reads it as a comment and the program it names may not read the file as a shell does.
+  Three admitted shapes are deliberate: the pipeline restriction is carried by the gate alone,
+  so `{ ls; } | cat` is admitted, which is harmless because the group writes only entry names;
+  `true` and `false` are admitted with expansions in their arguments, which they ignore; and a
+  command whose command word is empty after control words and redirections is admitted.
 - **AFP-V0-9962:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   A name-listing read MUST select its unit for a dirty path within the read's depth whose
   status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
