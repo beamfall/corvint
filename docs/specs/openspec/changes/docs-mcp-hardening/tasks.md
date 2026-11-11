@@ -32,7 +32,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
     with stderr and an invalid argument, each checking `code`, `message`, `retryable` and `next`.
 - [x] 13 Artifact reload (DMF-V1-011). Proof: test that rebuilds the artifact between two calls and
     gets an answer with the new digest; test that a corrupt rebuild is refused with a reason.
-- [ ] 14 `docs consume` stale message (DMF-V1-013; R42 B5). Proof: fixture test where the draft's
+- [x] 14 `docs consume` stale message (DMF-V1-013; R42 B5). Proof: fixture test where the draft's
     commit moved, checking the message names both revisions and the re-draft command. (The `how` gap
     task moved to `how-rewrite` as HOW-V1-012.)
 - [ ] 15 Independent review of the whole change, then the affected-plan tests for the touched
