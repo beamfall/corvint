@@ -70,7 +70,7 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:869-935@418d181e`; its
+- `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:869-936@94cce29d`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:746-751@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:511@f024c3ab`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls

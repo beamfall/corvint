@@ -58,7 +58,8 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
 - `EAF-V0-007`: Native Corvint and its selected Go provider MUST observe Git status only through
   private metadata, under GPK-V0-009 and the existing isolated-status boundary. This includes the
   two ordinary kernels and status seams in genesis, affected selection, parent verification,
-  worksource acquisition/materialization and dashboard authority validation. Configured clean or
+  worksource acquisition/materialization and dashboard authority validation (amended by decision
+  0594: the worksource seam was deleted with `internal/worksource` on 2026-11-11). Configured clean or
   process filters MUST NOT execute, including same-size dirty tracked-file edits, and a configured
   `core.fsmonitor` hook MUST NOT execute even when the caller's Git runner adds no override. A `.git`
   pointer file is read as Git reads it, with every trailing CR and LF stripped, so a CRLF pointer is

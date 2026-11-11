@@ -197,7 +197,7 @@ bytes never change. V0 and V1 records and runs without `--provider` are unchange
 | `EEP-V2-011` | `internal/extevidence/testdata/conformance-path/` | `TestSelectionConformance`, `TestSelectionEvaluation` |
 | `EEP-V2-012` | `checkScope2`; `pathTest`, `scopeTest`, `descendants` in `selection.go`; `held` in `repository.go` | `TestSelectionConformance`, `TestPathScope` |
 | `EEP-V2-013` | `touchesChanged`, `touched` in `selection.go` | `TestSelectionConformance`, `TestPathScope` |
-| `EEP-V2-014`, `EEP-V2-015` | `Schema3`, `Decode3`, `checkNarrowing3` in `record1.go`; `decodeProvider`, `narrowEndpoint` in `internal/breakagemap/compile.go` | `TestEndpointSpanSymbolV3`, `TestPathRecordStrict`, `TestBreakageProviderV3SpanSymbol` |
+| `EEP-V2-014`, `EEP-V2-015` | `Schema3`, `Decode3`, `checkNarrowing3` in `record1.go`; `decodeProvider`, `narrowEndpoint` in `internal/breakagemap/compile.go` (removed) | `TestEndpointSpanSymbolV3`, `TestPathRecordStrict`, `TestBreakageProviderV3SpanSymbol` (removed) |
 
 ## Unresolved decisions and promotion or kill criteria
 
