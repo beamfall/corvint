@@ -79,6 +79,46 @@ R38 testing order. It builds on `canonical-test-id` (V1-5398, ctid lane head `9f
     2418 files as 1,991,507 bytes in 0.54 s, a quarter of the 8 MiB cap. `affected --summary` on
     this tree reports seven declared instances, all `inventory-absent`.
 
+## Review fixes (round 1)
+
+An independent review found two P2 defects and three P3s; all are fixed in new commits.
+
+1. **Repeated unmapped Go ID (P2).** Two unreadable `_test.go` files in one package each gave
+   `go:<dir>` with `test-id-unmapped`. `testid.List` does not suffix an ID that carries a reason,
+   so the record repeated the ID, `validate` refused it, and refresh reported
+   `inventory-unavailable` for every runner. A repeated unmapped ID now collapses into its first
+   entry, and every file stays in `files`. Ordinary IDs are still validated as unique.
+   Test: `TestTIVV1004GoUnmappedFilesCollapse`.
+2. **Custom test-file patterns (P2).** Candidates knew only each runner's default names, so a new
+   test file under a Vitest `include`, a Jest `testMatch`, a Playwright `testMatch` or a pytest
+   `python_files` pattern left the instance fresh. The design keeps "a file with no test is still
+   listed", so the fix widens what is listed and adds no wire field to the inventory.
+   - Detection scans the executing instance's config for a member that may move its test names
+     (spec Surfaces lists them). It also flags a relative JavaScript import and an unreadable
+     config. `Declared.Pattern` records what it found.
+   - For such an instance the candidates are every file of the runner's language under the root,
+     and refresh binds each of them.
+   - A changed or new one is unassigned, and the verdict's existing `cause` member names the config
+     and the pattern.
+
+   Unassigned rather than stale keeps TIV-V1-008's per-file rule: the record shows which files held
+   no test, and only a file outside it runs. The lister versions are unchanged because no inventory
+   has been published under the old candidate rule. Playwright `testDir` is not a pattern: it only
+   narrows. Remaining limits are in the spec's Known limits line. Tests:
+   `TestTIVV1008CustomPatternFailsClosed` (one fixture each for Vitest, Jest, Playwright and pytest,
+   plus a relative import and a default-config control) and
+   `TestTIVV1005CustomPatternRecordsEveryLanguageFile`.
+3. **Subdirectory root (P3).** `ls-files` listed paths relative to `--root` while `diff-files`
+   named them from the top level. Both `ls-files` calls now pass `--full-name`. The working-tree
+   reader also refuses a root that is not the Git top level, because reading files below a
+   subdirectory root by top-level names would be wrong. For `affected --worktree` and `watch`
+   such a root now judges the inventory `inventory-invalid`. Test:
+   `TestTIVV1005WorkTreeRefusesSubdirectoryRoot`.
+4. **Final drift check (P3).** Refresh runs one more drift check just before the write, so a filter
+   that selects no instance still checks. The source digest leaves out
+   `.corvint/.test-inventory-*.tmp`. Tests: `TestTIVV1010FinalDriftCheckBeforeWrite` and
+   `TestTIVV1010TemporaryInventoryFileIsNotDrift`.
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent
