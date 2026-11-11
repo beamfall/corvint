@@ -4443,7 +4443,7 @@
     "path": "docs/specs/compatibility-promise-v1.md",
     "title": "Compatibility Promise V1",
     "reqPrefix": "CMP-V1",
-    "intent": "accepted (decision 0596, 2026-11-10)",
+    "intent": "accepted automatically under G14 (decision 0596, 2026-11-10; V1-5434)",
     "delivery": "experimental",
     "claim": "One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable or preview, and only a surface a named contract test covers is stable.",
     "dependsOn": [],

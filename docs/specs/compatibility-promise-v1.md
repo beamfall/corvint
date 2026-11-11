@@ -3,7 +3,7 @@
 
 Owner: Russell Lewis
 Date: 2026-11-11
-Intent status: accepted (decision 0596, 2026-11-10)
+Intent status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5434)
 Delivery status: experimental
 Authoritative inputs: change folder `docs/specs/openspec/changes/compatibility-promise/` (the
 proposal, design and spec delta this file was created from); owner decisions D10 and D10a
@@ -12,7 +12,7 @@ proposal, design and spec delta this file was created from); owner decisions D10
 
 ## Agent digest
 - Claim: One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable or preview, and only a surface a named contract test covers is stable.
-- Status: accepted (decision 0596, 2026-11-10) / experimental
+- Status: accepted automatically under G14 (decision 0596, 2026-11-10; V1-5434) / experimental
 - Exists: this spec and the task 2.1 surface list in `docs/build-log/2026-11-11-compatibility-promise.md`: 7 of 22 CMP-V1-003 surfaces have a contract test.
 - Blocked on: an owner decision, because the CMP-V1-003 stop rule applied (fewer than half tested); no table, generator or check is written.
 - Read next: Requirements; Failure modes; Rollback.
@@ -28,8 +28,9 @@ one table in `docs/COMPATIBILITY.md` with a `stable` or `preview` column, and no
 Non-goals:
 
 - no promise for MCP input and output schemas, Go packages, the index or any cache;
-- no new contract test written only to widen the promise: a surface without a test is not stable
-  in 1.0;
+- no contract test for a surface that does not ship from this repository: a surface without a
+  test is not stable in 1.0, and a listed surface that does not exist yet or that another
+  repository owns is `not-promised`;
 - no label rename and no wire change;
 - no promise beyond 1.x;
 - no second release-note check: a preview change without a release note is caught by the release
@@ -37,44 +38,50 @@ Non-goals:
 
 ## Requirements
 
-- `CMP-V1-001`: (accepted, decision 0596; V1-5434) `docs/COMPATIBILITY.md` MUST hold the 1.x
-  compatibility promise as one table with one row per surface and a stability column whose value
-  is `stable` or `preview`. A surface that has no row MUST be treated as `preview`. (decided
-  2026-11-09 under R42, D10 and D10a)
-- `CMP-V1-002`: (accepted, decision 0596; V1-5434) A row MUST be `stable` only when a contract test
-  covers the surface, and the row MUST name that test. The stable rows MUST be generated from the
-  existing contract tests; a row MUST NOT be written by hand. A check MUST fail, naming the row,
-  when a stable row names a contract test that does not exist, and regenerating the table with the
-  contract tests unchanged MUST leave `docs/COMPATIBILITY.md` byte-identical. (decided 2026-11-09
-  under R42, D10)
-- `CMP-V1-003`: (accepted, decision 0596; V1-5434) The stable set MUST be exactly these surfaces,
-  each subject to CMP-V1-002: (1) the supported-command tables of `corvint`, `corvint-docs` and
-  `corvint-tasks`: verbs, flags and exit codes; (2) the documented `--json` fields of these
-  formats: flow file, plan, test-run receipt, run evidence, ticket schema v1 and receipt reference
-  v1; (3) the documented files under `.corvint/` and in the Tasks store; (4) the action's inputs
-  and outputs, the action's major tag, and the Corvint version range that each agent package
-  declares; (5) the MCP tool names in the tool table. The label of each format in item 2 MUST be
-  read from the code before its row is written. A listed surface with no contract test gets no
-  `stable` row, and the change's build-log entry names the gap. If fewer than half of these
-  surfaces have a contract test, the lane MUST stop and report that to the owner before it writes
-  the table. (decided 2026-11-09 under R42, D10 and D10a)
-- `CMP-V1-004`: (accepted, decision 0596; V1-5434) A `stable` surface MUST change only by addition
-  within 1.x: a 1.x release that adds a field to a stable `--json` format keeps every documented
-  field's name, type and meaning. Removing or renaming a stable verb, flag, field, file, input,
-  output or tool name MUST be announced one minor release before it happens, and the old name
-  MUST keep working as an alias, with a deprecation notice, during that release. (decided
-  2026-11-09 under R42, D10 and D10a)
-- `CMP-V1-005`: (accepted, decision 0596; V1-5434) `docs/COMPATIBILITY.md` MUST list these as
-  `preview`, by name: `corvint-feature-map/0`, `corvint-data-map/0`, `corvint-change-report/0`,
-  `corvint-review-check/0`, `corvint-flow-link-proposals/0`, `corvint-harness-event/0`, the MCP
-  input and output schemas, the Go packages, the index and every cache. A `preview` surface MAY
-  change in any release, and the release notes MUST name the change. An MCP tool name can be
-  `stable` while its input schema is `preview`. (decided 2026-11-09 under R42, D10 and D10a)
-- `CMP-V1-006`: (accepted, decision 0596; V1-5434) No profile label MUST be renamed at 1.0. The
-  digit in a label is part of the name and MUST NOT be read as a stability mark; the stability
-  column of CMP-V1-001 carries that meaning. A breaking change to a stable profile MUST take the
-  next digit, and the old profile MUST be served for one minor release. (decided 2026-11-09 under
-  R42, D10a)
+- `CMP-V1-001`: (accepted automatically under G14, decision 0596; V1-5434) `docs/COMPATIBILITY.md`
+  MUST hold the 1.x compatibility promise as one table with one row per surface and a stability
+  column whose value is `stable`, `preview` or `not-promised`. A surface that has no row MUST be
+  treated as `preview`. (decided 2026-11-09 under R42, D10 and D10a) (amended 2026-11-11 by the
+  orchestrator under the owner's 2026-11-02 delegation: `not-promised` rows;
+  `docs/build-log/2026-11-11-compatibility-promise.md`)
+- `CMP-V1-002`: (accepted automatically under G14, decision 0596; V1-5434) A row MUST be `stable`
+  only when a contract test covers the surface, and the row MUST name that test. The stable rows
+  MUST be generated from the existing contract tests; a row MUST NOT be written by hand. A check
+  MUST fail, naming the row, when a stable row names a contract test that does not exist, and
+  regenerating the table with the contract tests unchanged MUST leave `docs/COMPATIBILITY.md`
+  byte-identical. (decided 2026-11-09 under R42, D10)
+- `CMP-V1-003`: (accepted automatically under G14, decision 0596; V1-5434) The stable set MUST be
+  exactly these surfaces, each subject to CMP-V1-002: (1) the supported-command tables of `corvint`,
+  `corvint-docs` and `corvint-tasks`: verbs, flags and exit codes; (2) the documented `--json`
+  fields of these formats: flow file, plan, test-run receipt, run evidence, ticket schema v1 and
+  receipt reference v1; (3) the documented files under `.corvint/` and in the Tasks store; (4) the
+  action's inputs and outputs, the action's major tag, and the Corvint version range that each agent
+  package declares; (5) the MCP tool names in the tool table. The label of each format in item 2
+  MUST be read from the code before its row is written. A listed surface with no contract test gets
+  no `stable` row, and the change's build-log entry names the gap. A listed surface that does not
+  ship from this repository yet, or that another repository owns, gets a `not-promised` row that
+  names the change or repository it waits on. If fewer than half of these surfaces have a contract
+  test, the lane MUST stop and report that to the owner before it writes the table. (decided
+  2026-11-09 under R42, D10 and D10a) (amended 2026-11-11 by the orchestrator under the owner's
+  2026-11-02 delegation: `not-promised` rows; `docs/build-log/2026-11-11-compatibility-promise.md`)
+- `CMP-V1-004`: (accepted automatically under G14, decision 0596; V1-5434) A `stable` surface MUST
+  change only by addition within 1.x: a 1.x release that adds a field to a stable `--json` format
+  keeps every documented field's name, type and meaning. Removing or renaming a stable verb, flag,
+  field, file, input, output or tool name MUST be announced one minor release before it happens, and
+  the old name MUST keep working as an alias, with a deprecation notice, during that release.
+  (decided 2026-11-09 under R42, D10 and D10a)
+- `CMP-V1-005`: (accepted automatically under G14, decision 0596; V1-5434) `docs/COMPATIBILITY.md`
+  MUST list these as `preview`, by name: `corvint-feature-map/0`, `corvint-data-map/0`,
+  `corvint-change-report/0`, `corvint-review-check/0`, `corvint-flow-link-proposals/0`,
+  `corvint-harness-event/0`, the MCP input and output schemas, the Go packages, the index and every
+  cache. A `preview` surface MAY change in any release, and the release notes MUST name the change.
+  An MCP tool name can be `stable` while its input schema is `preview`. (decided 2026-11-09 under
+  R42, D10 and D10a)
+- `CMP-V1-006`: (accepted automatically under G14, decision 0596; V1-5434) No profile label MUST be
+  renamed at 1.0. The digit in a label is part of the name and MUST NOT be read as a stability mark;
+  the stability column of CMP-V1-001 carries that meaning. A breaking change to a stable profile
+  MUST take the next digit, and the old profile MUST be served for one minor release. (decided
+  2026-11-09 under R42, D10a)
 
 ## Failure modes
 
