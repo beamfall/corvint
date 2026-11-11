@@ -17,21 +17,31 @@ import (
 // pathContextEvidenceReads bounds the retained test-evidence reads of one path brief.
 const pathContextEvidenceReads = 512
 
-// isPathContext reports whether the `context` arguments ask for the path brief (TBC-V1-009).
+// isPathContext reports whether the `context` arguments ask for the path brief (TBC-V1-009). It
+// looks only where a flag can stand: the value that follows another flag is that flag's own, so
+// task text that begins with `--path=` still asks for the task form.
 func isPathContext(rest []string) bool {
-	return slices.ContainsFunc(rest, func(argument string) bool {
-		return argument == "--path" || strings.HasPrefix(argument, "--path=")
-	})
+	for index := 0; index < len(rest); index++ {
+		token := rest[index]
+		if token == "--path" || strings.HasPrefix(token, "--path=") {
+			return true
+		}
+		if argparseOptionLike(token) && token != worktreeOverlayFlag && !strings.Contains(token, "=") {
+			index++
+		}
+	}
+	return false
 }
 
 // parsePathContextArguments reads `context --path PATH [--path PATH ...]`. The path brief takes
 // no ticket, task text or change range, so every other argument is refused (TBC-V1-009).
 func parsePathContextArguments(options taskContextOptions, rest []string) (taskContextOptions, error) {
 	for index := 0; index < len(rest); index++ {
-		if !argparseOptionLike(rest[index]) {
+		// The flag is split from an inline value first, so that a path with a space is a path.
+		flag, value, inline := strings.Cut(rest[index], "=")
+		if !argparseOptionLike(flag) {
 			return options, pathContextRangeRefusal("a task text")
 		}
-		flag, value, inline := strings.Cut(rest[index], "=")
 		switch flag {
 		case "--path":
 		case "--task", "--base":
