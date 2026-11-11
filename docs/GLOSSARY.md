@@ -116,7 +116,7 @@ An unqualified `ADVISORY` in prose is a defect in that prose.
 **Normative definition.** A bounded, valid, non-error result stating that the profile declined to
 produce a witness or a closing relation for a named subject, together with the exact reason. An
 abstention is a result, never a missing field and never a failure
-(`docs/MCP-SERVER.md:110-111@a1ba8f57`).
+(`docs/MCP-SERVER.md:57-58@55b2a475`).
 
 **Owning contract.** *Proposal:* none exists; each profile names its own field. This file is the
 cross-profile definition and the following table is the mapping between the field names.
@@ -125,7 +125,7 @@ cross-profile definition and the following table is the mapping between the fiel
 
 | Surface | Field | Values | Citation |
 |---|---|---|---|
-| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:626@e32959ff`; `docs/MCP-SERVER.md:155@84842141` |
+| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:626@e32959ff`; `docs/MCP-SERVER.md:73@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:272,275@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
 | TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:135@b607a27b` |
 | TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:136@902d0f8a` |
@@ -135,7 +135,7 @@ normative for the whole vocabulary: `abstained` means the inputs could not be ev
 subject stays unknown (`docs/specs/lexical-relevance-floor-v0.md:69-71@781e744f`); `rejected` means the
 inputs were evaluable and did not meet the floor (`:72@1522c636`). *Proposal:* every profile that today has
 only a two-value abstention field states which of the two LRF senses its `ABSTAINED` carries, or
-splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:113-115@4dcf1137`).
+splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:61-63@4dcf1137`).
 
 ### `NONE`
 
