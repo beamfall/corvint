@@ -28,7 +28,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
     description or a property with none. No tool is removed without a strict-subset fixture test.
 - [x] 11 Remove `docs_recommend_tests` and point descriptions to `corvint mcp` (DMF-V1-009; R42 B2).
     Proof: `tools/list` golden without the tool and a test that descriptions name `corvint mcp`.
-- [ ] 12 Error shape (DMF-V1-010). Proof: tests for a busy server, a cancelled call, a child failure
+- [x] 12 Error shape (DMF-V1-010). Proof: tests for a busy server, a cancelled call, a child failure
     with stderr and an invalid argument, each checking `code`, `message`, `retryable` and `next`.
 - [ ] 13 Artifact reload (DMF-V1-011). Proof: test that rebuilds the artifact between two calls and
     gets an answer with the new digest; test that a corrupt rebuild is refused with a reason.

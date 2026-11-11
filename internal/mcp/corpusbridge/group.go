@@ -57,15 +57,15 @@ func (group Group) Call(ctx context.Context, name string, arguments map[string]a
 			return nil, protocol.InvalidParams("Invalid params")
 		}
 		if ctx.Err() != nil {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+			return Failure(name, toolgroup.CancelledCode, "the call was cancelled before it finished") // DMF-V1-010
 		}
 	}
 	if (transportErr != nil || toolFailure != nil) && ctx.Err() == nil && callCtx.Err() != nil {
 		return timedFailure(name, "deadline-exceeded", "call did not finish within "+deadline.String()+"; retry with fewer paths", timing)
 	}
 	if transportErr != nil {
-		if transportErr.Code == "cancelled" {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		if transportErr.Code == toolgroup.CancelledCode {
+			return Failure(name, toolgroup.CancelledCode, "the call was cancelled before it finished") // DMF-V1-010
 		}
 		return timedFailure(name, transportErr.Code, transportErr.Code, timing)
 	}

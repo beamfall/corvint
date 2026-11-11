@@ -104,7 +104,8 @@ func TestMMRV01118AffectedSerializesPlannerPerRoot(t *testing.T) {
 	cancel()
 	select {
 	case got := <-third:
-		if got.failure == nil || got.failure.Code != protocol.CodeInternalError {
+		// DMF-V1-010: a cancelled call is the cancelled tool error, not -32603.
+		if got.failure != nil || got.result["isError"] != true || got.result["structuredContent"].(map[string]any)["code"] != CancelledCode {
 			t.Fatalf("cancelled waiter: %#v %#v", got.result, got.failure)
 		}
 	case <-time.After(10 * time.Second):
