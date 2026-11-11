@@ -110,6 +110,12 @@ Copying the partitioner instead would make two sources of truth for CI shard pla
   are imported widely), 50 `LANGUAGE_FRONTIER`, `NO_SELECTABLE_TEST` for the four new packages
   (no test files of their own; their code runs under the unchanged tests of the packages they
   came from) and two `UNSELECTED_BINARY_CONSUMER` of `corvint-js-test-provider`.
+- `make changed-checks BASE=b55635262…`: ok after repinning 30 spec citations (25 mechanical,
+  five re-pointed at `internal/jstestreceipt/projection.go`) and declaring the four new packages
+  in `.corvint/test-read-scopes.json`. `make windows-vet`: clean.
+  `script/repin-use-case-receipts.sh --check`: all 11 receipts current.
+- `make doc-gates`: 37 gates passed and none failed before the 580 s lane bound stopped it
+  inside `selection-contract` (every case it reached passed); the rest is NOT_RUN.
 - NOT_RUN: the 303 selected units that are not directly changed (including `cmd/corvint`), and
   the two declared binary consumers; `make gate` (not requested).
 
