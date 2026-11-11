@@ -225,6 +225,8 @@ func topicText(topic string) string {
 		return watchHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
+	case "instructions":
+		return instructionsHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
 	case "init", "adopt":
@@ -261,6 +263,7 @@ Commands:
     affected  affected-test plan
     cem  Change Evidence Map tool
   Experimental, context and review:
+    instructions  instruction load set of a tracked file (IID-V0)
     review  change review: affected plan and branch overlap (RGV-V0)
     docs  source-derived documentation (SDD-V0)
     flows  application flows and assertions (AFU-V0)
@@ -284,10 +287,10 @@ Global options:
 Support boundary:
   Experimental verbs carry no stability promise; parentheses name the owning spec.
   Internal and historical verbs stay callable but unlisted (corvint help --json).
-  Local-only; no network or telemetry. init, adopt, feature and impact are
+  Local-only; no network or telemetry. init, adopt and impact are
   qualified on Darwin and Linux only.
   init, adopt, impact and docs read without mutating repository or trace
-  state. impact, feature, docs and index best-effort append a bounded row to
+  state. impact, docs and index best-effort append a bounded row to
   the self-observation ledger (.corvint/self-observations.jsonl) on an
   unsupported-* failure; a ledger storage failure never alters the response.
   cem begin, prepare, cite and mark write local CEM artifacts; cem report,

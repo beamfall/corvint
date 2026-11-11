@@ -19,8 +19,8 @@ import (
 func packReadInvocations(root string) [][]string {
 	invocations := [][]string{
 		{"--root", root, "impact", "cache/demux.go", "cache/demux_test.go"},
-		{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
-			"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"},
+		{"--root", root, "instructions", "--subject", "cache/demux.go", "--host", "codex",
+			"--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"},
 	}
 	for _, path := range []string{"cache/demux.go", "cache/demux_test.go", "go.mod", "testing/features.yaml"} {
 		invocations = append(invocations, []string{"--root", root, "impact", path})

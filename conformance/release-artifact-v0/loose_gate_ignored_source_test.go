@@ -27,7 +27,7 @@ func main() {
 	case len(os.Args) > 1 && os.Args[1] == "--version":
 		os.Stdout.WriteString("Fixture 1 (build " + build + ")\n")
 	case len(os.Args) > 3 && os.Args[3] == "context":
-		os.Stdout.WriteString("{\"profile\":\"corvint-path-brief/0\",\"paths\":[{\"sections\":[{\"name\":\"instructions\",\"state\":\"OBSERVED\"}]}]}\n")
+		os.Stdout.WriteString("{\"profile\":\"corvint-path-brief/1\",\"paths\":[{\"sections\":[{\"name\":\"instructions\",\"state\":\"OBSERVED\"}]}]}\n")
 	default:
 		os.Stdout.WriteString("marks=" + marks + "\n")
 	}

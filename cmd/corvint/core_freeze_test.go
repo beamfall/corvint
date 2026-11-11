@@ -173,7 +173,7 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 		{"context path", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "context", "--path", "pkg/main.go"}
 		}, 0,
-			map[string]any{"profile": "corvint-path-brief/0", "ok": absentMember{}, "mutates": absentMember{}}},
+			map[string]any{"profile": "corvint-path-brief/1", "ok": absentMember{}, "mutates": absentMember{}}},
 		{"impact path", func(t *testing.T) []string {
 			return []string{"--root", impactCLIRepository(t), "impact", "pkg/main.go"}
 		}, 0,
@@ -511,7 +511,7 @@ func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "add", "main.go")
-	for _, arguments := range [][]string{{"index"}, {"context", "--subject", "main.go", "--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", ".", "--instruction-profile", "default"}, {"impact", "main.go"}} {
+	for _, arguments := range [][]string{{"index"}, {"instructions", "--subject", "main.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", ".", "--profile", "default"}, {"impact", "main.go"}} {
 		t.Run(arguments[0], func(t *testing.T) {
 			t.Parallel()
 			code, stdout, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...)
@@ -587,7 +587,7 @@ func checkPromisorObjectRefusals(t *testing.T) {
 		objects, arguments []string
 	}{
 		{sparse, outsideCone, []string{"index"}},
-		{sparse, outsideCone, []string{"context", "--subject", "pkg/main.go", "--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", ".", "--instruction-profile", "default"}}, {sparse, outsideCone, []string{"impact", "pkg/main.go"}},
+		{sparse, outsideCone, []string{"instructions", "--subject", "pkg/main.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", ".", "--profile", "default"}}, {sparse, outsideCone, []string{"impact", "pkg/main.go"}},
 		{full, baseBlob, []string{"impact", "--base", base}},
 	}
 	for _, test := range cases {

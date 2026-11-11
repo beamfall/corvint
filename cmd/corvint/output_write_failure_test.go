@@ -39,8 +39,8 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 			name: "instruction load set",
 			root: taskContextRepository,
 			args: func(root string) []string {
-				return []string{"--root", root, "context", "--subject", "cache/demux.go", "--instruction-host", "codex",
-					"--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default"}
+				return []string{"--root", root, "instructions", "--subject", "cache/demux.go", "--host", "codex",
+					"--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"}
 			},
 		},
 		{

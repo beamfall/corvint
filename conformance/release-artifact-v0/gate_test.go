@@ -157,7 +157,7 @@ func TestDivergenceLocatesFirstDifferingByte(t *testing.T) {
 }
 
 func TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged(t *testing.T) {
-	body := `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`
+	body := `{"profile":"corvint-path-brief/1","paths":[{"sections":[{"name":"instructions","state":"OBSERVED"}]}]}`
 	passed := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, body, "OBSERVED")
 	if passed.Status != statusPass || !passed.QueryOK {
 		t.Fatalf("clean query failed: %+v", passed)
@@ -166,7 +166,7 @@ func TestQueryMustResolveExpectedIntentAndLeaveRepositoryUnchanged(t *testing.T)
 	if mutated.Status != statusFail || !strings.Contains(mutated.Reason, "mutated") {
 		t.Fatalf("mutation not caught: %+v", mutated)
 	}
-	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"profile":"corvint-path-brief/0","paths":[{"sections":[{"name":"instructions","state":"NOT_OBSERVED"}]}]}`, "OBSERVED")
+	wrong := classifyQuery(SmokeReport{Status: statusPass, RepositoryUnchanged: true}, `{"profile":"corvint-path-brief/1","paths":[{"sections":[{"name":"instructions","state":"NOT_OBSERVED"}]}]}`, "OBSERVED")
 	if wrong.Status != statusFail {
 		t.Fatalf("wrong intent accepted: %+v", wrong)
 	}

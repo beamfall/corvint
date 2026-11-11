@@ -8,7 +8,7 @@ Build tasks in order, one commit each. Each names its requirement IDs and its pr
       `feature`, `features`, `overview`, help text, integration skills and commands, process docs,
       and the CCF-V1 `context --task` row and goldens (CCF-V1-002, TCP-V0 retired). Proof: build,
       vet, focused `cmd/corvint` freeze tests.
-- [ ] 2 Re-home the instruction doctor as `corvint instructions` with the `context --instruction-*`
+- [x] 2 Re-home the instruction doctor as `corvint instructions` with the `context --instruction-*`
       alias, and reduce the path brief to three sections (IID-V0-001, TBC-V1-009 to TBC-V1-011).
       Proof: focused `cmd/corvint` and `internal/pathbrief` tests.
 - [ ] 3 Delete the context bench layer and its inventory rows (RBD-V0, CWT-V0, HNE-V0, CEP-V0,

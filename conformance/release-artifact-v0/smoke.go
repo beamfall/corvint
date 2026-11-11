@@ -77,7 +77,7 @@ func classifyQuery(report SmokeReport, output, expectedState string) SmokeReport
 		report.Reason = "query output is not JSON: " + truncate(output)
 		return report
 	}
-	if decoded.Profile == "corvint-path-brief/0" && len(decoded.Paths) > 0 {
+	if decoded.Profile == "corvint-path-brief/1" && len(decoded.Paths) > 0 {
 		for _, section := range decoded.Paths[0].Sections {
 			if section.Name == "instructions" {
 				report.QueryIntent = section.State

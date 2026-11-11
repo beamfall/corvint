@@ -59,6 +59,46 @@ func TestInstructionDoctorFlagsAndWire(t *testing.T) {
 	}
 }
 
+// TestInstructionsVerbMatchesTheAlias is IID-V0-001: corvint instructions and the context alias
+// print the same instruction_load_set, only the alias prints the deprecation line, and a missing
+// --cwd refuses with exit 2.
+func TestInstructionsVerbMatchesTheAlias(t *testing.T) {
+	root := taskContextRepository(t)
+	run := func(args ...string) (int, string, string) {
+		t.Helper()
+		var out, stderr bytes.Buffer
+		code := runContext(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &out, &stderr)
+		return code, out.String(), stderr.String()
+	}
+	code, verb, verbErr := run("instructions", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default")
+	if code != 0 || verbErr != "" {
+		t.Fatalf("instructions: exit %d stderr %q", code, verbErr)
+	}
+	code, alias, aliasErr := run("context", "--subject", "cache/demux.go", "--instruction-host", "codex", "--instruction-host-version", "0.153.2", "--instruction-cwd", "cache", "--instruction-profile", "default")
+	if code != 0 || alias != verb {
+		t.Fatalf("alias: exit %d, output differs:\n%s\n%s", code, alias, verb)
+	}
+	if strings.Count(aliasErr, "\n") != 1 || !strings.Contains(aliasErr, "corvint instructions") {
+		t.Fatalf("alias stderr %q, want one deprecation line naming corvint instructions", aliasErr)
+	}
+	before := repositoryListing(t, root)
+	for _, args := range [][]string{
+		{"instructions", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--profile", "default"},
+		{"instructions", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "actual"},
+		{"instructions", "--subject", "cache/demux.go", "--instruction-host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"},
+		{"instructions", "--subject", "cache/demux.go", "--host", "codex", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"},
+		{"instructions", "--task", "inspect", "--subject", "cache/demux.go", "--host", "codex", "--host-version", "0.153.2", "--cwd", "cache", "--profile", "default"},
+		{"instructions"},
+	} {
+		if code, out, _ := run(args...); code != 2 || out != "" {
+			t.Errorf("%v: exit %d stdout %q, want 2 and no output", args, code, out)
+		}
+	}
+	if after := repositoryListing(t, root); before != after {
+		t.Fatal("a refused instructions call mutated the fixture")
+	}
+}
+
 // TestContextTaskPacketIsRemoved is decision 0597: task text, --task, --limit and
 // --worktree-overlay refuse with exit 2 and point at affected and impact.
 func TestContextTaskPacketIsRemoved(t *testing.T) {

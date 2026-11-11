@@ -17,7 +17,7 @@ Goals
 
 1. Find the files to read for a path
    corvint context --path internal/upload/retry.go
-   Output: corvint-path-brief/0: the instructions, tests and requirements
+   Output: corvint-path-brief/1: the instructions, tests and requirements
    linked to the path, each section with its state. Writes nothing; nothing is
    ranked.
 
