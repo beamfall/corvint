@@ -85,16 +85,16 @@ func (r repo) git(args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("git-read-failed")
 	}
-	return b.Bytes(), nil
+	return b.buffer.Bytes(), nil
 }
 
-type limitedBuffer struct{ bytes.Buffer }
+type limitedBuffer struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (b *limitedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > maxOutput {
+	if b.buffer.Len()+len(p) > maxOutput {
 		return 0, errors.New("git-output-limit")
 	}
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 func digest(b []byte) string                         { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 func (r repo) blob(rev, name string) ([]byte, error) { return r.git("show", rev+":"+name) }

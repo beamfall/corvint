@@ -10,10 +10,10 @@ import (
 
 // stdoutBrokenPipeWriter accepts a few bytes then fails every Write, the
 // same shape as a closed pipe or a full disk hitting the success path.
-type stdoutBrokenPipeWriter struct{ bytes.Buffer }
+type stdoutBrokenPipeWriter struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (w *stdoutBrokenPipeWriter) Write(raw []byte) (int, error) {
-	n, _ := w.Buffer.Write(raw[:min(4, len(raw))])
+	n, _ := w.buffer.Write(raw[:min(4, len(raw))])
 	return n, io.ErrClosedPipe
 }
 
@@ -65,7 +65,7 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 			var stderr bytes.Buffer
 			code := runContext(context.Background(), testCase.args(root), strings.NewReader(""), &stdout, &stderr)
 			if code != 2 {
-				t.Fatalf("exit %d, want 2: stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+				t.Fatalf("exit %d, want 2: stdout=%q stderr=%q", code, stdout.buffer.String(), stderr.String())
 			}
 			if !strings.Contains(stderr.String(), `"output-failed"`) {
 				t.Fatalf("stderr missing output-failed envelope: %q", stderr.String())
