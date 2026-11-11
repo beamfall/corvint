@@ -182,7 +182,10 @@ driving Corvint from scripts.
   `corvint affected` and `corvint test` SHALL print that notice in their `DEGRADED` lines. A
   binary built at `HEAD`, or one Corvint cannot judge, SHALL add neither the member nor the line,
   so its output is byte-identical to before. The plan, the selection and the exit status are
-  unchanged in every case.
+  unchanged in every case. Amended by AFP-V0-9730 of `affected-plan-selection-v0.md` (V1-4968):
+  this notice and exit status apply to a `self-binary-stale` binary only with
+  `--accept-stale-binary`; without it both commands refuse with exit 2 and the error code
+  `self-binary-stale`, and a `self-binary-unverified` binary keeps the notice as before.
 - **ACX-V0-751:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
   V1-4039) Each `corvint affected` or `corvint test` invocation SHALL judge its binary once and
   print at most one `DEGRADED` line, the same line on every invocation at the same `HEAD`, and

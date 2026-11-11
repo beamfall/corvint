@@ -65,6 +65,10 @@ type Graph struct {
 	languages  []string
 	frontier   []string
 	frontierBy map[string][]string
+	// frontierSitesBy holds each plugin's Result.FrontierSites: every located
+	// site per plugin-wide reason, so a `+N` entry can be located
+	// (AZU-V0-212). It is no part of the digest.
+	frontierSitesBy map[string]map[string][]string
 	// sourceBound and fixtureClosed hold each plugin's FrontierReach
 	// declaration by reason (AFP-V0-511); a plugin absent from both is
 	// path-open throughout. They classify plugin code, not the observed
@@ -112,8 +116,13 @@ type Graph struct {
 	// priorReadScopes is the read-scope declaration a change is measured
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
-	priorReadScopes      map[string][]string
-	readScopeInputs      *readScopeInputs
+	priorReadScopes map[string][]string
+	readScopeInputs *readScopeInputs
+	// gatedLocatorChanges lists the package directories whose gated
+	// root-locator entries differ between the measured commit and the tree
+	// (TSP-V0-608); nil is unknown. Like priorReadScopes it is a selection
+	// input, not part of the observed graph or its digest.
+	gatedLocatorChanges  []string
 	readScopeTreesDigest string
 	// goAdditive holds the golang plugin's additive-change records, sorted
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
@@ -157,6 +166,18 @@ type Graph struct {
 func (graph *Graph) WithReadScopeBase(prior map[string][]string) *Graph {
 	copied := *graph
 	copied.priorReadScopes = prior
+	return &copied
+}
+
+// WithGatedLocatorChanges returns a copy of graph whose selection bounds an
+// edit to the gated root-locator declaration to directories, the packages
+// whose entries differ between the commit the change is measured from and the
+// tree (TSP-V0-608), seeding each as a changed unit. A nil list is unknown and
+// keeps TSP-V0-003's rule that the edit leaves the plan UNKNOWN; an empty,
+// non-nil list closes an edit that changed no entry.
+func (graph *Graph) WithGatedLocatorChanges(directories []string) *Graph {
+	copied := *graph
+	copied.gatedLocatorChanges = directories
 	return &copied
 }
 
@@ -562,6 +583,26 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 			return fmt.Errorf("%w: empty frontier reason from %s", ErrInvalidLanguage, namespace)
 		}
 		frontier[reason] = true
+	}
+	if len(result.FrontierSites) != 0 {
+		sites := make(map[string][]string, len(result.FrontierSites))
+		for reason, list := range result.FrontierSites {
+			plugin, category, found := strings.Cut(reason, ":")
+			if !found || plugin != namespace || category == "" || strings.Contains(category, ":") {
+				return fmt.Errorf("%w: frontier sites reason %q from %s", ErrInvalidLanguage, reason, namespace)
+			}
+			for _, site := range list {
+				if site == "" || strings.HasPrefix(site, "+") {
+					return fmt.Errorf("%w: frontier site %q of %s from %s", ErrInvalidLanguage, site, reason, namespace)
+				}
+			}
+			sites[reason] = slices.Clone(list)
+			slices.Sort(sites[reason])
+		}
+		if graph.frontierSitesBy == nil {
+			graph.frontierSitesBy = make(map[string]map[string][]string)
+		}
+		graph.frontierSitesBy[namespace] = sites
 	}
 	for _, unit := range result.Units {
 		if err := ctx.Err(); err != nil {

@@ -170,6 +170,7 @@ func (r *guardRepo) guard(target string) (string, []string) {
 // TestAFPV02720GuardNamesOnlyTheNarrowingInputs: a change to a trusted narrowing input under
 // .github/ is reported with its path, and any other .github/ change is not.
 func TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/github-guard.sh", "CIN-V0-8423")
 	testplatform.SkipPOSIXShell(t, "github-guard.sh runs under sh against a real Git repository")
 	r := newGuardRepo(t)
 	for _, tc := range []struct {
@@ -187,8 +188,6 @@ func TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720(t *testing.T) {
 			r.remove(".github/cishards/package-costs.json")
 			r.write(".github/cishards/costs.json", "{}\n")
 		}, []string{".github/cishards/costs.json", ".github/cishards/package-costs.json"}},
-		{"the forward bar workflow", func() { r.write(".github/workflows/ci-forward-bar.yml", "name: bar2\n") }, []string{".github/workflows/ci-forward-bar.yml"}},
-		{"the control plane workflow", func() { r.write(".github/workflows/ci-control-plane.yml", "name: c2\n") }, []string{".github/workflows/ci-control-plane.yml"}},
 		{"a non-ASCII path under forward-rows (AFP-V0-933)", func() { r.write(".github/forward-rows/é.jq", ".\n") }, []string{".github/forward-rows/é.jq"}},
 	} {
 		t.Run("FULL: "+tc.name, func(t *testing.T) {
@@ -196,6 +195,24 @@ func TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720(t *testing.T) {
 			mode, inputs := r.guard(target)
 			if mode != "1" || fmt.Sprint(inputs) != fmt.Sprint(tc.want) {
 				t.Fatalf("guard = %s %q, want 1 %q", mode, inputs, tc.want)
+			}
+		})
+	}
+	// CIN-V0-8423 (V1-5202): the two workflows that run the forward rows and the verdict on main
+	// are mapped to their test packages, not global.
+	for _, tc := range []struct {
+		name string
+		edit func()
+		want string
+	}{
+		{"the forward bar workflow", func() { r.write(".github/workflows/ci-forward-bar.yml", "name: bar2\n") }, ".github/workflows/ci-forward-bar.yml tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"},
+		{"the control plane workflow", func() { r.write(".github/workflows/ci-control-plane.yml", "name: c2\n") }, ".github/workflows/ci-control-plane.yml tools/capabilities-check tools/ci-forward-row tools/ci-reuse-plan"},
+	} {
+		t.Run("mapped: "+tc.name, func(t *testing.T) {
+			target := r.change(strings.ReplaceAll(tc.name, " ", "-"), tc.edit)
+			mode, inputs := r.guard(target)
+			if mode != "mapped" || fmt.Sprint(inputs) != fmt.Sprint([]string{tc.want}) {
+				t.Fatalf("guard = %s %q, want mapped %q", mode, inputs, tc.want)
 			}
 		})
 	}

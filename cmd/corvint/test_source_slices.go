@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/sessiontest"
@@ -494,7 +493,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		return sessiontest.GoSlice{Pattern: "^$", Reason: "selected: no test reaches " + changedIn + "; build and vet only"}
 	}
 	pattern := "^(" + strings.Join(kept, "|") + ")$"
-	if len(pattern) > cishards.MaxPatternBytes {
+	if len(pattern) > sessiontest.MaxPatternBytes {
 		return whole("the -run pattern exceeds the bound")
 	}
 	return sessiontest.GoSlice{Pattern: pattern, Reason: "selected: the tests reaching " + changedIn}

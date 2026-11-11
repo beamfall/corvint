@@ -373,8 +373,8 @@ therefore come from something keyed on content, not from Go's cache.
   tooling is always in the key. A closure that cannot be proven keys on the whole tree, as
   GL-V0-775 states. Rollback: drop the `@deps:`, `@all` and `!` branches of `scopedInputs`.
 - `GL-V0-788`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4193)
-  - `shell-foreign-callers-check` MUST be declared as
-    `@deps:internal/liveverify/affected @all !*.md !*.json !*.jsonl !*.tsv .corvint/*.json`.
+  - `shell-foreign-callers-check` MUST be declared as `@deps:internal/liveverify/affected/liverepo
+    @all !*.md !*.json !*.jsonl !*.tsv .corvint/*.json` (the test moved there for V1-5201).
   - Why that is its full read set: `TestRepositoryShellForeignCallersComplete_TSP_V0_005` reads
     the tracked listing and every source-walk file except `.md`, `.json`, `.jsonl` and `.tsv`
     ones. The walk skips hidden directories. The shell plugin reads its `.sh` and

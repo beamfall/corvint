@@ -73,6 +73,10 @@ V1-5071 (2026-11-08) adds AFP-V0-9600 here for the same reason; see build-log en
 Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
 for the same reason; see build-log entry `2026-11-07-rscope`.
 V1-5174 (2026-11-08) adds AFP-V0-3300 through AFP-V0-3305 for predicate, listing-only tree scopes and per-unit declaration comparison.
+Lane seldis (2026-11-09; V1-4968, V1-4971, V1-4363) adds AFP-V0-9730 to AFP-V0-9732 here for the
+same reason; see build-log entry `2026-11-09-seldis`. Lane seldisfix (2026-11-09, the review of
+seldis) adds AFP-V0-11033, the same refusal for `affected jobs` and `affected audit`; see build-log
+entry `2026-11-09-seldisfix`.
 
 ## User and current state
 
@@ -121,6 +125,33 @@ measure. None of them drops a unit the change can reach.
   parent climbs, globstars, escapes, other expansions, shell pattern extensions
   and heredoc bodies retain the existing conservative relation. Count patterns
   against the existing token bound and retain its frontier if exceeded.
+- **AFP-V0-9129:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5185)
+  In a shell test, an AFP-V0-3333 wildcard path SHALL also name its literal directory
+  prefix (the components before the first wildcard) as a directory fragment in the `/dir/`
+  form, which matches that component at any depth, so a read derived from a matched name
+  (`${f%_test.sh}.tsv`) selects the test for a sibling file. A lone `dir/` token names only
+  a file called `dir` (V1-0290) and SHALL NOT be relied on for that read. No wider fallback is
+  admitted: a derivation outside the glob's directory keeps the conservative relation. A
+  helper source keeps the glob and its conservative tokens alone, because a non-test shell
+  unit bears the foreign-invocation frontier on every unit that reaches it.
+- **AFP-V0-9133:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5193)
+  In a shell test, a bare path operand of a listing or walking command (`ls`; `find` before
+  its first expression word; `du`; `tree`; `rg`, `ag`, `ack` and recursive `grep` after the
+  pattern) made only of name characters SHALL name that directory as a `/dir/` fragment, so
+  a file added to or deleted from the directory selects the test. The plan reads dirty paths
+  without their base-tree status, so it cannot tell an addition from an edit and an edit
+  below the directory selects the test too; narrowing to additions and deletions needs the
+  base status as a plan input and is not admitted here. A helper's bare operands are not
+  named, for the reason AFP-V0-9129 gives.
+- **AFP-V0-9134:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5194)
+  A shell test that walks the tree from its working directory SHALL be an unbounded reader
+  with the reason `shell:tree-walk`, selected on every dirty path: `find` with no path or
+  with `.` or `./`, recursive `grep`, `rg`, `ag` or `ack` with no path or with `.`, `du`,
+  `tree` or `ls -R` likewise. No declaration bounds it. A walker whose operands are literal
+  directories keeps the AFP-V0-9133 fragments; one whose operands are all computed, a private
+  temporary root included, keeps the existing conservative relation; a plain `ls` of the
+  working directory reads one directory's names and is not a walk. A helper that walks the
+  tree stays a bounded source (V1-4283): the test that runs it is selected by its own reads.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -489,7 +520,11 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   roots (`Unit.PlacesFileNames`, AFP-V0-400) keeps the AFP-V0-072 placement test, the CEM rules
   (V1-0230, AFP-V0-931) are unchanged, and a declared read scope still bounds a unit. Rounds 6
   and 7 retained multi-component and file-name runs of a runtime-rooted token; round 8 closes the
-  class by retaining every run. The PR 86 measurement of the withdrawn placement (24 Go readers of
+  class by retaining every run. Amended by lane affprec2 (V1-5201, 2026-11-09): one root is
+  proven to hold no checkout file, a test-scoped temporary directory, so `AFP-V0-9810` in
+  `affected-reader-precision-v0.md` leaves out of a unit's tokens a literal joined only to
+  `t.TempDir()` or a once-bound local variable rooted there, within one file;
+  every other root keeps this rule. The PR 86 measurement of the withdrawn placement (24 Go readers of
   `internal/jslinecov/testdata/repo/lib.js` became 6) no longer holds: those 24 readers are
   selected again, as before this lane.
 
@@ -646,6 +681,44 @@ protocol, changing digest bytes, and broadening the session unknown allowlist.
   whatever its first witness. Only that witness decides whether the unit raises a parent
   neighbourhood: a declared unit reached by its own source raises one as before, and one reached
   only as a declared or must-run unit raises none.
+
+### Owner rows name the tests that exercise the owned paths (V1-5199)
+
+Human-owned intent (test-selection audit 2026-11-09, lane e2ejoin): this repository's
+`.corvint/test-selection.json` held 186 owner rows, 185 of which named only the ownership audit
+test, `extensions/vscode/**` among them, so a change under such a pattern "owned" the audit alone
+while the tests that live beside the owned paths were reached only through a driver target or not
+at all. An owner row is the project's statement of which tests exercise the owned paths; a row that
+names some other test in their place hides them behind the declaration. Experimental under the
+owner's standing lane auto-accept (2026-10-11).
+
+- **AFP-V0-10329:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-5199) Amending AFP-V0-2482: an owner whose pattern matches a test file some unit of the graph
+  holds covers an exercised path, and that unit is an owner unit of the pattern whether or not the
+  row names one of its tests. For each dirty path the pattern matches, the plan selects it as it
+  selects the named tests (witness `DECLARED_TEST_OWNER`, `glob` the pattern; `declaredOwners`
+  lists it), so a row that names only some other test in their place, such as this repository's
+  ownership audit test, cannot narrow the exercising tests away, and a declaration committed before
+  this rule still plans (the AZU-V0-009 replay reads exact historical trees). A test file with a
+  `testdata`, `fixture` or `fixtures` directory segment is fixture data of the test that reads the
+  tree (the AFP-V0-2440 `testdata` convention and this repository's non-Go fixture trees), not a
+  test of the repository, and never makes a path exercised: a plugin lists it as a unit's test, but
+  no runner of the repository exercises the owned paths through it. The rule only adds owner units;
+  it changes no witness of a unit reached otherwise and removes no unknown. This repository's rows
+  then name the tests the planner selects anyway, and
+  `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329` refuses a row that names only the
+  ownership audit test while a tracked test file outside a fixture tree matches its pattern
+  (test-file suffixes over the tracked listing; nested Go modules excluded, because CI runs their
+  suites outside selection, AFP-V0-2742): a row whose pattern matches no such file keeps naming the
+  audit test, which claims the paths for AZU-V0-002, and the absence of an exercising test is its
+  justification. Rejected alternatives: refusing the graph build for such a row, because the replay
+  and every plan over an older tree then refuse, and the planner can select the tests instead; a
+  `reason` member on owner rows, because a new member of a closed position fails
+  `tools/declaration-compat-check` until the CI planner pin advances, and 185 identical reasons
+  would state less than the check does. Non-goals: inferring which tests exercise a path from
+  anything but the test files the pattern matches; deciding whether a plugin's unit is runnable
+  here. Rollback: remove `exercisingUnits`, `fixtureTest` and the repository test; the owner rows
+  that now name their tests stay valid under AFP-V0-2482 and keep selecting them.
 
 - **AFP-V0-2440:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4446)
   A plugin's claim on a dirty path no unit lists SHALL be a fixture-only claim, not a source claim,
@@ -2747,6 +2820,107 @@ this lane's allowed paths. These facts and the pending integration checks are re
   The caller/mention completeness gate remains mandatory.
   Retired by decision 0594: both dogfood scripts were removed, so the declaration row is gone.
 
+### Selection agreement between `corvint affected` and `corvint test` (lane seldis, 2026-11-09)
+
+- **AFP-V0-9730:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4968; amends AFP-V0-846, AFP-V0-871, ACX-V0-750 and ACX-V0-751) When the AFP-V0-846 judgement
+  of its own binary is `self-binary-stale`, `corvint affected` (every form: the compact and
+  `--full` plan, `--summary`, `--by-path`, `--snapshot`, `--format text`; the `jobs` and `audit`
+  subcommands by AFP-V0-11033) and `corvint test`
+  SHALL refuse with exit 2 and the error code `self-binary-stale`, writing no plan, manifest or
+  run to stdout: the stale binary's selection engine differs from the analyzed checkout's and its
+  plan may select fewer tests than the checkout's own build gives, so it is never returned
+  silently. The error message SHALL carry the AFP-V0-846 detail and one `fix:` clause naming the
+  rebuild (`go install ./cmd/corvint`), the uninstalled build (`go run ./cmd/corvint affected ...`
+  or `... test ...`) and the opt-in. The flag `--accept-stale-binary`, accepted once and without
+  a value by both commands, SHALL restore the AFP-V0-846 degraded behaviour unchanged (exit as
+  before, the `degradations` and `degradationDetails` members, the `DEGRADED` line and the
+  AFP-V0-871 merged-stream rule), so a deliberate replay of one binary over historical trees
+  (`tools/selection-baseline`, `tools/affected-edit-oracle`) still runs and still marks its plans.
+  `self-binary-unverified` is not refused: it keeps the degradation, because a 2-second Git
+  deadline on a loaded host or a stamped commit absent from this clone is not evidence that the
+  selection differs (retained limit: an absent commit may hide a stale binary; `script/lane-binary-check.sh`
+  judges it separately). A binary built at `HEAD`, or one Corvint cannot judge, is unchanged.
+  Consumers that build the planner from the checkout (`make shell-test-affected`, the CI
+  selector) see no change; `script/gate-affected.sh` and `tools/corvint-pr-tests` treat the exit
+  2 as a planner failure and already run everything. Failure mode: a lane with an installed
+  binary from another commit must rebuild or pass the flag before any plan is printed; the
+  message says so.
+- **AFP-V0-9731:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4971; amends AFP-V0-035, AFP-V0-990, AFP-V0-928 and AFP-V0-9451) Each `affected-plan/1`
+  selection and each `affected-by-path/1` shared or added unit SHALL carry, beside `testCount`
+  (the AFP-V0-9451 count of runnable top-level tests for a Go unit, the length of `tests`
+  otherwise), the member `testFileCount`: the length of the `--full` plan's `tests` list for the
+  unit, the observed test files, which `testCount` replaced before AFP-V0-9451 and which
+  selected-versus-run reporting must not mistake for a test count. Their `--format text` lines
+  SHALL read `tests=N test-files=M`. `testCount` for a Go unit SHALL equal the number of names
+  `go test -list .` prints for the package less its benchmarks, on a fixture holding tests, a
+  lowercase helper, a benchmark, a fuzz target, examples with and without output and `TestMain`.
+  The `--full` plan is unchanged. The member is an optional addition under CCF-V1-006; the
+  core-freeze golden `affected-committed-range.json` is regenerated for it.
+- **AFP-V0-9732:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-4363; pins AFP-V0-2402 on its originating range) The V1-4361 range (base
+  `ea09e3db5565637336f482a308f18ae2b08f33b2`, head `2f4447b3ce53c30bd9e2ce35eb3280bc1fc6c103`,
+  nine files) SHALL be replayed in a private repository built from this repository's own history
+  by `git archive`, and `corvint test --dry-run` on it SHALL run exactly the Go packages
+  `corvint affected --base` selects: no extra, no omission, a `NARROWED` manifest and a plan far
+  below the 2026-11-03 observation (24 extras over 91 units, replayed here as 100 = 100). Where a
+  commit is absent the test skips and the replay is `NOT_RUN`. Where it runs (recorded by lane
+  seldisfix, 2026-11-09): locally on any clone holding both commits, which are ancestors of `main`;
+  in this repository's CI only in the `go-product-shard` job of `.github/workflows/ci.yml`, whose
+  checkout is `fetch-depth: 0` and whose shards run `go test -race` without `-short`, and there
+  only when `cmd/corvint` is in the shard's run set. The `go-static` job checks out at depth 2 and
+  runs no `cmd/corvint` test; a job on a depth-2 checkout would skip it, so a CI run whose shards
+  omit `cmd/corvint` leaves the replay `NOT_RUN` in CI for that run. The plan's non-Go units (shell,
+  driver, typescript) are not `corvint test`'s to run: the selected shell tests run in the CI
+  `shell-test-selected` job through `make shell-test-affected` (AFP-V0-2401, CIN-V0-2320), which
+  names each selected shell test no step runs.
+- **AFP-V0-11033:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  review of lane seldis, 2026-11-09; amends AFP-V0-9730, AFP-V0-2341 and AFP-V0-445) `corvint
+  affected jobs` and `corvint affected audit` compute a selection with this binary's selector
+  (the job plan from the range's affected plan, the audit by replaying it over each change), so
+  they SHALL apply the AFP-V0-9730 judgement: a `self-binary-stale` binary refuses with exit 2,
+  the error code `self-binary-stale`, the AFP-V0-846 detail and a `fix:` clause naming `go run
+  ./cmd/corvint affected jobs ...` or `... audit ...` and the opt-in, writing no job plan or report
+  to stdout; `jobs` refuses after its plan compiles (an unreadable declaration still exits 3 with
+  the `DECLARATION_INVALID` document, which selects nothing), `audit` before any change is
+  replayed. Both subcommands SHALL accept `--accept-stale-binary` once and without a value, and
+  the accepted or `self-binary-unverified` document SHALL carry the optional members
+  `degradations` (the code) and `degradationDetails` (the code to its ACX-V0-750 notice) in the
+  `corvint-ci-job-plan/0` and `corvint-affected-audit/1` documents, with the `DEGRADED` line on
+  stderr except when stdout and stderr are one stream (AFP-V0-871); exit codes are otherwise
+  unchanged (0 for a plan, the audit's 0, 1 or 3). The members are optional additions; a fresh
+  binary writes neither. `--ownership-audit`, `discovery` and `cache` compute no selection and are
+  unchanged. Failure mode: a lane running `affected jobs` with an installed binary from another
+  commit gets the refusal where it got a plan before, and the message says how to proceed.
+
+### Hub read scopes (V1-5201)
+
+Copied from the OpenSpec change `hub-read-scopes`; the build log entry
+`docs/build-log/2026-11-10-hub-read-scopes.md` records the confined runs and the blockers.
+
+- **AFP-V0-107:** (proposed 2026-11-10; delivery partial; V1-5201)
+  A test that reads the whole repository (it lists the repository root, reads Git metadata, or
+  builds a graph over every package) MUST live in a test package that holds only such tests when
+  its former package declares a read scope. That package MUST be listed in
+  `.corvint/unbounded-readers.json` with its reason. (PROD-TEST-001)
+  Delivered for `internal/liveverify/affected`, whose whole-repository tests moved to
+  `internal/liveverify/affected/liverepo`; `internal/contextindex`,
+  `internal/liveverify/affected/golang` and `cmd/corvint` stay unbounded with recorded blockers.
+- **AFP-V0-108:** (proposed 2026-11-10; delivery delivered; V1-5201)
+  A read scope for a package that leaves the unbounded set MUST be declared only after that
+  package's tests pass under the Landlock wrapper with exactly that scope. The build log MUST name
+  the run. (PROD-TEST-002)
+- **AFP-V0-109:** (proposed 2026-11-10; delivery delivered; V1-5201)
+  A package without a passing confined run MUST stay selected on every change, and the build log
+  MUST NOT count it as freed. (PROD-TEST-002)
+- **AFP-V0-110:** (proposed 2026-11-10; delivery partial; V1-5201)
+  The change MUST record the plan for the diff of pull request 178 from base `2913fdc7e` before and
+  after it, with the selected Go packages and their test counts. A scoped hub MUST be absent from
+  the plan after the change. (PROD-TEST-001)
+  The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
+  `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -2829,6 +3003,13 @@ bound dropped a value the file gives. AFP-V0-3145 does not recognise `[[` after 
 repository script uses either form.
 
 ## Failure modes
+
+For AFP-V0-10329, treating a fixture spec as an exercising test would select units no runner here
+runs on every change under a fixture tree; the fixture-segment convention leaves those units to the
+plugins' own reach, and a fixture tree matched otherwise only over-selects. A test file the
+convention misclassifies as fixture data is not added to its row's owner units, which leaves that
+row as it was before the rule: never fewer selections than before. The rule refuses nothing, so a
+historical declaration plans; the repository check alone refuses an audit-only row here.
 
 For V1-4941, treating every hosted source as data could hide an omitted compiled dependency.
 Only the Swift package manifest gains the metadata exception; ordinary source omissions and
@@ -2996,6 +3177,14 @@ derived from wildcard matches. AFP-V0-3334: `TestTestMetadataReaders_AFPV03334` 
 name-derived reads, escaped handles, shadowed receivers and nested reads.
 The per-unit diagnosis, source audit and measured plans are recorded in
 `docs/build-log/2026-11-08-tsv-readers.md`.
+AFP-V0-9129: the `literal_root` case of `TestShellDerivedGlobReaders_AFPV03333` selects the
+reader for a sibling `.tsv` and keeps the fragment off a helper. AFP-V0-9133:
+`TestShellListingDirectoryOperand_AFPV09133` selects `ls`, `find` and recursive `grep` listers
+for a file added to or deleted from the listed directory and not for one elsewhere.
+AFP-V0-9134: `TestShellTreeWalkerUnbounded_AFPV09134` makes each `.`-rooted walker an
+unbounded reader selected for an added, edited or deleted file anywhere, and keeps
+directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane entry is
+`docs/build-log/2026-11-09-affshell.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
@@ -3037,14 +3226,14 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9312 | `Select`, `gateselect.SelectStructural`, `sessiontest.Build` | `TestUnindexedSwiftFixtureReaders_AFPV09310` in `internal/liveverify/affected/swfix_test.go`; disk/immutable parity and consumer integration; historical replay and limits in `../build-log/2026-11-08-swfix.md` |
 | AFP-V0-2600 | `unownedOutsideRunnerSite`, `frontierUnknowns` in `internal/liveverify/affected/select.go` | `TestUnownedRunnerSiteLocality_AFPV02600`, `TestDeclaredOutputOutsideRunnerSite_AFPV02600`, `TestUnboundedRunnerInputsFailClosed_AFPV02600` (`frontier_unowned_locality_test.go`); `docs/build-log/2026-11-05-affected-unknown-frontier.md` |
 | AFP-V0-548 | `deadlineCode` and its three calls in `internal/liveverify/affected/dirty.go` | `TestAFPV0548DeadlineExpiryIsGitTimeout` in `internal/liveverify/affected/dirty_deadline_test.go` |
-| AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
+| AFP-V0-549 | `selectionBudgetRounds`, `selectionRound`, `measureIncrementalSelection` in `internal/liveverify/affected/liverepo/measure_test.go`; immutable `Graph.tokens` prepared by `finish` | `TestIncrementalSelectionMeetsTheLiveBudget` (three consecutive runs, build log `2026-11-01-aff-w26`); `TestPreparedPathTokensPreserveSelection` (2026-11-05 repair, exact cached/uncached plan parity) |
 | AFP-V0-550 | `affectedWhole`, `withWholePackages`, `testMainSource`, `testMainOf` in `cmd/corvint/affected_whole.go`; `WholePackages` in `cmd/corvint/affected.go`; `cmd/corvint/affected_compact.go` | `TestAFPV0550TestMainChangeMakesThePackageWhole` in `cmd/corvint/affected_whole_test.go` |
 | AFP-V0-551 | `FixturePathMarker`, `fileScan.fixture`, `fixtureOnly`, `scannedLiteral`, `fixtureTokens`, `pathTokens` and `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestAFPV0551FixtureMarkedLiteralsNameNoRead` in `internal/liveverify/affected/golang/fixture_marker_test.go`; before/after counts in build log `2026-11-01-aff-w26` |
 | AFP-V0-552 | `astImports`, `differentialCorpus` in `internal/liveverify/affected/python/differential_test.go` | `TestScanImportsAgreesWithAst_V13322` |
-| AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/replay_v14170_test.go` |
-| AFP-V0-830 | the integrations README listing in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestIntegrationReadmesAreDocumentation_AFP_V0_830` in `internal/liveverify/affected/integration_readme_documentation_repo_test.go`; `script/gen-documentation-paths_test.sh` case 6 |
+| AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/liverepo/replay_v14170_test.go` |
+| AFP-V0-830 | the integrations README listing in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestIntegrationReadmesAreDocumentation_AFP_V0_830` in `internal/liveverify/affected/liverepo/integration_readme_documentation_repo_test.go`; `script/gen-documentation-paths_test.sh` case 6 |
 | AFP-V0-831 | the `fixtureOnly` check on the token loop of `observeDependentModule` in `internal/liveverify/affected/golang/nested.go`; the marker in `tools/local-authority/codec_package_test.go` | `TestNestedModuleHonoursFixtureMarker_AFP_V0_831` in `internal/liveverify/affected/golang/fixture_marker_test.go`; `TestIntegrationReadmesAreDocumentation_AFP_V0_830` (repository plan) |
-| AFP-V0-2200 | `goListScanFile`, `goListArguments`, `importGraphTemplate`, `isolatedList`, `literalEnvironment`, `goListUnits` in `internal/liveverify/affected/golang/importgraph.go`; the `listed` skip in `usedCommandLiterals` (`binaryexecs.go`); `Unit.ImportGraphReads` and `ImportGraphReadsAll` in `unit.go`, `graph.go` and `graphcache.go` | `TestGoListReadersAreImportGraphReaders_AFPV02200` in `internal/liveverify/affected/golang/importgraph_test.go`; `TestRepositoryImportGraphReaders_V14409_V14362` in `internal/liveverify/affected/importgraph_repo_test.go` |
+| AFP-V0-2200 | `goListScanFile`, `goListArguments`, `importGraphTemplate`, `isolatedList`, `literalEnvironment`, `goListUnits` in `internal/liveverify/affected/golang/importgraph.go`; the `listed` skip in `usedCommandLiterals` (`binaryexecs.go`); `Unit.ImportGraphReads` and `ImportGraphReadsAll` in `unit.go`, `graph.go` and `graphcache.go` | `TestGoListReadersAreImportGraphReaders_AFPV02200` in `internal/liveverify/affected/golang/importgraph_test.go`; `TestRepositoryImportGraphReaders_V14409_V14362` in `internal/liveverify/affected/liverepo/importgraph_repo_test.go` |
 | AFP-V0-2201 | `importGraphReadersOf`, `importClosure`, `WitnessImportGraphReader` in `internal/liveverify/affected/importgraph.go`; `terminalWitness` in `select.go` | `TestImportGraphReadersFollowImportSetChanges_AFPV02201` (body-only narrowing; import-added, out-of-closure, `go.mod` and no-comparison controls); `importGraphWitnessResolves` in `measure_test.go`; the fault-injection runs in build-log entry `2026-11-03-selprec-selection-precision` |
 | AFP-V0-2202 | `ImportSetChangesAt`, `ImportSetRecords`, `packageHeader` in `internal/liveverify/affected/golang/importsets.go`; `unknownImportSets`, `ModuleFile`, `GoPackageFile` in `importgraph.go`; `planAffectedGraph` and `affectedMeasuredCommit` in `cmd/corvint/affected.go` | `TestImportSetRecordsCompareHeaders_AFPV02202`, `TestHiddenPackageImportSetSelectsObserver_AFPV02202` in `internal/liveverify/affected/golang/importgraph_test.go` |
 | AFP-V0-2203 | the `goUnit && !resolvedEvidence` any-depth argument of `namesAny` in `readers` and the Go branch of `resolves` in `internal/liveverify/affected/readers.go`; `namesAt`; `namesFileOnlyWithin` only for certified non-Go units | `TestAnchoredTokensResolveFromModuleBases_AFPV02203`, `TestRuntimeRootedRunsKeepComponentRuns_AFPV02203`, `TestRuntimeRootedFileNamesStaySelected_AFPV02203` and `TestRuntimeRootedDirectoryWalkStaysSelected_AFPV02203` (round 8: an `os.Getenv("FIXTURES")+"/repo"` walker and a `filepath.Join` walker stay selected; `/elsewhere` control) in `internal/liveverify/affected/golang/anchored_test.go`; the amended cases of `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`, `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072` and `TestChangeEvidenceReadersAreNarrowed_V1_0230`; `TestReadersMatchesDirtyMajorScan` (certified-unit narrowing) |
@@ -3055,10 +3244,11 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2241 | `parentBackslash` and its additive use in `pathTokens` in `internal/gateselect/readers.go` | `TestRuleCLoneTokens_AFPV02241` (lone, directory-shaped, climbing, prefixed `foo..\notes` and round 9 `split` tokens; `-bounds` keeps `app/prefoo../notes` and `notes`); `TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242` (round 9: the `strings.Split` reader of `foo..\notes` is selected for `notes` in readers, the verdict and `-bounds`, with a `foo..\other` control); the `..\x` cases of `TestFastTierLiteralLexiconDiffers_AFPV0765`; the fail-before runs in build-log entry `2026-11-04-selprec2-round9-additive-lexicon` |
 | AFP-V0-2242 | the test itself; `pathTokens`, `spelledTokens`, `appendSpellings`, `parentBackslash`, `moduleAnchored` and `closesTag` in `internal/gateselect/readers.go`; `literalTokens`, `spelledTokens` and `appendSpellings` in `internal/liveverify/affected/golang/golang.go` | `TestRuleCMatchesThePlanner_AFPV02242` in `internal/gateselect/naming_test.go` (round 6 adds the closing-tag packages; round 8 the walker, joined walker and `prefix` packages; round 9 the `split` and `srcwalk` packages and the unbounded and unresolved sets, with no intended difference); `TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242` and `TestParentBackslashKeepsWrittenTokens_AFPV0506` (round 9, in `internal/liveverify/affected/golang/anchored_test.go`); the fault-injection runs in build-log entries `2026-11-03-selprec2-ci-selector-parity`, `2026-11-04-selprec2-round6-runtime-roots`, `2026-11-04-selprec2-round8-runtime-roots-retained` and `2026-11-04-selprec2-round9-additive-lexicon` |
 | AFP-V0-2243 | disabled for 1.0 (round 9): the base trail refusal of `&&`, `\|\|`, `\|` and `&` in `unconditionalAssignment` in `internal/liveverify/affected/shell/shell.go`; kept, only widening: the one-word assignment refusal there, the refusing-operator lead after a compound closer in `endCommand` and the whole-operator advance (`lex.go`) | the `or exit` and `and cd` cases (kept since round 9) and the `piped`, `background`, `list in background`, `or list in background`, `or reassign` and `or read` cases of `TestTempRootPathsAreNoTokens_AFPV02204`; `TestBackgroundedCompoundListsKeepTokens_AFPV02243` (round 6: brace group, subshell, `if`, `while`, `for`, `case`, `time` and after-compound cases; round 9: every list after the assignment is kept, with lone-assignment controls); `TestEmptyCompoundsAndRedirectedAssignmentsKeepTokens_AFPV02243` (round 7: empty `case` lists in the background under bash and dash; round 9: own-line, newline-list and right-redirection lists kept, with a lone-assignment control); the fault-injection runs in build-log entry `2026-11-04-selprec2-round7-file-names-and-redirections` |
-| AFP-V0-2244 | disabled for 1.0 (round 9): `.corvint/shell-foreign-callers.json` is the base declaration | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
+| AFP-V0-2244 | disabled for 1.0 (round 9): `.corvint/shell-foreign-callers.json` is the base declaration | the repository declaration check (`TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/liverepo/shell_callers_repo_test.go`); `tools/declaration-compat-check`; the `heavy.sh` replay in the build log |
 | AFP-V0-2245 | withdrawn; no implementation | `TestTypeScriptAnchoredCounterexamplesStaySelected_AFPV02245` in `internal/liveverify/affected/typescript/anchored_counterexamples_test.go` (the 17 counterexample cases stay selected; each fails against the withdrawn implementation at `7f7458dc9`) |
 | AFP-V0-2246 | Withdrawn: canonicalization helpers removed; `tempRoots` and `pathTokens` in `internal/liveverify/affected/shell/shell.go` retain the pre-canonicalization rule | `TestTempRootPathsAreNoTokens_AFPV02204` (all canonical cases kept; literal temp-root controls unchanged); `TestCanonicalizationCounterexamplesStaySelected_AFPV02246` (all five review classes and sub-cases, standalone `set -T`, direct and assigned derived paths, shell variants) |
 | AFP-V0-2247 | `Impact` and `StaticLoad` in `internal/webdialect/webdialect.go`; `flowWebCodeLines` in `internal/contextindex/flowlexical.go` and the registration in `dialect_hooks.go`; the TypeScript plugin's paths in `internal/langplugin` and `internal/langplugin/decl`; the Tasks export prefix in `internal/companionrelease/export.go` | `TestImpactProfileIsUnchanged_AFPV02247` in `internal/webdialect/webdialect_test.go`; the unchanged `internal/contextindex` and `internal/langplugin` suites; the contextindex replay in the build log |
+| AFP-V0-10329 | `exercisingUnits`, `fixtureSegments` and `fixtureTest` in `resolveTestSelection`, `internal/liveverify/affected/testselection.go`; `OwnerPatternMatches`; the rows of `.corvint/test-selection.json` that name their exercising tests (`extensions/vscode/**`, `tools/web-flows/**`, the Go conformance suites, `.github/cishards/**`, `benchmarks/**`, `internal/capcatalog/**`) and the split `script/*` and `conformance/ruby-profile-v0/*` rows | `TestOwnerSelectsExercisingTests_AFPV010329` in `internal/liveverify/affected/testselection_test.go`; `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329` in `internal/liveverify/affected/ownership_rows_repo_test.go`; probe plans in `docs/build-log/2026-11-09-e2ejoin.md` |
 | AFP-V0-2480 | `DeclaredSelectionPath`, `readTestSelection`, `validTestSelectionReason` in `internal/liveverify/affected/testselection.go`; the `testSelection` member of `declarations`, `digestBody` and `Canonical` (`graph.go`) and of `cacheEntry` (`graphcache.go`); the declaration list of `declarationPath` (`documentation.go`) | `TestTestSelectionDeclarationGrammar_AFPV02480` in `internal/liveverify/affected/testselection_test.go` |
 | AFP-V0-2481 | `validOwnerPattern`, `ownerPatternMatches` in `internal/liveverify/affected/testselection.go` | `TestOwnerPatternGrammar_AFPV02481` |
 | AFP-V0-2482 | `ownersOf` (called at the end of `reach`), `ownedPaths` (called in `selectPlan`), `WitnessDeclaredTestOwner`, `ClassDeclaredTestOwner`; `terminalWitness` in `select.go` | `TestDeclaredOwnerSelectsItsTests_AFPV02482` (the `docs/contracts/**/*.json` example; negative controls: an unmatched path, an `UNINDEXED_SOURCE_PATH`); `TestDeclaredTestOwnersWithoutDeclaration_AFPV02482` |
@@ -3120,7 +3310,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-2950 | `comparisonOnlyLocators`, `boundedJoin`, `boundedJoinArgument`, `boundedJoinConsumed`, `boundedRead` and `literalComparison` in `internal/liveverify/affected/golang/locatorproof.go` and the identical `internal/gateselect/locatorproof.go`; their calls in `pathTokens` (`golang.go`) and `scanSource` (`gateselect/readers.go`) | `TestBoundedJoinLocatorIsNoRead_AFPV02950` in `internal/liveverify/affected/golang/locator_selection_test.go` (a join read through `os.ReadFile`, `os.Stat`, `os.ReadDir` or a bound variable is selected only by the path it names; returned, re-assigned, `Dir`-climbed, computed-join, `..`-join controls stay rule (d), and so do the review's `Dir`-widened joined path, a returned join, an `os.Open` join, a rebound joined variable and a joined path handed to a function); `TestUnprovenLocatorInitializerSelection_AFPV02950`, `TestLocatorInitializerAllowlist_AFPV02950` and `TestUnprovenInitializerParity_AFPV02950` cover environment, unknown-call, parameter and unknown-write roots; `TestBoundedJoinLocatorParity_AFPV02950` in `internal/gateselect/locator_parity_test.go` (both analyzers agree; cold and warm memo agree); counts in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
 | AFP-V0-2951 | `driverGoBuildOnlyCommands`, `goInvocation`, `goPattern` and `embedded` in `internal/liveverify/affected/driver_shell.go`; `buildPaths` in `driver.go`; `Unit.BuildPathImports` (`unit.go`, `graphcache.go`, `graph.go`); `buildOnly` in `resolvePathImports` and `callerEdges` and the edge filter of `unboundedReaders` (`graph.go`); `traverseWhere` in `select.go` | `TestCommandLocatorReachesItsRunners_AFPV02951` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: `go run`, `go build` and its dependent target and a vet-and-run target are selected on an unrelated change through the command's runtime read; `go vet` and `go list` targets are not, and a vet target is still selected by an edit of what it vets); `TestRepositoryScriptsAreBoundedSources_V14283` (the five commands locate the root); counts in build log `2026-11-07-unbounded-readers-review-fix` |
 | AFP-V0-2952 | Superseded by AFP-V0-2962; the implementation was removed in review fix 3, and its history is in build logs `2026-11-06-unbounded-readers`, `2026-11-07-unbounded-readers-review-fix` and `2026-11-07-unbounded-readers-review-fix-2` | `TestPrintedClimbKeepsRuleD_AFPV02962` and `TestPrintedClimbParity_AFPV02962` pin the replacement |
-| AFP-V0-2953 | the source branch of `observe` (`internal/liveverify/affected/shell/shell.go`), which marks every source no literal or fresh directory resolves dynamic | `TestEnvironmentNamedSourceStaysDynamic_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (five environment-named forms stay dynamic, and a test containing only `. "$ENVFILE"` is selected by an edit of the repository's `lib.sh`); the `envfile.sh` near miss of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/unbounded_readers_v14283_repo_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` |
+| AFP-V0-2953 | the source branch of `observe` (`internal/liveverify/affected/shell/shell.go`), which marks every source no literal or fresh directory resolves dynamic | `TestEnvironmentNamedSourceStaysDynamic_AFPV02953` in `internal/liveverify/affected/shell/shell_test.go` (five environment-named forms stay dynamic, and a test containing only `. "$ENVFILE"` is selected by an edit of the repository's `lib.sh`); the `envfile.sh` near miss of `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004`; `TestRepositoryScriptsAreBoundedSources_V14283` in `internal/liveverify/affected/liverepo/unbounded_readers_v14283_repo_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` |
 | AFP-V0-2954 | `conflicting` in `resolver`, its assignment in `newResolver` and the count check of `base` (`internal/liveverify/affected/shell/shell.go`) | `TestSameValuedReassignmentResolves_AFPV02954` in `internal/liveverify/affected/shell/shell_test.go` (the dogfood-finish.sh form links; controls: differing values, `local`, `read`, `for`, `+=`); `TestReassignedVariableIsNotADirectoryForm_NSAV0008` (unchanged) |
 | AFP-V0-2955 | `.corvint/shell-read-scopes.json`, `.corvint/unbounded-readers.json`, `unwrap_shell` in `script/heavy.sh` | `TestRepositoryScriptsAreBoundedSources_V14283` (heavy.sh dynamic only through its environment-named source, dogfood-finish.sh linked, qualify-tasks-basic_test.sh read-scoped, dogfood-cache_test.sh on the floor); `make unbounded-readers-check`; `make test-read-scopes-check`; `make selection-baseline-check`; the plans in build logs `2026-11-06-unbounded-readers` and `2026-11-07-unbounded-readers-review-fix` |
 | AFP-V0-2956 | `feeds`, `flush` and the substitution stack of `script`, the `$(...)` and backtick branches of `word`, `scanShellOutput` and the `buildOnly` condition of `goInvocation` in `internal/liveverify/affected/driver_shell.go`; `scanBothOutput` in `internal/liveverify/affected/driver.go` | `TestBufferedListingProgramSelection_AFPV02956` and `TestDriverListOutputAllowlist_AFPV02956` cover buffered programs, unknown templates/options and certified path formats; `TestDriverListingOutputKeepsExecution_AFPV02956` in `internal/liveverify/affected/driver_shell_test.go` (the review's `go list ./lib \| xargs -I PKG go test PKG`, `\|&`, `cd`, `$(...)`, quoted `$(...)`, backticks, a while-read loop, a process substitution, piped `go vet`, a piped `sh -c` all give lib an execution edge; output to a file, `\|\|` and `&&` keep the build-only edge); `TestListingOutputReachesItsRunner_AFPV02956` in `internal/liveverify/affected/golang/locator_selection_test.go` (a real Makefile: the review's target, a backtick target and a while-read target are selected through lib's root locator on an unrelated change; a `go list > pkgs.txt` target is not); `TestBufferedListingOtherPackageSelection_AFPV02956` (cross-package buffered template and unknown option retain the driver for runtime configuration edits; all three certified formats preserve precision) |
@@ -3163,9 +3353,17 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9600 | `internal/closureguard` (`network_test.go`, `candidates_test.go`, `companion_test.go`, `ledgers_test.go`, `proctrace_test.go`); the moved guards' former homes in `cmd/corvint`, `cmd/corvint-test`, `cmd/corvint-analyzer-rust`, `cmd/corvint-analyzer-shader`, `cmd/corvint-analyzer-structured-data`, `internal/analyzerpython`, `internal/analyzerstructured`, `internal/console`, `internal/contextindex`, `internal/proctrace` and `internal/swiftimpact` | `TestClosureGuardIsProvenImportGraphReader_AFPV09600` in `internal/liveverify/affected/golang/closureguard_repo_test.go` (the real package is bounded and every test a proven reader); `TestClosureGuardShapeIsProven_AFP_V0_9600` in `internal/liveverify/affected/golang/importreader_closureguard_test.go` (distinct roots per test are proven, unselected by a body edit and selected by an import-set change; an empty `GOFLAGS=` reset carried by every literal `.Env` assignment stays proven, while a non-empty literal, a dynamic value, an empty reset outside an `.Env` assignment, a later `.Env` reassignment that drops the reset, a second guard without it, an `.Env` assigned from a variable, `t.Setenv("GOFLAGS", "")` and a `Setenv` of a computed name are unproven; a `..` root is unbounded; a shared root name, a reused root and an `exec.ExitError` stay unproven); before/after body-edit plan in build-log entry `2026-11-08-v1-5071-proven-golist-readers` |
 | AFP-V0-3260 | the `shard-plan` job's `if:`, `pin-main` and plan steps in `.github/workflows/ci.yml`; the gate choice in `.github/forward-rows/shard-plan.sh`; `$qcounts` and `$no` in `.github/forward-rows/row.jq` | `TestAFPV03260ShardPlanSizesMergeQueueEntries_AFPV03260` and the sized queue cases of `TestAFPV02725RowsAcceptTheSelectionRunsShardCount_AFPV02725` in `tools/ci-forward-row/narrowing_sized_test.go`; `TestCINV0011ToolsBuildFromComparedMain` (the plan and shard `pin-main` bodies are equal and the plan runs for both events) and `TestAFPV0540PullRequestParallelismBinding`; an observed sized queue run is pending merge |
 | AFP-V0-9320, AFP-V0-9321 | `.corvint/test-selection.json` using the existing must-run planner | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` in `cmd/corvint/affected_core_freeze_test.go`; pinned base probe in `../build-log/2026-11-08-swgold.md` |
+| AFP-V0-9730 | `selfBinaryStaleRefusal` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` and `--accept-stale-binary` in `cmd/corvint/affected.go`; `runAffectedByPath` in `cmd/corvint/affected_by_path.go`; the stale check and `--accept-stale-binary` in `runTest` and `parseTestOptions` (`cmd/corvint/test.go`); the opt-in in `tools/selection-baseline/main.go` and `tools/affected-edit-oracle/main.go` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go` (every form refused with the code and fix line, stdout empty, accepted plan degraded, unverified not refused, repeated flag refused; it fails on the exit-0 behaviour); the accepted forms in `TestSelfBinaryStaleIsReportedByAffectedAndTest`, `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`, `TestStaleBinaryNoticeOncePerInvocation_ACXV0751`, `TestAffectedStaleBinaryMergedStreamStillParses`, `TestAFPV0825StaleCheckReusesThePlanHEAD`; `make capabilities-check` |
+| AFP-V0-9731 | the `testFileCount` member of `affectedCompactSelection` (`cmd/corvint/affected_compact.go`) and `affectedByPathUnit` (`cmd/corvint/affected_by_path.go`); the `test-files=` word in `renderAffectedText` and `renderAffectedByPathText` | `TestAffectedTestCountsMatchGoTestList_AFPV09731` in `cmd/corvint/affected_test_file_counts_test.go` (go test -list parity, both counts in the compact, text and by-path forms, unchanged full plan); `TestCoreVerbsEmitTheFrozenProfiles/affected_committed_range` with the regenerated golden |
+| AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
+| AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-10329, remove `exercisingUnits`, `fixtureTest` and
+`TestRepositoryOwnerRowsNameExercisingTests_AFPV010329`; the owner rows that name their exercising
+tests stay valid and keep selecting them under AFP-V0-2482.
 
 For AFP-V0-3350 to AFP-V0-3352, revert the test-scoped fields, collector, reader selection
 and resolved-index additions together. Retain the cache-profile bump or clear derived

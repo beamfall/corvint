@@ -10,7 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/pinnedread"
 )
 
 const DocMaintenanceSchema = "flow-doc-maintenance/0"
@@ -334,18 +334,18 @@ func maintenanceFile(root *os.Root, name string, absent bool) ([]byte, os.FileIn
 
 // maintenanceReadError keeps the receipt platform refusal typed (PRS-V1-920);
 // the flows CLI would otherwise report it as an argument error.
-// readReceiptFile is testvaliditydoc.ReadFile; tests force its platform
-// refusal (PRS-V1-920).
-var readReceiptFile = testvaliditydoc.ReadFile
+// readReceiptFile is pinnedread.ReadFile, the receipt reader; tests force its
+// platform refusal (PRS-V1-920).
+var readReceiptFile = pinnedread.ReadFile
 
 func isPlatformRefusal(err error) bool {
 	var coded *gokernel.Error
-	return errors.As(err, &coded) && coded.Code == testvaliditydoc.PlatformUnsupportedCode
+	return errors.As(err, &coded) && coded.Code == pinnedread.PlatformUnsupportedCode
 }
 
 func maintenanceReadError(err error) error {
-	if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
-		return &gokernel.Error{Code: testvaliditydoc.PlatformUnsupportedCode, Message: testvaliditydoc.ErrPlatformUnsupported.Error()}
+	if errors.Is(err, pinnedread.ErrPlatformUnsupported) {
+		return &gokernel.Error{Code: pinnedread.PlatformUnsupportedCode, Message: pinnedread.ErrPlatformUnsupported.Error()}
 	}
 	return err
 }

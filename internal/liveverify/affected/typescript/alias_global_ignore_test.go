@@ -47,11 +47,15 @@ export default defineConfig({
 	if err != nil {
 		t.Fatal(err)
 	}
-	unresolved := false
-	for _, unknown := range affected.Select(graph, []string{"src/app.ts"}).Unknown {
-		unresolved = unresolved || strings.HasPrefix(unknown.Detail, FrontierBareImportUndeclared)
+	// AZU-V0-003: the undeclared bare import is an OUTBOUND site, so the plan
+	// selects its importer with its dependents instead of naming the entry.
+	plan = affected.Select(graph, []string{"src/app.ts"})
+	for _, unknown := range plan.Unknown {
+		if strings.HasPrefix(unknown.Detail, FrontierBareImportUndeclared) {
+			t.Fatalf("a located bare-import site stayed unknown instead of selecting its importer: %+v", unknown)
+		}
 	}
-	if !unresolved {
-		t.Fatal("a bare specifier no tsconfig claims and no manifest declares lost its fail-closed frontier")
+	if !slices.Contains(plan.SelectedTests(), "tests/missing.spec.ts") {
+		t.Fatalf("selected %v, want the undeclared importer tests/missing.spec.ts selected as the frontier site", plan.SelectedTests())
 	}
 }

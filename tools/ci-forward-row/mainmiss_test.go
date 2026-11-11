@@ -4,7 +4,6 @@ package forwardrow
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -83,6 +82,7 @@ done
 // A narrowed pull request that skipped only passing packages, one whose shards all ran FULL, and
 // one without records are no miss; a run that names no failed package writes no row.
 func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/mainmiss.jq", "CIN-V0-7922")
 	dir := t.TempDir()
 	gh := mainMissGH(t, dir)
 	writeDoc(t, filepath.Join(dir, "runs", "500", "ci-failed-push-3", "failed.json"),
@@ -91,11 +91,12 @@ func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
 		doc{"id": 500, "head_sha": mainRunSHA}, doc{"id": 450, "head_sha": mainGreen}, doc{"id": 400, "head_sha": strings.Repeat("9", 40)}}})
 	writeDoc(t, filepath.Join(dir, "compare.json"), doc{"status": "ahead", "total_commits": 2,
 		"commits": []any{doc{"sha": mergeA}, doc{"sha": mergeB}}})
+	// CIN-V0-7922: the API's merge_commit_sha of each pull request travels with the miss.
 	writeDoc(t, filepath.Join(dir, "pulls-"+mergeA+".json"), []any{
-		doc{"number": 12, "merged_at": "2026-11-01T00:00:00Z", "base": doc{"ref": "main"}, "head": doc{"sha": prHeadA}}})
+		doc{"number": 12, "merged_at": "2026-11-01T00:00:00Z", "merge_commit_sha": mergeA, "base": doc{"ref": "main"}, "head": doc{"sha": prHeadA}}})
 	writeDoc(t, filepath.Join(dir, "pulls-"+mergeB+".json"), []any{
-		doc{"number": 13, "merged_at": "2026-11-01T00:00:00Z", "base": doc{"ref": "main"}, "head": doc{"sha": prHeadB}},
-		doc{"number": 14, "merged_at": "2026-11-01T00:00:00Z", "base": doc{"ref": "main"}, "head": doc{"sha": prHeadFull}},
+		doc{"number": 13, "merged_at": "2026-11-01T00:00:00Z", "merge_commit_sha": mergeB, "base": doc{"ref": "main"}, "head": doc{"sha": prHeadB}},
+		doc{"number": 14, "merged_at": "2026-11-01T00:00:00Z", "merge_commit_sha": mergeB, "base": doc{"ref": "main"}, "head": doc{"sha": prHeadFull}},
 		doc{"number": 99, "merged_at": nil, "base": doc{"ref": "main"}, "head": doc{"sha": prHeadFull}}})
 	for head, run := range map[string]int{prHeadA: 601, prHeadB: 602, prHeadFull: 603} {
 		writeDoc(t, filepath.Join(dir, "pr-runs-"+head+".json"), doc{"workflow_runs": []any{doc{"id": run}}})
@@ -121,7 +122,7 @@ func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
 			if err != nil || json.Unmarshal(b, &miss) != nil {
 				t.Fatalf("miss.json unreadable: %v", err)
 			}
-			want := []any{doc{"pr": float64(12), "head": prHeadA, "runId": float64(narrowedRun), "packages": []any{failedPkg}}}
+			want := []any{doc{"pr": float64(12), "head": prHeadA, "merge": mergeA, "runId": float64(narrowedRun), "packages": []any{failedPkg}}}
 			if !reflect.DeepEqual(miss["misses"], want) || miss["profile"] != "corvint-main-miss/0" {
 				t.Fatalf("misses = %v, want %v", miss["misses"], want)
 			}
@@ -150,7 +151,7 @@ func TestAFPV0983MainFailureNamesTheNarrowedPullRequest(t *testing.T) {
 		t.Fatalf("a MAINMISS name fed the bar's own MISS count: %v", verdict["epochRows"])
 	}
 	markdown := run(t, nil, "sh", "-c", `printf '%s' "$1" | jq -R -s -r --arg epoch 2 -f "$2"`, "sh", names, script(t, "bar.jq"))
-	if !strings.Contains(markdown, "Main full-run misses (AFP-V0-983, advisory; never the bar or the kill switch): 1 narrowed pull request(s) skipped a package a later full run of main failed, over 1 failed run(s): #12.") {
+	if !strings.Contains(markdown, "Main full-run misses (AFP-V0-983, suspected; a miss confirmed by reruns is uploaded as a MISS row, CIN-V0-7922): 1 narrowed pull request(s) skipped a package a later full run of main failed, over 1 failed run(s): #12; confirmation checks over 0 run(s): 0 confirmed, 0 flake, 0 unconfirmed.") {
 		t.Fatalf("bar markdown:\n%s", markdown)
 	}
 
@@ -238,7 +239,7 @@ func TestAFPV0983FailedMainShardStepRunsInTheCheckout(t *testing.T) {
 	step3 := func(t *testing.T, dir string) (doc, bool) {
 		out := filepath.Join(temp, "main-failed", "failed.json")
 		_ = os.Remove(out)
-		cmd := exec.Command("bash", "-e", "-c", script)
+		cmd := workflowStep(t, body, script)
 		cmd.Dir = dir
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + temp}
 		_ = cmd.Run()

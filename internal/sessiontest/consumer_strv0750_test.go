@@ -27,6 +27,12 @@ func TestBinaryConsumerIsANamedCheck_STRV0750(t *testing.T) {
 			ScopeNarrowed, "", []string{"make go-vet", BinaryConsumerCheck(e2e), BinaryConsumerCheck(navigation)}},
 		{"ci: a consumer is named, not widened for", ProfileCI, []Unknown{consumer(e2e)},
 			ScopeNarrowed, "", []string{"make go-vet", BinaryConsumerCheck(e2e)}},
+		// AFU-V1-1652: a flow-binding entry beside the consumer it concerns
+		// adds no check and widens nothing; a malformed one goes FULL.
+		{"ci: an unmapped change beside its consumer", ProfileCI, []Unknown{consumer(e2e), {Reason: "E2E_UNMAPPED_CHANGE", Detail: "lib/lib.go"}, {Reason: "E2E_FLOWS_INVALID", Detail: ".corvint/e2e-flows.json"}}, //corvint:fixture-path
+			ScopeNarrowed, "", []string{"make go-vet", BinaryConsumerCheck(e2e)}},
+		{"local: a malformed unmapped change", ProfileLocal, []Unknown{consumer(e2e), {Reason: "E2E_UNMAPPED_CHANGE", Detail: "../lib.go"}},
+			ScopeFull, "plan.unknown entry outside the AFP-V0-028 allowlist: E2E_UNMAPPED_CHANGE ../lib.go", []string{"make go-vet", BinaryConsumerCheck(e2e)}},
 		{"ci: an escaping detail", ProfileCI, []Unknown{consumer("../e2e.mjs")},
 			ScopeFull, "plan.unknown entry outside the AFP-V0-028 allowlist: UNSELECTED_BINARY_CONSUMER ../e2e.mjs", []string{"make go-vet"}},
 		{"local: an absolute detail", ProfileLocal, []Unknown{consumer("/tmp/e2e.mjs")},

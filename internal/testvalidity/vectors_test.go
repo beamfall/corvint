@@ -5,8 +5,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 )
 
 // vectorFile mirrors conformance/test-validity-v0/vectors.json, the shared
@@ -29,12 +27,12 @@ type vectorInput struct {
 }
 
 // vectorMutation matches MutationFacts field for field but keeps its own
-// type so the vector's plain "verdict"/"detail" strings decode without
-// requiring mutate.Verdict's underlying type.
+// type so the vector's "verdict", "detail" and "witness" members decode by
+// their JSON names.
 type vectorMutation struct {
-	Verdict string          `json:"verdict"`
-	Detail  string          `json:"detail"`
-	Witness *mutate.Witness `json:"witness"`
+	Verdict string           `json:"verdict"`
+	Detail  string           `json:"detail"`
+	Witness *MutationWitness `json:"witness"`
 }
 
 func (input vectorInput) toInput() Input {

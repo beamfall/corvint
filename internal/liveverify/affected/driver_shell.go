@@ -13,6 +13,12 @@ import (
 const (
 	driverComputed  = "\x01"
 	driverExpansion = "\x02"
+	// driverRuntimeComputed marks a workflow expression whose value another
+	// step computes at run time, such as `steps.x.outputs.y` written from a
+	// command's output: two markers never form the root-like `$X/` prefix
+	// driverComputedWord admits, so a command word built from it stays
+	// computed (AFP-V0-9132).
+	driverRuntimeComputed = driverComputed + driverComputed
 )
 
 // driverScan is what the shell scanner found in recipe or step text: the
@@ -24,11 +30,14 @@ type driverScan struct {
 	source      *Source
 	computed    bool
 	uncertified bool
-	readsTree   bool
-	tokens      map[string]bool
-	paths       map[string]bool
-	buildPaths  map[string]bool
-	makes       []driverMakeCall
+	// uncertifiedBy names why uncertified was set (AZU-V0-611): the
+	// command, operand or form the scan could not bound. Diagnostic only.
+	uncertifiedBy map[string]bool
+	readsTree     bool
+	tokens        map[string]bool
+	paths         map[string]bool
+	buildPaths    map[string]bool
+	makes         []driverMakeCall
 	// reasons names why computed was set (AFP-V0-9620). It is diagnostic
 	// only: no unit field, wire contract or selection reads it.
 	reasons map[string]bool
@@ -46,6 +55,10 @@ type driverScan struct {
 	commandRefs map[string]bool
 	references  map[string]bool
 	revoked     string
+	// functions holds the names the script defines functions for. A function
+	// named as a command the scanner models shadows it (AFP-V0-9130); an
+	// unknown command word is already trusted for nothing.
+	functions map[string]bool
 }
 
 // markComputed marks the scanned text a computed invocation for reason.
@@ -55,6 +68,22 @@ func (scan *driverScan) markComputed(reason string) {
 		scan.reasons = map[string]bool{}
 	}
 	scan.reasons[reason] = true
+}
+
+// uncertify marks the scanned text's reads outside the graph for reason,
+// which names the blocking command word, operand or form (AZU-V0-611).
+func (scan *driverScan) uncertify(reason string) {
+	scan.uncertified = true
+	if scan.uncertifiedBy == nil {
+		scan.uncertifiedBy = map[string]bool{}
+	}
+	scan.uncertifiedBy[reason] = true
+}
+
+// driverReasonWord spells a shell word for a diagnostic reason: each
+// expansion the scan replaced is written `$?`.
+func driverReasonWord(word string) string {
+	return strings.ReplaceAll(word, driverExpansion, "$?")
 }
 
 // driverMakeCall is one `make` invocation. Dir is the repository-relative
@@ -180,10 +209,37 @@ func (scan *driverScan) revoke(reason string) {
 	}
 }
 
+// defineFunction records a function definition of name.
+func (scan *driverScan) defineFunction(name string) {
+	if scan.functions == nil {
+		scan.functions = map[string]bool{}
+	}
+	scan.functions[name] = true
+}
+
+// driverModelledCommand reports a command name whose semantics the scanner
+// relies on: a function of that name may run anything instead
+// (AFP-V0-9130).
+func driverModelledCommand(name string) bool {
+	switch name {
+	case "go", "make", "gmake", "git", "cd", "pushd", "eval", "source", ".", "test", "[", "[[",
+		"find", "rg", "xargs", "parallel", "env", "nice", "timeout", "ionice", "taskset",
+		"read", "set", "export", "local", "declare", "unset", "shift", "trap", "alias", "exec",
+		"command", "builtin", "nohup", "sudo", "stdbuf", "echo", "printf", "true", "false", ":":
+		return true
+	}
+	return driverPureCommands[name] || driverBoundedCommands[name] || driverInterpreters[name]
+}
+
 // settleNarrowing preserves parsed local/command tracking before considering
 // narrowing. Only a wholly understood script with unused locals can discard
 // a computed reason; raw-text occurrence counts provide no authority here.
 func (scan *driverScan) settleNarrowing() {
+	for name := range scan.functions {
+		if driverModelledCommand(name) {
+			scan.markComputed("shell:function-shadow")
+		}
+	}
 	for name := range scan.locals {
 		if scan.commandRefs[name] || scan.commandRefs["*"] {
 			scan.markComputed("shell:local-command-word")
@@ -202,11 +258,21 @@ func (scan *driverScan) settleNarrowing() {
 }
 
 func (s *driverShellScanner) script(script, cwd string) {
+	// exact reports that every backslash-newline the shell removes was
+	// joined and no other one was (AFP-V0-9130); a line that still ends in a
+	// backslash is then complete.
+	exact := true
 	if strings.Contains(script, "\\\n") {
-		// Join before recognizing keywords and names, but do not claim this
-		// line-oriented scanner understands every continued shell construct.
-		s.scan.revoke("shell:line-continuation")
-		script = strings.ReplaceAll(script, "\\\n", "")
+		joined, ok := driverJoinContinuations(script)
+		if !ok {
+			// Join before recognizing keywords and names, but do not claim
+			// this line-oriented scanner understands every continued shell
+			// construct.
+			s.scan.revoke("shell:line-continuation")
+			joined = strings.ReplaceAll(script, "\\\n", "")
+		}
+		exact = ok
+		script = joined
 	}
 	if s.depth > 8 {
 		s.scan.markComputed("shell:depth")
@@ -257,6 +323,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 			case char == '(':
 				if len(words) != 0 && strings.HasPrefix(strings.TrimSpace(line[position+1:]), ")") {
 					s.scan.revoke("shell:function-definition")
+					s.scan.defineFunction(words[len(words)-1].text)
 				} else {
 					s.scan.revoke("shell:unsupported-syntax")
 				}
@@ -337,7 +404,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 					// AFP-V0-9051: so is one whose name no edge records, such
 					// as an absolute, `~` or escaping path.
 					if input && !s.driverOperandRecorded(word.text, cwd) {
-						s.scan.uncertified = true
+						s.scan.uncertify("shell:redirect-input:" + driverReasonWord(word.text))
 					}
 					if input {
 						s.pathOperand(word.text, cwd)
@@ -355,7 +422,7 @@ func (s *driverShellScanner) script(script, cwd string) {
 				}
 			}
 		}
-		if strings.HasSuffix(line, "\\") {
+		if !exact && strings.HasSuffix(line, "\\") {
 			continue
 		}
 		flush(false)
@@ -392,6 +459,85 @@ func (s *driverShellScanner) script(script, cwd string) {
 	if backtick || len(substitutions) != 0 {
 		s.scan.revoke("shell:unsupported-syntax")
 	}
+}
+
+// driverJoinContinuations removes each backslash-newline the shell removes,
+// so a `$(...)` or a command continued over several lines is scanned as one
+// line (AFP-V0-9130): outside single quotes and comments, inside double quotes
+// or not, and not itself escaped. It reports false, with the text unchanged,
+// for text whose quoting it does not follow exactly: a backtick, `$'` or `$"`
+// outside single quotes, a here-document operator, or a quote or `$(` left
+// open at the end.
+func driverJoinContinuations(script string) (string, bool) {
+	var out strings.Builder
+	// quote is the enclosing quote, 0 outside quotes; nesting holds, for each
+	// enclosing `(`, `$(` or `${`, the quote state outside it with its closer.
+	quote := byte(0)
+	type level struct {
+		quote  byte
+		closer byte
+	}
+	var nesting []level
+	comment := false
+	for index := 0; index < len(script); index++ {
+		char := script[index]
+		switch {
+		case comment:
+			if char == '\n' {
+				comment = false
+			}
+		case quote != '\'' && (char == '`' || char == '$' && index+1 < len(script) && (script[index+1] == '\'' || script[index+1] == '"')):
+			// A backtick substitution, or `$'` and `$"` quoting, is not
+			// followed; inside double quotes `$'` is literal but `$"` closes
+			// the quote, which the lexer does not model either.
+			return script, false
+		case quote == 0 && char == '<' && strings.HasPrefix(script[index:], "<<") && !strings.HasPrefix(script[index:], "<<<"):
+			// A here-document body keeps or removes backslash-newlines by
+			// its delimiter's quoting, which this pass does not read.
+			return script, false
+		case char == '\\' && quote != '\'':
+			if index+1 < len(script) && script[index+1] == '\n' {
+				index++
+				continue
+			}
+			if index+1 < len(script) {
+				out.WriteByte(char)
+				index++
+				char = script[index]
+			}
+		case char == '\'' && quote == 0:
+			quote = '\''
+		case char == '\'' && quote == '\'':
+			quote = 0
+		case char == '"' && quote == 0:
+			quote = '"'
+		case char == '"' && quote == '"':
+			quote = 0
+		case quote == '\'':
+		case char == '#' && quote == 0 && (index == 0 || strings.IndexByte(" \t\n;&|()<>", script[index-1]) >= 0):
+			comment = true
+		case char == '$' && index+1 < len(script) && (script[index+1] == '(' || script[index+1] == '{'):
+			closer := byte(')')
+			if script[index+1] == '{' {
+				closer = '}'
+			}
+			nesting = append(nesting, level{quote: quote, closer: closer})
+			quote = 0
+			out.WriteByte(char)
+			index++
+			char = script[index]
+		case char == '(' && quote == 0:
+			nesting = append(nesting, level{closer: ')'})
+		case (char == ')' || char == '}') && quote == 0 && len(nesting) != 0 && nesting[len(nesting)-1].closer == char:
+			quote = nesting[len(nesting)-1].quote
+			nesting = nesting[:len(nesting)-1]
+		}
+		out.WriteByte(char)
+	}
+	if quote != 0 || len(nesting) != 0 {
+		return script, false
+	}
+	return out.String(), true
 }
 
 // word reads one shell word starting at position. A command substitution
@@ -688,9 +834,10 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 	assignment := func(word string) {
 		name, value, _ := strings.Cut(word, "=")
 		s.scan.local(strings.TrimSuffix(name, "+"))
-		// AFP-V0-3128: only the cache location and empty Go flags have
-		// modeled effects here. Unknown environment names can inject startup
-		// hooks or arbitrary tool reads, including through shell wrappers.
+		// AFP-V0-3128: only the cache location, empty Go flags and the local
+		// toolchain have modeled effects here. Unknown environment names can
+		// inject startup hooks or arbitrary tool reads, including through
+		// shell wrappers.
 		switch name {
 		case "GOCACHE":
 			return
@@ -698,9 +845,16 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			if value == "" {
 				return
 			}
+		case "GOTOOLCHAIN":
+			// AZU-V0-612: `local` forbids the toolchain switch that any
+			// other value may perform, which downloads and runs a toolchain
+			// this graph does not model; it adds no read of its own.
+			if value == "local" {
+				return
+			}
 		}
 		s.scan.markComputed("shell:assignment")
-		s.scan.uncertified = true
+		s.scan.uncertify("shell:assignment:" + name)
 	}
 	// pending holds the leading assignments until the scan knows whether a
 	// command word follows them: only a standalone assignment, not one in a
@@ -774,7 +928,7 @@ func (s *driverShellScanner) command(words []driverWord, cwd string) string {
 			s.scan.revoke("shell:unsupported-wrapper")
 			settle(false)
 			wrapped = true
-			s.scan.uncertified = true // Operands come from its input (AFP-V0-3128).
+			s.scan.uncertify("shell:xargs-operands") // Operands come from its input (AFP-V0-3128).
 			// The command xargs runs takes arguments read from standard
 			// input, which the scan cannot see (AFP-V0-2957).
 			rest, replace, ok := driverXargs(words[1:])
@@ -1059,6 +1213,12 @@ func driverComputedWord(text string) bool {
 }
 
 func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
+	if relative, ok := s.repositoryExecutable(words[0].text); ok {
+		// An absolute path below the repository root names the repository
+		// program at that relative path, never a command of the same base
+		// name (AFP-V0-9131).
+		words = append([]driverWord{{text: relative, quoted: words[0].quoted, escaped: words[0].escaped, refs: words[0].refs}}, words[1:]...)
+	}
 	head := words[0].text
 	s.scan.commandWord(words[0])
 	for _, word := range words {
@@ -1102,6 +1262,9 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		s.scan.revoke("shell:loop-variable")
 	case head == "function":
 		s.scan.revoke("shell:function-definition")
+		if len(words) > 1 {
+			s.scan.defineFunction(words[1].text)
+		}
 	case head == "case" || head == "in" || head == "esac" || head == "[[" || head == "]]":
 		s.scan.revoke("shell:unsupported-syntax")
 	}
@@ -1113,13 +1276,13 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// Retain the site even when the recipe has no make expansion.
 		s.scan.markComputed("shell:builtin-" + head)
 		s.scan.revoke("shell:builtin-" + head)
-		s.scan.uncertified = true
+		s.scan.uncertify("shell:builtin-" + head)
 		s.embedded(words[1:], cwd)
 		return cwd
 	case "trap":
 		// AFP-V0-3128: the body runs later as shell code, potentially
 		// with a different environment or directory.
-		s.scan.uncertified = true
+		s.scan.uncertify("shell:trap")
 		s.scan.revoke("shell:unsupported-syntax")
 		for _, word := range words[1:] {
 			s.scan.commandWord(word)
@@ -1128,7 +1291,7 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		return cwd
 	case "for", "case", "select", "function", "in", "esac", "[[", "]]", "[", "test", "echo", "printf", "true", "false", ":", "shift", "return", "exit", "wait":
 		if (head == "[[" || head == "[" || head == "test") && !s.driverTestCertified(words, cwd) {
-			s.scan.uncertified = true
+			s.scan.uncertify("shell:test-operand:" + driverReasonWord(s.driverTestUnrecordedOperand(words, cwd)))
 		}
 		if head == "[[" || head == "[" || head == "test" {
 			for _, word := range words[1:] {
@@ -1148,16 +1311,16 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		// Preserve uncertainty before lexical cleaning can erase a link
 		// followed by parent traversal (AFP-V0-9051).
 		if _, ok := s.driverPlainDirectory(target, cwd); !ok {
-			s.scan.uncertified = true
+			s.scan.uncertify("shell:cd-unproven:" + driverReasonWord(target))
 		}
 		return driverJoin(cwd, target)
 	case "eval":
 		s.scan.markComputed("shell:eval")
 		s.scan.revoke("shell:eval")
-		s.scan.uncertified = true
+		s.scan.uncertify("shell:eval")
 		return cwd
 	case ".", "source":
-		s.scan.uncertified = true
+		s.scan.uncertify("shell:sourced")
 		// AFP-V0-9628: the file may define functions or set PS4.
 		s.scan.revoke("shell:sourced")
 		if len(words) > 1 {
@@ -1173,7 +1336,7 @@ func (s *driverShellScanner) simple(words []driverWord, cwd string) string {
 		s.scan.markComputed("shell:computed-command-word")
 	}
 	if !s.driverCertified(words, cwd) {
-		s.scan.uncertified = true
+		s.scan.uncertify(s.driverUncertifiedReason(words, cwd))
 	}
 	for _, replace := range s.replaces {
 		// The command xargs runs is named by what it reads (AFP-V0-2957).
@@ -1492,6 +1655,25 @@ var driverGoValueFlags = map[string]bool{
 	"covermode": true, "fuzztime": true, "tags": true,
 }
 
+// repositoryExecutable maps an absolute command word below the source's disk
+// root to its repository-relative path (AFP-V0-9131). Any other absolute word
+// names no repository edge: the caller leaves it uncertified and records no
+// path for it, whatever its base name.
+func (s *driverShellScanner) repositoryExecutable(head string) (string, bool) {
+	if !strings.HasPrefix(head, "/") || driverDynamic(head) || s.scan.source == nil || s.scan.source.root == "" {
+		return "", false
+	}
+	root := strings.TrimSuffix(strings.ReplaceAll(s.scan.source.root, "\\", "/"), "/")
+	if !strings.HasPrefix(root, "/") {
+		return "", false
+	}
+	relative, found := strings.CutPrefix(head, root+"/")
+	if !found || relative == "" || !ValidRelativePath(relative) {
+		return "", false
+	}
+	return relative, true
+}
+
 // driverCertified reports a simple command, run in cwd ("" when unknown),
 // whose reads the graph already bounds (AFP-V0-3122, AFP-V0-3128): a command
 // that reads no file; a bounded command in a known directory with only
@@ -1541,6 +1723,48 @@ func (s *driverShellScanner) driverCertified(words []driverWord, cwd string) boo
 		return s.driverCommandOptionsCertified(base, words[1:], cwd)
 	}
 	return false
+}
+
+// driverUncertifiedReason names why driverCertified refused words
+// (AZU-V0-611): the command word, and for a command kind the rules can
+// certify, the first operand they could not bound.
+func (s *driverShellScanner) driverUncertifiedReason(words []driverWord, cwd string) string {
+	head := words[0].text
+	reason := "shell:uncertified-command:" + driverReasonWord(head)
+	base := path.Base(head)
+	switch {
+	case driverDynamic(head), words[0].quoted && head == "":
+		return reason
+	case strings.Contains(head, "/"), base == "make", base == "gmake", base == "go", driverShells[base], driverBoundedCommands[base]:
+		for _, word := range words[1:] {
+			text := word.text
+			if driverDynamic(text) || strings.ContainsAny(text, "*?[") || driverRootedPath(text) || driverAssignment(text) || !strings.HasPrefix(text, "-") && !s.driverOperandRecorded(text, cwd) {
+				return reason + ":" + driverReasonWord(text)
+			}
+		}
+	}
+	return reason
+}
+
+// driverTestUnrecordedOperand returns the first path operand of a test
+// command that driverTestCertified refused, for its diagnostic reason.
+func (s *driverShellScanner) driverTestUnrecordedOperand(words []driverWord, cwd string) string {
+	for index := 1; index < len(words); index++ {
+		word := words[index].text
+		var operands []string
+		switch {
+		case driverTestFileOperators[word] && index+1 < len(words):
+			operands = []string{words[index+1].text}
+		case (word == "-nt" || word == "-ot" || word == "-ef") && index+1 < len(words):
+			operands = []string{words[index-1].text, words[index+1].text}
+		}
+		for _, operand := range operands {
+			if !s.driverOperandRecorded(operand, cwd) {
+				return operand
+			}
+		}
+	}
+	return ""
 }
 
 // driverTestArgumentsRecorded reports shell test script arguments that are
@@ -1882,7 +2106,7 @@ func (s *driverShellScanner) pathOperand(word, cwd string) {
 				}
 			}
 		} else {
-			s.scan.uncertified = true
+			s.scan.uncertify("shell:glob-operand:" + driverReasonWord(word))
 		}
 		return
 	}

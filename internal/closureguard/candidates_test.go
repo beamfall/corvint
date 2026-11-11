@@ -44,8 +44,8 @@ func TestCoreHasNoDependencyEdge(t *testing.T) {
 }
 
 // TestCandidateClosureIsSelfContained pins that the Rust candidate executable
-// reaches only its own package, which is what keeps its ACP-009 measurement
-// stable.
+// reaches only its own package and the stdlib-only internal/rustsyntax leaf,
+// which is what keeps its ACP-009 measurement stable.
 func TestCandidateClosureIsSelfContained(t *testing.T) {
 	_, closureFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -70,6 +70,7 @@ func TestCandidateClosureIsSelfContained(t *testing.T) {
 		}
 	}
 	want := []string{
+		"github.com/Beamfall/corvint/internal/rustsyntax",
 		"github.com/Beamfall/corvint/internal/analyzerrust",
 		"github.com/Beamfall/corvint/cmd/corvint-analyzer-rust",
 	}

@@ -17,6 +17,10 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
+// MaxPatternBytes bounds one planned -run or -skip pattern, the CI shard planner's own limit,
+// so the test verbs check a slice pattern without reading the planner themselves.
+const MaxPatternBytes = cishards.MaxPatternBytes
+
 const (
 	// ShardPlanProfile names the STR-V0-050 duration-balanced shard plan.
 	ShardPlanProfile = "corvint-test-shards/0"

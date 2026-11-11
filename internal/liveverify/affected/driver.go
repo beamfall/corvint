@@ -249,8 +249,12 @@ type driverUnitBuilder struct {
 	evaluated   bool
 	uncertified bool
 	// reasons names why computed was set (AFP-V0-9620), for diagnostics.
-	reasons   map[string]bool
-	readsTree bool
+	reasons map[string]bool
+	// evaluatedBy and uncertifiedBy name what set evaluated and uncertified
+	// (AZU-V0-611), for diagnostics only.
+	evaluatedBy   map[string]bool
+	uncertifiedBy map[string]bool
+	readsTree     bool
 }
 
 func newDriverUnitBuilder(id string) *driverUnitBuilder {
@@ -297,6 +301,7 @@ func (b *driverUnitBuilder) merge(registry *driverRegistry, scan *driverScan) {
 	}
 	if scan.uncertified {
 		b.uncertified = true
+		driverMergeReasons(&b.uncertifiedBy, scan.uncertifiedBy)
 	}
 	if scan.readsTree {
 		b.readsTree = true
@@ -352,7 +357,15 @@ func (registry *driverRegistry) unit(b *driverUnitBuilder) Unit {
 	if registry.reasons != nil && slices.Contains(unit.Frontier, FrontierDriverComputedInvocation) {
 		reasons := driverSorted(b.reasons)
 		if !b.computed {
+			// AZU-V0-611: an evaluated, uncertified site names what was
+			// evaluated and what the scan could not bound.
 			reasons = append(reasons, "make:evaluated-uncertified")
+			for _, name := range driverSorted(b.evaluatedBy) {
+				reasons = append(reasons, "make:evaluated:"+name)
+			}
+			for _, reason := range driverSorted(b.uncertifiedBy) {
+				reasons = append(reasons, "make:uncertified:"+reason)
+			}
 		}
 		registry.reasons[b.id] = reasons
 	}
@@ -468,6 +481,13 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	for _, line := range parsed.remainder {
 		fileExpander.expandAll(line)
 	}
+	// AZU-V0-610: a value make never runs is no invocation (AFP-V0-3120),
+	// so expanding every value and remainder line above collects only the
+	// commands and reads they hold; a value resolves something for a target
+	// only where that target's own text, or make reading the file
+	// (parseTime), expands it. Only the remainder recipes below run for
+	// every target.
+	fileExpander.evaluated, fileExpander.evaluatedBy = false, nil
 	// AFP-V0-3120: a variable value make never runs is no invocation. Only
 	// an ambiguous `$(shell ...)` command or remainder recipe, which run for
 	// every target, makes every target of the file a computed site; an
@@ -476,6 +496,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// more make file, keeps every target a site as well. Make expands such a
 	// line where it reads it (AFP-V0-3125).
 	ambiguous, uncertified := false, false
+	var uncertifiedBy map[string]bool
 	for _, event := range parsed.events {
 		if event.kind == driverEventAssign && !driverMakeSupportedAssignment(event) {
 			ambiguous = true
@@ -494,6 +515,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			shared.addTokens(line)
 			scan := registry.scanBoth(line, parsed.dir)
 			uncertified = uncertified || scan.uncertified
+			driverMergeReasons(&uncertifiedBy, scan.uncertifiedBy)
 			shared.merge(registry, scan)
 		}
 		ambiguous = ambiguous || fileExpander.ambiguous
@@ -508,11 +530,16 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	for _, script := range parse.shells {
 		scan := registry.scanBothOutput(script, parsed.dir)
 		uncertified = uncertified || scan.uncertified
+		driverMergeReasons(&uncertifiedBy, scan.uncertifiedBy)
 		shared.merge(registry, scan)
 	}
 	exportsCertified := parsed.exportsCertified()
 	if !exportsCertified {
 		shared.markComputed("make:export-uncertified")
+		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:export-uncertified": true})
+	}
+	if !parsed.recipeShellCertified() {
+		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:recipe-shell-uncertified": true})
 	}
 	uncertified = uncertified || !exportsCertified || !parsed.recipeShellCertified()
 	shared.readPaths(fileExpander.readPaths)
@@ -523,6 +550,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		// include form is certified until those ordered effects are modeled,
 		// including files with no targets and optional/computed includes.
 		shared.markComputed("make:include")
+		driverMergeReasons(&uncertifiedBy, map[string]bool{"make:include": true})
 		uncertified = true
 		expander := parsed.expanderAt(parsed.includeAt[index])
 		for _, expanded := range expander.expandAll(include) {
@@ -550,7 +578,12 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 	// it, which certifies it for that recipe's target; one make runs while
 	// reading the file, and a remainder recipe, can run for any target.
 	shared.evaluated = fileExpander.evaluated || parse.evaluated
-	shared.uncertified = uncertified
+	driverMergeReasons(&shared.evaluatedBy, fileExpander.evaluatedBy)
+	driverMergeReasons(&shared.evaluatedBy, parse.evaluatedBy)
+	// The file's commands run for every target (AFP-V0-3127); a `$(shell
+	// ...)` of a recursive value runs only where a recipe expands it, so
+	// its scan above left uncertified alone and leaves these reasons too.
+	shared.uncertified, shared.uncertifiedBy = uncertified, uncertifiedBy
 	all := registry.fileUnits[parsed.path]
 	units := make([]Unit, 0, len(parsed.order))
 	for _, target := range parsed.order {
@@ -562,6 +595,8 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 		}
 		builder.readsTree = shared.readsTree
 		builder.evaluated, builder.uncertified = shared.evaluated, shared.uncertified
+		driverMergeReasons(&builder.evaluatedBy, shared.evaluatedBy)
+		driverMergeReasons(&builder.uncertifiedBy, shared.uncertifiedBy)
 		builder.importAll(driverSorted(shared.imports))
 		for value := range shared.paths {
 			builder.paths[value] = true
@@ -594,6 +629,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 				builder.markComputed("make:prerequisite-ambiguous")
 			}
 			builder.evaluated = builder.evaluated || lineExpander.evaluated
+			driverMergeReasons(&builder.evaluatedBy, lineExpander.evaluatedBy)
 			next := make([]string, 0, len(combinations)*len(variants))
 			for _, combination := range combinations {
 				for _, variant := range variants {
@@ -653,6 +689,7 @@ func (registry *driverRegistry) makeUnits(parsed *driverMakeFile, body []byte) [
 			builder.markComputed("make:recipe-ambiguous")
 		}
 		builder.evaluated = builder.evaluated || expander.evaluated
+		driverMergeReasons(&builder.evaluatedBy, expander.evaluatedBy)
 		units = append(units, registry.unit(builder))
 	}
 	return units
@@ -746,6 +783,7 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 		if steps != nil && !steps.isSeq {
 			builder.markComputed("workflow:steps-not-sequence")
 		}
+		literalOutputs := driverLiteralOutputSteps(steps)
 		if steps != nil && steps.isSeq {
 			for _, step := range steps.items {
 				uses := step.get("uses").text()
@@ -778,7 +816,7 @@ func (registry *driverRegistry) workflowUnits(workflow *driverWorkflow, body []b
 				if stepShell == "" {
 					stepShell = shell
 				}
-				registry.runStep(builder, script, cwd, stepShell, driverEnvNames(jobEnv, step.get("env")))
+				registry.runStep(builder, driverOutputExpressions(script, literalOutputs), cwd, stepShell, driverEnvNames(jobEnv, step.get("env")))
 			}
 		}
 		registry.stripPrefixes(builder, prefixes)
@@ -933,6 +971,7 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 	if steps != nil && !steps.isSeq {
 		builder.markComputed("workflow:steps-not-sequence")
 	}
+	literalOutputs := driverLiteralOutputSteps(steps)
 	if steps != nil && steps.isSeq {
 		for _, step := range steps.items {
 			// AZU-V0-9852: use the workflow's fallback for unsupported steps.
@@ -943,7 +982,7 @@ func (registry *driverRegistry) actionUnit(file string, body []byte) Unit {
 			if script := step.get("run").text(); script != "" {
 				cwd := driverWorkflowDirectory(step.get("working-directory").text())
 				// The caller's step env is unknown here (AFP-V0-9623).
-				registry.runStep(builder, script, cwd, step.get("shell").text(), nil)
+				registry.runStep(builder, driverOutputExpressions(script, literalOutputs), cwd, step.get("shell").text(), nil)
 			}
 		}
 	}

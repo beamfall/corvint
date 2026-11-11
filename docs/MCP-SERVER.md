@@ -61,7 +61,7 @@ ignores a legacy `notifications/initialized` notification without responding.
 ### Flows profile and tool groups (opt-in)
 
 `--tool-profile LIST` takes a comma list of the profile `flows` and the groups `test-validity`,
-`test-evidence`, `docs` and `corpus` (`MCPV0-026`, `MMR-V0-012`):
+`test-evidence`, `docs`, `corpus` and `affected` (`MCPV0-026`, `MMR-V0-012`, `MMR-V0-1118`):
 
 ```console
 $ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profile flows
@@ -69,9 +69,10 @@ $ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profi
 
 | Entry | Adds |
 |---|---|
-| `flows` | `corvint.flows.coverage`, `corvint.flows.gaps`, `corvint.flows.impact`, `corvint.flows.map` and `corvint.flows.navigate` |
+| `flows` | `corvint.flows.coverage`, `corvint.flows.gaps`, `corvint.flows.impact`, `corvint.flows.map`, `corvint.flows.navigate` and `corvint.flows.status` (experimental; `gaps` takes an optional `provider`, the E2E inventory it compares; `status` reports each flow, variation, attached test and last result, optionally only the flows a `base` reaches; AFU-V1-150 to AFU-V1-165) |
 | `test-validity` | `corvint.test_validity` |
 | `test-evidence` | `corvint.test_evidence` |
+| `affected` | `corvint.affected`: which tests a change requires, as the exact `affected-summary/1` bytes `corvint affected --summary` prints for the root, with `base` planning `base..HEAD` plus the dirty worktree and no `base` the dirty worktree alone. One planner at a time per root; a verdict too large for one message is the tool error `verdict-oversized` (read it with the CLI); a `self-binary-stale` degradation means rebuild `corvint` and restart the server. Served only by `corvint mcp`, whose binary holds the planner; `corvint-mcp --tool-profile affected` exits 2 naming that reason |
 | `docs` | `corvint.docs_draft` and `corvint.docs_consume`; each call runs the `corvint-docs` executable beside the server or on PATH (its `docs-tool` verb, decision 0594), and a missing one answers a `not-installed` tool error |
 | `corpus` | The `corvint.docs_*` corpus tools the artifact supports; needs `--corpus-artifact [ALIAS=]PATH`, a path relative to the root |
 

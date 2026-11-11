@@ -193,7 +193,7 @@ func TestOwnerPatternGrammar_AFPV02481(t *testing.T) {
 			t.Errorf("valid pattern %q refused", pattern)
 		}
 	}
-	for _, pattern := range []string{"", "/a", "a/", "a//b", "./a", "a/./b", "a/../b", "..", "a/**b", "a/***", "a/[ab]", "a/{x,y}", `a\b`, "**/**/**/**/**", strings.Repeat("a", maxOwnerPatternBytes+1), "a/\x01"} {
+	for _, pattern := range []string{"", "/a", "a/", "a//b", "./a", "a/./b", "a/../b", parentDir, "a/**b", "a/***", "a/[ab]", "a/{x,y}", `a\b`, "**/**/**/**/**", strings.Repeat("a", maxOwnerPatternBytes+1), "a/\x01"} {
 		if validOwnerPattern(pattern) {
 			t.Errorf("invalid pattern %q accepted", pattern)
 		}
@@ -274,7 +274,9 @@ func TestDeclaredOwnerSelectsItsTests_AFPV02482(t *testing.T) {
 	}
 	// AFP-V0-2489: plan.declaredOwners names every owner-selected unit,
 	// the one reached first by its own source included.
-	wantOwners := []DeclaredOwner{{UnitID: "g:api", Paths: "*.g", DirtyPath: "api.g"}, {UnitID: "ts:contracts", Paths: "*.g", DirtyPath: "api.g"}}
+	// AFP-V0-10329: `*.g` also matches cmd_test.g, so the owner selects g:cmd
+	// beside the tests it names.
+	wantOwners := []DeclaredOwner{{UnitID: "g:api", Paths: "*.g", DirtyPath: "api.g"}, {UnitID: "g:cmd", Paths: "*.g", DirtyPath: "api.g"}, {UnitID: "ts:contracts", Paths: "*.g", DirtyPath: "api.g"}}
 	if !reflect.DeepEqual(plan.DeclaredOwners, wantOwners) {
 		t.Fatalf("declaredOwners=%+v, want %+v", plan.DeclaredOwners, wantOwners)
 	}
@@ -406,5 +408,80 @@ func TestMustRunSurvivesEveryExclusion_AFPV02484(t *testing.T) {
 func TestDeclaredTestOwnersWithoutDeclaration_AFPV02482(t *testing.T) {
 	if got := (&Graph{}).DeclaredTestOwners("docs/contracts/v1/order.json"); got != nil {
 		t.Fatalf("DeclaredTestOwners without a declaration = %v, want nil", got)
+	}
+}
+
+// exercisedLanguages adds to testSelectionLanguages an extension whose own
+// tests live beside its sources, and a fixture spec below a testdata tree.
+func exercisedLanguages() []Language {
+	return append(testSelectionLanguages(), fake{name: "ext", units: []Unit{
+		{ID: "ext:a", Sources: []string{"ext/src/a.ts"}, Tests: []string{"ext/test/a.test.ts"}},
+		{ID: "ext:b", Sources: []string{"ext/src/b.ts"}, Tests: []string{"ext/test/b.test.ts"}},
+		{ID: "ext:fixture", Tests: []string{"ext/testdata/app/e2e.spec.ts"}},
+	}})
+}
+
+// AFP-V0-10329 (V1-5199): an owner whose pattern matches a test file some
+// unit holds selects that unit for a matching dirty path whether or not it
+// names it, so a row naming only some other test cannot narrow the
+// exercising tests away; a fixture spec below a testdata tree is not an
+// exercising test; a row that names them plans the same.
+func TestOwnerSelectsExercisingTests_AFPV010329(t *testing.T) {
+	auditOnly := `{"profile":"corvint-test-selection/0","owners":[{"paths":"ext/**","tests":["tests/contracts.spec.ts"]}]}`
+	root := testSelectionRoot(t, map[string]string{DeclaredSelectionPath: auditOnly})
+	for _, unit := range exercisedLanguages()[2].(fake).units {
+		for _, file := range append(slices.Clone(unit.Sources), unit.Tests...) {
+			full := filepath.Join(root, filepath.FromSlash(file))
+			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for body, wantOwned := range map[string][]string{
+		auditOnly: {"ext:b", "ts:contracts"},
+		`{"profile":"corvint-test-selection/0","owners":[{"paths":"ext/**","tests":["ext/test/"]}]}`:                                                         {"ext:b"},
+		`{"profile":"corvint-test-selection/0","owners":[{"paths":"ext/**","tests":["ext/test/a.test.ts","ext/test/b.test.ts","tests/contracts.spec.ts"]}]}`: {"ext:b", "ts:contracts"},
+	} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(DeclaredSelectionPath)), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		graph, err := Build(context.Background(), root, exercisedLanguages()...)
+		if err != nil {
+			t.Fatalf("%s: %v", body, err)
+		}
+		plan := Select(graph, []string{"ext/src/a.ts"})
+		var owned []string
+		for _, selection := range plan.Selected {
+			if selection.Witness.Kind == WitnessDeclaredTestOwner {
+				owned = append(owned, selection.UnitID)
+				if selection.Witness.Glob != "ext/**" {
+					t.Errorf("%s: %s glob %q", body, selection.UnitID, selection.Witness.Glob)
+				}
+			}
+		}
+		if !reflect.DeepEqual(owned, wantOwned) {
+			t.Errorf("%s: owner selections %v, want %v (ext:a is reached by its own source)", body, owned, wantOwned)
+		}
+		if _, fixture := witnesses(plan)["ext:fixture"]; fixture {
+			t.Errorf("%s: fixture spec selected as an exercising test", body)
+		}
+		if !reflect.DeepEqual(graph.DeclaredTestOwners("ext/src/a.ts"), append([]string{"ext:a", "ext:b"}, map[bool][]string{true: {"ts:contracts"}, false: nil}[strings.Contains(body, "contracts")]...)) {
+			t.Errorf("%s: declared owners %v", body, graph.DeclaredTestOwners("ext/src/a.ts"))
+		}
+	}
+	// A pattern matching only the fixture spec exercises nothing: the row
+	// selects the test it names alone.
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(DeclaredSelectionPath)), []byte(`{"profile":"corvint-test-selection/0","owners":[{"paths":"ext/testdata/**","tests":["tests/contracts.spec.ts"]}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	graph, err := Build(context.Background(), root, exercisedLanguages()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := graph.DeclaredTestOwners("ext/testdata/app/e2e.spec.ts"); !reflect.DeepEqual(got, []string{"ts:contracts"}) {
+		t.Fatalf("fixture-only pattern owners %v", got)
 	}
 }

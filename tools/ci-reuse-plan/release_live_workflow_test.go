@@ -204,10 +204,21 @@ func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T)
 	}
 }
 
+// skipWithoutCCELive skips T once ci.yml has no cce-live job. The .github follow-up pull request
+// (claude/layers-integ-github) removes that job, whose internal/changee2e tests are gone
+// (source-removal B0); these tests and AFP-V0-433 to 435 then retire with it.
+func skipWithoutCCELive(t *testing.T) {
+	t.Helper()
+	if !strings.Contains(readWorkflow(t, "ci.yml"), "\n  cce-live:\n") {
+		t.Skip("the .github follow-up pull request (claude/layers-integ-github) removed the cce-live job")
+	}
+}
+
 // AFP-V0-433 (V1-1687): cce-live runs `make cce-live` on macos-15 with the Playwright modules and
 // node the live tests read, after installing exactly @playwright/test@1.64.0 and its headless
 // shell into the runner's temporary directory; every step after the change check is gated on it.
 func TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost(t *testing.T) {
+	skipWithoutCCELive(t)
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), "cce-live")
 	for _, line := range []string{
 		batchedJobCondition,
@@ -242,6 +253,7 @@ func TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost(t *testing.T) {
 // internal/changee2e or ci.yml against its first parent, or when no first parent is present,
 // and otherwise leaves `run` unset with a summary line.
 func TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges(t *testing.T) {
+	skipWithoutCCELive(t)
 	testplatform.SkipPOSIXShell(t, "the change check runs under bash")
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not available")
@@ -306,6 +318,7 @@ func TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges(t *testing.T) {
 // qualified version, and node is the qualified version. The expected tuple equals the 1.64.0 row
 // of qualifiedBundledBrowsers, which qualify checks receipts against.
 func TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell(t *testing.T) {
+	skipWithoutCCELive(t)
 	testplatform.SkipPOSIXShell(t, "the tuple check runs under bash with #!/bin/sh spies")
 	if _, err := exec.LookPath("jq"); err != nil {
 		t.Skip("jq is not available")

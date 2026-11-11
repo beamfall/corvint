@@ -95,7 +95,7 @@ pkg=$(cat pkg)
 case "$1" in
  --version) echo 'fixture 1' ;;
  affected) printf '{"plan":{"scope":"BOUNDED","selected":[{"unitId":"go:m/%s","witness":{"kind":"direct"}}]}}\n' "$pkg" ;;
- test) for last; do :; done; printf '{"scope":"BOUNDED","units":[{"adapter":"go","unit":"go:m/%s","slice":"whole"}]}\n' "$pkg" > "$last" ;;
+ test) m=; prev=; for a; do [ "$prev" = --manifest ] && m=$a; prev=$a; done; printf '{"scope":"BOUNDED","units":[{"adapter":"go","unit":"go:m/%s","slice":"whole"}]}\n' "$pkg" > "$m" ;;
  *) exit 9 ;;
 esac
 `

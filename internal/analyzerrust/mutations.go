@@ -2,7 +2,11 @@
 
 package analyzerrust
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/Beamfall/corvint/internal/rustsyntax"
+)
 
 // BooleanMutation describes a single Rust boolean-token replacement for the
 // core qualification harness. It neither edits files nor runs/qualifies a
@@ -21,7 +25,7 @@ func BooleanMutations(source []byte) ([]BooleanMutation, error) {
 	if err != nil {
 		return nil, err
 	}
-	tokens, reason := tokenize(source)
+	tokens, reason := rustsyntax.Tokenize(source)
 	if reason != "" {
 		return nil, Unsupported("rust-mutations:" + reason)
 	}
@@ -33,11 +37,11 @@ func BooleanMutations(source []byte) ([]BooleanMutation, error) {
 	}
 	var out []BooleanMutation
 	for _, t := range tokens {
-		if t.kind != tokenIdent || t.text != "true" && t.text != "false" {
+		if t.Kind != rustsyntax.Ident || t.Text != "true" && t.Text != "false" {
 			continue
 		}
-		line := sort.Search(len(starts), func(i int) bool { return starts[i] > t.start }) - 1
-		row, col := int32(line+1), int32(t.start-starts[line]+1)
+		line := sort.Search(len(starts), func(i int) bool { return starts[i] > t.Start }) - 1
+		row, col := int32(line+1), int32(t.Start-starts[line]+1)
 		body := ""
 		for _, b := range bodies {
 			r := b.Range
@@ -49,10 +53,10 @@ func BooleanMutations(source []byte) ([]BooleanMutation, error) {
 			continue
 		}
 		after := "true"
-		if t.text == "true" {
+		if t.Text == "true" {
 			after = "false"
 		}
-		out = append(out, BooleanMutation{Offset: t.start, Before: t.text, After: after, Body: body})
+		out = append(out, BooleanMutation{Offset: t.Start, Before: t.Text, After: after, Body: body})
 		if len(out) > MaxFacts {
 			return nil, Unsupported("rust-mutations:cap-exceeded")
 		}

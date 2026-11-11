@@ -40,6 +40,7 @@ func absence(t *testing.T, names []string, extra ...string) absenceResult {
 // switch, while EPOCH markers and rows of an earlier epoch take no place, so epoch-1 runs are
 // never counted as absence; INFRA and NARROWED rows take no place either, as in bar.jq.
 func TestCINV0861RowAbsenceTripsTheKillSwitch(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	// The live epoch comes from ci.yml; "earlier" and "later" are the epochs around it (CIN-V0-960).
 	live := forwardEpoch(t)
 	earlier, later := shiftEpoch(t, live, -1), shiftEpoch(t, live, 1)

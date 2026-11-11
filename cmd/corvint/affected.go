@@ -143,6 +143,9 @@ type affectedInvocation struct {
 	// FailFastOrder adds the compact plan's fail-fast order, read from the
 	// local `corvint test` receipts (AFP-V0-2487).
 	FailFastOrder bool
+	// AcceptStaleBinary is --accept-stale-binary: a self-binary-stale verdict
+	// is carried as a degradation instead of refusing the plan (AFP-V0-9730).
+	AcceptStaleBinary bool
 	// Format is the --format value: "" or json writes the JSON document,
 	// text the affected-plan/1 projection as lines (AFP-V0-928).
 	Format string
@@ -364,7 +367,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
+	names := []string{"--accept-stale-binary", "--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -425,6 +428,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("argument --summary: does not accept a value or repetition")
 			}
 			invocation.Summary = true
+			index++
+			continue
+		}
+		if matched, err := parseAcceptStaleBinary(&invocation, rest[index]); err != nil {
+			return affectedInvocation{}, err
+		} else if matched {
 			index++
 			continue
 		}
@@ -887,7 +896,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		receipt, err = compileAffected(ctx, invocation)
 	}
 	if err == nil {
-		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr)
+		receipt, err = degradeStaleAffected(ctx, invocation.Root, receipt, invocation.AcceptStaleBinary, stdout, stderr)
 	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
@@ -933,18 +942,40 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 // while --base still plans it.
 const affectedWorktreeBaseRefusal = "--worktree cannot be combined with --base: without --worktree, --base BASE already plans the committed range BASE..HEAD together with every dirty worktree path; to plan only named paths against the working tree, drop --base and pass them with --worktree, adding the range's own paths, each rename's source as well as its destination (git diff --no-renames --name-only BASE HEAD), to --path or --paths-from"
 
-// degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
-// affected-plan/1 receipt and prints it on stderr when this binary is stale
-// for root, or could not be compared with it (AFP-V0-846). When stdout and
-// stderr are one pipe or file (2>&1) and the receipt carries the member, the
-// stderr line is left out so the document still parses (AFP-V0-871). The
-// line and the receipt carry the same notice (ACX-V0-750). Each invocation
-// judges the binary once and prints at most one line; it keeps no state, so
-// a replay that runs the planner N times prints N lines (ACX-V0-751).
-func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout, stderr io.Writer) any {
+// parseAcceptStaleBinary reads --accept-stale-binary (AFP-V0-9730), once and
+// without a value, for every affected form that plans a selection: the plan
+// forms here, `affected jobs` and `affected audit` (AFP-V0-11033). It reports
+// whether argument was the flag.
+func parseAcceptStaleBinary(invocation *affectedInvocation, argument string) (bool, error) {
+	if argument != "--accept-stale-binary" && !strings.HasPrefix(argument, "--accept-stale-binary=") {
+		return false, nil
+	}
+	if invocation.AcceptStaleBinary || argument != "--accept-stale-binary" {
+		return false, argumentError("argument --accept-stale-binary: does not accept a value or repetition")
+	}
+	invocation.AcceptStaleBinary = true
+	return true, nil
+}
+
+// degradeStaleAffected refuses an affected-plan/1 receipt computed by a
+// self-binary-stale binary unless accept (--accept-stale-binary) is set
+// (AFP-V0-9730): a stale binary's plan may select fewer tests than this
+// checkout's own build would, and a consumer that reads only stdout and the
+// exit status must never take it for the current selection. With accept, or
+// for a self-binary-unverified binary, it adds the code to the receipt and
+// prints it on stderr (AFP-V0-846). When stdout and stderr are one pipe or
+// file (2>&1) and the receipt carries the member, the stderr line is left out
+// so the document still parses (AFP-V0-871). The line and the receipt carry
+// the same notice (ACX-V0-750). Each invocation judges the binary once and
+// prints at most one line; it keeps no state, so a replay that runs the
+// planner N times prints N lines (ACX-V0-751).
+func degradeStaleAffected(ctx context.Context, root string, receipt any, accept bool, stdout, stderr io.Writer) (any, error) {
 	freshness := selfBinaryStale(ctx, root)
 	if freshness.Code == "" {
-		return receipt
+		return receipt, nil
+	}
+	if freshness.Code == selfBinaryStaleCode && !accept {
+		return receipt, selfBinaryStaleRefusal(freshness, "affected")
 	}
 	notice := selfBinaryNotice(freshness)
 	full, ok := receipt.(affectedReceipt)
@@ -954,9 +985,9 @@ func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout,
 	if ok {
 		full.Degradations = append(full.Degradations, freshness.Code)
 		full.DegradationDetails = map[string]string{freshness.Code: notice}
-		return full
+		return full, nil
 	}
-	return receipt
+	return receipt, nil
 }
 
 func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocation) (playwrightAffectedReceipt, error) {
@@ -1321,6 +1352,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		if err != nil {
 			return affectedReceipt{}, nil, err
 		}
+		// AFU-V1-145: the provider's test_selection is the selection to run;
+		// the derived inventory records what the provider leaves out.
+		appflows.ReconcileProvider(root, invocation.Providers[0], plan.E2E)
 	} else if len(invocation.Providers) != 0 {
 		input := affectedSelectionInput(invocation, plan, dirty, advice)
 		input.CheckoutStatus = func(ctx context.Context, dir string) ([]string, error) {
@@ -1526,10 +1560,25 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 		// the measured commit, so a hunk seeds its own target or job
 		// (AZU-V0-001).
 		graph = graph.WithDriverContent(affectedDriverContent(ctx, in.gitExecutable, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
+		// TSP-V0-608: an edit to the gated root-locator declaration is
+		// bounded to the packages whose entries differ from the measured
+		// commit's; --path mode has no measured commit and keeps UNKNOWN.
+		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, in.repository, in.tree, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision), changed))
 		graph = affectedReadScopeChanges(ctx, in, graph, changed)
 		graph = affectedOwnershipInputs(ctx, in, graph, changed)
 	}
 	plan := affectedSelect(graph, changed, in.shared)
+	// AFU-V1-1651: a declared consumer bound to flows is kept, left out or
+	// widened against the flow intents committed at HEAD. A materialized
+	// snapshot has no HEAD of its own, so only a plan over the repository's
+	// worktree binds; a snapshot plan keeps every consumer.
+	if in.tree == in.repository {
+		plan = appflows.BindE2EFlows(ctx, in.repository, graph, plan)
+		// APK-V0-001: a repository that declares its flows gets one plan for
+		// every test kind, the E2E selections joined here from the intents
+		// at HEAD; a snapshot plan has no HEAD of its own and carries none.
+		plan = appflows.JoinFlowPlan(ctx, in.repository, graph, plan, affectedMeasuredCommit(ctx, in.gitExecutable, in.repository, in.base, in.revision))
+	}
 	// A --path plan (additive off, ADN-V0-009) names paths to probe, not a
 	// change, so an absent one is no deletion.
 	if in.additive && !(in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository)) {
@@ -2321,6 +2370,9 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		// a --base plan does (AFP-V0-2202, AFP-V0-9011).
 		graph = graph.WithImportSetChanges(golang.ImportSetChangesAt(ctx, invocation.Root, root, snapshot.Base, graph, snapshot.Paths))
 		graph = graph.WithGoChanges(golang.GoChangesAt(ctx, invocation.Root, root, snapshot.Base, snapshot.Paths))
+		// TSP-V0-608: the snapshot's base is the measured commit for a gated
+		// root-locator declaration edit, as for the import-set comparison.
+		graph = graph.WithGatedLocatorChanges(golang.GatedLocatorChangesAt(ctx, invocation.Root, root, snapshot.Base, snapshot.Paths))
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
 		receipt = affectedReceipt{TestCounts: affectedTestCounts(root, plan), Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}

@@ -167,3 +167,63 @@ func TestPRBV0005ForwardedDocsChildKeepsOnlyPIDKnobs(t *testing.T) {
 		}
 	}
 }
+
+// besideDocsApp puts a corvint-docs stand-in beside the running test executable, where Locate
+// looks first, printing versionLine for --version and recording any other argument vector; PATH
+// holds nothing. It is removed when the test ends so the PATH-based tests see no sibling.
+func besideDocsApp(t *testing.T, versionLine string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in is a shell script")
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved, err := filepath.EvalSymlinks(self); err == nil {
+		self = resolved
+	}
+	sibling := filepath.Join(filepath.Dir(self), "corvint-docs")
+	if _, err := os.Lstat(sibling); err == nil {
+		t.Fatalf("%s already exists", sibling)
+	}
+	capture := filepath.Join(t.TempDir(), "capture")
+	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '%s\\n' '" + versionLine + "'; exit 0; fi\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_CAPTURE\"\nexit 0\n"
+	if err := execfile.WriteFile(sibling, []byte(script), 0o755); err != nil {
+		t.Skipf("cannot write beside the test executable: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(sibling) })
+	t.Setenv("CORVINT_TEST_CAPTURE", capture)
+	t.Setenv("PATH", t.TempDir())
+	return capture
+}
+
+// CMS-V0-002: a corvint-docs installed beside corvint at another version is refused with the
+// named version-mismatch code before anything is forwarded; one that states this build's version
+// is forwarded as before.
+func TestDocsShimRefusesSiblingAtAnotherVersion(t *testing.T) {
+	capture := besideDocsApp(t, "corvint-docs 9.9.9 (build 1, commit "+strings.Repeat("9", 40)+")")
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr)
+	if code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"code": "version-mismatch"`) || !strings.Contains(stderr.String(), "corvint-docs is version 9.9.9") || !strings.Contains(stderr.String(), "install the set at one version") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, &stdout, &stderr)
+	}
+	if _, err := os.Stat(capture); err == nil {
+		t.Fatal("a mismatched corvint-docs was still run")
+	}
+}
+
+func TestDocsShimForwardsToSiblingAtThisVersion(t *testing.T) {
+	self := selfVersionLine()
+	if self.Version == "" {
+		t.Fatal("this executable has no version line")
+	}
+	capture := besideDocsApp(t, "corvint-docs "+self.Version)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"docs", "nav"}, strings.NewReader(""), &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("exit %d stderr %q", code, &stderr)
+	}
+	if raw, err := os.ReadFile(capture); err != nil || string(raw) != "docs\nnav\n" {
+		t.Fatalf("forwarded argv %q, %v", raw, err)
+	}
+}

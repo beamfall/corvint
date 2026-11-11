@@ -12,6 +12,13 @@ import (
 // MaxSpanBytes bounds one evidence excerpt.
 const MaxSpanBytes = 64 << 10
 
+// Repository is the pinned source identity an artifact was derived from: the repository's
+// stable identifier and the Git revision its content was read at.
+type Repository struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision"`
+}
+
 // Anchor pins one line span of one Git blob.
 type Anchor struct {
 	Repository string `json:"repository"`

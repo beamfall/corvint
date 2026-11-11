@@ -36,7 +36,7 @@ func TestTSPV07330GuardDecidesTheGithubScope_TSPV07330(t *testing.T) {
 			if err := os.WriteFile(guard, []byte(tc.body), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			changed, inputs := githubGuard(ctx, dir, guard, "b", "h")
+			changed, inputs, _ := githubGuard(ctx, dir, guard, "b", "h")
 			if changed != tc.changed || !reflect.DeepEqual(inputs, tc.inputs) {
 				t.Fatalf("githubGuard = %v %q, want %v %q", changed, inputs, tc.changed, tc.inputs)
 			}
@@ -46,10 +46,10 @@ func TestTSPV07330GuardDecidesTheGithubScope_TSPV07330(t *testing.T) {
 	if err := os.WriteFile(failing, []byte("exit 3\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if changed, inputs := githubGuard(ctx, dir, failing, "b", "h"); !changed || len(inputs) != 1 || !strings.HasPrefix(inputs[0], "unreadable: ") {
+	if changed, inputs, _ := githubGuard(ctx, dir, failing, "b", "h"); !changed || len(inputs) != 1 || !strings.HasPrefix(inputs[0], "unreadable: ") {
 		t.Fatalf("failing guard = %v %q, want a fail-closed change", changed, inputs)
 	}
-	if changed, _ := githubGuard(ctx, dir, filepath.Join(dir, "absent.sh"), "b", "h"); !changed {
+	if changed, _, _ := githubGuard(ctx, dir, filepath.Join(dir, "absent.sh"), "b", "h"); !changed {
 		t.Fatal("a missing guard narrowed")
 	}
 }
@@ -95,10 +95,10 @@ func TestTSPV07330RealGuardNarrowsAnUnguardedWorkflow_TSPV07330(t *testing.T) {
 	other := commit(".github/workflows/other.yml", "name: other\n")   //corvint:fixture-path
 	narrow := commit(".github/forward-rows/narrow.sh", "echo head\n") //corvint:fixture-path
 	ctx := context.Background()
-	if changed, inputs := githubGuard(ctx, repo, guard, base, other); changed {
+	if changed, inputs, _ := githubGuard(ctx, repo, guard, base, other); changed {
 		t.Fatalf("an unguarded workflow forced FULL: %q", inputs)
 	}
-	if changed, inputs := githubGuard(ctx, repo, guard, other, narrow); !changed || !reflect.DeepEqual(inputs, []string{".github/forward-rows/narrow.sh"}) { //corvint:fixture-path
+	if changed, inputs, _ := githubGuard(ctx, repo, guard, other, narrow); !changed || !reflect.DeepEqual(inputs, []string{".github/forward-rows/narrow.sh"}) { //corvint:fixture-path
 		t.Fatalf("a narrowing script = %v %q, want FULL naming it", changed, inputs)
 	}
 }
@@ -151,5 +151,66 @@ func TestUnreadableGuardResultIsNotCached(t *testing.T) {
 	}
 	if !cacheable(Result{GithubChange: true, GithubInputs: []string{".github/workflows/ci.yml"}}) || !cacheable(Result{}) { //corvint:fixture-path
 		t.Fatal("a guard result that ran is not cacheable")
+	}
+}
+
+// TestCINV08424MappedInputsNeedTheirConsumers_CINV08424: a `mapped` guard answer (CIN-V0-8423) is
+// no change on its own; the change narrows only when a `run` verdict selects every consumer of
+// every mapped input, and an omitted consumer, a NOTHING verdict or a malformed mapped line is a
+// `.github/` change, so FULL (CIN-V0-8424).
+func TestCINV08424MappedInputsNeedTheirConsumers_CINV08424(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the guard stubs are sh scripts")
+	ctx := context.Background()
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		name, body string
+		changed    bool
+		inputs     []string
+		mapped     []string
+	}{
+		{"mapped", "printf 'mapped\\n.github/forward-rows/collect.sh tools/ci-forward-row\\n'\n", false, nil, []string{".github/forward-rows/collect.sh tools/ci-forward-row"}},                                                                                                                                                      //corvint:fixture-path
+		{"mapped two", "printf 'mapped\\n.github/forward-rows/collect.sh tools/ci-forward-row\\n.github/forward-rows/tiers.sh tools/ci-forward-row tools/tiers-replay\\n'\n", false, nil, []string{".github/forward-rows/collect.sh tools/ci-forward-row", ".github/forward-rows/tiers.sh tools/ci-forward-row tools/tiers-replay"}}, //corvint:fixture-path
+		{"mapped without inputs", "echo mapped\n", true, []string{"unreadable: mapped"}, nil},
+		{"mapped without consumers", "printf 'mapped\\n.github/forward-rows/collect.sh\\n'\n", true, []string{"unreadable: mapped; .github/forward-rows/collect.sh"}, nil}, //corvint:fixture-path
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			guard := filepath.Join(dir, strings.ReplaceAll(tc.name, " ", "-")+".sh")
+			if err := os.WriteFile(guard, []byte(tc.body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			changed, inputs, mapped := githubGuard(ctx, dir, guard, "b", "h")
+			if changed != tc.changed || !reflect.DeepEqual(inputs, tc.inputs) || !reflect.DeepEqual(mapped, tc.mapped) {
+				t.Fatalf("githubGuard = %v %q %q, want %v %q %q", changed, inputs, mapped, tc.changed, tc.inputs, tc.mapped)
+			}
+		})
+	}
+	costs := map[string]float64{"m/a": 60, "m/tools/ci-forward-row": 30, "m/tools/tiers-replay": 10}
+	mapped := []string{".github/forward-rows/tiers.sh tools/ci-forward-row tools/tiers-replay"} //corvint:fixture-path
+	for _, tc := range []struct {
+		name, audit string
+		want        string
+		inputs      []string
+	}{
+		{"every consumer selected narrows", "run m/a m/tools/ci-forward-row m/tools/tiers-replay\n", "NARROW", nil},
+		{"an omitted consumer is FULL", "run m/a m/tools/ci-forward-row\n", "FULL", []string{".github/forward-rows/tiers.sh: tools/tiers-replay not selected"}},                                                                //corvint:fixture-path
+		{"a NOTHING verdict runs no consumer", "NOTHING no package\n", "FULL", []string{".github/forward-rows/tiers.sh: tools/ci-forward-row not selected", ".github/forward-rows/tiers.sh: tools/tiers-replay not selected"}}, //corvint:fixture-path
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := Result{}
+			fillVerdict(&res, tc.audit, costs)
+			applyMappedInputs(&res, "m", mapped, costs)
+			if res.CIScope != tc.want || !reflect.DeepEqual(res.GithubInputs, tc.inputs) || !reflect.DeepEqual(res.GithubMapped, mapped) || (tc.want == "FULL") != res.GithubChange {
+				t.Fatalf("scope %s inputs %q mapped %q change %v", res.CIScope, res.GithubInputs, res.GithubMapped, res.GithubChange)
+			}
+			if tc.want == "FULL" && (res.CostShare != 1 || res.PackageShare != 1) {
+				t.Fatalf("FULL shares %v %v", res.CostShare, res.PackageShare)
+			}
+		})
+	}
+	var none Result
+	fillVerdict(&none, "run m/a\n", costs)
+	applyMappedInputs(&none, "m", nil, costs)
+	if none.CIScope != "NARROW" || none.GithubMapped != nil {
+		t.Fatalf("no mapped input changed the result: %+v", none)
 	}
 }

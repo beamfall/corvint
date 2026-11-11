@@ -2,7 +2,8 @@
 
 `corvint flows coverage` reports the complete declared documentation inventory against accepted
 AFU variation matrices and retained original Playwright `/3` receipts. It does not execute tests,
-accept generated intent, or discover runs that were never retained.
+accept generated intent, or discover runs that were never retained. The command runs in the
+`corvint-docs` executable, which `corvint flows ...` forwards to (decision 0595).
 
 ```sh
 corvint flows coverage --denominator coverage/denominator.json --receipts coverage/runs.json
@@ -61,6 +62,13 @@ An exclusion is an immutable `{path,revision,sha256}` reference to a closed
 `generated:false`, `accepted:true`. Exact matrix/source bindings and freshness are mandatory.
 A sign-off cannot turn a proposed/empty accepted matrix into green coverage.
 
+Selection inventory (V1-5252). The `plan.e2e` selection of `corvint affected` does not read this
+denominator: its E2E inventory is the `playwright-discovery/0` receipt that the flows declaration
+`.corvint/flows.json` names, used only when it binds HEAD, the config bytes and the source digest of
+the planned tree (AFU-V1-140 to AFU-V1-145, `docs/specs/application-flow-understanding-v1.md`). A
+discovered test file no flow links is selected on every change and reported as unlinked; the
+variation coverage here is where that gap is then closed with a reviewed link.
+
 ## Original receipt binding
 
 `application-flow-coverage-runs/1` has `directory`, `revision`, and `runs`, listing every JSON file in
@@ -105,3 +113,36 @@ with entry/outcomes and revalidated fixture/page-object anchors, with missing di
 Limits:512 documented flows,8,192 expanded rows,128 receipts of4MiB each and64MiB aggregate,
 64MiB full report,300KiB page,320MiB output package. Generation retains256 flows/2,048 pages;
 coverage allows four metadata files. Counts or bytes above limits refuse rather than truncate.
+
+## Unlinked tests and the flow status report (experimental)
+
+Two reports answer the owner's tracking question in both directions, on the CLI and through the
+`flows` MCP profile (AFU-V1-150 to AFU-V1-165, proposals `flows-unlinked-tests-report` and
+`flows-status-report` under `docs/specs/openspec/changes/`).
+
+`corvint flows gaps --flows DIR --provider FILE` adds to `application-flow-gaps/1` the E2E tests
+that belong to no variation. `FILE` is the repository-relative
+`application-flow-selection-provider/1` document the e2e-safe selection reads; its `inventory` is
+the E2E inventory and it must declare the same `flows` directory. Each inventory test that no
+variation links with a non-inferred test link is listed under `unlinked_tests` with the code
+`unlinked-test`, in test-key order, at most 1024 entries with `unlinked_total` and
+`unlinked_truncated`. `inventory.state` says what the list was compared against: `absent` (no
+`--provider`; nothing is claimed), `complete` (no discovery receipt declared, so completeness is
+the provider author's attestation, or a receipt bound to `HEAD` that lists exactly the inventory),
+`partial` (a `HEAD` receipt that differs from the inventory), `stale` (a receipt bound to another
+revision, named in `bound_to`) or `unverified` (a declared receipt that is missing or malformed).
+An absent, partial, stale or unverified inventory is never a complete answer. The MCP tool
+`corvint.flows.gaps` takes the same `provider` input and returns the same records.
+
+`corvint flows status --flows DIR [--evidence FILE]... [--base SHA]` writes
+`application-flow-status/0`: for each flow and each variation, the attached tests (non-inferred
+test links crossed with the variation's projects) and the last recorded `test-run-evidence/0`
+result of each. A test with no record is `NOT_OBSERVED`; a record bound to `HEAD`'s tree from a
+clean worktree is preferred, and when only records of another tree exist the last one is reported
+`stale` with its `source_commit`. `STATIC` records never count. A variation with no attached test
+carries the code `no-test`. `--base SHA` limits the report to exactly the flows
+`flows impact --base SHA` names and carries that report's `impact_graph` scope, so an `UNKNOWN`
+scope is visible. The report holds at most 8192 test rows; past that, rows are dropped with
+`truncated` true and the full counts in `totals`. The MCP tool `corvint.flows.status` returns the
+same report. Both reports are read-only and byte-identical for identical inputs; a malformed flows
+directory, an unresolvable base or unreadable evidence is refused whole with exit 2.

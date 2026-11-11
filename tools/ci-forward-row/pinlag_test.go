@@ -237,7 +237,7 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 		{
 			// The shard-plan body resolves every event the same way; both are checked.
 			planOut := filepath.Join(t.TempDir(), "plan-out")
-			planCmd := exec.Command("bash", "-e", "-c", planBody)
+			planCmd := workflowStep(t, []byte(ci), planBody)
 			planCmd.Dir = repo
 			planCmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+planOut, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge, "QUEUE_BASE="+base,
 				"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)
@@ -252,7 +252,7 @@ func TestCINV0011ToolsBuildFromComparedMain(t *testing.T) {
 				}
 			}(string(planGot))
 		}
-		cmd := exec.Command("bash", "-e", "-c", script)
+		cmd := workflowStep(t, []byte(ci), script)
 		cmd.Dir = repo
 		cmd.Env = append(os.Environ(), "GITHUB_OUTPUT="+out, "GITHUB_EVENT_NAME="+event, "TESTED_MERGE="+merge, "QUEUE_BASE="+base,
 			"CORVINT_PR_TOOL_SOURCE="+floor, "CORVINT_TEST_SHADOW_SOURCE="+floor)

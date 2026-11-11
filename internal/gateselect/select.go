@@ -414,7 +414,8 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // well-formed unobserved-module frontier (UnobservedModule: the nested module
 // is no root package, and CI runs its own suite outside the shards), a
 // well-formed binary consumer (BinaryConsumer: no Go shard runs it, narrowed or
-// FULL, and the shadow names it as a check), a non-Go frontier FrontierSuite
+// FULL, and the shadow names it as a check), a well-formed flow-binding entry
+// (E2EFlowUnknown: the consumer it concerns stays selected or named), a non-Go frontier FrontierSuite
 // reads, or an UNINDEXED_SOURCE_PATH that deletedGoSource admits. A frontier
 // FrontierSuite reads adds its language's declared suite, which the returned
 // `suite <language> <- <detail>` lines name, one per language for its first
@@ -439,6 +440,8 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 		case entry.Reason == "LANGUAGE_FRONTIER" && unobservedModule(entry.Detail):
 			continue
 		case binaryConsumer(entry.Reason, entry.Detail):
+			continue
+		case e2eFlowUnknown(entry.Reason, entry.Detail):
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
@@ -482,6 +485,11 @@ func deletedGoSource(plan Receipt, index *repositoryIndex, root, p string) bool 
 
 func binaryConsumer(reason, detail string) bool {
 	_, ok := BinaryConsumer(reason, detail)
+	return ok
+}
+
+func e2eFlowUnknown(reason, detail string) bool {
+	_, ok := E2EFlowUnknown(reason, detail)
 	return ok
 }
 

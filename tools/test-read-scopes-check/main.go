@@ -22,6 +22,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"io/fs"
 	"maps"
@@ -50,13 +51,17 @@ const (
 	// path, so it never counts as tracked here.
 	changeEvidencePath = ".corvint/change.cem.json"
 	literalsPath       = ".corvint/test-read-scope-literals.json"
-	literalsProfile    = "corvint-test-read-scope-literals/0"
-	maxLiterals        = 1 << 16
-	sandboxesPath      = ".corvint/test-nested-sandboxes.json"
-	sandboxesProfile   = "corvint-test-nested-sandboxes/0"
-	treesPath          = ".corvint/test-read-scope-trees.json"
-	treesProfile       = "corvint-test-read-scope-trees/0"
-	unboundedPath      = ".corvint/unbounded-readers.json"
+	// goTargetRecord prefixes a literals-file key that admits a go command
+	// target the check cannot resolve (TSP-V0-8132): the key is the target's
+	// source text and the value why it reads nothing of the repository.
+	goTargetRecord   = "go-target:"
+	literalsProfile  = "corvint-test-read-scope-literals/0"
+	maxLiterals      = 1 << 16
+	sandboxesPath    = ".corvint/test-nested-sandboxes.json"
+	sandboxesProfile = "corvint-test-nested-sandboxes/0"
+	treesPath        = ".corvint/test-read-scope-trees.json"
+	treesProfile     = "corvint-test-read-scope-trees/0"
+	unboundedPath    = ".corvint/unbounded-readers.json"
 )
 
 // readSandboxes reads the closed {profile, packages} record of the package
@@ -565,13 +570,18 @@ func selectorPackage(selector *ast.SelectorExpr, ok bool) (string, bool) {
 // goListTargets returns the package patterns of every `go list` command a test
 // file builds with exec.Command or exec.CommandContext (V1-2037): the
 // string-literal arguments after "list" that are "." or start with "./" or
-// "../". A listing with no such argument lists the package itself.
-func goListTargets(name string, body []byte) ([]string, error) {
+// "../", and, as goBuildTargets does, the targets a literal joined to a range
+// over string literals spells (ASD-V0-611). A listing with no such argument
+// lists the package itself. A positional argument the file does not spell, a
+// variable or a helper parameter, is returned apart as unresolved
+// (TSP-V0-8132): such a listing names no package the check can see, so it is
+// not taken for the package itself.
+func goListTargets(name string, body []byte) (targets, unresolved []string, err error) {
 	_, file, err := parseFile(name, body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var targets []string
+	ranges := literalRanges(file)
 	ast.Inspect(file, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
@@ -584,30 +594,45 @@ func goListTargets(name string, body []byte) ([]string, error) {
 		if pkg, ok := selector.X.(*ast.Ident); !ok || pkg.Name != "exec" {
 			return true
 		}
-		listing, found := false, false
+		listing, found, unknown, value := false, false, false, false
 		for _, argument := range call.Args {
-			literal, ok := argument.(*ast.BasicLit)
-			if !ok || literal.Kind != token.STRING {
+			text, literal := stringLiteral(argument)
+			if !listing {
+				listing = literal && text == "list"
 				continue
 			}
-			value, err := strconv.Unquote(literal.Value)
-			if err != nil {
+			if value {
+				value = false
 				continue
 			}
 			switch {
-			case !listing:
-				listing = value == "list"
-			case value == "." || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../"):
-				targets, found = append(targets, value), true
+			case literal && strings.HasPrefix(text, "-"):
+				value = slices.Contains(goListValueFlags, "-"+strings.TrimLeft(text, "-"))
+			case literal:
+				if text == "." || strings.HasPrefix(text, "./") || strings.HasPrefix(text, "../") {
+					targets, found = append(targets, text), true
+				}
+			default:
+				if expanded, ok := rangeTargets(argument, ranges); ok {
+					targets, found = append(targets, expanded...), true
+				} else if target, ok := buildTarget(argument); ok {
+					targets, found = append(targets, target), true
+				} else {
+					unresolved, unknown = append(unresolved, types.ExprString(argument)), true
+				}
 			}
 		}
-		if listing && !found {
+		if listing && !found && !unknown {
 			targets = append(targets, ".")
 		}
 		return true
 	})
-	return targets, nil
+	return targets, unresolved, nil
 }
+
+// goListValueFlags are the go list flags whose value, when not joined by "=",
+// is the next argument, so it is never a package target.
+var goListValueFlags = append([]string{"-f"}, goValueFlags...)
 
 // goBuildVerbs are the go subcommands that compile repository source, so a
 // confined run reads every in-repository package they load (AFP-V0-847).
@@ -634,17 +659,22 @@ var goValueFlags = []string{
 // leftmost literal starts so, such as "./fixtures/"+variant, which stands for
 // the directories below its prefix ("./fixtures/..."); the separate value of a
 // flag in goValueFlags, such as "-o" or "-tags", is never one. A command with
-// no positional argument, only flags, builds the package itself; a positional argument the file does not spell as a target,
-// such as a variable or a file name, is a target the check cannot see. The
-// targets of a verb in goTestVerbs are returned apart, as tests. A
-// concatenation of one literal and the value of an enclosing range over a
-// string-literal slice, such as "../../cmd/"+pkg in
-// `for _, pkg := range []string{"corvint", "corvint-x"}`, stands for exactly
-// the packages it can name (ASD-V0-611).
-func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
+// no positional argument, only flags, builds the package itself; a literal
+// positional argument the file does not spell as a target, such as a file name
+// or a module path, is a target the check cannot see. A positional argument
+// that is no literal at all, a variable or a helper parameter such as pkg in
+// `go build -o ./out pkg`, is returned apart as unresolved (TSP-V0-8132),
+// with its source text, so the caller can refuse to pass a declaration that
+// may not cover what it builds; `go run` takes only its first positional as a
+// target and `go test` none after a literal "-args". The targets of a verb in
+// goTestVerbs are returned apart, as tests. A concatenation of one literal and
+// the value of an enclosing range over a string-literal slice, such as
+// "../../cmd/"+pkg in `for _, pkg := range []string{"corvint", "corvint-x"}`,
+// stands for exactly the packages it can name (ASD-V0-611).
+func goBuildTargets(name string, body []byte) (builds, tests, unresolved []string, err error) {
 	_, file, err := parseFile(name, body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	ranges := literalRanges(file)
 	ast.Inspect(file, func(node ast.Node) bool {
@@ -678,12 +708,20 @@ func goBuildTargets(name string, body []byte) (builds, tests []string, err error
 			positional, value := false, false
 			for _, argument := range arguments[index+2:] {
 				text, literal := stringLiteral(argument)
+				if verb == "test" && literal && text == "-args" {
+					break // what follows goes to the test binary, never to the go tool
+				}
 				if !value && !(literal && strings.HasPrefix(text, "-")) {
 					positional = true
 					if expanded, ok := rangeTargets(argument, ranges); ok {
 						*targets = append(*targets, expanded...)
 					} else if target, ok := buildTarget(argument); ok {
 						*targets = append(*targets, target)
+					} else if !literal {
+						unresolved = append(unresolved, types.ExprString(argument))
+					}
+					if verb == "run" {
+						break // the first positional is the program; the rest are its arguments
 					}
 				}
 				value = !value && literal && slices.Contains(goValueFlags, "-"+strings.TrimLeft(text, "-"))
@@ -695,7 +733,7 @@ func goBuildTargets(name string, body []byte) (builds, tests []string, err error
 		}
 		return true
 	})
-	return builds, tests, nil
+	return builds, tests, unresolved, nil
 }
 
 // specArgv returns the elements of the string-slice literal a
@@ -1333,7 +1371,7 @@ func checkFile(root, directory, file string, scope []string, recorded map[string
 			part.findings = append(part.findings, finding{pkg: directory, file: file, stat: site})
 		}
 	}
-	targets, err := goListTargets(file, *body)
+	targets, unresolvedListed, err := goListTargets(file, *body)
 	if err != nil {
 		return unitResult{err: fmt.Errorf("%s: %w", file, err)}
 	}
@@ -1348,9 +1386,30 @@ func checkFile(root, directory, file string, scope []string, recorded map[string
 			}
 		}
 	}
-	builds, tests, err := goBuildTargets(file, *body)
+	builds, tests, unresolvedBuilt, err := goBuildTargets(file, *body)
 	if err != nil {
 		return unitResult{err: fmt.Errorf("%s: %w", file, err)}
+	}
+	// TSP-V0-8132 (V1-5028): a go command whose target the file does not spell
+	// reads packages the check cannot list, so a narrowed declaration could
+	// drift unseen; only a package that declares a whole top-level tree, with
+	// its measured reason (AFP-V0-3010), has admitted such a read.
+	// A target recorded as "go-target:EXPR" in the literals file with its
+	// reason (a temporary path outside the repository) is admitted and used.
+	if !slices.ContainsFunc(scope, wholeTree) {
+		var unresolved []string
+		for _, expression := range append(unresolvedListed, unresolvedBuilt...) {
+			if _, ok := recorded[goTargetRecord+expression]; ok {
+				part.used = append(part.used, directory+" "+goTargetRecord+expression)
+				continue
+			}
+			unresolved = append(unresolved, expression)
+		}
+		if len(unresolved) > 0 {
+			part.findings = append(part.findings, finding{pkg: directory, file: file, refusal: fmt.Sprintf(
+				"runs a go command on %s, which the check cannot resolve to a package path (a variable or helper parameter), so its entries in %s cannot be shown to cover what it builds or lists (TSP-V0-8132); spell the target as a literal package path, or a literal joined to a range over string literals (ASD-V0-611), declare the whole top-level tree it reads with a reason (AFP-V0-3010), or, when the target is a temporary path outside the repository, record %q for the package in %s with that reason",
+				strings.Join(unresolved, ", "), affected.ReadScopesPath, goTargetRecord+unresolved[0], literalsPath)})
+		}
 	}
 	var groups []buildGroup
 	for _, group := range []buildGroup{{targets: builds}, {targets: tests, test: true}} {

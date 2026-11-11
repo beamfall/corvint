@@ -15,6 +15,37 @@ const BinaryExecsPath = ".corvint/test-binary-execs.json"
 // Go packages, that run a command's built binary (AFP-V0-762).
 const BinaryConsumersPath = ".corvint/test-binary-consumers.json"
 
+// UnknownE2EUnmappedChange names a changed path that reaches the commands a
+// flow-bound declared consumer runs while no reviewed flow link explains it,
+// so the consumer runs and the plan is UNKNOWN (AFU-V1-1652). Detail is the
+// path.
+const UnknownE2EUnmappedChange = "E2E_UNMAPPED_CHANGE"
+
+// UnknownE2EFlowsInvalid names a flow binding declaration that is present but
+// unreadable, invalid, or binds a flow or consumer that does not exist; no
+// consumer is narrowed by it (AFU-V1-1651). Detail is the declaration path.
+const UnknownE2EFlowsInvalid = "E2E_FLOWS_INVALID"
+
+// E2EOmission is one flow-bound declared consumer a plan leaves out
+// (AFU-V1-1653): the change reaches the commands it runs, no link of its
+// bound flows is reached, and a reviewed link of some flow explains every
+// changed path that reaches those commands.
+type E2EOmission struct {
+	File     string       `json:"file"`
+	Flows    []string     `json:"flows"`
+	Commands []string     `json:"commands"`
+	Basis    string       `json:"basis"`
+	Mapped   []E2EMapping `json:"mapped"`
+}
+
+// E2EMapping explains one changed path by the reviewed link target it
+// reaches and that link's flow.
+type E2EMapping struct {
+	Path   string `json:"path"`
+	Flow   string `json:"flow"`
+	Target string `json:"target"`
+}
+
 // WitnessBinaryExec names a unit that runs the built binary of a command
 // whose build a dirty path reaches (AFP-V0-037).
 const WitnessBinaryExec = "BINARY_EXEC"

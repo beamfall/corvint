@@ -32,6 +32,25 @@ Vocabulary note (selection verdicts, finding 5): the per-unknown effects `ignore
 `selection-hardening`. This change's plan kinds and reasons use those effect names and define no
 second set.
 
+## Decisions made while building
+
+Builder decisions (2026-11-10), recorded while merging `claude/layers-integ`; checked against the
+code in `internal/liveverify/affected` and `internal/appflows/flowplan.go`. They are not owner
+decisions and stand until the owner amends them.
+
+1. A selection's declared test kind is the member `testKind`, not `kind`: `kind` is already the
+   AZU-V0-001 selection kind (`internal/liveverify/affected/select.go`).
+2. E2E selections go in a separate `plan.e2e` member (`E2EPlan`), present only when the repository
+   declares its flows; its unknowns live under `plan.e2e.unknown`, never under `plan.unknown`.
+3. The `affected-plan/1` profile keeps its name; `testKind` and `e2e` are additive members, omitted
+   when empty, so a plan without the declaration is unchanged.
+4. An invalid declaration (unreadable, oversized, unknown profile, bad member) yields the typed
+   unknown `FLOWS_DECLARATION_INVALID` with `plan.e2e.scope` `UNKNOWN` and no narrowed E2E test,
+   not exit 2. This replaces the "typed failure, exit 2" line under Failure modes for the
+   declaration; the rest of the plan is still written.
+5. `.corvint/flows.json` uses profile `corvint-flows/0` with `flows`, optional `kinds` rules and an
+   optional `playwright` member `{config, discovery}`.
+
 ## Failure modes
 
 - Declaration missing: today's plan, unchanged.

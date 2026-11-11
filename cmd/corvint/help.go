@@ -4,8 +4,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 )
 
 var cemHelpActions = map[string]bool{
@@ -216,7 +214,7 @@ func topicText(topic string) string {
 	case "flows":
 		return flowsHelp
 	case "how":
-		return flowscmd.HowHelp
+		return howHelp
 	case "runs":
 		return runsHelp
 	case "mcp":
@@ -225,6 +223,8 @@ func topicText(topic string) string {
 		return testHelp
 	case "tests":
 		return testsHelp
+	case "watch":
+		return watchHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
 	case "index":
@@ -266,15 +266,16 @@ Commands:
     feature  one declared feature's context (GPK-V0)
     features | overview | review  inferred repository guidance (RGV-V0)
     docs  source-derived documentation (SDD-V0)
+    flows  application flows and assertions (AFU-V0)
+    how  how do I GOAL: alias of flows appmap how (SKH-V0)
   Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
+    watch  rerun the tests a save can affect (LPCV-V0)
     test-plan  test consolidation plan (TCN-V0)
     test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
     runs  Playwright verdicts (PWR-V0)
-    flows  application flows and assertions (AFU-V0)
-    how  how do I GOAL: alias of flows appmap how (SKH-V0)
   Experimental, agent hosts and local records:
     mcp  local read-only stdio MCP server (AHI)
 
@@ -414,28 +415,12 @@ ignored paths, declared test commands), each with its evidence and a suggested
 fix. It writes nothing.
 `
 
-const flowsHelp = `Inspect experimental web-flow assertion candidates and runtime observations.
-
-Usage:
-  corvint [--root PATH] flows --manifest FILE [--evidence FILE]
-  corvint [--root PATH] flows record --manifest FILE --evidence FILE --output FILE
-
-Read-only inspection binds declared tracked source and test files to Git and emits
-application-flow-report/0. Static assertions are candidates, not passing tests.
-Stale, missing, unsupported and contradicted evidence remains visible. Universal
-application completeness is never claimed. Core reads launch no browser or server.
-
-The separate corvint-web-flows companion parses JS/TS and optionally observes an
-explicitly trusted local app. Its proposed execution profile remains experimental.
-record explicitly writes one screened private evidence file and refuses overwrite;
-it does not update ranking or accept inferred intent. No automatic ledger is written.
-` + flowscmd.IntentHelp + flowscmd.NavigateHelp + flowscmd.AppmapHelp + flowscmd.AppmapPlanHelp + flowscmd.RequestPathHelp + flowscmd.TestEvidenceHelp
-
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text] [--fail-fast-order]
+          [--accept-stale-binary]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
           [--format json|text]
@@ -452,9 +437,10 @@ Usage:
           --playwright-list FILE [--playwright-ungrepped-list FILE
           [--playwright-ungrepped-config PATH]]
   corvint [--root PATH] affected cache [--format json|doctor-plugin]
-  corvint [--root PATH] affected audit --changes FILE
+  corvint [--root PATH] affected audit --changes FILE [--accept-stale-binary]
   corvint [--root PATH] affected --ownership-audit
   corvint [--root PATH] affected jobs --base FULL_COMMIT_ID [--declaration PATH]
+          [--accept-stale-binary]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -474,10 +460,12 @@ operator may copy into a Go live-test provider bundle. plan.excluded is
 once with its count, and digest is the SHA-256 of the full exclusion list.
 An advisory check with arguments="provider.go.packages" runs its command with
 each of those packages appended, single-quoted.
-degradations, present only when it applies, names self-binary-stale: inside
-its own repository this binary was built from a commit whose Go source differs
-from HEAD, so the plan may not be the one current source gives, or
-self-binary-unverified when that comparison could not complete; stderr repeats
+degradations, present only when it applies, names self-binary-stale (only
+with --accept-stale-binary; otherwise that verdict refuses the plan,
+AFP-V0-9730): inside its own repository this binary was built from a commit
+whose Go source differs from HEAD, so the plan may not be the one current
+source gives, or self-binary-unverified when that comparison could not
+complete; stderr repeats
 it with the rebuild command (AFP-V0-846), except when stdout and stderr are
 one pipe or file (2>&1), so the document still parses (AFP-V0-871).
 degradationDetails maps each such code to that stderr notice: the rebuild
@@ -574,6 +562,19 @@ Example: corvint affected --base FULL_SHA --line-index linecov.idx
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--accept-stale-binary (AFP-V0-9730) keeps the plan of a binary whose Go source
+differs from this checkout's HEAD (self-binary-stale, AFP-V0-846) as a
+degraded plan: exit 0, the degradations member and the stderr notice. Without
+it such a binary exits 2 with error code self-binary-stale and a fix: line,
+printing no plan, because its selection may be narrower than this checkout's
+own build gives; rebuild it (go install ./cmd/corvint) or run
+go run ./cmd/corvint affected ... instead. Any form of affected is refused
+alike (--full, --summary, --by-path, --snapshot, --format text, and the
+jobs and audit subcommands, whose documents carry the same degradations
+member when accepted, AFP-V0-11033). A
+self-binary-unverified binary is not refused: it keeps the degradation.
+Example: corvint affected --base FULL_SHA --accept-stale-binary.
 
 --fail-fast-order (experimental, AFP-V0-2487; JSON plan only, not with --full,
 --summary, --by-path, --format text or --playwright-config) adds an order
@@ -801,6 +802,19 @@ the import naming the bound config's file name with or without its extension:
 Any other wrapper, one HEAD tracks, or one given without
 --playwright-ungrepped-list is refused. The wrapper is kept out of the source
 digest; delete it after discovery.
+
+A repository that commits .corvint/flows.json (profile corvint-flows/0: the
+flows directory, optional kinds rules assigning unit or integration to path
+prefixes, and an optional playwright member naming the tracked config and its
+affected discovery receipt) gets one plan for every test kind without any
+further option (experimental, APK-V0-001): each selection carries testKind
+(unit, integration, e2e or UNKNOWN, never guessed), and plan.e2e lists the E2E
+test files the change requires, each naming the flow, variation and changed
+path that selected it. The inventory is the bound discovery receipt
+(AFU-V1-140), else the flows' test links; a test no flow links is selected as
+unlinked; a stale link, global path, unbounded plan, missing receipt or
+exceeded bound selects every E2E test with a typed e2e unknown and never
+drops one. Example: corvint affected --base FULL_COMMIT_ID --format text.
 
 --selection-profile e2e-safe reads one repository-relative
 application-flow-selection-provider/1 FILE (flows directory, runner config,

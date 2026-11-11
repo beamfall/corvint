@@ -74,7 +74,7 @@ func newPlaywrightBehaviorRepo(t *testing.T) playwrightBehaviorRepo {
 	git(t, root, "commit", "-qm", "source")
 	revision := git(t, root, "rev-parse", "HEAD")
 	repo := playwrightBehaviorRepo{root: root, revision: revision, repository: git(t, root, "rev-list", "--max-parents=0", "HEAD"), retained: map[string]BehaviorAdapterInput{}}
-	repo.revisions = BehaviorRevisions{App: Repository{strings.Repeat("1", 40), revision}, E2E: Repository{repo.repository, revision}, Docs: Repository{strings.Repeat("2", 40), revision}}
+	repo.revisions = BehaviorRevisions{App: Repository{ID: strings.Repeat("1", 40), Revision: revision}, E2E: Repository{ID: repo.repository, Revision: revision}, Docs: Repository{ID: strings.Repeat("2", 40), Revision: revision}}
 	repo.migration = behaviorAdapterRaw(t, BehaviorMigration{Revisions: repo.revisions, Schema: 2, ContractID: "items-contract", SourceRevision: revision, DocumentationRevision: revision})
 	repo.listing = playwrightBehaviorTestdata(t, "list.json", root)
 	repo.report = playwrightBehaviorTestdata(t, "report.json", root)
@@ -211,7 +211,7 @@ func (r playwrightBehaviorRepo) request(t *testing.T, discovery BehaviorDiscover
 		return found
 	}
 	clean := execution("alpha", 7)
-	doc := declaredEvidence(t, r.root, Manifest{Repository: Repository{r.repository, r.revision}}, "docs/items.md", 3).Anchors[0]
+	doc := declaredEvidence(t, r.root, Manifest{Repository: Repository{ID: r.repository, Revision: r.revision}}, "docs/items.md", 3).Anchors[0]
 	doc.Revision, doc.Blob = r.revision, git(t, r.root, "rev-parse", r.revision+":docs/items.md")
 	annotation := clean.Evidence
 	annotation.Kind, annotation.Reason = "review", "reviewed assertion annotation"

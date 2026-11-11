@@ -175,6 +175,9 @@ type cachedLanguage struct {
 	Frontier   []string     `json:"frontier"`
 	Unobserved []string     `json:"unobserved"`
 	Runnable   []string     `json:"runnable"`
+	// FrontierSites mirrors Result.FrontierSites (AZU-V0-212); absent in
+	// entries written before it, which then leave `+N` entries unlocated.
+	FrontierSites map[string][]string `json:"frontierSites,omitempty"`
 }
 
 // cachedUnit is Unit with nil lists written as null, so a restored unit is
@@ -325,7 +328,7 @@ func newCacheEntry(root, identity string, names []string, graph *Graph, results 
 			unit.ReadScopeTrees = graph.units[unit.ID].ReadScopeTrees
 			units = append(units, cachedUnit(unit))
 		}
-		entry.Languages = append(entry.Languages, cachedLanguage{Name: names[index], Units: units, Frontier: result.Frontier, Unobserved: result.Unobserved, Runnable: result.Runnable})
+		entry.Languages = append(entry.Languages, cachedLanguage{Name: names[index], Units: units, Frontier: result.Frontier, Unobserved: result.Unobserved, Runnable: result.Runnable, FrontierSites: result.FrontierSites})
 	}
 	horizon := started.Add(-GraphCacheRacyWindow).UnixNano()
 	for key, before := range record.paths {
@@ -585,6 +588,6 @@ func restoreGraph(ctx context.Context, entry cacheEntry, languages []Language) (
 		if cached.Units == nil {
 			units = nil
 		}
-		return Result{Units: units, Frontier: cached.Frontier, Unobserved: cached.Unobserved, Runnable: cached.Runnable}, nil
+		return Result{Units: units, Frontier: cached.Frontier, Unobserved: cached.Unobserved, Runnable: cached.Runnable, FrontierSites: cached.FrontierSites}, nil
 	})
 }

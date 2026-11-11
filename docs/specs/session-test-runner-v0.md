@@ -623,6 +623,203 @@ two requirements make its version name its content and make each receipt carry i
   `TestSTRV0548ReasonCodesPinTheProseShapes`. Rollback: remove `reasonCode` and `ReasonCode`, and
   restore the prose grep.
 
+- **STR-V0-8301:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5011;
+  amends STR-V0-018) A `corvint-test-manifest/0` written by a binary whose Go build stamp names a
+  Git commit (`vcs.revision`, the same build information AFP-V0-846 judges) SHALL carry
+  `producer`: `{"commit": <40 hex>, "commitState": "clean" | "modified" | "unknown"}`, read from
+  that stamp alone, beside `source.head`, the HEAD the manifest was planned for. A binary without a
+  stamp (a release archive, a `-buildvcs=false` build) records no `producer`, never a guess, and
+  such a manifest keeps its bytes; the member is part of the canonical encoding and the digest, so
+  a shard cannot match a manifest another binary wrote. Consumers that run a manifest's selection
+  outside `corvint test` (`script/heavy.sh --plan`, TSP-V0-8131) refuse a manifest whose producer
+  is missing, unknown here or stale for HEAD. Non-goals: judging a modified worktree by anything
+  but its stamped commit (as AFP-V0-846). Evidence:
+  `TestSTRV08301ManifestCarriesItsProducer_STRV08301` (Build records it, round trip, a manifest
+  without one reads, the digests differ) and `TestSTRV08301DryRunManifestNamesItsProducer_STRV08301`
+  (a stamped binary writes it with `source.head`; an unstamped one writes none). Rollback: remove
+  `Producer` from `Manifest` and `Input` and `manifestProducer` from `cmd/corvint`.
+
+
+- `STR-V0-8701`: (proposed 2026-11-09; V1-5256; delivery experimental) Decision: the first non-Go
+  adapter is `provider`. It runs the Vitest and Playwright test files a plan selected through the
+  existing `corvint-js-test-provider` (`unit` for Vitest, `e2e` for Playwright) instead of only
+  naming the language's declared full command. The adapter SHALL be registered beside `go` and
+  `declared` under the unchanged `corvint-test-adapter/0` capability manifest (STR-V0-004,
+  STR-V0-058), and SHALL be used only where `.github/cishards/test-commands.json` declares it in
+  the optional member `"providers"`: an object that maps a runner of the closed set `playwright`,
+  `vitest` to the provider argv without the selected files, run from the repository root, for
+  example `{"vitest": ["corvint-js-test-provider", "unit", "--dir", "web"]}`, or for Playwright
+  `["corvint-js-test-provider", "e2e", "--test-arg", "npx", "--test-arg", "playwright",
+  "--test-arg", "test"]`, since the provider takes the Playwright command as `--test-arg` words.
+  The strict read (STR-V0-003) SHALL refuse the whole declaration for: a runner outside the set;
+  an argv word that is empty or holds whitespace or a control character; an argv whose first
+  word's base name is not `corvint-js-test-provider` or whose second word is not the runner's
+  subcommand; a `watch` flag;
+  a bare `--` word that is not the value directly after a `--server-arg` or `--test-arg` flag,
+  because the provider stops reading flags there and would ignore the selected files appended
+  after it; and a Vitest `--dir` with no value, an absolute value or one that leaves the
+  repository. A declaration without the member SHALL keep its digest and its behaviour.
+  Non-goals: driving `corvint-ruby-test-provider` or `corvint-go-test-provider`; any other
+  JavaScript runner; installing or building the provider; a new adapter manifest version.
+  Failure modes: a refused `providers` member makes the declaration unreadable, which is
+  `INCOMPLETE` in every scope with no unit run (STR-V0-003).
+  Acceptance evidence: `TestSTRV08701DeclaredProviders` and `TestSTRV0004AdapterCapabilityManifest`
+  in `internal/sessiontest`.
+  Rollback: delete the `providers` member from the declaration, which restores the declared full
+  command for those files with no code change; to remove the capability, revert the commits that
+  add `internal/sessiontest/provider.go`, the member and the adapter registration.
+
+- `STR-V0-8702`: (proposed 2026-11-09; V1-5256; delivery experimental) On the local runner profile,
+  a selected unit `typescript:<runner>:<path>` whose runner has a declared provider SHALL become
+  one execution unit: adapter `provider`, unit the selected id, slice `whole`, shard 0. The path
+  SHALL be a clean, repository-relative, slash-separated path that cannot be read as an option
+  (no leading `-` or `/`, no `:`, backslash, control character or `..` segment), and a Vitest path
+  SHALL lie under the directory of the declared `--dir` (the repository root without one). Such a
+  unit does not by itself add its language's declared full command. Everything else that names the
+  language SHALL add that command, its `none` assertion or its undeclared-language `INCOMPLETE`
+  exactly as before: a selected unit this requirement does not admit, a `NO_SELECTABLE_TEST`
+  entry, an AFP-V0-2750 frontier, `FULL`, and a dirty language. A Playwright spec file carries
+  the `typescript:e2e-runtime-dependency` frontier today, so the declared `typescript` suite
+  still applies beside its provider unit. A provider unit SHALL be present in `NARROWED` and in
+  `FULL` alike, a run whose only units are provider units SHALL be `NARROWED` and never
+  `NOTHING`, and a shard's units SHALL be ordered Go, then provider, then declared. The `ci`
+  profile SHALL plan no provider unit: there the selected id names its language's declared
+  command in `checks`, as before (STR-V0-012).
+  Non-goals: narrowing the `e2e-runtime-dependency` frontier, which the E2E join owns; placing
+  provider units on other shards; selecting single tests inside a file.
+  Failure modes: an id that is not admitted falls back to the language's declared command or to
+  `INCOMPLETE`; it is never dropped.
+  Acceptance evidence: `TestSTRV08702BuildProviderUnits` in `internal/sessiontest`.
+  Rollback: as STR-V0-8701.
+
+- `STR-V0-8703`: (proposed 2026-11-09; V1-5256; delivery experimental) A shard's provider units
+  SHALL run as one invocation per runner, after the shard's Go and declared invocations and in
+  runner-name order: the declared argv, then `--test-file <path>` for each unit, and for
+  Playwright then `--test-arg <filter>` for each unit, where the filter is the path with its
+  regular-expression metacharacters escaped, because Playwright reads a file filter as a regular
+  expression. The invocation runs from the repository root with the run's environment and adds
+  no variable. The Vitest subcommand runs the whole suite of its directory, a superset of the
+  selected files. Runner discovery (STR-V0-004) finds the executable and reads its `--version`.
+  `--dry-run` SHALL list the invocation with its argv and units and launch nothing.
+  Non-goals: starting an application server other than as the declared argv states; passing a
+  Vitest file filter; splitting one runner's files over several invocations.
+  Failure modes: with `--external-server` the provider refuses a result for a file no
+  `--test-file` names (`test-file-unbound`), for example a setup file of a project dependency;
+  the declared argv must name such files, and the refusal is `NOT_RUN` under STR-V0-8705. A unit
+  whose runner the declaration no longer names has no argv and is refused before discovery. A
+  declared argv that ends the provider's flags with a positional word is not detected at read
+  time (only a bare `--` is, STR-V0-8701); the provider then ignores the appended flags, and a
+  selected file is `PASS` only when the receipt names its tests (STR-V0-8704).
+  Acceptance evidence: `TestSTRV08703ProviderInvocations` in `internal/sessiontest`;
+  `TestSTRV08707CLIDryRunListsProviderInvocation` in `cmd/corvint`.
+  Rollback: as STR-V0-8701.
+
+- `STR-V0-8704`: (proposed 2026-11-09; V1-5256; delivery experimental) The provider invocation
+  SHALL be recorded in the same `corvint-test-run/0` receipt as the Go invocations, with adapter
+  `provider`, its argv, runner, version, exit and one outcome per unit, and SHALL count toward the
+  same result, summary and exit code (STR-V0-009, STR-V0-010). The adapter reads the document the
+  provider prints on stdout, at most 8 MiB, and does not copy it to the output. A run counts only
+  when the provider exits 0 with a receipt of the runner's kind (`unit` or `e2e`) that reports at
+  least one test and no run-level failure. In a counted run a unit SHALL be `FAIL` when a test in
+  any state other than `passed`, `flaky` or `skipped` is in its file or in no selected file; a
+  failing test that cannot be attributed therefore fails every unit of the invocation. Otherwise
+  a Playwright unit SHALL be `PASS` when a passed or flaky test names its file alone, `NO_TESTS`
+  when only skipped tests do, and `NOT_RUN` with a reason when the receipt names no test of that
+  file alone. A Vitest receipt names no file for a passing test, so a Vitest unit without a
+  failure SHALL be `PASS`: the outcome of the suite the provider ran. A reported file names a
+  selected path when the two are equal or one is the other's trailing path segments. The output
+  SHALL name each failing test, at most 50, and one line with the counts of passed, failed and
+  skipped tests.
+  Non-goals: per-test outcomes in the receipt; retaining the provider's document; a retry or
+  flake policy (a `flaky` test passed on a retry, as the provider reports it).
+  Failure modes: a test state the adapter does not know is failing; a passed test that two
+  selected paths could own counts for neither.
+  Acceptance evidence: `TestSTRV08704ProviderOutcomes` and
+  `TestSTRV08704RunnerReportsProviderWithGo` in `internal/sessiontest`;
+  `TestSTRV08704CLIMixedGoAndPlaywrightRun` in `cmd/corvint`.
+  Rollback: as STR-V0-8701.
+
+- `STR-V0-8705`: (proposed 2026-11-09; V1-5256; delivery experimental) A selected provider unit
+  SHALL never be reported as passed without an observed result. (a) Runner unavailable: when the
+  declaration names no command for the unit's runner, the executable is not found, or its version
+  cannot be read, nothing is launched for that runner; the receipt SHALL record one provider
+  invocation with exit -1 and every unit `NOT_RUN`, and its `incomplete` list SHALL carry the
+  reason, for example `provider corvint-js-test-provider: runner corvint-js-test-provider not
+  found`. (b) Unusable run: when the provider exits nonzero (1 infrastructure, 2 usage, 3
+  admission or version refusal), prints no receipt document or one over the bound, or its receipt
+  reports a run-level infrastructure failure, another kind, a cancelled run, a stale application
+  build or no test, every unit of the invocation SHALL be `NOT_RUN` and `incomplete` SHALL gain
+  `provider <runner>: <reason>; its selected tests are NOT_RUN`. (c) A Playwright unit whose file
+  no reported test names alone is `NOT_RUN` with its own reason (STR-V0-8704). In each case the
+  shard result SHALL be `INCOMPLETE` and `corvint test` SHALL exit 3, the other invocations of the
+  shard, the Go ones included, SHALL still launch and report, and `verify-shards` SHALL report the
+  run `INCOMPLETE`. The exit codes are unchanged: 0 `PASS`, 1 `FAIL`, 2 usage, 3 `INCOMPLETE`,
+  and `INCOMPLETE` outranks `FAIL`.
+  Non-goals: retrying a refused run; falling back to the declared full command after a refusal.
+  Failure modes: every case above; a budget, cancellation or drift stop leaves the units `NOT_RUN`
+  as for any adapter (STR-V0-009).
+  Acceptance evidence: `TestSTRV08705ProviderRefusalsAreNotRun` and
+  `TestSTRV08705RunnerProviderUnavailable` in `internal/sessiontest`;
+  `TestSTRV08705CLIUnavailableProviderIsNotRun` in `cmd/corvint`.
+  Rollback: as STR-V0-8701.
+
+- `STR-V0-8706`: (proposed 2026-11-09; V1-5256; delivery experimental) When the plan `corvint test`
+  compiled carries `advice.test_selection`, the command SHALL read it. An `e2e-safe-selection/1`
+  member in state `narrow-selection-allowed` or `full-relevant-suite-required` adds each
+  `selected[].path` once as the selected unit `typescript:playwright:<path>`, to which STR-V0-8702
+  then applies; in the second state the list is the full relevant suite. Any other member (another
+  schema, a `blocked` or unknown state, no `selected` list, an entry without a path) SHALL add its
+  reason to the manifest's `incomplete` list, so the run and its dry run are `INCOMPLETE`, exit 3.
+  An absent member changes nothing. `corvint test` passes the planner neither a selection profile
+  nor a provider document today, so the member is absent and this requirement fixes how it is
+  read once the E2E join supplies it. The joined plan member `plan.e2e` (APK-V0-001) is read the
+  same way: each `plan.e2e.selected[].path` is added once as `typescript:playwright:<path>`, and
+  a member whose scope is `UNKNOWN` while it selects nothing adds its first unknown to
+  `incomplete`, so a file the plan selects is run or the run is `INCOMPLETE`. A member that
+  carries `E2E_INVENTORY_UNDERIVABLE` lists only flow-linked files, so its files are added and
+  that unknown is added to `incomplete` too: a test no flow links is not claimed as run.
+  Non-goals: producing the member (`application-flow-understanding-v1.md` owns it); running an
+  `external-test-selection/0` member; passing `selected[].project`, so a selected file runs in
+  every project of the declared configuration, a superset.
+  Failure modes: a member that cannot be read as a set of tests is never read as no tests.
+  Acceptance evidence: `TestSTRV08706TestSelectionUnits` in `cmd/corvint`;
+  `TestSTRV08702BuildProviderUnits` (the `selection incomplete` case) in `internal/sessiontest`.
+  Rollback: revert the `testSelectionUnits` call in `cmd/corvint/test.go`.
+
+- `STR-V0-8707`: (proposed 2026-11-09; V1-5256; delivery experimental) The "Per-language run
+  status" section of this spec SHALL state, for each language and runner the affected plan
+  selects, whether `corvint test` runs the selected tests, runs the declared full command, names
+  a check or reports `INCOMPLETE`, per runner profile, and SHALL change in the same commit as the
+  adapter set. `corvint test --help` SHALL describe the `providers` member, the `provider`
+  adapter and the `NOT_RUN` and exit 3 rule of STR-V0-8705.
+  Non-goals: a machine-readable status document.
+  Failure modes: none at run time; a stale table is a documentation defect.
+  Acceptance evidence: the section below; `TestSTRV08707CLIDryRunListsProviderInvocation` in
+  `cmd/corvint`, which also reads the help.
+  Rollback: revert the section and the help paragraph with STR-V0-8701.
+
+
+## Per-language run status
+
+Status at STR-V0-8701 to STR-V0-8707 (2026-11-09; V1-5256). "Declared command" is the language's
+entry in `.github/cishards/test-commands.json`: its argv runs whole, `{"none": reason}` runs
+nothing and records `noSuite`, and no entry is `INCOMPLETE` (STR-V0-004).
+
+| Language or runner | Selected by the plan as | Local profile | `ci` profile |
+|---|---|---|---|
+| Go, root module | `go:<package>` and STR-V0-063 slices | runs the selected packages through the `go` adapter | runs them confined |
+| Go, nested module (STR-V0-064) | `go:unobserved-module:<dir>:<path>` | runs `go test ./...` in the module | named in `checks`, not run |
+| TypeScript and JavaScript, Vitest | `typescript:vitest:<path>` | with `providers.vitest`: runs through `corvint-js-test-provider unit`, the whole suite of its `--dir` (experimental); otherwise the declared command | declared command named in `checks`, not run |
+| TypeScript and JavaScript, Playwright | `typescript:playwright:<path>`, and `advice.test_selection` when present (STR-V0-8706) | with `providers.playwright`: runs the selected files through `corvint-js-test-provider e2e` (experimental), and the declared command also applies for the `e2e-runtime-dependency` frontier; otherwise the declared command | declared command named in `checks`, not run |
+| TypeScript and JavaScript, any other runner | `typescript:<runner>:<path>` | declared command | declared command named in `checks`, not run |
+| Ruby | `ruby:<unit>` | declared command; `corvint-ruby-test-provider` is not driven | declared command named in `checks`, not run |
+| Python, Rust, Swift, Kotlin, .NET, shell and every other plugin language | `<language>:<unit>` | declared command | declared command named in `checks`, not run |
+| Go live tests (`corvint-go-test-provider`) | not selected by this command | not driven; Go runs through the `go` adapter | not driven |
+| Make targets and CI jobs (`driver:`) | reported by the plan | not run by this command | not run by this command |
+| Declared binary consumers (STR-V0-750) | `UNSELECTED_BINARY_CONSUMER` | named in `checks`, not run | named in `checks`, not run |
+
+A selected provider unit that did not run is `NOT_RUN` and the run is `INCOMPLETE`, exit 3
+(STR-V0-8705).
 
 ## Non-goals
 
@@ -646,6 +843,10 @@ two requirements make its version name its content and make each receipt carry i
   it lives in is admitted whole (AFP-V0-420 to AFP-V0-430), so the run stays `FULL` with that
   typed reason, which is already the narrower typed fallback; indexing `.github/` sources is not
   this runner's decision.
+- For the provider adapter (STR-V0-8701 to STR-V0-8707): driving the Ruby or Go live-test
+  provider, any JavaScript runner other than Vitest and Playwright, provider units in the `ci`
+  profile, narrowing a Playwright file's `e2e-runtime-dependency` frontier, selecting single
+  tests inside a file, and retrying or replacing a refused provider run.
 
 ## Boundaries and failure modes
 
@@ -687,6 +888,13 @@ two requirements make its version name its content and make each receipt carry i
 | A module the root requires or replaces, an unreadable `go.mod`, a malformed module detail, or the `ci` profile (STR-V0-064) | `FULL`, the unallowed entry naming the module |
 | A declared binary consumer of a Go command the change reaches (AFP-V0-762), any profile (STR-V0-750) | the run keeps its scope and names the consumer once under `checks` as still required, not run |
 | A malformed consumer detail (STR-V0-750) | `FULL`, the unallowed entry naming the file |
+| A `providers` member with an unsupported runner, a wrong executable or subcommand, a `watch` flag, a bare `--` that ends the provider's flags, or a Vitest `--dir` outside the repository (STR-V0-8701) | the declaration is unreadable: `INCOMPLETE` in every scope, nonzero, no unit runs |
+| A selected `typescript:<runner>:<path>` with no declared provider, an unsafe path, a Vitest path outside the declared `--dir`, or the `ci` profile (STR-V0-8702) | the language's declared command, its `none` assertion, a `checks` entry in `ci`, or `INCOMPLETE` when undeclared; never dropped |
+| A provider that is not found, has no readable version, or is no longer declared for a planned unit (STR-V0-8705) | nothing launched for it; its units recorded `NOT_RUN` in an invocation with exit -1, the reason in `incomplete`, `INCOMPLETE`, exit 3; the other invocations still run |
+| A provider run that exits nonzero, prints no receipt document or one over 8 MiB, or reports an infrastructure failure, another kind, a cancelled run, a stale application build or no test (STR-V0-8705) | every unit of the invocation `NOT_RUN`, the reason in `incomplete`, `INCOMPLETE`, exit 3 |
+| A Playwright unit whose file no reported test names alone (STR-V0-8704) | that unit `NOT_RUN` with its reason, `INCOMPLETE`, exit 3 |
+| A failing provider test in a selected file, or in no selected file (STR-V0-8704) | the owning unit, or every unit of the invocation, `FAIL`; exit 1 unless the run is also `INCOMPLETE` |
+| An `advice.test_selection` member of another schema, `blocked`, or malformed (STR-V0-8706) | the reason in the manifest's `incomplete`; `INCOMPLETE`, exit 3, in a dry run as well |
 
 Every failure fails closed toward a larger run or a nonzero exit. No path narrows on missing
 evidence (invariant 2), and repository declarations outrank the planner (invariant 3).
@@ -748,6 +956,16 @@ Testing matrix (all `NOT_RUN` until implementation):
 - a sliced plan places every slice once on distinct shards, binds its slices in the digest,
   round-trips through `ReadShardPlan`, and runs each slice as a measured unit (STR-V0-057). The
   STR-V0-057 wall-clock comparison against whole-package measured placement is `NOT_RUN`.
+- a fixture repository with one changed Go package and one changed Playwright spec file runs
+  both through `corvint test --base`: the receipt holds a `go` invocation and a `provider`
+  invocation whose argv names the spec file, each with a `PASS` outcome, and the same fixture
+  without the provider on `PATH` records the unit `NOT_RUN` with the reason and exits 3 while
+  the Go invocation still passes (STR-V0-8704, STR-V0-8705);
+- the provider adapter's declaration refusals, planning fallbacks, argv and outcome mapping are
+  table-tested in `internal/sessiontest` (STR-V0-8701 to STR-V0-8705), and the
+  `advice.test_selection` read in `cmd/corvint` (STR-V0-8706). A run against a real Vitest or
+  Playwright installation is `NOT_RUN`: the fixtures use a stand-in provider executable that
+  prints the provider's receipt document.
 
 Promotion from experimental requires the parity report, 20 merged PRs through the queue on the new
 CI call site with complete forward rows and no trip, and median and p90 PR wall time and
@@ -788,7 +1006,17 @@ above, which removes balanced placement only.
    placement, experimental; CI keeps universe placement and `.github/` is unchanged. Promotion
    follows balanced placement's local 20% bar against universe placement. STR-V0-055..057 keep
    that status: sliced measured plans need the same executed 20% comparison, `NOT_RUN`.
+7. The `provider` adapter for Vitest and Playwright (STR-V0-8701 to STR-V0-8707): local profile
+   only, opt-in through the declaration's `providers` member, experimental. This repository's own
+   declaration does not declare it. Promotion needs an executed run against a real Vitest and a
+   real Playwright project, `NOT_RUN`, and the E2E join before a Playwright file's declared suite
+   may be narrowed away.
 
+Rollback of STR-V0-8701 to STR-V0-8707: delete the `providers` member from the declaration, which
+restores the declared full command with no code change; or revert their commits. A receipt with a
+`provider` invocation is then refused by the older binary's `verify-shards` as an unregistered
+adapter, so mixed binaries fail closed, `INCOMPLETE`. `advice.test_selection` is then ignored
+again, as before.
 Rollback of STR-V0-750: revert its commit; AFP-V0-762 consumer entries then force `FULL` again on
 the local profile. Rollback of its V1-4361 `ci` extension: revert that commit; the driver and the
 `ci` profile then force `FULL` on a consumer again, together.
@@ -862,13 +1090,23 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
 | STR-V0-750 | `binaryConsumer`, `BinaryConsumerCheck` and the consumer case of `Build` in `internal/sessiontest/plan.go` | `internal/sessiontest/consumer_strv0750_test.go` TestBinaryConsumerIsANamedCheck_STRV0750; `cmd/corvint/test_consumer_strv0750_unix_test.go` TestSTRV0750CLIBinaryConsumerIsANamedCheck; `internal/sessiontest/allowlist_afpv0982_test.go` TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982 |
 | STR-V0-548 | `ReasonCode` and its codes in `internal/sessiontest/reasoncode.go`; `Unit.ReasonCode` in `internal/sessiontest/manifest.go` and `plan.go`; the classifier in `tools/selection-baseline/main.go` | `TestSTRV0548ReasonCodesPinTheProseShapes` in `internal/sessiontest/reasoncode_test.go`; `tools/selection-baseline` tests; the TSP-V0-006/861 and STR-V0-063 manifest tests |
+| STR-V0-8301 | `Producer` in `internal/sessiontest/manifest.go` and `plan.go`; `manifestProducer` in `cmd/corvint/producer.go`, wired in `testRunInput` | `TestSTRV08301ManifestCarriesItsProducer_STRV08301` (internal/sessiontest); `TestSTRV08301DryRunManifestNamesItsProducer_STRV08301` (cmd/corvint) |
 | STR-V0-920 | `Makefile` `GATE_STEPS` and `shell-test:`; `tools/test-commands-check/main_test.go` `TestGateStepsTwoLaneMergeIsClean_STR_V0_920`, `TestSTRV0004ShellTestIsTheGateShellSteps` on logical lines; `script/no-python-runtime-dependency_test.sh` continued-list fixtures | implemented; Go and shell tests PASS |
 | STR-V0-908 | `tmpdirDefault` and its use in `checkLedger` (`tools/test-commands-check/main.go`); `CORVINT_GOCACHE ?=` in the `Makefile` | `TestSTRV0006DeclarationMatchesMakefile`; the `cache` and `cache function` cases of `TestSTRV0006LedgerMatchesDeclaration` in `tools/test-commands-check/main_test.go` |
 | STR-V0-120 | `testVerdict`, `testPlanVerdict`, `testDryRun` and the `corvint test` help in `cmd/corvint/test.go` | `TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration` (cmd/corvint) |
+| STR-V0-8701 | `Declared.Providers`, `providerCommand` and `providerDir` in `internal/sessiontest/declared.go`; `AdapterProvider` in `manifest.go` and its registration in `adapter.go` | `internal/sessiontest/provider_test.go` TestSTRV08701DeclaredProviders; `internal/sessiontest/adapter_test.go` TestSTRV0004AdapterCapabilityManifest |
+| STR-V0-8702 | `providerUnit`, `providerPath` in `internal/sessiontest/provider.go`; the provider branch of `Build` and `adapterOrder` in `plan.go` | `internal/sessiontest/provider_test.go` TestSTRV08702BuildProviderUnits |
+| STR-V0-8703 | `providerInvocations`, `providerSelector` in `internal/sessiontest/provider.go`; `Invocations` in `run.go` | `internal/sessiontest/provider_test.go` TestSTRV08703ProviderInvocations; `cmd/corvint/test_provider_strv08701_unix_test.go` TestSTRV08707CLIDryRunListsProviderInvocation |
+| STR-V0-8704 | `providerOutcomes`, `providerOwners` in `internal/sessiontest/provider.go`; the provider case of `Runner.launch` in `run.go` | `internal/sessiontest/provider_test.go` TestSTRV08704ProviderOutcomes; `internal/sessiontest/provider_unix_test.go` TestSTRV08704RunnerReportsProviderWithGo; `cmd/corvint/test_provider_strv08701_unix_test.go` TestSTRV08704CLIMixedGoAndPlaywrightRun |
+| STR-V0-8705 | `providerUnavailable` and the refusals of `providerOutcomes` in `internal/sessiontest/provider.go`; `Runner.Execute` in `run.go` | `internal/sessiontest/provider_test.go` TestSTRV08705ProviderRefusalsAreNotRun; `internal/sessiontest/provider_unix_test.go` TestSTRV08705RunnerProviderUnavailable; `cmd/corvint/test_provider_strv08701_unix_test.go` TestSTRV08705CLIUnavailableProviderIsNotRun |
+| STR-V0-8706 | `testSelectionUnits` and its call in `testFillPlan` (`cmd/corvint/test.go`); `Input.SelectionIncomplete` in `internal/sessiontest/plan.go` | `cmd/corvint/test_selection_strv08706_test.go` TestSTRV08706TestSelectionUnits; TestSTRV08702BuildProviderUnits |
+| STR-V0-8707 | "Per-language run status" in this spec; `testHelp` in `cmd/corvint/test.go` | `cmd/corvint/test_provider_strv08701_unix_test.go` TestSTRV08707CLIDryRunListsProviderInvocation |
 
 ## Open decisions
 
-- Whether the Playwright profile's file commands become the first non-Go adapter or stay separate.
+- Decided for the experimental slice (STR-V0-8701, 2026-11-09; V1-5256, intent proposed): the first
+  non-Go adapter is `provider`, which runs selected Vitest and Playwright files through
+  `corvint-js-test-provider`. The Playwright profile's own file commands stay separate.
 - Adapter order after Go, likely by the languages adopters run most.
 - Whether balanced placement should ever become the default.
 

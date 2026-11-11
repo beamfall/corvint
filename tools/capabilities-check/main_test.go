@@ -376,9 +376,8 @@ func syntheticRepository() map[string]string {
 	files := map[string]string{
 		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
 			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
-		"cmd/corvint/main.go": "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
-		"cmd/corvint/tables.go": "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\n" +
-			"var flowSubcommands = map[string]bool{}\n",
+		"cmd/corvint/main.go":     "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
+		"cmd/corvint/tables.go":   "package main\n\nvar helpSubcommands = map[string]map[string]bool{}\n",
 		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.impact\"\n",
 		"internal/mcp/tools.go":   "package mcp\n",
 		"docs/CAPABILITIES.md": "<!-- capability-gate:commands -->\n| Command | Maturity |\n|---|---|\n| `corvint init` | core |\n<!-- /capability-gate:commands -->\n" +
@@ -531,8 +530,10 @@ func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 			t.Errorf("no subcommands collected for %q: %v", verb, inv.Subcommands)
 		}
 	}
-	if !contains(inv.Subcommands["flows"], "request-path") || !contains(inv.Subcommands["flows"], "appmap") {
-		t.Errorf("flows init registrations not collected: %v", inv.Subcommands["flows"])
+	// flows is an exec-only shim (decision 0595): corvint's tree holds only what corvint answers
+	// itself, and corvint-docs's tree catalogues the forwarded subcommands.
+	if got := strings.Join(inv.Subcommands["flows"], ","); got != "appmap,test-evidence" {
+		t.Errorf("flows subcommands %q, want the two corvint answers itself", got)
 	}
 	dropped := replaceOnce(t, catalog, "`compare`, ", "")
 	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs compare") || len(got) != 1 {
@@ -545,8 +546,13 @@ func TestCAPV0007UndocumentedSubcommandFails(t *testing.T) {
 }
 
 // TestCAPV0007SubcommandTablesParse pins the table reader on a synthetic package: a nested map
-// following an identifier, a slice, a map with an init registration, and a missing table.
+// following an identifier, a slice, a map with an init registration, and a missing table. No
+// flat table is tracked since the flows group moved to corvint-docs (decision 0595), so the test
+// tracks a synthetic one to keep that reader shape pinned.
 func TestCAPV0007SubcommandTablesParse(t *testing.T) {
+	tracked := subcommandTables
+	subcommandTables = append(slices.Clone(tracked), struct{ variable, command string }{"flowSubcommands", "flows"})
+	t.Cleanup(func() { subcommandTables = tracked })
 	dir := t.TempDir()
 	src := "package main\n\nvar cemActions = map[string]bool{\"verify\": true}\n" +
 		"var helpSubcommands = map[string]map[string]bool{\"cem\": cemActions, \"ocm\": {\"link\": true}}\n" +
@@ -612,25 +618,26 @@ func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 }
 
 // TestCAPV0960TreeSubcommandUndocumentedFails proves a subcommand dispatched outside the declared
-// tables is checked through the corvint command tree: `flows coverage` is in no table, yet
-// dropping it from the flows row fails.
+// tables is checked through the corvint command tree: `runs server-errors` is in no table, yet
+// dropping it from the runs row fails. `flows test-evidence`, the one verb corvint answers under
+// the forwarded flows group (decision 0595), reaches the check the same way.
 func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
-	declared, err := parseSubcommands("../../cmd/corvint", "../../internal/command/flows")
+	declared, err := parseSubcommands("../../cmd/corvint")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if contains(declared["flows"], "coverage") {
-		t.Fatal("flows coverage is now in a declared table; pick another tree-only subcommand")
+	if contains(declared["runs"], "server-errors") || contains(declared["flows"], "test-evidence") {
+		t.Fatal("runs server-errors or flows test-evidence is now in a declared table; pick another tree-only subcommand")
 	}
 	inv, catalog, readme := load(t)
-	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "server-errors") {
+	if !contains(inv.Subcommands["flows"], "test-evidence") || !contains(inv.Subcommands["runs"], "server-errors") {
 		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
 	}
-	dropped := replaceOnce(t, catalog, "include `coverage`, ", "include ")
-	if shadows := proseShadows(t, dropped, "flows", "coverage"); len(shadows) != 0 {
-		t.Fatalf("%s", shadowMessage("flows", "coverage", shadows))
+	dropped := replaceOnce(t, catalog, ", `server-errors`.", ".")
+	if shadows := proseShadows(t, dropped, "runs", "server-errors"); len(shadows) != 0 {
+		t.Fatalf("%s", shadowMessage("runs", "server-errors", shadows))
 	}
-	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "flows coverage") || len(got) != 1 {
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "runs server-errors") || len(got) != 1 {
 		t.Errorf("dropped tree subcommand: subcommand-undocumented %v", got)
 	}
 	if err := MergeSubcommands(&Inventory{}, t.TempDir()); err == nil {
@@ -679,25 +686,25 @@ func shadowMessage(verb, sub string, shadows []string) string {
 }
 
 // TestCAPV0080BacktickedProseWordIsNamed (V1-3887) is the regression for a backticked prose word in
-// a capability row: `coverage` written in backticks elsewhere in the flows row keeps the dropped
+// a capability row: `server-errors` written in backticks elsewhere in the runs row keeps the dropped
 // subcommand documented, and the TestCAPV0960 precondition names that token, its line and the rule
 // instead of failing on an empty finding list; the committed catalog has no such shadow.
 func TestCAPV0080BacktickedProseWordIsNamed(t *testing.T) {
 	inv, catalog, readme := load(t)
-	if shadows := proseShadows(t, catalog, "flows", "coverage"); len(shadows) != 0 {
-		t.Fatalf("committed catalog: %s", shadowMessage("flows", "coverage", shadows))
+	if shadows := proseShadows(t, catalog, "runs", "server-errors"); len(shadows) != 0 {
+		t.Fatalf("committed catalog: %s", shadowMessage("runs", "server-errors", shadows))
 	}
-	prose := replaceOnce(t, catalog, "include `coverage`, ", "include ")
-	prose = replaceOnce(t, prose, "Web applications with a flow manifest.", "Web applications with a flow manifest; read the `coverage` column first.")
-	if got := kinds(Check(prose, readme, inv, linkBase))["subcommand-undocumented"]; contains(got, "flows coverage") {
+	prose := replaceOnce(t, catalog, ", `server-errors`.", ".")
+	prose = replaceOnce(t, prose, "questions over report files.", "questions over report files; read the `server-errors` column first.")
+	if got := kinds(Check(prose, readme, inv, linkBase))["subcommand-undocumented"]; contains(got, "runs server-errors") {
 		t.Fatalf("a backticked prose word no longer documents the subcommand (CAP-V0-007 changed): %v", got)
 	}
-	shadows := proseShadows(t, prose, "flows", "coverage")
-	if len(shadows) != 1 || !strings.HasSuffix(shadows[0], "`coverage`") {
-		t.Fatalf("shadows %v, want the one prose `coverage` span", shadows)
+	shadows := proseShadows(t, prose, "runs", "server-errors")
+	if len(shadows) != 1 || !strings.HasSuffix(shadows[0], "`server-errors`") {
+		t.Fatalf("shadows %v, want the one prose `server-errors` span", shadows)
 	}
-	for _, want := range []string{"`coverage`", "CAP-V0-007", "outside its Subcommands sentence", "without backticks"} {
-		if msg := shadowMessage("flows", "coverage", shadows); !strings.Contains(msg, want) {
+	for _, want := range []string{"`server-errors`", "CAP-V0-007", "outside its Subcommands sentence", "without backticks"} {
+		if msg := shadowMessage("runs", "server-errors", shadows); !strings.Contains(msg, want) {
 			t.Errorf("message %q lacks %q", msg, want)
 		}
 	}

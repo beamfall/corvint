@@ -18,7 +18,7 @@ func TestAffectedStaleBinaryMergedStreamStillParses(t *testing.T) {
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", built))
 	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
 
-	for _, options := range [][]string{nil, {"--full"}, {"--by-path", "--path", "self.go"}} {
+	for _, options := range [][]string{{"--accept-stale-binary"}, {"--full", "--accept-stale-binary"}, {"--by-path", "--path", "self.go", "--accept-stale-binary"}} {
 		merged, err := os.Create(filepath.Join(t.TempDir(), "merged"))
 		if err != nil {
 			t.Fatal(err)
@@ -39,7 +39,7 @@ func TestAffectedStaleBinaryMergedStreamStillParses(t *testing.T) {
 	}
 
 	// Separate streams: the stderr line stays (AFP-V0-846).
-	_, _, stderr, code := runAffectedCLI(t, root)
+	_, _, stderr, code := runAffectedCLI(t, root, "--accept-stale-binary")
 	if code != 0 || !strings.Contains(stderr, "corvint: DEGRADED self-binary-stale") {
 		t.Fatalf("separate streams lost the stderr line: exit %d %s", code, stderr)
 	}
@@ -47,7 +47,7 @@ func TestAffectedStaleBinaryMergedStreamStillParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code = runContext(context.Background(), []string{"--root", root, "affected", "--format", "text"}, strings.NewReader(""), merged, merged)
+	code = runContext(context.Background(), []string{"--root", root, "affected", "--format", "text", "--accept-stale-binary"}, strings.NewReader(""), merged, merged)
 	_ = merged.Close()
 	text, _ := os.ReadFile(merged.Name())
 	if code != 0 || !strings.Contains(string(text), "\ndegraded self-binary-stale\n") || strings.Contains(string(text), "DEGRADED") {

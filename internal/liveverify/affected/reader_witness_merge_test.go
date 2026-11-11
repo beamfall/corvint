@@ -9,6 +9,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/liveverify/affected/affectedcheck"
+
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
@@ -45,7 +47,7 @@ func TestWitnessesResolveFromTestlessReader_AFPV0495(t *testing.T) {
 	const reader, tested, app, other = "go:example.test/reader/reader", "go:example.test/reader/tested", "go:example.test/reader/app", "go:example.test/reader/other"
 	found := false
 	for _, selection := range affected.Select(graph, []string{"data/payload.txt"}).Selected {
-		if !witnessResolves(graph, selection) {
+		if !affectedcheck.WitnessResolves(graph, selection) {
 			t.Fatalf("unresolvable witness: %+v", selection)
 		}
 		if selection.UnitID == app {
@@ -64,7 +66,7 @@ func TestWitnessesResolveFromTestlessReader_AFPV0495(t *testing.T) {
 		{UnitID: app, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "missing/notnamed.txt", Via: []string{reader, app}}},
 		{UnitID: other, Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "data/payload.txt", Via: []string{reader, other}}},
 	} {
-		if witnessResolves(graph, forged) {
+		if affectedcheck.WitnessResolves(graph, forged) {
 			t.Fatalf("forged reader chain resolved: %+v", forged)
 		}
 	}

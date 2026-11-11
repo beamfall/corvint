@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
@@ -17,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
+	"github.com/Beamfall/corvint/internal/projectpath"
 	"github.com/Beamfall/corvint/internal/rootalias"
 	"github.com/Beamfall/corvint/internal/workspace"
 )
@@ -34,7 +34,7 @@ const (
 
 // toolGroups are the per-root and workspace-level groups a --tool-profile list
 // may add beside at most one code profile (MMR-V0-012).
-var toolGroups = []string{toolProfileTestEvidence, toolProfileTestValidity, toolProfileDocs, toolProfileCorpus}
+var toolGroups = []string{toolProfileTestEvidence, toolProfileTestValidity, toolProfileDocs, toolProfileCorpus, toolProfileAffected}
 
 // splitToolProfile reads one --tool-profile value: a single code profile, as
 // MCPV0-026 has always admitted, or a comma list of at most one code profile
@@ -115,7 +115,7 @@ func bindCorpusArtifact(roots []rootDeclaration, groups []string, value string) 
 	if pathReason != "" {
 		return "", "", "--corpus-artifact: " + pathReason
 	}
-	if rule := doccorpus.LocalInputPathRule(path); rule != "" {
+	if rule := projectpath.LocalInputRule(path); rule != "" {
 		return "", "", "--corpus-artifact: local input paths must be canonical and relative to --root (" + rule + ")"
 	}
 	// A relative path names a file below the declared root, which may lie below
@@ -182,13 +182,19 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 				if !ok {
 					return "repository unavailable"
 				}
-				group = toolgroup.TestEvidence{Root: root, Binding: binding}
+				group = toolgroup.TestEvidence{Root: root, Binding: binding, Parse: parseTestEvidence}
+			case toolProfileAffected:
+				binding, ok := rootbind.Bind(root)
+				if !ok {
+					return "repository unavailable"
+				}
+				group = toolgroup.NewAffected(root, binding, handler.affected)
 			case toolProfileTestValidity:
 				registry, err := testvaliditybridge.New(root)
 				if err != nil {
 					return "repository unavailable"
 				}
-				group = toolgroup.TestValidity{Registry: registry}
+				group = testvaliditybridge.Group{Registry: registry}
 			case toolProfileDocs:
 				registry, err := docsbridge.New(root)
 				if err != nil {
@@ -207,7 +213,7 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 	if corpusRoot == "" {
 		return ""
 	}
-	corpus, code := toolgroup.OpenCorpusArtifact(corpusRoot, corpusPath)
+	corpus, code := corpusbridge.OpenArtifact(corpusRoot, corpusPath)
 	if code != "" {
 		_, _ = fmt.Fprintf(stderr, "corvint-mcp: note: --corpus-artifact unavailable (%s); corpus tools answer corpus-refused until it opens\n", code)
 	}
