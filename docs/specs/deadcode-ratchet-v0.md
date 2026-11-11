@@ -47,7 +47,10 @@ lane is editing, 1 under `.github/**` and 1 fixture.
   `windows/arm64`, one after another. Each run MUST analyse every package of the main module,
   including packages under directories whose names begin with a dot (which `./...` skips). When a
   run fails, or loads no package, the target MUST fail and name the configuration; it MUST NOT
-  compute a report from fewer than six runs.
+  compute a report from fewer than six runs. Every run uses `CGO_ENABLED=0` and the default build
+  tags, so a function whose only callers are in cgo files or in files behind a build tag (`race`,
+  `live` or another custom tag) is reported as dead. Under DCR-V0-007 such a function is kept only
+  when its removal breaks a build or vet of DCR-V0-008.
 - `DCR-V0-003`: (proposed 2026-11-11; delivery experimental; V1-4801) Identity and intersection. A
   function's identity MUST be its package import path and the analyzer's name for it (`F`, or
   `T.M` for a method), without a file or line. The report MUST be the set of identities that every
