@@ -45,6 +45,9 @@ type Symlinks struct {
 	// Changed lists each dirty path that is a link at the measured commit or
 	// in the tree.
 	Changed []string
+	// Root is the tree's physical path, every link of its path resolved, in
+	// slash form: a target that climbs above the tree is resolved from it.
+	Root string
 }
 
 // WithSymlinks returns a copy of the graph whose plans read links as the
@@ -52,7 +55,7 @@ type Symlinks struct {
 // without this call plans as before.
 func (graph *Graph) WithSymlinks(links Symlinks) *Graph {
 	copied := *graph
-	copied.symlinks = &Symlinks{Listed: links.Listed, Targets: maps.Clone(links.Targets), Changed: slices.Clone(links.Changed)}
+	copied.symlinks = &Symlinks{Listed: links.Listed, Targets: maps.Clone(links.Targets), Changed: slices.Clone(links.Changed), Root: links.Root}
 	return &copied
 }
 
@@ -60,12 +63,23 @@ func (graph *Graph) WithSymlinks(links Symlinks) *Graph {
 // measured from commit: every link at commit, from repository's Git objects,
 // with its target read from tree, and every dirty path that is a link at
 // commit or in tree. A path at commit that is dirty is read from tree alone.
-// Missing inputs, a Git failure or a listing that reaches MaxStatusBytes
-// return a list that is not Listed.
+// A link whose target leaves the tree is resolved on the file system from
+// the tree's physical path (physicalPath), so a target that climbs out and
+// re-enters by the repository's own name, or names the tree through an alias
+// of an ancestor (/tmp and /private/tmp), gets the repository path it reaches
+// as its target, one that cannot be evaluated gets ".", and one that stays
+// outside keeps its text. Missing inputs, a tree whose physical path cannot be
+// read, a Git failure or a listing that reaches MaxStatusBytes return a list
+// that is not Listed.
 func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit string, dirty []string) Symlinks {
 	if gitExecutable == "" || repository == "" || tree == "" || commit == "" {
 		return Symlinks{}
 	}
+	physical, err := filepath.EvalSymlinks(tree)
+	if err != nil {
+		return Symlinks{}
+	}
+	root := filepath.ToSlash(physical)
 	deadline, cancel := context.WithTimeout(ctx, StatusDeadline)
 	defer cancel()
 	raw, err := boundedGitRunner(gitExecutable)(deadline, repository, MaxStatusBytes, "ls-tree", "-r", "-z", "--full-tree", commit)
@@ -76,7 +90,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 	for _, relative := range dirty {
 		isDirty[relative] = true
 	}
-	links := Symlinks{Listed: true, Targets: map[string]string{}}
+	links := Symlinks{Listed: true, Targets: map[string]string{}, Root: root}
 	changed := map[string]bool{}
 	for _, record := range strings.Split(string(raw), "\x00") {
 		if record == "" {
@@ -94,7 +108,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 			changed[name] = true
 			continue
 		}
-		links.Targets[name] = linkTarget(repository, tree, name)
+		links.Targets[name] = linkTarget(repository, tree, root, name)
 	}
 	for _, relative := range dirty {
 		if !ValidRelativePath(relative) {
@@ -104,20 +118,80 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 		switch {
 		case err == nil && info.Mode()&fs.ModeSymlink != 0:
 			changed[relative] = true
-			links.Targets[relative] = linkTarget(repository, tree, relative)
+			links.Targets[relative] = linkTarget(repository, tree, root, relative)
 		case err != nil && !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR):
 			// A path whose kind cannot be read may be a link.
 			changed[relative] = true
 		}
 	}
 	links.Changed = slices.Sorted(maps.Keys(changed))
+	reentered := map[string]string{}
+	for link := range links.Targets {
+		position, inside := resolveSymlink(link, links.Targets, root)
+		if inside || position == "" {
+			continue
+		}
+		reached, err := physicalPath(position)
+		if err != nil {
+			reentered[link] = "."
+		} else if relative, inside := insideRoot(reached, root); inside {
+			reentered[link] = relative
+		}
+	}
+	maps.Copy(links.Targets, reentered)
 	return links
 }
 
+// errUnresolved is a path physicalPath cannot evaluate: a dangling link or a
+// `..` in the part of the path that does not exist.
+var errUnresolved = errors.New("path cannot be resolved")
+
+// physicalPath resolves the absolute slash path lexical as the kernel would:
+// its longest existing prefix, cut on raw components so a `..` after a link
+// climbs from the link's target, with every link followed, then the rest,
+// which must hold no `..` and must not start at an entry that exists but
+// cannot be followed (a dangling link).
+func physicalPath(lexical string) (string, error) {
+	components := strings.Split(lexical, "/")
+	for count := len(components); count >= 1; count-- {
+		rest := components[count:]
+		if slices.Contains(rest, "..") {
+			return "", errUnresolved
+		}
+		prefix := strings.Join(components[:count], "/")
+		if count == 1 {
+			prefix += "/"
+		}
+		resolved, err := filepath.EvalSymlinks(filepath.FromSlash(prefix))
+		if err == nil {
+			return filepath.ToSlash(filepath.Join(append([]string{resolved}, rest...)...)), nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+		if _, err := os.Lstat(filepath.FromSlash(prefix)); !errors.Is(err, fs.ErrNotExist) {
+			return "", errUnresolved
+		}
+	}
+	return "", errUnresolved
+}
+
+// insideRoot returns the slash path physical as a clean repository path when
+// it is root or lies below it.
+func insideRoot(physical, root string) (string, bool) {
+	if physical == root {
+		return ".", true
+	}
+	relative, below := strings.CutPrefix(physical, strings.TrimSuffix(root, "/")+"/")
+	return relative, below && relative != ""
+}
+
 // linkTarget is the Targets value of the link at relative in tree: its text
-// joined to its directory, empty when an absolute text lies outside both tree
-// and repository, and "." when the text cannot be read.
-func linkTarget(repository, tree, relative string) string {
+// joined to its directory; for an absolute text outside tree and repository
+// by name, the repository path it reaches on the file system from the
+// physical root (an alias of an ancestor), empty when it reaches none, and "."
+// when the text or that path cannot be read.
+func linkTarget(repository, tree, root, relative string) string {
 	text, err := os.Readlink(filepath.Join(tree, filepath.FromSlash(relative)))
 	if err != nil || text == "" {
 		return "."
@@ -127,6 +201,13 @@ func linkTarget(repository, tree, relative string) string {
 			if inside, err := filepath.Rel(root, text); err == nil && inside != ".." && !strings.HasPrefix(inside, ".."+string(filepath.Separator)) && !filepath.IsAbs(inside) {
 				return filepath.ToSlash(inside)
 			}
+		}
+		reached, err := physicalPath(filepath.ToSlash(text))
+		if err != nil {
+			return "."
+		}
+		if inside, ok := insideRoot(reached, root); ok {
+			return inside
 		}
 		return ""
 	}
@@ -141,8 +222,11 @@ func linkTarget(repository, tree, relative string) string {
 // component at a time, following each link of targets it meets before a
 // later `..` climbs, as the kernel does. It returns the clean repository path
 // and true, "." and true after more than maxSymlinkHops links, or false for a
-// path that leaves the repository.
-func resolveSymlink(start string, targets map[string]string) (string, bool) {
+// path that leaves the repository: with the absolute position it reaches,
+// root joined with the rest of the path unresolved, when it climbs above the
+// root (physicalPath resolves it), and empty for a link to an absolute target
+// outside. With no root, a climb above the root resolves to ".".
+func resolveSymlink(start string, targets map[string]string, root string) (string, bool) {
 	pending := strings.Split(start, "/")
 	var current []string
 	hops := 0
@@ -154,7 +238,10 @@ func resolveSymlink(start string, targets map[string]string) (string, bool) {
 			continue
 		case "..":
 			if len(current) == 0 {
-				return "", false
+				if root == "" {
+					return ".", true
+				}
+				return strings.Join(append([]string{strings.TrimSuffix(root, "/"), ".."}, pending...), "/"), false
 			}
 			current = current[:len(current)-1]
 			continue
@@ -195,7 +282,7 @@ func (graph *Graph) symlinkTargets(normalized []string) []Unknown {
 	}
 	regions := make([]string, 0, len(links.Targets))
 	for link := range links.Targets {
-		if region, inside := resolveSymlink(link, links.Targets); inside {
+		if region, inside := resolveSymlink(link, links.Targets, links.Root); inside {
 			regions = append(regions, region)
 		}
 	}
