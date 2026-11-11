@@ -273,10 +273,7 @@ var coreNameLiterals = map[string]map[string]coreLiteral{
 		"ruby":   {1, "plugin whose dependencies prove the rspec runner (LGP-V0-017)"},
 		"rspec":  {1, "runner the dependency map is read for (LGP-V0-017)"},
 	},
-	"internal/contextindex": {
-		"go":   {1, "source-suffix table key of context anchors"},
-		"java": {1, "source-suffix table key of context anchors"},
-	},
+	"internal/contextindex": {}, // the context-anchor suffix table left with the ranking code (decision 0597)
 	"internal/testsource": {
 		"jest":       {8, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
 		"vitest":     {3, "modelled runner constant and JavaScript source reading: a module specifier, global identifier or config key, not a plugin lookup"},
