@@ -33,6 +33,14 @@ The host API sequence is:
 5. Use `FullPlans` after failures. Successful sessions still require independent
    core qualification keyed to the installed executable digest.
 
+`OpenHost` composes steps 2 to 5 for one run (RSP-V0-063): given the required
+runner names, the discovery plan, the store and release entries and the core's
+pre-plugin paths, it opens at most one session per required pin and its `Close`
+returns one plan line per required external runner, always `full`, with `run`
+`fail` and `runner-adapter-unavailable` whenever the runner is unpinned,
+unresolvable or its plugin failed and no pre-plugin path exists. No production
+run path calls it yet.
+
 `Schemas()` exports closed JSON Schemas for all six method payloads and results.
 The host and `Serve` validate these same definitions on both sides. Framing also
 rejects duplicate members, invalid UTF-8, unknown envelope members, wrong IDs and
