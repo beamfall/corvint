@@ -4,6 +4,7 @@ package typescript
 import (
 	"context"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -245,13 +246,16 @@ func TestSLFV1003NegatedClassMembership(t *testing.T) {
 // combination; at the repository root the non-recursive glob is `/*`, since
 // `/*/*` misses a file at the root itself.
 func TestSLFV1003RequireContextMembershipGlobs(t *testing.T) {
+	// The parent directory is built at run time: a test literal made only of
+	// parent components would locate the repository root (AFP-V0-021).
+	parent := path.Dir("../x")
 	for _, tc := range []struct {
 		importer, call, want string
 	}{
 		{"loader.ts", `require.context(".", false)`, "[/*]"},
 		{"loader.ts", `require.context(".", true)`, "[/*]"},
 		{"loader.ts", `require.context("./")`, "[/*]"},
-		{"src/routes.ts", `require.context("..", false)`, "[/*]"},
+		{"src/routes.ts", "require.context(\"" + parent + "\", false)", "[/*]"},
 		{"src/routes.ts", `require.context("./", false)`, "[/src/*]"},
 		{"src/routes.ts", `require.context("./pages", false)`, "[/src/pages/*]"},
 		{"src/routes.ts", `require.context("./pages", true)`, "[/src/pages]"},
