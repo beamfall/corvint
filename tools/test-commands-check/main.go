@@ -33,9 +33,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
@@ -115,8 +117,35 @@ func main() {
 	}
 	if *declaration == "" {
 		*declaration = filepath.Join(*root, filepath.FromSlash(sessiontest.DeclarationPath))
+		if problem := checkMirror(*root); problem != "" {
+			fmt.Fprintln(os.Stderr, "test-commands-check: "+problem)
+			os.Exit(1)
+		}
 	}
 	os.Exit(run(*root, *makefile, *declaration, os.Stdout, os.Stderr))
+}
+
+// checkMirror keeps the two declarations one: while Corvint reads its full
+// commands from both .corvint/test-commands.json (what `corvint test` reads
+// first, RNC-V1-013) and the old .github/cishards/test-commands.json (what
+// make, CI and this gate read until the move edits .github/), the new file,
+// when present, must be byte-identical to the old one.
+func checkMirror(root string) string {
+	mirror, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(sessiontest.CommandsPath)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return ""
+	}
+	if err != nil {
+		return sessiontest.CommandsPath + ": " + err.Error()
+	}
+	old, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath)))
+	if err != nil {
+		return sessiontest.DeclarationPath + ": " + err.Error()
+	}
+	if !bytes.Equal(mirror, old) {
+		return sessiontest.CommandsPath + " differs from " + sessiontest.DeclarationPath + "; until the move edits .github/ the two are one declaration: copy one over the other"
+	}
+	return ""
 }
 
 func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
