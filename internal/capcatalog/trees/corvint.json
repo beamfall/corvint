@@ -498,7 +498,8 @@
       "usage": [
         "corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]",
         "corvint [--root PATH] context --task TEXT --subject PATH --instruction-host HOST --instruction-host-version VERSION --instruction-cwd DIR --instruction-profile default",
-        "corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)"
+        "corvint [--root PATH] context TEXT [...]   (one positional TEXT is --task TEXT)",
+        "corvint [--root PATH] context --path PATH [--path PATH ...]"
       ],
       "flags": [
         "--instruction-cwd",
@@ -506,6 +507,7 @@
         "--instruction-host-version",
         "--instruction-profile",
         "--limit",
+        "--path",
         "--root",
         "--subject",
         "--task"
