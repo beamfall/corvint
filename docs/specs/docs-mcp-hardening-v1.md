@@ -210,7 +210,7 @@ input. Any other removal MUST wait for 1.1 and MUST be announced one release ahe
 - WHEN the tool table test runs
 - THEN it fails and names the missing tool
 
-Delivery: not yet built.
+Delivery: each of the 19 corpus tools has its own description (task, what it returns, the nearest other tool) in `internal/mcp/corpusbridge/descriptions.go`, followed by the shared trust statement and the testing-server note, and `describeProperties` sets a description on every input property and every member of the retirement object; `corvint.docs_draft` and `corvint.docs_consume` name each other and describe their properties. No tool is pruned. The descriptions live beside the bridge's `tools` map, since the `mcp-tool-table` change that would own a shared table has not landed. Test: `TestDMFV1008DistinctToolDescriptions` (`internal/mcp/corpusbridge`) fails on a shared description, a description naming no alternative or not naming `corvint mcp`, a property without a description, or a missing table tool; the `tools/list` golden is re-recorded (descriptions only).
 
 - `DMF-V1-009`: (accepted automatically under G14, decision 0596; V1-5409) No second test-selection engine
 
@@ -302,7 +302,7 @@ Delivery: not yet built.
 | DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
 | DMF-V1-006 | 7 | `internal/appflows/docs.go` (`byteDetail`), `internal/command/flows/flows_docs.go` | `TestDMFV1006ByteFailureNamesChangedClaims` |
 | DMF-V1-007 | 8 | `internal/flowdocs/generate.go`, `internal/flowdocs/check.go`, `cmd/corvint-docs/docs_flows.go` | `TestDMFV1007*` |
-| DMF-V1-008 | 10 | not yet built | not yet built |
+| DMF-V1-008 | 10 | `internal/mcp/corpusbridge/descriptions.go`, `internal/mcp/docsbridge/docsbridge.go` | `TestDMFV1008DistinctToolDescriptions`; `internal/mcp/cli/testdata/tools-list-groups.golden.jsonl` |
 | DMF-V1-009 | 11 | not yet built | not yet built |
 | DMF-V1-010 | 12 | not yet built | not yet built |
 | DMF-V1-011 | 13 | not yet built | not yet built |
