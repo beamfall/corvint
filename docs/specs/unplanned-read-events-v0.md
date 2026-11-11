@@ -265,11 +265,11 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 | `URE-V0-004` | experimental | `TestAppendEnabledRotatesAtCap`, `TestSymlinkedLedgerIsRefused`, `TestLedgerRequiresIgnoreEntries`, `TestURE004AppendRefusesSwappedLedgerDirectory` |
 | `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses`, `TestReadRejectsRowsOutsideTheWriterContract`, `TestReadReportsLedgerCut` |
 | `URE-V0-006` | experimental | `TestHookPostToolNeverErrors`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
-| `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle` (removed), `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` (removed) |
+| `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle` (removed), `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing tests; whether its implementation remains is NOT_VERIFIED; no test cites it now, V1-5333) |
 | `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed), `TestURE008WatchdogSettlesPacketOnce` (removed) |
 | `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed) |
 | `URE-V0-996` | experimental | `internal/frictionmetric`: `TestURE996MetricDefinitions` (removed), `TestURE996MissingInputIsNotObserved` (removed), `TestURE996RefusesMalformedRecords` (removed) |
-| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric` (removed), `TestURE997EvalFrictionReportsWithoutMutating` (removed) |
+| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric` (removed), `TestURE997EvalFrictionReportsWithoutMutating` (removed) (untested: the decision 0594 cut of PR #176 removed its last citing tests; a path or function its row names remains; no test cites it now, V1-5333) |
 | `URE-V0-998` | experimental | `internal/frictionmetric`: `TestURE998BenchmarkPrecisionRecall` (removed) |
 
 ## Unresolved decisions
