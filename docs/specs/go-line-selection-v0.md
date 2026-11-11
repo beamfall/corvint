@@ -542,9 +542,9 @@ IDs `GLS-V0-051..060` are reserved for this block; `GLS-V0-056` and `GLS-V0-057`
   C library read them outside Go code in a dynamically linked test binary, which every `-race` or
   cgo build is. The `GLS-V0-017` audit cannot see these reads, so an index collected under one
   value is a `runner-mismatch` under another. An unset variable adds nothing, so an identity read
-  without any of them is unchanged. A GOROOT that resolves, through symbolic links, to the
-  directory `go env GOROOT` reports without it is an alias of the default and adds nothing either;
-  a GOROOT naming another directory is bound.
+  without any of them is unchanged. A GOROOT spelling exactly what `go env GOROOT` reports without
+  it adds nothing either; any other spelling is bound, including a symbolic-link or
+  trailing-separator alias of that directory, because `runtime.GOROOT` returns the spelling set.
 - `GLS-V0-053`: (proposed 2026-11-11; V1-4514; delivery experimental) C code reads the environment
   through the C library's `getenv`, which the `os` audit of `GLS-V0-017` cannot see. Collection
   therefore lists each package's test binary dependencies (`go list -deps -test` under the runner's
@@ -640,7 +640,7 @@ objects and the head test files; it writes nothing.
 | A test or in-order record observed under another environment | kept, or the package whole, as `environment` (`GLS-V0-018`) |
 | The index binds no environment | FALLBACK `environment-unbound`, static plan |
 | FC, GO_EXTLINK_ENABLED, GCC, GOCOMPILEDEBUG, GOCLOBBERDEADHASH, GOSSAFUNC or GOSSADIR set when collecting or selecting, or AR or GCCGO changed | collection fails; selection FALLBACK `runner-unavailable`, static plan (`GLS-V0-051`) |
-| GOTRACEBACK, GOROOT, an `LD_*` or `DYLD_*` variable or GLIBC_TUNABLES differs between collection and selection | FALLBACK `runner-mismatch`, static plan (`GLS-V0-052`); a GOROOT that only aliases the go command's default root, through a symbolic link or a trailing separator, keeps the identity; a `GOTOOLCHAIN` switch changes `GOVERSION`, and a GOROOT naming another toolchain is bound, so either is a mismatch |
+| GOTRACEBACK, GOROOT, an `LD_*` or `DYLD_*` variable or GLIBC_TUNABLES differs between collection and selection | FALLBACK `runner-mismatch`, static plan (`GLS-V0-052`); only a GOROOT spelling exactly the go command's default root keeps the identity, and a symbolic-link or trailing-separator alias is bound because `runtime.GOROOT` returns that spelling; a `GOTOOLCHAIN` switch changes `GOVERSION`, and a GOROOT naming another toolchain is bound, so either is a mismatch |
 | A test binary, or a child a test starts, links non-standard C, C++ or SWIG code | its records bind the whole environment: always kept, the package whole as `environment` (`GLS-V0-053`) |
 | A qualification suite run times out | the package counts as a crash: every declared test failing; any left out is a miss (`GLS-V0-054`) |
 | A test read GOFLAGS, GOCOVERDIR, a `CORVINT_LINECOV_*` variable or the whole environment | binds `collector-modified`: always kept, its package whole when the in-order record holds it (`GLS-V0-017`) |

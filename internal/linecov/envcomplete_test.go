@@ -72,9 +72,9 @@ func TestRunnerIDRefusesUnreportedToolchainEnvironment(t *testing.T) {
 // environment (GOTRACEBACK, a GOROOT naming another toolchain) and those the
 // dynamic loader and C library read (LD_*, DYLD_*, GLIBC_TUNABLES) are in
 // runtime=, loader names sorted after the runtime's; none set leaves
-// runtime="". A GOROOT naming the go command's own root, directly or through
-// a symbolic link, is an alias and leaves the identity unchanged (linereen
-// review).
+// runtime="". A GOROOT spelling exactly the go command's own root leaves the
+// identity unchanged; a symbolic-link or trailing-separator alias is bound,
+// because runtime.GOROOT returns that spelling (PR 194 review).
 func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	requireGo(t)
 	ctx := context.Background()
@@ -98,9 +98,12 @@ func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	if err := os.Symlink(strings.TrimSpace(string(goroot)), alias); err != nil {
 		t.Fatal(err)
 	}
-	for _, kv := range []string{root, "GOROOT=" + alias, "GOROOT=" + strings.TrimSpace(string(goroot)) + string(filepath.Separator)} {
-		if got := id(kv); got != plain {
-			t.Errorf("%s names the go command's own GOROOT, but changes the identity %q to %q", kv, plain, got)
+	if got := id(root); got != plain {
+		t.Errorf("%s names the go command's own GOROOT, but changes the identity %q to %q", root, plain, got)
+	}
+	for _, kv := range []string{"GOROOT=" + alias, "GOROOT=" + strings.TrimSpace(string(goroot)) + string(filepath.Separator)} {
+		if got := id(kv); got == plain || !strings.Contains(got, kv) {
+			t.Errorf("%s is another spelling runtime.GOROOT reports, but the identity %q does not bind it", kv, got)
 		}
 	}
 	for _, kv := range []string{"GOTRACEBACK=all", "LD_LIBRARY_PATH=/linecov-absent", "GLIBC_TUNABLES=glibc.malloc.check=0", "DYLD_LIBRARY_PATH=/linecov-absent"} {
@@ -124,8 +127,11 @@ func TestRunnerIDBindsRuntimeReadEnvironment(t *testing.T) {
 	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + other, "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50 GOROOT="+other {
 		t.Fatalf("another GOROOT: RuntimeSettings = %q", got)
 	}
-	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + alias, "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50" {
+	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + alias, "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50 GOROOT="+alias {
 		t.Fatalf("an alias GOROOT: RuntimeSettings = %q", got)
+	}
+	if got := RuntimeSettings(dropDefaultGOROOT([]string{"GOROOT=" + strings.TrimSpace(string(goroot)), "GOGC=50"}, strings.TrimSpace(string(goroot)))); got != "GOGC=50" {
+		t.Fatalf("the default GOROOT: RuntimeSettings = %q", got)
 	}
 }
 

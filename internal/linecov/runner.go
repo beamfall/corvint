@@ -84,10 +84,11 @@ func RunnerID(ctx context.Context, root string, env []string, timeout time.Durat
 }
 
 // withoutDefaultGOROOT returns env (nil is this process's environment)
-// without its GOROOT when that names, after symbolic links are resolved, the
-// go command's own GOROOT (`go env GOROOT` with GOROOT unset): such a setting
-// is an alias of the same toolchain and runtime.GOROOT reports the same
-// directory, so only a GOROOT naming another directory is bound (GLS-V0-052).
+// without its GOROOT when that spells exactly the go command's own GOROOT
+// (`go env GOROOT` with GOROOT unset). runtime.GOROOT returns the spelling the
+// environment sets, so a symbolic-link or trailing-separator alias of the same
+// directory can take a different branch in a test; any other spelling is bound
+// (GLS-V0-052).
 func withoutDefaultGOROOT(ctx context.Context, root string, env []string) ([]string, error) {
 	if env == nil {
 		env = os.Environ()
@@ -108,23 +109,13 @@ func withoutDefaultGOROOT(ctx context.Context, root string, env []string) ([]str
 }
 
 // dropDefaultGOROOT returns env without its GOROOT entries when the GOROOT it
-// sets and defaultRoot name the same directory after symbolic links are
-// resolved; otherwise env unchanged (GLS-V0-052).
+// sets is exactly defaultRoot; otherwise env unchanged (GLS-V0-052).
 func dropDefaultGOROOT(env []string, defaultRoot string) []string {
 	set := EnvValues(env)["GOROOT"]
-	if set == "" || defaultRoot == "" || resolvedDir(set) != resolvedDir(defaultRoot) {
+	if set == "" || defaultRoot == "" || set != defaultRoot {
 		return env
 	}
 	return slices.DeleteFunc(slices.Clone(env), func(kv string) bool { return strings.HasPrefix(kv, "GOROOT=") })
-}
-
-// resolvedDir is dir with symbolic links resolved, or cleaned when it cannot
-// be resolved.
-func resolvedDir(dir string) string {
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-		return resolved
-	}
-	return filepath.Clean(dir)
 }
 
 // checkUnreportedEnv refuses a non-empty UnreportedGoEnvVars setting in one
