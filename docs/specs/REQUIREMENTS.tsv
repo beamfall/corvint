@@ -2532,6 +2532,7 @@ ASC-V0-776	docs/specs/corvint-self-development-gates-v0.md	(experimental under t
 ASC-V0-777	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166; amends `	standing	2026-11-01; V1-4166
 ASC-V0-778	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166, V1-3580)	standing	2026-11-01; V1-4166; V1-3580
 ASC-V0-779	docs/specs/corvint-self-development-gates-v0.md	(superseded 2026-11-06 at the mbrescue merge; was experimental under the standin	standing	2026-11-06; 2026-11-01; V1-3615
+ASC-V0-780	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-10; beamfall/corvint#	standing	2026-11-10; #9; V1-5175
 ASD-V0-3720	docs/specs/corvint-self-development-gates-v0.md	(moved here from `corvint-self-development-v0.md` at the mbrescue merge, 2026-11	standing	2026-11-06; 2026-11-01; V1-3257
 ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3968 heavy.sh	standing	2026-11-03; V1-3968
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
@@ -8790,6 +8791,20 @@ TSA-V0-460	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-461	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared	standing	2026-10-11; V1-1720
 TSA-V0-462	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted boun	standing	2026-10-11; V1-1720
 TSA-V0-463	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) One table-driven test MUST drive eac	standing	2026-10-11; V1-1720
+TBC-V1-001	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Brief from declared li	unrecorded	-
+TBC-V1-002	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) No ranking.	unrecorded	-
+TBC-V1-003	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Missing links are stat	unrecorded	-
+TBC-V1-004	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Asked for, never injec	unrecorded	-
+TBC-V1-005	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Ranking code removed.	unrecorded	-
+TBC-V1-006	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Keep-or-remove measure	unrecorded	-
+TBC-V1-007	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) Preview, read-only, de	unrecorded	-
+TBC-V1-008	docs/specs/ticket-brief-v1.md	(proposed 2026-11-09; delivery not-started; non-blocking) One MCP table row.	unrecorded	-
+TBC-V1-009	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Path brief n	unrecorded	-
+TBC-V1-010	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Six sections	unrecorded	-
+TBC-V1-011	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) A missing so	unrecorded	-
+TBC-V1-012	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5299; delivery experimental; non-blocking) Requirement	unrecorded	-
+TBC-V1-013	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5300; delivery experimental; non-blocking) Link coverag	unrecorded	-
+TBC-V1-014	docs/specs/ticket-brief-v1.md	(proposed 2026-11-10; V1-5300; delivery not-started; non-blocking) Pilot before	unrecorded	-
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
