@@ -6,9 +6,8 @@ Intent status: retired 2026-11-11 (owner decision R33, 2026-11-09; V1-4804)
 Delivery status: retired
 Retirement base: 4c3c203336a6cc4a9772af39b1a771f34236138e
 Retirement note: owner decision R33 (2026-11-09, `PRODUCT-PLAN-1.0.md` row O42) deletes orphaned code; V1-4804 removed `internal/docviews`, the only implementation of this spec, which had no importer. The body below is historical and its requirement IDs stay for reference; every test it names was deleted with the package and stays retrievable at the retirement base.
-Status note: downstream profile of `human-documentation-compiler-v0.md`; frozen until HDC emits one
-real implementation plan.
-Implementation: `internal/docviews`
+Status note: downstream profile of `human-documentation-compiler-v0.md`; retired with its only
+implementation, see the retirement note.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/human-documentation-compiler-v0.md`,
 `docs/specs/deployment-neutral-index-platform-v0.md`
@@ -17,7 +16,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 - Claim: One evidence ledger must compile consistent expert, executive, and operator views without audience-specific factual divergence.
 - Status: retired 2026-11-11 (owner decision R33, 2026-11-09; V1-4804) / retired
 - Exists: nothing since V1-4804; the `internal/docviews` deterministic compilation and verification stays retrievable at the retirement base.
-- Blocked on: a real Human Documentation Compiler implementation plan and downstream qualification.
+- Blocked on: nothing; retired by owner decision R33 (V1-4804).
 - Read next: Product claim and measurable job; Existing contracts and ownership; Requirements.
 
 ## Product claim and measurable job
