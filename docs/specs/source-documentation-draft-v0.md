@@ -381,7 +381,8 @@ file, reads each cited file's index blob, and reports per citation `out-of-range
 SHA-256 of the cited right-trimmed lines joined by LF, the same rule as `script/check-line-citations.sh`);
 a token whose path is not tracked, whatever its directory, is `missing-file` (DMF-V1-004, superseding
 the earlier tracked-directory rule). A token inside fenced code is example text: it is skipped and
-counted. A checked citation of a tracked file with no `@HEX` anchor is listed as unpinned and is not a
+counted; a fence still open at the end of its document is an `unclosed-fence` failure naming the
+document and the opening line. A checked citation of a tracked file with no `@HEX` anchor is listed as unpinned and is not a
 failure. `--json` prints `corvint-docs-citations-check/0` with one object per failure, the unpinned
 citations, the counts and the `worktree` member (DMF-V1-005: whether a read document or cited file
 differs from the index; the answer stays about the index), and the text output adds a worktree line

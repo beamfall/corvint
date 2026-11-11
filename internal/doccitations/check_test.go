@@ -133,6 +133,35 @@ func TestDMFV1004CitationsMissingFencedUnpinned(t *testing.T) {
 	}
 }
 
+// DMF-V1-004: a fenced code block still open at the end of its document is an unclosed-fence
+// failure naming the document and the line that opened it; the citations after it stay skipped as
+// code, and a document whose fences all close has no such failure.
+func TestDMFV1004UnclosedFenceFails(t *testing.T) {
+	doc := strings.Join([]string{
+		"Checked `lib/run.go:3`.",
+		"```",
+		"closed",
+		"```",
+		"",
+		"  ~~~~ text",
+		"`lib/run.go:99` is skipped: the fence never closes.",
+		"~~~",
+		"",
+	}, "\n")
+	root := foreignRepository(t, map[string]string{"docs/open.md": doc, "docs/closed.md": "```\n`lib/run.go:99`\n```\n", "lib/run.go": "package lib\n\nfunc Run() {\n}\n"})
+	report, err := Check(context.Background(), root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Failure{Document: "docs/open.md", Line: 6, Token: "~~~~", Kind: UnclosedFence, Detail: "fenced code opened at docs/open.md:6 is never closed; every line after it was skipped as code"}
+	if len(report.Failures) != 1 || report.Failures[0] != want {
+		t.Fatalf("failures %+v", report.Failures)
+	}
+	if report.Citations != 1 || report.Fenced != 2 {
+		t.Fatalf("citations=%d fenced=%d", report.Citations, report.Fenced)
+	}
+}
+
 // DMF-V1-005: the report's worktree member is clean on a fresh index, dirty naming the one read
 // document edited in the worktree, and clean again once the edit is staged, since the check reads
 // the index.
