@@ -43,6 +43,10 @@ var (
 	errDirectCommandNotQuiescent    = errors.New("direct command: process group did not quiesce")
 	directCommandSignalProcessGroup = syscall.Kill
 	directCommandWait               = func(command *exec.Cmd) error { return command.Wait() }
+	// directCommandRunTimer starts the run's timeout once the command has started. Lifecycle
+	// tests replace it so the timeout fires at a readiness sync point instead of on a wall clock
+	// that a loaded host can overrun before the child is running.
+	directCommandRunTimer = time.NewTimer
 )
 
 type directCommandResult struct {
@@ -131,7 +135,7 @@ func runDirectCommandWithFiles(
 	waitCommand := directCommandWait
 	go func() { waitDone <- waitCommand(command) }()
 
-	timer := time.NewTimer(timeout)
+	timer := directCommandRunTimer(timeout)
 	var waitErr, terminationErr error
 	shutdownDeadline := time.Time{}
 	select {

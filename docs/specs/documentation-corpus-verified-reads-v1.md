@@ -127,7 +127,7 @@ encoder reuse or stamp record encoding independently; no artifact or snapshot mi
   one-based), not the zero-based floor(0.95*n) index. At 20 samples one isolated scheduling
   outlier is tolerated and two samples at or over 1 s still fail; the 100 ms freshness median,
   1 s total p95 budget, fixture and freshness assertions stay unchanged. The Git fallback uses
-  the same statistic. Acceptance: `TestDCRV17100_WarmP95KeepsRegressionPower`,
+  the same statistic; `DCR-V1-846` scales only its freshness median bound on a slow host. Acceptance: `TestDCRV17100_WarmP95KeepsRegressionPower`,
   `TestDCPV1281AdditionalRepositoryWarmCallsAtScale` (`internal/mcp/corpusbridge`).
 
 
@@ -703,9 +703,26 @@ for `DCR-V1-845` and `DCR-V1-846`: experimental under the standing lane auto-acc
   a platform without an lstat change time, such as Windows) takes the Git observation and pin
   verification path on every warm call. Measured on the `DCP-V1-317` fixture with the stamp
   unavailable throughout, that path meets the same warm bounds as the stamp path: median warm
-  `freshness_ms` under 100 ms and p95 warm `total_ms` under 1 s. Non-goal: a stamp path for those
-  checkouts. The Windows cost is measured through the same code path on Linux, not on a Windows
-  host. Acceptance: `TestDCRV1846GitFallbackWarmCallsWithinBudget`. Rollback: delete the test.
+  `freshness_ms` under 100 ms and p95 warm `total_ms` under 1 s. The 100 ms bound is stated for a
+  host whose own Git answers at the measured speed. The acceptance test therefore times a Git
+  reference probe before each warm call: for every checkout at once, the identity read and the
+  worktree status one observation is built from, run directly and not through the path under
+  test, with the Git executable and the reduced environment the path itself uses. The median warm
+  `freshness_ms` must stay under the larger of 100 ms and twice the median probe; the 1 s
+  `total_ms` bound does not scale. Measured on macOS arm64 without other load, the probe median
+  was 31 ms against a 40 ms freshness median (ratio 1.3), so the 100 ms bound holds wherever the
+  probe median is at most 50 ms, and twice the probe is a tighter multiple than the 100 ms bound
+  is on the reference host (3.2 times its probe). Failure mode avoided: a hosted macOS runner
+  whose Git is slower failed the fixed bound at a 104 ms median with no change to the path
+  (V1-5032). Non-goals: a stamp path for those checkouts; a scaled bound for the stamp path of
+  `DCP-V1-317`. The Windows cost is measured through the same code path on Linux, not on a
+  Windows host. Limits: the probe omits the private metadata and index copies the path makes, runs
+  before each call and never during it, and its ratio to the path was measured on one unloaded host
+  only; a regression that keeps the path under twice the probe is not seen on
+  a host slower than the reference. Acceptance: `TestDCRV1846GitFallbackWarmCallsWithinBudget`;
+  `TestDCRV1846BudgetVerdictKeepsRegressionPower` pins the verdict on fixed samples and
+  `TestDCRV1846InjectedObservationDelayFailsBudget` proves a delay injected into the observation
+  fails it. Rollback: restore the fixed 100 ms bound in the test.
 
 The stamp capture is the largest term of a warm call once the stamp holds: on the `DCP-V1-317`
 fixture it took 44.0 ms per capture (`BenchmarkDCRV1847CheckoutStamp`, 50 iterations, load 2.2 to
@@ -791,5 +808,5 @@ DCPV1.
 | DCR-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCRV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCRV1451ManyScopesVerifiedRead`, `BenchmarkDCRV1451ManyScopesRederivedRead`; profiles in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
 | DCR-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCRV1452GitIndexVouchesUnchangedEntries`, `TestDCRV1452RacyEntryIsNotVouched`, `TestDCRV1452IndexVersionsAndFlags`, `TestDCRV1453UnusableIndexVouchesNothing`, `TestDCRV1453IndexPathnameBounds`, `FuzzParseGitIndex`, `TestDCRV1453FailedBlobBatchFallsBackToWorktree`, `TestDCRV1453RoutedPinMatchesParityRepository` |
 | DCR-V1-845 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale` |
-| DCR-V1-846 | `internal/mcp/corpusbridge/additional_freshness_test.go` | `TestDCRV1846GitFallbackWarmCallsWithinBudget` |
+| DCR-V1-846 | `internal/mcp/corpusbridge/additional_freshness_test.go` | `TestDCRV1846GitFallbackWarmCallsWithinBudget`, `TestDCRV1846BudgetVerdictKeepsRegressionPower`, `TestDCRV1846InjectedObservationDelayFailsBudget` |
 | DCR-V1-847 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1847ChunkedStatMatchesSerialDigest`, `BenchmarkDCRV1847CheckoutStamp` |
