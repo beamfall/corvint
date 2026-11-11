@@ -2142,6 +2142,7 @@
     "tools/cw-trial": [
       "benchmarks/results/"
     ],
+    "tools/deadcode-ratchet": [],
     "tools/declaration-compat-check": [],
     "tools/docs-ci-plan": [
       "go.mod",
