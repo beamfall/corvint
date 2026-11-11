@@ -18,15 +18,39 @@ import (
 )
 
 // requireRawFilenames skips when the temp filesystem refuses non-UTF-8 names
-// (APFS on macOS returns EILSEQ), so no such Git path can exist there.
+// (APFS on macOS returns EILSEQ), so no such Git path can exist there (V1-4799).
+// Any other failure still fails the test, and Linux, which accepts the name,
+// runs it.
 func requireRawFilenames(t *testing.T) {
 	t.Helper()
 	err := os.WriteFile(filepath.Join(t.TempDir(), "probe\xff"), nil, 0o600)
-	if errors.Is(err, syscall.EILSEQ) {
-		t.Skip("filesystem rejects non-UTF-8 file names")
+	if reason := rawFilenameSkipReason(err); reason != "" {
+		t.Skip(reason)
 	}
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// rawFilenameSkipReason names why a raw-filename test skips, or returns ""
+// when err is not the filesystem refusing a non-UTF-8 name with EILSEQ.
+func rawFilenameSkipReason(err error) string {
+	if !errors.Is(err, syscall.EILSEQ) {
+		return ""
+	}
+	return "the filesystem rejects non-UTF-8 file names with EILSEQ (APFS on macOS does), so no raw Git filename can be checked out here: " + err.Error()
+}
+
+// V1-4799: only EILSEQ skips; another error or none runs the test.
+func TestRawFilenameSkipReasonOnlyForEILSEQ(t *testing.T) {
+	rejected := &os.PathError{Op: "open", Path: "probe\xff", Err: syscall.EILSEQ}
+	if reason := rawFilenameSkipReason(rejected); !strings.Contains(reason, "EILSEQ") || !strings.Contains(reason, rejected.Error()) {
+		t.Fatalf("EILSEQ skip reason = %q", reason)
+	}
+	for _, err := range []error{nil, &os.PathError{Op: "open", Path: "probe\xff", Err: syscall.EACCES}, errors.New("illegal byte sequence")} {
+		if reason := rawFilenameSkipReason(err); reason != "" {
+			t.Fatalf("%v skips with %q, want the test to run", err, reason)
+		}
 	}
 }
 

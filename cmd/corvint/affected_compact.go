@@ -45,6 +45,9 @@ type affectedCompactReceipt struct {
 	Order *affectedOrder `json:"order,omitempty"`
 	// Summary restates the plan's scope and counts in one object (AFP-V0-510).
 	Summary affectedSummary `json:"summary"`
+	// SelectedFlat lists plan.selected flat, each unit with its runnable
+	// handle and witness; it is reporting only (AFP-V0-9987).
+	SelectedFlat []affectedFlatSelection `json:"selectedFlat"`
 	// LineSelection is copied from the full receipt (GLS-V0-010).
 	LineSelection *linecov.Selection `json:"lineSelection,omitempty"`
 }
@@ -227,6 +230,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Degradations: full.Degradations,
 		Tiers:        tierAffectedPlan(full.Plan),
 		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
+		SelectedFlat: affectedFlatSelected(full.Plan.Selected, selected),
 
 		DegradationDetails: full.DegradationDetails,
 		LineSelection:      full.LineSelection,

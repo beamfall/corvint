@@ -406,6 +406,9 @@ AFP-V0-9975	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; deliv
 AFP-V0-9976	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5226)	unrecorded	-
 AFP-V0-9977	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; delivery experimental; V1-5226)	unrecorded	-
 AFP-V0-3642	docs/specs/affected-plan-selection-v0.md	(proposed; experimental under the owner's standing lane auto-accept	standing	-
+AFP-V0-9987	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399) The default `affected-plan/1`	unrecorded	-
+AFP-V0-9988	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399; extends TSP-V0-7311 (V1-4439) and	unrecorded	-
+AFP-V0-9989	docs/specs/affected-plan-selection-v0.md	(proposed 2026-11-11; experimental; V1-4399) `corvint affected --base BASE	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
