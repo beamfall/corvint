@@ -26,6 +26,11 @@ Amendment of 2026-11-10 (proposed; decided by the lane only as a proposal):
 - The `requirements` section is never `OBSERVED`. The kept links cover only changes that were
   sealed, so a list of them is `INCOMPLETE` and an empty one is `NOT_OBSERVED`. An agent must not
   read an empty section as "no requirement governs this file".
+- The link file keeps one entry per record, so no pinned blob or commit is lost by merging. The
+  section groups entries by requirement ID and reports the newest by committer date, which is a
+  fixed rule and not a ranking.
+- Absence is judged per source. A section that still has one of its two sources keeps those items
+  and is `INCOMPLETE`, so a missing ticket store does not hide the kept links.
 - The coverage check (TBC-V1-013) is a scratch script over existing commands and the sealed
   records. It needs neither the export nor the builder, so it can run first and stop both.
 - PROD-INT-030 is left as accepted. The extension is a new requirement, PROD-INT-032, with a

@@ -193,10 +193,20 @@ TBC-V1-001) is not changed by this requirement.
 
 Proposed 2026-11-10, awaiting owner.
 Source: invariant 2; owner request 2026-11-10. Every source except the Git repository is optional.
-When `corvint-tasks`, `.corvint/flows.json`, `CODEOWNERS`, the retained test evidence or
-`.corvint/requirement-links.json` is absent, the section that needs it MUST be `NOT_OBSERVED` with a
-reason that names the missing source, and the command MUST still exit 0. TBC-V1-004 and TBC-V1-007
-apply to the path brief unchanged.
+The optional sources are `corvint-tasks`, `.corvint/flows.json`, `CODEOWNERS`, the retained test
+evidence and `.corvint/requirement-links.json`. Absence is judged per source, not per section. A
+section whose sources are all absent MUST be `NOT_OBSERVED` with a reason that names each missing
+source. A section with two sources (`tests`: retained evidence and the affected plan;
+`requirements`: the link file and completed tickets) of which one is absent MUST keep the items of
+the source that is present and be `INCOMPLETE` with a reason that names the missing one. The
+command MUST still exit 0. TBC-V1-004 and TBC-V1-007 apply to the path brief unchanged.
+
+#### Scenario: Link file present, no ticket store
+
+- **WHEN** `.corvint/requirement-links.json` ties the path to `ABC-V1-004` and `corvint-tasks` is
+  not installed
+- **THEN** the `requirements` section lists `ABC-V1-004` and is `INCOMPLETE` with a reason that
+  names `corvint-tasks`, and the `tickets` section is `NOT_OBSERVED`
 
 #### Scenario: Repository that has never used Corvint
 
@@ -214,14 +224,18 @@ export MUST read the `cem/1.0` records under `.corvint/changes` at one named com
 `.corvint/requirement-links.json`. For each hunk of a record and each of its `basis` entries whose
 relation is `specification` or `decision`, the `evidenceId` is joined to the record's `evidence`
 entry, giving one link from the hunk's path to that evidence file, byte span and pinned `blobOid`.
-Links are merged per path and evidence span. Each entry MUST carry the path, the evidence file and
-span, every requirement ID whose definition line lies inside that span at the pinned blob (none is
-allowed), and the record's commit. That commit is the SHA in the record's file name
+The export writes one entry per distinct path, evidence file, span, `blobOid` and record commit;
+entries of different records are never merged. Each entry MUST carry the path, the evidence file,
+span and `blobOid`, every requirement ID whose definition line lies inside that span at the pinned
+blob (none is allowed), and the record's commit. That commit is the SHA in the record's file name
 (`<sha>.cem.json`); a record holds no other commit of its own. The export MUST be deterministic, and
 its input commit, its output hash, and its counts of links with no requirement ID and of links
 whose path is absent at the input commit MUST be recorded in the build log. The `requirements`
-section MUST state each link's commit and whether the path's blob at HEAD differs from its blob at
-that commit. A link is never moved to another path or line by a guess: a file renamed after its
+section MUST list one item per requirement ID, or per evidence file and span for a link with no
+ID. An item supported by several entries MUST state their count and report one of them: the entry
+whose record commit has the latest committer date, ties broken by SHA ascending. The item MUST
+state that entry's commit and whether the path's blob at HEAD differs from its blob at that
+commit. A link is never moved to another path or line by a guess: a file renamed after its
 link was sealed loses that link, and rename following is not attempted.
 
 #### Scenario: File changed since the link was sealed
@@ -229,6 +243,13 @@ link was sealed loses that link, and rename following is not attempted.
 - **WHEN** a kept link ties `internal/x/y.go` to `ABC-V1-004` at commit C and the file has changed
   since C
 - **THEN** the item names `ABC-V1-004`, commit C and `changedSince` true
+
+#### Scenario: Two records cite the same requirement for one file
+
+- **WHEN** records sealed at commits C1 and C2 both tie `internal/x/y.go` to `ABC-V1-004`, and C2
+  has the later committer date
+- **THEN** the link file holds two entries, and the section lists one item for `ABC-V1-004` with
+  count 2, commit C2 and `changedSince` computed against C2
 
 #### Scenario: Export run twice
 
