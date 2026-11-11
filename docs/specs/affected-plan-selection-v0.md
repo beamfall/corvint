@@ -166,11 +166,26 @@ measure. None of them drops a unit the change can reach.
   whose resolution passes through more than 40 links, resolves to the repository root. When
   the links cannot be listed (no measured commit, a Git failure, or a listing that reaches the
   8 MiB status bound), a plan with a dirty path MUST carry `shell:symlink-inventory-unknown`
-  instead. A plan over a graph given no list (a library caller of `Select`) is unchanged. Not
-  modelled: a link Git ignores; a link inside a submodule; a link outside the repository that
-  leads back into it; an untracked link a `--path` plan does not name; and a reader of a plugin
-  other than shell and Go that names a path through a link (the Go plugin resolves its literals
-  through links itself).
+  instead. A plan over a graph given no list (a library caller of `Select`) is unchanged. A
+  target that climbs above the tree, or an absolute target that is not below the tree or the
+  repository by name, MUST be resolved on the file system from the tree's physical path (every
+  link of the tree's own path followed), cutting raw components so that a `..` after a link
+  climbs from the link's target: a target that so re-enters the tree, by the repository's name,
+  through an alias of an ancestor (`/tmp` and `/private/tmp`) or through a link outside the
+  repository, resolves to the repository path it reaches; one whose remaining components cannot
+  be evaluated (a dangling link followed by more components, a `..` after a missing component,
+  an unreadable directory) resolves to the repository root; one that stays outside resolves to
+  no path. An absolute target below the tree or repository by name MUST be cut at that prefix
+  and not cleaned lexically. When the tree's physical path cannot be read the links count as
+  not listed. Not modelled: a link Git ignores; a link inside a submodule; an untracked link a
+  `--path` plan does not name; a reader of a plugin other than shell and Go that names a path
+  through a link (the Go plugin resolves its literals through links itself); a link outside
+  the repository created or retargeted after the plan, since outside links are read when the
+  plan is built; Windows link forms (junctions, other reparse points, `.lnk` files and Git's
+  `core.symlinks=false` text stand-ins), which are not read as links; and case-insensitive
+  file systems: a shell (or other plugin's) path literal and a link's target are matched
+  case-sensitively, so `cat Script/a.sh` is not selected for an edit of `script/a.sh` on such
+  a file system.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -3207,9 +3222,12 @@ directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane 
 AFP-V0-9965: `TestSymlinkOperand_V15368` (one row per V1-5368 case and neighbour; no row
 misses a test), `TestSymlinks_AFPV09965` (the list read from a Git repository: tracked,
 retargeted, deleted, dangling, chained, escaping, absolute and unreadable links, and an
-unlistable commit) and `TestAffectedSymlinkTargetCLI_AFPV09965` (`corvint affected` with and
-without `--base`). The mutation evidence and measurements are in
-`docs/build-log/2026-11-11-affsym-operand.md`.
+unlistable commit), `TestSymlinksReenter_AFPV09965` (targets that climb out and re-enter,
+absolute targets through an alias, a `..` after an outside or in-tree link, a dangling
+re-entry; each over the physical tree and its alias) and `TestAffectedSymlinkTargetCLI_AFPV09965`
+(`corvint affected` with and without `--base`). The mutation evidence and measurements are in
+`docs/build-log/2026-11-11-affsym-operand.md` and, for the fix round,
+`docs/build-log/2026-11-11-affsym-fix-round.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
