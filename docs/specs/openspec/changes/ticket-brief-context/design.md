@@ -123,7 +123,10 @@ removed with it.
   in Git history either way, so the export can also run later. The owner did not answer this
   separately. The lane reads it as covered by the acceptance of PROD-INT-032, whose Notes name the
   link file; the export still waits for the coverage check.
-- Set the coverage bar of TBC-V1-013 (proposed: at least half of the tasks have a listed test that
+- Settled 2026-11-10: the owner set the coverage bar of TBC-V1-013 as proposed ("Accept proposed
+  bar"), and the recorded result meets it (16 of 20 tasks; 11 of 20 without same-directory
+  tests). The export and the builder are built. Earlier text: Set the coverage bar of TBC-V1-013
+  (proposed: at least half of the tasks have a listed test that
   the closing commits changed or a listed requirement that the ticket cites). Still open after the
   acceptance of 2026-11-10; the check can run and be recorded before the bar is set. The check ran
   on 2026-11-10 (`docs/build-log/2026-11-10-path-brief-link-coverage-check.md`): 16 of 20 tasks
