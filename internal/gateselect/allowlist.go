@@ -24,8 +24,11 @@ import (
 // declared read scope that bears on it, or a nested module's own suite. A path
 // none attributes is one no runner instance owns, and runs every test with the
 // named reason ReasonUnownedPath (RNC-V1-004, owner decision R32); see
-// unattributedPath and sessiontest.Build. A NO_SELECTABLE_TEST unit gets no
-// test from a FULL run either. Every other entry forces FULL.
+// unattributedPath and sessiontest.Build. The AFP-V0-012 selector, which holds
+// the Go index, first runs everything for an unowned dirty path no Go rule
+// attributes (NCM-V1-001, `unowned-path`), so wherever that selector decides
+// the run an entry admitted here is an attributed one. A NO_SELECTABLE_TEST
+// unit gets no test from a FULL run either. Every other entry forces FULL.
 func AllowedUnknown(reason, detail string) bool {
 	switch reason {
 	case "LANGUAGE_FRONTIER":

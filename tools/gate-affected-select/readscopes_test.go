@@ -11,7 +11,8 @@ import (
 // AFP-V0-050 (V1-1399): the fast tier's selector narrows an edit of the
 // read-scope declaration against the plan's range.base, as the planner does:
 // an added key selects only its package, and an unknown base keeps the
-// AFP-V0-023 rule.
+// AFP-V0-023 rule. NCM-V1-005 and NCM-V1-006 (V1-5424) supersede it: the
+// edit now runs everything, named corvint-config.
 func TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050(t *testing.T) {
 	if os.Getenv("CORVINT_TEST_READ_SCOPE_PLAN") == "1" {
 		os.Args = []string{"gate-affected-select", os.Getenv("CORVINT_TEST_PLAN"), "example.com/fixture", os.Getenv("CORVINT_TEST_ROOT")}
@@ -56,13 +57,16 @@ func TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050(t *testing.T)
 	if err := os.WriteFile(filepath.Join(root, ".corvint", "test-read-scopes.json"), []byte(declaration(`"alpha":["docs/"],"beta":["docs/"],"gamma":["docs/"]`)), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// NCM-V1-005 and NCM-V1-006 (V1-5424) supersede the narrowing: an edit of
+	// the declaration is Corvint configuration and runs everything, whatever
+	// the base, so no case selects a declared package any more.
 	for _, test := range []struct {
 		name, base, revision string
 		want                 []string
 	}{
-		{"range base", base, strings.Repeat("0", 40), []string{"gamma"}},
-		{"worktree-only plan of HEAD", "", base, []string{"gamma"}},
-		{"unknown base", "", "", []string{"alpha", "beta", "gamma"}},
+		{"range base", base, strings.Repeat("0", 40), nil},
+		{"worktree-only plan of HEAD", "", base, nil},
+		{"unknown base", "", "", nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			plan := filepath.Join(t.TempDir(), "plan.json")
@@ -84,6 +88,9 @@ func TestSelectorNarrowsDeclarationEditAgainstThePlanBase_AFPV0050(t *testing.T)
 			}
 			if strings.Join(declared, " ") != strings.Join(test.want, " ") {
 				t.Fatalf("declared %v, want %v\n%s", declared, test.want, output)
+			}
+			if !strings.Contains(string(output), "noncode corvint-config .corvint/test-read-scopes.json\n") || !strings.Contains(string(output), "\nFALLBACK ") {
+				t.Fatalf("the declaration edit did not run everything (NCM-V1-006):\n%s", output)
 			}
 		})
 	}

@@ -147,28 +147,32 @@ func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testi
 		}
 		return plan
 	}
+	// NCM-V1-006 (V1-5424): both selectors now run everything for these
+	// paths; the rest of this test covers the attribution behind them.
+	requireCorvintConfig(t, plan(sealed, ""), root, sealed)
+	requireCorvintConfig(t, plan(".corvint/change.cem.json", ""), root, ".corvint/change.cem.json")
 	whole := "run example.com/fixture/enum example.com/fixture/rooted"
-	got, lines := structuralVerdict(plan(sealed, ""), root)
+	got, lines := attributionStructural(plan(sealed, ""), root)
 	if got != "run example.com/fixture/enum" || !slices.Contains(lines, "evidence "+sealed) {
 		t.Fatalf("sealed structural selection = %q", strings.Join(lines, "\n"))
 	}
-	if got, _ := structuralVerdict(plan(sealed, "go:path-token-bound:go:example.com/fixture/loose"), root); got != whole {
+	if got, _ := attributionStructural(plan(sealed, "go:path-token-bound:go:example.com/fixture/loose"), root); got != whole {
 		t.Fatalf("token-bound structural verdict = %q, want %q", got, whole)
 	}
-	if got := verdict(plan(sealed, ""), root); got != whole {
+	if got := attributionVerdict(plan(sealed, ""), root); got != whole {
 		t.Fatalf("Select verdict = %q, want %q", got, whole)
 	}
 	for _, forged := range []string{".corvint/changes/forged.cem.json", ".corvint/changes/0123456789ABCDEF0123456789abcdef01234567.cem.json", ".corvint/changes/x/0123456789abcdef0123456789abcdef01234567.cem.json"} {
-		if _, lines := structuralVerdict(plan(forged, ""), root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
+		if _, lines := attributionStructural(plan(forged, ""), root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
 			t.Fatalf("a forged CEM name %s took the plan's readers: %q", forged, strings.Join(lines, "\n"))
 		}
 	}
 	stale := plan(sealed, "")
 	stale.Provider.Go.Packages = []string{"example.com/fixture/loose"}
-	if got, lines := structuralVerdict(stale, root); got != "run example.com/fixture/enum example.com/fixture/loose example.com/fixture/rooted" {
+	if got, lines := attributionStructural(stale, root); got != "run example.com/fixture/enum example.com/fixture/loose example.com/fixture/rooted" {
 		t.Fatalf("a plan without the enumerating reader narrowed rule (c): %q", strings.Join(lines, "\n"))
 	}
-	if _, lines := structuralVerdict(plan(".corvint/change.cem.json", ""), root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
+	if _, lines := attributionStructural(plan(".corvint/change.cem.json", ""), root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
 		t.Fatalf("sidecar took the plan's readers: %q", strings.Join(lines, "\n"))
 	}
 
@@ -180,12 +184,12 @@ func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testi
 		sealed:                           "{}\n",
 		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"scoped":[]}}` + "\n",
 	})
-	if got, lines := structuralVerdict(plan(sealed, ""), scopedRoot); got != "run example.com/fixture/enum" || !slices.Contains(lines, "evidence "+sealed) {
+	if got, lines := attributionStructural(plan(sealed, ""), scopedRoot); got != "run example.com/fixture/enum" || !slices.Contains(lines, "evidence "+sealed) {
 		t.Fatalf("a read-scoped holder blocked the plan's readers: %q", strings.Join(lines, "\n"))
 	}
 	dirtyScopes := plan(sealed, "")
 	dirtyScopes.Plan.Dirty = append(dirtyScopes.Plan.Dirty, ".corvint/test-read-scopes.json")
-	if _, lines := structuralVerdict(dirtyScopes, scopedRoot); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
+	if _, lines := attributionStructural(dirtyScopes, scopedRoot); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
 		t.Fatalf("a dirty read-scope declaration took the plan's readers: %q", strings.Join(lines, "\n"))
 	}
 }

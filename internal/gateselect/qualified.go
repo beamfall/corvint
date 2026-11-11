@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/noncodemap"
 )
 
 // SelectQualified is the common root-Go package contract (AFP-V0-9500).
@@ -45,6 +46,12 @@ func SelectQualifiedIndexed(plan Receipt, module, root string, pending *Index) [
 	verdict := lines[len(lines)-1]
 	fallback := func(reason string) []string {
 		return append(lines[:len(lines)-1], "FALLBACK "+reason)
+	}
+	// A full run the NCM-V1 decision named keeps its reason: the generic
+	// input checks below would only replace it with another full run
+	// (NCM-V1-001).
+	if noncodemap.NamesFullRun(verdict) {
+		return lines
 	}
 	// Even an empty candidate set needs a supported input before it can
 	// certify NOTHING.
