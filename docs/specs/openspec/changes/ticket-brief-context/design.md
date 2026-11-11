@@ -68,6 +68,9 @@ day):
   entry). Such an item names the spec file and span only.
 - The affected plan for a path may have scope `UNKNOWN` with many shared readers. The `tests`
   section states that verdict and the cap; it does not list the readers as covering tests.
+- The affected plan asked for several paths at once drops a path's own package from its list when
+  that package is a shared unbounded reader (V1-5302, seen in the coverage check). The builder asks
+  for one path at a time until that is settled.
 - The link export meets a malformed or unsealed record: it is skipped and counted in the build-log
   record, never repaired.
 - Coverage check below the owner's bar (TBC-V1-013): the path form is not built and TBC-V1-009 to
@@ -122,7 +125,11 @@ removed with it.
   link file; the export still waits for the coverage check.
 - Set the coverage bar of TBC-V1-013 (proposed: at least half of the tasks have a listed test that
   the closing commits changed or a listed requirement that the ticket cites). Still open after the
-  acceptance of 2026-11-10; the check can run and be recorded before the bar is set.
+  acceptance of 2026-11-10; the check can run and be recorded before the bar is set. The check ran
+  on 2026-11-10 (`docs/build-log/2026-11-10-path-brief-link-coverage-check.md`): 16 of 20 tasks
+  have a listed changed test or a listed cited requirement, 11 of 20 when tests beside an input
+  path are left out, and every `tests` list is longer than the 64-item cap. The bar is still the
+  owner's to set; nothing is built until then.
 - May the pilot of TBC-V1-014 run before the release candidate on the owner's subscription logins?
   It claims nothing and does not block.
 - Should the 1.0.x keep-or-remove measurement also be moved before 1.0 stable? That would change
@@ -133,7 +140,8 @@ removed with it.
   PROD-INT-030, so it needs its own acceptance; this amendment leaves the ticket form as accepted.
 - Should the brief be one row of the `mcp-tool-table` table, taking either `ticket` or `paths`?
   That table's design lists the context brief as open.
-- NOT_VERIFIED: whether the commits of a completed ticket can be read from Tasks. A ticket record
-  has `progress` entries with `branch` and `head` and a `completion` field (seen in V1-5272), but
-  no completed ticket was checked. Where they cannot be read, the ticket-to-path part of the
-  `requirements` section is `NOT_OBSERVED` until Tasks records them.
+- Verified 2026-11-10 (V1-5301): the commits of a completed ticket cannot be read from Tasks in
+  general. `completion` names no commit; 321 of 2,562 completed tickets have a `progress` entry
+  with `head`, and 14 of the 68 with `requirementRefs`. The ticket-to-path part of the
+  `requirements` section is therefore `NOT_OBSERVED` for most tickets until Tasks records them.
+  Earlier text: "NOT_VERIFIED: whether the commits of a completed ticket can be read from Tasks."
