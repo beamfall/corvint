@@ -4,6 +4,7 @@ package runnerprotocol
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -18,6 +19,8 @@ const (
 	RunnerAdapterUnavailable = "runner-adapter-unavailable"
 	ReasonUnpinned           = "unpinned"
 	ReasonNotQualified       = "runner-not-qualified"
+	ReasonSessionOpenFailed  = "session-open-failed"
+	ReasonRunnerClaimedTwice = "runner-claimed-by-two-pins"
 )
 
 // Line is the host's plan line for one required external runner. Mode is
@@ -42,7 +45,9 @@ type HostInput struct {
 }
 
 // Host owns at most one session per required pin for one run (RSP-V0-029).
-// Close is mandatory and is the only producer of plan lines.
+// Close is mandatory and is the only producer of plan lines. A Host is not
+// safe for concurrent use: one goroutine opens it, calls Plugin and closes
+// it, as the sessions it owns are sequential.
 type Host struct {
 	input    HostInput
 	required []string
@@ -76,19 +81,21 @@ func OpenHost(ctx context.Context, in HostInput) *Host {
 		}
 		return h
 	}
-	pinOf := map[string]Pin{}
+	claims := map[string]int{}
 	for _, pin := range in.Plan.Pins {
 		for _, r := range pin.Runners {
-			pinOf[r] = pin
+			claims[r]++
 		}
 	}
 	for _, r := range h.required {
-		_, ok := pinOf[r]
-		switch {
-		case !ok:
+		switch reason := in.Plan.Full[r]; {
+		case reason != "" && reason != "candidate-pins-changed":
+			// unsupported-schema or any other discovery cause: launch nothing.
+			h.reasons[r] = reason
+		case claims[r] == 0:
 			h.reasons[r] = ReasonUnpinned
-		case in.Plan.Full[r] == "unsupported-schema":
-			h.reasons[r] = "unsupported-schema"
+		case claims[r] > 1:
+			h.reasons[r] = ReasonRunnerClaimedTwice
 		}
 	}
 	for _, pin := range in.Plan.Pins {
@@ -196,9 +203,16 @@ func (h *Host) Close(ctx context.Context) []Line {
 	return append([]Line(nil), h.lines...)
 }
 
+var reasonPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
 // reasonCode keeps the stable failure code and drops wrapped OS detail, such as
-// store paths, which would otherwise leak into plan output.
+// store paths, which would otherwise leak into plan output. A failure that does
+// not start with a code (for example an unwrapped lstat error) is reported as
+// session-open-failed (RSP-V0-063).
 func reasonCode(err error) string {
 	code, _, _ := strings.Cut(err.Error(), ":")
+	if !reasonPattern.MatchString(code) {
+		return ReasonSessionOpenFailed
+	}
 	return code
 }

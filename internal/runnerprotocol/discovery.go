@@ -126,7 +126,11 @@ func PlanDiscovery(trusted, candidate []byte, ci bool) DiscoveryPlan {
 		for _, pins := range [][]Pin{d.Plugins, other.Plugins} {
 			for _, pin := range pins {
 				for _, r := range pin.Runners {
-					p.Full[r] = "candidate-pins-changed"
+					// An earlier cause, such as unsupported-schema, keeps
+					// precedence over the candidate edit (RSP-V0-063).
+					if p.Full[r] == "" {
+						p.Full[r] = "candidate-pins-changed"
+					}
 				}
 			}
 		}
