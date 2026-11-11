@@ -288,6 +288,12 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		builds = builds || unresolved
 		dynamic = dynamic || cut
 	}
+	// A here-document that no delimiter line ended is read differently by
+	// different shells, so the file is held like a computed source
+	// (AFP-V0-9971).
+	if parsed.incomplete {
+		dynamic = true
+	}
 	temp := tempRoots(resolve, parsed, text)
 	privateRoots := rootsWith(resolve, parsed, text, exitGuardedAssignment)
 	commands := parsed.commands
@@ -339,7 +345,11 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			case shells[word]:
 				// A command string's commands are scanned as the file's own.
 				if script, ok := commandString(args); ok {
-					commands = append(commands, parse(script).commands...)
+					inner := parse(script)
+					commands = append(commands, inner.commands...)
+					// A here-document no delimiter ends holds the file as
+					// in its own text (AFP-V0-9971).
+					dynamic = dynamic || inner.incomplete
 					if index < len(parsed.commands) && strings.ContainsAny(script, "$`") {
 						// A command string held in a variable is scanned for each
 						// value the file gives it (AFP-V0-553).
@@ -808,7 +818,11 @@ func commandStrings(script string, values map[string][]string) ([]command, bool)
 	var cut bool
 	var out []command
 	for _, value := range expand(script, values, 0, &cut) {
-		out = append(out, parse(strings.ReplaceAll(value, wildcard, "$_")).commands...)
+		parsed := parse(strings.ReplaceAll(value, wildcard, "$_"))
+		out = append(out, parsed.commands...)
+		// An incomplete here-document in a value holds the file as a cut
+		// bound does (AFP-V0-9971).
+		cut = cut || parsed.incomplete
 	}
 	return out, cut
 }
