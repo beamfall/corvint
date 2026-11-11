@@ -2978,8 +2978,10 @@ rule (d); these requirements matter for undeclared packages.
   the reason `<file> calls <source>, whose value may name a repository path` (`<source> (dot
   import)` for a dot import), or `<file> has a //go:linkname directive, which can reach a location
   source the scan cannot see` and the same for `cgo (import "C")`, marked after every literal and
-  locator reason of every file of the package, so a package those already hold keeps naming them
-  whichever file sorts first. A source in a non-test file SHALL make the package locate the root for every
+  locator reason of every file of the package, whichever file sorts first. As for any reason, a
+  non-test reason replaces a reason of test files alone, since it makes the package locate the
+  root; otherwise the package keeps naming its earlier reason. A source in a non-test file SHALL
+  make the package locate the root for every
   dependent rule (d) reaches, as `os.Getwd` does; an owner-declared gated locator (TSP-V0-003)
   applies to it unchanged.
 - **AFP-V0-3664:** (proposed 2026-11-11; delivery experimental; V1-3999) A location whose only use
