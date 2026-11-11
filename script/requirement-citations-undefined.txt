@@ -1,0 +1,13 @@
+# Frozen baseline of requirement ids cited in a tracked Go file, a Makefile or AGENTS.md that no
+# spec defines (RDG-V0-9980, V1-5324). A definition in a retired spec counts as defined, so those
+# ids are not listed; tokens that are not requirement ids live in the reviewed allowlist
+# script/requirement-citations-allowlist.tsv instead. A line may only be removed: define the id
+# in a spec or fix the citation, then delete its line. Never add a line by hand to silence a new
+# citation. Format: one id per line, sorted (LC_ALL=C).
+ADN-V0-664
+CRB-DEC-002
+CRI-V1-002
+DCP-V1-340
+EX-001
+GPK-V0-067
+RGV-V0-016
