@@ -318,11 +318,10 @@ func TestDMFV1002DocsCheckPassThenOneStaleBlock(t *testing.T) {
 	}
 }
 
-// DMF-V1-002: a flows check that could not run fails the docs check with exit 2 and no report: a
-// cancelled or expired context and a Git failure are never NOT_CHECKED. Only a flow-docs refusal
-// (output that genuinely cannot be compared) is NOT_CHECKED, and then the report status says
-// NOT_CHECKED, not PASS, with exit 0.
-func TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked(t *testing.T) {
+// docsCheckFlowsRepository is a committed repository with one Ruby controller and the docs flows
+// pages generated for it, manifest included, under docs/flows.
+func docsCheckFlowsRepository(t *testing.T) string {
+	t.Helper()
 	root := docsRepository(t)
 	for _, dir := range []string{"app", "docs"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
@@ -342,6 +341,16 @@ func TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked(t *testing.T) {
 		t.Fatalf("generate %d %s", code, errOut.String())
 	}
 	docsCommit(t, root)
+	return root
+}
+
+// DMF-V1-002: a flows check that could not run fails the docs check with exit 2 and no report: a
+// cancelled or expired context and a Git failure are never NOT_CHECKED. Only a flow-docs refusal
+// (output that genuinely cannot be compared) is NOT_CHECKED, and then the report status says
+// NOT_CHECKED, not PASS, with exit 0.
+func TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked(t *testing.T) {
+	root := docsCheckFlowsRepository(t)
+	var out, errOut bytes.Buffer
 	_, refusal := flowdocs.ParseFlowInventory([]byte("{"))
 	if !flowdocs.Refused(refusal) {
 		t.Fatalf("fixture refusal %v is not a flow-docs refusal", refusal)
@@ -380,6 +389,49 @@ func TestDMFV1002DocsCheckFlowsFailureIsNotNotChecked(t *testing.T) {
 	docsCheckRevision = saved
 	if code, report, stderr := runDocsCheckCLI(t, root); code != 0 || report.Parts[1].State != "PASS" {
 		t.Fatalf("real flows check %d %+v %s", code, report, stderr)
+	}
+}
+
+// DMF-V1-005: the docs check flows part compares the rendered pages its manifest's output directory
+// holds in the worktree, and says so: its worktree member is clean while those pages are the
+// committed ones, and dirty naming the page once a rendered page is edited without a commit (the
+// part is then STALE on bytes that are not committed).
+func TestDMFV1005DocsCheckFlowsWorktree(t *testing.T) {
+	root := docsCheckFlowsRepository(t)
+	type part struct {
+		Part     string              `json:"part"`
+		State    string              `json:"state"`
+		Worktree *docworktree.Status `json:"worktree"`
+	}
+	flowsPart := func() (int, part) {
+		t.Helper()
+		var out, errOut bytes.Buffer
+		code := runContext(context.Background(), []string{"--root", root, "docs", "check"}, strings.NewReader(""), &out, &errOut)
+		var report struct {
+			Parts []part `json:"parts"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &report); err != nil || len(report.Parts) != 3 || report.Parts[1].Part != "flows" {
+			t.Fatalf("docs check %d %q %s: %v", code, out.String(), errOut.String(), err)
+		}
+		return code, report.Parts[1]
+	}
+	if _, flows := flowsPart(); flows.State != "PASS" || flows.Worktree == nil || flows.Worktree.State != "clean" {
+		t.Fatalf("committed pages %+v", flows)
+	}
+	pages, err := filepath.Glob(filepath.Join(root, "docs", "flows", "*", "*.md"))
+	if err != nil || len(pages) == 0 {
+		t.Fatalf("no rendered page: %v", err)
+	}
+	if err := os.WriteFile(pages[0], []byte("edited in the worktree\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(root, pages[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, flows := flowsPart()
+	if code != 1 || flows.State != "STALE" || flows.Worktree == nil || flows.Worktree.State != "dirty" || !slices.Contains(flows.Worktree.Paths, filepath.ToSlash(rel)) {
+		t.Fatalf("edited page %s: %d %+v", rel, code, flows)
 	}
 }
 
