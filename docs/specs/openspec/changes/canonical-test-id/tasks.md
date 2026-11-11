@@ -21,5 +21,5 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 6 Use the ID in the plan, watch output and the MCP affected tool.
    Requirements: CTI-V1-009. Proof: one fixture per runner where the plan, the receipt and watch
    print the same ID for the same test.
-- [ ] 7 Record the trace and the delivery state in the spec.
+- [x] 7 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every CTI-V1 ID to a test.

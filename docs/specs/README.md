@@ -309,7 +309,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Source removal V1 | [`source-removal-v1.md`](source-removal-v1.md) RMV-V1-001..037 | proposed | not-started | Batches B0 to B11 remove the source 1.0 no longer ships, in a fixed order with per-batch proof, importer re-checks, orphan deletion and rollback by Git. |
 | Tasks Policy Version 15 V1 | [`tasks-policy-v15.md`](tasks-policy-v15.md) TPV-V1-001..008 | proposed | not-started | Tasks policy version 15 drops the CEM and OCM requirements and the two gates that run removed tooling, after the M0 removal lands. |
 | Release Process V1 | [`release-process-v1.md`](release-process-v1.md) REL-V1-001..015 | proposed | not-started | The 1.0 release runs on one calendar, a tag-started build stopping before an owner-approved publish, three platforms and a release object re-scoped at M0. |
-| Canonical test ID V1 | [`canonical-test-id-v1.md`](canonical-test-id-v1.md) CTI-V1-001..012 | proposed | not-started | One canonical ID names every test of the seven blocking runners, so plan, receipt and watch output join on the same string. |
+| Canonical test ID V1 | [`canonical-test-id-v1.md`](canonical-test-id-v1.md) CTI-V1-001..012 | accepted | partial | One canonical ID names every test of the seven blocking runners, so plan, receipt and watch output join on the same string. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
