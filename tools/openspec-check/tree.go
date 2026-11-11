@@ -18,17 +18,20 @@ var (
 	requirementID = regexp.MustCompile(`\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]{3,}\b`)
 	ticketID      = regexp.MustCompile(`^V[0-9]+-[0-9]+$`)
 	idRange       = regexp.MustCompile(`\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-([0-9]{3,})\s+to\s+(?:([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-)?([0-9]{3,})\b`)
-	allIDs        = regexp.MustCompile(`(?i)\bRequirements:\s*all\b`)
-	proofMarker   = regexp.MustCompile(`(?i)\bproof:`)
-	commitName    = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
-	taskLine      = regexp.MustCompile(`^- \[([ xX])\] ([0-9]+(?:\.[0-9]+)*[a-z]?)\s+\S`)
-	changeName    = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-	archivedName  = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$`)
-	externalRepo  = regexp.MustCompile("(?i)`?beamfall/([a-z0-9][a-z0-9._-]*)`?")
-	headerLine    = regexp.MustCompile(`^[A-Z][A-Za-z0-9 ()-]*: `)
-	schemaLine    = regexp.MustCompile(`^schema:\s*['"]?([A-Za-z0-9_-]+)['"]?\s*(?:#.*)?$`)
-	retiredWord   = regexp.MustCompile(`(?i)\bretired\b`)
-	reasonWord    = regexp.MustCompile(`(?i)\b(reason|retired)\b`)
+	// prefixRange is the reservation form `PREFIX` NNN..NNN (also `NNN to NNN`, `NNN-NNN`, in
+	// parentheses), which names every ID of the range.
+	prefixRange  = regexp.MustCompile("`?\\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)`?\\s+\\(?([0-9]{3,})(?:\\.\\.|\\s+to\\s+|-)([0-9]{3,})\\b")
+	allIDs       = regexp.MustCompile(`(?i)\bRequirements:\s*all\b`)
+	proofMarker  = regexp.MustCompile(`(?i)\bproof:`)
+	commitName   = regexp.MustCompile(`\b[0-9a-f]{7,40}\b`)
+	taskLine     = regexp.MustCompile(`^- \[([ xX])\] ([0-9]+(?:\.[0-9]+)*[a-z]?)\s+\S`)
+	changeName   = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	archivedName = regexp.MustCompile(`^([0-9]{4}-[0-9]{2}-[0-9]{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$`)
+	externalRepo = regexp.MustCompile("(?i)`?beamfall/([a-z0-9][a-z0-9._-]*)`?")
+	headerLine   = regexp.MustCompile(`^[A-Z][A-Za-z0-9 ()-]*: `)
+	schemaLine   = regexp.MustCompile(`^schema:\s*['"]?([A-Za-z0-9_-]+)['"]?\s*(?:#.*)?$`)
+	retiredWord  = regexp.MustCompile(`(?i)\bretired\b`)
+	reasonWord   = regexp.MustCompile(`(?i)\b(reason|retired)\b`)
 )
 
 var (
@@ -372,20 +375,24 @@ func namedIDs(text string) ([]string, bool) {
 			ids = append(ids, id)
 		}
 	}
-	for _, m := range idRange.FindAllStringSubmatch(text, -1) {
-		prefix, low, high := m[1], m[2], m[4]
-		if m[3] != "" && m[3] != prefix {
-			continue
-		}
+	expand := func(prefix, low, high string) {
 		var lo, hi int
 		fmt.Sscanf(low, "%d", &lo)
 		fmt.Sscanf(high, "%d", &hi)
 		if hi < lo || hi-lo > 999 {
-			continue
+			return
 		}
 		for n := lo; n <= hi; n++ {
 			add(fmt.Sprintf("%s-%0*d", prefix, len(low), n))
 		}
+	}
+	for _, m := range idRange.FindAllStringSubmatch(text, -1) {
+		if m[3] == "" || m[3] == m[1] {
+			expand(m[1], m[2], m[4])
+		}
+	}
+	for _, m := range prefixRange.FindAllStringSubmatch(text, -1) {
+		expand(m[1], m[2], m[3])
 	}
 	for _, id := range requirementID.FindAllString(text, -1) {
 		add(id)

@@ -457,3 +457,27 @@ func TestOSCV1011StaleRequirements(t *testing.T) {
 		t.Fatalf("want the staleness check reported NOT_RUN:\n%s", out)
 	}
 }
+
+// TestOSCV1001TaskIDForms covers the ways a task names requirement IDs: plain IDs, `X-NNN to NNN`,
+// the reservation form `PREFIX` NNN..NNN, and `Requirements: all`; ticket IDs are not IDs.
+func TestOSCV1001TaskIDForms(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		want string
+		all  bool
+	}{
+		{"Requirements: OSC-V1-001, PROD-INT-011. Proof: t.", "OSC-V1-001 PROD-INT-011", false},
+		{"Requirements: OSC-V1-001 to 003. Proof: t.", "OSC-V1-001 OSC-V1-002 OSC-V1-003", false},
+		{"Requirements: OSC-V1-009 to OSC-V1-010.", "OSC-V1-009 OSC-V1-010", false},
+		{"Reserve `RNC-V1` 001..003; set requirementRefs.", "RNC-V1-001 RNC-V1-002 RNC-V1-003", false},
+		{"reserve prefix `TKF-V1` (001 to 002)", "TKF-V1-001 TKF-V1-002", false},
+		{"reserve `GHA-V1` 001-002, 020-021", "GHA-V1-001 GHA-V1-002", false},
+		{"File ticket V1-5399. Requirements: all. Proof: t.", "", true},
+		{"Build-log entry; Tasks gate. Proof: receipt audit.", "", false},
+	} {
+		ids, all := namedIDs(tc.text)
+		if got := strings.Join(ids, " "); got != tc.want || all != tc.all {
+			t.Errorf("namedIDs(%q) = %q, %v; want %q, %v", tc.text, got, all, tc.want, tc.all)
+		}
+	}
+}
