@@ -197,8 +197,12 @@ asking for a local run. `script/heavy.sh --print-lock-dir` prints the slot lock 
 would use (DCW-V0-357).
 When `corvint test --base SHA --dry-run --manifest M` selects packages whole (a dependency change
 such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prints one
-`HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
-each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
+`HEAVY_SELECTION=M HEAVY_SELECTION_SCOPE=S script/heavy.sh go test ...` command per package, and
+`HEAVY_SELECTION=M` admits each package M selects whole without a typed `HEAVY_WHOLE_REASON`
+(ASD-V0-891). S is M's scope, so a VERIFY list built from the plan records FULL or narrowed; a FULL M
+prints a `heavy.sh: FULL-selection:` line naming its reason on every run and plan (the run is
+coverage, not narrowing evidence), and a command whose S no longer matches M is refused
+(ASD-V0-5190 to ASD-V0-5192). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
 Before choosing a focused `-run` pattern for a selected package, run
 `corvint test --base SHA --dry-run --pins`: it prints one `pins go:PKG -run '^(...)$'` line per

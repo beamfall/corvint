@@ -1585,14 +1585,15 @@ sel=$tmp/selection
 mkdir -p "$sel/x" "$sel/y" "$sel/w" && printf 'module example.com/m\n\ngo 1.27\n' > "$sel/go.mod" &&
   git -C "$sel" init -q && git -C "$sel" -c user.name=t -c user.email=t@t commit -q --allow-empty -m s || fail "selection fixture setup failed"
 selhead=$(git -C "$sel" rev-parse HEAD)
-manifest() { # manifest HEAD [PRODUCER] > FILE; the producer defaults to HEAD (STR-V0-8301)
-  printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","producer":{"commit":"%s","commitState":"clean"},"source":{"head":"%s"},"units":[%s]}\n' "${2:-$1}" "$1" \
+manifest() { # manifest HEAD [PRODUCER [MEMBERS]] > FILE; the producer defaults to HEAD (STR-V0-8301), MEMBERS
+  # (each ending in a comma) to a NARROWED scope (ASD-V0-5191)
+  printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","producer":{"commit":"%s","commitState":"clean"},%s"source":{"head":"%s"},"units":[%s]}\n' "${2:-$1}" "${3-\"scope\":\"NARROWED\",}" "$1" \
     '{"unit":"go:example.com/m/x","slice":"whole"},{"unit":"go:example.com/m/y","slice":"selected","flag":"-run","pattern":"^(TestA)$"},{"unit":"go:example.com/m/w","slice":"0/2","flag":"-run","pattern":"^(TestB)$"},{"unit":"go:example.com/m/w","slice":"1/2","flag":"-skip","pattern":"^(TestB)$"},{"unit":"go:example.com/m/v","slice":"0/2"},{"unit":"go:other.org/z","slice":"whole"}'
 }
 manifest "$selhead" > "$sel/m.json" && manifest 0000000000000000000000000000000000000000 > "$sel/old.json"
 sv() { (cd "$sel" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 HEAVY_WHOLE_REASON= "$heavy" "$@"); }
 HEAVY_SELECTION="$sel/m.json" sv go test -count=1 ./x 2> "$sel/err" &&
-  grep -Eq "^$stamp_re whole reason=corvint-selection:0123456789ab pwd=.* cmd=go test -count=1 \./x$tail_re" "$sel/sel.log" ||
+  grep -Eq "^$stamp_re whole reason=corvint-selection:0123456789ab scope=NARROWED pwd=.* cmd=go test -count=1 \./x$tail_re" "$sel/sel.log" ||
   fail "heavy.sh did not admit a package the manifest selects whole: $(cat "$sel/err" "$sel/sel.log")"
 for c in "m.json ./y" "m.json ./x ./y" "old.json ./x"; do
   HEAVY_SELECTION="$sel/${c%% *}" sv go test ${c#* } > /dev/null 2> "$sel/err"
@@ -1601,13 +1602,13 @@ done
 # A numbered -skip slice's own command is admitted (both -skip forms); another -skip pattern refuses.
 for s in "-skip ^(TestB)\$" "-skip=^(TestB)\$"; do
   HEAVY_SELECTION="$sel/m.json" sv go test -count=1 $s ./w > /dev/null 2> "$sel/err" &&
-    [[ $(grep -v ' local wait=' "$sel/sel.log" | tail -n 1) == *" whole reason=corvint-selection:0123456789ab pwd="*" cmd=go test -count=1 $s ./w"* ]] ||
+    [[ $(grep -v ' local wait=' "$sel/sel.log" | tail -n 1) == *" whole reason=corvint-selection:0123456789ab scope=NARROWED pwd="*" cmd=go test -count=1 $s ./w"* ]] ||
     fail "heavy.sh did not admit the -skip slice ($s): $(cat "$sel/err")"
 done
 HEAVY_SELECTION="$sel/m.json" sv go test -count=1 -skip '^(TestC)$' ./w > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'HEAVY_SELECTION=M' "$sel/err" || fail "heavy.sh admitted a -skip pattern the manifest does not list: $(cat "$sel/err")"
 sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan failed: $(cat "$sel/err")"
-q="HEAVY_SELECTION='$sel/m.json' script/heavy.sh go test -count=1 -timeout 30m"
+q="HEAVY_SELECTION='$sel/m.json' HEAVY_SELECTION_SCOPE=NARROWED script/heavy.sh go test -count=1 -timeout 30m"
 want="$q ./x
 $q -run '^(TestA)\$' ./y
 $q -run '^(TestB)\$' ./w
@@ -1689,7 +1690,7 @@ git -C "$sel" worktree add -q "$selwt" 2> /dev/null && mkdir -p "$selwt/x" && cp
   fail "linked-worktree selection fixture setup failed"
 (cd "$selwt" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
   HEAVY_WHOLE_REASON= HEAVY_SELECTION=.git/sel.json "$heavy" go test -count=1 ./x) > /dev/null 2> "$sel/err" &&
-  grep -Eq "^$stamp_re whole reason=corvint-selection:0123456789ab pwd=$selwt cmd=go test -count=1 \./x$tail_re" "$sel/sel.log" ||
+  grep -Eq "^$stamp_re whole reason=corvint-selection:0123456789ab scope=NARROWED pwd=$selwt cmd=go test -count=1 \./x$tail_re" "$sel/sel.log" ||
   fail "heavy.sh did not resolve a linked worktree's .git/sel.json: $(cat "$sel/err")"
 # TSP-V0-8131 (V1-5011): --plan and admission refuse a manifest the current checkout cannot trust:
 # one a corvint built from an ancestor whose Go source differs wrote (stale), one from a commit
@@ -1726,6 +1727,57 @@ for c in "stale|manifest-producer-stale|built from ${selhead:0:12}, and 1 Go sou
   [[ $? == 2 && $(grep -c 'not admitted' "$sel/err") == 1 ]] && grep -qF "not admitted: " "$sel/err" && grep -qF "$cw" "$sel/err" && grep -q '^fix: ' "$sel/err" ||
     fail "heavy.sh admitted $cm.json or did not name $cc with a fix: line: $(cat "$sel/err")"
 done
+# ASD-V0-5190..5192 (V1-5019): a FULL manifest is disclosed on every go test and --plan with its
+# recorded reason and incomplete entries, every log line and plan command records the scope (a
+# manifest without one is UNKNOWN, never NARROWED), and a recorded scope that no longer matches the
+# manifest refuses before anything runs.
+full_reason='plan.unknown entry outside the AFP-V0-028 allowlist: UNINDEXED_SOURCE_PATH x/new.go'
+full_notice="heavy.sh: FULL-selection: HEAVY_SELECTION=$sel/full.json (planDigest 0123456789ab) is scope FULL: "
+manifest "$selnow" "" "\"scope\":\"FULL\",\"reason\":\"$full_reason\",\"incomplete\":[\"declared js suite unreadable\"]," > "$sel/full.json"
+manifest "$selnow" "" "" > "$sel/legacy.json"
+manifest "$selnow" "" '"scope":"FULL",' > "$sel/fullbare.json"
+long=$(printf 'r%.0s' $(seq 600))
+manifest "$selnow" "" "\"scope\":\"FULL\",\"reason\":\"a\\u0007b$long\"," > "$sel/fulllong.json"
+lastsel() { grep -v ' local wait=' "$sel/sel.log" | tail -n 1; }
+HEAVY_SELECTION="$sel/full.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" &&
+  [[ $(grep -c 'FULL-selection' "$sel/err") == 1 ]] && grep -qF "$full_notice" "$sel/err" &&
+  grep -qF "reason: $full_reason; incomplete: declared js suite unreadable (ASD-V0-5190)" "$sel/err" &&
+  grep -qF 'every package runs whole, so this run is coverage, not narrowing evidence' "$sel/err" &&
+  [[ $(lastsel) == *" whole reason=corvint-selection:0123456789ab scope=FULL pwd="*" cmd=go test -count=1 ./x"* ]] ||
+  fail "ASD-V0-5190: a FULL manifest admitted ./x without the notice or scope=FULL: $(cat "$sel/err"; lastsel)"
+HEAVY_SELECTION="$sel/full.json" sv go test -count=1 -run '^TestA$' ./x > /dev/null 2> "$sel/err" &&
+  grep -qF "$full_notice" "$sel/err" && [[ $(lastsel) == *" selected scope=FULL pwd="* ]] ||
+  fail "ASD-V0-5190: a -run go test under a FULL manifest was not disclosed: $(cat "$sel/err"; lastsel)"
+sv --plan "$sel/full.json" > "$sel/plan" 2> "$sel/err" && grep -qF "$full_notice" "$sel/err" &&
+  [[ $(head -n 1 "$sel/plan") == "HEAVY_SELECTION='$sel/full.json' HEAVY_SELECTION_SCOPE=FULL script/heavy.sh go test -count=1 -timeout 30m ./x" ]] &&
+  [[ $(grep -c '^HEAVY_SELECTION=' "$sel/plan") == $(grep -c ' HEAVY_SELECTION_SCOPE=FULL script/heavy.sh ' "$sel/plan") ]] ||
+  fail "ASD-V0-5190/5191: --plan of a FULL manifest: $(cat "$sel/plan" "$sel/err")"
+HEAVY_SELECTION="$sel/fresh.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" && ! grep -q 'FULL-selection' "$sel/err" &&
+  sv --plan "$sel/fresh.json" > "$sel/plan" 2> "$sel/err" && ! grep -q 'FULL-selection' "$sel/err" ||
+  fail "ASD-V0-5190: a NARROWED manifest printed the FULL notice: $(cat "$sel/err")"
+HEAVY_SELECTION="$sel/legacy.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" && [[ $(lastsel) == *" scope=UNKNOWN pwd="* ]] &&
+  sv --plan "$sel/legacy.json" > "$sel/plan" 2> /dev/null && grep -q "^HEAVY_SELECTION='$sel/legacy.json' HEAVY_SELECTION_SCOPE=UNKNOWN script/heavy.sh go test" "$sel/plan" &&
+  ! grep -q NARROWED "$sel/plan" ||
+  fail "ASD-V0-5191: a manifest without a scope was not recorded as UNKNOWN: $(cat "$sel/err" "$sel/plan"; lastsel)"
+HEAVY_SELECTION="$sel/fullbare.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" && grep -qF 'reason: NOT_RECORDED (ASD-V0-5190)' "$sel/err" ||
+  fail "ASD-V0-5190: a FULL manifest without a reason did not name NOT_RECORDED: $(cat "$sel/err")"
+HEAVY_SELECTION="$sel/fulllong.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" &&
+  grep -qF "reason: a?b${long:0:509}...(603 bytes) (ASD-V0-5190)" "$sel/err" && [[ $(grep -c 'FULL-selection' "$sel/err") == 1 ]] ||
+  fail "ASD-V0-5190: the FULL reason was not cleaned and bounded: $(cat "$sel/err")"
+runs=$(grep -c ' local wait=' "$sel/sel.log")
+for c in "full.json|NARROWED|HEAVY_SELECTION_SCOPE=NARROWED but HEAVY_SELECTION=$sel/full.json is scope FULL" \
+  "full.json|narrow|HEAVY_SELECTION_SCOPE=narrow is not FULL, NARROWED, NOTHING or UNKNOWN" \
+  "gone.json|NARROWED|HEAVY_SELECTION_SCOPE=NARROWED but HEAVY_SELECTION=$sel/gone.json is scope UNREADABLE" \
+  "|FULL|HEAVY_SELECTION_SCOPE=FULL names no HEAVY_SELECTION manifest"; do
+  IFS='|' read -r cm cs cw <<< "$c"
+  HEAVY_SELECTION=${cm:+$sel/$cm} HEAVY_SELECTION_SCOPE=$cs sv go test -count=1 -run '^TestA$' ./x > "$sel/out" 2> "$sel/err"
+  [[ $? == 2 && $(cat "$sel/out") == 'heavy.sh: REFUSED selection-scope-mismatch (exit 2)' ]] && grep -qF "heavy.sh: refused: $cw" "$sel/err" &&
+    grep -q 'fix: .*--plan' "$sel/err" && [[ $(grep -c ' local wait=' "$sel/sel.log") == "$runs" ]] ||
+    fail "ASD-V0-5192: HEAVY_SELECTION=$cm HEAVY_SELECTION_SCOPE=$cs was not refused before running: $(cat "$sel/out" "$sel/err")"
+done
+HEAVY_SELECTION="$sel/full.json" HEAVY_SELECTION_SCOPE=FULL sv go test -count=1 ./x > /dev/null 2> "$sel/err" &&
+  HEAVY_SELECTION="$sel/legacy.json" HEAVY_SELECTION_SCOPE=UNKNOWN sv go test -count=1 ./x > /dev/null 2>> "$sel/err" ||
+  fail "ASD-V0-5192: a recorded scope matching the manifest was refused: $(cat "$sel/err")"
 # ASD-V0-721 (V1-3845): go test -c only compiles, so it needs no reason; a -c of another command does not count.
 sv go test -c -o /dev/null ./x > /dev/null 2> "$sel/err" &&
   grep -Eq "^$stamp_re whole reason=compile-only pwd=.* cmd=go test -c -o /dev/null \./x$tail_re" "$sel/sel.log" ||
