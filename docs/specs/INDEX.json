@@ -4478,7 +4478,7 @@
     "title": "Per-test durations V1",
     "reqPrefix": "PTD-V1",
     "intent": "accepted",
-    "delivery": "not-started",
+    "delivery": "partial",
     "claim": "Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated.",
     "dependsOn": [],
     "supersededBy": null,

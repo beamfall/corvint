@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-11-11
 Intent status: accepted
-Delivery status: not-started
+Delivery status: partial
 Authoritative inputs: change folder `docs/specs/openspec/changes/per-test-durations/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/per-test-durations/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-016, PROD-TEST-020) and `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`
@@ -11,10 +11,10 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/per-test-durati
 
 ## Agent digest
 - Claim: Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated.
-- Status: accepted / not-started. Change `per-test-durations` auto-accepted under G14 (decision 0596); delivered under V1-5449.
-- Exists: nothing yet.
-- Blocked on: nothing.
-- Read next: Requirements.
+- Status: accepted / partial. Change `per-test-durations` auto-accepted under G14 (decision 0596); delivered under V1-5449.
+- Exists: `internal/testduration`; duration members on `corvint-test-run/0` outcomes (Go measured); the `internal/testrunner` adapters' report durations; run evidence rows copy them.
+- Blocked on: `corvint test` receipts record NOT_MEASURED for every runner but Go until the provider and runner adapters of changes `jest-provider`, `pytest-provider` and `ruby-providers` exist; the cost figure and harness adopt `testduration.Cost` in their own changes.
+- Read next: Surfaces; Traceability.
 
 ## User and boundary
 
@@ -124,11 +124,51 @@ per-test durations and MUST report the number of selected and full-suite tests t
 
 ## Surfaces
 
-Not yet built.
+Delivered by ticket V1-5449 (build-log `docs/build-log/2026-11-11-per-test-durations.md`):
+
+- `internal/testduration` (shared layer, standard library only) holds the seven source names, the
+  NOT_MEASURED rule, the 24-hour bound (the change's Open item 1, as proposed), the attempt sum, and
+  `Cost` and `Median`: the measured-only cost figure with its selected and full-suite NOT_MEASURED
+  counts, labelled incomplete with no ratio when any test is unmeasured (PTD-V1-003, PTD-V1-006,
+  PTD-V1-007, PTD-V1-009).
+- `corvint-test-run/0`: each outcome gains `durationSource`, `durationMs` when measured and
+  `durationGranularity`, and the receipt gains `durationInvalid`, all omitempty so a receipt
+  written before them reads strictly with its bytes unchanged. `corvint test` writes
+  `durationSource` on every outcome. Its units are packages and files, so a measured outcome is
+  marked `file` (PTD-V1-004). `Invocation.elapsedMilliseconds` is unchanged (PTD-V1-005).
+- `internal/testrunner` (`corvint-test-runner`): each observed test gains `durationMs`,
+  `durationSource` and `attemptDurationsMs`, and the observation `durationInvalid`; an invalid
+  time does not make the observation incomplete.
+- Run evidence rows copy `durationMs`, `durationSource` and `durationGranularity` from the receipt
+  (PTD-V1-008, RVD-V1-006).
+- Consumers: the cost figure (NMS-V1-002) and the fault-injection harness (FIH-V1-012) are not on
+  this tree; `testduration.Cost` and `Median` are the rule they call (PTD-V1-009).
+
+Per runner:
+
+| Runner | Report field read | `corvint test` receipt | `corvint-test-runner` observation |
+| --- | --- | --- | --- |
+| Go | `go test -json` package-level `Elapsed` | measured, `go-test2json`, granularity `file` | not extended: the `go-test` plugin reports `RunnerResult`, which has no duration |
+| Vitest | assertion `duration` | NOT_MEASURED, granularity `file`: the provider receipt names no per-test time (not yet built) | measured, `vitest-json` |
+| Jest | assertion `duration` | NOT_MEASURED: the declared-command adapter reads no report (not yet built, `jest-provider`) | measured, `jest-json` |
+| Playwright | sum of result `duration`, each attempt kept | NOT_MEASURED, granularity `file`: as Vitest (not yet built) | measured, `playwright-json` |
+| pytest | JUnit `testcase` `time` | NOT_MEASURED: as Jest (not yet built, `pytest-provider`) | measured, `pytest-junit` |
+| RSpec | JSON `run_time` | NOT_MEASURED: as Jest (not yet built, `ruby-providers`) | measured, `rspec-json` |
+| Minitest | reporter `DurationMs` from `Minitest::Result#time` | NOT_MEASURED: as Jest (not yet built, `ruby-providers`) | measured, `minitest-reporter` |
 
 ## Traceability
 
-Not yet recorded.
+| Requirement | Evidence |
+|---|---|
+| PTD-V1-001 | `TestPTDV1001ReceiptDurationFieldsRoundTrip`, `TestPTDV1001OlderReceiptsAndReaders` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`); receipts of the non-Go runners not yet built |
+| PTD-V1-002 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration` (`internal/testrunner/dynamic`) |
+| PTD-V1-003 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`) |
+| PTD-V1-004 | `TestPTDV1002GoPackageElapsed` (`internal/sessiontest`), `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
+| PTD-V1-005 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`) |
+| PTD-V1-006 | `TestPTDV1006AttemptSum` (`internal/testduration`), `TestPTDV1002RunnerReportDurations` (`internal/testrunner/dynamic`) |
+| PTD-V1-007 | `TestPTDV1007InvalidAndMissingValues` (`internal/testduration`), `TestPTDV1001ReceiptDurationFieldsRoundTrip` (`internal/sessiontest`), `TestPTDV1002RunnerReportDurations`, `TestPTDV1002MinitestReporterDuration` (`internal/testrunner/dynamic`) |
+| PTD-V1-008 | `TestPTDV1005GoReceiptDurationAndInvocationTime` (`cmd/corvint`), `TestRVDV1006RowsFromBothProfiles` (`internal/runevidence`) |
+| PTD-V1-009 | `TestPTDV1009CostFigureUsesOnlyMeasured` (`internal/testduration`); the consumers themselves are not on this tree |
 
 ## Non-goals
 
