@@ -125,7 +125,9 @@
 #                        derived from the caller's TMPDIR (ASD-V0-734, V1-4319). Go tests instead
 #                        share a stable heavy-go-test-UID child for Go result-cache reuse; the last
 #                        active test run cleans its contents under a lock (ASD-V0-734, V1-4725).
-#                        GOTMPDIR is unchanged, including when it is unset.
+#                        GOTMPDIR is unchanged, including when it is unset. The slot holder prints
+#                        one `heavy.sh: TMPDIR=PATH` line naming the TMPDIR the command gets, or
+#                        `unset` (ASD-V0-9950, V1-4841).
 #
 # Run telemetry (ASD-V0-037, V1-2905). This file is the one runner: its remote half is the same file,
 # shipped over ssh on every offload, so no copy lives on a remote host. Every run prints
@@ -276,6 +278,9 @@
 # GOTMPDIR is that directory too unless HEAVY_REMOTE_GOTMPDIR or the env file sets one (ASD-V0-938).
 # Caller TMPDIR/GOTMPDIR assignments in argv are dropped even when their paths exist here: remote
 # scratch is host-local and per-run, so a Mac /var/folders path cannot override it (ASD-V0-2121).
+# Each dropped word is named on one `heavy.sh: remote ignores caller WORD ...` line, and the
+# `heavy.sh: TMPDIR=PATH` line names the remote TMPDIR the command used; set HEAVY_REMOTE_TMPDIR in
+# the remote environment file to choose another remote scratch root (ASD-V0-9950, V1-4841).
 #
 # Pinned Go: the repository root's go.mod (else the nearest one) names the pinned release in its
 # toolchain line, else its go line. When the go on PATH reports another release and the pinned one
@@ -503,7 +508,7 @@ printf STDERR "heavy.sh: no private TMPDIR under %s; the run uses it directly\n"
 # The remote runner adds exactly this timeout prefix. env/leading assignments are the local
 # forms normalized by main; inspect argv, never words embedded in a shell command or prompt.
 my $test_at = @cmd >= 2 && $cmd[0] eq "timeout" ? 2 : 0;
-my ($assigned_tmp, $test_env);
+my ($assigned_tmp, $test_env, $env_tmp, $env_opaque);
 if (($cmd[$test_at] // "") eq "env") {
     $test_env = 1;
     ++$test_at;
@@ -513,18 +518,23 @@ if (($cmd[$test_at] // "") eq "env") {
         my $unset;
         if ($a eq "--") { ++$test_at; last }
         if ($a eq "-i" || $a eq "-" || $a eq "--ignore-environment") {
-            $assigned_tmp = "/tmp";
+            ($assigned_tmp, $env_tmp) = ("/tmp", "");
         } elsif ($a eq "-u" && $test_at + 1 < @cmd) {
             $unset = $cmd[++$test_at];
         } elsif ($a =~ /^(?:-u|--unset=)(.+)$/s) {
             $unset = $1;
-        } else { last }
-        $assigned_tmp = "/tmp" if defined($unset) && $unset eq "TMPDIR";
+        } else {
+            # An option this scan does not read (env -C DIR, -S STRING, -P PATH) hides the words
+            # after it, a TMPDIR= word included: the command's TMPDIR is then not known here.
+            $env_opaque = 1 if $a =~ /^-/;
+            last;
+        }
+        ($assigned_tmp, $env_tmp) = ("/tmp", "") if defined($unset) && $unset eq "TMPDIR";
         ++$test_at;
     }
     while ($test_at < @cmd && $cmd[$test_at] =~ /^[A-Za-z_][A-Za-z0-9_]*=/) {
         if ($cmd[$test_at] =~ /^TMPDIR=(.*)$/s) {
-            $assigned_tmp = length($1) ? $1 : "/tmp";
+            ($assigned_tmp, $env_tmp) = (length($1) ? $1 : "/tmp", $1);
         }
         ++$test_at;
     }
@@ -565,6 +575,12 @@ if ($go_test) {
         }
     }
 }
+# ASD-V0-9950 (V1-4841): say which TMPDIR the command gets. An env word (-i, -u TMPDIR, TMPDIR=)
+# wins over the environment, except the Go test namespace, spliced after the command's own words.
+# Behind an env option the scan above does not read, the value is reported as unknown, not guessed.
+my $cmd_tmp = $go_test && $ttmp ? $ttmp : $env_tmp // ($go_test ? undef : $rtmp) // $ENV{TMPDIR};
+$cmd_tmp = "unknown" if $env_opaque;
+printf STDERR "heavy.sh: TMPDIR=%s\n", length($cmd_tmp // "") ? $cmd_tmp : "unset";
 my $pid = fork;
 unless (defined $pid) {
     File::Path::remove_tree($rtmp) if $rtmp;
@@ -1081,7 +1097,12 @@ serve() {
   drop_re='^[[:space:]]*(GOCACHE|CORVINT_GOCACHE|GOMODCACHE|TMPDIR|GOTMPDIR)[[:space:]]*(:{0,3}|[+?!])='
   for a in ${CMD[@]+"${CMD[@]}"}; do
     [[ -n ${BUILD-} ]] && a=${a//@RT@/$wt}
-    [[ $a =~ $drop_re ]] || cmd+=("$a")
+    if [[ $a =~ $drop_re ]]; then
+      # ASD-V0-9950 (V1-4841): a dropped word, such as a Mac /var/folders TMPDIR, is named, not silent.
+      printf 'heavy.sh: remote ignores caller %s (host-local scratch and caches, ASD-V0-2121)\n' "$a" >&2
+    else
+      cmd+=("$a")
+    fi
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
   # ASD-V0-909: the command sees the caller's GIT_CONFIG_GLOBAL, set or unset, as a local run would,
