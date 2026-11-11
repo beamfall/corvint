@@ -27,7 +27,9 @@ func TestV15102ControlPlaneStartsOnPRActivity(t *testing.T) {
 		wantLine(t, "triggers", w, line)
 	}
 	b := jobBlock(t, w, "control-plane")
-	for _, job := range []string{"control-plane", "merge-group", "main-miss"} {
+	// The main-miss job moved to main-miss.yml (CIN-V0-7922), which runs on workflow_run alone;
+	// TestCINV07922MainMissWorkflowBinding_CINV07922 refuses any pull_request trigger there.
+	for _, job := range []string{"control-plane", "merge-group"} {
 		if got := statusJobRuns(t, w, job, map[string]any{"event_name": "pull_request_target"}); got != (job == "control-plane") {
 			t.Errorf("PR activity starts %s = %v", job, got)
 		}

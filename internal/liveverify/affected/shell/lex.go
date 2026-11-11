@@ -42,6 +42,13 @@ type script struct {
 	naming      string
 	cases       int
 	arithmetic  int
+	// incomplete reports a here-document that no delimiter line ended: one
+	// that reached the end of the text, one cut by the `)` closing its
+	// command substitution, or one whose operator line never ended. Shells
+	// disagree on such a body (bash ends an empty-delimited body inside `$(`
+	// at the `)`; dash refuses the file), so a file holding one is held as a
+	// dynamic source (AFP-V0-9971).
+	incomplete bool
 }
 
 // body is a function's brace body: its block id and the block id holding
@@ -285,10 +292,19 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			endAt("\n")
 			l.pos++
 			for _, body := range pending {
-				l.heredoc(body, inFunction())
+				if l.heredoc(body, inFunction(), substituted && closer == ')') {
+					// The substitution closed inside this body: the
+					// later bodies of the line were never read.
+					l.out.incomplete = true
+					break
+				}
 			}
 			pending = nil
-		case c == ' ' || c == '\t' || c == '\r':
+		case c == ' ' || c == '\t':
+			// Only space and tab are blanks. A carriage return is word text
+			// in bash, dash, zsh and POSIX sh, so `a\r#` is one word and its
+			// `#` starts no comment that could hide what follows
+			// (AFP-V0-9970).
 			endWord()
 			l.pos++
 		case c == '#' && start < 0:
@@ -386,6 +402,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				continue
 			}
 			if closer == ')' {
+				if len(pending) != 0 {
+					// `$(cat <<EOF)`: the body follows the closing line,
+					// where shells disagree on how to read it.
+					l.out.incomplete = true
+				}
 				return
 			}
 		default:
@@ -394,6 +415,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		}
 	}
 	endCommand()
+	if len(pending) != 0 {
+		// An operator on the last line, or one inside a substitution
+		// that closed on its own line, has no body read.
+		l.out.incomplete = true
+	}
 }
 
 func (l *lexer) peek(offset int) byte {
@@ -554,14 +580,26 @@ func (l *lexer) heredocOperator() (heredoc, bool) {
 	raw := l.src[begin:l.pos]
 	body.delimiter = unquote(raw)
 	body.expands = !strings.ContainsAny(raw, `'"\\`)
-	return body, body.delimiter != ""
+	// A quoted empty delimiter (`<<''`, `<<""`) is a here-document whose
+	// body ends at the first empty line, as in bash and dash; its body is
+	// data, never commands (AFP-V0-9971). Only a missing delimiter word is
+	// no here-document.
+	return body, raw != ""
 }
 
 // heredoc consumes one heredoc body, from pos to its delimiter line, as data.
 // An expanding body's command substitutions are lexed as commands.
-func (l *lexer) heredoc(body heredoc, inFunction bool) {
+// substitution marks a body inside a `$(...)` or `<(...)`: there a line that
+// starts with the delimiter and whose rest holds the unbalanced `)` ends the
+// body, the rest being shell text that closes the substitution, as bash reads
+// `EOF)` or, for an empty delimiter, any line holding the `)`,
+// and heredoc reports that it stopped there, leaving pos at that rest. A body
+// that no delimiter line ends marks the script incomplete (AFP-V0-9971).
+func (l *lexer) heredoc(body heredoc, inFunction, substitution bool) bool {
 	var lines []string
+	closed, cut := false, false
 	for l.pos < len(l.src) {
+		start := l.pos
 		end := strings.IndexByte(l.src[l.pos:], '\n')
 		line := l.src[l.pos:]
 		if end >= 0 {
@@ -570,20 +608,58 @@ func (l *lexer) heredoc(body heredoc, inFunction bool) {
 		} else {
 			l.pos = len(l.src)
 		}
-		check := strings.TrimSuffix(line, "\r")
+		// The delimiter line must match byte for byte: a shell does not
+		// trim a trailing carriage return, so `EOF\r` does not end a body
+		// delimited by `EOF` (AFP-V0-9970).
+		check := line
 		if body.dash {
 			check = strings.TrimLeft(check, "\t")
 		}
 		if check == body.delimiter {
+			closed = true
 			break
 		}
+		if substitution && strings.HasPrefix(check, body.delimiter) {
+			// bash ends the body at a line that starts with the delimiter
+			// and whose rest closes the substitution (`EOF)`, `EOF )`, or
+			// for an empty delimiter any line holding the `)`), and reads
+			// that rest as shell text.
+			rest := len(line) - len(check) + len(body.delimiter)
+			if unbalancedParen(line[rest:]) >= 0 {
+				l.pos = start + rest
+				cut = true
+				break
+			}
+		}
 		lines = append(lines, line)
+	}
+	if !closed {
+		l.out.incomplete = true
 	}
 	text := strings.Join(lines, "\n")
 	l.out.data = append(l.out.data, text)
 	if body.expands {
 		l.substitutions(text, inFunction)
 	}
+	return cut
+}
+
+// unbalancedParen returns the offset of the first `)` in line that no
+// earlier `(` of the line opens, or -1.
+func unbalancedParen(line string) int {
+	depth := 0
+	for at := 0; at < len(line); at++ {
+		switch line[at] {
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				return at
+			}
+			depth--
+		}
+	}
+	return -1
 }
 
 // substitutions lexes the command substitutions of double-quote-like text.

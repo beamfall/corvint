@@ -632,9 +632,12 @@ extract-and-run tests used pipefail, so a masked pipeline failure passed the tes
   every decision, including a fallback that drops the record; the `ci-narrowing-N` and
   `ci-shard-plan` artifacts upload it beside `narrowing.json`. The merge-queue path
   (`mq-narrow.sh`, then `narrow.sh`) prints the same line, its selection refusal as
-  `driver-reason`. Non-goals: changing any decision; the collectors still read `narrowing.json`
-  only. Failure mode: a decision sidecar that cannot be written leaves the mode output and the
-  record unchanged.
+  `driver-reason`. Non-goals: changing any decision; the collectors still take records from
+  `narrowing.json` only. `classify.sh` reads `decision.json` for one purpose: an artifact
+  directory that holds a FULL decision and no record is left out of the row, as a shard that
+  uploaded nothing is. A directory with neither file, or with no record and a decision that is
+  unreadable or not FULL, stays an unreadable narrowing record. Failure mode: a decision sidecar
+  that cannot be written leaves the mode output and the record unchanged.
 - `CIN-V0-8422`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5196)
   `.github/forward-rows/full-reasons.sh N [EVENT]` SHALL tally, with gh and jq only, the modes and
   FULL reason codes of the `ci-narrowing-*` artifacts of the last N (1 to 100) completed runs of
@@ -654,9 +657,10 @@ extract-and-run tests used pipefail, so a masked pipeline failure passed the tes
   `.github/workflows/ci.yml` (AFP-V0-2721). A mapped input only produces or reports forward-row
   evidence (`collect.sh`, `classify.sh`, `row.jq`, `selection.jq`, `outcomes.sh`, `outcomes.jq`,
   `tiers.sh`, `tiers.jq`, `failed.sh`, `failed.jq`, `flaky.sh`, `mainmiss.sh`, `mainmiss.jq`,
-  `absence.jq`, `bar.sh`, `full-reasons.sh`, `infra-reclassified.txt`) or is one of the two
-  workflows that run them on main (`ci-forward-bar.yml`, `ci-control-plane.yml`); the guard maps
-  each to the test packages that read it, which include every package whose
+  `mainmiss-confirm.sh`, `absence.jq`, `bar.sh`, `full-reasons.sh`, `infra-reclassified.txt`) or
+  is one of the two workflows that run them on main (`ci-forward-bar.yml`,
+  `ci-control-plane.yml`); the guard maps each to the test packages that read it, which include
+  every package whose
   `.corvint/test-read-scopes.json` entry covers the path (`tools/ci-forward-row`;
   `tools/tiers-replay` for `tiers.*`; `tools/capabilities-check`, `tools/ci-forward-row` and
   `tools/ci-reuse-plan` for the workflows). The guard prints `1` and every changed input when any
@@ -782,7 +786,9 @@ package-level one follows it.
   `MAX_PACKAGES` (5) per run and within `BUDGET_SECONDS` (10800), the package runs once at the merge
   commit's first parent (the base) and twice at the merge commit, each as
   `go test -race -exec <test-confine> -json -count=1 -timeout 50m ./<dir>` under
-  `CORVINT_CONFINE_ROOT`, the shard's invocation. A package that passes at the base (a
+  `CORVINT_CONFINE_ROOT` and `CORVINT_SKIP_LIVE_TIER=1`, the shard's invocation (the shard step
+  skips the live test tier, AFP-V0-2702 of `affected-plan-selection-v0.md`, so the reruns skip it
+  too and run the tests the failed shard ran). A package that passes at the base (a
   package-level `pass` event, exit 0) and fails at the merge twice (a package-level `fail` or a
   `build-fail` of the package, nonzero exit) is `confirmed`; one that passes at the merge is
   `flake`; one that fails at the base is `preexisting`; a package absent at the base counts the base
@@ -792,7 +798,11 @@ package-level one follows it.
   confirmed, `FLAKE` when every package is a flake, else `UNCONFIRMED`. (3) The workflow SHALL
   retain the `corvint-main-miss-check/0` document as
   `ci-forward-MAINCHECK-r<run>-<sha>-e<epoch>-c<confirmed>-k<flake>-u<unconfirmed>-pr<N>[_<N>...]`
-  (pull requests ascending, at most 10 named) and, for each confirmed pull request up to three, a
+  (pull requests ascending, at most 10 named) and, only while the repository variable
+  `CORVINT_MAIN_MISS_KILL` is `on` (unset, the default, is observe mode: the check, the issue and
+  the failed job, no MISS row, so a confirmation cannot turn narrowing off before the
+  confirmation path has been observed on hosted runs; V1-5198 stays open for that), for each
+  confirmed pull request up to three, a
   `corvint-main-miss-row/0` document (`class` `MISS`, the merge commit as `sha`, the confirmed
   packages as `missed`, the confirmation) as `ci-forward-MISS-pr<N>-<merge>-e<epoch>-f1`, which
   `bar.jq` counts as a `MISS` row of the epoch and of the AFP-V0-030 window like any other: one
@@ -803,7 +813,18 @@ package-level one follows it.
   job. (4) `bar.jq` SHALL report the epoch's checks (one per run; a re-run's newer name replaces)
   as `mainMiss.checks` (`runs`, `confirmed`, `flake`, `unconfirmed`, `pullRequests`) in its JSON
   form and on the MAINMISS markdown line; the MAINMISS count stays a suspicion that feeds neither
-  the status nor the kill switch. Amends AFP-V0-983 (2) and (4): the job lives in `main-miss.yml`,
+  the status nor the kill switch. (5) A miss belongs to the forward epoch its own pull-request run
+  stamped, not to the epoch of the run that examines it: `mainmiss.sh` SHALL read the `forwardEpoch`
+  of that run's `corvint-test-shadow-*` selection documents as `collect.sh` does (CIN-V0-001: one
+  non-negative integer across all of them, else unknown) and record it as the miss's `epoch`
+  (`null` when unknown). A miss whose epoch is known and earlier than `FORWARD_EPOCH` SHALL be
+  listed in `earlierEpoch` and named in the summary, and SHALL NOT be in `misses`, in the MAINMISS
+  name or count, or in any rerun, check entry, MISS row or issue (`mainmiss-confirm.sh` leaves such
+  a miss out whatever document it is given); so a failed run of `main` examined after the epoch
+  advanced cannot put an earlier epoch's miss into the new one. A miss whose epoch is unknown or
+  not earlier counts in the current epoch (fail-closed: a run whose selection documents are gone
+  hides no miss). Each check result and MISS-row confirmation SHALL name it as `selectionEpoch`.
+  Amends AFP-V0-983 (2) and (4): the job lives in `main-miss.yml`,
   and a confirmed miss, as a MISS row, feeds both. Non-goals: test-level confirmation
   (`linecov-miss.yml`); attributing a failure to one pull request when several skipped the package
   (each is rerun on its own merge commit); writing the `.taskman` store from CI (the GitHub issue is
@@ -906,13 +927,13 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | CIN-V0-7921 | the fallback shape (`planned`, `fallback`), `$unplanned`, `$fullRun`, `$fullType`, the `FULL` class and `selection.full` in `.github/forward-rows/row.jq`; the FULL class and `-r<type>` suffix in `collect.sh`; the `$full` count and line in `bar.jq` | `TestCINV07921FallbackSelectionIsATypedFullRow_CINV07921` (`tools/ci-forward-row/fullrow_test.go`: the #163 shape is FULL/skew with no incomplete reason, a failing package under it is no miss, another no-plan reason is abstain, a planned whole run is plan, a FULL document without a reason still fails the shape, one unplanned shard beside planned shards is INCOMPLETE, a planned FULL shard beside them stays CLEAN; fault injection: without the FULL branch the same run is CLEAN, or MISS once a package fails), `TestCINV07921CollectorNamesTheFullRowWithItsType_CINV07921` (the collector names `-rskew` and `-rplan`, and a dry-run that printed nothing stays INCOMPLETE), `TestCINV07921FullRowsAreNotNarrowingEvidence_CINV07921` (twenty abstained rows: NOT MET, 0 complete, clear; beside eight complete rows the count is unchanged and a FULL re-run replaces nothing; the pre-change CLEAN and INCOMPLETE names reproduce the defect; the four #163 INCOMPLETE names over three merges count three, as FULL none), `TestCINV07921FallbackRerunsKeepTheVerdictMet_CINV07921` (`accept.sh` over the #163 listing: MET with FULL names, FULL with a tripped switch under the old INCOMPLETE names); hosted FULL row `NOT_OBSERVED` |
-| CIN-V0-7922 | `.github/workflows/main-miss.yml`; `merge` in `mainmiss.sh` and `mainmiss.jq`; `.github/forward-rows/mainmiss-confirm.sh`; the MAINCHECK lines and `mainMiss.checks` of `bar.jq`; `script/ci-least-privilege-exceptions.tsv` | `TestCINV07922ConfirmationRerunsClassifyEachSuspectedPullRequest_CINV07922` (`tools/ci-forward-row/mainmiss_confirm_test.go`, a real Git repository and a go stand-in: pass/fail/fail confirms and names a MISS row, a package absent at the base confirms on its merge failures, a merge pass is a flake, a base failure is preexisting, a merge commit off main or none is unconfirmed; the reruns are base once and merge twice with the shard's flags; MAX_PACKAGES and BUDGET_SECONDS leave the rest unconfirmed; an unusable base capture confirms nothing; no worktree is left), `TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922` (a MISS row from a confirmed miss makes the bar NOT MET, two trip the switch, MAINMISS and MAINCHECK names feed neither and are reported), `TestCINV07922MainMissWorkflowBinding_CINV07922` (the workflow's trigger, trusted checkout, scripts, flags, deadline equal to `run_slice`, uploads, issue step, failure step, permissions, epoch, and the control plane without the job); `TestAFPV0983MainFailureNamesTheNarrowedPullRequest` (the miss carries `merge`); local replay of the protocol for #104 and #109 in `docs/build-log/2026-11-09-misskill.md`; hosted confirmation `NOT_OBSERVED` |
+| CIN-V0-7922 | `.github/workflows/main-miss.yml`; `merge`, `epoch` and `earlierEpoch` in `mainmiss.sh` and `mainmiss.jq`; `.github/forward-rows/mainmiss-confirm.sh`; the MAINCHECK lines and `mainMiss.checks` of `bar.jq`; `script/ci-least-privilege-exceptions.tsv` | `TestCINV07922ConfirmationRerunsClassifyEachSuspectedPullRequest_CINV07922` (`tools/ci-forward-row/mainmiss_confirm_test.go`, a real Git repository and a go stand-in: pass/fail/fail confirms and names a MISS row, a package absent at the base confirms on its merge failures, a merge pass is a flake, a base failure is preexisting, a merge commit off main or none is unconfirmed; the reruns are base once and merge twice with the shard's flags; MAX_PACKAGES and BUDGET_SECONDS leave the rest unconfirmed; an unusable base capture confirms nothing; no worktree is left), `TestCINV07922EarlierEpochMissIsLeftOut_CINV07922` (a miss of a known earlier epoch is not rerun and gets no check entry or MISS row, one of the current or an unknown epoch is confirmed and names `selectionEpoch`, and a document holding only earlier-epoch misses confirms nothing), `TestCINV07922MainMissBelongsToItsSelectionEpoch_CINV07922` (`tools/ci-forward-row/mainmiss_test.go`: the fake `gh` serves the pull-request run's selection documents; epoch 2 stays a miss with `epoch` 2, epoch 1 is listed in `earlierEpoch` with no name and no row, mixed epochs and no documents stay misses with `epoch` null), `TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922` (a MISS row from a confirmed miss makes the bar NOT MET, two trip the switch, MAINMISS and MAINCHECK names feed neither and are reported), `TestCINV07922MainMissWorkflowBinding_CINV07922` (the workflow's trigger, trusted checkout, scripts, flags, deadline equal to `run_slice`, uploads, issue step, failure step, permissions, epoch, and the control plane without the job); `TestAFPV0983MainFailureNamesTheNarrowedPullRequest` (the miss carries `merge`); local replay of the protocol for #104 and #109 in `docs/build-log/2026-11-09-misskill.md`; hosted confirmation `NOT_OBSERVED` |
 | CIN-V0-7600 | `admits`, `recordJobLine`, `successfulJob`, `recorded`, `recordedNarrowed` in `tools/ci-reuse-plan/main.go` | `TestCINV07600RecordAdmitsBeforeAdvisoryCompletion`, `TestCINV07600RecordAdmissionFailsClosed`, `TestCINV07600NarrowedRecordRequiresItsAggregateAndGuards`, `TestCINV07600ReplayPR99`; old/new retained-input replay in `2026-11-05-ci-reuse-record-admission`; hosted REUSE pending workflow listing follow-up |
 | CIN-V0-001 | `CORVINT_PR_FORWARD_EPOCH`, the shadow step's `forwardEpoch` argument and the narrowing-verdict `FORWARD_EPOCH` in `ci.yml`; `FORWARD_EPOCH` and the artifact name in `ci-forward-bar.yml`; `ci-control-plane.yml`; `selection.jq`; the epoch check of `collect.sh` | `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind`; the "producer epoch names the row" case of `TestAFPV0047CollectorNamesRows`; `TestAFPV0047SelectionDocument` |
 | CIN-V0-002 | the `pin-tool-*` and `pin-shadow-*` step ids and the "Fail loudly on an unreachable or unbuildable pin" step of `ci.yml` | `TestCINV0002UnreachablePinFailsTheShardLoudly` |
 | CIN-V0-003 | `list_names` stop time in `names.sh`; `since`, `covered` and `reachedEpochSince` in `verdict.sh`; `FORWARD_EPOCH_SINCE` in `ci-forward-bar.yml` | `TestCINV0003VerdictListsBackToTheEpochSince` |
 | CIN-V0-004 | `listedAt` and `windowNames` in `verdict.sh` and `bar.jq`; the incremental branch of `accept.sh` | the `CIN-V0-004` cases of `TestAFPV0097VerdictAcceptance` (31 reads to 2 on the replay; malformed members fall back) |
-| CIN-V0-8421 | `say`, `decision` and `full` in `.github/forward-rows/narrow.sh`; `$causes`, `reasonCodes` in `narrow.jq`; the `decision.json` upload paths of `go-product-shard` and `shard-plan` in `ci.yml` | `TestCINV08421FullReasonIsLoggedAndRecorded_CINV08421` (a decided FULL, several codes in order, a dropped record, a failed decision, NARROWED, the merge-queue path) |
+| CIN-V0-8421 | `say`, `decision` and `full` in `.github/forward-rows/narrow.sh`; `$causes`, `reasonCodes` in `narrow.jq`; the `decision.json` upload paths of `go-product-shard` and `shard-plan` in `ci.yml` | `TestCINV08421FullReasonIsLoggedAndRecorded_CINV08421` (a decided FULL, several codes in order, a dropped record, a failed decision, NARROWED, the merge-queue path); `TestCINV08421DecisionOnlyFullIsNoRecord_CINV08421` (`classify.sh`: a FULL decision without a record is left out; no file, an unreadable decision or a NARROWED decision without a record stays unreadable) |
 | CIN-V0-8422 | `.github/forward-rows/full-reasons.sh` | `TestCINV08422FullReasonsTally_CINV08422` (five runs: narrowed, two shards' codes, a legacy record, no record, a fallback decision; the event filter; argument and listing refusals) |
 | CIN-V0-8423 | `consumers` and the classification loop in `.github/forward-rows/github-guard.sh`; `githubGuard` in `tools/selection-baseline/main.go` | `TestCINV08423GuardClassifiesEveryInput_CINV08423` (every forward-rows file and both workflows; consumers hold every declared reader; an unmapped file, a rename and a mixed change stay FULL); the mapped cases of `TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720`; `TestCINV08424MappedInputsNeedTheirConsumers_CINV08424` (the guard answer) |
 | CIN-V0-8424 | the mapped-consumer check and `githubMapped`/`githubMissing` in `narrow.sh` and `narrow.jq`; `applyMappedInputs` in `tools/selection-baseline/main.go` | `TestCINV08424NarrowShRequiresMappedConsumers_CINV08424` (real guard and git: a selection with the consumer narrows and records the mapping, one without is FULL naming it, two consumers need both, no module path is unreadable, a global input beside a mapped one stays FULL); `TestCINV08424MappedInputsNeedTheirConsumers_CINV08424` |
@@ -955,7 +976,8 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 CIN-V0-7921: remove the fallback shape and FULL branch of `row.jq`, the FULL naming of `collect.sh` and the
 `full` lines of `bar.jq`; FULL names already uploaded match no pattern and are ignored.
 
-CIN-V0-7922: delete `main-miss.yml`, restore the `main-miss` job of `ci-control-plane.yml`, remove
+CIN-V0-7922: delete the repository variable `CORVINT_MAIN_MISS_KILL` to stop MISS-row uploads
+(observe mode); to remove the capability, delete `main-miss.yml`, restore the `main-miss` job of `ci-control-plane.yml`, remove
 `mainmiss-confirm.sh`, the `merge` member of `mainmiss.sh`/`mainmiss.jq` and the MAINCHECK lines of
 `bar.jq`; MISS rows already uploaded stay counted until the epoch advances.
 

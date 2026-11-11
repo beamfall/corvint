@@ -156,6 +156,52 @@ func confirm(t *testing.T, r *confirmRepo, misses []any, extra ...string) confir
 	return res
 }
 
+// CIN-V0-7922 (5) (V1-5198): a miss belongs to the forward epoch its own pull-request run stamped.
+// One of a known earlier epoch is not rerun and gets no check entry and no MISS row, whatever
+// document the script is given; one of the current epoch, and one whose epoch is unknown, are
+// confirmed in this epoch and name selectionEpoch. A document holding only earlier-epoch misses
+// confirms nothing.
+func TestCINV07922EarlierEpochMissIsLeftOut_CINV07922(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/mainmiss-confirm.sh", "")
+	r := newConfirmRepo(t)
+	miss := func(pr int, epoch any, pkg string) doc {
+		return doc{"pr": pr, "head": r.prTip, "merge": r.merge, "runId": 9001, "epoch": epoch, "packages": []string{pkg}}
+	}
+	res := confirm(t, r, []any{miss(12, 1, "example.org/m/store"), miss(17, 2, "example.org/m/gone"), miss(18, nil, "example.org/m/store")})
+	want := map[string]string{
+		"check":     "ci-forward-MAINCHECK-r500-" + r.head + "-e2-c2-k0-u0-pr17_18",
+		"confirmed": "1",
+		"miss1":     "ci-forward-MISS-pr17-" + r.merge + "-e2-f1",
+		"miss2":     "ci-forward-MISS-pr18-" + r.merge + "-e2-f1",
+	}
+	if fmt.Sprint(res.outputs) != fmt.Sprint(want) {
+		t.Fatalf("outputs %v, want %v\n%s", res.outputs, want, res.summary)
+	}
+	epochs := map[int]any{}
+	for _, x := range res.check["results"].([]any) {
+		epochs[num(x.(doc)["pr"])] = x.(doc)["selectionEpoch"]
+	}
+	if fmt.Sprint(epochs) != fmt.Sprint(map[int]any{17: float64(2), 18: nil}) {
+		t.Fatalf("selection epochs %v", epochs)
+	}
+	if got := strings.Join(res.log, "\n"); got != strings.Join([]string{"at-merge gone", "at-merge gone", "at-base store", "at-merge store", "at-merge store"}, "\n") {
+		t.Fatalf("reruns:\n%s", got)
+	}
+	row := readDoc(t, filepath.Join(res.temp, "main-miss", "miss1", "row.json"))
+	if num(row["pr"]) != 17 || num(row["epoch"]) != 2 || num(sub(row, "confirmation")["selectionEpoch"]) != 2 {
+		t.Fatalf("miss1 row = %v", row)
+	}
+	if !strings.Contains(res.summary, "main miss confirmation: #12 was narrowed under forward epoch 1, earlier than 2; not rerun, no MISS row (CIN-V0-001)") {
+		t.Fatalf("summary:\n%s", res.summary)
+	}
+	// Only earlier-epoch misses: nothing is rerun and nothing is written.
+	res = confirm(t, r, []any{miss(12, 1, "example.org/m/store")})
+	if len(res.outputs) != 0 || len(res.log) != 0 || res.check != nil ||
+		!strings.Contains(res.summary, "is not a corvint-main-miss/0 document naming a miss of epoch 2; nothing confirmed") {
+		t.Fatalf("an earlier-epoch-only document: outputs %v reruns %v check %v\n%s", res.outputs, res.log, res.check, res.summary)
+	}
+}
+
 // CIN-V0-7922 (V1-5198): each suspected pull request's skipped package is rerun once at its merge
 // commit's first parent and twice at the merge commit. Pass, fail, fail confirms the miss and names
 // a MISS row (#12 store; #17's gone, absent at the base, confirms on its two merge failures); a
@@ -305,7 +351,8 @@ func TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922(t *testing.T) {
 // -race build, test-confine wrapper and 50m deadline, retains the MAINMISS, MAINCHECK and up to
 // three MISS names, files an issue and fails on a confirmed miss, with exactly actions: read,
 // contents: read and issues: write; it names the live forward epoch, and the control plane no
-// longer carries the job.
+// longer carries the job. The reruns skip the live test tier exactly as the shard step does
+// (AFP-V0-2702), and the MISS names are uploaded only while CORVINT_MAIN_MISS_KILL is on.
 func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 	requireGitHubChange(t, ".github/workflows/main-miss.yml", "")
 	read := func(path string) string {
@@ -342,6 +389,10 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 		`          GO_TEST_FLAGS="-race -exec $RUNNER_TEMP/test-confine" sh "$GITHUB_WORKSPACE/trusted/.github/forward-rows/mainmiss-confirm.sh"` + "\n",
 		"          MISS: ${{ runner.temp }}/main-miss/miss.json\n          SOURCE: ${{ github.workspace }}/source\n",
 		`          TEST_TIMEOUT: "50m"` + "\n",
+		`          CORVINT_SKIP_LIVE_TIER: "1"` + "\n        run: |\n          unset GOMAXPROCS",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss1 != ''\n",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss2 != ''\n",
+		"        if: always() && vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss3 != ''\n",
 		"          name: ${{ steps.confirm.outputs.check }}\n          path: ${{ runner.temp }}/main-miss/check.json\n",
 		"          name: ${{ steps.confirm.outputs.miss1 }}\n          path: ${{ runner.temp }}/main-miss/miss1/row.json\n",
 		"          name: ${{ steps.confirm.outputs.miss2 }}\n          path: ${{ runner.temp }}/main-miss/miss2/row.json\n",
@@ -359,6 +410,17 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 	// a named suspicion; the workflow never checks out or runs code of anything but main.
 	if !strings.Contains(ci, `-count=1 -race -timeout 50m "$1" "$2" "$3"`) {
 		t.Fatal("ci.yml's run_slice no longer runs with -timeout 50m; TEST_TIMEOUT in main-miss.yml must follow")
+	}
+	// The shard step skips the live tier (AFP-V0-2702); the reruns must run the same tests.
+	if !strings.Contains(ci, "          CORVINT_SKIP_LIVE_TIER: \"1\"\n        run: |\n          test \"$(go env GOVERSION)\" = \"go1.27.3\"\n          # AFP-V0-097/098") {
+		t.Fatal("ci.yml's shard Go test step no longer sets CORVINT_SKIP_LIVE_TIER; the confirm step of main-miss.yml must follow")
+	}
+	// No MISS row is uploaded outside the CORVINT_MAIN_MISS_KILL gate.
+	if n := strings.Count(wf, "/row.json\n"); n != 3 {
+		t.Fatalf("%d MISS row uploads, want 3", n)
+	}
+	if n := strings.Count(wf, "vars.CORVINT_MAIN_MISS_KILL == 'on' && steps.confirm.outputs.miss"); n != 3 {
+		t.Fatalf("%d MISS row uploads gated on CORVINT_MAIN_MISS_KILL, want 3", n)
 	}
 	steps := regexp.MustCompile(`(?m)^      - (?:name: .*|uses: .*)\n(?:        .*\n)*`).FindAllString(wf, -1)
 	if len(steps) < 12 {
