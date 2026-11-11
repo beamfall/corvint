@@ -717,7 +717,10 @@ paths, and `--page` and `--claims` differ.
   the byte comparison always uses the regenerated form, with waived claims in their `WAIVED` form,
   never the committed form (DMF-V1-001, superseding the earlier keep-committed rule).
   `expired_waivers` (present when non-empty) lists each expired waiver, `claim` and `expires`, whose
-  claim the check found. A failing check exits 2 with `flow-docs-check-failed`.
+  claim the check found. `worktree` (DMF-V1-005) is `{"state":"clean"}`, or `dirty` with `changed`
+  (the count of tracked paths under the intents directory, page, sidecar, docs root, registry or
+  waivers file that differ from HEAD) and the first five `paths`, or `unknown` with a `reason`; the
+  check still answers only about HEAD. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
 
@@ -1089,7 +1092,9 @@ accepted variation, or a replacement for independent application/browser qualifi
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
   (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
-  including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
+  including missing/extra/changed files, without writing anything. The report's `worktree` member
+  (DMF-V1-005) says whether tracked paths under the scope or the compared output directory differ
+  from HEAD, with the same shape as `flow-doc-check/0`. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and
   bounds above 256 flows (refused with the typed code of AFU-V1-125), 2,048 Markdown pages plus two metadata files, 64 MiB rendered payload and

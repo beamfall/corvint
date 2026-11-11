@@ -383,7 +383,9 @@ a token whose path is not tracked, whatever its directory, is `missing-file` (DM
 the earlier tracked-directory rule). A token inside fenced code is example text: it is skipped and
 counted. A checked citation of a tracked file with no `@HEX` anchor is listed as unpinned and is not a
 failure. `--json` prints `corvint-docs-citations-check/0` with one object per failure, the unpinned
-citations and the counts (DMF-V1-004). Output is one line per failure and a summary that also counts
+citations, the counts and the `worktree` member (DMF-V1-005: whether a read document or cited file
+differs from the index; the answer stays about the index), and the text output adds a worktree line
+only when it is dirty or unknown. Output is one line per failure and a summary that also counts
 unpinned and fenced citations; exit 0 when clean, 1 on any
 failure, 2 with `citations-check-failed` on argument or repository errors. It reads only and writes nothing. It does not replace
 the repository's own `make line-citations-check`, whose extra Corvint scope rules remain script
