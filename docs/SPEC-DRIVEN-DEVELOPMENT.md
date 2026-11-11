@@ -204,6 +204,15 @@ traceability table: `make traceability-tests-check TRACE_RANGE=BASE..HEAD` resol
 rows against the change head, so the spec-first commit passes once the test lands and a test that
 never lands still fails (`TTG-V0-950`); without the range the index check names that route.
 
+A traceability row that cites a subtest as `TestName/REQ-ID` resolves only when the body of a
+declaration of `TestName` holds `REQ-ID`, so name the ID in the subtest name or body
+(`TTG-V0-960`, `TTG-V0-961`). The same range form compares BASE's tree with HEAD's and fails for a
+requirement whose last resolving test citation the change removed, which is how a test
+consolidation that deletes a requirement's only test is caught (`TTG-V0-962`). A requirement left
+without a test on purpose keeps its row and states `(untested: REASON)` there (`TTG-V0-963`); a
+requirement removed from every live spec, or whose spec is retired, needs no marker. Until CI runs
+the range form, run it yourself before publishing a change that removes or renames tests.
+
 Evidence that names a test in a nested Go module (a directory with its own `go.mod`, such as
 `tools/local-authority`, `interop/cem01-go` or `benchmarks/snapshot-reader`) names the module
 directory, because `go test ./tools/local-authority` from the repository root fails with `main
