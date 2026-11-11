@@ -437,7 +437,11 @@ This adds no fields or semantics to existing commands or frozen protocols.
 
 Argument errors use the existing `invalid-arguments` stderr envelope. Draft failures use
 `unsupported-documentation-source`, `documentation-limit-exceeded`, or `stale-documentation-draft`
-in the existing JSON stderr envelope, nonzero exit and empty stdout. Git/context cancellation errors
+in the existing JSON stderr envelope, nonzero exit and empty stdout. Byte binding stays strict; a
+`stale-documentation-draft` message names the commit and tree the supplied draft was bound to and
+the ones the sources are now at (or says the draft names the current commit, so its bytes were
+edited or drafted under another policy or page), and names the `docs draft` command that drafts
+again (DMF-V1-013). Git/context cancellation errors
 retain existing error handling. Commands do not write repository, index or trace state except the
 existing bounded local self-observation ledger on non-query `unsupported-*` failures (SOL-V0-007,
 product invariant 4). Its closed writer code set admits exactly `unsupported-documentation-source`
