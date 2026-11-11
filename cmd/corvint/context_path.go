@@ -167,8 +167,8 @@ func pathContextRefusalCode(err error) string {
 }
 
 // pathContextPlan selects each file alone over the shared graph and merges the selections. A
-// unit selected only as an unbounded reader is counted, not listed, and a driver site is not a
-// test (the listing rule of the TBC-V1-013 coverage check).
+// unit selected only as an unbounded reader is counted, not listed, and a make target or CI job
+// is not a test (the listing rule of the TBC-V1-013 coverage check).
 func pathContextPlan(graph *affected.Graph, files []string, result *pathbrief.TestsResult) {
 	reasons, shared := map[string]string{}, map[string]bool{}
 	result.Scope = "BOUNDED"
@@ -178,9 +178,10 @@ func pathContextPlan(graph *affected.Graph, files []string, result *pathbrief.Te
 			result.Scope = plan.Scope
 		}
 		for _, selection := range plan.Selected {
-			switch selection.Witness.Kind {
-			case affected.WitnessFrontierSite:
-			case affected.WitnessUnboundedReader:
+			switch {
+			case selection.Kind != "" || selection.Witness.Kind == affected.WitnessFrontierSite:
+				// A make target or CI job runs tests; it is not one.
+			case selection.Witness.Kind == affected.WitnessUnboundedReader:
 				shared[selection.UnitID] = true
 			default:
 				if _, listed := reasons[selection.UnitID]; !listed {
