@@ -696,7 +696,9 @@ change and selector the verdict (SAFE, MISS, UNKNOWN, NOT_RUN), misses,
 recall, precision, fallback and elapsed time; per selector micro recall and
 precision and a 95% one-sided Clopper-Pearson bound on the per-change miss
 rate. Missing outcomes, a dropped test or a selector error is UNKNOWN, never
-safe. It exits 1 on any miss, 3 on any UNKNOWN, 2 on an input error.
+safe. The report's producer member names the binary that replayed the
+changes: version, build, the commit stamped into it and its state, or unknown.
+It exits 1 on any miss, 3 on any UNKNOWN, 2 on an input error.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
@@ -1224,6 +1226,9 @@ for a declared feature record. Overview includes inert suggested argv. Review co
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.
+A corvint binary built from Go source that differs from this checkout's HEAD
+(self-binary-stale) makes review exit 2 with a fix: line, as corvint affected
+does; an unverified binary is named in review.affected and in unknown.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
