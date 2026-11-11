@@ -47,8 +47,7 @@
       "target": {
         "type": "source",
         "path": "cmd/corvint-test-validity-mcp/main.go"
-      },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      }
     },
     {
       "from": "mcp-discover",
