@@ -10,7 +10,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 1.2 First commit: create `docs/specs/mcp-tool-table-v1.md` from the spec delta, its README row
       and the regenerated index, naming the MMR-V0 IDs it supersedes. Requirements: MTT-V1-001 to
       011. Proof: `make spec-requirements-check` passes.
-- [ ] 2.1 Table rows with schema, server, output profile, errors, availability and CLI equivalent.
+- [x] 2.1 Table rows with schema, server, output profile, errors, availability and CLI equivalent.
       Requirements: MTT-V1-001, MTT-V1-006. Proof: table unit test (unique names, every column set).
 - [ ] 2.2 Generated `docs/MCP-SERVER.md` and its staleness check. Requirements: MTT-V1-002. Proof:
       the check fails on a hand edit.
