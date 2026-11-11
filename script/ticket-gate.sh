@@ -223,7 +223,7 @@ def check($p; $index):
   | (if $c == null then null else $v.components[$c] end) as $cv
   | (if $t == null then null else $v.types[$t] end) as $tv
   | ($p.requirementRefs // [] | if type == "array" then . else [] end) as $refs
-  | ($p.identityKey // null) as $full
+  | $p.identityKey as $full
   | (if ($full | type) == "string" then ($hash[$full] // $full) else ($klab[0] // null) end)
     as $stored
   | ($p.distinctFrom // [] | if type == "array" then . else [] end) as $df
