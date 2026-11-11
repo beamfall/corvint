@@ -133,7 +133,7 @@ approval if either run differs from its expected output. (G5; PROD-INT-016; PROD
 | FSV-V1-003 | 2.2 | `appflows.ReadFlowsDeclaration` is the one reader; `internal/pathbrief` names the path through `appflows.FlowsDeclarationPath` | `TestFSVV1003OneFlowsReader_V15410`, `TestFSVV1003ScanNamesSecondReader_V15410` (`internal/appflows/flowsreaderscan`) |
 | FSV-V1-004 | 2.3, 3.1 | reader: `internal/appflows/flowschema.go`; planner: `flowsSchemaUnsupported` in `internal/appflows/flowplan.go`; `corvint test`: `testE2EUnits` in `cmd/corvint/test.go`; error catalogue entry (task 3.1): not yet built | `TestFSVV1004UnsupportedVersionRefused_V15410`, `TestFSVV1004MalformedProfileInvalid_V15410`, `TestFSVV1004UnsupportedVersionSelectsEveryE2ETest_V15410`, `TestFSVV1004UnsupportedVersionViaCLI_V15410`, `TestSTRV08706PlanE2EUnits`; catalogue check: not yet built |
 | FSV-V1-005 | 2.4 | `appflows.ReportRefusal`; `refuseUnreadableFlows` in `internal/command/flows/flows_schema.go` (`flows gaps`, `flows status`, `flows impact`, shared by `corvint-docs flows` and the `corvint flows` shim); native `corvint flows test-evidence` in `cmd/corvint/flows_test_evidence.go` | `TestFSVV1005FlowReportsRefuseWithoutPartialOutput_V15410`, `TestFSVV1005NativeFlowReportRefuses_V15410` |
-| FSV-V1-006 | 2.5 | not yet built | not yet built |
+| FSV-V1-006 | 2.5 | `appflows.EncodeFlowsDeclaration` writes `FlowsWriteVersion` and checks the bytes with the same build's reader; no command writes the file in this tree | `TestFSVV1006WriterAndReaderAgree_V15410`, `TestFSVV1002MemberListsAreFrozen_V15410` (write version is the highest supported) |
 | FSV-V1-007 | 2.6 | not yet built | not yet built |
 
 ## Rollback

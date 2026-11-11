@@ -19,7 +19,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       planner test where every E2E test is selected with the reason.
 - [x] 2.4 Refusal in `corvint flows` reports and in the documentation product's flow reader.
       Requirements: FSV-V1-005. Proof: command tests showing a non-zero exit and no partial output.
-- [ ] 2.5 Writer and reader agreement. Requirements: FSV-V1-006. Proof: a round-trip test.
+- [x] 2.5 Writer and reader agreement. Requirements: FSV-V1-006. Proof: a round-trip test.
 - [ ] 2.6 Release smoke job with `corvint` installed alone. Requirements: FSV-V1-007. Proof: the job
       passes on a candidate build and fails when the unsupported-version fixture plans fewer than all
       E2E tests.
