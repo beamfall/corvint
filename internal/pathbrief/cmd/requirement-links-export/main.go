@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/pathbrief"
@@ -22,7 +23,7 @@ func main() {
 	commit := flag.String("commit", "", "the input commit")
 	out := flag.String("out", "", "the file to write")
 	flag.Parse()
-	if *root == "" || *commit == "" || *out == "" || flag.NArg() != 0 {
+	if !filepath.IsAbs(*root) || *commit == "" || *out == "" || flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "usage: requirement-links-export --root ABSOLUTE_ROOT --commit REVISION --out FILE")
 		os.Exit(2)
 	}
