@@ -1098,6 +1098,7 @@ AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	Verification MUST 
 AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	With `draft`, the plan MUST include a Playwright skeleton that is guarded by	unrecorded	-
 AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`	unrecorded	-
 AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which r	unrecorded	-
+AMAP-V0-8780	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept, 2026-11-11; V1-4838) Revision	standing	2026-11-11; V1-4838
 AMAP-V0-001	docs/specs/application-map-v0.md	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
 AMAP-V0-002	docs/specs/application-map-v0.md	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
 AMAP-V0-003	docs/specs/application-map-v0.md	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
