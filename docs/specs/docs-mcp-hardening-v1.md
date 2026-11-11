@@ -160,7 +160,7 @@ and the byte failure MUST stand. Serves PROD-DOCS-005. (finding 14; `internal/ap
 - THEN the failure lists `login.ok` from PROVEN to FAILED, says page and sidecar differ and names
   the regenerate command
 
-Delivery: not yet built.
+Delivery: `flows docs --check` adds `byte_detail` on a byte failure: `differs` (page, sidecar or both), `claims` from a diff of the committed and regenerated sidecars (added, removed, state with old and new state, or detail), `claims_state` `UNKNOWN` with a reason when the committed sidecar is missing, and `regenerate`, the `corvint-docs flows docs` command with the same inputs. Bytes stay the authority. Test: `TestDMFV1006ByteFailureNamesChangedClaims` (`internal/command/flows`).
 
 - `DMF-V1-007`: (accepted automatically under G14, decision 0596; V1-5409) No clean result without comparing pages
 
@@ -300,7 +300,7 @@ Delivery: not yet built.
 | DMF-V1-003 | 4 | `internal/docmaintain/check.go`, `cmd/corvint-docs/docs_maintain.go` | `TestDMFV1003*` |
 | DMF-V1-004 | 5 | `internal/doccitations/check.go`, `cmd/corvint-docs/docs.go` | `TestDMFV1004*` |
 | DMF-V1-005 | 6 | `internal/docworktree`, the four check reports | `TestDMFV1005*` |
-| DMF-V1-006 | 7 | not yet built | not yet built |
+| DMF-V1-006 | 7 | `internal/appflows/docs.go` (`byteDetail`), `internal/command/flows/flows_docs.go` | `TestDMFV1006ByteFailureNamesChangedClaims` |
 | DMF-V1-007 | 8 | not yet built | not yet built |
 | DMF-V1-008 | 10 | not yet built | not yet built |
 | DMF-V1-009 | 11 | not yet built | not yet built |

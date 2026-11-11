@@ -720,7 +720,12 @@ paths, and `--page` and `--claims` differ.
   claim the check found. `worktree` (DMF-V1-005) is `{"state":"clean"}`, or `dirty` with `changed`
   (the count of tracked paths under the intents directory, page, sidecar, docs root, registry or
   waivers file that differ from HEAD) and the first five `paths`, or `unknown` with a `reason`; the
-  check still answers only about HEAD. A failing check exits 2 with `flow-docs-check-failed`.
+  check still answers only about HEAD. On a `rendered-bytes-differ` failure, `byte_detail`
+  (DMF-V1-006) carries `differs` (`page`, `sidecar` or `both`), `claims_state` (`KNOWN`, or `UNKNOWN`
+  with a `reason` when the committed sidecar is missing or unreadable), `claims` (each `claim`,
+  `change` of `added`, `removed`, `state` or `detail`, and `old` and `new` states, `ABSENT` for a
+  missing side) and `regenerate`, the `flows docs` command with the same inputs; the bytes stay the
+  authority. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
 
