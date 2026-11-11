@@ -73,6 +73,8 @@ V1-5071 (2026-11-08) adds AFP-V0-9600 here for the same reason; see build-log en
 Lane rscope (2026-11-07; V1-4993) adds AFP-V0-3010, AFP-V0-3011, AFP-V0-3150 and AFP-V0-3151 here
 for the same reason; see build-log entry `2026-11-07-rscope`.
 V1-5174 (2026-11-08) adds AFP-V0-3300 through AFP-V0-3305 for predicate, listing-only tree scopes and per-unit declaration comparison.
+Lane nomiss (2026-11-11; V1-3999) adds AFP-V0-3660 to AFP-V0-3665 here for the same reason; see
+build-log entry `2026-11-11-nomiss`.
 Lane seldis (2026-11-09; V1-4968, V1-4971, V1-4363) adds AFP-V0-9730 to AFP-V0-9732 here for the
 same reason; see build-log entry `2026-11-09-seldis`. Lane seldisfix (2026-11-09, the review of
 seldis) adds AFP-V0-11033, the same refusal for `affected jobs` and `affected audit`; see build-log
@@ -2922,6 +2924,82 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### Location sources reach rule (d) (V1-3999)
+
+Lane nomiss (2026-11-11). A test that rebuilds the repository root from `runtime.Caller`, or reads
+a directory named by the environment, carries no literal that rule (d) or rule (c) can see, so
+before this change it was treated as bounded and skipped on changes to files it reads. The
+requirements below hold such a package unless every value the source yields is used in a way that
+cannot form a path. They are keyed on sources, not on reads, so a use they do not list holds the
+package. The design, the closed-world argument and its residuals, the measurements and the
+mutations are in `docs/build-log/2026-11-11-nomiss.md`. Run-time confinement (AFP-V0-023) already
+refuses such a read for a package that declares a read scope, which the selector drops from
+rule (d); these requirements matter for undeclared packages.
+
+- **AFP-V0-3660:** (proposed 2026-11-11; delivery experimental; V1-3999) Amending AFP-V0-012
+  rule (d), AFP-V0-467 and AFP-V0-810: rule (d) in `internal/gateselect` and in the planner's Go
+  plugin (root and nested modules) SHALL treat as a location source each reference, under the
+  local name the file's import gives the package or through a dot import, called or not, to
+  `os.Getenv`, `os.LookupEnv`, `os.Environ`, `os.ExpandEnv`, `syscall.Getenv`, `syscall.Environ`,
+  `syscall.Getwd`, `runtime.Caller`, `runtime.FuncForPC` and `runtime.CallersFrames`. A reference
+  whose values are not all used safely (AFP-V0-3661, AFP-V0-3662) SHALL make the package an
+  unbounded reader. A file holding a `//go:linkname` directive or importing `"C"` SHALL do the
+  same, since either can reach a source the scan cannot name. `runtime.Callers` yields program
+  counters only and is no source. Frame metadata alone stays outside rule (d) as AFP-V0-810 states;
+  a frame's file used as more than metadata is a read. Failure mode: a file whose source cannot be
+  parsed holds every source it names.
+- **AFP-V0-3661:** (proposed 2026-11-11; delivery experimental; V1-3999) A source value SHALL be
+  used safely only when it is discarded or assigned to the blank identifier; bound by `:=`, `=` or
+  `var` to a local variable whose every read is a safe use (a plain reassignment is no read); an
+  operand of a comparison, a switch tag, the argument of `len`, of `strconv.Atoi`, `ParseBool`,
+  `ParseInt`, `ParseUint`, `ParseFloat` or of `time.ParseDuration`; the right operand of `+` after
+  a literal `NAME=` (or an expression and a literal ending in `=`) where that sum is an element of
+  a composite literal or a variadic argument of `append`; for `os.Environ` and `syscall.Environ`,
+  the value of an `Env` key or of an assignment to an `Env` field, directly or through `append`,
+  `slices.Clip` or `slices.Clone`; for `LookupEnv`, `syscall.Getenv` and `runtime.Caller`, only
+  the value result is followed; for a `*runtime.Func`, `Name` and `Entry`, and `FileLine`, whose
+  file is followed; for `*runtime.Frames`, `Next`, whose frame is followed; for a frame,
+  `Function`, `Line`, `PC`, `Func` and `Entry`, and `File`, which is followed. The result of
+  `filepath.Dir`, `Join`, `Clean`, `FromSlash`, `ToSlash`, `path.Dir`, `Join`, `Clean`, the value
+  result of `filepath.Abs` and any other `+` of a location SHALL be followed as a location. Every
+  other use SHALL hold the package, including a function value that is not discarded, a value
+  bound to a package-level variable, stored in a field, returned, passed to any other function or
+  method, or whose address is taken.
+- **AFP-V0-3662:** (proposed 2026-11-11; delivery experimental; V1-3999) A location joined to
+  plain literal components SHALL be bounded by those components' rule (c) tokens (AFP-V0-2203,
+  AFP-V0-2240): `location + "/a/b"` or `filepath.Join(location, "a", "b")` (or `path.Join`), whose
+  every literal component is not empty, `.` or `..`, holds no backslash and no glob character, and
+  at least one of which is made only of path token characters. Such a join SHALL be used safely
+  only as a comparison operand or as the first argument of `os.ReadFile`, `os.Open`, `os.OpenFile`,
+  `os.Stat`, `os.Lstat`, `os.ReadDir`, `filepath.WalkDir` or `filepath.Walk`, or of a further such
+  join, or bound to a local so used. Anything else, including `filepath.Dir`, `filepath.Glob`, a
+  command, a return or a store, SHALL hold the package.
+- **AFP-V0-3663:** (proposed 2026-11-11; delivery experimental; V1-3999) A held source SHALL give
+  the reason `<file> calls <source>, whose value may name a repository path` (`<source> (dot
+  import)` for a dot import), or `<file> has a //go:linkname directive, which can reach a location
+  source the scan cannot see` and the same for `cgo (import "C")`, marked after the file's literal
+  and locator reasons. A source in a non-test file SHALL make the package locate the root for every
+  dependent rule (d) reaches, as `os.Getwd` does; an owner-declared gated locator (TSP-V0-003)
+  applies to it unchanged.
+- **AFP-V0-3664:** (proposed 2026-11-11; delivery experimental; V1-3999) A location whose only use
+  that is not safe is `name.Dir = location`, where `name` is a local variable whose only assignment
+  is its definition by one `exec.Command` or `exec.CommandContext` call and that is never named
+  with `Args`, SHALL hold the package in `internal/gateselect`, and in the planner unless the
+  AFP-V0-2200 scan of the same file proves that call a `go list` reading only the import graph from
+  a proven directory and the unit observes no source by another channel (AFP-V0-9010), or the
+  source is a runtime frame API and the call is any `go list` the scan finds, which keeps the
+  whole-module fallback of AFP-V0-9600. A nested module's unit has no such scan and SHALL be held.
+- **AFP-V0-3665:** (proposed 2026-11-11; delivery experimental; V1-3999) The residuals of the
+  closed-world argument SHALL stay named, not inferred to be bounded: a non-source absolute path
+  (from `filepath.Abs`, a walk callback or a joined listing name) climbed with `filepath.Dir` or
+  string surgery; a path parsed out of `runtime.Stack` or `debug.Stack` text; host locations the
+  standard library reads from the environment (`os.UserHomeDir`, `UserCacheDir`, `UserConfigDir`,
+  `TempDir`, `exec.LookPath`, `os/user`, `go/build`); the argument vector and flags;
+  `os.Executable`; another process's output, a pipe or a socket; file contents; `/proc/self`
+  pseudo-files; an absolute literal naming the checkout; a tracked symbolic link under a computed
+  read; assembly and `unsafe` memory reads; third-party modules; and a `NAME=value` entry read back
+  out of its slice. Each is listed in the build log with its reason.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3359,8 +3437,19 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9732 | `gateselect.PlannedRunSet` through `testPlanRunSet` in `cmd/corvint/test.go` (AFP-V0-2402, unchanged) | `TestV14361RangeAffectedAndTestSelectTheSameGoPackages_AFPV09732` in `cmd/corvint/selection_agreement_replay_test.go` (100 Go packages on both sides, NARROWED; skipped where the commits are absent; in CI it runs only in the `go-product-shard` job, `fetch-depth: 0`, when `cmd/corvint` is in the shard's run set); `TestAFPV02402RunSetIsThePlanGoSelection`; the CLI replay in `../build-log/2026-11-09-seldis.md` |
 | AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
+| AFP-V0-3660, AFP-V0-3661, AFP-V0-3662, AFP-V0-3663 | `locationSourceUses`, `locationSources` and `locationSourceReason` in `internal/gateselect/locationsources.go` and its copy in `internal/liveverify/affected/golang/locationsources.go`; `scanFile` and `record` in `internal/gateselect/readers.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `dependentModule` scanning in `nested.go`; the `Sources` member of the scan memo (`scanmemo.go`) | `TestLocationSourceReads_AFPV03660` in `internal/gateselect/locationsources_test.go` (each V1-3999 fixture read is held in the gate index cold and warm and in the planner, the helper's dependent too, and the controls stay bounded); `TestLocationSourceUses_AFPV03661` (each safe and unsafe use); `TestLocationSourceUnseenCalls_AFPV03660`; the before and after counts, the selection baseline and one mutation per rule in `../build-log/2026-11-11-nomiss.md` |
+| AFP-V0-3664 | `commandDirectory` in `locationsources.go`; `contingentRead`, `applyContingentReads` and the `lists` member of `goListFile` in `internal/liveverify/affected/golang/importgraph.go`; the call order in `UnitsSource` | `TestClosureGuardIsProvenImportGraphReader_AFPV09600` and `TestClosureGuardShapeIsProven_AFP_V0_9600` (unchanged: the frame-rooted listings stay bounded); the `execdir` case of `TestLocationSourceReads_AFPV03660` (a frame root as the directory of `ls -R` is held by both); the `command ...` cases of `TestLocationSourceUses_AFPV03661` |
+| AFP-V0-3665 | `../build-log/2026-11-11-nomiss.md` (closed-world table) | review of the residual list; no test |
 
 ## Rollback
+
+For AFP-V0-3660 to AFP-V0-3665, delete `locationsources.go` and its test from both packages,
+the `sources` field and its marking in `internal/gateselect` (`readers.go`, `scanmemo.go`), the
+location-source block of `observeDirectory`, the nested-module check, `contingentRead`,
+`applyContingentReads` and `goListFile.lists`, and move `goListUnits` back into
+`applyBinaryExecs`; remove the V1-3999 entries from `.corvint/unbounded-readers.json`. The
+fixture changes of the AFP-V0-2240 to AFP-V0-2242, AFP-V0-506, AFP-V0-072, AFP-V0-810 and
+AFP-V0-9010 tests may stay: they root the same reads at values that are no location source.
 
 For AFP-V0-10329, remove `exercisingUnits`, `fixtureTest` and
 `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329`; the owner rows that name their exercising
