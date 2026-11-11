@@ -62,10 +62,13 @@ type Verdict struct {
 }
 
 // InstanceVerdict is one declared instance's state. Full instances run
-// their declared full command; Reason names why. Otherwise Tests counts the
-// listed tests whose file is unchanged, Unassigned lists the changed or new
-// test files whose tests run as unassigned, and Removed lists listed files
-// the tree no longer holds.
+// their declared full command; Reason names why and Cause explains it.
+// Otherwise Tests counts the listed tests whose file is unchanged,
+// Unassigned lists the changed or new test files whose tests run as
+// unassigned, and Removed lists listed files the tree no longer holds. When
+// the instance's config sets a test-file pattern the reader cannot evaluate
+// (Declared.Pattern), every changed or new file of the runner's language
+// under the root is unassigned and Cause names the pattern.
 type InstanceVerdict struct {
 	Key        string   `json:"key"`
 	Runner     string   `json:"runner"`
@@ -193,12 +196,24 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 		verdict.Unassigned = append(verdict.Unassigned, name)
 	}
 	sort.Strings(verdict.Unassigned)
+	if instance.Pattern != "" && len(verdict.Unassigned) != 0 {
+		verdict.Cause = fmt.Sprintf("config %s sets %s, a test-file pattern the reader cannot evaluate statically; every changed or new %s file under %s outside the record is unassigned",
+			instance.Config, instance.Pattern, languageOf(instance.Runner), instance.Root)
+	}
 	for _, test := range record.Tests {
 		if _, present := files[test.File]; present && !changed[test.File] {
 			verdict.Tests++
 		}
 	}
 	return verdict
+}
+
+// languageOf names the files a wide candidate pattern takes for runner.
+func languageOf(runner string) string {
+	if runner == testid.Pytest {
+		return "Python"
+	}
+	return "JavaScript or TypeScript"
 }
 
 // ForceFull makes every instance of runner run in full with

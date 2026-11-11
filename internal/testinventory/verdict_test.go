@@ -251,3 +251,85 @@ func TestTIVV1003ForceFullCoversEveryInstance(t *testing.T) {
 		t.Fatalf("reasons %v", got)
 	}
 }
+
+// TIV-V1-008: a config that sets a test-file pattern the reader cannot
+// evaluate (Vitest include, Jest testMatch, Playwright testMatch, pytest
+// python_files, a relative config import) widens the instance's candidates
+// to every file of its language, so a new file in a custom-named test file
+// is unassigned, never fresh, with a cause naming the pattern. One fixture
+// per executing runner family; each reads fresh before the file is added.
+func TestTIVV1008CustomPatternFailsClosed(t *testing.T) {
+	cases := []struct {
+		name, key, pattern, added string
+		tree                      MapTree
+	}{
+		{"vitest include", "vitest@.", "include", "src/b.check.ts", MapTree{
+			"vitest.config.ts": "export default { test: { include: ['src/**/*.check.ts'] } }\n",
+			"src/a.check.ts":   "test('a', () => {})\n", "src/lib.ts": "export const x = 1\n",
+		}},
+		{"vitest relative import", "vitest@web", "a relative import", "web/src/b.check.ts", MapTree{
+			"web/vitest.config.ts": "import shared from './vitest.shared'\nexport default shared\n",
+			"web/vitest.shared.ts": "export default { test: { include: ['src/**/*.check.ts'] } }\n",
+			"web/src/a.check.ts":   "test('a', () => {})\n",
+		}},
+		{"jest testMatch", "jest@.", "testMatch", "src/b.check.js", MapTree{
+			"jest.config.js": "module.exports = { testMatch: ['**/*.check.js'] }\n",
+			"src/a.check.js": "test('a', () => {})\n", "src/lib.js": "module.exports = 1\n",
+		}},
+		{"playwright testMatch", "playwright@.", "testMatch", "e2e/b.e2e.ts", MapTree{
+			"playwright.config.ts": "export default defineConfig({ projects: [{ name: 'p', testMatch: /.*\\.e2e\\.ts/ }] })\n",
+			"e2e/a.e2e.ts":         "test('a', async () => {})\n",
+		}},
+		{"pytest python_files", "pytest@.", "python_files", "tests/check_b.py", MapTree{
+			"pytest.ini":         "[pytest]\npython_files = check_*.py\n",
+			"tests/check_a.py":   "def test_a(): pass\n",
+			"tests/conftest.py":  "\n",
+			"pkg/module.py":      "x = 1\n",
+			"tests/test_dflt.py": "def test_d(): pass\n",
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tree := MapTree{}
+			for name, content := range c.tree {
+				tree[name] = content
+			}
+			tree[Path] = encodedInventory(t, tree, nil)
+			instance := judgedInstance(t, Judge(tree), c.key)
+			if instance.Full || len(instance.Unassigned) != 0 || instance.Cause != "" {
+				t.Fatalf("before the new file: %+v, want fresh", instance)
+			}
+			tree[c.added] = "new\n"
+			verdict := Judge(tree)
+			instance = judgedInstance(t, verdict, c.key)
+			if instance.Full || !reflect.DeepEqual(instance.Unassigned, []string{c.added}) {
+				t.Fatalf("after %s: %+v, want it unassigned", c.added, instance)
+			}
+			if !strings.Contains(instance.Cause, "sets "+c.pattern+",") || !strings.Contains(instance.Cause, "cannot evaluate statically") {
+				t.Fatalf("cause %q does not name pattern %q", instance.Cause, c.pattern)
+			}
+			if !reflect.DeepEqual(verdict.Reasons(), []string{ReasonUnassigned}) {
+				t.Fatalf("reasons %v", verdict.Reasons())
+			}
+		})
+	}
+	// Control: a default config keeps the default name pattern, so a
+	// non-test source file under the root is not a candidate.
+	tree := MapTree{"vitest.config.ts": "export default {}\n", "src/a.test.ts": "test('a', () => {})\n"}
+	tree[Path] = encodedInventory(t, tree, nil)
+	tree["src/lib.ts"] = "export const x = 1\n"
+	if instance := judgedInstance(t, Judge(tree), "vitest@."); len(instance.Unassigned) != 0 || instance.Cause != "" {
+		t.Fatalf("default config: %+v", instance)
+	}
+}
+
+func judgedInstance(t *testing.T, verdict Verdict, key string) InstanceVerdict {
+	t.Helper()
+	for _, instance := range verdict.Instances {
+		if instance.Key == key {
+			return instance
+		}
+	}
+	t.Fatalf("no instance %s in %+v", key, verdict)
+	return InstanceVerdict{}
+}

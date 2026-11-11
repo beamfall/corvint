@@ -4,6 +4,7 @@ package testinventory
 import (
 	"bytes"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -13,13 +14,17 @@ import (
 // Declared is one runner instance the tree declares by its config file
 // (TIV-V1-003): the instance every reader expects a record for and that
 // refresh lists. Lockfile is the nearest lockfile of the runner's ecosystem
-// at or above the root, empty when there is none.
+// at or above the root, empty when there is none. Pattern, set only for an
+// executing runner, names what in the config may move its test files off
+// the default name pattern (configPattern); such an instance's candidates
+// are every file of the runner's language under its root.
 type Declared struct {
 	Key      string `json:"key"`
 	Runner   string `json:"runner"`
 	Root     string `json:"root"`
 	Config   string `json:"config"`
 	Lockfile string `json:"lockfile,omitzero"`
+	Pattern  string `json:"pattern,omitzero"`
 }
 
 // configNames lists, per runner, the config file names that declare an
@@ -109,6 +114,7 @@ func Detect(files map[string]string, read func(name string, limit int) ([]byte, 
 			declared = append(declared, Declared{
 				Key: Key(runner, root), Runner: runner, Root: root, Config: config,
 				Lockfile: nearestLockfile(files, runner, root),
+				Pattern:  configPattern(runner, config, read),
 			})
 		}
 	}
@@ -144,6 +150,62 @@ func hasSectionLine(data []byte, section string) bool {
 	return false
 }
 
+// patternKeys lists, per executing runner, the config members that set or
+// may set a non-default test-file pattern: Vitest include (and projects or
+// a workspace, whose members set their own), Jest testMatch and testRegex
+// (and projects), Playwright testMatch (in a project too), and pytest
+// python_files. The reader does not evaluate them. Playwright testDir is not
+// one: it only narrows where the default name pattern applies, and a testDir
+// outside the root fails the lister, whose files must lie under the root.
+var patternKeys = map[string][]string{
+	testid.Vitest:     {"include", "projects", "workspace"},
+	testid.Jest:       {"testMatch", "testRegex", "projects"},
+	testid.Playwright: {"testMatch"},
+	testid.Pytest:     {"python_files"},
+}
+
+// patternWords holds one whole-word expression per patternKeys member.
+var patternWords = func() map[string]*regexp.Regexp {
+	words := map[string]*regexp.Regexp{}
+	for _, keys := range patternKeys {
+		for _, key := range keys {
+			words[key] = regexp.MustCompile(`\b` + key + `\b`)
+		}
+	}
+	return words
+}()
+
+// relativeImport matches a JavaScript import or require of a relative
+// module, which may set a pattern the config's own bytes do not show.
+var relativeImport = regexp.MustCompile(`(?:\bfrom|\brequire\s*\(|\bimport\s*\(|\bimport)\s*['"]\.\.?/`)
+
+// configPattern is the instance's Pattern: the pattern members its config
+// names as whole words, joined by ", " in patternKeys order, plus "a
+// relative import" for a JavaScript config that imports a relative module,
+// or "an unreadable config" when the config cannot be read within
+// maxConfigProbe. It fails closed: a member named in a comment or string
+// counts. Static runners and Go have no Pattern.
+func configPattern(runner, config string, read func(name string, limit int) ([]byte, error)) string {
+	keys, ok := patternKeys[runner]
+	if !ok {
+		return ""
+	}
+	data, err := read(config, maxConfigProbe)
+	if err != nil {
+		return "an unreadable config"
+	}
+	var found []string
+	for _, key := range keys {
+		if patternWords[key].Match(data) {
+			found = append(found, key)
+		}
+	}
+	if runner != testid.Pytest && relativeImport.Match(data) {
+		found = append(found, "a relative import")
+	}
+	return strings.Join(found, ", ")
+}
+
 // nearestLockfile is the runner's lockfile in root or the nearest directory
 // above it.
 func nearestLockfile(files map[string]string, runner, root string) string {
@@ -165,9 +227,23 @@ func nearestLockfile(files map[string]string, runner, root string) string {
 var jsExtensions = []string{".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts"}
 
 // candidate reports whether file is a test file of runner by its name
-// alone: the runner's default test file pattern.
-func candidate(runner, file string) bool {
+// alone: the runner's default test file pattern, or with wide (a config
+// Pattern the reader cannot evaluate) any file of the runner's language.
+func candidate(runner, file string, wide bool) bool {
 	base := path.Base(file)
+	if wide {
+		switch runner {
+		case testid.Vitest, testid.Jest, testid.Playwright:
+			for _, extension := range jsExtensions {
+				if strings.HasSuffix(base, extension) {
+					return true
+				}
+			}
+			return false
+		case testid.Pytest:
+			return strings.HasSuffix(base, ".py")
+		}
+	}
 	switch runner {
 	case testid.Go:
 		return strings.HasSuffix(base, "_test.go")
@@ -194,7 +270,8 @@ func candidate(runner, file string) bool {
 }
 
 // Candidates is the sorted candidate test files of instance in files: every
-// file under its root matching the runner's pattern, outside skipped
+// file under its root matching the runner's pattern (any file of its
+// language when the instance has a Pattern), outside skipped
 // directories and outside the root of another instance of the same runner
 // nested below it.
 func Candidates(files map[string]string, instance Declared, all []Declared) []string {
@@ -206,7 +283,7 @@ func Candidates(files map[string]string, instance Declared, all []Declared) []st
 	}
 	var out []string
 	for name := range files {
-		if !under(instance.Root, name) || !candidate(instance.Runner, name) || skipped(instance.Runner, path.Dir(name)) {
+		if !under(instance.Root, name) || !candidate(instance.Runner, name, instance.Pattern != "") || skipped(instance.Runner, path.Dir(name)) {
 			continue
 		}
 		inner := false
