@@ -5,6 +5,7 @@
 package testinventory
 
 import (
+	"context"
 	json "encoding/json/v2"
 	"os"
 	"path/filepath"
@@ -152,5 +153,43 @@ func TestTIVV1004PytestLister(t *testing.T) {
 	requireBinding(t, root, pytest, "svc/tests/b_test.py", "svc/tests/test_a.py")
 	if pytest.Lockfile != "svc/uv.lock" || pytest.Lister.Command[0] != ".venv/bin/python" {
 		t.Fatalf("pytest lockfile %q command %v", pytest.Lockfile, pytest.Lister.Command)
+	}
+}
+
+// TIV-V1-005, TIV-V1-008: a Vitest config with include widens the files a
+// refresh binds to every JavaScript or TypeScript file under the root, so
+// the record lists the files that held no test and a later reader can tell
+// a new custom-named test file from them.
+func TestTIVV1005CustomPatternRecordsEveryLanguageFile(t *testing.T) {
+	root, git := gitRepo(t, map[string]string{
+		".gitignore":          "node_modules/\n",
+		"vitest.config.ts":    "export default { test: { include: ['src/**/*.check.ts'] } }\n",
+		"package-lock.json":   "{}\n",
+		"src/a.check.ts":      "test('a', () => {})\n",
+		"src/lib.ts":          "export const x = 1\n",
+		"src/readme.md":       "not code\n",
+		"src/testdata/f.ts":   "skipped\n",
+		"src/node_modules.ts": "a file, not the directory\n",
+	})
+	stub(t, root, "node_modules/.bin/vitest", "list --json --config vitest.config.ts",
+		`printf '[{"name":"a","file":"%s/src/a.check.ts"}]\n' "$(pwd -P)"`)
+	inventory := refreshTwice(t, git, nil)
+	vitest := instanceByKey(t, inventory, "vitest@.")
+	if got := testsOf(vitest); !reflect.DeepEqual(got, []Test{{ID: "vitest:src/a.check.ts::a", File: "src/a.check.ts"}}) {
+		t.Fatalf("vitest tests %+v", got)
+	}
+	requireBinding(t, root, vitest, "src/a.check.ts", "src/lib.ts", "src/node_modules.ts", "vitest.config.ts")
+	if _, err := Refresh(context.Background(), Options{Git: git}); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "src/b.check.ts", "test('b', () => {})\n")
+	work, err := NewWorkTree(context.Background(), git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, instance := range Judge(work).Instances {
+		if instance.Key == "vitest@." && (instance.Full || !reflect.DeepEqual(instance.Unassigned, []string{"src/b.check.ts"}) || !strings.Contains(instance.Cause, "sets include,")) {
+			t.Fatalf("verdict after a new custom-named test file: %+v", instance)
+		}
 	}
 }
