@@ -147,3 +147,4 @@ O67	o-row	owner	2026-11-10	decision 0596; R42	accepted by the owner in decision 
 acceptance-record	change	auto	2026-11-10	standing auto-accept (2026-10-11); V1-5272	lane-drafted spec ACR-V1-001 to 012; identity by convention, NOT_VERIFIED
 canonical-test-id	change	auto	2026-11-11	standing auto-accept (2026-10-11); G14; V1-5398	implements accepted PROD-TEST-005, 006, 010, 018 and 020 (decision 0596, G14); CTI-V1-001 to 012 copied from the change spec; identity by convention, NOT_VERIFIED
 test-inventory	change	auto	2026-11-11	standing auto-accept (2026-10-11); G14; V1-5406	implements accepted PROD-TEST-004, 005 and 017 (decision 0596, G14); TIV-V1-001 to 012 copied from the change spec; identity by convention, NOT_VERIFIED
+runner-contract	change	auto	2026-11-11	standing auto-accept (2026-10-11); G14; V1-5416	implements accepted PROD-TEST-006 and 011 (decision 0596, G14); RNC-V1-001 to 018 copied from the change spec; identity by convention, NOT_VERIFIED

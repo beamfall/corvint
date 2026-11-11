@@ -2,8 +2,8 @@
 
 Owner: Russell Lewis
 Date: 2026-11-11
-Intent status: proposed
-Delivery status: not-started
+Intent status: accepted
+Delivery status: partial
 Authoritative inputs: change folder `docs/specs/openspec/changes/runner-contract/` (`proposal.md`,
 `design.md`, `tasks.md` and `specs/runner-contract/spec.md`), `docs/specs/PRODUCT-PLAN-1.0.md`
 (PROD-TEST-006, PROD-TEST-011) and `docs/decisions/0596-accept-product-plan-1-0-2026-11-10.md`
@@ -11,9 +11,9 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/runner-contract
 
 ## Agent digest
 - Claim: One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason.
-- Status: proposed / not-started. Change `runner-contract` is third in the R38 testing order, after `canonical-test-id` and `test-inventory`.
-- Exists: the change folder; ticket V1-5416 delivers it.
-- Blocked on: `canonical-test-id` (CTI-V1-001) and `test-inventory` (TIV-V1-001) for the test key and the listers.
+- Status: accepted / partial. Change `runner-contract` auto-accepted under G14 (decision 0596); tasks 1 to 4, 6 and 9 delivered under V1-5416.
+- Exists: `internal/testrunner/contract`; `.corvint/test-commands.json` with built-in defaults; `unowned-path` and `runner-removed` FULL plans.
+- Blocked on: tasks 5, 8, 10, 11, 12; task 7 waits on the NMS-V1-008 parser; moving Corvint's own declaration edits `.github/`.
 - Read next: Requirements; Surfaces; Traceability.
 
 ## User and boundary
@@ -31,18 +31,22 @@ This spec is the canonical home of requirements RNC-V1-001 to RNC-V1-018, copied
 
 ## Requirements
 
-- `RNC-V1-001`: (proposed 2026-11-09; delivery not-started) One compiled-in contract
+- `RNC-V1-001`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) One compiled-in contract
 
 Source: G23, owner decision R14 (2026-11-09). Every blocking runner MUST be driven through one Go
 interface compiled into `corvint`, derived from `registry.RunnerPlugin`, and MUST NOT need an
 external runner protocol or a separate executable to be selected and run. Once a runner's
 implementation lands, its provider binary is retired (RNC-V1-017).
+Delivery: partial. The interface (`internal/testrunner/contract`) and its seven implementations are
+compiled in, and `corvint test` resolves every runner instance's full command through it. Not yet
+built: the narrowed runs of Go, Vitest and Playwright still go through the STR-V0 adapters and
+`corvint-js-test-provider` (tasks 5 and 11).
 
 **Scenario: Release binary alone**
 - WHEN `corvint test` runs a selection containing Go, Jest and pytest tests
 - THEN all three are driven through the same interface inside the `corvint` binary
 
-- `RNC-V1-002`: (proposed 2026-11-09; delivery not-started) Discovery is explicit and pinned
+- `RNC-V1-002`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Discovery is explicit and pinned
 
 Source: owner answer 4, G2, owner decision R10 (2026-11-09), review T-B5. Each runner MUST supply a
 lister, marked `static` or `executing`, to `corvint inventory refresh`, which writes the one
@@ -51,6 +55,9 @@ list of canonical test IDs bound to the tree. `corvint affected` and `corvint wa
 lister or any project code; they read the committed inventory. RSpec and Minitest use static
 classification. When the inventory is absent, the runner's declared full command runs with reason
 `inventory-absent`; when it is stale, all tests run with reason `inventory-stale`.
+Delivery: partial. Each runner names the inventory's own lister and kind, and `corvint affected`
+starts no runner or lister process. Not yet built: selection from the inventory, so an absent
+inventory is reported (TIV-V1-006) but does not yet change what `corvint test` runs.
 
 **Scenario: Plan read**
 - WHEN `corvint affected` plans a change in a pytest project
@@ -60,17 +67,19 @@ classification. When the inventory is absent, the runner's declared full command
 - WHEN the repository has no committed inventory
 - THEN each runner runs its declared full command and the receipt names `inventory-absent`
 
-- `RNC-V1-003`: (proposed 2026-11-09; delivery not-started) Selection is exact or labelled not exact
+- `RNC-V1-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Selection is exact or labelled not exact
 
 Source: G2, owner decision R16 (2026-11-09). Each runner MUST turn a selection into argv that runs
 exactly the selected tests, recorded `exact: true`, or a larger set recorded `exact: false` with a
 one-line reason. The selection's tier is one of `line | file | flow | full`.
+Delivery: partial. The contract records tier, `exact` and reason for Go, Vitest and Playwright
+selections. Not yet built: `corvint test` runs and prints them (tasks 5 and 12).
 
 **Scenario: Vitest directory run**
 - WHEN the Vitest implementation can only run a whole directory
 - THEN the run records `exact: false` and the reason
 
-- `RNC-V1-004`: (proposed 2026-11-09; delivery not-started) All seven runners run through `corvint test`
+- `RNC-V1-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) All seven runners run through `corvint test`
 
 Source: G1, owner answer 2, owner decisions R7 and R32 (2026-11-09). `corvint test` MUST select and
 run Go, Vitest, Jest, Playwright, pytest, RSpec and Minitest tests through the contract, and a
@@ -78,6 +87,11 @@ runner without a working implementation MUST run its declared full command with 
 A changed path that no runner instance owns, or a runner that has been removed or is unavailable,
 MUST make the plan run all tests with a named reason (`runner-removed` for a removed or unavailable
 runner); `UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass.
+Delivery: partial. A runner with no implementation runs its full command with
+`runner-not-implemented`; a language with no declared command runs each runner instance's full
+command; an unowned path plans FULL with `unowned-path` and a removed runner with `runner-removed`;
+`UNOWNED_DIRTY_PATH` is off the allowlist. Not yet built: Jest, pytest, RSpec and Minitest selection
+(task 5), and widening for a runner whose binary is unavailable.
 
 **Scenario: Minitest without implementation**
 - WHEN the Minitest implementation is not available
@@ -87,37 +101,43 @@ runner); `UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass.
 - WHEN a commit deletes the Jest configuration that the inventory names
 - THEN every runner runs all tests and the receipt names `runner-removed`
 
-- `RNC-V1-005`: (proposed 2026-11-09; delivery not-started) Per-test results from machine reports
+- `RNC-V1-005`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Per-test results from machine reports
 
 Source: G23, owner answer 8 (review T-m1 replaces the earlier G24 citation), owner decisions R7 and
 R19 (2026-11-09). Each runner MUST record an outcome and a duration per selected test, keyed by
 canonical test ID, from the runner's machine report, and per file only where the report has no
 finer unit, marked with its granularity. Outcomes feed the run result record PROD-TEST-020 (change
 `run-evidence`); durations follow change `per-test-durations`.
+Delivery: partial. The contract reads the Go, Vitest and Playwright machine reports into one outcome
+and duration per canonical test ID. Not yet built: the `corvint test` receipt carrying them, and the
+Jest, pytest, RSpec and Minitest parsers (task 5).
 
 **Scenario: Jest JSON report**
 - WHEN a Jest run writes its JSON report
 - THEN each selected test title has its own outcome and duration in the `corvint test` receipt
 
-- `RNC-V1-006`: (proposed 2026-11-09; delivery not-started) Missing results are `NOT_RUN`
+- `RNC-V1-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Missing results are `NOT_RUN`
 
 Source: invariant 2. A selected test absent from the runner's results MUST be `NOT_RUN`, and the run
 MUST be `INCOMPLETE`.
+Delivery: partial. `contract.Reconcile` marks every selected test the report omits `NOT_RUN` and the
+run incomplete. Not yet built: its use in the `corvint test` receipt (task 5).
 
 **Scenario: Test filtered away**
 - WHEN a selected RSpec example does not appear in the JSON report
 - THEN it is `NOT_RUN` and the run is `INCOMPLETE`
 
-- `RNC-V1-007`: (proposed 2026-11-09; delivery not-started) Runners supply kind signals
+- `RNC-V1-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runners supply kind signals
 
 Source: G13. Each runner MUST report the kind it knows (`unit`, `integration`, `e2e`) as a
 `kindSource: runner` signal for the plan; kind is reporting only.
+Delivery: not yet built (task 5).
 
 **Scenario: Playwright**
 - WHEN the Playwright implementation reports its tests
 - THEN each carries kind `e2e` with `kindSource: runner`
 
-- `RNC-V1-008`: (proposed 2026-11-09; delivery not-started) Kill switch per runner on every surface
+- `RNC-V1-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Kill switch per runner on every surface
 
 Source: G10, owner decision R13 (2026-11-09), review T-M6. `CORVINT_SELECTION=full`, set globally
 or as `full:<runner>[,<runner>]`, MUST make each named runner run its full command on every instance
@@ -127,6 +147,7 @@ grammar of its own. The rule applies on five surfaces, `corvint affected`, `corv
 `corvint watch`, the GitHub Action and agent hooks, and on the MCP tools. An unknown value MUST exit
 2 with a clear message on the CLI surfaces and in the Action, and MUST run all tests in agent hooks
 and MCP.
+Delivery: not yet built (task 7 waits on the NMS-V1-008 parser).
 
 **Scenario: Jest only**
 - WHEN the kill switch is set for Jest only
@@ -144,47 +165,53 @@ and MCP.
 - WHEN the `corvint.affected` MCP tool is called with `CORVINT_SELECTION=full:pytest`
 - THEN every pytest test is selected and the other runners stay narrowed
 
-- `RNC-V1-009`: (proposed 2026-11-09; delivery not-started) External protocol removed
+- `RNC-V1-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) External protocol removed
 
 Source: G23. `internal/runnerprotocol`, `internal/runnerpolicy`, `internal/runnerqualification` and
 `tools/runner-*` MUST be removed, and no remaining package may import them.
+Delivery: not yet built (task 10).
 
 **Scenario: Build after removal**
 - WHEN the repository builds after the change
 - THEN none of the six paths exists and `go vet ./...` passes
 
-- `RNC-V1-010`: (proposed 2026-11-09; delivery not-started) Jest proven end to end
+- `RNC-V1-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Jest proven end to end
 
 Source: G23. A fixture repository with Jest tests MUST show `corvint affected` selecting a Jest test
 and `corvint test` running exactly that test with a per-test outcome.
+Delivery: not yet built (task 5).
 
 **Scenario: One Jest test selected**
 - WHEN a change touches code reached by one Jest test
 - THEN only that test runs and the receipt records its outcome
 
-- `RNC-V1-011`: (proposed 2026-11-09; delivery not-started) Tier and fallback printed and recorded
+- `RNC-V1-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Tier and fallback printed and recorded
 
 Source: G1, owner decision R16 (2026-11-09). Each run MUST print each runner's tier (`line`,
 `file`, `flow` or `full`), its `exact` flag and every fallback reason, and the release manifest
 MUST record each runner's tier and qualification limits. The earlier tier names `exact`,
 `superset` and `full` are replaced.
+Delivery: not yet built (task 12).
 
 **Scenario: Release manifest**
 - WHEN a release is built
 - THEN the manifest lists all seven runners with their tier and any fallback
 
-- `RNC-V1-012`: (proposed 2026-11-09; delivery not-started) Canonical test ID
+- `RNC-V1-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Canonical test ID
 
 Source: owner decision R11 (2026-11-09), review T-B4. Every test of every runner MUST be identified
 by the canonical test ID defined by CTI-V1-001 to CTI-V1-012 in change `canonical-test-id`, and the
 same ID MUST be used in the plan, the receipt, flow links, run and line evidence, and watch.
 RNC-V1-012 adds no rule of its own.
+Delivery: partial. Contract commands take, and its results return, canonical test IDs (CTI-V1-001).
+Not yet built: the receipt and the run result record carrying them (tasks 5 and 12, change
+`run-evidence`).
 
 **Scenario: Same ID end to end**
 - WHEN a pytest test is selected, run and reported
 - THEN the plan, the receipt and the run result record carry the same canonical test ID
 
-- `RNC-V1-013`: (proposed 2026-11-09; delivery not-started) Full command declared by the adopter, with a built-in default
+- `RNC-V1-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Full command declared by the adopter, with a built-in default
 
 Source: owner answer 2, invariant 2 (testing M7), owner decision R15 (2026-11-09). The full command
 of each runner, used for every FULL fallback, MUST be read from `.corvint/test-commands.json` when
@@ -199,6 +226,8 @@ fixture test) are: Go `go test ./...`; Vitest `npx vitest run`; Jest `npx jest`;
 name; runner instances keyed by root (RNC-V1-014) extend the file with instance entries without
 changing the runner-name entries, and an instance with no entry uses its runner's entry run from the
 instance root.
+Delivery: delivered, except moving Corvint's own declaration to `.corvint/test-commands.json`, which
+edits `.github/` (build log).
 
 **Scenario: Adopter with no declaration**
 - GIVEN a pytest repository with no `.corvint/test-commands.json` and no `.github/cishards/`
@@ -218,7 +247,7 @@ instance root.
 Failure mode: the file is malformed or names an unknown profile: exit 2 with a typed error, no
 test runs (never a silent default).
 
-- `RNC-V1-014`: (proposed 2026-11-09; delivery not-started) Runner instances keyed by root
+- `RNC-V1-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runner instances keyed by root
 
 Source: owner decision R15 (2026-11-09), review T-M8. A runner instance MUST be identified by
 runner name, root directory (repository-relative) and config file. A repository MAY have several
@@ -226,47 +255,54 @@ instances of one runner (for example pnpm workspaces with several Vitest or Jest
 Playwright projects, `go.work` modules, Rails engines, several pytest rootdirs). Receipts, the
 inventory and watch answers MUST name the instance. The kill switch stays keyed by runner name and
 applies to every instance of that runner. No new cross-package analysis is added.
+Delivery: partial. Contract commands are keyed by instance and run from its root;
+`.corvint/test-commands.json` takes instance entries; the manifest runs one
+`declared:<runner>@<root>` unit per instance. Not yet built: running only the reached instance of a
+narrowed selection (task 5).
 
 **Scenario: Two pytest rootdirs**
 - GIVEN pytest rootdirs `services/a` and `services/b`
 - WHEN a change reaches tests in `services/a` only
 - THEN only the `services/a` instance runs, and the receipt names that instance
 
-- `RNC-V1-015`: (proposed 2026-11-09; delivery not-started) Deterministic sharding for the Action
+- `RNC-V1-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Deterministic sharding for the Action
 
 Source: owner decision R15 (2026-11-09), review T-M9. For every runner, the contract MUST provide a
 deterministic partition of a selection into N shards, so that the same plan and N give the same
 shards on every machine. Shards of non-Go runners are used by the GitHub Action only (change
 `github-action`); this change adds no other sharding mode.
+Delivery: not yet built (task 8).
 
 **Scenario: Same shards twice**
 - WHEN the same plan is split into 4 shards twice
 - THEN both splits assign every canonical test ID to the same shard
 
-- `RNC-V1-016`: (proposed 2026-11-09; delivery not-started) Argument length bounded
+- `RNC-V1-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Argument length bounded
 
 Source: review T-M9. When a runner's argv would exceed the operating system's argument limit, the
 implementation MUST pass the selection through an argument file if the runner accepts one, and
 otherwise MUST widen the selection to file level (`tier: file`, `exact: false`) with a reason; if
 still over the limit it MUST run the runner's full command with a reason. It MUST NOT drop tests.
+Delivery: not yet built (task 8).
 
 **Scenario: Thousands of RSpec examples**
 - WHEN a selection holds 20,000 RSpec `path:line` arguments
 - THEN the run uses an argument file or widens to files, and the receipt names the reason
 
-- `RNC-V1-017`: (proposed 2026-11-09; delivery not-started) Provider binaries retired
+- `RNC-V1-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Provider binaries retired
 
 Source: owner decision R14 (2026-11-09), review T-M1. After a runner's implementation of this
 contract lands, its provider binary (`corvint-go-test-provider`, `corvint-js-test-provider` or
 `corvint-ruby-test-provider`) MUST be removed from `tools/release-binary/binaries.json` and folded
 into `corvint`; none of them ships as a separate 1.0 artifact.
+Delivery: not yet built (task 11).
 
 **Scenario: Ruby contract landed**
 - WHEN the RSpec and Minitest implementations land
 - THEN `binaries.json` has no `corvint-ruby-test-provider` entry and `corvint test` runs RSpec
   without it
 
-- `RNC-V1-018`: (proposed 2026-11-09; delivery not-started) Shell provider status
+- `RNC-V1-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Shell provider status
 
 Source: final decision round 2026-11-09 under R42, M11; `source-removal` RMV-V1-015 keeps the
 shell provider. The shell provider MUST be kept as a built-in provider outside the qualified
@@ -275,6 +311,7 @@ toward a 1.0 no-miss or narrowing claim. Any change it cannot map with certainty
 every shell test, with tier `full`, `exact: false` and a one-line reason. This requirement does
 not change the list of seven blocking runners. Whether `kept, not qualified` matches the label
 vocabulary of the support table is NOT_VERIFIED; the lane checks it when it writes the table.
+Delivery: not yet built (task 12).
 
 **Scenario: Shell change that cannot be mapped**
 - GIVEN a change to a shell script that the shell provider cannot map to tests with certainty
@@ -288,11 +325,55 @@ vocabulary of the support table is NOT_VERIFIED; the lane checks it when it writ
 
 ## Surfaces
 
-Not yet delivered.
+Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contract.md`):
+
+- `internal/testrunner/contract` (tests layer) is the compiled-in interface derived from
+  `registry.RunnerPlugin` (RNC-V1-001, RNC-V1-003, RNC-V1-005, RNC-V1-006, RNC-V1-012,
+  RNC-V1-014). `Runner` has `Name`, `Lister`, `Default`, `Command` and `Parse`; `Instance` is
+  runner, root and config under the inventory's `<runner>@<root>` key; `Reconcile` joins a
+  selection with a report. Go selects by package directory and one `-run` pattern and reads
+  `go test -json`; Vitest appends the selected files and `--reporter=json --outputFile=REPORT`;
+  Playwright appends escaped file filters and `--reporter=json`, writing through
+  `PLAYWRIGHT_JSON_OUTPUT_NAME`. A file filter is `exact` only when the inventory lists no other
+  file of the instance whose path contains it; a test-level ID runs its file. Jest, pytest, RSpec
+  and Minitest run their full command with `runner-not-implemented` and have no parser. The
+  package starts no process and reads no file.
+- Listers (RNC-V1-002): each runner's `Lister` is the inventory's own identity
+  (`testinventory.CurrentLister`), static for Go, RSpec and Minitest and executing for the others;
+  the listers stay in `internal/testinventory`.
+- `.corvint/test-commands.json` (RNC-V1-013, RNC-V1-014), profile `corvint-test-commands/0`, adds
+  `runners` (runner name to argv) and `instances` (`<runner>@<root>` to argv) and makes `go`
+  optional. `corvint test` reads it first; a malformed file exits 2 with `test-commands-invalid`
+  and runs nothing. Corvint's own repository (module `github.com/Beamfall/corvint`) still reads
+  `.github/cishards/test-commands.json` while the new file is absent and prints `corvint-test:
+  NOTICE`; no other repository reads that path. A language with no declared command runs one
+  `declared:<runner>@<root>` unit per instance the tree declares, from the instance root: its
+  instance entry, else its runner entry, else the built-in default, printed as `corvint-test:
+  DEFAULT`. The built-in Go default (no declared environment or flags) runs only where a Go
+  instance exists. `corvint adopt --setup` reports the new file and its entries.
+- Unowned path and removed runner (RNC-V1-004): `UNOWNED_DIRTY_PATH` is off
+  `gateselect.AllowedUnknown`. The CI driver falls back with `unowned-path` and `corvint test` plans
+  FULL naming the path; the qualified proof ignores the unowned entries of its Go-only graph. A
+  runner instance the committed inventory or `.corvint/test-commands.json` names but the tree no
+  longer declares plans FULL with `runner-removed`.
+- NOT_PRODUCED: tasks 5, 7, 8, 10, 11 and 12, and the move of Corvint's own declaration (build
+  log).
 
 ## Traceability
 
-Not yet delivered.
+| Requirement | Evidence |
+|---|---|
+| RNC-V1-001 | `TestRNCV1001EveryRunnerImplementsTheContract` (`internal/testrunner/contract`); `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`) |
+| RNC-V1-002 | `TestRNCV1002EveryRunnerSuppliesItsLister` (`internal/testrunner/contract`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
+| RNC-V1-003 | `TestRNCV1003GoSelection`, `TestRNCV1003VitestDirectoryRunIsNotExact`, `TestRNCV1003PlaywrightSelection` (`internal/testrunner/contract`) |
+| RNC-V1-004 | `TestRNCV1004UnimplementedRunnerRunsFull` (`internal/testrunner/contract`); `TestRNCV1004RemovedRunners`, `TestSTRV0003BuildVerdicts` rows `an unowned path runs every test` and `a removed runner runs every test` (`internal/sessiontest`); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestRNCV1004RemovedRunnerAndUnownedPathRunEverything` (`cmd/corvint`) |
+| RNC-V1-005 | `TestRNCV1005GoReport`, `TestRNCV1005VitestReport`, `TestRNCV1005PlaywrightReport` (`internal/testrunner/contract`) |
+| RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun` (`internal/testrunner/contract`) |
+| RNC-V1-007 to RNC-V1-011 | NOT_PRODUCED (tasks 5, 7, 10 and 12) |
+| RNC-V1-012 | `TestRNCV1003GoSelection`, `TestRNCV1005GoReport` (`internal/testrunner/contract`) |
+| RNC-V1-013 | `TestRNCV1013BuiltInDefaults` (`internal/testrunner/contract`); `TestRNCV1013ReadDeclaredResolution`, `TestRNCV1013InstanceCommand`, `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`); `TestRNCV1013CLIFullCommandScenarios`, `TestRNCV1013CLIMalformedCommandsRefused` (`cmd/corvint`) |
+| RNC-V1-014 | `TestRNCV1014InstanceOwnsItsTests`, `TestRNCV1003GoSelection` (nested instance) (`internal/testrunner/contract`); `TestRNCV1013InstanceCommand` (`internal/sessiontest`) |
+| RNC-V1-015 to RNC-V1-018 | NOT_PRODUCED (tasks 8, 11 and 12) |
 
 ## Non-goals
 
