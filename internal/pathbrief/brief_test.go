@@ -204,7 +204,7 @@ func TestBuildNeverUsedCorvint(t *testing.T) {
 // TBC-V1-010: CODEOWNERS, a flows file and a Tasks store add no section; the profile is /1.
 func TestBuildCutSectionsAreAbsent(t *testing.T) {
 	root := newRepo(t, map[string]string{"a/x.go": "x", ".github/CODEOWNERS": "* @all\n", ".corvint/flows.json": "{}",
-		".taskman/queue.json": "{}"})
+		".taskman/queue.json": "{}"}) //corvint:fixture-path
 	brief := build(t, root, Sources{}, "a/x.go")
 	equal(t, "profile", brief.Profile, "corvint-path-brief/1")
 	var names []string

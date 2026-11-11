@@ -1,5 +1,11 @@
 # Benchmark contract
 
+> Historical (2026-11-11, change `context-proven-only`): the ranked `context --task` packet, its
+> blind-v2 to blind-v7 corpora, `benchmarks/manifest.json`, `benchmarks/eval-split-v0.json` and the
+> bench tools (`tools/retrieval-bench`, `tools/cw-trial`, `tools/paired-trial`,
+> `tools/heading-nav-bench`) were removed. The retrieval sections below record past results only;
+> the named paths exist at `b55635262` and earlier.
+
 Corvint benchmarks compare Corvint with a deterministic exact-text-search baseline. Optional competitor
 adapters may add public tools, but Corvint never vendors them.
 
