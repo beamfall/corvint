@@ -148,9 +148,11 @@ jobs:
     needs: [doc-gates-reuse, cadence-plan]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    # 30, not 15 (V1-4482): the documentation gates alone took 9-14.5 minutes on main
-    # (selection-baseline replays most of it), so a loaded runner hit the old cap.
-    timeout-minutes: 30
+    # 45, not 30 (V1-5162): the selection-baseline replay alone took 1331 s in PR 185's queue run
+    # and had finished 50 of its 58 cases when PR 190's run reached the 30-minute cap with every
+    # gate passing. The cap detects a hang; it is not a performance budget. It was 15 before
+    # V1-4482, when the gates took 9-14.5 minutes on main.
+    timeout-minutes: 45
     env:
       GOTOOLCHAIN: local
       GOPROXY: "off"
