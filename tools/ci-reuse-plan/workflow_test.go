@@ -143,7 +143,13 @@ func jobBlock(t *testing.T, w, job string) string {
 // wantLine fails unless BLOCK holds LINE exactly once as a whole line.
 func wantLine(t *testing.T, name, block, line string) {
 	t.Helper()
-	if n := strings.Count("\n"+block, "\n"+line+"\n"); n != 1 {
+	n := strings.Count("\n"+block, "\n"+line+"\n")
+	// V1-5408 stage B: a setup-go pin may be go1.27.3 or go1.27.4 while the pin moves; stage C
+	// makes every caller name 1.27.4 and drops this.
+	if pin := `go-version: "1.27.3"`; n == 0 && strings.Contains(line, pin) {
+		n = strings.Count("\n"+block, "\n"+strings.Replace(line, pin, `go-version: "1.27.4"`, 1)+"\n")
+	}
+	if n != 1 {
 		t.Errorf("%s has %d copies of line %q, want 1", name, n, line)
 	}
 }
@@ -154,6 +160,25 @@ var cutJobs = map[string]bool{"host-adapters": true, "local-authority-deps": tru
 
 // goProductNeeds is the required go-product check's needs list.
 var goProductNeeds = []string{"go-product-shard", "go-static", "docs-plan", "static-reuse", "shell-test-selected", "web-flows-plan", "web-flows", "go-live", "shard-plan"}
+
+// goProductIntegrityNeeds is goProductNeeds once the CIN-V0-8721 workflow change makes go-product
+// need artifact-integrity and cadence-plan.
+var goProductIntegrityNeeds = append(slices.Clone(goProductNeeds), "artifact-integrity", "cadence-plan")
+
+// wantGoProductNeeds requires go-product block B to need exactly goProductNeeds or exactly
+// goProductIntegrityNeeds. CIN-V0-8721 lands in two pull requests, because a range may not mix
+// .github/ commits with others (ASD-V0-706): this test half first, the workflow half second, so
+// both lists hold in between; .github/forward-rows/go-product_test.py pins the second list
+// exactly. Drop the first list once the workflow half is on main.
+func wantGoProductNeeds(t *testing.T, b string) {
+	t.Helper()
+	m := regexp.MustCompile(`(?m)^    needs: \[(.*)\]$`).FindStringSubmatch(b)
+	if m != nil && strings.HasSuffix(m[1], ", artifact-integrity, cadence-plan") {
+		wantNeeds(t, "go-product", b, goProductIntegrityNeeds...)
+		return
+	}
+	wantNeeds(t, "go-product", b, goProductNeeds...)
+}
 
 // wantNeeds requires job block B to have exactly one needs line naming exactly NEEDS, in order,
 // apart from cutJobs.
@@ -438,7 +463,7 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 		wantLine(t, job, b, jobCond)
 	}
 	gp := jobBlock(t, ci, "go-product")
-	wantNeeds(t, "go-product", gp, goProductNeeds...)
+	wantGoProductNeeds(t, gp)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = merge_group ]; then test "$LIVE_RESULT" = success; else test "$LIVE_RESULT" = skipped; fi`)
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
@@ -451,15 +476,17 @@ func staticReuseScript(t *testing.T) string {
 	return runScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse"))
 }
 
-// goProductUpstream is the passing host-adapter, web-flows and go-live environment the go-product
-// check reads before its shard, static and docs decisions (host-adapters, CIN-V0-7504). go-live runs
-// only in the merge queue (AFP-V0-2702), so it succeeds there and is skipped for every other event.
+// goProductUpstream is the passing archive-integrity, host-adapter, web-flows and go-live
+// environment the go-product check reads before its shard, static and docs decisions
+// (CIN-V0-8721; host-adapters, CIN-V0-7504). go-live runs only in the merge queue (AFP-V0-2702),
+// so it succeeds there and is skipped for every other event. A go-product step without the
+// CIN-V0-8721 check ignores INTEGRITY_RESULT.
 func goProductUpstream(event string) []string {
 	live := "LIVE_RESULT=skipped"
 	if event == "merge_group" {
 		live = "LIVE_RESULT=success"
 	}
-	return []string{"HOST_RESULT=success", live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
+	return []string{"INTEGRITY_RESULT=success", "HOST_RESULT=success", live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped"}
 }
 
 // runScript extracts the run script of the single run step of job block B.
@@ -1213,7 +1240,7 @@ func TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps(t *testing.T) {
 func TestCINV02320RequiredCheckPropagatesShellFailure(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
 	job := jobBlock(t, readWorkflow(t, "ci.yml"), "go-product")
-	wantNeeds(t, "go-product", job, goProductNeeds...)
+	wantGoProductNeeds(t, job)
 	wantLine(t, "go-product", job, "          SHELL_RESULT: ${{ needs.shell-test-selected.result }}")
 	script := runScript(t, job)
 	for _, event := range []string{"pull_request", "merge_group", "push"} {

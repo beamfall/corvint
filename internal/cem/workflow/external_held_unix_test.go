@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // swapParentIntoGitDir installs the afterExternalCheck seam: once the

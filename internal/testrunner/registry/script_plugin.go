@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testrunner"

@@ -12,8 +12,8 @@ import (
 	"unsafe"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // TestCEMV1690OverlappingSpansShareOneBlob is CEM-V1-690: 64 overlapping

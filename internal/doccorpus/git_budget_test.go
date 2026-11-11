@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // phaseGitOps is the Git operation bound every corpus phase must meet

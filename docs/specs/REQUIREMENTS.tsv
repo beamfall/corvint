@@ -147,6 +147,7 @@ APK-V0-004	docs/specs/affected-plan-kinds-v0.md	(proposed 2026-11-09; V1-5251; d
 APK-V0-005	docs/specs/affected-plan-kinds-v0.md	(proposed 2026-11-09; V1-5251; delivery experimental) The new members are	unrecorded	-
 APK-V0-006	docs/specs/affected-plan-kinds-v0.md	(proposed 2026-11-09; V1-5251; delivery experimental) Deterministic, bounded and	unrecorded	-
 APK-V0-007	docs/specs/affected-plan-kinds-v0.md	(proposed 2026-11-09; V1-5251; delivery experimental) Agreement with the flows	unrecorded	-
+APK-V0-9970	docs/specs/affected-plan-kinds-v0.md	(proposed 2026-11-11; V1-5254; delivery experimental; amends APK-V0-005 and	unrecorded	-
 AFP-V0-181	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
 AFP-V0-182	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
 AFP-V0-183	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
@@ -1099,6 +1100,7 @@ AMSP-V0-007	docs/specs/application-map-scenario-planner-v0.md	Verification MUST 
 AMSP-V0-008	docs/specs/application-map-scenario-planner-v0.md	With `draft`, the plan MUST include a Playwright skeleton that is guarded by	unrecorded	-
 AMSP-V0-009	docs/specs/application-map-scenario-planner-v0.md	The plan MUST fit `budget` bytes (256..65536, default 16384) or `full`	unrecorded	-
 AMSP-V0-010	docs/specs/application-map-scenario-planner-v0.md	(amended 2026-11-09 by the owner's decision cutting the hosted surfaces, which r	unrecorded	-
+AMAP-V0-8780	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept, 2026-11-11; V1-4838) Revision	standing	2026-11-11; V1-4838
 AMAP-V0-001	docs/specs/application-map-v0.md	The map MUST be compiled from a closed `application-map-manifest/0` document	unrecorded	-
 AMAP-V0-002	docs/specs/application-map-v0.md	The `ui-router-states/0` dialect MUST read every `.state('name', {...})` and	unrecorded	-
 AMAP-V0-003	docs/specs/application-map-v0.md	Screens MUST be keyed by app plus template. Two resolved screens with the same	unrecorded	-
@@ -1484,6 +1486,7 @@ CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
 CAP-V0-780	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3886) A	standing	2026-11-01; V1-3886
 CAP-V0-080	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3887) CAP-V0-	standing	2026-11-01; V1-3887
+CAP-V0-9940	docs/specs/capability-catalog-v0.md	(experimental; V1-5294; refines CAP-V0-015 and CAP-V0-016) Every non-null	unrecorded	-
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -2350,6 +2353,10 @@ CIN-V0-8425	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standi
 CIN-V0-8426	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5092)	standing	2026-10-11; V1-5092
 CIN-V0-7921	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5216,	standing	2026-10-11; V1-5216
 CIN-V0-7922	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-5198;	standing	2026-10-11; V1-5198
+CIN-V0-8720	docs/specs/ci-narrowing-v0.md	(proposed 2026-11-11; V1-5098; delivery experimental; lane ghci port)	unrecorded	-
+CIN-V0-8721	docs/specs/ci-narrowing-v0.md	(proposed 2026-11-11; V1-5099; delivery experimental; lane ghci port)	unrecorded	-
+CIN-V0-8722	docs/specs/ci-narrowing-v0.md	(proposed 2026-11-11; V1-5258; delivery experimental) The line-level selection	unrecorded	-
+CIN-V0-8723	docs/specs/ci-narrowing-v0.md	(proposed 2026-11-11; V1-5349; delivery experimental) `main-miss.yml` SHALL	unrecorded	-
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
@@ -2508,6 +2515,7 @@ PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNS
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
 PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
 PRS-V1-920	docs/specs/corvint-1.0-product-and-release-v1.md	Every receipt-read caller outside the docs corpus MUST report the	unrecorded	-
+PRS-V1-1900	docs/specs/corvint-1.0-product-and-release-v1.md	(proposed, experimental; V1-0374; refines `PRS-V1-004` and decision 0420 item 2;	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>, commit	unrecorded	-
@@ -2534,6 +2542,9 @@ ASC-V0-777	docs/specs/corvint-self-development-gates-v0.md	(experimental under t
 ASC-V0-778	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4166, V1-3580)	standing	2026-11-01; V1-4166; V1-3580
 ASC-V0-779	docs/specs/corvint-self-development-gates-v0.md	(superseded 2026-11-06 at the mbrescue merge; was experimental under the standin	standing	2026-11-06; 2026-11-01; V1-3615
 ASC-V0-780	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-10; beamfall/corvint#	standing	2026-11-10; #9; V1-5175
+ASC-V0-9850	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-08; V1-5162; amends `	standing	2026-11-08; V1-5162
+ASC-V0-9851	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-08; V1-5162; amends `	standing	2026-11-08; V1-5162
+ASC-V0-9852	docs/specs/corvint-self-development-gates-v0.md	(experimental under the standing lane auto-accept, 2026-11-08; V1-5162; extends	standing	2026-11-08; V1-5162
 ASD-V0-3720	docs/specs/corvint-self-development-gates-v0.md	(moved here from `corvint-self-development-v0.md` at the mbrescue merge, 2026-11	standing	2026-11-06; 2026-11-01; V1-3257
 ASD-V0-2400	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-3968 heavy.sh	standing	2026-11-03; V1-3968
 ASD-V0-2401	docs/specs/corvint-self-development-selection-v0.md	(experimental under the standing lane auto-accept, 2026-11-03; V1-4358 heavy.sh	standing	2026-11-03; V1-4358
@@ -5561,6 +5572,7 @@ GPK-V0-008	docs/specs/go-production-kernel-migration-v0.md	Explicit mutators (`r
 GPK-V0-009	docs/specs/go-production-kernel-migration-v0.md	The Go kernel MUST remain local-only. It MUST make no network request, DNS looku	unrecorded	-
 GPK-V0-010	docs/specs/go-production-kernel-migration-v0.md	This migration MUST add no database, daemon, resident service, background watche	unrecorded	-
 GPK-V0-011	docs/specs/go-production-kernel-migration-v0.md	Harness wrappers and the Go kernel MUST preserve `AHI-014`: raw session IDs,	unrecorded	-
+GPK-V0-9930	docs/specs/go-production-kernel-migration-v0.md	(proposed; V1-5122) A size-capped output writer MUST enforce its cap on every	unrecorded	-
 GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	Production Go code MUST live outside `interop/**` and `conformance/**` under the	unrecorded	-
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	The promoted Go binary MUST have no Python interpreter, Python package, cgo,	unrecorded	-
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa	unrecorded	-
@@ -5778,6 +5790,8 @@ IRT-V0-003	docs/specs/import-ratchet-v0.md	The import graph SHALL hold the produ
 IRT-V0-004	docs/specs/import-ratchet-v0.md	`tools/import-ratchet/baseline.json` (profile	unrecorded	-
 IRT-V0-005	docs/specs/import-ratchet-v0.md	On the real graph the test SHALL prove its own effectiveness: adding one	unrecorded	-
 IRT-V0-006	docs/specs/import-ratchet-v0.md	The test SHALL run inside `go test ./...` in well under 10 seconds (measured 0.7	unrecorded	-
+IRT-V0-020	docs/specs/import-ratchet-v0.md	Every scanned Git spawn in a production file of a module package outside	unrecorded	-
+IRT-V0-021	docs/specs/import-ratchet-v0.md	No package outside the `tests` and `release` layers SHALL import	unrecorded	-
 ICL-V0-001	docs/specs/incremental-closeout-v0.md	A closeout step MAY skip work only when a recorded result binds every input	unrecorded	-
 ICL-V0-010	docs/specs/incremental-closeout-v0.md	A repeated `dogfood-inputs-check` whose pre-flight key equals the key of a passi	unrecorded	-
 ICL-V0-020	docs/specs/incremental-closeout-v0.md	A batch-drift entry marked `@prebind` is one the bind cannot reach: its package	unrecorded	-
@@ -5923,6 +5937,7 @@ DTL-V0-014	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's sta
 DTL-V0-015	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
 DTL-V0-016	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); dogtools observed	standing	2026-10-11
 DTL-V0-017	docs/specs/lane-dogfood-tooling-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); heavycap charter	standing	2026-10-11; 2026-11-07; V1-4722
+DTL-V0-018	docs/specs/lane-dogfood-tooling-v0.md	(experimental under the standing lane auto-accept, 2026-11-11; V1-4694; refines	standing	2026-11-11; V1-4694
 ASD-V0-2190	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The Bash	standing	2026-11-03; V1-4333
 ASD-V0-2191	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4333) The lane	standing	2026-11-03; V1-4333
 ASD-V0-2192	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4334) `LANE_SC	standing	2026-11-03; V1-4334
@@ -5930,6 +5945,7 @@ ASD-V0-2193	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's 
 ASD-V0-2194	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-11-03); V1-4319) `script/	standing	2026-11-03; V1-4319
 ASD-V0-2120	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2691) Before a	standing	2026-10-11; V1-2691
 ASD-V0-2121	docs/specs/lane-shell-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4335, V1-2691)	standing	2026-10-11; V1-4335; V1-2691
+ASD-V0-9950	docs/specs/lane-shell-portability-v0.md	(proposed, 2026-11-11; V1-4841; refines `ASD-V0-2121` and `ASD-V0-734`) `script/	unrecorded	-
 ASD-V0-765	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4056) `script/	standing	2026-11-01; V1-4056
 ASD-V0-766	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4057) `script/	standing	2026-11-01; V1-4057
 ASD-V0-767	docs/specs/lane-shell-portability-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3653, V1-3785,	standing	2026-11-01; V1-3653; V1-3785; V1-3953; V1-4102
@@ -7362,6 +7378,18 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	archive metadata 
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	every target binary MUST be built twice with separate cold caches, and each	unrecorded	-
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	verification MUST be offline and independent of the assembler. From archive	unrecorded	-
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	all build and candidate output stays outside the repository. Only after every	unrecorded	-
+ARTIFACT-BIN-V0-001	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-002	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-003	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-004	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-005	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-006	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-007	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5236; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-508	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-509	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-510	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-511	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
+ARTIFACT-BIN-V0-512	docs/specs/release-artifact-integrity-v0.md	(proposed; V1-5237; restored definition of behaviour already on main (V1-5324))	unrecorded	-
 ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	Archive checksums prove integrity only. This profile creates no signature,	unrecorded	-
 ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	The untracked-path allowance of decision 0142 MUST NOT apply to the loose	unrecorded	-
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	`script/release-checklist` MUST be deterministic and read-only. It prints	unrecorded	-
@@ -7426,6 +7454,7 @@ RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec wi
 RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
 RDG-V0-023	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2403) The gate	standing	2026-10-11; V1-2403
 RDG-V0-741	docs/specs/requirement-definition-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3699; refines	standing	2026-11-01; V1-3699
+RDG-V0-9980	docs/specs/requirement-definition-gate-v0.md	(proposed; V1-5324; widens RDG-V0-001 and RDG-V0-003 beyond the TSV) The gate	unrecorded	-
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-
@@ -8828,6 +8857,10 @@ TTG-V0-917	docs/specs/traceability-test-gate-v0.md	(experimental under the stand
 TTG-V0-950	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3586)	standing	2026-11-01; V1-3586
 TTG-V0-951	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)	standing	2026-11-09; decision 0594
 TTG-V0-952	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept, 2026-11-09; decision 0594)	standing	2026-11-09; decision 0594
+TTG-V0-960	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-961	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-962	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
+TTG-V0-963	docs/specs/traceability-test-gate-v0.md	(proposed 2026-11-11 in change `traceability-gate-upgrade`; V1-4803; delivery	unrecorded	-
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-

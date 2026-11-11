@@ -105,8 +105,8 @@ separately by the pure admission contract in `internal/doccompiler/admission.go`
 `HDCV0-027..029` for the plan-only variant by `internal/doccompiler/admittedplan.go` (decision 0231).
 The experimental `Plan` and its `PatchPlan` still refuse `SUPPORTED` and `CONFLICTED` claims. `PatchPlan`
 carries its own `corvint-human-documentation-experimental-patch-plan/0` profile (decision 0240); its bytes
-are not the `HDCV0-027` wire, `VerifyAdmittedPlan` refuses them, and `internal/docviews` binds the
-admitted plan instead (`CATN-V0-001`). The accepted delivery and promotion gates remain unchanged. `internal/doccompiler/integrity_test.go` exercises unadmitted prose, forged
+are not the `HDCV0-027` wire, `VerifyAdmittedPlan` refuses them, and the retired `internal/docviews` bound the
+admitted plan instead (`CATN-V0-001`; removed by V1-4804). The accepted delivery and promotion gates remain unchanged. `internal/doccompiler/integrity_test.go` exercises unadmitted prose, forged
 revision/authority, rendering boundaries, stale source pins, and unsupported offline qualification.
 
 ## Relationship to continuous documentation maintenance
@@ -1200,7 +1200,7 @@ verifier `VerifyCanonicalJSON` and its emitter `CanonicalJSON` (`internal/doccom
 (`internal/doccompiler/admission.go`, decision 0229): `AdmitClauses` checks each anchor against a
 Git-pinned `contextindex.Index` and downgrades an unestablished clause to `UNKNOWN`, keeping every
 anchor, so a disqualified anchor stays review context on `UNKNOWN` or beside a qualifying anchor and
-`internal/docviews` copies it without re-qualifying it (`CATN-V0-014`, decision 0268);
+the retired `internal/docviews` copied it without re-qualifying it (`CATN-V0-014`, decision 0268; removed by V1-4804);
 `RenderAdmittedProse` and `VerifyAdmittedProse` render and byte-verify prose drawn only from admitted
 clause text and the `corvint-hdc-prose-templates/0` set. `HDCV0-027..029` are delivered for the
 plan-only environment variant (`internal/doccompiler/admittedplan.go`, decision 0231):
@@ -1210,14 +1210,14 @@ the same plan and patch bytes; `StaleOperations` reports operations whose precon
 holds without retargeting them. The plan's environment pin is `{"kind":"plan-only"}` and its
 configuration snapshot is `NOT_RUN`: no execution pin or MkDocs authority snapshot exists, so
 `edit_nav` is refused until `HDCV0-030`. The experimental `Plan` does not emit admitted clauses; its
-`PatchPlan` stays an experimental wire under its own profile, and `internal/docviews` binds the
-admitted plan (decision 0240).
+`PatchPlan` stays an experimental wire under its own profile, and the retired `internal/docviews` bound the
+admitted plan (decision 0240; removed by V1-4804).
 The experimental plan digest and the receipt bytes and digest hash `CanonicalJSON` bytes.
 That migration was a clean cut on 2026-09-13: a plan or receipt digest computed before it, over `encoding/json` bytes, does not verify, and no
 compatibility reader exists, because no HDC plan or receipt has been released.
-`CanonicalJSONUnbounded` is the same emitter without the 8 MiB plan/receipt bound; the
-`internal/docviews` truth-digest input and bundle bytes use it under the downstream `CATN-V0-012`
-64 MiB bound (`CATN-V0-015`, decision 0227). The proposed-nav digest is not `HDCV0-041` bytes:
+`CanonicalJSONUnbounded` is the same emitter without the 8 MiB plan/receipt bound; the retired
+`internal/docviews` truth-digest input and bundle bytes used it under the downstream `CATN-V0-012`
+64 MiB bound (`CATN-V0-015`, decision 0227; removed by V1-4804). The proposed-nav digest is not `HDCV0-041` bytes:
 it must equal the MkDocs authority probe's `nav_sha256` (decision 0227). Go therefore spells the
 proposed nav as Python `json.dumps(sort_keys=True, separators=(",",":"))` with default
 `ensure_ascii` writes it: no trailing LF, printable ASCII other than `"` and `\` literal (including

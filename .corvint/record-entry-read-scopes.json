@@ -34,7 +34,7 @@
         ".corvint/changes/"
       ],
       "reason": "internal/cem/wire/corpus_test.go corpusFailures calls os.ReadDir(dir) and parses every .cem.json; firstSealed also depends on directory order.",
-      "sourceSha256": "8e61e70f44147c655ffebb27d0cf17b88ad5db26b723eb16516172211a0cde09"
+      "sourceSha256": "971978b93066d13c607bdcab4e4f8c07b75ec7c8a5649869c79cf70598d61335"
     },
     "shell:script/batch-precheck_test.sh": {
       "reads": [],
@@ -59,7 +59,7 @@
     "shell:script/lane-scripts_test.sh": {
       "reads": [],
       "reason": "script/lane-scripts_test.sh uses fixed expected build-log messages in the lane-dispatch fixtures it creates in ld, a scratch repository, not this checkout's records.",
-      "sourceSha256": "980fd404305b0d79947446c06370d1b0455b35fb5610ee5f89d4881be202b3a1"
+      "sourceSha256": "f25e3760f5ef0f09625d105d5daf80424cf8a4610d72a9a340a1305414f87121"
     },
     "shell:script/requirement-id-collisions_test.sh": {
       "reads": [],

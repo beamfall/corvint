@@ -228,8 +228,8 @@ into the tool catalogue.
   tool error `not-served`. Under aliased roots the tool takes the `repository` alias and runs the
   planner for that root (`MMR-V0-013`); an unusable single root lists the tool and answers
   `invalid-root` (`MCPV0-950`). Without the group every `tools/list` and call byte is unchanged.
-  The flow and variation selections join the answer only when the one-plan ticket (V1-5251) lands;
-  until then the verdict carries what `affected --summary` carries today.
+  Since the one-plan ticket (V1-5251) landed, the verdict names the plan's E2E flow and variation
+  selections (`APK-V0-9970`), so the answer carries them as the CLI does (V1-5254).
   Bounds, each binding the group alone:
   - Concurrency. The server admits up to 64 requests at once, so the group MUST run at most one
     planner at a time per declared root; a call waiting behind another MUST honour cancellation and

@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 const candidateManifestSHA = "18de09b6d6ede40d34d973381372f97a5cf490a006da8a23312021f16d3282e5"

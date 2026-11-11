@@ -244,9 +244,9 @@ func (reader *forbiddenHelpReader) Read(_ []byte) (int, error) {
 }
 
 // stdoutBrokenPipeWriter accepts four bytes and then fails every write.
-type stdoutBrokenPipeWriter struct{ bytes.Buffer }
+type stdoutBrokenPipeWriter struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (w *stdoutBrokenPipeWriter) Write(raw []byte) (int, error) {
-	n, _ := w.Buffer.Write(raw[:min(4, len(raw))])
+	n, _ := w.buffer.Write(raw[:min(4, len(raw))])
 	return n, io.ErrClosedPipe
 }

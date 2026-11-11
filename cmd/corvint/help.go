@@ -267,7 +267,7 @@ Commands:
     features | overview | review  inferred repository guidance (RGV-V0)
     docs  source-derived documentation (SDD-V0)
     flows  application flows and assertions (AFU-V0)
-    how  how do I GOAL: alias of flows appmap how (SKH-V0)
+    how  how do I GOAL: alias of flows appmap how (CMS-V0)
   Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
@@ -277,7 +277,7 @@ Commands:
     test-validity  project a live-test receipt (MTV-V0)
     runs  Playwright verdicts (PWR-V0)
   Experimental, agent hosts and local records:
-    mcp  local read-only stdio MCP server (AHI)
+    mcp  local read-only stdio MCP server (MCPV0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
@@ -501,9 +501,11 @@ Example: corvint affected --base FULL_SHA --format text
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
 the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
 tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
-degradations and warning; --format text writes it as lines ("affected
-<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
-It never changes the selection.
+degradations and warning, and e2e {scope, inventory, selected, variations,
+unknown} when the plan carries E2E flow selections (APK-V0-9970); --format text
+writes it as lines ("affected <summary.line> ...", "tiers ...", one "tier0 UNIT"
+or "tier1 UNIT" per unit, then the "e2e-scope", "e2e-variation", "e2e" and
+"e2e-unknown" lines). It never changes the selection.
 Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims

@@ -886,8 +886,8 @@
     "path": "docs/specs/cross-audience-truth-nondivergence-v0.md",
     "title": "Human Documentation Compiler downstream profile: Cross-Audience Truth Nondivergence V0",
     "reqPrefix": "CATN-V0",
-    "intent": "proposed",
-    "delivery": "experimental pure-core slice",
+    "intent": "retired 2026-11-11 (owner decision R33, 2026-11-09; V1-4804)",
+    "delivery": "retired",
     "claim": "One evidence ledger must compile consistent expert, executive, and operator views without audience-specific factual divergence.",
     "dependsOn": [
       "docs/specs/deployment-neutral-index-platform-v0.md",
@@ -895,9 +895,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/docviews"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
@@ -3203,7 +3201,7 @@
     "closableToday": false,
     "implementation": [
       "internal/tracerecordrepo",
-      "internal/cem/gitrun",
+      "internal/gitrun",
       "internal/contextindex",
       "internal/groupreap",
       "cmd/corvint"

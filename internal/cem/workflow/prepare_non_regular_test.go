@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // nonRegularRange commits, over the calc fixture, a regular file and a
