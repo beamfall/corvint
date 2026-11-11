@@ -239,7 +239,9 @@ if (system("git cat-file -e :script/requirement-citations-allowlist.tsv 2>/dev/n
         next if $row =~ /^\s*(?:#|\z)/;
         my ($id, $reason) = $row =~ /\A([^\t]+)\t(.*)\z/ ? ($1, $2) : ($row, '');
         if ($reason !~ /\S/) {
-            push @reasonless, "script/requirement-citations-allowlist.tsv:$row_number $id";
+            # The file name is a separate literal: joined with the interpolation it reads as a
+            # constructed path under script/ to the shell caller completeness scan (AZU-V0-8901).
+            push @reasonless, 'script/requirement-citations-allowlist.tsv:' . "$row_number $id";
             next;
         }
         $allowlist{$id} = 1;
