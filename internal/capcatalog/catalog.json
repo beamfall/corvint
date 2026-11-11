@@ -1473,6 +1473,57 @@
       ]
     },
     {
+      "name": "inventory",
+      "helpTopic": "corvint help inventory",
+      "purpose": "refresh the committed test inventory",
+      "maturity": "experimental",
+      "owningSpec": "TIV-V1",
+      "freezeContract": null,
+      "operations": [
+        "refresh"
+      ],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--collect-only",
+        "--json",
+        "--list",
+        "--reporter",
+        "--runner",
+        "--summary"
+      ],
+      "schemaIds": [
+        "corvint-test-inventory/0",
+        "playwright-discovery/0"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Refusals (exit 2, nothing written, the previous file kept): inventory-refresh-drift when HEAD or a source moved while a lister ran (TIV-V1-010); inventory-too-large when the file would exceed 8 MiB (TIV-V1-011); inventory-invalid-arguments; inventory-unavailable when Git cannot read the repository.",
+        "Readers: corvint affected --summary, corvint test, corvint watch and the corvint.affected MCP tool only read the file and print its reasons (inventory-absent, inventory-stale, unassigned, inventory-invalid); they never run a lister or write it (TIV-V1-002).",
+        "Writes: .corvint/test-inventory.json only, replaced through a temporary file in the same directory; listers write what they write."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
       "name": "mcp",
       "helpTopic": "corvint help mcp",
       "purpose": "local read-only stdio MCP server",
@@ -1707,6 +1758,7 @@
       "test",
       "tests",
       "watch",
+      "inventory",
       "mcp",
       "how"
     ],

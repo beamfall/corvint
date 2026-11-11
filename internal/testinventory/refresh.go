@@ -2,10 +2,16 @@
 package testinventory
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -35,16 +41,22 @@ func (options Options) selected(instance Declared) bool {
 // instances are kept from the current inventory when it is valid; an
 // invalid or absent one keeps none, so those instances read as absent.
 func Build(ctx context.Context, options Options) (Inventory, error) {
+	inventory, _, err := build(ctx, options)
+	return inventory, err
+}
+
+// build is Build that also returns the HEAD it listed at.
+func build(ctx context.Context, options Options) (Inventory, string, error) {
 	if options.Exec == nil {
 		options.Exec = RunLister
 	}
 	head, err := options.Git.Head(ctx)
 	if err != nil {
-		return Inventory{}, err
+		return Inventory{}, "", err
 	}
 	tree, err := NewWorkTree(ctx, options.Git)
 	if err != nil {
-		return Inventory{}, err
+		return Inventory{}, "", err
 	}
 	files, _ := tree.Files()
 	declared := Detect(files, tree.Read)
@@ -64,15 +76,19 @@ func Build(ctx context.Context, options Options) (Inventory, error) {
 				}
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			return Inventory{}, err
+			return Inventory{}, "", err
 		}
 	}
 	input := listInput{Root: options.Git.Root, Tree: tree, Files: files, Declared: declared, Commit: head, Exec: options.Exec}
+	before := sourceDigest(files)
 	for _, instance := range declared {
 		if !options.selected(instance) {
 			continue
 		}
 		record, lister, err := listInstance(ctx, input, instance)
+		if drift := checkDrift(ctx, options.Git, head, before, instance); drift != nil {
+			return Inventory{}, "", drift
+		}
 		if err != nil {
 			inventory.Failures = append(inventory.Failures, Failure{
 				Key: instance.Key, Runner: instance.Runner, Root: instance.Root, Config: instance.Config,
@@ -82,7 +98,120 @@ func Build(ctx context.Context, options Options) (Inventory, error) {
 		}
 		inventory.Instances = append(inventory.Instances, record)
 	}
-	return inventory.canonical(), nil
+	return inventory.canonical(), head, nil
+}
+
+// Refusal is a refresh that writes nothing: Code is ReasonDrift or
+// ReasonTooLarge, and the previous inventory is left as it was.
+type Refusal struct {
+	Code    string
+	Message string
+}
+
+func (r *Refusal) Error() string { return r.Code + ": " + r.Message }
+
+// afterLister runs after each lister, before its drift check; tests replace
+// it to move HEAD or a source at that point.
+var afterLister = func(Declared) {}
+
+// checkDrift refuses with ReasonDrift when HEAD or the working tree's
+// source digest moved since listing began (TIV-V1-010). The digest is read
+// before HEAD, so a commit landing while the sources are read is caught.
+func checkDrift(ctx context.Context, git Git, head, before string, instance Declared) error {
+	afterLister(instance)
+	tree, err := NewWorkTree(ctx, git)
+	if err != nil {
+		return err
+	}
+	files, _ := tree.Files()
+	if sourceDigest(files) != before {
+		return &Refusal{Code: ReasonDrift, Message: "the working tree changed while the " + instance.Key + " lister ran; the inventory was not written"}
+	}
+	if now, err := git.Head(ctx); err != nil || now != head {
+		return &Refusal{Code: ReasonDrift, Message: "HEAD moved while the " + instance.Key + " lister ran; the inventory was not written"}
+	}
+	return nil
+}
+
+// sourceDigest is the SHA-256 of every listed file and its blob, the
+// inventory file itself excluded.
+func sourceDigest(files map[string]string) string {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		if name != Path {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	digest := sha256.New()
+	for _, name := range names {
+		fmt.Fprintf(digest, "%s\x00%s\n", name, files[name])
+	}
+	return hex.EncodeToString(digest.Sum(nil))
+}
+
+// Result is what one refresh wrote.
+type Result struct {
+	Commit    string
+	Inventory Inventory
+	Bytes     int
+	Changed   bool
+}
+
+// Refresh builds the inventory and replaces Path with it by writing a
+// temporary file beside it and renaming it into place (TIV-V1-002). It
+// refuses, leaving the previous file unchanged, on drift (ReasonDrift) and
+// when the encoded inventory exceeds MaxBytes (ReasonTooLarge,
+// TIV-V1-011).
+func Refresh(ctx context.Context, options Options) (Result, error) {
+	inventory, head, err := build(ctx, options)
+	if err != nil {
+		return Result{}, err
+	}
+	data, err := Encode(inventory)
+	if errors.Is(err, ErrTooLarge) {
+		return Result{}, &Refusal{Code: ReasonTooLarge, Message: fmt.Sprintf("the refreshed inventory exceeds the %d-byte cap; the inventory was not written", MaxBytes)}
+	}
+	if err != nil {
+		return Result{}, err
+	}
+	target := filepath.Join(options.Git.Root, filepath.FromSlash(Path))
+	previous, _ := os.ReadFile(target)
+	result := Result{Commit: head, Inventory: inventory, Bytes: len(data), Changed: !bytes.Equal(previous, data)}
+	if !result.Changed {
+		return result, nil
+	}
+	return result, writeAtomic(target, data)
+}
+
+// writeAtomic replaces target with data through a temporary file in the
+// same directory, so a reader sees the old or the new file, never a part.
+func writeAtomic(target string, data []byte) error {
+	dir := filepath.Dir(target)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(dir, ".test-inventory-*.tmp")
+	if err != nil {
+		return err
+	}
+	name := file.Name()
+	defer os.Remove(name)
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(name, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(name, target)
 }
 
 // boundedError is err's text cut to MaxErrorBytes on a rune boundary.

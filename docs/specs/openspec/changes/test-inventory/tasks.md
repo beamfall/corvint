@@ -14,7 +14,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 4 Add the listers: Go static, Vitest, Jest, Playwright (reusing `playwright-discovery/0`),
    pytest, RSpec and Minitest static. Requirements: TIV-V1-004, TIV-V1-005. Proof: one fixture
    repository per runner; refresh twice writes identical bytes.
-- [ ] 5 Add `corvint inventory refresh` with drift refusal and the size cap.
+- [x] 5 Add `corvint inventory refresh` with drift refusal and the size cap.
    Requirements: TIV-V1-002, TIV-V1-010, TIV-V1-011. Proof: CLI tests for the happy path, drift and
    oversize.
 - [ ] 6 Make `corvint affected`, `corvint test`, `corvint watch` and the MCP affected tool read the
