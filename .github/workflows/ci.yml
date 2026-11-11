@@ -2278,7 +2278,9 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -eu
-          go build -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
+          # The base binary plans the pull request's tree on purpose, so it carries no VCS stamp:
+          # a stamped one refuses every change to Go source as self-binary-stale (AFP-V0-9730).
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-web-plan" ./cmd/corvint
           go build -o "$RUNNER_TEMP/web-plan-confine" ./.github/testconfine/cmd
           status=0
           "$RUNNER_TEMP/corvint-web-plan" --root "$GITHUB_WORKSPACE/source" test --base "$BASE" --profile ci --confine "$RUNNER_TEMP/web-plan-confine" --dry-run > "$RUNNER_TEMP/web-plan.json" || status=$?
