@@ -2932,7 +2932,7 @@ owner-accepted.
 - **AFP-V0-3600:** **Evaluation confined to an admitted cache value.** (proposed 2026-11-11;
   experimental; lane compsite, V1-5179) An evaluated make target (AFP-V0-3122) that runs an
   uncertified command SHALL NOT be kept a `driver:computed-invocation` site by the AFP-V0-3122
-  hedge when all four conditions hold:
+  hedge when all five conditions hold:
   1. Its recipe lines, expanded again with every make variable unknown (every name the file
      assigns or not, `MAKE`, `MAKEFILE_LIST`, and every target-specific, pattern-specific,
      `override`, `define`, environment and command-line value) and every automatic variable
@@ -2947,14 +2947,23 @@ owner-accepted.
   4. Make reading the target's file left it neither evaluated nor uncertified: no include,
      export, recipe shell, read-time command, bare statement or remainder recipe marked it
      (AZU-V0-610, AFP-V0-3127).
+  5. The target reads the whole tree (AFP-V0-9401): a `go run`, `find`, `rg`, `git ls-files` or
+     `git grep` it runs gives it the `/*` file-set edge.
 
   Such a target keeps the edges of the default-invocation alternatives (AFP-V0-3121) and of the
-  second expansion, including every AFP-V0-9401 file-set read. Soundness: under condition 1 the
+  second expansion, including its AFP-V0-9401 file-set read. Soundness: under condition 1 the
   only text that make evaluation, the environment or the command line can change is a Go build
   cache location, which AFP-V0-3128 already admits with any value in a target that was never
   evaluated. Every command run, its operands, working directory, redirections, sourced files and
-  make goals are literal recipe text, so the target is a literal recipe, which is no computed
-  site. When a condition fails the hedge applies as before (AFP-V0-3122, AFP-V0-3123). Among the
+  make goals are literal recipe text, so the evaluation hides nothing the target runs. The hedge
+  also covers a literal operand that no edge records, such as a linked path (AFP-V0-9051);
+  condition 5 keeps that cover, because the `/*` edge selects the target and its dependents on
+  every dirty path, exactly as its `FRONTIER_SITE` claim did, so the selection is unchanged and
+  only the witness becomes the file-set read it also has. This narrows AFP-V0-9402's clause that
+  existing computed fallbacks remain intact: for a target that meets these five conditions, the
+  fallback is replaced by the file-set witness. That change to an owner-accepted clause needs the
+  owner's acceptance like every requirement here. When a condition fails the hedge applies as
+  before (AFP-V0-3122, AFP-V0-3123). Among the
   forms that fail it: an overridable variable used as a command word (`$(HEAVY_ADMIT)`,
   `$(MAKE)`); an environment or command-line value used as an operand or assignment value of a
   repository script or `go run` program; and any value from a conditional, `override`, `define`,
@@ -3229,10 +3238,12 @@ itself, and a directory is refused by the regular-file proof.
 
 ## Acceptance evidence and traceability
 
-AFP-V0-3600 to AFP-V0-3602 (V1-5179): `driverEvaluatedCacheOnly` and the strict scan mode in
-`internal/liveverify/affected/driver.go`, `driver_make.go` and `driver_shell.go`, and the
-assignment and `node --test` allowlists in `driver_shell.go`, are covered by
-`TestDriverEvaluatedCacheOnly_AFP_V0_3600`, `TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600`,
+AFP-V0-3600 to AFP-V0-3602 (V1-5179): `evaluatedCacheOnly`, `strictWords` and `leak` in
+`internal/liveverify/affected/driver_cacheonly.go`, the opaque expander mode in `driver_make.go`,
+its call in `makeUnits` (`driver.go`), and the assignment and `node --test` allowlists in
+`driver_shell.go` are covered by
+`TestDriverEvaluatedWholeTreeReader_AFP_V0_3600`, `TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600`,
+the AFP-V0-3600 cases of `TestDriverEnumerationKeepsComputedFallback_AFPV09402`,
 `TestDriverGoSelectionAssignments_AFP_V0_3601`, `TestDriverGoSelectionAssignmentsFailClosed_AFP_V0_3601`,
 `TestDriverNodeTestFiles_AFP_V0_3602` and `TestDriverNodeTestFilesFailClosed_AFP_V0_3602` in
 `internal/liveverify/affected/driver_compsite_test.go`; the mutation results, the histogram and
