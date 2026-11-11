@@ -26,6 +26,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 const testHelp = `Run the affected test set (experimental, STR-V0).
@@ -175,6 +176,10 @@ stay binding. Exit: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n signal.
 A --dry-run exits 0 when its plan can run complete (verdict PLANNED) and 3
 when it cannot (verdict INCOMPLETE, for example an unreadable
 .github/cishards/test-commands.json); 3 is never a test failure.
+Planning reads the committed test inventory (.corvint/test-inventory.json) at
+HEAD and prints one "corvint-test: INVENTORY STATE reasons=..." line on stderr
+(an "inventory:" summary line, or the dry-run JSON "inventory" member); it
+never narrows the plan and never writes the inventory (TIV-V1-002).
 `
 
 // testCommandExit maps a shard or fan-in result to the process status:
@@ -462,14 +467,18 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, err)
 		return 2
 	}
+	// The committed test inventory is read, never written, and never
+	// narrows the plan (TIV-V1-002, TIV-V1-006 to TIV-V1-009).
+	inventory := readInventoryVerdict(ctx, root, false)
 	if !testSummarySelected(options) {
 		testVerdict(stderr, manifest)
+		_, _ = fmt.Fprintf(stderr, "corvint-test: INVENTORY %s\n", inventoryVerdictLine(inventory))
 	}
 	if options.dryRun {
 		if options.pins {
 			_, _ = io.WriteString(stdout, testPinsReport(digest, pins.tokens, pins.units))
 		}
-		return testDryRun(manifest, digest, input.Declared, root, options, stdout, stderr)
+		return testDryRun(manifest, digest, input.Declared, root, options, inventory, stdout, stderr)
 	}
 	// STR-V0-073: an executing run names each whole-package go test's
 	// HEAVY_WHOLE_REASON before any invocation starts, as --dry-run does.
@@ -965,7 +974,7 @@ func testPlanVerdict(m sessiontest.Manifest) string {
 
 // testDryRun prints the shard's run set and argv and executes nothing but
 // the Git reads planning needed; --manifest names the only file it writes.
-func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, stdout, stderr io.Writer) int {
+func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Declared, root string, options testOptions, inventory testinventory.Verdict, stdout, stderr io.Writer) int {
 	type plannedJSON struct {
 		Adapter string             `json:"adapter"`
 		Argv    []string           `json:"argv"`
@@ -981,7 +990,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
 		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
-		"verdict": testPlanVerdict(m),
+		"verdict": testPlanVerdict(m), "inventory": inventory,
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)
@@ -997,7 +1006,8 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	case options.pins:
 		// The pins report was written in place of the JSON plan (TSP-V0-944).
 	case testSummarySelected(options):
-		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes))
+		line := "  inventory: " + inventoryVerdictLine(inventory) + "\n"
+		_, _ = io.WriteString(stdout, testDryRunSummaryBudget(m, digest, invocations, options.shard, testSummaryLimit-options.summaryNoticeBytes-len(line))+line)
 	default:
 		encoded, err := gokernel.CanonicalJSON(document)
 		if err != nil {

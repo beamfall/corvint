@@ -764,6 +764,41 @@
     },
     {
       "path": [
+        "inventory"
+      ],
+      "command": "corvint inventory",
+      "summary": "Refresh the committed test inventory (experimental, TIV-V1)",
+      "usage": [
+        "corvint [--root PATH] inventory refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint inventory refresh",
+      "help": "corvint inventory --help"
+    },
+    {
+      "path": [
+        "inventory",
+        "refresh"
+      ],
+      "command": "corvint inventory refresh",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] inventory refresh [--runner RUNNER] [--root DIR]"
+      ],
+      "flags": [
+        "--root",
+        "--runner"
+      ],
+      "required": [],
+      "example": "corvint inventory refresh",
+      "help": "corvint inventory refresh --help"
+    },
+    {
+      "path": [
         "mcp"
       ],
       "command": "corvint mcp",
