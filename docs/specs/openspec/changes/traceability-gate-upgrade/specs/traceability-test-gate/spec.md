@@ -28,8 +28,10 @@ handled as before this change.
 ### Requirement: TTG-V0-961 Requirement ID in the cited test body
 
 For a subtest citation `TestName/REQ-ID`, the gate MUST fail unless the body of at least one tracked
-declaration of `TestName` contains `REQ-ID`. The body is the text from the declaration line to the
-first later line that is exactly `}` in column 0, or to the end of the file. The ID is contained
+declaration of `TestName` contains `REQ-ID`. The body is the declaration line alone when that line
+closes every brace it opens and ends on a closing brace; otherwise it is the text from the
+declaration line to the first later line that is exactly `}` in column 0, or to the end of the
+file. The ID is contained
 only when it is not directly preceded by a letter, a digit or `-` and not directly followed by a
 letter or a digit. The failure line MUST name the spec path, the row line and `TestName/REQ-ID`.
 
@@ -47,7 +49,8 @@ letter or a digit. The failure line MUST name the spec path, the row line and `T
 
 ### Requirement: TTG-V0-962 Removal of a requirement's last test citation
 
-With `--range BASE..HEAD` the gate MUST compare the tree of BASE with the tree of HEAD. A
+With `--range BASE..HEAD` the gate MUST compare the tree of `git merge-base BASE HEAD` (called
+BASE below) with the tree of HEAD, and MUST refuse, naming both revisions, when there is none. A
 requirement is cited at a tree when a traceability row of a spec that is not retired in that tree
 holds its ID in full in the first cell together with at least one test name that resolves in that
 tree, or when a subtest citation naming the ID resolves in that tree. The gate MUST fail for every

@@ -12,7 +12,10 @@
   declaration pattern of TTG-V0-001 up to and including the first later line that is exactly `}`
   in column 0, or to the end of the file when no such line follows. Go files in this repository are
   held to `gofmt`, where a top-level function closes with `}` in column 0. A doc comment above the
-  declaration is not part of the body.
+  declaration is not part of the body. Amended in the build (review finding, 2026-11-11): when the
+  declaration line closes every brace it opens and ends on a closing brace (a one-line test), the
+  body is that line alone. A column-0 `}` inside a raw string still ends the body; the refusal says
+  so rather than parsing Go.
 - ID in body. The body contains the ID when the ID text appears and is not directly preceded by a
   letter, a digit or `-`, and not directly followed by a letter or a digit. So `REQ-1` does not
   match inside `REQ-12`, and it does match in `"REQ-1_case"`. Comments and string literals count.
@@ -30,8 +33,10 @@
   resolves in that tree. A subtest citation `TestName/REQ-ID` that resolves also cites `REQ-ID`,
   whatever the first cell holds.
 - Last-citation rule. It runs only with `--range BASE..HEAD`. It compares the tree of BASE with
-  the tree of HEAD, not each commit between them. For BASE the name set and the rows both come
-  from BASE's tree. A requirement cited at BASE and not cited at HEAD fails, unless one of these
+  the tree of HEAD, not each commit between them. Amended in the build (review finding,
+  2026-11-11): "BASE" here is `git merge-base BASE HEAD`, so a BASE that moved on after HEAD
+  branched reports nothing HEAD did not change; no merge base is refused naming both revisions.
+  For BASE the name set and the rows both come from BASE's tree. A requirement cited at BASE and not cited at HEAD fails, unless one of these
   holds at HEAD:
   - the ID no longer appears in any `docs/specs/*.md` file that is not retired (the requirement
     left with its spec, or its spec is retired);
@@ -45,7 +50,8 @@
   line `traceability subtest citations: N checked`. The range form adds one line
   `traceability last citations: N requirements cited at BASE, M untested`.
 - Failure lines. A subtest failure is
-  `path:line: TestName/REQ-ID (no declaration of TestName contains REQ-ID)`, with the commit prefix
+  `path:line: TestName/REQ-ID (no declaration of TestName contains REQ-ID; each body was read
+  from its func line to the first column-0 }: FILE...)`, with the commit prefix
   of TTG-V0-950 in the range form. A last-citation failure is
   `REQ-ID: last test citation removed (BASE path:line: TestName)`, naming one citation at BASE.
   The exit status for any failure is the one the gate already uses.
