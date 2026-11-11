@@ -2922,6 +2922,72 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### Computed driver invocations only where the executed command is unknown (V1-5179)
+
+Lane compsite (2026-11-11; V1-5179, with V1-5159 as its acceptance rerun) adds AFP-V0-3600 to
+AFP-V0-3602. The measurement, the classification of every computed-site reason and the replay are
+in `docs/build-log/2026-11-11-compsite.md`. Each requirement is proposed and experimental; none is
+owner-accepted.
+
+- **AFP-V0-3600:** **Evaluation confined to an admitted cache value.** (proposed 2026-11-11;
+  experimental; lane compsite, V1-5179) An evaluated make target (AFP-V0-3122) that runs an
+  uncertified command SHALL NOT be kept a `driver:computed-invocation` site by the AFP-V0-3122
+  hedge when all four conditions hold:
+  1. Its recipe lines, expanded again with every make variable unknown (every name the file
+     assigns or not, `MAKE`, `MAKEFILE_LIST`, and every target-specific, pattern-specific,
+     `override`, `define`, environment and command-line value) and every automatic variable
+     unknown except `$@`, `$(@D)` and `$(@F)` of a non-pattern target, carry an unknown part only
+     in the value of a `GOCACHE` assignment that is a command prefix or an `env` operand. No
+     other word holds one: no command word, operand, option, other assignment, `cd` or `pushd`
+     operand, redirection target, sourced file, word of a command substitution or text of an
+     inline script.
+  2. That expansion scans with no computed reason, reaches no `$(shell ...)`, unmodeled
+     function or evaluation effect, and stays exact within the AFP-V0-3121 walk bound.
+  3. Every prerequisite line of the target, expanded the same way, holds no unknown part.
+  4. Make reading the target's file left it neither evaluated nor uncertified: no include,
+     export, recipe shell, read-time command, bare statement or remainder recipe marked it
+     (AZU-V0-610, AFP-V0-3127).
+
+  Such a target keeps the edges of the default-invocation alternatives (AFP-V0-3121) and of the
+  second expansion, including every AFP-V0-9401 file-set read. Soundness: under condition 1 the
+  only text that make evaluation, the environment or the command line can change is a Go build
+  cache location, which AFP-V0-3128 already admits with any value in a target that was never
+  evaluated. Every command run, its operands, working directory, redirections, sourced files and
+  make goals are literal recipe text, so the target is a literal recipe, which is no computed
+  site. When a condition fails the hedge applies as before (AFP-V0-3122, AFP-V0-3123). Among the
+  forms that fail it: an overridable variable used as a command word (`$(HEAVY_ADMIT)`,
+  `$(MAKE)`); an environment or command-line value used as an operand or assignment value of a
+  repository script or `go run` program; and any value from a conditional, `override`, `define`,
+  a target- or pattern-specific assignment, `include`, `$(shell ...)`, `$(eval ...)` or
+  `$(call ...)`, or a recursive definition that refers to an unresolved name, whenever it reaches
+  a word other than a `GOCACHE` value.
+- **AFP-V0-3601:** **Go toolchain selection assignments.** (proposed 2026-11-11; experimental;
+  lane compsite, V1-5179) The AFP-V0-3128 assignment allowlist SHALL also admit these exact
+  assignments, as a command prefix, an `env` operand or a standalone assignment: `GOOS` set to
+  `linux`, `darwin`, `windows`, `freebsd`, `netbsd` or `openbsd`; `GOARCH` set to `amd64`,
+  `arm64`, `386` or `arm`; `CGO_ENABLED=0`; `GOENV=off`; `GOWORK=off`; `GOPROXY=off`. Soundness:
+  `GOOS` and `GOARCH` choose only which files of a package the go command compiles, and the Go
+  claimant's package units already union every build variant's files and imports (AFP-V0-580),
+  so no file such a value makes the go command read lacks an edge. None of the listed systems
+  runs its programs through a wrapper inside the Go distribution, as `js` and `wasip1` do.
+  `CGO_ENABLED=0` stops cgo files compiling and the C toolchain running. `GOENV=off` stops the go
+  command reading the user's `go env` file, `GOWORK=off` stops it reading `go.work`, so only the
+  main module's packages match, and `GOPROXY=off` forbids module downloads. None of them names a
+  file that a command then reads or runs. Any other value keeps `shell:assignment`: empty, a
+  variable or expansion, a quoted value, `GOOS=js`, `GOARCH=wasm`, `CGO_ENABLED=1`, or a path or
+  URL for `GOENV`, `GOWORK` or `GOPROXY`.
+- **AFP-V0-3602:** **`node --test` over literal files.** (proposed 2026-11-11; experimental; lane
+  compsite, V1-5179) A `node` invocation whose first argument is exactly `--test` and whose every
+  later word is a literal relative path, with no glob character, ending in `.js`, `.mjs` or
+  `.cjs`, recorded as a repository edge (AFP-V0-9051) and proved by the source to be an existing
+  regular file, SHALL NOT be marked `shell:interpreter-inline`. Each of those files SHALL be a
+  path edge, as the script operand of `node FILE` is. Soundness: `--test` takes no value, and
+  with file operands Node runs exactly those files as tests, the same programs `node FILE` runs.
+  Refusal: no file operand (Node then discovers test files), another option before or after the
+  files (`--test-reporter` loads a module, `--import` and `--require` preload one), a glob, a
+  directory, a missing file, an expansion or an unknown working directory keep
+  `shell:interpreter-inline`.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3002,6 +3068,12 @@ not model an environment input: a value whose unknown part is a name the file ne
 bound dropped a value the file gives. AFP-V0-3145 does not recognise `[[` after `time -p` or
 `coproc`; the lexer splits such an expression at its operators and scans the pieces as commands. No
 repository script uses either form.
+
+AFP-V0-3600 to AFP-V0-3602 do not propagate shell values, change a target that was never
+evaluated, take a `?=` default or other make value as known, or change any base rule that already
+leaves a site uncomputed; the base gaps the lane observed are listed in
+`docs/build-log/2026-11-11-compsite.md`. AFP-V0-3600 does not model what a repository script or Go
+program does with an operand, so an environment value in an operand keeps the hedge.
 
 ## Failure modes
 
@@ -3147,7 +3219,24 @@ those reads have separately declared plain bounds. Missing endpoint/listing obse
 prove non-impact. Rollback replaces tree metadata objects with their reason strings; the main
 read-scope declaration remains string-only throughout.
 
+AFP-V0-3600 to AFP-V0-3602 failure modes: a defect in the second expansion that resolves a
+variable instead of leaving it unknown would admit an overridden command or operand, which the
+fail-closed table of `TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600` guards per form; a build
+cache that serves a stale or foreign build stays outside the model, as under AFP-V0-3128; a future
+`GOOS` port with an execution wrapper is not admitted because the list is closed; a Node release
+that reads `--test` operands as globs matches a literal operand without glob characters only to
+itself, and a directory is refused by the regular-file proof.
+
 ## Acceptance evidence and traceability
+
+AFP-V0-3600 to AFP-V0-3602 (V1-5179): `driverEvaluatedCacheOnly` and the strict scan mode in
+`internal/liveverify/affected/driver.go`, `driver_make.go` and `driver_shell.go`, and the
+assignment and `node --test` allowlists in `driver_shell.go`, are covered by
+`TestDriverEvaluatedCacheOnly_AFP_V0_3600`, `TestDriverEvaluatedCacheOnlyFailClosed_AFP_V0_3600`,
+`TestDriverGoSelectionAssignments_AFP_V0_3601`, `TestDriverGoSelectionAssignmentsFailClosed_AFP_V0_3601`,
+`TestDriverNodeTestFiles_AFP_V0_3602` and `TestDriverNodeTestFilesFailClosed_AFP_V0_3602` in
+`internal/liveverify/affected/driver_compsite_test.go`; the mutation results, the histogram and
+probe before and after, and the V1-5159 replay are in `../build-log/2026-11-11-compsite.md`.
 
 AFP-V0-3350 to AFP-V0-3352 are covered by `TestTestOnlyEmbedSelectsNonImportedSource_AFPV03350`,
 `TestTestOnlyEmbedMalformedFailsClosed_AFPV03350`, `TestTestEmbedReadersStayTestScoped_AFPV03350`,
@@ -3361,6 +3450,10 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback
+
+For AFP-V0-3600 to AFP-V0-3602, revert the lane compsite commits: the evaluated target keeps
+the AFP-V0-3122 hedge again, the six Go assignments mark `shell:assignment` again and `node --test`
+is again an inline interpreter option. No unit field, wire member or cache profile changes.
 
 For AFP-V0-10329, remove `exercisingUnits`, `fixtureTest` and
 `TestRepositoryOwnerRowsNameExercisingTests_AFPV010329`; the owner rows that name their exercising
