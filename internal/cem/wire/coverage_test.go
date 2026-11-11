@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestInheritedCoverageWitness is TCQ-V0-052: a cem/1.0 hunk may carry one

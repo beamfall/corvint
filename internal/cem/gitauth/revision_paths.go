@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // RevisionPaths lists the path of every non-tree entry at one pinned commit

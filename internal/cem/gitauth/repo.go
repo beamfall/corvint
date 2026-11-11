@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cemcode"
+	"github.com/Beamfall/corvint/internal/gitrun"
 )
 
 // objectAlternatesFix and ambientAlternatesFix are the recovery the

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // binaryFixtureRange commits, over a base holding a text file and a binary

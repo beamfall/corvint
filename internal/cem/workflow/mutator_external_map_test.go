@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1647MutatorsReadAnOutOfTreeMapIntoARelativeOutput pins CEM-V1-647:

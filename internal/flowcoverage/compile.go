@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/flowdocs"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"sort"
 	"strings"
 )

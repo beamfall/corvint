@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gitrun"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
