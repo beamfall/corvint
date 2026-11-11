@@ -234,7 +234,16 @@ func Build(ctx context.Context, root string, paths []string, sources Sources) (B
 	}
 	var tests []TestsResult
 	if sources.Tests != nil {
+		// The ticket read and the tests source are independent and both slow, so they run together.
+		ticketsRead := make(chan struct{})
+		go func() {
+			defer close(ticketsRead)
+			if len(paths) != 0 {
+				b.openTickets()
+			}
+		}()
 		tests = sources.Tests(ctx, head, groups)
+		<-ticketsRead
 	}
 	for index, s := range subjects {
 		result := TestsResult{PlanMissing: "not-available", EvidenceMissing: "not-available"}

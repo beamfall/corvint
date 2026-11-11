@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -323,5 +324,28 @@ func TestNormalizePath(t *testing.T) {
 		if got, err := NormalizePath(root, filepath.Join(link, "escape", "x")); err == nil {
 			t.Errorf("link out of the repository accepted: %q", got)
 		}
+	}
+}
+
+// The ticket read starts while the tests source runs: this tests source returns only once it has.
+func TestBuildReadsTicketsWhileTestsRun(t *testing.T) {
+	root := newRepo(t, map[string]string{"a/x.go": "x\n"})
+	started := make(chan struct{})
+	brief := build(t, root, Sources{
+		Tests: func(_ context.Context, _ string, groups [][]string) []TestsResult {
+			select {
+			case <-started:
+			case <-time.After(30 * time.Second):
+				t.Error("the ticket read did not start while the tests source ran")
+			}
+			return make([]TestsResult, len(groups))
+		},
+		Tickets: func(context.Context) ([]Ticket, error) {
+			close(started)
+			return []Ticket{{ID: "T-1", DeclaredScope: []string{"a/"}}}, nil
+		},
+	}, "a/x.go")
+	if s := pick(t, brief, 0, "tickets"); len(s.Items) != 1 || s.Items[0].Ticket != "T-1" {
+		t.Errorf("tickets %+v", s)
 	}
 }
