@@ -16,7 +16,12 @@ import (
 // NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480. Since
 // RNC-V1-004 (owner decision R32) an UNOWNED_DIRTY_PATH narrows only when a Go
 // rule attributes it (core/data.txt, enclosed by core); the root Makefile no
-// package encloses or names falls back with the named reason unowned-path. A
+// package encloses or names falls back with the named reason unowned-path.
+// Under NCM-V1-001 (V1-5424, orchestrator ruling of 2026-11-11) an unowned
+// dirty path a Go package encloses keeps that narrowing, and one no Go rule
+// attributes runs everything, named unowned-path by the non-code decision
+// first. The Makefile cases name it only as a plan entry, not a dirty path, so
+// the non-code decision's never-narrowed rule does not decide them first. A
 // well-formed UNSELECTED_BINARY_CONSUMER narrows too (V1-4361): no Go run,
 // narrowed or FULL, runs it; a malformed one falls back.
 // SelectStructural (`corvint test`) is unchanged.
@@ -38,7 +43,7 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		receipt.Provider.Go.State = "RUNNABLE"
 		receipt.Provider.Go.Packages = []string{fixtureModule + "/core"}
 		receipt.Plan.Scope = scope
-		receipt.Plan.Dirty = []string{"core/core.go", "Makefile", "core/data.txt", "core/gone.go", "removed/gone.go"}
+		receipt.Plan.Dirty = []string{"core/core.go", "core/data.txt", "core/readme.xyz", "core/gone.go", "removed/gone.go"}
 		receipt.Plan.Unknown = unknowns
 		return receipt
 	}
@@ -58,6 +63,13 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		{"an attributed unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "core/data.txt"}), "run " + core + " " + user},
 		{"an unattributed unowned path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "FALLBACK " + UnownedPathFallback + ": Makefile"},
 		{"an unattributed unowned path beside an attributed one", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "core/data.txt"}, unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "FALLBACK " + UnownedPathFallback + ": Makefile"},
+		{"an unowned dirty path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "core/readme.xyz"}), "run " + core + " " + user},
+		{"an unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "core/readme.xyz"}), "run " + core + " " + user},
+		{"an unowned path no Go rule attributes", func() Receipt {
+			receipt := plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "notes/readme.xyz"})
+			receipt.Plan.Dirty = append(receipt.Plan.Dirty, "notes/readme.xyz")
+			return receipt
+		}(), "FALLBACK unowned-path notes/readme.xyz"},
 		{"no selectable test", plan("UNKNOWN", unknown{"NO_SELECTABLE_TEST", "go:x"}), "run " + core + " " + user},
 		{"a deleted source of a package that exists", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "core/gone.go"}), "run " + core + " " + user},
 		{"a binary consumer", plan("UNKNOWN", frontier, unknown{"UNSELECTED_BINARY_CONSUMER", "tools/web-flows/test/e2e.mjs"}), "run " + core + " " + user}, //corvint:fixture-path

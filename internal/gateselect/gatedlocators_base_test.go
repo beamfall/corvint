@@ -15,6 +15,9 @@ import (
 // so the verdict runs the gated package and its dependent instead of falling
 // back on the frontier its graph would otherwise re-raise. A plan that still
 // names the frontier, as the planner emits for an unbounded edit, falls back.
+// Since NCM-V1-006 (V1-5424) the declaration is Corvint configuration, so the
+// selector runs everything for its edit before the proof narrows; the
+// planner-named frontier keeps its module-level fallback, which comes first.
 func TestGatedLocatorChangeNarrowsTheProof_TSP_V0_608(t *testing.T) {
 	test := func(name string) string {
 		return "package " + name + "\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n"
@@ -55,24 +58,20 @@ func TestGatedLocatorChangeNarrowsTheProof_TSP_V0_608(t *testing.T) {
 		lines := SelectQualified(plan, fixtureModule, root)
 		return lines[len(lines)-1]
 	}
-	got := qualified()
-	if !strings.HasPrefix(got, "run ") || !strings.Contains(got, fixtureModule+"/loc") || !strings.Contains(got, fixtureModule+"/dep") {
-		t.Errorf("bounded declaration edit: verdict %q, want run with loc and dep", got)
+	// NCM-V1-006 (V1-5424): the declaration is Corvint configuration, so
+	// the selector runs everything for its edit whatever the base, before
+	// the proof could narrow it.
+	const config = "FALLBACK corvint-config .corvint/gated-root-locators.json" //corvint:fixture-path
+	if got := qualified(); got != config {
+		t.Errorf("bounded declaration edit: verdict %q, want %q", got, config)
 	}
-	if strings.Contains(got, fixtureModule+"/other") {
-		t.Errorf("other is selected although its entry did not change: %q", got)
-	}
-	// An absent base measures from the revision, where the declaration equals
-	// the tree's: the edit changed no entry and is closed.
 	plan.Range.Base = ""
-	if got := qualified(); !strings.HasPrefix(got, "run ") {
-		t.Errorf("measured from the revision: verdict %q, want run", got)
+	if got := qualified(); got != config {
+		t.Errorf("measured from the revision: verdict %q, want %q", got, config)
 	}
-	// Without a full object ID to measure from, the proof cannot compare,
-	// so its frontier stays.
 	plan.Revision = "HEAD"
-	if got := qualified(); got != "FALLBACK the plan names the unknown LANGUAGE_FRONTIER, which the selector cannot attribute" {
-		t.Errorf("no measurable commit: verdict %q, want the frontier fallback", got)
+	if got := qualified(); got != config {
+		t.Errorf("no measurable commit: verdict %q, want %q", got, config)
 	}
 	plan.Revision = strings.TrimSpace(fixtureGit(t, root, "rev-parse", "HEAD"))
 	plan.Range.Base = base

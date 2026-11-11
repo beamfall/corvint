@@ -91,7 +91,14 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	files := maps.Clone(additiveBase)
 	maps.Copy(files, consumerHead)
 	writeFiles(t, root, files)
-	dirty := []string{"core/core.go", "docs/specs/INDEX.json", consumerSealed}
+	// NCM-V1-006 (V1-5424): a sealed CEM is Corvint configuration, so a
+	// change holding one runs everything; gateselect's ADN-V0-011 test keeps
+	// covering its rule (c) attribution. The consumer is replayed without it.
+	withSealed := consumerReceipt(t, root, []string{"core/core.go", "docs/specs/INDEX.json", consumerSealed})
+	if lines := gateselect.SelectStructural(withSealed, module, root); lines[len(lines)-1] != "FALLBACK corvint-config "+consumerSealed {
+		t.Fatalf("a sealed CEM did not run everything: %q", strings.Join(lines, "\n"))
+	}
+	dirty := []string{"core/core.go", "docs/specs/INDEX.json"}
 	receipt := consumerReceipt(t, root, dirty)
 	has := func(packages []string, name string) bool { return slices.Contains(packages, module+"/"+name) }
 
@@ -100,7 +107,7 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	// named's lone "INDEX.json" is a plan reader of docs/specs/INDEX.json
 	// since AFP-V0-2203 round 8 dropped Go placement: its root may be
 	// supplied at run time.
-	for _, want := range []string{"core", "ref", "alias", "reader", "enum", "named"} {
+	for _, want := range []string{"core", "ref", "alias", "reader", "named"} {
 		if !has(selected, want) {
 			t.Errorf("%s is not selected: %q", want, strings.Join(lines, "\n"))
 		}
@@ -110,19 +117,19 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 			t.Errorf("%s is selected: %q", unwanted, strings.Join(lines, "\n"))
 		}
 	}
-	if !slices.Contains(lines, "documentation docs/specs/INDEX.json") || !slices.Contains(lines, "evidence "+consumerSealed) {
-		t.Fatalf("no documentation or evidence line: %q", strings.Join(lines, "\n"))
+	if !slices.Contains(lines, "documentation docs/specs/INDEX.json") {
+		t.Fatalf("no documentation line: %q", strings.Join(lines, "\n"))
 	}
 
 	// A stale or forged reader selection: the plan no longer selects the
-	// documentation reader or the CEM's enumerating reader.
+	// documentation reader.
 	stale := receipt
 	stale.Provider.Go.Packages = slices.DeleteFunc(slices.Clone(receipt.Provider.Go.Packages), func(pkg string) bool {
-		return pkg == module+"/reader" || pkg == module+"/enum"
+		return pkg == module+"/reader"
 	})
 	lines = gateselect.SelectStructural(stale, module, root)
 	selected = consumerRun(t, lines)
-	if !has(selected, "reader") || !has(selected, "named") || !has(selected, "enum") {
+	if !has(selected, "reader") || !has(selected, "named") {
 		t.Errorf("a stale reader selection narrowed rule (c): %q", strings.Join(lines, "\n"))
 	}
 	if slices.ContainsFunc(lines, func(line string) bool {
@@ -137,8 +144,9 @@ func TestADNV0010And0011ProducerToConsumer(t *testing.T) {
 	forged.Plan.Dirty = []string{".corvint/changes/forged.cem.json"}
 	forged.Plan.NonSource = nil
 	forged.Plan.GoAdditive = nil
-	if lines := gateselect.SelectStructural(forged, module, root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {
-		t.Errorf("a forged CEM name took the plan's readers: %q", strings.Join(lines, "\n"))
+	if lines := gateselect.SelectStructural(forged, module, root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) ||
+		lines[len(lines)-1] != "FALLBACK corvint-config .corvint/changes/forged.cem.json" {
+		t.Errorf("a forged CEM name took the plan's readers or did not run everything: %q", strings.Join(lines, "\n"))
 	}
 
 	// A stale classification: the declaration no longer declares the path.

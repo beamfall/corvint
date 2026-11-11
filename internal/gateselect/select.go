@@ -41,6 +41,7 @@ import (
 	"unicode"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/noncodemap"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
@@ -59,6 +60,30 @@ type Receipt struct {
 			Class string   `json:"class"`
 			Paths []string `json:"paths"`
 		} `json:"nonSource"`
+		// Deleted, Selected and E2E feed the non-code decision (NCM-V1-001,
+		// NCM-V1-006): a deleted runner configuration is a removed runner,
+		// and the flow join says whether a flow file's changed flows can be
+		// computed.
+		Deleted []string `json:"deleted"`
+		// Selected is the planner's selections, read only for their
+		// witnesses: a unit whose witness is of a kind that reads the very
+		// path it names attributes that path (attributingWitness,
+		// unattributedPath, RNC-V1-004), and a declared Go reader's witness
+		// attributes a dirty path to a Go package (NCM-V1-001).
+		Selected []struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				Kind      string `json:"kind"`
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		} `json:"selected"`
+		E2E *struct {
+			Flows   string `json:"flows"`
+			Unknown []struct {
+				Reason string `json:"reason"`
+				Detail string `json:"detail"`
+			} `json:"unknown"`
+		} `json:"e2e"`
 		// GoAdditive is the planner's additive-change records
 		// (ADN-V0-001); a NARROWED one limits its package's dependents
 		// to the referencing importers (ADN-V0-006).
@@ -68,16 +93,6 @@ type Receipt struct {
 			Paths        []string `json:"paths"`
 			Unreferenced []string `json:"unreferenced"`
 		} `json:"goAdditive"`
-		// Selected is the planner's selections; a unit whose witness is
-		// of a kind that reads the very path it names attributes that
-		// path (attributingWitness, unattributedPath, RNC-V1-004).
-		Selected []struct {
-			UnitID  string `json:"unitId"`
-			Witness struct {
-				Kind      string `json:"kind"`
-				DirtyPath string `json:"dirtyPath"`
-			} `json:"witness"`
-		} `json:"selected"`
 	} `json:"plan"`
 	Provider struct {
 		Go struct {
@@ -266,11 +281,20 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 // selectPackagesFrom is selectPackages with the index read from build once the
 // plan passes the checks that need none.
 func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) []string {
+	return attributeFrom(plan, module, root, withUnresolved, build, true)
+}
+
+// attributeFrom is selectPackagesFrom; nonCode applies the NCM-V1 decision
+// before attribution. Only tests pass false, to keep covering the rule (c)
+// attribution of a path the decision runs everything for, which
+// packageBounds (tools/gate-ledger) still applies.
+func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) []string {
 	var lines []string
 	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
 	state := plan.Provider.Go.State
 	if state != "RUNNABLE" && state != "EMPTY_SELECTION" {
-		return fallback("provider.go.state is " + state)
+		// NCM-V1-001 (R32): an unavailable runner runs everything, named.
+		return fallback(noncodemap.ReasonRunnerRemoved + " go: provider.go.state is " + state)
 	}
 	for _, entry := range plan.Plan.Unknown {
 		if entry.Reason == "LANGUAGE_FRONTIER" && moduleLevelFrontiers[entry.Detail] {
@@ -295,6 +319,19 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 	index, err := build()
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
+	}
+	// NCM-V1-001 to NCM-V1-008: a non-code path no proven map entry narrows,
+	// Corvint configuration and a never-narrowed path run everything, each
+	// printed with its reason; an invalid map is refused, never read as empty.
+	if nonCode {
+		decision, err := nonCodeDecision(plan, index, root)
+		if err != nil {
+			return fallback(err.Error())
+		}
+		lines = append(lines, decision.Audit()...)
+		if line, full := decision.FullRun(); full {
+			return fallback(line.Reason + " " + line.Path)
+		}
 	}
 	if withUnresolved {
 		reason, suites := unknownNarrowing(plan, index, root)
@@ -495,10 +532,15 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 // reads no literal bounds, attributes none: the planner witnesses such a unit
 // (UNBOUNDED_READER) with whichever dirty path sorts first, whatever path it
 // reads, so a path only it would read is one no runner instance owns, and runs
-// every test.
+// every test. A declared existence reader (AFP-V0-980) attributes the path
+// its witness names only while its declaration is unchanged: the planner then
+// witnesses it with a named path absent from the checkout, which it reads
+// (NCM-V1-001); a changed declaration witnesses it with the first dirty path.
 func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
+	existence := !slices.Contains(plan.Plan.Dirty, affected.ExistenceReadersPath)
 	for _, selection := range plan.Plan.Selected {
-		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && attributingWitness[selection.Witness.Kind] {
+		kind := selection.Witness.Kind
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && (attributingWitness[kind] || existence && kind == affected.WitnessDeclaredExistenceReader) {
 			attributed[selection.Witness.DirtyPath] = true
 		}
 	}
@@ -521,7 +563,8 @@ func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
 // selection attributes that path (RNC-V1-004). Any other kind, an
 // UNBOUNDED_READER, a MUST_RUN or FRONTIER_SITE seed witnessed by the first
 // dirty path, a declared existence reader whose declaration changed, and a
-// kind this list does not know, attributes none.
+// kind this list does not know, attributes none; an unchanged declaration's
+// existence reader is admitted beside this list, in unattributedPath.
 var attributingWitness = map[string]bool{
 	affected.WitnessPathLiteralReader: true,
 	affected.WitnessPathGlobReader:    true,

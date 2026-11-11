@@ -48,6 +48,8 @@ func gateRun(t *testing.T, lines []string) []string {
 // the twelve packages CI reported as omitted, is selected by neither: its
 // tokens do not resolve to the sealed CEM, so AFP-V0-152 narrows it out of rule
 // (c). The CI omission came from a shadow pin that predates AFP-V0-152.
+// Since NCM-V1-006 (V1-5424) the sealed CEM runs everything, so the narrowed
+// comparison replays the other three paths.
 func TestDriverSelectionCoversTheShadow_V13067(t *testing.T) {
 	testsupport.RequireLiveTier(t)
 	root := repositoryRoot(t)
@@ -59,7 +61,45 @@ func TestDriverSelectionCoversTheShadow_V13067(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := affected.Select(graph, pr1961Source)
+	// NCM-V1-006 (V1-5424): the sealed CEM is Corvint configuration, so both
+	// entry points now run everything for the whole path set, where the
+	// driver covers the shadow trivially. The replay then plans the set
+	// without it, where both still narrow.
+	full := selectorReceipt(t, graph, pr1961Source)
+	want := "FALLBACK corvint-config " + pr1961Source[0]
+	for name, lines := range map[string][]string{"Select": gateselect.Select(full, module, root), "SelectStructural": gateselect.SelectStructural(full, module, root)} {
+		if got := lines[len(lines)-1]; got != want {
+			t.Fatalf("%s verdict %q, want %q", name, got, want)
+		}
+	}
+	receipt := selectorReceipt(t, graph, pr1961Source[1:])
+	driverLines := gateselect.Select(receipt, module, root)
+	driver := gateRun(t, driverLines)
+	shadow := gateRun(t, gateselect.SelectStructural(receipt, module, root))
+	for _, pkg := range shadow {
+		if !slices.Contains(driver, pkg) {
+			t.Errorf("the driver omits %s, which the shadow selects", pkg)
+		}
+	}
+	runner := module + "/benchmarks/runner"
+	if slices.Contains(driver, runner) || slices.Contains(shadow, runner) {
+		t.Errorf("%s is selected; no path of the set without the sealed CEM reaches it", runner)
+	}
+	for _, line := range driverLines {
+		if strings.Contains(line, " "+runner+" ") || strings.HasSuffix(line, " "+runner) {
+			t.Errorf("gate selector line names %s: %s", runner, line)
+		}
+	}
+	if len(shadow) == 0 || len(driver) < len(shadow) {
+		t.Fatalf("driver %d packages, shadow %d", len(driver), len(shadow))
+	}
+}
+
+// selectorReceipt plans paths and encodes the plan as the gate selector's
+// receipt, with the plan's Go selection as the provider's packages.
+func selectorReceipt(t *testing.T, graph *affected.Graph, paths []string) gateselect.Receipt {
+	t.Helper()
+	plan := affected.Select(graph, paths)
 	var packages []string
 	for _, selection := range plan.Selected {
 		if pkg, ok := strings.CutPrefix(selection.UnitID, "go:"); ok {
@@ -77,24 +117,5 @@ func TestDriverSelectionCoversTheShadow_V13067(t *testing.T) {
 	if err := json.Unmarshal(encoded, &receipt); err != nil {
 		t.Fatal(err)
 	}
-	driverLines := gateselect.Select(receipt, module, root)
-	driver := gateRun(t, driverLines)
-	shadow := gateRun(t, gateselect.SelectStructural(receipt, module, root))
-	for _, pkg := range shadow {
-		if !slices.Contains(driver, pkg) {
-			t.Errorf("the driver omits %s, which the shadow selects", pkg)
-		}
-	}
-	runner := module + "/benchmarks/runner"
-	if slices.Contains(driver, runner) || slices.Contains(shadow, runner) {
-		t.Errorf("%s is selected; AFP-V0-152 should narrow it out of the sealed CEM's rule (c) readers", runner)
-	}
-	for _, line := range driverLines {
-		if strings.Contains(line, " "+runner+" ") || strings.HasSuffix(line, " "+runner) {
-			t.Errorf("gate selector line names %s: %s", runner, line)
-		}
-	}
-	if len(shadow) == 0 || len(driver) < len(shadow) {
-		t.Fatalf("driver %d packages, shadow %d", len(driver), len(shadow))
-	}
+	return receipt
 }
