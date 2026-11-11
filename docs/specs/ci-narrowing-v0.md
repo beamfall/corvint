@@ -502,6 +502,77 @@ the single listing in the integrity step, and delete `.github/workflows/ci-route
   result or a skipped job on a pull request or merge-group event SHALL fail the required check.
   A push SHALL explicitly admit the shell job's intentional `skipped` result; a failed or
   cancelled shell job SHALL never pass through that exception.
+  (V1-5097) From the `.github` change of CIN-V0-8724 the job runs `.github/shell-tests/run.sh`
+  instead of `make shell-test-affected`: the selection is still AFP-V0-2401's, but planned and
+  selected by tools built from the event base, over the union of CIN-V0-8725, from the base
+  AFP-V0-2830 proves on a pull request.
+
+### Trusted shell-test selection and the base doc-gate list (CIN-V0-8724 to CIN-V0-8728; V1-5097, V1-5160)
+
+Intent (V1-5097, P1; OpenSpec change `trusted-shell-selection`, lane ghci2, 2026-11-11): the
+`shell-test-selected` job built `corvint` and `tools/shell-test-select` from the tree under test and
+`doc-gates` read its gate list from that tree's `Makefile`, so a pull request could select away its
+own checks. The Go narrowing driver already uses base-built tools. These requirements copy the
+change's four requirements (task 1.2) and answer the design's two open owner questions with its
+defaults: a removed step or gate runs FULL with a warning and never fails the job by itself, and a
+candidate that redefines a gate's recipe is not refused (non-goal). The owner may amend either.
+Every requirement here is proposed, delivery experimental, effective only after the owner's
+`ci-control-plane` review of the `.github` change.
+
+- **CIN-V0-8724:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-5097) On a pull request or merge-queue run the `shell-test-selected` job SHALL
+  build `corvint` and `tools/shell-test-select` from the event base in a worktree outside the tested
+  checkout, stamped with `-buildvcs=true`, and SHALL plan the tested tree with that `corvint`
+  (`affected --accept-stale-binary`), admitting a plan with no degradation or exactly
+  `self-binary-stale` and treating any other degradation, a refused plan or an unreadable list as
+  FULL. It SHALL NOT build or run the candidate's planner or selector to choose steps. When the event
+  base cannot be checked out or does not build either tool, the job SHALL run every shell-test step
+  of both `Makefile`s that the candidate defines and print a warning naming the event base. The
+  summary names the event-base selector and commit.
+- **CIN-V0-8725:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-5097) The job SHALL run every step the event-base selector picks from the event
+  base's `shell-test:` list or from the candidate's list. When a step picked from the base list is
+  not defined by the candidate (the tested checkout's `make -n -q NAME` exits 2, so no explicit,
+  pattern or included rule makes it), the job SHALL run every shell-test step of both lists that the
+  candidate defines and SHALL print a warning and a summary line naming each missing
+  step. It SHALL NOT fail for that reason alone. The selected steps run from the tested checkout with
+  `make --keep-going`, since a shell test checks the candidate's scripts.
+- **CIN-V0-8726:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-5097) On a pull request or merge-queue run the `doc-gates` job SHALL, after
+  `make -s doc-gates`, read `DOC_GATE_TARGETS` from the event base's `Makefile` and run by name (not
+  `doc-gate/%`, which the candidate may redefine) every listed gate that the candidate's list, as
+  `make` expands it, leaves out and the candidate still defines (as CIN-V0-8725 judges it). The
+  candidate's list SHALL be read from a file the printing recipe writes after parsing, never from
+  `make`'s output, which `$(info NAME)` in the candidate `Makefile` can extend. A base gate the candidate no longer
+  defines SHALL be named in a warning and the summary. When `make` cannot print the candidate's list,
+  every base gate runs. An event base whose `Makefile` or list cannot be read fails the step.
+- **CIN-V0-8727:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-5097) An extract-and-run test SHALL run the two steps from `ci.yml` in a fixture
+  repository and show: a candidate selector that selects nothing still runs the base-selected step;
+  a dropped step and a dropped or filtered-out gate still run; a deleted step forces FULL with its
+  warning; a base that does not build, or a plan degraded beyond `self-binary-stale` or refused,
+  forces FULL with its warning; and the `Makefile` list readers agree with `shell-test-select`'s
+  `ReadSteps` and with `DOC_GATE_TARGETS` as `make` expands it on the repository's own `Makefile`. A
+  control run of the old step body (`make -s shell-test-affected`) with the empty candidate selector
+  SHALL miss the base-selected step, so the test fails on the old workflow.
+- **CIN-V0-8728:** (proposed; experimental under the owner's standing lane auto-accept
+  (2026-10-11); V1-5160) `go test ./...` skips dot-directories, and every isolated `test-confine`
+  copy omitted `cmd/main_test.go`, so DTL-V0-010's `TestDTLV0010MissingRootNamesRecovery` never ran
+  in CI. The `test-confine` copies SHALL include it, `go-static` SHALL run that module verbosely so
+  each test name reaches the log, and `go-static` SHALL run `.github/dot-tests/check.py`, which fails
+  naming each tracked dot-directory `*_test.go` file (outside `testdata`) that is neither copied by a
+  `cp` into a step that runs `go test ./...` nor named in place by a `go test` (with `-run`, one of
+  its top-level tests must match). Any parse doubt fails the check.
+
+Non-goals (CIN-V0-8724 to CIN-V0-8728): refusing a candidate that redefines a gate's or step's
+recipe (the candidate's own tests judge that); a hosted acceptance run inside a lane; protecting a
+pull request that changes `.github/`. In a `pull_request` run the workflow, `run.sh` and
+`base-gates.sh` come from the pull request's merge commit, so CIN-V0-8724 to CIN-V0-8726 hold only
+for a pull request that does not touch `.github/`; a `.github` change relies on the owner's
+`ci-control-plane` review. The `make -n -q` probe runs no recipe line except one marked `+` or naming
+`$(MAKE)`, as under `make -n`; no listed step or gate has one. Failure
+modes: a base that does not build its selector costs latency (FULL), never coverage; the extra
+`doc-gates` step runs only gates the candidate dropped, so it costs nothing on an unchanged list.
 
 - `CIN-V0-4750`: (owner-approved 2026-11-06, "fast PRs; full targeted/nightly/release checks"; V1-4750)
   A routine-change classifier, `.github/ci-cadence/classify.sh`, SHALL decide DEFER or FULL for the
@@ -957,6 +1028,11 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
 | CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies and PR-head-named fallback rows UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 | CIN-V0-2320 | the `shell-test-selected` job of `ci.yml`; `make shell-test-affected`, `tools/shell-test-select` (AFP-V0-2401) | `TestCINV02320ShellTestSelectedJobRunsTheAffectedSteps`, `TestCINV02320RequiredCheckPropagatesShellFailure` in `tools/ci-reuse-plan/workflow_test.go` |
+| CIN-V0-8724 | `.github/shell-tests/run.sh`, called by the `shell-test-selected` step | `test_CINV08724_candidate_selector_cannot_select_away` (with the old-body control), `test_CINV08724_base_that_does_not_build_runs_every_step`, `test_CINV08724_degraded_or_refused_plan_runs_every_step`, `test_CINV08724_step_bindings` in `.github/shell-tests/trusted_selection_test.py`; hosted run `NOT_OBSERVED` |
+| CIN-V0-8725 | the union and the missing-step FULL of `.github/shell-tests/run.sh` | `test_CINV08725_dropped_step_still_runs`, `test_CINV08725_deleted_step_forces_full_with_warning`, `test_CINV08725_pattern_rule_step_still_runs` |
+| CIN-V0-8726 | `.github/doc-gates/base-gates.sh`, the doc-gates step after `make -s doc-gates` | `test_CINV08726_dropped_gate_still_runs`, `test_CINV08726_filtered_out_gate_still_runs`, `test_CINV08726_deleted_gate_is_named`, `test_CINV08726_unchanged_list_and_push_run_nothing`, `test_CINV08726_info_output_cannot_hide_a_dropped_gate`, `test_CINV08726_included_gate_still_runs` |
+| CIN-V0-8727 | `.github/shell-tests/trusted_selection_test.py`, run in `go-static` | the test file itself (16 tests), `test_CINV08727_readers_agree_on_the_repository_makefile`; fault injection in build-log entry `2026-11-11-ghci3-orphaned-ci` |
+| CIN-V0-8728 | `.github/dot-tests/check.py`; the `test-confine` copies and the verbose module run in `ci.yml` | `.github/dot-tests/check_test.py`; `check.py .` on the tree; dropping `main_test.go` from the go-static copy fails it |
 | CIN-V0-4625 | Advisory `go-macos` in `.github/workflows/go-macos.yml`; `.github/macos/{select,shard}.py`; native `.github/forward-rows/narrow.sh` invocation | `python3 -B .github/macos/select_test.py` (native files, indirect/legacy build constraints, multiline/reversed OS comparisons, switch cases, path aliases, drift, metadata errors, record validation, FULL fallback, nested-module retention and advisory wiring); `python3 -B .github/macos/shard_test.py` (complete deterministic cost partition, mixed FULL/NARROWED ownership, asymmetric cost-read failures, unknown-cost fallback, module concurrency and retained failures); `TestCINV04625AdvisoryDarwinIsOutsideRequiredNeedsGraph`, `TestCINV04625DarwinWorkflowNeverAdmitsLinuxReuse` in `tools/ci-reuse-plan`; existing narrowing guard tests in `tools/ci-forward-row`; hosted Darwin run NOT_RUN locally |
 | CIN-V0-4627 | `.github/macos/shard.py` (`items`, `assigned_tests`, `listed_tests`, `ran_tests`, `partition_tests`, `run`) | `python3 -B .github/macos/shard_test.py`: `test_CINV04627_heavy_package_splits_into_parts_on_distinct_shards`, `test_CINV04627_partitions_cover_every_listed_test_exactly_once`, `test_CINV04627_partition_runs_alone_with_its_exact_tests`, `test_CINV04627_missing_unlisted_or_failed_listing_fails_closed`; local Darwin end-to-end run of two real parts of `.github/cishards` (25 listed tests, both parts green); hosted `go-macos` wall time NOT_OBSERVED |
 | CIN-V0-4626 | PLANNED/deferred: V1-4636; no required-aggregate dependency/result check | Required integration NOT_PRODUCED: blocked on V1-4413, V1-4551, V1-4553 and one green hosted FULL run; nightly run 41849536472 is failing at the lane base |
@@ -985,6 +1061,10 @@ CIN-V0-4750..4756: set the repository variable `CI_CADENCE_FORCE=FULL`, or rever
 the `CORVINT_CI_CADENCE` guard in `selection-baseline-check` and the nightly `selection-baseline` entry. No state migrates.
 
 CIN-V0-2320: delete the `shell-test-selected` job; shell-test steps then run only in `make gate`.
+
+CIN-V0-8724 to CIN-V0-8727: return the `shell-test-selected` step to `make -s shell-test-affected`
+and delete the doc-gates base-list step and `.github/shell-tests/`, `.github/doc-gates/`. CIN-V0-8728:
+delete the dot-tests step and `.github/dot-tests/`; the copies may keep `main_test.go`.
 
 CIN-V0-4625: revert the V1-4732 workflow extraction and sharder to restore the previous advisory
 `ci.yml` job, accepting its workflow-completion delay; no required-status setting changes. For the
