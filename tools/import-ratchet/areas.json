@@ -130,7 +130,6 @@
         "cmd/corvint-test-runner",
         "cmd/corvint-test-validity-mcp",
         "internal/appflows/e2erunner",
-        "internal/breakagemap",
         "internal/browsercov",
         "internal/csharpregions",
         "internal/gateselect",
