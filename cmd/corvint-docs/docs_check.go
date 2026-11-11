@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -196,14 +197,21 @@ var docsCheckRevision = flowdocs.CheckRevision
 // output directory it records. A manifest whose output cannot be compared, or whose check refuses
 // (a flow-docs refusal about the manifest or its source), is NOT_CHECKED with its reason, never
 // PASS. Any other error (a cancelled or expired context, a Git or I/O failure) means the part did
-// not run and fails the whole check (DMF-V1-002).
+// not run and fails the whole check (DMF-V1-002). The rendered pages are compared as the recorded
+// output directory holds them in the worktree, so the part's worktree member observes every
+// manifest's scope and output directory against HEAD: clean means the compared bytes are the
+// committed ones (DMF-V1-005).
 func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, error) {
 	part := newDocsCheckPart("flows")
 	manifests, err := flowdocs.TrackedManifests(ctx, root, commit)
 	if err != nil {
 		return part, err
 	}
+	read := []string{}
 	for _, m := range manifests {
+		if scope, ok := flowdocs.ManifestScope(m.Raw); ok {
+			read = append(read, scope)
+		}
 		check, err := docsCheckRevision(ctx, root, m.Raw, commit, "")
 		if err != nil {
 			if ctx.Err() != nil || !flowdocs.Refused(err) {
@@ -213,6 +221,9 @@ func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, er
 			continue
 		}
 		part.Checked++
+		if check.OutputDir != "" && !filepath.IsAbs(check.OutputDir) {
+			read = append(read, check.OutputDir)
+		}
 		for _, b := range check.Bindings {
 			if b.State != "fresh" {
 				part.Stale = append(part.Stale, docsCheckItem{Path: b.Before.Path, Line: b.Before.Start, ID: b.ID, Detail: b.State + ": " + b.Reason})
@@ -230,6 +241,10 @@ func docsCheckFlows(ctx context.Context, root, commit string) (docsCheckPart, er
 		if check.Output == flowdocs.OutputNotChecked {
 			part.NotChecked = append(part.NotChecked, docsCheckItem{Path: m.Path, Detail: "output " + flowdocs.OutputNotChecked + ": " + check.OutputReason})
 		}
+	}
+	if len(manifests) > 0 {
+		status := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
+		part.Worktree = &status
 	}
 	part.settle("output-not-compared")
 	return part, nil
