@@ -58,7 +58,7 @@ func TestAffectedHeadlineIsBounded_AFPV03642(t *testing.T) {
 		}
 	}
 	want := []string{
-		affectedHeadlinePrefix + "scope=UNKNOWN dirty=4 selected=207 excluded=439 unknown=45 REASON_8=9 revision=" + strings.Repeat("a", 40) + " base=" + strings.Repeat("b", 12),
+		affectedHeadlinePrefix + "scope=UNKNOWN dirty=4 selected=207 tests=0 drivers=0 excluded=439 unknown=45 REASON_8=9 revision=" + strings.Repeat("a", 40) + " base=" + strings.Repeat("b", 9),
 		affectedHeadlinePrefix + "tiers tier0=3 tier1=44 tier2=160",
 		affectedHeadlinePrefix + "unknown REASON_8 x9: detail-8-0-",
 		affectedHeadlinePrefix + "unknown REASON_7 x8: detail-7-0-",
