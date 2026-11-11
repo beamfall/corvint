@@ -944,6 +944,62 @@ func draftMetadata(value string) string {
 	return "`" + quoted + "`"
 }
 
+// staleDraftMessage explains a stale-documentation-draft refusal: the commit and tree the supplied
+// draft was bound to against the ones its fresh rederivation names, and how to draft again. Strict
+// byte binding is unchanged (DMF-V1-013, R42 B5); the header lines are read only to explain it.
+func staleDraftMessage(fresh, provided []byte) string {
+	was, now := draftHeader(provided), draftHeader(fresh)
+	message := "draft differs from original-source and policy rederivation"
+	switch {
+	case was["Commit"] == "" && was["Tree"] == "":
+		message += fmt.Sprintf("; the supplied draft names no commit or tree, and the sources are now at commit %s (tree %s)", now["Commit"], now["Tree"])
+	case was["Commit"] != now["Commit"] || was["Tree"] != now["Tree"]:
+		message += fmt.Sprintf("; the draft was bound at commit %s (tree %s) and the sources are now at commit %s (tree %s)", was["Commit"], was["Tree"], now["Commit"], now["Tree"])
+	default:
+		message += fmt.Sprintf("; the draft names the current commit %s (tree %s), so its bytes were edited or drafted under another policy or page", now["Commit"], now["Tree"])
+	}
+	command := "corvint-docs docs draft --source " + shellWord(now["Owner source"]) + " --package " + shellWord(now["Package"])
+	if section := now["Owner section"]; section != "" {
+		command += " --owner-section " + shellWord(section)
+	}
+	if page, _, found := strings.Cut(now["Page"], " of "); found {
+		command += " --page " + page
+	}
+	return message + "; re-draft with " + command + " (or corvint.docs_draft with the same source and package) and consume the new draft"
+}
+
+// draftHeader reads the metadata lines of a draft header (Commit, Tree, Owner source, Package,
+// Owner section and Page) up to the first blank line, unquoting draftMetadata values.
+func draftHeader(markdown []byte) map[string]string {
+	fields := map[string]string{}
+	for i, line := range strings.Split(string(markdown), "\n") {
+		if i > 64 || (i > 2 && line == "") {
+			break
+		}
+		name, value, found := strings.Cut(line, ": ")
+		if !found {
+			continue
+		}
+		switch name {
+		case "Commit", "Tree", "Owner source", "Package", "Owner section":
+			if unquoted, err := strconv.Unquote(strings.Trim(value, "`")); err == nil {
+				fields[name] = unquoted
+			}
+		case "Page":
+			fields[name] = value
+		}
+	}
+	return fields
+}
+
+// shellWord single-quotes value for a shell when it holds anything but safe path characters.
+func shellWord(value string) string {
+	if value != "" && strings.Trim(value, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-") == "" {
+		return value
+	}
+	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
+}
+
 // ConsumeDraft checks bytes against the supplied draft and builds ephemeral
 // orientation postings. Only a caller that freshly rederives original Git sources
 // can attach SOURCE_REDERIVED validation; this pure helper makes no such claim.
@@ -955,7 +1011,7 @@ func ConsumeDraft(draft SourceDraft, provided []byte, task string) (map[string]a
 		return nil, failure("unsupported-documentation-source", "dry-run draft is not admissible: commit the owner source, draft again and consume that draft")
 	}
 	if !bytes.Equal(draft.Markdown, provided) {
-		return nil, failure("stale-documentation-draft", "draft differs from original-source and policy rederivation")
+		return nil, failure("stale-documentation-draft", "%s", staleDraftMessage(draft.Markdown, provided))
 	}
 	if len(task) == 0 || len(task) > 1024 || !utf8.ValidString(task) {
 		return nil, failure("unsupported-documentation-source", "task must be 1..1024 UTF-8 bytes")

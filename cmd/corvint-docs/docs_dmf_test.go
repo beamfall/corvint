@@ -315,3 +315,52 @@ func TestDMFV1002DocsCheckPassThenOneStaleBlock(t *testing.T) {
 		t.Fatalf("other parts %+v %+v", flows, citations)
 	}
 }
+
+// DMF-V1-013: a draft bound at commit A, consumed after HEAD moved to commit B with a changed tree,
+// is refused naming both commits and trees and the command that drafts again.
+func TestDMFV1013ConsumeStaleNamesBothRevisions(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	revision := func(rev string) string {
+		out, err := fixtureGitCommand("-C", root, "rev-parse", rev).CombinedOutput()
+		if err != nil {
+			t.Fatalf("rev-parse: %v %s", err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	commitA, treeA := revision("HEAD"), revision("HEAD^{tree}")
+	code, draft, stderr := runDocsFixture(t, root, "draft", "")
+	if code != 0 {
+		t.Fatalf("draft %d %s", code, stderr)
+	}
+	owner, err := os.ReadFile(filepath.Join(root, "owner.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "owner.md"), append(owner, []byte("Another requirement.\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	commitB, treeB := revision("HEAD"), revision("HEAD^{tree}")
+	code, out, stderr := runDocsFixture(t, root, "consume", draft, "--task", "Split")
+	if code != 2 || out != "" || !strings.Contains(stderr, "stale-documentation-draft") {
+		t.Fatalf("stale consume %d %q %s", code, out, stderr)
+	}
+	for _, want := range []string{
+		"bound at commit " + commitA + " (tree " + treeA + ")",
+		"now at commit " + commitB + " (tree " + treeB + ")",
+		"re-draft with corvint-docs docs draft --source owner.md --package cache",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stale message lacks %q: %s", want, stderr)
+		}
+	}
+	code, draft, _ = runDocsFixture(t, root, "draft", "")
+	if code != 0 {
+		t.Fatal("redraft")
+	}
+	edited := strings.Replace(draft, "Corvint capability orientation", "Edited orientation", 1)
+	if _, _, stderr = runDocsFixture(t, root, "consume", edited, "--task", "Split"); !strings.Contains(stderr, "names the current commit "+commitB) {
+		t.Fatalf("edited draft at the current commit: %s", stderr)
+	}
+}
