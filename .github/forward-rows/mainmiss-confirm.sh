@@ -16,7 +16,8 @@
 # go), GO_TEST_FLAGS (extra go test flags, e.g. "-race -exec /path/test-confine", split on
 # spaces), TEST_TIMEOUT (default 30m), MAX_PACKAGES (default 5, over every pull request),
 # BUDGET_SECONDS (default 10800: a package whose three reruns cannot start within it stays
-# unconfirmed). Writes $RUNNER_TEMP/main-miss/check.json (corvint-main-miss-check/0) and the step
+# unconfirmed, and with timeout(1) on PATH each rerun is killed when the budget ends, so the step
+# writes check.json instead of outliving its deadline; that package stays unconfirmed). Writes $RUNNER_TEMP/main-miss/check.json (corvint-main-miss-check/0) and the step
 # outputs `check` (its artifact name, ci-forward-MAINCHECK-r<run>-<sha>-e<epoch>-c<confirmed>-
 # k<flake>-u<unconfirmed>-pr<N>[_<N>...]), `confirmed` (1 when any pull request is confirmed) and
 # miss1..miss3: one ci-forward-MISS-pr<N>-<merge>-e<epoch>-f1 row name per confirmed pull request,
@@ -36,6 +37,10 @@ MAX_PACKAGES=${MAX_PACKAGES:-5}
 BUDGET_SECONDS=${BUDGET_SECONDS:-10800}
 started=$(date +%s)
 elapsed() { echo $(( $(date +%s) - started )); }
+# CIN-V0-7922: reruns are bounded by the time left in BUDGET_SECONDS where timeout(1) exists; on a
+# host without it they run unbounded, as the step's own timeout-minutes is then the only bound.
+bounded=""
+! command -v timeout > /dev/null 2>&1 || bounded=1
 
 if ! digits "$RUN_ID" || ! hex40 "$HEAD_SHA" || ! digits "$FORWARD_EPOCH" || [ ! -f "$MISS" ] ||
   ! git -C "$SOURCE" rev-parse --git-dir > /dev/null 2>&1; then
@@ -58,16 +63,33 @@ clean() {
 }
 # rerun WORKTREE DIR PKG CAPTURE: one go test of the package, as the shard ran it; prints pass,
 # fail (a package-level fail or a build failure of the package, with a nonzero exit), absent (no
-# such directory) or unusable (anything else: a compile error elsewhere, a pattern that matched no
-# package, a pass with a nonzero exit).
+# such directory), timeout (the run did not end within what is left of BUDGET_SECONDS, or none was
+# left) or unusable (anything else: a compile error elsewhere, a pattern that matched no package, a
+# pass with a nonzero exit).
 rerun() {
   if [ ! -d "$1/$2" ]; then
     echo absent
     return
   fi
   status=0
-  # shellcheck disable=SC2086
-  (cd "$1" && CORVINT_CONFINE_ROOT="$PWD" "$GO" test $GO_TEST_FLAGS -json -count=1 -timeout "$TEST_TIMEOUT" "./$2") > "$4" 2>&1 < /dev/null || status=$?
+  if [ -n "$bounded" ]; then
+    left=$((BUDGET_SECONDS - $(elapsed)))
+    if [ "$left" -le 0 ]; then
+      echo timeout
+      return
+    fi
+    # timeout(1) signals its whole process group, so the test binary and its children end too; a
+    # run that ignores TERM is killed 30 s later (exit 137).
+    # shellcheck disable=SC2086
+    (cd "$1" && CORVINT_CONFINE_ROOT="$PWD" timeout -k 30 "$left" "$GO" test $GO_TEST_FLAGS -json -count=1 -timeout "$TEST_TIMEOUT" "./$2") > "$4" 2>&1 < /dev/null || status=$?
+    if [ "$status" -eq 124 ] || { [ "$status" -eq 137 ] && [ "$(elapsed)" -ge "$BUDGET_SECONDS" ]; }; then
+      echo timeout
+      return
+    fi
+  else
+    # shellcheck disable=SC2086
+    (cd "$1" && CORVINT_CONFINE_ROOT="$PWD" "$GO" test $GO_TEST_FLAGS -json -count=1 -timeout "$TEST_TIMEOUT" "./$2") > "$4" 2>&1 < /dev/null || status=$?
+  fi
   jq -R -s -r --arg pkg "$3" --argjson status "$status" '
     [split("\n")[] | fromjson? // empty | select(type == "object")] as $ev
     | any($ev[]; .Action == "pass" and .Package == $pkg and ((.Test // "") == "")) as $passed
@@ -130,6 +152,7 @@ jq -c '.misses[] | select((.pr | type) == "number")' "$MISS" | while read -r mis
         case "$b" in
         fail) verdict=preexisting why="the package already fails at the base $base" ;;
         unusable) why="the base rerun at $base is unusable (compile error elsewhere, no package or a pass with a nonzero exit)" ;;
+        timeout) why="the base rerun at $base did not end within the $BUDGET_SECONDS s budget" ;;
         pass | absent)
           m1=$(rerun "$dir/at-merge" "$pkgdir" "$pkg" "$dir/confirm/$pr-$n-merge1.json")
           case "$m1" in
@@ -139,9 +162,11 @@ jq -c '.misses[] | select((.pr | type) == "number")' "$MISS" | while read -r mis
             case "$m2" in
             pass) verdict=flake why="the package passed on its second rerun at the merge commit $merge" ;;
             fail) verdict=confirmed why="the package passes at the base $base and failed twice at the merge commit $merge" ;;
+            timeout) why="the second merge rerun at $merge did not end within the $BUDGET_SECONDS s budget" ;;
             *) why="the second merge rerun at $merge is $m2" ;;
             esac
             ;;
+          timeout) why="the merge rerun at $merge did not end within the $BUDGET_SECONDS s budget" ;;
           *) why="the merge rerun at $merge is $m1" ;;
           esac
           [ "$b" != absent ] || why="$why; the package is absent at the base, so the base counts as a pass"
