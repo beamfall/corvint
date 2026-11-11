@@ -2,20 +2,21 @@
 
 Owner: Russell Lewis
 Drafted: 2026-08-30
-Intent status: proposed
-Delivery status: experimental pure-core slice
-Status note: downstream profile of `human-documentation-compiler-v0.md`; frozen until HDC emits one
-real implementation plan.
-Implementation: `internal/docviews`
+Intent status: retired 2026-11-11 (owner decision R33, 2026-11-09; V1-4804)
+Delivery status: retired
+Retirement base: 4c3c203336a6cc4a9772af39b1a771f34236138e
+Retirement note: owner decision R33 (2026-11-09, `PRODUCT-PLAN-1.0.md` row O42) deletes orphaned code; V1-4804 removed `internal/docviews`, the only implementation of this spec, which had no importer. The body below is historical and its requirement IDs stay for reference; every test it names was deleted with the package and stays retrievable at the retirement base.
+Status note: downstream profile of `human-documentation-compiler-v0.md`; retired with its only
+implementation, see the retirement note.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/human-documentation-compiler-v0.md`,
 `docs/specs/deployment-neutral-index-platform-v0.md`
 
 ## Agent digest
 - Claim: One evidence ledger must compile consistent expert, executive, and operator views without audience-specific factual divergence.
-- Status: proposed/experimental pure-core slice
-- Exists: `internal/docviews` deterministic compilation and verification.
-- Blocked on: a real Human Documentation Compiler implementation plan and downstream qualification.
+- Status: retired 2026-11-11 (owner decision R33, 2026-11-09; V1-4804) / retired
+- Exists: nothing since V1-4804; the `internal/docviews` deterministic compilation and verification stays retrievable at the retirement base.
+- Blocked on: nothing; retired by owner decision R33 (V1-4804).
 - Read next: Product claim and measurable job; Existing contracts and ownership; Requirements.
 
 ## Product claim and measurable job
@@ -253,10 +254,10 @@ remains experimental and unselectable.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `CATN-V0-001..004` | `internal/docviews/compile.go`, `types.go` | plan binding, truth preservation (`TestCompilePreservesARepeatedPlanAnchor`), overlay, and canonical-input tests |
+| `CATN-V0-001..004` | `internal/docviews/compile.go`, `types.go` | plan binding, truth preservation (`TestCompilePreservesARepeatedPlanAnchor` (removed)), overlay, and canonical-input tests |
 | `CATN-V0-005..009` | `internal/docviews/compile.go`, `verify.go` | five-view closure, hostile mutation, exact-source verification, determinism, and caller-nonmutation tests |
 | `CATN-V0-010..011` | isolated package boundary | disclosure-scope assertions and production-import audit |
 | `CATN-V0-012` | `internal/docviews/compile.go`, `verify.go` | direct compile/verify limit tests and canonical-byte boundary regression |
 | `CATN-V0-013` | fixed experimental labels and package isolation | repository diff; outcome, accessibility, disclosure, and independent-replication gates `NOT_RUN` |
-| `CATN-V0-014` | `internal/docviews/compile.go`, `verify.go` | `TestConflictedClaimRequiresTwoDistinctEvidenceLocations`, `TestCompileKeepsDisqualifiedAnchorsAsReviewContext` (decision 0268) |
-| `CATN-V0-015` | `internal/docviews/compile.go`, `verify.go`, `internal/doccompiler/canonical.go` | `TestTruthDigestAndBundleHashHDCV0041BytesWithoutHTMLOrLineSeparatorEscapes` |
+| `CATN-V0-014` | `internal/docviews/compile.go`, `verify.go` | `TestConflictedClaimRequiresTwoDistinctEvidenceLocations` (removed), `TestCompileKeepsDisqualifiedAnchorsAsReviewContext` (removed) (decision 0268) |
+| `CATN-V0-015` | `internal/docviews/compile.go`, `verify.go`, `internal/doccompiler/canonical.go` | `TestTruthDigestAndBundleHashHDCV0041BytesWithoutHTMLOrLineSeparatorEscapes` (removed) |
