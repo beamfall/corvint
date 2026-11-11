@@ -2,10 +2,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -141,28 +139,23 @@ func driverDeclarationChange(ctx context.Context, root, base, dir string) string
 	return compareDriverEntry([]byte(before), after, dir)
 }
 
-// compareDriverEntry is the pure half of driverDeclarationChange. Unknown
-// members, duplicate names (rejected by encoding/json/v2, as Corvint's own
-// reader rejects them), oversize input or another profile is doubt.
+// compareDriverEntry is the pure half of driverDeclarationChange. Both sides
+// are judged by Corvint's own declaration grammar (gateselect.ParseReadScopes):
+// unknown members, duplicate names, another profile, oversize input, or an
+// invalid package path or entry list on either side is doubt, so a base that
+// HEAD repairs still runs (ASC-V0-9850).
 func compareDriverEntry(before, after []byte, dir string) string {
-	type declaration struct {
-		Profile  string              `json:"profile"`
-		Packages map[string][]string `json:"packages"`
-	}
-	decode := func(data []byte) (declaration, bool) {
-		var d declaration
-		if len(data) > declarationLimit || jsonv2.UnmarshalRead(bytes.NewReader(data), &d, jsonv2.RejectUnknownMembers(true)) != nil {
-			return d, false
-		}
-		return d, d.Profile == "corvint-test-read-scopes/0" && d.Packages != nil
+	decode := func(data []byte) (map[string][]string, bool) {
+		packages, err := gateselect.ParseReadScopes(data)
+		return packages, err == nil
 	}
 	b, okBefore := decode(before)
 	a, okAfter := decode(after)
 	if !okBefore || !okAfter {
 		return "the declaration does not decode on both sides"
 	}
-	entryBefore, declaredBefore := b.Packages[dir]
-	entryAfter, declaredAfter := a.Packages[dir]
+	entryBefore, declaredBefore := b[dir]
+	entryAfter, declaredAfter := a[dir]
 	if declaredBefore != declaredAfter || !slices.Equal(entryBefore, entryAfter) {
 		return "its " + dir + " entry changed"
 	}
