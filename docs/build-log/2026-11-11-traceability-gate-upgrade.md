@@ -75,10 +75,35 @@ and its head move together.
 - A marker written after a subtest suffix (`` `TestX/REQ-1` (PLANNED) ``) is not recognized,
   because the design keeps the exemption checks unchanged and they read the text right after the
   name. No row at the base uses that form. A planned subtest citation is written `TestX (PLANNED)`.
-- The range compares BASE as given, as the design says, not the merge base. A BASE that is not an
-  ancestor of HEAD can therefore report requirements that BASE's side added; CI on a pull request
-  passes the base commit of the synthetic merge, which is an ancestor.
+- The range first compared BASE as given, as the design said. Review finding 2 changed that: see
+  "Review fixes" below.
 - No CI step runs the range form yet (task 2.5): the `.github` edit is a separate change.
+
+## Review fixes (round 1)
+
+An independent review of the first build raised five findings. Each was checked against the code
+before any change; the spec amendment (`91c32387a`) precedes the script commit (`79fefeb42`).
+
+- One-line declaration (P1, confirmed by a repro: `func TestOne(t *testing.T) { t.Skip() }`
+  followed by a function holding `REQ-1` resolved `TestOne/REQ-1`). The body is now the declaration
+  line alone when that line closes every brace it opens and ends on a closing brace (TTG-V0-961).
+  The body also now starts at the `func` keyword, not at blank lines the declaration pattern's
+  leading `\s*` could span.
+- Literal BASE (P2, confirmed in the code). The range form compares `git merge-base BASE HEAD`
+  with HEAD and refuses a range with no merge base, naming both revisions, exit 2 (TTG-V0-962).
+  The 50-commit measurement above is unchanged by this (its BASE is an ancestor): same 516 lines,
+  10.0 s.
+- Raw-string brace (P2, confirmed by a repro). Not parsed: TTG-V0-961 and the trust-boundary table
+  state that a column-0 `}` in a raw string ends the body, and the refusal now reads
+  `(no declaration of T contains ID; each body was read from its func line to the first column-0 }: FILE...)`.
+- `(PLANNED)` demotion (P3). A fixture pins that a demoted name does not cite, so the requirement
+  is reported as losing its last citation unless the row states `(untested: REASON)`.
+- Unstated rules (P3). TTG-V0-960 and TTG-V0-962 now say that one resolving name cites every
+  first-cell ID of its row, that a marker after a subtest suffix is not recognised, and that ticket
+  IDs match the ID shape. No behaviour changed for these.
+
+The fixture fails on the previous script, and reverting the one-line rule, the merge base or the
+no-merge-base refusal each fails it.
 
 ## Not run
 
