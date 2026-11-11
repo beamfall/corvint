@@ -1,0 +1,12 @@
+{
+  "profile": "corvint-flows/0",
+  "flows": "flows",
+  "kinds": [
+    {"path": ".", "kind": "unit"},
+    {"path": "test/integration", "kind": "integration"}
+  ],
+  "playwright": {
+    "config": "playwright.config.ts",
+    "discovery": ".corvint/playwright-discovery.json"
+  }
+}

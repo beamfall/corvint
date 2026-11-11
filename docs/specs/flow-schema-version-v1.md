@@ -128,8 +128,8 @@ approval if either run differs from its expected output. (G5; PROD-INT-016; PROD
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
-| FSV-V1-001 | 2.1 | not yet built | not yet built |
-| FSV-V1-002 | 2.1 | not yet built | not yet built |
+| FSV-V1-001 | 2.1 | `internal/appflows/flowschema.go` (`parseFlowsProfile`, `ReadFlowsDeclaration`) | `TestFSVV1001VersionZeroReads_V15410`, `TestFSVV1004MalformedProfileInvalid_V15410` |
+| FSV-V1-002 | 2.1 | `flowsSchemas` in `internal/appflows/flowschema.go`; `internal/appflows/testdata/flows-schema/0.members` and `0.golden.json` | `TestFSVV1002MemberListsAreFrozen_V15410`, `TestFSVV1002AddedMemberWithoutNewVersionFails_V15410` |
 | FSV-V1-003 | 2.2 | not yet built | not yet built |
 | FSV-V1-004 | 2.3, 3.1 | not yet built | not yet built |
 | FSV-V1-005 | 2.4 | not yet built | not yet built |
