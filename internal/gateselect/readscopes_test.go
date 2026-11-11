@@ -22,7 +22,8 @@ func TestSelectPackagesHonorsDeclaredReadScopes(t *testing.T) {
 		{"docs/a/b.md", "run example.com/fixture/other example.com/fixture/walker", "declared example.com/fixture/walker <- docs/a/b.md"},
 		{"docs", "run example.com/fixture/other example.com/fixture/walker", "declared example.com/fixture/walker <- docs"},
 		{"go.mod.orig", "run example.com/fixture/other", ""},
-		{readScopesPath, "run example.com/fixture/other example.com/fixture/walker", "declared example.com/fixture/walker <- " + readScopesPath},
+		// NCM-V1-005 (V1-5424): an edit of the declaration runs everything.
+		{readScopesPath, "FALLBACK corvint-config " + readScopesPath, ""},
 		{"walker/testdata/x", "run example.com/fixture/other example.com/fixture/walker", "reader example.com/fixture/walker <- walker/testdata/x"},
 	}
 	for _, tc := range cases {

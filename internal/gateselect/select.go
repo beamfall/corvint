@@ -40,6 +40,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/noncodemap"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
@@ -58,6 +59,18 @@ type Receipt struct {
 			Class string   `json:"class"`
 			Paths []string `json:"paths"`
 		} `json:"nonSource"`
+		// Deleted and E2E feed the non-code decision (NCM-V1-001,
+		// NCM-V1-006): a deleted runner configuration is a removed runner,
+		// and the flow join says whether a flow file's changed flows can be
+		// computed.
+		Deleted []string `json:"deleted"`
+		E2E     *struct {
+			Flows   string `json:"flows"`
+			Unknown []struct {
+				Reason string `json:"reason"`
+				Detail string `json:"detail"`
+			} `json:"unknown"`
+		} `json:"e2e"`
 		// GoAdditive is the planner's additive-change records
 		// (ADN-V0-001); a NARROWED one limits its package's dependents
 		// to the referencing importers (ADN-V0-006).
@@ -255,11 +268,20 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 // selectPackagesFrom is selectPackages with the index read from build once the
 // plan passes the checks that need none.
 func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) []string {
+	return attributeFrom(plan, module, root, withUnresolved, build, true)
+}
+
+// attributeFrom is selectPackagesFrom; nonCode applies the NCM-V1 decision
+// before attribution. Only tests pass false, to keep covering the rule (c)
+// attribution of a path the decision runs everything for, which
+// packageBounds (tools/gate-ledger) still applies.
+func attributeFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error), nonCode bool) []string {
 	var lines []string
 	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
 	state := plan.Provider.Go.State
 	if state != "RUNNABLE" && state != "EMPTY_SELECTION" {
-		return fallback("provider.go.state is " + state)
+		// NCM-V1-001 (R32): an unavailable runner runs everything, named.
+		return fallback(noncodemap.ReasonRunnerRemoved + " go: provider.go.state is " + state)
 	}
 	for _, entry := range plan.Plan.Unknown {
 		if entry.Reason == "LANGUAGE_FRONTIER" && moduleLevelFrontiers[entry.Detail] {
@@ -284,6 +306,19 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 	index, err := build()
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
+	}
+	// NCM-V1-001 to NCM-V1-008: a non-code path no proven map entry narrows,
+	// Corvint configuration and a never-narrowed path run everything, each
+	// printed with its reason; an invalid map is refused, never read as empty.
+	if nonCode {
+		decision, err := nonCodeDecision(plan, index, root)
+		if err != nil {
+			return fallback(err.Error())
+		}
+		lines = append(lines, decision.Audit()...)
+		if line, full := decision.FullRun(); full {
+			return fallback(line.Reason + " " + line.Path)
+		}
 	}
 	if withUnresolved {
 		reason, suites := unknownNarrowing(plan, index, root)
@@ -445,6 +480,10 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
+		}
+		if entry.Reason == unownedDirtyPath && noncodemap.CleanPath(entry.Detail) {
+			// NCM-V1-001 (R32): an unowned path runs everything, named.
+			return noncodemap.ReasonUnowned + " " + entry.Detail, nil
 		}
 		reason := entry.Reason
 		if !unknownReason.MatchString(reason) {

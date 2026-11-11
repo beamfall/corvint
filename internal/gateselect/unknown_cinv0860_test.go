@@ -13,7 +13,9 @@ import (
 // (attributed to it and its importer by rule (a)); an unindexed existing
 // source, a deleted source of a removed package, another reason, a malformed
 // reason and an UNKNOWN plan naming none fall back. The UNOWNED_DIRTY_PATH and
-// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480. A
+// NO_SELECTABLE_TEST cases were V1-3354 negatives, inverted by V1-3480; the
+// UNOWNED_DIRTY_PATH case is inverted again by NCM-V1-001 (owner decision
+// R32, V1-5424): an unowned path runs everything, named. A
 // well-formed UNSELECTED_BINARY_CONSUMER narrows too (V1-4361): no Go run,
 // narrowed or FULL, runs it; a malformed one falls back.
 // SelectStructural (`corvint test`) is unchanged.
@@ -34,7 +36,7 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 		receipt.Provider.Go.State = "RUNNABLE"
 		receipt.Provider.Go.Packages = []string{fixtureModule + "/core"}
 		receipt.Plan.Scope = scope
-		receipt.Plan.Dirty = []string{"core/core.go", "Makefile", "core/gone.go", "removed/gone.go"}
+		receipt.Plan.Dirty = []string{"core/core.go", "notes/readme.xyz", "core/gone.go", "removed/gone.go"}
 		receipt.Plan.Unknown = unknowns
 		return receipt
 	}
@@ -50,8 +52,8 @@ func TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860(t *testing.T) {
 	}{
 		{"bounded", plan("BOUNDED"), "run " + core + " " + user},
 		{"language frontiers alone", plan("UNKNOWN", frontier, unknown{"LANGUAGE_FRONTIER", "shell:foreign-invocation-unmodelled"}), "run " + core + " " + user},
-		{"an unowned dirty path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "run " + core + " " + user},
-		{"an unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "Makefile"}), "run " + core + " " + user},
+		{"an unowned dirty path", plan("UNKNOWN", unknown{"UNOWNED_DIRTY_PATH", "notes/readme.xyz"}), "FALLBACK UNOWNED_DIRTY_PATH notes/readme.xyz"},
+		{"an unowned path beside frontiers", plan("UNKNOWN", frontier, unknown{"UNOWNED_DIRTY_PATH", "notes/readme.xyz"}), "FALLBACK UNOWNED_DIRTY_PATH notes/readme.xyz"},
 		{"no selectable test", plan("UNKNOWN", unknown{"NO_SELECTABLE_TEST", "go:x"}), "run " + core + " " + user},
 		{"a deleted source of a package that exists", plan("UNKNOWN", unknown{"UNINDEXED_SOURCE_PATH", "core/gone.go"}), "run " + core + " " + user},
 		{"a binary consumer", plan("UNKNOWN", frontier, unknown{"UNSELECTED_BINARY_CONSUMER", "tools/web-flows/test/e2e.mjs"}), "run " + core + " " + user}, //corvint:fixture-path

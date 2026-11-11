@@ -76,6 +76,7 @@ func selwideSession(t *testing.T, root string, graph *affected.Graph, dirty stri
 
 // AFP-V0-9012: reuse PR #125's hidden discovery; both source universes keep
 // the helper and importers. An injected unindexable source kind still forces FULL.
+// A helper under .github/ runs everything since NCM-V1-005 (V1-5424).
 func TestHiddenGoSelection_AFPV09012(t *testing.T) {
 	for _, directory := range []string{".github/cishards", ".github/testconfine", "nested/.helpers"} {
 		t.Run(directory, func(t *testing.T) {
@@ -107,14 +108,26 @@ func TestHiddenGoSelection_AFPV09012(t *testing.T) {
 			if plan.Scope != affected.ScopeBounded || !slices.Equal(plan.SelectedTests(), want) {
 				t.Fatalf("plan=%+v", plan)
 			}
-			if m := selwideSession(t, root, graph, directory+"/helper.go"); m.Scope == sessiontest.ScopeFull || len(m.Units) != 2 {
+			m := selwideSession(t, root, graph, directory+"/helper.go")
+			if strings.HasPrefix(directory, ".github/") {
+				// NCM-V1-005 (V1-5424): every path under .github/ runs
+				// everything, with the path named.
+				if m.Scope != sessiontest.ScopeFull || m.Reason != "never-narrowed-path "+directory+"/helper.go" {
+					t.Fatalf("session=%+v", m)
+				}
+			} else if m.Scope == sessiontest.ScopeFull || len(m.Units) != 2 {
 				t.Fatalf("session=%+v", m)
 			}
 			fault, err := affected.Build(context.Background(), root, golang.New(), selwideUnindexed{})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if m := selwideSession(t, root, fault, directory+"/new.unmodelled"); m.Scope != sessiontest.ScopeFull || !strings.Contains(m.Reason, affected.UnknownUnindexedSourcePath) {
+			// Under .github/ the never-narrowed reason comes first (NCM-V1-005).
+			reason := affected.UnknownUnindexedSourcePath
+			if strings.HasPrefix(directory, ".github/") {
+				reason = "never-narrowed-path " + directory + "/new.unmodelled"
+			}
+			if m := selwideSession(t, root, fault, directory+"/new.unmodelled"); m.Scope != sessiontest.ScopeFull || !strings.Contains(m.Reason, reason) {
 				t.Fatalf("injected source was narrowed: %+v", m)
 			}
 		})
@@ -186,6 +199,7 @@ func (selwideUnindexed) Units(context.Context, string) (affected.Result, error) 
 
 // AFP-V0-9013: hosted unindexed fixtures retain readers without FULL; failed
 // indexing of real compiled source retains FULL, even below a testdata directory.
+// Since NCM-V1-001 (V1-5424) an unowned fixture runs everything, readers included.
 func TestUnindexedFixtureSession_AFPV09013(t *testing.T) {
 	root, _ := selwideFiles(t, map[string]string{
 		"go.mod":                "module example.test/m\n\ngo 1.27.0\n",
@@ -203,14 +217,16 @@ func TestUnindexedFixtureSession_AFPV09013(t *testing.T) {
 	}
 	for _, dirty := range []string{"host/testdata/case.rb", "host/testdata/new.go"} {
 		m := selwideSession(t, root, graph, dirty)
-		if m.Scope == sessiontest.ScopeFull {
-			t.Fatalf("fixture forced FULL: %+v", m)
+		// NCM-V1-001 (V1-5424): the plan reports the fixture UNOWNED_DIRTY_PATH
+		// (a Ruby unit could read it unseen), so it runs everything, named.
+		if m.Scope != sessiontest.ScopeFull || m.Reason != "non-code-unmapped "+dirty {
+			t.Fatalf("fixture did not run everything: %+v", m)
 		}
 		var units []string
 		for _, u := range m.Units {
 			units = append(units, u.Unit)
 		}
-		if !slices.Contains(units, "go:example.test/m/host") || slices.Contains(units, "go:example.test/m/solo") {
+		if !slices.Contains(units, "go:example.test/m/host") || !slices.Contains(units, "go:example.test/m/solo") {
 			t.Fatalf("fixture readers=%v", units)
 		}
 		if strings.HasSuffix(dirty, ".rb") && !slices.Contains(units, "go:example.test/m/reader") {

@@ -17,6 +17,7 @@ import (
 
 // AZU-V0-9900: exercise the public dry-run through manifest projection and argv,
 // rather than relying only on the affected selection's package membership.
+// Since NCM-V1-001 (V1-5424) the unowned addition makes the run FULL.
 func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 	root, _ := ratchetSelectionRepo(t)
 	affectedGit(t, root, "rm", "web/test.ts")
@@ -53,7 +54,10 @@ func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 			if unit.Unit != "go:example.test/m/internal/liveverify/affected" {
 				continue
 			}
-			if unit.Slice != sessiontest.SliceSelected || unit.Pattern != "^("+affected.OwnershipAuditTest+")$" || !strings.Contains(unit.Reason, "AZU-V0-9900") || !strings.Contains(strings.Join(inv.Argv, " "), affected.OwnershipAuditTest) {
+			// NCM-V1-001 (V1-5424): the tracked addition is an
+			// UNOWNED_DIRTY_PATH, so the run is FULL; the ratchet still runs,
+			// whole, with its name and triggering path explained.
+			if unit.Slice != sessiontest.SliceWhole || !strings.Contains(unit.Reason, affected.OwnershipAuditTest) || !strings.Contains(unit.Reason, "data/new.txt") || !strings.Contains(unit.Reason, "AZU-V0-9900") {
 				t.Fatalf("gate unit=%+v argv=%q", unit, inv.Argv)
 			}
 			return

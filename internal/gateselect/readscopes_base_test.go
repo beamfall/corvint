@@ -92,8 +92,10 @@ func declaration(packages string) string {
 
 // declaredLines returns the packages selectPackages selects on a `declared`
 // line, in order, and the verdict.
+// It reads the attribution without the NCM-V1 decision, which now runs
+// everything for an edit of the declaration (NCM-V1-005, V1-5424).
 func declaredLines(plan Receipt, root string) ([]string, string) {
-	output := selectPackages(plan, fixtureModule, root, true)
+	output := attributionLines(plan, root, true)
 	var declared []string
 	for _, line := range output[:len(output)-1] {
 		if rest, ok := strings.CutPrefix(line, "declared "+fixtureModule+"/"); ok {
@@ -107,6 +109,8 @@ func declaredLines(plan Receipt, root string) ([]string, string) {
 // declaration selects only the packages whose key was added, changed or
 // removed, and a package whose declared scope holds the declaration; an
 // unknown base keeps the AFP-V0-023 rule and selects every declared package.
+// Both selectors now run everything for that edit (NCM-V1-005, V1-5424); the
+// cases keep covering the base comparison the attribution still makes.
 func TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050(t *testing.T) {
 	files := map[string]string{}
 	for _, name := range []string{"alpha", "beta", "gamma", "delta", "keeper"} {
@@ -140,6 +144,7 @@ func TestSelectPackagesNarrowsDeclarationEditsAgainstTheBase_AFPV0050(t *testing
 			if tc.snapshot {
 				plan.Snapshot = map[string]any{"id": "s"}
 			}
+			requireCorvintConfig(t, plan, root, readScopesPath)
 			declared, verdict := declaredLines(plan, root)
 			if !slices.Equal(declared, tc.want) {
 				t.Fatalf("declared %v, want %v (verdict %q)", declared, tc.want, verdict)
