@@ -9,7 +9,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 2 Add the ID package: format, parse, escape and file-level match.
    Requirements: CTI-V1-001, CTI-V1-002, CTI-V1-008. Proof: table-driven unit tests, including a
    round trip of every escape case.
-- [ ] 3 Add the per-runner name path mapping from each runner's machine report.
+- [x] 3 Add the per-runner name path mapping from each runner's machine report.
    Requirements: CTI-V1-003, CTI-V1-004, CTI-V1-005, CTI-V1-006, CTI-V1-007. Proof: one recorded
    report per runner under `testdata/`, mapped to the expected IDs.
 - [ ] 4 Add duplicate detection and the unknown-widening rule.
