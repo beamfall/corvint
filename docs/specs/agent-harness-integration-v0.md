@@ -1430,7 +1430,7 @@ separate exact extension tuple remains governed by AHI-024.
   the `prompt-echo-withheld` branch in `integrations/opencode/src/index.js`.
 - `AHI-175`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Full OpenCode
   qualification (`tools/qualify-opencode` without `--native-only`) MUST admit exactly the one Go
-  toolchain decision 0557 pins, `go1.27.3` (amended by decision 0557; decision 0547 admitted
+  toolchain decision 0557 pins, `go1.27.4` (amended by decision 0557; decision 0547 admitted
   `go1.27.2` and `go1.27.3`), and refuse any other reported version, including the former
   `go1.27.2` pin and a development build, before running the focused suite. Evidence:
   `TestAdmittedGoVersion`. Failure mode: a go1.27.2-only host now refuses, and a future pin is

@@ -17,7 +17,7 @@ import (
 // contradicts, and refuses evidence that does not describe one observed tested merge.
 func TestTSPV0007PriorRecordFromRunEvidence(t *testing.T) {
 	head, target, tree := strings.Repeat("1", 40), strings.Repeat("2", 40), strings.Repeat("3", 40)
-	id := identity{Driver: "d", GoVersion: "go1.27.3"}
+	id := identity{Driver: "d", GoVersion: "go1.27.4"}
 	write := func(t *testing.T, dir string, e execution, events string) {
 		t.Helper()
 		if err := os.MkdirAll(dir, 0700); err != nil {
