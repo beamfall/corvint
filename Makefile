@@ -844,6 +844,21 @@ py-signal-lint:
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
 
+# OSC-V1-011 (V1-5399): the Go check of the OpenSpec change folders, their propose, apply and archive
+# stages, the one OpenSpec root and the spec Health: lines (docs/specs/openspec-check-v1.md). It needs
+# full history: a shallow clone refuses with history-unavailable. OPENSPEC_BASE=<rev> also checks the
+# commits of <rev>..HEAD (OSC-V1-003, OSC-V1-004), which otherwise report NOT_RUN; failures of a
+# subject in tools/openspec-check/baseline.txt are reported only, and that file only shrinks.
+.PHONY: openspec-check
+openspec-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/openspec-check $(if $(OPENSPEC_BASE),--base "$(OPENSPEC_BASE)")
+
+# OSC-V1-011: the focused-docs release gate's checks (.github/workflows/release-gates.yml and the
+# Tasks gate of the same name) plus openspec-check, for that gate to call as one target.
+.PHONY: focused-docs
+focused-docs: ## Run the focused-docs gate checks, including openspec-check
+	@$(MAKE) --no-print-directory spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check openspec-check
+
 .PHONY: error-code-ownership-check
 error-code-ownership-check:
 	@script/check-error-code-ownership.sh
@@ -1172,6 +1187,7 @@ DOC_GATE_TARGETS := \
   long-lines-check \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
+  openspec-check \
   py-signal-lint \
   requirement-definitions-check \
   selection-baseline-check \
