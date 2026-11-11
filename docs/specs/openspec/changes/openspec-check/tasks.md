@@ -12,25 +12,25 @@ orchestrator sets its `requirementRefs`.
 - [x] 1.2 First commit: create `docs/specs/openspec-check-v1.md` from the spec delta, its README row
       and the regenerated index; amend PRS-V1-018 in the same commit. Requirements: OSC-V1-001 to
       012, PRS-V1-018. Proof: `make spec-requirements-check` passes.
-- [ ] 2.1 Layout and requirement-ID rules with fixtures. Requirements: OSC-V1-001, OSC-V1-002.
+- [x] 2.1 Layout and requirement-ID rules with fixtures. Requirements: OSC-V1-001, OSC-V1-002.
       Proof: Go tests over passing and failing fixture folders.
-- [ ] 2.2 Commit binding by trailers and the propose-stage rule. Requirements: OSC-V1-003,
+- [x] 2.2 Commit binding by trailers and the propose-stage rule. Requirements: OSC-V1-003,
       OSC-V1-004. Proof: a fixture history where code precedes its folder fails; one where the folder
       is in the parent passes.
-- [ ] 2.3 Apply-stage rules: tick order and canonical spec update. Requirements: OSC-V1-005. Proof:
+- [x] 2.3 Apply-stage rules: tick order and canonical spec update. Requirements: OSC-V1-005. Proof:
       fixtures with an out-of-order tick and with a ticked task whose ID is missing from the
       canonical spec both fail; a ticked task for a spec in another repository is reported as
       `external-spec-not-verified` and does not fail.
-- [ ] 2.4 Archive-stage rules. Requirements: OSC-V1-006. Proof: fixtures for a finished folder left
+- [x] 2.4 Archive-stage rules. Requirements: OSC-V1-006. Proof: fixtures for a finished folder left
       under `changes/`, for an edited archived folder and for an archived folder with an unticked
       task all fail; a folder moved by `openspec archive <name> --skip-specs` passes.
-- [ ] 2.5 Boundary rules. Requirements: OSC-V1-007. Proof: fixtures with a root `openspec/`
+- [x] 2.5 Boundary rules. Requirements: OSC-V1-007. Proof: fixtures with a root `openspec/`
       directory, with no `config.yaml` and with a `docs/specs/openspec/specs/` tree all fail.
-- [ ] 2.6 Health class header line, generator projection and check. Requirements: OSC-V1-008.
+- [x] 2.6 Health class header line, generator projection and check. Requirements: OSC-V1-008.
       Proof: generator test; a spec without the line fails.
-- [ ] 2.7 Acceptance link to the auto-accept log. Requirements: OSC-V1-009. Proof: a proposal marked
+- [x] 2.7 Acceptance link to the auto-accept log. Requirements: OSC-V1-009. Proof: a proposal marked
       accepted with no log entry fails.
-- [ ] 2.8 Carry-over trace for PRS-V1-018 (c) and (d). Requirements: OSC-V1-010. Proof: traceability
+- [x] 2.8 Carry-over trace for PRS-V1-018 (c) and (d). Requirements: OSC-V1-010. Proof: traceability
       rows to SRG-V0-009, 010 and 012 and their existing tests.
 - [ ] 2.9 Make target, `doc-gates` and `focused-docs` wiring, baseline file, history refusal.
       Requirements: OSC-V1-011. Proof: a shallow-clone run refuses with `history-unavailable`.
