@@ -15,6 +15,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -22,6 +23,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
@@ -398,6 +400,9 @@ func (q qualifier) mutant(s Site) (MutantResult, error) {
 	}
 	res.KeptCount = len(kept)
 	failed, broken, err := failingTests(q.root, q.ix.Module, q.suite, q.timeout, q.exec)
+	if errors.Is(err, errQualifyInterrupted) {
+		return res, err
+	}
 	if err != nil {
 		res.State, res.Detail = "invalid", err.Error()
 		return res, nil
@@ -744,6 +749,11 @@ func (b broken) settle(failed map[string]bool, heads map[string][]string) {
 	}
 }
 
+// errQualifyInterrupted is a qualify run ended by SIGINT or SIGTERM to the
+// qualify process: it stops qualify rather than counting a mutant invalid
+// (GLS-V0-052).
+var errQualifyInterrupted = errors.New("qualify: interrupted")
+
 // failingTests runs the directories whole and returns failing top-level
 // tests as dir.Name, and the packages that failed outside every test. A
 // directory with no package result means go test did not run it, which
@@ -756,14 +766,25 @@ func failingTests(root, module string, dirs []string, timeout time.Duration, wra
 	if len(wrapper) == 1 && wrapper[0] != "" {
 		args = append(args, "-exec", wrapper[0])
 	}
+	// Each run has a process group of its own (GLS-V0-051), so a mutant that
+	// signals its group reaches only its run; the terminal's and the caller's
+	// SIGINT and SIGTERM no longer reach the run, so qualify kills its group
+	// and stops (GLS-V0-052).
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	var out []byte
 	var runErr error
 	for _, d := range dirs {
 		pkgArgs := append(append([]string{}, args...), "./"+d)
-		cmd := exec.Command("go", pkgArgs...)
+		cmd := exec.CommandContext(ctx, "go", pkgArgs...)
 		cmd.Dir = root
-		data, err := cmd.CombinedOutput()
-		out = append(out, data...)
+		var data bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &data, &data
+		err := linecov.RunIsolated(cmd)
+		if ctx.Err() != nil {
+			return nil, broken{}, fmt.Errorf("%w while running %s", errQualifyInterrupted, d)
+		}
+		out = append(out, data.Bytes()...)
 		out = append(out, '\n')
 		if err != nil {
 			runErr = err
