@@ -15,6 +15,8 @@ The heavycap charter of 2026-11-07 adds ASD-V0-2477/2478; its evidence is in
 pre-commit half of V1-5007 (`script/test-run-pattern.sh`), under the parent's prefix for the same
 reason; see build-log entry `2026-11-09-seldis`. Lane seldisfix (2026-11-09, the review of seldis)
 adds ASD-V0-5133 to ASD-V0-5135 to the same script; see build-log entry `2026-11-09-seldisfix`.
+Lane gaterel (2026-11-11; V1-5019) adds ASD-V0-5190 to ASD-V0-5192, the FULL-selection disclosure
+of `script/heavy.sh`; see build-log entry `2026-11-11-gaterel`.
 
 ## Agent digest
 - Claim: Lane admission bounds runtime concurrency and admits source edits conservatively while preserving narrow test-only selections.
@@ -148,10 +150,44 @@ needs, and each keeps a negative control that still refuses or runs everything.
   a testless directory as controls, `testdata` alone, a `go.mod` edit over a narrowed package and
   alone).
 
+- `ASD-V0-5190`: (experimental under the owner's standing lane auto-accept (2026-10-11); lane gaterel
+  charter 2026-11-11; V1-5019 heavy.sh admitted every package of a FULL manifest without saying so;
+  refines ASD-V0-891) When `HEAVY_SELECTION` names a readable `corvint-test-manifest/0` whose `scope`
+  is `FULL`, every `script/heavy.sh` `go test` (before any admission rule: a `-run` selection, a
+  small, new or source-edited package, an explicit `HEAVY_WHOLE_REASON` or the manifest itself) and
+  every `script/heavy.sh --plan` of that manifest MUST print one stderr line
+  `heavy.sh: FULL-selection: HEAVY_SELECTION=PATH (planDigest HEX12) is scope FULL: ...` that says
+  every package runs whole, so the run is coverage and not narrowing evidence, and names the
+  manifest's recorded `reason` (the plan unknown outside the AFP-V0-028 allowlist, the FALLBACK or
+  the plan error that made it FULL) and each `incomplete` entry. Control characters print as `?`
+  and each value is cut at 512 bytes with its length named; a FULL manifest with no reason names
+  `NOT_RECORDED`. A NARROWED or NOTHING manifest prints no notice. The notice changes no admission.
+  Failure mode: the manifest records only the deciding unknown, so the notice names that one; the
+  full unknown list stays in `corvint affected --base SHA`.
+- `ASD-V0-5191`: (experimental under the owner's standing lane auto-accept (2026-10-11); lane gaterel
+  charter 2026-11-11; V1-5019; amends the ASD-V0-891 log and plan line formats) Under
+  `HEAVY_SELECTION`, every selection-log line heavy.sh writes for a `go test` MUST carry
+  ` scope=S` before ` pwd=`, and every command `--plan` prints MUST carry `HEAVY_SELECTION_SCOPE=S`
+  after its `HEAVY_SELECTION=PATH` word, so a lane VERIFY file built from the plan records FULL or
+  narrowed per command. S is the manifest's `FULL`, `NARROWED` or `NOTHING`; a manifest with no
+  such scope (one older than the field, or a hand-written fixture) is `UNKNOWN`, never `NARROWED`,
+  and an unreadable or invalid one is `UNREADABLE` in the log. No manifest, receipt or CEM field
+  is added.
+- `ASD-V0-5192`: (experimental under the owner's standing lane auto-accept (2026-10-11); lane gaterel
+  charter 2026-11-11; V1-5019) A `go test` with a non-empty `HEAVY_SELECTION_SCOPE` MUST be refused
+  before anything runs, with exit 2, the stdout marker `heavy.sh: REFUSED selection-scope-mismatch
+  (exit 2)` and one stderr line naming the recorded and the actual scope and the fix (rerun
+  `--plan` and use its commands), when `HEAVY_SELECTION` is unset, when the value is not one of
+  `FULL`, `NARROWED`, `NOTHING` or `UNKNOWN`, or when it differs from the manifest's scope
+  (`UNREADABLE` included). A VERIFY command recorded as NARROWED therefore cannot replay against a
+  regenerated FULL manifest unnoticed. Without `HEAVY_SELECTION_SCOPE` admission is unchanged.
+
 ## Non-goals
 
 No change to the CI deciding selector, to `corvint test` or to the darwin evidence rule
 (`ASD-V0-934`). No split of a darwin-only command between hosts (`ASD-V0-2403` is deferred).
+ASD-V0-5190 to ASD-V0-5192 do not refuse a FULL plan, do not run `corvint affected` from heavy.sh
+and do not add a lane VERIFY parser: the scope travels in the command words the plan prints.
 
 ## Failure modes
 
@@ -175,6 +211,9 @@ more tests. No test-only edit is enough to prove whole-package necessity.
 | ASD-V0-5134 | `gitq` and the `--src-prefix=a/ --dst-prefix=b/` hunk diff with its trailing-tab strip in `script/test-run-pattern.sh` | `script/test-run-pattern_test.sh` ASD-V0-5134 cases: `diff.noprefix` and `diff.mnemonicPrefix` set, a test file path holding a space and a non-ASCII byte, untracked and edited |
 | ASD-V0-5135 | `%compiled`, `%pkgfile`, `@modules` and `module_of` in `script/test-run-pattern.sh` | `script/test-run-pattern_test.sh` ASD-V0-5135 cases: changed `.s`, package fixture file with `testdata` and testless controls, `testdata` alone, `go.mod` over a narrowed package and alone |
 | ASD-V0-2478 | `changed_source_base`, `source_tests_unfiltered`, `bound_parallelism`, `offload`, `serve` and `manifest_admits` in `script/heavy.sh` | `TestASDV02478SourceEditRunsExistingTests` in tools/test-commands-check: existing failing test, staged and committed source, unchanged/test-only/glob/mixed refusals, direct and inherited exclusion refusals including env unsetting, local GOENV=off with wrapper-only exclusions, nonrestrictive run patterns through automatic and manifest admission, exact manifest exclusion retains the broken test, flag operands cannot grant whole-source authority, final repeated narrow selections execute only the selected test and log selected; `TestASDV02478OffloadKeepsValidatedFlags`: receiver-only skip/run/GOENV exclusions and explicit empty GOFLAGS through literal and absolute-path env retain the broken test; an unknown env prefix is refused before execution |
+| ASD-V0-5190 | `manifest_perl` modes `scope` and `plan` (`full_notice`) and `selection_scope` in `script/heavy.sh` | `script/lane-scripts_test.sh` group `ASD-V0-5190`: a FULL manifest prints the notice naming its reason and incomplete entry on a manifest-admitted run, a `-run` run and `--plan`; control characters and a 600-byte reason are bounded; a reasonless FULL names `NOT_RECORDED`; a NARROWED manifest prints none |
+| ASD-V0-5191 | `scope_field` in `selection_policy` and the plan mode of `manifest_perl` in `script/heavy.sh` | the same group: `scope=FULL`, `scope=NARROWED` and `scope=UNKNOWN` (no scope field) in the log; every `--plan` command carries `HEAVY_SELECTION_SCOPE=S`; the amended ASD-V0-891 plan and log assertions |
+| ASD-V0-5192 | `selection_scope` and its call before `selection_policy` in `script/heavy.sh` | the same group: a NARROWED record against a FULL manifest, an invalid value, an unreadable manifest and a record without `HEAVY_SELECTION` each refuse with exit 2 and the marker, running nothing; a matching record runs |
 
 ## External integration boundary
 
@@ -192,6 +231,11 @@ Roll back `ASD-V0-2400` to `ASD-V0-2402` by reverting their functions in `script
 suggests the Git-directory manifest again, and batch-precheck narrows only on `FRONTIER_OK`.
 `ASD-V0-2403` needs no rollback: it keeps the base behavior, where every darwin-only command
 stays local. No product, state or wire format changes.
+
+For ASD-V0-5190 to ASD-V0-5192, revert `selection_scope`, `scope_field`, the `scope` mode and plan
+word of `manifest_perl` and the `ASD-V0-5190` test group; the ASD-V0-891 plan and log lines return
+to their earlier form and a VERIFY command carrying `HEAVY_SELECTION_SCOPE` is then only an unread
+environment word.
 
 For ASD-V0-2477/2478, revert the local runtime default and changed-source admission to restore
 prior policy. No JSON, error code, exit code or core wire contract changes.
