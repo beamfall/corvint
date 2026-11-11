@@ -3205,9 +3205,11 @@ unbounded reader selected for an added, edited or deleted file anywhere, and kee
 directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane entry is
 `docs/build-log/2026-11-09-affshell.md`.
 AFP-V0-9965: `TestSymlinkOperand_V15368` (one row per V1-5368 case and neighbour; no row
-misses a test) and `TestSymlinks_AFPV09965` (the list read from a Git repository: tracked,
+misses a test), `TestSymlinks_AFPV09965` (the list read from a Git repository: tracked,
 retargeted, deleted, dangling, chained, escaping, absolute and unreadable links, and an
-unlistable commit).
+unlistable commit) and `TestAffectedSymlinkTargetCLI_AFPV09965` (`corvint affected` with and
+without `--base`). The mutation evidence and measurements are in
+`docs/build-log/2026-11-11-affsym-operand.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
