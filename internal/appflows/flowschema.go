@@ -210,3 +210,28 @@ func decodeFlowsDeclaration(body []byte) (*FlowsDeclaration, error) {
 		Message: fmt.Sprintf("profile %s is schema version %s, which this build does not read; it reads version %s (FSV-V1-004)",
 			*head.Profile, written, supportedList(supported))}
 }
+
+// EncodeFlowsDeclaration is the one writer of `.corvint/flows.json`
+// (FSV-V1-006): d as a declaration of FlowsWriteVersion, the highest version
+// this build reads, checked by this build's reader before it is returned, so
+// a command never writes a file its own build refuses.
+func EncodeFlowsDeclaration(d FlowsDeclaration) ([]byte, error) {
+	if d.Version != 0 && d.Version != FlowsWriteVersion() {
+		return nil, fmt.Errorf("%s: this build writes version %d, not %d", FlowsDeclarationPath, FlowsWriteVersion(), d.Version)
+	}
+	file := flowsDeclarationFile{Profile: FlowsProfile(FlowsWriteVersion()), Flows: d.Dir}
+	for _, rule := range d.Kinds {
+		file.Kinds = append(file.Kinds, flowsKindRule{Path: rule.Path, Kind: rule.Kind})
+	}
+	if d.PlaywrightConfig != "" || d.PlaywrightDiscovery != "" {
+		file.Playwright = &flowsPlaywrightMember{Config: d.PlaywrightConfig, Discovery: d.PlaywrightDiscovery}
+	}
+	body, err := json.Marshal(file, json.Deterministic(true))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", FlowsDeclarationPath, err)
+	}
+	if _, err := decodeFlowsDeclaration(body); err != nil {
+		return nil, err
+	}
+	return append(body, '\n'), nil
+}
