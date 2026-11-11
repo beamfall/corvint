@@ -56,7 +56,6 @@
         "internal/rustsyntax",
         "internal/runhygiene",
         "internal/runtimeenv",
-        "internal/scopelease",
         "internal/secretscreen",
         "internal/shaderdialect",
         "internal/specindex",
@@ -68,9 +67,7 @@
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",
-        "internal/worklistadapter",
         "internal/workqueue",
-        "internal/worksource",
         "internal/workspace"
       ]
     },
@@ -126,7 +123,6 @@
         "cmd/corvint-test-runner",
         "cmd/corvint-test-validity-mcp",
         "internal/appflows/e2erunner",
-        "internal/breakagemap",
         "internal/browsercov",
         "internal/csharpregions",
         "internal/gateselect",

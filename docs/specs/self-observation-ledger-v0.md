@@ -204,7 +204,9 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   that `.corvint` still names the validated directory, refusing otherwise. A `.corvint` swapped for a
   symlink after validation therefore leaves the symlink target byte-identical. A platform where
   `os.Root` cannot open the directory returns an error, so the writer fails closed. `Enabled` remains
-  an existence check that writes nothing; the append it gates is the refusing step.
+  an existence check that writes nothing; the append it gates is the refusing step. (Amended by
+  decision 0594: `internal/unplannedread` was deleted on 2026-11-11, so `internal/observations` is
+  the one ledger left under this rule.)
 - `SOL-V0-030`: (added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`
   Edit, Write or NotebookEdit target that `projectpath.Relative` does not admit. It is the exclusion
   code `post-tool-path-outside-project` only when the root resolves, the target resolves (itself, or
