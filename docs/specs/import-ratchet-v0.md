@@ -10,7 +10,7 @@ Authoritative inputs: ticket V1-4800 (step 1 of the 2026-11-06 expert-panel rest
 ## Agent digest
 - Claim: A checked-in area manifest layers every module package, and a Go test fails on any wrong-way cross-area import that its shrinking baseline does not list.
 - Status: experimental; owner-directed lane implementation under the standing lane auto-accept, pending independent review; re-keyed to the five layers of decision 0594 on 2026-11-09 (V1-5233).
-- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`.
+- Exists: `tools/import-ratchet/areas.json` (five layers), `tools/import-ratchet/baseline.json` (17 edges after decision 0595 forwarded `corvint flows` and `corvint how` to `corvint-docs`; 44 edges at 9cb769243 after the re-key; 70 at origin/main 670559b9e under the eleven-area manifest), `tools/import-ratchet/ratchet_test.go`, `tools/import-ratchet/check_test.go`; `tools/import-ratchet/direct_git_allowlist.txt` with `direct_git_test.go` (IRT-V0-020, 41 direct Git spawns listed, none routed) and `affected_names_test.go` (IRT-V0-021).
 - Blocked on: independent review; the import-rule enforcement, `cmd/corvint` test split, CI sharding and per-binary release follow-ups of decision 0594 shrink the baseline.
 - Read next: Requirements, then Failure modes.
 

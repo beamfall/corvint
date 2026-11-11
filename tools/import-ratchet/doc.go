@@ -1,5 +1,6 @@
 // Package importratchet holds only the area import-ratchet tests (IRT-V0-001
-// to IRT-V0-006 and IRT-V0-021, docs/specs/import-ratchet-v0.md). areas.json maps package
+// to IRT-V0-006, IRT-V0-020 and IRT-V0-021,
+// docs/specs/import-ratchet-v0.md). areas.json maps package
 // path prefixes to layered areas; baseline.json lists the wrong-way
 // cross-area imports that existed when the ratchet was introduced. The test
 // fails on any wrong-way import not in the baseline and on any baseline entry
