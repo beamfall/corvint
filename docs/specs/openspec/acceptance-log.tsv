@@ -76,6 +76,7 @@ PROD-INT-028	prod	owner	2026-11-10	decision 0596; G25	accepted by the owner in d
 PROD-INT-029	prod	owner	2026-11-10	decision 0596; G25; R4	accepted by the owner in decision 0596 (H15, "accepted")
 PROD-INT-030	prod	owner	2026-11-10	decision 0596; G25; R28; R29	accepted by the owner in decision 0596 (H15, "accepted")
 PROD-INT-031	prod	owner	2026-11-10	decision 0596; G25	accepted by the owner in decision 0596 (H15, "accepted")
+PROD-INT-032	prod	owner	2026-11-10	owner instruction 2026-11-10 ("Accept into 1.0"); V1-5299	accepted into 1.0 by the owner on 2026-11-10 in answer to "Do you accept PROD-INT-032 so the coverage check can run?"; row written by the lane on that instruction; the coverage bar of TBC-V1-013 is not set; PROD-INT-030 unchanged
 O1	o-row	owner	2026-11-10	decision 0596; R1	accepted by the owner in decision 0596 (H15, "accepted")
 O2	o-row	owner	2026-11-10	decision 0596; R17	accepted by the owner in decision 0596 (H15, "accepted")
 O3	o-row	owner	2026-11-10	decision 0596; R8	accepted by the owner in decision 0596 (H15, "accepted")

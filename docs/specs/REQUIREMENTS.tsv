@@ -76,6 +76,7 @@ PROD-INT-028	docs/specs/PRODUCT-PLAN-1.0.md	(accepted, decision 0596; V1-5272) `
 PROD-INT-029	docs/specs/PRODUCT-PLAN-1.0.md	(accepted, decision 0596; V1-5272) `corvint review` MUST become a deterministic	owner	decision 0596; V1-5272
 PROD-INT-030	docs/specs/PRODUCT-PLAN-1.0.md	(accepted, decision 0596; V1-5272) `corvint context` MUST become a ticket starti	owner	decision 0596; V1-5272
 PROD-INT-031	docs/specs/PRODUCT-PLAN-1.0.md	(accepted, decision 0596; V1-5272) `corvint index` MUST survive only as the warm	owner	decision 0596; V1-5272
+PROD-INT-032	docs/specs/PRODUCT-PLAN-1.0.md	(accepted 2026-11-10; V1-5299) `corvint context` MUST also take paths and	owner	2026-11-10; V1-5299
 ACR-V1-001	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) One	standing	2026-10-11; V1-5272
 ACR-V1-002	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
 ACR-V1-003	docs/specs/acceptance-record-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5272) The	standing	2026-10-11; V1-5272
