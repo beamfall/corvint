@@ -44,10 +44,12 @@ var runGit = procgroup.Run
 var errPlatformUnsupported = &gokernel.Error{Code: "process-platform-unsupported",
 	Message: "application map Git source unavailable: process-platform-unsupported"}
 
-// orPlatform is fallback unless err is the platform refusal, which no caller may rename as an
+// orProcessFailure is fallback unless err is a Git process failure: the platform refusal, or a
+// revision lookup whose Git process failed (AMAP-V0-8780). No caller may rename either as an
 // input defect.
-func orPlatform(err, fallback error) error {
-	if errors.Is(err, errPlatformUnsupported) {
+func orProcessFailure(err, fallback error) error {
+	var unavailable *sourceUnavailable
+	if errors.Is(err, errPlatformUnsupported) || errors.As(err, &unavailable) {
 		return err
 	}
 	return fallback
@@ -83,7 +85,7 @@ func openRoot(ctx context.Context, primary, alias, root, stated string) (repo, s
 	// is its top without naming the top as a path (AFP-V0-156).
 	where, err := r.git(4096, nil, "rev-parse", "--is-inside-work-tree", "--show-prefix")
 	if err != nil || !strings.HasPrefix(string(where), "true\n") {
-		return repo{}, "", orPlatform(err, rootUnavailable(alias, "is not a Git worktree"))
+		return repo{}, "", orProcessFailure(err, rootUnavailable(alias, "is not a Git worktree"))
 	}
 	if string(where) != "true\n\n" {
 		return repo{}, "", rootUnavailable(alias, "is not the top of a Git worktree")
@@ -92,13 +94,13 @@ func openRoot(ctx context.Context, primary, alias, root, stated string) (repo, s
 		// A stated revision is read from committed objects only (AMAP-V0-200).
 		rev, err := r.resolve(stated)
 		if err != nil {
-			return repo{}, "", orPlatform(err, rootUnavailable(alias, "revision "+stated+" is not a commit of the root"))
+			return repo{}, "", orProcessFailure(err, rootUnavailable(alias, "revision "+stated+" is not a commit of the root"))
 		}
 		return r, rev, nil
 	}
 	rev, err := r.resolve("HEAD")
 	if err != nil {
-		return repo{}, "", orPlatform(err, rootUnavailable(alias, "has no HEAD commit"))
+		return repo{}, "", orProcessFailure(err, rootUnavailable(alias, "has no HEAD commit"))
 	}
 	return r, rev, nil
 }
@@ -127,21 +129,70 @@ func (r repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
 		return nil, errPlatformUnsupported
 	}
 	if o.Err != nil || o.ExitStatus != 0 {
-		return nil, errors.New("application map Git source unavailable")
+		return nil, &gitSourceFailure{cause: o.Err, exitStatus: o.ExitStatus}
 	}
 	return o.Stdout, nil
 }
 
-// resolve names the commit a revision denotes.
+// gitSourceFailure keeps process evidence without changing other Git readers' diagnostics.
+// resolve alone exposes the underlying failure class (AMAP-V0-8780).
+type gitSourceFailure struct {
+	cause      error
+	exitStatus int
+}
+
+func (failure *gitSourceFailure) Error() string { return "application map Git source unavailable" }
+func (failure *gitSourceFailure) Unwrap() error { return failure.cause }
+
+// errRevisionNotCommit is Git's verified answer that a revision names no commit. `rev-parse
+// --quiet --verify` exits 1 for that alone; a repository, setup or process failure exits 128 or
+// does not run (AMAP-V0-8780).
+var errRevisionNotCommit = errors.New("evaluated revision is not a commit")
+
+// sourceUnavailable is a revision lookup whose Git process failed. It carries its own code and the
+// process error chain, and orProcessFailure passes it through every caller (AMAP-V0-8780).
+type sourceUnavailable struct {
+	coded *gokernel.Error
+	cause error
+}
+
+func (failure *sourceUnavailable) Error() string { return failure.coded.Message }
+func (failure *sourceUnavailable) Unwrap() []error {
+	if failure.cause == nil {
+		return []error{failure.coded}
+	}
+	return []error{failure.coded, failure.cause}
+}
+
+func newSourceUnavailable(class string, cause error) error {
+	return &sourceUnavailable{cause: cause, coded: &gokernel.Error{Code: "appmap-source-unavailable",
+		Message: "application map Git source unavailable: " + class}}
+}
+
+// resolve names the commit a revision denotes. A revision Git verifies is no commit is
+// errRevisionNotCommit; any other Git failure keeps its class and never reads as an input defect.
 func (r repo) resolve(revision string) (string, error) {
 	if revision == "" || strings.HasPrefix(revision, "-") {
 		return "", errors.New("invalid revision")
 	}
-	out, err := r.git(4096, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
-	if err != nil {
-		return "", orPlatform(err, errors.New("evaluated revision is not a commit"))
+	out, err := r.git(4096, nil, "rev-parse", "--quiet", "--verify", "--end-of-options", revision+"^{commit}")
+	if err == nil {
+		return strings.TrimSpace(string(out)), nil
 	}
-	return strings.TrimSpace(string(out)), nil
+	if errors.Is(err, errPlatformUnsupported) {
+		return "", err
+	}
+	var failure *gitSourceFailure
+	switch {
+	case !errors.As(err, &failure):
+		return "", newSourceUnavailable(err.Error(), err)
+	case failure.cause != nil:
+		return "", newSourceUnavailable(failure.cause.Error(), failure.cause)
+	case failure.exitStatus == 1:
+		return "", errRevisionNotCommit
+	default:
+		return "", newSourceUnavailable(fmt.Sprintf("exit status %d", failure.exitStatus), nil)
+	}
 }
 
 // tree lists the regular files under each prefix at rev. A prefix naming a file lists that file.
