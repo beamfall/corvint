@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
+	"time"
 )
 
 // refused prints a refusal and returns exit 1.
@@ -154,4 +156,89 @@ func loadFaultSet(path string) (faultSet, string, error) {
 		return set, "", refuse("fault-set-invalid", "%v", err)
 	}
 	return set, sha(body), nil
+}
+
+const resultsProfile = "fault-harness-results/1"
+
+// results is what `run` measures and `verdict` reads.
+type results struct {
+	Profile               string           `json:"profile"`
+	Runner                string           `json:"runner"`
+	PreregistrationSHA256 string           `json:"preregistrationSha256"`
+	FaultSetSHA256        string           `json:"faultSetSha256"`
+	ExclusionBudget       int              `json:"exclusionBudget"`
+	Baselines             []baselineRecord `json:"baselines"`
+	Cases                 []caseResult     `json:"cases"`
+}
+
+func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
+	fs := flags("run", "--preregistration FILE --hash FILE --set FILE --seal FILE --root DIR --clones DIR [--corvint BIN] [--go-test ARGV] [--unrunnable ID]... [--out FILE]",
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --set go.faults.json --seal go.seal.json --root ../repo --clones /tmp/fh-clones --out go.results.json", w)
+	prereg := fs.String("preregistration", "", "pre-registration file")
+	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
+	setPath := fs.String("set", "", "sealed fault set")
+	sealPath := fs.String("seal", "", "seal record written by `fault-harness seal`")
+	root := fs.String("root", "", "pinned source repository (read only)")
+	clones := fs.String("clones", "", "existing private clone parent; each case is removed after execution")
+	binary := fs.String("corvint", "corvint", "planner binary path or PATH name")
+	goTest := fs.String("go-test", "go test", "space-separated argv prefix that runs `go test`")
+	timeout := fs.Duration("timeout", 30*time.Minute, "wall bound per adapter command")
+	out := fs.String("out", "", "write the results JSON (default stdout)")
+	var unrunnable multiFlag
+	fs.Var(&unrunnable, "unrunnable", "test ID declared unrunnable in the pinned image (repeatable)")
+	if code := parse(fs, args, prereg, setPath, sealPath, root, clones); code >= 0 {
+		return code
+	}
+	// Every refusal below happens before any clone or test run.
+	p, err := loadPreregistration(*prereg, *hash)
+	if err != nil {
+		return refused(w, err)
+	}
+	set, setSHA, err := loadFaultSet(*setPath)
+	if err != nil {
+		return refused(w, err)
+	}
+	sealBody, err := boundedRead(*sealPath, 1<<20)
+	if err != nil {
+		return refused(w, err)
+	}
+	var rec sealRecord
+	if err := decodeStrict(sealBody, &rec); err != nil {
+		return refused(w, refuse("fault-set-invalid", "seal record: %v", err))
+	}
+	if err := checkSealed(p, set, setSHA, rec); err != nil {
+		return refused(w, err)
+	}
+	adapter, err := adapterFor(p.Runner, adapterOptions{GoTest: strings.Fields(*goTest), Timeout: *timeout})
+	if err != nil {
+		return refused(w, err)
+	}
+	cfg, err := resolveRun(*root, *clones, *binary)
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return 2
+	}
+	cfg.Adapter, cfg.Unrunnable = adapter, unrunnable
+	h := newHarness(cfg)
+	res := results{Profile: resultsProfile, Runner: p.Runner, PreregistrationSHA256: p.SHA256, FaultSetSHA256: setSHA, ExclusionBudget: p.ExclusionBudget, Cases: []caseResult{}}
+	code := 0
+	for _, c := range set.Cases {
+		r := caseResult{ID: c.ID, Kind: c.Kind, PR: c.PR, HeadSHA: c.HeadSHA, Status: caseError, Error: "not run", Faults: []faultResult{}}
+		if ctx.Err() == nil {
+			r = h.runCase(ctx, c)
+		}
+		if r.Status == caseError {
+			code = 1
+		}
+		if *out != "" {
+			fmt.Fprintf(w, "%s %s faults=%d\n", r.ID, r.Status, len(r.Faults))
+		}
+		res.Cases = append(res.Cases, r)
+	}
+	res.Baselines = h.baselineRecords()
+	if err := report(w, *out, res); err != nil {
+		fmt.Fprintln(w, err)
+		return 2
+	}
+	return code
 }

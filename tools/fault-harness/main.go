@@ -30,6 +30,7 @@ Commands:
   select-reverts  apply the reverted-fix rule to observed PR facts (FIH-V1-002)
   generate-go     generate 3 to 5 Go mutants on one PR's changed lines (FIH-V1-002, 003)
   seal            check a fault set against its pre-registration and seal it (FIH-V1-002, 014)
+  run             run a sealed set: baseline, faults, kills, plans and misses (FIH-V1-004..006)
   parity          run affected-edit-oracle mutation cases through the Go adapter (FIH-V1-011)
 
 Run "fault-harness COMMAND --help" for a command's flags and an example.
@@ -47,6 +48,7 @@ func commands() []subcommand {
 		{"select-reverts", runSelectRevertsCommand},
 		{"generate-go", runGenerateGoCommand},
 		{"seal", runSealCommand},
+		{"run", runRunCommand},
 		{"parity", runParityCommand},
 	}
 }
