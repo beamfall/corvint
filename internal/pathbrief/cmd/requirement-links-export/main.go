@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Command requirement-links-export is the one-time export of TBC-V1-012: it reads the sealed
 // change records at one commit and writes the requirement-link file.
 //
