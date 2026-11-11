@@ -216,7 +216,7 @@ func TestAFPV0054WindowsVetTargetMatchesTheCIStep(t *testing.T) {
 	}
 	start := slices.Index(lines, "go-version:")
 	// Decision 0557 and V1-5408 stage B: the go-version target admits exactly go1.27.3 and go1.27.4.
-	if start < 0 || start+1 >= len(lines) || !strings.Contains(lines[start+1], `"go version go1.27.3 "*|"go version go1.27.4 "*)`) || strings.Count(lines[start+1], "go1.27.") != 4 {
+	if start < 0 || start+1 >= len(lines) || !strings.Contains(lines[start+1], `= "go1.27.3" || test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.4" ||`) || strings.Count(lines[start+1], "go1.27.") != 4 {
 		t.Fatal("Makefile go-version does not check exactly go1.27.3 and go1.27.4")
 	}
 	ciYAML := readRepositoryFile(t, ".github/workflows/ci.yml")
