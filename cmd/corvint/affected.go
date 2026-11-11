@@ -923,6 +923,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		}
 		return 0
 	}
+	writeAffectedHeadline(receipt, stdout, stderr) // AFP-V0-3642
 	// Streamed, so a large receipt is not held in a second full copy (AFP-V0-398).
 	if err := gokernel.WriteCanonicalJSON(stdout, receipt); err != nil {
 		if gokernel.IsCanonicalOutputFailure(err) {
