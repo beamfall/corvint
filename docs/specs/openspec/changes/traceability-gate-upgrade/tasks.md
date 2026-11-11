@@ -19,6 +19,8 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 - [x] 2.3 Last-citation rule and the `(untested: REASON)` marker in the range form, with fixtures:
       the only citing test of a requirement is deleted and its row edited, a second citation remains,
       the spec is retired, the requirement text is removed, the marker with and without a reason.
+      Added in batch 1111e: a retired spec's requirement named in prose by another spec passes; one
+      held in a checked row, or cited at BASE by a spec that is not retired at HEAD, fails.
       Requirements: TTG-V0-962, TTG-V0-963. Proof: `make traceability-tests-test` passes.
 - [x] 2.4 Run the index form on the lane head and the range form for `origin/main..HEAD` and for
       the last 50 first-parent commits of `main`; record the counts and the run time. Fix any row

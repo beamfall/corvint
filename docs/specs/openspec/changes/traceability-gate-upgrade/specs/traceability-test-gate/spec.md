@@ -56,8 +56,24 @@ requirement is cited at a tree when a traceability row of a spec that is not ret
 holds its ID in full in the first cell together with at least one test name that resolves in that
 tree, or when a subtest citation naming the ID resolves in that tree. The gate MUST fail for every
 requirement that is cited at BASE and not cited at HEAD, unless at HEAD the ID appears in no
-`docs/specs/*.md` file that is not retired, or TTG-V0-963 applies. The failure line MUST name the
-requirement ID and one citation it had at BASE.
+`docs/specs/*.md` file that is not retired, or its specs were retired, or TTG-V0-963 applies. Its
+specs were retired when every spec file that cited it at BASE is retired at HEAD and no
+traceability row of a spec that is not retired at HEAD holds the ID in full in its first cell. The
+failure line MUST name the requirement ID and one citation it had at BASE.
+
+#### Scenario: A retired spec's requirement is still named in prose
+
+- **GIVEN** at BASE only `req.md` cites `REQ-1`, with `TestX`
+- **WHEN** HEAD retires `req.md`, deletes `TestX`, and another spec that is not retired names
+  `REQ-1` in prose outside any traceability row
+- **THEN** the range form passes
+
+#### Scenario: A spec that is not retired still holds the requirement
+
+- **GIVEN** at BASE `req.md` cites `REQ-1` with `TestX`
+- **WHEN** HEAD retires `req.md`, deletes `TestX`, and a traceability row of a spec that is not
+  retired holds `REQ-1` in its first cell, or a second spec that cited `REQ-1` at BASE is not retired
+- **THEN** the range form fails and names `REQ-1`
 
 #### Scenario: The only citing test is deleted
 
