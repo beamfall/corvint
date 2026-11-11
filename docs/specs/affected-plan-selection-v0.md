@@ -169,23 +169,29 @@ measure. None of them drops a unit the change can reach.
   instead. A plan over a graph given no list (a library caller of `Select`) is unchanged. A
   target that climbs above the tree, or an absolute target that is not below the tree or the
   repository by name, MUST be resolved on the file system from the tree's physical path (every
-  link of the tree's own path followed), cutting raw components so that a `..` after a link
+  link of the tree's own path followed) and, in a snapshot plan whose tree is not the
+  repository, also against the repository's physical path, cutting raw components so that
+  a `..` after a link
   climbs from the link's target: a target that so re-enters the tree, by the repository's name,
   through an alias of an ancestor (`/tmp` and `/private/tmp`) or through a link outside the
   repository, resolves to the repository path it reaches; one whose remaining components cannot
   be evaluated (a dangling link followed by more components, a `..` after a missing component,
   an unreadable directory) resolves to the repository root; one that stays outside resolves to
   no path. An absolute target below the tree or repository by name MUST be cut at that prefix
-  and not cleaned lexically. When the tree's physical path cannot be read the links count as
-  not listed. Not modelled: a link Git ignores; a link inside a submodule; an untracked link a
+  and not cleaned lexically; one that is the tree or repository followed by `/` alone resolves
+  to the repository root. A target that reaches the tree's or repository's physical path only
+  when ASCII letter case is folded, or that is evaluated when it or one of those physical
+  paths holds a byte outside ASCII, MUST resolve to the repository root, since a
+  case-insensitive file system opens it there. When the tree's physical path, or in a
+  snapshot plan the repository's, cannot be read the links count as not listed. Not modelled: a link Git ignores; a link inside a submodule; an untracked link a
   `--path` plan does not name; a reader of a plugin other than shell and Go that names a path
   through a link (the Go plugin resolves its literals through links itself); a link outside
   the repository created or retargeted after the plan, since outside links are read when the
   plan is built; Windows link forms (junctions, other reparse points, `.lnk` files and Git's
   `core.symlinks=false` text stand-ins), which are not read as links; and case-insensitive
-  file systems: a shell (or other plugin's) path literal and a link's target are matched
-  case-sensitively, so `cat Script/a.sh` is not selected for an edit of `script/a.sh` on such
-  a file system.
+  file systems: a shell (or other plugin's) path literal, and a link's target that stays
+  inside the tree lexically (`l -> Script` beside `script/`), are matched case-sensitively, so
+  `cat Script/a.sh` is not selected for an edit of `script/a.sh` on such a file system.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -3224,10 +3230,13 @@ misses a test), `TestSymlinks_AFPV09965` (the list read from a Git repository: t
 retargeted, deleted, dangling, chained, escaping, absolute and unreadable links, and an
 unlistable commit), `TestSymlinksReenter_AFPV09965` (targets that climb out and re-enter,
 absolute targets through an alias, a `..` after an outside or in-tree link, a dangling
-re-entry; each over the physical tree and its alias) and `TestAffectedSymlinkTargetCLI_AFPV09965`
+re-entry; each over the physical tree and its alias), `TestSymlinksRootEdges_AFPV09965` (a
+trailing `/` after the tree, a case-folded re-entry, and a snapshot tree with the repository
+given physically and by alias) and `TestAffectedSymlinkTargetCLI_AFPV09965`
 (`corvint affected` with and without `--base`). The mutation evidence and measurements are in
-`docs/build-log/2026-11-11-affsym-operand.md` and, for the fix round,
-`docs/build-log/2026-11-11-affsym-fix-round.md`.
+`docs/build-log/2026-11-11-affsym-operand.md` and, for the fix rounds,
+`docs/build-log/2026-11-11-affsym-fix-round.md` and
+`docs/build-log/2026-11-11-affsym-fix-round-2.md`.
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
