@@ -318,6 +318,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Test inventory V1 | [`test-inventory-v1.md`](test-inventory-v1.md) TIV-V1-001..012 | accepted | partial | One committed inventory lists every test of the seven blocking runners by canonical ID; a missing or doubtful list runs everything. |
 | Runner contract V1 | [`runner-contract-v1.md`](runner-contract-v1.md) RNC-V1-001..018 | accepted | partial | One compiled-in contract drives every blocking runner by canonical test ID and runner instance; every fallback runs a full command with a reason. |
 | Non-code map V1 | [`non-code-map-v1.md`](non-code-map-v1.md) NCM-V1-001..009 | accepted | partial | A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything. |
+| Docs MCP Hardening V1 | [`docs-mcp-hardening-v1.md`](docs-mcp-hardening-v1.md) DMF-V1-001..013 | accepted automatically under G14 (decision 0596, 2026-11-10; V1-5409) | implemented | One docs check reports staleness honestly; docs MCP tools get distinct descriptions, one actionable error shape and a corpus reload without restart. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
