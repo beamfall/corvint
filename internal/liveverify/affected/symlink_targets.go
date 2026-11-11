@@ -187,8 +187,9 @@ func insideRoot(physical, root string) (string, bool) {
 }
 
 // linkTarget is the Targets value of the link at relative in tree: its text
-// joined to its directory; for an absolute text outside tree and repository
-// by name, the repository path it reaches on the file system from the
+// joined to its directory, or the rest of an absolute text below tree or
+// repository by name, neither cleaned; for any other absolute text, the
+// repository path it reaches on the file system from the
 // physical root (an alias of an ancestor), empty when it reaches none, and "."
 // when the text or that path cannot be read.
 func linkTarget(repository, tree, root, relative string) string {
@@ -197,8 +198,13 @@ func linkTarget(repository, tree, root, relative string) string {
 		return "."
 	}
 	if filepath.IsAbs(text) {
+		// The text is cut, not cleaned: a component may be a link that a
+		// later `..` climbs from, which resolveSymlink follows.
 		for _, root := range []string{tree, repository} {
-			if inside, err := filepath.Rel(root, text); err == nil && inside != ".." && !strings.HasPrefix(inside, ".."+string(filepath.Separator)) && !filepath.IsAbs(inside) {
+			if text == root {
+				return "."
+			}
+			if inside, below := strings.CutPrefix(text, strings.TrimSuffix(root, string(filepath.Separator))+string(filepath.Separator)); below {
 				return filepath.ToSlash(inside)
 			}
 		}
