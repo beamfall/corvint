@@ -8,7 +8,8 @@
 # the last green full run. A pull request is a miss when its NARROWED records'
 # `skipped` packages hold a failed package: the full run failed a package that
 # pull request's selection left out. `name` is the artifact name when there is a
-# miss, else null.
+# miss, else null. CIN-V0-7922: each miss also carries `merge`, the pull request's merge commit on
+# main when the API named one, for the confirmation reruns.
 def hex40: type == "string" and test("^[0-9a-f]{40}$");
 ([$failed[] | objects | .reasons[]? | .package | select(type == "string")] | unique) as $F
 | [$prs[] | objects | select((.pr | type) == "number" and (.head | hex40))
@@ -18,7 +19,8 @@ def hex40: type == "string" and test("^[0-9a-f]{40}$");
    | ([$nar[] | .skipped[] | select(type == "string")] | unique) as $out
    | ($F - ($F - $out)) as $missed
    | select(($missed | length) > 0)
-   | {pr: $p.pr, head: $p.head, runId: ($nar[0].runId // null), packages: $missed}]
+   | {pr: $p.pr, head: $p.head, merge: (if ($p.merge | hex40) then $p.merge else null end),
+      runId: ($nar[0].runId // null), packages: $missed}]
 | sort_by(.pr) as $misses
 | {profile: "corvint-main-miss/0", runId: ($runId | tonumber), sha: $sha, epoch: ($epoch | tonumber),
    failed: $F, misses: $misses,

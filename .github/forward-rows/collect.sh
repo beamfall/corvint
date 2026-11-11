@@ -19,6 +19,8 @@
 # no row.
 # AFP-V0-481/483: the row prices its selectors with ../cishards/package-costs.json of this same
 # trusted checkout, and a complete row also writes the step output `cost`, its cost artifact name.
+# CIN-V0-7921 (V1-5216, V1-5218, V1-5219): a pull-request run whose every shadow shard ran FULL
+# (a plan refused or planned whole) is a FULL row, named with its type, never INCOMPLETE or CLEAN.
 # CIN-V0-001 (Codex P2): the row's epoch is the forwardEpoch its producing run stamped into every
 # retained selection document, never FORWARD_EPOCH: a run that predates an epoch advance and
 # completes, or is rerun, after it keeps its own epoch. A missing, mixed or other epoch writes no
@@ -261,12 +263,20 @@ class=$(ROW_KIND=$kind ROW_PR=$pr ROW_SHA=$sha ROW_HEAD=$head ROW_RUN=$RUN_ID RO
   ROW_OUTCOMES_RUN=$outcomes_run ROW_SHARDS=$FORWARD_SHARDS ROW_EPOCH=$epoch \
   ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_NARROWING_DIR="$dir/narrowing" ROW_REUSE=$reuse ROW_COLLECT=$collect ROW_INFRA=$infra \
   ROW_COSTS="$here/../cishards/package-costs.json" sh "$here/classify.sh" "$dir/row.json")
-case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA | NARROWED) ;; *) class=INCOMPLETE ;; esac
+case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA | NARROWED | FULL) ;; *) class=INCOMPLETE ;; esac
 row_sha=$(jq -r '.sha // empty' "$dir/row.json" 2> /dev/null) || row_sha=""
 hex40 "$row_sha" || row_sha=$HEAD_SHA
 failing=$(jq -r 'if (.counts.failed // 0) > 0 then 1 else 0 end' "$dir/row.json" 2> /dev/null) || failing=0
 [ "$failing" = 1 ] || failing=0
 name="ci-forward-$class-pr$pr-$row_sha-e$epoch-f$failing"
+# CIN-V0-7921: a FULL row (every shadow shard ran FULL) carries why in its name, so the bar can
+# count skew abstentions, other abstentions and planned FULL runs from names alone. An unreadable
+# or unknown type is named abstain, never a planned run.
+if [ "$class" = FULL ]; then
+  why=$(jq -r '.selection.full.type // empty' "$dir/row.json" 2> /dev/null) || why=""
+  case "$why" in skew | abstain | plan) ;; *) why=abstain ;; esac
+  name="$name-r$why"
+fi
 echo "name=$name" >> "$GITHUB_OUTPUT"
 # AFP-V0-483: a complete row also names its shadow cost, so the bar can aggregate it from artifact
 # names alone: each selector's share of Full in permille (or na) and whether it missed (1, 0 or n).

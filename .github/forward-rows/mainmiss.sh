@@ -9,6 +9,8 @@
 # the step output `name` only when the run names a miss; otherwise it says why not. A pull
 # request whose run or narrowing records cannot be read could have skipped a failed package, so
 # any such gap abstains: no row, with every unavailable input named.
+# CIN-V0-7922 (V1-5198): the row is a suspicion. The main-miss workflow confirms it by reruns
+# (mainmiss-confirm.sh), so each miss also names the pull request's merge commit on main.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 dir="$RUNNER_TEMP/main-miss"
@@ -56,7 +58,9 @@ esac
 : > "$dir/pulls"
 for c in $commits; do
   hex40 "$c" || continue
-  gh api "repos/$REPO/commits/$c/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | "\(.number) \(.head.sha)"' \
+  # CIN-V0-7922: the merge commit of each pull request goes along, so the confirmation can rerun
+  # the skipped package at that commit and its first parent; one that names none is "-".
+  gh api "repos/$REPO/commits/$c/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | "\(.number) \(.head.sha) \(.merge_commit_sha // "-")"' \
     >> "$dir/pulls" 2> /dev/null || gap "the pull requests of commit $c are unreadable"
 done
 sort -u "$dir/pulls" > "$dir/pulls.sorted"
@@ -65,8 +69,9 @@ if [ "$(wc -l < "$dir/pulls.sorted" | tr -d ' ')" -gt "$MAX_PRS" ]; then
   exit 0
 fi
 : > "$dir/prs.jsonl"
-while read -r pr head; do
+while read -r pr head merge; do
   digits "$pr" && hex40 "$head" || continue
+  hex40 "$merge" || merge=""
   run=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20" \
     --jq '[.workflow_runs[] | .id] | max // empty' 2> /dev/null) || run=""
   if ! digits "$run"; then
@@ -86,7 +91,8 @@ while read -r pr head; do
     continue
   fi
   find "$records" -name narrowing.json -type f -exec cat {} + 2> /dev/null |
-    jq -s -c --arg pr "$pr" --arg head "$head" '{pr: ($pr | tonumber), head: $head, records: .}' >> "$dir/prs.jsonl" 2> /dev/null ||
+    jq -s -c --arg pr "$pr" --arg head "$head" --arg merge "$merge" \
+      '{pr: ($pr | tonumber), head: $head, merge: (if $merge == "" then null else $merge end), records: .}' >> "$dir/prs.jsonl" 2> /dev/null ||
     gap "the ci-narrowing records of run $run of #$pr are unreadable"
 done < "$dir/pulls.sorted"
 if [ -n "$unavailable" ]; then
