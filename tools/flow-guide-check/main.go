@@ -49,6 +49,7 @@ var (
 	upperCode   = regexp.MustCompile(`^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$`)
 	shellRefuse = regexp.MustCompile(`\brefuse "`)
 	makeRule    = regexp.MustCompile(`^([A-Za-z0-9_./%-]+(?:[ \t]+[A-Za-z0-9_./%-]+)*)[ \t]*::?(?:[^=]|$)`)
+	hookExec    = regexp.MustCompile(`exec\s+(script/[A-Za-z0-9_.-]+)`)
 )
 
 func main() {
@@ -103,6 +104,7 @@ func run(root string, arguments []string, stdout, stderr io.Writer) int {
 // repository holds what the checks read once.
 type repository struct {
 	documents  map[string]string // path -> checked text (the guide section, the skill)
+	guideText  string            // the whole guide, for its hook recipes (ASC-V0-781)
 	offsets    map[string]int    // path -> line number of the text's first line
 	trees      map[string]clitree.Tree
 	targets    map[string]bool
@@ -116,6 +118,7 @@ func load(root string) (*repository, error) {
 	if err != nil {
 		return nil, err
 	}
+	repo.guideText = string(guide)
 	section, line, found := sectionOf(string(guide), guideHeading)
 	if !found {
 		return nil, fmt.Errorf("%s has no %q section", guidePath, strings.TrimSpace(guideHeading))
@@ -223,6 +226,7 @@ func checkGuide(root string, repo *repository) []string {
 			}
 		}
 	}
+	findings = append(findings, hookRecipeFindings(root, repo.guideText)...)
 	sources, err := sourceText(root)
 	if err != nil {
 		return append(findings, err.Error())
@@ -231,6 +235,22 @@ func checkGuide(root string, repo *repository) []string {
 		if !bytes.Contains(sources, []byte(code)) {
 			findings = append(findings, fmt.Sprintf("%s: refusal code %s in the recovery table occurs in no non-test source under cmd/, internal/, script/ or tools/", guidePath, code))
 		}
+	}
+	return findings
+}
+
+// hookRecipeFindings names every `exec script/NAME` in the whole guide whose script is not a
+// regular file, so no section tells an operator to install a hook that execs a deleted script
+// (ASC-V0-781).
+func hookRecipeFindings(root, guide string) []string {
+	var findings []string
+	for _, match := range hookExec.FindAllStringSubmatchIndex(guide, -1) {
+		script := guide[match[2]:match[3]]
+		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(script))); err == nil && info.Mode().IsRegular() {
+			continue
+		}
+		line := 1 + strings.Count(guide[:match[0]], "\n")
+		findings = append(findings, fmt.Sprintf("%s:%d: hook recipe execs %s, which does not exist", guidePath, line, script))
 	}
 	return findings
 }

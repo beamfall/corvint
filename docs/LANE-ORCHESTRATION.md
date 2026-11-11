@@ -565,15 +565,13 @@ Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= ori
   the new file the same `//go:build` line, or add a windows main. `make windows-main-check` finds
   it in seconds; run it when you add a file to a build-tagged main package. It is not a step of
   `make windows-vet`, whose recipe the `AFP-V0-054` parity test pins to the CI vet commands.
-- Sealed evidence before push (DCW-V0-348, V1-2805, V1-1773): the batch-head checkout installs
-  `script/pre-push-dogfood-seal.sh` the same way. It runs `script/dogfood-batch-check.sh` against
-  the pushed branch's merge base with `origin/main` and refuses `dogfood-seal-missing` while any
-  commit, including one made after the seal, is unbound; it also refuses (`dogfood-seal-not-checked`)
-  a pushed branch that is not the checked-out HEAD or a tree with uncommitted tracked changes. Git's
-  hook stdin can be read once, so a hook running both scripts reads it first:
-  `refs=$(cat); printf '%s\n' "$refs" | script/pre-push-windows-vet.sh "$@" || exit 1;
-  printf '%s\n' "$refs" | exec script/pre-push-dogfood-seal.sh "$@"`. `git push --no-verify` bypasses
-  it and stays an explicit, reported choice. Lanes that only commit locally never run it.
+- Batch checks before push (V1-5330): `DCW-V0-348` and its seal hook are retired;
+  `script/pre-push-dogfood-seal.sh` no longer exists, so do not install a hook that calls it, and
+  remove one an older version of this section installed (a hook that execs a missing script fails
+  every push). Before pushing a `claude/batch-*` branch run `make batch-precheck` (`ASD-V0-029`),
+  which writes a receipt bound to HEAD on a full pass, then `make batch-push-check` (`ASD-V0-035`),
+  which refuses unless that receipt names the pushed revision. The Windows vet hook above stays the
+  only installed pre-push hook. Lanes that only commit locally run neither.
 
 ## 4. No polling in lanes; long commands are bounded (ASD-V0-016)
 
