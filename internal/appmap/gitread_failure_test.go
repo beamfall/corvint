@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -57,6 +58,37 @@ func TestResolveRetainsGitFailureClass(t *testing.T) {
 	r := repo{ctx: t.Context(), root: t.TempDir()}
 	if revision, err := r.resolve("refs/heads/missing"); revision != "" || !errors.Is(err, errRevisionNotCommit) || codeOf(err) != "" {
 		t.Fatalf("verified missing revision = %q, %v; want errRevisionNotCommit", revision, err)
+	}
+	// Exit 128 from the lookup is a revision defect only when the repository probe
+	// (rev-parse --git-dir) exits 0; the exit-128 row above, whose probe also exits 128, stays a
+	// source failure. A probe that cannot run (timeout) keeps it a source failure too.
+	for _, probe := range []struct {
+		name        string
+		observation procgroup.Observation
+		invalid     bool
+	}{
+		{"readable", procgroup.Observation{Stdout: []byte(".git\n")}, true},
+		{"unreadable", procgroup.Observation{ExitStatus: 128}, false},
+		{"timeout", procgroup.Observation{Err: context.DeadlineExceeded, TimedOut: true}, false},
+	} {
+		var probed bool
+		runGit = func(_ context.Context, spec procgroup.Spec) procgroup.Observation {
+			if slices.Contains(spec.Argv, "--git-dir") {
+				probed = true
+				return probe.observation
+			}
+			return procgroup.Observation{ExitStatus: 128, Stderr: []byte("fatal: log for 'HEAD' only has 1 entries")}
+		}
+		revision, err := r.resolve("HEAD@{1}")
+		if !probed {
+			t.Fatalf("%s: exit 128 did not probe the repository", probe.name)
+		}
+		if probe.invalid && (revision != "" || !errors.Is(err, errRevisionNotCommit) || codeOf(err) != "") {
+			t.Fatalf("%s: exit 128 in a readable repository = %q, %v; want errRevisionNotCommit", probe.name, revision, err)
+		}
+		if !probe.invalid && (revision != "" || codeOf(err) != "appmap-source-unavailable" || err.Error() != "application map Git source unavailable: exit status 128") {
+			t.Fatalf("%s: exit 128 without a readable repository = %q, %v (code %q)", probe.name, revision, err, codeOf(err))
+		}
 	}
 	var argv []string
 	runGit = func(_ context.Context, spec procgroup.Spec) procgroup.Observation {
@@ -211,5 +243,29 @@ func TestResolveHostGitDiagnostics(t *testing.T) {
 	}
 	if _, err := Build(ctx, unreadable, "appmap.json", "HEAD"); codeOf(err) != "appmap-source-unavailable" || strings.Contains(err.Error(), "not a commit") {
 		t.Fatalf("Build of an unreadable repository = code %q: %v", codeOf(err), err)
+	}
+	// Git exits 128 for a reflog entry a one-commit repository lacks and for @{u} with no upstream
+	// configured. The repository is readable, so both are invalid revisions, never source failures.
+	single := t.TempDir()
+	gitTest(t, single, "init", "-q")
+	if err := os.WriteFile(filepath.Join(single, "a.txt"), []byte("a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	commitAll(t, single, "one")
+	for _, revision := range []string{"HEAD@{1}", "HEAD@{5}", "@{u}"} {
+		if got, err := (repo{ctx: ctx, root: single}).resolve(revision); got != "" || !errors.Is(err, errRevisionNotCommit) || codeOf(err) != "" {
+			t.Fatalf("%s in a one-commit repository = %q, %v (code %q); want errRevisionNotCommit", revision, got, err, codeOf(err))
+		}
+		if _, err := Build(ctx, single, "appmap.json", revision); codeOf(err) != "appmap-invalid-revision" || err.Error() != "evaluated revision is not a commit" {
+			t.Fatalf("Build of %s = code %q: %v", revision, codeOf(err), err)
+		}
+	}
+	// A plain directory outside every repository: Git cannot read it, so it stays a source failure.
+	plain := t.TempDir()
+	if probe := exec.Command("git", "-C", plain, "rev-parse", "--git-dir"); probe.Run() == nil {
+		t.Skipf("%s lies inside a Git repository; the plain-directory row needs a temporary directory outside one", plain)
+	}
+	if got, err := (repo{ctx: ctx, root: plain}).resolve("HEAD"); got != "" || codeOf(err) != "appmap-source-unavailable" || err.Error() != "application map Git source unavailable: exit status 128" {
+		t.Fatalf("plain directory = %q, %v (code %q)", got, err, codeOf(err))
 	}
 }
