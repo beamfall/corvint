@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,6 +136,32 @@ func TestAffectedHeadlineOnSeparateStderr_AFPV03642(t *testing.T) {
 	var receipt map[string]any
 	if code != 0 || json.Unmarshal(both, &receipt) != nil || len(headlineLines(string(both))) != 0 {
 		t.Fatalf("merged output is not one JSON document (exit %d):\n%s", code, both)
+	}
+
+	// A pipe on stderr gets no headline: a write to a closed pipe on fd 2
+	// raises SIGPIPE in a Go program and would end the run before the plan.
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = reader.Close()
+	var pipeOut bytes.Buffer
+	code = runContext(context.Background(), arguments, strings.NewReader(""), &pipeOut, writer)
+	_ = writer.Close()
+	if code != 0 || !bytes.Equal(pipeOut.Bytes(), bufferOut.Bytes()) {
+		t.Fatalf("closed-pipe stderr changed the run (exit %d):\n%s", code, pipeOut.Bytes())
+	}
+	reader, writer, err = os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pipeOut.Reset()
+	code = runContext(context.Background(), arguments, strings.NewReader(""), &pipeOut, writer)
+	_ = writer.Close()
+	piped, _ := io.ReadAll(reader)
+	_ = reader.Close()
+	if code != 0 || len(headlineLines(string(piped))) != 0 || !bytes.Equal(pipeOut.Bytes(), bufferOut.Bytes()) {
+		t.Fatalf("pipe stderr got a headline or changed stdout (exit %d):\n%s", code, piped)
 	}
 
 	// The summary and --format text forms already are few lines: no headline.

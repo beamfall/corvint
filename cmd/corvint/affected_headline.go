@@ -101,15 +101,30 @@ func boundHeadlineLine(line string) string {
 // to stderr before the plan is written to stdout. It writes nothing for any
 // other receipt, for an stderr that is not a file (an in-process caller), or
 // when stdout and stderr are one pipe or file, as after 2>&1, so stdout stays
-// one parseable document there (AFP-V0-871). A write failure is ignored: the
-// plan on stdout is the result.
+// one parseable document there (AFP-V0-871). It also writes nothing when
+// stderr is a pipe or socket: Go turns a write to a broken fd 2 pipe into
+// SIGPIPE, which would end the run before the plan reaches stdout. Only a
+// terminal or a regular file receives the headline, and a write failure there
+// is ignored: the plan on stdout is the result.
 func writeAffectedHeadline(receipt any, stdout, stderr io.Writer) {
 	compact, ok := receipt.(affectedCompactReceipt)
 	if !ok {
 		return
 	}
-	if _, file := stderr.(*os.File); !file || sharedOutputStream(stdout, stderr) {
+	file, isFile := stderr.(*os.File)
+	if !isFile || sharedOutputStream(stdout, stderr) || !headlineSafeStream(file) {
 		return
 	}
 	_, _ = io.WriteString(stderr, renderAffectedHeadline(compact))
+}
+
+// headlineSafeStream reports whether file is a terminal or a regular file,
+// the only streams where a write cannot raise SIGPIPE.
+func headlineSafeStream(file *os.File) bool {
+	info, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	mode := info.Mode()
+	return mode.IsRegular() || mode&os.ModeCharDevice != 0
 }
