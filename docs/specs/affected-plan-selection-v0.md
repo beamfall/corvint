@@ -152,6 +152,25 @@ measure. None of them drops a unit the change can reach.
   temporary root included, keeps the existing conservative relation; a plain `ls` of the
   working directory reads one directory's names and is not a walk. A helper that walks the
   tree stays a bounded source (V1-4283): the test that runs it is selected by its own reads.
+- **AFP-V0-9965:** (proposed 2026-11-11; delivery experimental; V1-5368)
+  A shell unit matches a path it reads through a symbolic link by the link's path and never by
+  the target's, so a change below the target names none of its tokens (V1-5368). `corvint
+  affected`, its snapshot plan included, MUST pass the planner the symbolic links of the planned
+  tree: every link at the measured commit, listed with `git ls-tree -r`, with its target read
+  from the tree, and every dirty path that is a link at the measured commit or in the tree. In
+  a graph built with the shell plugin, the plan MUST then carry the unknown
+  `LANGUAGE_FRONTIER` `shell:symlink-target:<path>` for each dirty path that is one of those
+  links, lies below one, or equals or lies below the repository path a link resolves to. A
+  target resolves lexically against the link's directory and then through further links of the
+  tree; a target outside the repository resolves to no path; a target that cannot be read, or
+  whose resolution passes through more than 40 links, resolves to the repository root. When
+  the links cannot be listed (no measured commit, a Git failure, or a listing that reaches the
+  8 MiB status bound), a plan with a dirty path MUST carry `shell:symlink-inventory-unknown`
+  instead. A plan over a graph given no list (a library caller of `Select`) is unchanged. Not
+  modelled: a link Git ignores; a link inside a submodule; a link outside the repository that
+  leads back into it; an untracked link a `--path` plan does not name; and a reader of a plugin
+  other than shell and Go that names a path through a link (the Go plugin resolves its literals
+  through links itself).
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -3185,6 +3204,10 @@ AFP-V0-9134: `TestShellTreeWalkerUnbounded_AFPV09134` makes each `.`-rooted walk
 unbounded reader selected for an added, edited or deleted file anywhere, and keeps
 directory-rooted, file-rooted, temp-rooted and helper walkers bounded. The lane entry is
 `docs/build-log/2026-11-09-affshell.md`.
+AFP-V0-9965: `TestSymlinkOperand_V15368` (one row per V1-5368 case and neighbour; no row
+misses a test) and `TestSymlinks_AFPV09965` (the list read from a Git repository: tracked,
+retargeted, deleted, dangling, chained, escaping, absolute and unreadable links, and an
+unlistable commit).
 
 For AFP-V0-9628, `TestDriverRoundTwoCounterexamples_AFP_V0_9628` checks all five round-2
 spellings through computed-site discovery and `Select`, including make's `$$d` expansion.
