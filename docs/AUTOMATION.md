@@ -27,7 +27,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   since-removed console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:507-508@d5d6e05c`).
+  (`cmd/corvint/help.go:509-510@d5d6e05c`).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
   (`cmd/corvint/help.go:296@a8866a48`). Fetching the commits a step needs is the runner's job.
 
@@ -72,7 +72,7 @@ Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:39@af9fb447`; exits `cmd/corvint/affected.go:904-982@fec70bb6`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:654-659@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:507@f024c3ab`).
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:509@f024c3ab`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
   as for `affected`; envelope
   `cmd/corvint/main.go:830@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
