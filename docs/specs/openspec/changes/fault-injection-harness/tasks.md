@@ -2,9 +2,9 @@
 
 Each task names its requirement IDs and its proof.
 
-- [ ] 1 File the ticket, reserve prefix `FIH-V1` and set `requirementRefs` to the fifteen IDs.
-   Proof: `ticket show` read back.
-- [ ] 2 First commit: create `fault-injection-harness-v1.md`, its `docs/specs/README.md` row and the
+- [x] 1 File the ticket, reserve prefix `FIH-V1` and set `requirementRefs` to the fifteen IDs.
+   Proof: `ticket show` read back. V1-5405 filed; FIH-V1 reserved.
+- [x] 2 First commit: create `fault-injection-harness-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: FIH-V1-001..015. Proof: spec diff.
 - [ ] 3 Harness core and Go adapter from `tools/affected-edit-oracle`. Requirements: FIH-V1-003,
    005, 006, 011, 013. Proof: Go parity test and import check.
