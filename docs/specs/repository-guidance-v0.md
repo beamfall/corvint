@@ -7,7 +7,7 @@ Intent status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-01
 Delivery status: experimental
 
 ## Agent digest
-- Claim: Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.
+- Claim: One advisory command, `review`, gives affected advice and local branch overlap hints for an immutable range (`features` and `overview` cut, decision 0597).
 - Status: accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); experimental.
 - Exists: Genesis immutable inventory and affected-plan composition; guidance command implementation in this slice.
 - Blocked on: integrated first-release qualification; no authority or coverage promotion.
@@ -22,13 +22,13 @@ The existing explicit-ID `feature FEATURE_ID` command retains its grammar and se
 
 ## Requirements
 
-- **RGV-V0-001:** Separate experimental `features`, `overview`, and `review --base FULL_SHA [--max-refs N]` commands MUST emit canonical JSON. All successful receipts label authority inferred and mutates false. `features` omits overview-only languages/entrypoints/manifests/tests fields with an explicit omission explanation; `overview` includes them.
+- **RGV-V0-001:** The experimental `review --base FULL_SHA [--max-refs N]` command MUST emit canonical JSON with authority labelled inferred and `mutates` false. The `features` and `overview` commands MUST NOT exist: a call to either gets the usage refusal and exit 2. The review document MUST NOT carry a `features` or `changedFeatures` member, languages, entrypoints, manifests or `nextCalls`. (amended 2026-11-11, decision 0597)
 - **RGV-V0-002:** Read commands MUST capture clean HEAD, immutable commit/tree/blob inputs and recheck HEAD/status before emission. Dirty worktrees and drift MUST refuse with `unsupported-repository-guidance`; malformed arguments refuse without observation, trace, index or repository writes.
-- **RGV-V0-003:** Discovery MUST reuse Genesis tracked inventory/classification. Candidates MUST carry original path/blob/line span and deterministic rule ID, merging duplicate labels with all bounded evidence. Inference MUST NOT synthesize authority, feature status or accepted IDs.
-- **RGV-V0-004:** Bounded heuristics MUST cover literal feature/scenario markers, route/MCP registrations, cmd entrypoints and package/application manifests including literal bin/script declarations. Unsupported dynamic syntax, languages and exhausted source/candidate bounds MUST remain explicit unknowns/omissions.
-- **RGV-V0-005:** Overview MUST compose exact commit/tree, detected languages, entrypoints/manifests, test conventions/runners, inferred features and index freshness/omissions. Optional index data MUST match the captured tree; missing/stale/unread index data MUST be explicit and MUST NOT trigger index building.
-- **RGV-V0-006:** Suggested nextCalls MUST be bounded inert structured argv from a closed supported-command table. Repository strings MUST NOT supply arbitrary argv. Suggestions MUST NOT execute scripts, tests, commands or models.
-- **RGV-V0-007:** Review MUST require a full immutable ancestor base and compose actual affected-plan/0 advice over immutable target sources plus changed inferred scope. Omitted sources MUST remain unknown; target-only changedFeatures MUST explicitly say deleted/base-only candidates are not discovered; guidance MUST NOT close CEM or test obligations (the OCM and frontier obligations this clause also named were removed with their commands by decision 0594).
+- **RGV-V0-003:** Retired 2026-11-11 (decision 0597): the inferred feature list is cut; review still reads the Genesis inventory for RGV-V0-013, and feature maps come from flows (decision 0596 G25). The ID stays for traceability.
+- **RGV-V0-004:** Retired 2026-11-11 (decision 0597): regex feature discovery is cut. The ID stays for traceability.
+- **RGV-V0-005:** Retired 2026-11-11 (decision 0597): `overview` is cut; `corvint affected` and `corvint impact` answer change questions. The ID stays for traceability.
+- **RGV-V0-006:** Retired 2026-11-11 (decision 0597): only `features` and `overview` emitted `nextCalls`. The ID stays for traceability.
+- **RGV-V0-007:** Review MUST require a full immutable ancestor base and compose actual affected-plan advice over immutable target sources. Omitted sources MUST remain unknown, and guidance MUST NOT close test obligations. (amended 2026-11-11, decision 0597)
 - **RGV-V0-008:** Review MUST enumerate only sorted local refs/heads, capture the full bounded tip map and recheck it before emission. Ref drift MUST refuse. Default/max admission is 32 refs; caller may lower it to 1..32 with explicit omitted refs.
 - **RGV-V0-009:** Review MUST explicitly skip current ref, ancestors of target, descendants of target and ancestry-stacked surviving tips. Remaining refs use merge-base(inputBase,tip)..tip and intersect the complete bounded path set with inputBase..target.
 - **RGV-V0-010:** More than 256 paths/ref MUST produce UNKNOWN/incomplete, never a truncated negative. At most 64 overlapping path entries across all branch rows are emitted with explicit omissions (branch rows are already bounded by the ref cap). Ref enumeration, target paths, source blobs, candidates and output MUST have finite budgets.
@@ -38,8 +38,8 @@ The existing explicit-ID `feature FEATURE_ID` command retains its grammar and se
 - **RGV-V0-014:** Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the repository declarations: either the complete immutable snapshot or the standalone affected path's direct worktree read. An empty selection or a gate-absence claim MUST NOT derive from a capped inventory.
 - **RGV-V0-015:** (proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `review.affected` MUST be the AFP-V0-035/036 `affected-plan/1` projection of the receipt RGV-V0-007/013 planned, byte-equal to the default `corvint affected --base FULL_SHA` document over the same clean worktree. `review.affectedFull` MUST carry `argv` `["corvint","affected","--base",FULL_SHA,"--full"]` and `digest`, `affected-plan:sha256:` plus the lowercase hex SHA-256 of the canonical planned `affected-plan/0` receipt, which is that command's stdout without its trailing newline at the captured revision; a different digest means the worktree plan differs from the one review composed. Falsifier: a review document that carries `plan.selected[].tests` or the `plan.excluded` array, or whose `affectedFull` digest does not match the stdout of its `argv`. Rollback: embed the `affected-plan/0` receipt again and drop `affectedFull`.
 - **RGV-V0-050:** (accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V0-002 dirty-worktree refusal MUST name the dirty paths: the total count and, in `git status --porcelain=v1` order, the status code and quoted path of at most the first 8 entries, with `(+N more)` for the rest. When any entry is untracked it MUST also state that Corvint runs Git without global configuration (decision 0158), so a path ignored only by a global excludes file (`core.excludesFile` or `~/.config/git/ignore`) is untracked here, and name the fix: a tracked `.gitignore` or `.git/info/exclude`. The refusal code, its trigger and the no-observation rule are unchanged. Non-goal: honouring global excludes, and the `MIXED` worktree state of the MCP binding, whose dirty set lives in the context index. Rollback: restore the fixed refusal text.
-- **RGV-V0-955:** (accepted under the owner's standing auto-accept, 2026-11-01; V1-3528) When every dirty entry is untracked (`??`), `overview` and `features` MUST NOT refuse: they emit the receipt from the pinned HEAD tree, which no untracked path can change, and record the degradation as `omissions.untracked` (the count) plus one `unknown` line that states `MIXED worktree`, names the paths with the same bound, quoting and global-excludes hint as RGV-V0-050, and says they were not read. This matches `corvint affected`, which plans the same tree with those paths in `plan.dirty` (warning `MIXED` under a `--base` range) instead of refusing. The recheck before emission MUST see the same untracked set, or refuse as status drift. A tracked change, a conflict, and every dirty state under `review` still refuse per RGV-V0-002. Non-goal: honouring global excludes. Rollback: refuse untracked-only dirt again.
-- **RGV-V0-956:** (accepted under the owner's standing auto-accept, 2026-11-01; V1-3532) A guidance feature whose label is a canonical feature ID (`^[a-z0-9][a-z0-9-]*$`, the syntax `corvint feature` validates) MUST carry `featureId` (the label) and `featureCall`, the inert argv `["corvint","feature",<featureId>,"--limit","1"]`, so the list feeds the detail command. `--limit 1` asks only for the declared record, the one form `corvint feature` supports in a repository that also holds JS, TS or Python sources (more candidates refuse `unsupported-feature-repository` there). Other labels (paths, manifest keys, prose) carry neither and are not slugified. The ID cannot start with `-`, so it never reads as an option (RGV-V0-006). `corvint feature` answers `READY` only for a declared feature record and abstains `OUT_OF_SCOPE` otherwise; `featureId` asserts no declaration. Rollback: drop the two members.
+- **RGV-V0-955:** Retired 2026-11-11 (decision 0597): `overview` and `features`, the only commands it governed, are cut; `review` still refuses every dirty state under RGV-V0-002. The ID stays for traceability.
+- **RGV-V0-956:** Retired 2026-11-11 (decision 0597): `features` and `feature` are cut. The ID stays for traceability.
 
 ## Bounds and failure modes
 
@@ -59,8 +59,8 @@ from letters, numbers, spaces, underscore, dot, slash, parentheses and hyphen (a
 Go markers come only from comment tokens; string literals cannot become markers. JSON/JSONL markers
 are excluded. Other formats retain this bounded heuristic, with no syntax-completeness claim.
 C++ suffixes include `.cpp`, `.cc`, `.cxx` and `.hpp`; `.h` is an explicit ambiguous-language omission. `unsupported-repository-guidance` includes dirty, drift, ancestry,
-layout, source, deadline and output refusal reasons. Rollback removes the three command routes and
-this advisory composition without changing explicit feature authority or existing gates.
+layout, source, deadline and output refusal reasons. Rollback removes the `review` route (the
+`features` and `overview` routes were cut by decision 0597) and this advisory composition without changing explicit feature authority or existing gates.
 
 Skip reasons include `current-ref`, `ancestor-of-target`, `descendant-of-target`,
 `ancestry-stacked`, `ref-budget` and explicit UNKNOWN ancestry. The captured symbolic current ref
@@ -75,24 +75,24 @@ Genesis Git containment retains the existing `TestDescendantCleanupOnCancellatio
 
 | Requirement | Test |
 |---|---|
-| RGV-V0-001 | TestRepositoryGuidanceCLIAndLiteralRegistration |
+| RGV-V0-001 | TestRepositoryGuidanceRemovedVerbsRefuse; TestRepositoryGuidanceReviewCarriesNoInferredFeatures |
 | RGV-V0-002 | TestRepositoryGuidanceRefusalsDoNotObserve; TestRepositoryGuidanceRefBoundsAndDrift |
-| RGV-V0-003 | TestRepositoryGuidanceImmutableDiscovery |
-| RGV-V0-004 | TestRepositoryGuidanceCLIAndLiteralRegistration; TestRepositoryGuidanceCandidateAndOverlapBounds; TestRepositoryGuidanceMarkerBoundaries |
-| RGV-V0-005 | TestRepositoryGuidanceImmutableDiscovery; TestRepositoryGuidanceIndexFreshness; TestRepositoryGuidanceSourceSuffixes |
-| RGV-V0-006 | TestRepositoryGuidanceCLIAndLiteralRegistration |
-| RGV-V0-007 | TestRepositoryGuidanceReviewBranches; TestRepositoryGuidanceDeletedFeatureIsExplicitUnknown |
+| RGV-V0-003 | retired (decision 0597) |
+| RGV-V0-004 | retired (decision 0597) |
+| RGV-V0-005 | retired (decision 0597) |
+| RGV-V0-006 | retired (decision 0597) |
+| RGV-V0-007 | TestRepositoryGuidanceReviewBranches; TestRepositoryGuidanceDeletedPathReachesAffected |
 | RGV-V0-008 | TestRepositoryGuidanceRefBoundsAndDrift; TestRepositoryGuidanceCandidateAndOverlapBounds |
 | RGV-V0-009 | TestRepositoryGuidanceReviewBranches |
 | RGV-V0-010 | TestRepositoryGuidanceCandidateAndOverlapBounds; TestRepositoryGuidanceRefBoundsAndDrift |
 | RGV-V0-011 | TestRepositoryGuidanceAncestryTrustAndDeadline; TestRepositoryGuidanceCleanupFailureRefuses |
-| RGV-V0-012 | TestRepositoryGuidanceImmutableDiscovery; TestRepositoryGuidanceRefusalsDoNotObserve |
+| RGV-V0-012 | TestRepositoryGuidanceRefusalsDoNotObserve; TestRepositoryGuidanceReviewBranches |
 | RGV-V0-013 | TestRepositoryGuidanceReviewAffectedInventoryCompleteness; TestRepositoryGuidanceReviewBranches |
 | RGV-V0-014 | TestRepositoryGuidanceReviewAffectedInventoryCompleteness |
 | RGV-V0-015 | TestRepositoryGuidanceReviewBranches; TestRepositoryGuidanceReviewAffectedInventoryCompleteness (both through `assertReviewAffectedResolves`, which runs the `affectedFull` argv and checks its digest) |
 | RGV-V0-050 | TestGuidanceDirtyRefusalNamesPathsAndGlobalExcludes (a path ignored only by `~/.config/git/ignore`, a tracked modification without the hint, and the 8-path bound) |
-| RGV-V0-955 | TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed in `cmd/corvint/repository_guidance_test.go` (overview and features succeed with the MIXED unknown on one untracked `.claude/settings.local.json`, affected plans the same path as dirty without refusing, review and a tracked change still refuse) |
-| RGV-V0-956 | TestRepositoryGuidanceFeaturesRoundTripToFeature (a declared `greeting` marker label carries `featureId` and `featureCall`, which `corvint feature` answers `READY` in a repository that also holds TypeScript and Python sources; a path label carries neither) |
+| RGV-V0-955 | retired (decision 0597) |
+| RGV-V0-956 | retired (decision 0597) |
 
 Focused results and independent review are recorded in BUILD-LOG. Root owns final frozen full gate,
 CEM/OCM and first-release integration; focused results alone do not assert promotion.

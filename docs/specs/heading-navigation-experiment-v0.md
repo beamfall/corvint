@@ -3,14 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-29
 Requirement prefix: `HNE-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted `tools/heading-nav-bench` with the context benchmarks (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: owner request to implement the PageIndex-inspired comparison on 2026-09-29;
 `AGENTS.md`; `documentation-corpus-v1.md`; `retrieval-eval-comparability-v0.md`.
 
 ## Agent digest
 - Claim: An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.
-- Status: proposed/experimental; no production retrieval change or promotion.
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: `tools/heading-nav-bench` and an author-visible pinned pilot fixture.
 - Blocked on: independent external utility evidence; adaptive agent navigation remains unmeasured.
 - Read next: Requirements; Evaluation protocol; Failure modes and rollback.

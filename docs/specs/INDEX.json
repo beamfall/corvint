@@ -564,8 +564,8 @@
     "path": "docs/specs/confidently-wrong-trial-v0.md",
     "title": "Confidently-Wrong Trial V0",
     "reqPrefix": "CWT-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "`tools/cw-trial` runs one agent over a frozen task set under `none`, `grep`, and `corvint` arms and scores confidently-wrong claims per task with intervals.",
     "dependsOn": [
       "docs/specs/falsifiable-packet-v0.md"
@@ -581,8 +581,8 @@
     "path": "docs/specs/context-evolution-program-v0.md",
     "title": "Context Evolution Program V0",
     "reqPrefix": "CEP-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Five independent context-evolution hypotheses require frozen held-out evidence before promotion.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md",
@@ -1579,8 +1579,8 @@
     "path": "docs/specs/heading-navigation-experiment-v0.md",
     "title": "Heading navigation experiment V0",
     "reqPrefix": "HNE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "An offline harness compares native lexical document ranking with deterministic heading-aware expansion under equal serialized context-byte budgets.",
     "dependsOn": [
       "docs/specs/documentation-corpus-v1.md",
@@ -1714,8 +1714,8 @@
     "path": "docs/specs/learned-trace-admission-v0.md",
     "title": "Learned Trace Admission V0",
     "reqPrefix": "LTA-V0",
-    "intent": "accepted (decision 0058)",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -2482,7 +2482,7 @@
     "reqPrefix": "RGV-V0",
     "intent": "accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053)",
     "delivery": "experimental",
-    "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
+    "claim": "One advisory command, `review`, gives affected advice and local branch overlap hints for an immutable range (`features` and `overview` cut, decision 0597).",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md"
     ],
@@ -2513,8 +2513,8 @@
     "path": "docs/specs/retrieval-bench-diagnostics-v0.md",
     "title": "Retrieval benchmark diagnostics V0",
     "reqPrefix": "RBD-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "The development retrieval benchmark optionally retains exact bounded context output for failure diagnosis without changing ranking or scoring.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
@@ -2932,8 +2932,8 @@
     "path": "docs/specs/task-context-packet-v0.md",
     "title": "Task-Context Packet V0",
     "reqPrefix": "TCP-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "`corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.",
     "dependsOn": [
       "docs/specs/go-production-kernel-migration-v0.md",
@@ -3059,8 +3059,8 @@
     "path": "docs/specs/unplanned-read-events-v0.md",
     "title": "Unplanned Read Events V0",
     "reqPrefix": "URE-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.",
     "dependsOn": [
       "docs/specs/task-context-packet-v0.md"
@@ -3311,8 +3311,8 @@
     "path": "docs/specs/trial-replay-journal-v0.md",
     "title": "Trial Replay Journal V0",
     "reqPrefix": "TRJ-V0",
-    "intent": "proposed",
-    "delivery": "not-started",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Both agent trial dispatchers replay a settled invocation only when a full pinned key matches and record where each replayed observation came from.",
     "dependsOn": [
       "docs/specs/confidently-wrong-trial-v0.md",
@@ -4001,8 +4001,8 @@
     "path": "docs/specs/context-ranking-v0.md",
     "title": "Context ranking V0",
     "reqPrefix": "CRK-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0597)",
+    "delivery": "retired",
     "claim": "Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.",
     "dependsOn": [],
     "supersededBy": null,

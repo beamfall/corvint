@@ -2,8 +2,10 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0597)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0597 (context proven only) deleted the cut packet and bench tools this program evolved (b55635262 is the last tree with them). The body below is historical and its requirement IDs stay for traceability.
 Document kind: hypothesis catalog plus one accepting slice. The five hypotheses are prose intent
 only, with no numbered clauses, so OCM must abstain on them rather than invent coverage; decision
 0179 (2026-09-13) holds them prose-only permanently, and a hypothesis gains `PREFIX-NNN` clauses
@@ -17,7 +19,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 
 ## Agent digest
 - Claim: Five independent context-evolution hypotheses require frozen held-out evidence before promotion.
-- Status: proposed/experimental
+- Status: retired 2026-11-11 (decision 0597) / retired
 - Exists: `internal/gokernel` local evidence for authority closure and snapshot capsules; external evaluation slice `CEP-V0-001`..`010` in `tools/retrieval-bench` and `tools/cw-trial`.
 - Blocked on: frozen held-out outcome trials.
 - Read next: `proof-carrying-context-optimization-v0.md` and `agent-harness-integration-v0.md`.
