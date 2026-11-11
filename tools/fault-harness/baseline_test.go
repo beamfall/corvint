@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // suiteRuns returns three runs of n passing tests named go:p#T000...
@@ -113,7 +115,8 @@ func TestRunSealedSet_FIH_V1_004_005_006(t *testing.T) {
 	setMode(t, mode, "go:oracle.invalid/leaf")
 	clones := t.TempDir()
 	out := filepath.Join(t.TempDir(), "results.json")
-	args := []string{"run", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--root", repo.root, "--clones", clones, "--corvint", planner, "--out", out}
+	recordPath := filepath.Join(t.TempDir(), "run.json")
+	args := []string{"run", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--root", repo.root, "--clones", clones, "--corvint", planner, "--record", recordPath, "--out", out}
 	w.Reset()
 	if code := run(ctx, args, &w); code != 0 {
 		t.Fatalf("run: %d %s", code, w.String())
@@ -122,6 +125,21 @@ func TestRunSealedSet_FIH_V1_004_005_006(t *testing.T) {
 	raw, _ := os.ReadFile(out)
 	if err := json.Unmarshal(raw, &res); err != nil || len(res.Cases) != 1 || len(res.Baselines) != 1 {
 		t.Fatalf("results %s %v", raw, err)
+	}
+	// The run record binds these results, as written, to the seal and the
+	// pre-registration (review P2-B); a strict re-read reproduces the digest.
+	var rec runRecord
+	var strict results
+	recRaw, _ := os.ReadFile(recordPath)
+	if err := decodeStrict(recRaw, &rec); err != nil {
+		t.Fatalf("run record %s: %v", recRaw, err)
+	}
+	if err := decodeStrict(raw, &strict); err != nil {
+		t.Fatal(err)
+	}
+	sealRec := sealRecord{Profile: sealProfile, FaultSetSHA256: sha(setBody)}
+	if err := checkRunRecord(p, sealRec, rec, strict); err != nil || rec.Profile != runRecordProfile || rec.FaultSetSHA256 != sha(setBody) {
+		t.Fatalf("run record %+v: %v", rec, err)
 	}
 	broken, value, double := "go:oracle.invalid/leaf/flaky#TestBroken", "go:oracle.invalid/leaf#TestValue", "go:oracle.invalid/leaf/other#TestDouble"
 	b := res.Baselines[0]
@@ -151,11 +169,14 @@ func TestRunSealedSet_FIH_V1_004_005_006(t *testing.T) {
 	if err := os.Remove(out); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Remove(recordPath); err != nil {
+		t.Fatal(err)
+	}
 	w.Reset()
 	if code := run(ctx, args, &w); code != 1 || !bytes.Contains(w.Bytes(), []byte("refused: preregistration-changed")) {
 		t.Fatalf("edited seed: %d %s", code, w.String())
 	}
-	if entries, _ := os.ReadDir(clones); len(entries) != 0 || fileExists(out) {
+	if entries, _ := os.ReadDir(clones); len(entries) != 0 || fileExists(out) || fileExists(recordPath) {
 		t.Fatal("a refused run cloned or wrote results")
 	}
 }
@@ -221,10 +242,21 @@ func TestFaultedRunStopped_FIH_V1_005_014(t *testing.T) {
 		}
 		return nil, fmt.Errorf("go test stopped by the harness: %w", err)
 	})
+	// Review P3-2: a timed-out process whose cleanup is also unproved
+	// keeps the wall-timeout mark and is a failed measurement.
+	unproved := runOne("unproved", func(ctx context.Context, _ context.CancelFunc, _ string) (RunResult, error) {
+		bounded, stop := context.WithTimeout(ctx, -1)
+		defer stop()
+		err := stopError(ctx, bounded, groupreap.Result{State: groupreap.Hold, Err: errors.New("leader exit not observed")}, "go", time.Minute)
+		if !errors.Is(err, errWallTimeout) || !errors.Is(err, errCleanupUnproved) {
+			t.Fatalf("timed out with unproved cleanup: %v", err)
+		}
+		return nil, fmt.Errorf("go test stopped by the harness: %w", err)
+	})
 	crashed := runOne("crashed", func(context.Context, context.CancelFunc, string) (RunResult, error) {
 		return nil, errors.New("Go package oracle.invalid/leaf failed without a failing test")
 	})
-	for _, r := range []caseResult{cancelled, walled} {
+	for _, r := range []caseResult{cancelled, walled, unproved} {
 		if r.Status != caseError || len(r.Faults) != 1 || r.Faults[0].Status != faultError {
 			t.Fatalf("stopped run counted as a measurement: %+v", r)
 		}
@@ -238,9 +270,107 @@ func TestFaultedRunStopped_FIH_V1_005_014(t *testing.T) {
 	if v := buildVerdict(ok(crashed)); v.Status != statusZeroMiss || v.Code.DroppedNoKill != 1 {
 		t.Fatalf("dropped build failure: %s %v", v.Status, v.Reasons)
 	}
-	for _, r := range []caseResult{cancelled, walled} {
+	for _, r := range []caseResult{cancelled, walled, unproved} {
 		if v := buildVerdict(ok(r)); v.Status != statusInvalid || v.Code.Errors != 1 || v.Code.DroppedNoKill != 0 || v.Code.Sentence != "" {
 			t.Fatalf("%s: %s errors=%d dropped=%d %v", r.ID, v.Status, v.Code.Errors, v.Code.DroppedNoKill, v.Reasons)
 		}
+	}
+}
+
+// TestStopError_FIH_V1_005 is review P3-2: how a command ended is classified
+// before its output is read, and an unproved cleanup never hides the wall
+// timeout or a cancelled parent.
+func TestStopError_FIH_V1_005(t *testing.T) {
+	held := groupreap.Result{State: groupreap.Hold, Err: errors.New("leader exit not observed")}
+	released := groupreap.Result{State: groupreap.Released}
+	live := context.Background()
+	expired, stop := context.WithTimeout(live, -1)
+	defer stop()
+	cancelledParent, cancel := context.WithCancel(live)
+	cancel()
+	if err := stopError(live, live, released, "go", time.Minute); err != nil {
+		t.Fatalf("finished command: %v", err)
+	}
+	if err := stopError(live, expired, released, "go", time.Minute); !errors.Is(err, errWallTimeout) || errors.Is(err, errCleanupUnproved) {
+		t.Fatalf("wall timeout: %v", err)
+	}
+	if err := stopError(live, live, held, "go", time.Minute); !errors.Is(err, errCleanupUnproved) || !stopped(live, err) {
+		t.Fatalf("unproved cleanup: %v", err)
+	}
+	if err := stopError(live, expired, held, "go", time.Minute); !errors.Is(err, errCleanupUnproved) || !errors.Is(err, errWallTimeout) || !stopped(live, err) {
+		t.Fatalf("timed out with unproved cleanup: %v", err)
+	}
+	if err := stopError(cancelledParent, cancelledParent, held, "go", time.Minute); !errors.Is(err, errCleanupUnproved) || !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled with unproved cleanup: %v", err)
+	}
+}
+
+// TestCloneStopped_FIH_V1_005_008_014 is review P3-1: a clone step stopped by
+// cancellation returns an error even when the step's own error is nil, so the
+// case is a failed measurement and the verdict INVALID; an unavailable pin is
+// excluded with the recorded refusal that verdict requires (review P2-A).
+func TestCloneStopped_FIH_V1_005_008_014(t *testing.T) {
+	repo := newFixtureRepo(t)
+	repo.writeGoModule()
+	base := repo.commit("base")
+	repo.write("leaf.go", "package leaf\n\nfunc Value() int { return 2 }\n")
+	head := repo.commit("pr: compute the value")
+	c := harnessCase{ID: "case", Kind: "mutants", PR: 7, BaseSHA: base, HeadSHA: head, Faults: []fault{{ID: "m1"}}}
+	runWith := func(step func(ctx context.Context, cancel context.CancelFunc, root string, args []string) (string, error, bool)) caseResult {
+		t.Helper()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		clones := t.TempDir()
+		h := newHarness(runConfig{Source: repo.root, Clones: clones, Adapter: &stubAdapter{}})
+		h.git = func(ctx context.Context, root string, args ...string) (string, error) {
+			if out, err, ok := step(ctx, cancel, root, args); ok {
+				return out, err
+			}
+			return git(ctx, root, args...)
+		}
+		r := h.runCase(ctx, c)
+		if entries, _ := os.ReadDir(clones); len(entries) != 0 {
+			t.Fatalf("clone leaked: %v", entries)
+		}
+		return r
+	}
+	// rev-parse cancelled with no error of its own and a wrong head.
+	revParse := runWith(func(_ context.Context, cancel context.CancelFunc, _ string, args []string) (string, error, bool) {
+		if args[0] != "rev-parse" {
+			return "", nil, false
+		}
+		cancel()
+		return strings.Repeat("0", 40), nil, true
+	})
+	// checkout cancelled: a failed measurement, not pin-unavailable.
+	checkout := runWith(func(ctx context.Context, cancel context.CancelFunc, _ string, args []string) (string, error, bool) {
+		if args[0] != "checkout" {
+			return "", nil, false
+		}
+		cancel()
+		return "", fmt.Errorf("git checkout: %w", ctx.Err()), true
+	})
+	for name, r := range map[string]caseResult{"rev-parse": revParse, "checkout": checkout} {
+		if r.Status != caseError || r.Error == "" || r.ExcludedReason != "" || r.ExcludedEvidence != "" {
+			t.Fatalf("%s: stopped clone not a failed measurement: %+v", name, r)
+		}
+		res := fixtureResults(fixtureCases("c", "mutants", caseCounted, "NARROWED", "line", 100), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 30), []caseResult{r})
+		if v := buildVerdict(res); v.Status != statusInvalid || v.Code.Errors != 1 || v.Code.Excluded != 0 {
+			t.Fatalf("%s: %s %v", name, v.Status, v.Reasons)
+		}
+	}
+	// An unavailable pin, not stopped: excluded with the refusal that names
+	// the head, which the verdict's structural check admits.
+	missing := runWith(func(_ context.Context, _ context.CancelFunc, _ string, args []string) (string, error, bool) {
+		if args[0] != "checkout" {
+			return "", nil, false
+		}
+		return "", errors.New("git checkout: reference is not a tree"), true
+	})
+	if missing.Status != caseExcluded || missing.ExcludedReason != "pin-unavailable" || !strings.Contains(missing.ExcludedEvidence, head) || len(missing.Faults) != 0 {
+		t.Fatalf("unavailable pin: %+v", missing)
+	}
+	if err := checkCaseFaults(c, missing); err != nil {
+		t.Fatalf("recorded exclusion refused: %v", err)
 	}
 }

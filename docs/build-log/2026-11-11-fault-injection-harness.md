@@ -83,6 +83,61 @@ fault, a missed case relabelled `NO_KILL`, edited seal counts, 29 non-code cases
 end in `ERROR` and an `INVALID` verdict; a build failure is still dropped). With the P2-2 check
 disabled by hand, `TestFaultedRunStopped_FIH_V1_005_014` failed with the cancelled case `NO_KILL`.
 
+## Review fix round 2 (P2-A, P2-B, P3)
+
+A fix-only review of round 1 closed P2-2 but found P2-1 still open through two bypasses. G3 stays
+the rule: only a fault-induced build failure or crash may be dropped.
+
+- P2-A, relabelling a case `EXCLUDED`. `checkCaseFaults` admitted any `EXCLUDED` or `ERROR` case,
+  so a sealed MISS case rewritten as `EXCLUDED`, `pin-unavailable`, no faults, lost its miss within
+  the exclusion budget. `run` now records the pin-unavailable refusal (it names the head and the
+  failed checkout or rev-parse) in a new case field `excludedEvidence`, and `verdict` admits an
+  exclusion only with reason `pin-unavailable`, no fault results and that evidence naming the
+  sealed head; an `ERROR` case needs its recorded error, and no other case may carry an exclusion
+  reason. FIH-V1-002 and FIH-V1-014 are silent on whether an exclusion counts toward the non-code
+  minimum; the verdict fails closed and the spec now says so: an excluded case counts toward
+  neither N, the Wilson bound nor the minimum, so fewer than 30 measured non-code cases are
+  `INVALID`.
+- P2-B, hand-edited fault contents. The structural checks now refuse a `KILLED` fault with no
+  killing test or no plan kind, misses outside its kills or under a plan other than `NARROWED`,
+  and a `NO_KILL` fault that lists kills or misses. Edits that stay self-consistent (an emptied
+  miss list; a missed fault flipped to `NO_KILL` with its kills cleared beside a still-killed
+  fault; a forged exclusion) pass those checks, so the root cause is addressed with a digest:
+  `run --record FILE` writes `fault-harness-run/1` with the SHA-256 of the results' compact JSON
+  encoding, the runner, the pre-registration hash and the sealed fault-set hash, and
+  `verdict --record FILE` recomputes the digest after a strict decode and refuses a mismatch or a
+  record for another runner, pre-registration or set (`results-digest-mismatch`). The structural
+  checks run first so their refusals keep their own codes. Limit: the digest is unkeyed. It binds
+  the results to the run record and refuses an edit of the results alone; someone who rewrites
+  both files defeats it. It is not tamper resistance, and a keyed or externally anchored record
+  would be a separate decision.
+- P3-1, a cancelled clone step returning nil. In `clone`'s rev-parse branch a cancelled context
+  with no Git error joined only nil errors, so `clone` returned no error and an empty root. Each
+  stopped branch now joins `ctx.Err()` first. A small seam, `harness.git`, lets the test stop a
+  step deterministically without sleeping.
+- P3-2, an unproved cleanup hiding the wall timeout. `command` returned "process cleanup
+  unproved" before checking its own deadline, so a timed-out process whose cleanup also failed
+  carried no `errWallTimeout` and a faulted run could be dropped as a crash. `stopError` now
+  classifies the end of a command, keeping both the new `errCleanupUnproved` mark and the wall
+  timeout or parent cancellation, and `stopped` treats any of them as a failed measurement in
+  `runFault` and `clone`.
+
+Tests: `TestVerdictBoundToSeal_FIH_V1_002_007_014` (a MISS case relabelled `EXCLUDED` without
+evidence, with evidence not naming the head, keeping its faults or with another reason; an
+exclusion reason on a counted case; an `ERROR` without its error; a miss outside the kills; a missed
+fault flipped to `NO_KILL`; a kill with no killing test or no plan kind; misses under a FULL plan;
+and, under the original run record, an emptied miss list, a flipped status with kills cleared and a
+forged exclusion refused as `results-digest-mismatch`, each first shown to pass the structural
+checks; a record for another set, runner or profile), `TestVerdictFailClosed_FIH_V1_004_014` (29
+measured of 30 sealed non-code cases is `INVALID`; one exclusion beside 30 measured stays
+`ZERO_MISS`), `TestRunSealedSet_FIH_V1_004_005_006` (the record `run` writes reproduces under a
+strict re-read), `TestCloneStopped_FIH_V1_005_008_014` (cancelled rev-parse with a nil error and
+cancelled checkout end in `ERROR` and `INVALID`; an unavailable pin is excluded with evidence the
+verdict admits), `TestStopError_FIH_V1_005` and the new `unproved` case of
+`TestFaultedRunStopped_FIH_V1_005_014`. Each fix was disabled by hand in turn (P3-1, P3-2, the
+exclusion check, the digest comparison, the `NO_KILL` contents check and the exclusion-aware
+non-code minimum) and its test failed.
+
 ## Differences from the proposal's tree (9ec3a29d0)
 
 The proposal cites `tools/affected-edit-oracle/main.go` `compare` :124, `testObservations` :475
@@ -94,7 +149,7 @@ every real verdict's granularity is `not proven` (FIH-V1-015), never an unearned
 
 ## Evidence
 
-- `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 ./tools/fault-harness/`: ok, 16 tests.
+- `script/heavy.sh env GOTOOLCHAIN=local go test -count=1 ./tools/fault-harness/`: ok, 20 tests (16 at the first delivery, 18 after review round 1).
 - `TestGoParityWithOracle_FIH_V1_011` builds the unchanged oracle and runs one AEO-V0 mutation
   case through both tools on a synthetic two-package repository, for a planner that selects both
   killed units, one, and none: the safety statuses and missing units match. With the harness's

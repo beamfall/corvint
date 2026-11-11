@@ -20,8 +20,13 @@ func fixtureCases(prefix, kind, status, plan, tier string, n int) []caseResult {
 	var out []caseResult
 	for i := 0; i < n; i++ {
 		c := caseResult{ID: fmt.Sprintf("%s%d", prefix, i), Kind: kind, PR: i + 1, HeadSHA: "h", Status: status, Faults: []faultResult{}}
-		if status == caseCounted {
+		switch status {
+		case caseCounted:
 			c.Faults = append(c.Faults, faultResult{ID: c.ID + "-f", Status: faultKilled, Planned: true, PlanKind: plan, Tier: tier, Kills: []string{"go:p#T"}})
+		case caseError:
+			c.Error = "fixture failed measurement"
+		case caseExcluded:
+			c.ExcludedReason, c.ExcludedEvidence = "pin-unavailable", "pin-unavailable: h: fixture checkout failed"
 		}
 		out = append(out, c)
 	}
@@ -112,12 +117,23 @@ func TestVerdictFailClosed_FIH_V1_004_014(t *testing.T) {
 		"failed measurement":             func(r *results) { r.Cases = append(r.Cases, fixtureCases("e", "mutants", caseError, "", "", 1)...) },
 		"exclusions over budget":         func(r *results) { r.Cases = append(r.Cases, fixtureCases("p", "revert", caseExcluded, "", "", 3)...) },
 		"no non-code N":                  func(r *results) { r.Cases = r.Cases[:100] },
+		// The spec is silent on exclusions and the non-code minimum; an
+		// excluded case is not measured, so 29 measured of 30 sealed fails
+		// closed (review P2-A).
+		"non-code exclusion below minimum": func(r *results) { r.Cases[129] = fixtureCases("q", "non-code", caseExcluded, "", "", 1)[0] },
 	} {
 		res := ok()
 		mutate(&res)
 		if v := buildVerdict(res); v.Status != statusInvalid || v.Code.Sentence != "" {
 			t.Fatalf("%s: %s %v", name, v.Status, v.Reasons)
 		}
+	}
+	// One non-code exclusion beside 30 measured non-code cases stays outside
+	// N and leaves the minimum met.
+	res = ok()
+	res.Cases = append(res.Cases, fixtureCases("q", "non-code", caseExcluded, "", "", 1)...)
+	if v := buildVerdict(res); v.Status != statusZeroMiss || v.NonCode.Excluded != 1 || v.NonCode.NarrowedWithKill != 30 {
+		t.Fatalf("non-code exclusion: %s %v", v.Status, v.Reasons)
 	}
 	// Two exclusions are within the budget of two and stay outside N.
 	res = ok()
@@ -176,6 +192,16 @@ func sealFor(t *testing.T, p loadedPreregistration, res results) (setPath, sealP
 	return setPath, writeJSON(t, rec), res
 }
 
+// recordFor writes the run record `run` would write beside res.
+func recordFor(t *testing.T, p loadedPreregistration, res results) string {
+	t.Helper()
+	digest, err := resultsDigest(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return writeJSON(t, runRecord{Profile: runRecordProfile, Runner: p.Runner, PreregistrationSHA256: p.SHA256, FaultSetSHA256: res.FaultSetSHA256, ResultsSHA256: digest})
+}
+
 func verdictPrereg(t *testing.T) (prePath, preHash string, lp loadedPreregistration) {
 	t.Helper()
 	p := basePrereg(t)
@@ -196,7 +222,7 @@ func TestVerdictCommand_FIH_V1_007(t *testing.T) {
 	setPath, sealPath, res := sealFor(t, lp, res)
 	verdict := func(res results, extra ...string) (int, string) {
 		var w bytes.Buffer
-		args := append([]string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res)}, extra...)
+		args := append([]string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res), "--record", recordFor(t, lp, res)}, extra...)
 		code := run(ctx, args, &w)
 		return code, w.String()
 	}
@@ -217,8 +243,13 @@ func TestVerdictCommand_FIH_V1_007(t *testing.T) {
 	}
 	// The seal and set are required.
 	var w bytes.Buffer
-	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", writeJSON(t, res)}, &w); code != 2 {
+	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--results", writeJSON(t, res), "--record", recordFor(t, lp, res)}, &w); code != 2 {
 		t.Fatalf("verdict without a seal: %d %s", code, w.String())
+	}
+	// So is the run record.
+	w.Reset()
+	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res)}, &w); code != 2 {
+		t.Fatalf("verdict without a run record: %d %s", code, w.String())
 	}
 }
 
@@ -230,14 +261,19 @@ func TestVerdictBoundToSeal_FIH_V1_002_007_014(t *testing.T) {
 	prePath, preHash, lp := verdictPrereg(t)
 	missed := fixtureCases("x", "mutants", caseCounted, "NARROWED", "line", 104)
 	missed[7].Faults = append(missed[7].Faults, faultResult{ID: "x7-g", Status: faultKilled, Planned: true, PlanKind: "NARROWED", Tier: "line", Kills: []string{"go:p#T"}, Misses: []string{"go:p#T"}})
-	missed[9].Faults[0].Misses = []string{"go:p#T", "go:p#U"}
+	missed[9].Faults[0].Kills, missed[9].Faults[0].Misses = []string{"go:p#T", "go:p#U"}, []string{"go:p#T", "go:p#U"}
 	res := fixtureResults(missed, fixtureCases("e", "mutants", caseError, "", "", 1), fixtureCases("n", "non-code", caseCounted, "NARROWED", "line", 32))
 	res.PreregistrationSHA256 = lp.SHA256
 	setPath, sealPath, res := sealFor(t, lp, res)
-	verdict := func(res results, sealPath string) (int, string) {
+	// verdictWith reads res under the given run record; verdict writes a
+	// fresh record for res, so only the structural checks can refuse it.
+	verdictWith := func(res results, sealPath, recordPath string) (int, string) {
 		var w bytes.Buffer
-		code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res)}, &w)
+		code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", setPath, "--seal", sealPath, "--results", writeJSON(t, res), "--record", recordPath}, &w)
 		return code, w.String()
+	}
+	verdict := func(res results, sealPath string) (int, string) {
+		return verdictWith(res, sealPath, recordFor(t, lp, res))
 	}
 	// The sealed measurement is MISS; misses are listed per fault and
 	// counted per case for the Wilson bound.
@@ -281,8 +317,68 @@ func TestVerdictBoundToSeal_FIH_V1_002_007_014(t *testing.T) {
 		"missed fault removed":    {edited(func(r *results) { r.Cases[7].Faults = r.Cases[7].Faults[:1] }), "results-not-sealed"},
 		"miss relabelled no kill": {edited(func(r *results) { r.Cases[9].Status = caseDropped }), "results-not-sealed"},
 		"unknown case status":     {edited(func(r *results) { r.Cases[9].Status = "PASSED" }), "results-not-sealed"},
+		// Review P2-A: a MISS case relabelled EXCLUDED without the
+		// pin-unavailable refusal the run records is refused.
+		"miss relabelled excluded": {edited(func(r *results) {
+			r.Cases[7].Status, r.Cases[7].ExcludedReason, r.Cases[7].Faults = caseExcluded, "pin-unavailable", []faultResult{}
+		}), "results-not-sealed"},
+		"excluded with evidence not naming the head": {edited(func(r *results) {
+			r.Cases[7].Status, r.Cases[7].ExcludedReason, r.Cases[7].ExcludedEvidence, r.Cases[7].Faults = caseExcluded, "pin-unavailable", "pin-unavailable: gone", []faultResult{}
+		}), "results-not-sealed"},
+		"excluded keeping its faults": {edited(func(r *results) {
+			r.Cases[7].Status, r.Cases[7].ExcludedReason, r.Cases[7].ExcludedEvidence = caseExcluded, "pin-unavailable", "pin-unavailable: h: gone"
+		}), "results-not-sealed"},
+		"excluded for another reason": {edited(func(r *results) {
+			r.Cases[7].Status, r.Cases[7].ExcludedReason, r.Cases[7].ExcludedEvidence, r.Cases[7].Faults = caseExcluded, "flaky", "pin-unavailable: h: gone", []faultResult{}
+		}), "results-not-sealed"},
+		"counted case with an exclusion reason": {edited(func(r *results) { r.Cases[0].ExcludedReason = "pin-unavailable" }), "results-not-sealed"},
+		"error without its error":               {edited(func(r *results) { r.Cases[104].Error = "" }), "results-not-sealed"},
+		// Review P2-B: fault contents that contradict their status.
+		"miss not among the kills":        {edited(func(r *results) { r.Cases[9].Faults[0].Misses = []string{"go:p#Z"} }), "results-not-sealed"},
+		"missed fault flipped to no kill": {edited(func(r *results) { r.Cases[7].Faults[1].Status = faultNoKill }), "results-not-sealed"},
+		"killed without a killing test":   {edited(func(r *results) { r.Cases[0].Faults[0].Kills = nil }), "results-not-sealed"},
+		"misses under a FULL plan":        {edited(func(r *results) { r.Cases[9].Faults[0].PlanKind = "FULL" }), "results-not-sealed"},
+		"killed with no plan kind":        {edited(func(r *results) { r.Cases[0].Faults[0].PlanKind = "" }), "results-not-sealed"},
 	} {
 		if code, w := verdict(tc.res, sealPath); code != 1 || !strings.Contains(w, "refused: "+tc.code) {
+			t.Fatalf("%s: %d %s", name, code, w)
+		}
+	}
+	// Review P2-B: edits that stay self-consistent pass the structural
+	// checks, so the run record's digest of the results refuses them.
+	runRec := recordFor(t, lp, res)
+	if code, w := verdictWith(res, sealPath, runRec); code != 1 || !strings.Contains(w, "runner go: MISS") {
+		t.Fatalf("recorded results: %d %s", code, w)
+	}
+	for name, r := range map[string]results{
+		"emptied misses": edited(func(r *results) { r.Cases[9].Faults[0].Misses = nil }),
+		"flipped fault status": edited(func(r *results) {
+			f := &r.Cases[7].Faults[1]
+			f.Status, f.Kills, f.Misses = faultNoKill, nil, nil
+		}),
+		"miss relabelled excluded with forged evidence": edited(func(r *results) {
+			r.Cases[7] = caseResult{ID: "x7", Kind: "mutants", PR: 8, HeadSHA: "h", Status: caseExcluded, ExcludedReason: "pin-unavailable", ExcludedEvidence: "pin-unavailable: h: forged", Faults: []faultResult{}}
+		}),
+	} {
+		if code, w := verdict(r, sealPath); code == 1 && strings.Contains(w, "refused:") {
+			t.Fatalf("%s: the structural checks refuse it, so it does not test the digest: %s", name, w)
+		}
+		if code, w := verdictWith(r, sealPath, runRec); code != 1 || !strings.Contains(w, "refused: results-digest-mismatch") {
+			t.Fatalf("%s: %d %s", name, code, w)
+		}
+	}
+	for name, edit := range map[string]func(*runRecord){
+		"record for another fault set": func(r *runRecord) { r.FaultSetSHA256 = strings.Repeat("d", 64) },
+		"record for another runner":    func(r *runRecord) { r.Runner = "pytest" },
+		"record profile":               func(r *runRecord) { r.Profile = "fault-harness-run/0" },
+	} {
+		var r runRecord
+		raw, _ := os.ReadFile(runRec)
+		if err := json.Unmarshal(raw, &r); err != nil {
+			t.Fatal(err)
+		}
+		edit(&r)
+		if code, w := verdictWith(res, sealPath, writeJSON(t, r)); code != 1 || !strings.Contains(w, "refused: results-digest-mismatch") {
 			t.Fatalf("%s: %d %s", name, code, w)
 		}
 	}
@@ -311,7 +407,7 @@ func TestVerdictBoundToSeal_FIH_V1_002_007_014(t *testing.T) {
 	few.PreregistrationSHA256 = lp.SHA256
 	fewSet, fewSeal, few := sealFor(t, lp, few)
 	var w bytes.Buffer
-	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", fewSet, "--seal", fewSeal, "--results", writeJSON(t, few)}, &w); code != 1 || !strings.Contains(w.String(), "refused: non-code-faults-below-minimum") {
+	if code := run(ctx, []string{"verdict", "--preregistration", prePath, "--hash", preHash, "--set", fewSet, "--seal", fewSeal, "--results", writeJSON(t, few), "--record", recordFor(t, lp, few)}, &w); code != 1 || !strings.Contains(w.String(), "refused: non-code-faults-below-minimum") {
 		t.Fatalf("29 non-code: %d %s", code, w.String())
 	}
 }

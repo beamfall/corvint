@@ -189,6 +189,14 @@ func buildVerdict(res results) verdictDoc {
 			reason("%s: %d failed measurements", x.name, s.Errors)
 		}
 	}
+	// FIH-V1-002 and FIH-V1-014 do not say whether an excluded case counts
+	// toward the non-code minimum of 30; the verdict fails closed: an
+	// excluded case is never measured, so it counts toward neither N nor
+	// the minimum, and fewer than 30 measured non-code cases are INVALID.
+	if measured := v.NonCode.Sealed - v.NonCode.Excluded; measured < minimumNonCode {
+		invalid = true
+		reason("non-code: %d of %d sealed cases measured after %d exclusions, below the minimum of %d", measured, v.NonCode.Sealed, v.NonCode.Excluded, minimumNonCode)
+	}
 	if excluded := v.Code.Excluded + v.NonCode.Excluded; excluded > res.ExclusionBudget {
 		invalid = true
 		reason("%d cases excluded with pin-unavailable, above the budget of %d", excluded, res.ExclusionBudget)
