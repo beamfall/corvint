@@ -802,11 +802,20 @@ func testSelectionUnits(selection map[string]any) ([]string, string) {
 // files do, so the run executes it or is INCOMPLETE for it. A member that
 // selects nothing while its scope is UNKNOWN (an invalid flows declaration)
 // returns a reason instead: tests the plan could not name never read as no
-// tests. A member whose inventory could not be derived returns its
+// tests; so does one whose flows declaration names a schema version this
+// build does not read (FSV-V1-004). A member whose inventory could not be derived returns its
 // flow-linked files and a reason, because unlinked tests are missing from it.
 func testE2EUnits(e2e *affected.E2EPlan) ([]string, string) {
 	if e2e == nil {
 		return nil, ""
+	}
+	// FSV-V1-004: a flows declaration of a schema version this build does
+	// not read selects every E2E test, none of which it can list, so the run
+	// cannot claim it ran them.
+	for _, unknown := range e2e.Unknown {
+		if unknown.Reason == affected.UnknownFlowsSchemaUnsupported {
+			return nil, "plan.e2e is FULL and lists nothing (" + unknown.Reason + " " + unknown.Detail + "): every E2E test must run and this build cannot name them"
+		}
 	}
 	if len(e2e.Selected) == 0 && e2e.Scope == affected.E2EScopeUnknown {
 		reason := "its E2E tests cannot be selected"
