@@ -203,14 +203,34 @@ func TestRunDirectCommandCancellationKillsAndQuiescesGroup(t *testing.T) {
 func TestRunDirectCommandTimeoutKillsAndQuiescesGroup(t *testing.T) {
 	executable := directCommandTestExecutable(t)
 	ready := filepath.Join(t.TempDir(), "ready")
-	result, err := runDirectCommand(
-		context.Background(),
-		executable,
-		[]string{directCommandHelperArgument},
-		[]string{"DIRECT_COMMAND_HELPER_MODE=hold", "DIRECT_COMMAND_READY=" + ready},
-		filepath.Dir(ready),
-		200*time.Millisecond,
-	)
+	// The run timeout fires once the held child has published its PID, not after a wall-clock
+	// bound that a loaded host can overrun before the child starts; the real timer is still
+	// exercised by TestRunDirectCommandBoundsStuckWaitAtShutdownDeadline.
+	original := directCommandRunTimer
+	t.Cleanup(func() { directCommandRunTimer = original })
+	timers := make(chan *time.Timer, 1)
+	directCommandRunTimer = func(time.Duration) *time.Timer {
+		timer := time.NewTimer(time.Hour)
+		timers <- timer
+		return timer
+	}
+	resultDone := make(chan directCommandResult, 1)
+	errorDone := make(chan error, 1)
+	go func() {
+		result, err := runDirectCommand(
+			context.Background(),
+			executable,
+			[]string{directCommandHelperArgument},
+			[]string{"DIRECT_COMMAND_HELPER_MODE=hold", "DIRECT_COMMAND_READY=" + ready},
+			filepath.Dir(ready),
+			200*time.Millisecond,
+		)
+		resultDone <- result
+		errorDone <- err
+	}()
+	waitForDirectCommandFile(t, ready)
+	(<-timers).Reset(0)
+	result, err := <-resultDone, <-errorDone
 	if !errors.Is(err, errDirectCommandTimeout) || result.Cancelled || !result.TimedOut ||
 		!result.WaitCompleted || !result.ProcessCleanupDone || !result.PipesDrained || result.Exited || result.ExitCode != -1 {
 		t.Fatalf("result = %#v, error = %v", result, err)
@@ -225,7 +245,10 @@ func TestRunDirectCommandOutputLimitKillsAndQuiescesGroup(t *testing.T) {
 		[]string{directCommandHelperArgument},
 		[]string{"DIRECT_COMMAND_HELPER_MODE=output"},
 		t.TempDir(),
-		5*time.Second,
+		// Only the output budget may stop this run. The timeout is a hang bound: a loaded
+		// race-enabled host can take longer than seconds to move 24 MiB through the pipe, and a
+		// timeout that wins that race is correctly reported as a timeout, not an output overrun.
+		10*time.Minute,
 	)
 	if !errors.Is(err, errDirectCommandOutputLimit) || !result.OutputLimitExceeded ||
 		!result.WaitCompleted || !result.ProcessCleanupDone || !result.PipesDrained || len(result.Stdout) != int(directCommandOutputLimit) {
