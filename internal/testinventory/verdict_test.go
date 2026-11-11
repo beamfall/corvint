@@ -251,3 +251,14 @@ func TestTIVV1003ForceFullCoversEveryInstance(t *testing.T) {
 		t.Fatalf("reasons %v", got)
 	}
 }
+
+func judgedInstance(t *testing.T, verdict Verdict, key string) InstanceVerdict {
+	t.Helper()
+	for _, instance := range verdict.Instances {
+		if instance.Key == key {
+			return instance
+		}
+	}
+	t.Fatalf("no instance %s in %+v", key, verdict)
+	return InstanceVerdict{}
+}

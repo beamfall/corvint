@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/testid"
 )
@@ -62,10 +64,13 @@ type Verdict struct {
 }
 
 // InstanceVerdict is one declared instance's state. Full instances run
-// their declared full command; Reason names why. Otherwise Tests counts the
-// listed tests whose file is unchanged, Unassigned lists the changed or new
-// test files whose tests run as unassigned, and Removed lists listed files
-// the tree no longer holds.
+// their declared full command; Reason names why and Cause explains it.
+// Otherwise Tests counts the listed tests whose file is unchanged,
+// Unassigned lists the changed or new test files whose tests run as
+// unassigned, and Removed lists listed files the tree no longer holds. For
+// an instance the reader cannot prove keeps the default test-file names
+// (Declared.Pattern), every file of the runner's languages under the root
+// that the record does not bind is unassigned and Cause names why.
 type InstanceVerdict struct {
 	Key        string   `json:"key"`
 	Runner     string   `json:"runner"`
@@ -193,12 +198,29 @@ func judgeInstance(instance Declared, record Instance, files map[string]string, 
 		verdict.Unassigned = append(verdict.Unassigned, name)
 	}
 	sort.Strings(verdict.Unassigned)
+	if instance.Pattern != "" && len(verdict.Unassigned) != 0 {
+		verdict.Cause = fmt.Sprintf("config %s is not proven to keep the default test-file names (%s); every %s file under %s that the record does not bind, or binds at another blob, is unassigned",
+			instance.Config, instance.Pattern, languageOf(instance), instance.Root)
+	}
 	for _, test := range record.Tests {
 		if _, present := files[test.File]; present && !changed[test.File] {
 			verdict.Tests++
 		}
 	}
 	return verdict
+}
+
+// languageOf names the files an unproven instance's candidates take.
+func languageOf(instance Declared) string {
+	switch {
+	case slices.Contains(instance.Extensions, "*"):
+		return "any"
+	case instance.Runner == testid.Pytest && len(instance.Extensions) > 1:
+		return "Python or doctest (" + strings.Join(instance.Extensions[1:], ", ") + ")"
+	case instance.Runner == testid.Pytest:
+		return "Python"
+	}
+	return "JavaScript or TypeScript"
 }
 
 // ForceFull makes every instance of runner run in full with
