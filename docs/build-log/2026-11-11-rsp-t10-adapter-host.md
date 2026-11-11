@@ -27,13 +27,15 @@ Run on the Unraid lane host (i7-8700K, 12 CPUs, load about 4, heavy.sh `-p 2`, G
 - The whole `internal/runnerprotocol` package passed on origin/main `b55635262` before the change
   (13.6 s), as did `internal/runnerpolicy`, `tools/runner-plugin` and `tools/runner-reference`.
   The tests the T10 and T7 build-only entries left NOT_RUN have now run.
-- `TestRSPV0063CleanTwin`, `TestRSPV0063FailureLines` (20 subtests: crash, timeout, oversize,
+- `TestRSPV0063CleanTwin`, `TestRSPV0063FailureLines` (21 subtests: crash, timeout, oversize,
   protocol error, duplicate member, schema violation at `hello` and mid-session, `error` response,
   version mismatch, undeclared runner, untracked and late repository mutation, digest mismatch,
   missing executable, not installed, launch failure, unpinned, malformed discovery, unsupported
-  schema, pre-plugin path) and `TestRSPV0063CandidatePinsChangedRunsTrustedPin` pass. They did not
-  compile before `host.go` existed. A mutant that turns every `fail` line into `ok` fails 19 of
-  them (every subtest except the pre-plugin path, which expects `ok`).
+  schema, pre-plugin path, and two pins sharing a name, which leaves a runner without a session
+  and is refused `adapter-session-missing`; without that guard `Close` panicked on a nil
+  session) and `TestRSPV0063CandidatePinsChangedRunsTrustedPin` pass. They did not compile
+  before `host.go` existed. A mutant that turns every `fail` line into `ok` failed 19
+  of the first 20 (all but the pre-plugin path, which expects `ok`).
 - The conformance kit over the compiled-in reference and its out-of-process twin passes through
   the host (`TestRSPV0063CleanTwin`) as well as through a bare session (`TestRSPV0025TwinParity`).
 
