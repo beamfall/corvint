@@ -33,5 +33,5 @@ Build in this order. Each task names its requirement IDs and the proof that clos
    Done: run evidence rows copy the receipt's duration members; `internal/testduration` `Cost` and
    `Median` are the measured-only rule the cost figure (NMS-V1-002) and the fault-injection harness
    (FIH-V1-012) call. Neither consumer is on this tree; each adopts the rule in its own change.
-- [ ] 7 Record the trace and the delivery state in the spec.
+- [x] 7 Record the trace and the delivery state in the spec.
    Requirements: all. Proof: the trace check maps every PTD-V1 ID to a test.

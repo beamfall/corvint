@@ -310,7 +310,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Tasks Policy Version 15 V1 | [`tasks-policy-v15.md`](tasks-policy-v15.md) TPV-V1-001..008 | proposed | not-started | Tasks policy version 15 drops the CEM and OCM requirements and the two gates that run removed tooling, after the M0 removal lands. |
 | Release Process V1 | [`release-process-v1.md`](release-process-v1.md) REL-V1-001..015 | proposed | not-started | The 1.0 release runs on one calendar, a tag-started build stopping before an owner-approved publish, three platforms and a release object re-scoped at M0. |
 | Run evidence V1 | [`run-evidence-v1.md`](run-evidence-v1.md) RVD-V1-001..012 | accepted | partial | A private append-only store under the Git directory keeps each test run, written by test and ingest commands and read by default by flow reports. |
-| Per-test durations V1 | [`per-test-durations-v1.md`](per-test-durations-v1.md) PTD-V1-001..009 | accepted | not-started | Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated. |
+| Per-test durations V1 | [`per-test-durations-v1.md`](per-test-durations-v1.md) PTD-V1-001..009 | accepted | partial | Receipts record each test's measured time from the runner's own report and mark a missing or invalid time NOT_MEASURED, never estimated. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
