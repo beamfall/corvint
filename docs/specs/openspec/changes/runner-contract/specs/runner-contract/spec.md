@@ -57,8 +57,11 @@ A changed path that no runner instance owns, or a runner that has been removed o
 MUST make the plan run all tests with a named reason (`unowned-path` for an unowned path,
 `runner-removed` for a removed or unavailable runner). A path a Go selection rule attributes (an
 enclosing package or embed, a package whose files name it, a declared read scope or declared reader
-that bears on it, a selection the plan makes with the path as its witness, or a nested module whose
-own suite runs it) is owned by that Go instance and MUST NOT force a full run under this rule;
+that bears on it, a selection the plan makes through a path-literal, path-glob, declared-read-scope,
+enclosing-package or declared-consumer witness naming the path, or a nested module whose own suite
+runs it) is owned by that Go instance and MUST NOT force a full run under this rule; a selection
+through any other witness, such as an unbounded reader witnessed by whichever dirty path sorts first,
+attributes no path;
 `UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass for any other path (orchestrator ruling
 2026-11-11 on the R32 scope).
 

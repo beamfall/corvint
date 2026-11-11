@@ -89,8 +89,11 @@ A changed path that no runner instance owns, or a runner that has been removed o
 MUST make the plan run all tests with a named reason (`unowned-path` for an unowned path,
 `runner-removed` for a removed or unavailable runner). A path a Go selection rule attributes (an
 enclosing package or embed, a package whose files name it, a declared read scope or declared reader
-that bears on it, a selection the plan makes with the path as its witness, or a nested module whose
-own suite runs it) is owned by that Go instance and MUST NOT force a full run under this rule;
+that bears on it, a selection the plan makes through a path-literal, path-glob, declared-read-scope,
+enclosing-package or declared-consumer witness naming the path, or a nested module whose own suite
+runs it) is owned by that Go instance and MUST NOT force a full run under this rule; a selection
+through any other witness, such as an unbounded reader witnessed by whichever dirty path sorts first,
+attributes no path;
 `UNOWNED_DIRTY_PATH` MUST NOT be an allowlisted pass for any other path (orchestrator ruling
 2026-11-11 on the R32 scope).
 Delivery: partial. A runner with no implementation runs its full command with
@@ -379,8 +382,12 @@ Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contrac
   `UNOWNED_DIRTY_PATH`, and both Go selectors (the CI driver's and the qualified one `corvint test`
   reads) then fall back with `unowned-path: ...: <path>` for an unowned path that no rule
   attributes: rules (b) and (c), a read-scope declaration that bears on it, the plan's
-  documentation, evidence or witnessed selections, or an unobserved nested module. Rule (d), the
-  packages whose reads no literal bounds, attributes no path. With no Go universe `corvint test`
+  documentation or evidence readers, its selections through a path-literal, path-glob,
+  declared-read-scope, enclosing-package or declared-consumer witness, or an unobserved nested
+  module. Rule (d), the packages whose reads no literal bounds, attributes no path, and neither does
+  a selection through any other witness kind (the planner witnesses an unbounded reader with the
+  first dirty path). The qualified selector's Go-only proof keeps only the unowned entries the
+  planner itself named, so a non-Go path a declared runner owns does not force FULL there. With no Go universe `corvint test`
   plans FULL with the same reason itself. A go.sum or go.mod change keeps its separate root-module
   fallback. A runner instance the committed inventory or `.corvint/test-commands.json` names but the tree no
   longer declares plans FULL with `runner-removed`.
@@ -394,7 +401,7 @@ Delivered by ticket V1-5416 (build-log `docs/build-log/2026-11-11-runner-contrac
 | RNC-V1-001 | `TestRNCV1001EveryRunnerImplementsTheContract` (`internal/testrunner/contract`); `TestRNCV1013FullRunsInstanceDefaults` (`internal/sessiontest`) |
 | RNC-V1-002 | `TestRNCV1002EveryRunnerSuppliesItsLister` (`internal/testrunner/contract`); `TestRNCV1002AffectedRunsNoListerInAPytestProject` (`cmd/corvint`) |
 | RNC-V1-003 | `TestRNCV1003GoSelection`, `TestRNCV1003VitestDirectoryRunIsNotExact`, `TestRNCV1003PlaywrightSelection`, `TestRNCV1003FileFilterIsNeverAFlag`, `TestRNCV1003GoFlagValuesSurvive`, `TestRNCV1003JestSelection`, `TestRNCV1003PytestSelection` (`internal/testrunner/contract`) |
-| RNC-V1-004 | `TestRNCV1004UnimplementedRunnerRunsFull` (`internal/testrunner/contract`); `TestRNCV1004RemovedRunners`, `TestSTRV0003BuildVerdicts` rows `allowlisted unknowns stay narrowed`, `an unattributed unowned path runs every test` and `a removed runner runs every test`, `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest`); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestUnownedPathRunsAllOnlyWhenNoRuleAttributesIt_RNCV1004`, `TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004` (`internal/liveverify/affected`); `TestRNCV1004RemovedRunnerAndUnownedPathRunEverything` (`cmd/corvint`) |
+| RNC-V1-004 | `TestRNCV1004UnimplementedRunnerRunsFull` (`internal/testrunner/contract`); `TestRNCV1004RemovedRunners`, `TestSTRV0003BuildVerdicts` rows `allowlisted unknowns stay narrowed`, `an unattributed unowned path runs every test` and `a removed runner runs every test`, `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest`); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` (`internal/gateselect`); `TestQualifiedUnownedPathIsThePlannersVerdict_RNCV1004` (`internal/gateselect`); `TestUnownedPathRunsAllOnlyWhenNoRuleAttributesIt_RNCV1004`, `TestUnownedPathWithoutGoUniverseRunsAll_RNCV1004`, `TestUnboundedReaderDoesNotAttributeAnUnownedPath_RNCV1004` (`internal/liveverify/affected`); `TestRNCV1004RemovedRunnerAndUnownedPathRunEverything` (`cmd/corvint`) |
 | RNC-V1-005 | `TestRNCV1005GoReport`, `TestRNCV1005VitestReport`, `TestRNCV1005PlaywrightReport`, `TestRNCV1005GoTruncatedLineIsReported`, `TestRNCV1005FileLevelFailuresFailTheRun`, `TestRNCV1005JestReport`, `TestRNCV1005PytestReport`, `TestRNCV1005RSpecSelectionAndReport` (`internal/testrunner/contract`) |
 | RNC-V1-006 | `TestRNCV1006MissingResultsAreNotRun`, `TestRNCV1006GoPackageThatEndsAbnormallyIsIncomplete`, `TestRNCV1006DuplicateResultsKeepTheMostSevere`, `TestRNCV1006RunRecordsFailureIncompletenessAndDuplicates` (`internal/testrunner/contract`) |
 | RNC-V1-007 | `TestRNCV1007RunnerKinds` (`internal/testrunner/contract`); the plan signal is NOT_PRODUCED (task 5) |
