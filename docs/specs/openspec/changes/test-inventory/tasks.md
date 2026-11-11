@@ -5,7 +5,7 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [x] 1 Create `docs/specs/test-inventory-v1.md` with TIV-V1-001 to TIV-V1-012 from the spec delta
    as proposed, and regenerate `docs/specs/REQUIREMENTS.tsv`. Requirements: TIV-V1-001 to
    TIV-V1-012. Proof: the spec toolchain check passes.
-- [ ] 2 Add the inventory schema, canonical writer and reader with instance keys.
+- [x] 2 Add the inventory schema, canonical writer and reader with instance keys.
    Requirements: TIV-V1-001, TIV-V1-003, TIV-V1-012. Proof: round-trip unit tests; an unknown added
    field from a newer writer is preserved on read.
 - [ ] 3 Add the absent, stale, per-file and invalid rules to the reader.

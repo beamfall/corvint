@@ -159,6 +159,7 @@
         "internal/swiftimpact",
         "internal/testevidence",
         "internal/testevidencedoc",
+        "internal/testinventory",
         "internal/testplan",
         "internal/testreuse",
         "internal/testrunner",
