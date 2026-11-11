@@ -205,6 +205,10 @@ func linkTarget(repository, tree, root, relative string) string {
 				return "."
 			}
 			if inside, below := strings.CutPrefix(text, strings.TrimSuffix(root, string(filepath.Separator))+string(filepath.Separator)); below {
+				if inside == "" {
+					// `<root>/` names the root itself.
+					return "."
+				}
 				return filepath.ToSlash(inside)
 			}
 		}
