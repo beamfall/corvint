@@ -18,7 +18,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
       test fails when a tool is added without a row.
 - [x] 2.4 `corvint-docs mcp` subcommand serving the docs tools. Requirements: MTT-V1-004. Proof:
       server tool-list test.
-- [ ] 2.5 Remove the `docs` and `corpus` profiles from `corvint mcp` with a typed refusal; rename the
+- [x] 2.5 Remove the `docs` and `corpus` profiles from `corvint mcp` with a typed refusal; rename the
       flow tools; no `test_validity` tool after the G24 batch (M12). Requirements: MTT-V1-005,
       MTT-V1-007. Proof: tool-list test, refusal test and unknown-tool test for `test_validity`.
 - [ ] 2.6 `CORVINT_SELECTION` handling in the `affected` tool. Requirements: MTT-V1-008. Proof: an

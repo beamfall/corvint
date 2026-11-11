@@ -4,9 +4,9 @@
 // corvint.help tool every Corvint MCP server shares (MCPV0-101). Its tools are
 // outside cmd/corvint-mcp's default tool set, which
 // docs/specs/mcp-server-2026-07-28-v0.md requirement MCPV0-008 freezes, and this
-// slice is proposed/experimental, not delivered V0. `corvint-mcp --tool-profile
-// docs` serves the same tools through the same internal/mcp/toolgroup code
-// (MMR-V0-013); this binary stays for one release as a deprecated alias
+// slice is proposed/experimental, not delivered V0. `corvint-docs mcp`
+// serves the same tools through the same internal/mcp/toolgroup code
+// (MTT-V1-004); this binary stays for one release as a deprecated alias
 // (MMR-V0-016). Both binaries reuse the
 // same transport (internal/mcp/server) and the same closed-tool-schema,
 // tool-error, and cancellation conventions as cmd/corvint-mcp.
@@ -44,7 +44,7 @@ const (
 const usage = "usage: corvint-docs-mcp --root ROOT [--protocol-version 2026-07-28|2025-11-25]\n" +
 	"       corvint-docs-mcp --version\n" +
 	"A local read-only stdio MCP server for the experimental docs tools of the Git worktree at ROOT.\n" +
-	"Deprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile docs\n" +
+	"Deprecated alias, kept for one release: corvint-docs mcp --root ROOT\n" +
 	"serves the same tools with the same results.\n" +
 	"Example: corvint-docs-mcp --root /absolute/repo"
 

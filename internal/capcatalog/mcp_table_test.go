@@ -82,6 +82,11 @@ func TestMTTV1001TableRulesNameTheBrokenRow(t *testing.T) {
 		"no tasks row": {func(rows []MCPTool) []MCPTool {
 			return slices.DeleteFunc(rows, func(row MCPTool) bool { return row.Server == ServerNone })
 		}, "no no-MCP-tool row for Tasks"},
+		"two dots": {func(rows []MCPTool) []MCPTool {
+			index := slices.IndexFunc(rows, func(row MCPTool) bool { return row.Name == "corvint.status" })
+			rows[index].Name = "corvint.repo.status"
+			return rows
+		}, "corvint.repo.status: name is not corvint.<area>_<verb> with one dot"},
 		"no output profile": {func(rows []MCPTool) []MCPTool {
 			index := slices.IndexFunc(rows, func(row MCPTool) bool { return row.Name == "corvint.status" })
 			rows[index].OutputProfile = ""
@@ -114,4 +119,22 @@ func cloneRows(rows []MCPTool) []MCPTool {
 		out[index].Errors = slices.Clone(out[index].Errors)
 	}
 	return out
+}
+
+// MTT-V1-007 scenario: every served name has one dot and the flow gaps tool
+// is corvint.flows_gaps, replacing corvint.flows.gaps.
+func TestMTTV1007OneNamingConvention(t *testing.T) {
+	rows := MCPTools()
+	gaps := rowNamed(rows, "corvint.flows_gaps")
+	if gaps.Server != ServerCore || !slices.Equal(gaps.Replaces, []string{"corvint.flows.gaps"}) {
+		t.Fatalf("flows gaps row %+v", gaps)
+	}
+	for _, row := range rows {
+		if row.Server != ServerNone && strings.Count(row.Name, ".") != 1 {
+			t.Fatalf("%s has more than one dot", row.Name)
+		}
+		if strings.HasPrefix(row.Name, "corvint.flows_") && len(row.Replaces) != 1 {
+			t.Fatalf("renamed flow tool %s does not list its old name", row.Name)
+		}
+	}
 }

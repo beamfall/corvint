@@ -311,7 +311,7 @@ func TestMCPV0026ToolProfileSelectorIsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	v0 := []string{"corvint.help", "corvint.impact", "corvint.status"}
-	flows := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.flows.status", "corvint.help", "corvint.impact", "corvint.status"}
+	flows := []string{"corvint.flows_coverage", "corvint.flows_gaps", "corvint.flows_impact", "corvint.flows_map", "corvint.flows_navigate", "corvint.flows_status", "corvint.help", "corvint.impact", "corvint.status"}
 	for _, test := range []struct {
 		arguments []string
 		want      []string
@@ -331,7 +331,7 @@ func TestMCPV0026ToolProfileSelectorIsClosed(t *testing.T) {
 	if handler.registry, err = bridge.New(root); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"corvint.flows.map", "corvint.query", "corvint.context", "corvint.cem.report"} {
+	for _, name := range []string{"corvint.flows_map", "corvint.query", "corvint.context", "corvint.cem.report"} {
 		if result, failure := handler.call(context.Background(), map[string]any{
 			"_meta": map[string]any{}, "name": name, "arguments": map[string]any{"task": "x"},
 		}); result != nil || failure == nil || failure.Code != -32602 {
@@ -390,7 +390,7 @@ func TestMCPV0027ErrorProfileSelectorIsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 	v0 := []string{"corvint.help", "corvint.impact", "corvint.status"}
-	flows := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.flows.status", "corvint.help", "corvint.impact", "corvint.status"}
+	flows := []string{"corvint.flows_coverage", "corvint.flows_gaps", "corvint.flows_impact", "corvint.flows_map", "corvint.flows_navigate", "corvint.flows_status", "corvint.help", "corvint.impact", "corvint.status"}
 	for _, test := range []struct {
 		arguments []string
 		want      []string
@@ -546,7 +546,7 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 			t.Errorf("%s annotations=%+v", tool.Name, tool.Annotations)
 		}
 	}
-	want := []string{"corvint.flows.coverage", "corvint.flows.gaps", "corvint.flows.impact", "corvint.flows.map", "corvint.flows.navigate", "corvint.flows.status", "corvint.help", "corvint.impact", "corvint.status"}
+	want := []string{"corvint.flows_coverage", "corvint.flows_gaps", "corvint.flows_impact", "corvint.flows_map", "corvint.flows_navigate", "corvint.flows_status", "corvint.help", "corvint.impact", "corvint.status"}
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("flows tools=%v want %v", names, want)
 	}
@@ -609,7 +609,7 @@ func TestAFUV1035FlowsTextStaysInsideEnvelope(t *testing.T) {
 	}
 	handler := &toolHandler{registry: registry}
 	result, failure := handler.call(context.Background(), map[string]any{
-		"name": "corvint.flows.navigate", "arguments": map[string]any{"flows": "flows"},
+		"name": "corvint.flows_navigate", "arguments": map[string]any{"flows": "flows"},
 	})
 	if failure != nil || result["isError"] != false {
 		t.Fatalf("call failed: %#v %#v", failure, result)

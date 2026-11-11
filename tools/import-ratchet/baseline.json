@@ -16,7 +16,6 @@
     "internal/flowcoverage -> internal/doccorpus",
     "internal/flowcoverage -> internal/flowdocs",
     "internal/flowcoverage -> internal/jstestprovider",
-    "internal/mcp/cli -> internal/mcp/corpusbridge",
     "internal/sessiontest -> .github/cishards"
   ]
 }

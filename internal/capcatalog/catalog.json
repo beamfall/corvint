@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "ed390a2ee25347014ef4af4177a6865810ffc14fe853ea81094a2a840b18fa0a"
+    "sha256": "799ee1350fd5b1546db22edc3c1c59f37f3ecf30487b93b5eea2178d8ebc7810"
   },
   "commands": [
     {
@@ -2925,7 +2925,7 @@
       "cliEquivalent": "corvint-docs docs corpus vocabulary --artifact PATH"
     },
     {
-      "name": "corvint.flows.coverage",
+      "name": "corvint.flows_coverage",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory",
@@ -2958,10 +2958,13 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows coverage"
+      "cliEquivalent": "corvint-docs flows coverage",
+      "replaces": [
+        "corvint.flows.coverage"
+      ]
     },
     {
-      "name": "corvint.flows.gaps",
+      "name": "corvint.flows_gaps",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links",
@@ -2994,10 +2997,13 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows gaps"
+      "cliEquivalent": "corvint-docs flows gaps",
+      "replaces": [
+        "corvint.flows.gaps"
+      ]
     },
     {
-      "name": "corvint.flows.impact",
+      "name": "corvint.flows_impact",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "The flows the base..HEAD changed paths reach through links and the impact graph",
@@ -3022,10 +3028,13 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows impact"
+      "cliEquivalent": "corvint-docs flows impact",
+      "replaces": [
+        "corvint.flows.impact"
+      ]
     },
     {
-      "name": "corvint.flows.map",
+      "name": "corvint.flows_map",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches",
@@ -3062,10 +3071,13 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows map"
+      "cliEquivalent": "corvint-docs flows map",
+      "replaces": [
+        "corvint.flows.map"
+      ]
     },
     {
-      "name": "corvint.flows.navigate",
+      "name": "corvint.flows_navigate",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant",
@@ -3106,10 +3118,13 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows navigate"
+      "cliEquivalent": "corvint-docs flows navigate",
+      "replaces": [
+        "corvint.flows.navigate"
+      ]
     },
     {
-      "name": "corvint.flows.status",
+      "name": "corvint.flows_status",
       "server": "corvint mcp",
       "availability": "experimental",
       "summary": "Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches",
@@ -3138,7 +3153,10 @@
         "repository-unavailable",
         "corvint-envelope-terminator-collision"
       ],
-      "cliEquivalent": "corvint-docs flows status"
+      "cliEquivalent": "corvint-docs flows status",
+      "replaces": [
+        "corvint.flows.status"
+      ]
     },
     {
       "name": "corvint.help",

@@ -7,7 +7,8 @@
 // (internal/mcp/server), the docs tool group (internal/mcp/toolgroup over
 // internal/mcp/docsbridge) and the corpus artifact group
 // (internal/mcp/corpusbridge), so each tool answers exactly as it did on
-// `corvint mcp --tool-profile docs,corpus`, which it replaces (MTT-V1-005).
+// corvint mcp's former docs and corpus groups, which it replaces
+// (MTT-V1-005).
 // It lives in the docs import area because it serves the corpus group; the
 // tests-area `corvint mcp` server cannot be imported here (decision 0594
 // item 8).

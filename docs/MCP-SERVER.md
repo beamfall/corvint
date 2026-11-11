@@ -102,12 +102,12 @@ at a time per root; a verdict too large for one message is the tool error `verdi
 | Tool | Availability | Opt-in | Description | Same answer on the command line |
 |---|---|---|---|---|
 | `corvint.affected` | experimental | `--tool-profile affected` | Which tests a change requires: the affected-summary/1 verdict for a base or for the dirty worktree, or a select-all answer with its reason | `corvint affected --summary [--base REV]` |
-| `corvint.flows.coverage` | experimental | `--tool-profile flows` | Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory | `corvint-docs flows coverage` |
-| `corvint.flows.gaps` | experimental | `--tool-profile flows` | Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links | `corvint-docs flows gaps` |
-| `corvint.flows.impact` | experimental | `--tool-profile flows` | The flows the base..HEAD changed paths reach through links and the impact graph | `corvint-docs flows impact` |
-| `corvint.flows.map` | experimental | `--tool-profile flows` | Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches | `corvint-docs flows map` |
-| `corvint.flows.navigate` | experimental | `--tool-profile flows` | The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant | `corvint-docs flows navigate` |
-| `corvint.flows.status` | experimental | `--tool-profile flows` | Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches | `corvint-docs flows status` |
+| `corvint.flows_coverage` | experimental | `--tool-profile flows` | Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory | `corvint-docs flows coverage` |
+| `corvint.flows_gaps` | experimental | `--tool-profile flows` | Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links | `corvint-docs flows gaps` |
+| `corvint.flows_impact` | experimental | `--tool-profile flows` | The flows the base..HEAD changed paths reach through links and the impact graph | `corvint-docs flows impact` |
+| `corvint.flows_map` | experimental | `--tool-profile flows` | Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches | `corvint-docs flows map` |
+| `corvint.flows_navigate` | experimental | `--tool-profile flows` | The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant | `corvint-docs flows navigate` |
+| `corvint.flows_status` | experimental | `--tool-profile flows` | Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches | `corvint-docs flows status` |
 | `corvint.help` | experimental | default | Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers | `corvint help guide \| corvint help --json COMMAND \| corvint help --json` |
 | `corvint.impact` | experimental | default | Revision-bound impact evidence for Go, Ruby, JavaScript and TypeScript paths, without source bodies | `corvint impact --language-profile non-go-syntax-v0 --limit N PATH...` |
 | `corvint.status` | experimental | default | Exact commit, tree, worktree state and a privacy-preserving dirty-path digest of the served root | none |
@@ -123,7 +123,7 @@ Which tests a change requires: the affected-summary/1 verdict for a base or for 
 - Tool errors: `cancelled`, `server-busy`, `affected-failed`, `invalid-root`, `not-served`, `verdict-oversized`
 - Note: a planner refusal carries the CLI's own error code; an unknown CORVINT_SELECTION value and a stale binary select all tests where the CLI exits 2 (MTT-V1-008, MTT-V1-011)
 
-### `corvint.flows.coverage`
+### `corvint.flows_coverage`
 
 Complete accepted flow variation coverage, bound to immutable bytes; the page verdict covers the full inventory.
 
@@ -134,8 +134,9 @@ Complete accepted flow variation coverage, bound to immutable bytes; the page ve
 - Input `receipts`: Repository-relative run receipts file.
 - Output profile: `application-flow-coverage/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.coverage`
 
-### `corvint.flows.gaps`
+### `corvint.flows_gaps`
 
 Flows at HEAD without passing test evidence and, with a provider, the E2E tests no flow variation links.
 
@@ -146,8 +147,9 @@ Flows at HEAD without passing test evidence and, with a provider, the E2E tests 
 - Input `registry`: Repository-relative E2E test registry file.
 - Output profile: `application-flow-gaps/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.gaps`
 
-### `corvint.flows.impact`
+### `corvint.flows_impact`
 
 The flows the base..HEAD changed paths reach through links and the impact graph.
 
@@ -156,8 +158,9 @@ The flows the base..HEAD changed paths reach through links and the impact graph.
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Output profile: `application-flow-impact/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.impact`
 
-### `corvint.flows.map`
+### `corvint.flows_map`
 
 Flow intents at HEAD with their links and test evidence, or the flows one path or test key reaches.
 
@@ -169,8 +172,9 @@ Flow intents at HEAD with their links and test evidence, or the flows one path o
 - Input `testKey`: Test key whose flows to look up.
 - Output profile: `application-flow-map/1, application-flow-lookup/1`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.map`
 
-### `corvint.flows.navigate`
+### `corvint.flows_navigate`
 
 The navigation map of the flow intents, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant.
 
@@ -183,8 +187,9 @@ The navigation map of the flow intents, or the ordered packet that reaches one g
 - Input `traffic`: Repository-relative recorded traffic files.
 - Output profile: `application-navigation-map/0, application-navigation-packet/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.navigate`
 
-### `corvint.flows.status`
+### `corvint.flows_status`
 
 Each flow at HEAD, its variations, attached tests and the last recorded result of each, optionally only the flows a change reaches.
 
@@ -194,6 +199,7 @@ Each flow at HEAD, its variations, attached tests and the last recorded result o
 - Input `flows`: Repository-relative directory holding the flow intent files.
 - Output profile: `application-flow-status/0`
 - Tool errors: `cancelled`, `server-busy`, `flows-refused`, `internal-error`, `repository-unavailable`, `corvint-envelope-terminator-collision`
+- Replaces: `corvint.flows.status`
 
 ### `corvint.help`
 
