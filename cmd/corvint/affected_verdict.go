@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // affectedVerdictProfile names the `affected --summary` document
@@ -104,18 +105,23 @@ type affectedVerdictRange struct {
 }
 
 // affectedVerdictTiers is the AFP-V0-162 ranking reduced to its counts and
-// the names of the tier-0 and tier-1 units, each sorted.
+// the names of the tier-0 and tier-1 units, each sorted. TestIDs maps each
+// of those units that names a canonical test ID to it (CTI-V1-009), derived
+// as the corvint-test-run/0 receipt derives its testId, so the plan, the
+// receipt and the MCP result name a selection by the same string; it is
+// absent when no listed unit names one.
 type affectedVerdictTiers struct {
-	Counts  [3]int   `json:"counts"`
-	Summary string   `json:"summary"`
-	Tier0   []string `json:"tier0"`
-	Tier1   []string `json:"tier1"`
+	Counts  [3]int            `json:"counts"`
+	Summary string            `json:"summary"`
+	TestIDs map[string]string `json:"testIds,omitempty"`
+	Tier0   []string          `json:"tier0"`
+	Tier1   []string          `json:"tier1"`
 }
 
 // affectedVerdictDetail tells a reader where the plan's detail is.
 const affectedVerdictDetail = "rerun without --summary for the affected-plan/1 plan (witnesses, unknown details, advice), or with --full for every exclusion and test file"
 
-func affectedVerdictOf(receipt affectedCompactReceipt) affectedVerdict {
+func affectedVerdictOf(receipt affectedCompactReceipt, goDir func(string) (string, bool)) affectedVerdict {
 	tiers := affectedVerdictTiers{Summary: fmt.Sprintf(affectedTierSummary, 0, 0, 0), Tier0: []string{}, Tier1: []string{}}
 	if receipt.Tiers != nil {
 		tiers.Counts = receipt.Tiers.Counts
@@ -130,6 +136,14 @@ func affectedVerdictOf(receipt affectedCompactReceipt) affectedVerdict {
 		}
 		sort.Strings(tiers.Tier0)
 		sort.Strings(tiers.Tier1)
+		for _, unit := range append(append([]string{}, tiers.Tier0...), tiers.Tier1...) {
+			if id := sessiontest.UnitTestID(unit, goDir); id != "" {
+				if tiers.TestIDs == nil {
+					tiers.TestIDs = map[string]string{}
+				}
+				tiers.TestIDs[unit] = id
+			}
+		}
 	}
 	return affectedVerdict{
 		Degradations: receipt.Degradations,
@@ -190,14 +204,15 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 	return out.String()
 }
 
-// writeAffectedVerdict writes the --summary document for a compact receipt.
-func writeAffectedVerdict(receipt any, format string, stdout, stderr io.Writer) int {
+// writeAffectedVerdict writes the --summary document for a compact receipt;
+// root's go.mod resolves the canonical test IDs of its Go units.
+func writeAffectedVerdict(receipt any, root, format string, stdout, stderr io.Writer) int {
 	compact, ok := receipt.(affectedCompactReceipt)
 	if !ok {
 		emitError(stderr, argumentError("--summary has no verdict for this receipt"))
 		return 2
 	}
-	verdict := affectedVerdictOf(compact)
+	verdict := affectedVerdictOf(compact, sessiontest.GoUnitDir(root))
 	var err error
 	if format == "text" {
 		_, err = io.WriteString(stdout, renderAffectedVerdictText(verdict))

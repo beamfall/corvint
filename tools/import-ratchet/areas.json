@@ -67,6 +67,7 @@
         "internal/taskprojection",
         "internal/tcq",
         "internal/testdiscovery",
+        "internal/testid",
         "internal/testplatform",
         "internal/testsupport",
         "internal/testvalidity",

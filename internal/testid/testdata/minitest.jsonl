@@ -1,0 +1,5 @@
+{"kind":"start","ruby":"3.3.6","pid":4242,"test":null,"launch":"1"}
+{"kind":"load","lines":{"lib/calc.rb":[1,2,3]},"methods":{}}
+{"kind":"test","seq":1,"package":"test/calc_test.rb","name":"CalcTest#test_add","status":"passed","loaded":false,"elapsed_ns":120000,"lines":{"lib/calc.rb":[2]},"methods":{"lib/calc.rb":[[2,2,2,5]]}}
+{"kind":"test","seq":2,"package":"test/calc_test.rb","name":"Calc::EdgeTest#test_zero","status":"failed","loaded":false,"elapsed_ns":90000,"lines":{},"methods":{}}
+{"kind":"framework","name":"minitest","version":"5.25.4"}
