@@ -119,6 +119,54 @@ An independent review found two P2 defects and three P3s; all are fixed in new c
    `.corvint/.test-inventory-*.tmp`. Tests: `TestTIVV1010FinalDriftCheckBeforeWrite` and
    `TestTIVV1010TemporaryInventoryFileIsNotDrift`.
 
+## Review fixes (round 2): fail closed by default
+
+The fix-only review left P2-2 open. Round 1 flagged a non-default pattern by whole-word matches in
+the config's own bytes, and that cannot be complete: it missed an auto-discovered Vitest workspace
+or projects file, `mergeConfig` over a package or alias, a Jest `preset`, `includeSource`, pytest
+`--doctest-glob` and `--doctest-modules`, and a `package.json` `jest` member. Its wide mode also
+bound every candidate file, which in a large root could pass the 8 MiB cap and make refresh refuse.
+
+Decision: invert the rule. An executing instance is default-pattern only when the reader proves
+it (`internal/testinventory/proof.go`, spec Surfaces "Default-pattern proof"). Anything else is
+unproven, and `Declared.Pattern` keeps the cause text.
+- JavaScript and TypeScript configs are proven from a small tokenizer, not a parser. The proof
+  refuses whatever it cannot evaluate: any import but the runner's own package, any call but
+  `defineConfig`, a spread, function, class, constructor, tagged template, template expression,
+  escape, computed key or member, and any pattern member named anywhere. The one spread allowed is
+  Playwright's `...devices['Name']`, so the stock Playwright config stays proven.
+- A `package.json` `jest` member, or a script that runs vitest, now declares an instance when no
+  config file does, so it is unproven rather than absent. A `jest` member beside a config also
+  leaves that config unproven.
+- pytest: `python_files`, `testpaths`, any `addopts` option outside a short safe list, or a
+  `conftest.py` collection hook or `pytest_plugins` leaves the instance unproven. Doctest
+  extensions join the candidates when a doctest option appears or cannot be ruled out. A conftest
+  hook makes any file a candidate.
+- An unproven record binds only the files the lister names. The verdict judges every unbound file
+  of the instance's candidate extensions under the root as unassigned, the config and lockfile
+  aside, and no directory is skipped but `.git` and the inventory's temporary files.
+- A proven executing instance now skips only `.git` and `node_modules`. The old shared skip list
+  (vendor, testdata, hidden directories) modelled no executing runner's own collection.
+
+Cost, recorded on purpose: the reader cannot tell an unbound file that existed at refresh from a
+new one, so an unproven instance reports every unbound file of its languages as unassigned on every
+plan. That widens the selection and never misses a test file; a proven-default config removes it.
+No wire field changed, and the lister versions stay at 1 because no inventory has been published.
+
+Tests (each `TestTIVV1008UnprovenConfigFailsClosed` row after the first five, and the other new
+tests, fail on 45152cea1):
+- `TestTIVV1008UnprovenConfigFailsClosed`: the five round-1 patterns, a Vitest workspace file,
+  `mergeConfig` from a package import, `includeSource`, a Jest preset, a `package.json` jest member
+  with and without a config, a vitest script, pytest `--doctest-glob` with a new `.md` file,
+  `--doctest-modules`, a conftest hook, a `.tests/**` include, a computed key and an escape.
+- `TestTIVV1008ProvenDefaultControl`: Vitest `defineConfig`, Jest JSDoc and JSON, stock Playwright
+  and pytest with safe `addopts`. A new non-test file is not unassigned there; a new default-named
+  test file is.
+- `TestTIVV1005UnprovenRecordHoldsOnlyListedFiles`: 150,000 TypeScript files under an unproven root;
+  the record binds the one listed file and encodes under MaxBytes.
+- `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` and `TestTIVV1004VitestDeclaredByPackageScript`:
+  a real refresh through a stub lister.
+
 ## Assertions extended
 
 Every plan now prints its inventory line, so five exact expectations name the absent
