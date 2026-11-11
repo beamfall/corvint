@@ -291,7 +291,9 @@ def check($p; $index):
        else empty end),
       ($refs[] | select(. != "UNPLANNED") | select(inarr($req; .) | not)
         | {code: "ANCHOR_UNKNOWN", detail: tostring}),
-      (if $full == null and ($klab | length) == 0
+      (if $full != null and ($full | type) != "string"
+         then {code: "KEY_MISMATCH", detail: "identityKey is not a string"}
+       elif $full == null and ($klab | length) == 0
          then {code: "KEY_REQUIRED", detail: "no identityKey and no key: label"}
        elif ($klab | length) > 1 then {code: "KEY_MISMATCH", detail: "more than one key: label"}
        elif ($full | type) == "string" and ($klab | length) == 1 and $klab[0] != $stored

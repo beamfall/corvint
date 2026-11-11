@@ -171,6 +171,28 @@ func TestRunRefusesNonGoWithoutPlanner(t *testing.T) {
 	}
 }
 
+// A watch cancelled while it replans ends normally, as one cancelled while it
+// waits does; a replan failure without cancellation is still returned.
+func TestRunCancelDuringReplanIsNormalStop(t *testing.T) {
+	root, ix := indexedModule(t)
+	ix.Language = "ruby"
+	failure := errors.New("planner failed")
+	for _, cancelled := range []bool{true, false} {
+		ctx, cancel := context.WithCancel(context.Background())
+		err := Run(ctx, Options{Root: root, Index: ix, Saves: Once().C, Out: io.Discard,
+			NonGo: func(context.Context, []linecov.FileDiff) (any, error) {
+				if cancelled {
+					cancel()
+				}
+				return nil, failure
+			}})
+		cancel()
+		if cancelled && err != nil || !cancelled && !errors.Is(err, failure) {
+			t.Fatalf("cancelled %v: err %v", cancelled, err)
+		}
+	}
+}
+
 // Once fires exactly once and stops deliberately; Lines fires per line and
 // reports a reader failure through Err.
 func TestOnceAndLinesSources(t *testing.T) {

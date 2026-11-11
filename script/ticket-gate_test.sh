@@ -124,6 +124,8 @@ refused unknown ANCHOR_UNKNOWN PROD-TEST-999 --index "$root/empty.tsv"
 # 13-14. KEY_REQUIRED and KEY_MISMATCH (a key naming another component).
 variant nokey 'del(.identityKey)'
 refused nokey KEY_REQUIRED 'no identityKey' --index "$root/empty.tsv"
+variant numkey '.identityKey = 123'
+refused numkey KEY_MISMATCH 'identityKey is not a string' --index "$root/empty.tsv"
 variant mismatch '.identityKey = "release.fail.v-corvint-update"'
 refused mismatch KEY_MISMATCH 'key component release' --index "$root/empty.tsv"
 

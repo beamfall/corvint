@@ -538,7 +538,7 @@
     {
       "paths": "flows/**",
       "tests": [
-        "internal/appflows/e2eflows_repo_test.go"
+        "internal/liveverify/affected/liverepo/e2eflows_repo_test.go"
       ]
     },
     {
