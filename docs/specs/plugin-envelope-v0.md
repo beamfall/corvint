@@ -21,10 +21,8 @@ Authoritative inputs:
 ## Agent digest
 - Claim: One stdio envelope, `corvint-plugin/1`, for every out-of-process plugin; any plugin failure yields UNKNOWN or abstention, never a narrower answer.
 - Status: proposed / experimental
-- Exists: nothing; no code implements the envelope yet. `corvint-runner/1` (`RSP-V0-026` to
-  `RSP-V0-032`) is the specified runner protocol this envelope generalizes.
-- Blocked on: owner acceptance; the conformance kit (V1-4817); the `CMS-V0-010` overhead
-  measurement for each plugin boundary.
+- Exists: nothing implements the envelope yet; it generalizes the specified `corvint-runner/1` (`RSP-V0-026` to `RSP-V0-032`).
+- Blocked on: owner acceptance; the conformance kit (V1-4817); each boundary's `CMS-V0-010` overhead measurement.
 - Read next: Requirements; Failure modes and test vectors; Rollback.
 
 ## User and measurable job
