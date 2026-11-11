@@ -13,8 +13,8 @@ proposal, design and spec delta this file was created from); owner decisions D10
 ## Agent digest
 - Claim: One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable or preview, and only a surface a named contract test covers is stable.
 - Status: accepted (decision 0596, 2026-11-10) / experimental
-- Exists: this spec; the surface list and the generator and check come with tasks 2.1 to 2.4 of the change.
-- Blocked on: the surface count of task 2.1 (CMP-V1-003 stop rule) and the generator and check.
+- Exists: this spec and the task 2.1 surface list in `docs/build-log/2026-11-11-compatibility-promise.md`: 7 of 22 CMP-V1-003 surfaces have a contract test.
+- Blocked on: an owner decision, because the CMP-V1-003 stop rule applied (fewer than half tested); no table, generator or check is written.
 - Read next: Requirements; Failure modes; Rollback.
 
 ## User and boundary
@@ -115,4 +115,5 @@ release note.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| CMP-V1-001 to CMP-V1-006 | not yet built (tasks 2.1 to 2.4) | NOT_PRODUCED |
+| CMP-V1-003 | surface list and counts (task 2.1) | `docs/build-log/2026-11-11-compatibility-promise.md`: 7 of 22 surfaces with a contract test; the stop rule applied |
+| CMP-V1-001, CMP-V1-002, CMP-V1-004 to CMP-V1-006 | not built: the CMP-V1-003 stop rule applied before the table | NOT_PRODUCED |
