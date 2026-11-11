@@ -24,6 +24,13 @@ const (
 	flowsDeclarationInvalid = "FLOWS_DECLARATION_INVALID"
 )
 
+// declaredReaderWitness are the plan's witnesses of a reviewed declaration
+// naming a Go package that reads a dirty path: a declared existence reader
+// (AFP-V0-980) or read scope (AFP-V0-023). The plan that reports a path
+// unowned is the plan that names its declared reader, so trusting it adds no
+// trust the UNOWNED_DIRTY_PATH entry did not already need.
+var declaredReaderWitness = map[string]bool{"DECLARED_EXISTENCE_READER": true, "DECLARED_READ_SCOPE": true}
+
 // maxTestSourceBytes bounds one _test.go file read to confirm a map entry's
 // cited Go test (NCM-V1-008).
 const maxTestSourceBytes = 4 << 20
@@ -38,11 +45,22 @@ func nonCodeDecision(plan Receipt, index *repositoryIndex, root string) (noncode
 	if err != nil {
 		return noncodemap.Decision{}, err
 	}
+	scopes, err := index.readScopes(root)
+	if err != nil {
+		// The attribution refuses an invalid declaration later; here it
+		// attributes nothing, which can only widen.
+		scopes = nil
+	}
+	declared := map[string]bool{}
+	for _, selection := range plan.Plan.Selected {
+		if strings.HasPrefix(selection.UnitID, "go:") && declaredReaderWitness[selection.Witness.Kind] {
+			declared[selection.Witness.DirtyPath] = true
+		}
+	}
 	input := noncodemap.Input{
-		Dirty:    plan.Plan.Dirty,
-		Map:      read,
-		Embedded: index.embedded,
-		Enclosed: index.enclosed,
+		Dirty:      plan.Plan.Dirty,
+		Map:        read,
+		Attributed: func(p string) bool { return declared[p] || index.attributed(p, scopes) },
 		Env: noncodemap.Env{
 			TestExists: func(test string) bool { return index.testExists(root, test) },
 			IsAncestor: func(commit string) (bool, error) { return ancestorOfHead(root, commit) },
@@ -102,23 +120,27 @@ func (index *repositoryIndex) enclosingPackage(p string) (string, bool) {
 	}
 }
 
-// enclosed reports a path a Go package directory encloses: the Go runner
-// owns the tree that holds it (NCM-V1-001).
-func (index *repositoryIndex) enclosed(p string) bool {
-	_, ok := index.enclosingPackage(p)
-	return ok
-}
-
-// embedded reports a non-Go file whose nearest enclosing Go package embeds
-// files: it may be a go:embed input, which is never narrowed (NCM-V1-005).
-// The index records that a package embeds, not which files, so every file
-// below it counts, which can only widen.
-func (index *repositoryIndex) embedded(p string) bool {
-	if strings.HasSuffix(p, ".go") {
-		return false
+// attributed reports a path a Go rule of this selector attributes, which
+// the orchestrator ruling of 2026-11-11 counts as owned (NCM-V1-001): a Go
+// package directory encloses it (rule (b): the enclosing packages, the
+// nearest one's dependents and every embedding ancestor's dependents, so a
+// package's testdata and a go:embed input, whose exact patterns the index does
+// not record, are attributed to the whole package, a sound over-approximation),
+// a package's files name it (rule (c)), or a declared read scope bears on it
+// (AFP-V0-023).
+func (index *repositoryIndex) attributed(p string, scopes map[string][]string) bool {
+	if _, ok := index.enclosingPackage(p); ok {
+		return true
 	}
-	directory, ok := index.enclosingPackage(p)
-	return ok && index.packages[directory].embeds
+	if len(index.readers(p)) != 0 {
+		return true
+	}
+	for directory, scope := range scopes {
+		if inDeclaredScope(directory, scope, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // testExists confirms a map entry's cited test (NCM-V1-008): a Go test

@@ -17,8 +17,6 @@ import (
 // names selects the declared existence reader in `corvint affected`, in the
 // gate selector the CI driver runs on that receipt, and in the shadow
 // `corvint test --dry-run` plan. Before the change all three omitted it.
-// Since NCM-V1-001 (V1-5424) the selector and the shadow run everything for
-// the unowned deleted file, so they keep the reader inside a full run.
 func TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980(t *testing.T) {
 	root, _, log := sessionFixture(t, "pass")
 	for name, body := range map[string]string{
@@ -73,15 +71,12 @@ func TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &plan); err != nil {
 		t.Fatal(err)
 	}
-	// NCM-V1-001 (owner decision R32, V1-5424): the deleted file is still an
-	// UNOWNED_DIRTY_PATH in the plan, so the gate selector and the shadow now
-	// run everything, the existence reader included.
-	if lines := gateselect.Select(plan, "example.test/m", root); lines[len(lines)-1] != "FALLBACK UNOWNED_DIRTY_PATH skills/x/SKILL.md" {
-		t.Fatalf("gate selector did not run everything:\n%s", strings.Join(lines, "\n"))
+	if lines := gateselect.Select(plan, "example.test/m", root); !slices.Contains(lines, "selected example.test/m/index") {
+		t.Fatalf("gate selector omitted the existence reader:\n%s", strings.Join(lines, "\n"))
 	}
 
 	code, stdout, stderr = runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--full")
-	if code != 0 || !strings.Contains(stdout, `"go:example.test/m/index"`) || !strings.Contains(stdout, `"scope":"FULL"`) || !strings.Contains(stdout, `"reason":"UNOWNED_DIRTY_PATH skills/x/SKILL.md"`) {
+	if code != 0 || !strings.Contains(stdout, `"go:example.test/m/index"`) || !strings.Contains(stdout, `"scope":"NARROWED"`) {
 		t.Fatalf("shadow dry run code %d omitted the existence reader: stdout %s stderr %q", code, stdout, stderr)
 	}
 	if got := sessionRunnerLog(t, log); strings.Contains(got, "go test") {

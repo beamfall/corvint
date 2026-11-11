@@ -69,8 +69,9 @@ var runnerConfigStems = []string{"vitest.config.", "vitest.workspace.", "vite.co
 // (NCM-V1-005). Whole paths and base names come from fixed tables; `.github/`
 // and `__snapshots__` match as directories, `*.mk`, `*.proto`, `*.snap` and
 // `*.golden` by extension, `tsconfig.*.json` and `.env.*` by base-name form.
-// A go:embed input needs the Go index and is decided by the caller
-// (Input.Embedded).
+// A go:embed input is not listed: its embedding package owns it, so the
+// selector's Go attribution selects that package and its dependents
+// (Input.Attributed; orchestrator ruling 2026-11-11).
 func NeverNarrowed(p string) (string, bool) {
 	if category, ok := neverPath[p]; ok {
 		return category, true

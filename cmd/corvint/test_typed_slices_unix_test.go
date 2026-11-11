@@ -66,13 +66,10 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 	}
 	// AFP-V0-2377: a data file is not Go source, so no declaration shows its
 	// change; an embedded one and one beside a package's source keep every
-	// selection of a dependent whole, and never slice it. Since V1-5424 both
-	// run everything: the embedded file is a never-narrowed go:embed input
-	// (NCM-V1-005) and the other an UNOWNED_DIRTY_PATH (NCM-V1-001), so p is
-	// whole inside a FULL run, whose units carry no slice reason.
+	// selection of a dependent whole, and never slice it.
 	for _, tc := range []struct{ name, file, reason string }{
-		{"an embedded data file", "ed/data.txt", ""},
-		{"a data file beside a package", "lib/notes.txt", ""},
+		{"an embedded data file", "ed/data.txt", "may be embedded by the package in ed"},
+		{"a data file beside a package", "lib/notes.txt", "is a data file under the Go package directory lib"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			edits := map[string]string{tc.file: "two\n"}

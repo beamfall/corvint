@@ -9,11 +9,9 @@ import (
 
 // Decision reasons, printed with the path or runner they concern.
 const (
-	// ReasonUnmapped is a non-code path a runner's tree holds, or a map
-	// entry covers, with no proven entry (NCM-V1-001).
-	ReasonUnmapped = "non-code-unmapped"
-	// ReasonUnowned is a non-code path no runner owns (NCM-V1-001, R32).
-	ReasonUnowned = "UNOWNED_DIRTY_PATH"
+	// ReasonUnowned is a non-code path no runner attributes and no proven
+	// entry covers (NCM-V1-001, R32, orchestrator ruling 2026-11-11).
+	ReasonUnowned = "unowned-path"
 	// ReasonRunnerRemoved is deleted runner configuration or an unavailable
 	// runner (NCM-V1-001, R32).
 	ReasonRunnerRemoved = "runner-removed"
@@ -59,11 +57,11 @@ type Input struct {
 	Documentation []string
 	// Deleted is each changed path absent from the tested tree.
 	Deleted []string
-	// Embedded reports a file a Go package embeds; nil embeds nothing.
-	Embedded func(string) bool
-	// Enclosed reports a path a runner's tree holds (a Go package
-	// directory encloses it); nil encloses nothing.
-	Enclosed func(string) bool
+	// Attributed reports a path a Go rule attributes: an enclosing package
+	// directory (its testdata and go:embed inputs included), a package whose
+	// files name it, or a declared read scope that bears on it. Such a path
+	// is owned and keeps the selector's attribution; nil attributes nothing.
+	Attributed func(string) bool
 	// FlowsDirectory is the plan's declared flow intent directory, empty
 	// without a flow join; FlowsJoined says the plan carries the join.
 	FlowsDirectory string
@@ -105,11 +103,12 @@ type Decision struct {
 // Decide applies the delivered rules of docs/specs/non-code-map-v1.md to
 // each changed path, in byte order, first match wins: the private ledgers;
 // the flow file and its link records; declared documentation and every other
-// path under `.corvint/`; the never-narrow list and go:embed inputs (a
-// deleted runner configuration reads as a removed runner); declared
-// documentation; and each UNOWNED_DIRTY_PATH, which selects everything unless
-// a proven entry covers it. Any other path keeps the selector's attribution
-// and gets no line. Each unavailable runner adds a full line first.
+// path under `.corvint/`; the never-narrow list (a deleted runner
+// configuration reads as a removed runner); declared documentation; and each
+// UNOWNED_DIRTY_PATH, which a proven entry narrows, a Go rule's attribution
+// keeps owned, and otherwise selects everything. Any other path keeps the
+// selector's attribution and gets no line. Each unavailable runner adds a
+// full line first.
 func Decide(in Input) Decision {
 	var decision Decision
 	for _, runner := range sortedUnique(in.Unavailable) {
@@ -135,7 +134,7 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 		return Line{Reason: ReasonPrivateLedger, Path: p}, true
 	}
 	if in.flowPath(p) {
-		if in.FlowsInvalid != "" || (p == ".corvint/flows.json" && !in.FlowsJoined) {
+		if in.FlowsInvalid != "" || (FlowFiles[p] && !in.FlowsJoined) {
 			return Line{Reason: ReasonFlowsUnreadable, Path: p, Full: true}, true
 		}
 		return Line{Reason: ReasonFlowLinked, Path: p}, true
@@ -152,22 +151,17 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 		}
 		return Line{Reason: ReasonNeverNarrowed, Path: p, Full: true}, true
 	}
-	if in.Embedded != nil && in.Embedded(p) {
-		return Line{Reason: ReasonNeverNarrowed, Path: p, Full: true}, true
-	}
 	if documentation[p] {
 		return Line{Reason: ReasonDocumentation, Path: p}, true
 	}
 	if !unowned[p] {
 		return Line{}, false
 	}
-	covered := false
 	var proven *Entry
 	for index, entry := range entries {
 		if !entry.Covers(p) {
 			continue
 		}
-		covered = true
 		status, detail := Evaluate(entry, in.Env)
 		if !reported[entry.Key()] {
 			reported[entry.Key()] = true
@@ -180,8 +174,10 @@ func (in Input) decidePath(p string, unowned, documentation, deleted map[string]
 	switch {
 	case proven != nil:
 		return Line{Reason: ReasonProvenEntry, Path: p, Tests: slices.Clone(proven.Tests)}, true
-	case covered || (in.Enclosed != nil && in.Enclosed(p)):
-		return Line{Reason: ReasonUnmapped, Path: p, Full: true}, true
+	case in.Attributed != nil && in.Attributed(p):
+		// Owned: the Go attribution selects its readers (orchestrator
+		// ruling 2026-11-11 on NCM-V1-001).
+		return Line{}, false
 	}
 	return Line{Reason: ReasonUnowned, Path: p, Full: true}, true
 }
@@ -194,6 +190,22 @@ func (in Input) flowPath(p string) bool {
 	}
 	directory := strings.TrimSuffix(in.FlowsDirectory, "/")
 	return strings.HasPrefix(directory+"/", corvintDirectory) && directory+"/" != corvintDirectory && strings.HasPrefix(p, directory+"/")
+}
+
+// fullReasons are the reasons of a line that needs every test, and the map
+// refusal, as the selector's `FALLBACK <reason> ...` verdict prints them.
+var fullReasons = []string{ReasonUnowned, ReasonRunnerRemoved, ReasonNeverNarrowed, ReasonCorvintConfig, ReasonFlowsUnreadable, CodeInvalid + ":"}
+
+// NamesFullRun reports a selector verdict `FALLBACK <reason> ...` that this
+// decision or the map refusal produced, so a later generic check keeps its
+// named reason (NCM-V1-001).
+func NamesFullRun(verdict string) bool {
+	rest, ok := strings.CutPrefix(verdict, "FALLBACK ")
+	if !ok {
+		return false
+	}
+	reason, _, _ := strings.Cut(rest, " ")
+	return slices.Contains(fullReasons, reason)
 }
 
 // FullRun returns the first line that needs every test, if any: an
