@@ -2,10 +2,10 @@
 
 Build tasks in order. Each names its requirement IDs and its proof.
 
-- [ ] 1 File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `NCM-V1` and set
+- [x] 1 File the ticket in `.taskman/` (milestone `v1-0`), reserve prefix `NCM-V1` and set
       `requirementRefs` to NCM-V1-001 to NCM-V1-009. Proof: `corvint-tasks ticket show` lists the
-      nine IDs.
-- [ ] 2 First commit: create `docs/specs/non-code-map-v1.md`, its `docs/specs/README.md` row and the
+      nine IDs. V1-5424 filed; NCM-V1 reserved.
+- [x] 2 First commit: create `docs/specs/non-code-map-v1.md`, its `docs/specs/README.md` row and the
       regenerated index. Proof: `make spec-requirements` output lists the nine IDs.
 - [ ] 3 Map schema and strict reader (NCM-V1-002, 007, 009). Proof: reader tests for missing proof,
       unknown version and unknown member, and a repeated-run byte comparison.
