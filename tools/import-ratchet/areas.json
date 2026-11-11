@@ -56,7 +56,6 @@
         "internal/rustsyntax",
         "internal/runhygiene",
         "internal/runtimeenv",
-        "internal/scopelease",
         "internal/secretscreen",
         "internal/shaderdialect",
         "internal/specindex",
