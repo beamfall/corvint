@@ -196,7 +196,14 @@ func TestRunnerEnvDeclaredVerbosityKeepsInverseVerboseTest(t *testing.T) {
 		t.Skip("no go toolchain")
 	}
 	ctx := context.Background()
-	dir := t.TempDir()
+	// The go command below gets an explicit environment and so no PWD: it then
+	// names its working directory by the resolved path, and a package argument
+	// under an unresolved temp root (macOS /var -> /private/var) is refused as
+	// outside the main module.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	files := map[string]string{
 		"go.mod":      "module example.com/m\n\ngo 1.22\n",
 		"q/q.go":      "package q\n\nfunc F() int {\n\treturn 1\n}\n",

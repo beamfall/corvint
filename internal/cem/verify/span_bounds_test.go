@@ -72,25 +72,69 @@ func TestCEMV1690OverlappingSpansShareOneBlob(t *testing.T) {
 	}
 }
 
+// errCountingContext counts Err calls: ClassifySpanContext checks its context
+// before each search, so the count bounds the searches it ran.
+type errCountingContext struct {
+	context.Context
+	calls int
+}
+
+func (c *errCountingContext) Err() error {
+	c.calls++
+	return c.Context.Err()
+}
+
 // TestCEMV1691DriftStopsAtTheSecondMatch is CEM-V1-691: an adversarial
-// repeated-byte needle in a repeated-byte target classifies within a stated
-// bound (2 s here; the uncapped count compared the 1 MiB needle at every one
-// of 3 Mi offsets), SpanOccurrences counts exactly in linear time, and a
-// cancelled context stops classification with an error.
+// repeated-byte needle in a repeated-byte target classifies after at most two
+// searches (the uncapped count compared the 1 MiB needle at every one of 3 Mi
+// offsets), SpanOccurrences counts exactly in linear time, and a cancelled
+// context stops classification with an error. Linearity is a scaling ratio of
+// this process's own runs, not a wall-clock constant, so a loaded -race shard
+// cannot fail it; the stated 2 s bound is asserted without -race.
 func TestCEMV1691DriftStopsAtTheSecondMatch(t *testing.T) {
 	t.Parallel()
 	haystack := bytes.Repeat([]byte("a"), 4<<20)
 	needle := bytes.Repeat([]byte("a"), 1<<20)
 	started := time.Now()
-	status, span, err := ClassifySpanContext(context.Background(), true, false, haystack, needle, wire.Span{Start: 0, End: 1 << 20})
+	counted := &errCountingContext{Context: context.Background()}
+	status, span, err := ClassifySpanContext(counted, true, false, haystack, needle, wire.Span{Start: 0, End: 1 << 20})
 	if err != nil || status != DriftAmbiguous || span != nil {
 		t.Fatalf("ClassifySpanContext = %v, %v, %v; want ambiguous", status, span, err)
+	}
+	// One check before each of the two searches and one on return.
+	if counted.calls > 3 {
+		t.Fatalf("ClassifySpanContext checked its context %d times, want at most 3 (two searches)", counted.calls)
 	}
 	if got, want := SpanOccurrences(haystack, needle), 3<<20+1; got != want {
 		t.Fatalf("SpanOccurrences = %d, want %d", got, want)
 	}
-	if elapsed := time.Since(started); elapsed > 2*time.Second {
+	if elapsed := time.Since(started); !raceEnabled && elapsed > 2*time.Second {
 		t.Fatalf("repeated-byte classification took %v, want under 2s", elapsed)
+	}
+	// Sixteen times the needle and target cost 16x when linear and 256x when
+	// the needle is compared at every offset; 64x splits the two by 4x each
+	// way. Each attempt takes the best of three interleaved runs of both
+	// sizes; a load spike can inflate one attempt, while a quadratic search is
+	// over the bound in every one, so the first attempt inside it decides.
+	run := func(n int) time.Duration {
+		haystack, needle := bytes.Repeat([]byte("a"), 4*n), bytes.Repeat([]byte("a"), n)
+		started := time.Now()
+		ClassifySpanContext(context.Background(), true, false, haystack, needle, wire.Span{})
+		SpanOccurrences(haystack, needle)
+		return time.Since(started)
+	}
+	const attempts = 5
+	linear := false
+	for attempt := 1; attempt <= attempts && !linear; attempt++ {
+		small, large := time.Duration(1<<63-1), time.Duration(1<<63-1)
+		for range 3 {
+			small, large = min(small, run(64<<10)), min(large, run(1<<20))
+		}
+		t.Logf("attempt %d: repeated-byte classify+count best of 3: 64 KiB needle %v, 1 MiB needle %v (%.1fx)", attempt, small, large, float64(large)/float64(small))
+		linear = large <= 64*small
+	}
+	if !linear {
+		t.Fatalf("16x the input cost over 64x in each of %d attempts: not linear", attempts)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
