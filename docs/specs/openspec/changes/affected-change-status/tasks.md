@@ -2,7 +2,7 @@
 
 Each task names its requirement IDs and its proof.
 
-- [ ] 1 Copy the spec delta into `affected-plan-selection-v0.md` as proposed definition lines;
+- [x] 1 Copy the spec delta into `affected-plan-selection-v0.md` as proposed definition lines;
    amend the AFP-V0-9133 and AFP-V0-9134 text where the delta says so; regenerate
    `REQUIREMENTS.tsv`. Requirements: AFP-V0-9960 to 9964. Proof: spec diff, `make
    spec-requirements` with no further diff.

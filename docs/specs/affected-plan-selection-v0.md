@@ -140,18 +140,48 @@ measure. None of them drops a unit the change can reach.
   pattern) made only of name characters SHALL name that directory as a `/dir/` fragment, so
   a file added to or deleted from the directory selects the test. The plan reads dirty paths
   without their base-tree status, so it cannot tell an addition from an edit and an edit
-  below the directory selects the test too; narrowing to additions and deletions needs the
-  base status as a plan input and is not admitted here. A helper's bare operands are not
-  named, for the reason AFP-V0-9129 gives.
+  below the directory selects the test too, unless the read is a name-listing read, which
+  AFP-V0-9962 narrows to the change statuses that can alter a listing. A helper's bare
+  operands are not named, for the reason AFP-V0-9129 gives.
 - **AFP-V0-9134:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5194)
   A shell test that walks the tree from its working directory SHALL be an unbounded reader
-  with the reason `shell:tree-walk`, selected on every dirty path: `find` with no path or
+  with the reason `shell:tree-walk`, selected as AFP-V0-9963 states: `find` with no path or
   with `.` or `./`, recursive `grep`, `rg`, `ag` or `ack` with no path or with `.`, `du`,
   `tree` or `ls -R` likewise. No declaration bounds it. A walker whose operands are literal
   directories keeps the AFP-V0-9133 fragments; one whose operands are all computed, a private
   temporary root included, keeps the existing conservative relation; a plain `ls` of the
   working directory reads one directory's names and is not a walk. A helper that walks the
   tree stays a bounded source (V1-4283): the test that runs it is selected by its own reads.
+- **AFP-V0-9960:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  The affected planner MUST accept, for each dirty path, one change status against the base:
+  `added`, `deleted`, `type-changed`, `modified` or `unknown`. A rename MUST be reported as
+  `deleted` for the old path and `added` for the new path. `modified` MUST mean a regular file
+  at both sides; a changed symlink or submodule entry, which can redirect a listing, MUST be
+  `type-changed`. A path whose status is absent or cannot be established MUST be `unknown`.
+  `corvint affected --base` MUST compute the status from the base tree and pass it to the
+  planner.
+- **AFP-V0-9961:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  The shell plugin MUST record a name-listing read, separate from a content read, for a
+  directory operand of a command whose output depends only on entry names and kinds. The
+  admitted forms are a closed list: `ls` with no flags or only `-1`, `-a`, `-A` (direct
+  children); the same with `-R` (all descendants); `find` with an empty expression or only
+  `-name`, `-iname`, `-path`, `-type`, `-maxdepth`, `-mindepth`, `-print`, `-print0` with
+  literal arguments; and `tree` with no flags. Every other form MUST stay a content read. When
+  a unit holds a content read and a name-listing read of the same directory, the content read
+  MUST decide.
+- **AFP-V0-9962:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  A name-listing read MUST select its unit for a dirty path within the read's depth whose
+  status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
+  whose status is `modified`.
+- **AFP-V0-9963:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  An unbounded reader with the reason `shell:tree-walk` whose every walking command is an
+  admitted name-only form MUST be selected for a dirty path only when the path's status is
+  `added`, `deleted`, `type-changed` or `unknown`. A unit with at least one content-searching
+  walker MUST be selected on every dirty path.
+- **AFP-V0-9964:** (proposed 2026-11-11; delivery not-started; V1-5193, V1-5194)
+  The graph cache MUST store name-listing reads, and its version MUST change with this field.
+  A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
+  name-listing reads. Change status MUST NOT be cached.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
