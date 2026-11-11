@@ -23,10 +23,10 @@ import (
 // writes it.
 func TestTIVV1002ReadersPrintReasonsAndWriteNothing(t *testing.T) {
 	root, index := watchModule(t)
-	if err := os.MkdirAll(filepath.Join(root, ".github", "cishards"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath)), []byte(sessionDeclaration("")), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(sessiontest.CommandsPath)), []byte(sessionDeclaration("")), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	commitAll(t, root, "declare")

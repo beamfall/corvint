@@ -40,6 +40,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
@@ -67,6 +68,16 @@ type Receipt struct {
 			Paths        []string `json:"paths"`
 			Unreferenced []string `json:"unreferenced"`
 		} `json:"goAdditive"`
+		// Selected is the planner's selections; a unit whose witness is
+		// of a kind that reads the very path it names attributes that
+		// path (attributingWitness, unattributedPath, RNC-V1-004).
+		Selected []struct {
+			UnitID  string `json:"unitId"`
+			Witness struct {
+				Kind      string `json:"kind"`
+				DirtyPath string `json:"dirtyPath"`
+			} `json:"witness"`
+		} `json:"selected"`
 	} `json:"plan"`
 	Provider struct {
 		Go struct {
@@ -325,6 +336,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		narrowed = additiveNarrowing(plan, module)
 		taken = planReaders(plan, index, module, root)
 	}
+	attributed := map[string]bool{}
 	for i, dirty := range dirties {
 		rules := index.attribute(dirty, readers[i])
 		if unreferenced, ok := narrowed[dirty]; ok && !strings.HasSuffix(dirty, "_test.go") && index.packages[parentDirectory(dirty)] != nil {
@@ -335,6 +347,7 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		}
 		for _, rule := range rules {
 			if rule.kind == "documentation" || rule.kind == "evidence" {
+				attributed[dirty] = true // the plan's own readers of a declared path
 				lines = append(lines, rule.kind+" "+dirty)
 				continue
 			}
@@ -347,6 +360,9 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 				rule.directories = slices.DeleteFunc(slices.Clone(rule.directories), func(directory string) bool {
 					return !recordAllows(directory, dirty)
 				})
+			}
+			if len(rule.directories) != 0 {
+				attributed[dirty] = true
 			}
 			add(rule.directories, rule.kind, " <- "+dirty)
 		}
@@ -367,12 +383,20 @@ func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, 
 		declared[directory] = index.packages[directory] != nil
 	}
 	for _, directory := range sortedKeys(declared) {
+		first := true
 		for _, dirty := range sortedUnique(plan.Plan.Dirty) {
 			if declared[directory] && declaredBears(directory, scopes, prior, dirty) && recordAllows(directory, dirty) {
-				add([]string{directory}, "declared", " <- "+dirty)
-				break
+				attributed[dirty] = true
+				if first {
+					add([]string{directory}, "declared", " <- "+dirty)
+					first = false
+				}
 			}
 		}
+	}
+	// Both forms: the attribution does not read rule (d) (unattributedPath).
+	if dirty, ok := unattributedPath(plan, attributed); ok {
+		return fallback(UnownedPathFallback + ": " + dirty)
 	}
 	selected := sortedKeys(packages)
 	for _, pkg := range selected {
@@ -422,7 +446,8 @@ func boundedReaders(directories []string, scopes, prior map[string][]string, dir
 // entry, as the shadow runs it (AFP-V0-2750); it never widens the Go selection. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
 // package whose reads no literal bounds, so every Go reader of an unowned path
-// is selected; a frontier names what a language model cannot see inside units
+// is selected, and selectPackagesFrom falls back with UnownedPathFallback for an
+// unowned path none of those rules attributes (RNC-V1-004); a frontier names what a language model cannot see inside units
 // the dirty paths already reach; and a unit with no selectable test gets no
 // test from a FULL run either. Any other unknown, a malformed reason, and an
 // UNKNOWN plan that names no unknown return the fallback reason.
@@ -457,6 +482,52 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) (string
 		lines = append(lines, "suite "+language+" <- "+suites[language])
 	}
 	return "", lines
+}
+
+// unattributedPath returns the first UNOWNED_DIRTY_PATH of plan, in plan
+// order, that no Go rule attributes, and false when every one is attributed
+// (RNC-V1-004, owner decision R32). Rules (b) and (c) and the read-scope
+// declarations attribute a path when they select a package for it
+// (attributed); the planner's documentation and evidence readers count too,
+// and so does a unit the plan selected through a witness attributingWitness
+// admits for that path. A path an unobserved-module frontier names is run by
+// that nested module's own suite (STR-V0-064). Rule (d), the packages whose
+// reads no literal bounds, attributes none: the planner witnesses such a unit
+// (UNBOUNDED_READER) with whichever dirty path sorts first, whatever path it
+// reads, so a path only it would read is one no runner instance owns, and runs
+// every test.
+func unattributedPath(plan Receipt, attributed map[string]bool) (string, bool) {
+	for _, selection := range plan.Plan.Selected {
+		if selection.UnitID != "" && selection.Witness.DirtyPath != "" && attributingWitness[selection.Witness.Kind] {
+			attributed[selection.Witness.DirtyPath] = true
+		}
+	}
+	nested := map[string]bool{}
+	for _, entry := range plan.Plan.Unknown {
+		if directory, ok := UnobservedModule(entry.Reason, entry.Detail); ok {
+			nested[strings.TrimPrefix(entry.Detail, "go:unobserved-module:"+directory+":")] = true
+		}
+	}
+	for _, entry := range plan.Plan.Unknown {
+		if entry.Reason == "UNOWNED_DIRTY_PATH" && !attributed[entry.Detail] && !nested[entry.Detail] {
+			return entry.Detail, true
+		}
+	}
+	return "", false
+}
+
+// attributingWitness holds the planner witness kinds whose dirty path is the
+// path the selected unit reads, encloses, declares or consumes, so the
+// selection attributes that path (RNC-V1-004). Any other kind, an
+// UNBOUNDED_READER, a MUST_RUN or FRONTIER_SITE seed witnessed by the first
+// dirty path, a declared existence reader whose declaration changed, and a
+// kind this list does not know, attributes none.
+var attributingWitness = map[string]bool{
+	affected.WitnessPathLiteralReader: true,
+	affected.WitnessPathGlobReader:    true,
+	affected.WitnessDeclaredReadScope: true,
+	affected.WitnessEnclosingPackage:  true,
+	"DECLARED_CONSUMER":               true,
 }
 
 // frontierSuite records in suites the first frontier of each language

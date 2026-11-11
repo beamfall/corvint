@@ -6064,8 +6064,9 @@ commit, so a defect in either list is shared, and nothing failed when they drift
 - **AFP-V0-982:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3749)
   `gateselect.AllowedUnknown(reason, detail)` SHALL be the one allowlist of `plan.unknown` entries
   a narrowed run may carry: a `LANGUAGE_FRONTIER` whose detail does not start with `go:`, or is
-  `go:build-constraint-variants` or `go:nested-module-frontier`; an `UNOWNED_DIRTY_PATH`; a
-  `NO_SELECTABLE_TEST`. CIN-V0-860's `unknownNarrowing` and `sessiontest`'s AFP-V0-028 check SHALL
+  `go:build-constraint-variants` or `go:nested-module-frontier`; a `NO_SELECTABLE_TEST` (an
+  `UNOWNED_DIRTY_PATH` was admitted until `RNC-V1-004` removed it: the driver now falls back with
+  `unowned-path` and `corvint test` plans `FULL`). CIN-V0-860's `unknownNarrowing` and `sessiontest`'s AFP-V0-028 check SHALL
   both decide through it, so the driver now falls back on a `go:` frontier the shadow already ran
   in full (`go:unobserved-directory`, `go:path-token-bound:<unit>`, a workspace frontier). Outside
   the allowlist two named rules remain: the driver attributes a deleted Go source of a package that

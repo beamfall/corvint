@@ -1270,6 +1270,7 @@
       "schemaIds": [
         "corvint-ci-outcomes/0",
         "corvint-ci-package-costs/0",
+        "corvint-test-commands/0",
         "corvint-test-manifest/0",
         "corvint-test-reuse-decision/0",
         "corvint-test-reuse-record/0",

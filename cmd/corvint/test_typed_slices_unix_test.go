@@ -27,16 +27,16 @@ func TestAFPV02370DryRunNarrowsAnAllowListedDependent(t *testing.T) {
 	root := t.TempDir()
 	lib := "package lib\n\nfunc A() int { return 1 }\n\nfunc B() int { return 2 }\n"
 	files := map[string]string{
-		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-		"lib/lib.go":                lib,
-		"p/p.go":                    "package p\n",
-		"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/ed\"\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n\nfunc TestEmbed(t *testing.T) { _ = ed.Read() }\n",
-		"ed/ed.go":                  "package ed\n\nimport _ \"embed\"\n\n//go:embed data.txt\nvar data string\n\nfunc Read() string { return data }\n",
-		"ed/data.txt":               "one\n",
-		"lib/notes.txt":             "read at run time\n",
-		"o/o.go":                    "package o\n",
-		"o/o_test.go":               "package o\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestO(t *testing.T) { _ = lib.A() }\n",
-		sessiontest.DeclarationPath: sessionDeclaration(""),
+		"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+		"lib/lib.go":             lib,
+		"p/p.go":                 "package p\n",
+		"p/p_test.go":            "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/ed\"\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n\nfunc TestEmbed(t *testing.T) { _ = ed.Read() }\n",
+		"ed/ed.go":               "package ed\n\nimport _ \"embed\"\n\n//go:embed data.txt\nvar data string\n\nfunc Read() string { return data }\n",
+		"ed/data.txt":            "one\n",
+		"lib/notes.txt":          "read at run time\n",
+		"o/o.go":                 "package o\n",
+		"o/o_test.go":            "package o\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestO(t *testing.T) { _ = lib.A() }\n",
+		sessiontest.CommandsPath: sessionDeclaration(""),
 	}
 	fixture := newTypedSliceFixture(t, root, files)
 	planFiles := fixture.plan
@@ -196,11 +196,11 @@ func TestAFPV02376DryRunReadsRootPackageChanges(t *testing.T) {
 	t.Cleanup(func() { typedReachPackages = saved })
 	lib := "package m\n\nvar Shared int\n\nfunc A() int { Shared = 1; return 1 }\n\nfunc B() int { return 2 }\n"
 	fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
-		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-		"lib.go":                    lib,
-		"p/p.go":                    "package p\n",
-		"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m\"\n)\n\nfunc TestA(t *testing.T) { _ = m.A() }\n\nfunc TestB(t *testing.T) { _ = m.B() }\n\nfunc TestControl(t *testing.T) {}\n",
-		sessiontest.DeclarationPath: sessionDeclaration(""),
+		"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+		"lib.go":                 lib,
+		"p/p.go":                 "package p\n",
+		"p/p_test.go":            "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m\"\n)\n\nfunc TestA(t *testing.T) { _ = m.A() }\n\nfunc TestB(t *testing.T) { _ = m.B() }\n\nfunc TestControl(t *testing.T) {}\n",
+		sessiontest.CommandsPath: sessionDeclaration(""),
 	})
 	t.Run("edit of B narrows to TestB", func(t *testing.T) {
 		got, ok := fixture.plan(t, map[string]string{"lib.go": strings.Replace(lib, "return 2", "return 4", 1)})["go:example.test/m/p"]
@@ -245,12 +245,12 @@ func TestAFPV02372DryRunBindsExecutorBuildConfiguration(t *testing.T) {
 	plan := func(t *testing.T, declaration string) sessiontest.Unit {
 		t.Helper()
 		fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
-			"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-			"lib/lib.go":                lib,
-			"p/p.go":                    "package p\n",
-			"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
-			"p/tagged_test.go":          "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
-			sessiontest.DeclarationPath: declaration,
+			"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+			"lib/lib.go":             lib,
+			"p/p.go":                 "package p\n",
+			"p/p_test.go":            "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
+			"p/tagged_test.go":       "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
+			sessiontest.CommandsPath: declaration,
 		})
 		return fixture.plan(t, map[string]string{"lib/lib.go": edit})["go:example.test/m/p"]
 	}
@@ -293,12 +293,12 @@ func TestAFPV02372RunRefusesAnotherConfiguration(t *testing.T) {
 	edit := strings.Replace(lib, "return 1", "return 3", 1)
 	{
 		fixture := newTypedSliceFixture(t, t.TempDir(), map[string]string{
-			"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-			"lib/lib.go":                lib,
-			"p/p.go":                    "package p\n",
-			"p/p_test.go":               "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
-			"p/tagged_test.go":          "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
-			sessiontest.DeclarationPath: typedSliceDeclaration("", ""),
+			"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+			"lib/lib.go":             lib,
+			"p/p.go":                 "package p\n",
+			"p/p_test.go":            "package p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestA(t *testing.T) { _ = lib.A() }\n\nfunc TestB(t *testing.T) { _ = lib.B() }\n",
+			"p/tagged_test.go":       "//go:build floortag\n\npackage p\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/lib\"\n)\n\nfunc TestTagged(t *testing.T) { _ = lib.A() }\n",
+			sessiontest.CommandsPath: typedSliceDeclaration("", ""),
 		})
 		if err := os.WriteFile(filepath.Join(fixture.root, "lib/lib.go"), []byte(edit), 0o644); err != nil {
 			t.Fatal(err)

@@ -264,7 +264,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceFocusedCommand     = "corvint test --base %s --dry-run"
-	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.DeclarationPath + " is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead"
+	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.CommandsPath + " is absent, so corvint test --dry-run would plan with each runner's built-in default full command (RNC-V1-013); declare the commands there, or run the declared mandatory checks instead"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory at the project terminal boundary, not as the default next step"
@@ -1880,12 +1880,18 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 // default next step is the narrowed run, and the declared exhaustive commands
 // stay the terminal-boundary checks a project policy may require. A root
 // without the test-command declaration gets an unknown entry instead, since
-// that command would select nothing there (ACX-V0-853).
+// that command would plan with undeclared built-in defaults there
+// (ACX-V0-853, RNC-V1-013).
 func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected.Plan) affectedAdvice {
 	if base == "" || len(plan.Dirty) == 0 {
 		return advice
 	}
-	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+	// The adopter declaration (RNC-V1-013) or Corvint's own old path.
+	declared := func(name string) bool {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(name)))
+		return err == nil && info.Mode().IsRegular()
+	}
+	if !declared(sessiontest.CommandsPath) && !declared(sessiontest.DeclarationPath) {
 		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}

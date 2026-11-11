@@ -88,6 +88,16 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 			}
 			continue
 		}
+		if e.reason == affected.UnknownUnownedDirtyPath {
+			// RNC-V1-004, owner decision R32: both admit the entry, and the
+			// driver's selector then refuses a path no Go rule attributes,
+			// which no detail here is (none is dirty); Build takes that
+			// fallback as its FULL reason.
+			if !shadow || lines[len(lines)-1] != "FALLBACK "+gateselect.UnownedPathFallback+": "+e.detail {
+				t.Errorf("%s %q: an unattributed unowned path: driver %q, shadow allowlist=%v, want the unowned-path fallback and true", e.reason, e.detail, lines[len(lines)-1], shadow)
+			}
+			continue
+		}
 		if driver != shadow {
 			t.Errorf("%s %q: driver narrows=%v (%s), shadow admits=%v", e.reason, e.detail, driver, lines[len(lines)-1], shadow)
 		}
