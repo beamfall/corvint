@@ -16,6 +16,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testduration"
 )
 
 // sessionFakeRunners is a recording `go` and `make` on PATH: probes answer
@@ -164,7 +165,7 @@ func TestSTRV0010CLIRunWritesReceipt(t *testing.T) {
 	if receipt.Result != sessiontest.ResultPass || receipt.Scope != sessiontest.ScopeNarrowed || receipt.Base != base ||
 		receipt.Revision != head || len(receipt.Invocations) != 1 || receipt.Invocations[0].Version != "go1.27.1" ||
 		receipt.Invocations[0].AdapterManifest != sessiontest.AdapterManifestProfile ||
-		receipt.Invocations[0].Outcomes[0] != (sessiontest.Outcome{Outcome: "PASS", Slice: "whole", Unit: "go:example.test/m/a"}) ||
+		receipt.Invocations[0].Outcomes[0] != (sessiontest.Outcome{DurationGranularity: testduration.GranularityFile, DurationSource: testduration.NotMeasured, Outcome: "PASS", Slice: "whole", Unit: "go:example.test/m/a"}) ||
 		!strings.HasPrefix(receipt.Tool, "corvint ") || len(receipt.Incomplete) != 0 {
 		t.Fatalf("receipt %+v", receipt)
 	}

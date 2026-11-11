@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/testduration"
 )
 
 // The provider adapter (STR-V0-8701 to STR-V0-8707) runs the Vitest and
@@ -289,7 +291,14 @@ func providerOutcomes(planned Planned, exit int, capture *providerCapture, out i
 			outcome = OutcomeNotRun
 			reasons = append(reasons, name+": its receipt names no test of "+files[index]+" alone; the unit is NOT_RUN")
 		}
-		outcomes = append(outcomes, Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit})
+		// The provider's receipt names no per-test time, so a provider file unit that ran is a
+		// file-level outcome with no measured duration (PTD-V1-003, PTD-V1-004); a NOT_RUN unit
+		// ran nothing and Finish marks it NOT_MEASURED alone.
+		recorded := Outcome{Outcome: outcome, Slice: unit.Slice, Unit: unit.Unit}
+		if outcome != OutcomeNotRun {
+			recorded.DurationGranularity, recorded.DurationSource = testduration.GranularityFile, testduration.NotMeasured
+		}
+		outcomes = append(outcomes, recorded)
 	}
 	return outcomes, reasons
 }
