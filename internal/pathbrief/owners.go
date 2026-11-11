@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package pathbrief
 
 import (
@@ -76,11 +78,13 @@ func ownerPattern(pattern string) *regexp.Regexp {
 		out.WriteString("(?:.*/)?")
 	}
 	for index := 0; index < len(body); {
+		// Two stars span directories only as a whole path component; elsewhere each is one star.
+		component := index == 0 || body[index-1] == '/'
 		switch {
-		case strings.HasPrefix(body[index:], "**/"):
+		case component && strings.HasPrefix(body[index:], "**/"):
 			out.WriteString("(?:.*/)?")
 			index += 3
-		case strings.HasPrefix(body[index:], "**"):
+		case component && body[index:] == "**":
 			out.WriteString(".*")
 			index += 2
 		case body[index] == '*':

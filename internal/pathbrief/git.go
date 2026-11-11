@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package pathbrief builds the path brief of `corvint context --path` (TBC-V1-009 to TBC-V1-011)
 // and the requirement-link file it reads (TBC-V1-012). It reads committed objects and never the
 // working tree, ranks nothing, and writes nothing except through the one-time export.

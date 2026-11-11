@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package pathbrief
 
 import (
@@ -19,6 +21,9 @@ func TestOwnerPattern(t *testing.T) {
 		{"/a/b.go", []string{"a/b.go"}, []string{"x/a/b.go", "a/b.gox"}},
 		{"**/x", []string{"x", "a/x", "a/b/x", "a/x/y"}, []string{"ax", "a/xy"}},
 		{"a/**/b", []string{"a/b", "a/q/b", "a/q/r/b"}, []string{"b", "x/a/b"}},
+		{"a/**", []string{"a/f", "a/f/g"}, []string{"b/a/f", "ab/f"}},
+		{"/a**go", []string{"ago", "axgo"}, []string{"a/x/b.go", "a/go"}},
+		{"a**/b", []string{"a/b", "ax/b"}, []string{"a/q/b", "x/a/b"}},
 		{"a/*", []string{"a/f"}, []string{"a/f/g", "b/a/f"}},
 		{"?.go", []string{"a.go", "x/a.go"}, []string{"ab.go"}},
 		{"!neg", nil, []string{"neg"}},
