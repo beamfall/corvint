@@ -140,6 +140,9 @@ func TestAffectedHeadlineOnSeparateStderr_AFPV03642(t *testing.T) {
 
 	// A pipe on stderr gets no headline: a write to a closed pipe on fd 2
 	// raises SIGPIPE in a Go program and would end the run before the plan.
+	// In-process the pipe is not fd 2, so a closed reader only checks that
+	// the run completes; the open pipe below is what proves no headline is
+	// written to a pipe.
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
