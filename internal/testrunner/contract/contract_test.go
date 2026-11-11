@@ -203,14 +203,15 @@ func TestRNCV1004UnimplementedRunnerRunsFull(t *testing.T) {
 }
 
 // RNC-V1-005, RNC-V1-012: the Go report gives one outcome and duration per
-// test under its canonical ID, and a package that failed to build is one
-// package-level result.
+// test under its canonical ID, and a package that failed (to build, or with
+// a failing test) is one package-level fail result.
 func TestRNCV1005GoReport(t *testing.T) {
 	report := strings.Join([]string{
 		`{"Action":"run","Package":"example.test/m/a","Test":"TestA"}`,
 		`{"Action":"pass","Package":"example.test/m/a","Test":"TestA","Elapsed":0.25}`,
 		`{"Action":"fail","Package":"example.test/m/a","Test":"TestB/case_1","Elapsed":0.0014}`,
 		`{"Action":"skip","Package":"example.test/m","Test":"TestRoot","Elapsed":0}`,
+		`{"Action":"pass","Package":"example.test/m","Elapsed":0}`,
 		`# example.test/m/broken`,
 		`{"Action":"fail","Package":"example.test/m/broken","Elapsed":0.1,"FailedBuild":"example.test/m/broken"}`,
 		`{"Action":"fail","Package":"example.test/m/a","Elapsed":0.3}`,
@@ -225,6 +226,7 @@ func TestRNCV1005GoReport(t *testing.T) {
 		{ID: "go:a::TestB::case_1", Outcome: OutcomeFail, DurationMillis: 1, Granularity: testid.GranularityTest},
 		{ID: "go:.::TestRoot", Outcome: OutcomeSkip, Granularity: testid.GranularityTest},
 		{ID: "go:broken", Outcome: OutcomeFail, DurationMillis: 100, Granularity: testid.GranularityPackage},
+		{ID: "go:a", Outcome: OutcomeFail, DurationMillis: 300, Granularity: testid.GranularityPackage},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("results\n got %+v\nwant %+v", got, want)
