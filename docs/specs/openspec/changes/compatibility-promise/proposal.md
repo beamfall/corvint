@@ -1,7 +1,7 @@
 # Change proposal: a narrow 1.x compatibility promise, written as one generated table
 
 Change name: `compatibility-promise`
-Ticket: none filed yet (task 1.1 files it in `.taskman/`, milestone `v1-0`)
+Ticket: V1-5434 (milestone `v1-0`)
 Product requirement served: product gap (g) and checklist rows O30 and O64 of
 `docs/specs/PRODUCT-PLAN-1.0.md` (NEW-PROC-3). The plan has no PROD requirement for the promise
 yet; the plan edit that adds one is listed for the owner and is not made by this change.

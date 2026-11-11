@@ -4,9 +4,9 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 ## Tasks
 
-- [ ] 1.1 File the ticket in `.taskman/` (milestone `v1-0`) and reserve prefix `CMP-V1` (001 to
-      006). Requirements: all. Proof: `corvint-tasks ticket show`.
-- [ ] 1.2 First commit: create `docs/specs/compatibility-promise-v1.md` from the spec delta, add
+- [x] 1.1 File the ticket in `.taskman/` (milestone `v1-0`) and reserve prefix `CMP-V1` (001 to
+      006). Requirements: all. Proof: `corvint-tasks ticket show`. Done: ticket V1-5434.
+- [x] 1.2 First commit: create `docs/specs/compatibility-promise-v1.md` from the spec delta, add
       its row to `docs/specs/README.md`, regenerate the index and run
       `make spec-requirements-check`. Requirements: CMP-V1-001 to 006. Proof: check output.
 - [ ] 2.1 List the surfaces of CMP-V1-003 with the contract test that covers each, and read each

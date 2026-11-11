@@ -2385,6 +2385,12 @@ CTR-V0-009	docs/specs/compat-trial-v0.md	Preregistered rubric, budgets, and scor
 CTR-V0-010	docs/specs/compat-trial-v0.md	Containment and harness reuse. Replay stays local; per `E:99`, external executio	unrecorded	-
 CTR-V0-011	docs/specs/compat-trial-v0.md	Proposed; unaccepted and does not authorize implementation. Changed-executable a	unrecorded	-
 CTR-V0-012	docs/specs/compat-trial-v0.md	Proposed; unaccepted and does not authorize implementation. Observation record s	unrecorded	-
+CMP-V1-001	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) `docs/COMPATIBILITY.md` MUST hold the 1.x	owner	decision 0596; V1-5434
+CMP-V1-002	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) A row MUST be `stable` only when a contract t	owner	decision 0596; V1-5434
+CMP-V1-003	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) The stable set MUST be exactly these surfaces	owner	decision 0596; V1-5434
+CMP-V1-004	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) A `stable` surface MUST change only by additi	owner	decision 0596; V1-5434
+CMP-V1-005	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) `docs/COMPATIBILITY.md` MUST list these as	owner	decision 0596; V1-5434
+CMP-V1-006	docs/specs/compatibility-promise-v1.md	(accepted, decision 0596; V1-5434) No profile label MUST be renamed at 1.0. The	owner	decision 0596; V1-5434
 CWT-V0-001	docs/specs/confidently-wrong-trial-v0.md	Claim grammar. Every reply MUST end with one fenced JSON block	unrecorded	-
 CWT-V0-002	docs/specs/confidently-wrong-trial-v0.md	Verdicts. A claim whose kind the task's gold covers is `TRUE` when its value is	unrecorded	-
 CWT-V0-003	docs/specs/confidently-wrong-trial-v0.md	Arms. `none` supplies the task text only; `grep` adds the top-K paths of	unrecorded	-

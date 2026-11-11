@@ -4440,6 +4440,18 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/compatibility-promise-v1.md",
+    "title": "Compatibility Promise V1",
+    "reqPrefix": "CMP-V1",
+    "intent": "accepted (decision 0596, 2026-11-10)",
+    "delivery": "experimental",
+    "claim": "One generated table in docs/COMPATIBILITY.md marks each 1.x surface stable or preview, and only a surface a named contract test covers is stable.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/tasks-policy-v15.md",
     "title": "Tasks Policy Version 15 V1",
     "reqPrefix": "TPV-V1",
