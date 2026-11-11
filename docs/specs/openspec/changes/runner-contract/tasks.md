@@ -8,7 +8,7 @@ R38 (2026-11-09) build order).
    read back. V1-5416 filed; RNC-V1 reserved. Jest delivered in task 5 under V1-5416.
 - [x] 2 First commit: create `runner-contract-v1.md`; add the README entry; regenerate the index.
    Requirements: all. Proof: spec diff and index check.
-- [ ] 3 Define the interface from `RunnerPlugin`, keyed by canonical test ID and runner instance;
+- [x] 3 Define the interface from `RunnerPlugin`, keyed by canonical test ID and runner instance;
    adapt Go, Vitest and Playwright. Requirements: RNC-V1-001, 003, 005, 006, 012, 014. Proof:
    per-runner fixtures.
 - [ ] 4 Supply each runner's lister to `corvint inventory refresh`, marked static or executing; Ruby
