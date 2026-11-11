@@ -412,6 +412,8 @@ Usage:
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text] [--fail-fast-order]
+  corvint [--root PATH] affected [--full | --summary] --base FULL_COMMIT_ID
+          --head COMMIT [--format json|text] [--accept-stale-binary]
   corvint [--root PATH] affected --base FULL_COMMIT_ID --line-index FILE [--line-test-timeout DURATION] [--line-exec PATH]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -481,6 +483,19 @@ edits in repositories without the ownership ratchet (AZU-V0-9901).
 It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--json (AFP-V0-9988) is --format json: the output is already JSON by default,
+so it changes no byte; it is refused with --format text.
+selectedFlat (AFP-V0-9987) lists plan.selected flat, in plan order, one
+{unitId, test, witness, dirtyPath, reason} per unit: test is the Go package
+import path for a go: unit, the unit's only test file, or else the unit id;
+witness is the witness kind. summary.unresolvedPackages counts the selected Go
+packages whose reads nothing bounds (UNBOUNDED_READER), which every change
+selects. Both only report the selection and never change it.
+Example: corvint affected --base FULL_SHA | jq -r '.selectedFlat[] | .test'
+Every form writes each witness as one object: kind and dirtyPath always;
+viaLength in the default plan and --by-path, via in --full (and in the
+default plan for a chain plan.viaLinks cannot state); anyDirtyPath and cause
+on UNBOUNDED_READER; glob; readScope {declaration, entry} (AFP-V0-9988).
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
 the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
 tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
@@ -541,6 +556,19 @@ recorded blob OID changes"). Refused under --full, --summary, --format text,
 --by-path, --path, --snapshot, --provider, --playwright-config and
 --appmap-impact (unsupported-affected-line-index-profile).
 Example: corvint affected --base FULL_SHA --line-index linecov.idx
+
+--head COMMIT (experimental, AFP-V0-9989; requires --base) replays a commit
+pair without a worktree: the plan is the --base plan of a clean checkout of
+COMMIT, written from this repository's Git objects into private temporary
+scratch that is removed before exit, so the working tree, index and untracked
+files are never read and revision is COMMIT. COMMIT takes the same forms as
+--base. It is refused with --path, --paths-from, --worktree, --snapshot,
+--require-clean, --fail-fast-order, --by-path, --provider, --repository,
+--appmap-impact, the --playwright-* and --line-* options, whose inputs lie
+outside Git objects, and with unsupported-affected-head when COMMIT's tree
+holds a gitlink or symlink or the scratch checkout fails. A binary built at
+another commit needs --accept-stale-binary to replay it (AFP-V0-9730).
+Example: corvint affected --base BASE_SHA --head HEAD_SHA --accept-stale-binary
 
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,

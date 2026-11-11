@@ -149,6 +149,11 @@ type affectedInvocation struct {
 	// Format is the --format value: "" or json writes the JSON document,
 	// text the affected-plan/1 projection as lines (AFP-V0-928).
 	Format string
+	// JSON is --json, the same as --format json (AFP-V0-9988).
+	JSON bool
+	// Head is --head: the plan is the --base plan of a clean checkout of
+	// this commit, materialized from Git objects alone (AFP-V0-9989).
+	Head string
 	// CacheStatus is set only by `affected cache`, which reports the default
 	// cache's location and size; CacheStatusFormat is json or doctor-plugin
 	// (AFP-V0-439).
@@ -341,6 +346,11 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 	if err := resolveAffectedAbbrevBase(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
+	if invocation.Head != "" {
+		if invocation.Head, err = resolveCommitArgument(invocation.Root, "--head", invocation.Head); err != nil {
+			return affectedInvocation{}, true, err
+		}
+	}
 	if err := resolveAffectedBatchAndCache(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
@@ -352,7 +362,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true, "--line-index": true, "--line-test-timeout": true, "--line-exec": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true, "--line-index": true, "--line-test-timeout": true, "--line-exec": true, "--head": true}
 
 // affectedFormatValues are the --format values `affected` accepts
 // (AFP-V0-928, amending AFP-V0-201).
@@ -367,7 +377,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--accept-stale-binary", "--fail-fast-order", "--format", "--full", "--no-cache", "--require-clean", "--worktree"}
+	names := []string{"--accept-stale-binary", "--fail-fast-order", "--format", "--full", "--json", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -461,6 +471,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--json" || strings.HasPrefix(rest[index], "--json=") {
+			if invocation.JSON || rest[index] != "--json" {
+				return affectedInvocation{}, argumentError("argument --json: does not accept a value or repetition")
+			}
+			invocation.JSON = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if name == "--format" {
 			if !inline {
@@ -522,6 +540,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
+		case "--head":
+			if invocation.Head != "" || !validBaseArgument(value) {
+				err = argumentError("--head requires exactly one commit: a full commit id, an unambiguous lowercase-hex prefix of at least 7 digits or a revision such as HEAD~1, got " + value)
+			} else {
+				invocation.Head = value
+			}
 		case "--appmap-impact":
 			err = addAffectedAppmapImpact(&invocation, value)
 		case "--provider", "--provider-command":
@@ -546,6 +570,17 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	// AFP-V0-9988: the default output is already JSON, so --json is
+	// --format json and only --format text conflicts with it.
+	if invocation.JSON {
+		if invocation.Format == "text" {
+			return affectedInvocation{}, argumentError("--json cannot be combined with --format text: affected writes JSON by default and --json only restates that; drop one of them")
+		}
+		invocation.Format = "json"
+	}
+	if err := affectedHeadOptionRefusal(invocation); err != nil {
+		return affectedInvocation{}, err
 	}
 	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
@@ -881,6 +916,17 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	if invocation.JobsDeclaration != "" {
 		return runAffectedJobs(ctx, invocation, stdout, stderr)
+	}
+	if invocation.Head != "" {
+		// AFP-V0-9989: plan a clean checkout of --head, written from Git
+		// objects into private scratch; the root's checkout is never read.
+		checkout, cleanup, err := materializeAffectedHead(ctx, invocation.Root, invocation.Head)
+		if err != nil {
+			emitError(stderr, err)
+			return 2
+		}
+		defer cleanup()
+		invocation.Root = checkout
 	}
 	invocation.sharedVia = !invocation.Full
 	if invocation.ByPath {
