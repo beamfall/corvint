@@ -209,19 +209,30 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   a `no-` prefix, so `--test-match` is `--testMatch`): a script passing `--testMatch`, `--testRegex`,
   `--dir`, `--root`, `--rootDir`, `--roots`, `--config`, `-c`, Jest's `--runTestsByPath` (it runs the
   files it names whatever their names; `--findRelatedTests` stays allowed), any flag outside that
-  list, a shell expansion, or Vitest's `bench` or `typecheck` command makes the instance unproven, its
+  list, a shell expansion, a word holding a backslash or a brace (the reader models neither escapes
+  nor brace expansion, so `jest \-\-config=ci.js` and `jest {--config,ci.js}` may pass a flag;
+  V1-5435), or Vitest's `bench` or `typecheck` command makes the instance unproven, its
   cause naming the manifest, the script and the flag (V1-5425, V1-5427). The scripts fail closed on
   indirection too (V1-5427): a package-manager script run (`npm run`, `npm test`, `yarn`, `pnpm` or
   `bun`, with or without `run`, a `concurrently` `npm:name` word, or `npm-run-all`, `run-s` or
-  `run-p`) that forwards any `-`-prefixed word is unproven, its cause naming the flag and the
-  manager, unless the script it names is in the same manifest and mentions neither the runner nor a
+  `run-p`) that forwards any `-`-prefixed word, or a word holding a shell expansion, backslash or
+  brace, is unproven, its cause naming the flag and the manager, and so is a Vitest `bench` or
+  `typecheck` positional it forwards (`npm test bench` beside `"test": "vitest"`; V1-5435), unless
+  the script it names is in the same manifest and mentions neither the runner nor a
   package manager (`npm run build -- --watch` beside `"build": "tsc"` stays proven); npm forwards
-  only the words after `--`, a flag before the script name leaves the target unresolved, and a run of
+  the positionals after the script name and only the flags after `--`, a flag before `--` leaves
+  the target unresolved, and a run of
   the runner itself (`yarn jest --ci`, `npm exec jest -- --ci`) has the words after the runner judged
   by its flag list instead. A quoted
   word holding whitespace is split and scanned again, so `sh -c "jest --config ci.js"`, `bash -c`,
   `concurrently "jest --config a"` and `nodemon --exec "vitest --dir src"` are read as the runner's
-  own commands, and any other word of such a wrapper that mentions the runner is unproven. A command
+  own commands, and any other word of such a wrapper that mentions the runner is unproven. When a
+  word of such a wrapper before the runner mentions it or starts a package-manager run, each
+  `-`-prefixed word after a standalone `--` and each `{@}`, `{*}` or `{N}` placeholder in such a
+  word is unproven too (V1-5435), since `concurrently "jest {@}" -- --testMatch x` passes those words
+  into the command it runs; a wrapper none of whose words reach the runner (`concurrently "tsc -w"
+  -- --preserveWatchOutput`) is not judged. A word mentions the runner with any backslash removed,
+  so `j\est --config ci.js` is an unmodelled command. A command
   the reader does not model that mentions the runner anywhere (`node -e "require('jest')..."`) is
   unproven; the cost is that an unrelated command naming the runner, such as `eslint jest.config.js`,
   also leaves the instance unproven. A pytest section is proven when it sets no
@@ -238,7 +249,9 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
   it names, even with no key under it. A TOML file the scanner cannot read (one starting with a UTF-8
   byte order mark among them, V1-5427), an escaped key, or the pytest table set inline is unproven,
   and a `pyproject.toml` with an escaped key declares pytest, so `[tool."py\u0074est".ini_options]`
-  is unproven rather than missed. An unreadable config is unproven.
+  is unproven rather than missed; a `pyproject.toml` the scanner cannot read declares pytest when
+  it holds the text `pytest` or any backslash, since a key spells pytest only literally or through an
+  escape (a byte order mark before an escaped table name included, V1-5435). An unreadable config is unproven.
 - Unproven instances (TIV-V1-005, TIV-V1-008): refresh binds only the files the lister names, so the
   record stays small in a large root. The verdict judges every file under the root with one of the
   instance's candidate extensions that the record does not bind (its config and lockfile aside) as
@@ -289,7 +302,7 @@ Delivered by ticket V1-5406 (build-log `docs/build-log/2026-11-11-test-inventory
 | TIV-V1-005 | `requireBinding` in every TIV-V1-004 lister test; `TestTIVV1005TreesNameFilesByBlobID`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles`, `TestTIVV1005UnprovenRecordHoldsOnlyListedFiles` (a 150,000-file root stays under MaxBytes), `TestTIVV1005WorkTreeRefusesSubdirectoryRoot` (`internal/testinventory`) |
 | TIV-V1-006 | `TestTIVV1006To009ReaderRules` rows `absent file`, `absent record`, `absent after lister failure`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`absent`) |
 | TIV-V1-007 | `TestTIVV1006To009ReaderRules` rows `stale config`, `stale lockfile`, `stale lockfile appeared`, `stale lister version`, `stale config moved`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`stale`) |
-| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008UnprovenConfigFailsClosed` (custom patterns, a Vitest workspace file, `mergeConfig` from a package, `includeSource`, a Jest preset, `package.json` jest and vitest declarations, pytest doctest options and a conftest hook, a skipped-directory include, a computed key, an escape; V1-5425: indented, quoted, dotted and native pytest TOML keys and headers, `pytest.toml`, `.pytest.toml` and `.pytest.ini` precedence, INI header comments and indented headers, and `package.json` script flags), `TestTIVV1008ScriptRunsFailClosed` (V1-5427: flags forwarded through npm, yarn, pnpm, concurrently `npm:` and `npm-run-all`, `sh -c`, `bash -c`, `concurrently`, `nodemon --exec`, an unmodelled wrapper, an escaped word, `--runTestsByPath`), `TestTIVV1008PytestConfigEdgesFailClosed` (V1-5427: byte order mark, CRLF, literal keys, comments in multi-line values, tables below `ini_options`, an escaped table name), `TestTIVV1008ProvenDefaultControl`, `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
+| TIV-V1-008 | `TestTIVV1006To009ReaderRules` rows `unassigned changed file`, `unassigned new file`; `TestTIVV1008UnprovenConfigFailsClosed` (custom patterns, a Vitest workspace file, `mergeConfig` from a package, `includeSource`, a Jest preset, `package.json` jest and vitest declarations, pytest doctest options and a conftest hook, a skipped-directory include, a computed key, an escape; V1-5425: indented, quoted, dotted and native pytest TOML keys and headers, `pytest.toml`, `.pytest.toml` and `.pytest.ini` precedence, INI header comments and indented headers, and `package.json` script flags), `TestTIVV1008ScriptRunsFailClosed` (V1-5427: flags forwarded through npm, yarn, pnpm, concurrently `npm:` and `npm-run-all`, `sh -c`, `bash -c`, `concurrently`, `nodemon --exec`, an unmodelled wrapper, an escaped word, `--runTestsByPath`), `TestTIVV1008ScriptEscapesFailClosed` (V1-5435: concurrently `{@}`, `{*}` and `{1}` placeholders and flags after the outer `--`, `bash -c` flags after `--`, backslash and brace runner arguments, a backslash or expansion forwarded through npm, a backslash-escaped runner name, Vitest `bench` and `typecheck` forwarded through npm, yarn and pnpm, a byte order mark before an escaped pytest table name), `TestTIVV1008PytestConfigEdgesFailClosed` (V1-5427: byte order mark, CRLF, literal keys, comments in multi-line values, tables below `ini_options`, an escaped table name), `TestTIVV1008ProvenDefaultControl` (V1-5435 adds forwarded positionals and a wrapper that do not reach the runner), `TestTIVV1005UnprovenRefreshBindsOnlyListedFiles` (`internal/testinventory`); `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`unassigned`) |
 | TIV-V1-009 | `TestTIVV1006To009ReaderRules` rows `invalid truncated`, `invalid profile`, `invalid oversize`; `TestTIVV1009DecodeRefusesInvalid`; `TestTIVV1002ReadersPrintReasonsAndWriteNothing` (`invalid`) |
 | TIV-V1-010 | `TestTIVV1010RefreshRefusesDrift` (`internal/testinventory`, source and HEAD drift), `TestTIVV1010FinalDriftCheckBeforeWrite`, `TestTIVV1010TemporaryInventoryFileIsNotDrift`; `TestTIVV1010InventoryRefreshDriftCLI` (`cmd/corvint`) |
 | TIV-V1-011 | `TestTIVV1011ListerFailureRecorded`, `TestTIVV1011EncodeRefusesOversize` (`internal/testinventory`); `TestTIVV1011InventoryRefreshTooLargeCLI` (`cmd/corvint`) |
