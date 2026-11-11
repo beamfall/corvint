@@ -181,6 +181,9 @@ func CheckMCPTools(rows []MCPTool) []string {
 			tasksRow = tasksRow || strings.Contains(row.Name, "tasks")
 			continue
 		}
+		if strings.Contains(row.Name, "tasks") {
+			problems = append(problems, row.Name+": a Tasks tool on an MCP server (MTT-V1-006)")
+		}
 		if !toolName.MatchString(row.Name) {
 			problems = append(problems, row.Name+": name is not corvint.<area>_<verb> with one dot")
 		}

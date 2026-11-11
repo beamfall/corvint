@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/capcatalog"
 )
 
 // MTT-V1-005: asking corvint mcp for the moved docs or corpus group, or for
@@ -76,5 +78,21 @@ func TestMTTV1008UnknownSelectionThroughTheServer(t *testing.T) {
 	structured, _ := result["structuredContent"].(map[string]any)
 	if exit != 0 || stderr != "" || result["isError"] != false || structured["selectAll"] != true || structured["reason"] != "kill-switch-value-unknown" || planned {
 		t.Fatalf("exit=%d stderr=%q planned=%v result=%#v", exit, stderr, planned, result)
+	}
+}
+
+// MTT-V1-006: corvint mcp, with every profile and group it keeps, serves no
+// Tasks tool, and the table's Tasks row has server none.
+func TestMTTV1006CoreServerServesNoTasksTool(t *testing.T) {
+	root, _, _ := followRootsFixture(t)
+	for _, name := range toolNames(listedWith(t, []string{"--root", root, "--tool-profile", coreDriftProfile})) {
+		if strings.Contains(name, "tasks") {
+			t.Fatalf("corvint mcp lists %s", name)
+		}
+	}
+	for _, row := range capcatalog.MCPTools() {
+		if strings.Contains(row.Name, "tasks") && row.Server != capcatalog.ServerNone {
+			t.Fatalf("Tasks row %+v is on a server", row)
+		}
 	}
 }
