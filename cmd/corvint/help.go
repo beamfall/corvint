@@ -267,7 +267,7 @@ Commands:
     features | overview | review  inferred repository guidance (RGV-V0)
     docs  source-derived documentation (SDD-V0)
     flows  application flows and assertions (AFU-V0)
-    how  how do I GOAL: alias of flows appmap how (SKH-V0)
+    how  how do I GOAL: alias of flows appmap how (CMS-V0)
   Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
@@ -277,7 +277,7 @@ Commands:
     test-validity  project a live-test receipt (MTV-V0)
     runs  Playwright verdicts (PWR-V0)
   Experimental, agent hosts and local records:
-    mcp  local read-only stdio MCP server (AHI)
+    mcp  local read-only stdio MCP server (MCPV0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
