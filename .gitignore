@@ -93,3 +93,4 @@ node_modules/
 /test-shards
 /tiers-replay
 /unbounded-readers
+/interop/cem01-go/cem01-go

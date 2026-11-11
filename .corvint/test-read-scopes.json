@@ -233,6 +233,7 @@
       "internal/doccompiler/",
       "internal/doccorpus/",
       "internal/docmaintain/",
+      "internal/docsenvelope/",
       "internal/execfile/",
       "internal/extevidence/",
       "internal/flowcoverage/",
@@ -248,6 +249,7 @@
       "internal/jsonend/",
       "internal/jstestprovider/",
       "internal/langplugin/",
+      "internal/lineanchor/",
       "internal/linecov/",
       "internal/liveverify/affected/",
       "internal/liveverify/jsresolve/",
@@ -267,6 +269,7 @@
       "internal/mergedrivers/",
       "internal/observations/",
       "internal/observedstale/",
+      "internal/pinnedread/",
       "internal/plansnapshot/",
       "internal/playwrightruns/",
       "internal/procgroup/",
@@ -276,6 +279,7 @@
       "internal/pythongrammar/",
       "internal/pythonsyntax/",
       "internal/repoenvelope/",
+      "internal/repopath/",
       "internal/requestpath/",
       "internal/rootalias/",
       "internal/rubyautoload/",
@@ -284,6 +288,7 @@
       "internal/runhygiene/",
       "internal/runnerselection/",
       "internal/runtimeenv/",
+      "internal/rustsyntax/",
       "internal/scopelease/",
       "internal/secretscreen/",
       "internal/sessiontest/",
@@ -449,6 +454,7 @@
       "internal/versionline/"
     ],
     "cmd/corvint-docs-mcp": [
+      "cmd/corvint-docs-mcp/",
       "cmd/corvint-docs/",
       "go.mod",
       "go.sum",
@@ -461,7 +467,9 @@
       "internal/cem/patch/",
       "internal/cem/wire/",
       "internal/cliapp/",
+      "internal/clierror/",
       "internal/clitree/",
+      "internal/command/flows/",
       "internal/companioncli/",
       "internal/contextindex/",
       "internal/diagnostic/",
@@ -489,16 +497,24 @@
       "internal/liveverify/mutate/",
       "internal/mcp/bridge/",
       "internal/mcp/corpusbridge/",
+      "internal/mcp/docsbridge/",
       "internal/mcp/protocol/",
       "internal/mcp/rootbind/",
+      "internal/mcp/server/",
+      "internal/mcp/toolgroup/",
       "internal/observations/",
+      "internal/observedstale/",
+      "internal/pinnedread/",
       "internal/plansnapshot/",
       "internal/procgroup/",
       "internal/procprofile/",
+      "internal/projectpath/",
       "internal/projectprofile/",
       "internal/pythongrammar/",
       "internal/pythonsyntax/",
       "internal/repoenvelope/",
+      "internal/repopath/",
+      "internal/requestpath/",
       "internal/rootalias/",
       "internal/rubyautoload/",
       "internal/rubydialect/",
@@ -1044,7 +1060,9 @@
     "internal/analyzerruby": [
       "cmd/corvint-analyzer-ruby/",
       "go.mod",
-      "internal/analyzerenvelope/"
+      "internal/analyzerenvelope/",
+      "internal/analyzerruby/",
+      "internal/rubysyntax/"
     ],
     "internal/analyzershader": [
       "cmd/corvint-analyzer-shader/"
@@ -1179,7 +1197,9 @@
       "internal/companioncli/",
       "internal/versionline/"
     ],
-    "internal/appflows": [],
+    "internal/appflows": [
+      ".corvint/e2e-flows.json"
+    ],
     "internal/appflows/e2erunner": [],
     "internal/appmap": [
       "internal/contextindex/"
@@ -1583,6 +1603,7 @@
       "internal/cliapp/",
       "internal/clierror/",
       "internal/clitree/",
+      "internal/command/flows/",
       "internal/companioncli/",
       "internal/contextindex/",
       "internal/diagnostic/",
@@ -1615,6 +1636,7 @@
       "internal/mcp/testvaliditybridge/",
       "internal/mcp/toolgroup/",
       "internal/observations/",
+      "internal/observedstale/",
       "internal/pinnedread/",
       "internal/plansnapshot/",
       "internal/procgroup/",
@@ -1625,6 +1647,7 @@
       "internal/pythonsyntax/",
       "internal/repoenvelope/",
       "internal/repopath/",
+      "internal/requestpath/",
       "internal/rootalias/",
       "internal/rubyautoload/",
       "internal/rubydialect/",
@@ -2004,6 +2027,7 @@
       "internal/gitstatus/read_other.go",
       "internal/gitstatus/worker_other.go",
       "internal/groupreap/owner.go",
+      "internal/pinnedread/platform.go",
       "internal/procgroup/process.go",
       "internal/procgroup/process_other.go",
       "internal/testvaliditydoc/platform.go"
