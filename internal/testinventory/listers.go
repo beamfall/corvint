@@ -245,7 +245,7 @@ func goTestParam(function *ast.FuncDecl, kind string) bool {
 }
 
 // listFiles names every candidate file at file level with
-// test-id-unmapped: the static RSpec lister (RBR-V1-001), whose files
+// test-id-unmapped: the static RSpec lister (TIV-V1-004), whose files
 // carry no statically certain example names.
 func listFiles(runner string, candidates []string) (listing, error) {
 	result := listing{}
@@ -268,7 +268,7 @@ var (
 	minitestTopLevel = regexp.MustCompile(`^def\s`)
 )
 
-// listMinitest is the static Minitest lister (RBR-V1-001): a file whose
+// listMinitest is the static Minitest lister (TIV-V1-004): a file whose
 // every test is a `def test_...` method of a top-level class deriving
 // directly from Minitest::Test is listed method by method, `Class#method`
 // (CTI-V1-007). Any construct that can add, inherit or rename tests
