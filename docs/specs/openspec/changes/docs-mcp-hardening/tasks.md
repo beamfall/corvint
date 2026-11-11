@@ -17,7 +17,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
    top-level file, a fenced citation and an unpinned citation; JSON output test.
 - [x] 6 `worktree` member on every check report (DMF-V1-005). Proof: fixture test with a dirty
    tracked file for each check.
-- [ ] 7 Per-claim byte-failure detail (DMF-V1-006). Proof: fixture test where one claim changes
+- [x] 7 Per-claim byte-failure detail (DMF-V1-006). Proof: fixture test where one claim changes
       state.
 - [ ] 8 Output directory in the manifest; no clean result without comparing (DMF-V1-007). Proof:
    fixture tests with a recorded directory, a missing directory and no directory.

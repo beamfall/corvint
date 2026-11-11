@@ -320,3 +320,34 @@ func TestDMFV1005FlowsDocsCheckWorktree(t *testing.T) {
 		t.Fatalf("dirty %d %+v %s", code, w, diagnostic)
 	}
 }
+
+// DMF-V1-006: when a claim committed PROVEN is now CONTRADICTED, the byte failure lists it from
+// PROVEN to CONTRADICTED, says the page and the sidecar differ and names the regenerate command;
+// with the committed sidecar gone the claim list is UNKNOWN and the byte failure still stands.
+func TestDMFV1006ByteFailureNamesChangedClaims(t *testing.T) {
+	fx := newDocsFixture(t)
+	code, report, diagnostic := docsCheck(t, fx, "passed")
+	if code != 0 || report.ByteDetail != nil {
+		t.Fatalf("clean check carries byte detail %d %+v %s", code, report.ByteDetail, diagnostic)
+	}
+	code, report, _ = docsCheck(t, fx, "failed")
+	d := report.ByteDetail
+	want := []appflows.DocClaimChange{
+		{Claim: "checkout/checkout.happy/paid", Change: "state", Old: appflows.ClaimProven, New: appflows.ClaimContradicted},
+		{Claim: "docs/guide.md:checkout/checkout.happy/paid", Change: "state", Old: appflows.ClaimProven, New: appflows.ClaimContradicted},
+	}
+	if code != 2 || d == nil || d.Differs != "both" || d.ClaimsState != appflows.DocClaimsKnown || !slices.Equal(d.Claims, want) {
+		t.Fatalf("byte detail %d %+v", code, d)
+	}
+	if !strings.HasPrefix(d.Regenerate, "corvint-docs flows docs --flows flows --page docs/flows.md --claims docs/flows.claims.json --docs-root docs --registry runs/registry.json --evidence ") {
+		t.Fatalf("regenerate command %q", d.Regenerate)
+	}
+	shopGit(t, fx.root, "rm", "-q", "docs/flows.claims.json")
+	shopCommit(t, fx.root, "F: drop the sidecar")
+	code, report, _ = docsCheck(t, fx, "passed")
+	d = report.ByteDetail
+	if code != 2 || !slices.Contains(failureCodes(report), "rendered-bytes-differ docs/flows.claims.json") || d == nil || d.Differs != "sidecar" ||
+		d.ClaimsState != appflows.DocClaimsUnknown || len(d.Claims) != 0 || d.Reason == "" {
+		t.Fatalf("missing sidecar %d %v %+v", code, failureCodes(report), d)
+	}
+}

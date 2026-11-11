@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
@@ -75,7 +76,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 	}
 	o.Registry = *registry
 	if *check {
-		return flowDocsCheck(ctx, root, set, o, *dir, *waivers, out)
+		return flowDocsCheck(ctx, root, set, o, *dir, *waivers, *evidence, out)
 	}
 	o.Waivers = *waivers // DMF-V1-001: generation marks waived claims exactly as --check does
 	page, claims, err := appflows.RenderDocs(ctx, root, set, o)
@@ -91,7 +92,7 @@ func runFlowsDocs(ctx context.Context, root string, args []string, out, diag io.
 
 // flowDocsCheck writes the flow-doc-check/0 report and exits nonzero when it fails; it writes nothing
 // to the repository.
-func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, flowsDir, waivers string, out io.Writer) error {
+func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o appflows.DocOptions, flowsDir, waivers string, evidence []string, out io.Writer) error {
 	report, err := appflows.CheckDocs(ctx, root, set, o, waivers, time.Now().UTC().Format(time.DateOnly))
 	if err != nil {
 		return err
@@ -99,6 +100,9 @@ func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o a
 	read := slices.DeleteFunc([]string{flowsDir, o.Page, o.Claims, o.DocsRoot, o.Registry, waivers}, func(p string) bool { return p == "" })
 	worktree := docworktree.Observe(ctx, root, docworktree.Head, docworktree.Under(read...))
 	report.Worktree = &worktree // DMF-V1-005
+	if report.ByteDetail != nil {
+		report.ByteDetail.Regenerate = regenerateCommand(o, flowsDir, waivers, evidence) // DMF-V1-006
+	}
 	data, err := doccorpus.Encode(report)
 	if err != nil {
 		return err
@@ -110,4 +114,24 @@ func flowDocsCheck(ctx context.Context, root string, set appflows.IntentSet, o a
 		return &gokernel.Error{Code: flowDocsCheckFailed, Message: fmt.Sprintf("flows docs --check found %d failure(s)", len(report.Failures))}
 	}
 	return nil
+}
+
+// regenerateCommand is the flows docs invocation that rewrites the page and sidecar the check
+// compared, with the same inputs (DMF-V1-006); each argument is shell-quoted when needed.
+func regenerateCommand(o appflows.DocOptions, flowsDir, waivers string, evidence []string) string {
+	args := []string{"corvint-docs", "flows", "docs", "--flows", flowsDir, "--page", o.Page, "--claims", o.Claims}
+	for _, pair := range [][2]string{{"--docs-root", o.DocsRoot}, {"--registry", o.Registry}, {"--waivers", waivers}} {
+		if pair[1] != "" {
+			args = append(args, pair[0], pair[1])
+		}
+	}
+	for _, e := range evidence {
+		args = append(args, "--evidence", e)
+	}
+	for i, a := range args {
+		if a == "" || strings.ContainsAny(a, " \t\n'\"\\$`;&|<>()*?[]{}!#~") {
+			args[i] = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
+		}
+	}
+	return strings.Join(args, " ")
 }
