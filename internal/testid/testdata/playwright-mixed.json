@@ -1,0 +1,379 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node@22/22.23.2_1/bin/node",
+      "/private/tmp/corvint-public-release-20260912/js-fixture/node_modules/.bin/playwright",
+      "test",
+      "--reporter=json"
+    ],
+    "configFile": "/private/tmp/corvint-public-release-20260912/js-fixture/playwright.config.js",
+    "rootDir": "/private/tmp/corvint-public-release-20260912/js-fixture",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/private/tmp/corvint-public-release-20260912/js-fixture",
+        "testIgnore": [],
+        "testMatch": [
+          "e2e.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "e2e.spec.js",
+      "file": "e2e.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "increments the counter",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 167,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T02:23:14.532Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "616cc0f313d283bb66d2-dd2c725047ea997cae35",
+          "file": "e2e.spec.js",
+          "line": 8,
+          "column": 1
+        },
+        {
+          "title": "deliberately wrong workflow expectation",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5134,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:19:40",
+                    "location": {
+                      "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                      "column": 40,
+                      "line": 19
+                    },
+                    "snippet": "  17 |   // Deliberately wrong: real UI increments to \"1\", not \"2\". Produces a real\n  18 |   // browser workflow failure for the IPR-08 acceptance demo.\n> 19 |   await expect(page.locator('#count')).toHaveText('2');\n     |                                        ^\n  20 | });\n  21 |\n  22 | test.skip('skipped browser workflow', async ({ page }) => {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                        "column": 40,
+                        "line": 19
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n\n  17 |   // Deliberately wrong: real UI increments to \"1\", not \"2\". Produces a real\n  18 |   // browser workflow failure for the IPR-08 acceptance demo.\n> 19 |   await expect(page.locator('#count')).toHaveText('2');\n     |                                        ^\n  20 | });\n  21 |\n  22 | test.skip('skipped browser workflow', async ({ page }) => {\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:19:40"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T02:23:14.795Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                    "column": 40,
+                    "line": 19
+                  }
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 5160,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:19:40",
+                    "location": {
+                      "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                      "column": 40,
+                      "line": 19
+                    },
+                    "snippet": "  17 |   // Deliberately wrong: real UI increments to \"1\", not \"2\". Produces a real\n  18 |   // browser workflow failure for the IPR-08 acceptance demo.\n> 19 |   await expect(page.locator('#count')).toHaveText('2');\n     |                                        ^\n  20 | });\n  21 |\n  22 | test.skip('skipped browser workflow', async ({ page }) => {"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                        "column": 40,
+                        "line": 19
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('#count')\nExpected: \u001b[32m\"2\"\u001b[39m\nReceived: \u001b[31m\"1\"\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" locator('#count') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('#count')\u001b[22m\n\u001b[2m    14 × locator resolved to <span id=\"count\">1</span>\u001b[22m\n\u001b[2m       - unexpected value \"1\"\u001b[22m\n\n\n  17 |   // Deliberately wrong: real UI increments to \"1\", not \"2\". Produces a real\n  18 |   // browser workflow failure for the IPR-08 acceptance demo.\n> 19 |   await expect(page.locator('#count')).toHaveText('2');\n     |                                        ^\n  20 | });\n  21 |\n  22 | test.skip('skipped browser workflow', async ({ page }) => {\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:19:40"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-09-12T02:23:20.222Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation-retry1/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation-retry1/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-deliberately-wrong-workflow-expectation-retry1/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                    "column": 40,
+                    "line": 19
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "616cc0f313d283bb66d2-e06020a1da3d51b2a938",
+          "file": "e2e.spec.js",
+          "line": 14,
+          "column": 1
+        },
+        {
+          "title": "skipped browser workflow",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "location": {
+                    "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                    "line": 22,
+                    "column": 6
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 0,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T02:23:25.761Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                        "line": 22,
+                        "column": 6
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "616cc0f313d283bb66d2-1796dc54091088bd98af",
+          "file": "e2e.spec.js",
+          "line": 22,
+          "column": 6
+        },
+        {
+          "title": "flaky once then passes on retry",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 112,
+                  "error": {
+                    "message": "Error: fails on first attempt only\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                    "stack": "Error: fails on first attempt only\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:36:52",
+                    "location": {
+                      "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                      "column": 52,
+                      "line": 36
+                    },
+                    "snippet": "  34 |   await page.goto('/');\n  35 |   if (attempt === 1) {\n> 36 |     expect(attempt, 'fails on first attempt only').toBe(2);\n     |                                                    ^\n  37 |   }\n  38 |   await expect(page.locator('#heading')).toHaveText('Corvint Fixture');\n  39 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                        "column": 52,
+                        "line": 36
+                      },
+                      "message": "Error: fails on first attempt only\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  34 |   await page.goto('/');\n  35 |   if (attempt === 1) {\n> 36 |     expect(attempt, 'fails on first attempt only').toBe(2);\n     |                                                    ^\n  37 |   }\n  38 |   await expect(page.locator('#heading')).toHaveText('Corvint Fixture');\n  39 | });\n    at /private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js:36:52"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T02:23:25.762Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-flaky-once-then-passes-on-retry/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-flaky-once-then-passes-on-retry/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/private/tmp/corvint-public-release-20260912/js-fixture/test-results/e2e-flaky-once-then-passes-on-retry/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-public-release-20260912/js-fixture/e2e.spec.js",
+                    "column": 52,
+                    "line": 36
+                  }
+                },
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 99,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-09-12T02:23:26.264Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "flaky"
+            }
+          ],
+          "id": "616cc0f313d283bb66d2-1a83de60a127c02d8ef3",
+          "file": "e2e.spec.js",
+          "line": 26,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-12T02:23:14.247Z",
+    "duration": 12238.538,
+    "expected": 1,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 1
+  }
+}
