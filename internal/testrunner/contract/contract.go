@@ -133,6 +133,25 @@ type Runner interface {
 	Parse(ParseRequest) ([]Result, error)
 }
 
+// The test kinds a runner may know (RNC-V1-007); KindSourceRunner marks a
+// kind the runner itself supplied. Kind is reporting only.
+const (
+	KindUnit         = "unit"
+	KindIntegration  = "integration"
+	KindE2E          = "e2e"
+	KindSourceRunner = "runner"
+)
+
+// Kind is the test kind runner knows for every test it runs, or "" when it
+// knows none: only Playwright, a browser end-to-end runner, does. The other
+// runners run any kind, so their tests take a kind from another source.
+func Kind(runner string) string {
+	if runner == testid.Playwright {
+		return KindE2E
+	}
+	return ""
+}
+
 // ErrNotImplemented is returned by Parse for a runner whose report parser
 // is not built; every selected test of such a runner is NOT_RUN.
 var ErrNotImplemented = errors.New(ReasonNotImplemented)
@@ -161,9 +180,9 @@ var runners = map[string]Runner{
 	testid.Go:         goRunner{},
 	testid.Vitest:     vitestRunner{},
 	testid.Playwright: playwrightRunner{},
-	testid.Jest:       fullOnly{name: testid.Jest, argv: []string{"npx", "jest"}},
-	testid.Pytest:     fullOnly{name: testid.Pytest, argv: []string{"python", "-m", "pytest"}},
-	testid.RSpec:      fullOnly{name: testid.RSpec, argv: []string{"bundle", "exec", "rspec"}},
+	testid.Jest:       jestRunner{},
+	testid.Pytest:     pytestRunner{},
+	testid.RSpec:      rspecRunner{},
 	testid.Minitest:   fullOnly{name: testid.Minitest, argv: []string{"bundle", "exec", "rake", "test"}},
 }
 

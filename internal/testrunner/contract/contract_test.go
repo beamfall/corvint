@@ -188,7 +188,7 @@ func TestRNCV1003PlaywrightSelection(t *testing.T) {
 // RNC-V1-004: a runner without an implementation runs its full command for
 // any selection, with a printed reason, and has no report parser.
 func TestRNCV1004UnimplementedRunnerRunsFull(t *testing.T) {
-	for _, runner := range []string{testid.Jest, testid.Pytest, testid.RSpec, testid.Minitest} {
+	for _, runner := range []string{testid.Minitest} {
 		r, _ := For(runner)
 		instance := Instance{Runner: runner, Root: "."}
 		full := r.Default(instance, nil)
