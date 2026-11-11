@@ -8535,13 +8535,13 @@ TSA-V0-029	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-030	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) A helper MUST resolve by name to	standing	2026-10-11; V1-1769
 TSA-V0-031	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) `corvint tests lint --runs	standing	2026-10-11; V1-1769
 TSA-V0-032	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1769) Without split-capable evidence	standing	2026-10-11; V1-1769
-TSA-V0-033	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution	standing	2026-10-11; V1-1770; #1115
-TSA-V0-034	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability	standing	2026-10-11; V1-1770; #1115
-TSA-V0-035	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation M	standing	2026-10-11; V1-1770; #1115
-TSA-V0-036	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST	standing	2026-10-11; V1-1770; #1115
-TSA-V0-037	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema	standing	2026-10-11; V1-1770; #1115
-TSA-V0-038	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does	standing	2026-10-11; V1-1770; #1115
-TSA-V0-039	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a	standing	2026-10-11; V1-1770; #1115
+TSA-V0-033	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-034	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-035	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-036	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-037	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-038	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
+TSA-V0-039	docs/specs/test-source-analysis-v0.md	(retired 2026-11-11 by V1-4822; was standing auto-accept, 2026-10-11; V1-1770 /	standing	2026-11-11; V1-4822; 2026-10-11; V1-1770; #1115
 TSA-V0-045	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) In a JS/TS test file	standing	2026-10-11; V1-1783; #1123
 TSA-V0-046	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) `ISOLATED-IN-SERIAL`	standing	2026-10-11; V1-1783; #1123
 TSA-V0-047	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) An `ISOLATED-IN-SERIA	standing	2026-10-11; V1-1783; #1123
