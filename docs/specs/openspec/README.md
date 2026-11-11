@@ -70,19 +70,21 @@ proposal, and differences from the proposal headers: "Proposal traceability" in 
 The Status column is the folder's acceptance-log row: "waiting for owner" for `pending-owner`
 (the proposal's intent is proposed only), "auto-accepted" for `auto` and "accepted" for `owner`
 (ACR-V1-015). No folder is planned without a `proposal.md` now. Status "archived" means every task
-is ticked and the folder is under `changes/archive/`. The table has one row for each of the 48
+is ticked and the folder is under `changes/archive/`. The table has one row for each of the 50
 folders under `changes/` and for each archived change. The PROD column gives the plan requirements
 the proposal header serves.
 
 | Change | Purpose | PROD requirements | Status |
 |---|---|---|---|
 | `acceptance-record` | The one decision record that accepts the plan as amended, including the Python file-level release exception (R1, R9) | checklist O19 | auto-accepted |
+| `affected-change-status` | Base change status as a plan input, so name-listing shell readers stop selecting on edits (V1-5193, V1-5194) | PROD-TEST-001 | waiting for owner |
 | `affected-plan-kinds` | Test kind and kind source in the `affected` plan, reporting only (G13) | PROD-TEST-003, 004 | waiting for owner |
 | `agent-packages` | Claude Code and Codex packages (blocking) and OpenCode and Pi packages (preview) in `beamfall/corvint-agents` | PROD-TEST-009, PROD-DOCS-001, PROD-TASK-007; PROD-INT-023 to 027 | waiting for owner |
 | `canonical-test-id` | One canonical test ID for every runner (RNC-V1-012, fresh IDs per R11) | PROD-TEST-006 | waiting for owner |
 | `change-report-impact` | Impact section of the change report | PROD-TEST-003, 010; PROD-INT-001, 002 | waiting for owner |
 | `compatibility-promise` | The 1.x compatibility promise: `docs/COMPATIBILITY.md` table of stable and preview surfaces (R42 D10, D10a) | plan gap (g); checklist O30, O64 | waiting for owner |
 | `context-proven-only` | Cut the unproven context surfaces (task packet, features, overview, ranking, traces, context benches) and keep the proven ones; re-home the instruction doctor; reduce the path brief (decision 0597) | decision 0594 item 1; PROD-TASK-006 | archived 2026-11-11 (`changes/archive/2026-11-11-context-proven-only/`) |
+| `deadcode-ratchet` | A pinned dead-function report with a shrinking baseline, then deletion of what it lists (V1-4801, V1-4827) | none named (owner decision R33, checklist O42) | waiting for owner |
 | `docs-mcp-hardening` | Honest docs checks and usable docs MCP tools | PROD-DOCS-001, 003, 005, 007, 009 | waiting for owner |
 | `e2e-inventory-discovery` | Discovery of browser E2E tests into the inventory | PROD-TEST-004 | waiting for owner |
 | `fault-injection-harness` | Planted faults on the held-out repositories to test the no-missed-test claim (R19) | PROD-TEST-002, 011; PROD-INT-008 | waiting for owner |
