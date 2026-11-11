@@ -5,9 +5,9 @@ SLF-V1-001 to SLF-V1-005 on the plugins as they stand; build SLF-V1-005 alongsid
 and RNC-V1-014 instances. SLF-V1-006 needs `fault-injection-harness`. Each task names its
 requirement IDs and its proof.
 
-- [ ] 1 File the ticket, reserve prefix `SLF-V1` and set `requirementRefs` to the eight IDs. Proof:
-   `ticket show` read back.
-- [ ] 2 First commit: create `selection-hardening-v1.md`, its `docs/specs/README.md` row and the
+- [x] 1 File the ticket, reserve prefix `SLF-V1` and set `requirementRefs` to the eight IDs. Proof:
+   `ticket show` read back. Done: ticket V1-5401; prefix `SLF-V1` reserved.
+- [x] 2 First commit: create `selection-hardening-v1.md`, its `docs/specs/README.md` row and the
    regenerated index. Requirements: SLF-V1-001..008. Proof: spec diff.
 - [ ] 3 Python unresolved absolute import frontier, OUTBOUND at the importer, and the
    never-Uncovered rule. Requirements: SLF-V1-002. Proof: flat-layout fixture shows UNKNOWN or the

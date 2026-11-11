@@ -4462,5 +4462,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/selection-hardening-v1.md",
+    "title": "Selection Hardening V1",
+    "reqPrefix": "SLF-V1",
+    "intent": "accepted (decision 0596, G14; V1-5401)",
+    "delivery": "experimental; partially delivered",
+    "claim": "Python and JavaScript selection raises a named frontier where it drops an edge today; new narrowing rules ship tested but held off until fault injection.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
