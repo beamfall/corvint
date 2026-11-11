@@ -118,8 +118,9 @@ func writeAffectedHeadline(receipt any, stdout, stderr io.Writer) {
 	_, _ = io.WriteString(stderr, renderAffectedHeadline(compact))
 }
 
-// headlineSafeStream reports whether file is a terminal or a regular file,
-// the only streams where a write cannot raise SIGPIPE.
+// headlineSafeStream reports whether file is a character device (a terminal
+// or /dev/null) or a regular file, the streams where a write cannot raise
+// SIGPIPE.
 func headlineSafeStream(file *os.File) bool {
 	info, err := file.Stat()
 	if err != nil {
