@@ -189,7 +189,7 @@ func TestAMAPV0100ActionsReadOnlyContract(t *testing.T) {
 	if status := gitTest(t, root, "status", "--porcelain", "--ignored"); status != "M app/controllers/orders_controller.rb" {
 		t.Fatalf("mutated repo: %q", status)
 	}
-	if _, err := CheckActions(context.Background(), m, Options{Root: t.TempDir()}); codeOf(err) != "appmap-invalid-revision" {
+	if _, err := CheckActions(context.Background(), m, Options{Root: foreignRepo(t)}); codeOf(err) != "appmap-invalid-revision" {
 		t.Fatalf("foreign root: %v", err)
 	}
 	if _, err := CheckActions(context.Background(), m, Options{Root: root, Budget: 10}); codeOf(err) == "" {

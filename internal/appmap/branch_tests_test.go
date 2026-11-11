@@ -94,7 +94,7 @@ func TestAMAPV0110BranchesReadOnlyContract(t *testing.T) {
 	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: root, Budget: 10}); codeOf(err) == "" {
 		t.Fatalf("budget below floor must refuse")
 	}
-	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: t.TempDir()}); codeOf(err) != "appmap-invalid-revision" {
+	if _, err := QueryBranches(context.Background(), m, branchCites, Options{Root: foreignRepo(t)}); codeOf(err) != "appmap-invalid-revision" {
 		t.Fatalf("foreign root: %v", err)
 	}
 }
