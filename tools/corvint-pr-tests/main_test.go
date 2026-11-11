@@ -100,7 +100,11 @@ func buildTimeout(t *testing.T) time.Duration {
 	if !ok {
 		return 30 * time.Minute // -timeout 0: the Makefile's GO_TEST_TIMEOUT
 	}
-	return max(time.Until(deadline)-time.Minute, time.Minute)
+	remaining := time.Until(deadline) - time.Minute
+	if remaining <= 0 {
+		t.Fatalf("under a minute is left before the test deadline: no time for the fixture build")
+	}
+	return remaining
 }
 
 // raceSeed is one race build cache shared by every fixture execution of this
