@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/testevidencedoc"
 )
 
@@ -85,6 +86,28 @@ func TestRunPathContextRefusesOutsidePath(t *testing.T) {
 	}
 	if err := json.Unmarshal(stderr.Bytes(), &refusal); err != nil || refusal.Code != "path-outside-repository" || refusal.OK {
 		t.Errorf("stderr %q: %+v %v", stderr.String(), refusal, err)
+	}
+}
+
+// TBC-V1-010: a declared consumer is a runnable test and is listed with its reason, although its
+// selection carries a kind. Only a make target, a CI job and a frontier site are left out.
+func TestPathContextSelection(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name      string
+		selection affected.Selection
+		want      int
+	}{
+		{"go unit", affected.Selection{UnitID: "go:a", Witness: affected.Witness{Kind: "IMPORT"}}, pathContextListed},
+		{"declared consumer", affected.Selection{UnitID: "declared-consumer:web/test/e2e.mjs", Kind: "DECLARED_CONSUMER", Witness: affected.Witness{Kind: "DECLARED_CONSUMER"}}, pathContextListed},
+		{"make target", affected.Selection{UnitID: "make:gate", Kind: affected.SelectionKindDriverTarget}, pathContextOmitted},
+		{"CI job", affected.Selection{UnitID: "ci:go", Kind: affected.SelectionKindCIJob}, pathContextOmitted},
+		{"frontier site", affected.Selection{UnitID: "make:lint", Witness: affected.Witness{Kind: affected.WitnessFrontierSite}}, pathContextOmitted},
+		{"unbounded reader", affected.Selection{UnitID: "go:c", Witness: affected.Witness{Kind: affected.WitnessUnboundedReader}}, pathContextShared},
+	} {
+		if got := pathContextSelection(c.selection); got != c.want {
+			t.Errorf("%s: got %d, want %d", c.name, got, c.want)
+		}
 	}
 }
 
