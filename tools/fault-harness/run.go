@@ -296,8 +296,15 @@ func (h *harness) runFault(ctx context.Context, root string, c harnessCase, f fa
 	for i := 0; i < confirmRuns; i++ {
 		run, err := h.cfg.Adapter.Run(ctx, root, nil)
 		if err != nil {
-			// A fault that does not build, crashes or times out is not
-			// counted (G3, AEO-V0-004): it joins the dropped count.
+			// Cancellation or the harness's own wall timeout says nothing
+			// about the fault: it is a failed measurement, so the verdict
+			// is INVALID (G3).
+			if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
+				return fail(fmt.Errorf("faulted run %d: %w", i+1, err))
+			}
+			// A fault-induced build failure or crash, including the
+			// runner's own test timeout panic, is not counted (G3,
+			// AEO-V0-004): it joins the dropped count.
 			fr.Status, fr.Detail = faultNoKill, fmt.Sprintf("faulted run %d: %v", i+1, err)
 			return fr
 		}
@@ -345,9 +352,17 @@ func (h *harness) clone(ctx context.Context, id, sha string) (string, func() err
 		return "", nil, errors.Join(err, cleanup())
 	}
 	if _, err := git(ctx, root, "checkout", "--quiet", "--detach", sha); err != nil {
+		if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
+			// A stopped checkout is a failed measurement, not an
+			// unreproducible pin inside the exclusion budget.
+			return "", nil, errors.Join(err, cleanup())
+		}
 		return "", nil, errors.Join(refuse("pin-unavailable", "%s: %v", sha, err), cleanup())
 	}
 	if head, err := git(ctx, root, "rev-parse", "HEAD"); err != nil || head != sha {
+		if ctx.Err() != nil || errors.Is(err, errWallTimeout) {
+			return "", nil, errors.Join(err, cleanup())
+		}
 		return "", nil, errors.Join(refuse("pin-unavailable", "clone head %s is not %s", head, sha), err, cleanup())
 	}
 	return root, cleanup, nil
