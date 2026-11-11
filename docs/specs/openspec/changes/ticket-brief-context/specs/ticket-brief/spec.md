@@ -170,8 +170,9 @@ name the link that produced it (TBC-V1-002 applies):
 A section MUST list at most 64 items for each `--path`, ordered by path or ID ascending. The
 `requirements` section MUST NOT be `OBSERVED`: the links are not a full record of what governs a
 file. With items it is `INCOMPLETE` with reason `links-not-exhaustive`; with none it is
-`NOT_OBSERVED` with reason `no-link-for-path`. The ticket form (`corvint context --ticket ID`,
-TBC-V1-001) is not changed by this requirement.
+`NOT_OBSERVED` with reason `no-link-for-path`. A missing source adds its name to either reason and
+never changes that state (TBC-V1-011). The ticket form (`corvint context --ticket ID`, TBC-V1-001)
+is not changed by this requirement.
 
 #### Scenario: Nested instruction file
 
@@ -199,8 +200,11 @@ evidence and `.corvint/requirement-links.json`. Absence is judged per source, no
 section whose sources are all absent MUST be `NOT_OBSERVED` with a reason that names each missing
 source. A section with two sources (`tests`: retained evidence and the affected plan;
 `requirements`: the link file and completed tickets) of which one is absent MUST keep the items of
-the source that is present and be `INCOMPLETE` with a reason that names the missing one. The
-command MUST still exit 0. TBC-V1-004 and TBC-V1-007 apply to the path brief unchanged.
+the source that is present. With such items it MUST be `INCOMPLETE`; with none it MUST be
+`NOT_OBSERVED`. In both cases the reason names the missing source. For `requirements` the reason
+of TBC-V1-010 comes first and each missing source is added to it, so the two requirements give one
+state: items give `INCOMPLETE`, no items give `NOT_OBSERVED`. The command MUST still exit 0.
+TBC-V1-004 and TBC-V1-007 apply to the path brief unchanged.
 
 #### Scenario: Link file present, no ticket store
 
@@ -208,6 +212,13 @@ command MUST still exit 0. TBC-V1-004 and TBC-V1-007 apply to the path brief unc
   not installed
 - **THEN** the `requirements` section lists `ABC-V1-004` and is `INCOMPLETE` with a reason that
   names `corvint-tasks`, and the `tickets` section is `NOT_OBSERVED`
+
+#### Scenario: Link file present with no link for the path, no ticket store
+
+- **WHEN** `.corvint/requirement-links.json` exists and holds no link for the path, and
+  `corvint-tasks` is not installed
+- **THEN** the `requirements` section has no items and is `NOT_OBSERVED` with a reason that gives
+  `no-link-for-path` and names `corvint-tasks`
 
 #### Scenario: Repository that has never used Corvint
 
