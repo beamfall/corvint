@@ -134,7 +134,7 @@ func TreeSymlinks(ctx context.Context, gitExecutable, repository, tree, commit s
 		reached, err := physicalPath(position)
 		if err != nil {
 			reentered[link] = "."
-		} else if relative, inside := insideRoot(reached, root); inside {
+		} else if relative, inside := physicalTarget(reached, root); inside {
 			reentered[link] = relative
 		}
 	}
@@ -186,6 +186,26 @@ func insideRoot(physical, root string) (string, bool) {
 	return relative, below && relative != ""
 }
 
+// physicalTarget is the Targets value of a link that reaches the physical
+// slash path reached: the repository path when it is root or lies below it,
+// and "." when it does so only under a case fold, or when either holds a
+// byte past ASCII, whose folding and normalisation are not modelled. A
+// case-insensitive file system opens `../REPO/x` beside repo, and
+// EvalSymlinks keeps the case it was given (AFP-V0-9965). It returns false
+// for a path outside.
+func physicalTarget(reached, root string) (string, bool) {
+	if inside, ok := insideRoot(reached, root); ok {
+		return inside, true
+	}
+	if !asciiText(reached) || !asciiText(root) {
+		return ".", true
+	}
+	if _, ok := insideRoot(strings.ToLower(reached), strings.ToLower(root)); ok {
+		return ".", true
+	}
+	return "", false
+}
+
 // linkTarget is the Targets value of the link at relative in tree: its text
 // joined to its directory, or the rest of an absolute text below tree or
 // repository by name, neither cleaned; for any other absolute text, the
@@ -216,7 +236,7 @@ func linkTarget(repository, tree, root, relative string) string {
 		if err != nil {
 			return "."
 		}
-		if inside, ok := insideRoot(reached, root); ok {
+		if inside, ok := physicalTarget(reached, root); ok {
 			return inside
 		}
 		return ""
@@ -332,4 +352,15 @@ func belowAny(dirtyPath string, regions []string) bool {
 		}
 	}
 	return false
+}
+
+// asciiText reports whether text holds only ASCII bytes, the only bytes whose
+// case folding physicalTarget models.
+func asciiText(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
