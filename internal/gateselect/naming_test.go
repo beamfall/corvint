@@ -50,13 +50,13 @@ func namingFixture(t testing.TB) string {
 		// literal. Both lexicons read `foo../notes` (parentBackslash),
 		// whose run names app/prefoo../notes, beside the written `foo..`
 		// and `notes` (round 9).
-		"prefix/prefix_test.go": "package prefix\n\nimport (\n\t\"os\"\n\t\"strings\"\n)\n\nvar notes = os.Getenv(\"PREFIX\") + strings.ReplaceAll(\"foo..\\\\notes\", \"\\\\\", \"/\")\n",
+		"prefix/prefix_test.go": "package prefix\n\nimport \"strings\"\n\nvar prefix string\n\nvar notes = prefix + strings.ReplaceAll(\"foo..\\\\notes\", \"\\\\\", \"/\")\n",
 		// Round 9: the same literal split at the backslash reads the root
 		// notes through the written `notes`; a module path joined to a
 		// runtime root reads a copy of the module through the written
 		// spelling beside its anchored `/`.
-		"split/split_test.go":     "package split\n\nimport (\n\t\"os\"\n\t\"strings\"\n)\n\nvar notes = os.Getenv(\"FIXTURES\") + strings.Split(\"foo..\\\\notes\", \"\\\\\")[1]\n",
-		"srcwalk/srcwalk_test.go": "package srcwalk\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nvar src = filepath.Join(os.Getenv(\"SRC\"), \"example.com/fixture\")\n",
+		"split/split_test.go":     "package split\n\nimport \"strings\"\n\nvar fixtures string\n\nvar notes = fixtures + strings.Split(\"foo..\\\\notes\", \"\\\\\")[1]\n",
+		"srcwalk/srcwalk_test.go": "package srcwalk\n\nimport \"path/filepath\"\n\nvar root string\n\nvar src = filepath.Join(root, \"example.com/fixture\")\n",
 	})
 }
 
@@ -167,21 +167,23 @@ func TestRuleCRuntimeRootedFileNames_AFPV02240(t *testing.T) {
 }
 
 // TestRuleCRuntimeRootedDirectoryWalk_AFPV02240 is round 8's review
-// counterexample: a test walks `os.Getenv("FIXTURES") + "/repo"` (or the
-// filepath.Join form, whose "repo" is unanchored) with FIXTURES=app/x, so it
-// reads every file below app/x/repo though no literal of its package spells
-// app/x. Rule (c), its verdict and -bounds all keep both walkers. The
-// planner half is golang's TestRuntimeRootedDirectoryWalkStaysSelected.
+// counterexample: a test walks `fixtures + "/repo"` (or the filepath.Join
+// form, whose "repo" is unanchored) with fixtures=app/x, so it reads every
+// file below app/x/repo though no literal of its package spells app/x. Rule
+// (c), its verdict and -bounds all keep both walkers. The root is a package
+// variable: a walked environment root is held whole by rule (d) (AFP-V0-3662,
+// V1-3999 fix round 1). The planner half is golang's
+// TestRuntimeRootedDirectoryWalkStaysSelected.
 func TestRuleCRuntimeRootedDirectoryWalk_AFPV02240(t *testing.T) {
-	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = os.Getenv\n\t_ = filepath.WalkDir(%s, func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nvar fixtures string\n\nfunc TestWalk(t *testing.T) {\n\t_ = os.Getenv\n\t_ = filepath.WalkDir(%s, func(string, fs.DirEntry, error) error { return nil })\n}\n"
 	root := writeFixture(t, map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.22\n",
 		"app/x/x.go":            "package x\n",
 		"app/x/x_test.go":       "package x\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n",
 		"app/x/repo/lib.js":     "export const x = 1\n",
-		"walker/walker_test.go": fmt.Sprintf(walk, "walker", `os.Getenv("FIXTURES")+"/repo"`),
-		"joined/joined_test.go": fmt.Sprintf(walk, "joined", `filepath.Join(os.Getenv("FIXTURES"), "repo")`),
-		"other/other_test.go":   fmt.Sprintf(walk, "other", `os.Getenv("FIXTURES")+"/elsewhere"`),
+		"walker/walker_test.go": fmt.Sprintf(walk, "walker", `fixtures+"/repo"`),
+		"joined/joined_test.go": fmt.Sprintf(walk, "joined", `filepath.Join(fixtures, "repo")`),
+		"other/other_test.go":   fmt.Sprintf(walk, "other", `fixtures+"/elsewhere"`),
 	})
 	index, err := indexRepository(root, fixtureModule)
 	if err != nil {
@@ -212,7 +214,7 @@ func TestRuleCRuntimeRootedDirectoryWalk_AFPV02240(t *testing.T) {
 // tokens (round 8): a lone component names any path component of that name
 // at any depth, because the literal may be joined to a runtime root, so
 // neither V1-0290's file-name-only rule nor AFP-V0-072's placement drops a
-// Go reader. Round 8's backslash case: `os.Getenv("PREFIX") +
+// Go reader. Round 8's backslash case: `prefix +
 // strings.ReplaceAll("foo..\\notes", "\\", "/")` lexes as `foo../notes`
 // beside the written `foo..` and `notes` here as in the planner, and -bounds
 // keeps app/prefoo../notes; round 9's split of the same literal keeps the
@@ -318,21 +320,23 @@ func TestRuleCMatchesThePlanner_AFPV02242(t *testing.T) {
 }
 
 // TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242 is round 9's review
-// counterexample: a test in reader/ reads `os.Getenv("FIXTURES") +
-// strings.Split("foo..\\notes", "\\")[1]`, so with FIXTURES=/checkout/ it
-// reads the root file notes. The `..\` rewrite (AFP-V0-506) only adds the
+// counterexample: a test in reader/ reads `fixtures +
+// strings.Split("foo..\\notes", "\\")[1]`, so with fixtures=/checkout/ it
+// reads the root file notes. The root is a package variable: an environment
+// root joined to computed text is held whole by rule (d) (AFP-V0-3660). The `..\` rewrite (AFP-V0-506) only adds the
 // climbing `foo../notes` to the written `foo..` and `notes`, so rule (c),
 // its verdict and -bounds keep the reader. The module-path rewrite is
-// additive too: a walk of `filepath.Join(os.Getenv("SRC"),
-// "example.com/fixture")` keeps the written `example.com/fixture` beside its
+// additive too: a walk of `filepath.Join(src, "example.com/fixture")`, src
+// a package variable since a walked environment root is held whole
+// (AFP-V0-3662, V1-3999 fix round 1), keeps the written `example.com/fixture` beside its
 // anchored `/`, which names nothing, and reads a copy of the module under
 // vendored/. A dirty app/x/x.go keeps the selection non-empty, so a dropped
 // reader is skipped with no fallback. Controls: the same forms naming
 // another file or module read neither path. The planner half is golang's
 // TestParentBackslashKeepsWrittenTokens.
 func TestRuleCParentBackslashKeepsWrittenTokens_AFPV02242(t *testing.T) {
-	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(os.Getenv(\"FIXTURES\") + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
-	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(os.Getenv(\"SRC\"), %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
+	const read = "package %s\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nvar fixtures string\n\nfunc TestRead(t *testing.T) {\n\tif _, err := os.ReadFile(fixtures + strings.Split(%q, \"\\\\\")[1]); err != nil {\n\t\tt.Fatal(err)\n\t}\n}\n"
+	const walk = "package %s\n\nimport (\n\t\"io/fs\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nvar src string\n\nfunc TestWalk(t *testing.T) {\n\t_ = filepath.WalkDir(filepath.Join(src, %q), func(string, fs.DirEntry, error) error { return nil })\n}\n"
 	root := writeFixture(t, map[string]string{
 		"go.mod":                             "module example.com/fixture\n\ngo 1.22\n",
 		"app/x/x.go":                         "package x\n",

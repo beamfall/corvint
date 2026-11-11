@@ -42,6 +42,7 @@ type scanMemoEntry struct {
 	Stamp          string     `json:"stamp"`
 	Imports        []string   `json:"imports,omitempty"`
 	Calls          []string   `json:"calls,omitempty"`
+	Sources        []string   `json:"sources,omitempty"`
 	Untokenized    bool       `json:"untokenized,omitempty"`
 	Embeds         bool       `json:"embeds,omitempty"`
 	MovesDirectory bool       `json:"movesDirectory,omitempty"`
@@ -97,6 +98,7 @@ func (recall *scanRecall) scan(root, module string, source indexedFile) scannedF
 		scanned := scannedFile{relative: source.relative, directory: parentDirectory(source.relative), test: strings.HasSuffix(source.relative, "_test.go"),
 			command: entry.Command, imports: entry.Imports, tokens: entry.Tokens, stamp: stamp, recalled: true}
 		scanned.scan.calls, scanned.scan.embeds, scanned.scan.movesDirectory = entry.Calls, entry.Embeds, entry.MovesDirectory
+		scanned.scan.sources = entry.Sources
 		if entry.Untokenized {
 			scanned.scan.err = errRecalledUntokenized
 		}
@@ -143,7 +145,7 @@ func (memo *ScanMemo) store(root, module string, recall *scanRecall, results []s
 			continue
 		}
 		fresh = fresh || !scanned.recalled
-		files[scanned.relative] = scanMemoEntry{Stamp: scanned.stamp, Imports: scanned.imports, Calls: scanned.scan.calls,
+		files[scanned.relative] = scanMemoEntry{Stamp: scanned.stamp, Imports: scanned.imports, Calls: scanned.scan.calls, Sources: scanned.scan.sources,
 			Untokenized: scanned.scan.err != nil, Embeds: scanned.scan.embeds, MovesDirectory: scanned.scan.movesDirectory, Command: scanned.command, Tokens: scanned.tokens}
 	}
 	if !fresh && maps.EqualFunc(files, recall.files, func(a, b scanMemoEntry) bool { return a.Stamp == b.Stamp }) &&
