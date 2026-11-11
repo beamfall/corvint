@@ -2,11 +2,6 @@
   "profile": "corvint-import-ratchet-baseline/0",
   "edges": [
     "cmd/corvint-docs -> internal/testsource",
-    "internal/appflows -> internal/doccorpus",
-    "internal/appmap -> internal/doccorpus",
-    "internal/flowcoverage -> internal/doccorpus",
-    "internal/flowcoverage -> internal/flowdocs",
-    "internal/mcp/cli -> internal/mcp/corpusbridge",
     "internal/sessiontest -> .github/cishards"
   ]
 }
