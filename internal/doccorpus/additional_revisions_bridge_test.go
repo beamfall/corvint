@@ -12,8 +12,9 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 )
 
-// DCP-V1-310: corvint.docs_locate and corvint.docs_recommend_tests admit an optional repository
-// and carry it to the query; other tools and an empty value are refused.
+// DCP-V1-310: corvint.docs_locate admits an optional repository and carries it to the query; other
+// tools and an empty value are refused. corvint.docs_recommend_tests, which also took it, is removed
+// (DMF-V1-009).
 func TestDCPV1310DocsLocateRepositoryArgument(t *testing.T) {
 	t.Parallel()
 	root, m, extra, _ := doccorpus.MultiRevisionForTest(t)
@@ -34,11 +35,11 @@ func TestDCPV1310DocsLocateRepositoryArgument(t *testing.T) {
 	}
 	for _, tool := range r.Tools() {
 		props := tool.InputSchema["properties"].(map[string]any)
-		if want := tool.Name == "corvint.docs_locate" || tool.Name == "corvint.docs_recommend_tests"; (props["repository"] != nil) != want {
+		if want := tool.Name == "corvint.docs_locate"; (props["repository"] != nil) != want {
 			t.Fatalf("repository schema on %s", tool.Name)
 		}
 	}
-	for _, tool := range []string{"corvint.docs_locate", "corvint.docs_recommend_tests"} {
+	for _, tool := range []string{"corvint.docs_locate"} {
 		result, _, failure, perr := r.Call(context.Background(), tool, []byte(`{"path":"src/value.go","repository":"`+extra.ID+`"}`))
 		if perr != nil || failure != nil {
 			t.Fatalf("%s: %v %v", tool, perr, failure)
