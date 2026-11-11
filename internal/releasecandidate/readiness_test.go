@@ -89,7 +89,7 @@ func readinessGit(t *testing.T, source string, arguments ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-const cleanGoMod = "module example.invalid/core\n\ngo 1.27.3\n"
+const cleanGoMod = "module example.invalid/core\n\ngo 1.27.4\n"
 
 func (f readinessFixture) build(t *testing.T, evidence map[string]ReadinessEvidence) (*ReadinessRecord, []byte) {
 	t.Helper()
