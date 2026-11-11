@@ -1613,7 +1613,7 @@
     "title": "Human Documentation Compiler V0",
     "reqPrefix": "HDCV0",
     "intent": "accepted (decision 0047, 2026-09-04)",
-    "delivery": "partial (HDCV0-023..029, HDCV0-041); site build retired V1-4828",
+    "delivery": "partial (HDCV0-023..029, HDCV0-041)",
     "claim": "Human Documentation Compiler proposes evidence-bound operational plans whose rendered views cannot strengthen source claims.",
     "dependsOn": [
       "docs/specs/applied-intelligence-breakthroughs-v0.md",

@@ -5,7 +5,7 @@ Frozen candidate: 2026-08-24
 Contract review: independently re-reviewed 2026-09-13 (`docs/reviews/hdc-v0-rereview-2026-09-13.md`);
 amendments applied by decision 0209; capsule and renderer clauses deferred
 Intent status: accepted (decision 0047, 2026-09-04)
-Delivery status: partial (HDCV0-023..029, HDCV0-041); site build retired V1-4828
+Delivery status: partial (HDCV0-023..029, HDCV0-041)
 First qualified profile: Material for MkDocs
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
@@ -39,7 +39,7 @@ from b55635262788687c3eea9a08a94378e4ab8856a4 to roll back.
 
 ## Agent digest
 - Claim: Human Documentation Compiler proposes evidence-bound operational plans whose rendered views cannot strengthen source claims.
-- Status: accepted (decision 0047, 2026-09-04)/partial (HDCV0-023..029, HDCV0-041); site build retired V1-4828
+- Status: accepted (decision 0047, 2026-09-04)/partial (HDCV0-023..029, HDCV0-041)
 - Exists: the amended contract, the `HDCV0-023..026` clause admission and prose templates (decision 0229), the plan-only `HDCV0-027..029` admitted plan wire with `create_file`/`insert_after` operations (decision 0231), the `HDCV0-041` canonical JSON verifier and emitter, and the experimental planning boundary.
 - Blocked on: implementation of the remaining pure clauses and pinned renderer qualification (renderer and capsule qualification `NOT_RUN`).
 - Read next: Product claim and measurable job; Trust and authority model; Numbered requirements.
