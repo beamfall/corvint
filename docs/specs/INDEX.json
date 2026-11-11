@@ -903,8 +903,8 @@
     "path": "docs/specs/cross-repository-breakage-map-v0.md",
     "title": "Cross-repository breakage map V0",
     "reqPrefix": "BKM-V0",
-    "intent": "proposed",
-    "delivery": "experimental",
+    "intent": "retired 2026-11-11 (decision 0594)",
+    "delivery": "retired",
     "claim": "A selected API maps pinned Go syntax references and original declared provider relationships across explicit local repositories.",
     "dependsOn": [
       "docs/specs/external-evidence-provider-v1.md",

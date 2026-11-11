@@ -304,8 +304,8 @@ each cited path still exists at that revision, and what was omitted or could not
   compiles is not detected. The guard's reasons are the exported `gitancestry.Unreadable`,
   `Grafted` and `Shallow`.
   `corvint runs baseline diff --base`: staleness `NOT_OBSERVED` `BRANCH_POINT_UNRESOLVED`
-  (PWR-V0-045). `breakagemap`: the manifest helper refuses `ID: REASON` and compile leaves the
-  repository unknown with REASON, so its base merge-base is never read. Dashboard trace
+  (PWR-V0-045). `breakagemap` (deleted 2026-11-11 by decision 0594): the manifest helper refused `ID: REASON` and compile left the
+  repository unknown with REASON, so its base merge-base was never read. Dashboard trace
   qualification: `ANCESTRY_BOUND`. `upgradechanges`: `changes-range-unavailable`, now also for
   `info/grafts` and before the `--is-ancestor` read. Already guarded before this sweep and unchanged:
   `postmergeconnector` (PMC-V0-010), `postmergemetrics` (PMM-V0-008), `localcompletion`
@@ -356,7 +356,7 @@ each cited path still exists at that revision, and what was omitted or could not
   `extevidence` checkout binding (`unavailable` with REASON; the root checkout lists no root and
   binds nothing), `lspprovider.rootCommit` (`root commit unavailable`), the site-knowledge flows
   request repository identity (`appmap-invalid-revision` with REASON) and the `breakagemap`
-  origin pin (EEP-V0-770). `appflows` binding and `CorpusRepositoryID` were already guarded.
+  origin pin (EEP-V0-770; `breakagemap` was deleted 2026-11-11 by decision 0594). `appflows` binding and `CorpusRepositoryID` were already guarded.
   Falsifier: a grafted or shallow fixture whose root commit is pinned as an origin. Rollback: drop
   the guard call at that site.
 
@@ -475,10 +475,10 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-820` | `record` in `internal/lspprovider/provider.go` | `TestRecordExplainsOmissions_EEPV0820` (removed) |
 | `EEP-V0-821` | `negotiate`, `executableDigest`, `dialogue`, `walker.expand` in `internal/lspprovider/provider.go` | `TestExpandNegotiatesBeforeQuerying_EEPV0821` (removed), `TestContextLSPRefusesNonRegularExecutable` (removed) |
 | `EEP-V0-805` | `load` in `internal/extevidence/section.go`; `openRegular`, `readRecordFile` in `internal/extevidence/pin.go` | `TestEEPV0805_LegacyLoaderRefusesSpecialFilesAndBoundsReads` |
-| `EEP-V0-770` | `internal/appflows/review.go`, `internal/appflows/selection.go`, `impactRangeAncestryRefusal` in `cmd/corvint/impact_range_ancestry.go`, `admit` in `internal/witness/witness.go`, `cmd/corvint/runs_baseline.go`, `internal/breakagemap/read.go`, `internal/dashboard/repository/trace.go`, `internal/upgradechanges/changes.go`; fixtures `internal/gitancestry/ancestrytest` | `TestRootAncestryRewrittenIsUnknown_EEPV0770`, `TestImpactRangeRefusesGraftedAncestry_EEPV0770`, `TestAdmitRefusesGraftedAncestry_EEPV0770` (removed), `TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770`, `TestBreakageRefusesRewrittenAncestry_EEPV0770`, `TestQualifyTraceRefusesRewrittenAncestry_EEPV0770` (removed), `TestCompileRefusesGraftedCheckout_EEPV0770` (removed) |
+| `EEP-V0-770` | `internal/appflows/review.go`, `internal/appflows/selection.go`, `impactRangeAncestryRefusal` in `cmd/corvint/impact_range_ancestry.go`, `admit` in `internal/witness/witness.go`, `cmd/corvint/runs_baseline.go`, `internal/breakagemap/read.go` (removed), `internal/dashboard/repository/trace.go`, `internal/upgradechanges/changes.go`; fixtures `internal/gitancestry/ancestrytest` | `TestRootAncestryRewrittenIsUnknown_EEPV0770`, `TestImpactRangeRefusesGraftedAncestry_EEPV0770`, `TestAdmitRefusesGraftedAncestry_EEPV0770` (removed), `TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770`, `TestBreakageRefusesRewrittenAncestry_EEPV0770` (removed), `TestQualifyTraceRefusesRewrittenAncestry_EEPV0770` (removed), `TestCompileRefusesGraftedCheckout_EEPV0770` (removed) |
 | `EEP-V0-771` | comments at each read; `GIT_GRAFT_FILE` in `internal/sharedpath/sharedpath.go` and `internal/jstestprovider/application_attestation.go` | `TestBaseTreeShallowBoundaryRefuses_EEPV0771` (removed), `TestBaseTreeIgnoresGraftedAncestry` (removed), `TestProbeGitAncestorUnderRewrittenAncestry_EEPV0771`, `TestRefTipStateUnderRewrittenAncestry_EEPV0771` (removed), `TestAncestryReadsIgnoreGraftsAndRefuseShallow_EEPV0771` (removed), `TestObserveTestRepositoryIgnoresGrafts_EEPV0771`, `TestOpenGuidanceRefusesRewrittenAncestry_EEPV0771` |
 | `EEP-V0-772` | `requireTrustedAncestry` in `internal/dogfoodflow/flow.go` | `TestFlowsRefuseRewrittenAncestry_EEPV0772` (removed) |
-| `EEP-V0-773` | `resolveCheckout`, `rootCommits` in `internal/extevidence/repository.go`; `rootCommit` in `internal/lspprovider/provider.go`; `repositoryRootID` in `internal/appmap/site_knowledge_flows.go`; `bind`, `BuildManifestWith` in `internal/breakagemap` | `TestRootCommitsDistrustRewrittenAncestry_EEPV0773`, `TestRootCommitRefusesRewrittenAncestry_EEPV0773` (removed), `TestRepositoryRootIDRefusesRewrittenAncestry_EEPV0773`, `TestBreakageRefusesRewrittenAncestry_EEPV0770` |
+| `EEP-V0-773` | `resolveCheckout`, `rootCommits` in `internal/extevidence/repository.go`; `rootCommit` in `internal/lspprovider/provider.go`; `repositoryRootID` in `internal/appmap/site_knowledge_flows.go`; `bind`, `BuildManifestWith` in `internal/breakagemap` (removed) | `TestRootCommitsDistrustRewrittenAncestry_EEPV0773`, `TestRootCommitRefusesRewrittenAncestry_EEPV0773` (removed), `TestRepositoryRootIDRefusesRewrittenAncestry_EEPV0773`, `TestBreakageRefusesRewrittenAncestry_EEPV0770` (removed) |
 
 ## Unresolved decisions and promotion or kill criteria
 

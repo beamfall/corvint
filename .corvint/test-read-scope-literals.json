@@ -71,7 +71,6 @@
       "internal/appflows": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/appmap": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/archivepath": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
-      "internal/breakagemap": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/capcatalog": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/cem/cemcode": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
       "internal/cem/cli": "walltime_test.go replay data, not a read (bridge until ci-1107x)",
