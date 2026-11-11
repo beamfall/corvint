@@ -60,7 +60,8 @@ func splitOwnerPattern(line string) (pattern, rest string) {
 // ownerPattern translates one CODEOWNERS pattern. A pattern with a slash before its end is
 // anchored at the repository top; any other matches at every depth. A pattern that names a
 // directory covers everything beneath it, except that `dir/*` covers only the files directly in
-// `dir`. Negation and character ranges are not CODEOWNERS syntax and match nothing.
+// `dir`, and `/*` only the files directly at the top. Negation and character ranges are not
+// CODEOWNERS syntax and match nothing.
 func ownerPattern(pattern string) *regexp.Regexp {
 	if strings.HasPrefix(pattern, "!") || strings.ContainsAny(pattern, "[]") {
 		return nil
@@ -68,6 +69,8 @@ func ownerPattern(pattern string) *regexp.Regexp {
 	directory := strings.HasSuffix(pattern, "/")
 	body := strings.TrimSuffix(pattern, "/")
 	anchored := strings.Contains(body, "/")
+	// Read before the leading slash goes, so that `/*` is the files directly at the top.
+	children := strings.HasSuffix(body, "/*")
 	body = strings.TrimPrefix(body, "/")
 	if body == "" {
 		return nil
@@ -101,7 +104,7 @@ func ownerPattern(pattern string) *regexp.Regexp {
 	switch {
 	case directory:
 		out.WriteString("/.*$")
-	case strings.HasSuffix(body, "/*"):
+	case children:
 		out.WriteString("$")
 	default:
 		out.WriteString("(?:/.*)?$")
