@@ -269,3 +269,142 @@ func TestSLFV1004UnconsumedMockIsNeverUncovered(t *testing.T) {
 		t.Fatalf("orphan mock is not NO_SELECTABLE_TEST: %+v", plan.Unknown)
 	}
 }
+
+// vitestProject is the SLF-V1-005 fixture: a Vitest config, a module and the
+// test that reaches it, and an unrelated test.
+func vitestProject(t *testing.T, config string) string {
+	t.Helper()
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "vitest.config.js", config)
+	write(t, root, "src/math.ts", "export const add = (a: number, b: number) => a + b\n")
+	write(t, root, "src/other.ts", "export const other = 1\n")
+	write(t, root, "src/math.test.ts", "import { test } from \"vitest\"\nimport { add } from \"./math\"\ntest(\"add\", () => add(1, 2))\n")
+	write(t, root, "src/other.test.ts", "import { test } from \"vitest\"\nimport { other } from \"./other\"\ntest(\"other\", () => other)\n")
+	write(t, root, "setup/env.ts", "export {}\n")
+	return root
+}
+
+const literalVitestConfig = "import { defineConfig } from \"vitest/config\"\n" +
+	"export default defineConfig({\n  test: {\n    include: [\"src/**/*.test.ts\", \"src/**/*.check.ts\"],\n" +
+	"    exclude: [\"dist/**\"],\n    setupFiles: [\"./setup/env.ts\"],\n    coverage: { include: [\"src/**\"] },\n  },\n})\n"
+
+// SLF-V1-005 and SLF-V1-006 ("Rule held until proved"): with the gate held, a
+// literal config still raises the frontier.
+func TestSLFV1005HeldLiteralConfigKeepsTheFrontier(t *testing.T) {
+	root := vitestProject(t, literalVitestConfig)
+	if !frontierAt(unitsOf(t, root), FrontierConfig, "vitest.config.js:") {
+		t.Fatal("held rule dropped the executable-config frontier")
+	}
+	if plan := buildPlan(t, root, "src/math.ts"); plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("held rule narrowed: scope=%s unknown=%+v", plan.Scope, plan.Unknown)
+	}
+}
+
+// SLF-V1-005 "Literal include narrows": with the gate on, a fully literal
+// config is evaluated; the plan selects the test that reaches the change,
+// names no executable-config frontier, adds the literal-include test and the
+// setup-file edge, and ignores coverage.include.
+func TestSLFV1005LiteralIncludeNarrows(t *testing.T) {
+	withGate(t, &literalConfigNarrowing)
+	root := vitestProject(t, literalVitestConfig)
+	write(t, root, "src/extra.check.ts", "import { test } from \"vitest\"\ntest(\"extra\", () => 1)\n")
+	result := unitsOf(t, root)
+	if frontierHas(result, FrontierConfig) {
+		t.Fatalf("frontier = %v", result.Frontier)
+	}
+	if testUnit(result, "src/extra.check.ts").ID != "typescript:vitest:src/extra.check.ts" {
+		t.Fatal("a literal include match is not a test")
+	}
+	if testUnit(result, "src/math.ts").ID != "" {
+		t.Fatal("coverage.include made a source file a test")
+	}
+	plan := buildPlan(t, root, "src/math.ts")
+	if got := strings.Join(plan.SelectedTests(), " "); got != "src/math.test.ts" || plan.Scope != affected.ScopeBounded {
+		t.Fatalf("scope=%s selected=%s unknown=%+v", plan.Scope, got, plan.Unknown)
+	}
+	plan = buildPlan(t, root, "setup/env.ts")
+	if got := strings.Join(plan.SelectedTests(), " "); got != "src/extra.check.ts src/math.test.ts src/other.test.ts" {
+		t.Fatalf("setup file selected=%s unknown=%+v", got, plan.Unknown)
+	}
+}
+
+// SLF-V1-005 "Dirty config": a dirty literal config still runs its runner
+// instance in full.
+func TestSLFV1005DirtyConfigRunsInFull(t *testing.T) {
+	withGate(t, &literalConfigNarrowing)
+	root := vitestProject(t, literalVitestConfig)
+	plan := buildPlan(t, root, "vitest.config.js")
+	if got := strings.Join(plan.SelectedTests(), " "); got != "src/math.test.ts src/other.test.ts" {
+		t.Fatalf("dirty config selected=%s unknown=%+v", got, plan.Unknown)
+	}
+}
+
+// SLF-V1-005: a computed marker value, a spread, a relative import, a marker
+// in an unknown object, a negated glob or a capturing mapper whose key may be
+// a package keeps the frontier with the gate on ("Computed value keeps the
+// frontier", "Jest roots is a recognised marker").
+func TestSLFV1005ComputedConfigKeepsTheFrontier(t *testing.T) {
+	withGate(t, &literalConfigNarrowing)
+	for name, tc := range map[string]struct{ file, config string }{
+		"computed include": {"vitest.config.js", "export default { test: { include: [process.env.SUITE] } }\n"},
+		"jest roots":       {"jest.config.js", "module.exports = { roots: [process.env.SRC] }\n"},
+		"spread":           {"vitest.config.js", "const base = {}\nexport default { ...base, test: { include: [\"src/**/*.test.ts\"] } }\n"},
+		"relative import":  {"vitest.config.js", "import shared from \"./shared.config\"\nexport default { test: { include: [\"src/**/*.test.ts\"] } }\n"},
+		"unknown parent":   {"vitest.config.js", "const options = { include: [\"src/**/*.test.ts\"] }\nexport default { test: options }\n"},
+		"negated glob":     {"vitest.config.js", "export default { test: { include: [\"src/!(skip)/*.test.ts\"] } }\n"},
+		"package mapper":   {"jest.config.js", "module.exports = { moduleNameMapper: { \"^lodash/(.*)$\": \"<rootDir>/shim/$1\" } }\n"},
+		"unevaluated key":  {"vitest.config.js", "export default { test: { include: [\"src/**/*.test.ts\"], browser: { capabilities: {} } } }\n"},
+	} {
+		root := t.TempDir()
+		write(t, root, "package.json", `{"devDependencies":{"vitest":"1","jest":"29"}}`)
+		write(t, root, tc.file, tc.config)
+		write(t, root, "src/math.ts", "export const add = 1\n")
+		if !frontierAt(unitsOf(t, root), FrontierConfig, tc.file+":") {
+			t.Errorf("%s: frontier kept nothing", name)
+		}
+	}
+}
+
+// SLF-V1-005: the five key-shaped markers are recognised, a non-key spelling
+// is not, and a fully literal Jest config with them is evaluated with its
+// mapper and setup targets as loads.
+func TestSLFV1005KeyShapedMarkers(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{"module.exports = { roots: ['<rootDir>/src'] }", true},
+		{"module.exports = { 'testPathIgnorePatterns': ['/node_modules/'] }", true},
+		{"module.exports = { moduleNameMapper: {} }", true},
+		{"export default { test: { dir: 'src' } }", true},
+		{"export default { root: 'app' }", true},
+		{"module.exports = { rootDir: '.', outDir: 'x' }", false},
+		{"const __dir = 1; const roots = []", false},
+	} {
+		if got := dynamicConfigMarker(tc.body) >= 0; got != tc.want {
+			t.Errorf("%q: marker=%v want %v", tc.body, got, tc.want)
+		}
+	}
+	withGate(t, &literalConfigNarrowing)
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"jest":"29","@jest/globals":"29"}}`)
+	write(t, root, "jest.config.js", "module.exports = {\n  roots: ['<rootDir>/src'],\n  testPathIgnorePatterns: ['/node_modules/'],\n"+
+		"  setupFilesAfterEnv: ['<rootDir>/setup/env.ts', '@testing-library/jest-dom'],\n"+
+		"  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1', '\\\\.css$': '<rootDir>/setup/styleMock.js' },\n"+
+		"  testRegex: '(/__tests__/.*|\\\\.spec)\\\\.ts$',\n}\n")
+	write(t, root, "setup/env.ts", "export {}\n")
+	write(t, root, "setup/styleMock.js", "module.exports = {}\n")
+	write(t, root, "src/math.ts", "export const add = 1\n")
+	write(t, root, "src/__tests__/math.ts", "import { test } from \"@jest/globals\"\nimport { add } from \"../math\"\ntest(\"add\", () => add)\n")
+	result := unitsOf(t, root)
+	if frontierHas(result, FrontierConfig) {
+		t.Fatalf("frontier = %v", result.Frontier)
+	}
+	unit := testUnit(result, "src/__tests__/math.ts")
+	for _, want := range []string{"typescript:setup/env.ts", "typescript:setup/styleMock.js", "typescript:src/math.ts"} {
+		if !slices.Contains(unit.Imports, want) {
+			t.Fatalf("test unit %s imports=%v, want %s", unit.ID, unit.Imports, want)
+		}
+	}
+}
