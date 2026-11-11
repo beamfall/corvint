@@ -108,6 +108,15 @@ func TestField(t *testing.T) {
 		}
 	}
 }`},
+	// nomiss review P1: can miss a test. With Env nil, Cmd.Environ returns
+	// the process environment, so an entry parsed out of it names a root.
+	{name: "cmdenviron", held: true, test: `func TestCmdEnviron(t *testing.T) {
+	for _, entry := range exec.Command("true").Environ() {
+		if len(entry) > 5 && entry[:5] == "ROOT=" {
+			os.ReadDir(entry[5:])
+		}
+	}
+}`},
 	// Can miss a test: a path expanded from the environment.
 	{name: "expandenv", held: true, test: `func TestExpand(t *testing.T) {
 	os.ReadDir(os.ExpandEnv("$SUITE_ROOT/docs"))
@@ -326,6 +335,12 @@ var locationUseCases = []struct{ name, body, want string }{
 	{"environment command reassigned", `func F(other *exec.Cmd) { c := exec.Command("x"); c = other; c.Env = os.Environ() }`, "hold"},
 	{"environment in a map keyed by a constant", `const Env = "env"; func F() map[string][]string { return map[string][]string{Env: os.Environ()} }`, "hold"},
 	{"environment length", `func F() bool { return len(os.Environ()) == 1 }`, ""},
+	// nomiss review P1: any X.Environ() call in a file importing os/exec is
+	// an environment list, judged as os.Environ is.
+	{"command environment read", `func F() { for _, e := range exec.Command("x").Environ() { os.ReadDir(e[5:]) } }`, "hold"},
+	{"command environment length", `func F() bool { return len(exec.Command("x").Environ()) == 1 }`, ""},
+	{"command environment to Env key", `func F() { c := &exec.Cmd{Path: "go", Env: exec.Command("y").Environ()}; c.Run() }`, ""},
+	{"user Environ method read", `type cfg struct{}; func (cfg) Environ() []string { return nil }; func F() { for _, e := range (cfg{}).Environ() { os.ReadDir(e) } }`, "hold"},
 	{"environment to helper", `func run([]string) {}; func F() { run(os.Environ()) }`, "hold"},
 	{"environment ranged", `func F() { for _, e := range os.Environ() { os.ReadFile(e) } }`, "hold"},
 	{"stored in field", `type s struct{ root string }; func F(v *s) { v.root = os.Getenv("R") }`, "hold"},
