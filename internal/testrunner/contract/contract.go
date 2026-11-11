@@ -19,8 +19,10 @@ package contract
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/testid"
 	"github.com/Beamfall/corvint/internal/testinventory"
@@ -135,6 +137,26 @@ type Runner interface {
 // is not built; every selected test of such a runner is NOT_RUN.
 var ErrNotImplemented = errors.New(ReasonNotImplemented)
 
+// ReportError is returned by Parse together with the results it read when
+// the report was read only in part or records a failure no result carries:
+// Malformed counts unreadable lines (the run is incomplete), and Failures
+// are run-level failures, such as a Jest report's `success: false` or a
+// Playwright report's top-level `errors` (the run failed). ReconcileParsed
+// keeps the results and applies both.
+type ReportError struct {
+	Malformed int
+	Failures  []string
+}
+
+func (e *ReportError) Error() string {
+	var parts []string
+	if e.Malformed != 0 {
+		parts = append(parts, fmt.Sprintf("%d report line(s) could not be read", e.Malformed))
+	}
+	parts = append(parts, e.Failures...)
+	return "incomplete or failed report: " + strings.Join(parts, "; ")
+}
+
 var runners = map[string]Runner{
 	testid.Go:         goRunner{},
 	testid.Vitest:     vitestRunner{},
@@ -230,25 +252,44 @@ func (r fullOnly) Command(request Request) (Command, error) {
 func (r fullOnly) Parse(ParseRequest) ([]Result, error) { return nil, ErrNotImplemented }
 
 // Run is the reconciled outcome of one selection (RNC-V1-006): one result
-// per selected test and per reported test, sorted by ID, and Incomplete
-// when a selected test has no result.
+// per selected test and per reported test, sorted by ID. Incomplete is set
+// when a selected test has no result, a package or file did not finish
+// (an error result coarser than a test), or the report was read only in
+// part. Failed is set when any result fails or errors, or the report
+// records a run-level failure. Exact is false when the report named a test
+// more than once (Duplicates); the merged result keeps the most severe
+// outcome (error, then fail, pass, skip).
 type Run struct {
 	Results    []Result `json:"results"`
 	NotRun     []string `json:"notRun,omitempty"`
 	Incomplete bool     `json:"incomplete"`
+	Failed     bool     `json:"failed"`
+	Exact      bool     `json:"exact"`
+	Duplicates []string `json:"duplicates,omitempty"`
 }
+
+// severity orders outcomes for merging duplicate results.
+var severity = map[string]int{OutcomeNotRun: 0, OutcomeSkip: 1, OutcomePass: 2, OutcomeFail: 3, OutcomeError: 4}
 
 // Reconcile joins the selected IDs with a report's results. A test-level
 // selection is answered by its own result, or by a file-level result of
 // its file when the report names no test of that file; a file-level
 // selection by any result in its file. A selection with no answer is
 // NOT_RUN and the run is Incomplete. A nil selection is the full command:
-// the run is Incomplete only when the report names nothing.
+// the run is Incomplete only when the report names nothing or a package or
+// file did not finish.
 func Reconcile(selected []string, results []Result) Run {
-	run := Run{Results: []Result{}}
+	run := Run{Results: []Result{}, Exact: true}
 	byID := map[string]Result{}
 	testsIn := map[string]bool{}
+	duplicates := map[string]bool{}
 	for _, result := range results {
+		if prior, seen := byID[result.ID]; seen {
+			duplicates[result.ID] = true
+			if severity[result.Outcome] < severity[prior.Outcome] || (severity[result.Outcome] == severity[prior.Outcome] && result.DurationMillis <= prior.DurationMillis) {
+				continue
+			}
+		}
 		byID[result.ID] = result
 		if result.Granularity == testid.GranularityTest {
 			if id, err := testid.Parse(result.ID); err == nil {
@@ -282,12 +323,44 @@ func Reconcile(selected []string, results []Result) Run {
 			byID[selection] = Result{ID: selection, Outcome: OutcomeNotRun, Granularity: granularity(selection)}
 		}
 	}
+	unfinished := false
 	for _, result := range byID {
 		run.Results = append(run.Results, result)
+		switch {
+		case result.Outcome == OutcomeError && result.Granularity != testid.GranularityTest:
+			unfinished = true
+			run.Failed = true
+		case result.Outcome == OutcomeFail || result.Outcome == OutcomeError:
+			run.Failed = true
+		}
 	}
 	sort.Slice(run.Results, func(i, j int) bool { return run.Results[i].ID < run.Results[j].ID })
 	sort.Strings(run.NotRun)
-	run.Incomplete = len(run.NotRun) != 0 || (selected == nil && len(results) == 0)
+	run.Incomplete = len(run.NotRun) != 0 || unfinished || (selected == nil && len(results) == 0)
+	if len(duplicates) != 0 {
+		run.Exact = false
+		run.Duplicates = slices.Sorted(maps.Keys(duplicates))
+	}
+	return run
+}
+
+// ReconcileParsed is Reconcile over what Parse returned. A *ReportError
+// keeps the results it came with: unreadable lines make the run Incomplete
+// and run-level failures make it Failed. Any other error leaves the report
+// unusable, so every selected test is NOT_RUN and the run is Incomplete.
+func ReconcileParsed(selected []string, results []Result, err error) Run {
+	var partial *ReportError
+	switch {
+	case err == nil:
+		return Reconcile(selected, results)
+	case errors.As(err, &partial):
+		run := Reconcile(selected, results)
+		run.Incomplete = run.Incomplete || partial.Malformed != 0
+		run.Failed = run.Failed || len(partial.Failures) != 0
+		return run
+	}
+	run := Reconcile(selected, nil)
+	run.Incomplete = true
 	return run
 }
 
