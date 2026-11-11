@@ -193,9 +193,29 @@ func pathContextRefusalCode(err error) string {
 	return "plan-unavailable"
 }
 
-// pathContextPlan selects each file alone over the shared graph and merges the selections. A
-// unit selected only as an unbounded reader is counted, not listed, and a make target or CI job
-// is not a test (the listing rule of the TBC-V1-013 coverage check).
+// How the path brief treats one selection of the affected plan.
+const (
+	pathContextListed = iota
+	pathContextShared
+	pathContextOmitted
+)
+
+// pathContextSelection is the listing rule of the TBC-V1-013 coverage check. A make target or a
+// CI job runs tests and is not one, so it is omitted, also when it is selected as a frontier
+// site. A unit selected only as an unbounded reader is counted. Every other selection is listed,
+// and that includes a declared consumer, which is a runnable test although its selection
+// carries a kind.
+func pathContextSelection(selection affected.Selection) int {
+	switch {
+	case selection.Kind == affected.SelectionKindDriverTarget || selection.Kind == affected.SelectionKindCIJob || selection.Witness.Kind == affected.WitnessFrontierSite:
+		return pathContextOmitted
+	case selection.Witness.Kind == affected.WitnessUnboundedReader:
+		return pathContextShared
+	}
+	return pathContextListed
+}
+
+// pathContextPlan selects each file alone over the shared graph and merges the selections.
 func pathContextPlan(graph *affected.Graph, files []string, result *pathbrief.TestsResult) {
 	reasons, shared := map[string]string{}, map[string]bool{}
 	result.Scope = "BOUNDED"
@@ -205,12 +225,10 @@ func pathContextPlan(graph *affected.Graph, files []string, result *pathbrief.Te
 			result.Scope = plan.Scope
 		}
 		for _, selection := range plan.Selected {
-			switch {
-			case selection.Kind != "" || selection.Witness.Kind == affected.WitnessFrontierSite:
-				// A make target or CI job runs tests; it is not one.
-			case selection.Witness.Kind == affected.WitnessUnboundedReader:
+			switch pathContextSelection(selection) {
+			case pathContextShared:
 				shared[selection.UnitID] = true
-			default:
+			case pathContextListed:
 				if _, listed := reasons[selection.UnitID]; !listed {
 					reasons[selection.UnitID] = selection.Witness.Kind
 				}
