@@ -308,6 +308,8 @@ func scanFile(root, module string, source indexedFile) scannedFile {
 		return join
 	})
 	scanned.scan = scanSource(body, aliases, dotImported, joins)
+	every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
+	scanned.scan.sources = locationSources(body, every, everyDotted)
 	scanned.tokens = make([][]string, len(scanned.scan.literals))
 	var tokens []string
 	for offset, literal := range scanned.scan.literals {
@@ -363,6 +365,11 @@ func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map
 			}
 		}
 	}
+	// A location source is marked after the literal and locator reasons, so
+	// a package those already hold keeps naming them (AFP-V0-3663).
+	for _, source := range scan.sources {
+		pkg.markUnresolved(relative+" "+locationSourceReason(source), test)
+	}
 }
 
 func (pkg *goPackage) markUnresolved(reason string, test bool) {
@@ -401,6 +408,7 @@ type sourceScan struct {
 	literals       []string
 	joined         []string // root-anchored tokens of bounded joins of a located root (AFP-V0-2950)
 	calls          []string // root-locator functions the file calls
+	sources        []string // location sources whose value may form a path (AFP-V0-3660)
 	embeds         bool
 	movesDirectory bool // the file moves the working directory (directoryMove)
 	err            error

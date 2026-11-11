@@ -889,6 +889,12 @@ func observeDependentModule(root *affected.Source, directory, modulePath string,
 				reads = relative + " " + reason
 			}
 		}
+		// A nested module has no go list proof: every location source holds
+		// it (AFP-V0-3664).
+		every, everyDotted := qualifiedImports(file.Imports, func(string) bool { return true })
+		if sources := locationSources(body, every, everyDotted); len(sources) != 0 && reads == "" {
+			reads = relative + " " + locationSourceReason(sources[0])
+		}
 		for _, glob := range literalGlobs(path.Dir(relative), body, file.Imports) {
 			globs[glob] = true
 		}
