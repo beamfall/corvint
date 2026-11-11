@@ -1224,6 +1224,9 @@ for a declared feature record. Overview includes inert suggested argv. Review co
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.
+A corvint binary built from Go source that differs from this checkout's HEAD
+(self-binary-stale) makes review exit 2 with a fix: line, as corvint affected
+does; an unverified binary is named in review.affected and in unknown.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.

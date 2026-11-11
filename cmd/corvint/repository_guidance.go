@@ -183,7 +183,10 @@ func guidanceError(err error) error {
 func runGuidance(ctx context.Context, in guidanceInvocation, stdout, stderr io.Writer) int {
 	raw, err := compileGuidance(ctx, in, nil)
 	if err != nil {
-		if refusal := repositoryOwnershipRefusal(ctx, in.Root); refusal != nil {
+		var stale *gokernel.Error
+		if errors.As(err, &stale) && stale.Code == selfBinaryStaleCode {
+			err = stale // AFP-V0-9730: the refusal keeps its own code (V1-5012).
+		} else if refusal := repositoryOwnershipRefusal(ctx, in.Root); refusal != nil {
 			err = refusal
 		} else {
 			err = guidanceError(err)
@@ -529,23 +532,28 @@ func reviewGuidance(ctx context.Context, s *genesis.GuidanceSnapshot, in guidanc
 			}
 		}
 	}
+	// RGV-V0-013, AFP-V0-9730 (V1-5012): review.affected is this binary's
+	// plan, so a stale binary refuses before planning, as the standalone
+	// command it must equal does.
+	freshness := selfBinaryStale(ctx, in.Root)
+	if freshness.Code == selfBinaryStaleCode {
+		return nil, guidanceStaleRefusal(freshness)
+	}
+	var full affectedReceipt
 	if out.Omissions["inventory"] > 0 || out.Omissions["unread-sources"] > 0 {
 		// A capped inventory cannot support a selection or a gate-absence claim
 		// (RGV-V0-013): plan through the standalone affected path instead.
-		full, err := compileAffected(ctx, affectedInvocation{Root: in.Root, Base: in.Base})
-		if err != nil {
+		if full, err = compileAffected(ctx, affectedInvocation{Root: in.Root, Base: in.Base}); err != nil {
 			return nil, err
 		}
 		if full.Revision != s.Revision {
 			return nil, fmt.Errorf("HEAD drift")
 		}
 		out.Unknown = append(out.Unknown, guidanceAffectedFallback(in.Base))
-		if err := review.setAffected(full); err != nil {
-			return nil, err
-		}
-	} else if full, err := snapshotReviewAffected(ctx, s, in, paths); err != nil {
+	} else if full, err = snapshotReviewAffected(ctx, s, in, paths); err != nil {
 		return nil, err
-	} else if err := review.setAffected(full); err != nil {
+	}
+	if err := review.setAffected(degradeGuidanceAffected(full, freshness, out)); err != nil {
 		return nil, err
 	}
 	current, err := s.CurrentRef(ctx)
@@ -668,6 +676,33 @@ func (review *guidanceReview) setAffected(full affectedReceipt) error {
 	review.Affected = compact
 	review.AffectedFull = guidanceAffectedFull{Argv: []string{"corvint", "affected", "--base", full.Range.Base, "--full"}, Digest: guidanceAffectedFullDigestPrefix + hex.EncodeToString(sum[:])}
 	return nil
+}
+
+// guidanceStaleRefusal is the AFP-V0-9730 refusal for `corvint review`
+// (RGV-V0-013, V1-5012). Review takes no --accept-stale-binary: the
+// commands its review.affected and affectedFull must equal refuse without it,
+// so the fix: line names only the rebuild and the uninstalled build.
+func guidanceStaleRefusal(freshness binaryFreshness) error {
+	return &gokernel.Error{Code: selfBinaryStaleCode, Message: freshness.Detail +
+		"; review.affected would be this binary's plan, which may be narrower than this checkout's own build gives, so the review is refused" +
+		"; fix: rebuild the binary from this checkout (go install ./cmd/corvint) or run that build without installing it (go run ./cmd/corvint review --base FULL_SHA)"}
+}
+
+// degradeGuidanceAffected adds a self-binary-unverified verdict to the plan
+// review embeds, the members `corvint affected --base` gives the same receipt
+// (AFP-V0-846, ACX-V0-750), so review.affected and the affectedFull digest
+// still equal that command's output; one receipt-level unknown keeps the
+// notice visible in the review document (RGV-V0-013, V1-5012). A fresh
+// binary, or one Corvint cannot judge, leaves the plan unchanged.
+func degradeGuidanceAffected(full affectedReceipt, freshness binaryFreshness, out *guidanceReceipt) affectedReceipt {
+	if freshness.Code == "" {
+		return full
+	}
+	notice := selfBinaryNotice(freshness)
+	full.Degradations = append(full.Degradations, freshness.Code)
+	full.DegradationDetails = map[string]string{freshness.Code: notice}
+	out.Unknown = append(out.Unknown, "review.affected was planned by a "+freshness.Code+" binary: "+notice)
+	return full
 }
 
 // guidanceAffectedFallback names why review.affected was planned over the clean
