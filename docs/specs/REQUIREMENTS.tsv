@@ -5365,6 +5365,13 @@ FDM-V0-004	docs/specs/flow-document-maintenance-v0.md	Stage both files before pu
 FDM-V0-005	docs/specs/flow-document-maintenance-v0.md	Only after both publications succeed may stdout contain the canonical versioned	unrecorded	-
 FDM-V0-006	docs/specs/flow-document-maintenance-v0.md	With identical material inputs, options and outputs, apply MUST return the previ	unrecorded	-
 FDM-V0-007	docs/specs/flow-document-maintenance-v0.md	Maintenance MUST preserve existing AFU fixed-template rendering and claim semant	unrecorded	-
+FSV-V1-001	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) The profile carries t	owner	decision 0596; V1-5410
+FSV-V1-002	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) A closed list of supp	owner	decision 0596; V1-5410
+FSV-V1-003	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) One shared reader	owner	decision 0596; V1-5410
+FSV-V1-004	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) An unsupported versio	owner	decision 0596; V1-5410
+FSV-V1-005	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) Flow reports refuse r	owner	decision 0596; V1-5410
+FSV-V1-006	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) The writer emits a ve	owner	decision 0596; V1-5410
+FSV-V1-007	docs/specs/flow-schema-version-v1.md	(accepted automatically under G14, decision 0596; V1-5410) Release smoke test wi	owner	decision 0596; V1-5410
 GL-V0-001	docs/specs/gate-ledger-v0.md	A step MUST be skipped only when the ledger holds a pass whose key equals the ke	unrecorded	-
 GL-V0-002	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A whole-step record MUST be	owner	decision 0511
 GL-V0-003	docs/specs/gate-ledger-v0.md	A step without a declared input scope MUST run and MUST NOT be recorded. A step	unrecorded	-
