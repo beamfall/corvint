@@ -115,7 +115,7 @@
     },
     {
       "path": ".corvint/work-queue-policy.json",
-      "reason": "work-queue policy; read through path literals by cmd/corvint work, cmd/corvint-work-queue, conformance/work-queue-v0, internal/worklistadapter and tools/declaration-compat-check; never loaded by a computed name or a build or CI driver (V1-3480, AFP-V0-2404)"
+      "reason": "work-queue policy; read through path literals by cmd/corvint work, cmd/corvint-work-queue, conformance/work-queue-v0 and tools/declaration-compat-check; never loaded by a computed name or a build or CI driver (V1-3480, AFP-V0-2404)"
     },
     {
       "path": "LICENSING.md",

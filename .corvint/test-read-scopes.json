@@ -136,9 +136,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "cmd/corvint-analyzer-c-jni": [
@@ -307,9 +305,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "cmd/corvint-analyzer-shader": [
@@ -419,9 +415,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "cmd/corvint-analyzer-structured-data": [
@@ -696,9 +690,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "conformance/go-live-test-v0": [
@@ -1016,9 +1008,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "experimental/analyzers/sqlnative": [],
@@ -1166,9 +1156,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "internal/analyzerswift": [
@@ -1369,9 +1357,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "internal/docviews": [],
@@ -1549,9 +1535,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "internal/liveverify/rbmutate": [],
@@ -1779,9 +1763,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "internal/perfbudget/cmd/perf-budget": [
@@ -1973,9 +1955,7 @@
       "internal/untrackedallowance/",
       "internal/versionline/",
       "internal/webdialect/",
-      "internal/worklistadapter/",
       "internal/workqueue/",
-      "internal/worksource/",
       "internal/workspace/"
     ],
     "internal/tcq": [
@@ -2024,7 +2004,6 @@
     "internal/trace": [],
     "internal/tracerecordrepo": [],
     "internal/workqueue": [],
-    "internal/worksource": [],
     "internal/workspace": [],
     "protocol/integrations": [],
     "script/spec-coverage-audit": [],

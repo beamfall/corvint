@@ -70,9 +70,7 @@
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",
-        "internal/worklistadapter",
         "internal/workqueue",
-        "internal/worksource",
         "internal/workspace"
       ]
     },
