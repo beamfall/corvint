@@ -32,7 +32,7 @@ orchestrator sets its `requirementRefs`.
       accepted with no log entry fails.
 - [x] 2.8 Carry-over trace for PRS-V1-018 (c) and (d). Requirements: OSC-V1-010. Proof: traceability
       rows to SRG-V0-009, 010 and 012 and their existing tests.
-- [ ] 2.9 Make target, `doc-gates` and `focused-docs` wiring, baseline file, history refusal.
+- [x] 2.9 Make target, `doc-gates` and `focused-docs` wiring, baseline file, history refusal.
       Requirements: OSC-V1-011. Proof: a shallow-clone run refuses with `history-unavailable`.
 - [ ] 2.10 Make target `openspec-validate` with the pinned OpenSpec command version and telemetry
       off. Requirements: OSC-V1-012. Proof: the target passes on the repository, fails on a fixture
