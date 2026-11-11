@@ -251,7 +251,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   `{"operation", "state", "digest"}` per ledger-reading operation, in order, `digest` being
   `canonicalSHA256` (`receipt.go:600`) over `{"state", "records"}`, `records` a JSON array of the
   `tracerecordrepo.Read` result's `trace.Record` values, sorted by `TraceID` (the record schema's
-  own unique key, `internal/trace/record.go:31-39`), each projected to exactly
+  own unique key, `internal/trace/record.go` (lines 31-39 at b55635262; the file was removed by change context-proven-only)), each projected to exactly
   `{schema_version, revision, trace_id, task, opened_paths, changed_paths, verification, outcome}`
   in that member order, a `nil` slice field normalized to an absent member rather than JSON `null`;
   an operation reading none (a

@@ -1,17 +1,9 @@
 package contextindex
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
-	"runtime"
-	"sort"
 	"strings"
 	"testing"
-	"time"
-	"unicode/utf8"
 )
 
 // roleFixtures is one source per extraction rule, keyed by path.
@@ -44,71 +36,6 @@ var roleFixtures = map[string]string{
 // under one opening `/*`.
 var roleQuadraticInput = "/*\n" + strings.Repeat("x */\nconst a\n", 5041)
 
-func roleGoldenLines() []byte {
-	paths := make([]string, 0, len(roleFixtures))
-	for name := range roleFixtures {
-		paths = append(paths, name)
-	}
-	sort.Strings(paths)
-	var out bytes.Buffer
-	for _, name := range paths {
-		summary, ok := extractRoleSummary(name, roleFixtures[name])
-		if !ok {
-			fmt.Fprintf(&out, "%s\t-\n", name)
-			continue
-		}
-		fmt.Fprintf(&out, "%s\t%d-%d\t%s\n", name, summary.start, summary.end, summary.text)
-	}
-	return out.Bytes()
-}
-
-func TestRoleSummaryExtractionIsCommentOnlyAndReproducible(t *testing.T) {
-	t.Run("TCP-V0-039", func(t *testing.T) {
-		first, second := roleGoldenLines(), roleGoldenLines()
-		if !bytes.Equal(first, second) {
-			t.Fatalf("two extractions differ:\n%s\n%s", first, second)
-		}
-		golden, err := os.ReadFile("testdata/role-summary-golden.tsv")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(first, golden) {
-			t.Fatalf("role summaries drifted from golden:\n%s", first)
-		}
-	})
-}
-
-func TestRoleSummaryBounds(t *testing.T) {
-	t.Run("TCP-V0-039", func(t *testing.T) {
-		summary, ok := extractRoleSummary("ts/cut.ts", roleFixtures["ts/cut.ts"])
-		if !ok || len(summary.text) != roleSummaryMaxBytes-1 || !strings.HasSuffix(summary.text, "abcd") || !utf8.ValidString(summary.text) {
-			t.Fatalf("summary = %q, %v", summary.text, ok)
-		}
-		late := strings.Repeat("\n", roleSummaryScanBytes) + "// Package late is past the scan bound.\npackage late\n"
-		if summary, ok := extractRoleSummary("late.go", late); ok {
-			t.Fatalf("read past the scan bound: %#v", summary)
-		}
-		scores := make([]float64, roleCandidateCap+10)
-		for source := range scores {
-			scores[source] = float64(source%3 + 1)
-		}
-		var before, after runtime.MemStats
-		runtime.GC()
-		runtime.ReadMemStats(&before)
-		started := time.Now()
-		_, ok = extractRoleSummary("go/quadratic.go", roleQuadraticInput)
-		elapsed := time.Since(started)
-		runtime.ReadMemStats(&after)
-		if allocated := after.TotalAlloc - before.TotalAlloc; ok || allocated > 16<<20 || elapsed > 100*time.Millisecond {
-			t.Fatalf("pathological input: ok=%v allocated=%d elapsed=%v", ok, allocated, elapsed)
-		}
-		candidates := roleCandidates(scores)
-		if len(candidates) != roleCandidateCap || scores[candidates[0]] != 3 || candidates[0] != 2 || candidates[1] != 5 {
-			t.Fatalf("candidates = %d, head %v", len(candidates), candidates[:2])
-		}
-	})
-}
-
 // roleFixtureIndex holds two sources whose bodies carry the task terms
 // once each; only ledger.go says so in its package doc comment, and
 // helpers.go's comment is attached to no declaration.
@@ -126,58 +53,4 @@ func roleFixtureIndex(t *testing.T) *Index {
 		t.Fatal(err)
 	}
 	return index
-}
-
-func TestContextRolesExplainAndNeverOutrankAuthority(t *testing.T) {
-	for _, id := range []string{"TCP-V0-040", "TCP-V0-041"} {
-		t.Run(id, func(t *testing.T) {
-			t.Setenv("CORVINT_CONTEXT_ROLES", "on")
-			index := roleFixtureIndex(t)
-			packet, err := TaskContext(context.Background(), index, "where does the store append ledger entries? appends", "", 20)
-			if err != nil {
-				t.Fatal(err)
-			}
-			results := mapsFromAny(packet["results"])
-			if len(results) < 3 || results[0]["id"] != "AGENTS.md" || results[1]["id"] != "store/ledger.go" {
-				t.Fatalf("order = %#v", results)
-			}
-			row := results[1]
-			entry := mapsFromAny(row["evidence"])[0]
-			if row["kind"] != "lexical" || row["score"].(int) >= results[0]["score"].(int) || entry["authority"] != "vocabulary" {
-				t.Fatalf("role row outranks authority: %#v", row)
-			}
-			want := "role: \"Package store appends ledger entries.\" (store/ledger.go:1-1) matches `appends`, `entries`, `ledger`, `store`; "
-			if reason := entry["reason"].(string); !strings.HasPrefix(reason, want) {
-				t.Fatalf("reason = %q", reason)
-			}
-			other := mapsFromAny(results[2]["evidence"])[0]["reason"].(string)
-			if strings.Contains(other, "role: ") {
-				t.Fatalf("row without a role line carries one: %q", other)
-			}
-		})
-	}
-}
-
-func TestContextRolesDefaultBytes(t *testing.T) {
-	t.Run("TCP-V0-040", func(t *testing.T) {
-		index := recipeFixtureIndex(t)
-		golden, err := os.ReadFile("testdata/context-recipe-default-golden.json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, flag := range []string{"", "off", "unknown"} {
-			t.Setenv("CORVINT_CONTEXT_ROLES", flag)
-			if compiler := newTaskContextCompiler(index, "ledger", ""); compiler.roles {
-				t.Fatalf("flag %q enabled roles", flag)
-			}
-			packet := recipePacket(t, index, "", recipeFixtureTask)
-			encoded, err := json.MarshalIndent(packet, "", "  ")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(append(encoded, '\n'), golden) {
-				t.Fatalf("flag %q changed golden packet bytes", flag)
-			}
-		}
-	})
 }

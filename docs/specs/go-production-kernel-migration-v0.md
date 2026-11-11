@@ -1593,7 +1593,7 @@ is one name, so one matching code line is one pair and one evidence item for `ki
 - `GPK-V0-061`: (accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply to
   learned-trace reads. Any dirty path, untracked ones included, MUST keep
   `learning.local_trace_state: "blocked-mixed-worktree"` under `GPK-V0-044` and MUST NOT read the
-  trace store (`internal/tracerecordrepo/read.go:82`). Trace records name opened and changed paths
+  trace store (`internal/tracerecordrepo/read.go` (line 82 at b55635262; the file was removed by change context-proven-only)). Trace records name opened and changed paths
   across historical revisions, so disjointness cannot be proven without the read this state forbids. A tree-bounded
   variant is declined (decision 0171): its replay window is named by that read or by the full
   bounded ancestry, and its binding would diverge from the Python-oracle query packet.

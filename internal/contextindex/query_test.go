@@ -7,68 +7,6 @@ import (
 
 const queryTaskFixture = "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
 
-func TestQueryIntentUsesEvalQueryNormalization(t *testing.T) {
-	for _, test := range []struct {
-		text, want string
-	}{
-		{strings.ToUpper(queryTaskFixture), "project-operations"},
-		{"  ROADMAP\u2003WORK QUEUE  ", "project-operations"},
-		{"CORVINT\u2003AGENT\u2003CONTEXT\u2003ROADMAP", "agent-tooling"},
-		{"fix token parser", "repository"},
-	} {
-		if got := QueryIntent(test.text); got != test.want {
-			t.Fatalf("QueryIntent(%q)=%q want=%q", test.text, got, test.want)
-		}
-		if got := evalInferIntent(test.text).id; got != test.want {
-			t.Fatalf("evalInferIntent(%q)=%q want=%q", test.text, got, test.want)
-		}
-	}
-}
-
-func TestTCPV0008NestedInstructionEligibilityIsShared(t *testing.T) {
-	for _, candidate := range []string{
-		".github/workflows/AGENTS.md",
-		"docs/agent-workflows/CLAUDE.md",
-		"docs/plans/AGENTS.md",
-		"script/GEMINI.md",
-	} {
-		if documentKind(candidate) != "instructions" {
-			t.Fatalf("%s is no longer classified as instructions", candidate)
-		}
-		if projectOperationPath(candidate) {
-			t.Errorf("project operations admitted nested instruction path %s", candidate)
-		}
-		if _, eligible := instructionRank(candidate); eligible {
-			t.Errorf("governing rank admitted nested instruction path %s", candidate)
-		}
-	}
-	for _, candidate := range []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"} {
-		if !projectOperationPath(candidate) {
-			t.Errorf("project operations rejected existing root instruction path %s", candidate)
-		}
-		if _, eligible := instructionRank(candidate); !eligible {
-			t.Errorf("governing rank rejected existing root instruction path %s", candidate)
-		}
-	}
-	for _, candidate := range []string{
-		"copilot-instructions.md",
-		".github/copilot-instructions.md",
-		".github/instructions/review.instructions.md",
-	} {
-		if projectOperationPath(candidate) {
-			t.Errorf("project operations newly admitted instruction path %s", candidate)
-		}
-		if _, eligible := instructionRank(candidate); !eligible {
-			t.Errorf("governing rank rejected its existing instruction path %s", candidate)
-		}
-	}
-	for _, candidate := range []string{"Makefile", ".github/workflows/test.yml", "docs/plans/release.md", "script/check.sh"} {
-		if !projectOperationPath(candidate) {
-			t.Errorf("project operations rejected non-instruction path %s", candidate)
-		}
-	}
-}
-
 func authorityRepository(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

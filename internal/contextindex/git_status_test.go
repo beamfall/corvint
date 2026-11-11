@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
 	"path/filepath"
 	"slices"
@@ -14,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestStandaloneBuildRejectsExecutableGitFilters(t *testing.T) {

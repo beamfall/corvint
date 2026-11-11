@@ -2,7 +2,6 @@ package contextindex
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,56 +44,4 @@ func packBenchIndex(b *testing.B) (*Index, SnapshotReceipt, repositoryIdentity) 
 		b.Fatal(err)
 	}
 	return index, receipt, repositoryIdentity{objectFormat: index.ObjectFormat, commitRevision: index.CommitRevision, treeRevision: index.Revision}
-}
-
-func benchmarkHit(b *testing.B, open func() (*Index, error)) {
-	b.Helper()
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
-		index, err := open()
-		if err != nil {
-			b.Fatal(err)
-		}
-		packet, err := TaskContext(context.Background(), index, "snapshot demux split", "", 20)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if _, err := json.Marshal(packet); err != nil {
-			b.Fatal(err)
-		}
-		index.Release()
-	}
-}
-
-// BenchmarkPackFirstReadOpenRankEmit is BenchmarkPackOpenRankEmit for a
-// process's first read of the pack: retention is reset before every open, so
-// each iteration maps the file and decodes it from scratch, as one CLI
-// invocation does (V1-0983).
-func BenchmarkPackFirstReadOpenRankEmit(b *testing.B) {
-	_, receipt, identity := packBenchIndex(b)
-	b.Cleanup(resetPackRetention)
-	benchmarkHit(b, func() (*Index, error) {
-		resetPackRetention()
-		return readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), loadContext)
-	})
-}
-
-func BenchmarkPackOpenRankEmit(b *testing.B) {
-	_, receipt, identity := packBenchIndex(b)
-	benchmarkHit(b, func() (*Index, error) {
-		return readPackSnapshot(receipt.PackPath, identity, analyzerEngine(), loadContext)
-	})
-}
-
-func BenchmarkGobOpenRankEmit(b *testing.B) {
-	_, receipt, identity := packBenchIndex(b)
-	benchmarkHit(b, func() (*Index, error) {
-		file, err := os.Open(receipt.Path)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-		return decodeSnapshot(file, identity, receipt.Engine)
-	})
 }

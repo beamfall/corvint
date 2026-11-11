@@ -13,7 +13,7 @@ Build tasks in order, one commit each. Each names its requirement IDs and its pr
       Proof: focused `cmd/corvint` and `internal/pathbrief` tests.
 - [x] 3 Delete the context bench layer and its inventory rows (RBD-V0, CWT-V0, HNE-V0, CEP-V0,
       TRJ-V0 retired). Proof: build, vet, line-citation inventories consistent.
-- [ ] 4 Delete the ranking code and the trace packages that no KEEP user reaches (CRK-V0, LTA-V0,
+- [x] 4 Delete the ranking code and the trace packages that no KEEP user reaches (CRK-V0, LTA-V0,
       URE-V0 retired). Proof: build, vet, focused `internal/contextindex` tests.
 - [ ] 5 Mark the retired specs, regenerate the spec index, amend the modified specs and write the
       build-log entry. Proof: `make spec-requirements` with no diff after, the line-citations

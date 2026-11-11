@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -118,19 +117,6 @@ func (postings *windowPostings) keyCount() int { return len(postings.KeyOffsets)
 
 func (postings *windowPostings) key(index int) string {
 	return postings.KeyBytes[postings.KeyOffsets[index]:postings.KeyOffsets[index+1]]
-}
-
-// find returns the byte range of key's deltas in Data, or false.
-func (postings *windowPostings) find(key string) (int, int, bool) {
-	count := postings.keyCount()
-	if count <= 0 {
-		return 0, 0, false
-	}
-	index := sort.Search(count, func(candidate int) bool { return postings.key(candidate) >= key })
-	if index == count || postings.key(index) != key {
-		return 0, 0, false
-	}
-	return int(postings.Offsets[index]), int(postings.Offsets[index+1]), true
 }
 
 // walk visits the symbol positions of one list in ascending order, and
@@ -307,36 +293,4 @@ func (index *Index) buildSymbolWindows() windowPostings {
 	}
 	pending.Wait()
 	return compressWindows(mergePostingBuilders(builders, false))
-}
-
-// evalScannedContextWindow makes evalPrepareSymbols scan the windows even when
-// the snapshot carries SymbolWindows. Nothing in the product sets it; the
-// receipt parity test flips it so one binary can emit the same receipt both
-// ways and compare them.
-var evalScannedContextWindow = false
-
-// symbolWindowTerms is keepSetTerms(symbolContextText, queryTerms) for every
-// symbol at once, read out of SymbolWindows: one posting walk per query term
-// instead of one tokenisation per symbol. A symbol no query term reaches keeps
-// a nil set, which every reader treats as empty. It is nil when the index
-// carries no table, and evalSymbolChunk scans the windows instead.
-func (index *Index) symbolWindowTerms(queryTerms map[string]struct{}) []map[string]struct{} {
-	if evalScannedContextWindow || index.Vocabulary == nil || index.Vocabulary.SymbolWindows.keyCount() < 0 {
-		return nil
-	}
-	table := &index.Vocabulary.SymbolWindows
-	contexts := make([]map[string]struct{}, len(index.Symbols))
-	for term := range queryTerms {
-		low, high, ok := table.find(term)
-		if !ok {
-			continue
-		}
-		table.walk(low, high, func(position uint32) {
-			if contexts[position] == nil {
-				contexts[position] = make(map[string]struct{})
-			}
-			contexts[position][term] = struct{}{}
-		})
-	}
-	return contexts
 }
