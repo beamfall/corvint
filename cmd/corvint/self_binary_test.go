@@ -165,7 +165,7 @@ func TestSelfBinaryStaleIsReportedByAffectedAndTest(t *testing.T) {
 		t.Fatalf("a fresh binary reported a degradation: exit %d %v %s", code, receipt["degradations"], stderr)
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
-	for _, options := range [][]string{nil, {"--full"}} {
+	for _, options := range [][]string{{"--accept-stale-binary"}, {"--full", "--accept-stale-binary"}} {
 		receipt, _, stderr, code = runAffectedCLI(t, root, options...)
 		degradations, _ := receipt["degradations"].([]any)
 		if code != 0 || len(degradations) != 1 || degradations[0] != selfBinaryStaleCode {
@@ -176,16 +176,16 @@ func TestSelfBinaryStaleIsReportedByAffectedAndTest(t *testing.T) {
 		}
 	}
 	// AFP-V0-990 (V1-3648 review): --by-path keeps the degradation in both formats.
-	byPath, _, stderr, code := runAffectedCLI(t, root, "--by-path", "--path", "self.go")
+	byPath, _, stderr, code := runAffectedCLI(t, root, "--by-path", "--path", "self.go", "--accept-stale-binary")
 	if degradations, _ := byPath["degradations"].([]any); code != 0 || len(degradations) != 1 || degradations[0] != selfBinaryStaleCode || !strings.Contains(stderr, "corvint: DEGRADED self-binary-stale") {
 		t.Fatalf("--by-path: degradations %v, exit %d: %s", byPath["degradations"], code, stderr)
 	}
 	var text, textStderr bytes.Buffer
-	if code := runContext(context.Background(), []string{"--root", root, "affected", "--by-path", "--path", "self.go", "--format", "text"}, strings.NewReader(""), &text, &textStderr); code != 0 || !strings.Contains(text.String(), "\ndegraded self-binary-stale\n") {
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--by-path", "--path", "self.go", "--format", "text", "--accept-stale-binary"}, strings.NewReader(""), &text, &textStderr); code != 0 || !strings.Contains(text.String(), "\ndegraded self-binary-stale\n") {
 		t.Fatalf("--by-path text: exit %d\n%s%s", code, text.String(), textStderr.String())
 	}
 	var stdout, testStderr bytes.Buffer
-	runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &stdout, &testStderr)
+	runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, strings.NewReader(""), &stdout, &testStderr)
 	if !strings.Contains(testStderr.String(), "corvint-test: DEGRADED self-binary-stale: ") {
 		t.Fatalf("corvint test does not name the degradation: %s", testStderr.String())
 	}

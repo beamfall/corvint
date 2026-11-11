@@ -19,7 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/repopath"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -248,7 +248,7 @@ func BuildExtractorInventory(ctx context.Context, input ExtractorInput) ([]byte,
 		return nil, fail("--profile-sha256 must be 64 lowercase hexadecimal digits")
 	case caller && (!filepath.IsAbs(input.Profile) || filepath.Clean(input.Profile) != input.Profile):
 		return nil, fail("a caller-owned extractor profile must be a clean absolute path outside the repository")
-	case !caller && !affected.ValidRelativePath(input.Profile):
+	case !caller && !repopath.Valid(input.Profile):
 		message := "extractor profile is not a canonical repository-relative path"
 		if filepath.IsAbs(input.Profile) {
 			message += "; a caller-owned profile outside the repository also needs --profile-sha256"
@@ -537,7 +537,7 @@ func extractorGlob(pattern string) bool { return strings.ContainsAny(pattern, "*
 // patterns or a whole `**` segment.
 func extractorFilePattern(pattern string) bool {
 	if !extractorGlob(pattern) {
-		return affected.ValidRelativePath(pattern)
+		return repopath.Valid(pattern)
 	}
 	if len(pattern) > 1024 || strings.HasPrefix(pattern, "/") || strings.ContainsAny(pattern, "\\\x00\r\n\t") {
 		return false
@@ -640,7 +640,7 @@ func extractorPaths(ctx context.Context, auth *gitauth.Repository, revision stri
 // grow with directory depth, not directory count (DCX-V1-520), pruning every directory below
 // which no glob can match (DCX-V1-521) within the entry and tree-byte bounds (DCX-V1-522).
 func extractorTree(ctx context.Context, auth *gitauth.Repository, revision string, globs [][]string) ([]string, error) {
-	names, err := auth.RevisionPaths(ctx, revision, affected.MaxWalkEntries, func(dir string) bool {
+	names, err := auth.RevisionPaths(ctx, revision, repopath.MaxWalkEntries, func(dir string) bool {
 		if path.Base(dir) == "node_modules" {
 			return false
 		}

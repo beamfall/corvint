@@ -14,6 +14,25 @@
 - The join of flows with results lives in the tests layer, which imports `internal/appflows`, never
   the reverse (owner answer 14).
 
+## Decisions made while building
+
+Builder decisions (2026-11-10), recorded while merging `claude/layers-integ`; checked against
+`internal/appflows/status.go`, `query.go` and `unlinked.go`. They are not owner decisions and stand
+until the owner amends them.
+
+- `corvint flows status` writes profile `application-flow-status/0` (AFU-V1-160 to AFU-V1-165):
+  each flow, its variations, the tests attached to each and each test's last recorded result.
+  - Bounds: at most 8192 test rows (`MaxStatusTests`); later rows are dropped in report order with
+    `truncated: true`, and `totals` still counts every flow, variation and test. With a base, the
+    report holds exactly the flows `flows impact` names, with its impact graph and scope.
+  - Last-result rule: the last record, in evidence order, bound to the evaluated commit and tree
+    from a clean worktree; else the last record of any other tree, with `stale: true` and its
+    `source_commit`; `STATIC` records never count; with no record the result is `NOT_OBSERVED`.
+- `application-flow-gaps/1` keeps its name; its inventory members are additive. `inventory.state`
+  is one of `absent`, `complete`, `partial`, `stale` or `unverified`; an absent inventory lists no
+  unlinked test and is never a complete answer. A flow's own `status` stays `complete` or
+  `incomplete`.
+
 ## Failure modes
 
 - No result source given and no default receipt: every result is `NOT_OBSERVED`, exit 0, with the

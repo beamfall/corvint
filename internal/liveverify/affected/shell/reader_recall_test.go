@@ -16,15 +16,23 @@ func TestShellDerivedGlobReaders_AFPV03333(t *testing.T) {
 	}{
 		{"review_example", `for f in "$ROOT"/script/*_test.sh; do cat "${f%_test.sh}.tsv"; done`},
 		{"replace_suffix", `for f in "$ROOT"/script/*_test.sh; do cat "${f/_test.sh/.tsv}"; done`},
+		{"literal_root", `for f in script/*_test.sh; do cat "${f%_test.sh}.tsv"; done`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			write(t, root, "script/foo_test.sh", "true\n")
 			write(t, root, "script/foo.tsv", "input\n")
 			write(t, root, "reader_test.sh", tc.command+"\n")
-			plan := affected.Select(build(t, root), []string{"script/foo.tsv"})
+			// A helper keeps its glob and conservative tokens only: the
+			// directory fragment is named in tests (AFP-V0-9129).
+			write(t, root, "lib/helper.sh", tc.command+"\n")
+			graph := build(t, root)
+			plan := affected.Select(graph, []string{"script/foo.tsv"})
 			if !slices.Contains(plan.SelectedTests(), "reader_test.sh") {
 				t.Fatalf("derived read lost: selected=%v, command=%s", plan.SelectedTests(), tc.command)
+			}
+			if unit, ok := graph.Unit("shell:lib/helper.sh"); tc.name == "literal_root" && (!ok || slices.Contains(unit.PathTokens, "/script/")) {
+				t.Fatalf("helper tokens %v; want no /script/ fragment on a helper", unit.PathTokens)
 			}
 		})
 	}

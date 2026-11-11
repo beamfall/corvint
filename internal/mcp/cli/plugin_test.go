@@ -15,7 +15,7 @@ import (
 func TestMCPV0951ServerInfoCarriesTheBuildVersion(t *testing.T) {
 	stamped := "1.0.0-rc.3 (build 774, commit " + strings.Repeat("a", 40) + ")"
 	var stdout, stderr bytes.Buffer
-	if exit := runVersioned(context.Background(), stamped, []string{"--version"}, bytes.NewReader(nil), &stdout, &stderr); exit != 0 || stdout.String() != "corvint-mcp "+stamped+"\n" {
+	if exit := runVersioned(context.Background(), stamped, []string{"--version"}, bytes.NewReader(nil), &stdout, &stderr, Hooks{}); exit != 0 || stdout.String() != "corvint-mcp "+stamped+"\n" {
 		t.Fatalf("--version exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 	root := filepath.Clean(t.TempDir())
@@ -23,7 +23,7 @@ func TestMCPV0951ServerInfoCarriesTheBuildVersion(t *testing.T) {
 	input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}` + "\n"
 	for _, version := range []string{stamped, serverVersion} {
 		stdout.Reset()
-		if exit := runVersioned(context.Background(), version, []string{"--root", root, "--protocol-version", "2025-11-25"}, strings.NewReader(input), &stdout, &stderr); exit != 0 {
+		if exit := runVersioned(context.Background(), version, []string{"--root", root, "--protocol-version", "2025-11-25"}, strings.NewReader(input), &stdout, &stderr, Hooks{}); exit != 0 {
 			t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
 		}
 		if !strings.Contains(stdout.String(), `"serverInfo":{"description":"Local read-only Corvint context and repository evidence server.","name":"corvint-mcp","version":"`+version+`"}`) {

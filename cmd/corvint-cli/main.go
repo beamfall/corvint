@@ -21,7 +21,7 @@ Native execution is limited to short CLI operations (30 seconds, 1 MiB per outpu
 protocol/server entrypoints support discovery only. Use their native binary for protocol traffic.`
 
 func main() {
-	if code, handled := cliapp.Answer("corvint-cli", os.Args[1:], os.Stdout, os.Stderr); handled {
+	if code, handled := cliapp.AnswerStamped("corvint-cli", build, sourceCommit, os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)

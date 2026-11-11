@@ -691,8 +691,10 @@ every gap above the threshold with the time the watchdog would have flagged it.
   instead of repeating the command, which would land them twice.
 - The installed `corvint` matches fetched origin/main and the lane base (ASD-V0-755..757,
   ASD-V0-2203, V1-3761, V1-4044). A stale one
-  reports `DEGRADED self-binary-stale` and can widen or skew `corvint affected` and `corvint test`
-  evidence. Before creating a lane, `lane-setup.sh` checks the host against origin/main and refuses
+  is refused by `corvint affected` and `corvint test` (exit 2, `self-binary-stale`, a `fix:` line;
+  AFP-V0-9730, V1-4968), because its selection can be narrower than the checkout's own build gives;
+  `--accept-stale-binary` keeps the old `DEGRADED self-binary-stale` plan for a deliberate replay.
+  Rebuild with `go install ./cmd/corvint` or run `go run ./cmd/corvint ...`. Before creating a lane, `lane-setup.sh` checks the host against origin/main and refuses
   on a stale tool. It also ends with `script/lane-binary-check.sh <lane>`, which prints `FRESH`,
   `STALE` or `UNVERIFIED` with the installed and expected builds and commits, and exits 1 on a stale
   binary (the lane is still created). After a merge, rebuild a lane host's binary with
@@ -1159,8 +1161,10 @@ One lane runs this flow, in order; each step names the command and the section t
    digest Claims before staging a spec, including new files (`LVT-V0-010`).
 3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
-   a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
-   line means that package runs whole.
+   a changed requirement ID, and the tests a `_test.go` edit touches, as `-run` patterns per
+   package (ASD-V0-1025, V1-3892; ASD-V0-3832, V1-5007); a `whole:` line means that package runs
+   whole, including `reason=source-edit FILE` for a changed non-test `.go` file, which heavy.sh
+   admits without `HEAVY_WHOLE_REASON` (ASD-V0-2478). Run these before committing.
    For an explicit unrelated-path control while edits are uncommitted, use
    `corvint affected --worktree --path PATH --format json` (DTL-V0-010). This asks about exactly
    PATH against the current graph; retain the actual dirty-range plan separately.

@@ -52,11 +52,11 @@ func main() {
 	streams := &clierror.Streams{Binary: "corvint-test-validity-mcp", Protocol: true, Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()
 
-	if code, handled := cliapp.Answer("corvint-test-validity-mcp", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+	if code, handled := cliapp.AnswerStamped("corvint-test-validity-mcp", build, sourceCommit, os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
 		os.Exit(streams.Status(code))
 	}
 
-	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], streams.Stdout()); handled { // CAP-V0-700
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Build: build, Commit: sourceCommit, Usage: usage}, os.Args[1:], streams.Stdout()); handled { // CAP-V0-700
 		os.Exit(streams.Status(code))
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
@@ -173,7 +173,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if name == bridge.ToolHelp { // MCPV0-103: reads only the binary, so no repository check applies.
 		return helpResult(ctx, name, raw)
 	}
-	return toolgroup.TestValidity{Registry: handler.registry}.Call(ctx, name, arguments)
+	return testvaliditybridge.Group{Registry: handler.registry}.Call(ctx, name, arguments)
 }
 
 // helpResult answers corvint.help through the shared bridge path (MCPV0-104).

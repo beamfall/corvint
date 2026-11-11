@@ -43,6 +43,15 @@ const (
 	// UnboundedRunsToolchain is the UnboundedReads reason of a shell test that
 	// runs a build or language toolchain as a command (NSA-V0-011).
 	UnboundedRunsToolchain = "shell:runs-toolchain"
+	// UnboundedTreeWalk is the UnboundedReads reason of a shell test that
+	// lists, walks or searches the tree from its working directory: `find`
+	// with no path or `.`, recursive `grep`, `rg`, `ag` or `ack` with no path
+	// or `.`, `du`, `tree` or `ls -R` likewise. What it reads changes with
+	// every added, deleted or edited file (AFP-V0-9134). A helper that walks
+	// the tree keeps its bounded relation: repository contracts hold helper
+	// sources bounded (V1-4283), and the test that runs it is selected by its
+	// own reads.
+	UnboundedTreeWalk = "shell:tree-walk"
 )
 
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
@@ -265,7 +274,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	}
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
-	toolchain, dynamic := false, false
+	toolchain, dynamic, treeWalk := false, false, false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	// computed links a run target or expands it as a computed name
 	// (TSP-V0-960). An expansion the value bound cut short may drop a script
@@ -318,6 +327,9 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
 		}
+		if walksTree(word, args) {
+			treeWalk = true
+		}
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
@@ -337,9 +349,14 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		// any dirty path, and so is every unit that sources a helper doing it.
 		unit.UnboundedReads = UnboundedDynamicSource
 		unit.LocatesRoot = !test
+	case test && treeWalk:
+		// A walk from the working directory reads a set no token names: a
+		// file added or deleted anywhere changes a listing, and an edit
+		// anywhere changes a search (AFP-V0-9134).
+		unit.UnboundedReads = UnboundedTreeWalk
 	}
 	unit.PlacesFileNames = placesFileNames(commands, len(parsed.commands), resolve.placement(test && !strings.HasSuffix(relative, ".bats")))
-	tokens, globs := pathTokens(parsed, tempRoots(resolve, parsed, text))
+	tokens, globs := pathTokens(parsed, tempRoots(resolve, parsed, text), test)
 	unit.PathGlobs = sortedKeys(globs)
 	if len(tokens)+len(globs) > maxPathTokens {
 		unit.PathGlobs = nil
@@ -348,6 +365,117 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 		unit.PathTokens = sortedKeys(tokens)
 	}
 	return unit, names, dynamic
+}
+
+// walkerPaths returns the path operands of a listing or walking command, by
+// name: for find the words before its first expression word, for grep the
+// operands after its pattern unless -e, -f or their long forms supply it, for
+// rg, ag and ack the operands after the pattern, and for ls, du and tree every
+// non-option word. recursive reports a command that reads below its paths:
+// every one but ls without -R. ok is false for any other command, and for
+// grep without a recursive option, which reads its operands as files
+// (AFP-V0-9133, AFP-V0-9134).
+func walkerPaths(word string, args []string) (paths []string, recursive, ok bool) {
+	var operands []string
+	var options []string
+	ended := false
+	for _, arg := range args {
+		value := unquote(arg)
+		switch {
+		case ended || !walkerOption(arg):
+			operands = append(operands, value)
+		case value == "--":
+			ended = true
+		default:
+			options = append(options, value)
+		}
+	}
+	switch path.Base(word) {
+	case "find":
+		for _, arg := range args {
+			value := unquote(arg)
+			if strings.HasPrefix(value, "-") || value == "(" || value == "!" || value == "\\(" {
+				break
+			}
+			paths = append(paths, value)
+		}
+		return paths, true, true
+	case "grep", "egrep", "fgrep", "zgrep":
+		if !slices.ContainsFunc(options, grepOptions.matches) {
+			return nil, false, false
+		}
+		pattern := !slices.ContainsFunc(options, func(option string) bool {
+			return strings.HasPrefix(option, "-e") || strings.HasPrefix(option, "-f") || strings.HasPrefix(option, "--regexp") || strings.HasPrefix(option, "--file")
+		})
+		if pattern && len(operands) != 0 {
+			operands = operands[1:]
+		}
+		return operands, true, true
+	case "rg", "ag", "ack":
+		if len(operands) != 0 {
+			operands = operands[1:]
+		}
+		return operands, true, true
+	case "ls":
+		return operands, slices.ContainsFunc(options, recursiveFlags["ls"].matches), true
+	case "du", "tree":
+		return operands, true, true
+	}
+	return nil, false, false
+}
+
+// walkerOption reports an unquoted word spelled as an option: `-` followed by
+// option characters only. A quoted word, or one holding a space, is a pattern
+// or path even when it starts with `-` (`grep -Fq -- "- N-1 ..."`).
+func walkerOption(raw string) bool {
+	if !strings.HasPrefix(raw, "-") || raw == "-" {
+		return false
+	}
+	return strings.IndexFunc(raw[1:], func(c rune) bool {
+		return !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '=' || c == '_' || c == '.' || c == '/' || c == '*' || c == ',' || c == ':')
+	}) < 0
+}
+
+// walksTree reports a recursive listing, walking or searching command rooted
+// at the working directory: one with no path operand, or with `.` or `./`
+// among them (AFP-V0-9134). A command whose operands are all computed is not
+// reported: an unknown operand keeps the existing conservative relation, and
+// a private temporary root is no repository path. A plain `ls` of the working
+// directory reads one directory's names, not the tree, and is not reported.
+func walksTree(word string, args []string) bool {
+	paths, recursive, ok := walkerPaths(word, args)
+	if !ok || !recursive {
+		return false
+	}
+	if len(paths) == 0 {
+		return true
+	}
+	return slices.Contains(paths, ".") || slices.Contains(paths, "./")
+}
+
+// listedDirectories returns the bare directory names a listing or walking
+// command reads: a path operand made only of name characters, which has no
+// `/` or `.` to make it a path token of its own (AFP-V0-9133). `find dir`,
+// `ls dir` and recursive searches of `dir` are reported alike. The caller
+// names them for test units only.
+func listedDirectories(word string, args []string) []string {
+	paths, _, ok := walkerPaths(word, args)
+	if !ok {
+		return nil
+	}
+	var directories []string
+	for _, value := range paths {
+		if value == "" || strings.ContainsAny(value, "/.$`*?[{~\"'\\") {
+			continue
+		}
+		if strings.IndexFunc(value, func(c rune) bool {
+			return !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-')
+		}) >= 0 {
+			continue
+		}
+		directories = append(directories, value)
+	}
+	return directories
 }
 
 // recursiveReaders are the commands that read below a directory they are
@@ -1228,8 +1356,13 @@ func underTempRoot(value string, roots map[string]bool) bool {
 // pathTokens lists a file's AFP-V0-012 path tokens. A literal path that
 // follows the expansion of a temp root (tempRoots) names a file below a
 // directory the script created, never a repository path, so it adds no
-// token (AFP-V0-2204); a path with `..` after the root keeps its tokens.
-func pathTokens(parsed script, temp map[string]bool) (map[string]bool, map[string]bool) {
+// token (AFP-V0-2204); a path with `..` after the root keeps its tokens. test
+// marks a test unit, whose glob directories (AFP-V0-9129) and bare listed
+// directories (AFP-V0-9133) are named; a helper's are not, since a non-test
+// shell unit bears the foreign-invocation frontier on every unit that reaches
+// it, and a helper listing `internal` would turn every Go edit below it into
+// an unknown.
+func pathTokens(parsed script, temp map[string]bool, test bool) (map[string]bool, map[string]bool) {
 	tokens, globs := map[string]bool{}, map[string]bool{}
 	add := func(text string) {
 		if len(temp) != 0 {
@@ -1248,9 +1381,29 @@ func pathTokens(parsed script, temp map[string]bool) (map[string]bool, map[strin
 		}
 	}
 	for _, cmd := range parsed.commands {
+		// A bare directory operand of a listing command names the files
+		// below that directory, which an added or deleted file changes
+		// (AFP-V0-9133); the `/dir/` form matches the component at any
+		// depth, as the glob directory below does.
+		if test {
+			name, operands := commandWord(plainWords(cmd.words))
+			for _, directory := range listedDirectories(name, operands) {
+				tokens["/"+directory+"/"] = true
+			}
+		}
 		for _, word := range readWords(cmd.words) {
 			if glob, ok := literalPathGlob(word); ok && !tempRootedWord(word, temp) {
 				globs[glob] = true
+				// The matched names can feed a derived read of a sibling
+				// (`${f%_test.sh}.tsv`), so in a test the glob's literal
+				// directory names every file below it, at any depth, as the
+				// `/dir/` fragment left by a stripped root variable does. A
+				// bare `dir/` token would name only a file called dir
+				// (V1-0290) and lose that read (AFP-V0-9129). A helper keeps
+				// the glob alone, for the frontier reason given above.
+				if directory := globDirectory(glob); test && directory != "" {
+					tokens["/"+directory+"/"] = true
+				}
 			}
 			// Matched names can feed derived reads (for example, replacing
 			// _test.sh with .tsv), so the glob cannot replace broad tokens.
@@ -1261,6 +1414,19 @@ func pathTokens(parsed script, temp map[string]bool) (map[string]bool, map[strin
 		add(body)
 	}
 	return tokens, globs
+}
+
+// globDirectory returns the literal directory components of a literalPathGlob
+// value before its first wildcard component, or "" when the first component
+// holds the wildcard.
+func globDirectory(glob string) string {
+	parts := strings.Split(glob, "/")
+	for index, part := range parts {
+		if strings.Contains(part, "*") {
+			return strings.Join(parts[:index], "/")
+		}
+	}
+	return ""
 }
 
 // tempRootedWord reports a word that starts with an expansion of a private

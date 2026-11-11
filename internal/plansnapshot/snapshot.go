@@ -19,7 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/repopath"
 )
 
 const Schema = "corvint-planning-snapshot/0"
@@ -58,7 +58,7 @@ func (receipt Receipt) Valid() bool {
 	}
 	previous := ""
 	for _, path := range receipt.Paths {
-		if !affected.ValidRelativePath(path) || path <= previous {
+		if !repopath.Valid(path) || path <= previous {
 			return false
 		}
 		previous = path
@@ -131,7 +131,7 @@ func (receipt Receipt) validatedTree(ctx context.Context, root string) ([]string
 	if err != nil {
 		return nil, nil, err
 	}
-	paths, err := affected.DecodeNameList(body)
+	paths, err := repopath.DecodeNameList(body)
 	if err != nil || PathDigest(paths) != receipt.Digest {
 		return nil, nil, ErrInvalid
 	}
@@ -275,7 +275,7 @@ func (r *reader) treeEntries(ctx context.Context, tree string) ([]string, []stri
 		}
 		header, path, ok := strings.Cut(string(entry), "\t")
 		fields := strings.Fields(header)
-		if !ok || len(fields) != 3 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" || !objectID(fields[2]) || !affected.ValidRelativePath(path) {
+		if !ok || len(fields) != 3 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" || !objectID(fields[2]) || !repopath.Valid(path) {
 			return nil, nil, ErrInvalid
 		}
 		for _, part := range strings.Split(path, "/") {

@@ -643,7 +643,7 @@ var (
 	// adds are appended in the order rootHelp documents them.
 	topLevelCommands = []string{"init", "adopt", "feature", "impact", "cem", "context",
 		"affected", "index", "docs",
-		"test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "runs", "test", "tests", "mcp", "how"}
+		"test-evidence", "test-validity", "test-plan", "features", "overview", "review", "flows", "runs", "test", "tests", "watch", "mcp", "how"}
 )
 
 func emit(stream io.Writer, value any) error {
@@ -719,6 +719,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if code, handled := runDocsShim(ctx, arguments, stdin, stdout, stderr); handled {
 			return code
 		}
+		if code, handled := runFlowsShim(ctx, arguments, stdin, stdout, stderr); handled {
+			return code
+		}
 		if root, isIndex, indexErr := parseIndexInvocation(arguments); isIndex {
 			if indexErr != nil {
 				emitError(stderr, indexErr)
@@ -756,8 +759,8 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if root, rest, requested := testsInvocation(arguments); requested {
 			return runTests(ctx, root, rest, stdout, stderr)
 		}
-		if root, rest, requested := flowInvocation(arguments); requested {
-			return runFlows(ctx, root, rest, stdout, stderr)
+		if root, rest, requested := watchInvocation(arguments); requested {
+			return runWatch(ctx, root, rest, stdin, stdout, stderr)
 		}
 		if root, activation, rest, isActivation, activationErr := parseActivationInvocation(arguments); isActivation {
 			if activationErr != nil {

@@ -15,7 +15,63 @@ import (
 
 	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
+	"github.com/Beamfall/corvint/internal/workflowshell"
 )
+
+// workflowStep returns a command that runs SCRIPT, a fragment extracted from the workflow text,
+// under the shell the workflow declares for its run steps (CIN-V0-8426), so a pipeline stage that
+// fails in CI fails here too.
+func workflowStep(t *testing.T, workflow []byte, script string) *exec.Cmd {
+	t.Helper()
+	argv, err := workflowshell.Argv(workflow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return exec.Command(argv[0], append(argv[1:], "-c", script)...)
+}
+
+// TestCINV08425CIDeclaresPipefailShell_CINV08425: ci.yml declares `defaults.run.shell: bash` and
+// sets no step shell, so every step runs under bash with pipefail, and the extract-and-run tests
+// of this package derive that shell from the workflow rather than hard-coding it (V1-5092).
+func TestCINV08425CIDeclaresPipefailShell_CINV08425(t *testing.T) {
+	requireGitHubChange(t, ".github/workflows/ci.yml", "CIN-V0-8425")
+	workflow, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(workflow), "\ndefaults:\n  run:\n    shell: bash\n") {
+		t.Fatal("ci.yml does not declare defaults.run.shell: bash")
+	}
+	argv, err := workflowshell.Argv(workflow)
+	if err != nil || strings.Join(argv, " ") != "bash --noprofile --norc -eo pipefail" {
+		t.Fatalf("Argv = %q, %v", argv, err)
+	}
+	cmd := workflowStep(t, workflow, "false | true")
+	if err := cmd.Run(); err == nil {
+		t.Fatal("a failed pipeline stage passed under the workflow shell")
+	}
+	cmd = workflowStep(t, []byte("name: CI\n"), "false | true")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("GitHub's default shell has no pipefail, yet the fragment failed: %v", err)
+	}
+	// No test of this package hard-codes the shell any more.
+	entries, err := filepath.Glob("*_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range entries {
+		body, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The needle is assembled here so this file's own text never matches it.
+		for _, flag := range []string{`"-e"`, `"-eo"`} {
+			if strings.Contains(string(body), "exec.Command("+`"bash", `+flag) {
+				t.Fatalf("%s hard-codes the step shell; use workflowStep", name)
+			}
+		}
+	}
+}
 
 // narrowingRecord is one shard's corvint-pr-narrowing/0 record (narrow.jq) of run RUN.
 func narrowingRecord(shard int, mode, run string, executed, skipped []string) doc {
@@ -971,7 +1027,7 @@ func TestAFPV0098SupersetGuardFilter(t *testing.T) {
 		state := filepath.Join(dir, "state")
 		script := "packages=$PACKAGES\nslices=$SLICES\n" + filter +
 			"printf 'narrowed=%s\\npackages=%s\\nslices=%s\\n' \"$narrowed\" \"$packages\" \"$slices\" > \"$STATE\"\n"
-		cmd := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+		cmd := workflowStep(t, workflow, script)
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "GITHUB_EVENT_NAME=" + x.event, "NARROW_MODE=" + x.mode,
 			"NARROW_RECORDED=" + x.recorded, "RUNNER_TEMP=" + dir, "SHARD=3", "SHARDS=8", "GITHUB_RUN_ID=" + prRun,
 			"PACKAGES=" + packages, "SLICES=" + slices, "STATE=" + state}
@@ -1471,10 +1527,10 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 		if event == "merge_group" {
 			live = "success" // AFP-V0-2702: go-live runs only in the merge queue.
 		}
-		cmd := exec.Command("bash", "-e", "-o", "pipefail", "-c", guard)
+		cmd := workflowStep(t, workflow, guard)
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + dir, "GITHUB_RUN_ID=" + prRun, "GITHUB_RUN_ATTEMPT=2",
 			"GITHUB_EVENT_NAME=" + event, "BATCHED=false", "SHARDS_RESULT=success", "STATIC_RESULT=success", "SHELL_RESULT=" + shell,
-			"DOCS_RESULT=success", "HOST_RESULT=success", "LIVE_RESULT=" + live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
+			"DOCS_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=" + live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
 			"DOCS_MODE=" + docsMode, "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 		out, err := cmd.CombinedOutput()
 		return string(out), err
@@ -1561,10 +1617,10 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	// Unreadable markers fail closed with the same instruction.
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "ci-coverage", "ci-coverage-0", "coverage.json"), []byte("{not json"))
-	cmd := exec.Command("bash", "-e", "-o", "pipefail", "-c", guard)
+	cmd := workflowStep(t, workflow, guard)
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + dir, "GITHUB_RUN_ID=" + prRun, "GITHUB_RUN_ATTEMPT=1",
 		"GITHUB_EVENT_NAME=pull_request", "BATCHED=false", "SHARDS_RESULT=success", "STATIC_RESULT=success", "SHELL_RESULT=success",
-		"DOCS_RESULT=success", "HOST_RESULT=success", "LIVE_RESULT=skipped", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
+		"DOCS_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=skipped", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
 		"DOCS_MODE=FULL", "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "::error::AFP-V0-591: the shard coverage markers are unreadable. Re-run all jobs.") {
 		t.Fatalf("unreadable markers: err=%v output:\n%s", err, out)

@@ -1585,8 +1585,8 @@ sel=$tmp/selection
 mkdir -p "$sel/x" "$sel/y" "$sel/w" && printf 'module example.com/m\n\ngo 1.27\n' > "$sel/go.mod" &&
   git -C "$sel" init -q && git -C "$sel" -c user.name=t -c user.email=t@t commit -q --allow-empty -m s || fail "selection fixture setup failed"
 selhead=$(git -C "$sel" rev-parse HEAD)
-manifest() { # manifest HEAD > FILE
-  printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","source":{"head":"%s"},"units":[%s]}\n' "$1" \
+manifest() { # manifest HEAD [PRODUCER] > FILE; the producer defaults to HEAD (STR-V0-8301)
+  printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","producer":{"commit":"%s","commitState":"clean"},"source":{"head":"%s"},"units":[%s]}\n' "${2:-$1}" "$1" \
     '{"unit":"go:example.com/m/x","slice":"whole"},{"unit":"go:example.com/m/y","slice":"selected","flag":"-run","pattern":"^(TestA)$"},{"unit":"go:example.com/m/w","slice":"0/2","flag":"-run","pattern":"^(TestB)$"},{"unit":"go:example.com/m/w","slice":"1/2","flag":"-skip","pattern":"^(TestB)$"},{"unit":"go:example.com/m/v","slice":"0/2"},{"unit":"go:other.org/z","slice":"whole"}'
 }
 manifest "$selhead" > "$sel/m.json" && manifest 0000000000000000000000000000000000000000 > "$sel/old.json"
@@ -1691,6 +1691,41 @@ git -C "$sel" worktree add -q "$selwt" 2> /dev/null && mkdir -p "$selwt/x" && cp
   HEAVY_WHOLE_REASON= HEAVY_SELECTION=.git/sel.json "$heavy" go test -count=1 ./x) > /dev/null 2> "$sel/err" &&
   grep -Eq "^$stamp_re whole reason=corvint-selection:0123456789ab pwd=$selwt cmd=go test -count=1 \./x$tail_re" "$sel/sel.log" ||
   fail "heavy.sh did not resolve a linked worktree's .git/sel.json: $(cat "$sel/err")"
+# TSP-V0-8131 (V1-5011): --plan and admission refuse a manifest the current checkout cannot trust:
+# one a corvint built from an ancestor whose Go source differs wrote (stale), one from a commit
+# absent here (unverified), one without a producer (missing) and one planned for another HEAD;
+# each names its code and a fix: line. A manifest from HEAD, or from an ancestor that changed only a
+# test file, runs as before.
+selg() { git -C "$sel" -c user.name=t -c user.email=t@t "$@"; }
+printf 'package x\n' > "$sel/x/x.go" && selg add x/x.go && selg commit -q -m "source" || fail "TSP-V0-8131 source commit failed"
+selsrc=$(selg rev-parse HEAD)
+printf 'package x\n' > "$sel/x/x_test.go" && selg add x/x_test.go && selg commit -q -m "test only" || fail "TSP-V0-8131 test commit failed"
+selnow=$(selg rev-parse HEAD)
+manifest "$selnow" > "$sel/fresh.json"
+manifest "$selnow" "$selsrc" > "$sel/testonly.json"
+manifest "$selnow" "$selhead" > "$sel/stale.json"
+manifest "$selnow" 1111111111111111111111111111111111111111 > "$sel/unknown.json"
+sed 's/"producer":{[^}]*},//' "$sel/fresh.json" > "$sel/noproducer.json"
+manifest "$selsrc" "$selnow" > "$sel/otherhead.json"
+for c in fresh testonly; do
+  sv --plan "$sel/$c.json" > "$sel/plan" 2> "$sel/err" && grep -qx "heavy.sh: plan 4 units from $sel/$c.json (planDigest 0123456789ab)" "$sel/err" ||
+    fail "heavy.sh --plan refused a manifest from a current or descendant binary ($c): $(cat "$sel/err")"
+  HEAVY_SELECTION="$sel/$c.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err" ||
+    fail "heavy.sh did not admit a manifest from a current or descendant binary ($c): $(cat "$sel/err")"
+done
+for c in "stale|manifest-producer-stale|built from ${selhead:0:12}, and 1 Go source path(s) differ at HEAD ${selnow:0:12}: x/x.go" \
+  "unknown|manifest-producer-unverified|built from 111111111111, which is not HEAD or an ancestor of HEAD $selnow here" \
+  "noproducer|manifest-producer-missing|names no producer commit" \
+  "otherhead|manifest-head|source.head $selsrc is not HEAD $selnow (regenerate the manifest after this commit)"; do
+  IFS='|' read -r cm cc cw <<< "$c"
+  sv --plan "$sel/$cm.json" > "$sel/plan" 2> "$sel/err"
+  [[ $? == 2 && $(cat "$sel/plan") == "heavy.sh: REFUSED $cc (exit 2)" ]] && grep -qF "heavy.sh: REFUSE $cc " "$sel/err" && grep -qF "$cw" "$sel/err" &&
+    grep -q "^fix: .*--dry-run --manifest $sel/$cm.json\$" "$sel/err" ||
+    fail "heavy.sh --plan did not refuse $cm.json as $cc with a fix: line: $(cat "$sel/plan" "$sel/err")"
+  HEAVY_SELECTION="$sel/$cm.json" sv go test -count=1 ./x > /dev/null 2> "$sel/err"
+  [[ $? == 2 && $(grep -c 'not admitted' "$sel/err") == 1 ]] && grep -qF "not admitted: " "$sel/err" && grep -qF "$cw" "$sel/err" && grep -q '^fix: ' "$sel/err" ||
+    fail "heavy.sh admitted $cm.json or did not name $cc with a fix: line: $(cat "$sel/err")"
+done
 # ASD-V0-721 (V1-3845): go test -c only compiles, so it needs no reason; a -c of another command does not count.
 sv go test -c -o /dev/null ./x > /dev/null 2> "$sel/err" &&
   grep -Eq "^$stamp_re whole reason=compile-only pwd=.* cmd=go test -c -o /dev/null \./x$tail_re" "$sel/sel.log" ||

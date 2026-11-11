@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -345,7 +344,7 @@ func testGoSlice(root string, candidate testSliceCandidate, atBase map[string]te
 	}
 	slices.Sort(names)
 	pattern := "^(" + strings.Join(slices.Compact(names), "|") + ")$"
-	if len(pattern) > cishards.MaxPatternBytes {
+	if len(pattern) > sessiontest.MaxPatternBytes {
 		return sessiontest.GoSlice{Reason: "whole: the -run pattern exceeds the bound"}
 	}
 	paths := make([]string, 0, len(changedFiles))

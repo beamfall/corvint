@@ -1,6 +1,8 @@
 package affected
 
 import (
+	"github.com/Beamfall/corvint/internal/repopath"
+
 	json "encoding/json/v2"
 	"fmt"
 	"slices"
@@ -139,6 +141,12 @@ type Selection struct {
 	// Workflow and Job name a selected workflow job, left to CI.
 	Workflow string `json:"workflow,omitempty"`
 	Job      string `json:"job,omitempty"`
+	// Flows names, for a DECLARED_CONSUMER bound to flows, the bound flows
+	// the change reaches (AFU-V1-1651); omitted for every other selection.
+	Flows []string `json:"flows,omitempty"`
+	// TestKind is the declared test kind, unit, integration, e2e or UNKNOWN
+	// (APK-V0-002); present only when the repository declares its flows.
+	TestKind string `json:"testKind,omitempty"`
 }
 
 // Exclusion is a bounded certificate for one eligible unit the plan did not
@@ -222,6 +230,13 @@ type Plan struct {
 	// whatever reached it first, sorted by unit then pattern (AFP-V0-2489).
 	// It is omitted when no owner matches a dirty path.
 	DeclaredOwners []DeclaredOwner `json:"declaredOwners,omitempty"`
+	// E2EOmitted names each flow-bound declared consumer the plan leaves
+	// out, with the reviewed flow links that explain every changed path
+	// reaching its commands (AFU-V1-1653); omitted when none is left out.
+	E2EOmitted []E2EOmission `json:"e2eOmitted,omitempty"`
+	// E2E is the E2E test selection of a repository that declares its flows
+	// (APK-V0-001); omitted without the declaration.
+	E2E *E2EPlan `json:"e2e,omitempty"`
 }
 
 // FrontierBearer is one source that made the frontier entry Detail bear on a
@@ -336,12 +351,20 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, nonSource...)
 	plan.NonSource = append(plan.NonSource, owned...)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded, bearers, involved := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
+	// Each bearing OUTBOUND or PACKAGE_RUNNABLE entry selects its site units
+	// (frontierSiteClosure), which can reach further units and make further
+	// plugins take part, so the bearing frontier is recomputed to a fixed
+	// point (AZU-V0-003); every round reaches or follows a new unit, so the
+	// loop is bounded by the unit count.
+	frontier, excluded, bearers, involved, closable := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
+	for graph.frontierSiteClosure(closable, reached, carried, followed, normalized) {
+		frontier, excluded, bearers, involved, closable = graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, frontierNonSource)
+	}
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
-	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
+	plan.Unknown = append(plan.Unknown, graph.gatedLocatorsChanged(normalized)...)
 	if _, closed := graph.inboundRevisionPaths(normalized); !closed {
 		plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	}
@@ -608,6 +631,18 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	for _, path := range dirty {
 		id, owned := graph.owner[path]
 		if !owned {
+			if path == GatedRootLocatorsPath {
+				// TSP-V0-608: a bounded declaration edit seeds the packages
+				// whose entries changed; the path keeps its own
+				// classification below, and an unbounded edit its unknown.
+				if gated, closed := graph.gatedLocatorSeeds(); closed {
+					for seed, witness := range gated {
+						if _, already := seeds[seed]; !already {
+							seeds[seed] = witness
+						}
+					}
+				}
+			}
 			// A path inside a runnable unobserved directory also names that
 			// directory's own test root, whether or not a plugin claims it
 			// (AFP-V0-650); the observed side's selection is unchanged.
@@ -707,7 +742,7 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // instead retain the per-reason unowned-path proof (AZU-V0-9901). A unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection. It last returns, for each named
 // entry, the sources that made it bear (TSP-V0-942).
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string) {
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer, []string, []Unknown) {
 	reasons := make(map[string]bool)
 	sources := make(map[string][]FrontierBearer)
 	bear := func(source FrontierBearer) {
@@ -715,9 +750,30 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	}
 	involved, unowned, terminal := graph.participants(reached, carried, followed, dirty, nonSource)
 	participating := make(map[string]bool, len(involved))
+	// A participating plugin's entry whose every site lies in a hosted
+	// `testdata` directory the change neither touches nor reaches, and whose
+	// reason binds only the plugin's own paths or its runner configuration,
+	// is closed by the fixture's Go host instead of bearing (AZU-V0-211); a
+	// dirty resolution input of the plugin turns the rule off for it.
+	hosted := graph.hostedFixtures(reached, carried, followed, dirty)
+	fixtureClosed := make(map[string][]string)
+	hostedBy := make(map[string]map[string]bool)
 	for _, name := range involved {
 		participating[name] = true
+		steered := graph.steeredBy(name, dirty)
 		for _, reason := range graph.frontierBy[name] {
+			if !steered {
+				if verdict := graph.frontierEntryVerdict(name, reason, hosted, reached, followed, dirty, false); verdict.closed && verdict.fixture {
+					fixtureClosed[name] = append(fixtureClosed[name], reason)
+					if hostedBy[name] == nil {
+						hostedBy[name] = make(map[string]bool)
+					}
+					for _, host := range verdict.hosts {
+						hostedBy[name][host] = true
+					}
+					continue
+				}
+			}
 			reasons[reason] = true
 			bear(FrontierBearer{Detail: reason, Via: FrontierBearerParticipating, Language: name})
 		}
@@ -800,6 +856,9 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		}
 	}
 	unknown := make([]Unknown, 0, len(reasons))
+	// A plan with a dirty path no plugin owns stays UNKNOWN whatever the
+	// frontier says, so no selection can close an entry on it (AZU-V0-212).
+	var closable []Unknown
 	for _, reason := range sortedKeys(reasons) {
 		if id := graph.inboundRuntimeSite(reason); id != "" {
 			if _, selected := reached[id]; selected {
@@ -807,7 +866,22 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 				continue
 			}
 		}
-		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
+		// An OUTBOUND entry whose site units the plan selects with their
+		// dependents, and a PACKAGE_RUNNABLE entry whose runnable site units
+		// it selects, are discharged (AZU-V0-003, AZU-V0-008): the
+		// selections are what the hidden edge could reach.
+		name, _, _ := strings.Cut(reason, ":")
+		if closed, hint := graph.frontierSiteClosed(name, reason, hosted, reached, followed, dirty, len(unowned) == 0); closed {
+			delete(sources, reason)
+			continue
+		} else if hint != "" {
+			hints[reason] = strings.TrimPrefix(hints[reason]+"; "+hint, "; ")
+		}
+		entry := Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]}
+		unknown = append(unknown, entry)
+		if len(unowned) == 0 && slices.Contains(graph.frontierBy[name], reason) {
+			closable = append(closable, entry)
+		}
 	}
 	var excluded []FrontierExclusion
 	names := make([]string, 0, len(terminal))
@@ -835,7 +909,18 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		}
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: reason, Frontier: left, Units: units})
 	}
-	return unknown, excluded, frontierBearerList(sources), involved
+	for _, name := range sortedKeys(func() map[string]bool {
+		set := make(map[string]bool, len(fixtureClosed))
+		for name := range fixtureClosed {
+			set[name] = true
+		}
+		return set
+	}()) {
+		left := fixtureClosed[name]
+		sort.Strings(left)
+		excluded = append(excluded, FrontierExclusion{Language: name, Reason: HostedFixtureExclusionReason, Frontier: left, Units: sortedKeys(hostedBy[name])})
+	}
+	return unknown, excluded, frontierBearerList(sources), involved, closable
 }
 
 // frontierBearerList orders each entry's sources (by Via, Language, Unit,
@@ -1008,11 +1093,9 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 		// AFP-V0-560 argument covers only readers whose reads are bounded.
 		// One whose tests alone run a root-locating command reads nothing
 		// unbounded with its own code: it is terminal as a BINARY_EXEC
-		// runner is (AFP-V0-2991).
-		_, unbounded := graph.causes[id]
-		runner := graph.runnerOnly[id]
-		terminalSelection := terminalWitness(witness) || runner && witness.Kind == WitnessUnboundedReader
-		if (!unbounded || runner) && !carried[id] && !followed[id] && terminalSelection {
+		// runner is (AFP-V0-2991). terminalReach is the one statement of
+		// the rule, shared with the hosted-fixture rule (AZU-V0-211).
+		if graph.terminalReach(id, witness, carried, followed) {
 			terminal[name] = append(terminal[name], id)
 			continue
 		}
@@ -1179,6 +1262,26 @@ func (graph *Graph) readsResolutionInput(name string, unowned []string) bool {
 	return false
 }
 
+// steeredBy reports whether a dirty path the plugin's units do not own is a
+// resolution input of the plugin (FrontierReach.ResolutionInput): a manifest
+// or configuration whose change may rebind any site the plugin resolved, so
+// the hosted-fixture rule and the site closure keep every entry of the plugin
+// (AZU-V0-211). A path one of the plugin's units owns is source, not an
+// input, whatever its name; a plugin without the declaration is steered by
+// every dirty path it does not own.
+func (graph *Graph) steeredBy(name string, dirty []string) bool {
+	reach, declares := graph.claimants[name].(FrontierReach)
+	for _, path := range dirty {
+		if id, owned := graph.owner[path]; owned && strings.HasPrefix(id, name+":") {
+			continue
+		}
+		if !declares || reach.ResolutionInput(path) {
+			return true
+		}
+	}
+	return false
+}
+
 // listsBelowAny reports whether any unit of the named plugin lists a path
 // below one of the directories.
 func (graph *Graph) listsBelowAny(name string, directories []string) bool {
@@ -1198,13 +1301,16 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // terminalWitness reports whether a reached unit is a selection the traversal
 // does not continue from (AFP-V0-560): a literal or glob reader (AFP-V0-021,
 // AFP-V0-401), a declared read scope (AFP-V0-023), a binary-exec runner
-// (AFP-V0-037) or an import-graph reader (AFP-V0-2201). The caller still counts one that testlessReaderUsers traversed
+// (AFP-V0-037) or an import-graph reader (AFP-V0-2201), or a declared
+// runtime caller selected for its tests alone (FRONTIER_SITE, AZU-V0-210); a
+// frontier site whose dependents the plan walks (driverSites) is followed, so
+// the caller never counts it as terminal. The caller still counts one that testlessReaderUsers traversed
 // (AFP-V0-495). An unbounded reader is no terminal selection: the unbounded set
 // is the traversal closure of the root locators (unboundedReaders), so a hidden
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec, WitnessImportGraphReader, WitnessDeclaredTestOwner, WitnessFrontierSite:
 		return true
 	}
 	return false
@@ -1653,20 +1759,8 @@ func (graph *Graph) testRunnersOf(reached map[string]Witness, from map[string]bo
 }
 
 // NormalizePaths sorts and deduplicates a dirty path set and drops anything not
-// in canonical repository-relative form.
-func NormalizePaths(values []string) []string {
-	seen := make(map[string]bool, len(values))
-	normalized := make([]string, 0, len(values))
-	for _, value := range values {
-		if !ValidRelativePath(value) || seen[value] {
-			continue
-		}
-		seen[value] = true
-		normalized = append(normalized, value)
-	}
-	sort.Strings(normalized)
-	return normalized
-}
+// in canonical repository-relative form (repopath.Normalize).
+func NormalizePaths(values []string) []string { return repopath.Normalize(values) }
 
 // Canonical returns the deterministic JSON body of a plan. This is the receipt
 // payload an agent consumes and a digest may be taken over.

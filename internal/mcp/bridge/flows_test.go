@@ -100,6 +100,7 @@ func TestAFUV1034FlowsLeaveRepositoryBytesUnchanged(t *testing.T) {
 		ToolFlowsGaps:     `{"flows":"flows"}`,
 		ToolFlowsImpact:   `{"flows":"flows","base":"` + base + `"}`,
 		ToolFlowsNavigate: `{"flows":"flows"}`,
+		ToolFlowsStatus:   `{"flows":"flows"}`,
 	} {
 		if result, callErr := flowsCall(t, registry, tool, arguments); callErr != nil || result.State != "READY" {
 			t.Fatalf("%s: %#v %#v", tool, callErr, result)
@@ -154,6 +155,7 @@ func TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching(t *testing.T) {
 			{registry, ToolImpact, `{"paths":["internal/widget/widget.go"]}`}, {registry, ToolStatus, `{}`},
 			{registry, ToolFlowsMap, `{"flows":"flows"}`}, {registry, ToolFlowsGaps, `{"flows":"flows"}`},
 			{registry, ToolFlowsImpact, `{"flows":"flows","base":"` + base + `"}`}, {registry, ToolFlowsNavigate, `{"flows":"flows"}`},
+			{registry, ToolFlowsStatus, `{"flows":"flows"}`},
 		} {
 			_, callErr := call.registry.Call(context.Background(), call.tool, []byte(call.arguments))
 			if _, err := os.Stat(sentinel); !os.IsNotExist(err) {

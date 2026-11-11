@@ -12,6 +12,8 @@
 package analyzerrust
 
 import (
+	"github.com/Beamfall/corvint/internal/rustsyntax"
+
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
@@ -41,12 +43,12 @@ const (
 	MaxIdentifierBytes      = 128
 	MaxPathBytes            = 4096
 	MaxPathSegmentBytes     = 128
-	MaxSourceBytes          = 262_144
+	MaxSourceBytes          = rustsyntax.MaxSourceBytes
 	MaxManifestBytes        = 65_536
 	MaxManifestRows         = 8_192
-	MaxNestingDepth         = 64
-	MaxRawStringHashes      = 255
-	MaxSourceTokens         = 262_144
+	MaxNestingDepth         = rustsyntax.MaxNestingDepth
+	MaxRawStringHashes      = rustsyntax.MaxRawStringHashes
+	MaxSourceTokens         = rustsyntax.MaxSourceTokens
 )
 
 // inputPathSuffix pins each input family to the exact file identity it may

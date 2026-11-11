@@ -17,10 +17,7 @@ const (
 	MaxResults     = 256
 )
 
-type Repository struct {
-	ID       string `json:"id"`
-	Revision string `json:"revision"`
-}
+type Repository = lineanchor.Repository
 
 // AdditionalRepository is one further repository a manifest names explicitly (DCP-V1-175): its
 // root-commit identity, its one pinned revision and the local checkout holding its objects, as a

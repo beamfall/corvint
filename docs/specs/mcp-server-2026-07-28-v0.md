@@ -253,7 +253,8 @@ schema: "corvint-mcp-bridge-result/0"
 tool: "corvint.query" | "corvint.impact" | "corvint.status" | "corvint.help"
       (task-review profile only: | "corvint.context" | "corvint.cem.report")
       (flows profile only: | "corvint.flows.map" | "corvint.flows.gaps"
-                           | "corvint.flows.impact" | "corvint.flows.navigate")
+                           | "corvint.flows.impact" | "corvint.flows.navigate"
+                           | "corvint.flows.status" (AFU-V1-162, experimental))
 mutates: false
 state: "READY" | "ABSTAINED"
 epistemicClass: "OBSERVED" | "NOT_OBSERVED"
@@ -572,7 +573,8 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
 ### Flows tool profile (amendment by `AFU-V1-034`, `AFU-V1-035`)
 
 `--tool-profile flows` advertises the V0 tools of `MCPV0-008` (including `corvint.help`) plus `corvint.flows.map`, `corvint.flows.gaps`,
-`corvint.flows.impact` and `corvint.flows.navigate`, with the `MCPV0-007` read-only annotations. The
+`corvint.flows.impact`, `corvint.flows.navigate` and, experimentally, `corvint.flows.status`
+(AFU-V1-162), with the `MCPV0-007` read-only annotations. The
 requirements, bounds and refusals are the `AFU-V1` ones in
 `docs/specs/application-flow-understanding-v1.md`; this section records only the MCP surface. Each
 tool calls the same `internal/appflows` library as its `corvint flows` verb, reads the intents at
@@ -636,9 +638,9 @@ Each row cites the first emitting site and states only the condition checked the
 |---|---|---|
 | `invalid-registry` | `internal/mcp/bridge/bridge.go:319@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
 | `unsupported-tool` | `internal/mcp/bridge/bridge.go:328@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolHelp`, `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, the `ToolFlows*` tools under `flows`, or `ToolGraphImports` under `import-graph` (`NGI-V0-305`, `MCPV0-026`) |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:736@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:738@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
 | `corpus-capacity-exceeded` | `internal/doccorpus/capacity.go:17@20f32c9e` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
-| `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+| `flows-refused` | `internal/mcp/bridge/flows.go:317@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
 

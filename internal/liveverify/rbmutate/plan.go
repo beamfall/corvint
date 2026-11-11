@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Beamfall/corvint/internal/analyzerruby"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
+	"github.com/Beamfall/corvint/internal/rubysyntax"
 )
 
 // Operator names: the bounded Ruby set (FPK-V0-068). Each mutant is one
@@ -86,7 +86,7 @@ type site struct {
 // planMutations lists every candidate mutation inside lines (all lines when
 // lines is empty) in source order. ok is false when the source does not lex.
 func planMutations(source []byte, lines []mutate.LineSpan) ([]site, bool) {
-	masked, commentOffsets, ok := analyzerruby.MaskSource(source)
+	masked, commentOffsets, ok := rubysyntax.MaskSource(source)
 	if !ok || len(masked) != len(source) {
 		return nil, false
 	}

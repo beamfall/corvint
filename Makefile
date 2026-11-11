@@ -69,6 +69,7 @@ GATE_STEPS = \
   ci-least-privilege-test \
   codex-review-test \
   conflict-markers-check \
+  cutover-payloads-test \
   decision-numbers-check \
   decision-numbers-test \
   diagnostic-coverage-check \
@@ -105,6 +106,7 @@ GATE_STEPS = \
   no-python-runtime-dependency-test \
   pre-push-windows-vet-test \
   register-shell-test-test \
+  release-binaries-check \
   release-checklist-test \
   repin-test \
   requirement-definitions-check \
@@ -122,6 +124,7 @@ GATE_STEPS = \
   test-exec-writes-check \
   test-read-scopes-check \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
@@ -751,6 +754,31 @@ host-package-version-verify:
 release-checklist-test:
 	@script/release-checklist_test.sh
 
+# release-binaries-check validates tools/release-binary/binaries.json, the per-binary release
+# catalog (ARTIFACT-BIN-V0-001, V1-5236): every cmd/ executable classified once as product or
+# support, each entry citing its decision, version sets declared. It builds nothing.
+.PHONY: release-binaries-check
+release-binaries-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary check
+
+# release-binary builds one product binary for every release target from a clean HEAD into
+# RELEASE_OUT, with its archives, checksums and release entry (ARTIFACT-BIN-V0-002). It never
+# tags, publishes or opens a network connection. Example:
+#   make release-binary RELEASE_BINARY=corvint-docs RELEASE_VERSION=1.0.1 RELEASE_OUT=/tmp/rel
+# RELEASE_HOST_ONLY=1 builds only the host target for a local dry run.
+.PHONY: release-binary
+release-binary: go-version
+	@test -n "$(RELEASE_BINARY)" && test -n "$(RELEASE_VERSION)" && test -n "$(RELEASE_OUT)" || { echo "release-binary: pass RELEASE_BINARY=<name> RELEASE_VERSION=<X.Y.Z> RELEASE_OUT=<dir>" >&2; exit 2; }
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary build --binary "$(RELEASE_BINARY)" --version "$(RELEASE_VERSION)" --output "$(RELEASE_OUT)" $(if $(RELEASE_HOST_ONLY),--host-only)
+
+# release-manifest merges RELEASE_OUT's release entries over the previous release manifest in
+# RELEASE_BASE (optional) and refuses undeclared version skew (ARTIFACT-BIN-V0-003, -004).
+# RELEASE_DECLARE_SKEW="core=reason" records a knowing skew.
+.PHONY: release-manifest
+release-manifest: go-version
+	@test -n "$(RELEASE_OUT)" || { echo "release-manifest: pass RELEASE_OUT=<dir> [RELEASE_BASE=<release-manifest.json>] [RELEASE_DECLARE_SKEW=SET=REASON]" >&2; exit 2; }
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/release-binary manifest --output "$(RELEASE_OUT)" $(if $(RELEASE_BASE),--base "$(RELEASE_BASE)") $(if $(RELEASE_DECLARE_SKEW),--declare-skew "$(RELEASE_DECLARE_SKEW)")
+
 # no-python-runtime-dependency-test is the GOC-V0-008 falsifying assertion: no build, test, hook or
 # packaging path names a Python interpreter.
 .PHONY: no-python-runtime-dependency-test
@@ -1093,10 +1121,10 @@ DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the M
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
-# internal/liveverify/affected package (DCW-V0-812).
+# internal/liveverify/affected/liverepo package (DCW-V0-812, V1-5201).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(DOC_GATE_LIGHT_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected/liverepo
 
 # shell-test-register registers TEST=script/<name>_test.sh in its rule, GATE_STEPS and shell-test in one
 # command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
@@ -1292,11 +1320,19 @@ vscode-check-install-test:
 # the name the declaration .github/cishards/test-commands.json still uses for the TypeScript family;
 # it stays as an alias until that declaration names typescript-test.
 .PHONY: typescript-test
-typescript-test:
+typescript-test: interactive-alpha-test
 	test -d extensions/vscode/node_modules || npm --prefix extensions/vscode ci --ignore-scripts --no-audit --no-fund
 	npm --prefix extensions/vscode test
 .PHONY: host-adapter-test
 host-adapter-test: typescript-test
+
+# interactive-alpha-test runs the interactive-alpha process harness's own node:test suite, the one
+# node-test unit of that directory the affected graph selects (V1-5200). It needs node alone: the
+# browser cases skip without CORVINT_TEST_PLAYWRIGHT, and the installed proofs beside it are
+# release-host qualification, declared as binary consumers in .corvint/test-binary-consumers.json.
+.PHONY: interactive-alpha-test
+interactive-alpha-test: ## Run the interactive-alpha process harness tests (node:test)
+	node --test conformance/interactive-alpha/core-process.test.mjs
 
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
@@ -1343,6 +1379,7 @@ shell-test: \
   changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
+  cutover-payloads-test \
   decision-numbers-test \
   documentation-paths-test \
   dogfood-merge-base-test \
@@ -1375,6 +1412,7 @@ shell-test: \
   spec-requirements-test \
   stray-backups-test \
   test-run-pattern-test \
+  ticket-gate-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 
@@ -1481,3 +1519,11 @@ acceptance-plan-pin-check-test:
 .PHONY: agents-invariants-check-test
 agents-invariants-check-test:
 	@script/agents-invariants-check_test.sh
+
+.PHONY: ticket-gate-test
+ticket-gate-test:
+	@script/ticket-gate_test.sh
+
+.PHONY: cutover-payloads-test
+cutover-payloads-test:
+	@script/cutover-payloads_test.sh

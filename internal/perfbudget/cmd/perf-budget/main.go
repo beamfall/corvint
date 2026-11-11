@@ -68,6 +68,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return nil
 	})
 	recordFrom := flags.String("record-baseline-from", "", "record the baseline from REPORT, a report another run wrote with --out (PRB-V0-971)")
+	selfRoot := flags.String("self-root", "", "Corvint repository the watch-replan-self scenario measures over (default: the Git top level of the working directory; PRB-V0-1014)")
+	selfIndex := flags.String("self-index", "", "line index watch-replan-self plans against (default: a records-free index built for --self-root's HEAD)")
 	if flags.Parse(args) != nil || flags.NArg() != 0 {
 		return 2
 	}
@@ -131,13 +133,21 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return fail(err)
 	}
 	progress := func(line string) { fmt.Fprintln(stderr, "perf-budget:", line) }
+	// corvint-docs is built beside a built corvint: the fixture's corpus builds are served by it
+	// (decision 0594); a named --corvint brings its own neighbour or PATH.
+	docs := ""
+	if *corvint != "" {
+		docs = "named"
+	}
 	for _, b := range []struct {
 		path *string
 		pkg  string
-	}{{corvint, "./cmd/corvint"}} {
+	}{{corvint, "./cmd/corvint"}, {&docs, "./cmd/corvint-docs"}} {
 		if *b.path != "" {
-			if *b.path, err = filepath.Abs(*b.path); err != nil {
-				return fail(err)
+			if b.path == corvint {
+				if *b.path, err = filepath.Abs(*b.path); err != nil {
+					return fail(err)
+				}
 			}
 			continue
 		}
@@ -167,7 +177,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			revision += "+dirty"
 		}
 	}
-	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress, Selected: selected})
+	for _, p := range []*string{selfRoot, selfIndex} {
+		if *p != "" {
+			if *p, err = filepath.Abs(*p); err != nil {
+				return fail(err)
+			}
+		}
+	}
+	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress, Selected: selected, SelfRoot: *selfRoot, SelfIndex: *selfIndex})
 	if err != nil {
 		return fail(err)
 	}

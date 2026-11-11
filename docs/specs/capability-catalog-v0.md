@@ -222,12 +222,14 @@ cannot silently go missing or outlive its command.
   MUST read the code-declared subcommand tables of `cmd/corvint` and, since V1-4756, of each
   command package under `internal/command/` (`helpSubcommands`, a nested map whose values are
   literals or a top-level identifier such as `cemHelpActions`; `docsSubcommands` for `docs`;
-  `flowSubcommands` for `flows`, plus every `flowSubcommands["NAME"] = ...` registration in a
-  non-test file; `leaseActions` for `lease`) and
+  a flat table such as `flowSubcommands` for `flows`, plus every `flowSubcommands["NAME"] = ...`
+  registration in a non-test file, while one is tracked; `leaseActions` for `lease`) and
   report a `subcommand-undocumented` finding when a declared subcommand is not a word inside any
   backticked span of a catalog row for its verb. A verb without a row is left to the `missing`
   finding. A declared table that is no longer found is a check error (exit 2), so renaming a
-  table cannot silently disable the check.
+  table cannot silently disable the check. Since decision 0595 no `flows` table is tracked:
+  `corvint flows` is an exec-only shim, the `corvint-docs` tree snapshot catalogues the forwarded
+  subcommands (CMS-V0-912), and CAP-V0-960 still checks what `corvint` answers itself.
 - `CAP-V0-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2020) When the
   root help groups its verbs, a command row whose verb sits under the Experimental header MUST
   have maturity `experimental`; any other maturity is a `maturity` finding, in addition to the
@@ -241,7 +243,7 @@ cannot silently go missing or outlive its command.
 - `CAP-V0-960`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2422) The
   subcommands CAP-V0-007 checks MUST also include every two-word node path (`VERB SUB`) of the
   committed `internal/capcatalog/trees/corvint.json` command tree, so a subcommand dispatched
-  outside the declared tables (for example `flows coverage`) still needs its verb's row to name it.
+  outside the declared tables (for example `runs server-errors`) still needs its verb's row to name it.
   A missing or malformed `corvint` tree snapshot is a check error (exit 2).
 - `CAP-V0-961`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2422) For a
   command row whose verb has a node in that tree, each backticked span at parenthesis depth zero in
@@ -259,7 +261,7 @@ cannot silently go missing or outlive its command.
   the `topLevelCommands` dispatch list (every entry once, in dispatch order), the root help, each
   command's help topics (for `docs`, also its corpus, flows and maintain topics and every corpus
   operation topic) and the code-declared operation tables (`docsSubcommands`, `corpusOperations`,
-  `flowSubcommands`, `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
+  `leaseActions`, `helpSubcommands`). Per command it states purpose, maturity,
   owning spec or freeze contract, operations, nested operations, flags, required flags per usage
   form (`requiredFlags`: the options every `Usage:` line of that form names outside `[ ]` and
   `( )`, keyed by the command plus its operation words; a form with none is omitted; a lower
@@ -346,8 +348,9 @@ cannot silently go missing or outlive its command.
   discover-tests`), per-test coverage ingest (`flows ingest --coverage-artifact` then `flows
   ingest-coverage`), the subject-kind filter and claim hits of `docs corpus search` (`--kind`,
   `--include claims`), ranked claim search (`docs corpus claims --query`) and the delta worklist
-  stream (`docs corpus delta --format jsonl`). The CAP-V0-018 check keeps each against the live
-  catalog. The `flows ingest-coverage` example MUST pass `--test-key` with a key of the run
+  stream (`docs corpus delta --format jsonl`). The CAP-V0-018 check keeps each `corvint` line
+  against the live catalog; an example spelled `corvint-docs` is that app's own (decisions 0594
+  and 0595). The `flows ingest-coverage` example MUST pass `--test-key` with a key of the run
   evidence and say the coverage file holds only that test's coverage, because a run with more
   than one record refuses a single-test format without it. A shell redirection inside a quoted
   argument does not end a checked command line.

@@ -50,7 +50,7 @@ var testScopes = map[string][]string{
 	// tracked listing, every source-walk file except .md, .json, .jsonl and .tsv ones (the
 	// walk skips hidden directories), the shell plugin's .sh and foreign-source files under
 	// it and .github, and the .corvint/ declarations; a sealed CEM or a build log is none.
-	"shell-foreign-callers-check": {depsScopePrefix + "internal/liveverify/affected", allScope, "!*.md", "!*.json", "!*.jsonl", "!*.tsv", ".corvint/*.json"},
+	"shell-foreign-callers-check": {depsScopePrefix + "internal/liveverify/affected/liverepo", allScope, "!*.md", "!*.json", "!*.jsonl", "!*.tsv", ".corvint/*.json"},
 }
 
 func init() {

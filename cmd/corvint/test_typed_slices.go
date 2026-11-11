@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang/typedreach"
@@ -164,7 +163,7 @@ func testTypedSlices(ctx context.Context, plan affected.Plan, graph *affected.Gr
 			continue
 		}
 		pattern := "^(" + strings.Join(kept, "|") + ")$"
-		if len(pattern) > cishards.MaxPatternBytes {
+		if len(pattern) > sessiontest.MaxPatternBytes {
 			whole("the -run pattern of " + strconv.Itoa(len(kept)) + " kept tests exceeds the bound")
 			continue
 		}

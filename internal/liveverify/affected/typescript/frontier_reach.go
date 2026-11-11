@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 package typescript
 
-import "path"
+import (
+	"path"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+)
 
 // SourceBoundFrontiers names the reasons whose hidden edge the plugin's own
 // import resolution binds only to a path it owns (AFP-V0-511). resolveImport
@@ -49,4 +54,48 @@ func (Language) ResolutionInput(relative string) bool {
 // a declared runtime edge (AFP-V0-819) models the site.
 func (Language) CrossLanguageFrontiers() []string {
 	return []string{FrontierE2ERuntimeDependency}
+}
+
+// FrontierDirection classifies each reason by where its hidden edge starts
+// (AZU-V0-003, AZU-V0-008; TJAA-V0-1161). OUTBOUND reasons start at a
+// reference in the site's own file: an unresolved relative import, an
+// undeclared bare import, a dynamic `import()` or `require()`. An executable
+// configuration value the plugin could not evaluate (a `testMatch`, `include`,
+// `specPattern` or `globalSetup` whose collected files or loaded module are
+// unknown) is DISCOVERY: outbound, but it also decides which files below the
+// configuration are tests, so a dirty configuration or a dirty source below
+// it keeps the entry. PACKAGE_RUNNABLE reasons hide only how a
+// known test's runner is invoked or which runner it is:
+// `runtime-flags-unresolved` and `test-runner-unknown`. Every other reason is
+// INBOUND: the unresolved alias, whose site may be the resolution table
+// (`tsconfig.json`) under a blocked alias gate (TJAA-V0-059) rather than the
+// importing file, so the edge does not start at the site; the end-to-end
+// runtime dependency (a caller into another plugin's code); the ambiguous
+// runner, the puppeteer host, Detox, Storybook, the cross-language test asset,
+// and the unreadable, unparsed, over-bound and scan frontiers, whose site is
+// not even known.
+func (Language) FrontierDirection(reason string) string {
+	switch reason {
+	case FrontierUnresolvedImport, FrontierBareImportUndeclared, FrontierDynamicImport:
+		return affected.FrontierOutbound
+	case FrontierConfig:
+		return affected.FrontierDiscovery
+	case FrontierRuntimeFlags, FrontierUnknownRunner:
+		return affected.FrontierPackageRunnable
+	}
+	return affected.FrontierInbound
+}
+
+// RunnableUnit reports a test unit whose runner the plugin identified
+// (AZU-V0-008, TJAA-V0-1161): its id is `typescript:<runner>:<path>` with a
+// runner other than unknown (unitID), so the runner's adapter runs it as the
+// package's tests. A source unit, whose id is `typescript:<path>`, and a unit
+// of the unknown runner are not runnable.
+func (Language) RunnableUnit(id string) bool {
+	rest, ok := strings.CutPrefix(id, "typescript:")
+	if !ok {
+		return false
+	}
+	runner, _, found := strings.Cut(rest, ":")
+	return found && runner != "" && runner != runnerUnknown && !strings.Contains(runner, "/")
 }

@@ -89,11 +89,15 @@ type affectedAuditInAppmap struct {
 type affectedAuditReport struct {
 	Aggregate []affectedAuditAggregate `json:"aggregate"`
 	Changes   []affectedAuditChange    `json:"changes"`
-	Mutates   bool                     `json:"mutates"`
-	OK        bool                     `json:"ok"`
-	Profile   string                   `json:"profile"`
-	Selectors []affectedAuditSel       `json:"selectors"`
-	Tool      string                   `json:"tool"`
+	// Degradations and DegradationDetails are the planner's AFP-V0-846
+	// self-binary verdict when it applies (AFP-V0-11033); absent otherwise.
+	Degradations       []string           `json:"degradations,omitempty"`
+	DegradationDetails map[string]string  `json:"degradationDetails,omitempty"`
+	Mutates            bool               `json:"mutates"`
+	OK                 bool               `json:"ok"`
+	Profile            string             `json:"profile"`
+	Selectors          []affectedAuditSel `json:"selectors"`
+	Tool               string             `json:"tool"`
 }
 
 type affectedAuditSel struct {
@@ -173,10 +177,16 @@ type affectedAuditAggregate struct {
 	UpperBoundMethod   string `json:"upper_bound_method"`
 }
 
-// parseAffectedAuditOptions reads `affected audit --changes FILE`, exactly once (AFP-V0-445).
+// parseAffectedAuditOptions reads `affected audit --changes FILE
+// [--accept-stale-binary]`, each exactly once (AFP-V0-445, AFP-V0-11033).
 func parseAffectedAuditOptions(rest []string) (affectedInvocation, error) {
 	invocation := affectedInvocation{NoCache: true}
 	for index := 0; index < len(rest); index++ {
+		if matched, err := parseAcceptStaleBinary(&invocation, rest[index]); err != nil {
+			return affectedInvocation{}, err
+		} else if matched {
+			continue
+		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if name != "--changes" {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
@@ -205,11 +215,20 @@ func parseAffectedAuditOptions(rest []string) (affectedInvocation, error) {
 // change is UNKNOWN (no outcomes, an unobserved unselected test, or a selector
 // error), 2 on an input error, and 0 otherwise.
 func runAffectedAudit(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
+	// AFP-V0-9730, AFP-V0-11033: the audit scores this binary's selector, so a
+	// stale binary refuses before any change is replayed; an accepted or
+	// unverified one is named in the report.
+	degradations, details, err := staleBinaryGate(ctx, invocation.Root, invocation.AcceptStaleBinary, "affected audit", stdout, stderr)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
 	report, err := compileAffectedAudit(ctx, invocation)
 	if err != nil {
 		emitError(stderr, err)
 		return 2
 	}
+	report.Degradations, report.DegradationDetails = degradations, details
 	code := affectedAuditExitCode(report)
 	report.OK = code == 0
 	if err := gokernel.WriteCanonicalJSON(stdout, report); err != nil {

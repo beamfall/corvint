@@ -46,7 +46,7 @@
   ],
   "guide": {
     "topic": "corvint help guide",
-    "sha256": "bd4a4a9ba951f7fdd710c5c2ab5a4949f186f0a3f93e6fbc91e73f9f0a5fe9ca"
+    "sha256": "ed390a2ee25347014ef4af4177a6865810ffc14fe853ea81094a2a840b18fa0a"
   },
   "commands": [
     {
@@ -499,6 +499,7 @@
         ]
       },
       "flags": [
+        "--accept-stale-binary",
         "--appmap-impact",
         "--base",
         "--by-path",
@@ -546,6 +547,7 @@
         "corvint-affected-audit/1",
         "corvint-ci-job-inputs/0",
         "corvint-ci-job-plan/0",
+        "corvint-flows/0",
         "corvint-planning-snapshot/0",
         "corvint-playwright-unreached-paths/0",
         "e2e-safe-selection/1",
@@ -1034,210 +1036,45 @@
       "freezeContract": null,
       "operations": [
         "appmap",
-        "coverage",
-        "docs",
-        "export",
-        "gaps",
-        "impact",
-        "import",
-        "ingest",
-        "ingest-coverage",
-        "map",
-        "navigate",
-        "record",
-        "request-path",
-        "stability",
         "test-evidence"
       ],
       "nestedOperations": {},
       "requiredFlags": {
-        "flows": [
+        "flows appmap": [
           "--manifest"
-        ],
-        "flows record": [
-          "--evidence",
-          "--manifest",
-          "--output"
         ],
         "flows test-evidence": [
           "--flows"
         ]
       },
       "flags": [
-        "--adopt",
-        "--apply",
-        "--at",
         "--base",
-        "--bind",
-        "--budget",
-        "--build-artifact-digest",
-        "--check",
-        "--cite",
-        "--claims",
-        "--cleanup",
-        "--condition",
-        "--control",
-        "--corpus",
-        "--coverage-artifact",
-        "--declarations",
-        "--denominator",
-        "--docs-root",
-        "--draft",
-        "--emit",
-        "--endpoint-source",
-        "--env-profile",
-        "--envelope",
-        "--environment-digest",
-        "--environment-id",
-        "--evidence",
-        "--expected-proposal",
         "--explain",
-        "--file",
-        "--fixture-digest",
-        "--fixture-id",
-        "--flow",
         "--flows",
         "--format",
         "--from",
-        "--full",
-        "--goal",
-        "--handler",
-        "--head",
         "--index",
-        "--ledger",
-        "--limit",
+        "--json",
         "--lines",
-        "--links",
         "--manifest",
         "--manifest-repo",
-        "--map",
-        "--max-effect",
-        "--min-resolved",
         "--no-workspace",
-        "--note",
-        "--observation",
-        "--offset",
-        "--openapi",
-        "--output",
-        "--page",
-        "--path",
-        "--preview",
-        "--previous",
-        "--rails-routes",
-        "--receipt",
-        "--receipts",
-        "--records",
-        "--registry",
-        "--remedies",
         "--repo",
         "--repo-revision",
-        "--request",
-        "--require",
-        "--retire-after",
         "--revision",
-        "--route",
-        "--routes",
-        "--run-id",
-        "--runner-version",
-        "--screen",
-        "--source",
-        "--source-clean",
-        "--source-commit",
-        "--source-tree",
-        "--step",
-        "--strip-prefix",
         "--test",
-        "--test-key",
-        "--text",
-        "--trace",
-        "--traffic",
         "--verify",
-        "--waivers",
-        "--warn",
-        "--workspace",
-        "--write-back"
+        "--workspace"
       ],
       "schemaIds": [
-        "application-edge-ledger/0",
-        "application-flow-gaps/1",
-        "application-flow-impact/1",
-        "application-flow-intent/1",
-        "application-flow-inventory/1",
-        "application-flow-lookup/1",
-        "application-flow-map/1",
-        "application-flow-report/0",
-        "application-flow-test-evidence/1",
-        "application-flow-traffic/0",
-        "application-map-endpoints/0",
-        "application-map-plan/0",
-        "application-map/0",
-        "application-navigation-map/0",
-        "application-navigation-observation/0",
-        "application-navigation-packet/0",
-        "corvint-behavior-adapter-request/1",
-        "corvint-coverage-ingest/1",
-        "corvint-request-path/0",
-        "corvint-workspace/0",
-        "flow-doc-check/0",
-        "flow-doc-claims/0",
-        "flow-doc-waivers/0",
-        "flows-run-registry/0",
-        "flows-run-stability/0",
-        "observed-ui-records/0",
-        "observed-ui-routes/0",
-        "playwright-navigation-events/0",
-        "rails-routes/0",
-        "react-router/0",
-        "site-knowledge-how/0",
-        "test-run-evidence/0",
-        "ui-router-states/0"
+        "application-flow-test-evidence/1"
       ],
       "inputs": null,
       "outputs": null,
-      "exitCodesMentioned": [
-        1,
-        2
-      ],
+      "exitCodesMentioned": [],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Read-only inspection binds declared tracked source and test files to Git and emits application-flow-report/0.",
-        "record explicitly writes one screened private evidence file and refuses overwrite; it does not update ranking or accept inferred intent.",
-        "No automatic ledger is written.",
-        "Flow variation coverage: corvint [--root PATH] flows coverage --denominator FILE --receipts FILE [--revision SHA] [--offset N --limit N] [--write-back FRESH_DIR | --check DIR] Complete accepted matrices and original /3 receipts; exit1 for gaps,2 for refusal.",
-        "export reads application-flow-intent/1 files from DIR (one <flow_id>.json each, plus retired.json) and writes one document to stdout: the application-flow-inventory/1 inventory, the EEP-V1 provider record evaluated at HEAD, or the corvint-behavior-adapter-request/1 built from --envelope, whose application-flows input must anchor the committed inventory bytes.",
-        "import writes new proposed intents with inferred links, never overwrites an intent, and prints the written paths.",
-        "A listed test whose flow ID collides is reported and skipped, the rest are written, and the command exits 1.",
-        "map writes application-flow-map/1: every link with its basis, review state and the self-attested review summary, and per variation the test-run-evidence/0 state and authority at HEAD.",
-        "--path or --test-key writes application-flow-lookup/1 instead.",
-        "gaps writes application-flow-gaps/1; any gap makes a flow incomplete.",
-        "impact writes application-flow-impact/1: flows, variations and test keys reached from base..HEAD changes, with the path of each hop.",
-        "stability writes flows-run-stability/0: per aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run counts, the applied threshold and a clean or not-stable verdict.",
-        "ingest writes test-run-evidence/0 JSONL to stdout.",
-        "A bound exceeded exits nonzero with the incomplete code and writes nothing.",
-        "None of these writes to the repository.",
-        "ingest-coverage writes corvint-coverage-ingest/1 to stdout: the coverage, run-evidence and links inputs pinned by digest; each covered test bound to its one run record, and joined only when that record ran clean at the revision and pins the coverage input's sha256 as a --coverage-artifact; observed tested_by relations from executed source files with executed line spans anchored to the committed blobs; links the coverage contradicts as coverage-contradiction conflicts; and every path or test it cannot classify as an unknown with a reason.",
-        "docs renders the page from the committed intents with a fixed template, marks every claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are repository-relative and each is replaced through a temporary file and a rename.",
-        "--check writes flow-doc-check/0 to stdout and writes nothing: it fails when a committed PROVEN claim is no longer PROVEN or the committed bytes differ from regeneration, unless an unexpired entry of the committed flow-doc-waivers/0 file names the claim, and it fails on an unknown or invalid anchor.",
-        "Experimental maintenance (FDM-V0, proposed): corvint [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE --preview | --apply --expected-proposal SHA256 [--receipt FILE | --adopt] preview writes nothing and prints a digest-bound proposal; apply rederives it, refuses drift, publishes the pair without clobbering and prints a receipt to save and commit.",
-        "navigate writes application-navigation-map/0 from the intents' navigation blocks at HEAD: states, and per step its locator, readiness condition, input fixture ID, expected outcomes, effect class and verified state.",
-        "Observed application-flow-traffic/0 records (at most 256 files and 8,192 records total; excess is navigation-bound-exceeded) raise a declared read to write-irreversible and never lower a class; an undeclared class is write-irreversible.",
-        "--goal writes application-navigation-packet/0: the precondition flows then the goal in run order, each step above --max-effect (read, write-reversible, write-irreversible or external-side-effect; default read) marked requires-grant.",
-        "It writes nothing to the repository.",
-        "Learned, read-only, offline.",
-        "internal/appmap/navigation-events.cjs writes that JSON per test, with any trace setting, from one line in playwright.config: require('<corvint>/internal/appmap/navigation-events.cjs') .install({outputDir: 'DIR'}).",
-        "build compiles application-map/0 from the manifest's router definitions, flow intents and test suite read at REV (default HEAD) and writes it to stdout.",
-        "Otherwise it builds in full and writes the reason to stderr (changed-input, builder-version-differs when MAP has no or another \"builder\", aliased-roots, aliased-root-dirty, manifest-path-differs, from-revision-unavailable; AMAP-V0-215).",
-        "screen, flow, find and scaffold are capped projections of a map file: each writes one JSON document within --budget bytes (256..65536; defaults 4096, 6144, 2048 and 6144) or --full (1 MiB), with per-section omitted counts.",
-        "None of these commands writes to the repository.",
-        "--emit request prints the proposed candidates as a corvint-behavior-adapter-request/1 for flows import --format behavior-adapter-request, which writes them as proposed intents (default caps 6144 bytes).",
-        "Branch tests and setup (experimental, V1-1891): branches reads up to 16 cited Ruby line ranges and lists, per if/unless/elsif/when branch, the tests that name it grouped by boundary (unit, request, e2e; \"none at <boundary>\" when none), and for a boundary not reached the guard's model inputs with the setup endpoints, factories and fixtures that write them.",
-        "plan resolves each plain-language step (repeat --step, or one --request split at ';' and line breaks) to one mapped flow of the given application maps (1..8, one per app) and writes one application-map-plan/0 document within --budget bytes (default 16384) or --full: one browser session per app, navigation that stays on the screen a previous step left, route parameters handed from the step that reaches them, and each flow's named outcome assertions.",
-        "The command writes nothing.",
-        "With --source (experimental, SKH-V0 stage 7) the request is one goal: plan writes the site-knowledge-how/0 answer of `flows appmap how` with a draft head field instead.",
-        "The draft is a proposal, never accepted intent; it writes nothing.",
-        "request-path reads one Express-style route registered in --file (or one named handler) from committed JavaScript/TypeScript at --revision (default HEAD) and writes corvint-request-path/0: each guard and the handler in run order, the environment and configuration keys each reads, the outbound network calls each makes with the call chain, and guard-order findings where a guard with an outbound call runs before a cheaper guard.",
-        "It writes nothing.",
         "Writes nothing."
       ],
       "unknowns": [
@@ -1248,6 +1085,10 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
         },
         {
           "field": "writes",
@@ -1391,10 +1232,12 @@
         ]
       },
       "flags": [
+        "--accept-stale-binary",
         "--argv",
         "--base",
         "--confine",
         "--count",
+        "--dir",
         "--dry-run",
         "--durations",
         "--files",
@@ -1439,6 +1282,7 @@
       "outputs": null,
       "exitCodesMentioned": [
         0,
+        2,
         3
       ],
       "writes": null,
@@ -1576,6 +1420,56 @@
       ]
     },
     {
+      "name": "watch",
+      "helpTopic": "corvint help watch",
+      "purpose": "rerun the tests a save can affect",
+      "maturity": "experimental",
+      "owningSpec": "LPCV-V0",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {
+        "watch": [
+          "--index"
+        ]
+      },
+      "flags": [
+        "--dry-run",
+        "--events-stdin",
+        "--go-wrapper",
+        "--index",
+        "--once",
+        "--packages"
+      ],
+      "schemaIds": [
+        "linecov-index/4"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Writes: nothing under the repository; tests write what they write."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
+    },
+    {
       "name": "mcp",
       "helpTopic": "corvint help mcp",
       "purpose": "local read-only stdio MCP server",
@@ -1592,7 +1486,9 @@
         "--tool-profile",
         "--workspace"
       ],
-      "schemaIds": [],
+      "schemaIds": [
+        "affected-summary/1"
+      ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
@@ -1627,20 +1523,9 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
-      "requiredFlags": {
-        "how": [
-          "--map",
-          "--source"
-        ]
-      },
+      "requiredFlags": {},
       "flags": [
-        "--budget",
-        "--condition",
-        "--corpus",
-        "--full",
-        "--ledger",
         "--map",
-        "--repo",
         "--source"
       ],
       "schemaIds": [
@@ -1648,14 +1533,10 @@
       ],
       "inputs": null,
       "outputs": null,
-      "exitCodesMentioned": [
-        2
-      ],
+      "exitCodesMentioned": [],
       "writes": null,
       "selfObservationLedger": "not-listed",
-      "writeStatements": [
-        "It writes nothing."
-      ],
+      "writeStatements": [],
       "unknowns": [
         {
           "field": "inputs",
@@ -1664,6 +1545,10 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "exitCodesMentioned",
+          "reason": "the help text states no exit status"
         },
         {
           "field": "writes",
@@ -1818,6 +1703,7 @@
       "runs",
       "test",
       "tests",
+      "watch",
       "mcp",
       "how"
     ],
@@ -2122,6 +2008,11 @@
       "summary": "Corpus vocabulary"
     },
     {
+      "name": "corvint.affected",
+      "availability": "corvint mcp --tool-profile affected",
+      "summary": "Which tests does a change require: the same affected-summary/1 verdict as corvint affected --summary, for a base or for the dirty worktree; corvint-mcp refuses the group"
+    },
+    {
       "name": "corvint.flows.coverage",
       "availability": "corvint-mcp flows",
       "summary": "Flow variation coverage"
@@ -2145,6 +2036,11 @@
       "name": "corvint.flows.navigate",
       "availability": "corvint-mcp flows",
       "summary": "Navigation within the flow map"
+    },
+    {
+      "name": "corvint.flows.status",
+      "availability": "corvint-mcp flows",
+      "summary": "Flow, variation, attached tests and last result"
     },
     {
       "name": "corvint.help",

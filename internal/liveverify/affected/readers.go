@@ -333,9 +333,67 @@ const ReadScopesPath = ".corvint/test-read-scopes.json"
 const GatedRootLocatorsPath = ".corvint/gated-root-locators.json"
 
 // FrontierGatedLocatorsChanged is the unknown detail of a plan whose dirty
-// paths hold GatedRootLocatorsPath (TSP-V0-003): the edited declaration may
-// clear a root locator its own head graph trusts.
+// paths hold GatedRootLocatorsPath (TSP-V0-003) and whose edit the plan cannot
+// bound (TSP-V0-608): the edited declaration may clear a root locator its own
+// head graph trusts.
 const FrontierGatedLocatorsChanged = "go:gated-root-locators-changed"
+
+// WitnessGatedLocatorChange selects a Go package whose gated root-locator
+// declaration entry was added, removed or changed between the commit a plan
+// is measured from and its tree (TSP-V0-608): under the base declaration its
+// dependents were root-locator dependents, so it is seeded as a changed unit
+// and traversed to its transitive importers.
+const WitnessGatedLocatorChange = "GATED_LOCATOR_CHANGE"
+
+// GatedLocator is one gated root-locator declaration entry (TSP-V0-003): the
+// absolute gate the package's root locating requires and the project's reason.
+type GatedLocator struct {
+	Gate   string `json:"gate"`
+	Reason string `json:"reason"`
+}
+
+// GatedLocatorChanges returns, sorted, the package directories whose entries
+// differ between the base and head declarations: added, removed or changed
+// in gate or reason (TSP-V0-608). An absent declaration is an empty map.
+func GatedLocatorChanges(base, head map[string]GatedLocator) []string {
+	changed := map[string]bool{}
+	for directory, entry := range base {
+		if other, kept := head[directory]; !kept || other != entry {
+			changed[directory] = true
+		}
+	}
+	for directory := range head {
+		if _, present := base[directory]; !present {
+			changed[directory] = true
+		}
+	}
+	return sortedKeys(changed)
+}
+
+// gatedLocatorSeeds returns the units a bounded edit to the gated root-locator
+// declaration seeds (TSP-V0-608): the Go unit of each changed directory, with
+// a GATED_LOCATOR_CHANGE witness, and whether the edit is closed. It is
+// closed only when the plan knows the changed directories (the measured
+// commit's declaration was read, WithGatedLocatorChanges), the head
+// declaration is valid (the Go plugin raised no go:gated-root-locators-invalid
+// frontier) and every changed directory holds an observed Go unit; otherwise
+// the edit stays the TSP-V0-003 unknown. The declaration path itself keeps
+// its non-source classification and readers as before.
+func (graph *Graph) gatedLocatorSeeds() (map[string]Witness, bool) {
+	if graph.gatedLocatorChanges == nil || slices.Contains(graph.frontier, "go:gated-root-locators-invalid") {
+		return nil, false
+	}
+	packages := graph.goPackageDirectories()
+	seeds := make(map[string]Witness, len(graph.gatedLocatorChanges))
+	for _, directory := range graph.gatedLocatorChanges {
+		id, observed := packages[directory]
+		if !observed {
+			return nil, false
+		}
+		seeds[id] = Witness{Kind: WitnessGatedLocatorChange, DirtyPath: GatedRootLocatorsPath, Via: []string{id}}
+	}
+	return seeds, true
+}
 
 // ShellForeignCallersPath is the repository's declaration of the files that
 // run a shell script by a path no plugin resolves (TSP-V0-005). The shell
@@ -397,9 +455,13 @@ func foreignCallersChanged(normalized []string) []Unknown {
 }
 
 // gatedLocatorsChanged returns the TSP-V0-003 unknown when normalized holds
-// the gated root-locator declaration, whatever unit names it.
-func gatedLocatorsChanged(normalized []string) []Unknown {
+// the gated root-locator declaration, whatever unit names it, unless the
+// edit is closed by its base comparison (TSP-V0-608, gatedLocatorSeeds).
+func (graph *Graph) gatedLocatorsChanged(normalized []string) []Unknown {
 	if !slices.Contains(normalized, GatedRootLocatorsPath) {
+		return nil
+	}
+	if _, closed := graph.gatedLocatorSeeds(); closed {
 		return nil
 	}
 	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierGatedLocatorsChanged}}
@@ -1066,4 +1128,18 @@ func (graph *Graph) testEmbedReadersOf(reached map[string]Witness, paths []strin
 			}
 		}
 	}
+}
+
+// Namers lists, in id order, the units carrying a path token that names
+// dirtyPath under the AFP-V0-021 reader match, so a test outside the package
+// can resolve a PATH_LITERAL_READER witness.
+func (graph *Graph) Namers(dirtyPath string) []string {
+	parts := strings.Split(dirtyPath, "/")
+	ids := make([]string, 0)
+	for i, tokens := range graph.pathTokens() {
+		if namesAny(tokens, parts, strings.HasPrefix(graph.order[i], "go:") && !resolvedEvidence(dirtyPath)) {
+			ids = append(ids, graph.order[i])
+		}
+	}
+	return ids
 }

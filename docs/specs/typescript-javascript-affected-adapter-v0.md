@@ -1520,6 +1520,32 @@ the out-of-suite unknown is never removed by frontier scoping.
     an under-selection.
   - Rollback: call `pathTokens` instead of `pathTokensSkipping` and drop
     `unresolvedSpecifierTokens`.
+- `TJAA-V0-622`: (experimental under the owner's standing lane auto-accept; lane affprec2 charter
+  2026-11-09; V1-5183) A unit's `PathTokens` MUST also hold the path-shaped tokens (the
+  `TJAA-V0-102` lexicon and `pathShaped` rule) of every JSON module the unit's modules import by a
+  relative specifier ending in `.json`, resolved against the importing module's directory inside
+  the repository. A JSON module is data its importer reads at run time, and a string inside it
+  (`"artifact": "test/fixtures/beamfall-tokens.json"`) is a path the importer may then open, so the
+  edit-oracle case `beamfall-web-data` (V1-5181) selects `typescript:vitest:test/tokenContract.test.ts`
+  for a byte change to the fixture its imported config names, with a `PATH_LITERAL_READER` witness.
+  - A document that parses contributes the tokens of its strings and member names after JSON
+    decoding; one that does not parse contributes every path-shaped token of its escape-decoded
+    text, so an unparsable module widens rather than narrows. A module that exists but cannot be
+    read raises `typescript:unreadable-source` at the module; one that does not exist is left to
+    the relative-import frontier the resolver raises. A specifier that climbs above the
+    repository root contributes nothing and keeps that frontier.
+  - The tokens are merged after `TJAA-V0-126`'s specifier exclusion, which recomputes a unit's
+    own tokens, and count toward the `TJAA-V0-102` bound: a unit over `maxPathTokens` keeps none
+    and is `PathTokensBounded`. A Storybook story set merges the tokens of every story's modules.
+  - Non-goals: following a JSON module's own strings to further JSON files, reading JSON through
+    a bare or alias specifier, YAML or other data modules, and `import.meta.glob` or `require`
+    with a computed name, which keep their existing frontiers.
+  - Failure modes: a JSON string that is a path the importer never opens over-selects its
+    importer; a fixture a module names only through a computed string, or through a module this
+    rule does not read, keeps the existing silent omission, which the edit oracle's recall check
+    measures (AEO-V0). Neither drops a reader.
+  - Rollback: drop `jsonModuleTokens`, `mergeDataTokens` and the `dataTokens` member; graph
+    digests then change back and no wire member moves.
 
 ### Per-test Playwright closures (V1-2812)
 
@@ -1810,6 +1836,29 @@ with its reason.
   directory token. Non-goal: narrowing a directory token by what the test does with it. Failure
   mode: a marker on a literal the test really reads is an author error, reviewable in the diff, as
   for Go. Rollback: drop `fixtureLines` from `pathTokensSkipping` and the markers.
+
+- `TJAA-V0-1161`: (experimental under the owner's standing lane auto-accept (2026-11-09); V1-4999,
+  V1-4686, V1-4691, V1-4683) The general adapter classifies its frontier reasons for the plan's
+  site closure (AZU-V0-212, AZU-V0-213): `relative-import-unresolved`, `bare-import-undeclared` and
+  `dynamic-import` are `OUTBOUND`; `executable-config-unresolved` is `DISCOVERY`;
+  `runtime-flags-unresolved` and `test-runner-unknown` are `PACKAGE_RUNNABLE`; every other reason,
+  `path-alias-unresolved` included because its site may be the resolution table under a blocked
+  alias gate (`TJAA-V0-059`) rather than the importing file, is `INBOUND`. A test unit of an
+  identified runner is runnable (`RunnableUnit`); a source unit and a unit of the unknown runner are
+  not. `Result.FrontierSites` records every located site of each plugin-wide reason in the form the
+  frontier displays, so the sites a `reason:+N` entry (`TJAA-V0-052`) hides stay locatable; the
+  display bound is unchanged. A configuration file name counts only with an extension a runner
+  loads (`.js`, `.cjs`, `.mjs`, `.ts`, `.cts`, `.mts`, `.jsx`, `.tsx`, `.json`, `.jsonc`): a fixture
+  text copy such as `playwright.config.js.txt` is no configuration and raises no frontier. A tsconfig
+  alias that a `paths` pattern claims but maps to no observed module records each substituted
+  target path as a path token of the importing module, so a dirty JSON or other data file imported
+  through the alias selects the importer as its reader (AFP-V0-021 rule (d)); a relative or
+  `package.json` `imports` specifier already names the file as a token (`TJAA-V0-126`).
+  Evidence: `TestFrontierDirections_TJAA_V0_1161`, `TestRunnableUnits_TJAA_V0_1161`,
+  `TestFrontierSiteRecordIsComplete_TJAA_V0_1161`,
+  `TestConfigurationTextCopiesAreNotConfigurations_TJAA_V0_1161`,
+  `TestDirtyJSONImportKeepsTheImporter_V1_4683`. Rollback: return `INBOUND` for every reason and
+  drop the site record; the plan names every bearing entry again.
 
 ## Opt-in Playwright project profile
 
@@ -2186,6 +2235,8 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-601` (V1-3933) | `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in `playwright_shorthand_v13933_test.go` (unmodelled device plus literal browserName resolves; without one it stays unresolved and names the spread) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
+| `TJAA-V0-1161` (V1-4999, V1-4686, V1-4691, V1-4683) | `TestFrontierDirections_TJAA_V0_1161`, `TestRunnableUnits_TJAA_V0_1161`, `TestFrontierSiteRecordIsComplete_TJAA_V0_1161`, `TestConfigurationTextCopiesAreNotConfigurations_TJAA_V0_1161`, `TestDirtyJSONImportKeepsTheImporter_V1_4683` in `frontier_direction_test.go`; `FrontierDirection`, `RunnableUnit` in `frontier_reach.go`; `frontierSiteRecord`, `configExtension` in `typescript.go` | experimental |
 | `TJAA-V0-871` (V1-3612) | `TestJSXQuoteAfterLessThanIsALiteral_V13612` in `jsx_less_than_v13612_test.go` (a quoted type argument and a comparison after `<` build the edge; a quote after `>` in JSX text still raises `typescript:unparsed-source`) | experimental |
+| `TJAA-V0-622` (V1-5183) | `TestJSONModulePathsAreCandidateReads_TJAA_V0_622` in `json_module_tokens_test.go` (valid, invalid and escaped-slash config modules select the importing test for the fixture they name and not for a sibling); `jsonModuleTokens`, `mergeDataTokens`; the beamfall-web-data oracle case is recorded in `docs/build-log/2026-11-09-affprec2.md` as NOT_RUN on this host | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

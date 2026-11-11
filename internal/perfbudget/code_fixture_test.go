@@ -14,10 +14,10 @@ import (
 // codeScenarioIDs are the code-repository scenarios PRB-V0-057 adds after unchanged-delta.
 var codeScenarioIDs = []string{"index-cold-build", "index-warm-build", "context-query", "affected-go", "affected-ts"}
 
-// PRB-V0-057: the scenario set ends with the cold and warm index build, the context query, and Go
-// and TypeScript affected plans, after the five earlier scenarios.
+// PRB-V0-057: the cold and warm index build, the context query, and the Go and TypeScript
+// affected plans follow the five earlier scenarios; the two PRB-V0-1014 watch scenarios end the set.
 func TestPRBV0057CodeScenarios(t *testing.T) {
-	if !slices.Equal(ScenarioIDs[5:], codeScenarioIDs) || len(ScenarioIDs) != 10 {
+	if !slices.Equal(ScenarioIDs[5:10], codeScenarioIDs) || len(ScenarioIDs) != 12 {
 		t.Fatalf("scenario order %v", ScenarioIDs)
 	}
 	b, err := LoadBudgets("budgets.json")

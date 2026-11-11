@@ -128,3 +128,31 @@ func TestDriverComputedReasonCounts(t *testing.T) {
 	}
 	t.Log("\n" + out.String())
 }
+
+// AZU-V0-611: an evaluated, uncertified make site names the variable or
+// function whose evaluation made it one and the command word, operand or
+// form the scan could not bound, beside the AFP-V0-9620 category; a site
+// computed for another reason, and a certified target, record nothing new.
+func TestDriverEvaluatedUncertifiedReasons_AZU_V0_611(t *testing.T) {
+	files := map[string]string{
+		"go.mod": "module example.test/m\n",
+		"Makefile": "MODE = ci\nMODE = local\n" +
+			"check:\n\tscript/audit.sh tools/$(MODE)\n" +
+			"redirect:\n\t$(strip wc -l) < $(MODE).txt\n" +
+			"literal:\n\tscript/audit.sh tools\n" +
+			"plain:\n\t$(if $(CI),go test,go vet) ./core/...\n",
+		"script/audit.sh":     "#!/bin/sh\nls \"$1\"\n",
+		"tools/local/main.go": "package main\n\nfunc main() {}\n",
+		"core/core.go":        "package core\n",
+	}
+	reasons := driverComputedReasons(t, memorySource(t, files))
+	want := map[string][]string{
+		// A reassigned recursive variable leaves only its last value, so
+		// each site names the one command or operand that value runs.
+		"driver:make:Makefile#check":    {"make:evaluated-uncertified", "make:evaluated:MODE", "make:uncertified:shell:uncertified-command:script/audit.sh"},
+		"driver:make:Makefile#redirect": {"make:evaluated-uncertified", "make:evaluated:$(strip)", "make:evaluated:MODE", "make:uncertified:shell:redirect-input:local.txt"},
+	}
+	if fmt.Sprint(reasons) != fmt.Sprint(want) {
+		t.Fatalf("reasons = %v, want %v", reasons, want)
+	}
+}
