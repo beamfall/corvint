@@ -4462,5 +4462,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/non-code-map-v1.md",
+    "title": "Non-code map V1",
+    "reqPrefix": "NCM-V1",
+    "intent": "accepted",
+    "delivery": "partial",
+    "claim": "A changed non-code file runs every test unless a proven, accepted map entry narrows it; some paths always run everything.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
