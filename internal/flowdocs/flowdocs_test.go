@@ -736,13 +736,18 @@ func TestFlowDocsCallInventoryDriftIsStale(t *testing.T) {
 		}
 	}
 	flowID := r.Manifest.Flows[0].ID
+	// DMF-V1-007: a clean answer needs a compared output directory.
+	out := filepath.Join(t.TempDir(), "output")
+	if e = Materialize(out, r); e != nil {
+		t.Fatal(e)
+	}
 	state := func(source string) (bool, string) {
 		t.Helper()
 		if e := os.WriteFile(filepath.Join(root, "app", "flow.js"), []byte(source), 0600); e != nil {
 			t.Fatal(e)
 		}
 		git(t, root, "commit", "-qam", "edit")
-		checked, e := CheckRevision(context.Background(), root, r.Files["generation.json"], git(t, root, "rev-parse", "HEAD"), "")
+		checked, e := CheckRevision(context.Background(), root, r.Files["generation.json"], git(t, root, "rev-parse", "HEAD"), out)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -812,7 +817,11 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 			t.Fatalf("CheckRevision version %s: %v", version, e)
 		}
 	}
-	if checked, e := CheckRevision(context.Background(), root, current, rev, ""); e != nil || !checked.Clean {
+	out := filepath.Join(t.TempDir(), "output") // DMF-V1-007: clean needs a compared directory
+	if e = Materialize(out, r); e != nil {
+		t.Fatal(e)
+	}
+	if checked, e := CheckRevision(context.Background(), root, current, rev, out); e != nil || !checked.Clean {
 		t.Fatalf("regenerated manifest: %v %+v", e, checked)
 	}
 }
@@ -893,5 +902,65 @@ func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 	want := []string{"Render=", "View=", "onSave=side_effect:save", "value=side_effect:persist"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("declarations=%v want=%v", got, want)
+	}
+}
+
+// DMF-V1-007: generation records a repository-relative output directory and check compares it by
+// default; with no recorded directory and no --output-dir, or a recorded directory that is gone,
+// output is NOT_CHECKED with a reason and the check is never clean.
+func TestDMFV1007RecordedOutputDirectory(t *testing.T) {
+	root, rev := fixture(t, map[string]string{"app/flow.js": "function first() {\n  load();\n}\n"})
+	bare, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if bare.Manifest.OutputDir != "" || bytes.Contains(bare.Files["generation.json"], []byte("output_dir")) {
+		t.Fatal("a generation without an output directory recorded one")
+	}
+	checked, e := CheckRevision(context.Background(), root, bare.Files["generation.json"], rev, "")
+	if e != nil || checked.Clean || checked.Output != OutputNotChecked || checked.OutputReason != OutputNoDir {
+		t.Fatalf("no directory: %v %+v", e, checked)
+	}
+	r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app", OutputDir: "docs/flows"})
+	if e != nil || r.Manifest.OutputDir != "docs/flows" {
+		t.Fatalf("recorded: %v %q", e, r.Manifest.OutputDir)
+	}
+	if _, e = Generate(context.Background(), root, Options{Revision: rev, Scope: "app", OutputDir: "../outside"}); e == nil {
+		t.Fatal("an output directory outside the root was recorded")
+	}
+	if _, e = Open(context.Background(), root, r.Files["generation.json"]); e != nil {
+		t.Fatalf("a manifest recording its output directory does not rederive: %v", e)
+	}
+	checked, e = CheckRevision(context.Background(), root, r.Files["generation.json"], rev, "")
+	if e != nil || checked.Clean || checked.Output != OutputNotChecked || checked.OutputReason != OutputMissingDir || checked.OutputDir != "docs/flows" {
+		t.Fatalf("missing recorded directory: %v %+v", e, checked)
+	}
+	if e = os.MkdirAll(filepath.Join(root, "docs"), 0o755); e != nil {
+		t.Fatal(e)
+	}
+	if e = Materialize(filepath.Join(root, "docs", "flows"), r); e != nil {
+		t.Fatal(e)
+	}
+	checked, e = CheckRevision(context.Background(), root, r.Files["generation.json"], rev, "")
+	if e != nil || !checked.Clean || checked.Output != OutputChecked || len(checked.OutputDifferences) != 0 {
+		t.Fatalf("recorded directory compared: %v %+v", e, checked)
+	}
+	var page string
+	for name := range r.Files {
+		if strings.HasSuffix(name, "/README.md") {
+			page = name
+			break
+		}
+	}
+	if e = os.WriteFile(filepath.Join(root, "docs", "flows", filepath.FromSlash(page)), []byte("# Edited by hand\n"), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	checked, e = CheckRevision(context.Background(), root, r.Files["generation.json"], rev, "")
+	if e != nil || checked.Clean || checked.Output != OutputChecked || len(checked.OutputDifferences) != 1 || checked.OutputDifferences[0] != page {
+		t.Fatalf("edited page in the recorded directory: %v %+v", e, checked)
+	}
+	checked, e = CheckRevision(context.Background(), root, r.Files["generation.json"], rev, filepath.Join(t.TempDir(), "absent"))
+	if e != nil || checked.Clean || checked.OutputReason != OutputMissingDir {
+		t.Fatalf("missing --output-dir: %v %+v", e, checked)
 	}
 }

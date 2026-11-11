@@ -19,7 +19,7 @@ Build tasks in order. Each names its requirement IDs and its proof.
    tracked file for each check.
 - [x] 7 Per-claim byte-failure detail (DMF-V1-006). Proof: fixture test where one claim changes
       state.
-- [ ] 8 Output directory in the manifest; no clean result without comparing (DMF-V1-007). Proof:
+- [x] 8 Output directory in the manifest; no clean result without comparing (DMF-V1-007). Proof:
    fixture tests with a recorded directory, a missing directory and no directory.
 - [ ] 9 `corvint-docs docs check` (DMF-V1-002), after tasks 4 to 8. Proof: fixture tests for
    all-pass, one stale part and nothing found; run on the Corvint repository with the JSON kept.

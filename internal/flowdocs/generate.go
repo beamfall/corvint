@@ -49,7 +49,10 @@ var sections = []string{"readme", "entry-points", "flow-diagram", "functional-ov
 
 type Options struct {
 	Revision, Scope string
-	Corpus          []byte
+	// OutputDir is the repository-relative output directory generation records so a later check
+	// compares it by default; empty records none (DMF-V1-007).
+	OutputDir string
+	Corpus    []byte
 	// Flows is an optional declared flow inventory (AFU-V1-101).
 	Flows []byte
 }
@@ -82,6 +85,9 @@ type Manifest struct {
 	Inventory      *InventoryReport         `json:"inventory,omitempty"`
 	Gaps           []string                 `json:"gaps"`
 	Outputs        []Output                 `json:"outputs"`
+	// OutputDir is the repository-relative directory generation wrote, which docs flows check
+	// compares by default (DMF-V1-007). It is absent for an output outside the repository.
+	OutputDir string `json:"output_dir,omitempty"`
 }
 type Result struct {
 	Manifest Manifest
@@ -139,6 +145,9 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	if !validScope(o.Scope) {
 		return nil, fail("scope must be a confined repository path")
 	}
+	if o.OutputDir != "" && !validScope(o.OutputDir) {
+		return nil, fail("recorded output directory must be a confined repository path")
+	}
 	inv, err := scopedInventory(o.Flows, o.Scope)
 	if err != nil {
 		return nil, err
@@ -179,7 +188,7 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := Manifest{Schema: Schema, Version: Version, Source: doccorpus.Repository{ID: repository, Revision: o.Revision}, Scope: o.Scope, Flows: []Flow{}, Outputs: []Output{}, Gaps: []string{"Source-only lexical candidates: dynamic dispatch, metaprogramming, regex literals, interpolation, unsupported templates and runtime order are unresolved.", "Accepted variation denominator and runtime coverage are unknown unless separately supplied by revalidated corpus evidence.", "Gitlinks are opaque superproject identities; their contents are not inspected."}}
+	m := Manifest{Schema: Schema, Version: Version, Source: doccorpus.Repository{ID: repository, Revision: o.Revision}, Scope: o.Scope, OutputDir: o.OutputDir, Flows: []Flow{}, Outputs: []Output{}, Gaps: []string{"Source-only lexical candidates: dynamic dispatch, metaprogramming, regex literals, interpolation, unsupported templates and runtime order are unresolved.", "Accepted variation denominator and runtime coverage are unknown unless separately supplied by revalidated corpus evidence.", "Gitlinks are opaque superproject identities; their contents are not inspected."}}
 	m.OpaqueGitlinks, err = opaqueGitlinks(ctx, auth, index, o.Revision, o.Scope)
 	if err != nil {
 		return nil, err
@@ -394,7 +403,7 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	r, err := Generate(ctx, root, Options{Revision: m.Source.Revision, Scope: m.Scope, Corpus: corpus, Flows: flows})
+	r, err := Generate(ctx, root, Options{Revision: m.Source.Revision, Scope: m.Scope, OutputDir: m.OutputDir, Corpus: corpus, Flows: flows})
 	if err != nil {
 		return nil, err
 	}
