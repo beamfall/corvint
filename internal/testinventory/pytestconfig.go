@@ -36,8 +36,9 @@ var pytestConfigs = map[string]pytestConfig{
 // declaresPytest reports whether the Python config file name declares
 // pytest: always for pytest.toml, .pytest.toml, pytest.ini and .pytest.ini;
 // for pyproject.toml a table or key under tool.pytest (tool.pytest.ini_options
-// or the pytest 9 native tool.pytest), or any "pytest" text or an escaped key
-// when the reader cannot scan the file; for tox.ini and setup.cfg the pytest section, or an
+// or the pytest 9 native tool.pytest), or any "pytest" text, an escaped key
+// or any backslash when the reader cannot scan the file; for tox.ini and
+// setup.cfg the pytest section, or an
 // indented line holding its header, which provePytest then refuses. A read
 // that fails declares nothing.
 func declaresPytest(name string, read func(name string, limit int) ([]byte, error)) bool {
@@ -55,8 +56,11 @@ func declaresPytest(name string, read func(name string, limit int) ([]byte, erro
 	if config.toml {
 		doc, cause := scanTOML(data)
 		if cause != "" {
-			// An escaped key may spell tool."pytest" without the text.
-			return bytes.Contains(data, []byte("pytest")) || cause == tomlKeyEscape
+			// A key spells pytest only as that text or through an escape in a
+			// basic string (a literal string holds no escape), and a scan that
+			// failed early (a byte order mark, say) cannot say which quoted
+			// words are keys, so any backslash declares pytest.
+			return bytes.Contains(data, []byte("pytest")) || bytes.IndexByte(data, '\\') >= 0 || cause == tomlKeyEscape
 		}
 		atOrUnder := func(full []string) bool {
 			return len(full) >= len(pyprojectNative) && slices.Equal(full[:len(pyprojectNative)], pyprojectNative)
