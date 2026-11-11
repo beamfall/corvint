@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // s0ePublicRootEnv names the directory of the public S0E repair packet

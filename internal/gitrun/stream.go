@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // A refused consumer keeps draining until the runner contains the process.

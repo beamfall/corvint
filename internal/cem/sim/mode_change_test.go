@@ -3,8 +3,8 @@ package sim
 import (
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestCEMV1931ModeChangeBaseSimulation pins CEM-V1-931 (V1-3404): a group

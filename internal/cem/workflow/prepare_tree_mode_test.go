@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // TestPrepareNamesEachNonRegularPath pins CEM-V1-655 (V1-2964): a range that

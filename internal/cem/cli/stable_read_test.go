@@ -18,9 +18,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // stableReadPacket is the public S0E repository-envelope packet the Core read

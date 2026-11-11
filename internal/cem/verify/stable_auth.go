@@ -3,8 +3,8 @@ package verify
 import (
 	"crypto/ed25519"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 // Authentication axis values (CEM-V1-084). The axis rises above NOT_OBSERVED

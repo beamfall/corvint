@@ -2306,9 +2306,15 @@ load_wait() {
 # when df cannot say (ASD-V0-937). A relative PATH is resolved against $PWD first, and the walk stops
 # at / or ., so a missing relative path cannot loop (DTL-V0-014).
 free_gb() {
-  local d=$1
+  local d=$1 parent
   [[ -z $d || $d == /* ]] || d=$PWD/$d
-  while [[ -n $d && $d != / && $d != . && ! -d $d ]]; do d=${d%/*}; done
+  # DTL-V0-018: every iteration must shorten the path or reach a terminal.
+  # Keep this invariant even when a caller supplies an unavailable/relative PWD.
+  while [[ -n $d && $d != / && $d != . && ! -d $d ]]; do
+    parent=${d%/*}
+    [[ $parent != "$d" ]] || parent=.
+    d=${parent:-/}
+  done
   df -Pk "${d:-/}" 2> /dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ { printf "%d", $4 / 1048576 }'
 }
 

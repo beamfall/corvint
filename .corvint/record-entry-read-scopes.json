@@ -34,7 +34,7 @@
         ".corvint/changes/"
       ],
       "reason": "internal/cem/wire/corpus_test.go corpusFailures calls os.ReadDir(dir) and parses every .cem.json; firstSealed also depends on directory order.",
-      "sourceSha256": "8e61e70f44147c655ffebb27d0cf17b88ad5db26b723eb16516172211a0cde09"
+      "sourceSha256": "971978b93066d13c607bdcab4e4f8c07b75ec7c8a5649869c79cf70598d61335"
     },
     "shell:script/batch-precheck_test.sh": {
       "reads": [],

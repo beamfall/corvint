@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cemcode"
 )
 
 func TestDCPV1158CLITypesGitCapacityLikeTheBridge(t *testing.T) {
