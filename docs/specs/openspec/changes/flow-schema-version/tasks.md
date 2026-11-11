@@ -4,9 +4,10 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 ## Tasks
 
-- [ ] 1.1 File the ticket and reserve prefix `FSV-V1` (001 to 007). Requirements: all. Proof:
+- [x] 1.1 File the ticket and reserve prefix `FSV-V1` (001 to 007). Requirements: all. Proof:
       `corvint-tasks ticket show` with `requirementRefs` listing FSV-V1-001 to 007 and PROD-INT-016.
-- [ ] 1.2 First commit: create `docs/specs/flow-schema-version-v1.md` from the spec delta, its README
+      V1-5410 filed; FSV-V1 reserved.
+- [x] 1.2 First commit: create `docs/specs/flow-schema-version-v1.md` from the spec delta, its README
       row and the regenerated index. Requirements: FSV-V1-001 to 007. Proof:
       `make spec-requirements-check` passes.
 - [ ] 2.1 Version parsing and the supported list in `internal/appflows`. Requirements: FSV-V1-001,
