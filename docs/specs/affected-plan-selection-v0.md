@@ -2956,8 +2956,8 @@ reporting only: they are derived from `plan.selected` after selection and never 
   order, and the `--full` plan selects the same unit IDs; a fixture with an unresolved package
   keeps it selected and counts it. The core-freeze goldens `affected-committed-range.json` and
   `affected-worktree.json` gain only these two members.
-- **AFP-V0-9988:** (proposed 2026-11-11; experimental; V1-4399; documents AFP-V0-035, AFP-V0-640
-  and AFP-V0-990 without changing their wire) The compact plan, the `--full` plan and the
+- **AFP-V0-9988:** (proposed 2026-11-11; experimental; V1-4399; extends TSP-V0-7311 (V1-4439) and
+  documents AFP-V0-035, AFP-V0-640 and AFP-V0-990 without changing their wire) The compact plan, the `--full` plan and the
   `--by-path` document SHALL emit every witness as one object shape: `kind` (string) and
   `dirtyPath` (string), always; `viaLength` (integer), always in the compact plan and `--by-path`
   and never in `--full`; `via` (array of unit IDs), always in `--full` and in the compact plan only
@@ -2976,9 +2976,10 @@ reporting only: they are derived from `plan.selected` after selection and never 
 - **AFP-V0-9989:** (proposed 2026-11-11; experimental; V1-4399) `corvint affected --base BASE
   --head HEAD` SHALL plan the commit pair from Git objects alone, without reading the root's
   working tree, index or untracked or ignored files: HEAD is resolved in the root repository as
-  `--base` is (full id, prefix of at least 7 digits or a revision); Corvint clones the root
-  repository's objects into a private temporary directory outside the repository (`git clone
-  --shared --no-checkout` with the hermetic Git configuration, hooks off), checks HEAD out detached
+  `--base` is (full id, prefix of at least 7 digits or a revision); Corvint copies the root
+  repository's objects into a private temporary directory outside the repository (a local `git
+  clone --no-checkout` with the hermetic Git configuration, hooks off; never `--shared`, whose
+  borrowed object store the alternates denial of CEM-V1-323 refuses), checks HEAD out detached
   there, plans `--base BASE` over that clean checkout with the unchanged planner, and removes the
   directory before it exits, on success and on failure. The receipt is the `--base` receipt of a
   clean checkout of HEAD: `revision` is HEAD, the dirty set is the committed range BASE..HEAD, and
@@ -2991,7 +2992,7 @@ reporting only: they are derived from `plan.selected` after selection and never 
   `--playwright-config`, `--playwright-discovery`, `--playwright-env`, `--line-index`,
   `--line-exec` and `--line-test-timeout`, each exit 2 naming the option and that `--head` reads
   only Git objects. A HEAD tree that holds a gitlink (its content is not in this repository's
-  objects), or a clone or checkout that fails, SHALL refuse with exit 2 and the error code
+  objects) or a symlink (its target is not a Git object), or a clone or checkout that fails, SHALL refuse with exit 2 and the error code
   `unsupported-affected-head`, writing no plan. The temporary directory is transient private
   scratch like the `--snapshot` scratch of `plansnapshot.Materialize`, never repository, Git,
   trace or `.corvint/` state, and never an input beyond the Git objects it was written from.
@@ -3227,8 +3228,12 @@ members are derived after selection, so a defect in them misreports and never na
 `selectedFlat[].test` names one runnable handle per unit, not every test: a reader that needs the
 test files still reads `--full`. `--head` fails closed: an option that needs a file or the
 worktree is refused before any clone, a gitlink or a failed clone or checkout refuses with
-`unsupported-affected-head`, and an interrupted run removes its scratch through the same cleanup;
-a host without space for one checkout of HEAD refuses rather than reading the root's checkout. A
+`unsupported-affected-head`, and a cancelled run removes its scratch through the same cleanup (a
+killed process can leave one `corvint-affected-head-*` directory in the temporary directory, which
+nothing reads again); a host without space for one copy of the objects and one checkout of HEAD
+refuses rather than reading the root's checkout. The checkout applies the tree's own
+`.gitattributes` like any checkout, and no filter driver is configured, so a filter passes blobs
+through. A
 historical HEAD planned by a binary built at another commit is refused as `self-binary-stale`
 unless accepted, and an accepted plan is marked degraded. `--json` is an alias, so it cannot
 change bytes; combined with `--format text` it refuses instead of guessing.
@@ -3446,7 +3451,7 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-11033 | `parseAcceptStaleBinary` in `cmd/corvint/affected.go`; `staleBinaryGate` in `cmd/corvint/self_binary.go`; its calls and the flag in `parseAffectedJobsOptions` and `runAffectedJobs` (`cmd/corvint/affected_jobs.go`) and `parseAffectedAuditOptions` and `runAffectedAudit` (`cmd/corvint/affected_audit.go`); the `Degradations` and `DegradationDetails` members of `jobinputs.Plan` (`internal/jobinputs/jobinputs.go`) and `affectedAuditReport` | `TestStaleBinaryRefusesThePlanUnlessAccepted_AFPV09730` in `cmd/corvint/self_binary_refusal_test.go`, the `jobs` and `audit` forms (refused on separate and merged streams with the subcommand's `go run` recovery, accepted documents carry the members with the stderr line exactly when the streams differ, repeated flag refused; it fails on the exit-0 and exit-3 documents); `TestAffectedJobsCLI`; `TestAffectedAuditReplaysChangesAgainstOutcomes_AFPV0445`; `TestAffectedAuditMissingObservationIsUnknown_AFPV0447`; `make capabilities-check` |
 | AFP-V0-9987 | `affectedFlatSelected` and the `SelectedFlat` member of `affectedCompactReceipt` (`cmd/corvint/affected_flat.go`, `cmd/corvint/affected_compact.go`); `UnresolvedPackages` in `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`) | `TestAffectedSelectedFlatAndUnresolvedCount_AFPV09987` and `TestAffectedNewMembersNeverChangeSelection_AFPV09987` in `cmd/corvint/affected_flat_test.go`; core-freeze goldens `affected-committed-range.json` and `affected-worktree.json` regenerated for these two members only |
 | AFP-V0-9988 | `affectedCompactWitness`, `compactWitness` (`cmd/corvint/affected_compact.go`) and `affected.Witness.MarshalJSON` (`internal/liveverify/affected/select.go`), unchanged; `--json` in `parseAffectedOptions` (`cmd/corvint/affected.go`) and `affectedHelp` (`cmd/corvint/help.go`) | `TestAffectedWitnessOneShapeAcrossModes_AFPV09988` and `TestAffectedJSONFlagIsTheDefaultJSON_AFPV09988` in `cmd/corvint/affected_flat_test.go`; `make capabilities-check` |
-| AFP-V0-9989 | `--head` in `parseAffectedOptions` and `affectedHeadRefusal` (`cmd/corvint/affected.go`); `materializeAffectedHead` (`cmd/corvint/affected_head.go`) | `TestAffectedHeadPlansTheCommitPairFromGitObjects_AFPV09989` and `TestAffectedHeadRefusesInputsOutsideGitObjects_AFPV09989` in `cmd/corvint/affected_head_test.go`; before/after counts in `../build-log/2026-11-11-affux.md` |
+| AFP-V0-9989 | `--head` in `parseAffectedOptions` and `affectedHeadOptionRefusal` (`cmd/corvint/affected_head.go`); `materializeAffectedHead` (`cmd/corvint/affected_head.go`) | `TestAffectedHeadPlansTheCommitPairFromGitObjects_AFPV09989` and `TestAffectedHeadRefusesInputsOutsideGitObjects_AFPV09989` in `cmd/corvint/affected_head_test.go`; before/after counts in `../build-log/2026-11-11-affux.md` |
 | AFP-V0-9322 | Existing affected provider, advice and must-run slice preservation | `TestAffectedDigestChangeKeepsFrozenProfiles_AFPV09320` and `TestAffectedFrozenProfilesGuardFailureModes_AFPV09322`; generated lane verify plan in the same build-log entry |
 
 ## Rollback

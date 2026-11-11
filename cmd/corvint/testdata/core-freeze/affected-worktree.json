@@ -40,6 +40,7 @@
     "paths": []
   },
   "revision": "<varies:string>",
+  "selectedFlat": [],
   "summary": {
     "committed": 0,
     "dirty": 0,
@@ -49,6 +50,7 @@
     "selected": 0,
     "unknown": 0,
     "unknownByReason": {},
+    "unresolvedPackages": 0,
     "worktree": 0
   },
   "tool": "affected"
