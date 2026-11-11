@@ -11,6 +11,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/appflows"
 )
 
 // Profile names the path brief document.
@@ -27,9 +29,11 @@ const (
 )
 
 // Names of the optional sources a reason can report as missing (TBC-V1-011).
+// SourceFlows is named through the one flows reader's path constant
+// (FSV-V1-003); this package only checks that HEAD tracks the file.
 const (
 	SourceOwners       = "CODEOWNERS"
-	SourceFlows        = ".corvint/flows.json"
+	SourceFlows        = appflows.FlowsDeclarationPath
 	SourcePlan         = "affected-plan"
 	SourceEvidence     = "test-evidence"
 	SourceTasks        = TasksExecutable
