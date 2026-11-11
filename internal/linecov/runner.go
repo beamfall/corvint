@@ -75,8 +75,56 @@ func RunnerID(ctx context.Context, root string, env []string, timeout time.Durat
 			return "", "", fmt.Errorf("%s=%q changes what a test executes, and the runner identity does not carry it", name, v)
 		}
 	}
+	runtimeEnv, err := withoutDefaultGOROOT(ctx, root, env)
+	if err != nil {
+		return "", "", err
+	}
 	test := strings.Join(TestRuntime(timeout), " ")
-	return RunnerIdentity(e["GOVERSION"], e["GOOS"], e["GOARCH"], e["CGO_ENABLED"], e["GOFLAGS"], e["GOEXPERIMENT"], ArchFeatures(e), RuntimeSettings(env), wrapper, test), e["GOFLAGS"], nil
+	return RunnerIdentity(e["GOVERSION"], e["GOOS"], e["GOARCH"], e["CGO_ENABLED"], e["GOFLAGS"], e["GOEXPERIMENT"], ArchFeatures(e), RuntimeSettings(runtimeEnv), wrapper, test), e["GOFLAGS"], nil
+}
+
+// withoutDefaultGOROOT returns env (nil is this process's environment)
+// without its GOROOT when that names, after symbolic links are resolved, the
+// go command's own GOROOT (`go env GOROOT` with GOROOT unset): such a setting
+// is an alias of the same toolchain and runtime.GOROOT reports the same
+// directory, so only a GOROOT naming another directory is bound (GLS-V0-052).
+func withoutDefaultGOROOT(ctx context.Context, root string, env []string) ([]string, error) {
+	if env == nil {
+		env = os.Environ()
+	}
+	if _, set := EnvValues(env)["GOROOT"]; !set {
+		return env, nil
+	}
+	unset := slices.DeleteFunc(slices.Clone(env), func(kv string) bool { return strings.HasPrefix(kv, "GOROOT=") })
+	cmd := exec.CommandContext(ctx, "go", "env", "GOROOT")
+	cmd.Dir, cmd.Env = root, unset
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go env GOROOT: %v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return dropDefaultGOROOT(env, strings.TrimSpace(string(out))), nil
+}
+
+// dropDefaultGOROOT returns env without its GOROOT entries when the GOROOT it
+// sets and defaultRoot name the same directory after symbolic links are
+// resolved; otherwise env unchanged (GLS-V0-052).
+func dropDefaultGOROOT(env []string, defaultRoot string) []string {
+	set := EnvValues(env)["GOROOT"]
+	if set == "" || defaultRoot == "" || resolvedDir(set) != resolvedDir(defaultRoot) {
+		return env
+	}
+	return slices.DeleteFunc(slices.Clone(env), func(kv string) bool { return strings.HasPrefix(kv, "GOROOT=") })
+}
+
+// resolvedDir is dir with symbolic links resolved, or cleaned when it cannot
+// be resolved.
+func resolvedDir(dir string) string {
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		return resolved
+	}
+	return filepath.Clean(dir)
 }
 
 // checkUnreportedEnv refuses a non-empty UnreportedGoEnvVars setting in one
@@ -120,7 +168,8 @@ func ExecIdentity(wrapper string) (string, error) {
 // RuntimeEnvVars are the environment variables the Go runtime reads itself,
 // not through os.Getenv, that can change what a program executes: scheduler
 // width, collector pacing and race detector behaviour (GLS-V0-009), the
-// traceback level and the GOROOT runtime.GOROOT reports (GLS-V0-052).
+// traceback level and the GOROOT runtime.GOROOT reports when it names another
+// directory than the go command's own (withoutDefaultGOROOT, GLS-V0-052).
 // Collection's env audit cannot see them, so the identity names each set one.
 var RuntimeEnvVars = []string{"GOMAXPROCS", "GOGC", "GOMEMLIMIT", "GORACE", "GOTRACEBACK", "GOROOT"}
 
