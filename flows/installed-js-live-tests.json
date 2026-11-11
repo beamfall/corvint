@@ -75,7 +75,7 @@
         "type": "source",
         "path": "internal/testvalidity/projection.go"
       },
-      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+      "reviewed_at": "02eb7a37007cbf1e136531795bebba0a087fdad8"
     },
     {
       "from": "installed-js-live-tests.default",
