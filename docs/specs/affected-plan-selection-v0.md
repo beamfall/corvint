@@ -221,6 +221,75 @@ measure. None of them drops a unit the change can reach.
   The graph cache MUST store name-listing reads, and its version MUST change with this field.
   A cache written under an older version MUST be rebuilt and MUST NOT be read as holding no
   name-listing reads. Change status MUST NOT be cached.
+- **AFP-V0-9990:** (proposed 2026-11-11; delivery experimental; V1-5191, V1-5193, V1-5194)
+  The shell plugin MUST record three walk facts for every unit, test or helper. Walk
+  directories are the literal directories its own commands list or walk: a path operand of a
+  recognised walker, which is a closed list (`ls`, `find` before its first expression word,
+  `du`, `tree`, `grep`, `egrep`, `fgrep` or `zgrep` with a recursive option, `rg`, `ag` and
+  `ack` after the pattern, and a shell glob, which names its literal directory prefix),
+  normalised to a relative path without `./` or a trailing `/`. A walk opacity reason is the
+  first of these constructs in the unit, each of which lists, walks or runs a set no word of the
+  unit names: a walker operand holding an expansion not below a private temporary root
+  (`computed-walk-operand`); a walker operand that is `/`, starts with `~` or holds `..`
+  (`climbing-walk-operand`); a walk of the working directory under AFP-V0-9134 or AFP-V0-9973
+  (`tree-walk`); `ls` with no operand or a glob whose first component holds the wildcard
+  (`working-directory-listing`); an unquoted glob after an expansion that neither AFP-V0-3333
+  nor a private temporary root bounds (`computed-glob`); a command word that is a positional
+  expansion (`forwarded-command`) or any other expansion that links no repository script
+  (`computed-command`); `eval`; `xargs`; an interpreter whose programs no planned plugin
+  observes (`perl`, `php`, `lua`, `luajit`, `Rscript`, `tclsh`, `wish`, `pwsh`, `osascript`),
+  or one that has a plugin (`python`, `python2`, `python3`, `ruby`, `node`, `nodejs`, `deno`,
+  `bun`) not run as `INTERPRETER FILE` with a literal file operand first (`interpreter`); an awk
+  program holding `system`, `getline` or `|` (`awk-command`); a helper that runs a toolchain
+  (`toolchain`); and a unit whose path tokens were dropped at their bound (`token-bound`). Run
+  names are the file-name patterns of the scripts the unit runs by a computed name no value
+  resolves (TSP-V0-960), `*` standing for any text. No other planner rule reads the walk facts.
+  Not modelled, with the limit each leaves: the `sed` `e` command and a GNU `s///e` flag; a
+  program file an interpreter with a plugin runs, whose reads are that plugin's unit's; and the
+  directory a test runner starts the unit in, which only `working-directory-listing` and
+  `tree-walk` stand in for.
+- **AFP-V0-9991:** (proposed 2026-11-11; delivery experimental; V1-5193)
+  In a shell test, a literal path operand of a recognised walker that is spelled with a slash
+  (`ls script/`, `find ./script`, `ls script/sub`) SHALL name its normalised directory as a
+  `/dir/` fragment, as AFP-V0-9133 does for a bare operand, so a file added to or deleted from
+  the directory selects the test. A computed, absolute or climbing operand and the working
+  directory are not named. A helper's operands are not named, for the reason AFP-V0-9129
+  gives; AFP-V0-9993 reads its walk directories instead.
+- **AFP-V0-9992:** (proposed 2026-11-11; delivery experimental; V1-5191)
+  A dirty path MUST be an admitted deletion, raising no `UNINDEXED_SOURCE_PATH`, when the shell
+  plugin is its only claimant, it has a file suffix, no unit owns it, it is absent from the
+  checkout the graph was observed from, it lies outside every directory the shell plugin does
+  not observe, and the checkout is not sparse. A path present on disk, an extensionless path
+  (the plugin claims extensionless files under script directories by location alone), a
+  second claimant, an unobserved directory, a sparse checkout and a graph with no disk root
+  MUST keep the entry. The admitted path MUST stay unowned for frontier rules (AFP-V0-2749), so
+  another plugin's path-open entry still bears on it; its literal and glob readers and its
+  `/dir/` fragment readers are selected by rule (c), and unbounded readers by rule (d).
+- **AFP-V0-9993:** (proposed 2026-11-11; delivery experimental; V1-5191)
+  A non-Go unit MUST be treated as an observer of an admitted deleted shell script when it has
+  a walk opacity reason, its path tokens were dropped at their bound, one of its walk
+  directories is a run of the path's directory components at any depth, one of its run names
+  matches the path's file name, or one of its path tokens names a directory component of the
+  path while naming no run of the path itself (a lone `dir/` token, left by a read below the
+  directory by a computed name). A unit whose declared read scope excludes the path MUST NOT
+  be an observer. A Go unit is not one: its lone token component names a directory at any depth
+  under rule (c) already (AFP-V0-2203). The relation is closed: the AFP-V0-9990 constructs are
+  the only ways a shell unit's walk is unresolved, and each makes the unit an observer of every
+  deleted script.
+- **AFP-V0-9994:** (proposed 2026-11-11; delivery experimental; V1-5191)
+  The planner MUST select every observer of an admitted deleted shell script that no other
+  rule reached, with the witness kind `DELETED_SCRIPT_OBSERVER` naming the smallest such path,
+  as a terminal selection like a literal reader. An observer with no test of its own MUST be
+  followed to the units that run, source or import it, as a test-less reader is
+  (AFP-V0-2992): those units are selected and followed, so a frontier the observer bears on its
+  dependents (the shell foreign-invocation frontier included) bears on the plan. `Readers`
+  MUST name the observers too. An opaque helper therefore widens the plan to the units that run
+  it and to its frontier instead of refusing the admission.
+- **AFP-V0-9995:** (proposed 2026-11-11; delivery experimental; V1-5191)
+  The walk facts MUST be part of the graph digest when set, and a graph whose units carry none
+  MUST keep its digest. The graph cache MUST store them, and its profile MUST change to
+  `corvint-affected-graph-cache/5`, so an entry written under `/4`, which cannot hold them, is
+  rebuilt and is not read as holding none.
 - **AFP-V0-3334:** (accepted under the owner's standing auto-accept (2026-10-11); V1-5178)
   A direct string literal argument to a diagnostic method of a syntactically
   resolved `*testing.T` parameter is output metadata, not a path read. The same
@@ -3381,6 +3450,18 @@ group and a command substitution) and `TestNameListingContentDecides_AFPV09961`.
 AFP-V0-9962: `TestNameListingSelection_AFPV09962`. AFP-V0-9963:
 `TestNameOnlyTreeWalker_AFPV09963`. AFP-V0-9964: `TestGraphCacheNameListings_AFPV09964`. The
 mutation evidence and measurements are in `docs/build-log/2026-11-11-affstatus.md`.
+AFP-V0-9990: `TestShellWalkFacts_AFPV09990` (one row per walker, opacity reason and control)
+and `TestShellWalkFactsTempRoot_AFPV09990`. AFP-V0-9991: `TestShellWalkOperandFragments_AFPV09991`
+and `TestBareOperandListerAcceptance_V15193`. AFP-V0-9992: `TestDeletedShellScriptAdmission_AFPV09992`
+(the admitted deletion and the on-disk, extensionless, sparse, unobserved and second-claimant
+controls) and `TestSeamWidensRatherThanNarrowingOnUnknownInput`, whose shell case now writes the
+new file to disk. AFP-V0-9993: `TestDeletedScriptRelationHelpers_AFPV09993`. AFP-V0-9994:
+`TestDeletedScriptObservers_AFPV09994` (one unit per relation branch and control, the read-scope
+exclusion, the carried helper and its bearing frontier, `Readers`) and
+`TestDeletedScriptObserversEndToEnd_AFPV09994`. AFP-V0-9995: `TestGraphCacheWalkFacts_AFPV09995`
+and `TestGraphDigestWalkFacts_AFPV09995`. `TestUnboundedWalkerAcceptance_V15194` runs the V1-5194
+inputs under AFP-V0-9134 and AFP-V0-9963. The mutation evidence and the pr-39 and selection-baseline
+measurements are in `docs/build-log/2026-11-11-walk-selection.md`.
 AFP-V0-9970 and AFP-V0-9971 (V1-5382): `TestCarriageReturnIsWordText_AFPV09970` (the
 `echo a\r#;cat` read keeps its token; `EOF\r` does not end an `EOF` body; `exit\r` is no INT exit
 handler; each failed on the base), `TestEmptyHereDocumentDelimiter_AFPV09971` (`<<''`, `<<""`
