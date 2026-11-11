@@ -73,9 +73,10 @@ func fixture(t *testing.T) (options, identity) {
 	}{{"./cmd/corvint", &o.planner}, {"./tools/gate-affected-select", &o.selector}} {
 		*tool.dest = filepath.Join(t.TempDir(), "tool")
 		var b strings.Builder
-		code, err := command(ctx, sourceRoot, append(os.Environ(), "GOTOOLCHAIN=local"), &b, &b, 2*time.Minute, "go", "build", "-trimpath", "-buildvcs=false", "-o", *tool.dest, tool.path)
+		timeout := buildTimeout(t)
+		code, err := command(ctx, sourceRoot, append(os.Environ(), "GOTOOLCHAIN=local"), &b, &b, timeout, "go", "build", "-trimpath", "-buildvcs=false", "-o", *tool.dest, tool.path)
 		if err != nil || code != 0 {
-			t.Fatalf("build: %d %v %s", code, err, b.String())
+			t.Fatalf("build %s (timeout %s): %d %v %s", tool.path, timeout, code, err, b.String())
 		}
 	}
 	if err := prepareCache(o); err != nil {
@@ -87,6 +88,23 @@ func fixture(t *testing.T) (options, identity) {
 		t.Fatal(err)
 	}
 	return o, id
+}
+
+// buildTimeout bounds a fixture's nested go build by this test binary's own
+// deadline, the go test -timeout hang detector (decision 0082), less a minute
+// so the build is killed and reported before the binary panics. A fixed bound
+// is mis-sized: the first, cold, non-race build of ./cmd/corvint competes with
+// the whole -race shard for the runner's CPUs and took over two minutes there.
+func buildTimeout(t *testing.T) time.Duration {
+	deadline, ok := t.Deadline()
+	if !ok {
+		return 30 * time.Minute // -timeout 0: the Makefile's GO_TEST_TIMEOUT
+	}
+	remaining := time.Until(deadline) - time.Minute
+	if remaining <= 0 {
+		t.Fatalf("under a minute is left before the test deadline: no time for the fixture build")
+	}
+	return remaining
 }
 
 // raceSeed is one race build cache shared by every fixture execution of this

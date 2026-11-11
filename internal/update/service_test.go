@@ -17,7 +17,8 @@ import (
 // `status-broken` makes status exit 2, `live` holds the live-attempt count
 // (decremented on each read when `draining` exists), `fail-new` makes a start
 // of build 163 never report running and `stop-fails-new` makes a stop of build
-// 163 fail. `start-fails` makes every start exit 1. `slow-stop` (any build) and
+// 163 fail. `start-fails` makes every start exit 1 and `start-fails-new` a
+// start of build 163 exit 1. `slow-stop` (any build) and
 // `slow-stop-new` (build 163) hold a count: stop then exits 0 while the
 // service stays running for that many further status reads; `broken-after-stop`
 // makes status exit 2 after a stop until the next start. Every call is logged
@@ -45,6 +46,7 @@ stop)
   if [ -f "$d/broken-after-stop" ]; then : > "$d/status-broken"; fi ;;
 start)
   if [ -f "$d/start-fails" ]; then exit 1; fi
+  if [ -f "$d/start-fails-new" ] && new; then exit 1; fi
   rm -f "$d/stopping" "$d/status-broken"
   if [ -f "$d/fail-new" ] && new; then exit 0; fi
   : > "$d/running" ;;
@@ -78,6 +80,14 @@ func serviceEngine(t *testing.T) (engine, string, string) {
 	releaseClient(t, &e, 163)
 	return e, dir, dest
 }
+
+// eventBound replaces the short start, stop and drain bounds of
+// serviceEngine in cases that must succeed once a fixture condition is met
+// after several status or live-attempts reads. Each read spawns shell
+// processes, so a few of them can outlast 500 ms on a loaded host; the wait
+// still ends at the observed event, and the bound only caps a hang. Cases
+// that must hit the bound keep the short one.
+const eventBound = 30 * time.Second
 
 func readLog(t *testing.T, dir string) string {
 	t.Helper()
@@ -252,6 +262,7 @@ func TestUPDV0014LiveAttemptsAdoptedOrDrained(t *testing.T) {
 	}
 	// DRAIN waits for zero live attempts before the switch.
 	e, s, dir = setup(t, "2\n", true)
+	e.config.DrainTimeout = eventBound
 	out, err = e.quiesce(context.Background(), s, "DRAIN")
 	if err != nil || out.State != "STOPPED" || *out.LiveAttempts != 0 || exists(filepath.Join(dir, "running")) {
 		t.Fatalf("drain: %+v %v", out, err)
@@ -336,6 +347,7 @@ func TestUPDV0014StoppedDispatcherStillDrainsAndUnknownStatusRefuses(t *testing.
 	if err := os.WriteFile(filepath.Join(dir, "draining"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	e.config.DrainTimeout = eventBound
 	out, err = e.quiesce(context.Background(), s, "DRAIN")
 	if err != nil || out.WasRunning || out.State != "NOT_RUNNING_BEFORE" || *out.LiveAttempts != 0 {
 		t.Fatalf("stopped dispatcher drained: %+v %v", out, err)

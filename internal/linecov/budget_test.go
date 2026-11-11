@@ -3,6 +3,7 @@ package linecov
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -104,25 +105,33 @@ func lbPlan(tb testing.TB, file string, in PlanInput) Selection {
 // head-file reads. LINECOV_BENCH_INDEX names a real index to time instead,
 // with LINECOV_BENCH_ROOT a checkout holding its commit; LINECOV_PLAN_P95_BUDGET
 // overrides the budget on another host, and -race scales it by raceScale.
+// As MCJ-V0-025 does for the segmented plan, each run is measured by process
+// user plus system CPU time, so scheduler stalls on a shared runner neither
+// fail nor hide the budget; total wall time is still reported, and
+// reference-host wall latency stays a benchmark qualification.
 func TestLazyPlanBudget(t *testing.T) {
 	file, in := lbInputs(t)
 	sel := lbPlan(t, file, in)
 	if sel.Counts.Units == 0 || sel.Counts.TestsDeclared == 0 {
 		t.Fatalf("the reference change decides nothing: %+v", sel.Counts)
 	}
-	const runs = 40
-	times := make([]time.Duration, runs)
-	for i := range times {
-		start := time.Now()
-		lbPlan(t, file, in)
-		times[i] = time.Since(start)
+	if _, err := planCPUTime(); errors.Is(err, errPlanCPUUnavailable) {
+		t.Skipf("process CPU measurement NOT_OBSERVED: %v", err)
+	} else if err != nil {
+		t.Fatal(err)
 	}
-	sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
-	p50, p95 := times[runs/2], times[runs*95/100]
+	const runs = 40
+	wallStart := time.Now()
+	p50, p95, err := measurePlanCPU(runs, planCPUTime, func() { lbPlan(t, file, in) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	wall := time.Since(wallStart)
 	// Under -race (raceScale > 1) the lazy path also decodes the 20 MB index on
-	// every run; CI's shard 1 measured p50 1.58 s and p95 2.06 s there, past
-	// 20x. Double the race factor here so the bound still catches only a gross
-	// regression; the uninstrumented 100 ms budget is unchanged.
+	// every run: process CPU p95 was 0.55 s on an idle 4-core linux/amd64 host,
+	// and CI's shared runners measured the segmented plan's CPU at about twice
+	// that host's. Double the race factor here so the bound still catches only a
+	// gross regression; the uninstrumented 100 ms budget is unchanged.
 	budget := raceScale * 100 * time.Millisecond
 	if raceScale > 1 {
 		budget *= 2
@@ -135,10 +144,10 @@ func TestLazyPlanBudget(t *testing.T) {
 		budget = d
 	}
 	st, _ := os.Stat(file)
-	t.Logf("index %d bytes; %d changed files, %d units, %d tests declared, %d kept by coverage, %d excluded; open+plan p50 %s p95 %s (budget %s)",
-		st.Size(), len(in.Change), sel.Counts.Units, sel.Counts.TestsDeclared, sel.Counts.TestsCoverage, sel.Counts.TestsExcluded, p50, p95, budget)
+	t.Logf("index %d bytes; %d changed files, %d units, %d tests declared, %d kept by coverage, %d excluded; open+plan CPU p50 %s p95 %s (budget %s), wall total %s",
+		st.Size(), len(in.Change), sel.Counts.Units, sel.Counts.TestsDeclared, sel.Counts.TestsCoverage, sel.Counts.TestsExcluded, p50, p95, budget, wall)
 	if p95 > budget {
-		t.Fatalf("open+plan p95 %s exceeds %s", p95, budget)
+		t.Fatalf("open+plan CPU p95 %s exceeds %s", p95, budget)
 	}
 }
 
