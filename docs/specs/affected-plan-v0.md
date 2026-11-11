@@ -4625,7 +4625,8 @@ selected package unrun. The full fallback is unchanged.
   AFP-V0-581: a Go or shell reader that rule (d) selects for every dirty path, or a TypeScript test
   that names `./cmd/corvint` as a build path literal, keeps its plugin's entries.
   (4) A dirty `.corvint/runtime-readers.json` that no unit names or reaches is `CORVINT_DECLARATION`
-  (AFP-V0-443, amended to cover both declarations); one a unit names keeps `UNOWNED_DIRTY_PATH`.
+  (AFP-V0-443, amended to cover both declarations); one a unit names keeps `UNOWNED_DIRTY_PATH`
+  unless its own exact entry declares it (AZU-V0-8910), which rule (2) then classifies (V1-5009).
   (5) This repository declares `.corvint/changes/` (sealed CEMs, V1-1820), the read-scope and
   unbounded-reader declarations, `cmd/corvint/testdata/`, the use-case ledger and receipts,
   `integrations/compatibility.json`, `internal/capcatalog/catalog.json`,
