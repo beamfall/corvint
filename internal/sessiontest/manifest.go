@@ -1,7 +1,7 @@
 // Package sessiontest is the planning-independent half of `corvint test`
 // (docs/specs/session-test-runner-v0.md): the declared full scope, the verdict
-// and the corvint-test-manifest/0 it derives, the Go and declared-command
-// adapters, the shard execution that writes a corvint-test-run/0 receipt, and
+// and the corvint-test-manifest/0 it derives, the Go, declared-command and
+// test-provider adapters, the shard execution that writes a corvint-test-run/0 receipt, and
 // the verify-shards fan-in. The plan itself comes from the caller, which
 // compiles it through the same code as `corvint affected --base`.
 package sessiontest
@@ -59,6 +59,9 @@ const (
 
 	AdapterGo       = "go"
 	AdapterDeclared = "declared"
+	// AdapterProvider runs selected Vitest and Playwright test files through
+	// a declared corvint-js-test-provider command (STR-V0-8701).
+	AdapterProvider = "provider"
 
 	ProfileLocal = "local"
 	ProfileCI    = "ci"
@@ -76,6 +79,14 @@ type SourceIdentity struct {
 	Head  string       `json:"head"`
 	Paths []PathDigest `json:"paths"`
 	Tree  string       `json:"tree"`
+}
+
+// Producer is the STR-V0-8301 identity of the binary that wrote a manifest:
+// the Git commit its build stamp names and whether that worktree was clean
+// ("clean", "modified" or "unknown"), as the PUB-V0-027 producer states them.
+type Producer struct {
+	Commit      string `json:"commit"`
+	CommitState string `json:"commitState"`
 }
 
 // Unit is one execution unit and its shard (STR-V0-002, STR-V0-007).
@@ -119,18 +130,24 @@ type Manifest struct {
 	LineIndex string `json:"lineIndex,omitempty"`
 	// NoSuite records each covered language the declaration asserts has no
 	// suite, as "<language>: <reason>"; nothing runs for it (STR-V0-004).
-	NoSuite         []string       `json:"noSuite"`
-	PartitionDigest string         `json:"partitionDigest"`
-	Placement       string         `json:"placement"`
-	PlanDigest      string         `json:"planDigest"`
-	Profile         string         `json:"profile"`
-	Reason          string         `json:"reason"`
-	RunnerProfile   string         `json:"runnerProfile"`
-	Scope           string         `json:"scope"`
-	ShardCount      int            `json:"shardCount"`
-	Source          SourceIdentity `json:"source"`
-	SourceDigest    string         `json:"sourceDigest"`
-	Units           []Unit         `json:"units"`
+	NoSuite         []string `json:"noSuite"`
+	PartitionDigest string   `json:"partitionDigest"`
+	Placement       string   `json:"placement"`
+	PlanDigest      string   `json:"planDigest"`
+	// Producer names the corvint that wrote the manifest by its stamped Git
+	// commit (STR-V0-8301), so a consumer such as script/heavy.sh --plan can
+	// refuse a selection a stale binary computed; it is absent for a binary
+	// with no Git stamp (a release archive), and such a manifest keeps its
+	// bytes. source.head is the HEAD the manifest was planned for.
+	Producer      *Producer      `json:"producer,omitempty"`
+	Profile       string         `json:"profile"`
+	Reason        string         `json:"reason"`
+	RunnerProfile string         `json:"runnerProfile"`
+	Scope         string         `json:"scope"`
+	ShardCount    int            `json:"shardCount"`
+	Source        SourceIdentity `json:"source"`
+	SourceDigest  string         `json:"sourceDigest"`
+	Units         []Unit         `json:"units"`
 }
 
 // Digest is "sha256:<hex>" of v's canonical JSON.

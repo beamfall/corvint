@@ -1,0 +1,92 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "web-flows-browser-gate",
+  "revision": 1,
+  "kind": "api",
+  "actor": "browser gate",
+  "preconditions": [
+    "the release binaries are built from the tested commit"
+  ],
+  "steps": [
+    {
+      "step_id": "observe",
+      "action": "run corvint-web-flows --observe over the fixture flows manifest and drive the fixture app in the pinned browser"
+    }
+  ],
+  "outcomes": [
+    {
+      "outcome_id": "observed",
+      "behavior": "the observed run matches the manifest's scenarios and navigation",
+      "matcher": "toEqual",
+      "locator": "status",
+      "value": "PASS"
+    }
+  ],
+  "variations": [
+    {
+      "variation_id": "web-flows-browser-gate.default",
+      "preconditions": [],
+      "steps": [
+        "observe"
+      ],
+      "observable_facts": [
+        "the run evidence names every scenario of the manifest"
+      ],
+      "outcomes": [
+        "observed"
+      ],
+      "projects": [
+        "node"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "from": "observe",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "cmd/corvint-web-flows/main.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "observe",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/appflows/navigation_execution.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "observe",
+      "basis": "declared",
+      "target": {
+        "type": "source",
+        "path": "internal/companioncli/companioncli.go"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "web-flows-browser-gate.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "tools/web-flows/test/e2e.mjs",
+        "test_key": "tools/web-flows/test/e2e.mjs"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    },
+    {
+      "from": "web-flows-browser-gate.default",
+      "basis": "declared",
+      "target": {
+        "type": "test",
+        "path": "tools/web-flows/test/navigation-e2e.mjs",
+        "test_key": "tools/web-flows/test/navigation-e2e.mjs"
+      },
+      "reviewed_at": "c8bb373da753f07b77f2b609786692f5e06fe0a5"
+    }
+  ]
+}

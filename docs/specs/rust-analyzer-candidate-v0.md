@@ -232,7 +232,9 @@ hostile-lexer corpus for every construct in `RAC-005`, the manifest and toolchai
 their conflict rule, and CLI read/write/argument paths. The candidate's reachable production source
 is measured by `internal/analyzercap/source_ceiling_test.go` and sits under the unamended ACP-009
 base ceiling, so no per-candidate ceiling amendment is claimed. `go list -deps` shows the executable
-reaches exactly its own package and `cmd/corvint-analyzer-rust`, with no Core dependency edge.
+reaches exactly its own package, the pure-syntax leaf `internal/rustsyntax` (lexer and
+executable-body extractor, stdlib-only), and `cmd/corvint-analyzer-rust`, with no Core dependency
+edge.
 
 A read-only observation over 64 genuine Rust files accepted 59 and produced 1,354 facts with no
 lexical false positive; the five rejections were all genuine `include!`, `include_str!`, or

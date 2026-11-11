@@ -10,8 +10,8 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
+	"github.com/Beamfall/corvint/internal/repopath"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -46,7 +46,7 @@ func BuildPlaywrightDiscovery(ctx context.Context, input PlaywrightDiscoveryInpu
 	if err := decode(input.Migration, &migration); err != nil || migration.Schema != 2 || !textOK(migration.ContractID) || !validBehaviorRevisions(migration.Revisions) || migration.SourceRevision != migration.Revisions.E2E.Revision || !wire.IsGitOid(migration.DocumentationRevision) || migration.DocumentationRevision != migration.Revisions.Docs.Revision {
 		return nil, fail("playwright discovery requires the exact schema-2 migration record")
 	}
-	if !affected.ValidRelativePath(input.ConfigPath) {
+	if !repopath.Valid(input.ConfigPath) {
 		return nil, fail("playwright config path is not a canonical repository-relative path")
 	}
 	revision := migration.SourceRevision
@@ -181,8 +181,8 @@ func (p *playwrightPinnedSources) regularPaths(ctx context.Context) ([]string, e
 		if err != nil {
 			return err
 		}
-		if entries++; entries > affected.MaxWalkEntries {
-			return affected.ErrWalkLimit
+		if entries++; entries > repopath.MaxWalkEntries {
+			return repopath.ErrWalkLimit
 		}
 		if entry.IsDir() {
 			if entry.Name() == "node_modules" {
@@ -221,7 +221,7 @@ func (p *playwrightPinnedSources) file(ctx context.Context, path string) (playwr
 	if over {
 		return playwrightPinnedFile{}, fail("playwright file exceeds the input bound: " + path)
 	}
-	current, err := affected.ReadSource(p.root, path)
+	current, err := repopath.ReadSource(p.root, path)
 	if err != nil || !bytes.Equal(current, data) {
 		return playwrightPinnedFile{}, fail("working-tree bytes differ from the source revision, so the listing is not of the pinned bytes: " + path)
 	}

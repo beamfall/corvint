@@ -2,7 +2,8 @@
 // by both the Go CLI/MCP surface and the VS Code extension's TypeScript
 // mirror (extensions/vscode/src/testvalidity.ts). A projection composes
 // facts already produced by internal/tcq (association, hygiene, reported
-// execution) and internal/liveverify/mutate (measured strength), plus one
+// execution) and, as a mirrored vocabulary, internal/liveverify/mutate
+// (measured strength), plus one
 // execution/freshness report shaped by the frozen LPCV "Result axes"
 // vocabulary (docs/specs/live-proof-carrying-verification-v0.md) and the
 // GLTP INCOMPLETE-cause vocabulary (docs/specs/go-live-test-provider-v0.md).
@@ -18,10 +19,7 @@
 // rather than a derived pass/fail summary field.
 package testvalidity
 
-import (
-	"github.com/Beamfall/corvint/internal/liveverify/mutate"
-	"github.com/Beamfall/corvint/internal/tcq"
-)
+import "github.com/Beamfall/corvint/internal/tcq"
 
 // StateUnsupported is the shared sentinel every axis uses when its own input
 // was not supplied at all. It is not TCQ's or LPCV's frozen enum value; it is
@@ -74,10 +72,13 @@ const (
 )
 
 // Strength axis states: a mutation witness. NotMeasured means no mutation
-// run was attempted; it is not evidence of adequacy either way.
+// run was attempted; it is not evidence of adequacy either way. Killed and
+// Survived are the verdict strings of internal/liveverify/mutate, mirrored here
+// so this shared vocabulary does not import the mutation runner; that package's
+// tests hold the two equal.
 const (
-	StrengthKilled      = string(mutate.Killed)
-	StrengthSurvived    = string(mutate.Survived)
+	StrengthKilled      = "KILLED"
+	StrengthSurvived    = "SURVIVED"
 	StrengthNotMeasured = "NOT_MEASURED"
 	StrengthUnsupported = StateUnsupported
 )
@@ -152,16 +153,21 @@ type ExecutionFacts struct {
 	Anchors  []string
 }
 
-// MutationFacts adapts one real mutate.Report into the strength axis.
+// MutationFacts is one mutation report's verdict, detail and witness, the
+// shape of internal/liveverify/mutate's Report that the strength axis reads.
 type MutationFacts struct {
 	Verdict string
 	Detail  string
-	Witness *mutate.Witness
+	Witness *MutationWitness
 }
 
-// FromMutationReport adapts a real mutate.Report unchanged.
-func FromMutationReport(report mutate.Report) MutationFacts {
-	return MutationFacts{Verdict: string(report.Verdict), Detail: report.Detail, Witness: report.Witness}
+// MutationWitness is the killing mutant a KILLED verdict names: the operator,
+// its source span and the test that killed it (mutate.Witness, field for field).
+type MutationWitness struct {
+	Operator    string
+	Start       int
+	End         int
+	KillingTest string
 }
 
 // Input is every fact a projection may draw from. A nil member means that
@@ -280,13 +286,13 @@ func strengthAxis(mutation *MutationFacts) Axis {
 		return Axis{State: StrengthNotMeasured, Reason: "no-mutation-run"}
 	}
 	switch mutation.Verdict {
-	case string(mutate.Killed):
+	case StrengthKilled:
 		var anchors []string
 		if mutation.Witness != nil {
 			anchors = []string{mutation.Witness.Operator, mutation.Witness.KillingTest}
 		}
 		return Axis{State: StrengthKilled, Reason: "witnessed-kill: " + mutation.Detail, Anchors: anchors}
-	case string(mutate.Survived):
+	case StrengthSurvived:
 		return Axis{State: StrengthSurvived, Reason: mutation.Detail}
 	default:
 		return Axis{State: StrengthNotMeasured, Reason: mutation.Detail}

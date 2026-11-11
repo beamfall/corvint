@@ -6,7 +6,7 @@ Each task names the requirement IDs it delivers and its proof. Tick tasks in ord
 
 - [ ] 1.1 File the ticket in `.taskman/` (milestone `v1-0`) and reserve prefix `TPV-V1` (001 to 008).
       Requirements: all. Proof: `corvint-tasks ticket show`.
-- [ ] 1.2 First commit: create `docs/specs/tasks-policy-v15.md` from the spec delta, add its row to
+- [x] 1.2 First commit: create `docs/specs/tasks-policy-v15.md` from the spec delta, add its row to
       `docs/specs/README.md`, regenerate the index and run `make spec-requirements-check`.
       Requirements: TPV-V1-001 to 008. Proof: check output.
 - [ ] 2.1 Wait for the M0 removal to land on `origin/main`. Requirements: TPV-V1-004. Proof: the

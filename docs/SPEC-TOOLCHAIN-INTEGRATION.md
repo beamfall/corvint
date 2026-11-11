@@ -40,7 +40,7 @@ code, the tests, and the execution, and no second party is left to witness any o
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
 **a new specification language** are both listed at `docs/PRODUCT.md:377-379@27e81383`, and
-`docs/specs/live-proof-carrying-verification-v0.md:1188-1189@38b12d34` forbids "generating tests, weakening
+`docs/specs/live-proof-carrying-verification-v0.md:1270-1271@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.
@@ -117,7 +117,7 @@ qualified host closing decision has no implementation to integrate with.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries three incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:626@982aa756`), in the frontier spec
+(`internal/mcp/bridge/bridge.go:628@982aa756`), in the frontier spec
 (`docs/specs/change-frontier-v0.md:244-245@20d8f7d1`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fourth. One ordered lattice, one

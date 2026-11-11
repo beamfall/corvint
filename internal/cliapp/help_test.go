@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/versionline"
 )
 
 // CAP-V0-8800: a literal help node has its own page, not its root's inputs.
@@ -87,6 +89,28 @@ func TestCAPV08800AnalyzerNodeHelpDelegates(t *testing.T) {
 		code, handled := Answer("corvint-analyzer-go", []string{flag}, &out, &errout)
 		if code != 0 || !handled || !strings.Contains(out.String(), "corvint-analyzer-go < REQUEST.json") || errout.Len() != 0 {
 			t.Fatalf("root %s: code=%d handled=%t stdout=%q stderr=%q", flag, code, handled, out.String(), errout.String())
+		}
+	}
+}
+
+// ARTIFACT-BIN-V0-002: an independently released binary reports the version the release
+// builder stamped, with its build and commit; unstamped it reports the development line as
+// before, and an empty version is the compiled development line.
+func TestAnswerReleasedReportsTheStampedVersion(t *testing.T) {
+	commit := strings.Repeat("a", 40)
+	cases := map[string]struct {
+		version, build, commit string
+		want                   string
+	}{
+		"stamped":   {"1.4.2", "183", commit, "corvint-update 1.4.2 (build 183, commit " + commit + ")"},
+		"unstamped": {"", "0", "", "corvint-update " + versionline.Development},
+		"compiled":  {"", "183", commit, "corvint-update " + versionline.Release + " (build 183, commit " + commit + ")"},
+	}
+	for name, c := range cases {
+		var out, errout bytes.Buffer
+		code, handled := AnswerReleased("corvint-update", c.version, c.build, c.commit, []string{"--version"}, &out, &errout)
+		if code != 0 || !handled || errout.Len() != 0 || strings.TrimSpace(out.String()) != c.want {
+			t.Errorf("%s: code=%d handled=%t stdout=%q stderr=%q, want %q", name, code, handled, out.String(), errout.String(), c.want)
 		}
 	}
 }

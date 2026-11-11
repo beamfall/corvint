@@ -79,7 +79,7 @@ func TestSyntheticClone_AEO_V0_001_002_003_004(t *testing.T) {
 	fake := filepath.Join(t.TempDir(), "planner")
 	body := `#!/bin/sh
 set -eu
-[ "$*" = 'affected --base HEAD~1 --format json' ]
+[ "$*" = 'affected --base HEAD~1 --format json --accept-stale-binary' ]
 [ -z "$(git status --porcelain)" ]
 changed=$(git diff --name-only HEAD~1 HEAD)
 selected='[]'

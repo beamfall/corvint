@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/linecov/watch"
 )
 
 func main() {
@@ -54,7 +55,7 @@ func main() {
 	case "help", "--help", "-h":
 		err = help(os.Stdout, os.Args[2:])
 	case "watch":
-		err = watch(os.Args[2:])
+		err = watchCommand(os.Args[2:])
 	case "ruby-collect", "js-collect":
 		err = languageCollect(strings.TrimSuffix(os.Args[1], "-collect"), os.Args[2:])
 	case "ruby-select", "js-select":
@@ -352,20 +353,10 @@ func divergenceInputs(priorFile, missFile string) ([]linecov.Divergence, []linec
 
 // Plan is the select output: one decision per static package and, for each
 // package that runs, its `go test` arguments.
-type Plan struct {
-	Index, Base, Head string
-	Reason            string `json:",omitempty"`
-	Packages          map[string]linecov.PackagePlan
-	Run               []Invocation
-	Excluded          []string
-	ElapsedMS         int64
-}
+type Plan = watch.Plan
 
 // Invocation is one `go test` package argument and its -run filter.
-type Invocation struct {
-	Package string
-	Run     string `json:",omitempty"`
-}
+type Invocation = watch.Invocation
 
 func selectTests(args []string) error {
 	fs := flag.NewFlagSet("select", flag.ExitOnError)

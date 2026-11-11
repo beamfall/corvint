@@ -11,26 +11,24 @@ func noPlanFallback(d doc) {
 		"no plan: unsupported-affected-graph: the graph is not supported", "", []any{}
 }
 
-// TestAFPV0047NoPlanFullFallbackIsComplete pins the AFP-V0-047 amendment (V1-5216): a selection
-// that fell back to FULL because no plan was built is a complete forward row whose S is every
-// package with an outcome, so a queue failure is selected, never a MISS.
-func TestAFPV0047NoPlanFullFallbackIsComplete(t *testing.T) {
+// TestAFPV0047NoPlanFallbackIsAFullRow_CINV07921 pins the V1-5216 fallback under CIN-V0-7921,
+// which AFP-V0-047 defers to: a run whose every shard fell back to FULL because no plan was built
+// measured no narrowing, so it is a complete row of class FULL (type skew), never CLEAN. S stays
+// the selected packages only, so a queue failure counts as missed, yet the class is still FULL
+// and the row is no narrowing evidence either way.
+func TestAFPV0047NoPlanFallbackIsAFullRow_CINV07921(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/row.jq", "CIN-V0-7921")
 	f := queueFixture(t)
 	for _, d := range f.sel {
 		noPlanFallback(d)
 	}
-	universe := map[string]bool{}
-	for _, d := range f.out {
-		for pkg := range sub(d, "outcomes") {
-			universe[pkg] = true
-		}
-	}
 	row, _ := f.classify(t, nil)
-	if row["class"] != "CLEAN" || len(strs(row["incomplete"])) != 0 {
-		t.Fatalf("fallback row = %v %q, want CLEAN and complete", row["class"], row["incomplete"])
+	if row["class"] != "FULL" || len(strs(row["incomplete"])) != 0 {
+		t.Fatalf("fallback row = %v %q, want FULL and complete", row["class"], row["incomplete"])
 	}
-	if sel := sub(row, "selection"); sel["scope"] != "FULL" || num(sel["selected"]) != len(universe) {
-		t.Fatalf("fallback selection = %v, want FULL over all %d packages", sel, len(universe))
+	sel := sub(row, "selection")
+	if full, _ := sel["full"].(doc); sel["scope"] != "FULL" || num(sel["selected"]) != 0 || full["type"] != "skew" || num(full["unplanned"]) != 8 {
+		t.Fatalf("fallback selection = %v, want FULL of type skew over 8 unplanned shards, none selected", sel)
 	}
 
 	f = queueFixture(t)
@@ -39,24 +37,24 @@ func TestAFPV0047NoPlanFullFallbackIsComplete(t *testing.T) {
 	}
 	fail(f.out[7], flakyPkg, "fail", "RAN", "fail")
 	row, _ = f.classify(t, nil)
-	if c := sub(row, "counts"); row["class"] != "CLEAN" || num(c["missed"]) != 0 || num(c["selectedFailedInQueue"]) != 1 {
-		t.Fatalf("fallback row with a queue failure = %v %v, want CLEAN with it selected", row["class"], c)
+	if c := sub(row, "counts"); row["class"] != "FULL" || num(c["missed"]) != 1 || num(c["selectedFailedInQueue"]) != 0 {
+		t.Fatalf("fallback row with a queue failure = %v %v, want FULL with the failure missed", row["class"], c)
 	}
 }
 
-// TestAFPV0047OtherPlanlessSelectionsStayIncomplete is the fail-closed half: only the recognisable
-// fallback may lack a plan digest, and a fallback mixed with planned shards is not one row.
-func TestAFPV0047OtherPlanlessSelectionsStayIncomplete(t *testing.T) {
+// TestAFPV0047OtherPlanlessSelectionsFailClosed_CINV07921 is the fail-closed half: a document
+// with no plan passes the shape only as a FULL fallback with a reason; a FULL run typed by its
+// reasons (abstain for another reason, skew for a missing or malformed plan digest) is still a
+// FULL row; and a fallback beside planned shards leaves the row incomplete.
+func TestAFPV0047OtherPlanlessSelectionsFailClosed_CINV07921(t *testing.T) {
+	requireGitHubChange(t, ".github/forward-rows/row.jq", "CIN-V0-7921")
 	const shape = "8 selection document(s) fail the corvint-pr-selection/0 shape"
 	for _, c := range []struct {
 		name   string
 		mutate func(doc)
 	}{
 		{"narrowed without a plan digest", func(d doc) { d["planDigest"] = "" }},
-		{"FULL with another reason", func(d doc) { noPlanFallback(d); d["reason"] = "declared full scope" }},
 		{"FULL with no reason", func(d doc) { noPlanFallback(d); delete(d, "reason") }},
-		{"fallback with a null plan digest", func(d doc) { noPlanFallback(d); d["planDigest"] = nil }},
-		{"fallback with a malformed plan digest", func(d doc) { noPlanFallback(d); d["planDigest"] = "sha256:x" }},
 		{"fallback scoped NARROWED", func(d doc) { noPlanFallback(d); d["scope"] = "NARROWED" }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -68,6 +66,25 @@ func TestAFPV0047OtherPlanlessSelectionsStayIncomplete(t *testing.T) {
 			wantIncomplete(t, row, shape)
 		})
 	}
+	for _, c := range []struct {
+		name, fullType string
+		mutate         func(doc)
+	}{
+		{"FULL with another reason", "abstain", func(d doc) { noPlanFallback(d); d["reason"] = "declared full scope" }},
+		{"fallback with a null plan digest", "skew", func(d doc) { noPlanFallback(d); d["planDigest"] = nil }},
+		{"fallback with a malformed plan digest", "skew", func(d doc) { noPlanFallback(d); d["planDigest"] = "sha256:x" }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := queueFixture(t)
+			for _, d := range f.sel {
+				c.mutate(d)
+			}
+			row, _ := f.classify(t, nil)
+			if full, _ := sub(row, "selection")["full"].(doc); row["class"] != "FULL" || len(strs(row["incomplete"])) != 0 || full["type"] != c.fullType {
+				t.Fatalf("row = %v %q %v, want a complete FULL row of type %s", row["class"], row["incomplete"], full, c.fullType)
+			}
+		})
+	}
 
 	f := queueFixture(t)
 	for k, d := range f.sel {
@@ -76,7 +93,7 @@ func TestAFPV0047OtherPlanlessSelectionsStayIncomplete(t *testing.T) {
 		}
 	}
 	row, _ := f.classify(t, nil)
-	wantIncomplete(t, row, "selection shards mix a no-plan FULL fallback with a plan")
+	wantIncomplete(t, row, "planned nothing (FULL: no plan: unsupported-affected-graph")
 }
 
 // TestAFPV0030RerunsOfOneRowCountOnce pins the bar.jq dedupe the V1-5216 report questioned: rows

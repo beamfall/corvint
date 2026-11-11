@@ -37,3 +37,12 @@ mismatched pinned tools are failures. The harness
 also fails closed on snapshot export, diagnostics, MCP disagreement, residue, profile mutation, or
 identity drift. `--interrupt-witness` runs only the separate host-interruption cleanup witness; it
 does not create retained cancellation evidence.
+
+The harness's own node:test suite, `core-process.test.mjs`, runs with `make interactive-alpha-test`
+(part of `make typescript-test`, the declared TypeScript family) and needs node alone; its browser
+cases skip without `CORVINT_TEST_PLAYWRIGHT`. The installed-host proofs beside it,
+`core-provider-proof.mjs` and `extensions/vscode/test/installed/run.mjs`, are declared binary
+consumers of the two live test providers and the test-validity MCP in
+`.corvint/test-binary-consumers.json`, bound to the flows under `flows/` by `.corvint/e2e-flows.json`
+(AFP-V0-762, AFU-V1-1655). `core-planning-proof.mjs` and `roadmap-proof.mjs` exec binaries decision
+0594 extracted or cut and have no runner.

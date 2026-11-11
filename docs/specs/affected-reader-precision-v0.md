@@ -164,6 +164,41 @@ explicit exclusions retained in `docs/build-log/2026-11-07-rsdecl.md` (rsdecl2).
   Rollback deletes the two fields and the summary clause. Acceptance is
   `TestAFPV0098SupersetGuard` and `TestAFPV0098SupersetGuardSidecar` in `tools/ci-forward-row/narrowing_test.go`.
 
+### V1-5201 literals joined to a temporary root (lane affprec2)
+
+Audit 2026-11-09 (`origin/main` `8db854618`, selection-baseline narrow 35/43, median cost 0.818): a
+Go path literal selects its unit for any dirty path it prefixes (AFP-V0-012 rule (c), AFP-V0-2203
+narrows placement only for CEM and record directories), so test fixtures that write
+`filepath.Join(t.TempDir(), "docs", ...)` make hub packages readers of every `docs/` change. At
+`32140bb3b` the proof below applies to 3164 literal arguments in 689 files of 173 packages.
+
+- `AFP-V0-9810`: (experimental under the owner's standing lane auto-accept; lane affprec2
+  charter 2026-11-09; V1-5201) The Go plugin SHALL NOT count a string literal as a path token
+  (AFP-V0-021) when it is an argument, other than the first, of a `filepath.Join` or `path.Join`
+  call whose first argument is temp-rooted, and every such argument of that call is a plain
+  literal (no empty, `.`, `..` or glob component). An expression is temp-rooted when it is
+  `X.TempDir()` with `X` a function parameter of type `*testing.T`, `*testing.B`, `*testing.F` or
+  `testing.TB` that the function never reassigns or addresses, such a join, or a
+  local variable bound exactly once (`:=`, or a one-name `var` with one value) to a temp-rooted
+  expression and never reassigned, addressed or declared at package level, through chains of such
+  bindings within the file. The joined path lies below a directory the test run created empty,
+  so the literal names no repository read whatever consumes the joined value. `os.TempDir()` is
+  not temp-rooted: it is the shared directory `TMPDIR` names, which may be or hold a checkout. The
+  proof is per file: a literal reaching a join through a helper function, a parameter, a map or
+  a slice stays a path token; so does the same text spelled anywhere else in the file, a join
+  whose first argument is any other expression (`os.Getwd`, `"."`, a constant), a receiver whose
+  type the file does not declare as a testing parameter, a shadowed `filepath`, and every literal
+  of a file that does not parse. Failure mode: a test that symlinks or copies a repository path
+  under the temporary root still reads the repository through the literal that names that
+  repository path, which this rule leaves untouched; the per-file bound and the exact receiver
+  types keep a helper-built or type-shadowed root a reader. Rollback deletes `tempjoin.go` and
+  its call in `pathTokens`; graph digests then change back and no wire member moves. Acceptance:
+  `TestTempJoinComponents_AFP_V0_9810`, `TestTempJoinComponentsNeedsImports_AFP_V0_9810` and
+  `TestTempJoinedLiteralSelectsNoReader_AFP_V0_9810` in `internal/liveverify/affected/golang`,
+  and the docs-only probe in `docs/build-log/2026-11-09-affprec2.md`, which records that the
+  repository's hub packages stay readers of a `docs/specs/` edit through fixture map keys written
+  by helpers, a shape this per-file proof does not bind and leaves selected.
+
 ## Non-goals and failure modes
 
 Non-goals: automatic whole-program read analysis, narrower treatment of arbitrary
@@ -201,8 +236,9 @@ repair direction; it changes no selector behavior or wire contract.
 | AFP-V0-9000 | `testReadKinds`, `readKindAliases`, `Language.observeDirectory` | `TestReadKindsDeclaration_AFPV09000`, `TestReadKindsUnresolvedAlias_AFPV09000`, `TestReadKindsDependencyOverflow_AFPV09000` in `internal/liveverify/affected/golang/readkinds_test.go`; `TestBoundaryAliasCache_AFPV09000` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9001 | `internal/tasks/boundary_test.go` | `TestBoundaryKindBound_AFPV09001`, `TestBoundarySymlinkTarget_AFPV09001` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9002 | `internal/tasks/cli/command_help.go`, embedded usage text | `TestHelpTextProvenance_AFPV09002` in `internal/liveverify/affected/affprec_repo_test.go` |
-| AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
+| AFP-V0-9003 | reader selection and retained uncertainty | `TestPrecisionReplay_AFPV09003` in `internal/liveverify/affected/liverepo/precision_replay_repo_test.go`, `TestTestOnlyImporterPrecision_AFPV09003` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9004 | unchanged dirty-declaration frontier, conditional path measurement | `TestDirtyForeignCallerDeclaration_AFPV09004` in `internal/liveverify/affected/affprec_repo_test.go` |
 | AFP-V0-9005 | `testReadKinds`, `internal/liveverify/mutate/export_test.go` | `TestFixtureReadKinds_AFPV09005` in `internal/liveverify/affected/golang/readkinds_test.go` |
 | AFP-V0-9200 | `.corvint/test-read-scopes.json` | Whole-package Landlock qualification and declaration-checker results in `docs/build-log/2026-11-07-rsdecl.md`; existing tests and assertions unchanged. |
 | AFP-V0-9510 | `.github/forward-rows/narrow.jq` `overSelected`/`overSelectedCount`, `narrow.sh` summary clause | `TestAFPV0098SupersetGuard` (cap, unknown selection) and `TestAFPV0098SupersetGuardSidecar` (summary names five) in `tools/ci-forward-row/narrowing_test.go` |
+| AFP-V0-9810 | `tempJoinComponents` in `internal/liveverify/affected/golang/tempjoin.go`, called from `pathTokens` | `TestTempJoinComponents_AFP_V0_9810`, `TestTempJoinComponentsNeedsImports_AFP_V0_9810`, `TestTempJoinedLiteralSelectsNoReader_AFP_V0_9810`; HEAD census and docs-only probe in `docs/build-log/2026-11-09-affprec2.md` |

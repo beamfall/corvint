@@ -616,7 +616,7 @@ func TestDriverUnparsableReaderExclusions_AZU_V0_001(t *testing.T) {
 	files := map[string]string{
 		"data/evidence.json":        "{}",
 		affected.RuntimeReadersPath: `{"profile":"corvint-runtime-readers/0","entries":[{"path":"data/evidence.json","reason":"read only by literal readers"}]}`,
-		".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - &unsupported {run: 'go test -race ./core/...'}\n",
+		".github/workflows/ci.yml":  "jobs:\n  unit:\n    steps:\n      - !unsupported {run: 'go test -race ./core/...'}\n",
 	}
 	plan := affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
 	if plan.Scope != affected.ScopeUnknown {
@@ -632,7 +632,7 @@ func TestDriverUnparsableReaderExclusions_AZU_V0_001(t *testing.T) {
 	if plan.Scope != affected.ScopeUnknown {
 		t.Fatalf("data proof hid code change: %+v", plan)
 	}
-	files[".github/workflows/ci.yml"] = "jobs:\n  unit:\n    steps:\n      - &unsupported {run: 'cat data/evidence.json'}\n"
+	files[".github/workflows/ci.yml"] = "jobs:\n  unit:\n    steps:\n      - !unsupported {run: 'cat data/evidence.json'}\n"
 	plan = affected.Select(driverGraph(t, files, nil), []string{"data/evidence.json"})
 	if plan.Scope != affected.ScopeUnknown {
 		t.Fatalf("data proof hid literal reader: %+v", plan)

@@ -14,6 +14,26 @@ import (
 // Answer serves migrated companion help before any protocol, repository or server starts.
 // Existing command-tree producers continue to use their authored help implementations.
 func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) {
+	return AnswerStamped(binary, "", "", args, stdout, stderr)
+}
+
+// AnswerStamped is Answer for a binary whose main package passes its
+// `-X main.build=N` and `-X main.sourceCommit=SHA` stamps through, so a release
+// build reports the build and commit on --version (ARTIFACT-BIN-V0-508,
+// PUB-V0-052); an unstamped build passes empty values and reports as before.
+func AnswerStamped(binary, build, sourceCommit string, args []string, stdout, stderr io.Writer) (int, bool) {
+	return AnswerReleased(binary, "", build, sourceCommit, args, stdout, stderr)
+}
+
+// AnswerReleased is AnswerStamped for an independently released binary whose
+// main package also passes its `-X main.version=X.Y.Z` stamp through, so a
+// release build reports the version the release builder named rather than the
+// repository's compiled release line (ARTIFACT-BIN-V0-002). An empty version
+// is the compiled development line, as for a core-set binary.
+func AnswerReleased(binary, version, build, sourceCommit string, args []string, stdout, stderr io.Writer) (int, bool) {
+	if version == "" {
+		version = companioncli.ExperimentalVersion
+	}
 	// Preserve authored test-command help, including provider flag details.
 	// These binaries can still expose their offline command-tree catalog.
 	switch binary {
@@ -33,7 +53,7 @@ func Answer(binary string, args []string, stdout, stderr io.Writer) (int, bool) 
 		return 0, false
 	}
 	if len(args) > 0 && args[0] == "--version" && binary != "corvint" && binary != "corvint-tasks" {
-		return companioncli.Answer(companioncli.Spec{Binary: binary, Version: companioncli.ExperimentalVersion}, args, stdout)
+		return companioncli.Answer(companioncli.Spec{Binary: binary, Version: version, Build: build, Commit: sourceCommit}, args, stdout)
 	}
 	tree, ok := capcatalog.TreeSnapshot(binary)
 	if !ok {

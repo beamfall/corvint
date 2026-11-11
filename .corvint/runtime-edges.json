@@ -7,6 +7,11 @@
       "reason": "select_test.py dynamically loads darwin_select.py with importlib.util.spec_from_file_location; the native Darwin inventory and narrowing tests exercise this helper (AZU-V0-9920)."
     },
     {
+      "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
+      "runs": "typescript:conformance/interactive-alpha/fixture/app/server.js",
+      "reason": "The conformance fixture's end-to-end test drives the counter page that app/server.js serves on 127.0.0.1:4173; core-provider-proof.mjs and extensions/vscode/test/installed/run.mjs copy the fixture and start that server before running the spec through the provider (V1-4999)."
+    },
+    {
       "tests": "internal/doccorpus/testdata/behavior-events/live-1.61.1/tests/",
       "runs": "typescript:internal/doccorpus/testdata/behavior-events/live-1.61.1/server.cjs",
       "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/doccorpus/behavior-events.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."

@@ -18,7 +18,7 @@ func init() { flowSubcommands["request-path"] = runFlowsRequestPath }
 // RequestPathHelp documents `flows request-path`; help.go appends it to flowsHelp.
 const RequestPathHelp = `
 Request-path usage (AMAP-V0-130..139):
-  corvint [--root PATH] flows request-path --file PATH (--route 'METHOD /path' | --handler NAME)
+  corvint-docs [--root PATH] flows request-path --file PATH (--route 'METHOD /path' | --handler NAME)
       [--revision REV] [--env-profile FILE [--warn]]
 
 request-path reads one Express-style route registered in --file (or one named handler) from

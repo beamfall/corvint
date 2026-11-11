@@ -15,10 +15,12 @@ import (
 // naming the declared glob, while a path outside every input does not (the
 // negative control). The declaration only adds: the test keeps the literal it
 // observed itself. An invalid declaration, or an entry for no observed shell
-// test, adds nothing and names FrontierShellTestInputsInvalid.
+// test, adds nothing and names FrontierShellTestInputsInvalid. The fixture
+// lists a directory the declaration does not name: a bare `find script` would
+// itself name script/ (AFP-V0-9133) and select the test before any glob.
 func TestShellTestInputsDeclaration_AFPV02400(t *testing.T) {
 	base := map[string]string{
-		"t/scan_test.sh":       "printf '%s\\n' Makefile | xargs grep -n python3\nfind script -maxdepth 1 -name '*.sh'\ncat conf/settings.txt\n",
+		"t/scan_test.sh":       "printf '%s\\n' Makefile | xargs grep -n python3\nfind tools -maxdepth 1 -name '*.sh'\ncat conf/settings.txt\n",
 		"Makefile":             "all:\n",
 		"script/a.sh":          "echo a\n",
 		"script/deep/b.sh":     "echo b\n",

@@ -1,0 +1,48 @@
+{
+  "schema": "corvint.release-binaries/1",
+  "legalFiles": ["LICENSE", "LICENSE-APACHE-2.0", "LICENSING.md", "PROVENANCE.md"],
+  "targets": [
+    {"goos": "darwin", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "darwin", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "windows", "goarch": "amd64", "binarySuffix": ".exe"}
+  ],
+  "versionSets": {
+    "core": "corvint execs corvint-docs and the CLI adapter, MCP servers and test runner link the same internal packages, so one release of the set carries one version and one source commit (decision 0594 items 3 and 8)"
+  },
+  "binaries": [
+    {"name": "corvint", "package": "./cmd/corvint", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-docs", "package": "./cmd/corvint-docs", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-cli", "package": "./cmd/corvint-cli", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-mcp", "package": "./cmd/corvint-mcp", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-docs-mcp", "package": "./cmd/corvint-docs-mcp", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-test-validity-mcp", "package": "./cmd/corvint-test-validity-mcp", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-web-flows", "package": "./cmd/corvint-web-flows", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-test-runner", "package": "./cmd/corvint-test-runner", "role": "product", "versionSet": "core", "decision": "0594"},
+    {"name": "corvint-go-test-provider", "package": "./cmd/corvint-go-test-provider", "role": "product", "decision": "0594"},
+    {"name": "corvint-js-test-provider", "package": "./cmd/corvint-js-test-provider", "role": "product", "decision": "0594"},
+    {"name": "corvint-ruby-test-provider", "package": "./cmd/corvint-ruby-test-provider", "role": "product", "decision": "0594"},
+    {"name": "corvint-analyzer-c-jni", "package": "./cmd/corvint-analyzer-c-jni", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-dotnet", "package": "./cmd/corvint-analyzer-dotnet", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-go", "package": "./cmd/corvint-analyzer-go", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-html-css", "package": "./cmd/corvint-analyzer-html-css", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-java", "package": "./cmd/corvint-analyzer-java", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-js", "package": "./cmd/corvint-analyzer-js", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-kotlin-android", "package": "./cmd/corvint-analyzer-kotlin-android", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-objective-c", "package": "./cmd/corvint-analyzer-objective-c", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-python", "package": "./cmd/corvint-analyzer-python", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-ruby", "package": "./cmd/corvint-analyzer-ruby", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-rust", "package": "./cmd/corvint-analyzer-rust", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-shader", "package": "./cmd/corvint-analyzer-shader", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-shell", "package": "./cmd/corvint-analyzer-shell", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-sql-native", "package": "./cmd/corvint-analyzer-sql-native", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-structured-data", "package": "./cmd/corvint-analyzer-structured-data", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-analyzer-swift", "package": "./cmd/corvint-analyzer-swift", "role": "product", "stamp": "none", "decision": "0594"},
+    {"name": "corvint-update", "package": "./cmd/corvint-update", "role": "product", "decision": "0591"},
+    {"name": "corvint-go-toolchain-receipt", "package": "./cmd/corvint-go-toolchain-receipt", "role": "support", "decision": "0594"},
+    {"name": "corvint-readiness-record", "package": "./cmd/corvint-readiness-record", "role": "support", "decision": "0594"},
+    {"name": "corvint-release-candidate", "package": "./cmd/corvint-release-candidate", "role": "support", "decision": "0594"},
+    {"name": "corvint-release-install", "package": "./cmd/corvint-release-install", "role": "support", "decision": "0594"}
+  ]
+}

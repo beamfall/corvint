@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
@@ -92,6 +93,40 @@ func selfBinaryNotice(freshness binaryFreshness) string {
 		notice += ", or run this checkout's own build without installing it (go run ./cmd/corvint)"
 	}
 	return notice + "; this notice changes no plan, selection or exit status: they are this binary's own, and current source may compute them differently"
+}
+
+// selfBinaryStaleRefusal is the error `corvint affected` and `corvint test`
+// exit 2 with for a self-binary-stale binary unless --accept-stale-binary is
+// given (AFP-V0-9730; V1-4968): a plan computed by selection code that
+// differs from this checkout's may select fewer tests than the checkout's
+// own build would, so it is never returned silently. The message carries
+// the AFP-V0-846 detail and a fix: line naming the three recoveries.
+func selfBinaryStaleRefusal(freshness binaryFreshness, command string) error {
+	return &gokernel.Error{Code: selfBinaryStaleCode, Message: freshness.Detail +
+		"; its selection may be narrower than this checkout's own build gives, so the plan is refused" +
+		"; fix: rebuild the binary from this checkout (go install ./cmd/corvint), run that build without installing it (go run ./cmd/corvint " + command + " ...)," +
+		" or pass --accept-stale-binary to use this binary's plan knowingly, marked degraded"}
+}
+
+// staleBinaryGate is the AFP-V0-9730 judgement for an affected form whose
+// document is not an affected-plan/1 receipt (`affected jobs`, `affected
+// audit`; AFP-V0-11033): the self-binary-stale refusal unless accept
+// (--accept-stale-binary) is set, else the degradation members the document
+// carries and, when stdout and stderr are not one stream (AFP-V0-871), the
+// stderr notice. A fresh binary, or one Corvint cannot judge, returns nothing.
+func staleBinaryGate(ctx context.Context, root string, accept bool, command string, stdout, stderr io.Writer) ([]string, map[string]string, error) {
+	freshness := selfBinaryStale(ctx, root)
+	if freshness.Code == "" {
+		return nil, nil, nil
+	}
+	if freshness.Code == selfBinaryStaleCode && !accept {
+		return nil, nil, selfBinaryStaleRefusal(freshness, command)
+	}
+	notice := selfBinaryNotice(freshness)
+	if !sharedOutputStream(stdout, stderr) {
+		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, notice)
+	}
+	return []string{freshness.Code}, map[string]string{freshness.Code: notice}, nil
 }
 
 // binaryStaleAgainst compares the Git commit stamped into info with HEAD at

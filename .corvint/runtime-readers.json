@@ -26,6 +26,10 @@
       "reason": "Corvint control declaration parsed by the affected planner through a path-literal constant; its Go readers and the ownership audit are selected and no other test reads it; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
     {
+      "path": ".corvint/e2e-flows.json",
+      "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
+    },
+    {
       "path": ".corvint/existence-readers.json",
       "reason": "Corvint declaration read by the affected planner, the gate selector or the declaration tools through a path-literal constant (tools/declaration-compat-check among them) and by the root-locating repository tests the unbounded-reader rule selects; a change alters later plans, not what any test runs (V1-3480, AFP-V0-2404)"
     },
@@ -192,6 +196,10 @@
     {
       "path": "tools/linecov/command-tree.json",
       "reason": "generated linecov command-tree snapshot (make capability-catalog); tools/linecov/languages_test.go reads command-tree.json by a path literal within its package, so the existing reader and enclosing-package rules retain that test selection; never executed or imported"
+    },
+    {
+      "path": "tools/release-binary/binaries.json",
+      "reason": "the per-binary release catalog (V1-5236, ARTIFACT-BIN-V0-001) embedded by tools/release-binary (go:embed) and checked by its package tests and make release-binaries-check; enclosing-package and embed reader rules keep that selection (AZU-V0-002)"
     },
     {
       "path": "tools/runner-plugin/command-tree.json",

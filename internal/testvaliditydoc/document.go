@@ -7,6 +7,8 @@
 package testvaliditydoc
 
 import (
+	"github.com/Beamfall/corvint/internal/pinnedread"
+
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -21,7 +23,7 @@ const (
 	// Schema names the emitted document.
 	Schema = "corvint-test-validity/0"
 	// MaxInputBytes bounds one provider document.
-	MaxInputBytes    = 4 << 20
+	MaxInputBytes    = pinnedread.MaxBytes
 	goSessionProfile = "corvint-go-live-session-event/0"
 )
 

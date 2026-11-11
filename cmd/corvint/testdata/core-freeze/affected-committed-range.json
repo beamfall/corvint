@@ -54,6 +54,7 @@
     "selected": [
       {
         "testCount": -1,
+        "testFileCount": 1,
         "unitId": "go:example.test/cli/pkg",
         "witness": {
           "dirtyPath": "pkg/main.go",

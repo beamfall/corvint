@@ -11,15 +11,20 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
 
-// Flows fixtures shared with root tests (affected, impact, MCP parity and the remaining flows
-// dispatch/help tests). The handler-level copies live in internal/command/flows.
+// Flows fixtures shared with root tests (affected, impact and the flows shim and parity tests).
+// The handler-level copies live in internal/command/flows.
 
+// runFlowsCLI runs one flows verb in process, as corvint-docs dispatches it, so a fixture that
+// needs a built application map does not need the corvint-docs executable. The command package
+// is imported by tests only: corvint's production files forward `flows` (decision 0595), and
+// the import ratchet (IRT-V0-003, IRT-V0-004) refuses a production import of it.
 func runFlowsCLI(root string, args ...string) (int, string, string) {
 	var out, diagnostic bytes.Buffer
-	code := runContext(context.Background(), append([]string{"--root", root, "flows"}, args...), bytes.NewReader(nil), &out, &diagnostic)
+	code := flowscmd.Run(context.Background(), root, args, &out, &diagnostic, flowscmd.Env{EmitError: emitError, BaseRefusal: affectedBaseRefusal})
 	return code, out.String(), diagnostic.String()
 }
 

@@ -25,17 +25,27 @@ binaries are replaced atomically with one bounded rollback copy per tool. Histor
 files made by other installers are not owned or removed by this command. Core and companions
 share the `VERSION` release line; experimental delivery is still stated by their catalogs.
 
-## Core archive
+## Core archive and the core set
 
 Running the core needs Git and a supported local Git repository. A Go compiler is needed only
-for building from source. Choose the archive matching the operating system and CPU:
+for building from source. Choose the archives matching the operating system and CPU:
 
-| System | Archive |
-|---|---|
-| macOS, Apple silicon | `corvint_darwin_arm64.tar.gz` |
-| macOS, Intel | `corvint_darwin_amd64.tar.gz` |
-| Linux, x86-64 | `corvint_linux_amd64.tar.gz` |
-| Linux, ARM64 | `corvint_linux_arm64.tar.gz` |
+| System | `corvint` archive | Core-set app archives |
+|---|---|---|
+| macOS, Apple silicon | `corvint_darwin_arm64.tar.gz` | `<app>_darwin_arm64.tar.gz` |
+| macOS, Intel | `corvint_darwin_amd64.tar.gz` | `<app>_darwin_amd64.tar.gz` |
+| Linux, x86-64 | `corvint_linux_amd64.tar.gz` | `<app>_linux_amd64.tar.gz` |
+| Linux, ARM64 | `corvint_linux_arm64.tar.gz` | `<app>_linux_arm64.tar.gz` |
+
+The `corvint` archive holds the one `corvint` executable. `corvint docs` is an exec shim onto the
+`corvint-docs` executable, and the MCP servers are their own executables, so a release is the
+`corvint` archive plus one archive per core-set app: `corvint-docs`, `corvint-mcp`,
+`corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-test-runner`, `corvint-web-flows` and
+`corvint-cli` (the catalog's `core` version set, decision 0594 item 8; `ARTIFACT-BIN-V0-509`).
+Install the set together, in one directory: `corvint` looks for its apps beside its own
+executable first, and a `corvint` installed alone answers every `corvint docs` verb with
+`not-installed`. All members of one release carry one version; `corvint` refuses, with
+`version-mismatch`, to run a `corvint-docs` beside it from another release.
 
 These names describe build targets, not proof that every target has passed a native test.
 Windows is excluded from this release set. Keep the archive's notices and checksum files.
@@ -50,22 +60,29 @@ test "$(wc -l < selected.sha256 | tr -d ' ')" = 1 &&
   shasum -a 256 -c selected.sha256
 ```
 
-Continue only if the command succeeds and reports `OK`. Extract into a new directory, then verify
-the binary against the checksum inside the archive:
+Continue only if the command succeeds and reports `OK`; repeat it for each core-set app archive
+you downloaded. Extract each archive into its own directory, verify the binary against the
+checksum inside the archive, then place every verified executable in one install directory:
 
 ```sh
-mkdir corvint-<version> &&
-  tar -xzf corvint_darwin_arm64.tar.gz -C corvint-<version> &&
-  cd corvint-<version>/corvint_darwin_arm64 &&
-  shasum -a 256 -c SHA256SUMS &&
-  ./corvint --version
+mkdir -p corvint-<version>/bin &&
+  for archive in corvint corvint-docs corvint-mcp corvint-docs-mcp corvint-test-validity-mcp corvint-test-runner corvint-web-flows corvint-cli; do
+    tar -xzf "${archive}_darwin_arm64.tar.gz" -C corvint-<version> &&
+    ( cd "corvint-<version>/${archive}_darwin_arm64" && shasum -a 256 -c SHA256SUMS ) &&
+    cp "corvint-<version>/${archive}_darwin_arm64/${archive}" corvint-<version>/bin/
+  done &&
+  corvint-<version>/bin/corvint --version &&
+  corvint-<version>/bin/corvint-docs --version &&
+  corvint-<version>/bin/corvint docs --help
 ```
 
-Expect `Corvint <version> (build N)`, matching the release manifest's exact version and build
-number. Keep this directory and add its absolute path to `PATH`, or copy the
-verified executable to a directory you already use for local tools. Use `command -v corvint`
-and `corvint --version` to check which binary runs. No account, service installation, database,
-model download or default network connection is required.
+Expect `Corvint <version> (build N, commit SHA)` and `corvint-docs <version> (build N, commit
+SHA)` with the same version, build number and commit, matching the release manifest. Keep the
+extracted directories for their notices, and add `corvint-<version>/bin` to `PATH`, or copy the
+verified executables together to a directory you already use for local tools; they must stay in
+one directory. Use `command -v corvint` and `corvint --version` to check which binary runs. No
+account, service installation, database, model download or default network connection is
+required.
 
 Corvint uses `corvint-*` wire/profile identities, `corvint.*` MCP tools, and canonical
 `.corvint` and `.context-corvint` repository paths. Release archives, package coordinates, and optional
@@ -74,10 +91,13 @@ say otherwise.
 
 ### Qualified local candidate and versioned install
 
-`corvint-release-candidate` closes the verified core gate output and the source root's Corvint
-source into a Core-only `corvint-v<version>-core` candidate. The combined
-`corvint-v<version>-qualified` candidate and its `-companion-dir` input were retired with the
-companion bundle by decision 0594. Verify its
+`corvint-release-candidate` closes the verified core gate output, the per-binary release output
+holding `release-manifest.json` and the core-set app archives (`make release-binary` for each
+member of the `core` set, then `make release-manifest`), and the source root's Corvint source into
+a Core-only `corvint-v<version>-core` candidate (profile `corvint-core-release-candidate/1`). The
+combined `corvint-v<version>-qualified` candidate and its `-companion-dir` input were retired with
+the companion bundle by decision 0594. The candidate refuses an app recorded at another version or
+commit than the core, so the set it carries is one release. Verify its
 top-level `SHA256SUMS`, then read `MANIFEST.json` and `QUALIFICATION.json`; `NOT_RUN` is never a
 platform pass. The candidate is local evidence, not a tag, signature, upload, publication or
 promotion.
@@ -85,6 +105,7 @@ promotion.
 ```sh
 go run ./cmd/corvint-release-candidate \
   -core-dir /absolute/core-gate-output \
+  -apps-dir /absolute/release-binary-output \
   -source-root /absolute/corvint-checkout \
   -scratch /absolute/private-scratch \
   -output-parent /absolute/candidates \
@@ -92,8 +113,10 @@ go run ./cmd/corvint-release-candidate \
 ```
 
 `corvint-release-install -candidate /absolute/candidate -store /absolute/store` reverifies that
-closed set and installs only the matching host core archive at
-`<store>/corvint/<version>/<goos>-<goarch>`. It refuses an existing destination and never creates
+closed set and installs the matching host core archive with every core-set app beside it at
+`<store>/corvint/<version>/<goos>-<goarch>`, one `SHA256SUMS` row per executable; it refuses the
+install when an app's `--version` is not the core's version or the installed `corvint docs --help`
+fails, retaining nothing. It refuses an existing destination and never creates
 or changes `current` or `latest`. Use a canonical absolute store path (resolve system aliases such
 as `/var` to `/private/var` on macOS), owned exclusively by you during installation. Symlink
 components, case-fold aliases in managed components, non-directory parents, candidate/store overlap

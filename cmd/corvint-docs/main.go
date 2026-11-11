@@ -2,13 +2,17 @@
 
 // Command corvint-docs is Corvint's documentation app (decision 0594 item 3):
 // the `docs` command group (draft, consume, nav, citations, corpus, maintain
-// and flows), the `--corpus=FILE` join over a core read, and the `docs-tool`
-// verb that answers the MCP documentation tools for corvint-mcp. It takes the
-// same argument vectors `corvint docs ...` and `corvint --corpus=FILE ...`
-// take; the core forwards those to this executable unchanged and holds no
-// documentation code (CMS-V0-003). It reads the repository and writes only
-// what the documentation verbs always wrote: `docs maintain --apply`,
-// `docs flows finalize` and the bounded self-observation ledger.
+// and flows), the application-flow group `flows` with its `how` alias
+// (decision 0595), the `--corpus=FILE` join over a core read, and the
+// `docs-tool` verb that answers the MCP documentation tools for corvint-mcp.
+// It takes the same argument vectors `corvint docs ...`, `corvint flows ...`,
+// `corvint how ...` and `corvint --corpus=FILE ...` take; the core forwards
+// those to this executable unchanged and holds no documentation or flow
+// command code (CMS-V0-003, CMS-V0-912). It reads the repository and writes
+// only what those verbs always wrote: `docs maintain --apply`,
+// `docs flows finalize`, the files `flows record`, `flows docs maintain
+// --apply` and the flow ingest verbs name, and the bounded self-observation
+// ledger.
 package main
 
 import (
@@ -30,7 +34,7 @@ import (
 const binaryName = "corvint-docs"
 
 func main() {
-	if code, handled := cliapp.Answer(binaryName, os.Args[1:], os.Stdout, os.Stderr); handled {
+	if code, handled := cliapp.AnswerStamped(binaryName, build, sourceCommit, os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}
 	signalled, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
@@ -109,6 +113,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return runDocs(ctx, options, stdin, stdout, stderr)
 	}
+	if root, rest, requested := flowInvocation(arguments); requested {
+		return runFlows(ctx, root, rest, stdout, stderr)
+	}
 	if root, tool, isTool, toolErr := parseDocsToolInvocation(arguments); isTool {
 		if toolErr != nil {
 			emitError(stderr, toolErr)
@@ -116,6 +123,6 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return runDocsTool(ctx, root, tool, stdin, stdout, stderr)
 	}
-	emitError(stderr, argumentError(fmt.Sprintf("%s takes [--root PATH] docs SUBCOMMAND ..., --corpus=FILE before a core read, or %s; see %s --help", binaryName, toolVerb, binaryName)))
+	emitError(stderr, argumentError(fmt.Sprintf("%s takes [--root PATH] docs SUBCOMMAND ..., [--root PATH] flows ..., [--root PATH] how ..., --corpus=FILE before a core read, or %s; see %s --help", binaryName, toolVerb, binaryName)))
 	return 2
 }

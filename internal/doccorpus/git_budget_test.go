@@ -72,7 +72,7 @@ func pinAll(t *testing.T, root, rev, scope string) Manifest {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := Manifest{Schema: ManifestSchemaV2, Repository: Repository{id, rev}, BuiltAt: "2026-10-19T00:00:00Z", Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{{scope, rev}}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: rev}}, MergeRule: "none"}
+	m := Manifest{Schema: ManifestSchemaV2, Repository: Repository{ID: id, Revision: rev}, BuiltAt: "2026-10-19T00:00:00Z", Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{{scope, rev}}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: rev}}, MergeRule: "none"}
 	for _, line := range strings.Split(git(t, root, "ls-tree", "-r", rev, "--", scope), "\n") {
 		meta, p, _ := strings.Cut(line, "\t")
 		fields := strings.Fields(meta)

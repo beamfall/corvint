@@ -121,7 +121,7 @@ func main() {
 	streams := &clierror.Streams{Binary: "corvint-go-test-provider", Out: os.Stdout, Err: os.Stderr}
 	defer streams.Finish()
 
-	if code, handled := cliapp.Answer("corvint-go-test-provider", os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
+	if code, handled := cliapp.AnswerReleased("corvint-go-test-provider", version, build, sourceCommit, os.Args[1:], streams.Stdout(), streams.Stderr()); handled {
 		os.Exit(streams.Status(code))
 	}
 

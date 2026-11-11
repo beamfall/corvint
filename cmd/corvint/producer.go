@@ -3,6 +3,8 @@ package main
 import (
 	"regexp"
 	"runtime/debug"
+
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // producerUnknown is the explicit marker for an identity member this binary
@@ -64,4 +66,20 @@ func producerFrom(versionValue, buildValue string, info *debug.BuildInfo) produc
 // members is the map form that the impact receipt's canonical encoder reads.
 func (identity producerIdentity) members() map[string]any {
 	return map[string]any{"version": identity.Version, "build": identity.Build, "commit": identity.Commit, "commitState": identity.CommitState}
+}
+
+// manifestProducer is the producer a corvint test manifest this binary writes
+// records (STR-V0-8301): the stamped Git commit and its state, read from the
+// same build information the AFP-V0-846 freshness check judges, or nil for a
+// binary without a Git stamp, which states no commit rather than a guess.
+func manifestProducer() *sessiontest.Producer {
+	info, ok := selfBuildInfo()
+	if !ok {
+		return nil
+	}
+	identity := producerFrom(version, build, info)
+	if identity.Commit == producerUnknown {
+		return nil
+	}
+	return &sessiontest.Producer{Commit: identity.Commit, CommitState: identity.CommitState}
 }

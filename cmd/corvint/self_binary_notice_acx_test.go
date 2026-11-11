@@ -74,7 +74,7 @@ func TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750(t *testing.T) {
 	}
 	for _, form := range forms {
 		for _, merged := range []bool{false, true} {
-			stdout, stderr, code := runAffectedForm(t, root, merged, form.options...)
+			stdout, stderr, code := runAffectedForm(t, root, merged, append([]string{"--accept-stale-binary"}, form.options...)...)
 			if code != 0 {
 				t.Fatalf("%v merged=%v: exit %d\n%s%s", form.options, merged, code, stdout, stderr)
 			}
@@ -104,7 +104,7 @@ func TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750(t *testing.T) {
 	// The notice changes no plan: at one HEAD and base, the stale binary and
 	// one built at HEAD give the same summary, tiers and range.
 	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-	stale, _, staleCode := runAffectedForm(t, root, false, "--summary", "--base", built)
+	stale, _, staleCode := runAffectedForm(t, root, false, "--summary", "--base", built, "--accept-stale-binary")
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", head))
 	current, currentStderr, currentCode := runAffectedForm(t, root, false, "--summary", "--base", built)
 	var before, after map[string]any
@@ -136,14 +136,14 @@ func TestStaleBinaryNoticeOncePerInvocation_ACXV0751(t *testing.T) {
 	var lines []string
 	for range 2 {
 		for _, options := range [][]string{nil, {"--by-path", "--path", "self.go"}, {"--summary", "--format", "text"}} {
-			_, stderr, code := runAffectedForm(t, root, false, options...)
+			_, stderr, code := runAffectedForm(t, root, false, append([]string{"--accept-stale-binary"}, options...)...)
 			if code != 0 || strings.Count(stderr, "DEGRADED") != 1 {
 				t.Fatalf("%v: want one DEGRADED line, exit %d:\n%s", options, code, stderr)
 			}
 			lines = append(lines, stderr)
 		}
 		var stdout, stderr bytes.Buffer
-		runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &stdout, &stderr)
+		runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run", "--accept-stale-binary"}, strings.NewReader(""), &stdout, &stderr)
 		if strings.Count(stderr.String(), "corvint-test: DEGRADED") != 1 || !strings.Contains(stderr.String(), "corvint-test: DEGRADED "+selfBinaryStaleCode+": "+selfBinaryNotice(selfBinaryStale(context.Background(), root))+"\n") {
 			t.Fatalf("corvint test: want one notice line:\n%s", stderr.String())
 		}

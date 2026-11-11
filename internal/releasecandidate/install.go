@@ -30,7 +30,9 @@ var verifyForInstall = VerifyContext
 // inventory. The Core-only profile is the only admitted profile and has no
 // companion or Tasks input (PRS-V1-005, decision 0594): its companion rows
 // stay NOT_RUN as "companion not present", and each single-file role is bound
-// to the path Assemble writes for it.
+// to the path Assemble writes for it. Since V1-5237 it also carries the
+// core-set app archives and the release manifest that records them
+// (ARTIFACT-BIN-V0-510), so the installer installs the set together.
 type candidateProfile struct {
 	sources []string
 	roles   map[string]int
@@ -40,8 +42,8 @@ type candidateProfile struct {
 var candidateProfiles = map[string]candidateProfile{
 	coreManifestProfile: {
 		sources: []string{"corvint"},
-		roles:   map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "corvint-source": 1, "qualification-receipt": 1, "release-notes": 1},
-		paths:   map[string]string{"core-gate-checksums": "evidence/core-SHA256SUMS", "core-gate-report": "evidence/core-verification-report.json", "corvint-source": "source/corvint-src.tar.gz", "qualification-receipt": "QUALIFICATION.json", "release-notes": "README.md"},
+		roles:   map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "corvint-source": 1, "qualification-receipt": 1, "release-notes": 1, appArchiveRole: appAssetCount(), appManifestRole: 1},
+		paths:   map[string]string{"core-gate-checksums": "evidence/core-SHA256SUMS", "core-gate-report": "evidence/core-verification-report.json", "corvint-source": "source/corvint-src.tar.gz", "qualification-receipt": "QUALIFICATION.json", "release-notes": "README.md", appManifestRole: appsManifestPath},
 	},
 }
 
@@ -201,6 +203,9 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	if len(hostBinary) == 0 {
 		return fmt.Errorf("candidate lacks a host core binary for exact version verification")
 	}
+	if err := verifyApps(files, assets, manifest); err != nil {
+		return err
+	}
 	probeDirectory, err := os.MkdirTemp("", "corvint-candidate-verify-")
 	if err != nil {
 		return err
@@ -272,9 +277,10 @@ func parseCandidateChecksums(raw []byte) (map[string]string, error) {
 	return rows, nil
 }
 
-// InstallCore extracts the host core archive into a new version/platform path.
-// It never writes or changes a current/latest selector, so coexistence and
-// rollback are explicit selection of an already-verified immutable path.
+// InstallCore extracts the host core archive and, beside it, every core-set app
+// into a new version/platform path (ARTIFACT-BIN-V0-511). It never writes or
+// changes a current/latest selector, so coexistence and rollback are explicit
+// selection of an already-verified immutable path.
 func InstallCore(ctx context.Context, candidateDirectory, store string) (string, error) {
 	if !filepath.IsAbs(candidateDirectory) || !filepath.IsAbs(store) {
 		return "", fmt.Errorf("candidate and store paths must be absolute")
@@ -328,6 +334,17 @@ func InstallCore(ctx context.Context, candidateDirectory, store string) (string,
 	binary := filepath.Join(stage, "corvint")
 	if err := probeCoreVersion(ctx, binary, stage, verified.Manifest.CorvintVersion); err != nil {
 		return "", fmt.Errorf("installed core version: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	// ARTIFACT-BIN-V0-511: the core-set apps install beside corvint, at one version, and the
+	// installed corvint answers its docs group.
+	if err := installApps(ctx, verified, stage, runtime.GOOS+"_"+runtime.GOARCH); err != nil {
+		return "", err
+	}
+	if err := probeDocsShim(ctx, binary, stage); err != nil {
+		return "", err
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err

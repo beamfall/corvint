@@ -1150,7 +1150,18 @@ func buildCandidate(t testing.TB, candidate candidateExecutable) string {
 	// detector, not a performance budget (decision 0082).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, candidate.command)
+	// The target is spelled as a literal joined to a range over the candidate names, so
+	// test-read-scopes-check lists exactly the three executables' closures (ASD-V0-611,
+	// TSP-V0-8132) instead of passing a field it cannot resolve.
+	var build *exec.Cmd
+	for _, name := range []string{"corvint-analyzer-c-jni", "corvint-analyzer-objective-c", "corvint-analyzer-java"} {
+		if "../../cmd/"+name == candidate.command {
+			build = exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, "../../cmd/"+name)
+		}
+	}
+	if build == nil {
+		t.Fatalf("%s builds %s, which is not one of the spelled candidate executables", candidate.name, candidate.command)
+	}
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+cache, "GOPROXY=off", "GOSUMDB=off")
 	if output, err := boundedCombinedOutput(ctx, build); err != nil || ctx.Err() == context.DeadlineExceeded {
 		t.Fatalf("%s build: %v\n%s", candidate.name, err, output)

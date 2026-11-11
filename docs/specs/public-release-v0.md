@@ -29,7 +29,8 @@ the Traceability rows say which are retired.
 - Still live: the clean-checkout source export, verifier and deterministic source archive
   (`PUB-V0-012`), the closed Go environment (`PUB-V0-700`, `PUB-V0-965`) and the cem/1.0 stable
   readers moved unchanged into `internal/corerelease`, with their tests. `internal/releasecandidate`
-  keeps only the Core-only profile `corvint-core-release-candidate/0` (`PRS-V1-005`): the combined
+  keeps only the Core-only profile `corvint-core-release-candidate/1` (`PRS-V1-005`; `/1` since
+  V1-5237 carries the core-set app archives, `ARTIFACT-BIN-V0-510`): the combined
   `corvint-qualified-release-candidate/0` profile and `-companion-dir` input are removed, and the
   reader refuses that profile as unsupported. `PUB-V0-022..026` stay live for that profile.
 - Rollback: revert the decision 0594 release commit; it restores the packages, commands, scripts and
@@ -103,8 +104,12 @@ qualifies or promotes anything.
 ## Core-only candidate reader and installer (V1-0125)
 
 Under `PRS-V1-005`, `internal/releasecandidate` admits a second closed manifest profile,
-`corvint-core-release-candidate/0`, beside the unchanged combined
-`corvint-qualified-release-candidate/0`. The profile selects a closed inventory; nothing else
+`corvint-core-release-candidate/0` (now `/1`, which adds the core-set app archives and their
+release manifest, `ARTIFACT-BIN-V0-510`), beside the unchanged combined
+`corvint-qualified-release-candidate/0`. Each app executable must itself carry the candidate's
+source commit, the `main.sourceCommit` stamp of `ARTIFACT-BIN-V0-002` read from its bytes, and a
+Git stamp, when one is present, must name that commit with an unmodified tree; the manifest's
+claim alone admits no app. The profile selects a closed inventory; nothing else
 changes the reader's fail-closed checks. Since decision 0594 it is the only admitted profile: the combined profile is
 refused, and the "combined profile" checks below survive only as the Core checks this profile runs.
 

@@ -1,6 +1,8 @@
 package affected
 
 import (
+	"github.com/Beamfall/corvint/internal/repopath"
+
 	"context"
 	"errors"
 	"fmt"
@@ -12,8 +14,9 @@ import (
 	"sync"
 )
 
-// ErrWalkLimit reports a repository larger than the fixed walk bound.
-var ErrWalkLimit = errors.New("affected: repository walk exceeds its bound")
+// ErrWalkLimit reports a repository larger than the fixed walk bound
+// (repopath.ErrWalkLimit).
+var ErrWalkLimit = repopath.ErrWalkLimit
 
 // ErrWalkUnreadable reports a directory or entry the walk could not read.
 var ErrWalkUnreadable = errors.New("affected: source walk hit an unreadable entry")
@@ -24,11 +27,11 @@ var ErrWalkUnrepresentable = errors.New("affected: source walk hit a file path n
 
 const (
 	// MaxWalkEntries bounds one repository walk.
-	MaxWalkEntries = 400_000
+	MaxWalkEntries = repopath.MaxWalkEntries
 	// MaxIncludedDirectoryEntries bounds each language-opted directory subtree.
 	MaxIncludedDirectoryEntries = 20_000
 	// MaxSourceBytes bounds one source file a plugin may read for imports.
-	MaxSourceBytes = 4 << 20
+	MaxSourceBytes = repopath.MaxSourceBytes
 )
 
 // SkippedDirectories are not descended by SourceFiles. A language plugin may
@@ -336,13 +339,8 @@ func walkSourceFilesContext(ctx context.Context, root string, accept func(name s
 
 // ReadSource reads one repository-relative source file under root, bounded by
 // MaxSourceBytes. A file at or over the bound is refused rather than truncated,
-// because a truncated read would silently drop import edges.
-func ReadSource(root, relative string) ([]byte, error) {
-	if !ValidRelativePath(relative) {
-		return nil, fmt.Errorf("%w: path %q", ErrInvalidUnit, relative)
-	}
-	return readSourceFile(filepath.Join(root, filepath.FromSlash(relative)), relative)
-}
+// because a truncated read would silently drop import edges (repopath.ReadSource).
+func ReadSource(root, relative string) ([]byte, error) { return repopath.ReadSource(root, relative) }
 
 // includedSourceDirectory keeps hidden-source opt-in separate from metadata:
 // the Go plugin can observe .github packages without descending .git or caches.

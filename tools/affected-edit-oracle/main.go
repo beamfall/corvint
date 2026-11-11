@@ -373,7 +373,9 @@ func commit(ctx context.Context, root string, expected edit) error {
 	return nil
 }
 func plan(ctx context.Context, root, bin string) (receipt, error) {
-	out, err := command(ctx, root, 2*time.Minute, bin, "affected", "--base", "HEAD~1", "--format", "json")
+	// The oracle commits its edit, so the binary built before it is stale by
+	// AFP-V0-846; the plan is what the oracle measures, so it is accepted.
+	out, err := command(ctx, root, 2*time.Minute, bin, "affected", "--base", "HEAD~1", "--format", "json", "--accept-stale-binary")
 	if err != nil {
 		return receipt{}, fmt.Errorf("affected: %w: %s", err, out)
 	}

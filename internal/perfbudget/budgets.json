@@ -218,6 +218,60 @@
           "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (57 MiB), rounded up to 64 MiB; not a product target"
         }
       ]
+    },
+    {
+      "id": "watch-replan",
+      "samples": 5,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "advisory",
+          "profile": "experimental",
+          "reason": "PRB-V0-1014: the owner's wallaby-like on-save answer stated as a number to measure against; advisory until the save-to-answer path is baselined on a full-scale run"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 2500,
+          "status": "enforced",
+          "reason": "PRB-V0-1014 provisional ceiling from the lane's full-scale run (PRB-V0-059 formula): 3x the measured p95 (752 ms on an uncontended 32-core Linux host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 67108864,
+          "status": "enforced",
+          "reason": "PRB-V0-1014 provisional ceiling from the lane's full-scale run (PRB-V0-059 formula): 1.5x the measured peak resident set (33 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "watch-replan-self",
+      "samples": 5,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "advisory",
+          "profile": "experimental",
+          "reason": "PRB-V0-1014: the owner's wallaby-like on-save answer stated as a number to measure against; advisory until the save-to-answer path is baselined on a full-scale run"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 6500,
+          "status": "enforced",
+          "reason": "PRB-V0-1014 provisional ceiling from the lane's run over Corvint at c0724a7fa (about 9,900 tracked files): 5x the measured p95 (1253 ms on an uncontended 32-core Linux host), rounded up to 500 ms, wider than PRB-V0-059 because the answer path lists and parses the whole module and so scales with the checkout and the host; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "PRB-V0-1014 provisional ceiling from the lane's run over Corvint: 1.5x the measured peak resident set (49 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
     }
   ],
   "baseline": {
@@ -743,6 +797,126 @@
               47.41
             ],
             "contended": true
+          }
+        }
+      },
+      {
+        "id": "watch-replan",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "watch",
+          "--index",
+          "<fixture>/code-linecov.idx",
+          "--once",
+          "--dry-run"
+        ],
+        "samples": [
+          {
+            "wall_ms": 696.74,
+            "peak_rss_bytes": 33898496
+          },
+          {
+            "wall_ms": 738.34,
+            "peak_rss_bytes": 34631680
+          },
+          {
+            "wall_ms": 697.81,
+            "peak_rss_bytes": 34201600
+          },
+          {
+            "wall_ms": 752.46,
+            "peak_rss_bytes": 34226176
+          },
+          {
+            "wall_ms": 685.5,
+            "peak_rss_bytes": 34299904
+          }
+        ],
+        "p50_wall_ms": 697.81,
+        "p95_wall_ms": 752.46,
+        "peak_rss_bytes": 34631680,
+        "provenance": {
+          "recorded_at": "2026-11-10T00:29:24Z",
+          "executable_revision": "c0724a7fac88e157bf02429081f8039c09be97ae",
+          "executable_sha256": "20f7a35da9117d43d7b32124d6337c89c43e7142a168a3255b1e6cb608d4bcf5",
+          "host": {
+            "goos": "linux",
+            "goarch": "amd64",
+            "go_version": "go1.27.3",
+            "cores": 32,
+            "load_before": [
+              5.83,
+              4.32,
+              4.03
+            ],
+            "load_after": [
+              5.91,
+              4.39,
+              4.06
+            ],
+            "contended": false
+          }
+        }
+      },
+      {
+        "id": "watch-replan-self",
+        "command": [
+          "corvint",
+          "--root",
+          "<self>",
+          "watch",
+          "--index",
+          "<self-index>",
+          "--once",
+          "--dry-run"
+        ],
+        "samples": [
+          {
+            "wall_ms": 1232.28,
+            "peak_rss_bytes": 50929664
+          },
+          {
+            "wall_ms": 1252.56,
+            "peak_rss_bytes": 50642944
+          },
+          {
+            "wall_ms": 1187.85,
+            "peak_rss_bytes": 51109888
+          },
+          {
+            "wall_ms": 1168.52,
+            "peak_rss_bytes": 50995200
+          },
+          {
+            "wall_ms": 1148.68,
+            "peak_rss_bytes": 51179520
+          }
+        ],
+        "p50_wall_ms": 1187.85,
+        "p95_wall_ms": 1252.56,
+        "peak_rss_bytes": 51179520,
+        "provenance": {
+          "recorded_at": "2026-11-10T00:29:24Z",
+          "executable_revision": "c0724a7fac88e157bf02429081f8039c09be97ae",
+          "executable_sha256": "20f7a35da9117d43d7b32124d6337c89c43e7142a168a3255b1e6cb608d4bcf5",
+          "host": {
+            "goos": "linux",
+            "goarch": "amd64",
+            "go_version": "go1.27.3",
+            "cores": 32,
+            "load_before": [
+              5.83,
+              4.32,
+              4.03
+            ],
+            "load_after": [
+              5.91,
+              4.39,
+              4.06
+            ],
+            "contended": false
           }
         }
       }

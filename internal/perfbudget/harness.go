@@ -35,6 +35,12 @@ type Options struct {
 	// Selected, when non-empty, names the only ScenarioIDs the run measures and judges
 	// (PRB-V0-970).
 	Selected []string
+	// SelfRoot is Corvint's own repository, over which watch-replan-self measures the on-save
+	// answer as its working tree stands; empty resolves the Git top level of the working
+	// directory (PRB-V0-1014). SelfIndex, when set, is the line index it plans against instead of
+	// a records-free index built for SelfRoot's HEAD at run time.
+	SelfRoot  string
+	SelfIndex string
 }
 
 // Report is one harness run.
@@ -214,6 +220,19 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "affected", "--path", fixture.GoPath}, samples[id], 1, nil)
 		case "affected-ts":
 			m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "affected", "--path", fixture.TSPath}, samples[id], 1, nil)
+		case "watch-replan":
+			// Every run answers for one edited Go source in the working tree; the fixture is
+			// restored after the scenario, and first in case an earlier run was interrupted
+			// (PRB-V0-1014).
+			index := filepath.Join(o.FixtureDir, fixture.LineIndex)
+			if err = restoreCodeEdit(ctx, fixture); err == nil {
+				m, err = measureCLI(ctx, id, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "watch", "--index", index, "--once", "--dry-run"}, samples[id], 1, func() error { return writeCodeEdit(fixture) })
+			}
+			if restoreErr := restoreCodeEdit(ctx, fixture); err == nil {
+				err = restoreErr
+			}
+		case "watch-replan-self":
+			m, err = measureSelfWatch(ctx, id, o, samples[id])
 		}
 		if err != nil {
 			return nil, err

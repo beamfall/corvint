@@ -14,7 +14,7 @@ before the owner accepts this change.
       with kind, runners, agents, bug classes, slices, chore actions, and the component of each
       change folder. Requirements: TTX-V1-001, TTX-V1-002, TTX-V1-005. Proof: a check that every
       change folder under `docs/specs/openspec/changes/` has exactly one component.
-- [ ] 1.3 Write the gate script (seed gate and interim create gate). Requirements: TTX-V1-016,
+- [x] 1.3 Write the gate script (seed gate and interim create gate). Requirements: TTX-V1-016,
       TTX-V1-017. Proof: fixture tickets, one per refusal code, each refused with its code.
 - [ ] 1.4 Run the gate on the survivor mapping table of `tasks-store-cutover`. Requirements:
       TTX-V1-017. Proof: the `seed` and `held` lists and exit status, retained with the table's

@@ -378,7 +378,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     (`affected-zero-unknown-v0.md`), AEO-V0-001 to AEO-V0-003 (`affected-edit-oracle-v0.md`),
     TSP-V0-001 to TSP-V0-003 (`test-selection-precision-v0.md`) and `additive-narrowing-v0.md`.
   - Open tickets: V1-5199, V1-5200.
-  - Evidence today: `internal/liveverify/affected/ownership_completeness_test.go`,
+  - Evidence today: `internal/liveverify/affected/liverepo/ownership_completeness_test.go`,
     `.corvint/test-selection.json`. (integ) commit `ee6d51d2f` widens for unreviewed flow links
     (APK-V0-004), and the `misskill` lane recorded confirmed misses on main and a replay of #104 and
     #109 (commit `1dfc1718e`).
@@ -527,7 +527,7 @@ Also part of the bar (owner decisions of 2026-11-09).
     `corvint` command (`cmd/corvint/watch.go` on integ `9ec3a29d0`). It is Go-only: the command
     refuses a non-Go index. It runs tests unless `--dry-run` is given, the opposite of G7's
     default. The macOS kqueue source is compile-checked only, `NOT_OBSERVED` live
-    (`docs/specs/live-proof-carrying-verification-v0.md:14@7f49da90`). (integ) The integ copy of
+    (`docs/specs/live-proof-carrying-verification-v0.md:14@3bb12604`). (integ) The integ copy of
     `internal/perfbudget/budgets.json` holds scenario `watch-replan` with an advisory p95
     target of 1000 ms and enforced provisional ceilings of 2500 ms and 64 MiB, and scenario
     `watch-replan-self`, followed by baseline samples (first sample 696.74 ms). No p50 target
@@ -2125,12 +2125,12 @@ The first draft of this file (commit `1d9dc4c90`) contained these errors or omis
 2. Watch is a `corvint` command and Go-only. The draft said the loop was the tool `linecov watch`.
    On the integration branch it is `corvint watch` (`cmd/corvint/watch.go`), Go-only (the command
    refuses a non-Go index), running tests by default unless `--dry-run`, with the macOS kqueue
-   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:14@7f49da90`;
+   source not observed live (`docs/specs/live-proof-carrying-verification-v0.md:14@3bb12604`;
    the first draft cited line 1285, which is wrong). G7 needs all seven runners and
    list-by-default.
 3. `AGENTS.md` licence text. `LICENSING.md:5-10@6536f97b` says the whole repository is Apache-2.0 since
    decision 0586 (`docs/decisions/0586-relicense-apache-2-0-2026-10-29.md`). The pushed branch
-   `claude/bigcut-keepdocs`, `origin/main`, this worktree (`AGENTS.md:155@b8bc96f4`) and the
+   `claude/bigcut-keepdocs`, `origin/main`, this worktree (`AGENTS.md:166@b8bc96f4`) and the
    integration branch all carry the 0586 text in their `AGENTS.md` licence paragraph. Only the
    primary checkout's stale local `AGENTS.md` still shows the AGPL wording; it is not a branch head.
    Required amendment: the cut PR (M1) must not regress `AGENTS.md` to the AGPL text; the G8, G22
@@ -2158,7 +2158,7 @@ name it; the acceptance record still restates them.
 | Accepted text | What it says | Conflict | Resolution needed |
 |---|---|---|---|
 | PRS-V1-001 (`docs/specs/corvint-1.0-product-and-release-v1.md:324@220578f8`) | 1.0 Core is exactly the local change-evidence loop, the CEM, OCM and frontier proof wire, the dogfood loop, the three Core jobs of decision 0332, and the native release artifact | G8 removes the ceremony and `corvint cem`; decision 0594 and answer 13 define three products, not Core plus companions | Supersede with the three-product definition of "The 1.0 bar"; carry over the native release artifact and lifecycle clause into PROD-INT-006 and PROD-INT-014 |
-| PRS-V1-018 (`docs/specs/corvint-1.0-product-and-release-v1.md:380@1f9a7848`) | Stable 1.0 ships five SDD improvements, V1-1344 to V1-1348: (a) `record` citation class, (b) dogfood-check OCM coverage line, (c) generated spec header rows, (d) recorded acceptance mode per requirement with an audit command, (e) `dogfood finish-lane` | G8 closes V1-1344 to V1-1348 as superseded; (b) and (e) depend on the removed ceremony | Supersede. (c) and (d) carry over to 1.0 and (a), (b), (e) drop (owner decision R37 (2026-11-09)); see PROD-INT-010 and 011 |
+| PRS-V1-018 (`docs/specs/corvint-1.0-product-and-release-v1.md:387@1f9a7848`) | Stable 1.0 ships five SDD improvements, V1-1344 to V1-1348: (a) `record` citation class, (b) dogfood-check OCM coverage line, (c) generated spec header rows, (d) recorded acceptance mode per requirement with an audit command, (e) `dogfood finish-lane` | G8 closes V1-1344 to V1-1348 as superseded; (b) and (e) depend on the removed ceremony | Supersede. (c) and (d) carry over to 1.0 and (a), (b), (e) drop (owner decision R37 (2026-11-09)); see PROD-INT-010 and 011 |
 | PRS-V1-004 | Core platforms darwin/arm64 and linux/amd64; Windows unsupported | G15a builds linux/arm64 too; answer 16 adds WSL | Amend platform list; keep Windows native unsupported |
 | PRS-V1-006 | Host scope is plain CLI plus Codex CLI and Claude Code at FALLBACK | G19 sets a full bar for Claude Code and Codex, preview for OpenCode and Pi | Supersede by the agent decision (PROD-INT-023 to 027) |
 | PRS-V1-007 | No CEM, OCM or frontier interoperability claim unless V1-0014 passes | G8 closes V1-0014 | Drop; no interoperability claim in 1.0 |

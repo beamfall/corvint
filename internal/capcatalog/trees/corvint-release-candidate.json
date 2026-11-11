@@ -14,11 +14,12 @@
     {
       "path": [],
       "command": "corvint-release-candidate",
-      "summary": "usage: corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION\n--core-dir: verified core archive-gate directory\n--output-parent: parent for the fresh versioned candidate\n--scratch: private scratch directory\n--source-root: Corvint Git checkout containing the exact built commit\n--version: exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix",
+      "summary": "usage: corvint-release-candidate --core-dir DIR --apps-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION\n--apps-dir: release-binary output directory holding release-manifest.json and the core-set app archives (corvint-docs, the MCP servers and the other core version-set members)\n--core-dir: verified core archive-gate directory\n--output-parent: parent for the fresh versioned candidate\n--scratch: private scratch directory\n--source-root: Corvint Git checkout containing the exact built commit\n--version: exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix",
       "usage": [
-        "corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION"
+        "corvint-release-candidate --core-dir DIR --apps-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION"
       ],
       "flags": [
+        "--apps-dir",
         "--core-dir",
         "--output-parent",
         "--scratch",
@@ -27,12 +28,13 @@
       ],
       "required": [
         "--core-dir DIR",
+        "--apps-dir DIR",
         "--source-root DIR",
         "--scratch DIR",
         "--output-parent DIR",
         "--version VERSION"
       ],
-      "example": "corvint-release-candidate --core-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION",
+      "example": "corvint-release-candidate --core-dir DIR --apps-dir DIR --source-root DIR --scratch DIR --output-parent DIR --version VERSION",
       "help": "corvint-release-candidate --help"
     },
     {

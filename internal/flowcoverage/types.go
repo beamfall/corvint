@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/flowdocs"
+	"github.com/Beamfall/corvint/internal/lineanchor"
 )
 
 const DenominatorSchema = "application-flow-coverage-denominator/1"
@@ -77,12 +78,12 @@ type Variation struct {
 	Exclusion *Ref      `json:"exclusion,omitempty"`
 }
 type Denominator struct {
-	Schema     string               `json:"schema"`
-	Source     doccorpus.Repository `json:"source"`
-	Intents    IntentDirectory      `json:"intents"`
-	Inventory  Inventory            `json:"documented_inventory"`
-	Flows      []Mapping            `json:"flows"`
-	Variations []Variation          `json:"variations"`
+	Schema     string                `json:"schema"`
+	Source     lineanchor.Repository `json:"source"`
+	Intents    IntentDirectory       `json:"intents"`
+	Inventory  Inventory             `json:"documented_inventory"`
+	Flows      []Mapping             `json:"flows"`
+	Variations []Variation           `json:"variations"`
 }
 type Run struct {
 	Ref
