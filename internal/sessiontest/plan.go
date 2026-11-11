@@ -15,7 +15,26 @@ import (
 	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/gateselect"
 	"github.com/Beamfall/corvint/internal/linecov"
+	"github.com/Beamfall/corvint/internal/testid"
+	"github.com/Beamfall/corvint/internal/testrunner/contract"
 )
+
+// runnerLanguages maps each blocking runner other than go to the affected
+// plugin language whose units it runs.
+var runnerLanguages = map[string]string{
+	testid.Vitest: "typescript", testid.Jest: "typescript", testid.Playwright: "typescript",
+	testid.Pytest: "python", testid.RSpec: "ruby", testid.Minitest: "ruby",
+}
+
+// goSuite reports whether the declared Go full suite runs: always for a
+// declared go member, and for the built-in default only when the tree
+// declares a Go instance (RNC-V1-013).
+func goSuite(input Input) bool {
+	if !input.Declared.GoDefault {
+		return true
+	}
+	return slices.ContainsFunc(input.Instances, func(instance contract.Instance) bool { return instance.Runner == testid.Go })
+}
 
 // Unknown is one plan.unknown entry.
 type Unknown struct {
@@ -73,6 +92,11 @@ type Input struct {
 	Source    SourceIdentity
 	Universe  []string // the graph's Go import paths
 	Unknown   []Unknown
+	// Instances are the runner instances the planned tree declares
+	// (testinventory.Detect, RNC-V1-014). A language with no declared full
+	// command runs each of its instances' full commands (RNC-V1-013), and
+	// the built-in Go default runs only when a Go instance exists.
+	Instances []contract.Instance
 	// LineUnits maps a selected Go import path to its GLS-V0-020 line
 	// decision; LineIndex is the manifest's lineIndex record. Both are empty
 	// without --line-index.
@@ -262,7 +286,7 @@ func Build(input Input) (Manifest, error) {
 	}
 	if input.PlanError != "" {
 		manifest.Scope, manifest.Reason = ScopeFull, "no plan: "+input.PlanError
-		manifest.declaredOnly(input.Declared)
+		manifest.declaredOnly(input)
 		return manifest.bounded(), nil
 	}
 	fullReason := ""
@@ -381,12 +405,17 @@ func Build(input Input) (Manifest, error) {
 		for _, language := range input.DirtyLanguages {
 			languages[language] = true
 		}
+		for _, instance := range input.Instances {
+			if language, ok := runnerLanguages[instance.Runner]; ok {
+				languages[language] = true
+			}
+		}
 	} else if len(goRun) == 0 && len(languages) == 0 && len(modules) == 0 && len(provided) == 0 {
 		manifest.Scope, manifest.Reason = ScopeNothing, strings.TrimPrefix(input.GoSelection, "NOTHING ")
 	}
 	if len(goRun) != 0 {
 		manifest.placeGo(input, goRun)
-	} else if manifest.Scope == ScopeFull {
+	} else if manifest.Scope == ScopeFull && goSuite(input) {
 		manifest.addDeclared("go") // FULL with no Go universe still runs the declared Go full suite
 	}
 	for _, directory := range sortedKeys(modules) {
@@ -402,7 +431,7 @@ func Build(input Input) (Manifest, error) {
 		manifest.Units = append(manifest.Units, Unit{Adapter: AdapterProvider, Shard: 0, Slice: SliceWhole, Unit: id})
 	}
 	for _, language := range sortedKeys(languages) {
-		manifest.declaredLanguage(input.Declared, language)
+		manifest.declaredLanguage(input, language)
 	}
 	manifest.Incomplete = append(manifest.Incomplete, input.SelectionIncomplete...)
 	return manifest.bounded(), nil
@@ -523,10 +552,21 @@ func partitionObligationReason(slice GoSlice) string {
 // declaredOnly is the no-plan FULL run: the declared Go full suite and every
 // declared language full command, read independently of the planner, on
 // shard 0; every no-suite assertion is recorded (STR-V0-003).
-func (m *Manifest) declaredOnly(declared Declared) {
-	m.addDeclared("go")
-	for _, entry := range declared.Languages {
-		m.declaredLanguage(declared, entry.Language)
+func (m *Manifest) declaredOnly(input Input) {
+	if goSuite(input) {
+		m.addDeclared("go")
+	}
+	languages := map[string]bool{}
+	for _, entry := range input.Declared.Languages {
+		languages[entry.Language] = true
+	}
+	for _, instance := range input.Instances {
+		if language, ok := runnerLanguages[instance.Runner]; ok {
+			languages[language] = true
+		}
+	}
+	for _, language := range sortedKeys(languages) {
+		m.declaredLanguage(input, language)
 	}
 }
 
@@ -536,11 +576,37 @@ func (m *Manifest) declaredOnly(declared Declared) {
 // The ci profile runs only what the CI full branch runs, which is Go, so it
 // never launches a declared command (a make target included); it reports the
 // command as still required and not run (STR-V0-012).
-func (m *Manifest) declaredLanguage(declared Declared, language string) {
+//
+// A language the declaration does not name runs the full command of each
+// runner instance of the language the tree declares instead, one
+// `declared:<runner>@<root>` unit each (RNC-V1-013, RNC-V1-014); only a
+// language with neither is INCOMPLETE.
+func (m *Manifest) declaredLanguage(input Input, language string) {
+	declared := input.Declared
 	entry, ok := declared.Command(language)
+	var instances []string
+	for _, instance := range input.Instances {
+		if runnerLanguages[instance.Runner] == language {
+			instances = append(instances, instance.Key())
+		}
+	}
+	source := declared.Source
+	if source == "" {
+		source = CommandsPath
+	}
 	switch {
+	case !ok && len(instances) != 0:
+		for _, key := range instances {
+			if m.RunnerProfile == ProfileCI {
+				if check := key + " full command"; !slices.Contains(m.Checks, check) {
+					m.Checks = append(m.Checks, check)
+				}
+				continue
+			}
+			m.addDeclared(key)
+		}
 	case !ok:
-		m.Incomplete = append(m.Incomplete, language+": no qualified adapter and "+DeclarationPath+" declares no "+language+" full command")
+		m.Incomplete = append(m.Incomplete, language+": no qualified adapter and "+source+" declares no "+language+" full command")
 	case entry.None != "":
 		m.NoSuite = append(m.NoSuite, language+": "+entry.None)
 	case m.RunnerProfile == ProfileCI:

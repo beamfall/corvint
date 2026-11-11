@@ -79,7 +79,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		}, scope: ScopeNarrowed, units: whole("a")},
 		{name: "unknown driver does not hide an undeclared language", edit: func(in *Input) {
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "driver:make:Makefile:build"}, {Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-		}, scope: ScopeNarrowed, units: whole("a"), incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
+		}, scope: ScopeNarrowed, units: whole("a"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
 		{name: "attribution fallback", edit: func(in *Input) { in.GoSelection = "FALLBACK go.mod changed" },
 			scope: ScopeFull, reason: "go.mod changed", units: whole("a", "b", "c")},
 		{name: "unknown outside the allowlist", edit: func(in *Input) {
@@ -116,7 +116,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "a bearing non-Go frontier needs its language's declaration (AFP-V0-2750)", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "swift:conditional-compilation"}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .github/cishards/test-commands.json declares no swift full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}},
 		{name: "a driver frontier names no suite", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "driver:unparsable-file"}}
@@ -124,7 +124,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "selected unit with no adapter and no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Selected = []string{"swift:Sources/App"}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .github/cishards/test-commands.json declares no swift full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"swift: no qualified adapter and .corvint/test-commands.json declares no swift full command"}},
 		{name: "unknown-only non-Go unit runs its declared command", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
@@ -133,7 +133,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "unknown-only non-Go unit with no declaration", edit: func(in *Input) {
 			in.GoSelection = "NOTHING none"
 			in.Unknown = []Unknown{{Reason: "NO_SELECTABLE_TEST", Detail: "python:pkg/mod.py"}}
-		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
+		}, scope: ScopeNarrowed, units: []string{}, incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
 		{name: "FULL still covers a selected non-Go language", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK go.mod changed"
 			in.Selected = []string{"python:pkg/mod.py"}
@@ -146,7 +146,7 @@ func TestSTRV0003BuildVerdicts(t *testing.T) {
 		{name: "FULL covers an undeclared language owning a dirty path", edit: func(in *Input) {
 			in.GoSelection = "FALLBACK UNINDEXED_SOURCE_PATH pkg/gone.py"
 			in.DirtyLanguages = []string{"python"}
-		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .github/cishards/test-commands.json declares no python full command"}},
+		}, scope: ScopeFull, reason: "UNINDEXED_SOURCE_PATH pkg/gone.py", units: whole("a", "b", "c"), incomplete: []string{"python: no qualified adapter and .corvint/test-commands.json declares no python full command"}},
 		{name: "ci profile with no plan runs the declared Go suite and reports declared commands as checks", edit: func(in *Input) {
 			in.PlanError = "base unresolved"
 			in.RunnerProfile = ProfileCI
@@ -348,6 +348,11 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(DeclarationPath)), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		// Only Corvint's own repository still reads DeclarationPath
+		// (RNC-V1-013).
+		if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module "+corvintModule+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		return root
 	}
 	full := `{
@@ -360,11 +365,16 @@ func TestSTRV0003ReadDeclared(t *testing.T) {
 	want := Declared{
 		GoEnv: []string{"GOCACHE=/tmp/c", "GOTOOLCHAIN=local"}, GoFlags: []string{"-p", "1", "-count=1"},
 		Languages: []LanguageCommand{{Language: "python", None: "fixtures only"}, {Language: "rust", Argv: []string{"cargo", "test"}}},
+		Source:    DeclarationPath,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("declaration %#v", got)
 	}
-	if got := ReadDeclared(t.TempDir()); !strings.HasPrefix(got.Unreadable, DeclarationPath+": ") || len(got.GoEnv)+len(got.GoFlags)+len(got.Languages) != 0 {
+	absent := write(t, "")
+	if err := os.Remove(filepath.Join(absent, filepath.FromSlash(DeclarationPath))); err != nil {
+		t.Fatal(err)
+	}
+	if got := ReadDeclared(absent); !strings.HasPrefix(got.Unreadable, DeclarationPath+": ") || got.Invalid || len(got.GoEnv)+len(got.GoFlags)+len(got.Languages) != 0 {
 		t.Fatalf("absent declaration %#v", got)
 	}
 	minimal := `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}}`

@@ -52,12 +52,12 @@ func sessionFixture(t *testing.T, mode string) (root, base, log string) {
 	t.Helper()
 	root = t.TempDir()
 	files := map[string]string{
-		"go.mod":                    "module example.test/m\n\ngo 1.27\n",
-		"a/a.go":                    "package a\n\nfunc A() int { return 1 }\n",
-		"a/a_test.go":               "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { _ = A() }\n",
-		"b/b.go":                    "package b\n\nfunc B() int { return 2 }\n",
-		"b/b_test.go":               "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
-		sessiontest.DeclarationPath: sessionDeclaration(""),
+		"go.mod":                 "module example.test/m\n\ngo 1.27\n",
+		"a/a.go":                 "package a\n\nfunc A() int { return 1 }\n",
+		"a/a_test.go":            "package a\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) { _ = A() }\n",
+		"b/b.go":                 "package b\n\nfunc B() int { return 2 }\n",
+		"b/b_test.go":            "package b\n\nimport \"testing\"\n\nfunc TestB(t *testing.T) { _ = B() }\n",
+		sessiontest.CommandsPath: sessionDeclaration(""),
 	}
 	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -234,7 +234,7 @@ func TestAZUV09923CLINoPlanHiddenGoIsIncomplete(t *testing.T) {
 func TestSTRV0003CLINoPlanRunsDeclaredLanguageCommand(t *testing.T) {
 	root, _, log := sessionFixture(t, "pass")
 	declaration := sessionDeclaration(`"rust": ["make", "rust-test"], "python": {"none": "fixtures only"}`)
-	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(declaration), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, sessiontest.CommandsPath), []byte(declaration), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "commit", "-qam", "declare rust")
@@ -272,7 +272,7 @@ func TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	declaration := sessionDeclaration(`"python": ["./tools/fake-tests"]`)
-	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(declaration), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, sessiontest.CommandsPath), []byte(declaration), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "add", ".")
@@ -296,24 +296,27 @@ func TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot(t *testing.T) {
 	}
 }
 
-// STR-V0-003: a missing or malformed declaration is INCOMPLETE in every
-// scope; nothing runs on a guessed full scope.
-func TestSTRV0003CLIUnreadableDeclarationIsIncomplete(t *testing.T) {
+// RNC-V1-013 (superseding STR-V0-003 for .corvint/test-commands.json): a
+// malformed adopter declaration exits 2 with a typed error before anything
+// runs and is never replaced by a built-in default.
+func TestRNCV1013CLIMalformedCommandsRefused(t *testing.T) {
 	root, base, log := sessionFixture(t, "pass")
-	if err := os.WriteFile(filepath.Join(root, sessiontest.DeclarationPath), []byte(`{"profile": "corvint-test-commands/0"}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, sessiontest.CommandsPath), []byte(`{"profile": "corvint-test-commands/0", "runners": {"pytest": []}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "commit", "-qam", "break the declaration")
 	receiptPath := filepath.Join(t.TempDir(), "r.json")
-	code, _, stderr := runCLI(t, "--root", root, "test", "--base", base, "--receipt", receiptPath)
-	if code != 3 || !strings.Contains(stderr, "the declared full scope is unreadable: "+sessiontest.DeclarationPath+": ") {
-		t.Fatalf("code %d stderr %q", code, stderr)
+	for _, args := range [][]string{{"--dry-run"}, {"--receipt", receiptPath}} {
+		code, stdout, stderr := runCLI(t, append([]string{"--root", root, "test", "--base", base}, args...)...)
+		if code != 2 || !strings.Contains(stderr, `"code": "test-commands-invalid"`) || !strings.Contains(stderr, sessiontest.CommandsPath+": runners.pytest: argv is empty") || stdout != "" {
+			t.Fatalf("%v: code %d stdout %q stderr %q", args, code, stdout, stderr)
+		}
 	}
 	if got := sessionRunnerLog(t, log); got != "" {
-		t.Fatalf("an unreadable declaration launched runners:\n%s", got)
+		t.Fatalf("a malformed declaration launched runners:\n%s", got)
 	}
-	if receipt := readSessionReceipt(t, receiptPath); receipt.Result != sessiontest.ResultIncomplete || len(receipt.Invocations) != 0 {
-		t.Fatalf("receipt %+v", receipt)
+	if _, err := os.Stat(receiptPath); !os.IsNotExist(err) {
+		t.Fatalf("a refused run wrote a receipt: %v", err)
 	}
 }
 

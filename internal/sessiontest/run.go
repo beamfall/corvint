@@ -184,19 +184,26 @@ func Invocations(m Manifest, declared Declared, shard int, root, confine string)
 		case unit.Adapter == AdapterDeclared:
 			// A manifest unit the declaration no longer names has no argv;
 			// Execute refuses it before discovery.
-			argv := []string{}
+			argv, dir := []string{}, ""
 			if entry, ok := declared.Command(name); ok {
 				argv = append(argv, entry.Argv...)
+			} else if command, instanceDir, _ := declared.InstanceCommand(name, root); command != nil {
+				// A runner instance's full command runs from its root
+				// (RNC-V1-013, RNC-V1-014).
+				argv = command
+				if instanceDir != "." {
+					dir = instanceDir
+				}
 			}
 			// AZU-V0-007: consumers declaring one runner, such as the
 			// browser gate, run it once; each keeps its own unit outcome.
-			key := fmt.Sprintf("%q", argv)
+			key := fmt.Sprintf("%q %q", dir, argv)
 			if index, seen := shared[key]; seen && len(argv) != 0 {
 				planned[index].Units = append(planned[index].Units, unit)
 				continue
 			}
 			shared[key] = len(planned)
-			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Env: []string{}, Units: []Unit{unit}})
+			planned = append(planned, Planned{Adapter: AdapterDeclared, Argv: argv, Dir: dir, Env: []string{}, Units: []Unit{unit}})
 		}
 	}
 	return append(planned, providerInvocations(m, declared, shard)...)
@@ -444,6 +451,10 @@ func Finish(receipt Receipt, m Manifest) Receipt {
 // depends on, or withdraws, another declared command that runs `go`
 // (AZU-V0-9923).
 func runnerKey(invocation Planned) string {
+	if invocation.Dir != "" && invocation.Adapter == AdapterDeclared && len(invocation.Argv) != 0 {
+		// A runner instance's command is looked up from its own root.
+		return invocation.Adapter + " ./" + invocation.Dir + " " + invocation.Argv[0]
+	}
 	if invocation.Dir != "" {
 		return invocation.Adapter + " ./" + invocation.Dir
 	}
@@ -502,7 +513,9 @@ func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time
 		if err != nil {
 			return "", "", nil, fmt.Errorf("runner %s not found: %v", name, err)
 		}
-		lookup = filepath.Join(root, name)
+		// A runner instance's command (RNC-V1-014) runs from its root, so
+		// its relative argv[0] (bin/rails) is resolved there.
+		lookup = filepath.Join(root, filepath.FromSlash(invocation.Dir), name)
 	}
 	runner, err := exec.LookPath(lookup)
 	if err != nil {

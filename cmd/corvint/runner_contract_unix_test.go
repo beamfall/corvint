@@ -81,3 +81,93 @@ func TestRNCV1002AffectedRunsNoListerInAPytestProject(t *testing.T) {
 		t.Fatalf("inventory lister record: %v %s", err, data)
 	}
 }
+
+// pytestAdopter is a committed pytest repository with no Go module, plus
+// stub python and uv executables first on PATH that log their argv to the
+// returned file and answer --version.
+func pytestAdopter(t *testing.T, extra map[string]string) (root, log string) {
+	t.Helper()
+	files := map[string]string{
+		"pytest.ini":         "[pytest]\n",
+		"app/calc.py":        "def add(a, b):\n    return a + b\n",
+		"tests/test_calc.py": "def test_add():\n    assert 1 + 2 == 3\n",
+	}
+	for name, body := range extra {
+		files[name] = body
+	}
+	root = inventoryRepository(t, files)
+	bin := t.TempDir()
+	log = filepath.Join(t.TempDir(), "runners.log")
+	script := "#!/bin/sh\nprintf '%s %s\\n' \"$(basename \"$0\")\" \"$*\" >> '" + log + "'\n[ \"$1\" = --version ] && echo 'stub 1.0'\nexit 0\n"
+	for _, name := range []string{"python", "uv", "make"} {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return root, log
+}
+
+// RNC-V1-013: the full command of each runner instance comes from
+// .corvint/test-commands.json, else the built-in default, which is printed;
+// an adopter's .github/cishards/test-commands.json is never read, and
+// Corvint's own repository reads it with a notice while the new file is
+// absent.
+func TestRNCV1013CLIFullCommandScenarios(t *testing.T) {
+	// A base that does not resolve gives no plan, so the run is FULL
+	// (STR-V0-003).
+	unresolved := strings.Repeat("e", 40)
+	run := func(t *testing.T, root string) (int, string) {
+		t.Helper()
+		receipt := filepath.Join(t.TempDir(), "r.json")
+		code, _, stderr := runCLI(t, "--root", root, "test", "--base", unresolved, "--receipt", receipt)
+		if !strings.Contains(stderr, "FULL") {
+			t.Fatalf("the run is not FULL: %s", stderr)
+		}
+		return code, stderr
+	}
+	t.Run("adopter with no declaration", func(t *testing.T) {
+		root, log := pytestAdopter(t, nil)
+		code, stderr := run(t, root)
+		if code != 0 || !strings.Contains(stderr, "corvint-test: DEFAULT pytest@.: .corvint/test-commands.json has no entry for it, so the built-in default full command runs: python -m pytest\n") {
+			t.Fatalf("exit %d stderr %s", code, stderr)
+		}
+		if got := launched(t, log); got != "python --version\npython -m pytest\n" {
+			t.Fatalf("runner calls:\n%s", got)
+		}
+	})
+	t.Run("declared command wins", func(t *testing.T) {
+		root, log := pytestAdopter(t, map[string]string{".corvint/test-commands.json": `{"profile": "corvint-test-commands/0", "runners": {"pytest": ["uv", "run", "pytest", "-p", "no:cacheprovider"]}}`})
+		code, stderr := run(t, root)
+		if code != 0 || strings.Contains(stderr, "DEFAULT") {
+			t.Fatalf("exit %d stderr %s", code, stderr)
+		}
+		if got := launched(t, log); got != "uv --version\nuv run pytest -p no:cacheprovider\n" {
+			t.Fatalf("runner calls:\n%s", got)
+		}
+	})
+	t.Run("old CI path ignored for adopters", func(t *testing.T) {
+		root, log := pytestAdopter(t, map[string]string{".github/cishards/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"python": ["make", "py"]}}`})
+		code, stderr := run(t, root)
+		if code != 0 || !strings.Contains(stderr, "DEFAULT pytest@.") || strings.Contains(stderr, "NOTICE") {
+			t.Fatalf("exit %d stderr %s", code, stderr)
+		}
+		if got := launched(t, log); got != "python --version\npython -m pytest\n" {
+			t.Fatalf("runner calls:\n%s", got)
+		}
+	})
+	t.Run("Corvint's own repository reads the old path with a notice", func(t *testing.T) {
+		root, log := pytestAdopter(t, map[string]string{
+			"go.mod":                              "module github.com/Beamfall/corvint\n\ngo 1.27\n",
+			".github/cishards/test-commands.json": `{"profile": "corvint-test-commands/0", "go": {"env": {}, "flags": []}, "languages": {"python": ["make", "py"]}}`,
+		})
+		code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", unresolved, "--dry-run", "--full")
+		if code != 0 || !strings.Contains(stderr, "corvint-test: NOTICE the full commands are read from the old path .github/cishards/test-commands.json for one release; move them to .corvint/test-commands.json\n") ||
+			!strings.Contains(stdout, `"argv":["make","py"]`) || strings.Contains(stdout, `"declared:pytest@`) {
+			t.Fatalf("exit %d stdout %s stderr %s", code, stdout, stderr)
+		}
+		if got := launched(t, log); got != "" {
+			t.Fatalf("a dry run launched:\n%s", got)
+		}
+	})
+}

@@ -20,7 +20,7 @@ import (
 func TestOwnershipNamedDryRun_AZU_V0_9900(t *testing.T) {
 	root, _ := ratchetSelectionRepo(t)
 	affectedGit(t, root, "rm", "web/test.ts")
-	cemWrite(t, root, sessiontest.DeclarationPath, sessionDeclaration(""))
+	cemWrite(t, root, sessiontest.CommandsPath, sessionDeclaration(""))
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "Go-only dry-run fixture")
 	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
@@ -71,7 +71,7 @@ func TestOwnershipFullDryRun_AZU_V0_9900(t *testing.T) {
 	// Keep the directory present: an entirely removed directory can be
 	// attributed to its importers without a FULL fallback (AFP-V0-821).
 	cemWrite(t, root, "gone/keep.txt", "package notes\n")
-	cemWrite(t, root, sessiontest.DeclarationPath, sessionDeclaration(""))
+	cemWrite(t, root, sessiontest.CommandsPath, sessionDeclaration(""))
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "Go-only FULL fixture")
 	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))

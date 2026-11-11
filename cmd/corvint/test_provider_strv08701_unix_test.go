@@ -52,10 +52,10 @@ func providerSessionFixture(t *testing.T, install bool, state string) (root, bas
 		}
 	}
 	write(map[string]string{
-		"package.json":              `{"name":"fixture","private":true,"devDependencies":{"@playwright/test":"1.50.0"}}` + "\n",
-		"playwright.config.ts":      "import { defineConfig } from \"@playwright/test\";\nexport default defineConfig({ testDir: \"./e2e\" });\n",
-		providerSessionSpec:         "import { test } from \"@playwright/test\";\n\ntest(\"login\", async ({ page }) => {\n  await page.goto(\"/login\");\n});\n",
-		sessiontest.DeclarationPath: declaration,
+		"package.json":           `{"name":"fixture","private":true,"devDependencies":{"@playwright/test":"1.50.0"}}` + "\n",
+		"playwright.config.ts":   "import { defineConfig } from \"@playwright/test\";\nexport default defineConfig({ testDir: \"./e2e\" });\n",
+		providerSessionSpec:      "import { test } from \"@playwright/test\";\n\ntest(\"login\", async ({ page }) => {\n  await page.goto(\"/login\");\n});\n",
+		sessiontest.CommandsPath: declaration,
 	})
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "add the Playwright project")

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,13 +13,18 @@ import (
 )
 
 // TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration pins V1-3530: a
-// repository without .github/cishards/test-commands.json plans scope FULL
-// that cannot run; the human verdict line and the dry-run JSON verdict both
-// say INCOMPLETE, name the missing declaration, and the run exits 3, which
-// the help documents.
+// repository whose declaration cannot be read plans scope FULL that cannot
+// run; the human verdict line and the dry-run JSON verdict both say
+// INCOMPLETE, name the missing declaration, and the run exits 3, which the
+// help documents. Since RNC-V1-013 only Corvint's own repository without
+// .corvint/test-commands.json reads .github/cishards/test-commands.json, so
+// the fixture declares Corvint's module and lacks both files.
 func TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module github.com/Beamfall/corvint\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	declared := sessiontest.ReadDeclared(root)
 	if declared.Unreadable == "" {
 		t.Fatal("an empty repository's declaration reads as readable")
