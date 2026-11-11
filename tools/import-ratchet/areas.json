@@ -53,6 +53,7 @@
         "internal/rubyautoload",
         "internal/rubydialect",
         "internal/rubysyntax",
+        "internal/rubytestreceipt",
         "internal/rustsyntax",
         "internal/runhygiene",
         "internal/runtimeenv",
