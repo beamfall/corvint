@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -145,6 +146,74 @@ func TestSymlinks_AFPV09965(t *testing.T) {
 	} {
 		if len(got) != 0 {
 			t.Errorf("%s: %v", name, got)
+		}
+	}
+}
+
+// AFP-V0-9965 (fix round, P2.4): a link whose target leaves the repository
+// text-wise can still reach it: a relative target that climbs out and comes
+// back by the repository's own name, an absolute target that names the tree
+// through an alias of one of its ancestors (/tmp and /private/tmp), and a
+// climb that comes back through a link outside the repository. Each row is
+// one link to its own directory; a dirty path below that directory must be
+// UNKNOWN, with the tree named by its physical path and by the alias. A
+// target that stays outside covers nothing.
+func TestSymlinksReenter_AFPV09965(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("creating a symbolic link needs a privilege Windows test hosts do not grant")
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not installed")
+	}
+	outer, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	physical := filepath.Join(outer, "phys", "repo")
+	alias := filepath.Join(outer, "alias", "repo")
+	recordWrite(t, physical, "plain/a.sh", "true\n")
+	if err := os.Symlink(filepath.Join(outer, "phys"), filepath.Join(outer, "alias")); err != nil {
+		t.Fatal(err)
+	}
+	rows := []struct{ link, text, dirty string }{
+		{"reenter", "../repo/r1", "r1/a.sh"},
+		{"deep/reenter", "../../repo/r2", "r2/a.sh"},
+		{"chain", "reenter/sub", "r1/sub/a.sh"},
+		{"absolute_physical", filepath.Join(physical, "r3"), "r3/a.sh"},
+		{"absolute_alias", filepath.Join(alias, "r4"), "r4/a.sh"},
+		{"climb_through_alias", "../../alias/repo/r5", "r5/a.sh"},
+		{"climb_dangling", "../../alias/repo/r6/missing", "r6/missing/a.sh"},
+	}
+	recordGit(t, physical, "init", "-q")
+	for _, row := range rows {
+		recordWrite(t, physical, strings.SplitN(row.dirty, "/", 2)[0]+"/keep", "x\n")
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(physical, row.link)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(row.text, filepath.Join(physical, filepath.FromSlash(row.link))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink("../elsewhere", filepath.Join(physical, "away")); err != nil {
+		t.Fatal(err)
+	}
+	recordGit(t, physical, "add", "-A")
+	recordGit(t, physical, "commit", "-q", "-m", "base")
+	base := recordGit(t, physical, "rev-parse", "HEAD")
+	for name, tree := range map[string]string{"physical": physical, "alias": alias} {
+		links := TreeSymlinks(context.Background(), git, tree, tree, base, nil)
+		if !links.Listed {
+			t.Fatalf("%s: not listed", name)
+		}
+		shell := (&Graph{languages: []string{"shell"}}).WithSymlinks(links)
+		for _, row := range rows {
+			if got := shell.symlinkTargets([]string{row.dirty}); len(got) != 1 {
+				t.Errorf("%s tree, %s -> %s: %s not covered (targets %v)", name, row.link, row.text, row.dirty, links.Targets)
+			}
+		}
+		if got := shell.symlinkTargets([]string{"plain/a.sh"}); len(got) != 0 {
+			t.Errorf("%s tree: plain/a.sh, reached by no link, covered: %v", name, got)
 		}
 	}
 }
