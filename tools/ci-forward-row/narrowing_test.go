@@ -1530,7 +1530,7 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 		cmd := workflowStep(t, workflow, guard)
 		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + dir, "GITHUB_RUN_ID=" + prRun, "GITHUB_RUN_ATTEMPT=2",
 			"GITHUB_EVENT_NAME=" + event, "BATCHED=false", "SHARDS_RESULT=success", "STATIC_RESULT=success", "SHELL_RESULT=" + shell,
-			"DOCS_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=" + live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
+			"DOCS_RESULT=success", "INTEGRITY_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=" + live, "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
 			"DOCS_MODE=" + docsMode, "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 		out, err := cmd.CombinedOutput()
 		return string(out), err
@@ -1620,7 +1620,7 @@ func TestAFPV0591CoverageGuard(t *testing.T) {
 	cmd := workflowStep(t, workflow, guard)
 	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "RUNNER_TEMP=" + dir, "GITHUB_RUN_ID=" + prRun, "GITHUB_RUN_ATTEMPT=1",
 		"GITHUB_EVENT_NAME=pull_request", "BATCHED=false", "SHARDS_RESULT=success", "STATIC_RESULT=success", "SHELL_RESULT=success",
-		"DOCS_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=skipped", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
+		"DOCS_RESULT=success", "INTEGRITY_RESULT=success", "HOST_PLAN_RESULT=success", "HOST_REQUIRED=true", "HOST_RESULT=success", "LIVE_RESULT=skipped", "WEB_PLAN_RESULT=success", "WEB_REQUIRED=false", "WEB_RESULT=skipped",
 		"DOCS_MODE=FULL", "SHARDS=" + strconv.Itoa(shards), "GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
 	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "::error::AFP-V0-591: the shard coverage markers are unreadable. Re-run all jobs.") {
 		t.Fatalf("unreadable markers: err=%v output:\n%s", err, out)
