@@ -10,7 +10,8 @@
   (answer 13).
 - MCP exposure follows the table of change `mcp-tool-table` (owner decision R30; TBC-V1-008).
 
-Amendment of 2026-11-10 (proposed; decided by the lane only as a proposal):
+Amendment of 2026-11-10 (drafted by the lane; the owner accepted PROD-INT-032 into 1.0 the same
+day):
 
 - The second form is keyed on paths, not on task text. Task text needs matching, which TBC-V1-002
   forbids and which the replay and the 2026-10-26 audit show does not help. A path needs no
@@ -33,9 +34,9 @@ Amendment of 2026-11-10 (proposed; decided by the lane only as a proposal):
   and is `INCOMPLETE`, so a missing ticket store does not hide the kept links.
 - The coverage check (TBC-V1-013) is a scratch script over existing commands and the sealed
   records. It needs neither the export nor the builder, so it can run first and stop both.
-- PROD-INT-030 is left as accepted. The extension is a new requirement, PROD-INT-032, with a
-  `pending-owner` log row (ACR-V1-008), so the accepted requirement keeps its acceptance while the
-  owner decides on the extension.
+- PROD-INT-030 is left as accepted. The extension is a new requirement, PROD-INT-032. It had a
+  `pending-owner` log row (ACR-V1-008) until the owner accepted it on 2026-11-10, so the accepted
+  requirement kept its acceptance while the owner decided on the extension.
 - The CEM is not revived. Its sealed links are exported once to a plain link file (TBC-V1-012). The
   `cem/1.0` contract, the verb and the ceremony stay removed under G8. Links for work done after
   the export come from completed tickets.
@@ -93,9 +94,10 @@ Amendment of 2026-11-10 (proposed; decided by the lane only as a proposal):
 
 Revert the change's commits; the ranked packet returns from the reverted diff. If the 1.0.x
 measurement fails, the removal of the brief is itself the rollback. IDs are retired, not reused.
-Amendment of 2026-11-10: if the owner declines PROD-INT-032, this amendment's commit is reverted
-and TBC-V1-009 to TBC-V1-014 are retired. If it is accepted and later fails its coverage check or
-the 1.0.x measurement, the path form and `.corvint/requirement-links.json` are removed with it.
+Amendment of 2026-11-10: the owner accepted PROD-INT-032 on 2026-11-10. If the owner withdraws
+it, the amendment's commits are reverted and TBC-V1-009 to TBC-V1-014 are retired. If it fails its
+coverage check or the 1.0.x measurement, the path form and `.corvint/requirement-links.json` are
+removed with it.
 
 ## Open questions for the owner
 
@@ -108,13 +110,17 @@ the 1.0.x measurement, the path form and `.corvint/requirement-links.json` are r
 
 ### Added 2026-11-10 with the amendment
 
-- Accept PROD-INT-032 (the path form, TBC-V1-009 to TBC-V1-014) into 1.0, defer it to 1.0.x, or
-  decline it?
+- Settled 2026-11-10: the owner accepted PROD-INT-032 into 1.0 ("Accept into 1.0"). Earlier text:
+  "Accept PROD-INT-032 (the path form, TBC-V1-009 to TBC-V1-014) into 1.0, defer it to 1.0.x, or
+  decline it?"
 - Accept TBC-V1-012: keep the sealed requirement links in `.corvint/requirement-links.json` when
   `source-removal` deletes `.corvint/changes`? The lane's recommendation is yes. The records stay
-  in Git history either way, so the export can also run later.
+  in Git history either way, so the export can also run later. The owner did not answer this
+  separately. The lane reads it as covered by the acceptance of PROD-INT-032, whose Notes name the
+  link file; the export still waits for the coverage check.
 - Set the coverage bar of TBC-V1-013 (proposed: at least half of the tasks have a listed test that
-  the closing commits changed or a listed requirement that the ticket cites).
+  the closing commits changed or a listed requirement that the ticket cites). Still open after the
+  acceptance of 2026-11-10; the check can run and be recorded before the bar is set.
 - May the pilot of TBC-V1-014 run before the release candidate on the owner's subscription logins?
   It claims nothing and does not block.
 - Should the 1.0.x keep-or-remove measurement also be moved before 1.0 stable? That would change

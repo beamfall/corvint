@@ -21,9 +21,9 @@ Build tasks in order. Each names its requirement IDs and its proof.
 - [ ] 8 In 1.0.x: run both arms on the owner's machines, record the result, keep or remove
       (TBC-V1-006).
 
-Tasks of the amendment of 2026-11-10 (proposed; none starts before the owner accepts
-PROD-INT-032). Task 9 runs first and needs only the frozen task list of task 6; it needs neither
-the export nor the builder. Tasks 10 to 12 run after task 3 and only if task 9 meets the bar.
+Tasks of the amendment of 2026-11-10 (the owner accepted PROD-INT-032 into 1.0 on 2026-11-10).
+Task 9 runs first and needs only the frozen task list of task 6; it needs neither the export nor
+the builder. Tasks 10 to 12 run after task 3 and only if task 9 meets the bar the owner sets.
 
 - [ ] 9 Link-coverage check of the `tests` and `requirements` sections on the frozen task set, by a
       scratch script over existing commands and the sealed records, with no agent run

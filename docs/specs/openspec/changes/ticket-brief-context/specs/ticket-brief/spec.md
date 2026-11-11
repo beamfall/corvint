@@ -6,11 +6,12 @@ The lane copies each statement below into `ticket-brief-v1.md`, inside its `## R
 section, as a numbered definition line that begins `(proposed 2026-11-09; delivery not-started;
 non-blocking)`.
 
-Amendment of 2026-11-10: TBC-V1-009 to TBC-V1-014 serve PROD-INT-032, which is proposed and not
-accepted. They add a second form of the brief that needs no ticket and change no statement of
-TBC-V1-001 to TBC-V1-008. The lane copies each one with a definition line that begins `(proposed
-2026-11-10; awaiting owner; delivery not-started; non-blocking)`, and builds none of them before
-the owner accepts PROD-INT-032.
+Amendment of 2026-11-10: TBC-V1-009 to TBC-V1-014 serve PROD-INT-032, which the owner accepted
+into 1.0 on 2026-11-10 ("Accept into 1.0"). They add a second form of the brief that needs no
+ticket and change no statement of TBC-V1-001 to TBC-V1-008. The lane copies each one with a
+definition line that begins `(proposed 2026-11-10; delivery not-started; non-blocking)`. The
+coverage check of TBC-V1-013 runs first; the export and the builder wait for its result against
+the owner's bar, which is not set yet.
 
 ### Requirement: TBC-V1-001 Brief from declared links only
 
@@ -123,7 +124,7 @@ input schema, output profile and error codes MUST be those of its row in the tab
 
 ### Requirement: TBC-V1-009 Path brief needs no ticket
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: owner request 2026-11-10 (useful for every agent); PROD-INT-032. `corvint context --path
 PATH [--path PATH ...]` MUST build a brief for the named paths from the committed tree at HEAD, with
 no ticket, no task text and no Tasks store, and MUST name that commit. It MUST refuse a path outside
@@ -148,7 +149,7 @@ first two for its directory), and its `tests`, `flows` and `requirements` sectio
 
 ### Requirement: TBC-V1-010 Six sections, each from a named link
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: G25 item 3, invariant 2, CRI-V1-002. The path brief MUST carry these sections in this order,
 each with the state and reason of CRI-V1-002 and two fields this requirement defines: `total`, the
 number of items before the limit, and `truncated`, true when items were left out. Every item MUST
@@ -191,7 +192,7 @@ TBC-V1-001) is not changed by this requirement.
 
 ### Requirement: TBC-V1-011 A missing source never blocks
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: invariant 2; owner request 2026-11-10. Every source except the Git repository is optional.
 The optional sources are `corvint-tasks`, `.corvint/flows.json`, `CODEOWNERS`, the retained test
 evidence and `.corvint/requirement-links.json`. Absence is judged per source, not per section. A
@@ -216,7 +217,7 @@ command MUST still exit 0. TBC-V1-004 and TBC-V1-007 apply to the path brief unc
 
 ### Requirement: TBC-V1-012 Requirement links kept from sealed change records
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: owner instruction 2026-11-10 (the CEM may be amended where a useful context needs it); G8.
 G8 stays as accepted: the `cem` verb, the ceremony and the `cem/1.0` protocol are removed and no
 new change record is written. What is kept is the links the sealed records already hold. A one-time
@@ -258,7 +259,7 @@ link was sealed loses that link, and rename following is not attempted.
 
 ### Requirement: TBC-V1-013 Link coverage is measured before the builder is written
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: owner request 2026-11-10 (measure first); value audit 2026-10-26. Before the export and the
 path brief builder are written, the `tests` and `requirements` sections MUST be computed for the
 frozen task set of TBC-V1-006 by a scratch script and no agent run. The script runs in a checkout
@@ -283,7 +284,7 @@ changed or a listed requirement that the ticket cites.
 
 ### Requirement: TBC-V1-014 Pilot before the release candidate
 
-Proposed 2026-11-10, awaiting owner.
+Proposed 2026-11-10; PROD-INT-032 accepted by the owner 2026-11-10.
 Source: owner request 2026-11-10 (measure first); R28, R29, R39, R40. A pilot of the TBC-V1-006
 design is planned before the 1.0 release candidate on the first 8 tasks of the committed list, with
 a third arm C in which the agent is told the path brief exists and may ask for it. The record MUST
