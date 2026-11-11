@@ -632,9 +632,12 @@ extract-and-run tests used pipefail, so a masked pipeline failure passed the tes
   every decision, including a fallback that drops the record; the `ci-narrowing-N` and
   `ci-shard-plan` artifacts upload it beside `narrowing.json`. The merge-queue path
   (`mq-narrow.sh`, then `narrow.sh`) prints the same line, its selection refusal as
-  `driver-reason`. Non-goals: changing any decision; the collectors still read `narrowing.json`
-  only. Failure mode: a decision sidecar that cannot be written leaves the mode output and the
-  record unchanged.
+  `driver-reason`. Non-goals: changing any decision; the collectors still take records from
+  `narrowing.json` only. `classify.sh` reads `decision.json` for one purpose: an artifact
+  directory that holds a FULL decision and no record is left out of the row, as a shard that
+  uploaded nothing is. A directory with neither file, or with no record and a decision that is
+  unreadable or not FULL, stays an unreadable narrowing record. Failure mode: a decision sidecar
+  that cannot be written leaves the mode output and the record unchanged.
 - `CIN-V0-8422`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5196)
   `.github/forward-rows/full-reasons.sh N [EVENT]` SHALL tally, with gh and jq only, the modes and
   FULL reason codes of the `ci-narrowing-*` artifacts of the last N (1 to 100) completed runs of
@@ -913,7 +916,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-002 | the `pin-tool-*` and `pin-shadow-*` step ids and the "Fail loudly on an unreachable or unbuildable pin" step of `ci.yml` | `TestCINV0002UnreachablePinFailsTheShardLoudly` |
 | CIN-V0-003 | `list_names` stop time in `names.sh`; `since`, `covered` and `reachedEpochSince` in `verdict.sh`; `FORWARD_EPOCH_SINCE` in `ci-forward-bar.yml` | `TestCINV0003VerdictListsBackToTheEpochSince` |
 | CIN-V0-004 | `listedAt` and `windowNames` in `verdict.sh` and `bar.jq`; the incremental branch of `accept.sh` | the `CIN-V0-004` cases of `TestAFPV0097VerdictAcceptance` (31 reads to 2 on the replay; malformed members fall back) |
-| CIN-V0-8421 | `say`, `decision` and `full` in `.github/forward-rows/narrow.sh`; `$causes`, `reasonCodes` in `narrow.jq`; the `decision.json` upload paths of `go-product-shard` and `shard-plan` in `ci.yml` | `TestCINV08421FullReasonIsLoggedAndRecorded_CINV08421` (a decided FULL, several codes in order, a dropped record, a failed decision, NARROWED, the merge-queue path) |
+| CIN-V0-8421 | `say`, `decision` and `full` in `.github/forward-rows/narrow.sh`; `$causes`, `reasonCodes` in `narrow.jq`; the `decision.json` upload paths of `go-product-shard` and `shard-plan` in `ci.yml` | `TestCINV08421FullReasonIsLoggedAndRecorded_CINV08421` (a decided FULL, several codes in order, a dropped record, a failed decision, NARROWED, the merge-queue path); `TestCINV08421DecisionOnlyFullIsNoRecord_CINV08421` (`classify.sh`: a FULL decision without a record is left out; no file, an unreadable decision or a NARROWED decision without a record stays unreadable) |
 | CIN-V0-8422 | `.github/forward-rows/full-reasons.sh` | `TestCINV08422FullReasonsTally_CINV08422` (five runs: narrowed, two shards' codes, a legacy record, no record, a fallback decision; the event filter; argument and listing refusals) |
 | CIN-V0-8423 | `consumers` and the classification loop in `.github/forward-rows/github-guard.sh`; `githubGuard` in `tools/selection-baseline/main.go` | `TestCINV08423GuardClassifiesEveryInput_CINV08423` (every forward-rows file and both workflows; consumers hold every declared reader; an unmapped file, a rename and a mixed change stay FULL); the mapped cases of `TestAFPV02720GuardNamesOnlyTheNarrowingInputs_AFPV02720`; `TestCINV08424MappedInputsNeedTheirConsumers_CINV08424` (the guard answer) |
 | CIN-V0-8424 | the mapped-consumer check and `githubMapped`/`githubMissing` in `narrow.sh` and `narrow.jq`; `applyMappedInputs` in `tools/selection-baseline/main.go` | `TestCINV08424NarrowShRequiresMappedConsumers_CINV08424` (real guard and git: a selection with the consumer narrows and records the mapping, one without is FULL naming it, two consumers need both, no module path is unreadable, a global input beside a mapped one stays FULL); `TestCINV08424MappedInputsNeedTheirConsumers_CINV08424` |
