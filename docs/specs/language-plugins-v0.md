@@ -208,6 +208,29 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
   [`affected-plan-selection-v0.md`](affected-plan-selection-v0.md): the impact profile's probes, load
   pattern and static-load rule live in the TypeScript plugin's `internal/webdialect`; core still
   owns the mask and registers the profile.)
+- `AFP-V0-9985`: (experimental; owner-requested V1-5351; restores LGP-V0-010 for runner
+  selection plugins) `registry.SelectionPlugin` SHALL find a runner's selection plugin through the
+  registered family table: a `Family` declares `SelectionRunners`, the runners it serves a
+  selection plugin for, and `Selection`, the factory of that unbound plugin. A listed runner of the
+  family that registers it gets that factory's plugin, and every other registered runner gets the
+  absent plugin. No function in `internal/testrunner/registry` SHALL switch or branch on a runner
+  or family name, constant or literal, to choose a plugin type, so a family that adds selection
+  pieces edits its own table row and not `SelectionPlugin`. Behavior is unchanged: `rspec`,
+  `minitest`, `test-unit` and `rails-test` still get the unbound Ruby plugin, every other
+  registered runner gets the absent plugin, and an unregistered runner gets none. The Ruby plugin
+  type stays in the registry package, because its existing tests address it there.
+- `AFP-V0-9986`: (experimental; owner-requested V1-5351) A test SHALL fail when a non-test function
+  in `internal/testrunner/registry` has a `switch` case or `if` condition that names a
+  `runnernames` constant or a registered runner name literal, and whose body builds a plugin type
+  of the package (a type with a `Pieces` method) or calls a package function that returns one or a
+  `RunnerPlugin`. Its baseline is empty. A fixture of the `SelectionPlugin` switch of commit
+  `5bfe17dc6` SHALL be reported. A branch that names a runner without choosing a plugin type (the
+  Ruby plugin's `test-unit` identity mapping) SHALL NOT be reported, and neither SHALL a family
+  factory's admission guard, which refuses an unsupported runner before building its one plugin
+  type (`NewJVMSelectionPlugin`, `PythonPlugin`, `NewRustPlugin`, `ShellSelectionPlugin`). Known
+  limit: a family-neutral function that refuses every runner but one and then builds that runner's
+  plugin has the admission-guard shape and is not reported. A parity test SHALL pin
+  `SelectionPlugin`'s result for every registered runner.
 
 ## Failure modes
 
@@ -226,6 +249,7 @@ per-language packages in prose. It is rejected because prose cannot fail when a 
 | A remaining core literal has no recorded reason | ratchet (LGP-V0-019) | test fails naming the entry |
 | Two plugins register the same dialect hook, or one registers an incomplete hook | `dialect.Register*` (LGP-V0-023) | panic at init naming the dialect |
 | An impact or module dialect declares no rule, or a rule core does not implement for its kind | `Validate` (LGP-V0-024) | test fails naming plugin and dialect |
+| A registry function branches on a runner name to choose a plugin type | `TestRegistryChoosesNoPluginByRunnerName_AFPV09986` | test fails naming the file, line and name |
 | A declared dialect's plugin hooks are not linked | `ImplementedDialects` (LGP-V0-026) | `source-analysis-unavailable` or an extraction note; conformance test fails |
 
 The ratchet compares exact string literals only, so a name built by concatenation or held in a
@@ -284,6 +308,8 @@ appears as a core literal fails the ratchet when it is registered, and the basel
 | LGP-V0-025 | `internal/rubydialect` | `rubydialect_test.go`, existing Ruby impact and symbol tests |
 | LGP-V0-026 | `non_go_impact.go`, `rubysymbols.go`, `ImplementedDialects` | `TestPluginDialectsImplemented_LGPV0016` (removed) |
 | LGP-V0-027 | `contextindex/dialect_hooks.go`, ratchet | `TestCoreNameLiterals_LGPV0009`, existing tests |
+| AFP-V0-9985 | `Family.SelectionRunners` and `Family.Selection` in `internal/testrunner/registry/registry.go`, `SelectionPlugin` in `runner_plugin.go`, `dynamic.RubySelectionRunners` | `TestSelectionPluginParity_AFPV09985`, `TestRSPV0048RubyGloballyRegistered` and the other Ruby registry tests unchanged |
+| AFP-V0-9986 | `internal/testrunner/registry/family_branch_test.go` | `TestRegistryChoosesNoPluginByRunnerName_AFPV09986` (empty baseline; the `5bfe17dc6` fixture is reported) |
 
 ## Boundaries and rollback
 
@@ -291,6 +317,9 @@ The manifest is compiled-in data with no state, file format or wire contract. Ro
 of the change: restore the hand-written provider list in `languages.go` and the switch in
 `registry.go`, and delete `internal/langplugin` and its read-scope entry. Nothing persisted reads
 the manifest, so no migration is needed.
+
+Rollback for AFP-V0-9985 and AFP-V0-9986: restore the `SelectionPlugin` switch, drop the two
+`Family` fields and the dynamic row's values, and delete the two tests. Nothing persisted changes.
 
 Maintenance: a change that adds a language, runner, analyzer binary, provider package, coverage
 collector or mutation tool updates the manifest in the same commit; the conformance test enforces
