@@ -551,7 +551,7 @@ func layoutRules(r *repo) []finding {
 }
 
 // hasHeading reports whether a heading reads name, ignoring case, alone or followed by a space
-// and more words, as in `## Rollback (TSC-V1-020)`.
+// and more words, as in `## Rollback and recovery`.
 func hasHeading(found map[string]bool, name string) bool {
 	want := strings.ToLower(name)
 	for heading := range found {
