@@ -1051,7 +1051,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `duplicate-nav-entry` | `internal/doccompiler/plan.go:198@e7ecb0af` | 1 | "nav path is duplicated: <value>" |
 | `duplicate-operation` | `internal/doccompiler/admittedplan.go:182@c5c36f25` | 2 | "operation ID is duplicated: <value>" |
 | `environment-inventory-invalid` | `internal/doccompiler/discover.go:154` | 1 | "pinned Python returned an invalid environment inventory" |
-| `environment-untrusted` | `internal/doccompiler/discover.go:453@3823605e` | 3 | "a project-owned environment trust attestation is required" |
+| `environment-untrusted` | `internal/doccompiler/discover.go:436@3823605e` | 3 | "a project-owned environment trust attestation is required" |
 | `file-too-large` | `internal/doccompiler/paths.go:136@3d65c311` | 1 | "<value> exceeds its byte limit" |
 | `file-unavailable` | `internal/doccompiler/paths.go:78@41a960a6` | 5 | "cannot inspect <value>" |
 | `immutable-evidence-unavailable` | `internal/doccompiler/plan.go:171@8c6af7e5` | 4 | "experimental planning cannot qualify <value> claim <value> without immutable evidence and authority verification" |
