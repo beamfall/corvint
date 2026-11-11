@@ -312,7 +312,7 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   starts with `dynamic/github-code-scanning/` (CodeQL default setup). It SHALL stay the only
   workflow that grants `actions: write`. On 2026-11-03 the schedule ran twice in 8 hours while
   CodeQL ran 11 times on `main`.
-- `CIN-V0-2304`: (retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; the DCW-V0-348 pre-push hook remains; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
+- `CIN-V0-2304`: (retired by decision 0594, 2026-11-09: the batch-check step left `doc-gates`; DCW-V0-348, the pre-push hook named here before, is retired too (V1-5330), so `make batch-precheck` and `make batch-push-check` are the checks before a push; body kept as history) (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2805;
   effective only after the owner's `ci-control-plane` review) For a pull request whose head branch
   starts with `claude/batch-`, the required `doc-gates` job SHALL, unless its reuse decision is
   REUSE, build the checker and its verifier from the pull request's base commit (trusted `main`,
@@ -1013,7 +1013,8 @@ parent-0 proof in `narrow.sh`; a driver fallback again records base `""`, still 
 CIN-V0-2301: drop the marker at `pr-base-target-unreadable`. CIN-V0-2302: drop the two `absent`
 calls in `accept.sh`. CIN-V0-2303: drop the `workflow_run` trigger and the job guard's
 `workflow_run` clause; the schedule alone remains. CIN-V0-2304 is retired by decision 0594: the batch-check step of
-`doc-gates` was dropped; the DCW-V0-348 pre-push hook remains the only check.
+`doc-gates` was dropped, and the DCW-V0-348 pre-push hook is retired too (V1-5330); `make
+batch-precheck` and `make batch-push-check` are the checks before a push.
 
 ## Lane maintenance evidence (2026-11-04)
 
