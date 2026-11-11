@@ -77,6 +77,8 @@ Lane seldis (2026-11-09; V1-4968, V1-4971, V1-4363) adds AFP-V0-9730 to AFP-V0-9
 same reason; see build-log entry `2026-11-09-seldis`. Lane seldisfix (2026-11-09, the review of
 seldis) adds AFP-V0-11033, the same refusal for `affected jobs` and `affected audit`; see build-log
 entry `2026-11-09-seldisfix`.
+Lane guardsel (2026-11-11; V1-5364, V1-5365) adds AFP-V0-9980 to AFP-V0-9983 here for guard
+predicates that match only the guard's reads; see build-log entry `2026-11-11-guardsel`.
 
 ## User and current state
 
@@ -2922,6 +2924,70 @@ Copied from the OpenSpec change `hub-read-scopes`; the build log entry
   The lane measured a fixed docs-only scratch diff (`AGENTS.md`, `Makefile`,
   `docs/specs/eol-policy-gate-v0.md`) instead; pull request 178's diff is not yet measured.
 
+### Guard predicates match only the guard's reads (V1-5364, V1-5365)
+
+Intent (lane guardsel charter, 2026-11-11; V1-5364, V1-5365): `tools/flow-guide-check` declares a
+content predicate on its `cmd/`, `internal/` and `tools/` trees (AFP-V0-3300), but the kebab and
+upper-snake alternatives of that predicate matched any hyphenated or underscored word, including
+`pache-2` of every `SPDX-License-Identifier: Apache-2.0` header: 3069 of the 3309 tracked `.go`
+files under `internal/` matched at `b55635262`, so the predicate filtered almost nothing.
+Separately, a frontier site reached under such a tree re-selected the guard whatever the dirty
+file held: a comment-only edit of `internal/analyzerruby/lexer.go` selected
+`go:.../tools/flow-guide-check` through `typescript:internal/appmap/navigation-events.cjs` with a
+`PATH_LITERAL_READER` witness. The observer edge (AZU-V0-212, `observersOf`) passes the site's own
+files to the reader rule, and the predicate had no endpoint content for a file that is not dirty,
+so it selected. Both are precision defects; selection stayed fail-closed. Fail-closed rule for this
+section: a tree entry stops selecting the guard only when the guard's outcome provably does not
+depend on the file, which means both endpoints are known text and neither matches the reviewed
+predicate. Every other case selects as before.
+
+- **AFP-V0-9980:** (experimental; owner-requested V1-5364) The content predicate of
+  `tools/flow-guide-check` for `cmd/`, `internal/` and `tools/` in
+  `.corvint/test-read-scope-trees.json` SHALL match only the content the guard reads there: a
+  call shape `[rR]efuse\w*\s*\(` (the callees `unclassifiedCounts` counts in `--audit`), and each
+  refusal code of the guide's recovery table as a literal alternative (the codes `checkGuide`
+  looks up with `bytes.Contains` in the `sourceText` concatenation). No alternative may match a
+  class of words, such as any hyphenated or underscored word. The guard's other reads below those
+  trees, the command-tree snapshots under `internal/capcatalog/trees/` and the retired
+  `internal/dogfoodflow/` surface, SHALL be plain subtree entries in
+  `.corvint/test-read-scopes.json`, so they select the guard whatever their content (AFP-V0-3300:
+  plain overlapping scopes retain selection). A comment-only edit of a licensed file under these
+  trees that holds no listed code and no refuse call SHALL NOT select the guard through a tree
+  entry. An edit that adds or removes a listed code or a refuse call SHALL still select it.
+- **AFP-V0-9981:** (experimental; owner-requested V1-5364) A test of `tools/flow-guide-check`
+  SHALL fail, naming the tree and the code, when a code the guide's recovery table maps is not
+  matched by one of the guard's declared content predicates, or when a predicate does not match a
+  refuse call. A guide edit selects the guard through its plain `docs/LANE-ORCHESTRATION.md`
+  entry, so the predicate cannot fall behind the codes the guard can report. The same test SHALL
+  fail when a predicate matches a licence header line alone
+  (`// SPDX-License-Identifier: Apache-2.0` or `AGPL-3.0-or-later`).
+- **AFP-V0-9982:** (experimental; owner-requested V1-5365; amends AFP-V0-3300 for the AZU-V0-212
+  observer edge) When `observersOf` passes a frontier site's own file to the reader rule, a reader
+  whose bearing read-scope entry for that file is a content-predicate tree SHALL apply the
+  predicate to the file's BASE and HEAD bytes, as it does for a dirty path. It reads them on
+  demand from the plan's immutable BASE and planned HEAD sources, once per file, and keeps them in
+  the per-plan inputs, never in the reusable graph cache. The edge is dropped only when both
+  endpoints are readable regular text within `MaxSourceBytes`, valid UTF-8 without NUL, and
+  neither matches.
+- **AFP-V0-9983:** (experimental; owner-requested V1-5365) Under AFP-V0-9982 the reader SHALL stay
+  selected when the site file's content matches the predicate at either endpoint, and when the
+  file is missing, unreadable, binary, oversized or outside a sparse checkout at either endpoint,
+  or when the plan has no BASE and HEAD sources. Listing-only trees (AFP-V0-3301), plain and
+  own-subtree entries, and the site's import, embed and execution edges are unchanged. A dirty
+  edit of the site file itself is a dirty path and keeps the AFP-V0-3300 rule.
+
+Known escape classes (V1-5364, V1-5365): (1) the guard gains a read the predicate does not model,
+such as a new walk, literal path or code source other than the guide table; AFP-V0-3302 review
+covers that, and the AFP-V0-9981 test checks only guide codes and refuse calls. (2) A refuse call
+written with a comment between the callee and `(` is not matched. The guard counts it only in
+`--audit`, whose counts do not change the test verdict. (3) A guard that executes a file under a
+predicate tree is misdeclared, because AFP-V0-3302 admits predicates only for content reads.
+AFP-V0-9982 would drop that guard's frontier edge for a non-matching site file; embed and import
+edges stay separate and unaffected. A code cannot span two files, because `sourceText` joins
+files with a newline and no code holds one. Precision that is not an escape:
+`driver:make:Makefile#flow-guide-check` is still selected through the Makefile driver's
+`FRONTIER_SITE` on every edit, and that driver frontier is outside this section.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3139,6 +3205,11 @@ same closure fails under the confined shard with `permission denied` as well. A 
 helper or a variable target is not modelled, so its package keeps the tree rather than an unchecked
 closure (AFP-V0-3151, `cmd/corvint-test`).
 
+Guard predicate failure modes (AFP-V0-9980 to AFP-V0-9983): a guide code missing from the
+predicate fails the AFP-V0-9981 test on the guide edit that adds it; an unreadable or oversized
+site file keeps the reader selected; a misdeclared predicate on a guard that executes its tree is
+escape class (3) of that section.
+
 Predicate failure modes (AFP-V0-3300 to AFP-V0-3303): an uncovered guard branch can hide a
 verdict-changing edit even when examples pass; source review is mandatory before conversion.
 Syntax-valid content filters cannot stand in for guards which independently reject parse errors,
@@ -3208,6 +3279,10 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-9980 | `.corvint/test-read-scope-trees.json` and `.corvint/test-read-scopes.json` entries of `tools/flow-guide-check` | `TestGuidePredicateMatchesOnlyGuardReads_AFPV09980` in `tools/flow-guide-check`; `TestFlowGuidePredicateSelection_AFPV09980` in `internal/liveverify/affected/liverepo`; before and after match counts in `../build-log/2026-11-11-guardsel.md` |
+| AFP-V0-9981 | `tools/flow-guide-check/main_test.go` | `TestGuidePredicateCoversGuardCodes_AFPV09981` (and its fixture of a predicate missing a code) |
+| AFP-V0-9982 | `observeSiteFile` in `readscope_tree.go`, called by `observersOf` in `frontier_closure.go` | `TestFrontierSiteObserverAppliesTreePredicate_AFPV09982`; the lexer.go reproduction before and after in `../build-log/2026-11-11-guardsel.md` |
+| AFP-V0-9983 | `observeSiteFile` and `treeScopeBears` | `TestFrontierSiteObserverAppliesTreePredicate_AFPV09982` (matching site file and unreadable endpoint subtests) |
 | AFP-V0-3300 | `readscope_tree.go`, graph declarations, reader predicates and CLI planning tail | `TestTreePredicateEndpointsAndFallback_AFP_V0_3300`, `TestTreePredicateUnreadable_AFP_V0_3300`, `TestTreeMetadataFailureKeepsPlainScopes_AFP_V0_3300` |
 | AFP-V0-3301 | direct-child snapshots in `readscope_tree.go` | `TestListingOnlyTransitions_AFP_V0_3301`; conversion audit in `../build-log/2026-11-08-tree-scope-predicates.md` |
 | AFP-V0-3302 | `ReadScopeTree.Validate`, `ParseReadScopeTrees` and `readTrees` | `TestTreeScopeSamplesAndReasons_AFP_V0_3302` in `tools/test-read-scopes-check` |
@@ -3499,6 +3574,12 @@ For AFP-V0-2700 to AFP-V0-2702, delete the `RequireLiveTier` calls and imports, 
 `live-test` target and its batch-precheck `EXTRA_TARGETS` entry, the `CORVINT_SKIP_LIVE_TIER`
 line of the shard step and the `go-live` job; every test then runs in PR shards again. Deleting only
 the shard step's `CORVINT_SKIP_LIVE_TIER` line is the one-line rollback of the PR-shard exclusion.
+
+For AFP-V0-9980 and AFP-V0-9981, restore the previous `contentPredicate` and samples of
+`tools/flow-guide-check` and drop its two plain subtree entries and the coverage test; the guard
+then selects on nearly every edit again. For AFP-V0-9982 and AFP-V0-9983, delete the
+`observeSiteFile` call in `observersOf`; a site file then has no endpoint content and selects every
+predicate reader under its tree, as before. No state migrates.
 
 For AFP-V0-9500 and AFP-V0-9501, restore the callers' legacy `Select` and
 `SelectStructuralIndexed`/plan projection paths, remove the parity target from doc-gates,
