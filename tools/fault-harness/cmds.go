@@ -242,3 +242,43 @@ func runRunCommand(ctx context.Context, args []string, w io.Writer) int {
 	}
 	return code
 }
+
+func runVerdictCommand(_ context.Context, args []string, w io.Writer) int {
+	fs := flags("verdict", "--preregistration FILE --hash FILE --results FILE [--out FILE]",
+		"--preregistration go.prereg.json --hash go.prereg.json.sha256 --results go.results.json --out go.verdict.json", w)
+	prereg := fs.String("preregistration", "", "pre-registration file")
+	hash := fs.String("hash", "", "committed SHA-256 file of the pre-registration")
+	resultsPath := fs.String("results", "", "results written by `fault-harness run`")
+	out := fs.String("out", "", "also write the verdict JSON to this file")
+	if code := parse(fs, args, prereg, resultsPath); code >= 0 {
+		return code
+	}
+	p, err := loadPreregistration(*prereg, *hash)
+	if err != nil {
+		return refused(w, err)
+	}
+	body, err := boundedRead(*resultsPath, 256<<20)
+	if err != nil {
+		return refused(w, err)
+	}
+	var res results
+	if err := decodeStrict(body, &res); err != nil || res.Profile != resultsProfile {
+		fmt.Fprintf(w, "results: want %s: %v\n", resultsProfile, err)
+		return 2
+	}
+	if res.PreregistrationSHA256 != p.SHA256 || res.Runner != p.Runner || res.ExclusionBudget != p.ExclusionBudget {
+		return refused(w, refuse("preregistration-changed", "the results were measured under pre-registration %s, not %s", res.PreregistrationSHA256, p.SHA256))
+	}
+	v := buildVerdict(res)
+	printVerdict(w, v)
+	if *out != "" {
+		if err := report(w, *out, v); err != nil {
+			fmt.Fprintln(w, err)
+			return 2
+		}
+	}
+	if v.Status != statusZeroMiss {
+		return 1
+	}
+	return 0
+}

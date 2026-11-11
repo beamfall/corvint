@@ -18,7 +18,7 @@ Each task names its requirement IDs and its proof.
    2026-11-27 (the probe), then the remaining six adapters (A18). Requirements: FIH-V1-008, 009,
    010. Proof: timing report with the projection against 96 host-hours; probe report;
    missing-adapter and pin-mismatch tests.
-- [ ] 7 Verdict writer: four counts, G3 sentence, Wilson bound, two N for code and non-code faults,
+- [x] 7 Verdict writer: four counts, G3 sentence, Wilson bound, two N for code and non-code faults,
    line-level proven label. Requirements: FIH-V1-002, 007, 014, 015. Proof: verdict fixture tests.
 - [ ] 8 Seal pre-registrations; run the seven sets; write verdicts. Requirements: FIH-V1-006, 007.
    Proof: seven verdict files at the RC SHA.

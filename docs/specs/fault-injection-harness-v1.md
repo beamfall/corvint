@@ -14,8 +14,8 @@ Authoritative inputs: change folder `docs/specs/openspec/changes/fault-injection
 ## Agent digest
 - Claim: Pre-registered, hashed fault sets per runner prove that a selected run executes every test that kills a fault on a changed line, with a fixed miss verdict.
 - Status: accepted automatically under G14 (decision 0596; V1-5405) / experimental; partially delivered
-- Exists: `tools/fault-harness`: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file, the seal, the baseline with quarantine and the `run` command (tasks 3 to 5).
-- Blocked on: the verdict writer (task 7); then tasks 6, 8 and 9.
+- Exists: `tools/fault-harness` with its README: the harness core, the Go adapter, the AEO parity command, the pre-registration, the reverted-fix rule file, the seal, the baseline with quarantine, the `run` command and the verdict writer (tasks 3, 4, 5 and 7).
+- Blocked on: the six other adapters, the manifest pins and the cost check (task 6); sealed sets and verdicts at the RC SHA (task 8); the held-out sets after the draw (task 9).
 - Read next: Requirements; Delivery and traceability; Rollback.
 
 ## User and boundary
@@ -131,10 +131,11 @@ rule hash and PR number, first 30, at most two per source file, shortfall report
 a set whose reverts differ from the selection, whose shortfall is not filled by changed-line mutant
 PRs, whose mutant PRs hold other than 3 to 5 mutants or an operator outside the pre-registered list,
 with fewer than 30 non-code faults (`non-code-faults-below-minimum`), or, for Playwright, fewer than
-20 flow-reaching faults. `generate-go` places Go mutants. Observing the PR facts on a pinned
-repository, the Playwright flow manifest and the non-code fault generators are tasks 6 and 8 and not
-yet built; the two printed bounds are FIH-V1-007. Tests: `TestRevertRule_FIH_V1_002`,
-`TestSeal_FIH_V1_002_014`.
+20 flow-reaching faults. `generate-go` places Go mutants. The verdict keeps code and non-code faults
+in separate sections, each with its own N, its own 3/N bound and its own sentence. Observing the PR
+facts on a pinned repository, the Playwright flow manifest and the non-code fault generators are
+tasks 6 and 8 and not yet built. Tests: `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014`,
+`TestVerdictCountsAndSentence_FIH_V1_007_014`.
 
 - `FIH-V1-003`: (accepted automatically under G14, decision 0596; V1-5405) Faults sit on changed lines
 
@@ -172,16 +173,16 @@ measurement `INVALID` (R42 (panel pick) A10). (G3, review release-tasks 12)
 - WHEN the verdict is written
 - THEN the count of omitted quarantined tests is 1 and names Q
 
-Delivery: delivered in the harness; the verdict status is FIH-V1-007. `fault-harness run` runs the
-whole suite three times at each case head (once per head) and `evaluateBaseline` quarantines every
-test that did not pass in all three runs (a failure, a missing result, or a pass beside a skip),
-counts tests skipped in every run or declared with `--unrunnable` as unrunnable, and sets
-`disqualified` above 2 percent quarantined and `invalid` above 5 percent excluded, in exact integer
-arithmetic. A quarantined test never passes every baseline run, so it never counts as a kill. The
+Delivery: delivered. `fault-harness run` runs the whole suite three times at each case head (once
+per head) and `evaluateBaseline` quarantines every test that did not pass in all three runs (a
+failure, a missing result, or a pass beside a skip), counts tests skipped in every run or declared
+with `--unrunnable` as unrunnable, and sets `disqualified` above 2 percent quarantined and `invalid`
+above 5 percent excluded, in exact integer arithmetic; the verdict is then `DISQUALIFIED` or
+`INVALID`. A quarantined test never passes every baseline run, so it never counts as a kill. The
 plan and the dependent units (for Go, from `go list -test -deps`) are recorded for every fault, and
-`omittedQuarantined` counts and names the quarantined tests a plan omitted for a PR that changed
-their dependencies. Tests: `TestBaselineQuarantine_FIH_V1_004`,
-`TestRunSealedSet_FIH_V1_004_005_006`.
+the verdict counts and names the quarantined tests a plan omitted for a PR that changed their
+dependencies. Tests: `TestBaselineQuarantine_FIH_V1_004`, `TestRunSealedSet_FIH_V1_004_005_006`,
+`TestVerdictFailClosed_FIH_V1_004_014`.
 
 - `FIH-V1-005`: (accepted automatically under G14, decision 0596; V1-5405) A kill is confirmed three times
 
@@ -228,6 +229,13 @@ release-tasks S6). (G3, review minor 20)
 - THEN it reads "0 misses in 104 pre-registered fault-injected cases per runner on pinned repos;
   95 percent upper bound on the per-change miss rate 3/104; not a guarantee."
 
+Delivery: delivered as the verdict writer; the seven verdict files at the RC SHA are task 8 and not
+yet produced. `fault-harness verdict` counts PRs with a confirmed kill under a narrowed plan, not
+mutants, and for a zero-miss verdict prints the G3 sentence exactly with N and 3/N and the 95
+percent Wilson upper bound beside it; any miss makes the verdict `MISS` and lists it, and no release
+sentence is printed for a verdict other than `ZERO_MISS`. Tests:
+`TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007`.
+
 - `FIH-V1-008`: (accepted automatically under G14, decision 0596; V1-5405) One adapter per runner on the compiled-in contract
 
 The harness MUST drive Go, Vitest, Jest, Playwright, pytest, RSpec and Minitest through one
@@ -253,6 +261,10 @@ SHA, image digest) on Linux or macOS. (G1)
 - GIVEN a Playwright manifest pinning one browser build
 - WHEN the host offers another
 - THEN the case refuses with `pin-mismatch`
+
+Delivery: not yet built (task 6): the PRR-V1 manifest pins and the `pin-mismatch` refusal. The
+harness checks out each case at its full commit SHA and excludes a case whose pin cannot be checked
+out as `pin-unavailable`.
 
 - `FIH-V1-010`: (accepted automatically under G14, decision 0596; V1-5405) Cost check in two steps, then one PR per runner first
 
@@ -293,6 +305,9 @@ budget." (G3)
 - WHEN the cost report is written
 - THEN it states the excess and that the choice between a smaller N and a later freeze is the
   owner's, and the harness changes neither
+
+Delivery: not yet built (task 6): neither cost-check step has run, and the held-out part of the
+projection is NOT_OBSERVED until the draw.
 
 - `FIH-V1-011`: (accepted automatically under G14, decision 0596; V1-5405) Go first, built once
 
@@ -342,6 +357,9 @@ pick) A9)
 - THEN the verdict passes, publishes the miss with its interval, and names the P1 ticket that
   must be fixed by widening before the release candidate
 
+Delivery: not yet built (task 9): it needs the PRR-V1-004 draw, which needs the first candidate tag.
+Only the `held-out-not-drawn` refusal of FIH-V1-001 exists.
+
 - `FIH-V1-013`: (accepted automatically under G14, decision 0596; V1-5405) No dependency on removed packages
 
 The harness MUST NOT import `internal/liveverify/pymutate` or `internal/liveverify/rbmutate`. It MAY
@@ -370,9 +388,14 @@ over-sample; a smaller N is the owner's choice (decided 2026-11-09 under R42, A1
 - WHEN the verdict is computed
 - THEN N is 91, the four counts are printed and the verdict is `INVALID`
 
-Delivery: partly delivered: the pre-registration must over-sample at least 100 code PRs and `seal`
-refuses a set with fewer code PRs than the pre-registered over-sample (`over-sample-not-met`). The
-four counts and the N floor are the verdict writer of task 7. Test: `TestSeal_FIH_V1_002_014`.
+Delivery: delivered in the tool. The pre-registration must over-sample at least 100 code PRs and
+`seal` refuses a set with fewer code PRs than the pre-registered over-sample
+(`over-sample-not-met`). The verdict prints the four counts (sealed, dropped with no kill, plan FULL
+or UNKNOWN, narrowed with a confirmed kill) and is `INVALID` when N is below 100; excluded and
+failed-measurement cases are reported beside them, and exclusions over the pre-registered budget or
+any failed measurement also make it `INVALID`. Nothing in the tool lowers N or the over-sample.
+Tests: `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`,
+`TestVerdictFailClosed_FIH_V1_004_014`.
 
 - `FIH-V1-015`: (accepted automatically under G14, decision 0596; V1-5405) Line-level proven
 
@@ -386,25 +409,31 @@ decision R16 (2026-11-09)). A runner proven at tier `file`, such as pytest under
 - WHEN the release report is written
 - THEN pytest is reported as file-level, not line-level proven
 
+Delivery: delivered as the verdict's `granularity` label: `line-level proven` only for a zero-miss
+verdict whose every counted plan records tier `line`, `file-level` when the counted plans record
+only `line` or `file` with at least one `file`, and `not proven` otherwise, including a plan that
+records no tier. The planner receipt does not yet carry the R16 tier, so a real run reads `not
+proven` until it does. Test: `TestVerdictGranularity_FIH_V1_015`.
+
 ## Delivery and traceability
 
 | Requirement | Task | Implementation | Evidence |
 |---|---|---|---|
 | FIH-V1-001 | 4 | `tools/fault-harness/prereg.go`, `cmds.go` | `TestPreregistrationHash_FIH_V1_001` |
-| FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014` |
+| FIH-V1-002 | 4, 7 | `tools/fault-harness/prereg.go`, `seal.go`, `verdict.go`, `revert-rule.json` | `TestRevertRule_FIH_V1_002`, `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014` |
 | FIH-V1-003 | 3 | `tools/fault-harness/faults.go` | `TestChangedLineSites_FIH_V1_003`, `TestFaultsOnChangedLinesInGit_FIH_V1_003` |
-| FIH-V1-004 | 5 | `tools/fault-harness/baseline.go`, `run.go`, `cmds.go` | `TestBaselineQuarantine_FIH_V1_004`, `TestRunSealedSet_FIH_V1_004_005_006` |
+| FIH-V1-004 | 5 | `tools/fault-harness/baseline.go`, `run.go`, `verdict.go` | `TestBaselineQuarantine_FIH_V1_004`, `TestRunSealedSet_FIH_V1_004_005_006`, `TestVerdictFailClosed_FIH_V1_004_014` |
 | FIH-V1-005 | 3 | `tools/fault-harness/run.go`, `adapter.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoOutcomesFailClosed_FIH_V1_005` |
 | FIH-V1-006 | 3 | `tools/fault-harness/run.go` | `TestKillConfirmationAndMiss_FIH_V1_005_006`, `TestGoParityWithOracle_FIH_V1_011` |
-| FIH-V1-007 | 7 | not yet built | not yet built |
+| FIH-V1-007 | 7 | `tools/fault-harness/verdict.go`, `cmds.go` | `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictCommand_FIH_V1_007` |
 | FIH-V1-008 | 6 | `tools/fault-harness/adapter.go` (Go adapter only) | `TestAdapterContract_FIH_V1_008`; six adapters not yet built |
 | FIH-V1-009 | 6 | not yet built | not yet built |
 | FIH-V1-010 | 6 | not yet built | not yet built |
 | FIH-V1-011 | 3 | `tools/fault-harness/aeo.go`, `main.go` | `TestGoParityWithOracle_FIH_V1_011` |
 | FIH-V1-012 | 9 | not yet built | not yet built |
 | FIH-V1-013 | 3 | `tools/fault-harness` | `TestImports_FIH_V1_013` |
-| FIH-V1-014 | 4, 7 | `tools/fault-harness/seal.go` | `TestSeal_FIH_V1_002_014` |
-| FIH-V1-015 | 7 | not yet built | not yet built |
+| FIH-V1-014 | 4, 7 | `tools/fault-harness/seal.go`, `verdict.go` | `TestSeal_FIH_V1_002_014`, `TestVerdictCountsAndSentence_FIH_V1_007_014`, `TestVerdictFailClosed_FIH_V1_004_014` |
+| FIH-V1-015 | 7 | `tools/fault-harness/verdict.go` | `TestVerdictGranularity_FIH_V1_015` |
 
 Release evidence (seven sealed pre-registrations, the cost-check reports, seven verdicts at the RC
 SHA and four held-out verdicts) is tasks 6, 8 and 9 of the change and is not produced here.

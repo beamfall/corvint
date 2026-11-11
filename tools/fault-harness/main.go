@@ -31,6 +31,7 @@ Commands:
   generate-go     generate 3 to 5 Go mutants on one PR's changed lines (FIH-V1-002, 003)
   seal            check a fault set against its pre-registration and seal it (FIH-V1-002, 014)
   run             run a sealed set: baseline, faults, kills, plans and misses (FIH-V1-004..006)
+  verdict         write the runner verdict: four counts, G3 sentence, Wilson bound (FIH-V1-007, 014, 015)
   parity          run affected-edit-oracle mutation cases through the Go adapter (FIH-V1-011)
 
 Run "fault-harness COMMAND --help" for a command's flags and an example.
@@ -49,6 +50,7 @@ func commands() []subcommand {
 		{"generate-go", runGenerateGoCommand},
 		{"seal", runSealCommand},
 		{"run", runRunCommand},
+		{"verdict", runVerdictCommand},
 		{"parity", runParityCommand},
 	}
 }
