@@ -806,9 +806,10 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 
 // AFP-V0-072: a climbing token reaches the unit's ancestors and a narrowed
 // unit's frontier still bears on the plan. Since AFP-V0-2203 round 8 a Go
-// unit is not placed, so guides' `filepath.Join(os.Getenv("REPO_ROOT"),
-// "docs", "user guides", "README.md")`, whose root is supplied at run time,
-// reads every README.md, and variant's lone "core.go" reads core/core.go.
+// unit is not placed, so guides' `filepath.Join(repoRoot, "docs",
+// "user guides", "README.md")`, whose root is supplied at run time, reads
+// every README.md (the root is a package variable: an environment root that
+// Index returns is held whole by rule (d), AFP-V0-3660), and variant's lone "core.go" reads core/core.go.
 func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -817,7 +818,7 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 		"pkg/model_test.go":       "package pkg\n",
 		"pkg/check/read.go":       "package check\n\nimport \"path/filepath\"\n\nfunc Model() string { return filepath.Join(\"..\", \"model.go\") }\n",
 		"pkg/check/read_test.go":  "package check\n",
-		"guides/guides.go":        "package guides\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc Index() string { return filepath.Join(os.Getenv(\"REPO_ROOT\"), \"docs\", \"user guides\", \"README.md\") }\n",
+		"guides/guides.go":        "package guides\n\nimport \"path/filepath\"\n\nvar repoRoot string\n\nfunc Index() string { return filepath.Join(repoRoot, \"docs\", \"user guides\", \"README.md\") }\n",
 		"guides/guides_test.go":   "package guides\n",
 		"variant/linux.go":        "//go:build linux\n\npackage variant\n\nvar fixture = \"core.go\"\n",
 		"variant/variant_test.go": "package variant\n",

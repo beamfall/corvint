@@ -1002,6 +1002,41 @@ func unshadowedPredeclared(body []byte) bool {
 	return true
 }
 
+// contingentRead is a location-source read of one file whose value is used
+// safely but for the working directory of commands, by the byte offsets of
+// their os/exec selectors (AFP-V0-3664).
+type contingentRead struct {
+	reason, relative string
+	test             bool
+	commands         []int
+}
+
+// applyContingentReads marks each unit unbounded by each of its contingent
+// reads, as observeDirectory marks a read, unless goListUnits proved every
+// command the read is the directory of a `go list` call that reads only the
+// import graph, from a proven directory (AFP-V0-2200), and the unit observes
+// no source by another channel (AFP-V0-9010). An unproven listing is held
+// whatever its source: the whole-module fallback (ImportGraphReadsFiles)
+// follows source and embedded paths, not every file an unproven `go list`
+// can read (a default.pgo profile, a file a flag names, a path read back out
+// of its output).
+func applyContingentReads(units []affected.Unit, contingents [][]contingentRead, listed []map[string]goListFile) {
+	for index, reads := range contingents {
+		state := unboundedReads{reason: units[index].UnboundedReads, locatesRoot: units[index].LocatesRoot}
+		for _, read := range reads {
+			scan, scanned := listed[index][read.relative]
+			proven := scanned && !units[index].ImportGraphReadsFiles && len(read.commands) != 0
+			for _, command := range read.commands {
+				proven = proven && scan.proven[command]
+			}
+			if !proven {
+				state.mark(read.reason, read.test)
+			}
+		}
+		units[index].UnboundedReads, units[index].LocatesRoot = state.reason, state.locatesRoot
+	}
+}
+
 // goListUnits sets each unit's import-graph edges (AFP-V0-2200) from its
 // files' `go list` calls, and returns, by unit index and file, the scans
 // whose listed literals literalExecs then does not count as command uses. A
