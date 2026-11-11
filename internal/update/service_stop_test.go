@@ -92,6 +92,7 @@ func TestUPDV0015StopObservedBeforeSwitch(t *testing.T) {
 	// Asynchronous shutdown that completes after three status reads: the
 	// switch waits for it.
 	e, dir, dest := serviceEngine(t)
+	e.config.StartTimeout = eventBound
 	touch(t, dir, map[string]string{"running": "", "slow-stop": "3"})
 	r, err := e.execute(context.Background(), "apply")
 	if err != nil || r.Service.State != "RESUMED" || !r.Switched {
@@ -151,9 +152,11 @@ func TestUPDV0015StopObservedBeforeRollback(t *testing.T) {
 	if d, _ := digest(dest); d != hash(scriptBinary(163, 0)) {
 		t.Fatal("previous build restored under a service not observed stopped")
 	}
-	// A delayed stop of the new build is waited for, then rolled back.
+	// A delayed stop of the new build is waited for, then rolled back. The new
+	// build's start exits 1, so the start wait does not consume the bound.
 	e, dir, dest = serviceEngine(t)
-	touch(t, dir, map[string]string{"running": "", "fail-new": "", "slow-stop-new": "3"})
+	e.config.StartTimeout = eventBound
+	touch(t, dir, map[string]string{"running": "", "start-fails-new": "", "slow-stop-new": "3"})
 	r, err = e.execute(context.Background(), "apply")
 	if err == nil || r.Switched || r.Service.State != "ROLLED_BACK" || !exists(filepath.Join(dir, "running")) {
 		t.Fatalf("delayed rollback stop: %+v %+v %v\n%s", r, r.Service, err, readLog(t, dir))
