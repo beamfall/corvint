@@ -9,6 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/clitree"
 	flowscmd "github.com/Beamfall/corvint/internal/command/flows"
+	"github.com/Beamfall/corvint/internal/mcp/docsserver"
 )
 
 // rootHelp is `corvint-docs --help`. The corpus join is prose, not a synopsis, because the
@@ -16,11 +17,13 @@ import (
 const rootHelp = `usage: corvint-docs [--root PATH] docs SUBCOMMAND [OPTIONS]
        corvint-docs [--root PATH] flows [SUBCOMMAND] [OPTIONS]
        corvint-docs [--root PATH] how [OPTIONS] GOAL
-       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | docs-tool
+       corvint-docs mcp --root ABSOLUTE_ROOT [--corpus-artifact PATH]
+       corvint-docs help docs | docs corpus | docs corpus OPERATION | docs flows | docs maintain | flows | how | mcp | docs-tool
        corvint-docs help --json
 Corvint's documentation app (decision 0594): drafting pinned documentation, the documentation
 corpus, generated-block maintenance and flow documentation, and the application-flow group
-(flows, and how, its alias of flows appmap how; decision 0595). Every subcommand is experimental.
+(flows, and how, its alias of flows appmap how; decision 0595), and the documentation MCP server
+(mcp; MTT-V1-004). Every subcommand is experimental.
 ` + "`corvint docs ...`, `corvint flows ...`, `corvint how ...` and `corvint --corpus=FILE ...` forward to\n" +
 	"this executable unchanged, so the two spellings print the same bytes; only\n" +
 	"`flows test-evidence` stays in corvint.\n" +
@@ -46,7 +49,7 @@ TOOL is corvint.docs_draft or corvint.docs_consume. stdin carries the tool's JSO
 (at most 192 KiB); stdout is one corvint-docs-tool/1 document with exactly one of
 "structured" (with "text"), "failure" (a refusal the server reports as a tool error) or
 "error" (a transport failure). A refusal still exits 0: a non-zero exit means the process,
-not the call, failed. ` + "`corvint-mcp --tool-profile docs` and `corvint-docs-mcp`" + ` run this verb for every
+not the call, failed. ` + "`corvint-docs mcp` and `corvint-docs-mcp`" + ` run this verb for every
 docs_draft and docs_consume call; nothing else needs it.
 
 Example:
@@ -65,8 +68,8 @@ var nestedHelpTopics = [][2]string{
 
 // parseHelpInvocation recognises every help form corvint recognised for its docs group, with
 // this binary's root and docs-tool topics: `--help`, `-h` or `help` alone; `help --json` and
-// `help --tree`; `help docs [corpus [OPERATION]|flows|maintain]`; `help flows`, `help how` and
-// `help docs-tool`; and a `--help` after a docs, flows or how verb. An unknown help topic is an error; anything else is not help.
+// `help --tree`; `help docs [corpus [OPERATION]|flows|maintain]`; `help flows`, `help how`,
+// `help mcp` and `help docs-tool`; and a `--help` after a docs, flows, how or mcp verb. An unknown help topic is an error; anything else is not help.
 func parseHelpInvocation(arguments []string) (string, bool, error) {
 	index := 0
 	for index < len(arguments) && (arguments[index] == "--root" || strings.HasPrefix(arguments[index], "--root=")) {
@@ -104,7 +107,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 // helpWordsTopic names the topic of `help WORDS...`, or "" for an unknown path.
 func helpWordsTopic(words []string) string {
 	switch {
-	case len(words) == 1 && (words[0] == "docs" || words[0] == "flows" || words[0] == "how"):
+	case len(words) == 1 && (words[0] == "docs" || words[0] == "flows" || words[0] == "how" || words[0] == "mcp"):
 		return words[0]
 	case len(words) == 1 && words[0] == toolVerb:
 		return "docs-tool"
@@ -138,7 +141,7 @@ func commandHelpTopic(rest []string) string {
 	switch {
 	case rest[0] == toolVerb:
 		return "docs-tool"
-	case rest[0] == "flows", rest[0] == "how":
+	case rest[0] == "flows", rest[0] == "how", rest[0] == "mcp":
 		return rest[0]
 	case rest[0] != "docs":
 		return ""
@@ -172,7 +175,7 @@ func helpFlagRequested(tokens []string) bool {
 }
 
 func unknownHelpTopic(topic []string) error {
-	quoted := []string{pythonRepr("docs"), pythonRepr("flows"), pythonRepr("how"), pythonRepr(toolVerb)}
+	quoted := []string{pythonRepr("docs"), pythonRepr("flows"), pythonRepr("how"), pythonRepr("mcp"), pythonRepr(toolVerb)}
 	for _, nested := range nestedHelpTopics {
 		quoted = append(quoted, pythonRepr(nested[0]))
 	}
@@ -208,13 +211,15 @@ func topicText(topic string) string {
 		return flowsHelp
 	case "how":
 		return flowscmd.HowHelp
+	case "mcp":
+		return docsserver.Usage
 	}
 	panic("unknown help topic " + topic)
 }
 
 // helpTopics lists every authored topic that documents a command path, in a stable order.
 func helpTopics() []string {
-	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how"}
+	topics := []string{"docs", "docs-corpus", "docs-flows", "docs-maintain", "docs-tool", "flows", "how", "mcp"}
 	for _, operation := range corpusOperations {
 		topics = append(topics, "docs-corpus-"+operation.name)
 	}

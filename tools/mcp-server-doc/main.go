@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
@@ -76,7 +77,7 @@ func Render(rows []capcatalog.MCPTool) []byte {
 		fmt.Fprintf(&out, "\n## %s\n\n%s\n", server.title, server.intro)
 		var served []capcatalog.MCPTool
 		for _, row := range rows {
-			if row.Server == server.name {
+			if row.Server == server.name || slices.Contains(row.AlsoOn, server.name) {
 				served = append(served, row)
 			}
 		}
@@ -85,7 +86,9 @@ func Render(rows []capcatalog.MCPTool) []byte {
 			fmt.Fprintf(&out, "| `%s` | %s | %s | %s | %s |\n", row.Name, row.Availability, code(row.OptIn, "default"), cell(row.Summary), code(row.CLIEquivalent, "none"))
 		}
 		for _, row := range served {
-			writeDetail(&out, row)
+			if row.Server == server.name {
+				writeDetail(&out, row)
+			}
 		}
 	}
 	out.WriteString("\n## No MCP tool\n\nThese answers are deliberately served only by a command line.\n\n| Answer | Command | Why |\n|---|---|---|\n")
@@ -108,6 +111,9 @@ func writeDetail(out *strings.Builder, row capcatalog.MCPTool) {
 	}
 	for _, input := range row.Inputs {
 		fmt.Fprintf(out, "- Input `%s`: %s\n", input.Name, input.Description)
+	}
+	if len(row.AlsoOn) != 0 {
+		fmt.Fprintf(out, "- Also served by: %s\n", codes(row.AlsoOn))
 	}
 	fmt.Fprintf(out, "- Output profile: `%s`\n", row.OutputProfile)
 	fmt.Fprintf(out, "- Tool errors: %s\n", codes(row.Errors))

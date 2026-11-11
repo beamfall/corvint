@@ -43,9 +43,12 @@ const (
 // row's maturity; it does not claim a configured server currently offers the
 // tool. Query tools/list there for the authoritative descriptor and schema.
 type MCPTool struct {
-	Name         string `json:"name"`
-	Server       string `json:"server"`
-	Availability string `json:"availability"`
+	Name   string `json:"name"`
+	Server string `json:"server"`
+	// AlsoOn lists the other servers that register the same tool from the
+	// same code; the name stays one row (MTT-V1-001).
+	AlsoOn       []string `json:"alsoOn,omitempty"`
+	Availability string   `json:"availability"`
 	// Summary is the row's description: what task the tool serves.
 	Summary string `json:"summary"`
 	// OptIn is the server argument that adds the tool, empty when the tool is
@@ -93,6 +96,7 @@ func MCPTools() []MCPTool {
 		rows[index].Inputs = slices.Clone(rows[index].Inputs)
 		rows[index].Errors = slices.Clone(rows[index].Errors)
 		rows[index].Replaces = slices.Clone(rows[index].Replaces)
+		rows[index].AlsoOn = slices.Clone(rows[index].AlsoOn)
 	}
 	slices.SortFunc(rows, func(left, right MCPTool) int {
 		switch {
@@ -106,11 +110,12 @@ func MCPTools() []MCPTool {
 	return rows
 }
 
-// MCPToolsFor returns the registered rows of one server, sorted by name.
+// MCPToolsFor returns the rows one server must register, its own and those
+// it also serves, sorted by name.
 func MCPToolsFor(server string) []MCPTool {
 	var rows []MCPTool
 	for _, row := range MCPTools() {
-		if row.Server == server && row.Registered() {
+		if (row.Server == server || slices.Contains(row.AlsoOn, server)) && row.Registered() {
 			rows = append(rows, row)
 		}
 	}
@@ -144,6 +149,11 @@ func CheckMCPTools(rows []MCPTool) []string {
 		}
 		if !slices.Contains(knownServers, row.Server) {
 			problems = append(problems, fmt.Sprintf("%s: unknown server %q", row.Name, row.Server))
+		}
+		for _, also := range row.AlsoOn {
+			if also == row.Server || also == ServerNone || !slices.Contains(knownServers, also) {
+				problems = append(problems, fmt.Sprintf("%s: also-on server %q is unknown, none or its own", row.Name, also))
+			}
 		}
 		if !slices.Contains(knownAvailability, row.Availability) {
 			problems = append(problems, fmt.Sprintf("%s: unknown availability %q", row.Name, row.Availability))
@@ -273,7 +283,7 @@ func mcpToolRows() []MCPTool {
 	return []MCPTool{
 		// corvint mcp: the testing and flow-report tools (MTT-V1-005).
 		{
-			Name: "corvint.help", Server: ServerCore, Availability: AvailabilityExperimental,
+			Name: "corvint.help", Server: ServerCore, AlsoOn: []string{ServerDocs}, Availability: AvailabilityExperimental,
 			Summary:     "Corvint's agent guide, one command's catalog entry, or the full command catalog, read from the binary; listed on both servers",
 			InputSchema: "internal/mcp/bridge/help.go",
 			Inputs: []MCPInput{
@@ -282,7 +292,6 @@ func mcpToolRows() []MCPTool {
 			},
 			OutputProfile: "corvint-mcp-help/0", Errors: errorsOf("internal-error"),
 			CLIEquivalent: "corvint help guide | corvint help --json COMMAND | corvint help --json",
-			Note:          "corvint-docs mcp lists the same tool from the same code",
 		},
 		{
 			Name: "corvint.impact", Server: ServerCore, Availability: AvailabilityExperimental,

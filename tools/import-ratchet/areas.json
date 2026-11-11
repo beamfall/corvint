@@ -176,6 +176,7 @@
         "internal/docstools",
         "internal/flowdocs",
         "internal/mcp/corpusbridge",
+        "internal/mcp/docsserver",
         "internal/requestpath"
       ]
     },

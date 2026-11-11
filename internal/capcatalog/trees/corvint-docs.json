@@ -2925,6 +2925,26 @@
       ],
       "example": "corvint-docs how --map FILE --source GOAL",
       "help": "corvint-docs how --help"
+    },
+    {
+      "path": [
+        "mcp"
+      ],
+      "command": "corvint-docs mcp",
+      "summary": "Serve the documentation tools over the local read-only stdio MCP transport (MTT-V1-004, experimental)",
+      "usage": [
+        "corvint-docs mcp --root ABSOLUTE_ROOT [--corpus-artifact PATH] [--protocol-version 2026-07-28|2025-11-25]"
+      ],
+      "flags": [
+        "--corpus-artifact",
+        "--protocol-version",
+        "--root"
+      ],
+      "required": [
+        "--root ABSOLUTE_ROOT"
+      ],
+      "example": "corvint-docs mcp --root ABSOLUTE_ROOT",
+      "help": "corvint-docs mcp --help"
     }
   ]
 }
