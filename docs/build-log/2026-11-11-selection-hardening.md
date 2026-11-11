@@ -62,3 +62,34 @@ unknown, and selects 5 of 71 TypeScript test units: four Playwright specs throug
 `typescript:e2e-runtime-dependency` sites (AFP-V0-818, the cross-language runtime rule, which G11
 keeps) and `tools/web-flows/test/fixture/flows.spec.ts` through a real BINARY_EXEC edge to
 `cmd/corvint-web-flows`. No fix is needed before the Go replay.
+
+## Verification
+
+- Focused tests, each package through `script/heavy.sh` with the `corvint test --dry-run`
+  manifest at d13ef7c17 (base af393f1b1): `internal/liveverify/affected`, its `python`,
+  `typescript`, `golang`, `shell`, `ruby`, `rust`, `swift`, `java`, `kotlin`, `dotnet`,
+  `cfamily`, `languages` and `liverepo` plugins, `.github/cishards`, `internal/appflows`,
+  `internal/command/flows`, `internal/gateselect`, `internal/jobinputs`,
+  `internal/jstestprovider`, `internal/langplugin`, `internal/liveverify/parentverify`,
+  `internal/rubyprofile`, `internal/sessiontest`, `internal/swiftimpact`, `internal/testreuse`,
+  `internal/testsource`, `internal/specindex`, `internal/doccorpus`, `tools/selection-baseline`
+  and `tools/test-read-scopes-check`: all pass. `cmd/corvint` with
+  `-run 'Affected|Headline|CoreVerbs|Python|Pytest|TypeScript|Vitest|Jest|Selection|Mock|Glob'`
+  (163 tests, the frozen-profile goldens included): pass.
+- NOT_RUN: the other 115 whole packages the manifest selects (owner preference for focused
+  tests; none imports the changed packages directly), and the unfiltered `cmd/corvint` package.
+- `gofmt -l`, `go vet` on the touched packages, `make changed-checks BASE=af393f1b1…`,
+  `make test-read-scopes-check` and `make windows-vet`: clean.
+- `openspec validate selection-hardening --no-interactive`: NOT_RUN, `openspec` is not on PATH.
+
+## Selection baseline (`make selection-baseline-check`)
+
+| Tree | narrow merged | misses | floor |
+| --- | --- | --- | --- |
+| before, origin/main af393f1b1 | 36/43 (rate 0.837) | 0 | narrow>=33, misses<=0: OK |
+| after, d13ef7c17 | 36/43 (rate 0.837) | 0 | narrow>=33, misses<=0: OK |
+
+Each run took three chunks under the tool's ten-minute limit, the replay cache carrying finished
+changes between chunks; the selection contract replay passed both times. The figures are
+unchanged because every narrowing rule is held and the new frontiers bear only on Python and
+JavaScript changes, which the corpus of Corvint's own merged changes rarely holds.
