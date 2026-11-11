@@ -85,12 +85,12 @@ func TestSymlinks_AFPV09965(t *testing.T) {
 		"link": "real", "chain": "real/sub", "climb": "other", "absolute": "plain",
 		"dangle": "missing", "loop/a": ".", "link/sub/x": "real/sub/x",
 	} {
-		if got, inside := resolveSymlink(start, links.Targets); !inside || got != want {
+		if got, inside := resolveSymlink(start, links.Targets, links.Root); !inside || got != want {
 			t.Errorf("resolve %s: %q %v, want %q", start, got, inside, want)
 		}
 	}
 	for _, start := range []string{"escape", "foreign", "../x"} {
-		if got, inside := resolveSymlink(start, links.Targets); inside {
+		if got, inside := resolveSymlink(start, links.Targets, links.Root); inside {
 			t.Errorf("resolve %s: %q inside, want outside", start, got)
 		}
 	}
@@ -184,6 +184,13 @@ func TestSymlinksReenter_AFPV09965(t *testing.T) {
 		{"absolute_alias", filepath.Join(alias, "r4"), "r4/a.sh"},
 		{"climb_through_alias", "../../alias/repo/r5", "r5/a.sh"},
 		{"climb_dangling", "../../alias/repo/r6/missing", "r6/missing/a.sh"},
+		// outer/hop -> r7/deep: the `..` after it climbs from the link's target.
+		{"climb_link_dotdot", "../../hop/../missing", "r7/missing/a.sh"},
+		{"absolute_alias_climb", alias + "/../repo/r8", "r8/a.sh"},
+	}
+	recordWrite(t, physical, "r7/deep/keep", "x\n")
+	if err := os.Symlink(filepath.Join(physical, "r7", "deep"), filepath.Join(outer, "hop")); err != nil {
+		t.Fatal(err)
 	}
 	recordGit(t, physical, "init", "-q")
 	for _, row := range rows {
