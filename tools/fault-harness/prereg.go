@@ -57,10 +57,10 @@ type preregistration struct {
 	ExclusionBudget int      `json:"exclusionBudget"`
 	ExclusionRules  []string `json:"exclusionRules"`
 	// FlowManifestSHA256 is the frozen flow manifest of a Playwright set
-	// (PRR-V1-003); it is required for the playwright runner only.
+	// (FIH-V1-002); it is required for the playwright runner only.
 	FlowManifestSHA256 string `json:"flowManifestSha256,omitempty"`
 	// HeldOut marks a drawn held-out repository (FIH-V1-012); DrawRecord pins
-	// the committed draw record of PRR-V1-004.
+	// the committed held-out draw record (FIH-V1-001).
 	HeldOut    bool `json:"heldOut,omitempty"`
 	DrawRecord *struct {
 		Path   string `json:"path"`
@@ -156,7 +156,7 @@ func (p preregistration) validate() error {
 		return bad("exclusion budget and rules are required")
 	}
 	if p.Runner == "playwright" && !hexSHA256.MatchString(p.FlowManifestSHA256) {
-		return bad("a playwright set needs the frozen flow manifest SHA-256 (PRR-V1-003)")
+		return bad("a playwright set needs the frozen flow manifest SHA-256 (FIH-V1-002)")
 	}
 	if p.HeldOut {
 		return p.checkDraw()
@@ -164,12 +164,12 @@ func (p preregistration) validate() error {
 	return nil
 }
 
-// checkDraw refuses a held-out pre-registration while no draw record of
-// PRR-V1-004 exists. The draw is seeded by the first candidate tag, so until
+// checkDraw refuses a held-out pre-registration while no committed held-out
+// draw record exists. The draw is seeded by the first candidate tag, so until
 // then every held-out request is refused (FIH-V1-001, FIH-V1-012).
 func (p preregistration) checkDraw() error {
 	if p.DrawRecord == nil || p.DrawRecord.Path == "" {
-		return refuse("held-out-not-drawn", "no draw record under PRR-V1-004")
+		return refuse("held-out-not-drawn", "no committed held-out draw record (FIH-V1-001)")
 	}
 	body, err := boundedRead(p.DrawRecord.Path, 1<<20)
 	if err != nil {
