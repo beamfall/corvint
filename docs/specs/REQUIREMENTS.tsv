@@ -7608,6 +7608,24 @@ RVN-V0-005	docs/specs/run-verified-navigation-v0.md	The status MUST be exactly o
 RVN-V0-006	docs/specs/run-verified-navigation-v0.md	When receipts are supplied, the `screen` and `flow` projections MUST print the	unrecorded	-
 RVN-V0-007	docs/specs/run-verified-navigation-v0.md	The fact and its text MUST always carry authority `learned`. A run status MUST N	unrecorded	-
 RVN-V0-008	docs/specs/run-verified-navigation-v0.md	Verification MUST read at most 16 receipts of at most 4 MiB each and evaluate	unrecorded	-
+RNC-V1-001	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) One comp	standing	2026-10-11; V1-5416
+RNC-V1-002	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Discover	standing	2026-10-11; V1-5416
+RNC-V1-003	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Selectio	standing	2026-10-11; V1-5416
+RNC-V1-004	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) All seve	standing	2026-10-11; V1-5416
+RNC-V1-005	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Per-test	standing	2026-10-11; V1-5416
+RNC-V1-006	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Missing	standing	2026-10-11; V1-5416
+RNC-V1-007	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runners	standing	2026-10-11; V1-5416
+RNC-V1-008	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Kill swi	standing	2026-10-11; V1-5416
+RNC-V1-009	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) External	standing	2026-10-11; V1-5416
+RNC-V1-010	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Jest pro	standing	2026-10-11; V1-5416
+RNC-V1-011	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Tier and	standing	2026-10-11; V1-5416
+RNC-V1-012	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Canonica	standing	2026-10-11; V1-5416
+RNC-V1-013	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Full com	standing	2026-10-11; V1-5416
+RNC-V1-014	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Runner i	standing	2026-10-11; V1-5416
+RNC-V1-015	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Determin	standing	2026-10-11; V1-5416
+RNC-V1-016	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Argument	standing	2026-10-11; V1-5416
+RNC-V1-017	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Provider	standing	2026-10-11; V1-5416
+RNC-V1-018	docs/specs/runner-contract-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-5416) Shell pr	standing	2026-10-11; V1-5416
 RSP-V0-001	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-002	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Th	standing	2026-10-11; decision 0592
 RSP-V0-003	docs/specs/runner-selection-plugins-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); decision 0592) Ev	standing	2026-10-11; decision 0592
