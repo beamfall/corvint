@@ -48,13 +48,13 @@ func TestRunDoesNotRetryAfterPartialWriteError(t *testing.T) {
 	}
 }
 
-type partialWriter struct{ bytes.Buffer }
+type partialWriter struct{ buffer bytes.Buffer } // named, so no promoted write path skips Write (GPK-V0-9930)
 
 func (w *partialWriter) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-	return w.Buffer.Write(p[:1])
+	return w.buffer.Write(p[:1])
 }
 
 type failingReader struct{}
@@ -62,8 +62,8 @@ type failingReader struct{}
 func (failingReader) Read([]byte) (int, error) { return 0, errors.New("read denied") }
 func TestRunWritesCompleteReadFailureResponse(t *testing.T) {
 	var out partialWriter
-	if code := run(nil, failingReader{}, &out); code != 0 || !strings.Contains(out.String(), "NONCANONICAL_REQUEST") || !strings.HasSuffix(out.String(), "\n") {
-		t.Fatalf("code=%d out=%q", code, out.String())
+	if code := run(nil, failingReader{}, &out); code != 0 || !strings.Contains(out.buffer.String(), "NONCANONICAL_REQUEST") || !strings.HasSuffix(out.buffer.String(), "\n") {
+		t.Fatalf("code=%d out=%q", code, out.buffer.String())
 	}
 }
 
