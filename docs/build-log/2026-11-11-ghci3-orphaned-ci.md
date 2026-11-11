@@ -64,7 +64,7 @@ the spec intent, so the owner can still choose the strict answer:
 - Real-repository smoke: on a merge-queue-shaped commit over `b55635262`, `run.sh` built both tools
   from the base, narrowed to 5 of 49 steps and named the event-base selector.
 
-Fault injection, each against the real scripts (`trusted_selection_test.py`, 13 tests): building
+Fault injection, each against the real scripts (`trusted_selection_test.py`, 13 tests before fix round 1): building
 the tools in the tested tree fails 2; dropping the union fails 1; planning from the raw event base
 fails 2; admitting any degradation fails 2; reading the candidate gate list with `awk` fails 1;
 skipping the base gates fails 2. The control run of the old step body misses the base-selected step.
@@ -117,7 +117,7 @@ drift check, and record one real docs-only pull request.
 
 ## Verification
 
-`.github` head `dec57dc2b` on `claude/ghci3`. Combined tree (pull request 191 tip `0e036a132`, then
+`.github` head `dec57dc2b` on `claude/ghci3` before fix round 1. Combined tree (pull request 191 tip `0e036a132`, then
 this code half, then the `.github` half): the nine `.github` Python test files pass;
 `tools/ci-reuse-plan`, `tools/ci-forward-row`, `.github/cishards`, `tools/linecov`,
 `tools/capabilities-check`, `internal/sessiontest`, `tools/corvint-pr-tests`, `tools/ci-shard-costs`,
@@ -127,3 +127,21 @@ this code half, then the `.github` half): the nine `.github` Python test files p
 Recorded in the lane handback (`ghci3.handback.md`): every Python test of the `.github` half, the
 Go packages that read `ci.yml` or import `.github/cishards`, the split check on each branch, the doc
 gates. Hosted runs of every requirement here: NOT_RUN (not possible in a lane).
+
+## Fix round 1 (independent review: SHIP-WITH-FIXES, no P1)
+
+- P2: the event-base `known-flakes.py` copy in `$RUNNER_TEMP` ran under `python3 -B`, so test code
+  that ran earlier in the shard job could plant `$RUNNER_TEMP/datetime.py` (or `re.py`), which
+  Python imports first, and forgive any rerun. The step now runs `python3 -I -B`; the workflow-block
+  test plants a `datetime.py` that exits 0 and fails without `-I`. No other new `python3` call runs a
+  script from a shared writable directory: the helper tests run from the checkout in go-static.
+- P3: `base-gates.sh` read the candidate's gate list from `make`'s stdout, which `$(info NAME)`
+  extends. The printing recipe now writes the list to a file after parsing. A fixed sentinel prefix
+  (the review's suggestion) would still be spoofable by `$(info SENTINEL NAME)`, so it was not used.
+- P3: a step or gate the candidate makes only by a pattern rule or an included makefile counted as
+  undefined and was dropped with a warning (a base-selected step forced FULL), contrary to the
+  comment. Both scripts ask `make -n -q NAME` (exit 2 only when make cannot make it); CIN-V0-8725 and
+  CIN-V0-8726 say so. Three new tests (`$(info)` beside a dropped gate, an include-only gate, a
+  pattern-rule step) fail on the previous scripts; 16 tests pass.
+- P3: the non-goals now state that in a `pull_request` run the workflow and both scripts come from
+  the merge commit, so the protections hold only for a pull request that does not touch `.github/`.
