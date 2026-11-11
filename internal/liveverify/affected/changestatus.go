@@ -166,7 +166,9 @@ func ChangeStatuses(ctx context.Context, gitExecutable, repository, tree, base s
 
 // headEntry reads relative in tree through its parent directory's listing,
 // cached per directory in listings (a nil map marks a parent that is absent
-// or not a directory). Any other read failure is not Known.
+// or not a directory). The listing follows a parent that is a symbolic link;
+// that parent is then a dirty path of its own, classified type-changed. Any
+// other read failure is not Known.
 func headEntry(tree, relative string, listings map[string]map[string]fs.FileMode) ChangeEntry {
 	parent, name := path.Split(relative)
 	entries, cached := listings[parent]

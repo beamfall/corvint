@@ -36,7 +36,11 @@ var (
 	sortFlags     = regexp.MustCompile(`^-[rnuf]+$`)
 	lineCount     = regexp.MustCompile(`^-n?[0-9]+$`)
 	digits        = regexp.MustCompile(`^[0-9]+$`)
-	grepFlags     = regexp.MustCompile(`^-[vcqiEFxwn]+$`)
+	// environmentName is a name by the environment convention, which a
+	// program may read; environmentDefault is an expansion that assigns one.
+	environmentName    = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+	environmentDefault = regexp.MustCompile(`\$\{[A-Z_][A-Z0-9_]*:?=`)
+	grepFlags          = regexp.MustCompile(`^-[vcqiEFxwn]+$`)
 )
 
 // controlPrefixes are the leading words that only make a command
@@ -180,9 +184,11 @@ func nameListingPipeline(parsed script, index int) (int, bool) {
 }
 
 // nameListingAdmitted reports whether a file may hold name-listing reads at
-// all (AFP-V0-9961): a test that assigns no PATH, which may put a stub ahead
-// of a listing utility or a filter, and whose every command outside an
-// admitted name-listing pipeline is one plainCommand admits. A program, a
+// all (AFP-V0-9961): a test that assigns no environment-style (upper-case)
+// name, since PATH may put a stub ahead of a listing utility or a filter and
+// a variable such as CLICOLOR_FORCE or GREP_OPTIONS makes one read more than
+// names, and whose every command outside an admitted name-listing pipeline
+// is one plainCommand admits. A program, a
 // helper, a sourced file, a function call, a directory change or a computed
 // read anywhere in the file may read below a listed directory, or below the
 // tree a name-only walker lists, by a name no token holds, so such a file
@@ -202,7 +208,10 @@ func nameListingAdmitted(parsed script, test bool) bool {
 	}
 	for index, cmd := range parsed.commands {
 		for _, raw := range cmd.words {
-			if match := assignment.FindStringSubmatch(raw); match != nil && match[1] == "PATH" {
+			if match := assignment.FindStringSubmatch(raw); match != nil && environmentName.MatchString(match[1]) {
+				return false
+			}
+			if environmentDefault.MatchString(raw) {
 				return false
 			}
 		}
@@ -214,12 +223,36 @@ func nameListingAdmitted(parsed script, test bool) bool {
 }
 
 // outputBuiltins are the commands that print, test values or set shell
-// state and open no file but a redirection target.
+// state and open no file but a redirection target. `export` is not one: it
+// changes what a later program reads from its environment.
 var outputBuiltins = map[string]bool{
 	"echo": true, "printf": true, "true": true, "false": true, ":": true, "exit": true,
 	"return": true, "set": true, "shift": true, "local": true, "readonly": true,
-	"unset": true, "export": true, "read": true, "for": true, "fi": true, "done": true,
+	"unset": true, "read": true, "for": true, "fi": true, "done": true,
 	"esac": true,
+}
+
+// assignsEnvironment reports an output builtin that sets an
+// environment-style name without an assignment word: `read NAME`,
+// `for NAME in`, `printf -v NAME`.
+func assignsEnvironment(word string, args []string) bool {
+	switch word {
+	case "read":
+		for _, arg := range args {
+			if environmentName.MatchString(unquote(arg)) {
+				return true
+			}
+		}
+	case "for":
+		return len(args) > 0 && environmentName.MatchString(unquote(args[0]))
+	case "printf":
+		for index, arg := range args {
+			if unquote(arg) == "-v" {
+				return index+1 >= len(args) || environmentName.MatchString(unquote(args[index+1]))
+			}
+		}
+	}
+	return false
 }
 
 // testBuiltins are the conditional commands; testOperators are the operators
@@ -235,11 +268,13 @@ var (
 )
 
 // operandReaders are the utilities that read only their file operands, or
-// standard input without one; patternReaders take a pattern first.
+// standard input without one, and fail on a directory operand;
+// patternReaders take a pattern first. `diff` is not one, since a directory
+// operand makes it read the files below, and neither is a checksum tool,
+// whose check mode reads the files its operand names.
 var (
 	operandReaders = map[string]bool{
 		"cat": true, "head": true, "tail": true, "wc": true, "sort": true, "cmp": true,
-		"diff": true, "sha256sum": true, "shasum": true, "md5sum": true,
 	}
 	patternReaders = map[string]bool{"grep": true, "egrep": true, "fgrep": true}
 )
@@ -278,7 +313,7 @@ func plainCommand(words []string) bool {
 	}
 	switch {
 	case outputBuiltins[word]:
-		return true
+		return !assignsEnvironment(word, args)
 	case testBuiltins[word]:
 		for _, arg := range args {
 			if value := unquote(arg); arg == value && strings.HasPrefix(value, "-") && !testOperators[value] {
@@ -293,7 +328,7 @@ func plainCommand(words []string) bool {
 }
 
 // plainOperands reports operand-reader arguments plainCommand admits: short
-// options with no recursion (`grep -r`, `diff -r`) and no other pattern
+// options with no recursion (`grep -r`) and no other pattern
 // source (`grep -e`, `-f`), a digit count after `head` or `tail` -n or -c,
 // a grep's pattern, and literal path-shaped file operands.
 func plainOperands(word string, args []string) bool {
@@ -312,8 +347,6 @@ func plainOperands(word string, args []string) bool {
 			case strings.HasPrefix(value, "--"):
 				return false
 			case patternReaders[word] && strings.ContainsAny(value, "rRdef"):
-				return false
-			case word == "diff" && strings.ContainsAny(value, "rRN"):
 				return false
 			case (word == "head" || word == "tail") && (value == "-n" || value == "-c"):
 				count = true

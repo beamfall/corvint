@@ -171,8 +171,14 @@ measure. None of them drops a unit the change can reach.
   MUST decide. A computed read may be of that directory, so an admitted form MUST also stay a
   content read unless every later stage of its pipeline is a standard-input filter (`wc`,
   `sort`, `head`, `tail`, a non-recursive `grep`) and every other command of the test is an
-  output or existence-test builtin or reads only literal path-shaped operands, with no sourced
-  file, function call, directory change, program or PATH assignment.
+  output or existence-test builtin, or one of `cat`, `head`, `tail`, `wc`, `sort`, `cmp` or a
+  non-recursive `grep` reading only literal path-shaped operands, with no sourced file,
+  function call, directory change, program, `export`, or assignment to an upper-case
+  (environment-style) name by any form. `diff`, which reads the files below a directory
+  operand, and a checksum tool, whose check mode reads the files its operand names, are
+  programs here and MUST keep the listing a content read. Known limit: an operand that is a
+  tracked symbolic link is matched by its own path and not by its target's, so a link into a
+  listed directory is not seen as a content read of it.
 - **AFP-V0-9962:** (proposed 2026-11-11; delivery experimental; V1-5193, V1-5194)
   A name-listing read MUST select its unit for a dirty path within the read's depth whose
   status is `added`, `deleted`, `type-changed` or `unknown`, and MUST NOT select it for a path
@@ -1023,7 +1029,7 @@ outside every other read of `main_test.go`. The two requirements below replace t
 - **AFP-V0-3303:** (experimental; owner-requested V1-5174) Observed graph units and their
   digest/cache SHALL retain the tree predicates, samples and listing markers. The graph cache
   SHALL bind the trees file's content digest and read stamp, including absence, and advance to
-  `corvint-affected-graph-cache/3` (which also carries the test embed facts) so older entries rebuild. A metadata-only change MUST NOT
+  `corvint-affected-graph-cache/3` (which also carries the test embed facts; AFP-V0-9964 advances it to `/4`) so older entries rebuild. A metadata-only change MUST NOT
   reuse a stale graph. BASE/HEAD content and listings are per-plan inputs and SHALL NOT survive
   in the reusable graph cache. Edits of either declaration retain selection: the string-only
   file keeps its existing package comparison; the trees file compares package entries under AFP-V0-3304 and selects declared scopes when
@@ -2494,7 +2500,8 @@ implementation is on the sibling branch and absent from the V1-5177 base.
 - **AFP-V0-3352:** (experimental, owner-requested V1-5177, 2026-11-08)
   Test embed flags and paths SHALL participate in the graph digest, path validation and
   cache serialization. Graph-cache entries predating these facts SHALL NOT be reused:
-  use `corvint-affected-graph-cache/3` (which also carries the tree predicates), rejecting the older `/0` to `/2` profiles.
+  use `corvint-affected-graph-cache/3` (which also carries the tree predicates), rejecting the older `/0` to `/2` profiles;
+  AFP-V0-9964 advances it to `/4`, which rejects `/3` too.
 
 - **AFP-V0-9600:** (experimental under the owner's standing lane auto-accept (2026-10-11);
   V1-5071) This repository's `go list` import-graph guards that the AFP-V0-9010 rule can prove
