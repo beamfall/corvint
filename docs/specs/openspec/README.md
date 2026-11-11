@@ -99,7 +99,7 @@ plan requirements the proposal header serves.
 | `ruby-providers` | RSpec and Minitest runner providers, line-exact (R8) | PROD-TEST-006, 008, 011 | proposed |
 | `run-evidence` | Append-only record of test run results (R7) | PROD-TEST-020, 010 | proposed |
 | `runner-contract` | Built-in runner contract for the seven blocking runners | PROD-TEST-006, 011 | proposed |
-| `selection-hardening` | Close Python and JavaScript selection misses and give one verdict per plan | PROD-TEST-001, 002, 009, 014, 015, 016 | proposed |
+| `selection-hardening` | Close Python and JavaScript selection misses and give one verdict per plan | PROD-TEST-001, 002, 009, 014, 015, 016 | accepted (G14 auto, 2026-11-11; V1-5401); in delivery |
 | `source-removal` | Removal of the code, commands and files cut from 1.0, in batches (R34, R36) | PROD-TEST-002; PROD-INT-009, 010 | proposed |
 | `spec-set-cleanup` | A verdict for every older spec and process document, archived, rewritten or removed with the removal batches; one workflow document; done by 2026-12-01 (R37, R41). Needs `openspec-check` and `source-removal` first | PROD-INT-010, 011 | proposed |
 | `tasks-conformance` | Conformance of the Tasks repository and the 21-day trial on `beamfall/core` (R17, R18); written in the Tasks repository | PROD-TASK-010 | proposed |

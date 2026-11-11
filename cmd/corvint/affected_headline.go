@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // affectedHeadlinePrefix starts every line of the AFP-V0-3642 headline, so a
@@ -31,7 +34,17 @@ const affectedHeadlineDetail = "stdout is the affected-plan/1 JSON plan; --forma
 // affectedHeadlinePrefix. It restates the receipt and never changes the plan.
 func renderAffectedHeadline(receipt affectedCompactReceipt) string {
 	var lines []string
-	header := receipt.Summary.Line + " revision=" + receipt.Revision
+	// SLF-V1-008: test and driver units are counted apart; the frozen summary line keeps its
+	// `selected=` total, and no driver unit is listed here.
+	tests, drivers := 0, 0
+	for _, selection := range receipt.Plan.Selected {
+		if affected.DriverSelection(selection.UnitID, selection.Kind) {
+			drivers++
+		} else {
+			tests++
+		}
+	}
+	header := spliceSelectionCounts(receipt.Summary.Line, fmt.Sprintf("tests=%d drivers=%d", tests, drivers)) + " revision=" + receipt.Revision
 	if receipt.Range.Base != "" {
 		header += " base=" + receipt.Range.Base
 	}
@@ -83,6 +96,22 @@ func renderAffectedHeadline(receipt affectedCompactReceipt) string {
 	}
 	return out.String()
 }
+
+// spliceSelectionCounts puts counts right after the summary line's
+// `selected=N` total, inside its fixed opening and before the unknown-reason
+// counts, `revision=` and `base=` that can push a line past
+// affectedHeadlineMaxLineBytes, so the cut never removes them (SLF-V1-008).
+// A line without that total gets counts at its start.
+func spliceSelectionCounts(line, counts string) string {
+	total := selectedTotal.FindStringIndex(line)
+	if total == nil {
+		return strings.TrimSpace(counts + " " + line)
+	}
+	return line[:total[1]] + " " + counts + line[total[1]:]
+}
+
+// selectedTotal is the AFP-V0-510 summary line's `selected=N` field.
+var selectedTotal = regexp.MustCompile(`(?:^| )selected=[0-9]+`)
 
 // boundHeadlineLine cuts line to affectedHeadlineMaxLineBytes bytes at a rune
 // boundary, ending a cut line with "...".
