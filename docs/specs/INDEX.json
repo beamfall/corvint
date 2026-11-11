@@ -1792,9 +1792,7 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": [
-      "internal/contextindex/local_completion_context.go"
-    ]
+    "implementation": []
   },
   {
     "path": "docs/specs/local-observability-dashboard-v0.md",
@@ -3203,7 +3201,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/tracerecordrepo",
       "internal/cem/gitrun",
       "internal/contextindex",
       "internal/groupreap",

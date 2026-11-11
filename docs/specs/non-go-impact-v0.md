@@ -855,7 +855,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
 | `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestRubyNestingOverflowIsBounded` |
 | `NGI-V0-063` | `withRubyTests`, `isTest` (`internal/contextindex/ruby_autoload.go`); the view in `impact` and `compileRangeResults`; `rangeMarkerResult` | `TestNGIV0063RubyRequestClassifiesSpecMarkersAsTests`, `TestNGIV0063RubyRangeClassifiesSpecMarkersAsTests`, `TestRubySpecPathNonRubyRequestBaseBytes` |
-| `NGI-V0-064` | `rubyCut`, `cutReferences`, `cutNames` (`internal/contextindex/ruby_autoload.go`) | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestAnalyzerBoundsFailClosed` |
+| `NGI-V0-064` | `rubyCut`, `cutReferences`, `cutNames` (`internal/contextindex/ruby_autoload.go`) | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestAnalyzerBoundsFailClosed` (removed) |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
