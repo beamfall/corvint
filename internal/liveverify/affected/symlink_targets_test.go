@@ -187,8 +187,13 @@ func TestSymlinksReenter_AFPV09965(t *testing.T) {
 		// outer/hop -> r7/deep: the `..` after it climbs from the link's target.
 		{"climb_link_dotdot", "../../hop/../missing", "r7/missing/a.sh"},
 		{"absolute_alias_climb", alias + "/../repo/r8", "r8/a.sh"},
+		// hopin -> r9/deep: an absolute text through an in-tree link must not
+		// be cleaned lexically; the kernel reaches r9/m9, not m9.
+		{"hopin", "r9/deep", "r9/deep/a.sh"},
+		{"absolute_link_dotdot", physical + "/hopin/../m9", "r9/m9/a.sh"},
 	}
 	recordWrite(t, physical, "r7/deep/keep", "x\n")
+	recordWrite(t, physical, "r9/deep/keep", "x\n")
 	if err := os.Symlink(filepath.Join(physical, "r7", "deep"), filepath.Join(outer, "hop")); err != nil {
 		t.Fatal(err)
 	}
