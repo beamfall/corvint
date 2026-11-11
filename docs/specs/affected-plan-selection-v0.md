@@ -60,6 +60,8 @@ AFP-V0-2610 here for the same reason. Lane selgo (2026-11-06; native tickets V1-
 V1-4933, build-log entry `2026-11-06-selgo`) adds AFP-V0-2740 to AFP-V0-2750 here for the same
 reason, including the rows that amend the CI selector (CIN-V0-860) and `corvint test` (STR-V0-064);
 its review fix rounds add AFP-V0-2746 to AFP-V0-2750.
+Lane ghci3 (2026-11-11; V1-5211) adds AFP-V0-2830 and AFP-V0-2831 here for the same reason; see
+build-log entry `2026-11-11-ghci3-orphaned-ci`.
 Lane ci-speed (2026-11-06; V1-4815) adds AFP-V0-2700 to AFP-V0-2702 here for the same reason; see
 build-log entry `2026-11-06-ci-speed`. Lane selgh (2026-11-06; V1-4930, V1-4934) adds AFP-V0-2720
 to AFP-V0-2726 here for the same reason; see build-log entry `2026-11-06-selgh`.
@@ -3426,6 +3428,41 @@ owner-accepted.
   directory, a missing file, an expansion or an unknown working directory keep
   `shell:interpreter-inline`.
 
+### Proven pull-request base for shell-test and web-flows selection (V1-5211)
+
+Intent (V1-5211, P2): the narrowing shadow already plans a pull request from the tested merge's
+proven first parent (AFP-V0-800), but `shell-test-selected` and `web-flows-plan` diffed from the raw
+event `base.sha`. Lane ghci3 reproduced the suspected defect on retained run evidence: run
+42965249854 attempt 2 (pull request branch `claude/context-path-build`, 2026-11-11) logged
+`BASE_SHA` `02c66d0e2` while its checkout tested `Merge 02cf02136 into 993c60eba`; `02c66d0e2` is an
+ancestor of `993c60eba`, four commits and two files behind. A stale base only over-selects, so the
+fix narrows the range to the change; it repairs no missed coverage.
+
+- **AFP-V0-2830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;
+  effective only after the owner's `ci-control-plane` review of the `.github` change) Shell-test
+  selection base. GitHub keeps a pull request's `base.sha` from the event that started the run, while
+  a re-run tests a merge rebuilt on the moved base: run 42965249854 attempt 2 received `base.sha`
+  `02c66d0e2` and tested a merge whose first parent was `993c60eba`, four commits later. On a
+  pull request the `shell-test-selected` job (CIN-V0-2320) SHALL plan from the tested merge's first
+  parent proven by the event base's `.github/forward-rows/pr-base.sh` (the AFP-V0-800 proof:
+  two parents, the second the event head, the event base an ancestor of the first), never from the
+  raw event base, and SHALL run every shell-test step when the proof is refused. A merge-queue entry
+  keeps `merge-base(HEAD, base_sha)`: its first parent can be an earlier queue entry. Non-goals: the
+  stale base only over-selected (a superset of the true range), so this narrows the range to the
+  change, not a coverage repair. Failure modes: a refused proof runs every step (latency only).
+  Acceptance: `test_AFPV02830_pull_request_plans_from_the_proven_first_parent` and
+  `test_AFPV02830_unproven_first_parent_runs_every_step` in
+  `.github/shell-tests/trusted_selection_test.py`; hosted run `NOT_OBSERVED`. Rollback returns the
+  step to `git merge-base HEAD BASE_SHA`.
+- **AFP-V0-2831:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-5211;
+  effective only after the owner's `ci-control-plane` review of the `.github` change) Web-flows plan
+  base. On a pull request the `web-flows-plan` job SHALL diff from the tested merge's first parent
+  proven by the event base's `pr-base.sh`, as AFP-V0-2830, and SHALL require the web-flows consumer
+  (`required=true`, the planner not run) when the proof is refused. A merge-queue entry keeps its
+  `base_sha` and a push its `event.before`. Acceptance: the three run cases and the bindings test of
+  `.github/web-flows/plan_base_test.py`; `TestCINV07504WebFlowsConsumerJob` still passes; hosted run
+  `NOT_OBSERVED`. Rollback restores the raw event base.
+
 ## Non-goals
 
 V1-4710 does not change hidden Go test discovery, the CI execution universe, FULL fallback,
@@ -3989,6 +4026,8 @@ review before promotion. See `docs/build-log/2026-11-08-avdrv.md` for check resu
 | AFP-V0-3660, AFP-V0-3661, AFP-V0-3662, AFP-V0-3663 | `locationSourceUses`, `locationSources`, `locationSourceReason`, `redeclaresBuiltin`, `execCommandLocal` and `commandEnvironmentEntry` in `internal/gateselect/locationsources.go` and its copy in `internal/liveverify/affected/golang/locationsources.go`; `scanFile` and `record` in `internal/gateselect/readers.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `dependentModule` scanning in `nested.go`; the `Sources` member of the scan memo (`scanmemo.go`) | `TestLocationSourceReads_AFPV03660` in `internal/gateselect/locationsources_test.go` (each V1-3999 fixture read, fix round 1's `childenv`, `envstruct`, `absdir`, `shadowedlen`, `renamedentry`, `openname` and `literalwalk` and fix round 2's `selfassign` and `environpwd` included, is held in the gate index cold and warm and in the planner, the helper's dependent too, and the controls stay bounded); `TestLocationSourceUses_AFPV03661` (each safe and unsafe use, every fix round 1 and fix round 2 repro shape); `TestLocationReexportHeld_AFPV03661` in `internal/liveverify/affected/golang/locationsources_reexport_test.go` (a re-exported entry of a self-reassigned value is held and a body-only edit selects it; the raw value and a copy are not held); `TestLocationSourceUnseenCalls_AFPV03660` (linkname, cgo, package-level `len` and `append`); `TestLocationSourceReadKinds_AFPV03660`; the before and after counts, the selection baseline and one mutation per rule in `../build-log/2026-11-11-nomiss.md` |
 | AFP-V0-3664 | `commandDirectory` and `execCommandLocal` in `locationsources.go`; `contingentRead` and `applyContingentReads` in `internal/liveverify/affected/golang/importgraph.go`; the call order in `UnitsSource` | `TestClosureGuardIsProvenImportGraphReader_AFPV09600` (the proven repository guards stay bounded); `TestClosureGuardShapeIsProven_AFP_V0_9600` (every unproven listing variant is held and a body-only edit selects it); the `execdir` case of `TestLocationSourceReads_AFPV03660`; the `command ...` cases of `TestLocationSourceUses_AFPV03661` (`Path` written, passed, returned, stored, `Dir` read back, `Environ` read) |
 | AFP-V0-3665 | `../build-log/2026-11-11-nomiss.md` (closed-world table) | review of the residual list; no test |
+| AFP-V0-2830 | `.github/shell-tests/run.sh` (the `pr-base.sh` proof before planning) | `test_AFPV02830_pull_request_plans_from_the_proven_first_parent`, `test_AFPV02830_unproven_first_parent_runs_every_step` in `.github/shell-tests/trusted_selection_test.py`; hosted run `NOT_OBSERVED` |
+| AFP-V0-2831 | the `Select web-flows consumer` step of `ci.yml` | `.github/web-flows/plan_base_test.py` (proven parent, refused proof requires the consumer, merge queue keeps its base, bindings); hosted run `NOT_OBSERVED` |
 
 ## Rollback
 
