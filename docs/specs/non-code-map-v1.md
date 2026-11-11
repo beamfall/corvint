@@ -168,7 +168,9 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
    path, and, when any rule needs a full run, the verdict `FALLBACK <reason> <path>` naming the
    first such path in byte order. `corvint test` turns that verdict into a FULL scope, which runs
    every declared language suite, so every test of every runner. The affected plan itself keeps
-   its `UNOWNED_DIRTY_PATH` entries and scope `UNKNOWN`, which name the path.
+   its `UNOWNED_DIRTY_PATH` entries and scope `UNKNOWN`, which name the path. A root module
+   definition (`go.mod`, `go.sum`, `go.work`, `go.work.sum`) keeps the selector's earlier
+   `FALLBACK root module definition is dirty: <path>`, which runs everything first.
 2. Order of the per-path rules, first match wins:
    1. the two private ledgers add nothing (`private-ledger`);
    2. the flow file and link records under `.corvint/` (the declared intent directory, when it lies
@@ -187,7 +189,11 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
    6. a path the plan reports as `UNOWNED_DIRTY_PATH` selects everything unless a `proven` entry
       covers it: `non-code-unmapped` when a map entry covers it or a Go package directory encloses
       it (a runner owns the tree, but no proven entry names its readers), else
-      `UNOWNED_DIRTY_PATH` (no runner owns it);
+      `UNOWNED_DIRTY_PATH` (no runner owns it). Ownership is the full plan's: the qualified
+      selector (`SelectQualified`, which `corvint test` runs) sets aside an `UNOWNED_DIRTY_PATH`
+      that only its Go-only re-observation reports, such as a Playwright spec another plugin
+      claims, and the CI selector's `unknownNarrowing` names an unowned entry
+      `UNOWNED_DIRTY_PATH <path>`;
    7. every other path is code, or non-code data whose every possible reader the plan already
       proves selected (`goReadData`, AFP-V0-600), or a path an existing reviewed declaration
       classifies (`DECLARED_RUNTIME_READERS`, `DECLARED_NON_SOURCE`, `DECLARED_TEST_OWNER`,
@@ -213,8 +219,10 @@ These rules state how V1-5424 reads the requirements above. They add no requirem
      `tools/release-binary/binaries.json`;
    - generator inputs: `*.proto`, `buf.yaml`, `buf.gen.yaml`, `sqlc.yaml`, `sqlc.yml`,
      `gqlgen.yml`;
-   - `go:embed` inputs: a file a Go package of the selector's index embeds; build-tag inputs are Go
-     sources, which are code and keep the Go rules;
+   - `go:embed` inputs: a non-Go file whose nearest enclosing Go package embeds files. The index
+     records that a package embeds, not which files, so every non-Go file below such a package
+     counts, which can only widen. Build-tag inputs are Go sources, which are code and keep the
+     Go rules;
    - snapshot update paths: anything under a `__snapshots__` directory, `*.snap`, `*.golden`;
    - the map file `.corvint/data-map.json` and `.corvint/test-read-scopes.json` (decided first by
      rule 2.3 as `corvint-config`);
@@ -250,15 +258,33 @@ hand-written read declarations into the map, stays open for the owner and is out
 
 ## Supersession
 
-NCM-V1-005 lists `.corvint/test-read-scopes.json` as never narrowed, so the selector no longer
-narrows an edit of that declaration against the plan's base (AFP-V0-050); the edit now runs
-everything with `corvint-config`. Rule (c) narrowing of the other dirty paths is unchanged.
+The selector now runs everything where these earlier rules narrowed; each test that asserted the
+narrowing asserts the named full run instead, and keeps covering the attribution where
+`packageBounds` (tools/gate-ledger) still applies it:
+
+- An edit of `.corvint/test-read-scopes.json` was narrowed against the plan's base by rule
+  AFP-V0-050; it now runs everything (`corvint-config`; NCM-V1-005 lists it).
+- A sealed CEM under `.corvint/changes/` and the retired sidecar `.corvint/change.cem.json` were
+  narrowed to their resolving readers by rules AFP-V0-152, AFP-V0-2744, AFP-V0-2746, AFP-V0-3423
+  and ADN-V0-011; both now run everything (`corvint-config`, the orchestrator's call above), and
+  build-log entries keep their narrowing.
+- An edit of `.corvint/gated-root-locators.json` was narrowed by the proof of rule TSP-V0-608; it
+  now runs everything (`corvint-config`).
+- A Go package under `.github/` was narrowed by rules AZU-V0-005, AZU-V0-9920 and AFP-V0-9012; it
+  now runs everything (`never-narrowed-path`).
+- An `UNOWNED_DIRTY_PATH` was narrowed by rules CIN-V0-860 (V1-3480), AFP-V0-9013, AFP-V0-9310,
+  AFP-V0-980, AZU-V0-9900 and AFP-V0-2377 (a hosted fixture another plugin could read, a deleted
+  manifest-named file, an unclaimed tracked addition, a data file beside a package); it now runs
+  everything, and a go:embed input runs everything as a never-narrowed path. A Go assembly file
+  the plan leaves unowned runs everything too (TSP-V0-006, case "an assembly file").
 
 ## Surfaces
 
 - `internal/noncodemap`: `Parse`, `Read`, `Evaluate`, `NeverNarrowed`, `Decide`, `Propose`.
 - `internal/gateselect`: `selectPackagesFrom` applies `Decide` to every plan; `AllowedUnknown` no
-  longer admits `UNOWNED_DIRTY_PATH`.
+  longer admits `UNOWNED_DIRTY_PATH`, which also widens the line-evidence plan
+  (`affectedLineBounded`) and `corvint test`'s allowlist; `SelectQualified` takes ownership from
+  the plan.
 - `corvint affected --propose-data-map RECORDED`.
 
 ## Delivery state
@@ -273,12 +299,12 @@ everything with `corvint-config`. Rule (c) narrowing of the other dirty paths is
 
 | Requirement | Tests (package) |
 | --- | --- |
-| NCM-V1-001 | `TestNCMV1001UnmappedFixtureSelectsEverything`, `TestNCMV1001UnownedPathSelectsEverything`, `TestNCMV1001DeclaredDocumentationAddsNothing`, `TestNCMV1001RemovedRunnerSelectsEverything` (`internal/noncodemap`); `TestNCMV1SelectorUnownedFallsBack`, `TestNCMV1SelectorUnavailableRunner`, `TestNCMV1001UnownedOffAllowlist` (`internal/gateselect`) |
+| NCM-V1-001 | `TestNCMV1001UnmappedFixtureSelectsEverything`, `TestNCMV1001UnownedPathSelectsEverything`, `TestNCMV1001DeclaredDocumentationAddsNothing`, `TestNCMV1001RemovedRunnerSelectsEverything` (`internal/noncodemap`); `TestNCMV1SelectorUnownedFallsBack`, `TestNCMV1SelectorUnavailableRunner`, `TestNCMV1001UnownedOffAllowlist`, `TestNCMV1QualifiedKeepsThePlansOwnership` (`internal/gateselect`); `TestSTRV0003BuildVerdicts` case "an unowned path runs everything" (`internal/sessiontest`) |
 | NCM-V1-002 | `TestNCMV1002MissingProofIsProposed` (`internal/noncodemap`) |
 | NCM-V1-003 | `TestNCMV1003ProposalWritesStdoutOnly` (`internal/noncodemap`); `TestNCMV1003ProposeDataMapCommand` (`cmd/corvint`) |
 | NCM-V1-004 | `TestNCMV1004UnprovenEntryDoesNotNarrow` (`internal/noncodemap`) |
 | NCM-V1-005 | `TestNCMV1005NeverNarrowedPaths`, `TestNCMV1005LockfileIgnoresEntry` (`internal/noncodemap`); `TestNCMV1SelectorNeverNarrowed` (`internal/gateselect`) |
 | NCM-V1-006 | `TestNCMV1006CorvintConfigSelectsEverything`, `TestNCMV1006FlowFileAddsLinkedTestsOnly`, `TestNCMV1006LedgerAppendAddsNothing` (`internal/noncodemap`); `TestNCMV1SelectorCorvintConfig`, `TestNCMV1SelectorLedgerAndFlow` (`internal/gateselect`) |
 | NCM-V1-007 | `TestNCMV1007RefusesUnknownVersion`, `TestNCMV1007RefusesUnknownMember`, `TestNCMV1007RefusesMalformedOrOversized` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap` (`internal/gateselect`); `TestNCMV1003ProposeDataMapCommand` (`cmd/corvint`, exit 2) |
-| NCM-V1-008 | `TestNCMV1008StaleEntryDoesNotNarrow` (`internal/noncodemap`) |
+| NCM-V1-008 | `TestNCMV1008StaleEntryDoesNotNarrow` (`internal/noncodemap`); `TestNCMV1SelectorInvalidMap`, `TestNCMV1SelectorConfirmsCitedTests` (`internal/gateselect`) |
 | NCM-V1-009 | `TestNCMV1009RepeatedReadIsByteIdentical`, `TestNCMV1009DecisionIsDeterministic` (`internal/noncodemap`) |
