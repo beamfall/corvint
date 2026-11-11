@@ -17,6 +17,9 @@ Build in this order. Each task names its requirement IDs and the proof that clos
 - [ ] 4 Append from `corvint test` and `corvint watch`; print `run-evidence-write-failed` on
    failure. Requirements: RVD-V1-004, RVD-V1-010. Proof: CLI test that a run adds exactly one
    record, and a test with a read-only store directory.
+   Open: the `corvint test` half and its proof are delivered (V1-5448). `corvint watch` runs
+   `go test` itself and writes no receipt on this tree, so it has no run document to append; its
+   append is not yet built, and this task stays unticked until it is.
 - [ ] 5 Add `flows ingest --record`.
    Requirements: RVD-V1-005. Proof: CLI test that ingest with `--record` adds one record and without
    it prints as before.

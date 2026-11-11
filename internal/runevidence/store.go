@@ -117,7 +117,7 @@ func (s Store) Append(data []byte) (string, error) {
 	}
 	id := ID(data)
 	records := filepath.Join(s.Dir, recordsDir)
-	if err := os.MkdirAll(records, 0o700); err != nil {
+	if err := makeStoreDirs(filepath.Dir(s.Dir), s.Dir, records); err != nil {
 		return "", err
 	}
 	unlock, err := lockFile(filepath.Join(s.Dir, lockName))
@@ -151,6 +151,31 @@ func (s Store) Append(data []byte) (string, error) {
 	}
 	s.removeUnreferenced(kept)
 	return id, nil
+}
+
+// makeStoreDirs creates each directory, in order, 0700. A linked <git-dir>/corvint or store
+// directory could carry the write anywhere, tracked state included, so each must be a real
+// directory before anything is created inside it; a link is refused, never followed.
+func makeStoreDirs(dirs ...string) error {
+	if err := os.MkdirAll(filepath.Dir(dirs[0]), 0o755); err != nil {
+		return err
+	}
+	for _, dir := range dirs {
+		info, err := os.Lstat(dir)
+		if errors.Is(err, fs.ErrNotExist) {
+			if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+				return err
+			}
+			info, err = os.Lstat(dir)
+		}
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%s is not a directory of the store", dir)
+		}
+	}
+	return nil
 }
 
 // writeOnce writes a record through a temporary file and a rename. An existing record of the same
