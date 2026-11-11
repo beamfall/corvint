@@ -318,6 +318,25 @@ func TestBaselineDeclarationEntryASCV9850(t *testing.T) {
 			t.Fatalf("a declared driver input beside the skipped declaration: run=%v %s", got, reason)
 		}
 	})
+	// The limit holds before either side is read: padding keeps both sides
+	// decodable and equal, so only the size check can name the doubt.
+	padded := strings.TrimSuffix(files[scopes], "\n") + strings.Repeat(" ", declarationLimit) + "\n"
+	t.Run("oversize worktree side", func(t *testing.T) {
+		baselineFile(t, root, scopes, padded)
+		defer baselineFile(t, root, scopes, files[scopes])
+		if got := driverDeclarationChange(context.Background(), root, base, "tools/selection-baseline"); got != "the declaration is oversize" {
+			t.Fatalf("oversize worktree declaration: %q", got)
+		}
+	})
+	t.Run("oversize base side", func(t *testing.T) {
+		baselineFile(t, root, scopes, padded)
+		baselineGit(t, root, "commit", "-qam", "oversize")
+		big := baselineGit(t, root, "rev-parse", "HEAD")
+		baselineFile(t, root, scopes, files[scopes])
+		if got := driverDeclarationChange(context.Background(), root, big, "tools/selection-baseline"); got != "the declaration is oversize at "+big {
+			t.Fatalf("oversize base declaration: %q", got)
+		}
+	})
 }
 
 // TestCompareDriverEntryASCV9850: doubt on either side runs.
