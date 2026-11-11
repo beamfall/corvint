@@ -705,17 +705,20 @@ for `DCR-V1-845` and `DCR-V1-846`: experimental under the standing lane auto-acc
   unavailable throughout, that path meets the same warm bounds as the stamp path: median warm
   `freshness_ms` under 100 ms and p95 warm `total_ms` under 1 s. The 100 ms bound is stated for a
   host whose own Git answers at the measured speed. The acceptance test therefore times a Git
-  reference probe beside each warm call: for every checkout at once, the identity read and the
+  reference probe before each warm call: for every checkout at once, the identity read and the
   worktree status one observation is built from, run directly and not through the path under
-  test. The median warm `freshness_ms` must stay under the larger of 100 ms and one and a half
-  times the median probe; the 1 s `total_ms` bound does not scale. Measured on macOS arm64, the
-  probe median was 55 ms against a 48 ms freshness median unloaded and 75 ms against 75 ms under
-  load, so the 100 ms bound holds wherever the probe median is at most 66 ms. Failure mode
-  avoided: a hosted macOS runner whose Git is slower failed the fixed bound at a 104 ms median
-  with no change to the path (V1-5032). Non-goals: a stamp path for those checkouts; a scaled
-  bound for the stamp path of `DCP-V1-317`. The Windows cost is measured through the same code
-  path on Linux, not on a Windows host. Limits: the probe was not measured on a hosted macOS
-  runner, and a regression that keeps the path under one and a half times the probe is not seen on
+  test, with the Git executable and the reduced environment the path itself uses. The median warm
+  `freshness_ms` must stay under the larger of 100 ms and twice the median probe; the 1 s
+  `total_ms` bound does not scale. Measured on macOS arm64 without other load, the probe median
+  was 31 ms against a 40 ms freshness median (ratio 1.3), so the 100 ms bound holds wherever the
+  probe median is at most 50 ms, and twice the probe is a tighter multiple than the 100 ms bound
+  is on the reference host (3.2 times its probe). Failure mode avoided: a hosted macOS runner
+  whose Git is slower failed the fixed bound at a 104 ms median with no change to the path
+  (V1-5032). Non-goals: a stamp path for those checkouts; a scaled bound for the stamp path of
+  `DCP-V1-317`. The Windows cost is measured through the same code path on Linux, not on a
+  Windows host. Limits: the probe omits the private metadata and index copies the path makes, runs
+  before each call and never during it, and its ratio to the path was measured on one unloaded host
+  only; a regression that keeps the path under twice the probe is not seen on
   a host slower than the reference. Acceptance: `TestDCRV1846GitFallbackWarmCallsWithinBudget`;
   `TestDCRV1846BudgetVerdictKeepsRegressionPower` pins the verdict on fixed samples and
   `TestDCRV1846InjectedObservationDelayFailsBudget` proves a delay injected into the observation

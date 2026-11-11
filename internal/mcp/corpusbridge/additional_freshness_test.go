@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
 // multiRepositoryFixture builds a primary repository with a native docs scope and a records
@@ -320,13 +321,26 @@ func gitObservationReference(t testing.TB, checkouts []string) int64 {
 		{"rev-parse", "--show-object-format", "--is-shallow-repository", "HEAD", "HEAD^{tree}", "--git-path", "info/grafts"},
 		{"status", "--porcelain=v1", "-z", "--untracked-files=all"},
 	}
+	// The probe runs the Git binary and the environment the path itself uses: Apple's
+	// /usr/bin/git shim costs several times the binary it resolves to, and an inherited
+	// GIT_DIR or GIT_INDEX_FILE would time some other repository.
+	executable := gitstatus.Executable()
+	environment := []string{
+		"LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull,
+		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1",
+	}
+	for _, name := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
+		if value, exists := os.LookupEnv(name); exists {
+			environment = append(environment, name+"="+value)
+		}
+	}
 	failures := make(chan error, len(checkouts)*len(commands))
 	start := time.Now()
 	for _, dir := range checkouts {
 		for _, arguments := range commands {
 			go func() {
-				c := exec.Command("git", append([]string{"-C", dir, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"}, arguments...)...)
-				c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+				c := exec.Command(executable, append([]string{"-C", dir, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "core.excludesFile=", "-c", "submodule.recurse=false"}, arguments...)...)
+				c.Env = environment
 				if out, err := c.CombinedOutput(); err != nil {
 					failures <- fmt.Errorf("git %v in %s: %w %s", arguments, dir, err, out)
 					return
@@ -344,17 +358,17 @@ func gitObservationReference(t testing.TB, checkouts []string) int64 {
 }
 
 // gitFallbackBudgetVerdict applies DCR-V1-846 to one measured run: the median warm freshness_ms
-// stays under 100 ms, or under one and a half times the median Git reference probe when that is
-// larger, and the nearest-rank p95 warm total_ms stays under 1 s. The probe median is about equal
-// to the freshness median on an unloaded and on a loaded host (measured ratio 0.86 to 1.0), so the
-// scaled bound keeps the 100 ms bound wherever the probe median is at most 66 ms and elsewhere
-// still fails a path that costs half as much again as the Git work it cannot avoid.
+// stays under 100 ms, or under twice the median Git reference probe when that is larger, and the
+// nearest-rank p95 warm total_ms stays under 1 s. On the reference host the freshness median is
+// about 1.3 times the probe median (40 ms against 31 ms), so the scaled bound keeps the 100 ms
+// bound wherever the probe median is at most 50 ms and elsewhere still fails a path that costs
+// twice the Git work it cannot avoid.
 func gitFallbackBudgetVerdict(freshness, total, reference []int64) error {
 	freshness, total, reference = slices.Sorted(slices.Values(freshness)), slices.Sorted(slices.Values(total)), slices.Sorted(slices.Values(reference))
 	median, probe, p95 := freshness[len(freshness)/2], reference[len(reference)/2], warmP95(total)
-	bound := max(100, probe+probe/2)
+	bound := max(100, 2*probe)
 	if median >= bound || p95 >= int64(time.Second/time.Millisecond) {
-		return fmt.Errorf("Git fallback warm freshness median %d ms (bound %d: the larger of 100 and 1.5 times the %d ms Git reference median), total p95 %d ms (bound 1000)", median, bound, probe, p95)
+		return fmt.Errorf("Git fallback warm freshness median %d ms (bound %d: the larger of 100 and twice the %d ms Git reference median), total p95 %d ms (bound 1000)", median, bound, probe, p95)
 	}
 	return nil
 }
@@ -369,19 +383,21 @@ func TestDCRV1846BudgetVerdictKeepsRegressionPower(t *testing.T) {
 		freshness, total, reference int64
 		fails                       bool
 	}{
-		{"reference-speed host within budget", 48, 150, 55, false},
-		{"reference-speed host at the 100 ms bound", 100, 150, 55, true},
-		{"slow host as observed on a hosted macOS runner", 104, 277, 120, false},
-		{"slow host at one and a half times its probe", 180, 277, 120, true},
-		{"slow path on a fast probe", 104, 277, 60, true},
-		{"total tail at 1 s on a slow host", 104, 1000, 120, true},
+		{"reference-speed host within budget", 40, 150, 31, false},
+		{"reference-speed host just under the 100 ms bound", 99, 999, 31, false},
+		{"reference-speed host at the 100 ms bound", 100, 150, 31, true},
+		{"slow host as observed on a hosted macOS runner", 104, 277, 80, false},
+		{"slow host just under twice its probe", 159, 277, 80, false},
+		{"slow host at twice its probe", 160, 277, 80, true},
+		{"slow path on a fast probe", 104, 277, 50, true},
+		{"total tail at 1 s on a slow host", 104, 1000, 80, true},
 	} {
 		if err := gitFallbackBudgetVerdict(fill(c.freshness), fill(c.total), fill(c.reference)); (err != nil) != c.fails {
 			t.Errorf("%s: verdict %v, want failure %t", c.name, err, c.fails)
 		}
 	}
 	// The medians and the nearest-rank p95 decide, not one stalled call or one stalled probe.
-	freshness, total, reference := fill(48), fill(150), fill(55)
+	freshness, total, reference := fill(40), fill(150), fill(31)
 	freshness[3], total[3], reference[7] = 900, 1300, 4000
 	if err := gitFallbackBudgetVerdict(freshness, total, reference); err != nil {
 		t.Errorf("one stalled call and one stalled probe: %v", err)
