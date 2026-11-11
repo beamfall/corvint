@@ -12,6 +12,8 @@ Requirements section is at the 256-obligation OCM limit (`maxObligations`), so t
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
 Lane cir-w35 (V1-4232, V1-4233, V1-4234) defines AFP-V0-100 to AFP-V0-106 here under the parent's
 `AFP-V0` prefix for the same reason; see build-log entry `2026-11-01-cir-w35`.
+Lane guardsel (2026-11-11; V1-5337) defines AFP-V0-9984 here under the same prefix; see build-log
+entry `2026-11-11-guardsel`.
 
 ## Agent digest
 - Claim: CI narrowing isolates producing epochs and provides an operator alarm for missing forward rows independent of selection documents.
@@ -909,6 +911,23 @@ package-level one follows it.
   remove `mainmiss-confirm.sh`, the `merge` member and the MAINCHECK lines of `bar.jq`; MISS rows
   already uploaded stay counted until the epoch advances.
 
+### Forward-row tests fail when their .github half is missing (V1-5337)
+
+Intent (lane guardsel charter, 2026-11-11; V1-5337): `requireGitHubChange` in
+`tools/ci-forward-row/github_change_test.go` skipped a test whose `.github` half was missing. Lane
+ghhalves counted 22 skipped tests at `993c60eba` (CIN-V0-001, 0003, 0960, 7921, 7922, 8421 to 8425,
+AFP-V0-047, 0983 and 02720 among them), so the package passed while nine tickets' CI changes were
+absent from main. At `b55635262` every `.github` half is present and the package reports no skip.
+
+- **AFP-V0-9984:** (experimental; owner-requested V1-5337) A `tools/ci-forward-row` test that
+  asserts a `.github` change SHALL fail, never skip, when the checked-out `.github` lacks the file
+  or the marker it needs: `requireGitHubChange` reports a failure naming the path, the marker and
+  this requirement. A test SHALL prove that a missing file and a missing marker each fail the
+  calling test and are not reported as skipped. Non-goals: this edits no `.github` file and does
+  not move the `.github` assertions out of this package. Failure mode: a later test that lands
+  before its `.github` half fails on main until that half lands, which is the intended signal.
+  Rollback: restore the two `t.Skipf` calls of `requireGitHubChange` and delete the test.
+
 ## Non-goals
 
 merge-queue tree reuse of `go-static`, `go-interop` and `cce-live` (V1-2902 remainder: it needs
@@ -997,6 +1016,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
+| AFP-V0-9984 | `requireGitHubChange` in `tools/ci-forward-row/github_change_test.go` | `TestRequireGitHubChangeFailsNotSkips_AFPV09984` (a helper process for a missing file and a missing marker fails, exit 1, with no SKIP); `go test -v ./tools/ci-forward-row/` reports no SKIP at the lane head |
 | CIN-V0-7921 | the fallback shape (`planned`, `fallback`), `$unplanned`, `$fullRun`, `$fullType`, the `FULL` class and `selection.full` in `.github/forward-rows/row.jq`; the FULL class and `-r<type>` suffix in `collect.sh`; the `$full` count and line in `bar.jq` | `TestCINV07921FallbackSelectionIsATypedFullRow_CINV07921` (`tools/ci-forward-row/fullrow_test.go`: the #163 shape is FULL/skew with no incomplete reason, a failing package under it is no miss, another no-plan reason is abstain, a planned whole run is plan, a FULL document without a reason still fails the shape, one unplanned shard beside planned shards is INCOMPLETE, a planned FULL shard beside them stays CLEAN; fault injection: without the FULL branch the same run is CLEAN, or MISS once a package fails), `TestCINV07921CollectorNamesTheFullRowWithItsType_CINV07921` (the collector names `-rskew` and `-rplan`, and a dry-run that printed nothing stays INCOMPLETE), `TestCINV07921FullRowsAreNotNarrowingEvidence_CINV07921` (twenty abstained rows: NOT MET, 0 complete, clear; beside eight complete rows the count is unchanged and a FULL re-run replaces nothing; the pre-change CLEAN and INCOMPLETE names reproduce the defect; the four #163 INCOMPLETE names over three merges count three, as FULL none), `TestCINV07921FallbackRerunsKeepTheVerdictMet_CINV07921` (`accept.sh` over the #163 listing: MET with FULL names, FULL with a tripped switch under the old INCOMPLETE names); hosted FULL row `NOT_OBSERVED` |
 | CIN-V0-7922 | `.github/workflows/main-miss.yml`; `merge`, `epoch` and `earlierEpoch` in `mainmiss.sh` and `mainmiss.jq`; `.github/forward-rows/mainmiss-confirm.sh`; the MAINCHECK lines and `mainMiss.checks` of `bar.jq`; `script/ci-least-privilege-exceptions.tsv` | `TestCINV07922ConfirmationRerunsClassifyEachSuspectedPullRequest_CINV07922` (`tools/ci-forward-row/mainmiss_confirm_test.go`, a real Git repository and a go stand-in: pass/fail/fail confirms and names a MISS row, a package absent at the base confirms on its merge failures, a merge pass is a flake, a base failure is preexisting, a merge commit off main or none is unconfirmed; the reruns are base once and merge twice with the shard's flags; MAX_PACKAGES and BUDGET_SECONDS leave the rest unconfirmed; an unusable base capture confirms nothing; no worktree is left), `TestCINV07922EarlierEpochMissIsLeftOut_CINV07922` (a miss of a known earlier epoch is not rerun and gets no check entry or MISS row, one of the current or an unknown epoch is confirmed and names `selectionEpoch`, and a document holding only earlier-epoch misses confirms nothing), `TestCINV07922MainMissBelongsToItsSelectionEpoch_CINV07922` (`tools/ci-forward-row/mainmiss_test.go`: the fake `gh` serves the pull-request run's selection documents; epoch 2 stays a miss with `epoch` 2, epoch 1 is listed in `earlierEpoch` with no name and no row, mixed epochs and no documents stay misses with `epoch` null), `TestCINV07922ConfirmedMainMissIsAMissRow_CINV07922` (a MISS row from a confirmed miss makes the bar NOT MET, two trip the switch, MAINMISS and MAINCHECK names feed neither and are reported), `TestCINV07922MainMissWorkflowBinding_CINV07922` (the workflow's trigger, trusted checkout, scripts, flags, deadline equal to `run_slice`, uploads, issue step, failure step, permissions, epoch, and the control plane without the job); `TestAFPV0983MainFailureNamesTheNarrowedPullRequest` (the miss carries `merge`); local replay of the protocol for #104 and #109 in `docs/build-log/2026-11-09-misskill.md`; hosted confirmation `NOT_OBSERVED` |
 | CIN-V0-7600 | `admits`, `recordJobLine`, `successfulJob`, `recorded`, `recordedNarrowed` in `tools/ci-reuse-plan/main.go` | `TestCINV07600RecordAdmitsBeforeAdvisoryCompletion`, `TestCINV07600RecordAdmissionFailsClosed`, `TestCINV07600NarrowedRecordRequiresItsAggregateAndGuards`, `TestCINV07600ReplayPR99`; old/new retained-input replay in `2026-11-05-ci-reuse-record-admission`; hosted REUSE pending workflow listing follow-up |
