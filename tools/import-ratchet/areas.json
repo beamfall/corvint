@@ -68,7 +68,6 @@
         "internal/trace",
         "internal/tracerecordrepo",
         "internal/tracerepopaths",
-        "internal/unplannedread",
         "internal/untrackedallowance",
         "internal/versionline",
         "internal/webdialect",

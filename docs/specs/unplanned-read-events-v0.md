@@ -3,17 +3,19 @@
 Owner: Russell Lewis
 Frozen: 2026-09-11
 Requirement prefix: `URE-V0`
-Intent status: proposed
-Delivery status: experimental
+Intent status: retired 2026-11-11 (decision 0594)
+Delivery status: retired
+Retirement base: b55635262788687c3eea9a08a94378e4ab8856a4
+Retirement note: decision 0594 (owner, 2026-11-09, the test-selection refocus) removed context delivery, the `corvint reads` command and the Claude Code adapter call sites, and its item 3 removes orphan packages that no kept binary reaches; V1-5240 deleted `internal/unplannedread` as unreached code on 2026-11-11 (b55635262 is the last tree with it). The body below is historical and its requirement IDs stay for traceability.
 Authoritative inputs: `AGENTS.md` invariants 4 and 7, `docs/specs/self-observation-ledger-v0.md`
 (the bounds this ledger copies), `docs/specs/task-context-packet-v0.md` (the packet whose paths
 define "planned"), `docs/PRODUCT.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: an explicitly opt-in local ledger counts reads Corvint failed to prevent, so packet quality has a number instead of an impression.
-- Status: proposed/experimental
-- Exists: `internal/unplannedread`, `corvint reads`, `corvint reads enable|disable`, and the marker-gated Claude Code adapter call sites (`URE-V0-008`, `URE-V0-009`).
-- Blocked on: an enabled-ledger sample of at least ten registered sessions for the gate below.
+- Status: retired 2026-11-11 (decision 0594) / retired
+- Exists: nothing; `internal/unplannedread`, `corvint reads` and the adapter call sites were deleted (read them at b55635262).
+- Blocked on: nothing; retired by decision 0594.
 - Read next: Requirements; Non-goals and authority; Proposed invariant 4 amendment; Failure modes.
 
 ## User and measurable job
@@ -257,20 +259,8 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 
 ## Traceability
 
-| Requirement | Delivery | First authoritative evidence |
-|---|---:|---|
-| `URE-V0-001` | experimental | `TestClassifyPlannedAndUnplanned`, `TestClassifyAbsentPathContainment`, `TestRelativeAliasesAndUncertainty`, `TestClassifyStoredSpelling` |
-| `URE-V0-002` | experimental | `TestBashHeuristic`, `TestBashHeuristicNeverInventsPath`, `TestBashLaterSegmentContext`, `TestHookResolvesRelativeOperandFromPayloadCwd` |
-| `URE-V0-003` | experimental | `TestAppendDisabledIsNoOp`, `TestLedgerRequiresIgnoreEntries` |
-| `URE-V0-004` | experimental | `TestAppendEnabledRotatesAtCap`, `TestSymlinkedLedgerIsRefused`, `TestLedgerRequiresIgnoreEntries`, `TestURE004AppendRefusesSwappedLedgerDirectory` |
-| `URE-V0-005` | experimental | `TestDigestMath`, `TestSymlinkedLedgerIsRefused`, `TestDroppedHookErrorSurfacesAcrossProcesses`, `TestReadRejectsRowsOutsideTheWriterContract`, `TestReadReportsLedgerCut` |
-| `URE-V0-006` | experimental | `TestHookPostToolNeverErrors`, `TestDroppedHookErrorSurfacesAcrossProcesses` |
-| `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle` (removed), `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` (removed) |
-| `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed), `TestURE008WatchdogSettlesPacketOnce` (removed) |
-| `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` (removed) |
-| `URE-V0-996` | experimental | `internal/frictionmetric`: `TestURE996MetricDefinitions` (removed), `TestURE996MissingInputIsNotObserved` (removed), `TestURE996RefusesMalformedRecords` (removed) |
-| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric` (removed), `TestURE997EvalFrictionReportsWithoutMutating` (removed) |
-| `URE-V0-998` | experimental | `internal/frictionmetric`: `TestURE998BenchmarkPrecisionRecall` (removed) |
+Retired by decision 0594: this table cited code and tests deleted as unreached code.
+Read it at the last tree that held them: `git show b55635262:docs/specs/unplanned-read-events-v0.md`.
 
 ## Unresolved decisions
 
