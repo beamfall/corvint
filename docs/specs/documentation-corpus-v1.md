@@ -942,8 +942,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `schema` and `capabilities` alone: tool advertisement needs no rederivation, and an artifact whose
   header cannot be read still fails startup with `corpus-unavailable`. The first tool call opens
   and rederives the artifact (`DCP-V1-011`; amended by `DCR-V1-416` to the verified read) and keeps it; a later call reuses it only while the
-  artifact bytes still match the startup digest and every pinned revision still resolves to its
-  tree, and otherwise rederives. A rederivation failure is that call's typed failure. Each result
+  artifact bytes still match the served digest and every pinned revision still resolves to its
+  tree, and otherwise rederives. When the configured file's bytes change, the next call opens the
+  new artifact with the same verified read and serves it, replacing the served digest and header,
+  or refuses with the verification reason and never answers from the replaced artifact
+  (`DMF-V1-011`). A rederivation failure is that call's typed failure. Each result
   reports `load` as `first-call` or `reused` with the load time.
 - `DCP-V1-144`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
   V1-1982)) Live readers re-resolve only the symbol anchors cited by the records a query returns
