@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 // TestSTRV0800DryRunSummaryIsBounded pins V1-3382: a FULL dry run over
@@ -67,7 +68,7 @@ func TestDryRunCIKeepsPinnedJSONDefault(t *testing.T) {
 	t.Parallel()
 	m := sessiontest.Manifest{Scope: "BOUNDED", Placement: "universe", ShardCount: 1}
 	var out, errout bytes.Buffer
-	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), testOptions{profile: "ci", dryRun: true}, &out, &errout); code != 0 {
+	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), testOptions{profile: "ci", dryRun: true}, testinventory.Verdict{}, &out, &errout); code != 0 {
 		t.Fatalf("exit=%d %s", code, &errout)
 	}
 	if !json.Valid(out.Bytes()) {
@@ -83,7 +84,7 @@ func TestDryRunSummaryBoundsBothOutputStreams(t *testing.T) {
 		m.Units = append(m.Units, sessiontest.Unit{Adapter: "go", Slice: "whole", Unit: fmt.Sprintf("go:example.test/m/pkg%03d", i), Reason: fmt.Sprintf("whole: DIRECT_SOURCE_CHANGE via pkg%03d/source.go", i)})
 	}
 	var out, errout bytes.Buffer
-	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), testOptions{profile: "local", dryRun: true}, &out, &errout); code != 0 {
+	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), testOptions{profile: "local", dryRun: true}, testinventory.Verdict{}, &out, &errout); code != 0 {
 		t.Fatalf("exit=%d %s", code, &errout)
 	}
 	if out.Len()+errout.Len() > 4096 {
@@ -199,7 +200,7 @@ func TestDryRunOversizedNoticeSharesSummaryBudget(t *testing.T) {
 	var out, errout bytes.Buffer
 	errout.WriteString(notice)
 	options := testOptions{profile: "local", dryRun: true, summaryNoticeBytes: len(notice)}
-	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), options, &out, &errout); code != 0 {
+	if code := testDryRun(m, "sha256:fixture", sessiontest.Declared{}, t.TempDir(), options, testinventory.Verdict{}, &out, &errout); code != 0 {
 		t.Fatalf("exit=%d %s", code, &errout)
 	}
 	if out.Len()+errout.Len() > testSummaryLimit {

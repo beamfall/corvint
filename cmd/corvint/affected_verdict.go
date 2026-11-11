@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/sessiontest"
+	"github.com/Beamfall/corvint/internal/testinventory"
 )
 
 // affectedVerdictProfile names the `affected --summary` document
@@ -39,6 +40,12 @@ type affectedVerdict struct {
 	// E2E names the plan's E2E selections when the plan carries plan.e2e
 	// (APK-V0-9970, V1-5254); absent otherwise, so the verdict is unchanged.
 	E2E *affectedVerdictE2E `json:"e2e,omitempty"`
+
+	// Inventory is the committed test inventory judged against the planned
+	// tree (TIV-V1-006 to TIV-V1-009): each declared runner instance with
+	// its reason when it runs in full, and its unassigned test files. It is
+	// read only; it never narrows the selection.
+	Inventory *testinventory.Verdict `json:"inventory,omitempty"`
 }
 
 // affectedVerdictE2E is plan.e2e reduced to what a lane runs: the scope, the
@@ -201,18 +208,30 @@ func renderAffectedVerdictText(verdict affectedVerdict) string {
 			fmt.Fprintf(&out, "e2e-unknown %s\n", textWord(reason))
 		}
 	}
+	if verdict.Inventory != nil {
+		fmt.Fprintf(&out, "inventory %s\n", inventoryVerdictLine(*verdict.Inventory))
+		for _, instance := range verdict.Inventory.Instances {
+			if instance.Full {
+				fmt.Fprintf(&out, "inventory %s full %s\n", textWord(instance.Key), instance.Reason)
+			} else if len(instance.Unassigned) != 0 {
+				fmt.Fprintf(&out, "inventory %s unassigned %d\n", textWord(instance.Key), len(instance.Unassigned))
+			}
+		}
+	}
 	return out.String()
 }
 
 // writeAffectedVerdict writes the --summary document for a compact receipt;
-// root's go.mod resolves the canonical test IDs of its Go units.
-func writeAffectedVerdict(receipt any, root, format string, stdout, stderr io.Writer) int {
+// root's go.mod resolves the canonical test IDs of its Go units, and
+// inventory is the test inventory judged against the planned tree.
+func writeAffectedVerdict(receipt any, root, format string, inventory testinventory.Verdict, stdout, stderr io.Writer) int {
 	compact, ok := receipt.(affectedCompactReceipt)
 	if !ok {
 		emitError(stderr, argumentError("--summary has no verdict for this receipt"))
 		return 2
 	}
 	verdict := affectedVerdictOf(compact, sessiontest.GoUnitDir(root))
+	verdict.Inventory = &inventory
 	var err error
 	if format == "text" {
 		_, err = io.WriteString(stdout, renderAffectedVerdictText(verdict))

@@ -225,6 +225,8 @@ func topicText(topic string) string {
 		return testsHelp
 	case "watch":
 		return watchHelp
+	case "inventory":
+		return inventoryHelp
 	case "context":
 		return taskContextHelp + cpuProfileHelpNote
 	case "index":
@@ -272,6 +274,7 @@ Commands:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
     watch  rerun the tests a save can affect (LPCV-V0)
+    inventory  refresh the committed test inventory (TIV-V1)
     test-plan  test consolidation plan (TCN-V0)
     test-evidence  read retained test dependencies (RSP-V0)
     test-validity  project a live-test receipt (MTV-V0)
@@ -501,12 +504,17 @@ Example: corvint affected --base FULL_SHA --format text
 --summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
 the plan: summary, tiers {counts, summary, tier0, tier1, testIds} with the
 sorted tier-0 and tier-1 unit names a lane runs locally and each one's
-canonical test ID (CTI-V1-009), range {base, paths count}, degradations and
-warning, and e2e {scope, inventory, selected, variations, unknown} when the
-plan carries E2E flow selections (APK-V0-9970); --format text writes it as
-lines ("affected <summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1
-UNIT" per unit, then the "e2e-scope", "e2e-variation", "e2e" and "e2e-unknown"
-lines). It never changes the selection.
+canonical test ID (CTI-V1-009), range {base, paths count}, degradations,
+warning, e2e {scope, inventory, selected, variations, unknown} when the plan
+carries E2E flow selections (APK-V0-9970), and inventory: the committed test
+inventory (.corvint/test-inventory.json) judged against the planned tree, each
+declared runner instance with inventory-absent, inventory-stale or
+inventory-invalid when it runs in full and its unassigned test files
+(TIV-V1-006 to TIV-V1-009); --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit,
+then the "e2e-scope", "e2e-variation", "e2e" and "e2e-unknown" lines, then
+"inventory STATE ..."). It never changes the selection and never writes the
+inventory.
 Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
