@@ -527,17 +527,23 @@ links the coverage contradicts as coverage-contradiction conflicts; and every pa
 test it cannot classify as an unknown with a reason. Source maps are not resolved.
 
 Documentation usage:
-  corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...
+  corvint-docs [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
   corvint-docs [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
 
 docs renders the page from the committed intents with a fixed template, marks every
 claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are
 repository-relative and each is replaced through a temporary file and a rename.
 --docs-root checks corvint-claim anchor comments in committed Markdown under DIR.
+--waivers reads the committed flow-doc-waivers/0 file in generation and --check
+alike: a claim an unexpired waiver names that is not PROVEN renders on the page and
+in the sidecar as "WAIVED until DATE (now STATE)"; an expired waiver never applies.
 --check writes flow-doc-check/0 to stdout and writes nothing: it fails when a
-committed PROVEN claim is no longer PROVEN or the committed bytes differ from
-regeneration, unless an unexpired entry of the committed flow-doc-waivers/0 file
-names the claim, and it fails on an unknown or invalid anchor.
+committed PROVEN claim is no longer PROVEN (unless an unexpired waiver names it) or
+the committed bytes differ from regeneration, and it fails on an unknown or invalid
+anchor; expired_waivers names each expired waiver it found. On a byte failure,
+byte_detail says whether the page, the sidecar or both differ, lists each claim
+whose state or detail changed (UNKNOWN when the committed sidecar is missing) and
+names the regenerate command. worktree says whether a read input differs from HEAD.
 
 Experimental maintenance (FDM-V0, proposed):
   corvint-docs [--root PATH] flows docs maintain --flows DIR --page FILE --claims FILE

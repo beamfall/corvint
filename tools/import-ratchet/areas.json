@@ -23,6 +23,7 @@
         "internal/diagnostic",
         "internal/doccorpus",
         "internal/docsenvelope",
+        "internal/docworktree",
         "internal/execfile",
         "internal/extevidence",
         "internal/flowcoverage",

@@ -109,7 +109,7 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 		return Failure(AffectedErrorProfile, name, "invalid-root", "repository unavailable")
 	}
 	if ctx.Err() != nil {
-		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		return Cancelled(AffectedErrorProfile, name) // DMF-V1-010
 	}
 	if group.gate != nil {
 		// A call waiting behind another run honours its own cancellation and
@@ -118,13 +118,13 @@ func (group Affected) Call(ctx context.Context, name string, arguments map[strin
 		case group.gate <- struct{}{}:
 			defer func() { <-group.gate }()
 		case <-ctx.Done():
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+			return Cancelled(AffectedErrorProfile, name)
 		}
 	}
 	var stdout, stderr bytes.Buffer
 	if exit := group.Run(ctx, group.Root, base, &stdout, &stderr); exit != 0 {
 		if ctx.Err() != nil {
-			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+			return Cancelled(AffectedErrorProfile, name)
 		}
 		code, message := affectedFailure(stderr.Bytes())
 		return Failure(AffectedErrorProfile, name, code, message)

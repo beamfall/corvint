@@ -15,7 +15,6 @@ var indexedTools = []struct{ name, args string }{
 	{"corvint.docs_flow", `{"id":"docs"}`},
 	{"corvint.docs_claims", `{"path":"docs/p1.md"}`},
 	{"corvint.docs_dependencies", `{"id":"docs"}`},
-	{"corvint.docs_recommend_tests", `{"path":"docs/p1.md"}`},
 	{"corvint.docs_gaps", `{}`},
 	{"corvint.docs_intent", `{"id":"docs"}`},
 	{"corvint.docs_navigation", `{"id":"docs"}`},

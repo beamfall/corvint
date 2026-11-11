@@ -3,7 +3,7 @@
 package flowdocs
 
 import (
-	"fmt"
+	"errors"
 	"path"
 	"regexp"
 	"sort"
@@ -266,7 +266,20 @@ func evidence(a doccorpus.Anchor) doccorpus.Evidence {
 func identity(kind, key string) string {
 	return "flowdocs:" + kind + ":" + doccorpus.Digest([]byte(key))[:32]
 }
-func fail(s string) error { return fmt.Errorf("flowdocs-refused: %s", s) }
+func fail(s string) error { return &refusal{s} }
+
+// refusal is a deterministic flow-docs refusal: an answer about the manifest, inventory or source
+// it reads, never a failure to run (a Git, I/O or context error).
+type refusal struct{ reason string }
+
+func (r *refusal) Error() string { return "flowdocs-refused: " + r.reason }
+
+// Refused reports whether err is, or wraps, a flow-docs refusal. A caller composing checks reports
+// a refused manifest as not checked and fails on any other error (DMF-V1-002).
+func Refused(err error) bool {
+	var r *refusal
+	return errors.As(err, &r)
+}
 
 func webExtent(code []string, start int) int {
 	depth := strings.Count(code[start], "{") - strings.Count(code[start], "}")

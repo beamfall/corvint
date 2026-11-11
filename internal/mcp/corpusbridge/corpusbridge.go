@@ -40,9 +40,12 @@ type Registry struct {
 	root, path, digest string
 	identity           os.FileInfo
 	header             header
-	load               chan struct{}
-	artifact           *doccorpus.Artifact
-	pins               []string
+	// state guards digest and header, which a verified reload of a rebuilt
+	// artifact replaces while calls are served (DMF-V1-011).
+	state    sync.RWMutex
+	load     chan struct{}
+	artifact *doccorpus.Artifact
+	pins     []string
 	// pinStamp is the pin reuse key (pinReuseKey) captured before the last
 	// successful verification of pins; while the key is unchanged the
 	// verification is not repeated (DCP-V1-316). It is guarded by load.
@@ -144,7 +147,10 @@ const FullView = "full"
 // adds claim hits to the subject hits (DCP-V1-328) rather than restricting the result to claims.
 const SearchIncludeDescription = `include ["claims"] adds claim hits to the subject hits, ranked together and labelled in result_kinds; for claims only, use the claims operation (corvint.docs_claims).`
 
-var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_recommend_tests": "recommend-tests", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
+// tools maps each corpus MCP tool to its operation. No tool answers which tests to run:
+// corvint.docs_recommend_tests is removed and test questions go to corvint mcp (DMF-V1-009, R42
+// B2); the corpus recommend-tests operation stays a CLI read only.
+var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
 
 func New(root, path string) (*Registry, *Error) {
 	absolute, err := filepath.Abs(root)
@@ -204,7 +210,21 @@ func readHeader(raw []byte) (header, error) {
 	}
 	return h, nil
 }
-func (r *Registry) Tools() []bridge.ToolDescriptor { return descriptors(r.header) }
+func (r *Registry) Tools() []bridge.ToolDescriptor { return descriptors(r.currentHeader()) }
+
+// currentHeader and currentDigest read the served artifact's header and digest, which a reload
+// replaces (DMF-V1-011).
+func (r *Registry) currentHeader() header {
+	r.state.RLock()
+	defer r.state.RUnlock()
+	return r.header
+}
+
+func (r *Registry) currentDigest() string {
+	r.state.RLock()
+	defer r.state.RUnlock()
+	return r.digest
+}
 
 // AllTools lists every corpus tool as a SchemaV2 artifact declaring every
 // capability would. The unified corvint-mcp server lists it while its configured
@@ -264,7 +284,7 @@ func descriptors(h header) []bridge.ToolDescriptor {
 			// DCS-V1-597: or a query over flow ids, names and linked test files and titles.
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 		}
-		if op == "locate" || op == "recommend-tests" {
+		if op == "locate" {
 			// DCP-V1-310: an optional declared repository's root-commit identity.
 			properties["repository"] = map[string]any{"type": "string", "minLength": 40, "maxLength": 64}
 		}
@@ -301,11 +321,9 @@ func descriptors(h header) []bridge.ToolDescriptor {
 			// DCP-V1-098: downstream flow-relation depth for a flow subject.
 			properties["depth"] = map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxFlowDepth}
 		}
-		description := "Read source-revalidated experimental documentation corpus evidence; generated authority and explicit limitations remain."
-		if op == "search" {
-			description += " " + SearchIncludeDescription + " " + SearchReceiptDescription
-		}
-		result = append(result, bridge.ToolDescriptor{Name: name, Description: description, Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
+		// DMF-V1-008: a distinct description per tool and a description on every property.
+		describeProperties(op, properties)
+		result = append(result, bridge.ToolDescriptor{Name: name, Description: toolDescription(op), Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result
@@ -313,7 +331,7 @@ func descriptors(h header) []bridge.ToolDescriptor {
 
 // ArtifactSHA256 is the configured artifact's digest, the corpus identity an
 // outcome log is bound to (DCP-V1-285).
-func (r *Registry) ArtifactSHA256() string { return r.digest }
+func (r *Registry) ArtifactSHA256() string { return r.currentDigest() }
 
 func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map[string]any, string, *ToolFailure, *Error) {
 	result, text, failure, protocol, _ := r.CallTimed(ctx, name, arguments)
@@ -331,11 +349,25 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		return timing
 	}
 	op, ok := tools[name]
-	if !ok || !r.header.has(op) {
+	if !ok {
 		return nil, "", nil, &Error{"unsupported-tool"}, finish()
 	}
 	if ctx.Err() != nil {
 		return nil, "", nil, &Error{"cancelled"}, finish()
+	}
+	// Every check that depends on the artifact header uses the header in force after a rebuilt
+	// artifact is served (DMF-V1-011): a tool the served header lacks is decided after the
+	// configured artifact is checked, since a rebuild may declare it.
+	var read *artifactRead
+	if !r.currentHeader().has(op) {
+		var refusal *ToolFailure
+		read, refusal, _ = r.refresh(ctx, name, op, &timing)
+		if !r.currentHeader().has(op) {
+			return nil, "", nil, &Error{"unsupported-tool"}, finish()
+		}
+		if refusal != nil {
+			return nil, "", refusal, nil, finish()
+		}
 	}
 	var input struct {
 		Retirement *doccorpus.RetirementPolicy `json:"retirement,omitempty"`
@@ -366,7 +398,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "caller_revision" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && (op == "locate" || op == "recommend-tests") || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
+		allowed := key == "retirement" || key == "caller_revision" || key == "offset" || key == "limit" || key == "query" && (kind == "query" || op == "claims" || op == "locate" || op == "navigation") || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || (key == "include" || key == "receipt") && op == "search" || key == "repository" && op == "locate" || key == "kind" && (op == "gaps" || op == "search" || op == "locate" || op == "claims") || key == "exclude_kind" && op == "claims" || (key == "state" || key == "qualifier" || key == "run") && op == "claims"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -417,18 +449,17 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if _, has := members["caller_revision"]; has && (input.Caller == "" || !doccorpus.ValidCallerRevision(input.Caller)) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	identity, err := os.Lstat(r.root)
-	if err != nil || !os.SameFile(identity, r.identity) {
-		return nil, "", &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil, finish()
-	}
-	read := r.artifactReader()
-	if !read.unchanged {
-		if _, err := read.bytes(); err != nil {
-			if errors.Is(err, errArtifactChanged) {
-				return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil, finish()
-			}
-			return failure(err, finish())
+	if read == nil {
+		var refusal *ToolFailure
+		var protocol *Error
+		if read, refusal, protocol = r.refresh(ctx, name, op, &timing); refusal != nil || protocol != nil {
+			return nil, "", refusal, protocol, finish()
 		}
+	}
+	// offset pages a SchemaV2 artifact only (a /1 artifact has none), judged by the header in
+	// force after the artifact check above (DMF-V1-011).
+	if _, has := members["offset"]; has && r.currentHeader().Schema != doccorpus.SchemaV2 {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
 	// DCP-V1-653, DCP-V1-654: the receipt view and include ["capabilities"]
 	// shape only the corpus wire receipt; the corpus query sees
@@ -843,6 +874,95 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, stamp s
 	return overlay, nil
 }
 
+// refresh refuses a call whose repository root was replaced, then checks the configured artifact
+// and, when its bytes changed, verifies and serves the rebuilt artifact (DMF-V1-011). It returns
+// the artifact read the call continues with, or the call's refusal.
+func (r *Registry) refresh(ctx context.Context, name, op string, timing *Timing) (*artifactRead, *ToolFailure, *Error) {
+	identity, err := os.Lstat(r.root)
+	if err != nil || !os.SameFile(identity, r.identity) {
+		return nil, &ToolFailure{"corpus-input-unavailable", "repository root changed"}, nil
+	}
+	read := r.artifactReader()
+	if read.unchanged {
+		return read, nil, nil
+	}
+	if _, err := read.bytes(); err != nil {
+		if !errors.Is(err, errArtifactChanged) {
+			code, message := failureCode(err)
+			return nil, &ToolFailure{code, message}, nil
+		}
+		// DMF-V1-011: a rebuilt artifact is verified as the first open does and then
+		// served; one that fails is refused with its reason, never answered from the
+		// artifact it replaced.
+		if err := r.reload(ctx, read.changedStamp, read.changed, timing); err != nil {
+			if ctx.Err() != nil {
+				return nil, nil, &Error{"cancelled"}
+			}
+			_, reason := failureCode(err)
+			return nil, &ToolFailure{"corpus-refused", "configured artifact changed and the new artifact failed verification: " + reason + "; the previous artifact is not served"}, nil
+		}
+		if !r.currentHeader().has(op) {
+			return nil, &ToolFailure{"corpus-refused", "the rebuilt artifact does not declare the capability " + name + " needs"}, nil
+		}
+		read = r.artifactReader()
+	}
+	return read, nil, nil
+}
+
+// reload opens the configured artifact again after its bytes changed: it reads the header and
+// opens the artifact with the same verified read the first call uses, then replaces the served
+// digest, header, artifact, pins and memos in one step under the load slot. A call already holding
+// the previous artifact finishes on it; the next call answers from the new one. A failure changes
+// nothing, so every later call checks the file again and is refused while it still fails
+// (DMF-V1-011).
+//
+// The bytes the call read are used only while the file still has the stamp captured before that
+// read; otherwise the file is read again under the load slot. A call that read older bytes and
+// waited for the slot while another call verified and installed newer ones therefore never
+// installs its older bytes over them: it reads the file again and, finding the installed digest,
+// changes nothing. An unchanged stamp costs no second read (DCR-V1-417).
+func (r *Registry) reload(ctx context.Context, stamp string, raw []byte, timing *Timing) error {
+	select {
+	case r.load <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-r.load }()
+	step := time.Now()
+	if current := artifactFileStamp(r.root, r.path); raw == nil || stamp == "" || current != stamp {
+		fresh, err := readArtifactFile(r.root, r.path)
+		if err != nil {
+			return err
+		}
+		stamp, raw = current, fresh
+	}
+	digest := doccorpus.Digest(raw)
+	if digest == r.currentDigest() {
+		return nil // another call already reloaded these bytes
+	}
+	h, err := readHeader(raw)
+	if err != nil || h.Schema == "" {
+		return &doccorpus.Error{Code: "corpus-refused", Message: "artifact header unreadable"}
+	}
+	a, err := doccorpus.OpenRead(ctx, r.root, raw, doccorpus.ReadOptions{})
+	if err != nil {
+		return err
+	}
+	timing.Load, timing.LoadMS = "first-call", time.Since(step).Milliseconds()
+	r.state.Lock()
+	r.digest, r.header = digest, h
+	r.state.Unlock()
+	r.artifact, r.pins, r.pinStamp = a, pinnedRevisions(a.Manifest), ""
+	r.index.artifact, r.index.value, r.index.err = nil, nil, nil
+	r.live.Lock()
+	r.live.key, r.live.artifact, r.live.overlay, r.live.stamp = "", nil, doccorpus.FreshnessOverlay{}, ""
+	r.live.Unlock()
+	r.artifactFile.Lock()
+	r.artifactFile.stamp = stamp
+	r.artifactFile.Unlock()
+	return nil
+}
+
 // readArtifactFile reads the configured artifact; tests replace it to count
 // reads (DCR-V1-417).
 var readArtifactFile = doccorpus.ReadCorpusFile
@@ -859,6 +979,11 @@ type artifactRead struct {
 	stamp     string
 	unchanged bool
 	raw       []byte
+	// changed holds the bytes of a read whose digest differs from the served one, and
+	// changedStamp the stamp captured before that read, for the reload that verifies them
+	// (DMF-V1-011).
+	changed      []byte
+	changedStamp string
 }
 
 func (r *Registry) artifactReader() *artifactRead {
@@ -871,9 +996,10 @@ func (r *Registry) artifactReader() *artifactRead {
 
 // artifactFlight is one shared artifact read and digest check.
 type artifactFlight struct {
-	done chan struct{}
-	raw  []byte
-	err  error
+	done  chan struct{}
+	raw   []byte
+	err   error
+	stamp string
 }
 
 // bytes reads the artifact and checks it against the startup digest. The
@@ -891,12 +1017,15 @@ func (a *artifactRead) bytes() ([]byte, error) {
 		f.Unlock()
 		<-flight.done
 		if flight.err != nil {
+			if errors.Is(flight.err, errArtifactChanged) {
+				a.changed, a.changedStamp = flight.raw, flight.stamp
+			}
 			return nil, flight.err
 		}
 		a.raw = flight.raw
 		return a.raw, nil
 	}
-	flight := &artifactFlight{done: make(chan struct{})}
+	flight := &artifactFlight{done: make(chan struct{}), stamp: a.stamp}
 	f.flight = flight
 	f.Unlock()
 	flight.raw, flight.err = a.read()
@@ -908,6 +1037,9 @@ func (a *artifactRead) bytes() ([]byte, error) {
 	f.Unlock()
 	close(flight.done)
 	if flight.err != nil {
+		if errors.Is(flight.err, errArtifactChanged) {
+			a.changed, a.changedStamp = flight.raw, flight.stamp
+		}
 		return nil, flight.err
 	}
 	a.raw = flight.raw
@@ -919,8 +1051,8 @@ func (a *artifactRead) read() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if doccorpus.Digest(raw) != a.r.digest {
-		return nil, errArtifactChanged
+	if doccorpus.Digest(raw) != a.r.currentDigest() {
+		return raw, errArtifactChanged
 	}
 	return raw, nil
 }
