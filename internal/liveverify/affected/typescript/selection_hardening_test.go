@@ -149,6 +149,8 @@ func TestSLFV1003ComputedGlobKeepsTheFrontier(t *testing.T) {
 		`require.context(dir)`,
 		`require.context("./pages", true, /(?<=x)\.tsx$/)`,
 		`import.meta.glob`,
+		`import.meta.glob("./pages/{1..3}.tsx")`,
+		`import.meta.glob("./pages/[[:alpha:]]*.tsx")`,
 	} {
 		root := viteGlobProject(t, call)
 		if result := unitsOf(t, root); !frontierAt(result, FrontierDynamicImport, "src/routes.ts:1") {
@@ -194,6 +196,92 @@ func TestSLFGlobRegexpDialect(t *testing.T) {
 	}
 	if _, ok := globRegexp("src/!(skip).ts"); ok {
 		t.Error("a negated extglob was translated")
+	}
+	// A brace range is not a list of literals, and the first-`]` scan
+	// mis-splits a POSIX class: both refuse rather than narrow.
+	for _, glob := range []string{"src/{1..3}.ts", "src/{a..c}/*.ts", "src/[[:alpha:]]*.ts", "src/[![:digit:]]*.ts"} {
+		if _, ok := globRegexp(glob); ok {
+			t.Errorf("%s was translated", glob)
+		}
+	}
+	// path.Match reads `[!x]` as the characters `!` and `x`, not a negation, so
+	// a membership glob with one falls back to its literal directory.
+	for glob, want := range map[string]string{
+		"src/pages/[!h]*.tsx":     "[/src/pages]",
+		"src/[[:alpha:]]/*.ts":    "[/src]",
+		"src/{1..3}/*.ts":         "[/src]",
+		"src/pages/[ab]*.tsx":     "[/src/pages/[ab]*.tsx]",
+		"src/pages/[]x]*.tsx":     "[/src/pages]",
+		"src/pages/{a,[!h]}*.tsx": "[/src/pages/a*.tsx /src/pages]",
+	} {
+		if got := fmt.Sprint(membershipGlobs(glob)); got != want {
+			t.Errorf("membershipGlobs(%s) = %s, want %s", glob, got, want)
+		}
+	}
+}
+
+// SLF-V1-003: a negated class in a literal glob keeps a membership reader that
+// sees a new file the class admits; `/src/pages/[!h]*.tsx` would have read the
+// class as `!` or `h` and missed it.
+func TestSLFV1003NegatedClassMembership(t *testing.T) {
+	withGate(t, &globExpansionNarrowing)
+	root := viteGlobProject(t, `import.meta.glob("./pages/[!h]*.tsx")`)
+	routes := sourceUnit(unitsOf(t, root), "src/routes.ts")
+	if fmt.Sprint(routes.Imports) != "[typescript:src/pages/about.tsx]" || fmt.Sprint(routes.PathGlobs) != "[/src/pages]" {
+		t.Errorf("negated class imports=%v globs=%v", routes.Imports, routes.PathGlobs)
+	}
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "src/pages/contact.tsx", "export default 1\n")
+	added := affected.Select(graph, []string{"src/pages/contact.tsx"})
+	if !slices.Contains(added.SelectedTests(), "tests/routes.test.ts") {
+		t.Fatalf("new file the class admits: selected=%v unknown=%+v", added.SelectedTests(), added.Unknown)
+	}
+}
+
+// SLF-V1-003: require.context's membership glob for every root and recursion
+// combination; at the repository root the non-recursive glob is `/*`, since
+// `/*/*` misses a file at the root itself.
+func TestSLFV1003RequireContextMembershipGlobs(t *testing.T) {
+	for _, tc := range []struct {
+		importer, call, want string
+	}{
+		{"loader.ts", `require.context(".", false)`, "[/*]"},
+		{"loader.ts", `require.context(".", true)`, "[/*]"},
+		{"loader.ts", `require.context("./")`, "[/*]"},
+		{"src/routes.ts", `require.context("..", false)`, "[/*]"},
+		{"src/routes.ts", `require.context("./", false)`, "[/src/*]"},
+		{"src/routes.ts", `require.context("./pages", false)`, "[/src/pages/*]"},
+		{"src/routes.ts", `require.context("./pages", true)`, "[/src/pages]"},
+		{"src/routes.ts", `require.context("./pages")`, "[/src/pages]"},
+	} {
+		call := loaderCallAt(tc.call, loaderContext, 0, strings.IndexByte(tc.call, '('))
+		expansion, literal := expandLoader(tc.importer, call, nil, New().Owns)
+		if !literal || fmt.Sprint(expansion.globs) != tc.want {
+			t.Errorf("%s in %s: literal=%v globs=%v, want %s", tc.call, tc.importer, literal, expansion.globs, tc.want)
+		}
+	}
+
+	withGate(t, &globExpansionNarrowing)
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "loader.ts", "export const modules = require.context(\".\", false, /\\.ts$/)\n")
+	write(t, root, "a.ts", "export const a = 1\n")
+	write(t, root, "tests/loader.test.ts", "import { test } from \"vitest\"\nimport { modules } from \"../loader\"\ntest(\"loader\", () => modules)\n")
+	loader := sourceUnit(unitsOf(t, root), "loader.ts")
+	if fmt.Sprint(loader.PathGlobs) != "[/*]" || !slices.Contains(loader.Imports, "typescript:a.ts") {
+		t.Errorf("root context imports=%v globs=%v", loader.Imports, loader.PathGlobs)
+	}
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, "b.ts", "export const b = 2\n")
+	added := affected.Select(graph, []string{"b.ts"})
+	if !slices.Contains(added.SelectedTests(), "tests/loader.test.ts") {
+		t.Fatalf("new root file: selected=%v unknown=%+v", added.SelectedTests(), added.Unknown)
 	}
 }
 
@@ -251,6 +339,31 @@ func TestSLFV1004ComputedMockTarget(t *testing.T) {
 	}
 	if slices.Contains(New().SourceBoundFrontiers(), FrontierMockTarget) {
 		t.Fatal("a mock target may name any module, so it must stay path-open")
+	}
+}
+
+// SLF-V1-004: jest.setMock, jest.unstable_mockModule, jest.requireMock and
+// vi.importMock name their module as jest.mock and vi.mock do: a literal
+// target is a reference and a computed one raises the mock-target frontier.
+func TestSLFV1004OtherMockCalls(t *testing.T) {
+	for _, call := range []string{
+		`jest.setMock("../src/db", { db: 2 })`,
+		`jest.unstable_mockModule("../src/db", () => ({ db: 2 }))`,
+		`jest.requireMock("../src/db")`,
+		`vi.importMock("../src/db")`,
+	} {
+		root := t.TempDir()
+		write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+		write(t, root, "src/db.ts", "export const db = 1\n")
+		write(t, root, "tests/db.test.ts", "import { test, vi, jest } from \"vitest\"\n"+call+"\ntest(\"db\", () => 1)\n")
+		if plan := buildPlan(t, root, "src/db.ts"); !slices.Contains(plan.SelectedTests(), "tests/db.test.ts") {
+			t.Errorf("%s: selected=%v unknown=%+v", call, plan.SelectedTests(), plan.Unknown)
+		}
+		computed := strings.Replace(call, `"../src/db"`, `pathFor("db")`, 1)
+		write(t, root, "tests/db.test.ts", "import { test, vi, jest } from \"vitest\"\n"+computed+"\ntest(\"db\", () => 1)\n")
+		if result := unitsOf(t, root); !frontierAt(result, FrontierMockTarget, "tests/db.test.ts:2") {
+			t.Errorf("%s: frontier = %v", computed, result.Frontier)
+		}
 	}
 }
 
