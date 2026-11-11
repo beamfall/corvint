@@ -38,6 +38,7 @@
         "internal/mcp",
         "internal/observations",
         "internal/observedstale",
+        "internal/pathbrief",
         "internal/pinnedread",
         "internal/plansnapshot",
         "internal/procgroup",

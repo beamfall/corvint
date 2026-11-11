@@ -53,6 +53,7 @@ var notPlanner = map[string]string{
 	".corvint/ci-job-inputs.json":     "read by `corvint affected jobs` (internal/jobinputs) to decide CI jobs, never by the test planner or selector",
 	".corvint/dogfood-report.json":    "the dogfood run report",
 	".corvint/record-readers.json":    "the AFP-V0-2745 ratchet record read by tools/unbounded-readers, not by the planner",
+	".corvint/requirement-links.json": "the path-to-requirement links read by `corvint context --path` (internal/pathbrief), never by the test planner or selector",
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",
 }
 
