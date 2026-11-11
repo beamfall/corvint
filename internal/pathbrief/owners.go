@@ -21,20 +21,38 @@ type ownerRule struct {
 func parseOwners(text string) []ownerRule {
 	var rules []ownerRule
 	for index, line := range strings.Split(text, "\n") {
-		fields := strings.Fields(strings.TrimSpace(line))
-		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
+		pattern, rest := splitOwnerPattern(strings.TrimSpace(line))
+		if pattern == "" || strings.HasPrefix(pattern, "#") {
 			continue
 		}
 		owners := []string{}
-		for _, field := range fields[1:] {
+		for _, field := range strings.Fields(rest) {
 			if strings.HasPrefix(field, "#") {
 				break
 			}
 			owners = append(owners, field)
 		}
-		rules = append(rules, ownerRule{line: index + 1, pattern: fields[0], owners: owners, match: ownerPattern(fields[0])})
+		rules = append(rules, ownerRule{line: index + 1, pattern: pattern, owners: owners, match: ownerPattern(pattern)})
 	}
 	return rules
+}
+
+// splitOwnerPattern cuts a CODEOWNERS line at the first space or tab that no backslash escapes.
+// An escaped space is part of the pattern and is returned as a plain space.
+func splitOwnerPattern(line string) (pattern, rest string) {
+	var out strings.Builder
+	for index := 0; index < len(line); index++ {
+		switch {
+		case line[index] == '\\' && index+1 < len(line) && line[index+1] == ' ':
+			out.WriteByte(' ')
+			index++
+		case line[index] == ' ' || line[index] == '\t':
+			return out.String(), line[index:]
+		default:
+			out.WriteByte(line[index])
+		}
+	}
+	return out.String(), ""
 }
 
 // ownerPattern translates one CODEOWNERS pattern. A pattern with a slash before its end is

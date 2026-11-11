@@ -74,4 +74,14 @@ func TestParseOwnersAndOwnerOf(t *testing.T) {
 	if ownerOf(nil, "a") != -1 {
 		t.Error("no rules")
 	}
+	// An escaped space is part of the pattern, not the end of it.
+	spaced := parseOwners("* @all\ndocs/my\\ file.md @docs @more\nold\\ dir/\t@dir\n")
+	if len(spaced) != 3 || spaced[1].pattern != "docs/my file.md" || !slices.Equal(spaced[1].owners, []string{"@docs", "@more"}) || !slices.Equal(spaced[2].owners, []string{"@dir"}) {
+		t.Fatalf("escaped spaces: %+v", spaced)
+	}
+	for name, want := range map[string]int{"docs/my file.md": 1, "docs/my": 0, "old dir/x.go": 2, "x/old dir/y": 2, "other.md": 0} {
+		if got := ownerOf(spaced, name); got != want {
+			t.Errorf("ownerOf(%q) = %d, want %d", name, got, want)
+		}
+	}
 }
