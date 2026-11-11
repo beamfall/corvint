@@ -1,0 +1,70 @@
+# Reviewed allowlist of tokens cited in a tracked Go file, a Makefile or AGENTS.md that match the
+# requirement-id shape but are not requirement ids: checksum and standard names, codes, labels and
+# ids that exist only inside a test fixture (RDG-V0-9980, V1-5324). Format: id<TAB>reason, sorted
+# (LC_ALL=C); the reason is required. A requirement id that no spec defines never goes here: define
+# it, fix the citation, or leave it in script/requirement-citations-undefined.txt. A line whose id is
+# defined in a spec or no longer cited fails as stale.
+A-001	fixture requirement id that exists only inside test fixtures (internal/cem/workflow/review_projection_tiers_test.go)
+A-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go, script/spec-coverage-audit/main_test.go)
+A-V1-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/links_test.go)
+AB-123	fixture requirement id that exists only inside test fixtures (interop/cem01-go/citation_test.go)
+ABC-123	fixture requirement id that exists only inside test fixtures (interop/cem01-go/citation_test.go)
+ABC-V0-001	fixture requirement id that exists only inside test fixtures (tools/test-commands-check/dogtools_test.go)
+ABC-V0-150	fixture requirement id that exists only inside test fixtures (tools/test-commands-check/dogtools_test.go)
+ABC-V1-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/export_test.go)
+ALP-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/authority_screen_test.go, internal/contextindex/spec_cited_test.go, internal/contextindex/taskcontext_widening_test.go)
+APP-100	external ticket id in a doccorpus adoption test record, not a requirement id
+ASD-V0-500	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
+ASD-V0-501	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
+ASD-V0-502	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
+BET-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/authority_screen_test.go, internal/contextindex/taskcontext_widening_test.go)
+BIL-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_candidate_kind_test.go)
+BLOCKER-404	prefix of the app-map blocker code BLOCKER-404-NO-ROUTE, not a requirement id
+CACHE-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/analyzer_schema_test.go)
+CART-001	test-obligation name in a testsource fixture record, not a requirement id
+CEM-XY-101	fixture requirement id that exists only inside test fixtures (internal/cem/verify/support_test.go)
+CEM-XY-105	fixture requirement id that exists only inside test fixtures (internal/cem/workflow/citation_support_test.go)
+CG-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/named_path_rank_test.go)
+DEMO-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_anchors_test.go)
+DEMO-V0-002	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_anchors_test.go)
+DMX-V0-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/fixture_helpers_test.go)
+DMX-V0-002	fixture requirement id that exists only inside test fixtures (cmd/corvint/fixture_helpers_test.go)
+DUP-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+ECMA-262	ECMAScript standard number in a schema-pattern comment, not a requirement id
+ENG-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go, internal/contextindex/sufficiency_test.go)
+EX-V0-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/source_handoff_test.go)
+EX-V0-002	fixture requirement id that exists only inside test fixtures (cmd/corvint/source_handoff_test.go)
+FIX-V0-001	fixture requirement id that exists only inside test fixtures (tools/merge-drivers/main_test.go)
+FIX-V0-002	fixture requirement id that exists only inside test fixtures (tools/merge-drivers/main_test.go)
+GAM-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/authority_screen_test.go, internal/contextindex/taskcontext_widening_test.go)
+ISO-123	example of prose that admits nothing, in a context-index comment and its test; not a requirement id
+LRF-001	fixture requirement id that exists only inside test fixtures (interop/cem01-go/citation_test.go)
+LRF-CLI-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/core_freeze_test.go)
+NAV-007	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+NET-V0-001	fixture requirement id that exists only inside test fixtures (internal/capcatalog/capcatalog_test.go)
+OTH-V0-001	fixture requirement id that exists only inside test fixtures (tools/requirement-id-collisions/main_test.go)
+QUE-001	fixture requirement id that exists only inside test fixtures (cmd/corvint/core_freeze_test.go)
+R-001	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
+R-002	fixture requirement id that exists only inside test fixtures (internal/pathbrief/brief_test.go)
+RDM-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+ROW-000	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
+ROW-021	TUI row label expected by the pi-tui fixture (tools/pi-tui-fixture/main.go), not a requirement id
+RUN-V0-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
+RUN-V0-002	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
+RUN-V0-003	fixture requirement id that exists only inside test fixtures (internal/contextindex/spec_cited_test.go)
+SHA-256	hash algorithm name (SHA-256), not a requirement id
+SHR-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+SHR-002	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+T-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+WID-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+X-V0-001	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-002	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-003	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-004	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-005	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-006	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+X-V0-007	fixture requirement id that exists only inside test fixtures (internal/specindex/requirements_test.go)
+XGPK-V0-014	negative case of the spec-coverage-audit id matcher test: a token that must not read as GPK-V0-014
+ZED-001	fixture requirement id that exists only inside test fixtures (internal/contextindex/taskcontext_widening_test.go)
+ZQX-449	unknown-id control string in a task-context widening test, not a requirement id
+ZZZ-404	unknown-id probe in a task-context widening test, not a requirement id
