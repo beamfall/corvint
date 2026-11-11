@@ -13,7 +13,7 @@ import (
 // requiredGoVersion is the exact toolchain identity PUB-V0-003 pins the
 // release build to. It is deliberately not a prefix match: any other
 // installed Go, including a newer patch release, refuses the build.
-const requiredGoVersion = "go1.27.3"
+const requiredGoVersion = "go1.27.4"
 
 // Toolchain records the exact, absolute Go and Git identities a release
 // source export used.

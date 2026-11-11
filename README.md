@@ -80,7 +80,7 @@ with the code.
 
 ## Try it in sixty seconds
 
-You need Git and Go 1.27.3 or later on macOS or Linux. Build the binary from a checkout:
+You need Git and Go 1.27.4 or later on macOS or Linux. Build the binary from a checkout:
 
 ```console
 git clone https://github.com/beamfall/corvint.git
@@ -194,11 +194,11 @@ Corvint is built with Corvint. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
 checks the owning spec requires. Repository-wide validation uses the exhaustive gate:
 
 ```console
-test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.4"
 GOTOOLCHAIN=local make gate
 ```
 
-The gate pins exactly `go1.27.3`. If your `go` reports another patch version, install the pinned
+The gate pins exactly `go1.27.4`. If your `go` reports another patch version, install the pinned
 toolchain alongside it and put its `bin` directory first on `PATH` for gate commands only. Core
 builds and the native regression suite do not need Python; adapter tests use their hosts' Node
 runtime ([native regression ownership](tests/README.md)).

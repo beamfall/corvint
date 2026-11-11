@@ -412,9 +412,7 @@ func TestCINV07922MainMissWorkflowBinding_CINV07922(t *testing.T) {
 		t.Fatal("ci.yml's run_slice no longer runs with -timeout 50m; TEST_TIMEOUT in main-miss.yml must follow")
 	}
 	// The shard step skips the live tier (AFP-V0-2702); the reruns must run the same tests.
-	// V1-5408 stage B: the shard step's GOVERSION assert names go1.27.3 or go1.27.4 while the pin moves.
-	shardStep := "          CORVINT_SKIP_LIVE_TIER: \"1\"\n        run: |\n          test \"$(go env GOVERSION)\" = \"go1.27.3\"\n          # AFP-V0-097/098"
-	if !strings.Contains(ci, shardStep) && !strings.Contains(ci, strings.Replace(shardStep, "go1.27.3", "go1.27.4", 1)) {
+	if !strings.Contains(ci, "          CORVINT_SKIP_LIVE_TIER: \"1\"\n        run: |\n          test \"$(go env GOVERSION)\" = \"go1.27.4\"\n          # AFP-V0-097/098") {
 		t.Fatal("ci.yml's shard Go test step no longer sets CORVINT_SKIP_LIVE_TIER; the confirm step of main-miss.yml must follow")
 	}
 	// No MISS row is uploaded outside the CORVINT_MAIN_MISS_KILL gate.

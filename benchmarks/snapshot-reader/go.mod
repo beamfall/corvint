@@ -1,6 +1,6 @@
 module github.com/Beamfall/corvint/benchmarks/snapshot-reader
 
-go 1.27.3
+go 1.27.4
 
 require modernc.org/sqlite v1.58.0
 
