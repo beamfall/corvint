@@ -29,7 +29,8 @@ handled as before this change.
 
 For a subtest citation `TestName/REQ-ID`, the gate MUST fail unless the body of at least one tracked
 declaration of `TestName` contains `REQ-ID`. The body is the declaration line alone when that line
-closes every brace it opens and ends on a closing brace; otherwise it is the text from the
+closes every brace it opens and ends on a closing brace, where a brace inside a string literal, a
+rune literal or a comment that begins and ends on that line is not counted; otherwise it is the text from the
 declaration line to the first later line that is exactly `}` in column 0, or to the end of the
 file. The ID is contained
 only when it is not directly preceded by a letter, a digit or `-` and not directly followed by a

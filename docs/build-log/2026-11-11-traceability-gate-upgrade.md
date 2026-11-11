@@ -96,6 +96,11 @@ before any change; the spec amendment (`91c32387a`) precedes the script commit (
 - Raw-string brace (P2, confirmed by a repro). Not parsed: TTG-V0-961 and the trust-boundary table
   state that a column-0 `}` in a raw string ends the body, and the refusal now reads
   `(no declaration of T contains ID; each body was read from its func line to the first column-0 }: FILE...)`.
+- Quoted brace on the declaration line (P2, batch review, confirmed by a fixture that fails on the
+  earlier script). `func TestX(t *testing.T) { _ = "{" }` counted the quoted brace, was not read as
+  a one-line test and took the next function as its body; a declaration line whose only closing
+  brace was quoted was read as a one-line test. Braces inside a string literal, a rune literal or
+  a comment that begins and ends on the declaration line are no longer counted (TTG-V0-961).
 - `(PLANNED)` demotion (P3). A fixture pins that a demoted name does not cite, so the requirement
   is reported as losing its last citation unless the row states `(untested: REASON)`.
 - Unstated rules (P3). TTG-V0-960 and TTG-V0-962 now say that one resolving name cites every

@@ -162,7 +162,8 @@ my %tests = map { $_ => 1 } keys %{ $head_tests->{decl} };
 my $req_id = qr/[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+/;
 
 # TTG-V0-961: the body of a declaration is its `func TestName(` line alone when that line closes
-# every brace it opens and ends on a closing brace (a one-line test); otherwise it runs to the first
+# every brace it opens and ends on a closing brace (a one-line test), not counting braces inside
+# string, rune and comment text that begins and ends on that line; otherwise it runs to the first
 # later line that is exactly `}` in column 0 (gofmt closes a top-level function there), or to the
 # end of the file. The reading is lexical: a column-0 `}` inside a raw string ends the body too,
 # which the refusal states. The ID counts only when no letter, digit or `-` precedes it and no
@@ -179,8 +180,10 @@ sub body_has_id {
             my $start = $-[1];
             my $eol = index($source, "\n", $start);
             my $line = $eol < 0 ? substr($source, $start) : substr($source, $start, $eol - $start);
+            # Braces inside the line's string, rune and comment text open and close nothing.
+            (my $code = $line) =~ s{"(?:[^"\\]|\\.)*"|`[^`]*`|'(?:[^'\\]|\\.)*'|/\*.*?\*/|//.*}{}g;
             my ($depth, $last) = (0, '');
-            for my $brace ($line =~ /[{}]/g) {
+            for my $brace ($code =~ /[{}]/g) {
                 $depth += $brace eq '{' ? 1 : -1;
                 $last = $brace;
             }

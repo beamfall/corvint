@@ -146,7 +146,8 @@ arguments, and requires only `git` and `perl` on `PATH`.
   experimental) For a subtest citation `TestName/REQ-ID`, the gate MUST fail unless the body of at
   least one tracked declaration of `TestName` contains `REQ-ID`. The body is the declaration line of
   TTG-V0-001 alone when that line closes every brace it opens and its last brace is a closing one,
-  as in `func TestOne(t *testing.T) { t.Skip() }`; otherwise it is the text from the declaration
+  as in `func TestOne(t *testing.T) { t.Skip() }`, where a brace inside a string literal, a rune
+  literal or a comment that begins and ends on that line is not counted; otherwise it is the text from the declaration
   line to the first later line that is exactly `}` in column 0, or to the end of the file. The ID is
   contained only when it is not directly preceded by a letter, a digit or `-` and not directly
   followed by a letter or a digit; comments and string literals count. The index form reads bodies
