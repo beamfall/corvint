@@ -319,6 +319,9 @@ func TestSymlinksPhysicalTarget_AFPV09965(t *testing.T) {
 		{"second_root", "/q/a.sh", []string{"/r", "/q"}, "a.sh", true},
 		{"case_fold", "/R/a.sh", []string{"/r"}, ".", true},
 		{"outside", "/elsewhere/a.sh", []string{"/r"}, "", false},
+		// Fails closed: a non-ASCII target outside every root still reads
+		// as the root, a precision cost, not a miss.
+		{"non_ascii_outside", "/elsewhere/é.sh", []string{"/r"}, ".", true},
 	} {
 		if got, ok := physicalTarget(row.reached, row.roots); got != row.want || ok != row.ok {
 			t.Errorf("%s: physicalTarget(%q, %q) = %q, %v; want %q, %v", row.name, row.reached, row.roots, got, ok, row.want, row.ok)
