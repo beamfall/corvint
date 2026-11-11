@@ -9,7 +9,8 @@ set -eu
 # enumeration to the Git index: `make gate` must measure what a fresh clone contains, not what the
 # dirty worktree happens to hold. V1-1062 adds the unquoted prose range and a real duplicate;
 # RDG-V0-021 adds the outside-Requirements ratchet and its stale-baseline refusal; RDG-V0-022 the
-# definition-shaped near miss; RDG-V0-023 the wrapped-line citation.
+# definition-shaped near miss; RDG-V0-023 the wrapped-line citation; RDG-V0-9980 the ids cited in Go
+# files, a Makefile and AGENTS.md with their frozen baseline.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-requirement-definitions-test.XXXXXX")
@@ -187,6 +188,82 @@ esac
 printf '%s\n' "$saved_tsv" > "$test_root/docs/specs/REQUIREMENTS.tsv"
 printf '%s\n' "$saved_alpha" > "$test_root/docs/specs/alpha.md"
 stage
+
+# RDG-V0-9980 (V1-5324): an id cited in a Go file, a Makefile or AGENTS.md that no live spec
+# defines fails, naming the id and its first citing line, unless the frozen baseline lists it;
+# a baseline line that is now defined or no longer cited fails as stale.
+mkdir -p "$test_root/cmd/zeta"
+printf 'package main\n\n// ZETA-V0-001: an undefined requirement.\nfunc main() {}\n' > "$test_root/cmd/zeta/main.go"
+stage
+if out=$(run); then fail "an undefined id cited in a Go file should fail"; fi
+case $out in
+    *"cited in Go code, a Makefile or AGENTS.md"*"ZETA-V0-001 cmd/zeta/main.go:3"*) ;;
+    *) fail "the undefined Go citation should be named, got: $out" ;;
+esac
+# shellcheck disable=SC2016
+printf 'package main\n\n// ALPHA-V0-001 and `ALPHA-V0-002` are defined; ZETA-V0-0015 has four digits.\nfunc main() {}\n' \
+    > "$test_root/cmd/zeta/main.go"
+stage
+out=$(run) || fail "a Go citation of defined ids, and a four-digit id, should pass, got: $out"
+
+printf 'gate: ## ZETA-V0-002 builds the thing\n\ttrue\n' > "$test_root/Makefile"
+stage
+if out=$(run); then fail "an undefined id cited in the Makefile should fail"; fi
+case $out in
+    *"ZETA-V0-002 Makefile:1"*) ;;
+    *) fail "the undefined Makefile citation should be named, got: $out" ;;
+esac
+rm "$test_root/Makefile"
+
+printf '# Agents\n\nThe release rule is ZETA-V0-003.\n' > "$test_root/AGENTS.md"
+stage
+if out=$(run); then fail "an undefined id cited in AGENTS.md should fail"; fi
+case $out in
+    *"ZETA-V0-003 AGENTS.md:3"*) ;;
+    *) fail "the undefined AGENTS.md citation should be named, got: $out" ;;
+esac
+
+printf '# Undefined requirement ids cited outside specs (RDG-V0-9980). Remove lines only.\nZETA-V0-003\n' \
+    > "$test_root/script/requirement-citations-undefined.txt"
+stage
+out=$(run) || fail "a baselined undefined citation should pass, got: $out"
+
+printf '# Agents\n\nThe release rule is ALPHA-V0-001.\n' > "$test_root/AGENTS.md"
+stage
+if out=$(run); then fail "a baseline line no longer cited should fail as stale"; fi
+case $out in
+    *"script/requirement-citations-undefined.txt"*"stale"*"ZETA-V0-003"*) ;;
+    *) fail "the stale baseline line should be named, got: $out" ;;
+esac
+printf '# Undefined requirement ids cited outside specs (RDG-V0-9980). Remove lines only.\nALPHA-V0-001\n' \
+    > "$test_root/script/requirement-citations-undefined.txt"
+stage
+if out=$(run); then fail "a baseline line whose id is now defined should fail as stale"; fi
+case $out in
+    *"stale"*"ALPHA-V0-001"*) ;;
+    *) fail "the defined baseline line should be named, got: $out" ;;
+esac
+rm "$test_root/script/requirement-citations-undefined.txt"
+
+# A definition in a retired spec is no live definition; a testdata citation is not read.
+# shellcheck disable=SC2016
+printf '# Old\n\nDelivery status: retired\n\n## Requirements\n\n- `OLD-V0-001`: removed behaviour.\n' \
+    > "$test_root/docs/specs/old.md"
+printf '# Agents\n\nStill cites OLD-V0-001.\n' > "$test_root/AGENTS.md"
+mkdir -p "$test_root/cmd/zeta/testdata"
+printf 'package fixture\n\n// ZETA-V0-009 is fixture text.\n' > "$test_root/cmd/zeta/testdata/fixture.go"
+stage
+if out=$(run); then fail "an id defined only in a retired spec should fail"; fi
+case $out in
+    *"OLD-V0-001 AGENTS.md:3"*) ;;
+    *) fail "the retired-only citation should be named, got: $out" ;;
+esac
+case $out in
+    *ZETA-V0-009*) fail "a testdata citation was read: $out" ;;
+esac
+rm -r "$test_root/docs/specs/old.md" "$test_root/AGENTS.md" "$test_root/cmd"
+stage
+run > /dev/null || fail "the fixture should pass again once the citations are gone"
 
 # A Git operational failure is not evidence that the tracked TSV is absent.
 real_git=$(command -v git)
