@@ -155,12 +155,12 @@ the foreign-caller scan reads as a constructed `script/` path and so invalidated
   `EOF )` otherwise) and runs what follows; a body line such as `body ) x` stays data; dash
   refuses all three forms. The lexer now ends the body there and lexes the rest, and every
   here-document no delimiter line ends (cut by the substitution, at end of file, an operator on
-  the last line or on its substitution's closing line, an escaped ANSI-C delimiter) holds the
+  the last line or on its substitution's closing line) holds the
   file as a dynamic source, in command strings and trap handlers too. Tests:
   `TestIncompleteHereDocumentsHold_AFPV09971`, `TestHereDocumentFixturesAgreeWithBash_AFPV09971`.
-- P3: `<<$'EOF'` and `<<$''` ended only at a literal `$EOF` line, so the source after them was
-  data on base and head; bash decodes the delimiter and runs it. The delimiter is now decoded.
-  Test: `TestAnsiCQuotedDelimiter_AFPV09971`.
+- P3: `<<$'EOF'` and `<<$''` end only at a literal `$EOF` (or `$`) line, while bash decodes
+  them. Round 1 decoded `$'...'` and `$"..."`; fix round 2 reverted that decode (see below), so
+  this is NOT_DONE.
 - V1-5226 AC1: `TestWrappedStartupAssignments_AFPV09976` covers `timeout`, `nice`, `nohup`,
   `time`, `exec` and `command` before a `BASH_ENV` assignment, directly and through `env` (it
   passes at the first-round head, whose any-word assignment rule already held these; origin/main
@@ -168,6 +168,27 @@ the foreign-caller scan reads as a constructed `script/` path and so invalidated
   `LUA_CPATH`, `LUA_INIT` in every versioned form are startup names
   (`TestMoreInterpreterStartupNames_AFPV09976`).
 - Each new hold test failed at the first-round head `35af15b47` except the two noted above.
+
+## Fix round 2 (re-review: one new P1 from the round-1 decode)
+
+- P1: the round-1 ANSI-C/locale decode removed a `$` before any quote in the raw delimiter, so
+  `<<'$''EOF'`, `<<"$"'EOF'` and `<<\$'EOF'`, whose delimiter is the literal `$EOF` in bash 5.3
+  and dash, ended at a later `EOF` line instead and swallowed `. "$X"`, losing the hold. The decode
+  is reverted; the delimiter is the base `unquote(raw)` again. Regression test:
+  `TestQuotedDollarDelimiter_AFPV09971` (four-line files; each case failed at `a9a033a6b`). The
+  round-1 decode-only assertions (a decoded `<<$'EOF'` body and a closed `<<$'EOF'` control) are
+  removed; `TestAnsiCQuotedDelimiterWidens_AFPV09971` keeps the hold rows, now held by the
+  end-of-file rule.
+- NOT_DONE, `<<$'EOF'` decoding (pre-existing on base): the delimiter stays `$EOF`. With no later
+  `$EOF` line the body reaches the end of the text and holds the file; a file that also holds a
+  `$EOF` line reads the commands between the `EOF` and `$EOF` lines as data, as on the base.
+- NOT_DONE, pre-existing P2s on which base and head agree: `unquote` deletes every quote
+  character (`shell.go`, `unquote`), and `((x<<2))` opens a here-document (`lex.go`, the `<<`
+  case of `parse`).
+- The bash oracle `TestHereDocumentFixturesAgreeWithBash_AFPV09971` runs in the heavy slot
+  (`command -v bash` there is `/usr/bin/bash`, bash 5.3.9) and logs the binary; without bash it
+  skips with a reason that `-v` prints.
+- The differential rerun at the fix-round-2 tree: the same summary line as above, PASS.
 
 Rollback: revert the lane commits and drop the 16 units from `.corvint/unbounded-readers.json`
 and the two `docs/build-log/` record-reader entries.

@@ -2943,12 +2943,16 @@ in build-log entry `docs/build-log/2026-11-11-shellwalk.md`.
   whose body ends at the first empty line (after leading tabs are stripped for `<<-`), read as
   data like any other body; its lines SHALL NOT be lexed as commands. Only a missing delimiter
   word opens none. An ANSI-C or locale quoted delimiter (`<<$'EOF'`, `<<$"EOF"`) SHALL end at its
-  decoded spelling, as in bash. Inside a command substitution, a body line that starts with the
+  decoded spelling, as in bash: NOT_DONE (fix round 2). The delimiter keeps the base derivation
+  (`$EOF`), which is exact for `<<'$''EOF'`, `<<"$"'EOF'` and `<<\$'EOF'` (both shells end at a
+  `$EOF` line); a `<<$'EOF'` body ends only at a later `$EOF` line or the end of the text, which
+  the end-of-file rule below holds, so only a file that also holds a later `$EOF` line reads the
+  commands between as data, as on the base. Inside a command substitution, a body line that starts with the
   delimiter and whose rest holds the unbalanced `)` SHALL end the body, its rest lexed as the
   shell text that closes the substitution (bash ends `$(cat <<''` at the `)` line and
   `$(cat <<EOF` at `EOF)`). A here-document that no delimiter line ends, one so cut, one whose
-  operator line closes its substitution or ends the text, and one whose ANSI-C delimiter holds an
-  escape SHALL hold the file as a `shell:dynamic-source`: shells disagree on such a body (dash
+  operator line closes its substitution or ends the text SHALL hold the file as a
+  `shell:dynamic-source`: shells disagree on such a body (dash
   refuses the substitution forms), so it is never treated as complete data. The same holds for a
   command string and a trap handler holding one.
 - **AFP-V0-9972:** (proposed 2026-11-11; delivery experimental; V1-5217)
@@ -3306,8 +3310,11 @@ dash when present and checks the shells read the file the plugin names),
 `x=$(cat <<''\nbody\n)\n. "$X"`, `EOF)`, end of file without the delimiter, an operator on the
 last line or on its substitution's closing line, an escaped ANSI-C delimiter and a command string
 each hold; closed bodies, including one with a `)` in a body line, do not),
-`TestAnsiCQuotedDelimiter_AFPV09971` and `TestHereDocumentFixturesAgreeWithBash_AFPV09971` (bash
-runs the source after each fixture). AFP-V0-9972 to
+`TestAnsiCQuotedDelimiterWidens_AFPV09971` (undecoded ANSI-C and locale delimiters reach the end
+of the text and hold), `TestQuotedDollarDelimiter_AFPV09971` (`<<'$''EOF'`, `<<"$"'EOF'` and
+`<<\$'EOF'` end at the `$EOF` line and the source after it holds; each failed with the round-1
+decode) and `TestHereDocumentFixturesAgreeWithBash_AFPV09971` (bash runs the source after each
+fixture). AFP-V0-9972 to
 AFP-V0-9974 (V1-5217): `TestWalkerOptionValues_AFPV09972`, `TestGitPathOutputWalks_AFPV09973`
 and `TestAwkProgramFiles_AFPV09974`. AFP-V0-9975 to AFP-V0-9977 (V1-5226):
 `TestWrappedCommands_AFPV09975`, `TestInterpreterStartupNames_AFPV09976`,
